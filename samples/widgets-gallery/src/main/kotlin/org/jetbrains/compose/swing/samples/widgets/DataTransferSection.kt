@@ -8,7 +8,6 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.FlowPanel
-import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.border
@@ -51,7 +50,7 @@ private fun DragAndDropCard() {
             )
         }
         FlowPanel {
-            Panel(
+            FlowPanel(
                 modifier =
                     SwingModifier
                         .preferredSize(Dimension(240, 60))

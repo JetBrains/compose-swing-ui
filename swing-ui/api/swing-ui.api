@@ -175,12 +175,6 @@ public final class org/jetbrains/compose/swing/components/layout/ComposableSingl
 	public final fun getLambda$1253374999$swing_ui ()Lkotlin/jvm/functions/Function2;
 }
 
-public final class org/jetbrains/compose/swing/components/layout/ComposableSingletons$PanelKt {
-	public static final field INSTANCE Lorg/jetbrains/compose/swing/components/layout/ComposableSingletons$PanelKt;
-	public fun <init> ()V
-	public final fun getLambda$369038688$swing_ui ()Lkotlin/jvm/functions/Function2;
-}
-
 public final class org/jetbrains/compose/swing/components/layout/ComposableSingletons$ToolBarKt {
 	public static final field INSTANCE Lorg/jetbrains/compose/swing/components/layout/ComposableSingletons$ToolBarKt;
 	public fun <init> ()V
@@ -201,7 +195,6 @@ public final class org/jetbrains/compose/swing/components/layout/LayoutComponent
 	public static final fun Glue (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/lang/Integer;Landroidx/compose/runtime/Composer;II)V
 	public static final fun GridBagPanel (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
 	public static final fun GridPanel (Lorg/jetbrains/compose/swing/modifier/SwingModifier;IIIILkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
-	public static final fun Panel (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/awt/LayoutManager;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
 	public static final fun RigidArea (IILorg/jetbrains/compose/swing/modifier/SwingModifier;Landroidx/compose/runtime/Composer;II)V
 	public static final fun Row (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
 	public static final fun ScrollPane (Lorg/jetbrains/compose/swing/modifier/SwingModifier;IILkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V

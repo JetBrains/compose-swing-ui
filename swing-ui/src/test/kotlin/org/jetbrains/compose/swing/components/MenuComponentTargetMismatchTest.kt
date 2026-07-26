@@ -12,8 +12,8 @@ import kotlin.test.assertTrue
 /**
  * Verifies that the Compose compiler flags accidental mixing of our menu composables
  * ([org.jetbrains.compose.swing.components.Menu] and friends, marked `@SwingMenuComposable`) with our
- * regular component composables ([org.jetbrains.compose.swing.components.layout.Panel],
- * [org.jetbrains.compose.swing.components.button.Button], … marked `@SwingComposable`).
+ * regular component composables ([org.jetbrains.compose.swing.components.layout.FlowPanel],
+ * [org.jetbrains.compose.swing.components.button.Button], ... marked `@SwingComposable`).
  *
  * The applier/target-mismatch diagnostic is intentionally a **warning**, not an error: mixed code still
  * compiles, so a plain `./gradlew build` cannot catch a regression here. To assert on it we drive the real
@@ -32,12 +32,12 @@ class MenuComponentTargetMismatchTest {
         val result =
             compileSnippet(
                 """
-                import org.jetbrains.compose.swing.components.layout.Panel
+                import org.jetbrains.compose.swing.components.layout.FlowPanel
                 import org.jetbrains.compose.swing.components.MenuItem
 
                 @androidx.compose.runtime.Composable
                 fun Mixed() {
-                    Panel {
+                    FlowPanel {
                         MenuItem(text = "x")
                     }
                 }
@@ -73,7 +73,7 @@ class MenuComponentTargetMismatchTest {
     }
 
     /**
-     * Correct nesting — components in a component container, menu items in a menu — must produce no
+     * Correct nesting - components in a component container, menu items in a menu - must produce no
      * target-mismatch diagnostic at all.
      */
     @Test
@@ -81,14 +81,14 @@ class MenuComponentTargetMismatchTest {
         val result =
             compileSnippet(
                 """
-                import org.jetbrains.compose.swing.components.layout.Panel
+                import org.jetbrains.compose.swing.components.layout.FlowPanel
                 import org.jetbrains.compose.swing.components.button.Button
                 import org.jetbrains.compose.swing.components.Menu
                 import org.jetbrains.compose.swing.components.MenuItem
 
                 @androidx.compose.runtime.Composable
                 fun Components() {
-                    Panel {
+                    FlowPanel {
                         Button(text = "b", onClick = {})
                     }
                 }
@@ -212,7 +212,7 @@ class MenuComponentTargetMismatchTest {
         private const val ERROR_TOKEN = ": error:"
 
         /**
-         * Diagnostics that are a Compose applier/target mismatch between our two markers — i.e. the
+         * Diagnostics that are a Compose applier/target mismatch between our two markers - i.e. the
          * "...composable was expected" message that names both [COMPONENT_TARGET_NAME] and
          * [MENU_TARGET_NAME].
          *

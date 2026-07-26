@@ -1,6 +1,6 @@
 package org.jetbrains.compose.swing.window
 
-import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.FlowPanel
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.test.onWindow
@@ -26,7 +26,7 @@ class WindowPackToContentTest {
         val state = WindowState()
         setContent {
             Window(onCloseRequest = {}, state = state, title = "window-pack-test") {
-                Panel(modifier = SwingModifier.preferredSize(CONTENT_WIDTH, CONTENT_HEIGHT))
+                FlowPanel(modifier = SwingModifier.preferredSize(CONTENT_WIDTH, CONTENT_HEIGHT))
             }
         }
         val frame = onWindow().fetch<JFrame>()
@@ -43,7 +43,7 @@ class WindowPackToContentTest {
             "the packed content pane must realize at the content's preferred size",
         )
         assertTrue(frame.width > 0 && frame.height > 0, "a packed window must have a non-zero size")
-        assertTrue(frame.size != OLD_WINDOW_DEFAULT, "a packed window must not fall back to an invented default")
+        assertTrue(frame.size != INVENTED_WINDOW_SIZE, "a packed window must not fall back to an invented default")
     }
 
     @Test
@@ -52,7 +52,7 @@ class WindowPackToContentTest {
         val state = DialogState()
         setContent {
             Dialog(onCloseRequest = {}, state = state, title = "dialog-pack-test") {
-                Panel(modifier = SwingModifier.preferredSize(CONTENT_WIDTH, CONTENT_HEIGHT))
+                FlowPanel(modifier = SwingModifier.preferredSize(CONTENT_WIDTH, CONTENT_HEIGHT))
             }
         }
         val dialog = onWindow().fetch<JDialog>()
@@ -67,7 +67,7 @@ class WindowPackToContentTest {
             "the packed content pane must realize at the content's preferred size",
         )
         assertTrue(dialog.width > 0 && dialog.height > 0, "a packed dialog must have a non-zero size")
-        assertTrue(dialog.size != OLD_DIALOG_DEFAULT, "a packed dialog must not fall back to an invented default")
+        assertTrue(dialog.size != INVENTED_DIALOG_SIZE, "a packed dialog must not fall back to an invented default")
     }
 
     @Test
@@ -76,7 +76,7 @@ class WindowPackToContentTest {
         val state = WindowState(size = Dimension(420, 300))
         setContent {
             Window(onCloseRequest = {}, state = state, title = "window-explicit-size-test") {
-                Panel(modifier = SwingModifier.preferredSize(CONTENT_WIDTH, CONTENT_HEIGHT))
+                FlowPanel(modifier = SwingModifier.preferredSize(CONTENT_WIDTH, CONTENT_HEIGHT))
             }
         }
         val frame = onWindow().fetch<JFrame>()
@@ -93,7 +93,7 @@ class WindowPackToContentTest {
         val state = DialogState(size = Dimension(360, 240))
         setContent {
             Dialog(onCloseRequest = {}, state = state, title = "dialog-explicit-size-test") {
-                Panel(modifier = SwingModifier.preferredSize(CONTENT_WIDTH, CONTENT_HEIGHT))
+                FlowPanel(modifier = SwingModifier.preferredSize(CONTENT_WIDTH, CONTENT_HEIGHT))
             }
         }
         val dialog = onWindow().fetch<JDialog>()
@@ -110,7 +110,7 @@ class WindowPackToContentTest {
         val state = WindowState()
         setContent {
             Window(onCloseRequest = {}, state = state, title = "window-pack-writeback-test") {
-                Panel(modifier = SwingModifier.preferredSize(CONTENT_WIDTH, CONTENT_HEIGHT))
+                FlowPanel(modifier = SwingModifier.preferredSize(CONTENT_WIDTH, CONTENT_HEIGHT))
             }
         }
         val frame = onWindow().fetch<JFrame>()
@@ -126,8 +126,13 @@ class WindowPackToContentTest {
 
 private const val CONTENT_WIDTH = 321
 private const val CONTENT_HEIGHT = 211
-private val OLD_WINDOW_DEFAULT = Dimension(800, 600)
-private val OLD_DIALOG_DEFAULT = Dimension(400, 300)
+
+/**
+ * Sizes no content asks for, standing in for a default a peer could be given instead of being sized to
+ * what it holds.
+ */
+private val INVENTED_WINDOW_SIZE = Dimension(800, 600)
+private val INVENTED_DIALOG_SIZE = Dimension(400, 300)
 
 /**
  * Wall-clock deadline for conditions gated on native window-system notifications (the resize echo that
