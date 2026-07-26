@@ -583,6 +583,12 @@ public final class org/jetbrains/compose/swing/modifier/interaction/ComposableSi
 	public final fun getLambda$-1490484271$swing_ui ()Lkotlin/jvm/functions/Function2;
 }
 
+public final class org/jetbrains/compose/swing/modifier/interaction/ComposableSingletons$PopupMenuModifierKt {
+	public static final field INSTANCE Lorg/jetbrains/compose/swing/modifier/interaction/ComposableSingletons$PopupMenuModifierKt;
+	public fun <init> ()V
+	public final fun getLambda$1294862385$swing_ui ()Lkotlin/jvm/functions/Function2;
+}
+
 public final class org/jetbrains/compose/swing/modifier/interaction/FocusRequester {
 	public static final field $stable I
 	public final fun requestFocus ()Z
@@ -597,6 +603,7 @@ public final class org/jetbrains/compose/swing/modifier/interaction/InteractionM
 	public static final fun focusRequester (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/modifier/interaction/FocusRequester;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun focusTraversalIndex (Lorg/jetbrains/compose/swing/modifier/SwingModifier;I)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun focusable (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Z)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun initialFocus (Lorg/jetbrains/compose/swing/modifier/SwingModifier;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun inputVerifier (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function0;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun onAccept (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function0;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun onFocus (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
@@ -606,6 +613,7 @@ public final class org/jetbrains/compose/swing/modifier/interaction/InteractionM
 	public static final fun onPointerEvent (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static synthetic fun onPointerEvent$default (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun orderedFocusTraversal (Lorg/jetbrains/compose/swing/modifier/SwingModifier;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun popupMenu (Lorg/jetbrains/compose/swing/modifier/SwingModifier;ZLkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;I)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun rememberFocusRequester (Landroidx/compose/runtime/Composer;I)Lorg/jetbrains/compose/swing/modifier/interaction/FocusRequester;
 	public static final fun verifyInputWhenFocusTarget (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Z)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 }
@@ -698,6 +706,10 @@ public final class org/jetbrains/compose/swing/window/DialogState {
 
 public final class org/jetbrains/compose/swing/window/DialogStateKt {
 	public static final fun rememberDialogState (Lorg/jetbrains/compose/swing/window/WindowPosition;Ljava/awt/Dimension;Landroidx/compose/runtime/Composer;II)Lorg/jetbrains/compose/swing/window/DialogState;
+}
+
+public final class org/jetbrains/compose/swing/window/MenuBarKt {
+	public static final fun MenuBar (Lorg/jetbrains/compose/swing/window/WindowScope;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;I)V
 }
 
 public final class org/jetbrains/compose/swing/window/WindowKt {

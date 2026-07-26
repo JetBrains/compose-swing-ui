@@ -26,9 +26,9 @@ import javax.swing.RootPaneContainer
 import javax.swing.SwingUtilities
 
 /**
- * Sets the composable [content] of any [Container] (a `JPanel`, a window's content pane, …).
+ * Sets the composable [content] of any [Container] (a `JPanel`, a window's content pane, ...).
  *
- * This is the everyday entry point — just `container.setContent { ... }`. When the container is
+ * This is the everyday entry point - just `container.setContent { ... }`. When the container is
  * nested under another composition the content joins that composition and shares its scope;
  * otherwise it joins the composition shared by the owning top-level [Window], so every island in one
  * window recomposes together.
@@ -130,24 +130,15 @@ private fun mountWhenParentResolves(
  * The explicit lifecycle of a (possibly deferred) non-injected `setContent` mount.
  *
  * The mount is exactly one of three phases at any time:
- *  - [Pending] — no parent resolved yet; a window-attach listener is armed waiting for one;
- *  - [Mounted] — a parent resolved and the composition is live;
- *  - [Disposed] — torn down; terminal, reached at most once.
+ *  - [Pending] - no parent resolved yet; a window-attach listener is armed waiting for one;
+ *  - [Mounted] - a parent resolved and the composition is live;
+ *  - [Disposed] - torn down; terminal, reached at most once.
  *
  * Modeling the phase explicitly (rather than a `disposed` flag plus the implicit
- * "composition != null ⇒ mounted" invariant) lets the transitions reject illegal moves
- * structurally — e.g. a window-attach event that fires after disposal cannot mount.
+ * "composition != null => mounted" invariant) lets the transitions reject illegal moves
+ * structurally - e.g. a window-attach event that fires after disposal cannot mount.
  */
-@JvmInline
-private value class MountPhase private constructor(
-    private val code: Int,
-) {
-    companion object {
-        val Pending = MountPhase(0)
-        val Mounted = MountPhase(1)
-        val Disposed = MountPhase(2)
-    }
-}
+private enum class MountPhase { Pending, Mounted, Disposed }
 
 /**
  * The lifecycle state machine backing a (possibly deferred) non-injected `setContent` mount.
@@ -184,8 +175,8 @@ private class DeferredMountState(
     }
 
     /**
-     * Resolves the parent and, if available, transitions [MountPhase.Pending] → [MountPhase.Mounted].
-     * No-op (returns `false`) unless currently pending and a parent resolves — so it cannot mount after
+     * Resolves the parent and, if available, transitions [MountPhase.Pending] -> [MountPhase.Mounted].
+     * No-op (returns `false`) unless currently pending and a parent resolves - so it cannot mount after
      * disposal, nor mount twice. Returns `true` once the content has been mounted.
      */
     private fun tryMount(): Boolean {
@@ -330,13 +321,13 @@ public fun Window.setContent(
  * the composition shared by the owning window. A menu bar installed on a window shares that window's
  * composition.
  *
- * A menu bar is routinely built **before** it is installed on its frame (`bar.setContent { … }` then
+ * A menu bar is routinely built **before** it is installed on its frame (`bar.setContent { ... }` then
  * `frame.jMenuBar = bar`), so at the call site it usually has no window ancestor yet. As with
  * [Container.setContent], that is **not** an error: the content is mounted the moment the menu bar
  * gains a window ancestor (when it is installed on the frame). Must be called on the Event Dispatch
  * Thread.
  *
- * @param content the composable menu tree (`Menu`, `MenuItem`, …)
+ * @param content the composable menu tree (`Menu`, `MenuItem`, ...)
  * @return a [DisposableHandle] that disposes this menu-bar composition (or cancels it if it has not
  *   mounted yet).
  */
@@ -353,4 +344,34 @@ public fun JMenuBar.setContent(
         mount.setContent(content)
         mount
     }
+}
+
+/**
+ * Hosts [content] in this menu bar as a child of an explicit [parent] [CompositionContext] - the
+ * menu-tree counterpart of [Container.setContentAsInteropHost]. The menu tree then shares [parent]'s
+ * recomposition scope, so state hoisted there and any
+ * [androidx.compose.runtime.CompositionLocal] provided above it reach the menu items and their
+ * callbacks.
+ *
+ * Unlike [JMenuBar.setContent] this never defers: the parent is given rather than discovered, so a bar
+ * that is not yet installed on a window is mounted straight away.
+ *
+ * Must be called on the Event Dispatch Thread.
+ *
+ * @param parent the composition context this menu tree joins and shares the recomposition scope of
+ * @param content the composable menu tree (`Menu`, `MenuItem`, ...)
+ * @return a [DisposableHandle] that disposes the menu-bar composition when invoked.
+ */
+@ComposableOpenTarget(-1)
+internal fun JMenuBar.setContentAsMenuInteropHost(
+    parent: CompositionContext,
+    content:
+        @Composable @SwingMenuComposable
+        () -> Unit,
+): DisposableHandle {
+    checkEventDispatchThread()
+
+    val mount = SwingCompositionMount.nestedUnobserved(parent) { MenuApplier(this) }
+    mount.setContent(content)
+    return DisposableHandle { mount.dispose() }
 }

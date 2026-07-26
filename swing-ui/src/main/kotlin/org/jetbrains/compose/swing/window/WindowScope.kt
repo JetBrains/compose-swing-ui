@@ -26,6 +26,19 @@ public class WindowScope private constructor(
     @get:JvmSynthetic
     internal val rootPane: JRootPane,
 ) {
+    /**
+     * The [DeclaredMenuBar] currently serving this window, or `null` while none does.
+     *
+     * A window carries one menu bar, so whether one is already declared is read directly off this field:
+     * this scope is one instance for as long as the window exists, so the [MenuBar] composable finds its
+     * own earlier declaration here without reading anything back off the Swing side.
+     *
+     * The getter and setter are synthetic on the JVM for the same reason [rootPane]'s getter is.
+     */
+    @get:JvmSynthetic
+    @set:JvmSynthetic
+    internal var declaredMenuBar: DeclaredMenuBar? = null
+
     internal companion object {
         /**
          * The scope the window rooted at [rootPane] hands its content.
