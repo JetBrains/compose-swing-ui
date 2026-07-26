@@ -5,10 +5,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Composition
 import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.ControlledComposition
-import androidx.compose.runtime.ProvidableCompositionLocal
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.runtime.snapshots.SnapshotStateObserver
-import androidx.compose.runtime.staticCompositionLocalOf
 import java.awt.Component
 import javax.swing.JComponent
 import javax.swing.SwingUtilities
@@ -191,36 +189,3 @@ internal class SwingCompositionMount private constructor(
         }
     }
 }
-
-/**
- * The parent-container layout constraint a child Swing node should be added with.
- *
- * A container provides the placement for the children it composes - a `BorderPanel` its region per
- * slot, any container `org.jetbrains.compose.swing.SwingConstraint` - and [SwingNode] records the
- * value on the node (see [SwingNodeHolder.constraint]) so the applier adds the component with that
- * constraint. This lets the parent decide placement without the child knowing its container's layout
- * manager.
- *
- * A container node consumes the value for its OWN placement and provides the default again to its
- * content, so a constraint never reaches past the children the container that declared it composes.
- *
- * Defaults to `null`, meaning "add by index" (no explicit constraint).
- */
-@PublishedApi
-internal val LocalSwingConstraint: ProvidableCompositionLocal<Any?> = staticCompositionLocalOf { null }
-
-/**
- * Carries a [SlotAttachment] down to the single [SwingNode] a slot hosts, the way
- * [LocalSwingConstraint] carries a layout constraint.
- *
- * A parent that owns a Swing host with dedicated single-occupancy slots (e.g. a `JScrollPane`'s
- * viewport / header / corner regions) provides this via [SlotNode]. [SwingNode] reads it into
- * [SwingNodeHolder.slotAttachment] so the applier installs the component through the attachment
- * instead of the generic `Container.add`. This lets the parent dictate how its content is attached
- * without the child knowing the host.
- *
- * Defaults to `null`, meaning "add as an ordinary child by index".
- */
-@PublishedApi
-internal val LocalSlotAttachment: ProvidableCompositionLocal<SlotAttachment?> =
-    staticCompositionLocalOf { null }

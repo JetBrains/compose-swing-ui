@@ -8,8 +8,8 @@ import androidx.compose.runtime.rememberCompositionContext
 import org.jetbrains.compose.swing.annotations.SwingComposable
 import org.jetbrains.compose.swing.core.LocalSlotAttachment
 import org.jetbrains.compose.swing.core.LocalSwingConstraint
-import org.jetbrains.compose.swing.core.SlotAttachment
 import org.jetbrains.compose.swing.core.SwingApplier
+import org.jetbrains.compose.swing.core.SwingConstraint
 import org.jetbrains.compose.swing.core.SwingNodeHolder
 import java.awt.Component
 
@@ -149,29 +149,4 @@ public inline fun <reified T : Component> SwingNode(
             }
         },
     )
-}
-
-/**
- * Hosts a single-node region in a Swing component that owns its own attachment slot - a host whose
- * children go through a dedicated setter rather than the generic `Container.add`. The canonical case
- * is `JScrollPane`, whose viewport / header / corner regions are each reached via `setViewportView` /
- * `setRowHeaderView` / `setColumnHeaderView` / `setCorner`.
- *
- * Provides [attachment] through [LocalSlotAttachment] and composes [content]; the single [SwingNode]
- * that [content] emits is installed into the host through the attachment and uninstalled on removal.
- * [content] must emit exactly one node - each such slot hosts a single view.
- *
- * @param attachment installs the region's node into the host and returns its uninstall action.
- * @param content emits the single node whose component fills the slot.
- */
-@Composable
-internal inline fun SlotNode(
-    attachment: SlotAttachment,
-    crossinline content:
-        @Composable @SwingComposable
-        () -> Unit,
-) {
-    CompositionLocalProvider(LocalSlotAttachment provides attachment) {
-        content()
-    }
 }

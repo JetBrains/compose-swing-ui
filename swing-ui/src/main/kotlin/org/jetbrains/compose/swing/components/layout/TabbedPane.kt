@@ -12,19 +12,20 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.rememberUpdatedState
-import org.jetbrains.compose.swing.AppliedValue
-import org.jetbrains.compose.swing.SlotNode
+import org.jetbrains.compose.swing.AppliedWrite
 import org.jetbrains.compose.swing.SwingNode
 import org.jetbrains.compose.swing.constants.TabLayoutPolicy
 import org.jetbrains.compose.swing.constants.TabPlacement
 import org.jetbrains.compose.swing.core.LocalSlotAttachment
 import org.jetbrains.compose.swing.core.LocalSwingConstraint
 import org.jetbrains.compose.swing.core.SlotAttachment
+import org.jetbrains.compose.swing.core.SlotNode
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.changeListener
-import org.jetbrains.compose.swing.rememberAppliedValue
+import org.jetbrains.compose.swing.rememberAppliedWrite
 import org.jetbrains.compose.swing.setContentAsInteropHost
+import org.jetbrains.compose.swing.userOnly
 import java.awt.BorderLayout
 import java.awt.Component
 import java.awt.FlowLayout
@@ -143,7 +144,7 @@ private fun TabbedPaneImpl(
     // fires the very change event a click fires, so the writes that add and remove tabs run as this
     // wrapper's own and the listener the pane registers on the caller's behalf is narrowed to what
     // arrives outside one.
-    val applied = rememberAppliedValue(Unit)
+    val applied = rememberAppliedWrite()
     // The listener is attached once per pane and reaches the declared one through a handle each
     // composition refreshes, so a newly declared listener takes over without detaching and reattaching.
     val declaredListener = rememberUpdatedState(changeListener)
@@ -175,7 +176,6 @@ private fun TabbedPaneImpl(
                 key(index) {
                     Tab(
                         tab = tab,
-                        livePane = livePane,
                         headerParentContext = headerParentContext,
                         applied = applied,
                     )
@@ -198,10 +198,6 @@ private fun TabbedPaneImpl(
 /** The index a `JTabbedPane` reports when no tab of it is selected. */
 private const val NO_TAB = -1
 
-/** [listener], narrowed to the changes the user made. */
-private fun AppliedValue<*>.userOnly(listener: ChangeListener): ChangeListener =
-    ChangeListener { event -> if (!isWriting) listener.stateChanged(event) }
-
 /**
  * Puts [pane] on the tab [selectedIndex] names, and tells [listener] which tab the pane is on instead
  * when that index names no tab of the strip.
@@ -218,7 +214,7 @@ private fun AppliedValue<*>.userOnly(listener: ChangeListener): ChangeListener =
 private fun settleSelection(
     pane: JTabbedPane,
     selectedIndex: Int,
-    applied: AppliedValue<*>,
+    applied: AppliedWrite,
     reported: IntArray,
     listener: ChangeListener,
 ) {
@@ -237,28 +233,27 @@ private fun settleSelection(
 }
 
 /**
- * Hosts one declared [tab] as a page of the pane held in [livePane]: its body panel is installed as the
- * tab's component through the slot attachment, the body composable fills that panel, and the tab's
- * metadata is written onto the strip on recomposition. A declared header is rendered by [TabHeaderHost]
- * as a child composition of [headerParentContext]. Joining and leaving the strip can move the pane's
- * selection, so the attachment performs both as [applied]'s own writes; a tab's metadata writes cannot
- * move the selection and are left plain.
+ * Hosts one declared [tab] as a page of the pane: its body panel is installed as the tab's component
+ * through the slot attachment, the body composable fills that panel, and the tab's metadata is written
+ * onto the strip on recomposition. A declared header is rendered by [TabHeaderHost] as a child
+ * composition of [headerParentContext]. Joining and leaving the strip can move the pane's selection, so
+ * the attachment performs both as [applied]'s own writes; a tab's metadata writes cannot move the
+ * selection and are left plain.
  */
 @Composable
 private fun Tab(
     tab: TabDeclaration,
-    livePane: Array<JTabbedPane?>,
     headerParentContext: CompositionContext,
-    applied: AppliedValue<*>,
+    applied: AppliedWrite,
 ) {
     val metadata = tab.metadata
     // The attachment captures only the install-time title/icon/tooltip; later edits flow through the
     // body node's update block below, so the remembered attachment never needs to see fresh metadata.
-    val attachment = remember(livePane) { tabAttachment(metadata, applied) }
+    val attachment = remember { tabAttachment(metadata, applied) }
     // The tab's body host, taken from the body node itself on every pass: a header is installed against
     // this component's live tab position, and re-filling the cell each pass keeps it pointing at the
     // component the node actually holds.
-    val bodyHost = remember(livePane) { arrayOfNulls<Component>(1) }
+    val bodyHost = remember { arrayOfNulls<Component>(1) }
     SlotNode(attachment) {
         // The body host IS the tab's component. Reading indexOfComponent(this) off the pane gives its
         // live position, so metadata writes stay correct even after earlier tabs are added or removed.
@@ -278,6 +273,8 @@ private fun Tab(
                 // lookups. `reconcile` runs first on every pass and exposes the component as `this`, so
                 // both are captured before the set blocks below read them. `pane` is non-null exactly
                 // while the body panel is an attached tab, which is the single guard the writes need.
+                // The panel's own `parent` IS the pane holding it once attached, so no separate lookup
+                // is needed to find it.
                 //
                 // That guard stays INSIDE each set block rather than around the set calls: set() must
                 // visit its slot on every pass to stay positionally aligned, so the calls themselves
@@ -286,7 +283,7 @@ private fun Tab(
                 var at = -1
                 reconcile {
                     bodyHost[0] = this
-                    val host = livePane[0]
+                    val host = this.parent as? JTabbedPane
                     at = host?.indexOfComponent(this) ?: -1
                     pane = if (at >= 0) host else null
                 }
@@ -301,7 +298,6 @@ private fun Tab(
     val header = tab.header
     if (header != null) {
         TabHeaderHost(
-            livePane = livePane,
             bodyHost = bodyHost,
             parentContext = headerParentContext,
             header = header,
@@ -326,7 +322,6 @@ private fun Tab(
  */
 @Composable
 private fun TabHeaderHost(
-    livePane: Array<JTabbedPane?>,
     bodyHost: Array<Component?>,
     parentContext: CompositionContext,
     header: @Composable () -> Unit,
@@ -335,10 +330,10 @@ private fun TabHeaderHost(
     // A gapless leading flow, so the strip shows exactly what the header emits at its own preferred size
     // and the look and feel's tab insets are the only padding around it. This panel exists solely to hold
     // the header - it is never a page of the pane, which is what setTabComponentAt rejects.
-    val host = remember(livePane) { JPanel(FlowLayout(FlowLayout.LEADING, 0, 0)).apply { isOpaque = false } }
+    val host = remember { JPanel(FlowLayout(FlowLayout.LEADING, 0, 0)).apply { isOpaque = false } }
 
     DisposableEffect(host) {
-        val pane = livePane[0]
+        val pane = bodyHost[0]?.parent as? JTabbedPane
         val at = pane?.indexOfComponent(bodyHost[0]) ?: -1
         if (at >= 0) pane?.setTabComponentAt(at, host)
         val handle =
@@ -415,7 +410,7 @@ private class TabbedPaneScopeImpl : TabbedPaneScope {
  */
 private fun tabAttachment(
     metadata: TabMetadata,
-    applied: AppliedValue<*>,
+    applied: AppliedWrite,
 ): SlotAttachment =
     SlotAttachment { host, component, index ->
         host as JTabbedPane

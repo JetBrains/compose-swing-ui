@@ -7,10 +7,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import org.jetbrains.compose.swing.SlotNode
 import org.jetbrains.compose.swing.SwingNode
 import org.jetbrains.compose.swing.components.SyntheticIds
 import org.jetbrains.compose.swing.core.SlotAttachment
+import org.jetbrains.compose.swing.core.SlotNode
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.internalFrameListener

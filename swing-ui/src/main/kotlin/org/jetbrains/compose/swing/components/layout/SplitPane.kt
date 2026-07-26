@@ -9,10 +9,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.SlotNode
 import org.jetbrains.compose.swing.SwingNode
 import org.jetbrains.compose.swing.constants.SplitOrientation
 import org.jetbrains.compose.swing.core.SlotAttachment
+import org.jetbrains.compose.swing.core.SlotNode
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.propertyChangeListener
