@@ -17,8 +17,9 @@ import javax.swing.Timer
  * composition is torn down to guarantee the timer is stopped.
  *
  * The cadence is a best-effort, nominal wall-clock rate, not vsync or variable-refresh-rate (VRR)
- * synchronization: actual frame delivery jitters with EDT load. The rate matches the window's
- * reported display refresh rate and follows it as the window moves between displays (see [forWindow]).
+ * synchronization: actual frame delivery jitters with EDT load. A window's clock is cadenced to that
+ * window's reported display refresh rate (see [displayRefreshRate]) and follows it as the window
+ * moves between displays.
  */
 internal class SwingFrameClock(
     framesPerSecond: Int = DEFAULT_FRAMES_PER_SECOND,
@@ -75,22 +76,11 @@ internal class SwingFrameClock(
             (MILLIS_PER_SECOND / framesPerSecond.coerceAtLeast(1)).coerceAtLeast(1)
 
         /**
-         * Creates a clock cadenced to [window]'s display refresh rate.
-         *
-         * The rate is read at creation from
-         * `window.graphicsConfiguration.device.displayMode.refreshRate`; when the device reports
-         * [DisplayMode.REFRESH_RATE_UNKNOWN] (or any non-positive value) the cadence falls back to
-         * [DEFAULT_FRAMES_PER_SECOND]. Passing an explicit [framesPerSecond] overrides the query.
-         */
-        fun forWindow(
-            window: Window,
-            framesPerSecond: Int? = null,
-        ): SwingFrameClock = SwingFrameClock(framesPerSecond ?: window.displayRefreshRate())
-
-        /**
-         * The window's current display refresh rate in frames per second, falling back to
-         * [DEFAULT_FRAMES_PER_SECOND] when the display reports an unknown/non-positive rate or the
-         * window has no [java.awt.GraphicsConfiguration] yet.
+         * The window's current display refresh rate in frames per second, read from
+         * `window.graphicsConfiguration.device.displayMode.refreshRate` and falling back to
+         * [DEFAULT_FRAMES_PER_SECOND] when the display reports an unknown
+         * ([DisplayMode.REFRESH_RATE_UNKNOWN]) or non-positive rate, or the window has no
+         * [java.awt.GraphicsConfiguration] yet.
          */
         fun Window.displayRefreshRate(): Int {
             val rate = graphicsConfiguration?.device?.displayMode?.refreshRate ?: DisplayMode.REFRESH_RATE_UNKNOWN

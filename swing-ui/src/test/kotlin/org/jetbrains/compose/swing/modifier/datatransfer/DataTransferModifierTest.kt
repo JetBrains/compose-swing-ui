@@ -2,14 +2,16 @@ package org.jetbrains.compose.swing.modifier.datatransfer
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.name
-import org.jetbrains.compose.swing.setContent
+import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
-import java.awt.GraphicsEnvironment
+import org.junit.jupiter.api.Assumptions.assumeTrue
+import java.awt.Toolkit
 import java.awt.datatransfer.Clipboard
+import java.awt.datatransfer.ClipboardOwner
 import java.awt.datatransfer.DataFlavor
 import java.awt.datatransfer.StringSelection
 import java.awt.datatransfer.Transferable
@@ -17,8 +19,8 @@ import java.awt.dnd.DragSource
 import java.awt.event.InputEvent
 import java.awt.event.MouseEvent
 import java.awt.event.MouseListener
-import java.awt.event.MouseMotionListener
 import javax.swing.JComponent
+import javax.swing.JTextField
 import javax.swing.TransferHandler
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -30,9 +32,9 @@ import kotlin.test.assertTrue
 
 /**
  * Behavioral tests for the data-transfer modifiers. They drive the real `TransferHandler` the
- * modifiers install on the live component — its `getSourceActions`/`createTransferable` for a drag
+ * modifiers install on the live component - its `getSourceActions`/`createTransferable` for a drag
  * source, its `canImport`/`importData` for a drop target, and `exportToClipboard`/`importData` for
- * clipboard round-trips — asserting the observable outcomes (the produced `Transferable`, the fired
+ * clipboard round-trips - asserting the observable outcomes (the produced `Transferable`, the fired
  * `onDrop`, the gated flavors, a value that survives copy-then-paste). No native peer is required.
  */
 class DataTransferModifierTest {
@@ -50,7 +52,7 @@ class DataTransferModifierTest {
     @Test
     fun transferActionMembershipAndCombination() {
         // The @TransferAction typed Int is a TransferHandler action bit-mask; membership is a bitwise
-        // and, and combination is a bitwise or — the contract documented on the modifiers.
+        // and, and combination is a bitwise or - the contract documented on the modifiers.
         assertTrue((TransferHandler.COPY_OR_MOVE and TransferHandler.COPY) != 0, "CopyOrMove must contain Copy")
         assertTrue((TransferHandler.COPY_OR_MOVE and TransferHandler.MOVE) != 0, "CopyOrMove must contain Move")
         assertEquals(0, TransferHandler.COPY_OR_MOVE and TransferHandler.LINK, "CopyOrMove must not contain Link")
@@ -79,10 +81,10 @@ class DataTransferModifierTest {
                 value = "",
                 onValueChange = {},
                 modifier =
-                    SwingModifier.name("src").draggable(TransferHandler.COPY) { StringSelection("payload") },
+                    SwingModifier.draggable(TransferHandler.COPY) { StringSelection("payload") },
             )
         }
-        val source = onNodeWithName("src").fetch<JComponent>()
+        val source = onNodeOfType<JTextField>().fetch()
 
         val clipboard = localClipboard()
         val exported =
@@ -142,10 +144,10 @@ class DataTransferModifierTest {
             TextField(
                 value = "",
                 onValueChange = {},
-                modifier = SwingModifier.name("src").draggable(TransferHandler.COPY) { payload },
+                modifier = SwingModifier.draggable(TransferHandler.COPY) { payload },
             )
         }
-        val source = onNodeWithName("src").fetch<JComponent>()
+        val source = onNodeOfType<JTextField>().fetch()
 
         // Capture the gesture the modifier installed (one instance, both a MouseListener and a
         // MouseMotionListener), then swap in a recording handler the live gesture will call.
@@ -197,7 +199,7 @@ class DataTransferModifierTest {
                 value = "",
                 onValueChange = {},
                 modifier =
-                    SwingModifier.name("dst").dropTarget(
+                    SwingModifier.dropTarget(
                         acceptedActions = TransferHandler.COPY,
                         onDrop = { t ->
                             dropped = t.getTransferData(DataFlavor.stringFlavor) as String
@@ -206,7 +208,7 @@ class DataTransferModifierTest {
                     ),
             )
         }
-        val target = onNodeWithName("dst").fetch<JComponent>()
+        val target = onNodeOfType<JTextField>().fetch()
 
         val accepted =
             run {
@@ -225,7 +227,7 @@ class DataTransferModifierTest {
                 value = "",
                 onValueChange = {},
                 modifier =
-                    SwingModifier.name("dst").dropTarget(
+                    SwingModifier.dropTarget(
                         acceptedActions = TransferHandler.COPY,
                         onDrop = {
                             dropCalls++
@@ -235,7 +237,7 @@ class DataTransferModifierTest {
                     ),
             )
         }
-        val target = onNodeWithName("dst").fetch<JComponent>()
+        val target = onNodeOfType<JTextField>().fetch()
 
         val stringSupport = support(target, StringSelection("text"))
         val canImportString = target.transferHandler.canImport(stringSupport)
@@ -254,7 +256,7 @@ class DataTransferModifierTest {
                 value = "",
                 onValueChange = {},
                 modifier =
-                    SwingModifier.name("clip").clipboard(
+                    SwingModifier.clipboard(
                         transferable = { StringSelection("roundtrip") },
                         onPaste = { t ->
                             pasted = t.getTransferData(DataFlavor.stringFlavor) as String
@@ -264,7 +266,7 @@ class DataTransferModifierTest {
                     ),
             )
         }
-        val component = onNodeWithName("clip").fetch<JComponent>()
+        val component = onNodeOfType<JTextField>().fetch()
         val clipboard = localClipboard()
 
         val accepted =
@@ -285,7 +287,7 @@ class DataTransferModifierTest {
                 value = "",
                 onValueChange = {},
                 modifier =
-                    SwingModifier.name("clip").clipboard(
+                    SwingModifier.clipboard(
                         transferable = { StringSelection("cut-me") },
                         onPaste = { t ->
                             pasted = t.getTransferData(DataFlavor.stringFlavor) as String
@@ -295,7 +297,7 @@ class DataTransferModifierTest {
                     ),
             )
         }
-        val component = onNodeWithName("clip").fetch<JComponent>()
+        val component = onNodeOfType<JTextField>().fetch()
         val clipboard = localClipboard()
 
         val accepted =
@@ -311,16 +313,17 @@ class DataTransferModifierTest {
 
     @Test
     fun clipboardHandleRoundTripsThroughTheBoundComponent() = runComposeSwingTest {
+        val clipboard = localClipboard()
         var pasted: String? = null
         lateinit var handle: ClipboardHandle
         setContent {
-            handle = rememberClipboardHandle()
+            handle = remember { ClipboardHandle { clipboard } }
             TextField(
                 value = "",
                 onValueChange = {},
                 modifier =
-                    SwingModifier.name("clip").clipboard(
-                        transferable = { StringSelection("handle-roundtrip") },
+                    SwingModifier.clipboard(
+                        transferable = { StringSelection("handle-copy-then-paste") },
                         onPaste = { t ->
                             pasted = t.getTransferData(DataFlavor.stringFlavor) as String
                             true
@@ -331,24 +334,216 @@ class DataTransferModifierTest {
             )
         }
 
-        // The handle drives copy/cut/paste on the bound component through the real system clipboard,
-        // so it must run cleanly whether or not one is reachable: where one is absent (no display)
-        // paste reports failure and onPaste never fires; where one is present the value the bound
-        // component exported on copy round-trips back through onPaste on paste.
         handle.copy()
-        handle.cut()
-        val imported = handle.paste()
-        if (GraphicsEnvironment.isHeadless()) {
-            assertFalse(imported, "paste reports failure when no system clipboard is reachable")
-            assertNull(pasted, "onPaste must not fire when there is nothing to import")
-        } else {
-            assertTrue(imported, "paste imports the round-tripped value when a system clipboard is present")
-            assertEquals(
-                "handle-roundtrip",
-                pasted,
-                "the value the bound component exported must survive copy then paste",
+        assertEquals(
+            "handle-copy-then-paste",
+            clipboard.getData(DataFlavor.stringFlavor) as String,
+            "copy must export the value the bound component produces onto the handle's clipboard",
+        )
+        assertTrue(handle.paste(), "paste must report the import the bound component performed")
+        assertEquals(
+            "handle-copy-then-paste",
+            pasted,
+            "the value the bound component exported must survive copy then paste",
+        )
+    }
+
+    @Test
+    fun clipboardHandlePasteReportsARefusedImport() = runComposeSwingTest {
+        val clipboard = localClipboard()
+        var pasteCalls = 0
+        lateinit var handle: ClipboardHandle
+        setContent {
+            handle = remember { ClipboardHandle { clipboard } }
+            TextField(
+                value = "",
+                onValueChange = {},
+                modifier =
+                    SwingModifier.clipboard(
+                        transferable = { StringSelection("handle-refused-import") },
+                        onPaste = {
+                            pasteCalls++
+                            false
+                        },
+                        bindKeys = false,
+                        handle = handle,
+                    ),
             )
         }
+
+        handle.copy()
+        assertFalse(handle.paste(), "paste must report the import the bound component refused")
+        assertEquals(1, pasteCalls, "the refusal must come from onPaste having run, not from skipping it")
+    }
+
+    @Test
+    fun clipboardHandleCopiesAsCopyAndCutsAsMove() = runComposeSwingTest {
+        val clipboard = localClipboard()
+        val exports = mutableListOf<Int>()
+        lateinit var handle: ClipboardHandle
+        setContent {
+            handle = remember { ClipboardHandle { clipboard } }
+            TextField(
+                value = "",
+                onValueChange = {},
+                modifier =
+                    SwingModifier
+                        .clipboard(
+                            transferable = { StringSelection("handle-export-actions") },
+                            onPaste = { true },
+                            bindKeys = false,
+                            handle = handle,
+                        ).onExportDone { _, _, action -> exports += action },
+            )
+        }
+
+        handle.copy()
+        handle.cut()
+        assertEquals(
+            listOf(TransferHandler.COPY, TransferHandler.MOVE),
+            exports,
+            "copy must complete as COPY and cut as MOVE, so a source removes only the moved data",
+        )
+    }
+
+    @Test
+    fun clipboardHandleTargetsTheSystemClipboard() = runComposeSwingTest {
+        assumeTrue(systemClipboard != null, "requires a reachable system clipboard")
+        lateinit var handle: ClipboardHandle
+        setContent {
+            handle = rememberClipboardHandle()
+            TextField(
+                value = "",
+                onValueChange = {},
+                modifier =
+                    SwingModifier.clipboard(
+                        transferable = { StringSelection("handle-never-exported") },
+                        onPaste = { false },
+                        bindKeys = false,
+                        handle = handle,
+                    ),
+            )
+        }
+        val component = onNodeOfType<JTextField>().fetch()
+
+        // Interpose a handler that records the clipboard the handle picked and exports nothing, so the
+        // choice is observable without putting a value on the clipboard this host shares with every
+        // other application running on it.
+        val recording = RecordingClipboardHandler()
+        component.transferHandler = recording
+
+        handle.copy()
+        assertSame(
+            Toolkit.getDefaultToolkit().systemClipboard,
+            recording.clipboard,
+            "a handle from rememberClipboardHandle must export to the system clipboard",
+        )
+        assertEquals(TransferHandler.COPY, recording.action, "copy must ask for a COPY export")
+
+        handle.cut()
+        assertEquals(TransferHandler.MOVE, recording.action, "cut must ask for a MOVE export")
+    }
+
+    // A TransferHandler that records the clipboard and action a clipboard export was asked for and
+    // exports nothing, so a test can observe which clipboard drives an export without writing to it.
+    private class RecordingClipboardHandler : TransferHandler() {
+        var clipboard: Clipboard? = null
+        var action: Int? = null
+
+        override fun exportToClipboard(
+            comp: JComponent?,
+            clip: Clipboard?,
+            action: Int,
+        ) {
+            clipboard = clip
+            this.action = action
+        }
+    }
+
+    @Test
+    fun clipboardHandleIsInertWhileNoClipboardIsReachable() = runComposeSwingTest {
+        val exports = mutableListOf<Int>()
+        var pasted: String? = null
+        lateinit var handle: ClipboardHandle
+        setContent {
+            // A handle over an absent clipboard - what an environment without one leaves the handle
+            // holding - so the behavior is pinned on every host, not only on those lacking one.
+            handle = remember { ClipboardHandle { null } }
+            TextField(
+                value = "",
+                onValueChange = {},
+                modifier =
+                    SwingModifier
+                        .clipboard(
+                            transferable = { StringSelection("handle-unreachable-clipboard") },
+                            onPaste = { t ->
+                                pasted = t.getTransferData(DataFlavor.stringFlavor) as String
+                                true
+                            },
+                            bindKeys = false,
+                            handle = handle,
+                        ).onExportDone { _, _, action -> exports += action },
+            )
+        }
+
+        handle.copy()
+        handle.cut()
+        assertEquals(emptyList(), exports, "no export can start while no clipboard is reachable")
+        assertFalse(handle.paste(), "paste must report failure while no clipboard is reachable")
+        assertNull(pasted, "onPaste must not fire while there is no clipboard to read")
+    }
+
+    @Test
+    fun clipboardHandleTransfersNothingWhileTheClipboardIsUnavailable() = runComposeSwingTest {
+        val payload = StringSelection("handle-unavailable-clipboard")
+        val exports = mutableListOf<Pair<Transferable?, Int>>()
+        var pasted: String? = null
+        lateinit var handle: ClipboardHandle
+        setContent {
+            // A clipboard that is reachable but refuses every access, the state one another application
+            // holds open leaves it in. No host can be asked for that state, so the test supplies it.
+            handle = remember { ClipboardHandle { UnavailableClipboard() } }
+            TextField(
+                value = "",
+                onValueChange = {},
+                modifier =
+                    SwingModifier
+                        .clipboard(
+                            transferable = { payload },
+                            onPaste = { t ->
+                                pasted = t.getTransferData(DataFlavor.stringFlavor) as String
+                                true
+                            },
+                            bindKeys = false,
+                            handle = handle,
+                        ).onExportDone { _, data, action -> exports += data to action },
+            )
+        }
+
+        // A refused clipboard is an environment failure, not a caller error: copy and cut report the
+        // export as having transferred nothing instead of failing the call.
+        handle.copy()
+        handle.cut()
+        val refused: List<Pair<Transferable?, Int>> =
+            listOf(payload to TransferHandler.NONE, payload to TransferHandler.NONE)
+        assertEquals(
+            refused,
+            exports,
+            "a refused export must be reported as transferring nothing, carrying the data it could not take",
+        )
+        assertFalse(handle.paste(), "paste must report failure while the clipboard refuses to be read")
+        assertNull(pasted, "onPaste must not fire while the clipboard cannot be read")
+    }
+
+    // A clipboard that refuses every access, as the JDK's own does while another application holds the
+    // platform clipboard open: both directions throw IllegalStateException.
+    private class UnavailableClipboard : Clipboard("unavailable") {
+        override fun setContents(
+            contents: Transferable?,
+            owner: ClipboardOwner?,
+        ): Unit = error("the clipboard cannot be opened")
+
+        override fun getContents(requestor: Any?): Transferable = error("the clipboard cannot be opened")
     }
 
     @Test
@@ -374,13 +569,13 @@ class DataTransferModifierTest {
                 value = "",
                 onValueChange = {},
                 modifier =
-                    SwingModifier.name("clip").clipboard(
+                    SwingModifier.clipboard(
                         transferable = { StringSelection("x") },
                         onPaste = { true },
                     ),
             )
         }
-        val component = onNodeWithName("clip").fetch<JComponent>()
+        val component = onNodeOfType<JTextField>().fetch()
 
         // Read the bindings through the real InputMap/ActionMap without reconstructing the
         // platform shortcut mask (unavailable headless): every copy/cut/paste keystroke the
@@ -407,7 +602,6 @@ class DataTransferModifierTest {
                 onValueChange = {},
                 modifier =
                     SwingModifier
-                        .name("both")
                         .draggable(TransferHandler.MOVE) { StringSelection("from-source") }
                         .dropTarget(
                             acceptedActions = TransferHandler.COPY,
@@ -418,7 +612,7 @@ class DataTransferModifierTest {
                         ),
             )
         }
-        val component = onNodeWithName("both").fetch<JComponent>()
+        val component = onNodeOfType<JTextField>().fetch()
 
         val handler =
             assertNotNull(component.transferHandler, "the shared modifier should install one transfer handler")
@@ -436,42 +630,89 @@ class DataTransferModifierTest {
     }
 
     @Test
-    fun removingTheDropTargetModifierRestoresTheOriginalHandler() = runComposeSwingTest {
-        var enabled by mutableStateOf(true)
+    fun aDragOnlyComponentImportsNothing() = runComposeSwingTest {
+        setContent {
+            TextField(
+                value = "",
+                onValueChange = {},
+                modifier = SwingModifier.draggable(TransferHandler.COPY) { StringSelection("out") },
+            )
+        }
+        val source = onNodeOfType<JTextField>().fetch()
+        val handler = assertNotNull(source.transferHandler, "draggable must install a TransferHandler")
+
+        // The component declares no drop capability, so the handler refuses every import outright,
+        // without consulting any flavor.
+        val incoming = support(source, StringSelection("in"))
+        assertFalse(handler.canImport(incoming), "a component with no drop target must refuse to import")
+        assertFalse(handler.importData(incoming), "a component with no drop target must not import data")
+    }
+
+    @Test
+    fun aDropOnlyComponentExportsNothing() = runComposeSwingTest {
         setContent {
             TextField(
                 value = "",
                 onValueChange = {},
                 modifier =
-                    SwingModifier.name("dst").let {
-                        if (enabled) it.dropTarget(TransferHandler.COPY, onDrop = { true }) else it
+                    SwingModifier.dropTarget(TransferHandler.COPY, onDrop = { true }),
+            )
+        }
+        val target = onNodeOfType<JTextField>().fetch()
+        val handler = assertNotNull(target.transferHandler, "dropTarget must install a TransferHandler")
+
+        // With no drag source declared, the handler offers no exportable action and produces nothing
+        // to export, so a drag started on it carries no payload.
+        assertEquals(
+            TransferHandler.NONE,
+            handler.getSourceActions(target),
+            "a component with no drag source offers no exported action",
+        )
+        val clipboard = localClipboard()
+        handler.exportToClipboard(target, clipboard, TransferHandler.COPY)
+        assertFalse(
+            clipboard.isDataFlavorAvailable(DataFlavor.stringFlavor),
+            "a component with no drag source exports nothing",
+        )
+    }
+
+    @Test
+    fun removingTheDropTargetModifierRestoresTheOriginalHandler() = runComposeSwingTest {
+        var enabled by mutableStateOf(true)
+        var drops = 0
+        setContent {
+            TextField(
+                value = "",
+                onValueChange = {},
+                modifier =
+                    if (enabled) {
+                        SwingModifier.dropTarget(
+                            acceptedActions = TransferHandler.COPY,
+                            onDrop = {
+                                drops++
+                                true
+                            },
+                        )
+                    } else {
+                        SwingModifier
                     },
             )
         }
-        val component = onNodeWithName("dst").fetch<JComponent>()
-        // A TextField ships with its own TransferHandler; while installed the modifier's handler
-        // is in place and accepts the drop.
-        val installed = component.transferHandler
-        assertEquals(
-            "SharedTransferHandler",
-            installed?.javaClass?.simpleName,
-            "the modifier must install its own handler while present",
-        )
+        val component = onNodeOfType<JTextField>().fetch()
         assertTrue(
             component.transferHandler.importData(support(component, StringSelection("x"))),
             "while installed the modifier's handler accepts the drop",
         )
+        assertEquals(1, drops, "the declared onDrop ran for the accepted drop")
 
         enabled = false
         awaitIdle()
 
-        // The TextField's own (non-modifier) handler is restored once the modifier leaves the chain.
-        val restored = component.transferHandler
-        assertNotNull(restored, "removing the modifier must restore the component's original handler")
-        assertTrue(
-            restored.javaClass.simpleName != "SharedTransferHandler",
-            "the modifier's handler must be gone, leaving the component's original in place",
-        )
+        // A TextField ships with a TransferHandler of its own, and that is what a drop reaches once
+        // the modifier leaves the chain - so the declared onDrop is no longer part of the import.
+        val restored = assertNotNull(component.transferHandler, "the component's own handler must be back")
+        restored.importData(support(component, StringSelection("y")))
+        assertEquals(1, drops, "the declared onDrop must not run once its element leaves the chain")
     }
 
     @Test
@@ -481,10 +722,10 @@ class DataTransferModifierTest {
             TextField(
                 value = "",
                 onValueChange = {},
-                modifier = SwingModifier.name("src").draggable(TransferHandler.COPY) { StringSelection(payload) },
+                modifier = SwingModifier.draggable(TransferHandler.COPY) { StringSelection(payload) },
             )
         }
-        val source = onNodeWithName("src").fetch<JComponent>()
+        val source = onNodeOfType<JTextField>().fetch()
         val clipboard = localClipboard()
 
         fun exportNow(): String {

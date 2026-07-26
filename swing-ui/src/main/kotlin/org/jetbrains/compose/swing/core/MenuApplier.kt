@@ -1,7 +1,6 @@
 package org.jetbrains.compose.swing.core
 
 import androidx.compose.runtime.AbstractApplier
-import androidx.compose.runtime.snapshots.SnapshotStateObserver
 import java.awt.Component
 import java.awt.Container
 import java.util.Collections
@@ -24,21 +23,18 @@ import javax.swing.JPopupMenu
 @PublishedApi
 internal class MenuApplier(
     root: JComponent,
-    private val ownerObserver: SnapshotStateObserver,
 ) : AbstractApplier<SwingNodeHolder<*>>(SwingNodeHolder(root)) {
     private val dirtyContainers: MutableSet<Container> =
         Collections.newSetFromMap(IdentityHashMap())
 
+    /**
+     * A menu node is attached to its container on the bottom-up pass (see [insertBottomUp]), so the
+     * top-down pass has nothing to do.
+     */
     override fun insertTopDown(
         index: Int,
         instance: SwingNodeHolder<*>,
-    ) {
-        // Stamp the owner's shared snapshot observer on the top-down pass, mirroring [SwingApplier]: it
-        // must precede the node's own update changes (a stamp deferred to insertBottomUp would land after
-        // them, leaving a snapshot-observing node unwired). Menu items do not observe snapshots today,
-        // but keeping the seam uniform avoids that latent trap if one ever does.
-        instance.ownerObserver = ownerObserver
-    }
+    ) = Unit
 
     override fun insertBottomUp(
         index: Int,

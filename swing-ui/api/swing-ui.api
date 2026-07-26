@@ -63,8 +63,8 @@ public final class org/jetbrains/compose/swing/components/MenuComponentsKt {
 	public static final fun CheckBoxMenuItem (Ljava/lang/String;Ljava/awt/event/ActionListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;ZLandroidx/compose/runtime/Composer;II)V
 	public static final fun CheckBoxMenuItem (Ljava/lang/String;Lorg/jetbrains/compose/swing/modifier/SwingModifier;ZLkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
 	public static final fun Menu (Ljava/lang/String;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
-	public static final fun MenuItem (Ljava/lang/String;Ljava/awt/event/ActionListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Landroidx/compose/runtime/Composer;II)V
-	public static final fun MenuItem (Ljava/lang/String;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;II)V
+	public static final fun MenuItem (Ljava/lang/String;Ljava/awt/event/ActionListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljavax/swing/KeyStroke;Landroidx/compose/runtime/Composer;II)V
+	public static final fun MenuItem (Ljava/lang/String;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljavax/swing/KeyStroke;Lkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;II)V
 	public static final fun MenuSeparator (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Landroidx/compose/runtime/Composer;II)V
 	public static final fun RadioButtonMenuItem (Ljava/lang/String;Ljava/awt/event/ActionListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;ZLandroidx/compose/runtime/Composer;II)V
 	public static final fun RadioButtonMenuItem (Ljava/lang/String;Lorg/jetbrains/compose/swing/modifier/SwingModifier;ZLkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;II)V
@@ -133,6 +133,8 @@ public abstract interface class org/jetbrains/compose/swing/components/layout/Bo
 public final class org/jetbrains/compose/swing/components/layout/ComposableSingletons$BoxPanelKt {
 	public static final field INSTANCE Lorg/jetbrains/compose/swing/components/layout/ComposableSingletons$BoxPanelKt;
 	public fun <init> ()V
+	public final fun getLambda$-1905159728$swing_ui ()Lkotlin/jvm/functions/Function2;
+	public final fun getLambda$1033783150$swing_ui ()Lkotlin/jvm/functions/Function2;
 	public final fun getLambda$1819195700$swing_ui ()Lkotlin/jvm/functions/Function2;
 }
 
@@ -176,10 +178,12 @@ public final class org/jetbrains/compose/swing/components/layout/LayoutComponent
 	public static final fun BorderPanel (Lorg/jetbrains/compose/swing/modifier/SwingModifier;IILkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
 	public static final fun BoxPanel (Lorg/jetbrains/compose/swing/modifier/SwingModifier;ILkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
 	public static final fun CardPanel (Lorg/jetbrains/compose/swing/modifier/SwingModifier;IILkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
+	public static final fun Column (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
 	public static final fun FlowPanel (Lorg/jetbrains/compose/swing/modifier/SwingModifier;IIILkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
 	public static final fun GridBagPanel (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
 	public static final fun GridPanel (Lorg/jetbrains/compose/swing/modifier/SwingModifier;IIIILkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
 	public static final fun Panel (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/awt/LayoutManager;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
+	public static final fun Row (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
 	public static final fun ScrollPane (Lorg/jetbrains/compose/swing/modifier/SwingModifier;IILkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
 	public static final fun SplitPane (Ljava/beans/PropertyChangeListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;IIDLkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
 	public static final fun SplitPane (Lorg/jetbrains/compose/swing/modifier/SwingModifier;IILkotlin/jvm/functions/Function1;DLkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
@@ -368,7 +372,7 @@ public final class org/jetbrains/compose/swing/core/CompositionKt {
 
 public final class org/jetbrains/compose/swing/core/MenuApplier : androidx/compose/runtime/AbstractApplier {
 	public static final field $stable I
-	public fun <init> (Ljavax/swing/JComponent;Landroidx/compose/runtime/snapshots/SnapshotStateObserver;)V
+	public fun <init> (Ljavax/swing/JComponent;)V
 	public synthetic fun insertBottomUp (ILjava/lang/Object;)V
 	public fun insertBottomUp (ILorg/jetbrains/compose/swing/core/SwingNodeHolder;)V
 	public synthetic fun insertTopDown (ILjava/lang/Object;)V

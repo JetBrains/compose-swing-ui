@@ -5,14 +5,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.name
-import org.jetbrains.compose.swing.setContent
+import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.datatransfer.Clipboard
 import java.awt.datatransfer.DataFlavor
 import java.awt.datatransfer.StringSelection
 import java.awt.datatransfer.Transferable
-import javax.swing.JComponent
 import javax.swing.JTextField
 import javax.swing.TransferHandler
 import kotlin.test.Test
@@ -36,14 +34,14 @@ class DataTransferExportDoneTest {
     @Test
     fun cutAndCopyExportTheSameValueDifferingOnlyInTheReportedAction() = runComposeSwingTest {
         // Counts how many times the source produced its Transferable: cut must NOT export more or
-        // differently than copy — they share one exporter; only the action constant differs.
+        // differently than copy - they share one exporter; only the action constant differs.
         var exports = 0
         setContent {
             TextField(
                 value = "",
                 onValueChange = {},
                 modifier =
-                    SwingModifier.name("clip").clipboard(
+                    SwingModifier.clipboard(
                         transferable = {
                             exports++
                             StringSelection("payload")
@@ -53,7 +51,7 @@ class DataTransferExportDoneTest {
                     ),
             )
         }
-        val component = onNodeWithName("clip").fetch<JComponent>()
+        val component = onNodeOfType<JTextField>().fetch()
         val copyClipboard = localClipboard()
         val cutClipboard = localClipboard()
 
@@ -79,7 +77,7 @@ class DataTransferExportDoneTest {
     @Test
     fun cutWithoutAnOnExportDoneModifierLeavesTheSourceIntact() = runComposeSwingTest {
         // A completed MOVE (cut) export reports through the component's export-completion seam; with
-        // no onExportDone modifier the seam is empty — like TransferHandler.exportDone's own no-op —
+        // no onExportDone modifier the seam is empty - like TransferHandler.exportDone's own no-op -
         // so there is no automatic removal: the source still produces its value after a cut, and
         // removing the moved data is the exporter's onExportDone responsibility.
         setContent {
@@ -87,14 +85,14 @@ class DataTransferExportDoneTest {
                 value = "",
                 onValueChange = {},
                 modifier =
-                    SwingModifier.name("clip").clipboard(
+                    SwingModifier.clipboard(
                         transferable = { StringSelection("cut-me") },
                         onPaste = { true },
                         bindKeys = false,
                     ),
             )
         }
-        val component = onNodeWithName("clip").fetch<JComponent>()
+        val component = onNodeOfType<JTextField>().fetch()
         val cutClipboard = localClipboard()
         val afterCutClipboard = localClipboard()
 
@@ -119,7 +117,7 @@ class DataTransferExportDoneTest {
     @Test
     fun cutReportsMoveThroughOnExportDoneSoTheSourceCanRemoveTheData() = runComposeSwingTest {
         // Move semantics end to end: the source offers its value, and once the export completes as a
-        // MOVE, onExportDone tells the source so it can remove the moved data — Swing's export
+        // MOVE, onExportDone tells the source so it can remove the moved data - Swing's export
         // contract, driven entirely through the modifier's public surface.
         var value = "move-me"
         val reportedActions = mutableListOf<Int>()
@@ -129,7 +127,6 @@ class DataTransferExportDoneTest {
                 onValueChange = {},
                 modifier =
                     SwingModifier
-                        .name("clip")
                         .clipboard(
                             transferable = { StringSelection(value) },
                             onPaste = { true },
@@ -140,7 +137,7 @@ class DataTransferExportDoneTest {
                         },
             )
         }
-        val component = onNodeWithName("clip").fetch<JComponent>()
+        val component = onNodeOfType<JTextField>().fetch()
         val cutClipboard = localClipboard()
         val afterCutClipboard = localClipboard()
 
@@ -176,7 +173,6 @@ class DataTransferExportDoneTest {
                 onValueChange = {},
                 modifier =
                     SwingModifier
-                        .name("clip")
                         .clipboard(
                             transferable = { StringSelection(value) },
                             onPaste = { true },
@@ -187,7 +183,7 @@ class DataTransferExportDoneTest {
                         },
             )
         }
-        val component = onNodeWithName("clip").fetch<JComponent>()
+        val component = onNodeOfType<JTextField>().fetch()
         val copyClipboard = localClipboard()
         val secondClipboard = localClipboard()
 
@@ -217,7 +213,6 @@ class DataTransferExportDoneTest {
                 onValueChange = {},
                 modifier =
                     SwingModifier
-                        .name("clip")
                         .clipboard(
                             transferable = { null },
                             onPaste = { true },
@@ -228,7 +223,7 @@ class DataTransferExportDoneTest {
                         },
             )
         }
-        val component = onNodeWithName("clip").fetch<JComponent>()
+        val component = onNodeOfType<JTextField>().fetch()
 
         component.transferHandler.exportToClipboard(component, localClipboard(), TransferHandler.COPY)
 
@@ -249,7 +244,6 @@ class DataTransferExportDoneTest {
                 onValueChange = { text = it },
                 modifier =
                     SwingModifier
-                        .name("field")
                         .clipboard(
                             transferable = { StringSelection(text.substring(selection)) },
                             onPaste = { true },
@@ -259,7 +253,7 @@ class DataTransferExportDoneTest {
                         },
             )
         }
-        val field = onNodeWithName("field").fetch<JTextField>()
+        val field = onNodeOfType<JTextField>().fetch()
         val clipboard = localClipboard()
 
         field.transferHandler.exportToClipboard(field, clipboard, TransferHandler.MOVE)
@@ -276,7 +270,7 @@ class DataTransferExportDoneTest {
     @Test
     fun theSeamReceivesExportsRegardlessOfWhichSiblingModifierOwnsTheExporter() = runComposeSwingTest {
         // One component, one handler, one completion seam: with a draggable owning the export slice
-        // beside a clipboard modifier, a clipboard export carries the draggable's payload — and the
+        // beside a clipboard modifier, a clipboard export carries the draggable's payload - and the
         // component's onExportDone still receives the completed action.
         var reportedAction: Int? = null
         setContent {
@@ -285,7 +279,6 @@ class DataTransferExportDoneTest {
                 onValueChange = {},
                 modifier =
                     SwingModifier
-                        .name("both")
                         .draggable(TransferHandler.COPY_OR_MOVE) { StringSelection("shared") }
                         .clipboard(
                             transferable = { StringSelection("unowned") },
@@ -294,7 +287,7 @@ class DataTransferExportDoneTest {
                         ).onExportDone { _, _, action -> reportedAction = action },
             )
         }
-        val component = onNodeWithName("both").fetch<JComponent>()
+        val component = onNodeOfType<JTextField>().fetch()
         val clipboard = localClipboard()
 
         component.transferHandler.exportToClipboard(component, clipboard, TransferHandler.MOVE)

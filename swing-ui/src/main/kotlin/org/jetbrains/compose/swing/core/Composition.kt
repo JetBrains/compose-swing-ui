@@ -73,17 +73,18 @@ internal fun checkEventDispatchThread() {
  * Mounts a single island [Composition] as a child of a [CompositionContext].
  *
  * The island shares its parent's recomposition runtime (the parent context owns the recomposer,
- * clock, and scope); this mount owns only its [Composition] and its [SnapshotStateObserver]. Disposing
- * it disposes both — just this island's composition and its observer.
+ * clock, and scope); this mount owns its [Composition], and the [SnapshotStateObserver] where the
+ * island has one. Disposing it disposes what it owns - just this island, never the parent.
  *
- * The island is the composition owner for snapshot-observing components (e.g. `Canvas`): it owns one
- * [SnapshotStateObserver] shared by every such component in this composition, each registered as its
- * own scope. The applier stamps that observer onto each node it inserts, so a component reaches it from
- * its [SwingNodeHolder] rather than resolving a `CompositionLocal`.
+ * An island over an applier that observes snapshot state is the composition owner for the components
+ * that do (e.g. `Canvas`): it owns one [SnapshotStateObserver] shared by every such component in this
+ * composition, each registered as its own scope. The applier stamps that observer onto each node it
+ * inserts, so a component reaches it from its [SwingNodeHolder] rather than resolving a
+ * `CompositionLocal`.
  */
 internal class SwingCompositionMount private constructor(
     private val composition: Composition,
-    private val observer: SnapshotStateObserver,
+    private val observer: SnapshotStateObserver?,
 ) {
     fun setContent(content: @Composable () -> Unit) {
         composition.setContent(content)
@@ -95,20 +96,20 @@ internal class SwingCompositionMount private constructor(
      * completion before returning. This bypasses the parent recomposer's asynchronous, frame-clock-gated
      * loop: the island is a [ControlledComposition], so its own [recompose]/[applyChanges] run inline.
      *
-     * Intended for a host that must have its Swing subtree fully materialized the instant it returns — a
+     * Intended for a host that must have its Swing subtree fully materialized the instant it returns - a
      * `ListCellRenderer` stamping the same reused composition for each row Swing asks it to paint.
      *
      * The state writes are performed inside a mutable snapshot whose read/write observers feed this
      * composition directly (via [ControlledComposition.recordReadOf]/[ControlledComposition.recordWriteOf]),
      * rather than left to the parent recomposer to observe on its own (asynchronous) schedule. That is
      * what makes each stamp's write invalidate the cell body *now*, so a synchronous [recompose] here
-     * re-runs it — without it, only the parent recomposer would eventually pick the write up, and this
+     * re-runs it - without it, only the parent recomposer would eventually pick the write up, and this
      * synchronous recompose would see nothing to do.
      *
      * Once the mount is [dispose]d a stamp is a no-op: a Swing widget keeps invoking a renderer it
      * captured (focus and layout passes dispatch against a widget while its window is torn down), so
      * this call stays safe on a disposed island instead of recomposing it. [writeState] is skipped
-     * too — recording reads and writes against a disposed composition is dead work.
+     * too - recording reads and writes against a disposed composition is dead work.
      *
      * Must be called on the Event Dispatch Thread.
      */
@@ -123,7 +124,7 @@ internal class SwingCompositionMount private constructor(
         // composition, exactly as a recomposer wraps a composition it drives. This is load-bearing: the
         // composition only re-records the state it reads (its `observations`) when composed under such a
         // snapshot, so without this wrapper the FIRST stamp would compose but a SECOND would find nothing
-        // observing the row inputs and skip recomposing — the cell would freeze on the first row's value.
+        // observing the row inputs and skip recomposing - the cell would freeze on the first row's value.
         val snapshot =
             Snapshot.takeMutableSnapshot(
                 readObserver = { controlled.recordReadOf(it) },
@@ -147,18 +148,18 @@ internal class SwingCompositionMount private constructor(
         }
     }
 
-    /** Disposes this island's [Composition] and stops its owner-level [SnapshotStateObserver]. */
+    /** Disposes this island's [Composition] and stops the owner-level [SnapshotStateObserver] it owns. */
     fun dispose() {
         composition.dispose()
-        observer.stop()
-        observer.clear()
+        observer?.stop()
+        observer?.clear()
     }
 
     companion object {
         /**
          * Mounts a child composition of [parent]. [applierFactory] builds the [Applier] over the
-         * owner's freshly started [SnapshotStateObserver], which the applier then stamps onto every
-         * node it inserts.
+         * owner's freshly started [SnapshotStateObserver], which [SwingApplier] stamps onto every node
+         * it inserts so a snapshot-observing component can adopt it.
          */
         fun nested(
             parent: CompositionContext,
@@ -175,15 +176,33 @@ internal class SwingCompositionMount private constructor(
                 observer = observer,
             )
         }
+
+        /**
+         * Mounts a child composition of [parent] over an applier that observes no snapshot state, so the
+         * island owns no [SnapshotStateObserver] and registers none globally. A menu composition holds
+         * no component that paints from observed reads.
+         */
+        fun nestedUnobserved(
+            parent: CompositionContext,
+            applierFactory: () -> Applier<*>,
+        ): SwingCompositionMount {
+            GlobalSnapshotManager.ensureStarted()
+            return SwingCompositionMount(composition = Composition(applierFactory(), parent), observer = null)
+        }
     }
 }
 
 /**
  * The parent-container layout constraint a child Swing node should be added with.
  *
- * A slot-based parent (e.g. a `BorderPanel`) provides the region for each slot, and [SwingNode] reads
- * this value into [SwingNodeHolder.constraint] so the applier adds the component with that constraint.
- * This lets the parent decide placement without the child knowing its container's layout manager.
+ * A container provides the placement for the children it composes - a `BorderPanel` its region per
+ * slot, any container `org.jetbrains.compose.swing.SwingConstraint` - and [SwingNode] records the
+ * value on the node (see [SwingNodeHolder.constraint]) so the applier adds the component with that
+ * constraint. This lets the parent decide placement without the child knowing its container's layout
+ * manager.
+ *
+ * A container node consumes the value for its OWN placement and provides the default again to its
+ * content, so a constraint never reaches past the children the container that declared it composes.
  *
  * Defaults to `null`, meaning "add by index" (no explicit constraint).
  */

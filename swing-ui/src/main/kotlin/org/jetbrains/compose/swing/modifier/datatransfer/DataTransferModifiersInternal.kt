@@ -12,21 +12,12 @@ import javax.swing.JComponent
  * component and the slice-ownership helpers that let drag, drop, and clipboard coexist on it.
  */
 
-internal fun exportToClipboard(
-    component: JComponent,
-    action: Int,
-) {
-    val handler = component.transferHandler ?: return
-    val clipboard = systemClipboard ?: return
-    handler.exportToClipboard(component, clipboard, action)
-}
-
 /**
  * The system clipboard, or `null` in a headless environment that has none.
  *
  * A missing clipboard is the one expected, benign failure here and resolves to `null` so clipboard
  * modifiers become inert rather than crashing on headless setups. Any other failure (e.g. a denied
- * security check) is left to propagate — it signals a real misconfiguration the caller should see.
+ * security check) is left to propagate - it signals a real misconfiguration the caller should see.
  */
 internal val systemClipboard: Clipboard?
     get() =
@@ -37,24 +28,21 @@ internal val systemClipboard: Clipboard?
         }
 
 /**
- * The current system-clipboard contents, or `null` when there is no clipboard (headless) or it is
- * momentarily unavailable.
+ * The clipboard's current contents, or `null` when they cannot be read.
  *
  * A clipboard owned/locked by another application throws [IllegalStateException] from
  * [Clipboard.getContents], and a sandbox that denies clipboard reads throws [SecurityException]; both
  * are expected conditions for which the right behavior is to read nothing (so a paste becomes a no-op)
  * rather than to fail. Any other failure is left to propagate.
  */
-internal fun clipboardContents(): Transferable? {
-    val clipboard = systemClipboard ?: return null
-    return try {
-        clipboard.getContents(null)
+internal fun Clipboard.contentsOrNull(): Transferable? =
+    try {
+        getContents(null)
     } catch (_: IllegalStateException) {
         null
     } catch (_: SecurityException) {
         null
     }
-}
 
 /**
  * The platform menu-shortcut modifier for clipboard key bindings: Command (META) on macOS, Control
@@ -86,12 +74,12 @@ internal fun uninstallIfEmpty(component: JComponent) {
     }
 }
 
-/** Clears the handler slot [slot] selects only if [token] still owns it — never another element's. */
+/** Clears the handler slot [slot] selects only if [owner] still owns it - never another element's. */
 internal fun clearSlotIfOwned(
     component: JComponent,
-    token: SliceToken?,
+    owner: Any,
     slot: (SharedTransferHandler) -> SliceSlot<*>,
 ) {
     val handler = component.transferHandler as? SharedTransferHandler ?: return
-    if (token != null) slot(handler).clear(token)
+    slot(handler).clear(owner)
 }

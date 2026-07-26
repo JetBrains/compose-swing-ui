@@ -10,7 +10,7 @@ import javax.swing.text.DocumentFilter
 import javax.swing.text.JTextComponent
 
 /*
- * Document-filter SwingModifier — gates and rewrites edits to a text component before they reach its
+ * Document-filter SwingModifier - gates and rewrites edits to a text component before they reach its
  * document, the seam for masked, length-limited, or validated input.
  */
 
@@ -18,11 +18,12 @@ import javax.swing.text.JTextComponent
  * Installs [filter] on the text component's document so it can inspect, reject, or rewrite every
  * insert, remove, and replace before it is applied. A `null` filter clears any filter the modifier
  * previously installed. Requires a [JTextComponent] target whose document is an [AbstractDocument]
- * (the default document of `JTextField`, `JTextArea`, `JFormattedTextField`, …).
+ * (the default document of `JTextField`, `JTextArea`, `JFormattedTextField`, ...).
  *
- * The filter follows the component across document swaps: replacing the component's document — as a
- * `JEditorPane` does when it switches content type — moves the filter onto the new document so it
- * stays active.
+ * The filter follows the component across document swaps: replacing the component's document - as a
+ * `JEditorPane` does when it switches content type - moves the filter onto the new document so it
+ * stays active. The filter the document held before the install is put back once the modifier leaves
+ * the chain.
  *
  * ```
  * TextField(
@@ -34,28 +35,17 @@ import javax.swing.text.JTextComponent
  *
  * @param filter the [DocumentFilter] to apply, or `null` to remove the installed filter.
  */
-public fun SwingModifier.documentFilter(filter: DocumentFilter?): SwingModifier = swappableDocumentFilter(filter)
-
-/**
- * Installs [filter] on a `JTextComponent`'s document and follows the component across document swaps.
- * Unlike binding directly to the document held at apply time — which leaves a replacement document
- * unfiltered — this helper moves the current filter onto the new document whenever the component's
- * `document` property changes, as happens when a `JEditorPane` switches content type. The filter
- * re-applies on every recomposition, so a changed (or `null`) [filter] lands on the live document; the
- * document held before install is restored when the modifier leaves the chain. Requires a
- * [JTextComponent] whose document is an [AbstractDocument].
- */
-internal fun SwingModifier.swappableDocumentFilter(filter: DocumentFilter?): SwingModifier =
-    this then SwappableDocumentFilterElement(filter)
+public fun SwingModifier.documentFilter(filter: DocumentFilter?): SwingModifier =
+    this then DocumentFilterElement(filter)
 
 /**
  * Re-applies a [DocumentFilter] to a text component's live document on every recomposition and carries
  * it across document swaps via a one-time `document`-property listener, restoring the pre-install
  * filter when it leaves the chain.
  */
-private class SwappableDocumentFilterElement(
+private class DocumentFilterElement(
     private val filter: DocumentFilter?,
-) : SwingModifier.Element<JTextComponent, SwappableDocumentFilterElement.Node> {
+) : SwingModifier.Element<JTextComponent, DocumentFilterElement.Node> {
     override val targetType: Class<JTextComponent> get() = JTextComponent::class.java
 
     override fun create(): Node = Node()

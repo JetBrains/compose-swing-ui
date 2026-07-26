@@ -140,7 +140,7 @@ public class ContextMenuElement
                 ) {
                     val popup = JPopupMenu()
                     val mount =
-                        SwingCompositionMount.nested(parentContext) { observer -> MenuApplier(popup, observer) }
+                        SwingCompositionMount.nestedUnobserved(parentContext) { MenuApplier(popup) }
                     mount.setContent(content)
 
                     // Dispose the menu composition when the popup closes, so a recomposed/recycled

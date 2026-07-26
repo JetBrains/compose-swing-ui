@@ -52,7 +52,7 @@ internal class WindowRecomposer private constructor(
 
         fun create(window: Window): WindowRecomposer {
             GlobalSnapshotManager.ensureStarted()
-            val clock = SwingFrameClock.forWindow(window)
+            val clock = SwingFrameClock(window.displayRefreshRate())
             val scope = CoroutineScope(Dispatchers.Swing + Job() + clock)
             val recomposer = Recomposer(scope.coroutineContext)
             scope.launch {

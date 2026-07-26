@@ -22,7 +22,8 @@ import org.jetbrains.compose.swing.modifier.layout.visible
 import org.jetbrains.compose.swing.modifier.listener.listener
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
 import org.jetbrains.compose.swing.modifier.listener.mouseMotionListener
-import org.jetbrains.compose.swing.setContent
+import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Color
 import java.awt.Component
@@ -34,15 +35,17 @@ import java.awt.event.MouseListener
 import java.awt.event.MouseMotionListener
 import javax.swing.JButton
 import javax.swing.JComponent
+import javax.swing.JLabel
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
  * Behavioral tests for [SwingModifier]: they assert what an observer of the live Swing component
- * sees — applied properties, reaction to recomposition, restoration when an element is removed, and
- * real listener behavior under dispatched events — never the internal diff/record machinery.
+ * sees - applied properties, reaction to recomposition, restoration when an element is removed, and
+ * real listener behavior under dispatched events - never the internal diff/record machinery.
  */
 class SwingModifierTest {
     private fun mouseEntered(component: Component): MouseEvent =
@@ -61,31 +64,21 @@ class SwingModifierTest {
     @Test
     fun nameModifierMakesComponentFindable() = runComposeSwingTest {
         setContent { Button("Save", modifier = SwingModifier.name("save-button")) }
-        onNodeWithName("save-button").assertExists()
+        onNodeWithName("save-button").assert(SwingMatcher.isOfType<JButton>())
     }
 
     @Test
     fun appearanceModifierAppliesAndReactsToState() = runComposeSwingTest {
         var accent by mutableStateOf(true)
         setContent {
-            Label(
-                "X",
-                modifier = SwingModifier.name("lbl").foreground(if (accent) Color.RED else Color.BLUE),
-            )
+            Label("X", modifier = SwingModifier.foreground(if (accent) Color.RED else Color.BLUE))
         }
-        assertEquals(
-            Color.RED,
-            onNodeWithName("lbl").fetch<JComponent>().foreground,
-            "the modifier should apply the initial color",
-        )
+        val label = onNodeOfType<JLabel>()
+        assertEquals(Color.RED, label.fetch<JLabel>().foreground, "the modifier should apply the initial color")
 
         accent = false
         awaitIdle()
-        assertEquals(
-            Color.BLUE,
-            onNodeWithName("lbl").fetch<JComponent>().foreground,
-            "the modifier should react to the state change",
-        )
+        assertEquals(Color.BLUE, label.fetch<JLabel>().foreground, "the modifier should react to the state change")
     }
 
     @Test
@@ -95,13 +88,12 @@ class SwingModifierTest {
                 "X",
                 modifier =
                     SwingModifier
-                        .name("lbl")
                         .foreground(Color.RED)
                         .background(Color.BLUE)
                         .opaque(true),
             )
         }
-        val label = onNodeWithName("lbl").fetch<JComponent>()
+        val label = onNodeOfType<JLabel>().fetch()
         assertEquals(Color.RED, label.foreground, "the foreground element should apply")
         assertEquals(Color.BLUE, label.background, "the background element should apply")
         assertTrue(label.isOpaque, "the opaque element should apply")
@@ -111,26 +103,24 @@ class SwingModifierTest {
     fun removingAnElementRestoresThePriorDefault() = runComposeSwingTest {
         var styled by mutableStateOf(true)
         setContent {
-            Label("ctrl", modifier = SwingModifier.name("ctrl"))
-            Label(
-                "lbl",
-                modifier = SwingModifier.name("lbl").let { if (styled) it.background(Color.YELLOW) else it },
-            )
+            Label("untouched")
+            Label("styled", modifier = if (styled) SwingModifier.background(Color.YELLOW) else SwingModifier)
         }
-        val default = onNodeWithName("ctrl").fetch<JComponent>().background
+        val styledLabel = onNodeWithText("styled")
+        val default = onNodeWithText("untouched").fetch<JLabel>().background
         assertEquals(
             Color.YELLOW,
-            onNodeWithName("lbl").fetch<JComponent>().background,
+            styledLabel.fetch<JLabel>().background,
             "the element should apply the background while present",
         )
 
         styled = false
         awaitIdle()
         // The element left the chain, so the background is restored to what it was before the
-        // modifier first touched it (the same default the unstyled control still shows).
+        // modifier first touched it (the same default the untouched control still shows).
         assertEquals(
             default,
-            onNodeWithName("lbl").fetch<JComponent>().background,
+            styledLabel.fetch<JLabel>().background,
             "removing the element should restore the prior default",
         )
     }
@@ -142,13 +132,10 @@ class SwingModifierTest {
         setContent {
             Button(
                 "X",
-                modifier =
-                    SwingModifier.name("b").let {
-                        if (hoverEnabled) it.onHover(onEnter = { enterCount++ }) else it
-                    },
+                modifier = if (hoverEnabled) SwingModifier.onHover(onEnter = { enterCount++ }) else SwingModifier,
             )
         }
-        val button = onNodeWithName("b").fetch<JComponent>()
+        val button = onNodeOfType<JButton>().fetch()
 
         button.dispatchEvent(mouseEntered(button))
         assertEquals(1, enterCount, "the hover listener should fire while its element is present")
@@ -164,9 +151,9 @@ class SwingModifierTest {
         var target by mutableStateOf("first")
         var captured = ""
         setContent {
-            Button("X", modifier = SwingModifier.name("b").onHover(onEnter = { captured = target }))
+            Button("X", modifier = SwingModifier.onHover(onEnter = { captured = target }))
         }
-        val button = onNodeWithName("b").fetch<JComponent>()
+        val button = onNodeOfType<JButton>().fetch()
 
         button.dispatchEvent(mouseEntered(button))
         assertEquals("first", captured, "the hover listener should read the first callback")
@@ -181,75 +168,47 @@ class SwingModifierTest {
     fun enabledModifierAppliesAndRestoresOnRemoval() = runComposeSwingTest {
         var disabled by mutableStateOf(true)
         setContent {
-            Button(
-                "X",
-                modifier = SwingModifier.name("b").let { if (disabled) it.enabled(false) else it },
-            )
+            Button("X", modifier = if (disabled) SwingModifier.enabled(false) else SwingModifier)
         }
-        assertFalse(
-            onNodeWithName("b").fetch<JComponent>().isEnabled,
-            "the modifier should disable the button while present",
-        )
+        val button = onNodeOfType<JButton>()
+        button.assertIsNotEnabled()
 
         disabled = false
         awaitIdle()
         // The element left the chain, so isEnabled is restored to the pre-modifier default.
-        assertTrue(
-            onNodeWithName("b").fetch<JComponent>().isEnabled,
-            "removing the modifier should restore the enabled default",
-        )
+        button.assertIsEnabled()
     }
 
     @Test
     fun visibleModifierAppliesAndRestoresOnRemoval() = runComposeSwingTest {
         var hidden by mutableStateOf(true)
         setContent {
-            Button(
-                "X",
-                modifier = SwingModifier.name("b").let { if (hidden) it.visible(false) else it },
-            )
+            Button("X", modifier = if (hidden) SwingModifier.visible(false) else SwingModifier)
         }
-        assertFalse(
-            onNodeWithName("b").fetch<JComponent>().isVisible,
-            "the modifier should hide the button while present",
-        )
+        val button = onNodeOfType<JButton>()
+        button.assertIsNotVisible()
 
         hidden = false
         awaitIdle()
         // The element left the chain, so isVisible is restored to the pre-modifier default.
-        assertTrue(
-            onNodeWithName("b").fetch<JComponent>().isVisible,
-            "removing the modifier should restore the visible default",
-        )
+        button.assertIsVisible()
     }
 
     @Test
     fun minimumSizeModifierAppliesAndRestoresOnRemoval() = runComposeSwingTest {
         var constrained by mutableStateOf(true)
         setContent {
-            Label(
-                "X",
-                modifier =
-                    SwingModifier.name("lbl").let {
-                        if (constrained) it.minimumSize(120, 40) else it
-                    },
-            )
+            Label("X", modifier = if (constrained) SwingModifier.minimumSize(120, 40) else SwingModifier)
         }
-        assertEquals(
-            Dimension(120, 40),
-            onNodeWithName("lbl").fetch<JComponent>().minimumSize,
-            "the modifier should apply the minimum size",
-        )
-        assertTrue(
-            onNodeWithName("lbl").fetch<JComponent>().isMinimumSizeSet,
-            "the minimum-size-set flag should be on while present",
-        )
+        val constrainedLabel = onNodeOfType<JLabel>().fetch()
+        assertEquals(Dimension(120, 40), constrainedLabel.minimumSize, "the modifier should apply the minimum size")
+        assertTrue(constrainedLabel.isMinimumSizeSet, "the minimum-size-set flag should be on while present")
 
         constrained = false
         awaitIdle()
         // The element left the chain, so the explicit minimum size is cleared again.
         assertFalse(
-            onNodeWithName("lbl").fetch<JComponent>().isMinimumSizeSet,
+            onNodeOfType<JLabel>().fetch().isMinimumSizeSet,
             "removing the modifier should clear the minimum-size-set flag",
         )
     }
@@ -258,29 +217,17 @@ class SwingModifierTest {
     fun maximumSizeModifierAppliesAndRestoresOnRemoval() = runComposeSwingTest {
         var constrained by mutableStateOf(true)
         setContent {
-            Label(
-                "X",
-                modifier =
-                    SwingModifier.name("lbl").let {
-                        if (constrained) it.maximumSize(Dimension(200, 80)) else it
-                    },
-            )
+            Label("X", modifier = if (constrained) SwingModifier.maximumSize(Dimension(200, 80)) else SwingModifier)
         }
-        assertEquals(
-            Dimension(200, 80),
-            onNodeWithName("lbl").fetch<JComponent>().maximumSize,
-            "the modifier should apply the maximum size",
-        )
-        assertTrue(
-            onNodeWithName("lbl").fetch<JComponent>().isMaximumSizeSet,
-            "the maximum-size-set flag should be on while present",
-        )
+        val constrainedLabel = onNodeOfType<JLabel>().fetch()
+        assertEquals(Dimension(200, 80), constrainedLabel.maximumSize, "the modifier should apply the maximum size")
+        assertTrue(constrainedLabel.isMaximumSizeSet, "the maximum-size-set flag should be on while present")
 
         constrained = false
         awaitIdle()
         // The element left the chain, so the explicit maximum size is cleared again.
         assertFalse(
-            onNodeWithName("lbl").fetch<JComponent>().isMaximumSizeSet,
+            onNodeOfType<JLabel>().fetch().isMaximumSizeSet,
             "removing the modifier should clear the maximum-size-set flag",
         )
     }
@@ -288,27 +235,21 @@ class SwingModifierTest {
     @Test
     fun maximumSizeWidthHeightOverloadAppliesTheDimension() = runComposeSwingTest {
         setContent {
-            Label("X", modifier = SwingModifier.name("lbl").maximumSize(200, 80))
+            Label("X", modifier = SwingModifier.maximumSize(200, 80))
         }
-        assertEquals(
-            Dimension(200, 80),
-            onNodeWithName("lbl").fetch<JComponent>().maximumSize,
-            "the overload should apply the dimension",
-        )
-        assertTrue(
-            onNodeWithName("lbl").fetch<JComponent>().isMaximumSizeSet,
-            "the overload should set the maximum-size-set flag",
-        )
+        val label = onNodeOfType<JLabel>().fetch()
+        assertEquals(Dimension(200, 80), label.maximumSize, "the overload should apply the dimension")
+        assertTrue(label.isMaximumSizeSet, "the overload should set the maximum-size-set flag")
     }
 
     @Test
     fun alignmentXModifierAppliesTheSetValue() = runComposeSwingTest {
         setContent {
-            Label("X", modifier = SwingModifier.name("lbl").alignmentX(0.0f))
+            Label("X", modifier = SwingModifier.alignmentX(0.0f))
         }
         assertEquals(
             0.0f,
-            onNodeWithName("lbl").fetch<JComponent>().alignmentX,
+            onNodeOfType<JLabel>().fetch().alignmentX,
             "the modifier should set the x alignment",
         )
     }
@@ -316,11 +257,11 @@ class SwingModifierTest {
     @Test
     fun alignmentYModifierAppliesTheSetValue() = runComposeSwingTest {
         setContent {
-            Label("X", modifier = SwingModifier.name("lbl").alignmentY(1.0f))
+            Label("X", modifier = SwingModifier.alignmentY(1.0f))
         }
         assertEquals(
             1.0f,
-            onNodeWithName("lbl").fetch<JComponent>().alignmentY,
+            onNodeOfType<JLabel>().fetch().alignmentY,
             "the modifier should set the y alignment",
         )
     }
@@ -329,18 +270,20 @@ class SwingModifierTest {
     fun componentOrientationModifierAppliesAndRestoresOnRemoval() = runComposeSwingTest {
         var rtl by mutableStateOf(true)
         setContent {
-            Label("ctrl", modifier = SwingModifier.name("ctrl"))
+            Label("untouched")
             Label(
-                "lbl",
+                "styled",
                 modifier =
-                    SwingModifier.name("lbl").let {
-                        if (rtl) it.componentOrientation(ComponentOrientation.RIGHT_TO_LEFT) else it
-                    },
+                    if (rtl) SwingModifier.componentOrientation(ComponentOrientation.RIGHT_TO_LEFT) else SwingModifier,
             )
         }
-        val default = onNodeWithName("ctrl").fetch<JComponent>().componentOrientation
-        val styled = onNodeWithName("lbl").fetch<JComponent>().componentOrientation
-        assertEquals(ComponentOrientation.RIGHT_TO_LEFT, styled, "the modifier should apply the RTL orientation")
+        val styledLabel = onNodeWithText("styled")
+        val default = onNodeWithText("untouched").fetch<JLabel>().componentOrientation
+        assertEquals(
+            ComponentOrientation.RIGHT_TO_LEFT,
+            styledLabel.fetch<JLabel>().componentOrientation,
+            "the modifier should apply the RTL orientation",
+        )
 
         rtl = false
         awaitIdle()
@@ -348,7 +291,7 @@ class SwingModifierTest {
         // (the same one the untouched control still shows).
         assertEquals(
             default,
-            onNodeWithName("lbl").fetch<JComponent>().componentOrientation,
+            styledLabel.fetch<JLabel>().componentOrientation,
             "removing the modifier should restore the default orientation",
         )
     }
@@ -362,7 +305,6 @@ class SwingModifierTest {
                 "X",
                 modifier =
                     SwingModifier
-                        .name("b")
                         .listener<JButton, MouseListener>(
                             mouseEnterListener { first++ },
                             { c, l -> c.addMouseListener(l) },
@@ -374,7 +316,7 @@ class SwingModifierTest {
                         ),
             )
         }
-        val button = onNodeWithName("b").fetch<JComponent>()
+        val button = onNodeOfType<JButton>().fetch()
 
         button.dispatchEvent(mouseEntered(button))
         // Listeners are additive: neither slot replaces the other, so both fire.
@@ -391,12 +333,11 @@ class SwingModifierTest {
                 "X",
                 modifier =
                     SwingModifier
-                        .name("b")
                         .onHover(onEnter = { first++ })
                         .onHover(onEnter = { second++ }),
             )
         }
-        val button = onNodeWithName("b").fetch<JComponent>()
+        val button = onNodeOfType<JButton>().fetch()
 
         button.dispatchEvent(mouseEntered(button))
         // Two onHover are additive (each its own slot), so both enter callbacks fire.
@@ -407,17 +348,10 @@ class SwingModifierTest {
     @Test
     fun repeatedPropertyElementStillLastWins() = runComposeSwingTest {
         setContent {
-            Label(
-                "X",
-                modifier =
-                    SwingModifier
-                        .name("lbl")
-                        .background(Color.RED)
-                        .background(Color.BLUE),
-            )
+            Label("X", modifier = SwingModifier.background(Color.RED).background(Color.BLUE))
         }
         // Property elements keep last-wins semantics: two backgrounds collapse, the later wins.
-        assertEquals(Color.BLUE, onNodeWithName("lbl").fetch<JComponent>().background)
+        assertEquals(Color.BLUE, onNodeOfType<JLabel>().fetch().background)
     }
 
     @Test
@@ -430,19 +364,18 @@ class SwingModifierTest {
                 "X",
                 modifier =
                     SwingModifier
-                        .name("b")
                         .let { if (firstHoverEnabled) it.onHover(onEnter = { first++ }) else it }
                         .onHover(onEnter = { second++ }),
             )
         }
-        val button = onNodeWithName("b").fetch<JComponent>()
+        val button = onNodeOfType<JButton>().fetch()
 
         button.dispatchEvent(mouseEntered(button))
         assertEquals(1, first, "the first listener should fire once before removal")
         assertEquals(1, second, "the second listener should fire once before removal")
 
         // Drop the first additive listener. Positional identity shifts the survivor, so it is
-        // detached and reinstalled — but it stays live and keeps firing.
+        // detached and reinstalled - but it stays live and keeps firing.
         firstHoverEnabled = false
         awaitIdle()
         button.dispatchEvent(mouseEntered(button))
@@ -459,18 +392,17 @@ class SwingModifierTest {
                 "X",
                 modifier =
                     SwingModifier
-                        .name("b")
                         .let { if (hoverEnabled) it.onHover(onEnter = {}) else it }
                         .onPointerEvent(onClick = { clickCount++ }),
             )
         }
-        val button = onNodeWithName("b").fetch<JComponent>()
+        val button = onNodeOfType<JButton>().fetch()
 
         button.dispatchEvent(mouseClicked(button))
         assertEquals(1, clickCount, "the click listener should fire before the shape change")
 
         // Dropping the conditional hover shifts the click element onto the hover's position. The
-        // kinds differ, so the slot swaps wholesale — the click listener must survive the shift.
+        // kinds differ, so the slot swaps wholesale - the click listener must survive the shift.
         hoverEnabled = false
         awaitIdle()
         button.dispatchEvent(mouseClicked(button))
@@ -486,12 +418,11 @@ class SwingModifierTest {
                 "X",
                 modifier =
                     SwingModifier
-                        .name("b")
                         .let { if (hoverEnabled) it.onHover(onEnter = { enterCount++ }) else it }
                         .onPointerEvent(onClick = {}),
             )
         }
-        val button = onNodeWithName("b").fetch<JComponent>()
+        val button = onNodeOfType<JButton>().fetch()
 
         button.dispatchEvent(mouseEntered(button))
         assertEquals(1, enterCount, "the hover listener should fire while its element is present")
@@ -523,12 +454,11 @@ class SwingModifierTest {
                 "X",
                 modifier =
                     SwingModifier
-                        .name("b")
                         .let { if (mouseEnabled) it.mouseListener(mouse) else it }
                         .mouseMotionListener(motion),
             )
         }
-        val button = onNodeWithName("b").fetch<JComponent>()
+        val button = onNodeOfType<JButton>().fetch()
 
         button.dispatchEvent(mouseEntered(button))
         button.dispatchEvent(mouseMoved(button))
@@ -557,19 +487,17 @@ class SwingModifierTest {
             Button(
                 label,
                 modifier =
-                    SwingModifier
-                        .name("b")
-                        .listener<JButton, MouseListener>(
-                            stable,
-                            { c, l ->
-                                attachCount++
-                                c.addMouseListener(l)
-                            },
-                            { c, l ->
-                                detachCount++
-                                c.removeMouseListener(l)
-                            },
-                        ),
+                    SwingModifier.listener<JButton, MouseListener>(
+                        stable,
+                        { c, l ->
+                            attachCount++
+                            c.addMouseListener(l)
+                        },
+                        { c, l ->
+                            detachCount++
+                            c.removeMouseListener(l)
+                        },
+                    ),
             )
         }
         assertEquals(1, attachCount, "the listener should be attached once on first apply")
@@ -581,7 +509,7 @@ class SwingModifierTest {
         assertEquals(1, attachCount, "a same-kind persisting position must not re-attach the listener")
         assertEquals(0, detachCount, "a same-kind persisting position must not detach the listener")
 
-        val button = onNodeWithName("b").fetch<JComponent>()
+        val button = onNodeOfType<JButton>().fetch()
         button.dispatchEvent(mouseEntered(button))
         assertEquals(1, enterCount, "the persisting listener must still fire after recomposition")
     }
@@ -596,18 +524,14 @@ class SwingModifierTest {
                     "X",
                     modifier =
                         SwingModifier
-                            .name("lbl")
                             .background(Color.GREEN)
                             .onHover(onEnter = { enterCount++ }),
                 )
             }
         }
-        assertEquals(
-            Color.GREEN,
-            onNodeWithName("lbl").fetch<JComponent>().background,
-            "the property element should apply before reuse",
-        )
-        onNodeWithName("lbl").fetch<JComponent>().let { it.dispatchEvent(mouseEntered(it)) }
+        val beforeReuse = onNodeOfType<JLabel>().fetch()
+        assertEquals(Color.GREEN, beforeReuse.background, "the property element should apply before reuse")
+        beforeReuse.dispatchEvent(mouseEntered(beforeReuse))
         assertEquals(1, enterCount, "the hover listener should fire once before reuse")
 
         // Deactivate then reactivate: resetModifierState drains both the keyed property record
@@ -618,19 +542,63 @@ class SwingModifierTest {
         awaitIdle()
 
         // Property re-applied and listener re-installed on the reused node.
-        assertEquals(
-            Color.GREEN,
-            onNodeWithName("lbl").fetch<JComponent>().background,
-            "the property element must be re-applied after reuse",
-        )
-        onNodeWithName("lbl").fetch<JComponent>().let { it.dispatchEvent(mouseEntered(it)) }
+        val afterReuse = onNodeOfType<JLabel>().fetch()
+        assertEquals(Color.GREEN, afterReuse.background, "the property element must be re-applied after reuse")
+        afterReuse.dispatchEvent(mouseEntered(afterReuse))
         assertEquals(2, enterCount, "the additive listener must be re-installed after reuse")
     }
 
     @Test
     fun customElementWrapsAnArbitraryProperty() = runComposeSwingTest {
-        setContent { Button("X", modifier = SwingModifier.name("b").then(ToolTipElement("hello"))) }
-        assertEquals("hello", onNodeWithName("b").fetch<JComponent>().toolTipText)
+        setContent { Button("X", modifier = SwingModifier.then(ToolTipElement("hello"))) }
+        assertEquals("hello", onNodeOfType<JButton>().fetch().toolTipText)
+    }
+
+    @Test
+    fun readingNodeComponentBeforeAttachFailsWithADiagnosticMessage() = runComposeSwingTest {
+        // The target is injected between create() and onAttach(), so an element author reading the
+        // node's component from create() is told what went wrong instead of hitting a null target.
+        val failure =
+            assertFailsWith<IllegalStateException> {
+                setContent { Label("X", modifier = SwingModifier.then(EarlyComponentReadElement())) }
+            }
+        assertEquals(NOT_ATTACHED_MESSAGE, failure.message, "an unattached node should name the reason")
+    }
+
+    @Test
+    fun readingNodeComponentAfterItsElementLeavesTheChainFailsWithADiagnosticMessage() = runComposeSwingTest {
+        var styled by mutableStateOf(true)
+        val nodes = ArrayList<ToolTipElement.Node>()
+        setContent {
+            Button(
+                "X",
+                modifier = if (styled) SwingModifier.then(ToolTipElement("hello", nodes::add)) else SwingModifier,
+            )
+        }
+        assertEquals("hello", onNodeOfType<JButton>().fetch().toolTipText)
+        val node = nodes.single()
+
+        // The element leaves the chain, so its node no longer owns the component: reading the target
+        // fails exactly as it does before attach, instead of handing out a widget it may not touch.
+        styled = false
+        awaitIdle()
+        val failure = assertFailsWith<IllegalStateException> { node.component }
+        assertEquals(NOT_ATTACHED_MESSAGE, failure.message, "a detached node should name the reason")
+    }
+
+    /**
+     * An element that reads its node's component from [SwingModifier.Element.create], before the
+     * applier has injected a target.
+     */
+    private class EarlyComponentReadElement :
+        SwingModifier.Element<JComponent, EarlyComponentReadElement.Node> {
+        override val targetType: Class<JComponent> get() = JComponent::class.java
+
+        override fun create(): Node = Node().also { it.component }
+
+        override fun update(node: Node) = Unit
+
+        class Node : SwingModifier.Node<JComponent>()
     }
 
     /**
@@ -641,10 +609,11 @@ class SwingModifierTest {
      */
     private class ToolTipElement(
         private val text: String,
+        private val onCreate: (Node) -> Unit = {},
     ) : SwingModifier.Element<JComponent, ToolTipElement.Node> {
         override val targetType: Class<JComponent> get() = JComponent::class.java
 
-        override fun create(): Node = Node()
+        override fun create(): Node = Node().also(onCreate)
 
         override fun update(node: Node) {
             node.text = text
@@ -667,5 +636,10 @@ class SwingModifierTest {
                 component.toolTipText = original
             }
         }
+    }
+
+    private companion object {
+        /** The message [SwingModifier.Node.component] fails with outside the attached window. */
+        const val NOT_ATTACHED_MESSAGE = "Node is not attached"
     }
 }

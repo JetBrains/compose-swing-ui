@@ -12,23 +12,27 @@ import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.listener
 import java.awt.event.ActionListener
 import javax.swing.JMenuItem
+import javax.swing.KeyStroke
 
 /**
  * A composable wrapper for JMenuItem.
  *
  * @param text the text of the menu item
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param accelerator the key combination that activates the item without navigating the menu
+ *   hierarchy, displayed next to its text; `null` (the default) leaves the item without one
  * @param onClick callback to be invoked when the menu item is clicked
  */
 @Composable
 public fun MenuItem(
     text: String,
     modifier: SwingModifier = SwingModifier,
+    accelerator: KeyStroke? = null,
     onClick: () -> Unit = {},
 ) {
     val callback = rememberUpdatedState(onClick)
     val listener = remember { ActionListener { callback.value() } }
-    MenuItem(text = text, actionListener = listener, modifier = modifier)
+    MenuItem(text = text, actionListener = listener, modifier = modifier, accelerator = accelerator)
 }
 
 /**
@@ -39,24 +43,27 @@ public fun MenuItem(
  * @param text the text of the menu item
  * @param actionListener the listener notified when the item is activated
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @param accelerator the key combination that activates the item without navigating the menu
+ *   hierarchy, displayed next to its text; `null` (the default) leaves the item without one
  */
 @Composable
 public fun MenuItem(
     text: String,
     actionListener: ActionListener,
     modifier: SwingModifier = SwingModifier,
+    accelerator: KeyStroke? = null,
 ) {
     MenuNode(
         factory = { JMenuItem() },
         update = {
             set(text) { this.text = it }
+            set(accelerator) { this.accelerator = it }
             applyModifier(
-                SwingModifier
-                    .listener<JMenuItem, ActionListener>(
-                        actionListener,
-                        { c, l -> c.addActionListener(l) },
-                        { c, l -> c.removeActionListener(l) },
-                    ) then modifier,
+                modifier.listener<JMenuItem, ActionListener>(
+                    actionListener,
+                    { c, l -> c.addActionListener(l) },
+                    { c, l -> c.removeActionListener(l) },
+                ),
             )
         },
     )

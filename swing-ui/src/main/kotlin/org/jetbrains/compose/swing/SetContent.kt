@@ -349,7 +349,7 @@ public fun JMenuBar.setContent(
     checkEventDispatchThread()
 
     return mountWhenParentResolves(this) { parent ->
-        val mount = SwingCompositionMount.nested(parent) { observer -> MenuApplier(this, observer) }
+        val mount = SwingCompositionMount.nestedUnobserved(parent) { MenuApplier(this) }
         mount.setContent(content)
         mount
     }

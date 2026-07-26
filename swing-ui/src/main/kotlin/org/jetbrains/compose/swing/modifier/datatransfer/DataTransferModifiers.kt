@@ -5,6 +5,7 @@ import androidx.compose.runtime.remember
 import org.jetbrains.compose.swing.constants.TransferAction
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import java.awt.Point
+import java.awt.datatransfer.Clipboard
 import java.awt.datatransfer.DataFlavor
 import java.awt.datatransfer.Transferable
 import java.awt.dnd.DragSource
@@ -16,7 +17,7 @@ import javax.swing.TransferHandler
 import kotlin.math.abs
 
 /*
- * Data-transfer SwingModifiers — drag-and-drop and system-clipboard support. Drag source, drop
+ * Data-transfer SwingModifiers - drag-and-drop and system-clipboard support. Drag source, drop
  * target, and clipboard copy/cut/paste can all be declared on the same component and coexist. The set
  * of allowed operations is a [TransferAction] `TransferHandler` action bit-mask.
  */
@@ -30,8 +31,8 @@ import kotlin.math.abs
  * the component (already typed [JComponent]) and returns the data to transfer, or `null` to start no
  * drag.
  *
- * The outcome of every export — the completed action, including a `MOVE` whose data the source
- * should remove — is reported through [onExportDone].
+ * The outcome of every export - the completed action, including a `MOVE` whose data the source
+ * should remove - is reported through [onExportDone].
  *
  * Requires a [JComponent] target. Composes with [dropTarget] and [clipboard] on the same component:
  * all three configure one underlying transfer handler, so a component can be a drag source, a drop
@@ -47,7 +48,7 @@ public fun SwingModifier.draggable(
  * Makes the component a drop TARGET that imports a dropped [Transferable].
  *
  * [acceptedActions] declares which operations the target accepts; a drop whose operation is not among
- * them is rejected before [onDrop]. [canImport] gates a drop by its offered [DataFlavor]s — it
+ * them is rejected before [onDrop]. [canImport] gates a drop by its offered [DataFlavor]s - it
  * receives the dragged data's flavors and returns whether the drop may proceed; the default accepts
  * any flavor, so gating is opt-in. [onDrop] is invoked on an accepted drop with the dropped
  * [Transferable] and returns whether the import succeeded.
@@ -95,8 +96,9 @@ public fun SwingModifier.clipboard(
 /**
  * Registers a callback told the outcome of every data-transfer export that starts on the component:
  * once a drag ends or a clipboard copy/cut completes, [onExportDone] receives the component, the
- * exported data, and the [TransferAction] that occurred — `TransferHandler.COPY`,
- * `TransferHandler.MOVE`, or `TransferHandler.NONE` (with `null` data) when nothing was transferred.
+ * exported data, and the [TransferAction] that occurred - `TransferHandler.COPY`,
+ * `TransferHandler.MOVE`, or `TransferHandler.NONE` when nothing was transferred, in which case the
+ * data is whatever the export offered, or `null` where it produced none.
  * A source offering `MOVE` implements move semantics here: on a reported `MOVE` it removes the moved
  * data. With no callback registered a completed export removes nothing, like
  * `TransferHandler.exportDone` itself.
@@ -113,49 +115,67 @@ public fun SwingModifier.onExportDone(
 
 /**
  * A programmatic trigger for the clipboard copy/cut/paste of the component a [clipboard] modifier binds
- * it to. Obtain one from [rememberClipboardHandle], pass it to `clipboard(handle = …)`, then call
+ * it to. Obtain one from [rememberClipboardHandle], pass it to `clipboard(handle = ...)`, then call
  * [copy]/[cut]/[paste] from an event handler (e.g. a menu item) to drive the same operations the bound
- * keystrokes do — without ever holding the underlying [JComponent].
+ * keystrokes do - without ever holding the underlying [JComponent].
  *
- * The handle captures the component (and its transfer handler) the modifier binds it to; while unbound —
- * before the modifier applies or after it leaves the chain — [copy] and [cut] are no-ops and [paste]
+ * The handle captures the component (and its transfer handler) the modifier binds it to; while unbound -
+ * before the modifier applies or after it leaves the chain - [copy] and [cut] are no-ops and [paste]
  * returns `false`.
  */
-public class ClipboardHandle internal constructor() {
+public class ClipboardHandle internal constructor(
+    // The clipboard copy/cut/paste act on, resolved on each operation and `null` where the environment
+    // has none, which leaves every operation a no-op.
+    private val resolveClipboard: () -> Clipboard?,
+) {
     // The component the clipboard modifier bound this handle to, or null while unbound. Copy/cut/paste
     // operate on it through the transfer handler that same modifier installed.
     private var component: JComponent? = null
 
     /**
      * Copies to the system clipboard: exports the value the bound component's [clipboard] modifier
-     * produces as a `TransferHandler.COPY`. A no-op while the handle is unbound.
+     * produces as a `TransferHandler.COPY`. A no-op while the handle is unbound or no clipboard is
+     * reachable; a clipboard that refuses the value completes the export as `TransferHandler.NONE`.
      */
     public fun copy() {
-        component?.let { exportToClipboard(it, TransferHandler.COPY) }
+        export(TransferHandler.COPY)
     }
 
     /**
      * Cuts to the system clipboard: exports the value the bound component's [clipboard] modifier
      * produces as a `TransferHandler.MOVE`, reported through the component's [onExportDone] so the
-     * source can remove the moved data. A no-op while the handle is unbound.
+     * source can remove the moved data. A no-op while the handle is unbound or no clipboard is
+     * reachable; a clipboard that refuses the value reports `TransferHandler.NONE` in place of the move.
      */
     public fun cut() {
-        component?.let { exportToClipboard(it, TransferHandler.MOVE) }
+        export(TransferHandler.MOVE)
     }
 
     /**
      * Pastes from the system clipboard: reads the clipboard and, when the bound component's [clipboard]
      * modifier's `canImport` accepts the flavors, imports the contents through that modifier's
-     * `onPaste`. Returns whether the import succeeded; returns `false` while the handle is unbound or
-     * the clipboard is empty.
+     * `onPaste`. Returns whether the import succeeded; returns `false` while the handle is unbound, or
+     * while no clipboard is reachable or its contents cannot be read.
      */
     public fun paste(): Boolean {
         val component = component ?: return false
         val handler = component.transferHandler
-        val contents = clipboardContents()
+        val contents = resolveClipboard()?.contentsOrNull()
         return handler != null &&
             contents != null &&
             handler.importData(TransferHandler.TransferSupport(component, contents))
+    }
+
+    private fun export(action: Int) {
+        val component = component ?: return
+        val clipboard = resolveClipboard() ?: return
+        try {
+            component.transferHandler?.exportToClipboard(component, clipboard, action)
+        } catch (_: IllegalStateException) {
+            // A clipboard another application holds open refuses to take the value, which
+            // TransferHandler.exportToClipboard reports through exportDone as a completed export that
+            // transferred nothing before it throws. The outcome has already reached the component.
+        }
     }
 
     /** Binds the handle to [target] so copy/cut/paste act on it; called by the [clipboard] modifier. */
@@ -171,11 +191,11 @@ public class ClipboardHandle internal constructor() {
 
 /**
  * Creates and remembers a [ClipboardHandle] to drive a component's clipboard copy/cut/paste
- * programmatically. Pass it to `clipboard(handle = …)` to bind it to that component, then call
+ * programmatically. Pass it to `clipboard(handle = ...)` to bind it to that component, then call
  * [ClipboardHandle.copy]/[ClipboardHandle.cut]/[ClipboardHandle.paste] from an event handler.
  */
 @Composable
-public fun rememberClipboardHandle(): ClipboardHandle = remember { ClipboardHandle() }
+public fun rememberClipboardHandle(): ClipboardHandle = remember { ClipboardHandle { systemClipboard } }
 
 private class DraggableElement(
     @param:TransferAction private val exportedActions: Int,
@@ -192,13 +212,12 @@ private class DraggableElement(
 
     class Node : SwingModifier.Node<JComponent>() {
         var config: SourceConfig? = null
-        private var sourceToken: SliceToken? = null
         private var gesture: DragGesture? = null
 
         override fun onAttach() {
             // A generic component has no built-in drag gesture, so installing only the TransferHandler
             // would never start a drag. Install a mouse gesture that, past the platform threshold, asks
-            // the handler to export the drag — once per node, removed on detach.
+            // the handler to export the drag - once per node, removed on detach.
             val gesture = DragGesture(component)
             component.addMouseListener(gesture)
             component.addMouseMotionListener(gesture)
@@ -208,10 +227,10 @@ private class DraggableElement(
         fun apply() {
             val config = config ?: return
             val handler = installedHandler(component)
-            // Claim the slot once under a stable token, then refresh the config under it: the config is
-            // a fresh value each recomposition, so it is not a stable ownership key — the token is.
-            if (!handler.source.set(sourceToken, config)) {
-                sourceToken = handler.source.install(config)
+            // Claim the slot once, then refresh the config under this node's ownership: the config is
+            // a fresh value each recomposition, so it is not a stable ownership key - the node is.
+            if (!handler.source.set(this, config)) {
+                handler.source.install(this, config)
             }
         }
 
@@ -221,8 +240,7 @@ private class DraggableElement(
                 component.removeMouseMotionListener(it)
             }
             gesture = null
-            clearSlotIfOwned(component, sourceToken) { it.source }
-            sourceToken = null
+            clearSlotIfOwned(component, this) { it.source }
             uninstallIfEmpty(component)
         }
     }
@@ -276,20 +294,18 @@ private class DropTargetElement(
 
     class Node : SwingModifier.Node<JComponent>() {
         var config: DropConfig? = null
-        private var dropToken: SliceToken? = null
 
         fun apply() {
             val config = config ?: return
             val handler = installedHandler(component)
-            // Claim the slot once under a stable token, then refresh the config under it.
-            if (!handler.drop.set(dropToken, config)) {
-                dropToken = handler.drop.install(config)
+            // Claim the slot once, then refresh the config under this node's ownership.
+            if (!handler.drop.set(this, config)) {
+                handler.drop.install(this, config)
             }
         }
 
         override fun onDetach() {
-            clearSlotIfOwned(component, dropToken) { it.drop }
-            dropToken = null
+            clearSlotIfOwned(component, this) { it.drop }
             uninstallIfEmpty(component)
         }
     }
@@ -332,8 +348,6 @@ private class ClipboardElement(
                 value?.bind(component)
             }
 
-        private var sourceToken: SliceToken? = null
-        private var dropToken: SliceToken? = null
         private var keysBound = false
 
         fun apply() {
@@ -342,15 +356,15 @@ private class ClipboardElement(
             // Clipboard export reuses the drag source's exporter (copy/cut both produce the same
             // value); declaring COPY_OR_MOVE lets exportToClipboard run for either action.
             val sourceConfig = SourceConfig(TransferHandler.COPY_OR_MOVE) { transferable(it) }
-            // Refresh under our token if we still own it; otherwise claim it only while it is free, so a
+            // Refresh the slot if we still own it; otherwise claim it only while it is free, so a
             // sibling draggable's export is left intact.
-            if (!handler.source.set(sourceToken, sourceConfig) && handler.source.value == null) {
-                sourceToken = handler.source.install(sourceConfig)
+            if (!handler.source.set(this, sourceConfig) && handler.source.value == null) {
+                handler.source.install(this, sourceConfig)
             }
             val dropConfig =
                 DropConfig(TransferHandler.COPY_OR_MOVE, { onPaste(it) }, { canImport(it) })
-            if (!handler.drop.set(dropToken, dropConfig)) {
-                dropToken = handler.drop.install(dropConfig)
+            if (!handler.drop.set(this, dropConfig)) {
+                handler.drop.install(this, dropConfig)
             }
             if (bindKeys && !keysBound) {
                 bindClipboardKeys(component)
@@ -362,10 +376,8 @@ private class ClipboardElement(
             val component = component
             // Clearing the handle runs its setter, which unbinds this component from the bound handle.
             handle = null
-            clearSlotIfOwned(component, sourceToken) { it.source }
-            clearSlotIfOwned(component, dropToken) { it.drop }
-            sourceToken = null
-            dropToken = null
+            clearSlotIfOwned(component, this) { it.source }
+            clearSlotIfOwned(component, this) { it.drop }
             if (keysBound) unbindClipboardKeys(component)
             keysBound = false
             uninstallIfEmpty(component)
@@ -387,22 +399,20 @@ private class ExportDoneElement(
 
     class Node : SwingModifier.Node<JComponent>() {
         var onExportDone: ((JComponent, Transferable?, Int) -> Unit)? = null
-        private var token: SliceToken? = null
 
         fun apply() {
             val onExportDone = onExportDone ?: return
             val handler = installedHandler(component)
-            // Claim the seam once under a stable token, then refresh the callback under it: the
-            // callback is a fresh value each recomposition, so it is not a stable ownership key —
-            // the token is.
-            if (!handler.onExportDone.set(token, onExportDone)) {
-                token = handler.onExportDone.install(onExportDone)
+            // Claim the seam once, then refresh the callback under this node's ownership: the
+            // callback is a fresh value each recomposition, so it is not a stable ownership key -
+            // the node is.
+            if (!handler.onExportDone.set(this, onExportDone)) {
+                handler.onExportDone.install(this, onExportDone)
             }
         }
 
         override fun onDetach() {
-            clearSlotIfOwned(component, token) { it.onExportDone }
-            token = null
+            clearSlotIfOwned(component, this) { it.onExportDone }
             uninstallIfEmpty(component)
         }
     }
@@ -492,55 +502,45 @@ internal class SharedTransferHandler : TransferHandler() {
 
 /**
  * One capability slot of a [SharedTransferHandler], owned by exactly one node. Ownership is tracked
- * by an opaque [SliceToken] minted when a node installs the slot's value (via [install]) and
- * remembered by that node, rather than by the identity of the value itself: a node refreshes its
- * value on every recomposition (a fresh value each time), so value identity is not a stable
- * ownership key, whereas the token is minted once per install and stays put. A node refreshes under
- * its token with [set] and releases through [clear], which empties the slot only while the live
- * token still matches the one the node holds — so a slot another node has since taken over is never
- * cleared.
+ * by the identity of the owning node rather than of the value: a node refreshes its value on every
+ * recomposition (a fresh value each time), so value identity is not a stable ownership key, whereas
+ * the node stays the same instance for as long as it holds the slot. A node claims the slot with
+ * [install], refreshes under its own ownership with [set], and releases through [clear], which
+ * empties the slot only while that node still owns it - so a slot another node has since taken over
+ * is never cleared.
  */
 internal class SliceSlot<T : Any> {
     var value: T? = null
         private set
 
-    private var token: SliceToken? = null
+    private var owner: Any? = null
 
-    /**
-     * Sets [value] and takes ownership under a freshly minted [SliceToken], which is returned. Use
-     * this to claim the slot; refresh the value under the same token with [set].
-     */
-    fun install(value: T): SliceToken {
+    /** Sets [value] and takes ownership for [owner], displacing any previous owner. */
+    fun install(
+        owner: Any,
+        value: T,
+    ) {
         this.value = value
-        return SliceToken().also { token = it }
+        this.owner = owner
     }
 
     /**
-     * Refreshes the value under the existing owning [token] without minting a new one. Returns
-     * whether [token] still owns the slot (and the value was applied); a caller that gets `false`
-     * must re-[install] to reclaim it.
+     * Refreshes the value on behalf of [owner]. Returns whether [owner] still owns the slot (and the
+     * value was applied); a caller that gets `false` must re-[install] to reclaim it.
      */
     fun set(
-        token: SliceToken?,
+        owner: Any,
         value: T,
     ): Boolean {
-        if (token == null || this.token !== token) return false
+        if (this.owner !== owner) return false
         this.value = value
         return true
     }
 
-    /** Empties the slot only if [token] still owns it; returns whether it was cleared. */
-    fun clear(token: SliceToken): Boolean {
-        if (this.token !== token) return false
+    /** Empties the slot only if [owner] still owns it. */
+    fun clear(owner: Any) {
+        if (this.owner !== owner) return
         value = null
-        this.token = null
-        return true
+        this.owner = null
     }
 }
-
-/**
- * An opaque per-install capability token for one [SliceSlot] of a [SharedTransferHandler]. Minted by
- * [SliceSlot.install] and held by the installing node so it — and only it — can later release the
- * slot it installed.
- */
-internal class SliceToken

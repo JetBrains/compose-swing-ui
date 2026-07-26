@@ -138,7 +138,7 @@ public class TrayMenuHost(
         y: Int,
     ) {
         val popup = JPopupMenu()
-        val mount = SwingCompositionMount.nested(parentContext) { observer -> MenuApplier(popup, observer) }
+        val mount = SwingCompositionMount.nestedUnobserved(parentContext) { MenuApplier(popup) }
         mount.setContent(menu)
 
         popup.doOnHiddenOnce { mount.dispose() }
