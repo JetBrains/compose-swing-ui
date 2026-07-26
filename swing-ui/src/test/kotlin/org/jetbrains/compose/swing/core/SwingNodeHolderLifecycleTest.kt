@@ -18,9 +18,9 @@ import kotlin.test.assertEquals
  * left the diff state populated, a recycled slot would see the install-guard still tripped, never
  * re-attach, and the reused component would go silently dead.
  *
- * Every assertion is on *observable* behaviour — how many times a listener attaches/detaches, that a
+ * Every assertion is on *observable* behaviour - how many times a listener attaches/detaches, that a
  * release/uninstall block runs exactly once across repeated calls, and that a fresh listener
- * re-installs after a reuse cycle — never on the holder's internal diff/handle fields. The
+ * re-installs after a reuse cycle - never on the holder's internal diff/handle fields. The
  * attach/detach counters are the observable proxy for the diff state being cleared: if the diff were
  * left populated, the post-reuse `applyModifierDiff` would not re-attach and the attach counter would
  * not advance.
@@ -60,7 +60,7 @@ class SwingNodeHolderLifecycleTest {
         assertEquals(1, releaseCount[0], "release block must run once on release")
 
         // A second release (defensive: the runtime should not call twice, but nothing must fire
-        // again — observable proof the release block and detacher were dropped).
+        // again - observable proof the release block and detacher were dropped).
         holder.onRelease()
         assertEquals(1, detach[0], "a second release must not run the detacher again")
         assertEquals(1, releaseCount[0], "a second release must not run the release block again")
@@ -92,19 +92,23 @@ class SwingNodeHolderLifecycleTest {
     }
 
     @Test
-    fun onReuse_releasesAStillInstalledHostSlotOnceAndDoesNotReleaseItAgain() {
+    fun reuseAndDeactivationKeepTheComponentInItsHostSlot() {
         val holder = SwingNodeHolder(JButton("b"))
         val released = IntArray(1)
-        // Simulate a node that is still recorded as installed in a host slot (the applier captured an
-        // uninstall handle) when the runtime recycles it without an applier removal.
+        // A node installed in a host slot: the applier captured an uninstall handle when it installed
+        // the component through the slot's dedicated setter.
         holder.slotUninstall = { released[0]++ }
 
+        // Recycling and parking change what drives the component, never where it lives - the applier
+        // records no attachment change for either, so a holder that released the slot here would empty
+        // a slot nothing ever refills.
         holder.onReuse()
-        assertEquals(1, released[0], "reuse must release a still-installed host slot")
+        holder.onDeactivate()
+        assertEquals(0, released[0], "reuse and deactivation must leave the component in its host slot")
 
-        // A second reuse must not run the (already-released) handle again.
-        holder.onReuse()
-        assertEquals(1, released[0], "the slot must not be released twice")
+        // The slot is released once the node leaves the composition for good.
+        holder.onRelease()
+        assertEquals(1, released[0], "release must release the still-installed host slot")
     }
 
     @Test
@@ -158,7 +162,7 @@ class SwingNodeHolderLifecycleTest {
     @Test
     fun onReuse_withoutListenerIsHarmlessAndLaterApplyStillAttaches() {
         val holder = SwingNodeHolder(JButton("b"))
-        // No modifier applied yet — reuse must be a harmless no-op.
+        // No modifier applied yet - reuse must be a harmless no-op.
         holder.onReuse()
 
         // Subsequent apply still attaches exactly one listener and detaches none.

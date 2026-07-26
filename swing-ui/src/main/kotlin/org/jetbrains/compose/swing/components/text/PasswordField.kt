@@ -6,12 +6,13 @@ package org.jetbrains.compose.swing.components.text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import org.jetbrains.compose.swing.AppliedWrite
 import org.jetbrains.compose.swing.SwingNode
 import org.jetbrains.compose.swing.SwingNodeUpdater
-import org.jetbrains.compose.swing.components.documentChangeListener
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.documentListener
+import org.jetbrains.compose.swing.rememberAppliedWrite
 import javax.swing.JPasswordField
 import javax.swing.event.DocumentListener
 import javax.swing.text.Document
@@ -32,10 +33,12 @@ import javax.swing.text.Segment
  *
  * @param value the current text value, as raw characters
  * @param modifier the [SwingModifier] applied to the underlying component
- * @param onValueChange callback invoked when the text changes, with the typed characters
+ * @param onValueChange callback invoked with the field's new characters when the field is edited;
+ *   applying [value] is not itself reported
  * @param echoChar the masking character; `null` applies the look-and-feel's installed echo character,
  *   and the NUL character (U+0000) shows the text in clear text
  * @param columns the number of columns
+ * @param editable whether the user can edit the text
  * @see PasswordField the [DocumentState]-driven overload for large or complex editors
  */
 @Composable
@@ -45,25 +48,33 @@ public fun PasswordField(
     onValueChange: (CharArray) -> Unit = {},
     echoChar: Char? = null,
     columns: Int = 0,
+    editable: Boolean = true,
 ) {
     val callback = rememberUpdatedState(onValueChange)
+    // A CharArray compares by identity, not content, so there is no value to mirror here the way a
+    // String- or Int-valued field does - only whether a write of this wrapper's own is in flight.
+    val applied = rememberAppliedWrite()
     // Deliver the raw characters by reading the document into a char array via a Segment, keeping
     // the password out of an unzeroable String.
     val listener =
-        remember { documentChangeListener { event -> callback.value(event.document.fullPassword()) } }
-    PasswordField(
+        remember(applied) {
+            documentChangeListener { event -> if (!applied.isWriting) callback.value(event.document.fullPassword()) }
+        }
+    PasswordFieldNode(
         value = value,
-        documentListener = listener,
-        modifier = modifier,
+        applied = applied,
+        modifier = modifier.documentListener(listener),
         echoChar = echoChar,
         columns = columns,
+        editable = editable,
     )
 }
 
 /**
  * A composable wrapper for JPasswordField driven by a raw [DocumentListener] instead of an
  * `onValueChange` lambda. The [documentListener] is attached to the field's document as-is and removed
- * on the same instance; pass a stable instance (e.g. `remember {}`) to avoid churn.
+ * on the same instance; pass a stable instance (e.g. `remember {}`) to avoid churn. Being attached
+ * as-is, it observes every change to that document, including the one that applies [value].
  *
  * The [value] array stays owned by the caller, read only through the next recomposition; zeroing
  * it once it stops being the current value is the caller's responsibility.
@@ -77,6 +88,7 @@ public fun PasswordField(
  * @param echoChar the masking character; `null` applies the look-and-feel's installed echo character,
  *   and the NUL character (U+0000) shows the text in clear text
  * @param columns the number of columns
+ * @param editable whether the user can edit the text
  * @see PasswordField the [DocumentState]-driven overload for large or complex editors
  */
 @Composable
@@ -86,16 +98,48 @@ public fun PasswordField(
     modifier: SwingModifier = SwingModifier,
     echoChar: Char? = null,
     columns: Int = 0,
+    editable: Boolean = true,
+) {
+    val applied = rememberAppliedWrite()
+    PasswordFieldNode(
+        value = value,
+        applied = applied,
+        modifier = modifier.documentListener(documentListener),
+        echoChar = echoChar,
+        columns = columns,
+        editable = editable,
+    )
+}
+
+/**
+ * The `JPasswordField` node both character-array [PasswordField] overloads render. [value] is written
+ * as [applied]'s own write - marking it lets a listener narrowed to the user's own edits (the lambda
+ * overload's) stay silent for it, where the raw overload's caller-supplied listener, attached as-is,
+ * observes it like any other edit.
+ */
+@Composable
+private fun PasswordFieldNode(
+    value: CharArray,
+    applied: AppliedWrite,
+    modifier: SwingModifier,
+    echoChar: Char?,
+    columns: Int,
+    editable: Boolean,
 ) {
     PasswordFieldImpl(
         echoChar = echoChar,
         columns = columns,
+        editable = editable,
         update = {
             // CharArray has identity equality, so `set(value)` runs on every recomposition; the
             // content compare against the live getPassword() is what actually guards the write and
             // prevents resetting the caret when the field already holds these characters.
-            set(value) { if (!this.password.contentEquals(it)) this.text = String(it) }
-            applyModifier(SwingModifier.documentListener(documentListener) then modifier)
+            set(value) {
+                applied.write {
+                    if (!this.password.contentEquals(it)) this.text = String(it)
+                }
+            }
+            applyModifier(modifier)
         },
     )
 }
@@ -114,6 +158,7 @@ public fun PasswordField(
  * @param echoChar the masking character; `null` applies the look-and-feel's installed echo character,
  *   and the NUL character (U+0000) shows the text in clear text.
  * @param columns the number of columns.
+ * @param editable whether the user can edit the text.
  */
 @Composable
 public fun PasswordField(
@@ -121,37 +166,53 @@ public fun PasswordField(
     modifier: SwingModifier = SwingModifier,
     echoChar: Char? = null,
     columns: Int = 0,
+    editable: Boolean = true,
 ) {
     PasswordFieldImpl(
         echoChar = echoChar,
         columns = columns,
+        editable = editable,
         update = {
-            applyModifier(documentStateBinding(state) then modifier)
+            applyModifier(modifier.documentStateBinding(state))
         },
     )
 }
 
 /**
  * Shared scaffolding for the [PasswordField] overloads: constructs the field with [columns], keeps
- * [echoChar] applied, and threads each overload's own binding through [update].
- *
- * The look-and-feel installs a default echo character on a freshly constructed field; capture it so that
- * re-applying a null [echoChar] reverts to that default rather than leaving a stale custom mask.
+ * [echoChar] and [editable] applied, and threads each overload's own binding through [update].
  */
 @Composable
 private fun PasswordFieldImpl(
     echoChar: Char?,
     columns: Int,
-    update: SwingNodeUpdater<JPasswordField>.() -> Unit,
+    editable: Boolean,
+    update: SwingNodeUpdater<DefaultMaskPasswordField>.() -> Unit,
 ) {
-    val defaultEchoChar = remember { CharArray(1) }
     SwingNode(
-        factory = { JPasswordField(columns).also { defaultEchoChar[0] = it.echoChar } },
+        factory = { DefaultMaskPasswordField(columns) },
         update = {
-            set(echoChar) { this.echoChar = it ?: defaultEchoChar[0] }
+            update(columns) {
+                this.columns = it
+                revalidate()
+            }
+            set(echoChar) { this.echoChar = it ?: defaultEchoChar }
+            set(editable) { this.isEditable = it }
             update()
         },
     )
+}
+
+/**
+ * A `JPasswordField` that keeps the echo character its look and feel installed on it, so a null
+ * `echoChar` declaration restores that mask instead of leaving a custom one applied. The character
+ * lives on the field, which is the one thing every composition driving the field addresses.
+ */
+private class DefaultMaskPasswordField(
+    columns: Int,
+) : JPasswordField(columns) {
+    /** The masking character the look and feel installed when the field was constructed. */
+    val defaultEchoChar: Char = echoChar
 }
 
 /**

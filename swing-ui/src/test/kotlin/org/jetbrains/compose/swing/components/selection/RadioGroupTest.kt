@@ -6,47 +6,41 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
-import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.test.ComposeSwingTest
-import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.SwingMatcher.Companion.isSelected
+import org.jetbrains.compose.swing.test.interaction.onParent
+import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import javax.swing.BoxLayout
+import javax.swing.DefaultButtonModel
+import javax.swing.JPanel
 import javax.swing.JRadioButton
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
+import kotlin.test.assertNull
+import kotlin.test.assertSame
 
 /**
- * Behavioral coverage for [RadioGroup]. Each test asserts what an observer of the live Swing buttons
- * sees: which `JRadioButton` is selected, that exactly one is selected at a time, and the index the
- * user's callback receives when the user picks an option.
+ * Behavioral coverage for [RadioGroup]. Each test asserts what an observer of the live Swing tree
+ * sees: which `JRadioButton` is selected, that exactly one is selected at a time, the index the
+ * user's callback receives when the user picks an option, and how the options are arranged in the
+ * group's panel.
  */
 class RadioGroupTest {
     private fun RadioGroupScope.threeOptions() {
-        option("Small", modifier = SwingModifier.name("opt0"))
-        option("Medium", modifier = SwingModifier.name("opt1"))
-        option("Large", modifier = SwingModifier.name("opt2"))
+        option("Small")
+        option("Medium")
+        option("Large")
     }
-
-    // The displayed texts of the currently-selected option buttons, gathered from the named options
-    // that are present in the live tree (out-of-range / removed options simply contribute nothing).
-    private fun ComposeSwingTest.selectedRadioTexts(): List<String> = OPTION_NAMES
-        .filter { onAllNodes(SwingMatcher.hasName(it)).fetchSize() == 1 }
-        .map { onNodeWithName(it).fetch<JRadioButton>() }
-        .filter { it.isSelected }
-        .map { it.text }
 
     @Test
     fun rendersOptionsWithExactlyOneSelected() = runComposeSwingTest {
         setContent {
             RadioGroup(selectedIndex = 0, onSelectionChange = {}) { threeOptions() }
         }
-        assertEquals("Small", onNodeWithName("opt0").fetch<JRadioButton>().text, "option 0 should carry its label")
-        assertEquals("Medium", onNodeWithName("opt1").fetch<JRadioButton>().text, "option 1 should carry its label")
-        assertEquals("Large", onNodeWithName("opt2").fetch<JRadioButton>().text, "option 2 should carry its label")
-        assertTrue(onNodeWithName("opt0").fetch<JRadioButton>().isSelected, "option 0 should be the selected one")
-        assertFalse(onNodeWithName("opt1").fetch<JRadioButton>().isSelected, "option 1 should be unselected")
-        assertFalse(onNodeWithName("opt2").fetch<JRadioButton>().isSelected, "option 2 should be unselected")
+        onAllNodesOfType<JRadioButton>().assertCountEquals(3)
+        onNodeWithText("Small").assert(isSelected())
+        onNodeWithText("Medium").assert(isSelected(false))
+        onNodeWithText("Large").assert(isSelected(false))
     }
 
     @Test
@@ -62,15 +56,40 @@ class RadioGroupTest {
                 },
             ) { threeOptions() }
         }
-        assertTrue(onNodeWithName("opt0").fetch<JRadioButton>().isSelected, "option 0 should start selected")
+        onNodeWithText("Small").assert(isSelected())
 
-        onNodeWithName("opt1").performClick()
+        onNodeWithText("Medium").performClick()
 
         // Clicking option 1 reports its index and moves the selection there, clearing option 0.
         assertEquals(listOf(1), reported, "clicking option 1 should report its index")
-        assertFalse(onNodeWithName("opt0").fetch<JRadioButton>().isSelected, "clicking option 1 should clear option 0")
-        assertTrue(onNodeWithName("opt1").fetch<JRadioButton>().isSelected, "clicking option 1 should select it")
-        assertFalse(onNodeWithName("opt2").fetch<JRadioButton>().isSelected, "option 2 should remain unselected")
+        onNodeWithText("Small").assert(isSelected(false))
+        onNodeWithText("Medium").assert(isSelected())
+        onNodeWithText("Large").assert(isSelected(false))
+    }
+
+    @Test
+    fun aClickTheCallerDoesNotAdoptIsUndoneByTheNextRecomposition() = runComposeSwingTest {
+        var label by mutableStateOf("first")
+        setContent {
+            RadioGroup(
+                selectedIndex = 0,
+                onSelectionChange = {},
+                modifier = SwingModifier.name(label),
+            ) { threeOptions() }
+        }
+
+        onNodeWithText("Large").performClick()
+        onAllNodesOfType<JRadioButton>()
+            .filterToOne(isSelected())
+            .assertTextEquals("Large")
+
+        // The pass changes a property that has nothing to do with selection, which is precisely the pass
+        // that has to put the declared option back.
+        label = "second"
+        awaitIdle()
+        onAllNodesOfType<JRadioButton>()
+            .filterToOne(isSelected())
+            .assertTextEquals("Small")
     }
 
     @Test
@@ -81,13 +100,13 @@ class RadioGroupTest {
                 threeOptions()
             }
         }
-        assertTrue(onNodeWithName("opt0").fetch<JRadioButton>().isSelected, "option 0 should start selected")
+        onNodeWithText("Small").assert(isSelected())
 
         selectedIndex = 2
         awaitIdle()
-        assertFalse(onNodeWithName("opt0").fetch<JRadioButton>().isSelected, "moving the index should clear option 0")
-        assertFalse(onNodeWithName("opt1").fetch<JRadioButton>().isSelected, "option 1 should remain unselected")
-        assertTrue(onNodeWithName("opt2").fetch<JRadioButton>().isSelected, "moving the index should select option 2")
+        onNodeWithText("Small").assert(isSelected(false))
+        onNodeWithText("Medium").assert(isSelected(false))
+        onNodeWithText("Large").assert(isSelected())
     }
 
     @Test
@@ -104,10 +123,7 @@ class RadioGroupTest {
         // Driving selection from state must not loop back through the user-click callback.
         selectedIndex = 1
         awaitIdle()
-        assertTrue(
-            onNodeWithName("opt1").fetch<JRadioButton>().isSelected,
-            "programmatic selection should select option 1",
-        )
+        onNodeWithText("Medium").assert(isSelected())
         assertEquals(emptyList(), reported, "programmatic selection should not fire onSelectionChange")
     }
 
@@ -116,20 +132,12 @@ class RadioGroupTest {
         setContent {
             RadioGroup(selectedIndex = -1, onSelectionChange = {}) { threeOptions() }
         }
-        // An out-of-range index (-1) leaves every option cleared: no button is selected.
-        assertFalse(
-            onNodeWithName("opt0").fetch<JRadioButton>().isSelected,
-            "index -1 should leave option 0 unselected",
-        )
-        assertFalse(
-            onNodeWithName("opt1").fetch<JRadioButton>().isSelected,
-            "index -1 should leave option 1 unselected",
-        )
-        assertFalse(
-            onNodeWithName("opt2").fetch<JRadioButton>().isSelected,
-            "index -1 should leave option 2 unselected",
-        )
-        assertEquals(emptyList(), selectedRadioTexts(), "index -1 should select no option")
+        // An out-of-range index (-1) leaves every option cleared: the three buttons are all there and
+        // none of them is selected.
+        onAllNodesOfType<JRadioButton>()
+            .assertCountEquals(3)
+            .filter(isSelected())
+            .assertCountEquals(0)
     }
 
     @Test
@@ -145,13 +153,18 @@ class RadioGroupTest {
                 },
             ) { threeOptions() }
         }
-        assertEquals(emptyList(), selectedRadioTexts(), "no option should be selected initially")
+        onAllNodesOfType<JRadioButton>()
+            .assertCountEquals(3)
+            .filter(isSelected())
+            .assertCountEquals(0)
 
-        onNodeWithName("opt2").performClick()
+        onNodeWithText("Large").performClick()
 
         // The first user pick out of the "no selection" state reports its index and selects it.
         assertEquals(listOf(2), reported, "the first pick should report its index")
-        assertEquals(listOf("Large"), selectedRadioTexts(), "the first pick should select the clicked option")
+        onAllNodesOfType<JRadioButton>()
+            .filterToOne(isSelected())
+            .assertTextEquals("Large")
     }
 
     @Test
@@ -160,12 +173,54 @@ class RadioGroupTest {
         setContent {
             RadioGroup(selectedIndex = selectedIndex, onSelectionChange = {}) { threeOptions() }
         }
-        assertEquals(emptyList(), selectedRadioTexts(), "no option should be selected initially")
+        onAllNodesOfType<JRadioButton>().filter(isSelected()).assertCountEquals(0)
 
         // Driving the controlled index from -1 (none) to a valid option moves the selection there.
         selectedIndex = 1
         awaitIdle()
-        assertEquals(listOf("Medium"), selectedRadioTexts(), "moving from -1 to 1 should select that option")
+        onAllNodesOfType<JRadioButton>()
+            .filterToOne(isSelected())
+            .assertTextEquals("Medium")
+    }
+
+    @Test
+    fun changingSelectedIndexFromValidToMinusOneWithdrawsTheSelection() = runComposeSwingTest {
+        var selectedIndex by mutableIntStateOf(1)
+        setContent {
+            RadioGroup(selectedIndex = selectedIndex, onSelectionChange = {}) { threeOptions() }
+        }
+        onAllNodesOfType<JRadioButton>()
+            .filterToOne(isSelected())
+            .assertTextEquals("Medium")
+
+        // A grouped button refuses a plain deselect, so withdrawing the controlled index has to reach
+        // the group itself; without that the option stays selected and the state and the tree diverge.
+        selectedIndex = -1
+        awaitIdle()
+        onAllNodesOfType<JRadioButton>()
+            .assertCountEquals(3)
+            .filter(isSelected())
+            .assertCountEquals(0)
+    }
+
+    @Test
+    fun aDroppedOptionLeavesTheGroup() = runComposeSwingTest {
+        var showExtra by mutableStateOf(true)
+        setContent {
+            RadioGroup(selectedIndex = 0, onSelectionChange = {}) {
+                option("Small")
+                if (showExtra) option("Extra")
+            }
+        }
+        val extra = onNodeWithText("Extra").fetch<JRadioButton>()
+
+        showExtra = false
+        awaitIdle()
+        onNodeWithText("Extra").assertDoesNotExist()
+
+        // A dropped option must not stay bound to the group: a lingering member would keep taking part
+        // in the exclusion the surviving buttons enforce.
+        assertNull((extra.model as DefaultButtonModel).group, "a dropped option should leave the group")
     }
 
     @Test
@@ -177,45 +232,65 @@ class RadioGroupTest {
                 selectedIndex = selectedIndex,
                 onSelectionChange = { selectedIndex = it },
             ) {
-                option("Small", modifier = SwingModifier.name("opt0"))
-                option("Medium", modifier = SwingModifier.name("opt1"))
-                if (showExtra) {
-                    option("Extra", modifier = SwingModifier.name("optExtra"))
-                }
+                option("Small")
+                option("Medium")
+                if (showExtra) option("Extra")
             }
         }
-        onNodeWithName("opt0").assertExists()
-        onNodeWithName("opt1").assertExists()
-        onNodeWithName("optExtra").assertDoesNotExist()
+        onNodeWithText("Small").assertExists()
+        onNodeWithText("Medium").assertExists()
+        onNodeWithText("Extra").assertDoesNotExist()
 
         // Add an option behind the condition; it joins the shared group.
         showExtra = true
         awaitIdle()
-        onNodeWithName("optExtra").assertExists()
+        onNodeWithText("Extra").assertExists()
 
         // Selecting the newly added option clears the others: exclusion holds across the dynamic
         // membership change, so exactly one button is selected.
-        onNodeWithName("optExtra").performClick()
-        assertEquals(listOf("Extra"), selectedRadioTexts(), "selecting the added option should clear the others")
+        onNodeWithText("Extra").performClick()
+        onAllNodesOfType<JRadioButton>()
+            .filterToOne(isSelected())
+            .assertTextEquals("Extra")
 
         // Selecting an original option again leaves only it selected, proving the group still
         // enforces single selection after the option set grew.
-        onNodeWithName("opt1").performClick()
-        assertEquals(
-            listOf("Medium"),
-            selectedRadioTexts(),
-            "selecting an original option should leave only it selected",
-        )
+        onNodeWithText("Medium").performClick()
+        onAllNodesOfType<JRadioButton>()
+            .filterToOne(isSelected())
+            .assertTextEquals("Medium")
 
         // Remove the conditional option; its button drops out and the group keeps single selection.
         showExtra = false
         awaitIdle()
-        onNodeWithName("optExtra").assertDoesNotExist()
-        assertEquals(listOf("Medium"), selectedRadioTexts(), "removing the extra option should keep single selection")
+        onNodeWithText("Extra").assertDoesNotExist()
+        onAllNodesOfType<JRadioButton>()
+            .filterToOne(isSelected())
+            .assertTextEquals("Medium")
     }
 
-    private companion object {
-        // Every option name the suites tag their radio buttons with, in render order.
-        val OPTION_NAMES = listOf("opt0", "opt1", "opt2", "optExtra")
+    @Test
+    fun theGroupPanelFollowsItsAxis() = runComposeSwingTest {
+        var axis by mutableIntStateOf(BoxLayout.X_AXIS)
+        setContent {
+            RadioGroup(
+                selectedIndex = 0,
+                onSelectionChange = {},
+                axis = axis,
+            ) { threeOptions() }
+        }
+        // The options are the group panel's own children, so the panel is any option's parent.
+        val panel = onNodeWithText("Small").onParent().fetch<JPanel>()
+        assertEquals(BoxLayout.X_AXIS, (panel.layout as BoxLayout).axis, "the declared axis")
+
+        axis = BoxLayout.Y_AXIS
+        awaitIdle()
+
+        // The group keeps the one panel it started with: the new axis and every option are on that
+        // same component.
+        val layout = panel.layout as BoxLayout
+        assertEquals(BoxLayout.Y_AXIS, layout.axis, "the new axis")
+        assertSame(panel, layout.target, "the layout should target the group's panel")
+        assertEquals(3, panel.componentCount, "the options survive the axis change")
     }
 }

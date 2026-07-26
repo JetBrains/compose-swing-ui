@@ -1,11 +1,11 @@
 package org.jetbrains.compose.swing.components.text
 
+import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
-import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JTextField
@@ -29,9 +29,7 @@ class TextFieldStateTest {
             TextField(state = state)
         }
 
-        val field = onNodeOfType<JTextField>().fetch<JTextField>()
-        field.text = "typed"
-        awaitIdle()
+        onNodeOfType<JTextField>().performTextReplacement("typed")
 
         assertEquals("typed", state.text.toString())
     }
@@ -44,12 +42,11 @@ class TextFieldStateTest {
             TextField(state = state)
         }
 
-        val field = onNodeOfType<JTextField>().fetch<JTextField>()
-        assertEquals("ab", field.text)
+        onNodeOfType<JTextField>().assertTextEquals("ab")
 
         state.edit { append("c") }
         awaitIdle()
-        assertEquals("abc", field.text)
+        onNodeOfType<JTextField>().assertTextEquals("abc")
     }
 
     @Test
@@ -60,10 +57,9 @@ class TextFieldStateTest {
             TextField(state = state)
         }
 
-        val field = onNodeOfType<JTextField>().fetch<JTextField>()
         state.text = "help"
         awaitIdle()
-        assertEquals("help", field.text)
+        onNodeOfType<JTextField>().assertTextEquals("help")
         assertEquals("help", state.text.toString())
     }
 
@@ -75,7 +71,7 @@ class TextFieldStateTest {
             TextField(state = state)
         }
 
-        val field = onNodeOfType<JTextField>().fetch<JTextField>()
+        val field = onNodeOfType<JTextField>().fetch()
         state.selection = TextRange(0, 5)
         awaitIdle()
 
@@ -92,7 +88,7 @@ class TextFieldStateTest {
             TextField(state = state)
         }
 
-        val field = onNodeOfType<JTextField>().fetch<JTextField>()
+        val field = onNodeOfType<JTextField>().fetch()
         field.select(6, 11)
         awaitIdle()
 
@@ -100,35 +96,35 @@ class TextFieldStateTest {
     }
 
     @Test
-    fun clearTextEmptiesTheField() = runComposeSwingTest {
+    fun emptyingTheTextEmptiesTheField() = runComposeSwingTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState("something")
             TextField(state = state)
         }
 
-        val field = onNodeOfType<JTextField>().fetch<JTextField>()
-        state.clearText()
+        state.text = ""
         awaitIdle()
 
-        assertEquals("", field.text)
+        onNodeOfType<JTextField>().assertTextEquals("")
         assertEquals("", state.text.toString())
     }
 
     @Test
-    fun setTextAndPlaceCaretAtEndPlacesCaret() = runComposeSwingTest {
+    fun writingTheTextAndThenTheSelectionPlacesTheCaret() = runComposeSwingTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState()
             TextField(state = state)
         }
 
-        val field = onNodeOfType<JTextField>().fetch<JTextField>()
-        state.setTextAndPlaceCaretAtEnd("filled")
+        state.text = "filled"
+        state.selection = TextRange(6, 6)
         awaitIdle()
 
-        assertEquals("filled", field.text)
-        assertEquals(6, field.caretPosition)
+        val field = onNodeOfType<JTextField>()
+        field.assertTextEquals("filled")
+        assertEquals(6, field.fetch().caretPosition)
         assertEquals(TextRange(6, 6), state.selection)
     }
 
@@ -140,22 +136,22 @@ class TextFieldStateTest {
             TextField(state = state)
         }
 
-        val field = onNodeOfType<JTextField>().fetch<JTextField>()
+        val field = onNodeOfType<JTextField>()
         assertFalse(state.canUndo)
 
         state.edit { append("+more") }
         awaitIdle()
-        assertEquals("base+more", field.text)
+        field.assertTextEquals("base+more")
         assertTrue(state.canUndo)
 
         state.undo()
         awaitIdle()
-        assertEquals("base", field.text)
+        field.assertTextEquals("base")
         assertTrue(state.canRedo)
 
         state.redo()
         awaitIdle()
-        assertEquals("base+more", field.text)
+        field.assertTextEquals("base+more")
     }
 
     @Test
@@ -166,16 +162,15 @@ class TextFieldStateTest {
             TextField(state = state)
         }
 
-        val field = onNodeOfType<JTextField>().fetch<JTextField>()
         // A single text assignment reaches the document as a remove followed by an insert; one undo
         // must revert the whole assignment rather than leave a torn intermediate string.
         state.text = "help"
         awaitIdle()
-        assertEquals("help", field.text)
+        onNodeOfType<JTextField>().assertTextEquals("help")
 
         state.undo()
         awaitIdle()
-        assertEquals("hello", field.text, "assigning text must undo as a single step")
+        onNodeOfType<JTextField>().assertTextEquals("hello")
         assertFalse(state.canUndo, "the assignment was the only undoable edit")
     }
 
@@ -187,7 +182,6 @@ class TextFieldStateTest {
             TextField(state = state)
         }
 
-        val field = onNodeOfType<JTextField>().fetch<JTextField>()
         // One edit block making several primitive edits must undo as a single compound step.
         state.edit {
             delete(0, 1)
@@ -195,11 +189,11 @@ class TextFieldStateTest {
             insert(0, "J")
         }
         awaitIdle()
-        assertEquals("Jello!", field.text)
+        onNodeOfType<JTextField>().assertTextEquals("Jello!")
 
         state.undo()
         awaitIdle()
-        assertEquals("hello", field.text, "the whole edit block should revert in one undo")
+        onNodeOfType<JTextField>().assertTextEquals("hello")
     }
 
     @Test
@@ -210,7 +204,6 @@ class TextFieldStateTest {
             TextField(state = state)
         }
 
-        val field = onNodeOfType<JTextField>().fetch<JTextField>()
         state.edit {
             assertEquals(10, length)
             replace(0, 2, "AB")
@@ -221,7 +214,7 @@ class TextFieldStateTest {
         }
         awaitIdle()
 
-        assertEquals("AB-2345678!", field.text)
+        onNodeOfType<JTextField>().assertTextEquals("AB-2345678!")
         assertEquals(TextRange(11, 11), state.selection)
     }
 
@@ -233,11 +226,10 @@ class TextFieldStateTest {
             TextField(state = state)
         }
 
-        val field = onNodeOfType<JTextField>().fetch<JTextField>()
         state.edit { setText("brand new") }
         awaitIdle()
 
-        assertEquals("brand new", field.text)
+        onNodeOfType<JTextField>().assertTextEquals("brand new")
         assertEquals("brand new", state.text.toString())
     }
 
@@ -249,7 +241,7 @@ class TextFieldStateTest {
             TextField(state = state)
         }
 
-        val field = onNodeOfType<JTextField>().fetch<JTextField>()
+        val field = onNodeOfType<JTextField>().fetch()
         state.edit { selectAll() }
         awaitIdle()
 
@@ -258,27 +250,24 @@ class TextFieldStateTest {
     }
 
     @Test
-    fun textAsFlowEmitsCurrentTextAndSubsequentEdits() = runComposeSwingTest {
+    fun theTextIsObservableAsAFlowOfTheCurrentValueAndSubsequentEdits() = runComposeSwingTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState("one")
             TextField(state = state)
         }
 
-        val field = onNodeOfType<JTextField>().fetch<JTextField>()
-
         // Collect the current value plus two edits with a bounded collector so the flow terminates.
         val collected = mutableListOf<CharSequence>()
         val scope = CoroutineScope(coroutineContext + Job())
         val collector =
             scope.launch {
-                state.textAsFlow().take(3).toList(collected)
+                snapshotFlow { state.text.toString() }.take(3).toList(collected)
             }
 
         awaitIdle()
-        field.text = "two"
-        awaitIdle()
-        state.setTextAndPlaceCaretAtEnd("three")
+        onNodeOfType<JTextField>().performTextReplacement("two")
+        state.text = "three"
         awaitIdle()
         collector.join()
 

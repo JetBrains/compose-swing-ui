@@ -39,14 +39,14 @@ public fun BorderPanel(
     vgap: Int = 0,
     block: BorderPanelScope.() -> Unit,
 ) {
-    // Collect the region declarations fresh on every composition so a region the caller stops
-    // declaring (e.g. behind an `if`) drops out of the map and its child is removed. A remembered,
-    // mutated scope would retain the stale declaration.
+    // Collected fresh on every pass, so a region the caller stops declaring loses its child (see SwingNode).
     val scope = BorderPanelScopeImpl().apply(block)
 
     SwingNode(
         factory = { JPanel(BorderLayout(hgap, vgap)) },
         update = {
+            updateLayout<BorderLayout, _>(hgap) { this.hgap = it }
+            updateLayout<BorderLayout, _>(vgap) { this.vgap = it }
             applyModifier(modifier)
         },
         content = {
@@ -67,7 +67,7 @@ public fun BorderPanel(
  * Collects the region declarations for one composition. Each region method writes its block under the
  * matching [BorderLayout] constraint string; a repeated call for the same region overwrites the
  * previous entry, so the last call wins. The map preserves first-declaration order purely for stable
- * iteration — placement is governed entirely by each entry's constraint, not its position.
+ * iteration - placement is governed entirely by each entry's constraint, not its position.
  */
 private class BorderPanelScopeImpl : BorderPanelScope {
     val slots: MutableMap<String, @Composable () -> Unit> = LinkedHashMap()

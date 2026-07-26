@@ -17,8 +17,8 @@ import javax.swing.event.ChangeListener
 
 /**
  * A hoistable state holder for a [Spinner] that owns the [SpinnerModel] the spinner renders. The state
- * and the bound spinner share one model, so a step taken through the spinner — an arrow press, typing, a
- * scroll — is reported by this state, and a value written through this state is what the spinner shows;
+ * and the bound spinner share one model, so a step taken through the spinner - an arrow press, typing, a
+ * scroll - is reported by this state, and a value written through this state is what the spinner shows;
  * there is no value to keep in sync.
  *
  * [value] is snapshot-observable: reading it inside a composable subscribes to later model changes, so
@@ -29,8 +29,8 @@ public class SpinnerState internal constructor(
     public val model: SpinnerModel,
 ) : RememberObserver {
     // A snapshot-state mirror of the model's value. [changeListener] refreshes it on every model change,
-    // so reading [value] registers a snapshot read that a later change — from the spinner or from a write
-    // through [value] — invalidates for any reader.
+    // so reading [value] registers a snapshot read that a later change - from the spinner or from a write
+    // through [value] - invalidates for any reader.
     private var observedValue by mutableStateOf(model.value)
 
     private val changeListener = ChangeListener { observedValue = model.value }
@@ -61,21 +61,22 @@ public class SpinnerState internal constructor(
 }
 
 /**
- * Creates and remembers a [SpinnerState] over a [SpinnerNumberModel] that steps a numeric value between
- * [min] and [max] by [step]. A null bound is open on that side.
+ * Creates and remembers a [SpinnerState] over a [SpinnerNumberModel] seeded with [initialValue], stepping
+ * between [min] and [max] by [step]. A null bound is open on that side.
  *
- * [value] is the initial value only; it is owned by the returned state and driven afterwards through the
- * state's [SpinnerState.value]. The [min], [max] and [step] are declarative: a later change to any of
- * them updates the spinner in place, preserving the current value.
+ * A later change to [initialValue] neither recreates nor mutates the state; drive the spinner afterwards
+ * through the returned state's [SpinnerState.value]. The [min], [max] and [step] are declarative: a later
+ * change to any of them updates the spinner in place. A new bound never moves the current value, so a
+ * bound tightened past that value leaves the spinner outside its own range.
  *
- * @param value the value the spinner starts at.
+ * @param initialValue the value the spinner starts at.
  * @param min the smallest selectable value, or null for no lower bound.
  * @param max the largest selectable value, or null for no upper bound.
  * @param step the increment between adjacent values.
  */
 @Composable
 public fun rememberSpinnerState(
-    value: Number,
+    initialValue: Number,
     min: Number? = null,
     max: Number? = null,
     step: Number = 1,
@@ -83,7 +84,7 @@ public fun rememberSpinnerState(
     // The general SpinnerNumberModel constructor takes Comparable minimum/maximum. Number is not itself
     // Comparable, but every concrete Number a caller passes (Int, Double, Long, ...) is Comparable at
     // runtime, so the star-projected cast of the bounds is sound.
-    val model = remember { SpinnerNumberModel(value, min as Comparable<*>?, max as Comparable<*>?, step) }
+    val model = remember { SpinnerNumberModel(initialValue, min as Comparable<*>?, max as Comparable<*>?, step) }
     SideEffect {
         if (model.minimum != min) model.minimum = min as Comparable<*>?
         if (model.maximum != max) model.maximum = max as Comparable<*>?
@@ -93,30 +94,28 @@ public fun rememberSpinnerState(
 }
 
 /**
- * Creates and remembers a [SpinnerState] over a [SpinnerListModel] that cycles through [items], showing
- * the item at [selectedIndex]. An index outside the list leaves the model at its first item.
+ * Creates and remembers a [SpinnerState] over a [SpinnerListModel] that cycles through [items], seeded
+ * with the item at [initialSelectedIndex]. An index outside the list leaves the model at its first item.
  *
- * [selectedIndex] is the initial selection only; the selected value is owned by the returned state and
- * driven afterwards through the state's [SpinnerState.value]. The [items] are declarative: a later change
- * updates the spinner in place, keeping the current selection where that item still exists.
+ * A later change to [initialSelectedIndex] neither recreates nor mutates the state; drive the spinner
+ * afterwards through the returned state's [SpinnerState.value]. The [items] are declarative: a later
+ * change updates the spinner in place and moves the selection to the head of the new items.
  *
  * @param items the values the spinner cycles through.
- * @param selectedIndex the index of the item the spinner starts on.
+ * @param initialSelectedIndex the index of the item the spinner starts on.
  */
 @Composable
 public fun <T> rememberSpinnerState(
     items: List<T>,
-    selectedIndex: Int = 0,
+    initialSelectedIndex: Int = 0,
 ): SpinnerState {
     val model =
         remember {
             SpinnerListModel(items).apply {
-                if (selectedIndex in items.indices) value = items[selectedIndex]
+                if (initialSelectedIndex in items.indices) value = items[initialSelectedIndex]
             }
         }
     SideEffect {
-        // Setting the list keeps the current selection where the item still exists; it only jumps to the
-        // first element when the current value has fallen out of the new list.
         if (model.list != items) model.list = items
     }
     return remember { SpinnerState(model) }

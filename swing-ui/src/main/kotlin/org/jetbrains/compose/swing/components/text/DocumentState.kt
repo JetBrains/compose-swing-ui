@@ -10,10 +10,6 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
-import kotlinx.coroutines.flow.Flow
-import org.jetbrains.compose.swing.components.documentChangeListener
-import org.jetbrains.compose.swing.components.replaceSpan
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import javax.swing.event.CaretListener
 import javax.swing.event.DocumentListener
@@ -28,12 +24,12 @@ import javax.swing.undo.UndoManager
 /**
  * A hoistable state holder for a text component that owns the [Document] the component renders. The
  * state and the bound component share one document, so an edit made through this state is what the
- * component displays, and text the user types into the component is what this state reports — there is
+ * component displays, and text the user types into the component is what this state reports - there is
  * no value to keep in sync and no round-trip per keystroke.
  *
  * [text] and [selection] are snapshot-observable: reading them inside a composable (or a
- * [textAsFlow] collector) subscribes to later edits, so the reader recomposes when the document or the
- * caret changes. [text] is materialized on demand from the document, so typing does not pay for a full
+ * `snapshotFlow` collector) subscribes to later edits, so the reader recomposes when the document or
+ * the caret changes. [text] is materialized on demand from the document, so typing does not pay for a full
  * read until a caller actually asks for the whole text.
  */
 public class DocumentState internal constructor(
@@ -45,7 +41,7 @@ public class DocumentState internal constructor(
     // and recomputed on write; each is read straight from the document on demand, and its getter first
     // reads this counter to register the snapshot subscription. A document change bumps the counter and so
     // invalidates every lazy reader, which then recomputes. Mirroring [text] instead would materialize the
-    // whole document string on every edit even when nothing reads it — the counter keeps reads lazy so a
+    // whole document string on every edit even when nothing reads it - the counter keeps reads lazy so a
     // large document is walked only when a caller actually asks for its content. Selection stays a small
     // fixed-size value, so it is mirrored directly in [selectionState] rather than read through the counter.
     private var generation by mutableIntStateOf(0)
@@ -79,8 +75,8 @@ public class DocumentState internal constructor(
 
     // The UndoManager records an edit in undoableEditHappened, which fires after the document's
     // insert/remove listeners. During a [recordAsOneEdit] block the edit is diverted into the pending
-    // compound edit so a single logical change — a [Document.replace] is a remove plus an insert, and an
-    // `edit { }` block may make many primitives — is undone and redone as one step.
+    // compound edit so a single logical change - a [Document.replace] is a remove plus an insert, and an
+    // `edit { }` block may make many primitives - is undone and redone as one step.
     private val undoManager =
         object : UndoManager() {
             override fun undoableEditHappened(event: UndoableEditEvent) {
@@ -107,7 +103,6 @@ public class DocumentState internal constructor(
         get() {
             // Register the snapshot read of the generation before materializing, so a later document
             // change invalidates this reader without the text being mirrored eagerly.
-            @Suppress("UNUSED_EXPRESSION")
             generation
             return document.readText()
         }
@@ -135,7 +130,6 @@ public class DocumentState internal constructor(
         get() {
             // Register the snapshot read of [generation]; an undo or redo edits the document and bumps
             // [generation] through [documentListener], so a snapshot reader of availability recomposes.
-            @Suppress("UNUSED_EXPRESSION")
             generation
             return undoManager.canUndo()
         }
@@ -143,7 +137,6 @@ public class DocumentState internal constructor(
     /** Whether a [redo] is currently available; snapshot-observable. */
     public val canRedo: Boolean
         get() {
-            @Suppress("UNUSED_EXPRESSION")
             generation
             return undoManager.canRedo()
         }
@@ -157,18 +150,6 @@ public class DocumentState internal constructor(
         val buffer = DocumentEditScope(document)
         recordAsOneEdit { buffer.block() }
         buffer.pendingSelection?.let { selection = it }
-    }
-
-    /** Replaces the whole text with [text] and places the caret at its end. */
-    public fun setTextAndPlaceCaretAtEnd(text: CharSequence) {
-        this.text = text
-        val end = document.length
-        selection = TextRange(end, end)
-    }
-
-    /** Clears the whole text. */
-    public fun clearText() {
-        text = ""
     }
 
     /** Reverts the most recent edit, if any. */
@@ -210,8 +191,8 @@ public class DocumentState internal constructor(
      * unbound first, so a state renders at most one component.
      *
      * A component is likewise owned by at most one [DocumentState]; handing that ownership from one
-     * state to another is the binding element's job — its node unbinds the previous owner before
-     * binding the new — so [bind] does not itself evict a different state from [target].
+     * state to another is the binding element's job - its node unbinds the previous owner before
+     * binding the new - so [bind] does not itself evict a different state from [target].
      */
     internal fun bind(target: JTextComponent) {
         if (component === target) return
@@ -253,7 +234,8 @@ public class DocumentState internal constructor(
  * binding the new one, and the node detaching (the component leaving the composition, being recycled
  * for reuse, or parking while deactivated) unbinds outright.
  */
-internal fun documentStateBinding(state: DocumentState): SwingModifier = DocumentStateElement(state)
+internal fun SwingModifier.documentStateBinding(state: DocumentState): SwingModifier =
+    this then DocumentStateElement(state)
 
 private class DocumentStateElement(
     private val state: DocumentState,
@@ -267,7 +249,7 @@ private class DocumentStateElement(
     }
 
     class Node : SwingModifier.Node<JTextComponent>() {
-        // The currently bound state, held so a swap unbinds exactly the previous owner — the one
+        // The currently bound state, held so a swap unbinds exactly the previous owner - the one
         // thing the composable's update block cannot know. Same shape as ClipboardElement.Node.handle.
         var state: DocumentState? = null
             set(value) {
@@ -282,9 +264,6 @@ private class DocumentStateElement(
         }
     }
 }
-
-/** A [Flow] that emits the current text and then every subsequent edit. */
-public fun DocumentState.textAsFlow(): Flow<CharSequence> = snapshotFlow { text.toString() }
 
 /**
  * Creates and remembers a [DocumentState] over a fresh [PlainDocument] seeded with [initialText].
@@ -305,10 +284,15 @@ public fun rememberDocumentState(initialText: CharSequence = ""): DocumentState 
  * place. The bound field renders this exact document, so a caller keeping a reference to it observes the
  * same edits the state does.
  *
+ * The state is tied to the document's identity: a different [document] builds a new state over it, the
+ * field switches to rendering that document, and the previous state releases the one it held. Pass a
+ * document that outlives a recomposition - one owned outside the composition or kept in a `remember` -
+ * so the state is rebuilt only when the rendered document really changes.
+ *
  * @param document the document the state adopts and the field renders.
  */
 @Composable
-public fun rememberDocumentState(document: Document): DocumentState = remember { DocumentState(document) }
+public fun rememberDocumentState(document: Document): DocumentState = remember(document) { DocumentState(document) }
 
 // Reads the whole document text through a reusable Segment, avoiding a defensive copy on the read path.
 private fun Document.readText(): String {

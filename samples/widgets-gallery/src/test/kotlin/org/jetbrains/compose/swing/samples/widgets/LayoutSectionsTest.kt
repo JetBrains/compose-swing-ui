@@ -17,12 +17,12 @@ class LayoutSectionsTest {
         runComposeSwingTest {
             openSection("Layouts")
 
-            onNodeWithText("Card A", substring = true).assertExists()
-            onNodeWithText("Card C", substring = true).assertDoesNotExist()
+            onNodeWithText("Card A").assertIsVisible()
+            onNodeWithText("Card C").assertIsNotVisible()
 
             onNodeWithText("Show C").performClick()
-            onNodeWithText("Card C", substring = true).assertExists()
-            onNodeWithText("Card A", substring = true).assertDoesNotExist()
+            onNodeWithText("Card C").assertIsVisible()
+            onNodeWithText("Card A").assertIsNotVisible()
         }
 
     @Test

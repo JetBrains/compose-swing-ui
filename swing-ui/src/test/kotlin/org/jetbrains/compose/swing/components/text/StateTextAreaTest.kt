@@ -1,11 +1,7 @@
 package org.jetbrains.compose.swing.components.text
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.BoxPanel
-import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JTextArea
@@ -29,22 +25,20 @@ class StateTextAreaTest {
             TextArea(state = state)
         }
 
-        val area = onNodeOfType<JTextArea>().fetch<JTextArea>()
+        val area = onNodeOfType<JTextArea>().fetch()
         assertSame(state.document, area.document, "the area must render the state's own document")
     }
 
     @Test
     fun callerSuppliedDocumentIsInstalledIntoTheArea() = runComposeSwingTest {
         val document = PlainDocument().apply { insertString(0, "preset", null) }
-        lateinit var state: DocumentState
         setContent {
-            state = rememberDocumentState(document = document)
-            TextArea(state = state)
+            TextArea(state = rememberDocumentState(document = document))
         }
 
-        val area = onNodeOfType<JTextArea>().fetch<JTextArea>()
-        assertSame(document, area.document)
-        assertEquals("preset", area.text)
+        val area = onNodeOfType<JTextArea>()
+        assertSame(document, area.fetch().document)
+        area.assertTextEquals("preset")
     }
 
     @Test
@@ -55,12 +49,11 @@ class StateTextAreaTest {
             TextArea(state = state)
         }
 
-        val area = onNodeOfType<JTextArea>().fetch<JTextArea>()
-        assertEquals("ab", area.text)
+        onNodeOfType<JTextArea>().assertTextEquals("ab")
 
         state.edit { append("c") }
         awaitIdle()
-        assertEquals("abc", area.text)
+        onNodeOfType<JTextArea>().assertTextEquals("abc")
     }
 
     @Test
@@ -71,10 +64,9 @@ class StateTextAreaTest {
             TextArea(state = state)
         }
 
-        val area = onNodeOfType<JTextArea>().fetch<JTextArea>()
         state.text = "help"
         awaitIdle()
-        assertEquals("help", area.text)
+        onNodeOfType<JTextArea>().assertTextEquals("help")
         assertEquals("help", state.text.toString())
     }
 
@@ -86,9 +78,7 @@ class StateTextAreaTest {
             TextArea(state = state)
         }
 
-        val area = onNodeOfType<JTextArea>().fetch<JTextArea>()
-        area.text = "typed"
-        awaitIdle()
+        onNodeOfType<JTextArea>().performTextReplacement("typed")
 
         assertEquals("typed", state.text.toString())
     }
@@ -106,9 +96,7 @@ class StateTextAreaTest {
 
         onNodeWithText("Echo: hi").assertExists()
 
-        val area = onNodeOfType<JTextArea>().fetch<JTextArea>()
-        area.text = "bye"
-        awaitIdle()
+        onNodeOfType<JTextArea>().performTextReplacement("bye")
 
         onNodeWithText("Echo: bye").assertExists()
         onNodeWithText("Echo: hi").assertDoesNotExist()
@@ -122,7 +110,7 @@ class StateTextAreaTest {
             TextArea(state = state, rows = 5, columns = 12)
         }
 
-        val area = onNodeOfType<JTextArea>().fetch<JTextArea>()
+        val area = onNodeOfType<JTextArea>().fetch()
         assertEquals(5, area.rows)
         assertEquals(12, area.columns)
     }

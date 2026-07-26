@@ -4,8 +4,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JTable
@@ -13,6 +13,7 @@ import javax.swing.ListSelectionModel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
@@ -21,22 +22,14 @@ import kotlin.test.assertTrue
  *
  * The central guarantees: rows/columns render into the model; user selection fires
  * `onSelectionChange` with the selected row indices; committing an edit on an editable cell fires
- * `onCellEdit`; state-driven row changes rebuild the model; and a controlled selection update does
- * not echo back as a spurious callback.
+ * `onCellEdit`; state-driven row changes rebuild the model; a pass that changed no data leaves the
+ * table's columns alone; and a controlled selection update does not echo back as a spurious callback.
  *
  * Headless caveat: no native peer realizes, so a cell edit is committed through the same
  * model-write path the cell editor uses on commit (`JTable.setValueAt`), and a user selection is
  * driven through the table's selection model, exactly where a real mouse gesture would land.
  */
 class TableBehaviorTest {
-    private data class Person(
-        val name: String,
-        val age: Int,
-    )
-
-    /** Resolves the single [JTable] in the tree via the typed finder, failing with a tree dump otherwise. */
-    private fun ComposeSwingTest.table(): JTable = onNodeOfType<JTable>().fetch()
-
     @Test
     fun rowsAndColumnsRenderIntoTheModel() = runComposeSwingTest {
         setContent {
@@ -46,7 +39,7 @@ class TableBehaviorTest {
             }
         }
 
-        val table = table()
+        val table = onNodeOfType<JTable>().fetch()
         val model = table.model
         assertEquals(2, model.rowCount, "row count")
         assertEquals(2, model.columnCount, "column count")
@@ -71,7 +64,7 @@ class TableBehaviorTest {
             }
         }
 
-        val table = table()
+        val table = onNodeOfType<JTable>().fetch()
         // Drive the selection through the table's selection model, where a real mouse gesture
         // would land; the wrapper's listener observes it and fires onSelectionChange.
         table.setRowSelectionInterval(0, 0)
@@ -95,7 +88,7 @@ class TableBehaviorTest {
             }
         }
 
-        val table = table()
+        val table = onNodeOfType<JTable>().fetch()
         assertFalse(table.isCellEditable(0, 0), "Name column must be read-only")
         assertTrue(table.isCellEditable(0, 1), "Age column must be editable")
         // Committing an edit routes through JTable.setValueAt -> model.setValueAt, the same
@@ -115,7 +108,7 @@ class TableBehaviorTest {
             }
         }
 
-        val table = table()
+        val table = onNodeOfType<JTable>().fetch()
         assertEquals(1, table.model.rowCount, "the model should start with one row")
 
         rows.add(Person("Alan", 41))
@@ -152,7 +145,7 @@ class TableBehaviorTest {
             }
         }
 
-        val table = table()
+        val table = onNodeOfType<JTable>().fetch()
         assertEquals(listOf(0), table.selectedRows.toList(), "initial selection applied")
 
         // A purely external selection update applies to the table and settles. Because the guard
@@ -173,5 +166,27 @@ class TableBehaviorTest {
         val callbacksAfterSettle = received.size
         awaitIdle()
         assertEquals(callbacksAfterSettle, received.size, "selection kept firing callbacks after settling")
+    }
+
+    @Test
+    fun aPassThatChangedNoDataLeavesTheColumnsAlone() = runComposeSwingTest {
+        var label by mutableStateOf("first")
+        setContent {
+            Table(rows = listOf(Person("Ada", 36)), modifier = SwingModifier.name(label)) {
+                column("Name") { it.name }
+            }
+        }
+
+        val table = onNodeOfType<JTable>().fetch()
+        // A structure change rebuilds the table's columns, taking any width along with them, so the
+        // column object the table still carries is what tells a narrow refresh from a broad one.
+        val column = table.columnModel.getColumn(0)
+        column.preferredWidth = 123
+
+        label = "second"
+        awaitIdle()
+
+        assertSame(column, table.columnModel.getColumn(0), "the column survives a pass that changed no data")
+        assertEquals(123, table.columnModel.getColumn(0).preferredWidth, "and so does the width set on it")
     }
 }

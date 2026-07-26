@@ -6,7 +6,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.BoxPanel
-import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JTextField
@@ -28,22 +27,20 @@ class StateTextFieldTest {
             TextField(state = state)
         }
 
-        val field = onNodeOfType<JTextField>().fetch<JTextField>()
+        val field = onNodeOfType<JTextField>().fetch()
         assertSame(state.document, field.document, "the field must render the state's own document")
     }
 
     @Test
     fun callerSuppliedDocumentIsInstalledIntoTheField() = runComposeSwingTest {
         val document = PlainDocument().apply { insertString(0, "preset", null) }
-        lateinit var state: DocumentState
         setContent {
-            state = rememberDocumentState(document = document)
-            TextField(state = state)
+            TextField(state = rememberDocumentState(document = document))
         }
 
-        val field = onNodeOfType<JTextField>().fetch<JTextField>()
-        assertSame(document, field.document)
-        assertEquals("preset", field.text)
+        val field = onNodeOfType<JTextField>()
+        assertSame(document, field.fetch().document)
+        field.assertTextEquals("preset")
     }
 
     @Test
@@ -59,9 +56,7 @@ class StateTextFieldTest {
 
         onNodeWithText("Echo: hi").assertExists()
 
-        val field = onNodeOfType<JTextField>().fetch<JTextField>()
-        field.text = "bye"
-        awaitIdle()
+        onNodeOfType<JTextField>().performTextReplacement("bye")
 
         onNodeWithText("Echo: bye").assertExists()
         onNodeWithText("Echo: hi").assertDoesNotExist()
@@ -105,7 +100,7 @@ class StateTextFieldTest {
 
         onNodeWithText("Range: 11-11").assertExists()
 
-        val field = onNodeOfType<JTextField>().fetch<JTextField>()
+        val field = onNodeOfType<JTextField>().fetch()
         field.select(0, 5)
         awaitIdle()
 
@@ -197,7 +192,7 @@ class StateTextFieldTest {
             TextField(state = if (useA) stateA else stateB)
         }
 
-        val field = onNodeOfType<JTextField>().fetch<JTextField>()
+        val field = onNodeOfType<JTextField>().fetch()
         assertSame(stateA.document, field.document)
 
         // Give stateA a distinctive selection so a stray caret event driven by the swap would change it.
@@ -237,7 +232,7 @@ class StateTextFieldTest {
             }
         }
 
-        val field = onNodeOfType<JTextField>().fetch<JTextField>()
+        val field = onNodeOfType<JTextField>().fetch()
         field.select(0, 5)
         awaitIdle()
         assertEquals(TextRange(0, 5), state.selection)
@@ -267,7 +262,7 @@ class StateTextFieldTest {
             }
         }
 
-        val field = onNodeOfType<JTextField>().fetch<JTextField>()
+        val field = onNodeOfType<JTextField>().fetch()
         field.select(0, 6)
         awaitIdle()
         assertEquals(TextRange(0, 6), state.selection)
@@ -296,7 +291,7 @@ class StateTextFieldTest {
         active = true
         awaitIdle()
 
-        val reattached = onNodeOfType<JTextField>().fetch<JTextField>()
+        val reattached = onNodeOfType<JTextField>().fetch()
         assertSame(state.document, reattached.document, "reactivating restores the binding")
         assertEquals(TextRange(0, 6), state.selection, "the state's selection survives parking")
     }

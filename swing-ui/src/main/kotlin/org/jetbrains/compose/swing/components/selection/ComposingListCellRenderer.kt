@@ -16,6 +16,7 @@ import org.jetbrains.compose.swing.core.LocalSwingConstraint
 import org.jetbrains.compose.swing.core.SwingApplier
 import org.jetbrains.compose.swing.core.SwingCompositionMount
 import java.awt.Component
+import javax.swing.JComboBox
 import javax.swing.JList
 import javax.swing.JPanel
 import javax.swing.ListCellRenderer
@@ -46,7 +47,7 @@ public sealed interface ListItemScope {
 /**
  * A [ListCellRenderer] that paints each row through a real `@Composable` cell.
  *
- * It follows the rubber-stamp model a `JList`/`JComboBox` renderer is built on — ONE reused host
+ * It follows the rubber-stamp model a `JList`/`JComboBox` renderer is built on - ONE reused host
  * [JPanel] and ONE reused nested [SwingCompositionMount], recomposed for every row the widget asks to
  * paint. The composition joins the [ListBox]'s own composition (via the [parentContext] captured with
  * `rememberCompositionContext`), so the cell body sees the surrounding state and
@@ -94,6 +95,23 @@ internal class ComposingListCellRenderer<T>(
     // host; that must not recursively drive another stamp mid-flush.
     private var stamping = false
 
+    /**
+     * Puts back the renderer this one displaced on the widget it was installed on - that widget's own,
+     * built by the UI delegate of its look and feel. Armed while this renderer is the installed one and
+     * given up through [releaseRestore] as it is displaced, so a renderer installed nowhere holds
+     * nothing that could write onto a widget.
+     */
+    var restoreWidgetRenderer: () -> Unit = {}
+        private set
+
+    /** Gives up the way back to the widget's own renderer, leaving this renderer holding none. */
+    fun releaseRestore(): () -> Unit = restoreWidgetRenderer.also { restoreWidgetRenderer = {} }
+
+    /** Takes over [restore] as the way back to the widget's own renderer. */
+    fun adoptRestore(restore: () -> Unit) {
+        restoreWidgetRenderer = restore
+    }
+
     override fun getListCellRendererComponent(
         list: JList<out T>,
         value: T?,
@@ -127,7 +145,7 @@ internal class ComposingListCellRenderer<T>(
 
     /**
      * Disposes the reused island composition and its observer. The renderer stays safe to invoke
-     * afterwards — the widget that captured it outlives the composition — and a stamp on the disposed
+     * afterwards - the widget that captured it outlives the composition - and a stamp on the disposed
      * island returns the host unchanged.
      */
     fun dispose(): Unit = mount.dispose()
@@ -169,9 +187,9 @@ private class MutableListItemScope : ListItemScope {
 
 /**
  * Remembers a single [ComposingListCellRenderer] for [itemContent], captured against the enclosing
- * composition so the cell body joins it. The renderer is stable across recompositions — the current
+ * composition so the cell body joins it. The renderer is stable across recompositions - the current
  * [itemContent] flows in through [rememberUpdatedState], so a recomposed cell lambda is honoured
- * without rebuilding the renderer — and is disposed when it leaves the composition.
+ * without rebuilding the renderer - and is disposed when it leaves the composition.
  *
  * Call from a `@Composable` scope that installs the returned renderer on a `JList`/`JComboBox`.
  */
@@ -187,4 +205,57 @@ internal fun <T> rememberComposingListCellRenderer(
         onDispose { renderer.dispose() }
     }
     return renderer
+}
+
+/**
+ * Applies [itemRenderer] as the combo box's item renderer; `null` renders items through the renderer
+ * the combo box itself provides.
+ */
+internal fun <T> JComboBox<T>.applyItemRenderer(itemRenderer: ComposingListCellRenderer<T>?): Unit =
+    applyCellRenderer(itemRenderer, installed = renderer) { renderer = it }
+
+/**
+ * Applies [itemRenderer] as the list's cell renderer; `null` renders rows through the renderer the
+ * list itself provides.
+ */
+internal fun <T> JList<T>.applyItemRenderer(itemRenderer: ComposingListCellRenderer<T>?): Unit =
+    applyCellRenderer(itemRenderer, installed = cellRenderer) { cellRenderer = it }
+
+/**
+ * The rule both cell-rendering widgets follow, given the renderer property's [installed] value and the
+ * [install] accessor that writes it: a non-null [itemRenderer] takes the property over, and a `null`
+ * one hands it back to the widget's own renderer - the one the UI delegate of the look and feel put
+ * there when it built the widget, captured at the moment a composable cell displaced it.
+ *
+ * Capturing is how a combo box's renderer is reached at all: it comes from
+ * `BasicComboBoxUI.createRenderer`, a factory each look and feel overrides on its UI delegate and
+ * exposes through no default key, so nothing short of re-running the widget's UI installation produces
+ * another one - and that installation is unavailable here: it rebuilds the popup and the editor, and a
+ * cell measured along the way stamps a composable cell, re-entering the very composition whose changes
+ * are being applied. A list's renderer is an ordinary look-and-feel default and could also be read back
+ * from `UIManager`; capturing what the widget actually carried is narrower, and one rule covers both.
+ *
+ * The captured renderer belongs to the widget as much as it did before the composable cell, so a later
+ * look-and-feel change treats it exactly as it treats the renderer of a widget that never carried one:
+ * the outgoing UI delegate drops its own renderer and the incoming one installs a fresh one. A
+ * [ComposingListCellRenderer] is not the look and feel's, so a look-and-feel change keeps it installed
+ * and installs nothing of its own - what Swing does for any caller-supplied renderer.
+ */
+private fun <T> applyCellRenderer(
+    itemRenderer: ComposingListCellRenderer<T>?,
+    installed: ListCellRenderer<in T>,
+    install: (ListCellRenderer<in T>) -> Unit,
+) {
+    if (itemRenderer === installed) return
+    // What is installed is the widget's own renderer, unless a composable cell already took the
+    // property over - that one is the only thing still holding the way back to the widget's own.
+    val composing = installed as? ComposingListCellRenderer<*>
+    if (itemRenderer != null) {
+        // Displacing a composing renderer takes the way back with it, so the renderer left installed
+        // nowhere cannot write onto a widget it no longer renders.
+        itemRenderer.adoptRestore(composing?.releaseRestore() ?: { install(installed) })
+        install(itemRenderer)
+    } else if (composing != null) {
+        composing.releaseRestore()()
+    }
 }

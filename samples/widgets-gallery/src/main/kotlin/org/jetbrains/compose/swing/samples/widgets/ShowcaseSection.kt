@@ -10,9 +10,11 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.border
 import org.jetbrains.compose.swing.modifier.appearance.font
 import org.jetbrains.compose.swing.modifier.appearance.foreground
+import org.jetbrains.compose.swing.modifier.appearance.horizontalAlignment
 import org.jetbrains.compose.swing.modifier.layout.alignmentX
 import java.awt.Color
 import java.awt.Component
+import java.awt.FlowLayout
 import java.awt.Font
 import javax.swing.BorderFactory
 import javax.swing.BoxLayout
@@ -21,7 +23,7 @@ import javax.swing.SwingConstants
 
 // The left-edge alignment shared by every direct child of a card column. A vertical BoxLayout lines its
 // children up by alignmentX; leaf controls already report 0.0 but panels default to centered (0.5), and
-// mixing the two pushes the left-aligned controls sideways to track the centered ones — an offset that
+// mixing the two pushes the left-aligned controls sideways to track the centered ones - an offset that
 // shifts whenever the column width changes, so a control visibly jumps on toggle. Tagging every panel
 // sibling with this keeps the column flush-left and stable.
 internal const val LEFT_ALIGNED: Float = Component.LEFT_ALIGNMENT
@@ -101,7 +103,7 @@ internal fun SectionColumn(cards: @Composable () -> Unit) {
 
 @Composable
 internal fun SectionHeading(text: String) {
-    FlowPanel(alignment = SwingConstants.LEADING) {
+    FlowPanel(alignment = FlowLayout.LEADING) {
         Label(
             text = text,
             modifier =
@@ -118,6 +120,6 @@ internal fun SectionHeading(text: String) {
 internal fun WrappedCaption(text: String) {
     Label(
         text = "<html><body style='width:440px'>$text</body></html>",
-        horizontalAlignment = SwingConstants.LEADING,
+        modifier = SwingModifier.horizontalAlignment(SwingConstants.LEADING),
     )
 }

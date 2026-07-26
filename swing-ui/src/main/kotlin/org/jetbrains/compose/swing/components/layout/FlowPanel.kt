@@ -32,6 +32,9 @@ public fun FlowPanel(
     SwingNode(
         factory = { JPanel(FlowLayout(alignment, hgap, vgap)) },
         update = {
+            updateLayout<FlowLayout, _>(alignment) { this.alignment = it }
+            updateLayout<FlowLayout, _>(hgap) { this.hgap = it }
+            updateLayout<FlowLayout, _>(vgap) { this.vgap = it }
             applyModifier(modifier)
         },
         content = content,

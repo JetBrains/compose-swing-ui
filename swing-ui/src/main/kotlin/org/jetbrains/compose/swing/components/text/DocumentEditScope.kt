@@ -3,7 +3,6 @@
 
 package org.jetbrains.compose.swing.components.text
 
-import org.jetbrains.compose.swing.components.replaceSpan
 import javax.swing.text.Document
 
 /**

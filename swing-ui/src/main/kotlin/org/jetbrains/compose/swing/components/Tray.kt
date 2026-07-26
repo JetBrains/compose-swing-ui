@@ -30,12 +30,12 @@ import javax.swing.event.PopupMenuListener
 /**
  * Registers a system-tray icon for the lifetime of this composition.
  *
- * The icon shows [image] with [tooltip] as its hover text. Activating the icon (the platform's primary
- * click) runs [onAction]. Requesting its popup (the platform popup gesture) opens a menu built from
- * [menu], the same menu tree used by a menu bar or context menu — `Menu`, `MenuItem`,
- * `CheckBoxMenuItem`, `RadioButtonMenuItem`, `MenuSeparator`. The menu reads composition state, so its
- * items reflect the current state each time it opens, and an item's callback updates state like any
- * other composable callback.
+ * The icon shows [image], with [tooltip] as its hover text where one is given. Activating the icon
+ * (the platform's primary click) runs [onAction]. Requesting its popup (the platform popup gesture)
+ * opens a menu built from [menu], the same menu tree used by a menu bar or context menu - `Menu`,
+ * `MenuItem`, `CheckBoxMenuItem`, `RadioButtonMenuItem`, `MenuSeparator`. The menu reads composition
+ * state, so its items reflect the current state each time it opens, and an item's callback updates
+ * state like any other composable callback.
  *
  * The icon is added when this enters the composition and removed when it leaves.
  *
@@ -47,15 +47,18 @@ import javax.swing.event.PopupMenuListener
  * scope and [androidx.compose.runtime.CompositionLocal]s.
  *
  * @param image the icon image shown in the tray.
- * @param tooltip the hover text for the icon.
  * @param onAction callback run when the icon is activated.
+ * @param tooltip the hover text for the icon, or `null` for an icon with none.
+ * @param imageAutoSize whether [image] is scaled to the size the platform's tray allocates,
+ *   rather than painted at its own size.
  * @param menu the composable menu tree opened on the popup gesture.
  */
 @Composable
 public fun Tray(
     image: Image,
-    tooltip: String = "",
     onAction: () -> Unit = {},
+    tooltip: String? = null,
+    imageAutoSize: Boolean = false,
     menu:
         @Composable @SwingMenuComposable
         () -> Unit = {},
@@ -80,11 +83,12 @@ public fun Tray(
     val parentContext = rememberCompositionContext()
 
     val menuHost = remember { TrayMenuHost(parentContext) { currentMenu() } }
-    val trayIcon = remember { TrayIcon(image).apply { isImageAutoSize = true } }
+    val trayIcon = remember { TrayIcon(image) }
 
     SideEffect {
         if (trayIcon.image != image) trayIcon.image = image
         if (trayIcon.toolTip != tooltip) trayIcon.toolTip = tooltip
+        if (trayIcon.isImageAutoSize != imageAutoSize) trayIcon.isImageAutoSize = imageAutoSize
     }
 
     DisposableEffect(Unit) {
@@ -148,7 +152,7 @@ public class TrayMenuHost(
 }
 
 /**
- * Presents [popup] at screen coordinates ([x], [y]) over a transient, invisible invoker — the
+ * Presents [popup] at screen coordinates ([x], [y]) over a transient, invisible invoker - the
  * production default for a tray popup, whose mouse events carry no Swing invoker of their own.
  */
 private fun showPopupAtCursor(

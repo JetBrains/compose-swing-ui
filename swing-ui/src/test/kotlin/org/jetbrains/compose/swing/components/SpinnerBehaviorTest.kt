@@ -1,14 +1,15 @@
 package org.jetbrains.compose.swing.components
 
+import androidx.compose.runtime.ReusableContentHost
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import javax.swing.AbstractSpinnerModel
 import javax.swing.JSpinner
 import javax.swing.SpinnerListModel
+import javax.swing.SpinnerModel
 import javax.swing.SpinnerNumberModel
 import javax.swing.event.ChangeListener
 import kotlin.test.Test
@@ -21,20 +22,22 @@ import kotlin.test.assertTrue
  *
  * The central guarantees: a numeric factory renders its value and bounds into a number model; a change
  * originating from the spinner is reported through [SpinnerState.value]; a value written through
- * [SpinnerState.value] reaches the spinner without echoing back as a spurious extra change; the value
- * argument is the initial value only while the bounds, step and items are declarative — a later change
- * to a bound or the item list updates the spinner in place, preserving the current value; the list
- * factory cycles through its items; and the raw-`ChangeListener` overload notifies on every change of an
+ * [SpinnerState.value] reaches the spinner without echoing back as a spurious extra change; the initial
+ * value and initial selection seed the model once while the bounds, step and items are declarative - a
+ * later change to a bound, the step or the item list updates the spinner in place; the list factory
+ * cycles through its items; and the raw-`ChangeListener` overload notifies on every change of an
  * arbitrary model.
  */
 class SpinnerBehaviorTest {
-    private fun ComposeSwingTest.spinner(): JSpinner = onNodeOfType<JSpinner>().fetch()
+    /** How many of the model's change listeners belong to a [SpinnerState], as opposed to the spinner's own. */
+    private fun SpinnerModel.stateListeners(): Int =
+        (this as AbstractSpinnerModel).changeListeners.count { it.javaClass.name.startsWith(STATE_PACKAGE) }
 
     @Test
     fun theIntFactoryRendersValueAndBoundsIntoTheNumberModel() = runComposeSwingTest {
-        setContent { Spinner(rememberSpinnerState(value = 5, min = 0, max = 10, step = 2)) }
+        setContent { Spinner(rememberSpinnerState(initialValue = 5, min = 0, max = 10, step = 2)) }
 
-        val model = spinner().model as SpinnerNumberModel
+        val model = onNodeOfType<JSpinner>().fetch().model as SpinnerNumberModel
         assertEquals(5, model.value, "the model should render the initial value")
         assertEquals(0, model.minimum, "the model should render the minimum bound")
         assertEquals(10, model.maximum, "the model should render the maximum bound")
@@ -43,9 +46,9 @@ class SpinnerBehaviorTest {
 
     @Test
     fun aNullBoundLeavesThatSideOpen() = runComposeSwingTest {
-        setContent { Spinner(rememberSpinnerState(value = 5)) }
+        setContent { Spinner(rememberSpinnerState(initialValue = 5)) }
 
-        val model = spinner().model as SpinnerNumberModel
+        val model = onNodeOfType<JSpinner>().fetch().model as SpinnerNumberModel
         assertEquals(null, model.minimum, "a null min leaves the lower side unbounded")
         assertEquals(null, model.maximum, "a null max leaves the upper side unbounded")
     }
@@ -55,13 +58,13 @@ class SpinnerBehaviorTest {
         lateinit var state: SpinnerState
         val observed = mutableListOf<Any?>()
         setContent {
-            state = rememberSpinnerState(value = 5, min = 0, max = 10)
+            state = rememberSpinnerState(initialValue = 5, min = 0, max = 10)
             observed += state.value
             Spinner(state)
         }
         awaitIdle()
 
-        val spinner = spinner()
+        val spinner = onNodeOfType<JSpinner>().fetch()
         // getNextValue is what the up arrow commits; setting it drives the same model write path.
         spinner.value = spinner.model.nextValue
         awaitIdle()
@@ -75,11 +78,11 @@ class SpinnerBehaviorTest {
         lateinit var state: SpinnerState
         var changes = 0
         setContent {
-            state = rememberSpinnerState(value = 5, min = 0, max = 10)
+            state = rememberSpinnerState(initialValue = 5, min = 0, max = 10)
             Spinner(state)
         }
         awaitIdle()
-        val spinner = spinner()
+        val spinner = onNodeOfType<JSpinner>().fetch()
         spinner.model.addChangeListener { changes++ }
 
         state.value = 8
@@ -98,12 +101,12 @@ class SpinnerBehaviorTest {
     fun theDoubleFactoryStepsByAFractionalStep() = runComposeSwingTest {
         lateinit var state: SpinnerState
         setContent {
-            state = rememberSpinnerState(value = 1.0, min = 0.0, max = 2.0, step = 0.25)
+            state = rememberSpinnerState(initialValue = 1.0, min = 0.0, max = 2.0, step = 0.25)
             Spinner(state)
         }
         awaitIdle()
 
-        val spinner = spinner()
+        val spinner = onNodeOfType<JSpinner>().fetch()
         spinner.value = spinner.model.nextValue
         awaitIdle()
 
@@ -114,12 +117,12 @@ class SpinnerBehaviorTest {
     fun theListFactoryCyclesThroughItsItems() = runComposeSwingTest {
         lateinit var state: SpinnerState
         setContent {
-            state = rememberSpinnerState(items = listOf("red", "green", "blue"), selectedIndex = 0)
+            state = rememberSpinnerState(items = listOf("red", "green", "blue"), initialSelectedIndex = 0)
             Spinner(state)
         }
         awaitIdle()
 
-        val spinner = spinner()
+        val spinner = onNodeOfType<JSpinner>().fetch()
         assertEquals("red", state.value, "the list spinner starts at the selected item")
 
         // The up arrow advances to the next list element; driving nextValue takes the same path.
@@ -130,10 +133,10 @@ class SpinnerBehaviorTest {
     }
 
     @Test
-    fun theListFactoryHonoursTheSelectedIndex() = runComposeSwingTest {
+    fun theListFactoryHonoursTheInitialSelectedIndex() = runComposeSwingTest {
         lateinit var state: SpinnerState
         setContent {
-            state = rememberSpinnerState(items = listOf("a", "b", "c"), selectedIndex = 1)
+            state = rememberSpinnerState(items = listOf("a", "b", "c"), initialSelectedIndex = 1)
             Spinner(state)
         }
         awaitIdle()
@@ -141,9 +144,27 @@ class SpinnerBehaviorTest {
         assertEquals("b", state.value, "the list spinner starts at the selected index")
         assertEquals(
             listOf("a", "b", "c"),
-            (spinner().model as SpinnerListModel).list,
+            (onNodeOfType<JSpinner>().fetch().model as SpinnerListModel).list,
             "the model holds the items",
         )
+    }
+
+    @Test
+    fun anInitialSelectedIndexOutsideTheItemsLeavesTheSpinnerAtTheFirstItem() = runComposeSwingTest {
+        lateinit var state: SpinnerState
+        setContent {
+            state = rememberSpinnerState(items = listOf("a", "b", "c"), initialSelectedIndex = 7)
+            Spinner(state)
+        }
+        awaitIdle()
+
+        assertEquals("a", state.value, "an index outside the list starts the spinner at the first item")
+
+        // Cycling from there advances through the list, so the spinner really sits on the first item.
+        val spinner = onNodeOfType<JSpinner>().fetch()
+        spinner.value = spinner.model.nextValue
+        awaitIdle()
+        assertEquals("b", state.value, "the spinner cycles on from the first item")
     }
 
     @Test
@@ -154,7 +175,7 @@ class SpinnerBehaviorTest {
         setContent { Spinner(model = model, changeListener = listener) }
         awaitIdle()
 
-        val spinner = spinner()
+        val spinner = onNodeOfType<JSpinner>().fetch()
         spinner.value = spinner.model.nextValue
         awaitIdle()
 
@@ -165,17 +186,18 @@ class SpinnerBehaviorTest {
     fun swappingTheStateRebindsTheModel() = runComposeSwingTest {
         var useFirst by mutableStateOf(true)
         setContent {
-            val first = rememberSpinnerState(value = 1, min = 0, max = 10)
-            val second = rememberSpinnerState(value = 7, min = 0, max = 10)
+            val first = rememberSpinnerState(initialValue = 1, min = 0, max = 10)
+            val second = rememberSpinnerState(initialValue = 7, min = 0, max = 10)
             Spinner(if (useFirst) first else second)
         }
         awaitIdle()
 
-        assertEquals(1, spinner().value, "the first state's model renders initially")
+        val spinner = onNodeOfType<JSpinner>().fetch()
+        assertEquals(1, spinner.value, "the first state's model renders initially")
 
         useFirst = false
         awaitIdle()
-        assertEquals(7, spinner().value, "swapping the state rebinds the spinner to the new model")
+        assertEquals(7, spinner.value, "swapping the state rebinds the spinner to the new model")
     }
 
     @Test
@@ -183,12 +205,13 @@ class SpinnerBehaviorTest {
         lateinit var state: SpinnerState
         var max by mutableStateOf(10)
         setContent {
-            state = rememberSpinnerState(value = 8, min = 0, max = max, step = 1)
+            state = rememberSpinnerState(initialValue = 8, min = 0, max = max, step = 1)
             Spinner(state)
         }
         awaitIdle()
 
-        val model = spinner().model as SpinnerNumberModel
+        val spinner = onNodeOfType<JSpinner>().fetch()
+        val model = spinner.model as SpinnerNumberModel
         assertEquals(10, model.maximum, "the model starts at the original maximum")
 
         max = 20
@@ -198,10 +221,7 @@ class SpinnerBehaviorTest {
         assertEquals(8, state.value, "the current value survives the bound change")
 
         // With the max lifted past 10, the spinner can now step above the old ceiling.
-        repeat(5) {
-            val spinner = spinner()
-            spinner.value = spinner.model.nextValue
-        }
+        repeat(5) { spinner.value = spinner.model.nextValue }
         awaitIdle()
         assertEquals(13, state.value, "the value can now step past the old maximum")
     }
@@ -211,7 +231,7 @@ class SpinnerBehaviorTest {
         lateinit var state: SpinnerState
         var items by mutableStateOf(listOf("red", "green", "blue"))
         setContent {
-            state = rememberSpinnerState(items = items, selectedIndex = 0)
+            state = rememberSpinnerState(items = items, initialSelectedIndex = 0)
             Spinner(state)
         }
         awaitIdle()
@@ -220,38 +240,242 @@ class SpinnerBehaviorTest {
         items = listOf("one", "two", "three")
         awaitIdle()
 
+        val spinner = onNodeOfType<JSpinner>().fetch()
         assertEquals(
             listOf("one", "two", "three"),
-            (spinner().model as SpinnerListModel).list,
+            (spinner.model as SpinnerListModel).list,
             "the new items update the model in place",
         )
+        assertEquals("one", state.value, "the selection moves to the head of the new items")
 
         // Cycling now advances through the replacement items.
-        val spinner = spinner()
         spinner.value = spinner.model.nextValue
         awaitIdle()
         assertEquals("two", state.value, "the spinner cycles the new items")
     }
 
     @Test
-    fun theValueArgumentIsStateOwnedAndNotDrivenByRecomposition() = runComposeSwingTest {
+    fun loweringTheMinAcrossRecompositionIsHonouredAndOpensTheLowerRange() = runComposeSwingTest {
         lateinit var state: SpinnerState
-        var value by mutableStateOf(3)
+        var min by mutableStateOf(4)
         setContent {
-            state = rememberSpinnerState(value = value, min = 0, max = 10, step = 1)
+            state = rememberSpinnerState(initialValue = 5, min = min, max = 10, step = 1)
+            Spinner(state)
+        }
+        awaitIdle()
+
+        val spinner = onNodeOfType<JSpinner>().fetch()
+        val model = spinner.model as SpinnerNumberModel
+        assertEquals(4, model.minimum, "the model starts at the original minimum")
+        spinner.value = model.previousValue
+        awaitIdle()
+        assertEquals(4, state.value, "the value steps down to the original floor")
+        assertEquals(null, model.previousValue, "the original floor blocks a further step down")
+
+        min = 0
+        awaitIdle()
+
+        assertEquals(0, model.minimum, "the lowered minimum updates the model in place")
+        assertEquals(4, state.value, "the current value survives the bound change")
+
+        repeat(3) { spinner.value = spinner.model.previousValue }
+        awaitIdle()
+        assertEquals(1, state.value, "the value can now step below the old minimum")
+    }
+
+    @Test
+    fun changingTheStepAcrossRecompositionIsHonoured() = runComposeSwingTest {
+        lateinit var state: SpinnerState
+        var step by mutableStateOf(2)
+        setContent {
+            state = rememberSpinnerState(initialValue = 0, min = 0, max = 100, step = step)
+            Spinner(state)
+        }
+        awaitIdle()
+
+        val spinner = onNodeOfType<JSpinner>().fetch()
+        val model = spinner.model as SpinnerNumberModel
+        assertEquals(2, model.stepSize, "the model starts at the original step")
+        spinner.value = model.nextValue
+        awaitIdle()
+        assertEquals(2, state.value, "a step advances by the original step size")
+
+        step = 5
+        awaitIdle()
+
+        assertEquals(5, model.stepSize, "the new step updates the model in place")
+        assertEquals(2, state.value, "the current value survives the step change")
+
+        spinner.value = model.nextValue
+        awaitIdle()
+        assertEquals(7, state.value, "a later step advances by the new step size")
+    }
+
+    @Test
+    fun clearingTheMaxAcrossRecompositionOpensTheUpperSide() = runComposeSwingTest {
+        lateinit var state: SpinnerState
+        var max by mutableStateOf<Int?>(10)
+        setContent {
+            state = rememberSpinnerState(initialValue = 9, min = 0, max = max, step = 1)
+            Spinner(state)
+        }
+        awaitIdle()
+
+        val spinner = onNodeOfType<JSpinner>().fetch()
+        val model = spinner.model as SpinnerNumberModel
+        assertEquals(10, model.maximum, "the model starts at the original maximum")
+        spinner.value = model.nextValue
+        awaitIdle()
+        assertEquals(null, model.nextValue, "the original ceiling blocks a further step up")
+
+        max = null
+        awaitIdle()
+
+        assertEquals(null, model.maximum, "clearing the maximum leaves the upper side unbounded")
+        assertEquals(10, state.value, "the current value survives the bound being cleared")
+
+        repeat(3) { spinner.value = spinner.model.nextValue }
+        awaitIdle()
+        assertEquals(13, state.value, "the value can now step past the cleared bound")
+    }
+
+    @Test
+    fun clearingTheMinAcrossRecompositionOpensTheLowerSide() = runComposeSwingTest {
+        lateinit var state: SpinnerState
+        var min by mutableStateOf<Int?>(4)
+        setContent {
+            state = rememberSpinnerState(initialValue = 5, min = min, max = 10, step = 1)
+            Spinner(state)
+        }
+        awaitIdle()
+
+        val spinner = onNodeOfType<JSpinner>().fetch()
+        val model = spinner.model as SpinnerNumberModel
+        assertEquals(4, model.minimum, "the model starts at the original minimum")
+        spinner.value = model.previousValue
+        awaitIdle()
+        assertEquals(null, model.previousValue, "the original floor blocks a further step down")
+
+        min = null
+        awaitIdle()
+
+        assertEquals(null, model.minimum, "clearing the minimum leaves the lower side unbounded")
+        assertEquals(4, state.value, "the current value survives the bound being cleared")
+
+        repeat(3) { spinner.value = spinner.model.previousValue }
+        awaitIdle()
+        assertEquals(1, state.value, "the value can now step past the cleared bound")
+    }
+
+    @Test
+    fun tighteningTheBoundsAcrossRecompositionIsHonouredAndLeavesTheValueWhereItIs() = runComposeSwingTest {
+        lateinit var state: SpinnerState
+        var bounds by mutableStateOf<IntRange?>(null)
+        setContent {
+            state = rememberSpinnerState(initialValue = 5, min = bounds?.first, max = bounds?.last, step = 1)
+            Spinner(state)
+        }
+        awaitIdle()
+
+        val model = onNodeOfType<JSpinner>().fetch().model as SpinnerNumberModel
+        assertEquals(4, model.previousValue, "an open lower side lets the value step down")
+
+        bounds = 6..8
+        awaitIdle()
+
+        assertEquals(6, model.minimum, "a minimum applied to an open side updates the model in place")
+        assertEquals(8, model.maximum, "a maximum applied to an open side updates the model in place")
+        assertEquals(5, state.value, "a bound tightened past the value does not move the value")
+        assertEquals(null, model.previousValue, "a step away from the new range is refused")
+        assertEquals(6, model.nextValue, "a step that lands inside the new range is allowed")
+
+        // A value written back inside the new range restores stepping in both directions.
+        state.value = 7
+        awaitIdle()
+        assertEquals(6, model.previousValue, "a value inside the new range steps down again")
+        assertEquals(8, model.nextValue, "a value inside the new range steps up again")
+    }
+
+    @Test
+    fun theInitialValueSeedsTheModelOnceAndIsNotDrivenByRecomposition() = runComposeSwingTest {
+        lateinit var state: SpinnerState
+        var initialValue by mutableStateOf(3)
+        setContent {
+            state = rememberSpinnerState(initialValue = initialValue, min = 0, max = 10, step = 1)
             Spinner(state)
         }
         awaitIdle()
         assertEquals(3, state.value, "the spinner starts at the initial value")
 
-        value = 9
+        initialValue = 9
         awaitIdle()
 
-        assertEquals(3, state.value, "a later change to the value argument does not move the spinner")
+        assertEquals(3, state.value, "a later change to the initial value does not move the spinner")
 
         // The value is driven through the state instead.
         state.value = 6
         awaitIdle()
         assertEquals(6, state.value, "the value is driven through the state")
     }
+
+    @Test
+    fun theInitialSelectedIndexSeedsTheModelOnceAndIsNotDrivenByRecomposition() = runComposeSwingTest {
+        lateinit var state: SpinnerState
+        var initialSelectedIndex by mutableStateOf(1)
+        setContent {
+            state =
+                rememberSpinnerState(
+                    items = listOf("a", "b", "c"),
+                    initialSelectedIndex = initialSelectedIndex,
+                )
+            Spinner(state)
+        }
+        awaitIdle()
+        assertEquals("b", state.value, "the spinner starts at the initially selected item")
+
+        initialSelectedIndex = 2
+        awaitIdle()
+
+        assertEquals("b", state.value, "a later change to the initial index does not move the spinner")
+
+        // The selection is driven through the state instead.
+        state.value = "c"
+        awaitIdle()
+        assertEquals("c", state.value, "the selection is driven through the state")
+    }
+
+    @Test
+    fun aParkedSpinnerLeavesASurvivingStateBoundOnce() = runComposeSwingTest {
+        // The state is remembered above the parked region, so it outlives the spinner: it stands in for a
+        // state hoisted above a collapsible or reused region. One state observes its model once for as long
+        // as it lives, so the census of its own listeners on the model is the same before, during and after
+        // a park - the spinner's lifecycle is not the state's.
+        lateinit var state: SpinnerState
+        var active by mutableStateOf(true)
+        setContent {
+            state = rememberSpinnerState(initialValue = 3, min = 0, max = 10)
+            ReusableContentHost(active = active) {
+                Spinner(state)
+            }
+        }
+
+        val model = state.model
+        assertEquals(1, model.stateListeners(), "the state listens to its model once while the spinner is mounted")
+
+        active = false
+        awaitIdle()
+        assertEquals(1, model.stateListeners(), "parking the spinner does not touch the surviving state")
+
+        active = true
+        awaitIdle()
+        assertEquals(1, model.stateListeners(), "reactivating the spinner does not register the state again")
+
+        // The state still reports the spinner's steps through the one registration it has.
+        onNodeOfType<JSpinner>().fetch().value = 8
+        awaitIdle()
+        assertEquals(8, state.value, "the reactivated spinner drives the state")
+    }
 }
+
+/** The package a [SpinnerState]'s own listeners live in. */
+private const val STATE_PACKAGE = "org.jetbrains.compose.swing.components"

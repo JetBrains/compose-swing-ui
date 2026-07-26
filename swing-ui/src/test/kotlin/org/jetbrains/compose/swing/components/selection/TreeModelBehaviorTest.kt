@@ -4,9 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.name
-import org.jetbrains.compose.swing.setContent
+import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JTree
 import javax.swing.event.TreeModelListener
@@ -42,27 +40,12 @@ class TreeModelBehaviorTest {
         return DefaultTreeModel(root)
     }
 
-    /** Builds the live `TreePath` to the node reached by following [indices] from the model's root. */
-    private fun pathTo(
-        model: TreeModel,
-        indices: List<Int>,
-    ): TreePath {
-        var node: Any = model.root
-        val nodes = ArrayList<Any>()
-        nodes.add(node)
-        for (index in indices) {
-            node = model.getChild(node, index)
-            nodes.add(node)
-        }
-        return TreePath(nodes.toTypedArray())
-    }
-
     @Test
     fun callerModelBacksTheTreeAsIs() = runComposeSwingTest {
         val model = sampleModel()
-        setContent { Tree(model = model, modifier = SwingModifier.name("tree")) }
+        setContent { Tree(model = model) }
 
-        val tree = onNodeWithName("tree").fetch<JTree>()
+        val tree = onNodeOfType<JTree>().fetch()
         assertSame(model, tree.model, "the caller-supplied model should back the tree as-is")
         assertEquals(2, model.getChildCount(model.root), "the root should have two children")
     }
@@ -74,18 +57,21 @@ class TreeModelBehaviorTest {
         setContent {
             Tree(
                 model = model,
-                modifier = SwingModifier.name("tree"),
                 onSelectionChange = { reported += it },
             )
         }
 
-        val tree = onNodeWithName("tree").fetch<JTree>()
+        val tree = onNodeOfType<JTree>().fetch()
         // Selecting "pear" (root -> fruit -> pear) drives the real selection model, which fires the
         // TreeSelectionListener exactly as a user click would.
-        tree.selectionPath = pathTo(model, listOf(0, 1))
+        tree.selectionPath = model.pathTo(0, 1)
         awaitIdle()
 
-        assertEquals(listOf(listOf(listOf(0, 1))), reported)
+        assertEquals(
+            listOf(listOf(listOf(0, 1))),
+            reported,
+            "the selected node should be reported once, as its index path",
+        )
     }
 
     @Test
@@ -94,14 +80,13 @@ class TreeModelBehaviorTest {
         setContent {
             Tree(
                 model = model,
-                modifier = SwingModifier.name("tree"),
                 selectedPaths = listOf(listOf(0, 1)),
             )
         }
 
-        val tree = onNodeWithName("tree").fetch<JTree>()
+        val tree = onNodeOfType<JTree>().fetch()
         assertEquals(
-            pathTo(model, listOf(0, 1)),
+            model.pathTo(0, 1),
             tree.selectionPath,
             "initial selection applied",
         )
@@ -113,13 +98,13 @@ class TreeModelBehaviorTest {
 
         assertSame(model, tree.model, "the swapped-in model should back the tree")
         assertEquals(
-            pathTo(model, listOf(0, 1)),
+            model.pathTo(0, 1),
             tree.selectionPath,
             "controlled selection survives the model swap",
         )
     }
 
-    /** A plain tree node — deliberately not a [DefaultMutableTreeNode]. */
+    /** A plain tree node - deliberately not a [DefaultMutableTreeNode]. */
     private class Node(
         val label: String,
         val children: List<Node> = emptyList(),
@@ -127,7 +112,7 @@ class TreeModelBehaviorTest {
 
     /**
      * A read-only [TreeModel] over [Node]s, so path resolution can only work through the model's own
-     * accessors — any cast to [DefaultMutableTreeNode] would fail against these nodes.
+     * accessors - any cast to [DefaultMutableTreeNode] would fail against these nodes.
      */
     private class NodeTreeModel(
         private val rootNode: Node,
@@ -177,18 +162,17 @@ class TreeModelBehaviorTest {
         setContent {
             Tree(
                 model = model,
-                modifier = SwingModifier.name("tree"),
                 selectedPaths = listOf(listOf(0, 1)),
                 onSelectionChange = { reported += it },
             )
         }
 
         // The controlled path [0, 1] (root -> fruit -> pear) resolves to the exact Node instance.
-        val tree = onNodeWithName("tree").fetch<JTree>()
+        val tree = onNodeOfType<JTree>().fetch()
         assertSame(pear, tree.selectionPath?.lastPathComponent, "controlled path [0,1] resolves to the pear node")
 
         // A user-driven selection of "carrot" (root -> veg -> carrot) reads back as its index path.
-        tree.selectionPath = pathTo(model, listOf(1, 0))
+        tree.selectionPath = model.pathTo(1, 0)
         awaitIdle()
         assertEquals(listOf(listOf(1, 0)), reported.last(), "the selected node reads back as its index path")
     }
@@ -204,7 +188,6 @@ class TreeModelBehaviorTest {
             trigger
             Tree(
                 model = remember { model },
-                modifier = SwingModifier.name("tree"),
                 selectedPaths = listOf(listOf(0, 1)),
                 onSelectionChange = { reported += it },
             )
@@ -215,8 +198,8 @@ class TreeModelBehaviorTest {
         awaitIdle()
         assertEquals(emptyList(), reported, "re-applying an unchanged controlled selection must not echo")
         assertEquals(
-            pathTo(model, listOf(0, 1)),
-            onNodeWithName("tree").fetch<JTree>().selectionPath,
+            model.pathTo(0, 1),
+            onNodeOfType<JTree>().fetch().selectionPath,
             "the controlled selection should remain applied",
         )
     }

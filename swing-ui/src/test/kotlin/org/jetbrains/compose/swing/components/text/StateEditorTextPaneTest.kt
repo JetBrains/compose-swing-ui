@@ -3,16 +3,17 @@ package org.jetbrains.compose.swing.components.text
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.setContent
+import org.jetbrains.compose.swing.test.SwingMatcher.Companion.isEditable
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JEditorPane
 import javax.swing.JTextPane
 import javax.swing.text.DefaultStyledDocument
+import javax.swing.text.Document
+import javax.swing.text.PlainDocument
 import javax.swing.text.html.HTMLEditorKit
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
@@ -32,9 +33,13 @@ class StateEditorTextPaneTest {
             EditorPane(state = state)
         }
 
-        val pane = onNodeOfType<JEditorPane>().fetch<JEditorPane>()
-        assertSame(state.document, pane.document, "the pane must render the state's own document")
-        assertEquals("seed", pane.text, "the pane must render the state's initial content")
+        val pane = onNodeOfType<JEditorPane>()
+        assertSame(
+            state.document,
+            pane.fetch().document,
+            "the pane must render the state's own document",
+        )
+        pane.assertTextEquals("seed")
     }
 
     @Test
@@ -45,16 +50,16 @@ class StateEditorTextPaneTest {
             EditorPane(state = state)
         }
 
-        val pane = onNodeOfType<JEditorPane>().fetch<JEditorPane>()
-        assertEquals("ab", pane.text)
+        val pane = onNodeOfType<JEditorPane>()
+        pane.assertTextEquals("ab")
 
         state.edit { append("c") }
         awaitIdle()
-        assertEquals("abc", pane.text, "an edit through the state must reach the pane")
+        pane.assertTextEquals("abc")
 
         state.text = "xyz"
         awaitIdle()
-        assertEquals("xyz", pane.text, "assigning text must reach the pane")
+        pane.assertTextEquals("xyz")
     }
 
     @Test
@@ -65,9 +70,7 @@ class StateEditorTextPaneTest {
             EditorPane(state = state)
         }
 
-        val pane = onNodeOfType<JEditorPane>().fetch<JEditorPane>()
-        pane.text = "typed"
-        awaitIdle()
+        onNodeOfType<JEditorPane>().performTextReplacement("typed")
 
         assertEquals("typed", state.text.toString(), "text typed into the pane must reach the state")
     }
@@ -80,10 +83,10 @@ class StateEditorTextPaneTest {
             EditorPane(state = state)
         }
 
-        val pane = onNodeOfType<JEditorPane>().fetch<JEditorPane>()
+        val pane = onNodeOfType<JEditorPane>().fetch()
         assertEquals("text/plain", pane.contentType, "a plain-document state renders as plain text")
         assertSame(state.document, pane.document, "the pane renders the state's own document")
-        assertEquals("plain", pane.text, "the pane renders the state's initial content")
+        onNodeOfType<JEditorPane>().assertTextEquals("plain")
     }
 
     @Test
@@ -95,7 +98,7 @@ class StateEditorTextPaneTest {
             EditorPane(state = state)
         }
 
-        val pane = onNodeOfType<JEditorPane>().fetch<JEditorPane>()
+        val pane = onNodeOfType<JEditorPane>().fetch()
         // The document type carries the content type: an HTML document makes the pane render as HTML.
         assertEquals("text/html", pane.contentType, "an HTML-document state renders as HTML")
         assertSame(document, pane.document, "the pane renders the state's own HTML document")
@@ -110,6 +113,35 @@ class StateEditorTextPaneTest {
     }
 
     @Test
+    fun swappingTheStateDocumentReDerivesTheEditorPaneContentType() = runComposeSwingTest {
+        // The pane's content type is a function of the document it renders, in both directions: handing
+        // the state a plain document after an HTML one must take the HTML kit back out, or the pane would
+        // keep rendering a plain document through HTML views and keep reporting text/html.
+        val html = HTMLEditorKit().createDefaultDocument()
+        val plain = PlainDocument().apply { insertString(0, "plain", null) }
+        var document: Document by mutableStateOf(html)
+        setContent {
+            EditorPane(state = rememberDocumentState(document))
+        }
+
+        val pane = onNodeOfType<JEditorPane>().fetch()
+        assertEquals("text/html", pane.contentType, "an HTML-document state renders as HTML")
+
+        document = plain
+        awaitIdle()
+
+        assertEquals("text/plain", pane.contentType, "swapping in a plain document renders as plain text")
+        assertSame(plain, pane.document, "the pane renders the newly adopted document")
+        onNodeOfType<JEditorPane>().assertTextEquals("plain")
+
+        document = html
+        awaitIdle()
+
+        assertEquals("text/html", pane.contentType, "swapping back to an HTML document renders as HTML again")
+        assertSame(html, pane.document, "the pane renders the re-adopted HTML document")
+    }
+
+    @Test
     fun editorPaneRespectsEditableFlag() = runComposeSwingTest {
         var editable by mutableStateOf(true)
         lateinit var state: DocumentState
@@ -118,12 +150,11 @@ class StateEditorTextPaneTest {
             EditorPane(state = state, editable = editable)
         }
 
-        val pane = onNodeOfType<JEditorPane>().fetch<JEditorPane>()
-        assertTrue(pane.isEditable, "the pane should start editable")
+        onNodeOfType<JEditorPane>().assert(isEditable())
 
         editable = false
         awaitIdle()
-        assertFalse(pane.isEditable, "the pane should become read-only when editable is false")
+        onNodeOfType<JEditorPane>().assert(isEditable(false))
     }
 
     @Test
@@ -135,60 +166,64 @@ class StateEditorTextPaneTest {
             TextPane(state = state)
         }
 
-        val pane = onNodeOfType<JTextPane>().fetch<JTextPane>()
-        assertSame(document, pane.document, "the text pane must render the state's own styled document")
-        assertEquals("seed", pane.text, "the text pane must render the state's initial content")
+        val pane = onNodeOfType<JTextPane>()
+        assertSame(
+            document,
+            pane.fetch().document,
+            "the text pane must render the state's own styled document",
+        )
+        pane.assertTextEquals("seed")
     }
 
     @Test
     fun editingStateUpdatesTextPane() = runComposeSwingTest {
+        val document = DefaultStyledDocument().apply { insertString(0, "ab", null) }
         lateinit var state: DocumentState
         setContent {
-            state = rememberDocumentState(document = DefaultStyledDocument().apply { insertString(0, "ab", null) })
+            state = rememberDocumentState(document = document)
             TextPane(state = state)
         }
 
-        val pane = onNodeOfType<JTextPane>().fetch<JTextPane>()
-        assertEquals("ab", pane.text)
+        val pane = onNodeOfType<JTextPane>()
+        pane.assertTextEquals("ab")
 
         state.edit { append("c") }
         awaitIdle()
-        assertEquals("abc", pane.text, "an edit through the state must reach the text pane")
+        pane.assertTextEquals("abc")
 
         state.text = "xyz"
         awaitIdle()
-        assertEquals("xyz", pane.text, "assigning text must reach the text pane")
+        pane.assertTextEquals("xyz")
     }
 
     @Test
     fun typingIntoTextPaneUpdatesStateText() = runComposeSwingTest {
+        val document = DefaultStyledDocument()
         lateinit var state: DocumentState
         setContent {
-            state = rememberDocumentState(document = DefaultStyledDocument())
+            state = rememberDocumentState(document = document)
             TextPane(state = state)
         }
 
-        val pane = onNodeOfType<JTextPane>().fetch<JTextPane>()
-        pane.text = "typed"
-        awaitIdle()
+        onNodeOfType<JTextPane>().performTextReplacement("typed")
 
         assertEquals("typed", state.text.toString(), "text typed into the text pane must reach the state")
     }
 
     @Test
     fun textPaneRespectsEditableFlag() = runComposeSwingTest {
+        val document = DefaultStyledDocument().apply { insertString(0, "x", null) }
         var editable by mutableStateOf(true)
         lateinit var state: DocumentState
         setContent {
-            state = rememberDocumentState(document = DefaultStyledDocument().apply { insertString(0, "x", null) })
+            state = rememberDocumentState(document = document)
             TextPane(state = state, editable = editable)
         }
 
-        val pane = onNodeOfType<JTextPane>().fetch<JTextPane>()
-        assertTrue(pane.isEditable, "the text pane should start editable")
+        onNodeOfType<JTextPane>().assert(isEditable())
 
         editable = false
         awaitIdle()
-        assertFalse(pane.isEditable, "the text pane should become read-only when editable is false")
+        onNodeOfType<JTextPane>().assert(isEditable(false))
     }
 }

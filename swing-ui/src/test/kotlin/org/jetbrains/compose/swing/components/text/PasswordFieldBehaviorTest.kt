@@ -3,13 +3,11 @@ package org.jetbrains.compose.swing.components.text
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JPasswordField
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 /**
  * End-to-end tests for [PasswordField] over a real [SwingApplier]. They assert observable behavior on
@@ -24,7 +22,7 @@ class PasswordFieldBehaviorTest {
     fun controlledValueRoundTripsThroughGetPassword() = runComposeSwingTest {
         setContent { PasswordField(value = "hunter2".toCharArray(), onValueChange = {}) }
 
-        val field = onNodeOfType<JPasswordField>().fetch<JPasswordField>()
+        val field = onNodeOfType<JPasswordField>().fetch()
         assertEquals("hunter2", String(field.password))
     }
 
@@ -33,9 +31,7 @@ class PasswordFieldBehaviorTest {
         var latest = CharArray(0)
         setContent { PasswordField(value = "".toCharArray(), onValueChange = { latest = it }) }
 
-        val field = onNodeOfType<JPasswordField>().fetch<JPasswordField>()
-        field.text = "abc"
-        awaitIdle()
+        onNodeOfType<JPasswordField>().performTextReplacement("abc")
 
         assertEquals("abc", String(latest))
     }
@@ -45,7 +41,7 @@ class PasswordFieldBehaviorTest {
         var value by mutableStateOf("first".toCharArray())
         setContent { PasswordField(value = value, onValueChange = {}) }
 
-        val field = onNodeOfType<JPasswordField>().fetch<JPasswordField>()
+        val field = onNodeOfType<JPasswordField>().fetch()
         // Park the caret in the middle of the text; a no-op set on an unchanged content would call
         // setText and reset it to the end.
         field.caretPosition = 2
@@ -61,7 +57,6 @@ class PasswordFieldBehaviorTest {
         value = "second".toCharArray()
         awaitIdle()
         assertEquals("second", String(field.password), "a genuinely different value should update the field")
-        assertTrue(field.password.isNotEmpty(), "the updated field should expose a non-empty password")
     }
 
     @Test
@@ -70,7 +65,7 @@ class PasswordFieldBehaviorTest {
         var echoChar by mutableStateOf<Char?>('#')
         setContent { PasswordField(value = "hunter2".toCharArray(), echoChar = echoChar) }
 
-        val field = onNodeOfType<JPasswordField>().fetch<JPasswordField>()
+        val field = onNodeOfType<JPasswordField>().fetch()
         assertEquals('#', field.echoChar, "a non-null echo character should be applied")
 
         // Re-applying null must revert to the look-and-feel default rather than leaving the custom mask.

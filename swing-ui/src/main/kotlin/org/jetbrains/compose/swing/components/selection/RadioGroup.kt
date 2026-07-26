@@ -4,18 +4,12 @@
 package org.jetbrains.compose.swing.components.selection
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.key
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.compose.swing.SwingNode
+import org.jetbrains.compose.swing.components.layout.BoxPanel
 import org.jetbrains.compose.swing.constants.BoxAxis
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
-import org.jetbrains.compose.swing.modifier.listener.actionListener
-import java.awt.event.ActionListener
 import javax.swing.BoxLayout
-import javax.swing.ButtonGroup
-import javax.swing.JPanel
 import javax.swing.JRadioButton
 
 /**
@@ -36,9 +30,8 @@ import javax.swing.JRadioButton
  * }
  * ```
  *
- * The options are laid out along [axis] in a panel; the axis is fixed when the group is first composed.
- *
- * @param selectedIndex the index of the selected option (controlled); an out-of-range value selects none
+ * @param selectedIndex the index of the selected option (controlled); an out-of-range value, such as
+ *   `-1`, leaves every option unselected
  * @param onSelectionChange callback invoked with the option's index when the user selects it
  * @param modifier the [SwingModifier] applied to the group's panel
  * @param axis the axis along which the options are arranged (a [BoxAxis] `BoxLayout` value)
@@ -52,51 +45,24 @@ public fun RadioGroup(
     @BoxAxis axis: Int = BoxLayout.Y_AXIS,
     content: RadioGroupScope.() -> Unit,
 ) {
-    // Collect the option declarations fresh on every composition so an option the caller stops
-    // declaring (e.g. behind an `if`) drops out of `content` and its button is removed. A remembered,
-    // mutated scope would retain the stale declaration.
+    // Collected fresh on every pass, so an option the caller stops declaring loses its button (see SwingNode).
     val scope = RadioGroupScopeImpl().apply(content)
-    // The ButtonGroup is shared by every option for the lifetime of the group, so exclusion holds
-    // across recompositions; each option joins on first composition and leaves on removal.
-    val group = remember { ButtonGroup() }
-    val onSelectionChangeState = rememberUpdatedState(onSelectionChange)
+    val group = rememberButtonGroup()
 
-    SwingNode(
-        factory = { JPanel().apply { layout = BoxLayout(this, axis) } },
-        update = {
-            applyModifier(modifier)
-        },
-        content = {
-            scope.options.forEachIndexed { index, option ->
-                // key() gives each option a stable composition identity by position; adding or removing
-                // an option shifts later options' slots, and the applier installs/uninstalls buttons to
-                // match while each leaves and rejoins the shared group through its onRelease.
-                key(index) {
-                    // A user click selects this button; report its index. A programmatic selectedIndex
-                    // write does not fire this listener, so reflecting state never loops back here. The
-                    // listener is stable for this option's slot and reads the latest callback.
-                    val listener =
-                        remember {
-                            ActionListener { event ->
-                                if ((event.source as JRadioButton).isSelected) onSelectionChangeState.value(index)
-                            }
-                        }
-                    SwingNode(
-                        factory = { JRadioButton() },
-                        update = {
-                            set(group) { it.add(this) }
-                            set(option.text) { this.text = it }
-                            // Selecting one member clears the rest through the shared group, so each
-                            // option asserts only its own state from the controlled selectedIndex.
-                            set(selectedIndex) { applySelected(this, index == it) }
-                            applyModifier(SwingModifier.actionListener(listener) then option.modifier)
-                        },
-                        onRelease = { group.remove(this) },
-                    )
-                }
+    BoxPanel(modifier = modifier, axis = axis) {
+        scope.options.forEachIndexed { index, option ->
+            ButtonGroupOption(group, index, option.modifier, onSelectionChange) { optionModifier ->
+                SwingNode(
+                    factory = { JRadioButton() },
+                    update = {
+                        set(option.text) { this.text = it }
+                        reconcile { applyGroupSelection(group, index == selectedIndex) }
+                        applyModifier(optionModifier)
+                    },
+                )
             }
-        },
-    )
+        }
+    }
 }
 
 /**
@@ -132,21 +98,4 @@ private class RadioGroupScopeImpl : RadioGroupScope {
     ) {
         options.add(RadioOption(text, modifier))
     }
-}
-
-/**
- * Re-applies [selected] to [button] only when it differs from the button's current state.
- *
- * Membership in a shared [ButtonGroup] makes selecting one button clear the others, so each option
- * asserts only its own state; guarding against re-selecting an unchanged button keeps a programmatic
- * controlled-selection write from doing redundant work. A programmatic `setSelected` does not fire the
- * button's action listener, so reflecting `selectedIndex` never echoes back as a spurious
- * `onSelectionChange`.
- */
-private fun applySelected(
-    button: JRadioButton,
-    selected: Boolean,
-) {
-    if (button.isSelected == selected) return
-    button.isSelected = selected
 }

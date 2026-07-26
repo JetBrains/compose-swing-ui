@@ -6,12 +6,12 @@ package org.jetbrains.compose.swing.components.text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import org.jetbrains.compose.swing.AppliedValue
 import org.jetbrains.compose.swing.SwingNode
-import org.jetbrains.compose.swing.components.documentChangeListener
-import org.jetbrains.compose.swing.components.fullText
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.documentListener
+import org.jetbrains.compose.swing.rememberAppliedValue
 import javax.swing.JTextField
 import javax.swing.event.DocumentListener
 
@@ -23,8 +23,10 @@ import javax.swing.event.DocumentListener
  *
  * @param value the current text value
  * @param modifier the [SwingModifier] applied to the underlying component
- * @param onValueChange callback invoked when the text changes
+ * @param onValueChange callback invoked with the field's new text when the field is edited; applying
+ *   [value] is not itself reported
  * @param columns the number of columns
+ * @param editable whether the user can edit the text
  * @see TextField the [DocumentState]-driven overload for large or complex editors
  */
 @Composable
@@ -33,17 +35,31 @@ public fun TextField(
     modifier: SwingModifier = SwingModifier,
     onValueChange: (String) -> Unit = {},
     columns: Int = 0,
+    editable: Boolean = true,
 ) {
     val callback = rememberUpdatedState(onValueChange)
+    val applied = rememberAppliedValue(value)
     val listener =
-        remember { documentChangeListener { event -> callback.value(event.document.fullText()) } }
-    TextField(value = value, documentListener = listener, modifier = modifier, columns = columns)
+        remember(applied) {
+            documentChangeListener { event ->
+                val text = event.document.fullText()
+                if (applied.observed(text)) callback.value(text)
+            }
+        }
+    TextFieldNode(
+        value = value,
+        applied = applied,
+        modifier = modifier.documentListener(listener),
+        columns = columns,
+        editable = editable,
+    )
 }
 
 /**
  * A composable wrapper for JTextField driven by a raw [DocumentListener] instead of an `onValueChange`
  * lambda. The [documentListener] is attached to the field's document as-is and removed on the same
- * instance; pass a stable instance (e.g. `remember {}`) to avoid churn.
+ * instance; pass a stable instance (e.g. `remember {}`) to avoid churn. Being attached as-is, it
+ * observes every change to that document, including the one that applies [value].
  *
  * For incremental editing over a shared `Document`, undo/redo, or observing the text as a flow, drive the
  * field with the [DocumentState] overload ([TextField]) and a [DocumentState] from `rememberDocumentState`.
@@ -52,6 +68,7 @@ public fun TextField(
  * @param documentListener the listener notified of document edits
  * @param modifier the [SwingModifier] applied to the underlying component
  * @param columns the number of columns
+ * @param editable whether the user can edit the text
  * @see TextField the [DocumentState]-driven overload for large or complex editors
  */
 @Composable
@@ -60,12 +77,42 @@ public fun TextField(
     documentListener: DocumentListener,
     modifier: SwingModifier = SwingModifier,
     columns: Int = 0,
+    editable: Boolean = true,
+) {
+    val applied = rememberAppliedValue(value)
+    TextFieldNode(
+        value = value,
+        applied = applied,
+        modifier = modifier.documentListener(documentListener),
+        columns = columns,
+        editable = editable,
+    )
+}
+
+/**
+ * The `JTextField` node both [TextField] overloads render. [value] is pushed on change only - unlike a
+ * declared selection or a scalar widget property, an un-adopted edit is not undone on some later,
+ * unrelated recomposition: nothing here reads [applied]'s mirror to gate the push, so typing is never
+ * fought without a fresh [value] declaring otherwise.
+ */
+@Composable
+private fun TextFieldNode(
+    value: String,
+    applied: AppliedValue<String>,
+    modifier: SwingModifier,
+    columns: Int,
+    editable: Boolean,
 ) {
     SwingNode(
         factory = { JTextField(columns) },
         update = {
-            set(value) { setTextPreservingCaret(it) }
-            applyModifier(SwingModifier.documentListener(documentListener) then modifier)
+            update(columns) {
+                this.columns = it
+                revalidate()
+            }
+            set(value) { declared -> applied.settle(declared, { text }, { text = it }) {} }
+            set(editable) { this.isEditable = it }
+            applyModifier(modifier)
         },
     )
 }
@@ -79,17 +126,24 @@ public fun TextField(
  * @param state the hoistable text state the field renders and drives.
  * @param modifier the [SwingModifier] applied to the underlying component.
  * @param columns the number of columns.
+ * @param editable whether the user can edit the text.
  */
 @Composable
 public fun TextField(
     state: DocumentState,
     modifier: SwingModifier = SwingModifier,
     columns: Int = 0,
+    editable: Boolean = true,
 ) {
     SwingNode(
         factory = { JTextField(columns) },
         update = {
-            applyModifier(documentStateBinding(state) then modifier)
+            update(columns) {
+                this.columns = it
+                revalidate()
+            }
+            set(editable) { this.isEditable = it }
+            applyModifier(modifier.documentStateBinding(state))
         },
     )
 }

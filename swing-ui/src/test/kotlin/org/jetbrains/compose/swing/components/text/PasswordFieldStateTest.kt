@@ -1,6 +1,5 @@
 package org.jetbrains.compose.swing.components.text
 
-import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JPasswordField
@@ -23,7 +22,7 @@ class PasswordFieldStateTest {
             PasswordField(state = state)
         }
 
-        val field = onNodeOfType<JPasswordField>().fetch<JPasswordField>()
+        val field = onNodeOfType<JPasswordField>().fetch()
         assertSame(state.document, field.document, "the field must render the state's own document")
     }
 
@@ -35,7 +34,7 @@ class PasswordFieldStateTest {
             PasswordField(state = state)
         }
 
-        val field = onNodeOfType<JPasswordField>().fetch<JPasswordField>()
+        val field = onNodeOfType<JPasswordField>().fetch()
         assertEquals("ab", String(field.password))
 
         state.text = "abc"
@@ -55,9 +54,7 @@ class PasswordFieldStateTest {
             PasswordField(state = state)
         }
 
-        val field = onNodeOfType<JPasswordField>().fetch<JPasswordField>()
-        field.text = "secret"
-        awaitIdle()
+        onNodeOfType<JPasswordField>().performTextReplacement("secret")
 
         assertEquals("secret", state.text.toString())
     }
@@ -70,7 +67,7 @@ class PasswordFieldStateTest {
             PasswordField(state = state)
         }
 
-        val field = onNodeOfType<JPasswordField>().fetch<JPasswordField>()
+        val field = onNodeOfType<JPasswordField>().fetch()
         state.selection = TextRange(0, 5)
         awaitIdle()
 
@@ -86,7 +83,7 @@ class PasswordFieldStateTest {
             PasswordField(state = state, echoChar = '#')
         }
 
-        val field = onNodeOfType<JPasswordField>().fetch<JPasswordField>()
+        val field = onNodeOfType<JPasswordField>().fetch()
         assertEquals('#', field.echoChar)
     }
 
@@ -98,7 +95,7 @@ class PasswordFieldStateTest {
             PasswordField(state = state, columns = 12)
         }
 
-        val field = onNodeOfType<JPasswordField>().fetch<JPasswordField>()
+        val field = onNodeOfType<JPasswordField>().fetch()
         assertEquals(12, field.columns)
     }
 }

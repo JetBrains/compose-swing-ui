@@ -18,7 +18,7 @@ import javax.swing.event.ChangeListener
  * The state is the single source of truth; observe the spinner through [SpinnerState.value].
  *
  * ```
- * val spinner = rememberSpinnerState(value = 3, min = 0, max = 10)
+ * val spinner = rememberSpinnerState(initialValue = 3, min = 0, max = 10)
  * Spinner(spinner)
  * Label("Count is ${spinner.value}")
  * ```
@@ -34,7 +34,11 @@ public fun Spinner(
     SwingNode(
         factory = { JSpinner(state.model) },
         update = {
-            set(state) { model = it.model }
+            // The model, not the state, is what the spinner renders. A state observes its model for as
+            // long as the caller remembers it, while a value handed to set() is remembered by the node
+            // as well - a second observer of the caller's state, dropped when the node is parked or
+            // recycled.
+            set(state.model) { this.model = it }
             applyModifier(modifier)
         },
     )
@@ -60,7 +64,7 @@ public fun Spinner(
         factory = { JSpinner(model) },
         update = {
             set(model) { this.model = it }
-            applyModifier(SwingModifier.changeListener(changeListener) then modifier)
+            applyModifier(modifier.changeListener(changeListener))
         },
     )
 }

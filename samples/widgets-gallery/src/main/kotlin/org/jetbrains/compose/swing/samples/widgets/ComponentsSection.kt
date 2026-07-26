@@ -160,7 +160,7 @@ private fun RangeCard() {
         }
         ProgressBar(value = amount, min = 0, max = 100)
         Label("Indeterminate ProgressBar:")
-        ProgressBar(indeterminate = true)
+        ProgressBar(value = 0, indeterminate = true)
     }
 }
 

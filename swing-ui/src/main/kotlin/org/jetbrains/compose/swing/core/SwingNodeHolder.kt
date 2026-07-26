@@ -8,10 +8,11 @@ import org.jetbrains.compose.swing.modifier.SwingModifierState
 import org.jetbrains.compose.swing.modifier.resetModifierState
 import java.awt.Component
 import java.awt.Container
+import java.awt.LayoutManager2
 import javax.swing.JComponent
 
 /**
- * Installs a node's [Component] into a Swing host that owns its own attachment slot — a host whose
+ * Installs a node's [Component] into a Swing host that owns its own attachment slot - a host whose
  * children go through a dedicated setter rather than the generic `Container.add` used by the
  * [SwingApplier]. Two host shapes are covered:
  * - **Single-occupancy slots**, e.g. `JScrollPane`'s viewport / header / corner regions, each reached
@@ -32,7 +33,7 @@ public fun interface SlotAttachment {
     /**
      * Attaches [component] into [host] through the host's dedicated setter and returns the action
      * that detaches it again and releases the slot. [index] is the node's composition index among the
-     * host's slot children — `0` for a single-occupancy slot, the insertion position for an ordered
+     * host's slot children - `0` for a single-occupancy slot, the insertion position for an ordered
      * multi-occupancy host.
      */
     public fun install(
@@ -62,12 +63,48 @@ internal class SwingNodeHolder<out T : Component>
         @PublishedApi internal val component: T,
     ) : ComposeNodeLifecycleCallback {
         /**
-         * The parent-container constraint this node was last added with (e.g. a `BorderLayout`
-         * region), or `null` to be added by index. Populated by [SwingNode] from [LocalSwingConstraint]
-         * and read by [SwingApplier].
+         * The parent-container constraint this node's [component] is placed under (e.g. a `BorderLayout`
+         * region), or `null` to be placed by index alone. Read by [SwingApplier] when it adds or re-adds
+         * the component, and equally the record of what the parent's layout manager holds: [SwingNode]
+         * applies it before the applier attaches the component, so the two never disagree.
+         */
+        internal var constraint: Any? = null
+            private set
+
+        /**
+         * Places this node under [value], the constraint its parent provides, re-registering the
+         * component with its parent's layout manager when that changes the placement the manager
+         * holds. [SwingNode] calls it with the value the current composition asks for.
          */
         @PublishedApi
-        internal var constraint: Any? = null
+        internal fun applyConstraint(value: Any?) {
+            if (value == constraint) return
+            constraint = value
+            reregisterWithLayout(value)
+        }
+
+        /**
+         * Re-registers [component] with its parent's layout manager under [constraint] - the pair of
+         * calls `Container.remove` and `Container.addImpl` make on a component's behalf, without
+         * touching the AWT child array or the peers, so the component keeps its position, its focus and
+         * its native resources while only its placement changes. `removeLayoutComponent` first is what
+         * clears the old placement out of a manager that keys children by it, such as a `BorderLayout`
+         * region field.
+         *
+         * A node that is not attached yet is placed by the applier's own add, and a parent with no
+         * layout manager has nothing to register.
+         */
+        private fun reregisterWithLayout(constraint: Any?) {
+            val parent = component.parent ?: return
+            val manager = parent.layout ?: return
+            manager.removeLayoutComponent(component)
+            if (manager is LayoutManager2) {
+                manager.addLayoutComponent(component, constraint)
+            } else if (constraint is String) {
+                manager.addLayoutComponent(constraint, component)
+            }
+            parent.revalidate()
+        }
 
         /** Set by [SwingNode] from the user's `onRelease`. Invoked once, on final release. */
         @PublishedApi
@@ -97,15 +134,19 @@ internal class SwingNodeHolder<out T : Component>
 
         /**
          * The teardown returned by [SlotAttachment.install] for a [slotAttachment]-backed node, invoked
-         * when the [SwingApplier] removes or moves the node so the host slot is released. `null` while the
-         * node is not installed.
+         * when the [SwingApplier] removes or moves the node, and on the node's final release, so the host
+         * slot is released. `null` while the node is not installed.
+         *
+         * It survives reuse and deactivation, which leave the component where it is: like every other
+         * child, a parked node stays attached to its host and is driven again on reactivation.
          */
         internal var slotUninstall: (() -> Unit)? = null
 
         /**
-         * The composition owner's shared [SnapshotStateObserver], stamped onto this node by its applier on
-         * the top-down insert pass. A snapshot-observing component (e.g. `Canvas`) reads it from here to
-         * register its paint reads, instead of resolving a `CompositionLocal`.
+         * The composition owner's shared [SnapshotStateObserver], stamped onto this node by the
+         * [SwingApplier] on the top-down insert pass. A snapshot-observing component (e.g. `Canvas`) reads
+         * it from here to register its paint reads, instead of resolving a `CompositionLocal`. `null` in a
+         * composition whose applier observes no snapshot state, such as a menu.
          *
          * Like [slotAttachment] this is an owner-stable structural property: set once at insert and
          * retained across [reset], since a recycled node stays in the same composition owner.
@@ -121,14 +162,19 @@ internal class SwingNodeHolder<out T : Component>
 
         /**
          * Publishes [context] as this node's [COMPOSITION_KEY] client property so a descendant component's
-         * `setContent` discovers it and nests into the surrounding composition. Backs the
-         * `hostsSubcompositions = true` opt-in on [SwingNode]; idempotent across recompositions for the
-         * same node.
+         * `setContent` discovers it and nests into the surrounding composition, or drops the stamp when
+         * [context] is `null` so such a walk finds no host here. Backs the `hostsSubcompositions` opt-in
+         * on [SwingNode] in both directions; idempotent across recompositions for the same node.
          *
-         * The [component] must be a [JComponent]; otherwise this throws [IllegalStateException].
+         * Publishing requires the [component] to be a [JComponent]; otherwise this throws
+         * [IllegalStateException].
          */
         @PublishedApi
-        internal fun hostSubcompositions(context: CompositionContext) {
+        internal fun hostSubcompositions(context: CompositionContext?) {
+            if (context == null) {
+                clearSubcompositionStamp()
+                return
+            }
             val host =
                 component as? JComponent
                     ?: error(
@@ -142,34 +188,28 @@ internal class SwingNodeHolder<out T : Component>
             hostsSubcompositions = true
         }
 
+        /**
+         * Drops the [COMPOSITION_KEY] stamp this node published, so a descendant `setContent` walk finds
+         * no host here. A no-op for a node that published none.
+         */
+        private fun clearSubcompositionStamp() {
+            if (!hostsSubcompositions) return
+            (component as? JComponent)?.putClientProperty(COMPOSITION_KEY, null)
+            hostsSubcompositions = false
+        }
+
         private fun reset() {
-            constraint = null
-            // Release the host slot if this node is still installed through a dedicated setter.
+            // [constraint] is deliberately NOT cleared. It records what the parent's layout manager
+            // holds, and this method changes no manager, so clearing it would assert something untrue -
+            // and the first placement applied to the recycled node would then skip the re-registration
+            // that returns the component to placement by index.
             //
-            // `slotUninstall` is non-null here exactly when the node reaches reset() WITHOUT having gone
-            // through the applier's `remove`/`move`, which are the only other call sites that run and
-            // null the handle. The concrete production case is whole-subtree disposal:
-            // SwingApplier.onClear() tears the root subtree down via `Container.removeAll()` and just
-            // clears its tracking maps — it does NOT walk the slot-hosting descendants to null their
-            // handles — so a JScrollPane region child (or any slot-attached node) still carries a live
-            // `slotUninstall` when the runtime then releases it and reset() runs. Calling it here
-            // releases that host slot; skipping it would leak the region's reference to the now-detached
-            // child. In the ordinary remove/move path the applier already nulled the handle, so this is a
-            // plain no-op. The call is null-safe rather than `check`-guarded precisely because both the
-            // null and non-null states are legitimate; nulling afterwards keeps it idempotent against a
-            // defensive second reset(). The structural `slotAttachment` itself is intentionally NOT
-            // cleared: a recycled node that fills a slot still fills it.
-            slotUninstall?.invoke()
-            slotUninstall = null
             // Clear any COMPOSITION_KEY stamp this node published for the hostsSubcompositions opt-in, so
             // a node leaving the composition (release) or being recycled for new content (reuse /
             // deactivate) never leaks a stale parent context to a descendant's setContent walk. Mirrors
             // the window recomposer's stamp-then-clear discipline. The upcoming `update` re-stamps if the
             // incoming node opts in again.
-            if (hostsSubcompositions) {
-                (component as? JComponent)?.putClientProperty(COMPOSITION_KEY, null)
-                hostsSubcompositions = false
-            }
+            clearSubcompositionStamp()
             // Detaches every modifier-installed listener (including the built-in domain listener) and
             // restores modified properties, then clears the diff state so a reused or reactivated node
             // (ReusableComposeNode / movableContent / ReusableContent) re-installs its listeners and
@@ -179,28 +219,53 @@ internal class SwingNodeHolder<out T : Component>
 
         override fun onRelease() {
             // reset() already detaches modifier-installed listeners and clears the diff state; here we
-            // additionally run and drop the one-shot release block, since the node is leaving the
-            // composition for good.
+            // additionally release the host slot and run the one-shot release block, since the node is
+            // leaving the composition for good.
             reset()
+            // Release the host slot if this node is still installed through a dedicated setter.
+            //
+            // `slotUninstall` is non-null here exactly when the node is released WITHOUT having gone
+            // through the applier's `remove`/`move`, which are the only other call sites that run and
+            // null the handle. The concrete production case is whole-subtree disposal:
+            // SwingApplier.onClear() tears the root subtree down via `Container.removeAll()` and just
+            // clears its tracking maps - it does NOT walk the slot-hosting descendants to null their
+            // handles - so a JScrollPane region child (or any slot-attached node) still carries a live
+            // `slotUninstall` when the runtime then releases it. Calling it here releases that host slot;
+            // skipping it would leak the region's reference to the now-detached child. In the ordinary
+            // remove/move path the applier already nulled the handle, so this is a plain no-op. The call
+            // is null-safe rather than `check`-guarded precisely because both the null and non-null
+            // states are legitimate; nulling afterwards keeps it idempotent against a defensive second
+            // release.
+            slotUninstall?.invoke()
+            slotUninstall = null
             releaseBlock?.invoke()
             releaseBlock = null
         }
 
         override fun onReuse() {
             // The runtime is recycling this holder for a new node in the same reusable slot (a node
-            // emitted via ReusableComposeNode whose group is reused across recompositions — e.g. a
+            // emitted via ReusableComposeNode whose group is reused across recompositions - e.g. a
             // ReusableContentHost reactivated after being parked, or structurally-identical content
             // replacing it in the same slot). The recycled holder must behave like a freshly created one
-            // for the incoming content: drop the layout constraint, release any host slot it still
-            // occupies, and detach every modifier-installed listener while clearing the diff state, so
-            // the upcoming `update` re-applies the new node's constraint, slot, and modifier chain from a
-            // clean baseline instead of inheriting the previous node's.
+            // for the incoming content: detach every modifier-installed listener and clear the diff
+            // state, so the upcoming `update` re-applies the new node's modifier chain from a clean
+            // baseline instead of inheriting the previous node's.
+            //
+            // The component itself keeps its attachment: recycling changes what drives a component, not
+            // where it lives. The applier is the sole authority on attachment, and it is not consulted
+            // for a reuse, so a holder that detached its component here - through the host slot it
+            // occupies, the one attachment a holder can reach on its own - would empty a slot nothing
+            // ever refills.
             reset()
         }
 
         override fun onDeactivate() {
             // The node moved into a deactivated (movableContent) holder. Detach listeners so it does
             // not keep reacting while parked; a later activation re-runs `update` and re-attaches.
+            //
+            // A parked node keeps its place in the Swing tree, host slot included: parking suspends the
+            // composition that drives a component, and the applier - which alone attaches and detaches -
+            // records no change for it.
             reset()
         }
     }

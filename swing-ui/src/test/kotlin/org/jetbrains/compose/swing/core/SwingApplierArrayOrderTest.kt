@@ -13,11 +13,11 @@ import kotlin.test.assertNull
 import kotlin.test.assertSame
 
 /**
- * Pins the invariant the disappearing-slot fix depends on: the AWT component-array order produced by
- * [SwingApplier] always matches the composition insertion index, for BOTH constrained and
- * unconstrained children. If a constrained add ever appended (the old `add(Component, Object)`
- * behaviour) instead of inserting at its index, index-based [SwingApplier.remove] /
- * [SwingApplier.move] would address the wrong component — which is exactly the bug these tests guard.
+ * The AWT component-array order [SwingApplier] produces always matches the composition insertion
+ * index, for BOTH constrained and unconstrained children. Everything else the applier does addresses
+ * that array by index - [SwingApplier.remove] and [SwingApplier.move] included - so a constrained add
+ * that appended instead of inserting at its index would leave every later index pointing at the wrong
+ * component.
  */
 class SwingApplierArrayOrderTest {
     private fun SwingApplier.onContainer(
@@ -36,7 +36,7 @@ class SwingApplierArrayOrderTest {
     private fun constrainedHolder(
         component: Component,
         constraint: Any,
-    ): SwingNodeHolder<*> = SwingNodeHolder(component).also { it.constraint = constraint }
+    ): SwingNodeHolder<*> = SwingNodeHolder(component).also { it.applyConstraint(constraint) }
 
     private fun holder(component: Component): SwingNodeHolder<*> = SwingNodeHolder(component)
 
@@ -103,10 +103,9 @@ class SwingApplierArrayOrderTest {
     }
 
     /**
-     * The disappearing-label scenario reproduced at the applier level: a BorderLayout container that
-     * starts WITHOUT a north child, then gets one inserted at composition index 0. The new child must
-     * land at array index 0 (not appended to the end), so subsequent index-based operations stay
-     * correct.
+     * A BorderLayout container that starts WITHOUT a north child, then gets one inserted at
+     * composition index 0. The new child must land at array index 0 rather than at the end, so every
+     * subsequent index-based operation still addresses the child its composition index names.
      */
     @Test
     fun constrainedInsertAtIndexZeroLandsFirstInArrayNotAppended() {
@@ -114,7 +113,7 @@ class SwingApplierArrayOrderTest {
         val applier = applierFor(root)
 
         // Start with [center, south] (north slot absent), matching the BorderPanel slot order when
-        // the conditional north is off — north occupies no composition index.
+        // the conditional north is off - north occupies no composition index.
         applier.onBeginChanges()
         applier.onContainer(applier.root) {
             insertBottomUp(0, constrainedHolder(namedButton("center"), BorderLayout.CENTER))
@@ -130,7 +129,6 @@ class SwingApplierArrayOrderTest {
         }
         applier.onEndChanges()
 
-        // It must be FIRST in the array, not appended — this is the core of the fix.
         assertEquals(
             listOf("north", "center", "south"),
             childNames(root),
@@ -139,9 +137,8 @@ class SwingApplierArrayOrderTest {
     }
 
     /**
-     * Given aligned ordering, `remove(0, 1)` must drop the composition-index-0 child even in a
-     * BorderLayout container. Before the fix, a desynced array meant `remove(0)` could delete the
-     * wrong region (e.g. CENTER instead of NORTH).
+     * `remove(0, 1)` drops the composition-index-0 child even in a BorderLayout container, whose own
+     * region order differs from the array order.
      */
     @Test
     fun removeIndexZeroRemovesCompositionIndexZeroChildInBorderLayout() {

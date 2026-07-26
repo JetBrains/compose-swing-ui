@@ -6,6 +6,7 @@ import java.awt.Component
 import java.awt.Container
 import java.util.Collections
 import java.util.IdentityHashMap
+import javax.swing.RootPaneContainer
 
 /**
  * The [androidx.compose.runtime.Applier] that [org.jetbrains.compose.swing.SwingNode] emits into, mutating
@@ -18,7 +19,7 @@ import java.util.IdentityHashMap
  *
  * Placement of each child:
  * - With its declared [SwingNodeHolder.constraint] when non-null (e.g. a `BorderLayout` region),
- *   otherwise by index. The constraint is supplied by the parent slot via [LocalSwingConstraint].
+ *   otherwise by index. The constraint comes from the child's parent via [LocalSwingConstraint].
  * - A child carrying a [SwingNodeHolder.slotAttachment] is installed into its host through that
  *   attachment's dedicated Swing setter and uninstalled the same way on removal so the host slot is
  *   released.
@@ -38,15 +39,20 @@ internal class SwingApplier internal constructor(
     private val dirtyContainers: MutableSet<Container> =
         Collections.newSetFromMap(IdentityHashMap())
 
-    /** Constraint each currently-added component was added with, so [move] can re-apply it. */
-    private val constraintByComponent: MutableMap<Component, Any?> = IdentityHashMap()
+    /**
+     * The holder behind each currently-added component, so [move] can re-apply the component's layout
+     * constraint (Swing drops it on `remove`). The holder rather than the constraint value is cached
+     * because a node's constraint can change while it is attached, and a holder always reports the
+     * current one.
+     */
+    private val holderByComponent: MutableMap<Component, SwingNodeHolder<*>> = IdentityHashMap()
 
     /**
      * Slot-attached child holders (see [SwingNodeHolder.slotAttachment]) per host container, in
      * composition order, so [remove]/[move] can address them by index and run each holder's
      * [SwingNodeHolder.slotUninstall] to release the host slot. The position in this list is the
      * index handed to [SlotAttachment.install] so an ordered host can place the component
-     * (e.g. `JTabbedPane.insertTab(…, index)`).
+     * (e.g. `JTabbedPane.insertTab(..., index)`).
      */
     private val slotHoldersByContainer: MutableMap<Container, MutableList<SwingNodeHolder<*>>> =
         IdentityHashMap()
@@ -55,13 +61,22 @@ internal class SwingApplier internal constructor(
         current.component as? Container
             ?: error("Current node ${current.component} is not a Container, cannot $action")
 
+    /**
+     * The container that actually holds a host's indexed children. A root-pane container such as
+     * `JInternalFrame` forwards `add` to its content pane while still reporting its own component array
+     * from `getComponent`/`remove(int)`, so every index-addressed operation goes through the content
+     * pane to address the same children `add` created.
+     */
+    private val Container.childHost: Container
+        get() = (this as? RootPaneContainer)?.contentPane ?: this
+
     override fun insertTopDown(
         index: Int,
         instance: SwingNodeHolder<*>,
     ) {
         // Stamp the owner's shared snapshot observer onto the node here, on the top-down pass. This MUST
-        // happen on the down pass: a node's own update changes — which copy this observer onto a
-        // snapshot-observing component such as Canvas — run between the top-down and bottom-up passes, so
+        // happen on the down pass: a node's own update changes - which copy this observer onto a
+        // snapshot-observing component such as Canvas - run between the top-down and bottom-up passes, so
         // a stamp deferred to insertBottomUp would not yet be visible when the node reads it, leaving that
         // component permanently unobserved (and a Canvas blank). The actual Swing attachment is still done
         // bottom-up (see insertBottomUp).
@@ -78,7 +93,7 @@ internal class SwingApplier internal constructor(
         val attachment = instance.slotAttachment
         if (attachment != null) {
             // This node fills a single-occupancy slot of `container` reached through a dedicated Swing
-            // setter (e.g. a JScrollPane region via setViewportView/setRowHeaderView/…), not the
+            // setter (e.g. a JScrollPane region via setViewportView/setRowHeaderView/...), not the
             // generic Container.add. Install it through the attachment, capture the returned uninstall
             // on the holder, and record the holder in this container's composition-ordered slot list
             // so remove/move can address it by index and release the host slot. Mark the container
@@ -92,17 +107,18 @@ internal class SwingApplier internal constructor(
         // Always place the component at the composition `index` in the AWT component array, whether
         // or not it carries a layout constraint. `Container.add(Component, Object)` IGNORES the array
         // index and appends, while a constrained layout (e.g. BorderLayout) stores the component by
-        // its region — so using the 2-arg form for constrained children would desync the
+        // its region - so using the 2-arg form for constrained children would desync the
         // component-array order from the composition order, and the later index-based remove/move
         // (which address the AWT array) would then hit the wrong component. The 3-arg
         // `add(Component, Object, int)` inserts at the given array index AND applies the constraint,
         // keeping array order == composition order for every child.
+        val childHost = container.childHost
         if (constraint != null) {
-            container.add(instance.component, constraint, index)
+            childHost.add(instance.component, constraint, index)
         } else {
-            container.add(instance.component, index)
+            childHost.add(instance.component, index)
         }
-        constraintByComponent[instance.component] = constraint
+        holderByComponent[instance.component] = instance
         dirtyContainers += container
     }
 
@@ -128,10 +144,11 @@ internal class SwingApplier internal constructor(
         }
         // Ordinary children mirror the AWT array. `cursor` stays at `index` because each removal
         // shifts the next child down into the slot.
+        val childHost = container.childHost
         repeat(count) {
-            val component = container.getComponent(index)
-            container.remove(index)
-            constraintByComponent.remove(component)
+            val component = childHost.getComponent(index)
+            childHost.remove(index)
+            holderByComponent.remove(component)
         }
         dirtyContainers += container
     }
@@ -157,15 +174,12 @@ internal class SwingApplier internal constructor(
             return
         }
 
-        // Ordinary children: detach the moved run, remembering each component's constraint so we can
-        // restore it (Swing drops the constraint on `remove`).
+        // Ordinary children: detach the moved run so it can be re-inserted at the mirrored target.
+        val childHost = container.childHost
         val moved = ArrayList<Component>(count)
-        val movedConstraints = ArrayList<Any?>(count)
         repeat(count) {
-            val component = container.getComponent(from)
-            moved += component
-            movedConstraints += constraintByComponent[component]
-            container.remove(from)
+            moved += childHost.getComponent(from)
+            childHost.remove(from)
         }
 
         // After removing `count` items starting at `from`, indices above `from` shifted down by
@@ -176,28 +190,32 @@ internal class SwingApplier internal constructor(
         // carries an explicit index: the 3-arg form (index + constraint) for constrained children so
         // the layout region is restored, the 2-arg form for unconstrained children. Because each add
         // specifies its own index, no running cursor is needed and the run lands contiguously
-        // regardless of constrained/unconstrained mix.
+        // regardless of constrained/unconstrained mix. The constraint is read off the holder now
+        // rather than remembered at insert, so a child whose constraint changed since keeps the
+        // current one.
         moved.forEachIndexed { offset, component ->
-            val constraint = movedConstraints[offset]
+            val constraint = holderByComponent[component]?.constraint
             val targetIndex = targetBase + offset
             if (constraint != null) {
-                container.add(component, constraint, targetIndex)
+                childHost.add(component, constraint, targetIndex)
             } else {
-                container.add(component, targetIndex)
+                childHost.add(component, targetIndex)
             }
         }
         dirtyContainers += container
     }
 
     override fun onClear() {
-        // Only ever runs on the ROOT container, which is user-supplied and never slot-attached.
-        // `removeAll()` discards the entire root subtree, including any slot-hosting descendants (a
-        // JScrollPane's viewport/headers/corners go away with their JScrollPane). That is the correct
-        // dispose path: the root is torn down wholesale, so there is no host slot left to release.
-        // Clearing the tracking maps drops their identity references along with the subtree.
+        // Only ever runs on the ROOT container, which is user-supplied and never slot-attached. The
+        // children are discarded through the same child host that added them, so a root-pane root loses
+        // its composed content and keeps its root pane. `removeAll()` there takes the whole composed
+        // subtree with it, including any slot-hosting descendants (a JScrollPane's viewport/headers/
+        // corners go away with their JScrollPane). That is the correct dispose path: the subtree is torn
+        // down wholesale, so there is no host slot left to release. Clearing the tracking maps drops
+        // their identity references along with the subtree.
         val container = root.component as? Container ?: return
-        container.removeAll()
-        constraintByComponent.clear()
+        container.childHost.removeAll()
+        holderByComponent.clear()
         slotHoldersByContainer.clear()
         dirtyContainers += container
     }

@@ -11,10 +11,10 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * Verifies that [SwingApplier] honours [SwingNodeHolder.constraint] when adding components to a
- * constrained layout (here [BorderLayout]) and that [SwingApplier.move] preserves each component's
- * constraint across the remove/re-add it performs internally — the bug the constraint-tracking map
- * in the applier guards against (Swing drops the constraint on `remove`).
+ * [SwingApplier] honours [SwingNodeHolder.constraint] when adding components to a constrained layout
+ * (here [BorderLayout]), and preserves each component's constraint across the remove/re-add
+ * [SwingApplier.move] performs internally - Swing itself drops a child's constraint on `remove`, so
+ * the applier has to carry it across.
  */
 class SwingApplierConstraintTest {
     private fun SwingApplier.onContainer(
@@ -34,7 +34,7 @@ class SwingApplierConstraintTest {
     private fun constrainedHolder(
         component: Component,
         constraint: Any,
-    ): SwingNodeHolder<*> = SwingNodeHolder(component).also { it.constraint = constraint }
+    ): SwingNodeHolder<*> = SwingNodeHolder(component).also { it.applyConstraint(constraint) }
 
     /** Observers created for the appliers under test, disposed in [disposeObservers]. */
     private val observers = mutableListOf<SnapshotStateObserver>()

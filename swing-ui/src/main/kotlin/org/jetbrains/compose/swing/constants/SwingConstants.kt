@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.constants
 import org.intellij.lang.annotations.MagicConstant
 import java.awt.FlowLayout
 import java.awt.Frame
+import java.awt.GridBagConstraints
 import javax.swing.BoxLayout
 import javax.swing.JComponent
 import javax.swing.JFormattedTextField
@@ -20,7 +21,7 @@ import javax.swing.tree.TreeSelectionModel
  *
  * Each annotation below names exactly the JDK constants a parameter accepts, so an IDE flags any other
  * value at the call site while the value passed at runtime is the plain JDK constant the wrapped Swing
- * API already expects — no boxing, no accessor, no translation layer.
+ * API already expects - no boxing, no accessor, no translation layer.
  *
  * Retention is BINARY (Java CLASS): the annotation survives into the compiled class files so the IDE's
  * MagicConstant inspection can read it across the published-jar boundary and warn consumers in their
@@ -123,6 +124,20 @@ public annotation class TabLayoutPolicy
 public annotation class HorizontalAlignment
 
 /**
+ * A vertical alignment from `SwingConstants` (`TOP`/`CENTER`/`BOTTOM`), as used by `JLabel` and
+ * button-like components.
+ */
+@Retention(AnnotationRetention.BINARY)
+@MagicConstant(
+    intValues = [
+        SwingConstants.TOP.toLong(),
+        SwingConstants.CENTER.toLong(),
+        SwingConstants.BOTTOM.toLong(),
+    ],
+)
+public annotation class VerticalAlignment
+
+/**
  * A `FlowLayout` alignment (`LEFT`/`CENTER`/`RIGHT`/`LEADING`/`TRAILING`), as used by `FlowPanel`.
  * `FlowLayout`'s constants are a separate numbering from `SwingConstants`, so this is distinct from
  * [HorizontalAlignment].
@@ -139,7 +154,7 @@ public annotation class HorizontalAlignment
 )
 public annotation class FlowAlignment
 
-/** A one-dimensional `SwingConstants` orientation (`HORIZONTAL`/`VERTICAL`), as used by `JSeparator`. */
+/** A one-dimensional `SwingConstants` orientation: `HORIZONTAL` or `VERTICAL`. */
 @Retention(AnnotationRetention.BINARY)
 @MagicConstant(
     intValues = [
@@ -161,16 +176,6 @@ public annotation class Orientation
 )
 public annotation class BoxAxis
 
-/** A `JToolBar` orientation from `SwingConstants` (`HORIZONTAL`/`VERTICAL`). */
-@Retention(AnnotationRetention.BINARY)
-@MagicConstant(
-    intValues = [
-        SwingConstants.HORIZONTAL.toLong(),
-        SwingConstants.VERTICAL.toLong(),
-    ],
-)
-public annotation class ToolBarOrientation
-
 /** A `JSplitPane` orientation (`HORIZONTAL_SPLIT`/`VERTICAL_SPLIT`). */
 @Retention(AnnotationRetention.BINARY)
 @MagicConstant(
@@ -180,6 +185,59 @@ public annotation class ToolBarOrientation
     ],
 )
 public annotation class SplitOrientation
+
+/**
+ * A `GridBagConstraints` anchor: where a child sits inside its display area when the area is larger
+ * than the child. Absolute (`CENTER`, `NORTH`, ...), orientation-relative (`PAGE_START`, `LINE_END`, ...)
+ * and baseline-relative (`BASELINE`, `ABOVE_BASELINE_LEADING`, ...) values are all accepted.
+ */
+@Retention(AnnotationRetention.BINARY)
+@MagicConstant(
+    intValues = [
+        GridBagConstraints.CENTER.toLong(),
+        GridBagConstraints.NORTH.toLong(),
+        GridBagConstraints.NORTHEAST.toLong(),
+        GridBagConstraints.EAST.toLong(),
+        GridBagConstraints.SOUTHEAST.toLong(),
+        GridBagConstraints.SOUTH.toLong(),
+        GridBagConstraints.SOUTHWEST.toLong(),
+        GridBagConstraints.WEST.toLong(),
+        GridBagConstraints.NORTHWEST.toLong(),
+        GridBagConstraints.PAGE_START.toLong(),
+        GridBagConstraints.PAGE_END.toLong(),
+        GridBagConstraints.LINE_START.toLong(),
+        GridBagConstraints.LINE_END.toLong(),
+        GridBagConstraints.FIRST_LINE_START.toLong(),
+        GridBagConstraints.FIRST_LINE_END.toLong(),
+        GridBagConstraints.LAST_LINE_START.toLong(),
+        GridBagConstraints.LAST_LINE_END.toLong(),
+        GridBagConstraints.BASELINE.toLong(),
+        GridBagConstraints.BASELINE_LEADING.toLong(),
+        GridBagConstraints.BASELINE_TRAILING.toLong(),
+        GridBagConstraints.ABOVE_BASELINE.toLong(),
+        GridBagConstraints.ABOVE_BASELINE_LEADING.toLong(),
+        GridBagConstraints.ABOVE_BASELINE_TRAILING.toLong(),
+        GridBagConstraints.BELOW_BASELINE.toLong(),
+        GridBagConstraints.BELOW_BASELINE_LEADING.toLong(),
+        GridBagConstraints.BELOW_BASELINE_TRAILING.toLong(),
+    ],
+)
+public annotation class GridBagAnchor
+
+/**
+ * A `GridBagConstraints` fill (`NONE`/`HORIZONTAL`/`VERTICAL`/`BOTH`): whether and along which axes a
+ * child is resized to fill a display area larger than its requested size.
+ */
+@Retention(AnnotationRetention.BINARY)
+@MagicConstant(
+    intValues = [
+        GridBagConstraints.NONE.toLong(),
+        GridBagConstraints.HORIZONTAL.toLong(),
+        GridBagConstraints.VERTICAL.toLong(),
+        GridBagConstraints.BOTH.toLong(),
+    ],
+)
+public annotation class GridBagFill
 
 /** A `JFormattedTextField` focus-lost behavior (`COMMIT_OR_REVERT`/`COMMIT`/`REVERT`/`PERSIST`). */
 @Retention(AnnotationRetention.BINARY)

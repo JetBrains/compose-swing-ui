@@ -6,12 +6,12 @@ package org.jetbrains.compose.swing.components.text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import org.jetbrains.compose.swing.AppliedValue
 import org.jetbrains.compose.swing.SwingNode
-import org.jetbrains.compose.swing.components.documentChangeListener
-import org.jetbrains.compose.swing.components.fullText
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.documentListener
+import org.jetbrains.compose.swing.rememberAppliedValue
 import javax.swing.JTextArea
 import javax.swing.event.DocumentListener
 
@@ -23,9 +23,15 @@ import javax.swing.event.DocumentListener
  *
  * @param value the current text value
  * @param modifier the [SwingModifier] applied to the underlying component
- * @param onValueChange callback invoked when the text changes
+ * @param onValueChange callback invoked with the area's new text when the area is edited; applying
+ *   [value] is not itself reported
  * @param rows the number of rows
  * @param columns the number of columns
+ * @param editable whether the user can edit the text
+ * @param lineWrap whether lines too long for the area's width are wrapped onto the next line; `false`
+ *   by default, so long lines run past the width
+ * @param wrapStyleWord whether wrapped lines break at word boundaries rather than at character
+ *   boundaries; `false` by default, and only consulted while [lineWrap] is on
  * @see TextArea the [DocumentState]-driven overload for large or complex editors
  */
 @Composable
@@ -35,17 +41,36 @@ public fun TextArea(
     onValueChange: (String) -> Unit = {},
     rows: Int = 0,
     columns: Int = 0,
+    editable: Boolean = true,
+    lineWrap: Boolean = false,
+    wrapStyleWord: Boolean = false,
 ) {
     val callback = rememberUpdatedState(onValueChange)
+    val applied = rememberAppliedValue(value)
     val listener =
-        remember { documentChangeListener { event -> callback.value(event.document.fullText()) } }
-    TextArea(value = value, documentListener = listener, modifier = modifier, rows = rows, columns = columns)
+        remember(applied) {
+            documentChangeListener { event ->
+                val text = event.document.fullText()
+                if (applied.observed(text)) callback.value(text)
+            }
+        }
+    TextAreaNode(
+        value = value,
+        applied = applied,
+        modifier = modifier.documentListener(listener),
+        rows = rows,
+        columns = columns,
+        editable = editable,
+        lineWrap = lineWrap,
+        wrapStyleWord = wrapStyleWord,
+    )
 }
 
 /**
  * A composable wrapper for JTextArea driven by a raw [DocumentListener] instead of an `onValueChange`
  * lambda. The [documentListener] is attached to the area's document as-is and removed on the same
- * instance; pass a stable instance (e.g. `remember {}`) to avoid churn.
+ * instance; pass a stable instance (e.g. `remember {}`) to avoid churn. Being attached as-is, it
+ * observes every change to that document, including the one that applies [value].
  *
  * For incremental editing over a shared `Document`, undo/redo, or observing the text as a flow, drive the
  * area with the [DocumentState] overload ([TextArea]) and a [DocumentState] from `rememberDocumentState`.
@@ -55,6 +80,11 @@ public fun TextArea(
  * @param modifier the [SwingModifier] applied to the underlying component
  * @param rows the number of rows
  * @param columns the number of columns
+ * @param editable whether the user can edit the text
+ * @param lineWrap whether lines too long for the area's width are wrapped onto the next line; `false`
+ *   by default, so long lines run past the width
+ * @param wrapStyleWord whether wrapped lines break at word boundaries rather than at character
+ *   boundaries; `false` by default, and only consulted while [lineWrap] is on
  * @see TextArea the [DocumentState]-driven overload for large or complex editors
  */
 @Composable
@@ -64,12 +94,56 @@ public fun TextArea(
     modifier: SwingModifier = SwingModifier,
     rows: Int = 0,
     columns: Int = 0,
+    editable: Boolean = true,
+    lineWrap: Boolean = false,
+    wrapStyleWord: Boolean = false,
+) {
+    val applied = rememberAppliedValue(value)
+    TextAreaNode(
+        value = value,
+        applied = applied,
+        modifier = modifier.documentListener(documentListener),
+        rows = rows,
+        columns = columns,
+        editable = editable,
+        lineWrap = lineWrap,
+        wrapStyleWord = wrapStyleWord,
+    )
+}
+
+/**
+ * The `JTextArea` node both [TextArea] overloads render. [value] is pushed on change only - unlike a
+ * declared selection or a scalar widget property, an un-adopted edit is not undone on some later,
+ * unrelated recomposition: nothing here reads [applied]'s mirror to gate the push, so typing is never
+ * fought without a fresh [value] declaring otherwise.
+ */
+@Composable
+private fun TextAreaNode(
+    value: String,
+    applied: AppliedValue<String>,
+    modifier: SwingModifier,
+    rows: Int,
+    columns: Int,
+    editable: Boolean,
+    lineWrap: Boolean,
+    wrapStyleWord: Boolean,
 ) {
     SwingNode(
         factory = { JTextArea(rows, columns) },
         update = {
-            set(value) { setTextPreservingCaret(it) }
-            applyModifier(SwingModifier.documentListener(documentListener) then modifier)
+            update(rows) {
+                this.rows = it
+                revalidate()
+            }
+            update(columns) {
+                this.columns = it
+                revalidate()
+            }
+            set(value) { declared -> applied.settle(declared, { text }, { text = it }) {} }
+            set(editable) { this.isEditable = it }
+            set(lineWrap) { this.lineWrap = it }
+            set(wrapStyleWord) { this.wrapStyleWord = it }
+            applyModifier(modifier)
         },
     )
 }
@@ -84,6 +158,11 @@ public fun TextArea(
  * @param modifier the [SwingModifier] applied to the underlying component.
  * @param rows the number of rows.
  * @param columns the number of columns.
+ * @param editable whether the user can edit the text.
+ * @param lineWrap whether lines too long for the area's width are wrapped onto the next line; `false`
+ *   by default, so long lines run past the width.
+ * @param wrapStyleWord whether wrapped lines break at word boundaries rather than at character
+ *   boundaries; `false` by default, and only consulted while [lineWrap] is on.
  */
 @Composable
 public fun TextArea(
@@ -91,11 +170,25 @@ public fun TextArea(
     modifier: SwingModifier = SwingModifier,
     rows: Int = 0,
     columns: Int = 0,
+    editable: Boolean = true,
+    lineWrap: Boolean = false,
+    wrapStyleWord: Boolean = false,
 ) {
     SwingNode(
         factory = { JTextArea(rows, columns) },
         update = {
-            applyModifier(documentStateBinding(state) then modifier)
+            update(rows) {
+                this.rows = it
+                revalidate()
+            }
+            update(columns) {
+                this.columns = it
+                revalidate()
+            }
+            set(editable) { this.isEditable = it }
+            set(lineWrap) { this.lineWrap = it }
+            set(wrapStyleWord) { this.wrapStyleWord = it }
+            applyModifier(modifier.documentStateBinding(state))
         },
     )
 }

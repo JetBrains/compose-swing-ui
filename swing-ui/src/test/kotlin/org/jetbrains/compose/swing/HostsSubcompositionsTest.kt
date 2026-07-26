@@ -7,10 +7,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.test.runComposeSwingTest
-import javax.swing.JComponent
 import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 /**
@@ -83,7 +83,7 @@ class HostsSubcompositionsTest {
             // While present, the stamp is published so descendants can discover it.
             assertEquals(
                 true,
-                (hostPanel as JComponent).getClientProperty(COMPOSITION_KEY_FOR_TEST) != null,
+                hostPanel.getClientProperty(COMPOSITION_KEY_FOR_TEST) != null,
                 "an opted-in host node must publish the COMPOSITION_KEY stamp while in the composition.",
             )
 
@@ -93,8 +93,76 @@ class HostsSubcompositionsTest {
             awaitIdle()
 
             assertNull(
-                (hostPanel as JComponent).getClientProperty(COMPOSITION_KEY_FOR_TEST),
+                hostPanel.getClientProperty(COMPOSITION_KEY_FOR_TEST),
                 "releasing the host node must clear the COMPOSITION_KEY stamp.",
+            )
+        }
+    }
+
+    @Test
+    fun stampFollowsTheOptInStateDrivingIt() {
+        lateinit var hostPanel: JPanel
+
+        runComposeSwingTest {
+            var hosting by mutableStateOf(false)
+            setContent {
+                SwingNode(
+                    factory = { JPanel().also { hostPanel = it } },
+                    hostsSubcompositions = hosting,
+                ) {}
+            }
+
+            assertNull(
+                hostPanel.getClientProperty(COMPOSITION_KEY_FOR_TEST),
+                "a node that does not opt in must publish no COMPOSITION_KEY stamp.",
+            )
+
+            hosting = true
+            awaitIdle()
+            assertNotNull(
+                hostPanel.getClientProperty(COMPOSITION_KEY_FOR_TEST),
+                "opting in must publish the stamp so descendants can discover the composition.",
+            )
+
+            hosting = false
+            awaitIdle()
+            assertNull(
+                hostPanel.getClientProperty(COMPOSITION_KEY_FOR_TEST),
+                "opting back out must clear the stamp so a later setContent walk finds no host here.",
+            )
+        }
+    }
+
+    @Test
+    fun theLeafOverloadStampFollowsTheOptInStateDrivingIt() {
+        lateinit var hostPanel: JPanel
+
+        runComposeSwingTest {
+            var hosting by mutableStateOf(false)
+            setContent {
+                SwingNode(
+                    factory = { JPanel().also { hostPanel = it } },
+                    hostsSubcompositions = hosting,
+                )
+            }
+
+            assertNull(
+                hostPanel.getClientProperty(COMPOSITION_KEY_FOR_TEST),
+                "a node that does not opt in must publish no COMPOSITION_KEY stamp.",
+            )
+
+            hosting = true
+            awaitIdle()
+            assertNotNull(
+                hostPanel.getClientProperty(COMPOSITION_KEY_FOR_TEST),
+                "opting in must publish the stamp so descendants can discover the composition.",
+            )
+
+            hosting = false
+            awaitIdle()
+            assertNull(
+                hostPanel.getClientProperty(COMPOSITION_KEY_FOR_TEST),
+                "opting back out must clear the stamp so a later setContent walk finds no host here.",
             )
         }
     }

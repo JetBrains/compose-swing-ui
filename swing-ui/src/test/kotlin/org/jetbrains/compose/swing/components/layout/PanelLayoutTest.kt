@@ -4,20 +4,22 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.name
-import org.jetbrains.compose.swing.setContent
+import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.interaction.onChildAt
+import org.jetbrains.compose.swing.test.interaction.onChildren
+import org.jetbrains.compose.swing.test.interaction.onParent
+import org.jetbrains.compose.swing.test.interaction.onSiblings
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.BorderLayout
 import java.awt.CardLayout
 import java.awt.FlowLayout
+import java.awt.GridBagConstraints
 import java.awt.GridBagLayout
 import java.awt.GridLayout
 import javax.swing.BoxLayout
 import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -27,136 +29,197 @@ import kotlin.test.assertTrue
  * component tree (count and order).
  */
 class PanelLayoutTest {
-    private fun JPanel.childNames(): List<String?> = components.map { it.name }
-
     @Test
-    fun panelUsesProvidedLayoutManagerAndHostsChildren() = runComposeSwingTest {
+    fun borderPanelUsesBorderLayoutAndHostsChildren() = runComposeSwingTest {
         setContent {
-            Panel(modifier = SwingModifier.name("p"), layout = BorderLayout()) {
-                Label("only", modifier = SwingModifier.name("child"))
+            BorderPanel {
+                center { Label("only") }
             }
         }
-        val panel = onNodeWithName("p").fetch<JPanel>()
-        assertTrue(panel.layout is BorderLayout, "the panel should use the provided BorderLayout")
-        assertEquals(1, panel.componentCount, "the panel should host its single child")
-        assertEquals(listOf("child"), panel.childNames(), "the panel should host the declared child")
+        // A child reported to sit in a BorderLayout region is a child of a panel laid out by one.
+        onNodeWithText("only").apply {
+            assertLayoutConstraint(BorderLayout.CENTER)
+            onSiblings().assertCountEquals(0)
+        }
     }
 
     @Test
     fun flowPanelUsesFlowLayoutAndHostsChildrenInOrder() = runComposeSwingTest {
         setContent {
-            FlowPanel(modifier = SwingModifier.name("fp")) {
-                Label("a", modifier = SwingModifier.name("a"))
-                Label("b", modifier = SwingModifier.name("b"))
+            FlowPanel {
+                Label("a")
+                Label("b")
             }
         }
-        val panel = onNodeWithName("fp").fetch<JPanel>()
-        assertTrue(panel.layout is FlowLayout, "the flow panel should use a FlowLayout")
-        assertEquals(listOf("a", "b"), panel.childNames(), "the flow panel should host its children in order")
+        val panel = onNodeWithText("a").onParent()
+        assertTrue(panel.fetch<JPanel>().layout is FlowLayout, "the flow panel should use a FlowLayout")
+        panel.onChildren().assertCountEquals(2)
+        panel.onChildAt(0).assertTextEquals("a")
+        panel.onChildAt(1).assertTextEquals("b")
     }
 
     @Test
     fun boxPanelUsesBoxLayout() = runComposeSwingTest {
         setContent {
-            BoxPanel(modifier = SwingModifier.name("bp"), axis = BoxLayout.X_AXIS) {
-                Label("a", modifier = SwingModifier.name("a"))
+            BoxPanel(axis = BoxLayout.X_AXIS) {
+                Label("a")
             }
         }
-        val panel = onNodeWithName("bp").fetch<JPanel>()
-        assertTrue(panel.layout is BoxLayout, "the box panel should use a BoxLayout")
-        assertEquals(1, panel.componentCount, "the box panel should host its single child")
+        val panel = onNodeWithText("a").onParent()
+        assertTrue(panel.fetch<JPanel>().layout is BoxLayout, "the box panel should use a BoxLayout")
+        panel.onChildren().assertCountEquals(1)
+    }
+
+    @Test
+    fun aColumnStacksItsContentAndARowLinesItUp() = runComposeSwingTest {
+        setContent {
+            Column {
+                Label("a")
+                Label("b")
+            }
+            Row {
+                Label("c")
+            }
+        }
+
+        val column = onNodeWithText("a").onParent()
+        assertEquals(
+            BoxLayout.Y_AXIS,
+            (column.fetch<JPanel>().layout as BoxLayout).axis,
+            "a column should stack its content",
+        )
+        column.onChildren().assertCountEquals(2)
+        column.onChildAt(0).assertTextEquals("a")
+        column.onChildAt(1).assertTextEquals("b")
+
+        val row = onNodeWithText("c").onParent()
+        assertEquals(
+            BoxLayout.X_AXIS,
+            (row.fetch<JPanel>().layout as BoxLayout).axis,
+            "a row should line its content up",
+        )
+        row.onChildren().assertCountEquals(1)
+    }
+
+    @Test
+    fun aColumnFollowsTheChildrenItDeclares() = runComposeSwingTest {
+        var showSecond by mutableStateOf(false)
+        setContent {
+            Column {
+                Label("first")
+                if (showSecond) Label("second")
+            }
+        }
+
+        val column = onNodeWithText("first").onParent()
+        column.onChildren().assertCountEquals(1)
+
+        showSecond = true
+        awaitIdle()
+        column.onChildren().assertCountEquals(2)
+        column.onChildAt(0).assertTextEquals("first")
+        column.onChildAt(1).assertTextEquals("second")
+
+        showSecond = false
+        awaitIdle()
+        column.onChildren().assertCountEquals(1)
+        column.onChildAt(0).assertTextEquals("first")
     }
 
     @Test
     fun gridPanelUsesGridLayout() = runComposeSwingTest {
         setContent {
-            GridPanel(modifier = SwingModifier.name("gp"), rows = 2, cols = 2) {
-                Label("a", modifier = SwingModifier.name("a"))
-                Label("b", modifier = SwingModifier.name("b"))
+            GridPanel(rows = 2, cols = 2) {
+                Label("a")
+                Label("b")
             }
         }
-        val panel = onNodeWithName("gp").fetch<JPanel>()
-        assertTrue(panel.layout is GridLayout, "the grid panel should use a GridLayout")
-        assertEquals(listOf("a", "b"), panel.childNames(), "the grid panel should host its children in order")
+        val panel = onNodeWithText("a").onParent()
+        assertTrue(panel.fetch<JPanel>().layout is GridLayout, "the grid panel should use a GridLayout")
+        panel.onChildren().assertCountEquals(2)
+        panel.onChildAt(0).assertTextEquals("a")
+        panel.onChildAt(1).assertTextEquals("b")
     }
 
     @Test
     fun gridBagPanelUsesGridBagLayout() = runComposeSwingTest {
         setContent {
-            GridBagPanel(modifier = SwingModifier.name("gbp")) {
-                Label("a", modifier = SwingModifier.name("a"))
+            GridBagPanel {
+                item(gridx = 0, gridy = 0) { Label("a") }
             }
         }
-        val panel = onNodeWithName("gbp").fetch<JPanel>()
-        assertTrue(panel.layout is GridBagLayout, "the grid-bag panel should use a GridBagLayout")
-        assertEquals(1, panel.componentCount, "the grid-bag panel should host its single child")
+        // A child reported to sit in a grid-bag cell is a child of a panel laid out by one.
+        val cell = onNodeWithText("a")
+        cell.assertLayoutConstraint(
+            GridBagConstraints().apply {
+                gridx = 0
+                gridy = 0
+            },
+        )
+        assertTrue(
+            cell.onParent().fetch<JPanel>().layout is GridBagLayout,
+            "the grid-bag panel should use a GridBagLayout",
+        )
+        cell.onSiblings().assertCountEquals(0)
     }
 
     @Test
     fun cardPanelUsesCardLayout() = runComposeSwingTest {
         setContent {
-            CardPanel(modifier = SwingModifier.name("cp")) {
-                Label("a", modifier = SwingModifier.name("a"))
+            CardPanel(selectedCard = "only") {
+                card("only") { Label("a") }
             }
         }
-        val panel = onNodeWithName("cp").fetch<JPanel>()
-        assertTrue(panel.layout is CardLayout, "the card panel should use a CardLayout")
-        assertEquals(1, panel.componentCount, "the card panel should host its single child")
+        assertTrue(
+            onNodeWithText("a").onParent().fetch<JPanel>().layout is CardLayout,
+            "the card panel should use a CardLayout",
+        )
+        onNodeWithText("a").onSiblings().assertCountEquals(0)
     }
 
     @Test
     fun panelAddsAndRemovesChildrenAcrossRecomposition() = runComposeSwingTest {
         var showSecond by mutableStateOf(false)
         setContent {
-            FlowPanel(modifier = SwingModifier.name("fp")) {
-                Label("first", modifier = SwingModifier.name("first"))
-                if (showSecond) Label("second", modifier = SwingModifier.name("second"))
+            FlowPanel {
+                Label("first")
+                if (showSecond) Label("second")
             }
         }
-        assertEquals(
-            listOf("first"),
-            onNodeWithName("fp").fetch<JPanel>().childNames(),
-            "the panel should start with only the first child",
-        )
+        val panel = onNodeWithText("first").onParent()
+        panel.onChildren().assertCountEquals(1)
 
         // Adding a child on recomposition attaches a new AWT descendant in declaration order.
         showSecond = true
         awaitIdle()
-        assertEquals(
-            listOf("first", "second"),
-            onNodeWithName("fp").fetch<JPanel>().childNames(),
-            "adding should attach the second child in order",
-        )
+        panel.onChildren().assertCountEquals(2)
+        panel.onChildAt(0).assertTextEquals("first")
+        panel.onChildAt(1).assertTextEquals("second")
 
         // Removing it detaches that descendant; the survivor stays.
         showSecond = false
         awaitIdle()
-        assertEquals(
-            listOf("first"),
-            onNodeWithName("fp").fetch<JPanel>().childNames(),
-            "removing should leave only the surviving child",
-        )
-        // The removed child is no longer an AWT descendant of the panel.
-        assertNull(
-            onNodeWithName("fp").fetch<JPanel>().components.firstOrNull {
-                it.name == "second"
-            },
-            "the removed child should no longer be a descendant",
-        )
+        panel.onChildren().assertCountEquals(1)
+        panel.onChildAt(0).assertTextEquals("first")
+        onNodeWithText("second").assertDoesNotExist()
     }
 
     @Test
     fun nestedPanelsHostTheirOwnChildren() = runComposeSwingTest {
         setContent {
-            BoxPanel(modifier = SwingModifier.name("outer"), axis = BoxLayout.Y_AXIS) {
-                FlowPanel(modifier = SwingModifier.name("inner")) {
-                    Label("leaf", modifier = SwingModifier.name("leaf"))
+            BoxPanel(axis = BoxLayout.Y_AXIS) {
+                FlowPanel {
+                    Label("leaf")
                 }
             }
         }
-        val outer = onNodeWithName("outer").fetch<JPanel>()
-        assertEquals(listOf("inner"), outer.childNames(), "the outer panel should host the inner panel")
-        val inner = onNodeWithName("inner").fetch<JPanel>()
-        assertEquals(listOf("leaf"), inner.childNames(), "the inner panel should host its own leaf child")
+        val inner = onNodeWithText("leaf").onParent()
+        assertTrue(inner.fetch<JPanel>().layout is FlowLayout, "the inner panel should be the flow panel")
+        inner.onChildren().assertCountEquals(1)
+
+        val outer = inner.onParent()
+        assertTrue(outer.fetch<JPanel>().layout is BoxLayout, "the outer panel should be the box panel")
+        outer.onChildren().assertCountEquals(1)
+        outer.onChildren().assertAll(SwingMatcher.isOfType<JPanel>())
     }
 }

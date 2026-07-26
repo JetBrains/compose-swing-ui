@@ -27,7 +27,7 @@ import javax.swing.text.DocumentFilter
 import javax.swing.text.MaskFormatter
 import javax.swing.text.NumberFormatter
 
-// The form-input controls — Spinner, ToggleButton, FormattedTextField — plus the documentFilter seam.
+// The form-input controls - Spinner, ToggleButton, FormattedTextField - plus the documentFilter seam.
 // Every card binds its control to live state echoed by an adjacent Label.
 @Composable
 internal fun FormInputsSection() {
@@ -47,7 +47,7 @@ internal fun FormInputsSection() {
 @Composable
 private fun IntSpinnerCard() {
     ExampleCard("Spinner (Int)") {
-        val count = rememberSpinnerState(value = 3, min = 0, max = 10, step = 1)
+        val count = rememberSpinnerState(initialValue = 3, min = 0, max = 10, step = 1)
         FlowPanel {
             Label("Count:")
             Spinner(count)
@@ -59,7 +59,7 @@ private fun IntSpinnerCard() {
 @Composable
 private fun DoubleSpinnerCard() {
     ExampleCard("Spinner (Double)") {
-        val rate = rememberSpinnerState(value = 1.5, min = 0.0, max = 5.0, step = 0.5)
+        val rate = rememberSpinnerState(initialValue = 1.5, min = 0.0, max = 5.0, step = 0.5)
         FlowPanel {
             Label("Rate:")
             Spinner(
@@ -77,7 +77,7 @@ private fun DoubleSpinnerCard() {
 private fun ListSpinnerCard() {
     ExampleCard("Spinner (list)") {
         val sizes = listOf("S", "M", "L", "XL")
-        val size = rememberSpinnerState(items = sizes, selectedIndex = 1)
+        val size = rememberSpinnerState(items = sizes, initialSelectedIndex = 1)
         FlowPanel {
             Label("Size:")
             Spinner(size)

@@ -6,27 +6,23 @@ package org.jetbrains.compose.swing.components.text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import org.jetbrains.compose.swing.AppliedValue
 import org.jetbrains.compose.swing.SwingNode
-import org.jetbrains.compose.swing.components.documentChangeListener
-import org.jetbrains.compose.swing.components.fullText
-import org.jetbrains.compose.swing.components.swappableDocumentListener
 import org.jetbrains.compose.swing.constants.ContentType
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
-import org.jetbrains.compose.swing.modifier.listener.documentListener
+import org.jetbrains.compose.swing.rememberAppliedValue
 import javax.swing.JEditorPane
 import javax.swing.JTextPane
 import javax.swing.event.DocumentListener
 import javax.swing.text.Document
-import javax.swing.text.EditorKit
 import javax.swing.text.html.HTMLDocument
-import javax.swing.text.html.HTMLEditorKit
 
 /**
  * A composable wrapper for `JEditorPane`.
  *
  * The pane interprets [value] according to [contentType]: as plain text, HTML, or RTF. Changing
- * [contentType] reinterprets [value] under the new type. The binding is reactive in both directions —
+ * [contentType] reinterprets [value] under the new type. The binding is reactive in both directions -
  * [value] is pushed onto the pane, and edits the user makes are reported through [onValueChange].
  *
  * For incremental editing over a shared `Document`, undo/redo, or observing the text as a flow, drive the
@@ -35,7 +31,8 @@ import javax.swing.text.html.HTMLEditorKit
  * @param value the current text, interpreted as [contentType]
  * @param modifier the [SwingModifier] applied to the underlying component
  * @param contentType the MIME type the text is interpreted as (a [ContentType] MIME string)
- * @param onValueChange callback invoked when the text changes
+ * @param onValueChange callback invoked with the pane's new text when the pane is edited; applying
+ *   [value] is not itself reported
  * @param editable whether the user can edit the text
  * @see EditorPane the [DocumentState]-driven overload for large or complex editors
  */
@@ -48,22 +45,30 @@ public fun EditorPane(
     editable: Boolean = true,
 ) {
     val callback = rememberUpdatedState(onValueChange)
-    // A switch of content type installs a fresh document, so the binding follows the swap via
-    // swappableDocumentListener; the listener reads the pane's text from the document that fired.
-    val listener = remember { documentChangeListener { event -> callback.value(event.document.fullText()) } }
-    EditorPaneImpl(
+    val applied = rememberAppliedValue(value)
+    // The listener reads the pane's text from the document that fired, which is the document the
+    // pane holds: a switch of content type installs a fresh one.
+    val listener =
+        remember(applied) {
+            documentChangeListener { event ->
+                val text = event.document.fullText()
+                if (applied.observed(text)) callback.value(text)
+            }
+        }
+    EditorPaneNode(
         value = value,
-        modifier = modifier,
+        applied = applied,
+        modifier = modifier.swappableDocumentListener(listener),
         contentType = contentType,
         editable = editable,
-        installListener = { base -> base.swappableDocumentListener(listener) },
     )
 }
 
 /**
  * A [EditorPane] driven by a raw [DocumentListener] instead of an `onValueChange` lambda. The listener
- * observes the document the pane holds at install time; pass a stable instance (e.g. `remember {}`) to
- * avoid churn.
+ * observes the document the pane currently holds and follows it when a [contentType] switch installs a
+ * fresh one; pass a stable instance (e.g. `remember {}`) to avoid churn. Being attached as-is, it
+ * observes every change to that document, including the one that applies [value].
  *
  * For incremental editing over a shared `Document`, undo/redo, or observing the text as a flow, drive the
  * pane with the [DocumentState] overload ([EditorPane]) and a [DocumentState] from `rememberDocumentState`.
@@ -83,32 +88,46 @@ public fun EditorPane(
     @ContentType contentType: String = "text/plain",
     editable: Boolean = true,
 ) {
-    EditorPaneImpl(
+    val applied = rememberAppliedValue(value)
+    EditorPaneNode(
         value = value,
-        modifier = modifier,
+        applied = applied,
+        modifier = modifier.swappableDocumentListener(documentListener),
         contentType = contentType,
         editable = editable,
-        installListener = { base -> base.documentListener(documentListener) },
     )
 }
 
+/**
+ * The `JEditorPane` node both [EditorPane] overloads render. [value] is pushed on change only - unlike a
+ * declared selection or a scalar widget property, an un-adopted edit is not undone on some later,
+ * unrelated recomposition: nothing here reads [applied]'s mirror to gate the push, so typing is never
+ * fought without a fresh [value] declaring otherwise. A content-type switch is the one push run
+ * unconditionally regardless of [value] itself moving, since it is what leaves the pane with a fresh,
+ * empty document to fill.
+ */
 @Composable
-private fun EditorPaneImpl(
+private fun EditorPaneNode(
     value: String,
+    applied: AppliedValue<String>,
     modifier: SwingModifier,
     @ContentType contentType: String,
     editable: Boolean,
-    installListener: (SwingModifier) -> SwingModifier,
 ) {
     SwingNode(
         factory = { JEditorPane() },
         update = {
-            // Apply the content type before the text: switching type installs a fresh editor kit and
-            // document, so the text must be (re)set against the document that interprets it.
-            set(contentType) { this.contentType = it }
-            set(value) { setTextPreservingCaret(it) }
+            // A content type installs the editor kit that interprets the text, together with that kit's
+            // own empty document, so the text is rendered into that document after the switch - the
+            // value it renders has not changed, but the document holding it has, so it is re-settled
+            // regardless of whether the declaration itself moved since the last pass.
+            set(contentType) { newContentType ->
+                this.contentType = newContentType
+                applied.settle(value, { text }, { text = it }) {}
+            }
+            set(value) { declared -> applied.settle(declared, { text }, { text = it }) {} }
             set(editable) { this.isEditable = it }
-            applyModifier(installListener(SwingModifier) then modifier)
+            applyModifier(modifier)
         },
     )
 }
@@ -119,11 +138,11 @@ private fun EditorPaneImpl(
  * the caret is kept two-way with [DocumentState.selection]. The state is the single source of
  * truth; there is no `onValueChange`.
  *
- * The pane's content type follows the state's document: a `PlainDocument` (the default from
- * `rememberDocumentState`) renders as plain text, and an `HTMLDocument` renders as HTML. To render HTML,
- * back the state with a matching document, for example
- * `rememberDocumentState(document = HTMLEditorKit().createDefaultDocument())`. The document type and the
- * rendered content type are one thing, so they can never disagree.
+ * The pane's content type is derived from the state's document: an `HTMLDocument` renders as HTML and
+ * any other document - including the `PlainDocument` `rememberDocumentState` creates by default -
+ * renders as plain text. Handing the state a different document re-derives it. To render HTML, back the
+ * state with a matching document, for example
+ * `rememberDocumentState(document = remember { HTMLEditorKit().createDefaultDocument() })`.
  *
  * @param state the hoistable text state the pane renders and drives.
  * @param modifier the [SwingModifier] applied to the underlying component.
@@ -138,27 +157,27 @@ public fun EditorPane(
     SwingNode(
         factory = { JEditorPane() },
         update = {
-            // Install the editor kit that renders the state's document before binding it: JEditorPane
-            // couples the rendered content type to the kit, and each kit expects its own document type,
-            // so an HTMLDocument needs the HTMLEditorKit whose views can read it. A plain document keeps
-            // the pane's factory-default kit, which already provides plain-text views. Update blocks run
-            // in recorded order, so the kit is in place before the binding element installs the document.
-            set(state) { htmlEditorKitFor(state.document)?.let { kit -> editorKit = kit } }
+            // Apply the content type the state's document is rendered as before binding the document:
+            // JEditorPane derives the content type it reports from its editor kit, and assigning the
+            // content type installs the kit registered for it - a look-and-feel replacement included -
+            // together with that kit's own default document. Update blocks run in recorded order, so the
+            // binding element installs the state's document over that default once the kit is in place.
+            set(contentTypeOf(state.document)) { this.contentType = it }
             set(editable) { this.isEditable = it }
-            applyModifier(documentStateBinding(state) then modifier)
+            applyModifier(modifier.documentStateBinding(state))
         },
     )
 }
 
-// The HTML editor kit an HTMLDocument needs to render, or null for any other document, which the pane's
-// default plain-text kit already handles. Installing the kit switches the pane's reported content type to
-// "text/html", so the document type and the rendered content type stay one and the same.
-private fun htmlEditorKitFor(document: Document): EditorKit? = if (document is HTMLDocument) HTMLEditorKit() else null
+// The MIME content type a document is rendered as: an HTMLDocument holds markup and needs the kit whose
+// views can read it, and every other document is rendered as plain text.
+@ContentType
+private fun contentTypeOf(document: Document): String = if (document is HTMLDocument) "text/html" else "text/plain"
 
 /**
  * A composable wrapper for `JTextPane`, an editor over a styled document.
  *
- * The binding is reactive in both directions — [value] is pushed onto the pane, and edits the user
+ * The binding is reactive in both directions - [value] is pushed onto the pane, and edits the user
  * makes are reported through [onValueChange].
  *
  * For incremental editing over a shared `Document`, undo/redo, or observing the text as a flow, drive the
@@ -166,7 +185,8 @@ private fun htmlEditorKitFor(document: Document): EditorKit? = if (document is H
  *
  * @param value the current text
  * @param modifier the [SwingModifier] applied to the underlying component
- * @param onValueChange callback invoked when the text changes
+ * @param onValueChange callback invoked with the pane's new text when the pane is edited; applying
+ *   [value] is not itself reported
  * @param editable whether the user can edit the text
  * @see TextPane the [DocumentState]-driven overload for large or complex editors
  */
@@ -178,19 +198,27 @@ public fun TextPane(
     editable: Boolean = true,
 ) {
     val callback = rememberUpdatedState(onValueChange)
-    val listener = remember { documentChangeListener { event -> callback.value(event.document.fullText()) } }
-    TextPaneImpl(
+    val applied = rememberAppliedValue(value)
+    val listener =
+        remember(applied) {
+            documentChangeListener { event ->
+                val text = event.document.fullText()
+                if (applied.observed(text)) callback.value(text)
+            }
+        }
+    TextPaneNode(
         value = value,
-        modifier = modifier,
+        applied = applied,
+        modifier = modifier.swappableDocumentListener(listener),
         editable = editable,
-        installListener = { base -> base.swappableDocumentListener(listener) },
     )
 }
 
 /**
  * A [TextPane] driven by a raw [DocumentListener] instead of an `onValueChange` lambda. The listener
- * observes the document the pane holds at install time; pass a stable instance (e.g. `remember {}`) to
- * avoid churn.
+ * observes the document the pane currently holds and follows it across a document swap; pass a stable
+ * instance (e.g. `remember {}`) to avoid churn. Being attached as-is, it observes every change to that
+ * document, including the one that applies [value].
  *
  * For incremental editing over a shared `Document`, undo/redo, or observing the text as a flow, drive the
  * pane with the [DocumentState] overload ([TextPane]) and a [DocumentState] from `rememberDocumentState`.
@@ -208,27 +236,34 @@ public fun TextPane(
     modifier: SwingModifier = SwingModifier,
     editable: Boolean = true,
 ) {
-    TextPaneImpl(
+    val applied = rememberAppliedValue(value)
+    TextPaneNode(
         value = value,
-        modifier = modifier,
+        applied = applied,
+        modifier = modifier.swappableDocumentListener(documentListener),
         editable = editable,
-        installListener = { base -> base.documentListener(documentListener) },
     )
 }
 
+/**
+ * The `JTextPane` node both [TextPane] overloads render. [value] is pushed on change only - unlike a
+ * declared selection or a scalar widget property, an un-adopted edit is not undone on some later,
+ * unrelated recomposition: nothing here reads [applied]'s mirror to gate the push, so typing is never
+ * fought without a fresh [value] declaring otherwise.
+ */
 @Composable
-private fun TextPaneImpl(
+private fun TextPaneNode(
     value: String,
+    applied: AppliedValue<String>,
     modifier: SwingModifier,
     editable: Boolean,
-    installListener: (SwingModifier) -> SwingModifier,
 ) {
     SwingNode(
         factory = { JTextPane() },
         update = {
-            set(value) { setTextPreservingCaret(it) }
+            set(value) { declared -> applied.settle(declared, { text }, { text = it }) {} }
             set(editable) { this.isEditable = it }
-            applyModifier(installListener(SwingModifier) then modifier)
+            applyModifier(modifier)
         },
     )
 }
@@ -240,7 +275,7 @@ private fun TextPaneImpl(
  * truth; there is no `onValueChange`.
  *
  * A `JTextPane` renders a styled document, so [state] must wrap a `StyledDocument` (e.g. a
- * `DefaultStyledDocument` passed to `rememberDocumentState(document = …)`).
+ * `DefaultStyledDocument` passed to `rememberDocumentState(document = ...)`).
  *
  * @param state the hoistable text state, over a `StyledDocument`, the pane renders and drives.
  * @param modifier the [SwingModifier] applied to the underlying component.
@@ -256,7 +291,7 @@ public fun TextPane(
         factory = { JTextPane() },
         update = {
             set(editable) { this.isEditable = it }
-            applyModifier(documentStateBinding(state) then modifier)
+            applyModifier(modifier.documentStateBinding(state))
         },
     )
 }

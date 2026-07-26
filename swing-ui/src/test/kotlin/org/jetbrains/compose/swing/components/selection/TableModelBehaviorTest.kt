@@ -4,9 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.name
-import org.jetbrains.compose.swing.setContent
+import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JTable
 import javax.swing.ListSelectionModel
@@ -32,9 +30,9 @@ class TableModelBehaviorTest {
     @Test
     fun modelRendersAsTheTableModel() = runComposeSwingTest {
         val model = tableModel("Ada", "Alan", "Grace")
-        setContent { Table(model = model, modifier = SwingModifier.name("table")) }
+        setContent { Table(model = model) }
 
-        val table = onNodeWithName("table").fetch<JTable>()
+        val table = onNodeOfType<JTable>().fetch()
         assertSame(model, table.model, "the caller-supplied model should back the table as-is")
         assertEquals(3, table.rowCount, "all rows should render")
         assertEquals("Ada", table.getValueAt(0, 0), "cell (0,0) should render the model value")
@@ -47,13 +45,12 @@ class TableModelBehaviorTest {
         setContent {
             Table(
                 model = tableModel("Ada", "Alan", "Grace"),
-                modifier = SwingModifier.name("table"),
                 selectionMode = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION,
                 onSelectionChange = { received += it },
             )
         }
 
-        val table = onNodeWithName("table").fetch<JTable>()
+        val table = onNodeOfType<JTable>().fetch()
         table.setRowSelectionInterval(0, 0)
         table.addRowSelectionInterval(2, 2)
         awaitIdle()
@@ -67,12 +64,11 @@ class TableModelBehaviorTest {
         setContent {
             Table(
                 model = model,
-                modifier = SwingModifier.name("table"),
                 selectedRowIndices = listOf(1),
             )
         }
 
-        val table = onNodeWithName("table").fetch<JTable>()
+        val table = onNodeOfType<JTable>().fetch()
         assertEquals(listOf(1), table.selectedRows.toList(), "initial selection applied")
 
         // A model swap runs setModel, which clears selection; the controlled selection must
@@ -92,7 +88,6 @@ class TableModelBehaviorTest {
             val model = remember { tableModel("Ada", "Alan", "Grace") }
             Table(
                 model = model,
-                modifier = SwingModifier.name("table"),
                 selectedRowIndices = selection,
                 onSelectionChange = {
                     received += it
@@ -101,7 +96,7 @@ class TableModelBehaviorTest {
             )
         }
 
-        val table = onNodeWithName("table").fetch<JTable>()
+        val table = onNodeOfType<JTable>().fetch()
         assertEquals(listOf(0), table.selectedRows.toList(), "initial selection applied")
 
         selection = listOf(2)
