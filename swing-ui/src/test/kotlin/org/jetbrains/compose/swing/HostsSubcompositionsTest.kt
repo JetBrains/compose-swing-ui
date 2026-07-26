@@ -6,7 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JComponent
 import javax.swing.JPanel
 import kotlin.test.Test
@@ -29,7 +29,7 @@ class HostsSubcompositionsTest {
     fun childSetContentNestsIntoStampedHostComposition() {
         lateinit var hostPanel: JPanel
 
-        runSwingUiTest {
+        runComposeSwingTest {
             setContent {
                 CompositionLocalProvider(LocalGreeting provides PROVIDED) {
                     SwingNode(
@@ -69,7 +69,7 @@ class HostsSubcompositionsTest {
     fun stampIsClearedWhenHostNodeLeavesComposition() {
         lateinit var hostPanel: JPanel
 
-        runSwingUiTest {
+        runComposeSwingTest {
             var present by mutableStateOf(true)
             setContent {
                 if (present) {

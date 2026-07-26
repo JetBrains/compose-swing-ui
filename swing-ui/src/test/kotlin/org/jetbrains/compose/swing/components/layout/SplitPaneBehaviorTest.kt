@@ -6,9 +6,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.test.SwingUiTest
+import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.onNodeOfType
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JSplitPane
 import kotlin.test.Test
 import kotlin.test.assertContains
@@ -24,10 +24,10 @@ import kotlin.test.assertSame
  * fires the callback.
  */
 class SplitPaneBehaviorTest {
-    private fun SwingUiTest.splitPane(): JSplitPane = onNodeOfType<JSplitPane>().fetch()
+    private fun ComposeSwingTest.splitPane(): JSplitPane = onNodeOfType<JSplitPane>().fetch()
 
     @Test
-    fun declaredSidesBecomeTheLeftAndRightComponents() = runSwingUiTest {
+    fun declaredSidesBecomeTheLeftAndRightComponents() = runComposeSwingTest {
         setContent {
             SplitPane(orientation = JSplitPane.HORIZONTAL_SPLIT) {
                 first { Label(text = "Leading") }
@@ -48,7 +48,7 @@ class SplitPaneBehaviorTest {
     }
 
     @Test
-    fun droppingASideClearsThatSplitPaneComponent() = runSwingUiTest {
+    fun droppingASideClearsThatSplitPaneComponent() = runComposeSwingTest {
         var showSecond by mutableStateOf(true)
         setContent {
             SplitPane {
@@ -76,7 +76,7 @@ class SplitPaneBehaviorTest {
     }
 
     @Test
-    fun swappingASideUpdatesThatComponentInPlace() = runSwingUiTest {
+    fun swappingASideUpdatesThatComponentInPlace() = runComposeSwingTest {
         var flag by mutableStateOf(true)
         setContent {
             SplitPane {
@@ -103,7 +103,7 @@ class SplitPaneBehaviorTest {
     }
 
     @Test
-    fun orientationMapsThrough() = runSwingUiTest {
+    fun orientationMapsThrough() = runComposeSwingTest {
         var orientation by mutableStateOf(JSplitPane.HORIZONTAL_SPLIT)
         setContent {
             SplitPane(orientation = orientation) {
@@ -125,7 +125,7 @@ class SplitPaneBehaviorTest {
     }
 
     @Test
-    fun resizeWeightMapsThrough() = runSwingUiTest {
+    fun resizeWeightMapsThrough() = runComposeSwingTest {
         setContent {
             SplitPane(resizeWeight = 0.25) {
                 first { Label(text = "A") }
@@ -137,7 +137,7 @@ class SplitPaneBehaviorTest {
     }
 
     @Test
-    fun dividerLocationIsControlled() = runSwingUiTest {
+    fun dividerLocationIsControlled() = runComposeSwingTest {
         var location by mutableIntStateOf(120)
         setContent {
             SplitPane(dividerLocation = location) {
@@ -155,7 +155,7 @@ class SplitPaneBehaviorTest {
     }
 
     @Test
-    fun defaultDividerLocationDoesNotFightAUserDrag() = runSwingUiTest {
+    fun defaultDividerLocationDoesNotFightAUserDrag() = runComposeSwingTest {
         val reported = mutableListOf<Int>()
         var firstLabel by mutableStateOf("A")
         setContent {
@@ -180,7 +180,7 @@ class SplitPaneBehaviorTest {
     }
 
     @Test
-    fun aNegativeDividerLocationAppliesTheDocumentedReset() = runSwingUiTest {
+    fun aNegativeDividerLocationAppliesTheDocumentedReset() = runComposeSwingTest {
         val reported = mutableListOf<Int>()
         var location by mutableIntStateOf(200)
         setContent {
@@ -209,7 +209,7 @@ class SplitPaneBehaviorTest {
     }
 
     @Test
-    fun userDraggingTheDividerFiresOnDividerLocationChange() = runSwingUiTest {
+    fun userDraggingTheDividerFiresOnDividerLocationChange() = runComposeSwingTest {
         val reported = mutableListOf<Int>()
         var location by mutableIntStateOf(100)
         setContent {

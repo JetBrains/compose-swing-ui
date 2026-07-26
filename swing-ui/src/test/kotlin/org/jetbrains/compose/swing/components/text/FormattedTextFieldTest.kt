@@ -6,7 +6,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JFormattedTextField
 import javax.swing.text.DefaultFormatterFactory
 import javax.swing.text.NumberFormatter
@@ -29,7 +29,7 @@ class FormattedTextFieldTest {
     }
 
     @Test
-    fun rendersCommittedValueFormattedIntoText() = runSwingUiTest {
+    fun rendersCommittedValueFormattedIntoText() = runComposeSwingTest {
         setContent {
             FormattedTextField(
                 value = 42,
@@ -43,7 +43,7 @@ class FormattedTextFieldTest {
     }
 
     @Test
-    fun committingValidEditFiresOnValueChangeWithParsedValue() = runSwingUiTest {
+    fun committingValidEditFiresOnValueChangeWithParsedValue() = runComposeSwingTest {
         var value by mutableStateOf(1 as Any?)
         val reported = mutableListOf<Any?>()
         setContent {
@@ -67,7 +67,7 @@ class FormattedTextFieldTest {
     }
 
     @Test
-    fun invalidEditIsNotCommittedAndProducesNoCallback() = runSwingUiTest {
+    fun invalidEditIsNotCommittedAndProducesNoCallback() = runComposeSwingTest {
         var value by mutableStateOf(7 as Any?)
         val reported = mutableListOf<Any?>()
         setContent {
@@ -92,7 +92,7 @@ class FormattedTextFieldTest {
     }
 
     @Test
-    fun externalValueChangeReflectsIntoTheField() = runSwingUiTest {
+    fun externalValueChangeReflectsIntoTheField() = runComposeSwingTest {
         var value by mutableStateOf(1 as Any?)
         setContent {
             FormattedTextField(
@@ -111,7 +111,7 @@ class FormattedTextFieldTest {
     }
 
     @Test
-    fun writingValueBackInCallbackDoesNotLoop() = runSwingUiTest {
+    fun writingValueBackInCallbackDoesNotLoop() = runComposeSwingTest {
         var value by mutableStateOf(0 as Any?)
         val reported = mutableListOf<Any?>()
         setContent {
@@ -137,7 +137,7 @@ class FormattedTextFieldTest {
     }
 
     @Test
-    fun focusLostBehaviorIsApplied() = runSwingUiTest {
+    fun focusLostBehaviorIsApplied() = runComposeSwingTest {
         setContent {
             FormattedTextField(
                 value = 3,
@@ -151,7 +151,7 @@ class FormattedTextFieldTest {
     }
 
     @Test
-    fun nullValueRendersEmptyAndDefaultFactoryFormatsByType() = runSwingUiTest {
+    fun nullValueRendersEmptyAndDefaultFactoryFormatsByType() = runComposeSwingTest {
         setContent {
             FormattedTextField(value = null, modifier = SwingModifier.testTag("amount"))
         }

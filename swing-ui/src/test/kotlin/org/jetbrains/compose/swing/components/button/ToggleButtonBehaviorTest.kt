@@ -4,9 +4,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.test.SwingUiTest
+import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.onNodeOfType
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.image.BufferedImage
 import javax.swing.ImageIcon
 import javax.swing.JToggleButton
@@ -25,17 +25,17 @@ import kotlin.test.assertTrue
  * pressed-state update applies without echoing back as a spurious callback.
  */
 class ToggleButtonBehaviorTest {
-    private fun SwingUiTest.toggle(): JToggleButton = onNodeOfType<JToggleButton>().fetch()
+    private fun ComposeSwingTest.toggle(): JToggleButton = onNodeOfType<JToggleButton>().fetch()
 
     @Test
-    fun textRendersOntoTheButton() = runSwingUiTest {
+    fun textRendersOntoTheButton() = runComposeSwingTest {
         setContent { ToggleButton(text = "Bold") }
 
         assertEquals("Bold", toggle().text)
     }
 
     @Test
-    fun clickingTogglesAndReportsTheNewState() = runSwingUiTest {
+    fun clickingTogglesAndReportsTheNewState() = runComposeSwingTest {
         var pressed by mutableStateOf(false)
         val received = mutableListOf<Boolean>()
         setContent {
@@ -62,7 +62,7 @@ class ToggleButtonBehaviorTest {
     }
 
     @Test
-    fun controlledPressedStateAppliesWithoutCallback() = runSwingUiTest {
+    fun controlledPressedStateAppliesWithoutCallback() = runComposeSwingTest {
         var pressed by mutableStateOf(false)
         val received = mutableListOf<Boolean>()
         setContent {
@@ -82,7 +82,7 @@ class ToggleButtonBehaviorTest {
     }
 
     @Test
-    fun iconRendersOntoTheButton() = runSwingUiTest {
+    fun iconRendersOntoTheButton() = runComposeSwingTest {
         val icon = ImageIcon(BufferedImage(4, 4, BufferedImage.TYPE_INT_ARGB))
         setContent { ToggleButton(text = "Star", icon = icon) }
 

@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.onNodeOfType
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JTextField
 import kotlin.coroutines.coroutineContext
 import kotlin.test.Test
@@ -22,7 +22,7 @@ import kotlin.test.assertTrue
  */
 class TextFieldStateTest {
     @Test
-    fun typingIntoFieldUpdatesStateText() = runSwingUiTest {
+    fun typingIntoFieldUpdatesStateText() = runComposeSwingTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState()
@@ -37,7 +37,7 @@ class TextFieldStateTest {
     }
 
     @Test
-    fun editAppendUpdatesRealizedField() = runSwingUiTest {
+    fun editAppendUpdatesRealizedField() = runComposeSwingTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState("ab")
@@ -53,7 +53,7 @@ class TextFieldStateTest {
     }
 
     @Test
-    fun assigningTextReplacesFieldContentAtMinimalSpan() = runSwingUiTest {
+    fun assigningTextReplacesFieldContentAtMinimalSpan() = runComposeSwingTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState("hello")
@@ -68,7 +68,7 @@ class TextFieldStateTest {
     }
 
     @Test
-    fun settingSelectionMovesTheCaret() = runSwingUiTest {
+    fun settingSelectionMovesTheCaret() = runComposeSwingTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState("hello world")
@@ -85,7 +85,7 @@ class TextFieldStateTest {
     }
 
     @Test
-    fun movingCaretUpdatesStateSelection() = runSwingUiTest {
+    fun movingCaretUpdatesStateSelection() = runComposeSwingTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState("hello world")
@@ -100,7 +100,7 @@ class TextFieldStateTest {
     }
 
     @Test
-    fun clearTextEmptiesTheField() = runSwingUiTest {
+    fun clearTextEmptiesTheField() = runComposeSwingTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState("something")
@@ -116,7 +116,7 @@ class TextFieldStateTest {
     }
 
     @Test
-    fun setTextAndPlaceCaretAtEndPlacesCaret() = runSwingUiTest {
+    fun setTextAndPlaceCaretAtEndPlacesCaret() = runComposeSwingTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState()
@@ -133,7 +133,7 @@ class TextFieldStateTest {
     }
 
     @Test
-    fun undoAndRedoRevertAndReapplyAnEdit() = runSwingUiTest {
+    fun undoAndRedoRevertAndReapplyAnEdit() = runComposeSwingTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState("base")
@@ -159,7 +159,7 @@ class TextFieldStateTest {
     }
 
     @Test
-    fun assigningTextUndoesAsOneStep() = runSwingUiTest {
+    fun assigningTextUndoesAsOneStep() = runComposeSwingTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState("hello")
@@ -180,7 +180,7 @@ class TextFieldStateTest {
     }
 
     @Test
-    fun multiPrimitiveEditUndoesAsOneStep() = runSwingUiTest {
+    fun multiPrimitiveEditUndoesAsOneStep() = runComposeSwingTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState("hello")
@@ -203,7 +203,7 @@ class TextFieldStateTest {
     }
 
     @Test
-    fun editBufferSupportsAllPrimitivesAndCaretPlacement() = runSwingUiTest {
+    fun editBufferSupportsAllPrimitivesAndCaretPlacement() = runComposeSwingTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState("0123456789")
@@ -226,7 +226,7 @@ class TextFieldStateTest {
     }
 
     @Test
-    fun editBufferSetTextReplacesWholeContent() = runSwingUiTest {
+    fun editBufferSetTextReplacesWholeContent() = runComposeSwingTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState("old")
@@ -242,7 +242,7 @@ class TextFieldStateTest {
     }
 
     @Test
-    fun editSelectAllSelectsWholeDocument() = runSwingUiTest {
+    fun editSelectAllSelectsWholeDocument() = runComposeSwingTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState("abcde")
@@ -258,7 +258,7 @@ class TextFieldStateTest {
     }
 
     @Test
-    fun textAsFlowEmitsCurrentTextAndSubsequentEdits() = runSwingUiTest {
+    fun textAsFlowEmitsCurrentTextAndSubsequentEdits() = runComposeSwingTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState("one")

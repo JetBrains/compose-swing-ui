@@ -1,12 +1,12 @@
 package org.jetbrains.compose.swing.samples.widgets
 
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import kotlin.test.Test
 
 class RichTextSectionTest {
     @Test
     fun theEditorPaneTogglesItsRenderedContentType() =
-        runSwingUiTest {
+        runComposeSwingTest {
             openSection("Rich text")
 
             onNodeWithText("Rendered as plain text", substring = true).assertExists()
@@ -19,7 +19,7 @@ class RichTextSectionTest {
 
     @Test
     fun theTextPaneEchoesItsInitialLength() =
-        runSwingUiTest {
+        runComposeSwingTest {
             openSection("Rich text")
 
             val seeded = "A styled-document editor.\nType here."

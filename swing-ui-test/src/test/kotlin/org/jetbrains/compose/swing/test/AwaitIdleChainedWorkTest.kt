@@ -9,7 +9,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * Proves [SwingUiTest.awaitIdle] awaits chained EDT-deferred work, not just a fixed number of drains.
+ * Proves [ComposeSwingTest.awaitIdle] awaits chained EDT-deferred work, not just a fixed number of drains.
  *
  * The idle gate settles the composition and then drains the event-dispatch queue until it is
  * genuinely empty. A task run by one drain may schedule further `invokeLater` work, and the final
@@ -20,12 +20,12 @@ import kotlin.test.assertEquals
  */
 class AwaitIdleChainedWorkTest {
     @Test
-    fun awaitIdleRunsAChainOfDeferredRunnablesToItsEnd() = runSwingUiTest {
+    fun awaitIdleRunsAChainOfDeferredRunnablesToItsEnd() = runComposeSwingTest {
         setContent { Label(text = "root") }
 
         // A deep chain of invokeLater hops, each scheduling the next; only the last mutates state.
         // No compose input changes until then, so the composition stays quiescent throughout and the
-        // gate can return only once the queue drains empty — which requires every hop to have run.
+        // gate can return only once the queue drains empty - which requires every hop to have run.
         val landed = intArrayOf(0)
 
         fun hop(remaining: Int) {
@@ -47,7 +47,7 @@ class AwaitIdleChainedWorkTest {
     }
 
     @Test
-    fun awaitIdleRecomposesWhenTheChainEndsInAStateWrite() = runSwingUiTest {
+    fun awaitIdleRecomposesWhenTheChainEndsInAStateWrite() = runComposeSwingTest {
         var ready by mutableStateOf(false)
         setContent {
             Label(text = "host")
@@ -56,7 +56,7 @@ class AwaitIdleChainedWorkTest {
         onNodeWithText("chained-done").assertDoesNotExist()
 
         // The final hop flips a composition input. The drain loop runs the chain to completion, the
-        // resulting snapshot write revives recomposition, and the outer frame loop recomposes — so the
+        // resulting snapshot write revives recomposition, and the outer frame loop recomposes - so the
         // conditionally-added label is present once awaitIdle returns.
 
         fun hop(remaining: Int) {

@@ -4,7 +4,7 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.BoxPanel
 import org.jetbrains.compose.swing.test.onAllNodesOfType
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Color
 import java.awt.image.BufferedImage
 import javax.swing.JButton
@@ -16,7 +16,7 @@ import kotlin.test.assertTrue
 
 class ScreenshotTest {
     @Test
-    fun captureProducesImageSizedToComponent() = runSwingUiTest {
+    fun captureProducesImageSizedToComponent() = runComposeSwingTest {
         setContent { Button(text = "OK", onClick = {}) }
 
         val node = onNodeWithText("OK")
@@ -29,7 +29,7 @@ class ScreenshotTest {
     }
 
     @Test
-    fun captureToImagesProducesOneImagePerMatchedComponent() = runSwingUiTest {
+    fun captureToImagesProducesOneImagePerMatchedComponent() = runComposeSwingTest {
         setContent {
             BoxPanel {
                 Button(text = "First", onClick = {})
@@ -55,7 +55,7 @@ class ScreenshotTest {
     }
 
     @Test
-    fun rootCaptureMatchesRootSize() = runSwingUiTest {
+    fun rootCaptureMatchesRootSize() = runComposeSwingTest {
         setContent { Label(text = "hi") }
 
         val image = captureToImage()
@@ -64,7 +64,7 @@ class ScreenshotTest {
     }
 
     @Test
-    fun captureMatchesItselfExactly() = runSwingUiTest {
+    fun captureMatchesItselfExactly() = runComposeSwingTest {
         setContent { Button(text = "Click me", onClick = {}) }
 
         val image = onNodeWithText("Click me").captureToImage()
@@ -75,7 +75,7 @@ class ScreenshotTest {
     }
 
     @Test
-    fun captureMatchesItselfStructurally() = runSwingUiTest {
+    fun captureMatchesItselfStructurally() = runComposeSwingTest {
         setContent { Button(text = "Click me", onClick = {}) }
 
         val image = onNodeWithText("Click me").captureToImage()
@@ -84,7 +84,7 @@ class ScreenshotTest {
     }
 
     @Test
-    fun smallElementMoveStillPassesDefaultThreshold() = runSwingUiTest {
+    fun smallElementMoveStillPassesDefaultThreshold() = runComposeSwingTest {
         val expected = renderWithElementAt(elementX = ELEMENT_X)
         val nudged = renderWithElementAt(elementX = ELEMENT_X + NUDGE_PIXELS)
 
@@ -93,7 +93,7 @@ class ScreenshotTest {
     }
 
     @Test
-    fun clearlyDifferentImageFails() = runSwingUiTest {
+    fun clearlyDifferentImageFails() = runComposeSwingTest {
         setContent { Button(text = "Click me", onClick = {}) }
 
         val image = onNodeWithText("Click me").captureToImage()
@@ -105,7 +105,7 @@ class ScreenshotTest {
     }
 
     @Test
-    fun sizeMismatchFails() = runSwingUiTest {
+    fun sizeMismatchFails() = runComposeSwingTest {
         setContent { Label(text = "hi") }
 
         val image = onNodeWithText("hi").captureToImage()
@@ -134,7 +134,7 @@ class ScreenshotTest {
     }
 
     @Test
-    fun invalidGoldenIdentifierIsRejected() = runSwingUiTest {
+    fun invalidGoldenIdentifierIsRejected() = runComposeSwingTest {
         setContent { Label(text = "hi") }
 
         val image = onNodeWithText("hi").captureToImage()
@@ -144,7 +144,7 @@ class ScreenshotTest {
     }
 
     @Test
-    fun missingGoldenWithoutUpdateFails() = runSwingUiTest {
+    fun missingGoldenWithoutUpdateFails() = runComposeSwingTest {
         setContent { Label(text = "hi") }
 
         val image = onNodeWithText("hi").captureToImage()

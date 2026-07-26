@@ -10,7 +10,7 @@ import org.jetbrains.compose.swing.components.button.RadioButton
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JCheckBox
 import javax.swing.JComboBox
 import javax.swing.JRadioButton
@@ -27,7 +27,7 @@ import kotlin.test.assertTrue
  */
 class SelectionComponentsTest {
     @Test
-    fun checkBoxRendersTextAndCheckedState() = runSwingUiTest {
+    fun checkBoxRendersTextAndCheckedState() = runComposeSwingTest {
         setContent {
             CheckBox(modifier = SwingModifier.name("cb"), text = "Agree", checked = true)
         }
@@ -37,7 +37,7 @@ class SelectionComponentsTest {
     }
 
     @Test
-    fun clickingCheckBoxFiresOnCheckedChangeWithNewState() = runSwingUiTest {
+    fun clickingCheckBoxFiresOnCheckedChangeWithNewState() = runComposeSwingTest {
         var checked by mutableStateOf(false)
         val reported = mutableListOf<Boolean>()
         setContent {
@@ -61,7 +61,7 @@ class SelectionComponentsTest {
     }
 
     @Test
-    fun checkBoxReflectsStateDrivenRecomposition() = runSwingUiTest {
+    fun checkBoxReflectsStateDrivenRecomposition() = runComposeSwingTest {
         var checked by mutableStateOf(false)
         setContent { CheckBox(text = "Agree", modifier = SwingModifier.name("cb"), checked = checked) }
         assertFalse(onNodeWithName("cb").fetch<JCheckBox>().isSelected, "the checkbox should start unchecked")
@@ -75,7 +75,7 @@ class SelectionComponentsTest {
     }
 
     @Test
-    fun radioButtonRendersTextAndSelectedState() = runSwingUiTest {
+    fun radioButtonRendersTextAndSelectedState() = runComposeSwingTest {
         setContent {
             RadioButton(modifier = SwingModifier.name("rb"), text = "Option A", selected = true)
         }
@@ -85,7 +85,7 @@ class SelectionComponentsTest {
     }
 
     @Test
-    fun clickingUnselectedRadioButtonFiresOnSelect() = runSwingUiTest {
+    fun clickingUnselectedRadioButtonFiresOnSelect() = runComposeSwingTest {
         var selectCount = 0
         setContent {
             RadioButton(
@@ -102,7 +102,7 @@ class SelectionComponentsTest {
     }
 
     @Test
-    fun comboBoxRendersItemsAndSelectedIndex() = runSwingUiTest {
+    fun comboBoxRendersItemsAndSelectedIndex() = runComposeSwingTest {
         setContent {
             ComboBox(
                 items = listOf("Red", "Green", "Blue"),
@@ -119,7 +119,7 @@ class SelectionComponentsTest {
     }
 
     @Test
-    fun changingComboBoxSelectionFiresOnSelectionChangeExactlyOnce() = runSwingUiTest {
+    fun changingComboBoxSelectionFiresOnSelectionChangeExactlyOnce() = runComposeSwingTest {
         var selectedIndex by mutableIntStateOf(0)
         val reported = mutableListOf<Int>()
         setContent {
@@ -148,7 +148,7 @@ class SelectionComponentsTest {
     }
 
     @Test
-    fun comboBoxItemsRebuildDoesNotFireOnSelectionChange() = runSwingUiTest {
+    fun comboBoxItemsRebuildDoesNotFireOnSelectionChange() = runComposeSwingTest {
         var items by mutableStateOf(listOf("Red", "Green", "Blue"))
         val reported = mutableListOf<Int>()
         setContent {
@@ -167,7 +167,7 @@ class SelectionComponentsTest {
     }
 
     @Test
-    fun comboBoxItemsRebuildPreservesDeclaredSelection() = runSwingUiTest {
+    fun comboBoxItemsRebuildPreservesDeclaredSelection() = runComposeSwingTest {
         var items by mutableStateOf(listOf("Red", "Green", "Blue"))
         setContent {
             ComboBox(items = items, modifier = SwingModifier.name("combo"), selectedIndex = 1)
@@ -186,7 +186,7 @@ class SelectionComponentsTest {
     }
 
     @Test
-    fun comboBoxSelectedIndexMinusOneDeselects() = runSwingUiTest {
+    fun comboBoxSelectedIndexMinusOneDeselects() = runComposeSwingTest {
         var selectedIndex by mutableIntStateOf(1)
         setContent {
             ComboBox(
@@ -209,7 +209,7 @@ class SelectionComponentsTest {
     }
 
     @Test
-    fun comboBoxRebuildsItemsOnRecomposition() = runSwingUiTest {
+    fun comboBoxRebuildsItemsOnRecomposition() = runComposeSwingTest {
         var items by mutableStateOf(listOf("A", "B"))
         setContent {
             ComboBox(items = items, modifier = SwingModifier.name("combo"), selectedIndex = 0)

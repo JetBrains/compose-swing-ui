@@ -4,38 +4,25 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.test.SwingUiTest
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.interaction.onParent
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.BorderLayout
-import java.awt.Component
 import javax.swing.JPanel
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 /**
  * Behavioral tests for the [BorderPanel] scope-based DSL.
  *
  * Every assertion reads the real AWT tree: each region's child must be attached to the panel's
- * [BorderLayout] under the matching constraint string ([BorderLayout.getConstraints]). The two
- * families — absolute compass (`north`/`south`/`east`/`west`/`center`) and orientation-aware
- * (`pageStart`/`pageEnd`/`lineStart`/`lineEnd`) — both map onto their own BorderLayout fields, so the
+ * [BorderLayout] under the matching constraint. The two families - absolute compass
+ * (`north`/`south`/`east`/`west`/`center`) and orientation-aware
+ * (`pageStart`/`pageEnd`/`lineStart`/`lineEnd`) - both map onto their own BorderLayout fields, so the
  * tests confirm the constraint Swing actually recorded rather than any internal slot bookkeeping.
  */
 class BorderPanelDslTest {
-    /** Resolves the single component with [text], failing with a tree dump otherwise. */
-    private fun SwingUiTest.componentWithText(text: String): Component = onNodeWithText(text).fetch<Component>()
-
-    /** The [BorderLayout] constraint [text]'s component was added with, read from its parent panel. */
-    private fun SwingUiTest.constraintOf(text: String): Any? {
-        val component = componentWithText(text)
-        val parent = component.parent as JPanel
-        return (parent.layout as BorderLayout).getConstraints(component)
-    }
-
     @Test
-    fun eachCompassRegionPlacesItsChildAtTheMatchingConstraint() = runSwingUiTest {
+    fun eachCompassRegionPlacesItsChildAtTheMatchingConstraint() = runComposeSwingTest {
         setContent {
             BorderPanel {
                 north { Label(text = "N") }
@@ -46,15 +33,15 @@ class BorderPanelDslTest {
             }
         }
 
-        assertEquals(BorderLayout.NORTH, constraintOf("N"), "the north region should place its child at NORTH")
-        assertEquals(BorderLayout.SOUTH, constraintOf("S"), "the south region should place its child at SOUTH")
-        assertEquals(BorderLayout.EAST, constraintOf("E"), "the east region should place its child at EAST")
-        assertEquals(BorderLayout.WEST, constraintOf("W"), "the west region should place its child at WEST")
-        assertEquals(BorderLayout.CENTER, constraintOf("C"), "the center region should place its child at CENTER")
+        onNodeWithText("N").assertLayoutConstraint(BorderLayout.NORTH)
+        onNodeWithText("S").assertLayoutConstraint(BorderLayout.SOUTH)
+        onNodeWithText("E").assertLayoutConstraint(BorderLayout.EAST)
+        onNodeWithText("W").assertLayoutConstraint(BorderLayout.WEST)
+        onNodeWithText("C").assertLayoutConstraint(BorderLayout.CENTER)
     }
 
     @Test
-    fun eachOrientationAwareRegionPlacesItsChildAtTheMatchingConstraint() = runSwingUiTest {
+    fun eachOrientationAwareRegionPlacesItsChildAtTheMatchingConstraint() = runComposeSwingTest {
         setContent {
             BorderPanel {
                 pageStart { Label(text = "PS") }
@@ -65,15 +52,15 @@ class BorderPanelDslTest {
             }
         }
 
-        assertEquals(BorderLayout.PAGE_START, constraintOf("PS"), "pageStart should place its child at PAGE_START")
-        assertEquals(BorderLayout.PAGE_END, constraintOf("PE"), "pageEnd should place its child at PAGE_END")
-        assertEquals(BorderLayout.LINE_START, constraintOf("LS"), "lineStart should place its child at LINE_START")
-        assertEquals(BorderLayout.LINE_END, constraintOf("LE"), "lineEnd should place its child at LINE_END")
-        assertEquals(BorderLayout.CENTER, constraintOf("C"), "the center region should place its child at CENTER")
+        onNodeWithText("PS").assertLayoutConstraint(BorderLayout.PAGE_START)
+        onNodeWithText("PE").assertLayoutConstraint(BorderLayout.PAGE_END)
+        onNodeWithText("LS").assertLayoutConstraint(BorderLayout.LINE_START)
+        onNodeWithText("LE").assertLayoutConstraint(BorderLayout.LINE_END)
+        onNodeWithText("C").assertLayoutConstraint(BorderLayout.CENTER)
     }
 
     @Test
-    fun redeclaringARegionReplacesItsChildWithTheLastDeclaration() = runSwingUiTest {
+    fun redeclaringARegionReplacesItsChildWithTheLastDeclaration() = runComposeSwingTest {
         setContent {
             BorderPanel {
                 north { Label(text = "first") }
@@ -82,13 +69,12 @@ class BorderPanelDslTest {
         }
 
         // The last declaration wins: only "second" is attached, at NORTH; "first" never appears.
-        assertEquals(BorderLayout.NORTH, constraintOf("second"))
         onNodeWithText("first").assertDoesNotExist()
-        onNodeWithText("second").assertExists()
+        onNodeWithText("second").assertLayoutConstraint(BorderLayout.NORTH)
     }
 
     @Test
-    fun droppingARegionClearsItsChildWhileSiblingsKeepTheirConstraints() = runSwingUiTest {
+    fun droppingARegionClearsItsChildWhileSiblingsKeepTheirConstraints() = runComposeSwingTest {
         var showNorth by mutableStateOf(true)
         setContent {
             BorderPanel {
@@ -99,8 +85,9 @@ class BorderPanelDslTest {
             }
         }
 
-        assertEquals(BorderLayout.NORTH, constraintOf("N"), "the north child should start at NORTH")
-        assertEquals(BorderLayout.CENTER, constraintOf("C"), "the center child should start at CENTER")
+        val center = onNodeWithText("C")
+        onNodeWithText("N").assertLayoutConstraint(BorderLayout.NORTH)
+        center.assertLayoutConstraint(BorderLayout.CENTER)
 
         showNorth = false
         awaitIdle()
@@ -108,9 +95,8 @@ class BorderPanelDslTest {
         // The dropped region's child is gone and the panel no longer reports a NORTH child; the
         // surviving CENTER child keeps its constraint.
         onNodeWithText("N").assertDoesNotExist()
-        assertEquals(BorderLayout.CENTER, constraintOf("C"), "the surviving center child should keep its constraint")
-        val panel = componentWithText("C").parent as JPanel
-        val layout = panel.layout as BorderLayout
+        center.assertLayoutConstraint(BorderLayout.CENTER)
+        val layout = center.onParent().fetch<JPanel>().layout as BorderLayout
         assertNull(
             layout.getLayoutComponent(BorderLayout.NORTH),
             "NORTH region still holds a child after the region was dropped",
@@ -118,7 +104,7 @@ class BorderPanelDslTest {
     }
 
     @Test
-    fun swappingARegionsChildKeepsItAttachedAtTheSameConstraint() = runSwingUiTest {
+    fun swappingARegionsChildKeepsItAttachedAtTheSameConstraint() = runComposeSwingTest {
         var flag by mutableStateOf(true)
         setContent {
             BorderPanel {
@@ -128,12 +114,12 @@ class BorderPanelDslTest {
             }
         }
 
-        assertEquals(BorderLayout.CENTER, constraintOf("First"), "the first child should sit at CENTER")
+        onNodeWithText("First").assertLayoutConstraint(BorderLayout.CENTER)
 
         flag = false
         awaitIdle()
 
         onNodeWithText("First").assertDoesNotExist()
-        assertEquals(BorderLayout.CENTER, constraintOf("Second"), "the swapped child should stay at CENTER")
+        onNodeWithText("Second").assertLayoutConstraint(BorderLayout.CENTER)
     }
 }

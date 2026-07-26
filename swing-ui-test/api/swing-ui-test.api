@@ -1,78 +1,124 @@
+public abstract interface class org/jetbrains/compose/swing/test/ComposeSwingTest {
+	public abstract fun awaitEventsDelivered (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun awaitIdle (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun getRoot ()Ljava/awt/Container;
+	public abstract fun onAllNodes (Lorg/jetbrains/compose/swing/test/SwingMatcher;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;
+	public abstract fun onAllNodesWithTag (Ljava/lang/String;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;
+	public abstract fun onAllNodesWithText (Ljava/lang/String;Z)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;
+	public static synthetic fun onAllNodesWithText$default (Lorg/jetbrains/compose/swing/test/ComposeSwingTest;Ljava/lang/String;ZILjava/lang/Object;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;
+	public abstract fun onAllWindows (Lorg/jetbrains/compose/swing/test/SwingMatcher;)Lorg/jetbrains/compose/swing/test/interaction/SwingWindowInteractionCollection;
+	public abstract fun onNode (Lorg/jetbrains/compose/swing/test/SwingMatcher;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
+	public abstract fun onNodeWithName (Ljava/lang/String;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
+	public abstract fun onNodeWithTag (Ljava/lang/String;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
+	public abstract fun onNodeWithText (Ljava/lang/String;Z)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
+	public static synthetic fun onNodeWithText$default (Lorg/jetbrains/compose/swing/test/ComposeSwingTest;Ljava/lang/String;ZILjava/lang/Object;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
+	public abstract fun onRoot ()Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
+	public abstract fun onWindow (Lorg/jetbrains/compose/swing/test/SwingMatcher;)Lorg/jetbrains/compose/swing/test/interaction/SwingWindowInteraction;
+	public abstract fun setContent (Lkotlin/jvm/functions/Function2;)V
+	public abstract fun waitUntil (JLkotlin/jvm/functions/Function0;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun waitUntil$default (Lorg/jetbrains/compose/swing/test/ComposeSwingTest;JLkotlin/jvm/functions/Function0;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+}
+
+public final class org/jetbrains/compose/swing/test/ComposeSwingTestKt {
+	public static final fun onAllWindows (Lorg/jetbrains/compose/swing/test/ComposeSwingTest;)Lorg/jetbrains/compose/swing/test/interaction/SwingWindowInteractionCollection;
+	public static final fun onWindow (Lorg/jetbrains/compose/swing/test/ComposeSwingTest;)Lorg/jetbrains/compose/swing/test/interaction/SwingWindowInteraction;
+	public static final fun onWindowWithTitle (Lorg/jetbrains/compose/swing/test/ComposeSwingTest;Ljava/lang/String;)Lorg/jetbrains/compose/swing/test/interaction/SwingWindowInteraction;
+	public static final fun runComposeSwingTest-8Mi8wO0 (Ljava/awt/Dimension;JLkotlin/jvm/functions/Function2;)V
+	public static synthetic fun runComposeSwingTest-8Mi8wO0$default (Ljava/awt/Dimension;JLkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
+}
+
 public final class org/jetbrains/compose/swing/test/SwingMatcher {
 	public static final field $stable I
 	public static final field Companion Lorg/jetbrains/compose/swing/test/SwingMatcher$Companion;
 	public final fun and (Lorg/jetbrains/compose/swing/test/SwingMatcher;)Lorg/jetbrains/compose/swing/test/SwingMatcher;
 	public final fun getDescription ()Ljava/lang/String;
 	public final fun matches (Ljava/awt/Component;)Z
+	public final fun not ()Lorg/jetbrains/compose/swing/test/SwingMatcher;
+	public final fun or (Lorg/jetbrains/compose/swing/test/SwingMatcher;)Lorg/jetbrains/compose/swing/test/SwingMatcher;
 }
 
 public final class org/jetbrains/compose/swing/test/SwingMatcher$Companion {
 	public final fun hasAccessibleDescription (Ljava/lang/String;)Lorg/jetbrains/compose/swing/test/SwingMatcher;
 	public final fun hasAccessibleName (Ljava/lang/String;)Lorg/jetbrains/compose/swing/test/SwingMatcher;
 	public final fun hasAccessibleRole (Ljavax/accessibility/AccessibleRole;)Lorg/jetbrains/compose/swing/test/SwingMatcher;
+	public final fun hasAnyAncestor (Lorg/jetbrains/compose/swing/test/SwingMatcher;)Lorg/jetbrains/compose/swing/test/SwingMatcher;
+	public final fun hasAnyChild (Lorg/jetbrains/compose/swing/test/SwingMatcher;)Lorg/jetbrains/compose/swing/test/SwingMatcher;
+	public final fun hasAnyDescendant (Lorg/jetbrains/compose/swing/test/SwingMatcher;)Lorg/jetbrains/compose/swing/test/SwingMatcher;
+	public final fun hasAnySibling (Lorg/jetbrains/compose/swing/test/SwingMatcher;)Lorg/jetbrains/compose/swing/test/SwingMatcher;
 	public final fun hasName (Ljava/lang/String;)Lorg/jetbrains/compose/swing/test/SwingMatcher;
+	public final fun hasParent (Lorg/jetbrains/compose/swing/test/SwingMatcher;)Lorg/jetbrains/compose/swing/test/SwingMatcher;
 	public final fun hasTestTag (Ljava/lang/String;)Lorg/jetbrains/compose/swing/test/SwingMatcher;
 	public final fun hasText (Ljava/lang/String;Z)Lorg/jetbrains/compose/swing/test/SwingMatcher;
 	public static synthetic fun hasText$default (Lorg/jetbrains/compose/swing/test/SwingMatcher$Companion;Ljava/lang/String;ZILjava/lang/Object;)Lorg/jetbrains/compose/swing/test/SwingMatcher;
 	public final fun hasTitle (Ljava/lang/String;)Lorg/jetbrains/compose/swing/test/SwingMatcher;
+	public final fun isEditable (Z)Lorg/jetbrains/compose/swing/test/SwingMatcher;
+	public static synthetic fun isEditable$default (Lorg/jetbrains/compose/swing/test/SwingMatcher$Companion;ZILjava/lang/Object;)Lorg/jetbrains/compose/swing/test/SwingMatcher;
 	public final fun isEnabled (Z)Lorg/jetbrains/compose/swing/test/SwingMatcher;
 	public static synthetic fun isEnabled$default (Lorg/jetbrains/compose/swing/test/SwingMatcher$Companion;ZILjava/lang/Object;)Lorg/jetbrains/compose/swing/test/SwingMatcher;
+	public final fun isSelected (Z)Lorg/jetbrains/compose/swing/test/SwingMatcher;
+	public static synthetic fun isSelected$default (Lorg/jetbrains/compose/swing/test/SwingMatcher$Companion;ZILjava/lang/Object;)Lorg/jetbrains/compose/swing/test/SwingMatcher;
 	public final fun ofType (Ljava/lang/Class;)Lorg/jetbrains/compose/swing/test/SwingMatcher;
-}
-
-public abstract interface class org/jetbrains/compose/swing/test/SwingUiTest {
-	public abstract fun awaitIdle (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public abstract fun getRoot ()Ljava/awt/Container;
-	public abstract fun onAllNodes (Lorg/jetbrains/compose/swing/test/SwingMatcher;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;
-	public abstract fun onAllNodesWithTag (Ljava/lang/String;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;
-	public abstract fun onAllNodesWithText (Ljava/lang/String;Z)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;
-	public static synthetic fun onAllNodesWithText$default (Lorg/jetbrains/compose/swing/test/SwingUiTest;Ljava/lang/String;ZILjava/lang/Object;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;
-	public abstract fun onAllWindows (Lorg/jetbrains/compose/swing/test/SwingMatcher;)Lorg/jetbrains/compose/swing/test/interaction/SwingWindowInteractionCollection;
-	public abstract fun onNode (Lorg/jetbrains/compose/swing/test/SwingMatcher;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
-	public abstract fun onNodeWithName (Ljava/lang/String;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
-	public abstract fun onNodeWithTag (Ljava/lang/String;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
-	public abstract fun onNodeWithText (Ljava/lang/String;Z)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
-	public static synthetic fun onNodeWithText$default (Lorg/jetbrains/compose/swing/test/SwingUiTest;Ljava/lang/String;ZILjava/lang/Object;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
-	public abstract fun onRoot ()Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
-	public abstract fun onWindow (Lorg/jetbrains/compose/swing/test/SwingMatcher;)Lorg/jetbrains/compose/swing/test/interaction/SwingWindowInteraction;
-	public abstract fun setContent (Lkotlin/jvm/functions/Function2;)V
-	public abstract fun waitUntil (JLkotlin/jvm/functions/Function0;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public static synthetic fun waitUntil$default (Lorg/jetbrains/compose/swing/test/SwingUiTest;JLkotlin/jvm/functions/Function0;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
-}
-
-public final class org/jetbrains/compose/swing/test/SwingUiTestKt {
-	public static final fun onAllWindows (Lorg/jetbrains/compose/swing/test/SwingUiTest;)Lorg/jetbrains/compose/swing/test/interaction/SwingWindowInteractionCollection;
-	public static final fun onWindow (Lorg/jetbrains/compose/swing/test/SwingUiTest;)Lorg/jetbrains/compose/swing/test/interaction/SwingWindowInteraction;
-	public static final fun onWindowWithTitle (Lorg/jetbrains/compose/swing/test/SwingUiTest;Ljava/lang/String;)Lorg/jetbrains/compose/swing/test/interaction/SwingWindowInteraction;
-	public static final fun runSwingUiTest (Lkotlin/jvm/functions/Function2;)V
 }
 
 public final class org/jetbrains/compose/swing/test/interaction/SwingNodeInteraction {
 	public static final field $stable I
+	public final fun assert (Lorg/jetbrains/compose/swing/test/SwingMatcher;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
 	public final fun assertDoesNotExist ()V
 	public final fun assertExists ()Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
 	public final fun assertIsDisplayed ()Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
 	public final fun assertIsEnabled ()Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
+	public final fun assertIsFocusOwner ()Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
 	public final fun assertIsNotEnabled ()Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
+	public final fun assertIsNotFocusOwner ()Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
+	public final fun assertIsNotVisible ()Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
+	public final fun assertIsVisible ()Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
 	public final fun assertLayoutConstraint (Ljava/lang/Object;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
 	public final fun assertTextEquals (Ljava/lang/String;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
+	public final fun fetch ()Ljava/awt/Component;
 	public final fun getMatcherDescription ()Ljava/lang/String;
 	public final fun performClick (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun performFocusGained (ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun performFocusGained$default (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;ZLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public final fun performFocusLost (ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun performFocusLost$default (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;ZLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public final fun performTabClick (ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun performTextInput (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun performTextReplacement (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun resolve ()Ljava/awt/Component;
+	public final fun retype (Lkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
 }
 
 public final class org/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection {
 	public static final field $stable I
+	public final fun assertAll (Lorg/jetbrains/compose/swing/test/SwingMatcher;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;
+	public final fun assertAny (Lorg/jetbrains/compose/swing/test/SwingMatcher;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;
 	public final fun assertCountEquals (I)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;
+	public final fun fetchAll ()Ljava/util/List;
 	public final fun fetchSize ()I
+	public final fun filter (Lorg/jetbrains/compose/swing/test/SwingMatcher;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;
+	public final fun filterToOne (Lorg/jetbrains/compose/swing/test/SwingMatcher;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
 	public final fun get (I)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
 	public final fun getMatcherDescription ()Ljava/lang/String;
 	public final fun onFirst ()Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
 	public final fun onLast ()Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
 	public final fun resolveAll ()Ljava/util/List;
-	public final fun within (Ljava/awt/Component;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;
+	public final fun retype (Lkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;
+}
+
+public final class org/jetbrains/compose/swing/test/interaction/SwingNodeNavigationKt {
+	public static final fun onAncestors (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;
+	public static final fun onChild (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
+	public static final fun onChildAt (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;I)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
+	public static final fun onChildren (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;
+	public static final fun onDescendants (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;
+	public static final fun onParent (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
+	public static final fun onSibling (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
+	public static final fun onSiblings (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;
+}
+
+public final class org/jetbrains/compose/swing/test/interaction/SwingNodePropertyAssertionKt {
+	public static final fun assertProperty (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/lang/Object;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
+	public static synthetic fun assertProperty$default (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/lang/Object;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
 }
 
 public final class org/jetbrains/compose/swing/test/interaction/SwingWindowInteraction {
@@ -103,23 +149,23 @@ public final class org/jetbrains/compose/swing/test/interaction/SwingWindowInter
 }
 
 public final class org/jetbrains/compose/swing/test/screenshot/GoldenScreenshotKt {
-	public static final fun assertImageAgainstGolden (Lorg/jetbrains/compose/swing/test/SwingUiTest;Ljava/awt/image/BufferedImage;Ljava/lang/String;D)V
-	public static final fun assertImageAgainstGolden (Lorg/jetbrains/compose/swing/test/SwingUiTest;Ljava/lang/String;D)V
+	public static final fun assertImageAgainstGolden (Lorg/jetbrains/compose/swing/test/ComposeSwingTest;Ljava/awt/image/BufferedImage;Ljava/lang/String;D)V
+	public static final fun assertImageAgainstGolden (Lorg/jetbrains/compose/swing/test/ComposeSwingTest;Ljava/lang/String;D)V
 	public static final fun assertImageAgainstGolden (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/lang/String;D)V
-	public static synthetic fun assertImageAgainstGolden$default (Lorg/jetbrains/compose/swing/test/SwingUiTest;Ljava/awt/image/BufferedImage;Ljava/lang/String;DILjava/lang/Object;)V
-	public static synthetic fun assertImageAgainstGolden$default (Lorg/jetbrains/compose/swing/test/SwingUiTest;Ljava/lang/String;DILjava/lang/Object;)V
+	public static synthetic fun assertImageAgainstGolden$default (Lorg/jetbrains/compose/swing/test/ComposeSwingTest;Ljava/awt/image/BufferedImage;Ljava/lang/String;DILjava/lang/Object;)V
+	public static synthetic fun assertImageAgainstGolden$default (Lorg/jetbrains/compose/swing/test/ComposeSwingTest;Ljava/lang/String;DILjava/lang/Object;)V
 	public static synthetic fun assertImageAgainstGolden$default (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/lang/String;DILjava/lang/Object;)V
-	public static final fun assertImageMatches (Lorg/jetbrains/compose/swing/test/SwingUiTest;Ljava/awt/image/BufferedImage;Ljava/awt/image/BufferedImage;D)V
+	public static final fun assertImageMatches (Lorg/jetbrains/compose/swing/test/ComposeSwingTest;Ljava/awt/image/BufferedImage;Ljava/awt/image/BufferedImage;D)V
 	public static final fun assertImageMatches (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/awt/image/BufferedImage;D)V
-	public static synthetic fun assertImageMatches$default (Lorg/jetbrains/compose/swing/test/SwingUiTest;Ljava/awt/image/BufferedImage;Ljava/awt/image/BufferedImage;DILjava/lang/Object;)V
+	public static synthetic fun assertImageMatches$default (Lorg/jetbrains/compose/swing/test/ComposeSwingTest;Ljava/awt/image/BufferedImage;Ljava/awt/image/BufferedImage;DILjava/lang/Object;)V
 	public static synthetic fun assertImageMatches$default (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/awt/image/BufferedImage;DILjava/lang/Object;)V
-	public static final fun assertImagesPixelPerfect (Lorg/jetbrains/compose/swing/test/SwingUiTest;Ljava/awt/image/BufferedImage;Ljava/awt/image/BufferedImage;I)V
-	public static synthetic fun assertImagesPixelPerfect$default (Lorg/jetbrains/compose/swing/test/SwingUiTest;Ljava/awt/image/BufferedImage;Ljava/awt/image/BufferedImage;IILjava/lang/Object;)V
+	public static final fun assertImagesPixelPerfect (Lorg/jetbrains/compose/swing/test/ComposeSwingTest;Ljava/awt/image/BufferedImage;Ljava/awt/image/BufferedImage;I)V
+	public static synthetic fun assertImagesPixelPerfect$default (Lorg/jetbrains/compose/swing/test/ComposeSwingTest;Ljava/awt/image/BufferedImage;Ljava/awt/image/BufferedImage;IILjava/lang/Object;)V
 }
 
 public final class org/jetbrains/compose/swing/test/screenshot/ScreenshotCaptureKt {
-	public static final fun captureToImage (Ljava/awt/Component;II)Ljava/awt/image/BufferedImage;
-	public static final fun captureToImage (Lorg/jetbrains/compose/swing/test/SwingUiTest;)Ljava/awt/image/BufferedImage;
+	public static final fun captureToImage (Ljava/awt/Component;)Ljava/awt/image/BufferedImage;
+	public static final fun captureToImage (Lorg/jetbrains/compose/swing/test/ComposeSwingTest;)Ljava/awt/image/BufferedImage;
 	public static final fun captureToImage (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;)Ljava/awt/image/BufferedImage;
 	public static final fun captureToImages (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;)Ljava/util/List;
 }

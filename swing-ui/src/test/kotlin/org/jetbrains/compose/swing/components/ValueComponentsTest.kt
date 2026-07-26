@@ -8,7 +8,7 @@ import org.jetbrains.compose.swing.components.text.TextArea
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JLabel
 import javax.swing.JProgressBar
 import javax.swing.JSeparator
@@ -27,7 +27,7 @@ import kotlin.test.assertTrue
  */
 class ValueComponentsTest {
     @Test
-    fun sliderRendersValueAndRange() = runSwingUiTest {
+    fun sliderRendersValueAndRange() = runComposeSwingTest {
         setContent {
             Slider(value = 30, modifier = SwingModifier.name("s"), min = 10, max = 90)
         }
@@ -38,7 +38,7 @@ class ValueComponentsTest {
     }
 
     @Test
-    fun draggingSliderFiresOnValueChange() = runSwingUiTest {
+    fun draggingSliderFiresOnValueChange() = runComposeSwingTest {
         var value by mutableIntStateOf(0)
         val reported = mutableListOf<Int>()
         setContent {
@@ -60,7 +60,7 @@ class ValueComponentsTest {
     }
 
     @Test
-    fun sliderReflectsStateDrivenRecomposition() = runSwingUiTest {
+    fun sliderReflectsStateDrivenRecomposition() = runComposeSwingTest {
         var value by mutableIntStateOf(10)
         setContent { Slider(value = value, modifier = SwingModifier.name("s")) }
         assertEquals(10, onNodeWithName("s").fetch<JSlider>().value, "the slider should start at the initial value")
@@ -71,7 +71,7 @@ class ValueComponentsTest {
     }
 
     @Test
-    fun progressBarRendersValueRangeAndDeterminacy() = runSwingUiTest {
+    fun progressBarRendersValueRangeAndDeterminacy() = runComposeSwingTest {
         setContent {
             ProgressBar(
                 modifier = SwingModifier.name("pb"),
@@ -89,7 +89,7 @@ class ValueComponentsTest {
     }
 
     @Test
-    fun progressBarReflectsValueAndIndeterminateOnRecomposition() = runSwingUiTest {
+    fun progressBarReflectsValueAndIndeterminateOnRecomposition() = runComposeSwingTest {
         var value by mutableIntStateOf(0)
         var indeterminate by mutableStateOf(false)
         setContent {
@@ -114,7 +114,7 @@ class ValueComponentsTest {
     }
 
     @Test
-    fun textAreaRendersValueAndReportsEdits() = runSwingUiTest {
+    fun textAreaRendersValueAndReportsEdits() = runComposeSwingTest {
         var text by mutableStateOf("hello")
         val reported = mutableListOf<String>()
         setContent {
@@ -135,7 +135,7 @@ class ValueComponentsTest {
     }
 
     @Test
-    fun separatorRendersRequestedOrientation() = runSwingUiTest {
+    fun separatorRendersRequestedOrientation() = runComposeSwingTest {
         setContent {
             Separator(modifier = SwingModifier.name("sep"), orientation = SwingConstants.VERTICAL)
         }
@@ -143,7 +143,7 @@ class ValueComponentsTest {
     }
 
     @Test
-    fun separatorReflectsOrientationOnRecomposition() = runSwingUiTest {
+    fun separatorReflectsOrientationOnRecomposition() = runComposeSwingTest {
         var vertical by mutableStateOf(false)
         setContent {
             Separator(
@@ -167,7 +167,7 @@ class ValueComponentsTest {
     }
 
     @Test
-    fun labelRendersTextAndReactsToState() = runSwingUiTest {
+    fun labelRendersTextAndReactsToState() = runComposeSwingTest {
         var caption by mutableStateOf("before")
         setContent { Label(text = caption, modifier = SwingModifier.name("lbl")) }
         assertEquals(

@@ -6,7 +6,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.event.ActionListener
 import javax.swing.DefaultComboBoxModel
 import javax.swing.JComboBox
@@ -22,7 +22,7 @@ import kotlin.test.assertSame
  */
 class ComboBoxModelBehaviorTest {
     @Test
-    fun modelRendersVerbatim() = runSwingUiTest {
+    fun modelRendersVerbatim() = runComposeSwingTest {
         val model = DefaultComboBoxModel(arrayOf("Red", "Green", "Blue"))
         setContent { ComboBox(model = model, modifier = SwingModifier.name("combo")) }
 
@@ -33,7 +33,7 @@ class ComboBoxModelBehaviorTest {
     }
 
     @Test
-    fun changingSelectionReportsTheSettledIndex() = runSwingUiTest {
+    fun changingSelectionReportsTheSettledIndex() = runComposeSwingTest {
         val model = DefaultComboBoxModel(arrayOf("Red", "Green", "Blue"))
         val reported = mutableListOf<Int>()
         setContent {
@@ -46,7 +46,7 @@ class ComboBoxModelBehaviorTest {
     }
 
     @Test
-    fun swappingModelInstallsTheNewModel() = runSwingUiTest {
+    fun swappingModelInstallsTheNewModel() = runComposeSwingTest {
         var model by mutableStateOf(DefaultComboBoxModel(arrayOf("Red", "Green")))
         val replacement = DefaultComboBoxModel(arrayOf("One", "Two", "Three"))
         val reported = mutableListOf<Int>()
@@ -69,7 +69,7 @@ class ComboBoxModelBehaviorTest {
     }
 
     @Test
-    fun rawActionListenerOverloadReportsSelection() = runSwingUiTest {
+    fun rawActionListenerOverloadReportsSelection() = runComposeSwingTest {
         val model = DefaultComboBoxModel(arrayOf("Red", "Green", "Blue"))
         val reported = mutableListOf<Int>()
         val listener = ActionListener { event -> reported += (event.source as JComboBox<*>).selectedIndex }

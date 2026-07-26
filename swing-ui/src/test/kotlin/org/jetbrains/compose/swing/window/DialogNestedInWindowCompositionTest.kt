@@ -13,8 +13,8 @@ import kotlinx.coroutines.DisposableHandle
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.setContentAsInteropHost
-import org.jetbrains.compose.swing.test.SwingUiTest
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Container
 import java.awt.Dimension
 import javax.swing.JLabel
@@ -40,7 +40,7 @@ import kotlin.test.assertEquals
  * coincidental independent root that would see only CompositionLocal defaults.
  */
 class DialogNestedInWindowCompositionTest {
-    private fun SwingUiTest.dialogLabelText(host: Container): String {
+    private fun ComposeSwingTest.dialogLabelText(host: Container): String {
         val labels = mutableListOf<JLabel>()
 
         fun visit(container: Container) {
@@ -54,7 +54,7 @@ class DialogNestedInWindowCompositionTest {
     }
 
     @Test
-    fun dialogContentNestsInTheWindowCompositionAndReceivesWindowState() = runSwingUiTest {
+    fun dialogContentNestsInTheWindowCompositionAndReceivesWindowState() = runComposeSwingTest {
         // A real container that is deliberately NOT part of the harness (window) Swing tree, the
         // way a JDialog's content pane is detached from its owner window's content pane.
         val dialogHost = JPanel().apply { size = Dimension(200, 200) }

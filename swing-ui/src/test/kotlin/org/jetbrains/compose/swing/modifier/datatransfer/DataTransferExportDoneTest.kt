@@ -7,7 +7,7 @@ import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.datatransfer.Clipboard
 import java.awt.datatransfer.DataFlavor
 import java.awt.datatransfer.StringSelection
@@ -34,7 +34,7 @@ class DataTransferExportDoneTest {
     private fun localClipboard(): Clipboard = Clipboard("data-transfer-export-done-test")
 
     @Test
-    fun cutAndCopyExportTheSameValueDifferingOnlyInTheReportedAction() = runSwingUiTest {
+    fun cutAndCopyExportTheSameValueDifferingOnlyInTheReportedAction() = runComposeSwingTest {
         // Counts how many times the source produced its Transferable: cut must NOT export more or
         // differently than copy — they share one exporter; only the action constant differs.
         var exports = 0
@@ -77,7 +77,7 @@ class DataTransferExportDoneTest {
     }
 
     @Test
-    fun cutWithoutAnOnExportDoneModifierLeavesTheSourceIntact() = runSwingUiTest {
+    fun cutWithoutAnOnExportDoneModifierLeavesTheSourceIntact() = runComposeSwingTest {
         // A completed MOVE (cut) export reports through the component's export-completion seam; with
         // no onExportDone modifier the seam is empty — like TransferHandler.exportDone's own no-op —
         // so there is no automatic removal: the source still produces its value after a cut, and
@@ -117,7 +117,7 @@ class DataTransferExportDoneTest {
     }
 
     @Test
-    fun cutReportsMoveThroughOnExportDoneSoTheSourceCanRemoveTheData() = runSwingUiTest {
+    fun cutReportsMoveThroughOnExportDoneSoTheSourceCanRemoveTheData() = runComposeSwingTest {
         // Move semantics end to end: the source offers its value, and once the export completes as a
         // MOVE, onExportDone tells the source so it can remove the moved data — Swing's export
         // contract, driven entirely through the modifier's public surface.
@@ -165,7 +165,7 @@ class DataTransferExportDoneTest {
     }
 
     @Test
-    fun copyReportsCopyThroughOnExportDoneAndTheSourceKeepsItsValue() = runSwingUiTest {
+    fun copyReportsCopyThroughOnExportDoneAndTheSourceKeepsItsValue() = runComposeSwingTest {
         // The same move-aware source, driven as a COPY: the callback reports COPY, so the
         // MOVE-conditioned removal does not run and the source keeps its value.
         var value = "keep-me"
@@ -206,7 +206,7 @@ class DataTransferExportDoneTest {
     }
 
     @Test
-    fun anExportThatProducesNothingReportsNoneWithNoData() = runSwingUiTest {
+    fun anExportThatProducesNothingReportsNoneWithNoData() = runComposeSwingTest {
         // When the source produces no Transferable, the export still completes its contract: the
         // callback receives NONE and null data, so the source knows nothing was transferred.
         var reportedAction: Int? = null
@@ -237,7 +237,7 @@ class DataTransferExportDoneTest {
     }
 
     @Test
-    fun textFieldCutRemovesTheSelectionWhenOnExportDoneDeletesItOnMove() = runSwingUiTest {
+    fun textFieldCutRemovesTheSelectionWhenOnExportDoneDeletesItOnMove() = runComposeSwingTest {
         // A field-level cut in miniature: the exporter offers the selected range and onExportDone
         // deletes it once told the export completed as a MOVE, so the field visibly loses the cut
         // text while the clipboard gains it.
@@ -274,7 +274,7 @@ class DataTransferExportDoneTest {
     }
 
     @Test
-    fun theSeamReceivesExportsRegardlessOfWhichSiblingModifierOwnsTheExporter() = runSwingUiTest {
+    fun theSeamReceivesExportsRegardlessOfWhichSiblingModifierOwnsTheExporter() = runComposeSwingTest {
         // One component, one handler, one completion seam: with a draggable owning the export slice
         // beside a clipboard modifier, a clipboard export carries the draggable's payload — and the
         // component's onExportDone still receives the completed action.

@@ -1,7 +1,7 @@
 package org.jetbrains.compose.swing.samples.widgets
 
 import org.jetbrains.compose.swing.test.onNodeOfType
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImageMatches
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import java.awt.Cursor
@@ -18,7 +18,7 @@ import kotlin.test.assertTrue
 class ModifierGallerySectionTest {
     @Test
     fun theEnabledModifierGatesTheField() =
-        runSwingUiTest {
+        runComposeSwingTest {
             openSection("Modifier gallery")
 
             onNodeWithText("Editable when enabled", substring = true).assertIsEnabled()
@@ -28,7 +28,7 @@ class ModifierGallerySectionTest {
 
     @Test
     fun theSizeAndVisibilityCheckBoxStaysLeftAlignedWithItsColumn() =
-        runSwingUiTest {
+        runComposeSwingTest {
             openSection("Modifier gallery")
 
             val checkBox = onNodeWithText("Show the second button").fetch<JCheckBox>()
@@ -43,7 +43,7 @@ class ModifierGallerySectionTest {
 
     @Test
     fun theRawActionListenerFiresAlongsideTheWrapper() =
-        runSwingUiTest {
+        runComposeSwingTest {
             openSection("Modifier gallery")
 
             onNodeWithText("Raw listener fired 0 time(s)", substring = true).assertExists()
@@ -53,7 +53,7 @@ class ModifierGallerySectionTest {
 
     @Test
     fun theCursorModifierSwapsThePointerOverTheTarget() =
-        runSwingUiTest {
+        runComposeSwingTest {
             openSection("Modifier gallery")
 
             val target = onNodeWithText("Hover me", substring = true)
@@ -64,7 +64,7 @@ class ModifierGallerySectionTest {
 
     @Test
     fun theToolTipModifierAttachesHoverHelpText() =
-        runSwingUiTest {
+        runComposeSwingTest {
             openSection("Modifier gallery")
 
             val target = onNodeWithText("Hover me", substring = true)
@@ -75,7 +75,7 @@ class ModifierGallerySectionTest {
 
     @Test
     fun theClientPropertyModifierStoresAReadableValue() =
-        runSwingUiTest {
+        runComposeSwingTest {
             openSection("Modifier gallery")
 
             val carrier = onNodeWithText("Carries clientProperty", substring = true)
@@ -86,7 +86,7 @@ class ModifierGallerySectionTest {
 
     @Test
     fun theFocusableModifierGatesKeyboardFocus() =
-        runSwingUiTest {
+        runComposeSwingTest {
             openSection("Modifier gallery")
 
             val button = onNodeWithText("Tab reaches me only when focusable")
@@ -97,7 +97,7 @@ class ModifierGallerySectionTest {
 
     @Test
     fun theMaximumSizeModifierCapsTheButtonWidth() =
-        runSwingUiTest {
+        runComposeSwingTest {
             openSection("Modifier gallery")
 
             val button = onNodeWithText("Clamped button").fetch<JButton>()
@@ -107,7 +107,7 @@ class ModifierGallerySectionTest {
 
     @Test
     fun theRawChangeListenerFiresAlongsideTheWrapper() =
-        runSwingUiTest {
+        runComposeSwingTest {
             openSection("Modifier gallery")
 
             onNodeWithText("Raw change listener fired 0 time(s)", substring = true).assertExists()
@@ -121,7 +121,7 @@ class ModifierGallerySectionTest {
 
     @Test
     fun theAppearanceLabelRepaintsAsAStableBitmapScreenshotTest() =
-        runSwingUiTest {
+        runComposeSwingTest {
             openSection("Modifier gallery")
 
             val styledLabel = onNodeWithText("Styled when the box is checked", substring = true)
@@ -142,7 +142,7 @@ class ModifierGallerySectionTest {
 
     @Test
     fun theCursorTargetRendersToAStableBitmapScreenshotTest() =
-        runSwingUiTest {
+        runComposeSwingTest {
             openSection("Modifier gallery")
 
             val target = onNodeWithText("Hover me", substring = true)

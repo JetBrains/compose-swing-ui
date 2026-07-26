@@ -1,9 +1,11 @@
 package org.jetbrains.compose.swing.test.interaction
 
+import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.SwingMatcher
-import org.jetbrains.compose.swing.test.SwingUiTest
 import org.jetbrains.compose.swing.test.dumpTree
+import org.jetbrains.compose.swing.test.findMatching
 import org.jetbrains.compose.swing.test.findMatchingIncludingSelf
+import java.awt.Component
 import java.awt.Container
 import java.awt.Dialog
 import java.awt.Frame
@@ -16,9 +18,10 @@ import javax.swing.RootPaneContainer
  * appearing and disappearing across recomposition.
  *
  * A window matches while its native peer is realized, whether or not it is currently shown, so a
- * window declared `visible = false` is still matched. A window that leaves the composition is disposed,
- * which retires its peer and drops it out of the match set; a disposed peer lingering in the global AWT
- * window list is likewise excluded because it is no longer realized.
+ * window declared `visible = false` is still matched once its peer is realized - AWT realizes a window
+ * when it is shown, and when it is packed to its content's preferred size. A window that leaves the
+ * composition is disposed, which retires its peer and drops it out of the match set; a disposed peer
+ * lingering in the global AWT window list is likewise excluded because it is no longer realized.
  *
  * Beyond asserting on the window itself, the interaction scopes node queries to that window's
  * content pane, so a test can assert on the content of each top-level peer independently:
@@ -27,11 +30,11 @@ import javax.swing.RootPaneContainer
  * onWindowWithTitle("Settings").onNodeWithText("Apply").assertIsEnabled()
  * ```
  *
- * All methods are intended to be called from a [org.jetbrains.compose.swing.test.runSwingUiTest]
+ * All methods are intended to be called from a [org.jetbrains.compose.swing.test.runComposeSwingTest]
  * body, which runs on the EDT.
  */
 public class SwingWindowInteraction internal constructor(
-    private val test: SwingUiTest,
+    private val test: ComposeSwingTest,
     private val matcher: SwingMatcher,
     private val description: String,
 ) {
@@ -130,12 +133,13 @@ public class SwingWindowInteraction internal constructor(
      * Finds the single node matching [matcher] inside this window's content pane. Both the window
      * and the node are resolved lazily when the returned interaction is first used.
      */
-    public fun onNode(matcher: SwingMatcher): SwingNodeInteraction =
+    public fun onNode(matcher: SwingMatcher): SwingNodeInteraction<Component> =
         SwingNodeInteraction(
             test,
             "${matcher.description} in window '$description'",
             ::contentRoot,
             NodePick.Single,
+            { it },
         ) { contentRoot().findMatchingIncludingSelf(matcher) }
 
     /**
@@ -145,17 +149,22 @@ public class SwingWindowInteraction internal constructor(
     public fun onNodeWithText(
         text: String,
         substring: Boolean = false,
-    ): SwingNodeInteraction = onNode(SwingMatcher.hasText(text, substring))
+    ): SwingNodeInteraction<Component> = onNode(SwingMatcher.hasText(text, substring))
 
     /** Finds the single node inside this window's content pane whose [java.awt.Component.getName] equals [name]. */
-    public fun onNodeWithName(name: String): SwingNodeInteraction = onNode(SwingMatcher.hasName(name))
+    public fun onNodeWithName(name: String): SwingNodeInteraction<Component> = onNode(SwingMatcher.hasName(name))
 
     /** Finds the single node inside this window's content pane tagged with [tag] via `SwingModifier.testTag`. */
-    public fun onNodeWithTag(tag: String): SwingNodeInteraction = onNode(SwingMatcher.hasTestTag(tag))
+    public fun onNodeWithTag(tag: String): SwingNodeInteraction<Component> = onNode(SwingMatcher.hasTestTag(tag))
 
     /** Finds all nodes matching [matcher] inside this window's content pane. */
-    public fun onAllNodes(matcher: SwingMatcher): SwingNodeInteractionCollection =
-        SwingNodeInteractionCollection(test, matcher, ::contentRoot)
+    public fun onAllNodes(matcher: SwingMatcher): SwingNodeInteractionCollection<Component> =
+        SwingNodeInteractionCollection(
+            test,
+            "${matcher.description} in window '$description'",
+            ::contentRoot,
+            { it },
+        ) { contentRoot().findMatching(matcher) }
 
     /**
      * Finds all nodes inside this window's content pane whose text equals [text] (or contains it
@@ -164,10 +173,11 @@ public class SwingWindowInteraction internal constructor(
     public fun onAllNodesWithText(
         text: String,
         substring: Boolean = false,
-    ): SwingNodeInteractionCollection = onAllNodes(SwingMatcher.hasText(text, substring))
+    ): SwingNodeInteractionCollection<Component> = onAllNodes(SwingMatcher.hasText(text, substring))
 
     /** Finds all nodes inside this window's content pane tagged with [tag] via `SwingModifier.testTag`. */
-    public fun onAllNodesWithTag(tag: String): SwingNodeInteractionCollection = onAllNodes(SwingMatcher.hasTestTag(tag))
+    public fun onAllNodesWithTag(tag: String): SwingNodeInteractionCollection<Component> =
+        onAllNodes(SwingMatcher.hasTestTag(tag))
 
     // endregion
 
@@ -179,7 +189,7 @@ public class SwingWindowInteraction internal constructor(
 /**
  * Every top-level window whose native peer is currently realized. A window realized by a
  * [org.jetbrains.compose.swing.window.Window] or [org.jetbrains.compose.swing.window.Dialog]
- * composable is realized while that composable is in the composition — whether or not it is shown —
+ * composable is realized while that composable is in the composition - whether or not it is shown -
  * and its peer is retired (made non-displayable) once it is disposed on leaving the composition, so
  * disposed peers lingering in the global AWT window list are excluded.
  */

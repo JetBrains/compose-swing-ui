@@ -23,12 +23,12 @@ import kotlin.test.assertSame
 
 /**
  * Validates the test harness itself: finders (unique vs. collection, by-text and by-name), the
- * assertion vocabulary (text/enabled/exists/constraint), and actions — so the regression tests above
+ * assertion vocabulary (text/enabled/exists/constraint), and actions - so the regression tests above
  * are standing on a trustworthy foundation. Also asserts that assertions FAIL when they should.
  */
 class TestApiContractTest {
     @Test
-    fun uniqueFinderVsCollectionCount() = runSwingUiTest {
+    fun uniqueFinderVsCollectionCount() = runComposeSwingTest {
         setContent {
             BoxPanel {
                 Label(text = "dup")
@@ -48,7 +48,7 @@ class TestApiContractTest {
     }
 
     @Test
-    fun layoutConstraintAcrossAllRegions() = runSwingUiTest {
+    fun layoutConstraintAcrossAllRegions() = runComposeSwingTest {
         setContent {
             BorderPanel {
                 north { Label(text = "N") }
@@ -72,7 +72,7 @@ class TestApiContractTest {
     }
 
     @Test
-    fun enabledAssertionsReflectState() = runSwingUiTest {
+    fun enabledAssertionsReflectState() = runComposeSwingTest {
         var on by mutableStateOf(true)
         setContent {
             Button(text = "toggle", modifier = SwingModifier.enabled(on))
@@ -89,7 +89,7 @@ class TestApiContractTest {
     }
 
     @Test
-    fun textEqualsAssertionIsExact() = runSwingUiTest {
+    fun textEqualsAssertionIsExact() = runComposeSwingTest {
         setContent { Label(text = "exact value") }
 
         onNodeWithText("exact value").assertTextEquals("exact value")
@@ -101,7 +101,7 @@ class TestApiContractTest {
     }
 
     @Test
-    fun byNameFinderLocatesComponent() = runSwingUiTest {
+    fun byNameFinderLocatesComponent() = runComposeSwingTest {
         setContent {
             BoxPanel {
                 Label(text = "noname")
@@ -120,7 +120,7 @@ class TestApiContractTest {
     }
 
     @Test
-    fun assertExistsChainsAndActionsReturnInteraction() = runSwingUiTest {
+    fun assertExistsChainsAndActionsReturnInteraction() = runComposeSwingTest {
         var clicks by mutableIntStateOf(0)
         setContent {
             BoxPanel {
@@ -136,31 +136,31 @@ class TestApiContractTest {
     }
 
     @Test
-    fun performClickRejectsNonButton() = runSwingUiTest {
+    fun performClickRejectsNonButton() = runComposeSwingTest {
         setContent { Label(text = "not a button") }
         assertFailsWith<AssertionError> { onNodeWithText("not a button").performClick() }
     }
 
     @Test
-    fun performTextInputRejectsNonTextComponent() = runSwingUiTest {
+    fun performTextInputRejectsNonTextComponent() = runComposeSwingTest {
         setContent { Label(text = "label") }
         assertFailsWith<AssertionError> { onNodeWithText("label").performTextInput("x") }
     }
 
     @Test
-    fun rootInteractionResolves() = runSwingUiTest {
+    fun rootInteractionResolves() = runComposeSwingTest {
         setContent { Label(text = "child") }
         onRoot().assertExists()
     }
 
     @Test
-    fun textComponentTextEqualsReadsFieldText() = runSwingUiTest {
+    fun textComponentTextEqualsReadsFieldText() = runComposeSwingTest {
         setContent { TextField(value = "field text") }
         onNodeWithText("field text").assertTextEquals("field text")
     }
 
     @Test
-    fun genericMatcherFindersResolveByType() = runSwingUiTest {
+    fun genericMatcherFindersResolveByType() = runComposeSwingTest {
         setContent {
             BoxPanel {
                 Label(text = "a")
@@ -180,7 +180,7 @@ class TestApiContractTest {
     }
 
     @Test
-    fun reifiedTypeFindersAreConvenienceForMatcherFinders() = runSwingUiTest {
+    fun reifiedTypeFindersAreConvenienceForMatcherFinders() = runComposeSwingTest {
         setContent {
             BoxPanel {
                 TextField(value = "field")
@@ -193,7 +193,7 @@ class TestApiContractTest {
     }
 
     @Test
-    fun fetchReturnsTheTypedComponentForDirectDriving() = runSwingUiTest {
+    fun fetchReturnsTheTypedComponentForDirectDriving() = runComposeSwingTest {
         setContent { TextField(value = "typed") }
 
         // fetch resolves the match and returns it typed, so the component's own API is reachable
@@ -209,7 +209,7 @@ class TestApiContractTest {
     }
 
     @Test
-    fun fetchFailsWhenTheMatchedTypeMismatches() = runSwingUiTest {
+    fun fetchFailsWhenTheMatchedTypeMismatches() = runComposeSwingTest {
         setContent { Label(text = "just a label") }
 
         // The node matches by text but is not a JTextField, so the typed fetch must fail clearly.

@@ -5,7 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.onNodeOfType
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JList
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -17,7 +17,7 @@ import kotlin.test.assertEquals
  */
 class ListBoxBehaviorTest {
     @Test
-    fun itemsRenderIntoTheModel() = runSwingUiTest {
+    fun itemsRenderIntoTheModel() = runComposeSwingTest {
         setContent { ListBox(items = listOf("a", "b", "c")) }
 
         val list = onNodeOfType<JList<*>>().fetch<JList<*>>()
@@ -30,7 +30,7 @@ class ListBoxBehaviorTest {
     }
 
     @Test
-    fun settledSelectionChangeFiresOnSelectionChange() = runSwingUiTest {
+    fun settledSelectionChangeFiresOnSelectionChange() = runComposeSwingTest {
         val events = mutableListOf<List<Int>>()
         setContent { ListBox(items = listOf("a", "b", "c"), onSelectionChange = { events += it }) }
 
@@ -48,7 +48,7 @@ class ListBoxBehaviorTest {
     }
 
     @Test
-    fun selectedIndicesReAppliedAfterItemsChange() = runSwingUiTest {
+    fun selectedIndicesReAppliedAfterItemsChange() = runComposeSwingTest {
         var items by mutableStateOf(listOf("a", "b", "c"))
         var selection by mutableStateOf(listOf(1))
         setContent {

@@ -8,7 +8,7 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.BoxPanel
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.onNodeOfType
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JTextField
 import javax.swing.text.PlainDocument
 import kotlin.test.Test
@@ -21,7 +21,7 @@ import kotlin.test.assertSame
  */
 class StateTextFieldTest {
     @Test
-    fun fieldSharesTheStateDocument() = runSwingUiTest {
+    fun fieldSharesTheStateDocument() = runComposeSwingTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState("seed")
@@ -33,7 +33,7 @@ class StateTextFieldTest {
     }
 
     @Test
-    fun callerSuppliedDocumentIsInstalledIntoTheField() = runSwingUiTest {
+    fun callerSuppliedDocumentIsInstalledIntoTheField() = runComposeSwingTest {
         val document = PlainDocument().apply { insertString(0, "preset", null) }
         lateinit var state: DocumentState
         setContent {
@@ -47,7 +47,7 @@ class StateTextFieldTest {
     }
 
     @Test
-    fun typingRecomposesASiblingReadingStateText() = runSwingUiTest {
+    fun typingRecomposesASiblingReadingStateText() = runComposeSwingTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState("hi")
@@ -68,7 +68,7 @@ class StateTextFieldTest {
     }
 
     @Test
-    fun externalDocumentMutationRecomposesASiblingReadingStateText() = runSwingUiTest {
+    fun externalDocumentMutationRecomposesASiblingReadingStateText() = runComposeSwingTest {
         // A caller may mutate the shared document directly rather than through the state. Reading
         // state.text registers a snapshot subscription to the document generation, so a direct document
         // edit must invalidate that reader even though it never went through the state's API.
@@ -91,7 +91,7 @@ class StateTextFieldTest {
     }
 
     @Test
-    fun movingCaretRecomposesASiblingReadingStateSelection() = runSwingUiTest {
+    fun movingCaretRecomposesASiblingReadingStateSelection() = runComposeSwingTest {
         // Reading state.selection inside a composable subscribes to caret changes, so moving the caret in
         // the bound field must recompose the sibling that renders the selection.
         lateinit var state: DocumentState
@@ -114,7 +114,7 @@ class StateTextFieldTest {
     }
 
     @Test
-    fun undoAndRedoRecomposeASiblingReadingAvailability() = runSwingUiTest {
+    fun undoAndRedoRecomposeASiblingReadingAvailability() = runComposeSwingTest {
         // Reading state.canUndo / state.canRedo inside a composable subscribes to the document generation.
         // An edit, and then an undo and a redo, each change the document and so must recompose a sibling
         // that renders undo/redo availability.
@@ -143,7 +143,7 @@ class StateTextFieldTest {
     }
 
     @Test
-    fun stateAndValueBasedOverloadsCoexist() = runSwingUiTest {
+    fun stateAndValueBasedOverloadsCoexist() = runComposeSwingTest {
         var controlled by mutableStateOf("controlled")
         lateinit var state: DocumentState
         setContent {
@@ -159,7 +159,7 @@ class StateTextFieldTest {
     }
 
     @Test
-    fun forgettingTheStateDetachesItsListenersFromACallerDocument() = runSwingUiTest {
+    fun forgettingTheStateDetachesItsListenersFromACallerDocument() = runComposeSwingTest {
         // A caller-supplied document outlives the state, so leaving the composition must detach the
         // state's listeners; otherwise the discarded state stays reachable from the live document. No
         // field is mounted here, so only the state registers listeners and the counts are unambiguous.
@@ -182,7 +182,7 @@ class StateTextFieldTest {
     }
 
     @Test
-    fun swappingTheStateParamDetachesTheFormerStatesCaretListener() = runSwingUiTest {
+    fun swappingTheStateParamDetachesTheFormerStatesCaretListener() = runComposeSwingTest {
         // A field is owned by at most one state. When the `state` argument swaps to a different state,
         // binding the new state installs its document into the field, which resets the caret; the former
         // state must already be unbound so that reset does not drive the former state's caret listener. So
@@ -227,7 +227,7 @@ class StateTextFieldTest {
     }
 
     @Test
-    fun unmountingTheFieldStopsCaretWriteBack() = runSwingUiTest {
+    fun unmountingTheFieldStopsCaretWriteBack() = runComposeSwingTest {
         lateinit var state: DocumentState
         var mounted by mutableStateOf(true)
         setContent {
@@ -252,7 +252,7 @@ class StateTextFieldTest {
     }
 
     @Test
-    fun aParkedFieldDoesNotDriveASurvivingStateUntilReactivated() = runSwingUiTest {
+    fun aParkedFieldDoesNotDriveASurvivingStateUntilReactivated() = runComposeSwingTest {
         // The state is held at a longer-lived scope than the field: constructed outside the composition, it
         // is never forgotten when the field parks, standing in for a state hoisted above a collapsible or
         // reused region. Parking the field (ReusableContentHost deactivated) must detach the binding with the

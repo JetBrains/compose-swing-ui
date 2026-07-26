@@ -5,8 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.SwingNode
 import org.jetbrains.compose.swing.modifier.layout.componentOrientation
-import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.BorderLayout
 import java.awt.ComponentOrientation
 import java.util.concurrent.atomic.AtomicInteger
@@ -16,23 +15,14 @@ import kotlin.test.Test
 import kotlin.test.assertTrue
 
 /**
- * Behavioral regression test for dynamic right-to-left layout driven by [componentOrientation].
+ * Flipping a [BorderLayout]-backed container between left-to-right and right-to-left through
+ * [componentOrientation] must request a relayout, or its orientation-aware `LINE_START`/`LINE_END`
+ * children keep the edges they were last laid out on and the change is invisible.
  *
- * When the orientation of a [BorderLayout]-backed container is flipped between left-to-right and
- * right-to-left, the container must request a relayout so its orientation-aware `LINE_START`/
- * `LINE_END` children swap horizontal edges. The bug was that the [componentOrientation] modifier
- * set the property but never asked for a relayout, so a reactive orientation change did not move the
- * children.
- *
- * The test drives the change through the real public API ([SwingNode] + the [componentOrientation]
- * modifier, re-applied across a recomposition when the orientation state changes) and observes two
- * things deterministically under headless:
- *
- *  1. The container's `revalidate()` is invoked on the orientation change — the relayout request the
- *     fix adds. This is the assertion that catches the bug: a [JPanel] subclass counts the calls,
- *     which is reliable off-screen where Swing's own `revalidate()` plumbing is otherwise inert.
- *  2. After the forced layout pass, the two children have swapped horizontal edges — the user-visible
- *     consequence of the relayout.
+ * The change is driven through the public API ([SwingNode] plus the modifier, re-applied across the
+ * recomposition the orientation state provokes), and two things are observed off-screen: that the
+ * container's `revalidate()` was called - counted by a [JPanel] subclass, since Swing's own relayout
+ * plumbing is inert without a peer - and that the children then swapped horizontal edges.
  */
 class LayoutOrientationTest {
     /**
@@ -54,7 +44,7 @@ class LayoutOrientationTest {
     }
 
     @Test
-    fun togglingComponentOrientationRequestsRelayoutAndSwapsLineStartLineEndEdges() = runSwingUiTest {
+    fun togglingComponentOrientationRequestsRelayoutAndSwapsLineStartLineEndEdges() = runComposeSwingTest {
         var rtl by mutableStateOf(false)
         val revalidateCount = AtomicInteger(0)
         val leading = JLabel("leading")
@@ -92,11 +82,10 @@ class LayoutOrientationTest {
         awaitIdle()
         val countAfterToggle = revalidateCount.get()
 
-        // Bug-catching assertion: the orientation change must have requested a relayout.
         assertTrue(
             countAfterToggle > countBeforeToggle,
             "Toggling componentOrientation must request a relayout (revalidate). " +
-                "Count before=$countBeforeToggle after=$countAfterToggle — the container was " +
+                "Count before=$countBeforeToggle after=$countAfterToggle - the container was " +
                 "never invalidated, so a reactive RTL change would not re-lay-out.",
         )
 

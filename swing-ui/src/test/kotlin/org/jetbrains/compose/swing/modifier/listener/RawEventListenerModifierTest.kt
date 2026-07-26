@@ -7,10 +7,9 @@ import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.components.selection.ListBox
 import org.jetbrains.compose.swing.components.selection.Tree
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.modifier.applyModifier
-import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.onNodeOfType
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JInternalFrame
 import javax.swing.JList
 import javax.swing.JSlider
@@ -20,9 +19,7 @@ import javax.swing.event.ChangeListener
 import javax.swing.event.InternalFrameAdapter
 import javax.swing.event.InternalFrameEvent
 import javax.swing.event.InternalFrameListener
-import javax.swing.event.ListSelectionEvent
 import javax.swing.event.ListSelectionListener
-import javax.swing.event.TreeSelectionEvent
 import javax.swing.event.TreeSelectionListener
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -33,18 +30,18 @@ import kotlin.test.assertTrue
  * Behavioral tests for the raw event-listener builders that attach an existing Swing listener object to
  * a component whose add/remove pair lives off `java.awt.Component`: `changeListener`,
  * `listSelectionListener`, `treeSelectionListener`, and `internalFrameListener`. Each asserts what an
- * observer of the live component sees — the exact instance is registered via the component's
+ * observer of the live component sees - the exact instance is registered via the component's
  * `getXxxListeners()`, and it fires when the component publishes the real event.
  */
 class RawEventListenerModifierTest {
     @Test
-    fun changeListenerInstanceIsRegisteredAndFiresOnAChange() = runSwingUiTest {
+    fun changeListenerInstanceIsRegisteredAndFiresOnAChange() = runComposeSwingTest {
         var fired = 0
         val listener = ChangeListener { fired++ }
         setContent {
-            Slider(value = 10, modifier = SwingModifier.name("s").changeListener(listener))
+            Slider(value = 10, modifier = SwingModifier.changeListener(listener))
         }
-        val slider = onNodeWithName("s").fetch<JSlider>()
+        val slider = onNodeOfType<JSlider>().fetch()
         assertTrue(
             slider.changeListeners.any { it === listener },
             "the listener instance should be registered on the slider",
@@ -55,24 +52,19 @@ class RawEventListenerModifierTest {
     }
 
     @Test
-    fun listSelectionListenerInstanceIsRegisteredAndFiresOnSelection() = runSwingUiTest {
+    fun listSelectionListenerInstanceIsRegisteredAndFiresOnSelection() = runComposeSwingTest {
         var fired = 0
         val listener = ListSelectionListener { fired++ }
         setContent {
             ScrollPane {
                 content {
-                    ListBox(
-                        items = listOf("a", "b", "c"),
-                        modifier = SwingModifier.name("lst").listSelectionListener(listener),
-                    )
+                    ListBox(items = listOf("a", "b", "c"), modifier = SwingModifier.listSelectionListener(listener))
                 }
             }
         }
-        val list = onNodeWithName("lst").fetch<JList<*>>()
+        val list = onNodeOfType<JList<*>>().fetch<JList<*>>()
         assertTrue(
-            list.listSelectionListeners.any {
-                it === listener
-            },
+            list.listSelectionListeners.any { it === listener },
             "the listener instance should be registered on the list",
         )
 
@@ -82,7 +74,7 @@ class RawEventListenerModifierTest {
     }
 
     @Test
-    fun treeSelectionListenerInstanceIsRegisteredAndFiresOnSelection() = runSwingUiTest {
+    fun treeSelectionListenerInstanceIsRegisteredAndFiresOnSelection() = runComposeSwingTest {
         var fired = 0
         val listener = TreeSelectionListener { fired++ }
         setContent {
@@ -91,16 +83,14 @@ class RawEventListenerModifierTest {
                     Tree(
                         root = "root",
                         children = { if (it == "root") listOf("child") else emptyList() },
-                        modifier = SwingModifier.name("tree").treeSelectionListener(listener),
+                        modifier = SwingModifier.treeSelectionListener(listener),
                     )
                 }
             }
         }
-        val tree = onNodeWithName("tree").fetch<JTree>()
+        val tree = onNodeOfType<JTree>().fetch()
         assertTrue(
-            tree.treeSelectionListeners.any {
-                it === listener
-            },
+            tree.treeSelectionListeners.any { it === listener },
             "the listener instance should be registered on the tree",
         )
 
@@ -110,7 +100,7 @@ class RawEventListenerModifierTest {
     }
 
     @Test
-    fun internalFrameListenerInstanceIsRegisteredAndFiresOnTheRealEvent() = runSwingUiTest {
+    fun internalFrameListenerInstanceIsRegisteredAndFiresOnTheRealEvent() = runComposeSwingTest {
         var closing = 0
         val listener: InternalFrameListener =
             object : InternalFrameAdapter() {
@@ -122,15 +112,13 @@ class RawEventListenerModifierTest {
             SwingNode(
                 factory = { JInternalFrame("F", true, true, true, true).also { it.isVisible = true } },
                 update = {
-                    applyModifier(SwingModifier.name("frame").internalFrameListener(listener))
+                    applyModifier(SwingModifier.internalFrameListener(listener))
                 },
             )
         }
-        val frame = onNodeWithName("frame").fetch<JInternalFrame>()
+        val frame = onNodeOfType<JInternalFrame>().fetch()
         assertTrue(
-            frame.internalFrameListeners.any {
-                it === listener
-            },
+            frame.internalFrameListeners.any { it === listener },
             "the listener instance should be registered on the frame",
         )
 
@@ -140,18 +128,14 @@ class RawEventListenerModifierTest {
     }
 
     @Test
-    fun changeListenerOnAComponentThatDoesNotFireChangeEventsIsRejected() = runSwingUiTest {
+    fun changeListenerOnAComponentThatDoesNotFireChangeEventsIsRejected() = runComposeSwingTest {
         val error =
             assertFailsWith<IllegalStateException> {
                 setContent {
                     // A Label is a JComponent but not one of the change-firing widgets, so the
                     // changeListener target is wrong and the applier must reject it loudly rather
                     // than silently no-op.
-                    Label(
-                        "X",
-                        modifier =
-                            SwingModifier.name("lbl").changeListener(ChangeListener { }),
-                    )
+                    Label("X", modifier = SwingModifier.changeListener(ChangeListener { }))
                 }
                 awaitIdle()
             }

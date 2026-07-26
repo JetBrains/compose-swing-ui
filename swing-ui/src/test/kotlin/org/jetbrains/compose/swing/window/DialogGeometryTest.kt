@@ -4,7 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.test.onWindow
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import java.awt.Dimension
@@ -24,7 +24,7 @@ import kotlin.test.assertEquals
  */
 class DialogGeometryTest {
     @Test
-    fun initialGeometryIsAppliedToTheDialog() = runSwingUiTest {
+    fun initialGeometryIsAppliedToTheDialog() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val state = DialogState(position = WindowPosition(140, 90), size = Dimension(360, 260))
         setContent { Dialog(onCloseRequest = {}, state = state, title = "dialog-initial-geometry") {} }
@@ -34,7 +34,7 @@ class DialogGeometryTest {
     }
 
     @Test
-    fun positionReactsToStateChange() = runSwingUiTest {
+    fun positionReactsToStateChange() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val state = DialogState(position = WindowPosition(140, 90))
         setContent { Dialog(onCloseRequest = {}, state = state, title = "dialog-position-react") {} }
@@ -54,7 +54,7 @@ class DialogGeometryTest {
     }
 
     @Test
-    fun sizeReactsToStateChange() = runSwingUiTest {
+    fun sizeReactsToStateChange() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val state = DialogState(size = Dimension(360, 260))
         setContent { Dialog(onCloseRequest = {}, state = state, title = "dialog-size-react") {} }
@@ -68,7 +68,7 @@ class DialogGeometryTest {
     }
 
     @Test
-    fun widthReactsToStateChange() = runSwingUiTest {
+    fun widthReactsToStateChange() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val state = DialogState(size = Dimension(360, 260))
         setContent { Dialog(onCloseRequest = {}, state = state, title = "dialog-width-react") {} }
@@ -83,7 +83,7 @@ class DialogGeometryTest {
     }
 
     @Test
-    fun heightReactsToStateChange() = runSwingUiTest {
+    fun heightReactsToStateChange() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val state = DialogState(size = Dimension(360, 260))
         setContent { Dialog(onCloseRequest = {}, state = state, title = "dialog-height-react") {} }
@@ -98,7 +98,7 @@ class DialogGeometryTest {
     }
 
     @Test
-    fun mutatingAReadSizeCopyLeavesTheDialogAndStateUntouched() = runSwingUiTest {
+    fun mutatingAReadSizeCopyLeavesTheDialogAndStateUntouched() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         var title by mutableStateOf("dialog-size-copy-inert")
         val state = DialogState(size = Dimension(360, 260))
@@ -122,7 +122,7 @@ class DialogGeometryTest {
     }
 
     @Test
-    fun sizeAssignmentAfterMutatingAReadCopyResizesTheDialog() = runSwingUiTest {
+    fun sizeAssignmentAfterMutatingAReadCopyResizesTheDialog() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val state = DialogState(size = Dimension(360, 260))
         setContent { Dialog(onCloseRequest = {}, state = state, title = "dialog-size-detached-copy") {} }
@@ -151,7 +151,7 @@ class DialogGeometryTest {
     }
 
     @Test
-    fun userResizeIsWrittenBackIntoState() = runSwingUiTest {
+    fun userResizeIsWrittenBackIntoState() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val state = DialogState(size = Dimension(360, 260))
         setContent { Dialog(onCloseRequest = {}, state = state, title = "dialog-user-resize") {} }
@@ -162,7 +162,7 @@ class DialogGeometryTest {
     }
 
     @Test
-    fun userMoveIsWrittenBackIntoState() = runSwingUiTest {
+    fun userMoveIsWrittenBackIntoState() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val state = DialogState(position = WindowPosition(140, 90))
         setContent { Dialog(onCloseRequest = {}, state = state, title = "dialog-user-move") {} }
@@ -183,7 +183,7 @@ class DialogGeometryTest {
     }
 
     @Test
-    fun userResizeIsNotFoughtByTheDeclaredValue() = runSwingUiTest {
+    fun userResizeIsNotFoughtByTheDeclaredValue() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val state = DialogState(size = Dimension(360, 260))
         setContent { Dialog(onCloseRequest = {}, state = state, title = "dialog-no-feedback-loop") {} }
@@ -200,7 +200,7 @@ class DialogGeometryTest {
     }
 
     @Test
-    fun platformDefaultPositionNeverRepositionsTheDialog() = runSwingUiTest {
+    fun platformDefaultPositionNeverRepositionsTheDialog() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         var title by mutableStateOf("dialog-platform-default")
         val state = DialogState()
@@ -228,7 +228,7 @@ class DialogGeometryTest {
     }
 
     @Test
-    fun platformDefaultToAbsolutePositionMovesTheDialog() = runSwingUiTest {
+    fun platformDefaultToAbsolutePositionMovesTheDialog() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val state = DialogState()
         setContent {

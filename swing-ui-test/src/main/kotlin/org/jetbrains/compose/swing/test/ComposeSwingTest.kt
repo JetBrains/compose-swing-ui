@@ -4,14 +4,17 @@ import androidx.compose.runtime.BroadcastFrameClock
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Recomposer
 import androidx.compose.runtime.snapshots.Snapshot
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.DisposableHandle
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.swing.Swing
+import kotlinx.coroutines.test.TestResult
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.interaction.NodePick
@@ -19,22 +22,25 @@ import org.jetbrains.compose.swing.test.interaction.SwingNodeInteraction
 import org.jetbrains.compose.swing.test.interaction.SwingNodeInteractionCollection
 import org.jetbrains.compose.swing.test.interaction.SwingWindowInteraction
 import org.jetbrains.compose.swing.test.interaction.SwingWindowInteractionCollection
+import org.jetbrains.compose.swing.test.interaction.castOrFail
 import org.jetbrains.compose.swing.test.interaction.realizedWindowsTreeDump
 import java.awt.Component
 import java.awt.Container
 import java.awt.Dimension
 import javax.swing.JPanel
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * The user-facing handle for driving a single isolated Swing-Compose composition under test.
  *
- * An instance is created by [runSwingUiTest] and is only valid for the duration of the supplied
+ * An instance is created by [runComposeSwingTest] and is only valid for the duration of the supplied
  * test block. The test body runs **on the AWT event dispatch thread (EDT)**, so every query, action
  * and assertion reads and writes the real AWT component tree directly, with no thread hop:
  *
  * ```
  * @Test
- * fun clickingTheButtonUpdatesTheLabel() = runSwingUiTest {
+ * fun clickingTheButtonUpdatesTheLabel() = runComposeSwingTest {
  *     var clicks by mutableStateOf(0)
  *     setContent {
  *         Button(text = "Clicks: $clicks", onClick = { clicks++ })
@@ -47,7 +53,7 @@ import javax.swing.JPanel
  * The composition runs on [Dispatchers.Swing] (the EDT) with frames produced under test control;
  * frames are never produced automatically.
  */
-public interface SwingUiTest {
+public interface ComposeSwingTest {
     /**
      * The root [Container] hosting the composition. Useful for advanced assertions, e.g. inspecting
      * a child's layout constraint via the parent's [java.awt.LayoutManager].
@@ -67,7 +73,7 @@ public interface SwingUiTest {
      *
      * This is suspending rather than blocking, so recomposition can make progress while it waits. It
      * returns once there is neither pending recomposition nor pending snapshot work AND the EDT
-     * queue has drained the runnables the settled composition scheduled — a window show that a
+     * queue has drained the runnables the settled composition scheduled - a window show that a
      * `Dialog { }` defers to its own dispatch, for example, has landed by the time this returns.
      *
      * If the composition never settles within a generous frame cap, this fails with an
@@ -76,6 +82,24 @@ public interface SwingUiTest {
      * surrounding test framework times out.
      */
     public suspend fun awaitIdle()
+
+    /**
+     * Suspends until every AWT notification already queued on the event dispatch thread has been
+     * dispatched, **without producing a composition frame**.
+     *
+     * A frame is what lets the composition recompose and apply its changes, so withholding one takes
+     * apart the two things [awaitIdle] settles together. Once this returns, whatever the widgets
+     * reported has run - a listener callback, a runnable a widget scheduled for itself - and no
+     * recomposition can have contributed to what the AWT tree now shows. A test that has to tell "the
+     * widget told us" apart from "a recomposition happened" asserts between this gate and [awaitIdle].
+     *
+     * Snapshot writes those callbacks make stay pending, so the tree still shows the state of the last
+     * frame; [awaitIdle] lets it catch up.
+     *
+     * Draining is bounded as in [awaitIdle]: a source of scheduled work that never quiesces fails with
+     * an [AssertionError] carrying a tree dump rather than spinning forever.
+     */
+    public suspend fun awaitEventsDelivered()
 
     /**
      * Suspends until [condition] returns `true`, driving frames between checks.
@@ -106,23 +130,23 @@ public interface SwingUiTest {
     public fun onNodeWithText(
         text: String,
         substring: Boolean = false,
-    ): SwingNodeInteraction
+    ): SwingNodeInteraction<Component>
 
     /**
      * Finds the single node whose [Component.getName] equals [name].
      */
-    public fun onNodeWithName(name: String): SwingNodeInteraction
+    public fun onNodeWithName(name: String): SwingNodeInteraction<Component>
 
     /**
      * Finds the single node tagged with [tag] via `SwingModifier.testTag`.
      */
-    public fun onNodeWithTag(tag: String): SwingNodeInteraction
+    public fun onNodeWithTag(tag: String): SwingNodeInteraction<Component>
 
     /**
      * Finds the single node matching [matcher]. The match is resolved lazily when the returned
      * interaction is first used, and resolution fails if zero or more than one node matches.
      */
-    public fun onNode(matcher: SwingMatcher): SwingNodeInteraction
+    public fun onNode(matcher: SwingMatcher): SwingNodeInteraction<Component>
 
     /**
      * Finds all nodes whose text equals [text] (or contains it when [substring] is `true`).
@@ -130,22 +154,22 @@ public interface SwingUiTest {
     public fun onAllNodesWithText(
         text: String,
         substring: Boolean = false,
-    ): SwingNodeInteractionCollection
+    ): SwingNodeInteractionCollection<Component>
 
     /**
      * Finds all nodes tagged with [tag] via `SwingModifier.testTag`.
      */
-    public fun onAllNodesWithTag(tag: String): SwingNodeInteractionCollection
+    public fun onAllNodesWithTag(tag: String): SwingNodeInteractionCollection<Component>
 
     /**
      * Finds all nodes matching [matcher].
      */
-    public fun onAllNodes(matcher: SwingMatcher): SwingNodeInteractionCollection
+    public fun onAllNodes(matcher: SwingMatcher): SwingNodeInteractionCollection<Component>
 
     /**
      * Returns an interaction targeting the composition [root] itself.
      */
-    public fun onRoot(): SwingNodeInteraction
+    public fun onRoot(): SwingNodeInteraction<Component>
 
     /**
      * Finds the single window matching [matcher] among every window currently realized in the test
@@ -156,7 +180,7 @@ public interface SwingUiTest {
      * interaction is first used.
      *
      * ```
-     * setContent { Window(onCloseRequest = {}, title = "Settings") { … } }
+     * setContent { Window(onCloseRequest = {}, title = "Settings") { ... } }
      * onWindow(SwingMatcher.hasTitle("Settings")).assertIsVisible()
      * ```
      */
@@ -170,47 +194,62 @@ public interface SwingUiTest {
 
 /**
  * Finds the single node of type [T]. Convenience for `onNode(SwingMatcher.isOfType<T>())`.
+ *
+ * The returned interaction carries [T], so the node is fetched without naming the type a second
+ * time:
+ *
+ * ```
+ * val table = onNodeOfType<JTable>().fetch()
+ * ```
  */
-public inline fun <reified T : Component> SwingUiTest.onNodeOfType(): SwingNodeInteraction =
-    onNode(SwingMatcher.isOfType<T>())
+public inline fun <reified T : Component> ComposeSwingTest.onNodeOfType(): SwingNodeInteraction<T> {
+    val matcher = SwingMatcher.isOfType<T>()
+    return onNode(matcher).retype { it.castOrFail<T>("Node", matcher.description) }
+}
 
 /**
  * Finds all nodes of type [T]. Convenience for `onAllNodes(SwingMatcher.isOfType<T>())`.
+ *
+ * The returned collection carries [T], so its nodes are fetched without naming the type a second
+ * time.
  */
-public inline fun <reified T : Component> SwingUiTest.onAllNodesOfType(): SwingNodeInteractionCollection =
-    onAllNodes(SwingMatcher.isOfType<T>())
+public inline fun <reified T : Component> ComposeSwingTest.onAllNodesOfType(): SwingNodeInteractionCollection<T> {
+    val matcher = SwingMatcher.isOfType<T>()
+    return onAllNodes(matcher).retype { it.castOrFail<T>("Node", matcher.description) }
+}
 
 /**
- * Finds the single realized window (see [SwingUiTest.onWindow]). Convenience for the
+ * Finds the single realized window (see [ComposeSwingTest.onWindow]). Convenience for the
  * common one-window composition:
  *
  * ```
- * setContent { Window(onCloseRequest = {}, title = "Main") { … } }
+ * setContent { Window(onCloseRequest = {}, title = "Main") { ... } }
  * val frame = onWindow().fetch<JFrame>()
  * ```
  */
-public fun SwingUiTest.onWindow(): SwingWindowInteraction = onWindow(SwingMatcher.any())
+public fun ComposeSwingTest.onWindow(): SwingWindowInteraction = onWindow(SwingMatcher.any())
 
 /**
  * Finds the single realized window titled [title]. Convenience for
  * `onWindow(SwingMatcher.hasTitle(title))`.
  */
-public fun SwingUiTest.onWindowWithTitle(title: String): SwingWindowInteraction = onWindow(SwingMatcher.hasTitle(title))
+public fun ComposeSwingTest.onWindowWithTitle(title: String): SwingWindowInteraction =
+    onWindow(SwingMatcher.hasTitle(title))
 
 /**
- * Finds all realized windows (see [SwingUiTest.onWindow]).
+ * Finds all realized windows (see [ComposeSwingTest.onWindow]).
  */
-public fun SwingUiTest.onAllWindows(): SwingWindowInteractionCollection = onAllWindows(SwingMatcher.any())
+public fun ComposeSwingTest.onAllWindows(): SwingWindowInteractionCollection = onAllWindows(SwingMatcher.any())
 
 /**
  * Sets up an isolated Swing-Compose composition, runs the suspending [block] against it on the EDT,
  * and tears everything down.
  *
  * The whole [block] executes as a coroutine on [Dispatchers.Swing] (the EDT); the calling (JUnit)
- * thread is blocked until it completes. Frames are produced under test control rather than
- * automatically, so the composition advances only across idle/await calls. Because the body runs on
- * the EDT, queries and actions read and write the AWT tree directly, and [SwingUiTest.awaitIdle]
- * suspends rather than blocking.
+ * thread is blocked until it completes or [timeout] elapses, whichever comes first. Frames are
+ * produced under test control rather than automatically, so the composition advances only across
+ * idle/await calls. Because the body runs on the EDT, queries and actions read and write the AWT
+ * tree directly, and [ComposeSwingTest.awaitIdle] suspends rather than blocking.
  *
  * Runs with or without a display: the root is never attached to a [java.awt.Window], so no native
  * peer is realized and no UI is shown. The root is given a fixed size and laid out synchronously on
@@ -218,33 +257,42 @@ public fun SwingUiTest.onAllWindows(): SwingWindowInteractionCollection = onAllW
  * [SwingNodeInteraction.assertIsDisplayed]) all work off-screen.
  *
  * Content may also compose real top-level peers (`Window { }`, `Dialog { }`); those are found with
- * [SwingUiTest.onWindow] and are torn down with the composition when the block completes. Realizing
- * them requires a display — declare that requirement with a JUnit assumption
- * (`org.junit.jupiter.api.Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), …)`) at the top
+ * [ComposeSwingTest.onWindow] and are torn down with the composition when the block completes. Realizing
+ * them requires a display - declare that requirement with a JUnit assumption
+ * (`org.junit.jupiter.api.Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), ...)`) at the top
  * of the block, so the test reports SKIPPED rather than failing on headless environments.
+ *
+ * @param rootSize the off-screen [ComposeSwingTest.root]'s fixed size. The default is large enough
+ * that realistic test layouts get sensible, non-zero child bounds under a forced layout pass.
+ * @param timeout the wall-clock deadline after which an unfinished [block] fails the test
+ * instead of hanging it. The frame caps inside [ComposeSwingTest.awaitIdle] and [ComposeSwingTest.waitUntil]
+ * only bound the work those gates drive themselves; this bounds the test as a whole.
  */
-public fun runSwingUiTest(block: suspend SwingUiTest.() -> Unit) {
-    // Host the test coroutine on the EDT and block the calling thread until it finishes. The whole
-    // body therefore runs on the EDT, alongside the recomposer the impl launches on Dispatchers.Swing.
-    runBlocking(Dispatchers.Swing) {
-        val impl = SwingUiTestImpl()
-        try {
-            impl.block()
-        } finally {
-            impl.dispose()
+public fun runComposeSwingTest(
+    rootSize: Dimension = Dimension(800, 600),
+    timeout: Duration = 60.seconds,
+    block: suspend ComposeSwingTest.() -> Unit,
+): TestResult =
+    runTest(timeout = timeout) {
+        withContext(Dispatchers.Swing) {
+            ComposeSwingTestImpl(rootSize).use {
+                it.block()
+            }
         }
     }
-}
 
-private class SwingUiTestImpl : SwingUiTest {
+private class ComposeSwingTestImpl(
+    private val rootSize: Dimension,
+) : ComposeSwingTest,
+    AutoCloseable {
     override val root: Container =
         JPanel().apply {
             // Give the off-screen root a concrete size so a forced layout pass assigns real,
             // non-zero bounds to descendants. Without this, an unrealized container reports zero
             // size and every child lays out to 0x0, making bounds-based assertions meaningless.
             // We never attach the root to a Window, so no peer is realized and no UI is shown.
-            size = Dimension(ROOT_WIDTH, ROOT_HEIGHT)
-            preferredSize = Dimension(ROOT_WIDTH, ROOT_HEIGHT)
+            size = rootSize
+            preferredSize = rootSize
         }
 
     private val clock = BroadcastFrameClock()
@@ -255,11 +303,39 @@ private class SwingUiTestImpl : SwingUiTest {
     private var contentSet = false
     private var frameTimeNanos = 0L
 
+    /**
+     * The failure that ended recomposition, once one has. Applying a composition's changes runs code the
+     * caller supplied - a node's update block, and the listeners a widget notifies from inside one of the
+     * wrapper's own writes - and a throw from any of it ends the recomposer permanently: it records the
+     * failure and never recomposes again, however many frames follow.
+     *
+     * Held here rather than left to escape the coroutine it was raised in. Escaping, it would arrive as an
+     * uncaught exception with no test attached to it, failing whichever test the runner happened to be on
+     * rather than the one that caused it. Kept, it names the composition that stopped in the report of every
+     * gate that goes on to find nothing to settle, so a test asserting on a widget the composition no longer
+     * drives says why rather than reporting a bare stale value.
+     */
+    private var compositionFailure: Throwable? = null
+
     init {
         scope.launch {
-            recomposer.runRecomposeAndApplyChanges()
+            try {
+                recomposer.runRecomposeAndApplyChanges()
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (failure: Throwable) {
+                compositionFailure = failure
+            }
         }
     }
+
+    /** Names the failure that ended recomposition, for a gate reporting what it could not settle. */
+    private fun compositionFailureNote(): String =
+        compositionFailure
+            ?.let {
+                "\nRecomposition ended earlier with $it - the composition has applied nothing since, so what " +
+                    "the tree shows below is what it was left holding.\n" + it.stackTraceToString()
+            }.orEmpty()
 
     override fun setContent(content: @Composable () -> Unit) {
         check(!contentSet) { "setContent may only be called once per test." }
@@ -301,7 +377,7 @@ private class SwingUiTestImpl : SwingUiTest {
             work++
             if (composed()) {
                 // The composition is quiescent, but applying it may have left runnables scheduled on
-                // the EDT that a single yield does not reach — a window/dialog defers its realization
+                // the EDT that a single yield does not reach - a window/dialog defers its realization
                 // to a later dispatch, and any such task can chain another invokeLater or wake a frame
                 // awaiter that posts its own runnable. Drain until no scheduled runnable remains rather
                 // than a fixed number of turns: a yield dispatches exactly the runnables queued before
@@ -309,8 +385,8 @@ private class SwingUiTestImpl : SwingUiTest {
                 // another. Yielding is the drain step precisely because it advances queued work without
                 // leaving any dispatch artifact behind.
                 //
-                // The termination condition tracks scheduled runnables only — the invocation events
-                // that carry invokeLater callbacks and coroutine continuations — not every event on
+                // The termination condition tracks scheduled runnables only - the invocation events
+                // that carry invokeLater callbacks and coroutine continuations - not every event on
                 // the queue. A realized visible window peer streams native paint events indefinitely;
                 // those never mutate composition state and must not be mistaken for pending work, or a
                 // visible window would make the gate spin forever. So the gate returns once the
@@ -331,11 +407,31 @@ private class SwingUiTestImpl : SwingUiTest {
         }
     }
 
+    override suspend fun awaitEventsDelivered() {
+        // Yielding is the drain step for the reason it is in awaitIdle: on Dispatchers.Swing it
+        // dispatches the runnables queued ahead of its own continuation and leaves no artifact behind.
+        // No frame is sent, and the recomposer recomposes and applies only from inside withFrameNanos,
+        // so nothing this delivers can reach the AWT tree by way of the composition.
+        var drains = 0
+        while (!noPendingInvocations()) {
+            yield()
+            drains++
+            if (drains >= MAX_IDLE_FRAMES) throw notDrained()
+        }
+    }
+
+    private fun notDrained(): AssertionError =
+        AssertionError(
+            "awaitEventsDelivered did not drain after $MAX_IDLE_FRAMES passes: the event dispatch thread " +
+                "still holds scheduled work, so something keeps queueing more. Current tree:\n" +
+                root.dumpTree() + realizedWindowsTreeDump() + compositionFailureNote(),
+        )
+
     /** True once the composition itself is quiescent: no pending recomposition and no unpublished snapshot writes. */
     private fun composed(): Boolean = !recomposer.hasPendingWork && !Snapshot.current.hasPendingChanges()
 
     /**
-     * True when no invocation event is queued on the EDT — no scheduled `invokeLater` callback and no
+     * True when no invocation event is queued on the EDT - no scheduled `invokeLater` callback and no
      * coroutine continuation awaiting dispatch. This is the "no scheduled runnable remains" signal the
      * idle gate drains toward. It deliberately ignores every other event class: a realized visible
      * window peer posts native paint events continuously, and treating those as pending work would
@@ -354,7 +450,7 @@ private class SwingUiTestImpl : SwingUiTest {
                 "(hasPendingWork=${recomposer.hasPendingWork}, " +
                 "hasPendingChanges=${Snapshot.current.hasPendingChanges()}). " +
                 "The composition likely never reaches a stable frame. Current tree:\n" +
-                root.dumpTree() + realizedWindowsTreeDump(),
+                root.dumpTree() + realizedWindowsTreeDump() + compositionFailureNote(),
         )
 
     override suspend fun waitUntil(
@@ -365,8 +461,8 @@ private class SwingUiTestImpl : SwingUiTest {
         // whichever trips first fails. Only frames the composition consumes count toward the cap, so
         // it is the deterministic bound on frame-driven work (a recomposition or frame-effect loop
         // that never meets the condition fails after a fixed number of frames regardless of machine
-        // speed), while a condition gated on genuinely external timing — no compose work to consume
-        // the frames — keeps being polled, with each yield dispatching arriving AWT events, until
+        // speed), while a condition gated on genuinely external timing - no compose work to consume
+        // the frames - keeps being polled, with each yield dispatching arriving AWT events, until
         // the wall-clock deadline.
         val deadline = System.nanoTime() + timeoutMillis * 1_000_000
         var frames = 0
@@ -375,7 +471,7 @@ private class SwingUiTestImpl : SwingUiTest {
             if (frames >= MAX_WAIT_UNTIL_FRAMES || System.nanoTime() >= deadline) {
                 throw AssertionError(
                     "Condition still not met after $frames consumed frames / ${timeoutMillis}ms. " +
-                        "Current tree:\n" + root.dumpTree() + realizedWindowsTreeDump(),
+                        "Current tree:\n" + root.dumpTree() + realizedWindowsTreeDump() + compositionFailureNote(),
                 )
             }
             Snapshot.sendApplyNotifications()
@@ -455,10 +551,10 @@ private class SwingUiTestImpl : SwingUiTest {
         // children at 0x0.
         //
         // We cannot use validate(): on a container with no native peer / validate-root it
-        // short-circuits and assigns no child bounds. We instead drive doLayout() top-down ourselves —
-        // each container is sized by its parent's layout before we lay out its own children — which
+        // short-circuits and assigns no child bounds. We instead drive doLayout() top-down ourselves -
+        // each container is sized by its parent's layout before we lay out its own children - which
         // assigns real bounds throughout the tree synchronously on the EDT.
-        root.setSize(ROOT_WIDTH, ROOT_HEIGHT)
+        root.size = rootSize
         layoutTree(root)
     }
 
@@ -474,30 +570,32 @@ private class SwingUiTestImpl : SwingUiTest {
     override fun onNodeWithText(
         text: String,
         substring: Boolean,
-    ): SwingNodeInteraction = onNode(SwingMatcher.hasText(text, substring))
+    ): SwingNodeInteraction<Component> = onNode(SwingMatcher.hasText(text, substring))
 
-    override fun onNodeWithName(name: String): SwingNodeInteraction = onNode(SwingMatcher.hasName(name))
+    override fun onNodeWithName(name: String): SwingNodeInteraction<Component> = onNode(SwingMatcher.hasName(name))
 
-    override fun onNodeWithTag(tag: String): SwingNodeInteraction = onNode(SwingMatcher.hasTestTag(tag))
+    override fun onNodeWithTag(tag: String): SwingNodeInteraction<Component> = onNode(SwingMatcher.hasTestTag(tag))
 
-    override fun onNode(matcher: SwingMatcher): SwingNodeInteraction =
-        SwingNodeInteraction(this, matcher.description, { root }, NodePick.Single) {
+    override fun onNode(matcher: SwingMatcher): SwingNodeInteraction<Component> =
+        SwingNodeInteraction(this, matcher.description, { root }, NodePick.Single, { it }) {
             root.findMatchingIncludingSelf(matcher)
         }
 
     override fun onAllNodesWithText(
         text: String,
         substring: Boolean,
-    ): SwingNodeInteractionCollection = onAllNodes(SwingMatcher.hasText(text, substring))
+    ): SwingNodeInteractionCollection<Component> = onAllNodes(SwingMatcher.hasText(text, substring))
 
-    override fun onAllNodesWithTag(tag: String): SwingNodeInteractionCollection =
+    override fun onAllNodesWithTag(tag: String): SwingNodeInteractionCollection<Component> =
         onAllNodes(SwingMatcher.hasTestTag(tag))
 
-    override fun onAllNodes(matcher: SwingMatcher): SwingNodeInteractionCollection =
-        SwingNodeInteractionCollection(this, matcher, { root })
+    override fun onAllNodes(matcher: SwingMatcher): SwingNodeInteractionCollection<Component> =
+        SwingNodeInteractionCollection(this, matcher.description, { root }, { it }) {
+            root.findMatching(matcher)
+        }
 
-    override fun onRoot(): SwingNodeInteraction =
-        SwingNodeInteraction(this, "root", { root }, NodePick.Single) {
+    override fun onRoot(): SwingNodeInteraction<Component> =
+        SwingNodeInteraction(this, "root", { root }, NodePick.Single, { it }) {
             root.findMatchingIncludingSelf(SwingMatcher.isRoot(root))
         }
 
@@ -507,7 +605,7 @@ private class SwingUiTestImpl : SwingUiTest {
     override fun onAllWindows(matcher: SwingMatcher): SwingWindowInteractionCollection =
         SwingWindowInteractionCollection(matcher)
 
-    fun dispose() {
+    override fun close() {
         disposeHandle?.dispose()
         recomposer.cancel()
         scope.cancel()
@@ -516,11 +614,6 @@ private class SwingUiTestImpl : SwingUiTest {
     private companion object {
         // 60fps cadence; only the monotonic progression matters for frame-driven effects.
         const val FRAME_INTERVAL_NANOS: Long = 16_666_667L
-
-        // Off-screen root dimensions. Large enough that realistic test layouts get sensible,
-        // non-zero child bounds under a forced layout pass.
-        const val ROOT_WIDTH: Int = 800
-        const val ROOT_HEIGHT: Int = 600
 
         // Generous frame caps. A healthy composition settles in a handful of frames; these bounds
         // exist only to convert a pathological never-settling loop into a readable failure instead

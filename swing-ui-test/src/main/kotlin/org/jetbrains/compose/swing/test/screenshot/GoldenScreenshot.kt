@@ -1,6 +1,6 @@
 package org.jetbrains.compose.swing.test.screenshot
 
-import org.jetbrains.compose.swing.test.SwingUiTest
+import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.SwingNodeInteraction
 import java.awt.image.BufferedImage
 import java.io.File
@@ -25,11 +25,11 @@ import javax.imageio.ImageIO
  *   the golden is missing while record mode is disabled.
  * @throws IllegalArgumentException if [goldenIdentifier] contains forbidden characters.
  */
-public fun SwingNodeInteraction.assertImageAgainstGolden(
+public fun SwingNodeInteraction<*>.assertImageAgainstGolden(
     goldenIdentifier: String,
     threshold: Double = MSSIMMatcher.DEFAULT_THRESHOLD,
 ) {
-    owningTest.assertImageAgainstGolden(captureToImage(), goldenIdentifier, threshold)
+    test.assertImageAgainstGolden(captureToImage(), goldenIdentifier, threshold)
 }
 
 /**
@@ -46,7 +46,7 @@ public fun SwingNodeInteraction.assertImageAgainstGolden(
  *   the golden is missing while record mode is disabled.
  * @throws IllegalArgumentException if [goldenIdentifier] contains forbidden characters.
  */
-public fun SwingUiTest.assertImageAgainstGolden(
+public fun ComposeSwingTest.assertImageAgainstGolden(
     goldenIdentifier: String,
     threshold: Double = MSSIMMatcher.DEFAULT_THRESHOLD,
 ) {
@@ -68,7 +68,7 @@ public fun SwingUiTest.assertImageAgainstGolden(
  *   is missing while record mode is disabled.
  * @throws IllegalArgumentException if [goldenIdentifier] contains forbidden characters.
  */
-public fun SwingUiTest.assertImageAgainstGolden(
+public fun ComposeSwingTest.assertImageAgainstGolden(
     image: BufferedImage,
     goldenIdentifier: String,
     threshold: Double = MSSIMMatcher.DEFAULT_THRESHOLD,
@@ -88,7 +88,7 @@ public fun SwingUiTest.assertImageAgainstGolden(
  * @throws AssertionError if [image] differs from [expected] beyond the threshold, or if their sizes
  *   differ.
  */
-public fun SwingUiTest.assertImageMatches(
+public fun ComposeSwingTest.assertImageMatches(
     expected: BufferedImage,
     image: BufferedImage,
     threshold: Double = MSSIMMatcher.DEFAULT_THRESHOLD,
@@ -108,7 +108,7 @@ public fun SwingUiTest.assertImageMatches(
  * @throws AssertionError if the captured image differs from [expected] beyond the threshold, or if
  *   their sizes differ.
  */
-public fun SwingNodeInteraction.assertImageMatches(
+public fun SwingNodeInteraction<*>.assertImageMatches(
     expected: BufferedImage,
     threshold: Double = MSSIMMatcher.DEFAULT_THRESHOLD,
 ) {
@@ -121,8 +121,8 @@ public fun SwingNodeInteraction.assertImageMatches(
 
 /**
  * Asserts [image] matches [expected] pixel-for-pixel, allowing at most [maxDifferentPixels] differing
- * pixels (default `0`, i.e. byte-exact). Use this for the strictest comparisons — proving two
- * independently rendered components rasterize identically — where the structural-similarity tolerance
+ * pixels (default `0`, i.e. byte-exact). Use this for the strictest comparisons - proving two
+ * independently rendered components rasterize identically - where the structural-similarity tolerance
  * of [assertImageMatches] would be too lenient to catch a stray border, margin or alignment shift.
  *
  * @param expected the reference image.
@@ -133,7 +133,7 @@ public fun SwingNodeInteraction.assertImageMatches(
  *   pixels.
  * @throws IllegalArgumentException if [maxDifferentPixels] is negative.
  */
-public fun SwingUiTest.assertImagesPixelPerfect(
+public fun ComposeSwingTest.assertImagesPixelPerfect(
     expected: BufferedImage,
     image: BufferedImage,
     maxDifferentPixels: Int = 0,

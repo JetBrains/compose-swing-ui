@@ -7,7 +7,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JTable
 import javax.swing.ListSelectionModel
 import javax.swing.table.DefaultTableModel
@@ -30,7 +30,7 @@ class TableModelBehaviorTest {
         DefaultTableModel(names.map { arrayOf<Any?>(it) }.toTypedArray(), arrayOf<Any?>("Name"))
 
     @Test
-    fun modelRendersAsTheTableModel() = runSwingUiTest {
+    fun modelRendersAsTheTableModel() = runComposeSwingTest {
         val model = tableModel("Ada", "Alan", "Grace")
         setContent { Table(model = model, modifier = SwingModifier.name("table")) }
 
@@ -42,7 +42,7 @@ class TableModelBehaviorTest {
     }
 
     @Test
-    fun selectingRowsFiresOnSelectionChange() = runSwingUiTest {
+    fun selectingRowsFiresOnSelectionChange() = runComposeSwingTest {
         val received = mutableListOf<List<Int>>()
         setContent {
             Table(
@@ -62,7 +62,7 @@ class TableModelBehaviorTest {
     }
 
     @Test
-    fun controlledSelectionReAppliesAfterModelSwap() = runSwingUiTest {
+    fun controlledSelectionReAppliesAfterModelSwap() = runComposeSwingTest {
         var model by mutableStateOf(tableModel("Ada", "Alan", "Grace"))
         setContent {
             Table(
@@ -85,7 +85,7 @@ class TableModelBehaviorTest {
     }
 
     @Test
-    fun controlledSelectionUpdateConvergesWithoutALoop() = runSwingUiTest {
+    fun controlledSelectionUpdateConvergesWithoutALoop() = runComposeSwingTest {
         var selection by mutableStateOf(listOf(0))
         val received = mutableListOf<List<Int>>()
         setContent {

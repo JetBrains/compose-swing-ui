@@ -4,12 +4,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.SwingMatcher
-import org.jetbrains.compose.swing.test.SwingUiTest
 import org.jetbrains.compose.swing.test.onAllWindows
 import org.jetbrains.compose.swing.test.onWindow
 import org.jetbrains.compose.swing.test.onWindowWithTitle
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.window.Dialog
 import org.jetbrains.compose.swing.window.Window
 import org.junit.jupiter.api.Assumptions.assumeFalse
@@ -23,10 +23,10 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
- * Validates the window-query surface of the harness: [SwingUiTest.onWindow]/[SwingUiTest.onAllWindows]
+ * Validates the window-query surface of the harness: [ComposeSwingTest.onWindow]/[ComposeSwingTest.onAllWindows]
  * resolve the top-level windows realized by `Window { }`/`Dialog { }` composables in the composition
- * under test — whether or not they are shown — window-scoped node finders resolve inside one window's
- * content pane, and [SwingUiTest.awaitIdle] settles a window show that is applied on its own
+ * under test - whether or not they are shown - window-scoped node finders resolve inside one window's
+ * content pane, and [ComposeSwingTest.awaitIdle] settles a window show that is applied on its own
  * event-dispatch turn.
  *
  * Every case realizes a real top-level peer, so each declares its display requirement up front and is
@@ -34,7 +34,7 @@ import kotlin.test.assertTrue
  */
 class WindowInteractionTest {
     @Test
-    fun onWindowFindsTheVisibleWindow() = runSwingUiTest {
+    fun onWindowFindsTheVisibleWindow() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         setContent { Window(onCloseRequest = {}, title = "shown-window", visible = true) {} }
 
@@ -52,7 +52,7 @@ class WindowInteractionTest {
     }
 
     @Test
-    fun windowScopedNodeFindersResolveInsideThatWindowOnly() = runSwingUiTest {
+    fun windowScopedNodeFindersResolveInsideThatWindowOnly() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         setContent {
             Label(text = "outside")
@@ -74,7 +74,7 @@ class WindowInteractionTest {
     }
 
     @Test
-    fun aWindowLeavingTheCompositionStopsMatching() = runSwingUiTest {
+    fun aWindowLeavingTheCompositionStopsMatching() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         var present by mutableStateOf(true)
         setContent {
@@ -93,7 +93,7 @@ class WindowInteractionTest {
     }
 
     @Test
-    fun onWindowRequiresExactlyOneMatchAndMatchersNarrow() = runSwingUiTest {
+    fun onWindowRequiresExactlyOneMatchAndMatchersNarrow() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         setContent {
             Window(onCloseRequest = {}, title = "first", visible = true) {}
@@ -116,7 +116,7 @@ class WindowInteractionTest {
     }
 
     @Test
-    fun aRealizedWindowMatchesRegardlessOfVisibility() = runSwingUiTest {
+    fun aRealizedWindowMatchesRegardlessOfVisibility() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         var visible by mutableStateOf(false)
         setContent { Window(onCloseRequest = {}, title = "visibility", visible = visible) {} }
@@ -139,7 +139,23 @@ class WindowInteractionTest {
     }
 
     @Test
-    fun awaitIdleSettlesADeferredDialogShow() = runSwingUiTest {
+    fun nodeVisibilityInsideAWindowStopsAtThatWindowsContentPane() = runComposeSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        setContent {
+            Window(onCloseRequest = {}, title = "unshown", visible = false) {
+                Label(text = "content")
+            }
+        }
+
+        val window = onWindowWithTitle("unshown")
+        window.assertIsNotVisible()
+        // The frame carrying the hidden flag sits above the content pane the query is rooted at, so a
+        // node under it reports the visibility it was given rather than the window's.
+        window.onNodeWithText("content").assertIsVisible()
+    }
+
+    @Test
+    fun awaitIdleSettlesADeferredDialogShow() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         var visible by mutableStateOf(false)
         setContent { Dialog(onCloseRequest = {}, title = "deferred-show", visible = visible) {} }
@@ -158,7 +174,7 @@ class WindowInteractionTest {
     }
 
     @Test
-    fun fetchFailsWhenTheWindowTypeMismatches() = runSwingUiTest {
+    fun fetchFailsWhenTheWindowTypeMismatches() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         setContent { Window(onCloseRequest = {}, title = "typed", visible = true) {} }
         assertFailsWith<AssertionError> { onWindow().fetch<JDialog>() }

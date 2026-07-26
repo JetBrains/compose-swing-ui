@@ -8,7 +8,7 @@ import org.jetbrains.compose.swing.components.layout.FlowPanel
 import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.onNodeOfType
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
 import java.awt.Container
 import javax.swing.JLabel
@@ -30,7 +30,7 @@ import kotlin.test.assertTrue
  */
 class ListBoxComposableCellTest {
     @Test
-    fun itemContentRealizesAComposableCellPerRow() = runSwingUiTest {
+    fun itemContentRealizesAComposableCellPerRow() = runComposeSwingTest {
         setContent {
             ListBox(items = listOf("alpha", "beta", "gamma")) { item ->
                 FlowPanel { Label(item) }
@@ -49,7 +49,7 @@ class ListBoxComposableCellTest {
     }
 
     @Test
-    fun theSameRendererRestampsAsRowsChange() = runSwingUiTest {
+    fun theSameRendererRestampsAsRowsChange() = runComposeSwingTest {
         setContent {
             ListBox(items = listOf("one", "two", "three")) { item ->
                 Label(item)
@@ -64,7 +64,7 @@ class ListBoxComposableCellTest {
     }
 
     @Test
-    fun recomposedRowContentUpdatesTheCell() = runSwingUiTest {
+    fun recomposedRowContentUpdatesTheCell() = runComposeSwingTest {
         var items by mutableStateOf(listOf("draft"))
         setContent {
             ListBox(items = items) { item ->
@@ -86,7 +86,7 @@ class ListBoxComposableCellTest {
     }
 
     @Test
-    fun cellScopeReflectsSelectionForTheStampedRow() = runSwingUiTest {
+    fun cellScopeReflectsSelectionForTheStampedRow() = runComposeSwingTest {
         setContent {
             ListBox(items = listOf("x", "y")) { item ->
                 Label(if (isSelected) "$item*" else item)
@@ -107,7 +107,7 @@ class ListBoxComposableCellTest {
     }
 
     @Test
-    fun composableCellsWorkInsideAScrollPane() = runSwingUiTest {
+    fun composableCellsWorkInsideAScrollPane() = runComposeSwingTest {
         // A composable cell island joins the enclosing composition, so it must not inherit the slot
         // attachment of the ScrollPane viewport that hosts the ListBox — otherwise the cell's own nodes
         // would try to install into the renderer's plain host as if it were a JScrollPane. Selecting a
@@ -132,7 +132,7 @@ class ListBoxComposableCellTest {
     }
 
     @Test
-    fun aStampAfterTheRendererLeavesTheCompositionIsSafe() = runSwingUiTest {
+    fun aStampAfterTheRendererLeavesTheCompositionIsSafe() = runComposeSwingTest {
         var showList by mutableStateOf(true)
         setContent {
             if (showList) {
@@ -160,7 +160,7 @@ class ListBoxComposableCellTest {
     }
 
     @Test
-    fun omittingItemContentKeepsTheDefaultRenderer() = runSwingUiTest {
+    fun omittingItemContentKeepsTheDefaultRenderer() = runComposeSwingTest {
         setContent { ListBox(items = listOf("a", "b")) }
 
         val list = onNodeOfType<JList<*>>().fetch<JList<*>>()

@@ -2,7 +2,7 @@ package org.jetbrains.compose.swing.components.text
 
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.onNodeOfType
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JFormattedTextField
 import javax.swing.text.DefaultFormatterFactory
 import javax.swing.text.NumberFormatter
@@ -19,7 +19,7 @@ import kotlin.test.assertSame
  */
 class StateFormattedTextFieldTest {
     @Test
-    fun fieldSharesTheStateDocument() = runSwingUiTest {
+    fun fieldSharesTheStateDocument() = runComposeSwingTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState("seed")
@@ -31,7 +31,7 @@ class StateFormattedTextFieldTest {
     }
 
     @Test
-    fun callerSuppliedDocumentIsInstalledIntoTheField() = runSwingUiTest {
+    fun callerSuppliedDocumentIsInstalledIntoTheField() = runComposeSwingTest {
         val document = PlainDocument().apply { insertString(0, "preset", null) }
         lateinit var state: DocumentState
         setContent {
@@ -45,7 +45,7 @@ class StateFormattedTextFieldTest {
     }
 
     @Test
-    fun editAppendUpdatesRealizedField() = runSwingUiTest {
+    fun editAppendUpdatesRealizedField() = runComposeSwingTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState("ab")
@@ -61,7 +61,7 @@ class StateFormattedTextFieldTest {
     }
 
     @Test
-    fun assigningTextReplacesFieldContent() = runSwingUiTest {
+    fun assigningTextReplacesFieldContent() = runComposeSwingTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState("hello")
@@ -76,7 +76,7 @@ class StateFormattedTextFieldTest {
     }
 
     @Test
-    fun typingIntoFieldUpdatesStateText() = runSwingUiTest {
+    fun typingIntoFieldUpdatesStateText() = runComposeSwingTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState()
@@ -91,7 +91,7 @@ class StateFormattedTextFieldTest {
     }
 
     @Test
-    fun clearTextEmptiesTheField() = runSwingUiTest {
+    fun clearTextEmptiesTheField() = runComposeSwingTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState("something")
@@ -107,7 +107,7 @@ class StateFormattedTextFieldTest {
     }
 
     @Test
-    fun formatterFactoryParamReachesTheField() = runSwingUiTest {
+    fun formatterFactoryParamReachesTheField() = runComposeSwingTest {
         val factory = DefaultFormatterFactory(NumberFormatter())
         lateinit var state: DocumentState
         setContent {
@@ -120,7 +120,7 @@ class StateFormattedTextFieldTest {
     }
 
     @Test
-    fun focusLostBehaviorParamReachesTheField() = runSwingUiTest {
+    fun focusLostBehaviorParamReachesTheField() = runComposeSwingTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState()
@@ -132,7 +132,7 @@ class StateFormattedTextFieldTest {
     }
 
     @Test
-    fun columnsParamReachesTheField() = runSwingUiTest {
+    fun columnsParamReachesTheField() = runComposeSwingTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState()

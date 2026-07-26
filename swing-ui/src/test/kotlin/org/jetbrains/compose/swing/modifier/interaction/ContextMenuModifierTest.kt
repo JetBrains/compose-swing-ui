@@ -10,22 +10,22 @@ import org.jetbrains.compose.swing.components.Menu
 import org.jetbrains.compose.swing.components.MenuItem
 import org.jetbrains.compose.swing.components.MenuSeparator
 import org.jetbrains.compose.swing.components.RadioButtonMenuItem
+import org.jetbrains.compose.swing.menuItemTexts
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.name
-import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.onNodeOfType
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
 import java.awt.IllegalComponentStateException
 import java.awt.event.MouseEvent
 import javax.swing.JCheckBoxMenuItem
-import javax.swing.JComponent
+import javax.swing.JLabel
 import javax.swing.JMenu
 import javax.swing.JMenuItem
 import javax.swing.JPopupMenu
 import javax.swing.JRadioButtonMenuItem
-import javax.swing.JSeparator
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -53,23 +53,14 @@ class ContextMenuModifierTest {
         true,
     )
 
-    /** Top-level menu item labels of [popup], in order (separators rendered as `null`). */
-    private fun itemTexts(popup: JPopupMenu): List<String?> = (0 until popup.componentCount).map {
-        when (val component = popup.getComponent(it)) {
-            is JMenuItem -> component.text
-            is JSeparator -> null
-            else -> component.toString()
-        }
-    }
-
     @Test
-    fun popupTriggerBuildsAPopupMirroringTheComposedMenu() = runSwingUiTest {
+    fun popupTriggerBuildsAPopupMirroringTheComposedMenu() = runComposeSwingTest {
         var captured: JPopupMenu? = null
         setContent {
             Label(
                 "target",
                 modifier =
-                    SwingModifier.name("target").contextMenu(
+                    SwingModifier.contextMenu(
                         display = { popup, _, _, _ -> captured = popup },
                     ) {
                         MenuItem("Cut")
@@ -79,7 +70,7 @@ class ContextMenuModifierTest {
                     },
             )
         }
-        val target = onNodeWithName("target").fetch<JComponent>()
+        val target = onNodeOfType<JLabel>().fetch()
         assertTrue(
             target.mouseListeners.isNotEmpty(),
             "the popup trigger must be installed as a real MouseListener",
@@ -91,20 +82,20 @@ class ContextMenuModifierTest {
         val popup = captured ?: error("popup-trigger event did not build a popup")
         assertEquals(
             listOf("Cut", "Copy", null, "Paste"),
-            itemTexts(popup),
+            popup.menuItemTexts(),
             "the popup should mirror the composed menu items",
         )
     }
 
     @Test
-    fun selectingAnItemRunsItsCallback() = runSwingUiTest {
+    fun selectingAnItemRunsItsCallback() = runComposeSwingTest {
         var captured: JPopupMenu? = null
         var pasted = 0
         setContent {
             Label(
                 "target",
                 modifier =
-                    SwingModifier.name("target").contextMenu(
+                    SwingModifier.contextMenu(
                         display = { popup, _, _, _ -> captured = popup },
                     ) {
                         MenuItem("Copy")
@@ -112,7 +103,7 @@ class ContextMenuModifierTest {
                     },
             )
         }
-        val target = onNodeWithName("target").fetch<JComponent>()
+        val target = onNodeOfType<JLabel>().fetch()
         target.dispatchEvent(popupTrigger(target))
 
         val popup = captured ?: error("popup-trigger event did not build a popup")
@@ -124,13 +115,13 @@ class ContextMenuModifierTest {
     }
 
     @Test
-    fun aSubmenuIsComposedIntoThePopup() = runSwingUiTest {
+    fun aSubmenuIsComposedIntoThePopup() = runComposeSwingTest {
         var captured: JPopupMenu? = null
         setContent {
             Label(
                 "target",
                 modifier =
-                    SwingModifier.name("target").contextMenu(
+                    SwingModifier.contextMenu(
                         display = { popup, _, _, _ -> captured = popup },
                     ) {
                         Menu("More") {
@@ -139,7 +130,7 @@ class ContextMenuModifierTest {
                     },
             )
         }
-        val target = onNodeWithName("target").fetch<JComponent>()
+        val target = onNodeOfType<JLabel>().fetch()
         target.dispatchEvent(popupTrigger(target))
 
         val popup = captured ?: error("popup-trigger event did not build a popup")
@@ -149,14 +140,14 @@ class ContextMenuModifierTest {
     }
 
     @Test
-    fun theMenuReflectsCurrentCompositionState() = runSwingUiTest {
+    fun theMenuReflectsCurrentCompositionState() = runComposeSwingTest {
         var captured: JPopupMenu? = null
         var enabledExtra by mutableStateOf(false)
         setContent {
             Label(
                 "target",
                 modifier =
-                    SwingModifier.name("target").contextMenu(
+                    SwingModifier.contextMenu(
                         display = { popup, _, _, _ -> captured = popup },
                     ) {
                         MenuItem("Always")
@@ -164,12 +155,12 @@ class ContextMenuModifierTest {
                     },
             )
         }
-        val target = onNodeWithName("target").fetch<JComponent>()
+        val target = onNodeOfType<JLabel>().fetch()
 
         target.dispatchEvent(popupTrigger(target))
         assertEquals(
             listOf("Always"),
-            itemTexts(captured ?: error("no popup")),
+            (captured ?: error("no popup")).menuItemTexts(),
             "before the state flips, only the unconditional item is present",
         )
 
@@ -179,63 +170,58 @@ class ContextMenuModifierTest {
         target.dispatchEvent(popupTrigger(target))
         assertEquals(
             listOf("Always", "Extra"),
-            itemTexts(captured ?: error("no popup")),
+            (captured ?: error("no popup")).menuItemTexts(),
             "a popup opened after the state flips reflects the new state",
         )
     }
 
     @Test
-    fun defaultOverloadInstallsTheTriggerAndPresentsOverTheInvoker() = runSwingUiTest {
+    fun defaultOverloadInstallsTheTriggerAndPresentsOverTheInvoker() = runComposeSwingTest {
         setContent {
             Label(
                 "target",
                 // The content-only overload, which presents the populated popup over the invoker at
                 // the trigger point (the production default) instead of via a caller-supplied seam.
                 modifier =
-                    SwingModifier.name("target").contextMenu {
+                    SwingModifier.contextMenu {
                         MenuItem("Cut")
                     },
             )
         }
-        val target = onNodeWithName("target").fetch<JComponent>()
+        val target = onNodeOfType<JLabel>().fetch()
         assertTrue(
             target.mouseListeners.isNotEmpty(),
             "the content-only overload must install the popup trigger as a real MouseListener",
         )
 
         // Firing the trigger drives the default presentation, which asks the popup to show over the
-        // invoker — an unrealized, off-screen component in the harness. The default honestly defers to
+        // invoker - an unrealized, off-screen component in the harness. The default honestly defers to
         // JPopupMenu.show, which requires a component showing on screen; that is the observable
         // contract of "present over the invoker at the trigger point".
-        var thrown: Throwable? = null
-        try {
-            target.dispatchEvent(popupTrigger(target))
-        } catch (e: IllegalComponentStateException) {
-            thrown = e
-        }
-        assertTrue(
-            thrown != null,
+        assertFailsWith<IllegalComponentStateException>(
             "the default presentation shows the popup over the invoker, which an off-screen " +
                 "component cannot satisfy headless",
-        )
+        ) {
+            target.dispatchEvent(popupTrigger(target))
+        }
     }
 
     @Test
-    fun aCheckBoxMenuItemReflectsAndDrivesItsCheckedState() = runSwingUiTest {
+    fun aCheckBoxMenuItemReflectsAndDrivesItsCheckedState() = runComposeSwingTest {
         var captured: JPopupMenu? = null
         var wrap by mutableStateOf(true)
         setContent {
             Label(
                 "target",
                 modifier =
-                    SwingModifier.name("target").contextMenu(
+                    SwingModifier.contextMenu(
                         display = { popup, _, _, _ -> captured = popup },
                     ) {
                         CheckBoxMenuItem("Wrap", checked = wrap, onCheckedChange = { wrap = it })
                     },
             )
         }
-        val target = onNodeWithName("target").fetch<JComponent>()
+        val target = onNodeOfType<JLabel>().fetch()
 
         target.dispatchEvent(popupTrigger(target))
         val item = (captured ?: error("no popup")).getComponent(0) as JCheckBoxMenuItem
@@ -255,14 +241,14 @@ class ContextMenuModifierTest {
     }
 
     @Test
-    fun radioButtonMenuItemsReflectAndDriveSingleSelection() = runSwingUiTest {
+    fun radioButtonMenuItemsReflectAndDriveSingleSelection() = runComposeSwingTest {
         var captured: JPopupMenu? = null
         var selected by mutableIntStateOf(0)
         setContent {
             Label(
                 "target",
                 modifier =
-                    SwingModifier.name("target").contextMenu(
+                    SwingModifier.contextMenu(
                         display = { popup, _, _, _ -> captured = popup },
                     ) {
                         RadioButtonMenuItem("First", selected = selected == 0, onSelect = { selected = 0 })
@@ -270,7 +256,7 @@ class ContextMenuModifierTest {
                     },
             )
         }
-        val target = onNodeWithName("target").fetch<JComponent>()
+        val target = onNodeOfType<JLabel>().fetch()
 
         target.dispatchEvent(popupTrigger(target))
         val popup = captured ?: error("no popup")
@@ -304,20 +290,148 @@ class ContextMenuModifierTest {
     }
 
     @Test
-    fun aNonPopupClickDoesNotBuildAPopup() = runSwingUiTest {
+    fun theCallbackOfTheLatestComposedMenuRuns() = runComposeSwingTest {
+        var captured: JPopupMenu? = null
+        var declared by mutableIntStateOf(1)
+        var handled = 0
+        setContent {
+            val generation = declared
+            Label(
+                "target",
+                modifier =
+                    SwingModifier.contextMenu(
+                        display = { popup, _, _, _ -> captured = popup },
+                    ) {
+                        MenuItem("Paste", onClick = { handled = generation })
+                    },
+            )
+        }
+        val target = onNodeOfType<JLabel>().fetch()
+
+        declared = 2
+        awaitIdle()
+        target.dispatchEvent(popupTrigger(target))
+        val paste = (captured ?: error("no popup")).getComponent(0) as JMenuItem
+        paste.doClick()
+        assertEquals(
+            2,
+            handled,
+            "the item must run the callback of the menu the latest recomposition declared, not a captured earlier one",
+        )
+    }
+
+    @Test
+    fun thePopupTriggerIsInstalledOncePerComponent() = runComposeSwingTest {
+        var captured: JPopupMenu? = null
+        var popups = 0
+        var itemText by mutableStateOf("Cut")
+        setContent {
+            Label(
+                "target",
+                modifier =
+                    SwingModifier.contextMenu(
+                        display = { popup, _, _, _ ->
+                            captured = popup
+                            popups++
+                        },
+                    ) {
+                        MenuItem(itemText)
+                    },
+            )
+        }
+        val target = onNodeOfType<JLabel>().fetch()
+
+        itemText = "Copy"
+        awaitIdle()
+        itemText = "Paste"
+        awaitIdle()
+
+        target.dispatchEvent(popupTrigger(target))
+        assertEquals(1, popups, "recompositions must not stack popup triggers: one gesture must build one popup")
+        assertEquals(
+            listOf("Paste"),
+            (captured ?: error("no popup")).menuItemTexts(),
+            "the single popup must mirror the menu the latest recomposition declared",
+        )
+    }
+
+    @Test
+    fun eachContextMenuInTheChainOpensOnTheGesture() = runComposeSwingTest {
+        val opened = mutableListOf<String?>()
+        val record: (JPopupMenu, Component, Int, Int) -> Unit = { popup, _, _, _ ->
+            opened += popup.menuItemTexts().single()
+        }
+        setContent {
+            val firstMenu = SwingModifier.contextMenu(display = record) { MenuItem("Cut") }
+            Label("target", modifier = firstMenu.contextMenu(display = record) { MenuItem("Paste") })
+        }
+        val target = onNodeOfType<JLabel>().fetch()
+
+        target.dispatchEvent(popupTrigger(target))
+
+        assertEquals(
+            listOf("Cut", "Paste"),
+            opened.sortedBy { it.orEmpty() },
+            "each call is its own slot: one gesture must open every menu the chain declares",
+        )
+    }
+
+    @Test
+    fun droppingTheModifierRemovesThePopupTrigger() = runComposeSwingTest {
+        var captured: JPopupMenu? = null
+        var withMenu by mutableStateOf(true)
+        setContent {
+            val modifier =
+                if (withMenu) {
+                    SwingModifier.contextMenu(
+                        display = { popup, _, _, _ -> captured = popup },
+                    ) {
+                        MenuItem("Cut")
+                    }
+                } else {
+                    SwingModifier
+                }
+            Label("target", modifier = modifier)
+        }
+        val target = onNodeOfType<JLabel>().fetch()
+        target.dispatchEvent(popupTrigger(target))
+        assertEquals(
+            listOf("Cut"),
+            (captured ?: error("no popup")).menuItemTexts(),
+            "the composed menu must open while the modifier is in the chain",
+        )
+
+        withMenu = false
+        awaitIdle()
+        captured = null
+        target.dispatchEvent(popupTrigger(target))
+        assertNull(captured, "a popup gesture must build no menu once the modifier leaves the chain")
+
+        withMenu = true
+        awaitIdle()
+        target.dispatchEvent(popupTrigger(target))
+        assertEquals(
+            listOf("Cut"),
+            (captured ?: error("no popup")).menuItemTexts(),
+            "the menu must open again once the modifier returns to the chain",
+        )
+    }
+
+    @Test
+    fun aNonPopupClickDoesNotBuildAPopup() = runComposeSwingTest {
         var captured: JPopupMenu? = null
         setContent {
             Label(
                 "target",
                 modifier =
-                    SwingModifier.name("target").contextMenu(
+                    SwingModifier.contextMenu(
                         display = { popup, _, _, _ -> captured = popup },
                     ) {
                         MenuItem("Cut")
                     },
             )
         }
-        val target = onNodeWithName("target").fetch<JComponent>()
+        val target = onNodeOfType<JLabel>().fetch()
         // A plain left-button press (popupTrigger = false) is not the popup gesture.
         target.dispatchEvent(
             MouseEvent(target, MouseEvent.MOUSE_PRESSED, 0L, 0, 1, 1, 1, false),

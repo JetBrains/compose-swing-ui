@@ -5,25 +5,19 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.BorderPanel
-import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.test.SwingUiTest
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.interaction.onChildAt
+import org.jetbrains.compose.swing.test.interaction.onChildren
+import org.jetbrains.compose.swing.test.interaction.onParent
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.BorderLayout
-import java.awt.Component
 import kotlin.test.Test
 import kotlin.test.assertSame
 
 /**
- * Regression guard for the disappearing-slot applier bug. A [BorderPanel] has a CONDITIONAL NORTH
- * slot driven by a boolean state, plus stable CENTER and SOUTH slots. The historical defect was that
- * a constrained child was added with `Container.add(Component, Object)`, which appends to the AWT
- * component array regardless of the composition index. Toggling the conditional NORTH slot then
- * desynced the array order from the composition order, so the index-based remove/move addressed the
- * wrong component: toggling NORTH off removed CENTER instead, and toggling it on placed it at the end
- * instead of composition index 0.
- *
- * These tests pin that the stable siblings keep their identity and constraints across a NORTH
- * on -> off cycle, and that turning NORTH on places it correctly without disturbing the siblings.
+ * A [BorderPanel] whose NORTH slot is conditional, alongside stable CENTER and SOUTH slots. A slot
+ * appearing or disappearing shifts the composition indices of its siblings, and the applier addresses
+ * the AWT component array by that index, so a stable sibling has to come through the toggle as the
+ * same component in the same region - both when the conditional slot arrives and when it leaves.
  */
 class ConditionalSlotToggleTest {
     private companion object {
@@ -32,14 +26,8 @@ class ConditionalSlotToggleTest {
         const val SOUTH_TEXT = "South"
     }
 
-    /**
-     * Resolves the single component whose text equals [text] by walking the real AWT tree on the EDT.
-     * Returns the live instance so tests can assert identity is preserved across recompositions.
-     */
-    private fun SwingUiTest.componentWithText(text: String): Component = onNodeWithText(text).fetch<Component>()
-
     @Test
-    fun togglingNorthOnThenOffLeavesSiblingsIntactAndNorthGone() = runSwingUiTest {
+    fun togglingNorthOnThenOffLeavesSiblingsIntactAndNorthGone() = runComposeSwingTest {
         var showNorth by mutableStateOf(false)
         setContent {
             BorderPanel {
@@ -51,34 +39,36 @@ class ConditionalSlotToggleTest {
             }
         }
 
+        val north = onNodeWithText(NORTH_TEXT)
+        val center = onNodeWithText(CENTER_TEXT)
+        val south = onNodeWithText(SOUTH_TEXT)
+
         // Baseline (north off): center and south exist in their regions, north absent.
-        onNodeWithText(CENTER_TEXT).assertExists().assertLayoutConstraint(BorderLayout.CENTER)
-        onNodeWithText(SOUTH_TEXT).assertExists().assertLayoutConstraint(BorderLayout.SOUTH)
-        onNodeWithText(NORTH_TEXT).assertDoesNotExist()
+        center.assertLayoutConstraint(BorderLayout.CENTER)
+        south.assertLayoutConstraint(BorderLayout.SOUTH)
+        north.assertDoesNotExist()
 
-        // Capture the live sibling instances so we can prove identity survives the toggle cycle.
-        val centerBefore = componentWithText(CENTER_TEXT)
-        val southBefore = componentWithText(SOUTH_TEXT)
+        // The live sibling instances, so the toggle cycle can be shown to preserve identity.
+        val centerBefore = center.fetch()
+        val southBefore = south.fetch()
 
-        // Turn NORTH on.
         showNorth = true
         awaitIdle()
-        onNodeWithText(NORTH_TEXT).assertExists().assertLayoutConstraint(BorderLayout.NORTH)
+        north.assertLayoutConstraint(BorderLayout.NORTH)
 
-        // Turn NORTH off again. The bug removed CENTER here instead of NORTH.
         showNorth = false
         awaitIdle()
 
         // NORTH is gone; CENTER and SOUTH still exist, in their correct regions, same instances.
-        onNodeWithText(NORTH_TEXT).assertDoesNotExist()
-        onNodeWithText(CENTER_TEXT).assertExists().assertLayoutConstraint(BorderLayout.CENTER)
-        onNodeWithText(SOUTH_TEXT).assertExists().assertLayoutConstraint(BorderLayout.SOUTH)
-        assertSame(centerBefore, componentWithText(CENTER_TEXT), "CENTER instance changed across toggle")
-        assertSame(southBefore, componentWithText(SOUTH_TEXT), "SOUTH instance changed across toggle")
+        north.assertDoesNotExist()
+        center.assertLayoutConstraint(BorderLayout.CENTER)
+        south.assertLayoutConstraint(BorderLayout.SOUTH)
+        assertSame(centerBefore, center.fetch(), "CENTER instance changed across toggle")
+        assertSame(southBefore, south.fetch(), "SOUTH instance changed across toggle")
     }
 
     @Test
-    fun togglingNorthOnPlacesItCorrectlyWithoutDisturbingSiblings() = runSwingUiTest {
+    fun togglingNorthOnPlacesItCorrectlyWithoutDisturbingSiblings() = runComposeSwingTest {
         var showNorth by mutableStateOf(false)
         setContent {
             BorderPanel {
@@ -90,18 +80,29 @@ class ConditionalSlotToggleTest {
             }
         }
 
-        val centerBefore = componentWithText(CENTER_TEXT)
-        val southBefore = componentWithText(SOUTH_TEXT)
+        val north = onNodeWithText(NORTH_TEXT)
+        val center = onNodeWithText(CENTER_TEXT)
+        val south = onNodeWithText(SOUTH_TEXT)
 
-        // Turn NORTH on: it must land at NORTH (not appended to the end as the bug did), and the
-        // stable siblings must keep their regions and identities.
+        val centerBefore = center.fetch()
+        val southBefore = south.fetch()
+
         showNorth = true
         awaitIdle()
 
-        onNodeWithText(NORTH_TEXT).assertExists().assertLayoutConstraint(BorderLayout.NORTH)
-        onNodeWithText(CENTER_TEXT).assertExists().assertLayoutConstraint(BorderLayout.CENTER)
-        onNodeWithText(SOUTH_TEXT).assertExists().assertLayoutConstraint(BorderLayout.SOUTH)
-        assertSame(centerBefore, componentWithText(CENTER_TEXT), "CENTER instance changed when NORTH added")
-        assertSame(southBefore, componentWithText(SOUTH_TEXT), "SOUTH instance changed when NORTH added")
+        north.assertLayoutConstraint(BorderLayout.NORTH)
+        center.assertLayoutConstraint(BorderLayout.CENTER)
+        south.assertLayoutConstraint(BorderLayout.SOUTH)
+
+        // The arriving slot takes its composition index in the panel's children, ahead of the
+        // siblings it was declared before, rather than being appended past them.
+        val panel = north.onParent()
+        panel.onChildren().assertCountEquals(3)
+        panel.onChildAt(0).assertTextEquals(NORTH_TEXT)
+        panel.onChildAt(1).assertTextEquals(CENTER_TEXT)
+        panel.onChildAt(2).assertTextEquals(SOUTH_TEXT)
+
+        assertSame(centerBefore, center.fetch(), "CENTER instance changed when NORTH added")
+        assertSame(southBefore, south.fetch(), "SOUTH instance changed when NORTH added")
     }
 }

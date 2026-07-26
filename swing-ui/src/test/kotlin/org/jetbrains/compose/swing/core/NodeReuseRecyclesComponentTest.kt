@@ -9,11 +9,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.BorderPanel
-import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.test.SwingUiTest
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertSame
 
 /**
@@ -28,24 +27,18 @@ import kotlin.test.assertSame
  *  - a [movableContentOf] node moved between two slots.
  *
  * Note on `key()`: changing a `key()` argument is an explicit identity change, so the runtime
- * disposes the old keyed group and builds a fresh node (a new component instance) — that is NOT a
- * reuse and is covered for listener correctness by [ListenerReattachAfterReuseTest] instead. These
- * tests pin the *recycling* itself for the paths that truly recycle.
+ * disposes the old keyed group and builds a fresh node with a new component instance - that is NOT a
+ * reuse, and [ListenerReattachAfterReuseTest] pins it. These tests pin the *recycling* itself for the
+ * paths that truly recycle.
  */
 class NodeReuseRecyclesComponentTest {
-    /**
-     * Resolves the single live AWT component whose text equals [text] by walking the real tree on
-     * the EDT, so the test can compare instance identity across recompositions.
-     */
-    private fun SwingUiTest.componentWithText(text: String): Component = onNodeWithText(text).fetch<Component>()
-
     /**
      * A [movableContentOf] [Button] moved from NORTH to SOUTH keeps the same `JButton` instance: the
      * runtime relocates the existing node (deactivate in the old slot, reactivate in the new) rather
      * than building a fresh one, and the moved instance still fires its onClick.
      */
     @Test
-    fun movingAMovableContentNodeKeepsTheSameComponentInstance() = runSwingUiTest {
+    fun movingAMovableContentNodeKeepsTheSameComponentInstance() = runComposeSwingTest {
         var counter by mutableIntStateOf(0)
         var inNorth by mutableStateOf(true)
 
@@ -62,23 +55,23 @@ class NodeReuseRecyclesComponentTest {
             }
         }
 
-        val before = componentWithText("Movable")
+        val movable = onNodeWithText("Movable")
+        val before = movable.fetch()
 
         // Move NORTH -> SOUTH. The same node is relocated, not recreated.
         inNorth = false
         awaitIdle()
 
-        val after = componentWithText("Movable")
         assertSame(
             before,
-            after,
+            movable.fetch(),
             "movableContent must relocate the SAME JButton instance across the move, not " +
                 "allocate a new one",
         )
 
         // The relocated instance still reacts.
-        onNodeWithText("Movable").performClick()
-        check(counter == 1) { "Moved button's onClick did not fire; counter=$counter" }
+        movable.performClick()
+        assertEquals(1, counter, "the relocated button must dispatch its onClick")
     }
 
     /**
@@ -87,7 +80,7 @@ class NodeReuseRecyclesComponentTest {
      * recycled node rather than building a new one.
      */
     @Test
-    fun reusableContentHostReactivationKeepsTheSameComponentInstance() = runSwingUiTest {
+    fun reusableContentHostReactivationKeepsTheSameComponentInstance() = runComposeSwingTest {
         var counter by mutableIntStateOf(0)
         var active by mutableStateOf(true)
 
@@ -101,23 +94,23 @@ class NodeReuseRecyclesComponentTest {
             }
         }
 
-        val before = componentWithText("Recyclable")
+        val recyclable = onNodeWithText("Recyclable")
+        val before = recyclable.fetch()
 
         active = false
         awaitIdle()
         active = true
         awaitIdle()
 
-        val after = componentWithText("Recyclable")
         assertSame(
             before,
-            after,
+            recyclable.fetch(),
             "A deactivated/reactivated ReusableContentHost child must reuse the same component " +
                 "instance",
         )
 
         // And the recycled instance still reacts.
-        onNodeWithText("Recyclable").performClick()
-        check(counter == 1) { "Recycled button's onClick did not fire; counter=$counter" }
+        recyclable.performClick()
+        assertEquals(1, counter, "the recycled button must dispatch its onClick")
     }
 }

@@ -7,20 +7,21 @@ state → recomposition → visible change through the public API.
 
 ## Setup
 
-Add the harness as a test dependency:
+Add the harness to the dependencies of the module under test:
 
 ```kotlin
 dependencies {
+    /* ... */
     testImplementation(project(":swing-ui-test"))
 }
 ```
 
-Then write a plain `@Test` method whose body is a `runSwingUiTest { … }` block. Inside the block you
+Then write a plain `@Test` method whose body is a `runComposeSwingTest { … }` block. Inside the block you
 call `setContent { … }` to mount your composable, and the harness, finders, assertions, and actions
 are all in scope.
 
 ```kotlin
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.components.button.Button
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -29,7 +30,7 @@ import kotlin.test.Test
 
 class CounterTest {
     @Test
-    fun clickingIncrements() = runSwingUiTest {
+    fun clickingIncrements() = runComposeSwingTest {
         var clicks by mutableStateOf(0)
         setContent {
             Button(text = "Clicks: $clicks", onClick = { clicks++ })
@@ -54,19 +55,41 @@ Single-node finders return a `SwingNodeInteraction`:
 - `onNodeOfType<T>()` — match the single component of a given Swing type.
 - `onRoot()` — the composition root.
 - `onNode(matcher)` — match with a `SwingMatcher` (e.g. `hasText`, `hasTestTag`, `hasName`,
-  `isEnabled`, combined with `and` / `or`).
+  `isEnabled`, `isSelected`, `isEditable`, composed with `and`, `or` and `!`).
 
 Multi-node finders return a `SwingNodeInteractionCollection`:
 
 - `onAllNodesWithText(text)`, `onAllNodesWithTag(tag)`, `onAllNodesOfType<T>()`, `onAllNodes(matcher)`.
 
-Narrow a collection to a subtree with `within(ancestor)`, assert its size with
-`assertCountEquals(n)`, and target one match with `[index]`, `onFirst()`, or `onLast()` — each
-returns a `SwingNodeInteraction` that re-resolves against the live tree on every use:
+Narrow a collection with `filter(matcher)` or `filterToOne(matcher)`, assert its size with
+`assertCountEquals(n)`, assert over its members with `assertAll(matcher)` / `assertAny(matcher)`, and
+target one match with `[index]`, `onFirst()`, or `onLast()` — each returns a handle that re-resolves
+against the live tree on every use:
 
 ```kotlin
 onAllNodesWithText("row")[1].assertIsEnabled()
 onAllNodesWithTag("item").onLast().assertTextEquals("newest")
+onAllNodesOfType<JCheckBox>().assertAll(SwingMatcher.isEnabled())
+```
+
+### Structure
+
+Where a component sits in the tree is expressed by matchers — `hasParent`, `hasAnyChild`,
+`hasAnySibling`, `hasAnyAncestor`, `hasAnyDescendant`, each taking a `SwingMatcher` — so a query is
+scoped to a subtree by describing it rather than by holding a component:
+
+```kotlin
+onAllNodesOfType<JLabel>().filter(SwingMatcher.hasAnyAncestor(SwingMatcher.hasTestTag("editor")))
+```
+
+From an interaction you can also step to the nodes around it with `onParent()`, `onChild()`,
+`onChildren()`, `onChildAt(index)`, `onSibling()`, `onSiblings()`, `onAncestors()` and
+`onDescendants()`. A step is as lazy as the query it extends, and `onAncestors()` stops at the root
+the query searches:
+
+```kotlin
+onNodeWithTag("editor").onDescendants().filter(SwingMatcher.isOfType<JLabel>()).assertCountEquals(2)
+onNodeWithText("Save").onParent().assert(SwingMatcher.isEnabled())
 ```
 
 ### Test tags
@@ -90,10 +113,18 @@ onNodeWithTag("name-field").performTextInput("Ada")
 Assertions are available on a `SwingNodeInteraction`; each returns the interaction so they chain:
 
 - `assertExists()` / `assertDoesNotExist()`
-- `assertIsDisplayed()`
+- `assertIsDisplayed()` — assert the layout gave the component real bounds.
+- `assertIsVisible()` / `assertIsNotVisible()` — assert the component is shown, i.e. neither it nor an
+  ancestor up to the query's root is hidden.
 - `assertTextEquals(text)`
 - `assertIsEnabled()` / `assertIsNotEnabled()`
-- `assertLayoutConstraint(expected)` — assert the parent-assigned layout constraint.
+- `assertLayoutConstraint(expected)` — assert the placement the parent's layout manager holds the
+  child under: a `BorderLayout` region, or a `GridBagConstraints` (compared field by field). Any other
+  manager is named in the failure, including a `CardLayout` — a deck reports nothing per card, and
+  what matters about it (the declared card is the one on show) is asserted with `assertIsVisible()` /
+  `assertIsNotVisible()`.
+- `assertIsFocusOwner()` / `assertIsNotFocusOwner()` — assert which component holds focus.
+- `assert(matcher)` — assert any `SwingMatcher`, including a composed or structural one.
 
 ```kotlin
 onNodeWithTag("submit")
@@ -112,6 +143,24 @@ val list = onNodeOfType<JList<*>>().fetch<JList<*>>()
 assertEquals(2, list.selectedIndex)
 ```
 
+### Menus
+
+A menu is not part of the component tree its invoker lives in, so there is no node to find for it.
+Reach it through the component that holds it — a window's `jMenuBar`, a component's
+`componentPopupMenu` — and compare its whole content against what was declared in one assertion with
+`menuItemTexts()`, which reports an item by its text and a separator as `null`:
+
+```kotlin
+import javax.swing.JFrame
+import org.jetbrains.compose.swing.test.menuItemTexts
+
+val fileMenu = onWindowWithTitle("Editor").fetch<JFrame>().jMenuBar.getMenu(0)
+assertEquals(listOf("New", null, "Open"), fileMenu.menuItemTexts())
+```
+
+Only the menu's own level is read: a submenu appears by its own label, and what it drops down is read
+by calling `menuItemTexts()` on the submenu.
+
 ## Driving interactions
 
 Actions are available on a `SwingNodeInteraction`:
@@ -119,10 +168,48 @@ Actions are available on a `SwingNodeInteraction`:
 - `performClick()` — click the component.
 - `performTextInput(text)` — append text to a text component.
 - `performTextReplacement(text)` — replace a text component's contents.
+- `performFocusGained()` / `performFocusLost()` — deliver a focus notification to the component.
+- `performTabClick(index)` — click a tab of a tabbed pane.
 
 ```kotlin
 onNodeWithTag("amount").performTextReplacement("42")
 onNodeWithText("Save").performClick()
+```
+
+### Tabs
+
+A tabbed pane's strip is drawn by the look and feel rather than built from child components, so there
+is no node to find for a tab. `performTabClick(index)` aims a real click at the tab, and the pane's own
+UI turns it into a selection — which is what reaches the pane's listeners, and so a wrapper's
+callbacks. Writing the pane's selected index instead would be indistinguishable from the write the
+composition itself makes.
+
+```kotlin
+onNodeOfType<JTabbedPane>().performTabClick(2)
+```
+
+A tab the strip does not currently show has no position to click; the action says so rather than
+landing on nothing.
+
+### Focus
+
+A focus notification and focus ownership are two different things off-screen, and the harness keeps
+them apart. `performFocusGained()` and `performFocusLost()` deliver a notification to the component, so
+behaviour a widget drives from a focus change — reformatting a value, committing an edit — happens and
+can be asserted without a display. Ownership is the windowing system's: it is held by a component of
+the focused window, so under the harness root, which is attached to no window, `assertIsFocusOwner()`
+never holds. Assert ownership only for a composition hosted in a realized, focused window — and note
+that whether a window becomes focused is the window system's decision, not the test's: a process it
+declines to activate shows and lays out windows normally while none of them ever becomes focused. Wait
+for the window to report itself focused and skip the test with a JUnit assumption when it never does, so
+such an environment reports SKIPPED instead of failing. Focus can also be taken away again once
+granted, so hold the same assumption over every later wait: a window that is no longer the focused one
+is the environment withdrawing what ownership needs, while a focused window whose keyboard went to a
+component the test did not expect is a real failure and belongs in a plain assertion.
+
+```kotlin
+onNodeWithTag("amount").performFocusLost()
+onNodeWithTag("amount").assertTextEquals("42.00")
 ```
 
 ## Testing windows and dialogs
@@ -150,7 +237,7 @@ import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.GraphicsEnvironment
 
 @Test
-fun settingsWindowShowsItsContent() = runSwingUiTest {
+fun settingsWindowShowsItsContent() = runComposeSwingTest {
     assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
     setContent {
         Window(onCloseRequest = {}, title = "Settings") {
@@ -172,6 +259,23 @@ Composition state changes settle automatically, so most tests need no waiting. W
 genuinely depends on timing outside the composition (a coroutine driven by wall-clock, an external
 callback), use `waitUntil { … }`; use `awaitIdle()` to settle the composition explicitly when you
 have written state outside of an action.
+
+### Telling a widget's own report apart from a recomposition
+
+`awaitIdle()` settles the composition, so by the time it returns a widget's callback has fired *and* a
+recomposition has applied whatever the callback wrote. When a test has to tell those two apart, use
+`awaitEventsDelivered()`: it dispatches the notifications already queued on the event dispatch thread
+and produces no frame, so anything the tree shows afterwards was put there by a widget rather than by
+the composition. Compose state the delivered callbacks wrote stays pending until the next
+`awaitIdle()`.
+
+```kotlin
+awaitEventsDelivered()
+assertEquals(1, reportedByTheWidget)
+onNodeOfType<JLabel>().assertTextEquals("not recomposed yet")
+awaitIdle()
+onNodeOfType<JLabel>().assertTextEquals("recomposed")
+```
 
 ## Screenshot comparison
 

@@ -7,7 +7,7 @@ import org.jetbrains.compose.swing.SwingNode
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
 import java.awt.Dimension
 import java.awt.FlowLayout
@@ -54,7 +54,7 @@ class AppearanceInvalidationTest {
     }
 
     @Test
-    fun reactiveFontGrowthOnJComponentRelaysOutTheParent() = runSwingUiTest {
+    fun reactiveFontGrowthOnJComponentRelaysOutTheParent() = runComposeSwingTest {
         var large by mutableStateOf(false)
         val growing = JLabel("WWWWWW")
         val sibling = JLabel("tail")
@@ -96,7 +96,7 @@ class AppearanceInvalidationTest {
     }
 
     @Test
-    fun reactiveFontChangeOnNonJComponentRequestsRelayoutAndRepaint() = runSwingUiTest {
+    fun reactiveFontChangeOnNonJComponentRequestsRelayoutAndRepaint() = runComposeSwingTest {
         var large by mutableStateOf(false)
         val target = CountingComponent().apply { preferredSize = Dimension(20, 20) }
 

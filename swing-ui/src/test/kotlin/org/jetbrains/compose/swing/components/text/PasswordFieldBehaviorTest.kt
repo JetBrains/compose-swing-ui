@@ -5,7 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.onNodeOfType
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JPasswordField
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -21,7 +21,7 @@ import kotlin.test.assertTrue
  */
 class PasswordFieldBehaviorTest {
     @Test
-    fun controlledValueRoundTripsThroughGetPassword() = runSwingUiTest {
+    fun controlledValueRoundTripsThroughGetPassword() = runComposeSwingTest {
         setContent { PasswordField(value = "hunter2".toCharArray(), onValueChange = {}) }
 
         val field = onNodeOfType<JPasswordField>().fetch<JPasswordField>()
@@ -29,7 +29,7 @@ class PasswordFieldBehaviorTest {
     }
 
     @Test
-    fun typingFiresOnValueChangeWithTypedCharacters() = runSwingUiTest {
+    fun typingFiresOnValueChangeWithTypedCharacters() = runComposeSwingTest {
         var latest = CharArray(0)
         setContent { PasswordField(value = "".toCharArray(), onValueChange = { latest = it }) }
 
@@ -41,7 +41,7 @@ class PasswordFieldBehaviorTest {
     }
 
     @Test
-    fun externalValueChangeReflectsWithoutCaretThrash() = runSwingUiTest {
+    fun externalValueChangeReflectsWithoutCaretThrash() = runComposeSwingTest {
         var value by mutableStateOf("first".toCharArray())
         setContent { PasswordField(value = value, onValueChange = {}) }
 
@@ -65,7 +65,7 @@ class PasswordFieldBehaviorTest {
     }
 
     @Test
-    fun echoCharTracksComposedValueAcrossRecomposition() = runSwingUiTest {
+    fun echoCharTracksComposedValueAcrossRecomposition() = runComposeSwingTest {
         val defaultEchoChar = JPasswordField().echoChar
         var echoChar by mutableStateOf<Char?>('#')
         setContent { PasswordField(value = "hunter2".toCharArray(), echoChar = echoChar) }

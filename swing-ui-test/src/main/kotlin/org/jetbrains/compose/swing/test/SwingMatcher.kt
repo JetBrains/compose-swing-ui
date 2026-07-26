@@ -7,13 +7,14 @@ import java.awt.Dialog
 import java.awt.Frame
 import javax.accessibility.AccessibleRole
 import javax.swing.AbstractButton
+import javax.swing.JComboBox
 import javax.swing.JComponent
-import javax.swing.JLabel
 import javax.swing.text.JTextComponent
 
 /**
  * A predicate over a single AWT [Component] together with a human-readable [description] used in
- * failure messages. Matchers are combined with [and] to narrow a query.
+ * failure messages. Matchers are combined with [and], [or] and [not], and narrow a query wherever a
+ * finder, a filter or an assertion takes one.
  *
  * Matching reads component state directly; callers are responsible for invoking matchers on the
  * EDT (the finder infrastructure does this).
@@ -31,10 +32,19 @@ public class SwingMatcher internal constructor(
             predicate(it) && other.matches(it)
         }
 
+    /** Returns a matcher satisfied when this or [other] matches. */
+    public infix fun or(other: SwingMatcher): SwingMatcher =
+        SwingMatcher("($description || ${other.description})") {
+            predicate(it) || other.matches(it)
+        }
+
+    /** Returns a matcher satisfied exactly when this one is not. */
+    public operator fun not(): SwingMatcher = SwingMatcher("!($description)") { !predicate(it) }
+
     public companion object {
         /**
          * Matches a component whose textual content equals [text], or contains it when [substring]
-         * is `true`. Text is read from [JLabel.getText], [AbstractButton.getText], or
+         * is `true`. Text is read from [javax.swing.JLabel.getText], [AbstractButton.getText], or
          * [JTextComponent.getText] depending on the component type.
          */
         public fun hasText(
@@ -87,7 +97,7 @@ public class SwingMatcher internal constructor(
 
         /**
          * Matches a top-level window whose title equals [title], read from [Frame.getTitle] or
-         * [Dialog.getTitle]. Use with [SwingUiTest.onWindow] to pick one window out of several.
+         * [Dialog.getTitle]. Use with [ComposeSwingTest.onWindow] to pick one window out of several.
          */
         public fun hasTitle(title: String): SwingMatcher =
             SwingMatcher("hasTitle(\"$title\")") { component ->
@@ -102,8 +112,79 @@ public class SwingMatcher internal constructor(
         public fun isEnabled(enabled: Boolean = true): SwingMatcher =
             SwingMatcher("isEnabled($enabled)") { it.isEnabled == enabled }
 
+        /**
+         * Matches a component whose selected state equals [selected], read from
+         * [AbstractButton.isSelected] - the state a check box, radio button, toggle button or
+         * checkable menu item carries. A component that carries no selected state never matches, in
+         * either direction, so `isSelected(false)` asserts "carries a selection and is off" while
+         * `!isSelected()` also admits a component that cannot be selected at all.
+         */
+        public fun isSelected(selected: Boolean = true): SwingMatcher =
+            SwingMatcher("isSelected($selected)") { component ->
+                component is AbstractButton && component.isSelected == selected
+            }
+
+        /**
+         * Matches a component whose editable state equals [editable], read from
+         * [JTextComponent.isEditable] for a text component and [JComboBox.isEditable] for a combo
+         * box. A component that carries no editable state never matches, in either direction; see
+         * [isSelected] for what that means for the negated form.
+         */
+        public fun isEditable(editable: Boolean = true): SwingMatcher =
+            SwingMatcher("isEditable($editable)") { component ->
+                when (component) {
+                    is JTextComponent -> component.isEditable == editable
+                    is JComboBox<*> -> component.isEditable == editable
+                    else -> false
+                }
+            }
+
         /** Matches a component that is an instance of [T]. */
         public inline fun <reified T : Component> isOfType(): SwingMatcher = ofType(T::class.java)
+
+        /**
+         * Matches a component whose parent satisfies [matcher]. A component with no parent never
+         * matches.
+         */
+        public fun hasParent(matcher: SwingMatcher): SwingMatcher =
+            SwingMatcher("hasParent(${matcher.description})") { component ->
+                component.parent?.let(matcher::matches) == true
+            }
+
+        /** Matches a component with at least one direct child satisfying [matcher]. */
+        public fun hasAnyChild(matcher: SwingMatcher): SwingMatcher =
+            SwingMatcher("hasAnyChild(${matcher.description})") { component ->
+                component.childComponents().any(matcher::matches)
+            }
+
+        /**
+         * Matches a component with at least one sibling satisfying [matcher]. A sibling is any other
+         * child of the same parent.
+         */
+        public fun hasAnySibling(matcher: SwingMatcher): SwingMatcher =
+            SwingMatcher("hasAnySibling(${matcher.description})") { component ->
+                component.siblingComponents().any(matcher::matches)
+            }
+
+        /**
+         * Matches a component with at least one ancestor satisfying [matcher]. The whole parent
+         * chain is considered, so this scopes a query to a subtree: it keeps the components that
+         * sit anywhere below the container [matcher] describes.
+         *
+         * ```
+         * onAllNodesOfType<JLabel>().filter(SwingMatcher.hasAnyAncestor(SwingMatcher.hasTestTag("editor")))
+         * ```
+         */
+        public fun hasAnyAncestor(matcher: SwingMatcher): SwingMatcher =
+            SwingMatcher("hasAnyAncestor(${matcher.description})") { component ->
+                component.ancestorComponents().any(matcher::matches)
+            }
+
+        /** Matches a component with at least one descendant, at any depth, satisfying [matcher]. */
+        public fun hasAnyDescendant(matcher: SwingMatcher): SwingMatcher =
+            SwingMatcher("hasAnyDescendant(${matcher.description})") { component ->
+                component.descendantComponents().any(matcher::matches)
+            }
 
         @PublishedApi
         internal fun ofType(type: Class<out Component>): SwingMatcher =
@@ -115,114 +196,3 @@ public class SwingMatcher internal constructor(
         internal fun any(): SwingMatcher = SwingMatcher("any") { true }
     }
 }
-
-/**
- * Returns the textual content of [this] component for matching purposes, or `null` if the component
- * type has no associated text.
- */
-internal fun Component.textOrNull(): String? =
-    when (this) {
-        is JLabel -> text
-        is AbstractButton -> text
-        is JTextComponent -> text
-        else -> null
-    }
-
-/**
- * Recursively collects every component in the subtree rooted at [this] (excluding [this] itself)
- * that satisfies [matcher], in depth-first pre-order. Must be called on the EDT.
- *
- * Walks the real AWT tree via [Container.getComponents].
- */
-internal fun Container.findMatching(matcher: SwingMatcher): List<Component> {
-    val results = mutableListOf<Component>()
-
-    fun visit(container: Container) {
-        for (child in container.components) {
-            if (matcher.matches(child)) results += child
-            if (child is Container) visit(child)
-        }
-    }
-    visit(this)
-    return results
-}
-
-/**
- * Collects [this] container (when it matches) and every matching descendant, in depth-first
- * pre-order. Must be called on the EDT.
- */
-internal fun Container.findMatchingIncludingSelf(matcher: SwingMatcher): List<Component> {
-    val self = if (matcher.matches(this)) listOf<Component>(this) else emptyList()
-    return self + findMatching(matcher)
-}
-
-/**
- * Renders the subtree rooted at [this] as an indented, readable string for failure messages.
- * Must be called on the EDT.
- *
- * The dump is bounded so a deep or wide tree cannot flood a failure message: at most
- * [MAX_DUMP_DEPTH] levels deep and [MAX_DUMP_LINES] lines. Whatever is elided is replaced by a
- * single `(truncated …)` marker so the reader knows the structure continues, while the top of the
- * tree — the part that usually identifies the defect — is always preserved.
- */
-internal fun Container.dumpTree(): String {
-    val dump = BoundedTreeDump()
-    dump.visit(this, depth = 0)
-    return dump.finish()
-}
-
-/**
- * Accumulates an indented tree dump while enforcing the [MAX_DUMP_DEPTH] / [MAX_DUMP_LINES] bounds.
- */
-private class BoundedTreeDump {
-    private val sb = StringBuilder()
-    private var lines = 0
-    private var truncated = false
-
-    fun visit(
-        component: Component,
-        depth: Int,
-    ) {
-        if (truncated) return
-        if (lines >= MAX_DUMP_LINES) {
-            truncated = true
-            return
-        }
-        appendLine(depth, describe(component))
-        val children = (component as? Container)?.components.orEmpty()
-        when {
-            children.isEmpty() -> Unit
-            depth + 1 > MAX_DUMP_DEPTH -> appendLine(depth + 1, "(truncated: deeper levels omitted)")
-            else -> for (child in children) visit(child, depth + 1)
-        }
-    }
-
-    fun finish(): String {
-        if (truncated) sb.append("(truncated: tree exceeds $MAX_DUMP_LINES lines)\n")
-        return sb.toString()
-    }
-
-    private fun appendLine(
-        depth: Int,
-        text: String,
-    ) {
-        sb.append("  ".repeat(depth)).append(text).append('\n')
-        lines++
-    }
-
-    private fun describe(component: Component): String {
-        val type = component.javaClass.simpleName.ifEmpty { component.javaClass.name }
-        val text = component.textOrNull()?.let { " text=\"$it\"" }.orEmpty()
-        val name = component.name?.let { " name=\"$it\"" }.orEmpty()
-        val context = component.accessibleContext
-        val accessibleName = context?.accessibleName?.let { " a11yName=\"$it\"" }.orEmpty()
-        val accessibleDescription = context?.accessibleDescription?.let { " a11yDesc=\"$it\"" }.orEmpty()
-        val enabled = if (component.isEnabled) "" else " disabled"
-        return "$type$text$name$accessibleName$accessibleDescription$enabled"
-    }
-}
-
-// Bounds for [dumpTree]: keep the structurally useful top of the tree, drop the rest behind a
-// "(truncated)" marker rather than flooding a failure message with thousands of lines.
-private const val MAX_DUMP_DEPTH: Int = 4
-private const val MAX_DUMP_LINES: Int = 100

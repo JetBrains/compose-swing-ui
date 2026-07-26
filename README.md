@@ -181,7 +181,7 @@ Add `:swing-ui-test` and write plain `@Test` methods — the harness is synchron
 (off-screen, never sleeps):
 
 ```kotlin
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.components.button.Button
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -190,7 +190,7 @@ import kotlin.test.Test
 
 class CounterTest {
     @Test
-    fun clickingIncrements() = runSwingUiTest {
+    fun clickingIncrements() = runComposeSwingTest {
         var clicks by mutableStateOf(0)
         setContent {
             Button(text = "Clicks: $clicks", onClick = { clicks++ })

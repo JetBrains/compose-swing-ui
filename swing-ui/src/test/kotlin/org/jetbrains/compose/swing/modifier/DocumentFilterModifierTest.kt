@@ -5,13 +5,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.text.EditorPane
 import org.jetbrains.compose.swing.components.text.TextField
-import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.interaction.documentFilter
-import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.onNodeOfType
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JEditorPane
 import javax.swing.JTextField
 import javax.swing.text.AbstractDocument
+import javax.swing.text.AttributeSet
 import javax.swing.text.DocumentFilter
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -31,7 +31,7 @@ class DocumentFilterModifierTest {
             fb: FilterBypass,
             offset: Int,
             string: String?,
-            attr: javax.swing.text.AttributeSet?,
+            attr: AttributeSet?,
         ) {
             fb.insertString(offset, string?.filter(Char::isDigit).orEmpty(), attr)
         }
@@ -41,35 +41,54 @@ class DocumentFilterModifierTest {
             offset: Int,
             length: Int,
             text: String?,
-            attrs: javax.swing.text.AttributeSet?,
+            attrs: AttributeSet?,
         ) {
             fb.replace(offset, length, text?.filter(Char::isDigit).orEmpty(), attrs)
         }
     }
 
-    @Test
-    fun filterIsInstalledOnTheDocument() = runSwingUiTest {
-        setContent {
-            TextField(
-                value = "",
-                modifier = SwingModifier.testTag("f").documentFilter(DigitsOnlyFilter),
-            )
+    /** Rewrites every inserted or replaced character to upper case. */
+    private object UppercaseFilter : DocumentFilter() {
+        override fun insertString(
+            fb: FilterBypass,
+            offset: Int,
+            string: String?,
+            attr: AttributeSet?,
+        ) {
+            fb.insertString(offset, string.orEmpty().uppercase(), attr)
         }
-        val document = onNodeWithTag("f").fetch<JTextField>().document as AbstractDocument
-        assertEquals(DigitsOnlyFilter, document.documentFilter)
+
+        override fun replace(
+            fb: FilterBypass,
+            offset: Int,
+            length: Int,
+            text: String?,
+            attrs: AttributeSet?,
+        ) {
+            fb.replace(offset, length, text.orEmpty().uppercase(), attrs)
+        }
     }
 
     @Test
-    fun validInputPassesThroughTheFilter() = runSwingUiTest {
+    fun filterIsInstalledOnTheDocument() = runComposeSwingTest {
+        setContent {
+            TextField(value = "", modifier = SwingModifier.documentFilter(DigitsOnlyFilter))
+        }
+        val document = onNodeOfType<JTextField>().fetch().document as AbstractDocument
+        assertEquals(DigitsOnlyFilter, document.documentFilter, "the declared filter should reach the document")
+    }
+
+    @Test
+    fun validInputPassesThroughTheFilter() = runComposeSwingTest {
         val reported = mutableListOf<String>()
         setContent {
             TextField(
                 value = "",
-                modifier = SwingModifier.testTag("f").documentFilter(DigitsOnlyFilter),
+                modifier = SwingModifier.documentFilter(DigitsOnlyFilter),
                 onValueChange = { reported += it },
             )
         }
-        val field = onNodeWithTag("f").fetch<JTextField>()
+        val field = onNodeOfType<JTextField>().fetch()
         field.document.insertString(0, "123", null)
         awaitIdle()
 
@@ -78,34 +97,28 @@ class DocumentFilterModifierTest {
     }
 
     @Test
-    fun invalidCharactersAreGatedOut() = runSwingUiTest {
+    fun invalidCharactersAreGatedOut() = runComposeSwingTest {
         setContent {
-            TextField(
-                value = "",
-                modifier = SwingModifier.testTag("f").documentFilter(DigitsOnlyFilter),
-            )
+            TextField(value = "", modifier = SwingModifier.documentFilter(DigitsOnlyFilter))
         }
-        val field = onNodeWithTag("f").fetch<JTextField>()
+        val field = onNodeOfType<JTextField>().fetch()
         // Mixed input: the filter keeps the digits and drops the letters.
         field.document.insertString(0, "a1b2c3", null)
         awaitIdle()
 
-        assertEquals("123", field.text)
+        assertEquals("123", field.text, "the filter should keep the digits and drop the letters")
     }
 
     @Test
-    fun clearingTheFilterRestoresUnfilteredEditing() = runSwingUiTest {
+    fun clearingTheFilterRestoresUnfilteredEditing() = runComposeSwingTest {
         var filtered by mutableStateOf(true)
         setContent {
             TextField(
                 value = "",
-                modifier =
-                    SwingModifier
-                        .testTag("f")
-                        .documentFilter(if (filtered) DigitsOnlyFilter else null),
+                modifier = SwingModifier.documentFilter(if (filtered) DigitsOnlyFilter else null),
             )
         }
-        val document = onNodeWithTag("f").fetch<JTextField>().document as AbstractDocument
+        val document = onNodeOfType<JTextField>().fetch().document as AbstractDocument
         assertEquals(DigitsOnlyFilter, document.documentFilter, "the filter should be installed while present")
 
         filtered = false
@@ -113,23 +126,55 @@ class DocumentFilterModifierTest {
         assertNull(document.documentFilter, "clearing the modifier should remove the document filter")
 
         // With the filter gone, previously rejected characters now land.
-        val field = onNodeWithTag("f").fetch<JTextField>()
+        val field = onNodeOfType<JTextField>().fetch()
         field.document.insertString(0, "abc", null)
         awaitIdle()
         assertEquals("abc", field.text, "previously rejected characters should now land unfiltered")
     }
 
     @Test
-    fun aDocumentSwapKeepsTheFilterActive() = runSwingUiTest {
+    fun removingTheModifierRestoresThePreInstallFilter() = runComposeSwingTest {
+        var filtering by mutableStateOf(false)
+        setContent {
+            TextField(
+                value = "",
+                modifier = if (filtering) SwingModifier.documentFilter(DigitsOnlyFilter) else SwingModifier,
+            )
+        }
+        val document = onNodeOfType<JTextField>().fetch().document as AbstractDocument
+        // A filter the caller installed on the document itself, outside the modifier chain.
+        document.documentFilter = UppercaseFilter
+
+        filtering = true
+        awaitIdle()
+        assertSame(DigitsOnlyFilter, document.documentFilter, "the modifier should take over the document's filter")
+
+        filtering = false
+        awaitIdle()
+        assertSame(
+            UppercaseFilter,
+            document.documentFilter,
+            "leaving the chain should hand the document back the filter it had before install",
+        )
+
+        // The restored filter is live again, not merely referenced.
+        val field = onNodeOfType<JTextField>().fetch()
+        field.document.insertString(0, "ab", null)
+        awaitIdle()
+        assertEquals("AB", field.text, "the restored filter should gate edits again")
+    }
+
+    @Test
+    fun aDocumentSwapKeepsTheFilterActive() = runComposeSwingTest {
         var contentType by mutableStateOf("text/plain")
         setContent {
             EditorPane(
                 value = "",
-                modifier = SwingModifier.testTag("e").documentFilter(DigitsOnlyFilter),
+                modifier = SwingModifier.documentFilter(DigitsOnlyFilter),
                 contentType = contentType,
             )
         }
-        val pane = onNodeWithTag("e").fetch<JEditorPane>()
+        val pane = onNodeOfType<JEditorPane>().fetch()
         val before = pane.document as AbstractDocument
         assertSame(DigitsOnlyFilter, before.documentFilter, "the filter should start on the original document")
 
@@ -137,7 +182,7 @@ class DocumentFilterModifierTest {
         // than being left behind on the old one.
         contentType = "text/html"
         awaitIdle()
-        val after = onNodeWithTag("e").fetch<JEditorPane>().document as AbstractDocument
+        val after = onNodeOfType<JEditorPane>().fetch().document as AbstractDocument
         assertSame(DigitsOnlyFilter, after.documentFilter, "the filter should migrate onto the new document")
         assertNull(before.documentFilter, "the old document's filter must be released on the swap")
 

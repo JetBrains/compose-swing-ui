@@ -8,7 +8,7 @@ import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
 import java.awt.event.ActionEvent
 import java.awt.event.ActionListener
@@ -40,7 +40,7 @@ class RawListenerModifierTest {
     }
 
     @Test
-    fun existingListenerInstanceFiresOnTheRealEvent() = runSwingUiTest {
+    fun existingListenerInstanceFiresOnTheRealEvent() = runComposeSwingTest {
         var pressed = 0
         val listener = mousePressListener { pressed++ }
         setContent {
@@ -55,7 +55,7 @@ class RawListenerModifierTest {
     }
 
     @Test
-    fun removingTheElementDetachesTheSameInstance() = runSwingUiTest {
+    fun removingTheElementDetachesTheSameInstance() = runComposeSwingTest {
         var attached by mutableStateOf(true)
         var pressed = 0
         val listener = mousePressListener { pressed++ }
@@ -85,7 +85,7 @@ class RawListenerModifierTest {
     }
 
     @Test
-    fun twoListenersOfTheSameTypeBothInstall() = runSwingUiTest {
+    fun twoListenersOfTheSameTypeBothInstall() = runComposeSwingTest {
         var first = 0
         var second = 0
         val firstListener = mousePressListener { first++ }
@@ -111,7 +111,7 @@ class RawListenerModifierTest {
     }
 
     @Test
-    fun swappingTheInstanceDetachesTheOldAndAttachesTheNew() = runSwingUiTest {
+    fun swappingTheInstanceDetachesTheOldAndAttachesTheNew() = runComposeSwingTest {
         var useFirst by mutableStateOf(true)
         var first = 0
         var second = 0
@@ -145,7 +145,7 @@ class RawListenerModifierTest {
     }
 
     @Test
-    fun boundPropertyChangeListenerInstanceFiresOnlyOnItsProperty() = runSwingUiTest {
+    fun boundPropertyChangeListenerInstanceFiresOnlyOnItsProperty() = runComposeSwingTest {
         var seenNew: Any? = null
         var fired = 0
         val listener =
@@ -167,7 +167,7 @@ class RawListenerModifierTest {
     }
 
     @Test
-    fun unboundPropertyChangeListenerInstanceFiresOncePerChangeOnAnyBoundProperty() = runSwingUiTest {
+    fun unboundPropertyChangeListenerInstanceFiresOncePerChangeOnAnyBoundProperty() = runComposeSwingTest {
         val seenProperties = mutableListOf<String?>()
         var fired = 0
         val listener =
@@ -194,7 +194,7 @@ class RawListenerModifierTest {
     }
 
     @Test
-    fun actionListenerOnANonButtonTargetThrowsTheCentralizedWrongTargetError() = runSwingUiTest {
+    fun actionListenerOnANonButtonTargetThrowsTheCentralizedWrongTargetError() = runComposeSwingTest {
         val error =
             assertFailsWith<IllegalStateException> {
                 setContent {
@@ -216,7 +216,7 @@ class RawListenerModifierTest {
     }
 
     @Test
-    fun actionListenerOnAButtonFiresOnAction() = runSwingUiTest {
+    fun actionListenerOnAButtonFiresOnAction() = runComposeSwingTest {
         var actions = 0
         val listener = ActionListener { actions++ }
         setContent {

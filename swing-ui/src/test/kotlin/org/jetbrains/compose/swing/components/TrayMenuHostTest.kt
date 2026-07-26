@@ -7,7 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JMenu
 import javax.swing.JMenuItem
 import javax.swing.JPopupMenu
@@ -36,7 +36,7 @@ class TrayMenuHostTest {
     }
 
     @Test
-    fun showMenuBuildsAMenuMirroringTheComposition() = runSwingUiTest {
+    fun showMenuBuildsAMenuMirroringTheComposition() = runComposeSwingTest {
         var context: CompositionContext? = null
         setContent { context = captureContext() }
 
@@ -62,7 +62,7 @@ class TrayMenuHostTest {
     }
 
     @Test
-    fun selectingAMenuItemRunsItsCallback() = runSwingUiTest {
+    fun selectingAMenuItemRunsItsCallback() = runComposeSwingTest {
         var context: CompositionContext? = null
         setContent { context = captureContext() }
 
@@ -84,7 +84,7 @@ class TrayMenuHostTest {
     }
 
     @Test
-    fun theMenuReflectsCurrentCompositionStateOnEachOpen() = runSwingUiTest {
+    fun theMenuReflectsCurrentCompositionStateOnEachOpen() = runComposeSwingTest {
         var context: CompositionContext? = null
         var showExtra by mutableStateOf(false)
         setContent { context = captureContext() }

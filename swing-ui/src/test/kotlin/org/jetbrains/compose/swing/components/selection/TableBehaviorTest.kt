@@ -5,9 +5,9 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.test.SwingUiTest
+import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.onNodeOfType
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JTable
 import javax.swing.ListSelectionModel
 import kotlin.test.Test
@@ -35,10 +35,10 @@ class TableBehaviorTest {
     )
 
     /** Resolves the single [JTable] in the tree via the typed finder, failing with a tree dump otherwise. */
-    private fun SwingUiTest.table(): JTable = onNodeOfType<JTable>().fetch()
+    private fun ComposeSwingTest.table(): JTable = onNodeOfType<JTable>().fetch()
 
     @Test
-    fun rowsAndColumnsRenderIntoTheModel() = runSwingUiTest {
+    fun rowsAndColumnsRenderIntoTheModel() = runComposeSwingTest {
         setContent {
             Table(rows = listOf(Person("Ada", 36), Person("Alan", 41))) {
                 column("Name") { it.name }
@@ -59,7 +59,7 @@ class TableBehaviorTest {
     }
 
     @Test
-    fun selectingRowsFiresOnSelectionChange() = runSwingUiTest {
+    fun selectingRowsFiresOnSelectionChange() = runComposeSwingTest {
         val received = mutableListOf<List<Int>>()
         setContent {
             Table(
@@ -82,7 +82,7 @@ class TableBehaviorTest {
     }
 
     @Test
-    fun editingAnEditableCellFiresOnCellEdit() = runSwingUiTest {
+    fun editingAnEditableCellFiresOnCellEdit() = runComposeSwingTest {
         val edits = mutableListOf<Triple<String, Int, Any?>>()
         setContent {
             Table(rows = listOf(Person("Ada", 36), Person("Alan", 41))) {
@@ -107,7 +107,7 @@ class TableBehaviorTest {
     }
 
     @Test
-    fun stateDrivenRowsUpdateTheTable() = runSwingUiTest {
+    fun stateDrivenRowsUpdateTheTable() = runComposeSwingTest {
         val rows = mutableStateListOf(Person("Ada", 36))
         setContent {
             Table(rows = rows.toList()) {
@@ -133,7 +133,7 @@ class TableBehaviorTest {
     }
 
     @Test
-    fun controlledSelectionUpdateConvergesWithoutALoop() = runSwingUiTest {
+    fun controlledSelectionUpdateConvergesWithoutALoop() = runComposeSwingTest {
         // The controller mirrors the callback back into the controlled state, exactly as a real
         // caller would. The selection guard must make this converge: applying an external update
         // settles on that selection without oscillating between values frame after frame.

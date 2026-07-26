@@ -7,7 +7,7 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.BoxPanel
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.onNodeOfType
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JTextArea
 import javax.swing.text.PlainDocument
 import kotlin.test.Test
@@ -22,7 +22,7 @@ import kotlin.test.assertSame
  */
 class StateTextAreaTest {
     @Test
-    fun areaSharesTheStateDocument() = runSwingUiTest {
+    fun areaSharesTheStateDocument() = runComposeSwingTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState("seed")
@@ -34,7 +34,7 @@ class StateTextAreaTest {
     }
 
     @Test
-    fun callerSuppliedDocumentIsInstalledIntoTheArea() = runSwingUiTest {
+    fun callerSuppliedDocumentIsInstalledIntoTheArea() = runComposeSwingTest {
         val document = PlainDocument().apply { insertString(0, "preset", null) }
         lateinit var state: DocumentState
         setContent {
@@ -48,7 +48,7 @@ class StateTextAreaTest {
     }
 
     @Test
-    fun editAppendUpdatesRealizedArea() = runSwingUiTest {
+    fun editAppendUpdatesRealizedArea() = runComposeSwingTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState("ab")
@@ -64,7 +64,7 @@ class StateTextAreaTest {
     }
 
     @Test
-    fun assigningTextUpdatesTheArea() = runSwingUiTest {
+    fun assigningTextUpdatesTheArea() = runComposeSwingTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState("hello")
@@ -79,7 +79,7 @@ class StateTextAreaTest {
     }
 
     @Test
-    fun typingIntoAreaUpdatesStateText() = runSwingUiTest {
+    fun typingIntoAreaUpdatesStateText() = runComposeSwingTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState()
@@ -94,7 +94,7 @@ class StateTextAreaTest {
     }
 
     @Test
-    fun typingRecomposesASiblingReadingStateText() = runSwingUiTest {
+    fun typingRecomposesASiblingReadingStateText() = runComposeSwingTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState("hi")
@@ -115,7 +115,7 @@ class StateTextAreaTest {
     }
 
     @Test
-    fun rowsAndColumnsApplyToTheArea() = runSwingUiTest {
+    fun rowsAndColumnsApplyToTheArea() = runComposeSwingTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState()

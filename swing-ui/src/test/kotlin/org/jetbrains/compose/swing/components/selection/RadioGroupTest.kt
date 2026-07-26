@@ -7,9 +7,9 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.setContent
+import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.SwingMatcher
-import org.jetbrains.compose.swing.test.SwingUiTest
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JRadioButton
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -30,14 +30,14 @@ class RadioGroupTest {
 
     // The displayed texts of the currently-selected option buttons, gathered from the named options
     // that are present in the live tree (out-of-range / removed options simply contribute nothing).
-    private fun SwingUiTest.selectedRadioTexts(): List<String> = OPTION_NAMES
+    private fun ComposeSwingTest.selectedRadioTexts(): List<String> = OPTION_NAMES
         .filter { onAllNodes(SwingMatcher.hasName(it)).fetchSize() == 1 }
         .map { onNodeWithName(it).fetch<JRadioButton>() }
         .filter { it.isSelected }
         .map { it.text }
 
     @Test
-    fun rendersOptionsWithExactlyOneSelected() = runSwingUiTest {
+    fun rendersOptionsWithExactlyOneSelected() = runComposeSwingTest {
         setContent {
             RadioGroup(selectedIndex = 0, onSelectionChange = {}) { threeOptions() }
         }
@@ -50,7 +50,7 @@ class RadioGroupTest {
     }
 
     @Test
-    fun clickingAnOptionDeselectsTheOthersAndFiresOnSelectionChange() = runSwingUiTest {
+    fun clickingAnOptionDeselectsTheOthersAndFiresOnSelectionChange() = runComposeSwingTest {
         var selectedIndex by mutableIntStateOf(0)
         val reported = mutableListOf<Int>()
         setContent {
@@ -74,7 +74,7 @@ class RadioGroupTest {
     }
 
     @Test
-    fun changingSelectedIndexViaStateMovesTheSelection() = runSwingUiTest {
+    fun changingSelectedIndexViaStateMovesTheSelection() = runComposeSwingTest {
         var selectedIndex by mutableIntStateOf(0)
         setContent {
             RadioGroup(selectedIndex = selectedIndex, onSelectionChange = {}) {
@@ -91,7 +91,7 @@ class RadioGroupTest {
     }
 
     @Test
-    fun programmaticSelectionDoesNotFireOnSelectionChange() = runSwingUiTest {
+    fun programmaticSelectionDoesNotFireOnSelectionChange() = runComposeSwingTest {
         var selectedIndex by mutableIntStateOf(0)
         val reported = mutableListOf<Int>()
         setContent {
@@ -112,7 +112,7 @@ class RadioGroupTest {
     }
 
     @Test
-    fun selectedIndexMinusOneSelectsNoneInitially() = runSwingUiTest {
+    fun selectedIndexMinusOneSelectsNoneInitially() = runComposeSwingTest {
         setContent {
             RadioGroup(selectedIndex = -1, onSelectionChange = {}) { threeOptions() }
         }
@@ -133,7 +133,7 @@ class RadioGroupTest {
     }
 
     @Test
-    fun clickingFromNoSelectionSelectsTheClickedOptionAndFiresOnSelectionChange() = runSwingUiTest {
+    fun clickingFromNoSelectionSelectsTheClickedOptionAndFiresOnSelectionChange() = runComposeSwingTest {
         var selectedIndex by mutableIntStateOf(-1)
         val reported = mutableListOf<Int>()
         setContent {
@@ -155,7 +155,7 @@ class RadioGroupTest {
     }
 
     @Test
-    fun changingSelectedIndexFromMinusOneToValidSelectsThatOption() = runSwingUiTest {
+    fun changingSelectedIndexFromMinusOneToValidSelectsThatOption() = runComposeSwingTest {
         var selectedIndex by mutableIntStateOf(-1)
         setContent {
             RadioGroup(selectedIndex = selectedIndex, onSelectionChange = {}) { threeOptions() }
@@ -169,7 +169,7 @@ class RadioGroupTest {
     }
 
     @Test
-    fun optionsAddedAndRemovedBehindAConditionKeepSingleSelectionEnforced() = runSwingUiTest {
+    fun optionsAddedAndRemovedBehindAConditionKeepSingleSelectionEnforced() = runComposeSwingTest {
         var showExtra by mutableStateOf(false)
         var selectedIndex by mutableIntStateOf(0)
         setContent {

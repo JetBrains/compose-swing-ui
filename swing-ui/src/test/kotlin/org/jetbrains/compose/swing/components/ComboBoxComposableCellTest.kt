@@ -6,7 +6,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.layout.FlowPanel
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.onNodeOfType
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
 import java.awt.Container
 import javax.swing.JComboBox
@@ -26,7 +26,7 @@ import kotlin.test.assertTrue
  */
 class ComboBoxComposableCellTest {
     @Test
-    fun itemContentRealizesAComposableCellPerItem() = runSwingUiTest {
+    fun itemContentRealizesAComposableCellPerItem() = runComposeSwingTest {
         setContent {
             ComboBox(items = listOf("red", "green", "blue"), selectedIndex = 0) { item ->
                 FlowPanel { Label(item) }
@@ -39,7 +39,7 @@ class ComboBoxComposableCellTest {
     }
 
     @Test
-    fun recomposedItemContentUpdatesTheCell() = runSwingUiTest {
+    fun recomposedItemContentUpdatesTheCell() = runComposeSwingTest {
         var items by mutableStateOf(listOf("old"))
         setContent {
             ComboBox(items = items, selectedIndex = 0) { item ->
@@ -56,7 +56,7 @@ class ComboBoxComposableCellTest {
     }
 
     @Test
-    fun aStampAfterTheRendererLeavesTheCompositionIsSafe() = runSwingUiTest {
+    fun aStampAfterTheRendererLeavesTheCompositionIsSafe() = runComposeSwingTest {
         var showCombo by mutableStateOf(true)
         setContent {
             if (showCombo) {
@@ -84,7 +84,7 @@ class ComboBoxComposableCellTest {
     }
 
     @Test
-    fun omittingItemContentKeepsTheDefaultRenderer() = runSwingUiTest {
+    fun omittingItemContentKeepsTheDefaultRenderer() = runComposeSwingTest {
         setContent { ComboBox(items = listOf("a", "b"), selectedIndex = 0) }
 
         val combo = onNodeOfType<JComboBox<*>>().fetch<JComboBox<*>>()

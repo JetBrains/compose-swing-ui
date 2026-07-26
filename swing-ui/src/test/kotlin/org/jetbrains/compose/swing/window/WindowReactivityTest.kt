@@ -4,7 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.test.onWindow
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import java.awt.Dimension
@@ -25,7 +25,7 @@ import kotlin.test.assertTrue
  */
 class WindowReactivityTest {
     @Test
-    fun titleReactsToRecomposition() = runSwingUiTest {
+    fun titleReactsToRecomposition() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         var title by mutableStateOf("title-test")
         setContent { Window(onCloseRequest = {}, title = title) {} }
@@ -37,7 +37,7 @@ class WindowReactivityTest {
     }
 
     @Test
-    fun visibleReactsToRecomposition() = runSwingUiTest {
+    fun visibleReactsToRecomposition() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         var visible by mutableStateOf(false)
         setContent { Window(onCloseRequest = {}, title = "visible-test", visible = visible) {} }
@@ -48,7 +48,7 @@ class WindowReactivityTest {
     }
 
     @Test
-    fun resizableReactsToRecomposition() = runSwingUiTest {
+    fun resizableReactsToRecomposition() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         var resizable by mutableStateOf(true)
         setContent { Window(onCloseRequest = {}, title = "resizable-test", resizable = resizable) {} }
@@ -60,7 +60,7 @@ class WindowReactivityTest {
     }
 
     @Test
-    fun initialGeometryIsAppliedToTheFrame() = runSwingUiTest {
+    fun initialGeometryIsAppliedToTheFrame() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val state = WindowState(position = WindowPosition(120, 80), size = Dimension(320, 240))
         setContent { Window(onCloseRequest = {}, state = state, title = "initial-geometry-test") {} }
@@ -70,7 +70,7 @@ class WindowReactivityTest {
     }
 
     @Test
-    fun positionReactsToStateChange() = runSwingUiTest {
+    fun positionReactsToStateChange() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val state = WindowState(position = WindowPosition(120, 80))
         setContent { Window(onCloseRequest = {}, state = state, title = "position-test") {} }
@@ -90,7 +90,7 @@ class WindowReactivityTest {
     }
 
     @Test
-    fun sizeReactsToStateChange() = runSwingUiTest {
+    fun sizeReactsToStateChange() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val state = WindowState(size = Dimension(320, 240))
         setContent { Window(onCloseRequest = {}, state = state, title = "size-test") {} }
@@ -104,7 +104,7 @@ class WindowReactivityTest {
     }
 
     @Test
-    fun widthReactsToStateChange() = runSwingUiTest {
+    fun widthReactsToStateChange() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val state = WindowState(size = Dimension(320, 240))
         setContent { Window(onCloseRequest = {}, state = state, title = "width-test") {} }
@@ -119,7 +119,7 @@ class WindowReactivityTest {
     }
 
     @Test
-    fun heightReactsToStateChange() = runSwingUiTest {
+    fun heightReactsToStateChange() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val state = WindowState(size = Dimension(320, 240))
         setContent { Window(onCloseRequest = {}, state = state, title = "height-test") {} }
@@ -134,7 +134,7 @@ class WindowReactivityTest {
     }
 
     @Test
-    fun mutatingAReadSizeCopyLeavesTheFrameAndStateUntouched() = runSwingUiTest {
+    fun mutatingAReadSizeCopyLeavesTheFrameAndStateUntouched() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         var title by mutableStateOf("size-copy-inert-test")
         val state = WindowState(size = Dimension(320, 240))
@@ -158,7 +158,7 @@ class WindowReactivityTest {
     }
 
     @Test
-    fun sizeAssignmentAfterMutatingAReadCopyResizesTheFrame() = runSwingUiTest {
+    fun sizeAssignmentAfterMutatingAReadCopyResizesTheFrame() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val state = WindowState(size = Dimension(320, 240))
         setContent { Window(onCloseRequest = {}, state = state, title = "size-detached-copy-test") {} }
@@ -187,7 +187,7 @@ class WindowReactivityTest {
     }
 
     @Test
-    fun userResizeIsWrittenBackIntoState() = runSwingUiTest {
+    fun userResizeIsWrittenBackIntoState() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val state = WindowState(size = Dimension(320, 240))
         setContent { Window(onCloseRequest = {}, state = state, title = "user-resize-test") {} }
@@ -198,7 +198,7 @@ class WindowReactivityTest {
     }
 
     @Test
-    fun userMoveIsWrittenBackIntoState() = runSwingUiTest {
+    fun userMoveIsWrittenBackIntoState() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val state = WindowState(position = WindowPosition(120, 80))
         setContent { Window(onCloseRequest = {}, state = state, title = "user-move-test") {} }
@@ -219,7 +219,7 @@ class WindowReactivityTest {
     }
 
     @Test
-    fun userResizeIsNotFoughtByTheDeclaredValue() = runSwingUiTest {
+    fun userResizeIsNotFoughtByTheDeclaredValue() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val state = WindowState(size = Dimension(320, 240))
         setContent { Window(onCloseRequest = {}, state = state, title = "no-feedback-loop-test") {} }
@@ -236,7 +236,7 @@ class WindowReactivityTest {
     }
 
     @Test
-    fun platformDefaultPositionNeverRepositionsTheFrame() = runSwingUiTest {
+    fun platformDefaultPositionNeverRepositionsTheFrame() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         var title by mutableStateOf("platform-default-test")
         val state = WindowState()
@@ -264,7 +264,7 @@ class WindowReactivityTest {
     }
 
     @Test
-    fun platformDefaultToAbsolutePositionMovesTheFrame() = runSwingUiTest {
+    fun platformDefaultToAbsolutePositionMovesTheFrame() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val state = WindowState()
         setContent {
@@ -281,7 +281,7 @@ class WindowReactivityTest {
     }
 
     @Test
-    fun extendedStateReactsToStateChange() = runSwingUiTest {
+    fun extendedStateReactsToStateChange() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         assumeMaximizeIsSupported()
         val state = WindowState()
@@ -298,7 +298,7 @@ class WindowReactivityTest {
     }
 
     @Test
-    fun initialExtendedStateIsAppliedToTheFrame() = runSwingUiTest {
+    fun initialExtendedStateIsAppliedToTheFrame() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         assumeMaximizeIsSupported()
         val state = WindowState(extendedState = Frame.MAXIMIZED_BOTH)
@@ -311,7 +311,7 @@ class WindowReactivityTest {
     }
 
     @Test
-    fun userMaximizeIsWrittenBackIntoState() = runSwingUiTest {
+    fun userMaximizeIsWrittenBackIntoState() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         assumeMaximizeIsSupported()
         val state = WindowState()
@@ -327,7 +327,7 @@ class WindowReactivityTest {
     }
 
     @Test
-    fun userMaximizeIsNotFoughtByTheDeclaredValue() = runSwingUiTest {
+    fun userMaximizeIsNotFoughtByTheDeclaredValue() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         assumeMaximizeIsSupported()
         val state = WindowState()

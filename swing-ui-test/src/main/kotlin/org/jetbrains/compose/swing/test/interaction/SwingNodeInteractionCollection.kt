@@ -1,50 +1,81 @@
 package org.jetbrains.compose.swing.test.interaction
 
+import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.SwingMatcher
-import org.jetbrains.compose.swing.test.SwingUiTest
+import org.jetbrains.compose.swing.test.describeComponent
 import org.jetbrains.compose.swing.test.dumpTree
-import org.jetbrains.compose.swing.test.findMatching
 import java.awt.Component
 import java.awt.Container
-import javax.swing.SwingUtilities
 
 /**
  * A lazy handle to the set of components matched by a query. The match set is resolved against the
  * live AWT tree each time it is needed, so it reflects the current tree.
  *
- * All methods are intended to be called from a [org.jetbrains.compose.swing.test.runSwingUiTest]
+ * [T] is the component type the query names - `onAllNodesOfType<JLabel>()` matches `JLabel`s - and
+ * every step that keeps matching the same set keeps it, so [fetchAll] and the single-node handles
+ * [get], [onFirst], [onLast] and [filterToOne] carry it on. A query that names no type matches
+ * [Component]s.
+ *
+ * All methods are intended to be called from a [org.jetbrains.compose.swing.test.runComposeSwingTest]
  * body, which runs on the EDT.
  */
-public class SwingNodeInteractionCollection internal constructor(
-    private val test: SwingUiTest,
-    private val matcher: SwingMatcher,
-    private val root: () -> Container,
-    private val ancestor: Component? = null,
+public class SwingNodeInteractionCollection<out T : Component> internal constructor(
+    internal val test: ComposeSwingTest,
+    internal val description: String,
+    internal val root: () -> Container,
+    private val asNode: (Component) -> T,
+    private val candidates: () -> List<Component>,
 ) {
     @PublishedApi
-    internal fun resolveAll(): List<Component> {
-        val matches = root().findMatching(matcher)
-        val scope = ancestor ?: return matches
-        return matches.filter { it !== scope && SwingUtilities.isDescendingFrom(it, scope) }
-    }
+    internal fun resolveAll(): List<Component> = candidates()
 
     /** Human-readable description of this collection's query, for [fetchAll] failure messages. */
     @PublishedApi
     internal val matcherDescription: String
-        get() = matcher.description
+        get() = description
 
     /**
-     * Narrows this collection to only the matches that are descendants of [ancestor] (at any depth),
-     * scoping a tree-wide query to a single subtree. The results are the descendants of [ancestor],
-     * excluding [ancestor] itself. Returns a new collection; the original is unchanged.
+     * This same query, matching the same nodes, handled as one that names node type [R]. [asNode]
+     * establishes that a match is an [R], and is what [fetchAll] resolves each node through.
+     */
+    @PublishedApi
+    internal fun <R : Component> retype(asNode: (Component) -> R): SwingNodeInteractionCollection<R> =
+        SwingNodeInteractionCollection(test, description, root, asNode, candidates)
+
+    /**
+     * Returns a collection of the matches that also satisfy [matcher]. Like every interaction, the
+     * returned handle re-resolves against the live tree on each use, so it tracks recomposition.
+     *
+     * Composing a structural matcher scopes a tree-wide query to one subtree:
      *
      * ```
-     * val panel = onNodeWithTag("editor").fetch<JComponent>()
-     * onAllNodesOfType<JLabel>().within(panel).fetchAll<JLabel>()
+     * onAllNodesOfType<JLabel>().filter(SwingMatcher.hasAnyAncestor(SwingMatcher.hasTestTag("editor")))
      * ```
      */
-    public fun within(ancestor: Component): SwingNodeInteractionCollection =
-        SwingNodeInteractionCollection(test, matcher, root, ancestor)
+    public fun filter(matcher: SwingMatcher): SwingNodeInteractionCollection<T> =
+        SwingNodeInteractionCollection(
+            test,
+            "$description.filter(${matcher.description})",
+            root,
+            asNode,
+        ) { resolveAll().filter(matcher::matches) }
+
+    /**
+     * Returns a lazy handle to the single match that also satisfies [matcher]; it fails on use when
+     * the filtered set does not hold exactly one node.
+     *
+     * ```
+     * onAllNodesOfType<JCheckBox>().filterToOne(SwingMatcher.isSelected()).assertExists()
+     * ```
+     */
+    public fun filterToOne(matcher: SwingMatcher): SwingNodeInteraction<T> =
+        SwingNodeInteraction(
+            test,
+            "$description.filterToOne(${matcher.description})",
+            root,
+            NodePick.Single,
+            asNode,
+        ) { resolveAll().filter(matcher::matches) }
 
     /**
      * Returns a lazy handle to the match at [index], in depth-first pre-order. Like every
@@ -55,30 +86,72 @@ public class SwingNodeInteractionCollection internal constructor(
      * onAllNodesWithText("row")[1].assertIsEnabled()
      * ```
      */
-    public operator fun get(index: Int): SwingNodeInteraction =
-        SwingNodeInteraction(test, "${matcher.description}[$index]", root, NodePick.AtIndex(index), ::resolveAll)
+    public operator fun get(index: Int): SwingNodeInteraction<T> =
+        SwingNodeInteraction(
+            test,
+            "$description[$index]",
+            root,
+            NodePick.AtIndex(index),
+            asNode,
+            ::resolveAll,
+        )
 
     /**
      * Returns a lazy handle to the first match, in depth-first pre-order. Convenience for
      * [get]`(0)`.
      */
-    public fun onFirst(): SwingNodeInteraction = get(0)
+    public fun onFirst(): SwingNodeInteraction<T> = get(0)
 
     /**
      * Returns a lazy handle to the last match, in depth-first pre-order. The handle re-resolves
      * against the live tree on each use, so it tracks the current last match across recomposition;
      * it fails on use when nothing matches.
      */
-    public fun onLast(): SwingNodeInteraction =
-        SwingNodeInteraction(test, "${matcher.description}.onLast()", root, NodePick.Last, ::resolveAll)
+    public fun onLast(): SwingNodeInteraction<T> =
+        SwingNodeInteraction(test, "$description.onLast()", root, NodePick.Last, asNode, ::resolveAll)
 
     /** Asserts that exactly [expected] nodes match. */
-    public fun assertCountEquals(expected: Int): SwingNodeInteractionCollection {
+    public fun assertCountEquals(expected: Int): SwingNodeInteractionCollection<T> {
         val actual = resolveAll().size
         if (actual != expected) {
             throw AssertionError(
-                "Expected $expected nodes matching '${matcher.description}' but found $actual.\n" +
+                "Expected $expected nodes matching '$description' but found $actual.\n" +
                     "Tree:\n${root().dumpTree()}",
+            )
+        }
+        return this
+    }
+
+    /**
+     * Asserts that every matched node satisfies [matcher]. An empty match set satisfies this, as
+     * there is no node that violates the matcher; pin the size with [assertCountEquals] where that
+     * matters.
+     */
+    public fun assertAll(matcher: SwingMatcher): SwingNodeInteractionCollection<T> {
+        val nodes = resolveAll()
+        val violations = nodes.filterNot(matcher::matches)
+        if (violations.isNotEmpty()) {
+            throw AssertionError(
+                "Expected every node matching '$description' to satisfy '${matcher.description}', " +
+                    "but ${violations.size} of ${nodes.size} did not:\n" + violations.describeEach(),
+            )
+        }
+        return this
+    }
+
+    /** Asserts that at least one matched node satisfies [matcher]. An empty match set fails. */
+    public fun assertAny(matcher: SwingMatcher): SwingNodeInteractionCollection<T> {
+        val nodes = resolveAll()
+        if (nodes.isEmpty()) {
+            throw AssertionError(
+                "Expected a node matching '$description' to satisfy '${matcher.description}', " +
+                    "but the query matched no node at all.\nTree:\n${root().dumpTree()}",
+            )
+        }
+        if (nodes.none(matcher::matches)) {
+            throw AssertionError(
+                "Expected a node matching '$description' to satisfy '${matcher.description}', " +
+                    "but none of the ${nodes.size} matched nodes did:\n" + nodes.describeEach(),
             )
         }
         return this
@@ -88,11 +161,27 @@ public class SwingNodeInteractionCollection internal constructor(
     public fun fetchSize(): Int = resolveAll().size
 
     /**
-     * Resolves every matching component and returns them typed as [T], in depth-first pre-order, for
-     * reading or driving each component's own API (e.g. a `JList`'s model, a `JSplitPane`'s divider).
+     * Resolves every matching component and returns them as the [T] the query named, in depth-first
+     * pre-order, for reading or driving each component's own API (e.g. a `JList`'s model, a
+     * `JSplitPane`'s divider). A query that named the type does not name it again:
      *
-     * @throws AssertionError if any matched node is not a [T].
+     * ```
+     * val labels = onAllNodesOfType<JLabel>().fetchAll()
+     * ```
      */
-    public inline fun <reified T : Component> fetchAll(): List<T> =
-        resolveAll().map { component -> component.castOrFail<T>("Node", matcherDescription) }
+    public fun fetchAll(): List<T> = resolveAll().map(asNode)
+
+    /**
+     * Resolves every matching component and returns them typed as [R], in depth-first pre-order, for
+     * a query that named no type of its own - or that named a wider one than the components to be
+     * driven.
+     *
+     * @throws AssertionError if any matched node is not an [R].
+     */
+    @JvmName("fetchAllOfType")
+    public inline fun <reified R : Component> fetchAll(): List<R> =
+        resolveAll().map { component -> component.castOrFail<R>("Node", matcherDescription) }
 }
+
+/** The components of this list, one indented description per line, for a failure message. */
+private fun List<Component>.describeEach(): String = joinToString("\n") { "  " + describeComponent(it) }

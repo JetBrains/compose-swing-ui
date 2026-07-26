@@ -19,7 +19,7 @@ import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.components.text.TextPane
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.onNodeOfType
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JButton
 import javax.swing.JCheckBox
 import javax.swing.JComboBox
@@ -57,7 +57,7 @@ import kotlin.test.assertEquals
  */
 class WrapperDefaultsMatchWidgetTest {
     @Test
-    fun textFieldDefaultsMatchBareWidget() = runSwingUiTest {
+    fun textFieldDefaultsMatchBareWidget() = runComposeSwingTest {
         val bare = JTextField()
         setContent { TextField(value = "") }
         val wrapped = onNodeOfType<JTextField>().fetch<JTextField>()
@@ -65,7 +65,7 @@ class WrapperDefaultsMatchWidgetTest {
     }
 
     @Test
-    fun textAreaDefaultsMatchBareWidget() = runSwingUiTest {
+    fun textAreaDefaultsMatchBareWidget() = runComposeSwingTest {
         val bare = JTextArea()
         setContent { TextArea(value = "") }
         val wrapped = onNodeOfType<JTextArea>().fetch<JTextArea>()
@@ -74,7 +74,7 @@ class WrapperDefaultsMatchWidgetTest {
     }
 
     @Test
-    fun passwordFieldDefaultsMatchBareWidget() = runSwingUiTest {
+    fun passwordFieldDefaultsMatchBareWidget() = runComposeSwingTest {
         val bare = JPasswordField()
         setContent { PasswordField(value = CharArray(0)) }
         val wrapped = onNodeOfType<JPasswordField>().fetch<JPasswordField>()
@@ -83,7 +83,7 @@ class WrapperDefaultsMatchWidgetTest {
     }
 
     @Test
-    fun editorPaneDefaultsMatchBareWidget() = runSwingUiTest {
+    fun editorPaneDefaultsMatchBareWidget() = runComposeSwingTest {
         val bare = JEditorPane()
         setContent { EditorPane(value = "") }
         val wrapped = onNodeOfType<JEditorPane>().fetch<JEditorPane>()
@@ -92,7 +92,7 @@ class WrapperDefaultsMatchWidgetTest {
     }
 
     @Test
-    fun textPaneDefaultsMatchBareWidget() = runSwingUiTest {
+    fun textPaneDefaultsMatchBareWidget() = runComposeSwingTest {
         val bare = JTextPane()
         setContent { TextPane(value = "") }
         val wrapped = onNodeOfType<JTextPane>().fetch<JTextPane>()
@@ -100,7 +100,7 @@ class WrapperDefaultsMatchWidgetTest {
     }
 
     @Test
-    fun formattedTextFieldDefaultsMatchBareWidget() = runSwingUiTest {
+    fun formattedTextFieldDefaultsMatchBareWidget() = runComposeSwingTest {
         val bare = JFormattedTextField()
         setContent { FormattedTextField(value = null) }
         val wrapped = onNodeOfType<JFormattedTextField>().fetch<JFormattedTextField>()
@@ -109,7 +109,7 @@ class WrapperDefaultsMatchWidgetTest {
     }
 
     @Test
-    fun comboBoxDefaultsMatchBareWidget() = runSwingUiTest {
+    fun comboBoxDefaultsMatchBareWidget() = runComposeSwingTest {
         val bare = JComboBox<String>()
         setContent { ComboBox(items = emptyList<String>()) }
         val wrapped = onNodeOfType<JComboBox<*>>().fetch<JComboBox<*>>()
@@ -117,7 +117,7 @@ class WrapperDefaultsMatchWidgetTest {
     }
 
     @Test
-    fun sliderDefaultsMatchBareWidget() = runSwingUiTest {
+    fun sliderDefaultsMatchBareWidget() = runComposeSwingTest {
         val bare = JSlider()
         setContent { Slider(value = bare.value) }
         val wrapped = onNodeOfType<JSlider>().fetch<JSlider>()
@@ -126,7 +126,7 @@ class WrapperDefaultsMatchWidgetTest {
     }
 
     @Test
-    fun spinnerDefaultsMatchBareWidget() = runSwingUiTest {
+    fun spinnerDefaultsMatchBareWidget() = runComposeSwingTest {
         val bare = JSpinner().model as SpinnerNumberModel
         setContent { Spinner(rememberSpinnerState(value = bare.number.toInt())) }
         val wrapped = onNodeOfType<JSpinner>().fetch<JSpinner>().model as SpinnerNumberModel
@@ -137,7 +137,7 @@ class WrapperDefaultsMatchWidgetTest {
     }
 
     @Test
-    fun progressBarDefaultsMatchBareWidget() = runSwingUiTest {
+    fun progressBarDefaultsMatchBareWidget() = runComposeSwingTest {
         val bare = JProgressBar()
         setContent { ProgressBar() }
         val wrapped = onNodeOfType<JProgressBar>().fetch<JProgressBar>()
@@ -148,7 +148,7 @@ class WrapperDefaultsMatchWidgetTest {
     }
 
     @Test
-    fun labelDefaultsMatchBareWidget() = runSwingUiTest {
+    fun labelDefaultsMatchBareWidget() = runComposeSwingTest {
         val bare = JLabel()
         setContent { Label(text = "") }
         val wrapped = onNodeOfType<JLabel>().fetch<JLabel>()
@@ -156,7 +156,7 @@ class WrapperDefaultsMatchWidgetTest {
     }
 
     @Test
-    fun separatorDefaultsMatchBareWidget() = runSwingUiTest {
+    fun separatorDefaultsMatchBareWidget() = runComposeSwingTest {
         val bare = JSeparator()
         setContent { Separator() }
         val wrapped = onNodeOfType<JSeparator>().fetch<JSeparator>()
@@ -164,7 +164,7 @@ class WrapperDefaultsMatchWidgetTest {
     }
 
     @Test
-    fun buttonDefaultsMatchBareWidget() = runSwingUiTest {
+    fun buttonDefaultsMatchBareWidget() = runComposeSwingTest {
         val bare = JButton()
         setContent { Button(text = "") }
         val wrapped = onNodeOfType<JButton>().fetch<JButton>()
@@ -172,7 +172,7 @@ class WrapperDefaultsMatchWidgetTest {
     }
 
     @Test
-    fun checkBoxDefaultsMatchBareWidget() = runSwingUiTest {
+    fun checkBoxDefaultsMatchBareWidget() = runComposeSwingTest {
         val bare = JCheckBox()
         setContent { CheckBox(text = "") }
         val wrapped = onNodeOfType<JCheckBox>().fetch<JCheckBox>()
@@ -180,7 +180,7 @@ class WrapperDefaultsMatchWidgetTest {
     }
 
     @Test
-    fun radioButtonDefaultsMatchBareWidget() = runSwingUiTest {
+    fun radioButtonDefaultsMatchBareWidget() = runComposeSwingTest {
         val bare = JRadioButton()
         setContent { RadioButton(text = "") }
         val wrapped = onNodeOfType<JRadioButton>().fetch<JRadioButton>()
@@ -188,7 +188,7 @@ class WrapperDefaultsMatchWidgetTest {
     }
 
     @Test
-    fun toggleButtonDefaultsMatchBareWidget() = runSwingUiTest {
+    fun toggleButtonDefaultsMatchBareWidget() = runComposeSwingTest {
         val bare = JToggleButton()
         setContent { ToggleButton(text = "") }
         val wrapped = onNodeOfType<JToggleButton>().fetch<JToggleButton>()
@@ -196,7 +196,7 @@ class WrapperDefaultsMatchWidgetTest {
     }
 
     @Test
-    fun toolBarDefaultsMatchBareWidget() = runSwingUiTest {
+    fun toolBarDefaultsMatchBareWidget() = runComposeSwingTest {
         val bare = JToolBar()
         setContent { ToolBar() }
         val wrapped = onNodeOfType<JToolBar>().fetch<JToolBar>()
@@ -205,7 +205,7 @@ class WrapperDefaultsMatchWidgetTest {
     }
 
     @Test
-    fun listBoxDefaultsMatchBareWidget() = runSwingUiTest {
+    fun listBoxDefaultsMatchBareWidget() = runComposeSwingTest {
         val bare = JList<String>()
         setContent { ListBox(items = emptyList<String>()) }
         val wrapped = onNodeOfType<JList<*>>().fetch<JList<*>>()
@@ -214,7 +214,7 @@ class WrapperDefaultsMatchWidgetTest {
     }
 
     @Test
-    fun tableSelectionModeMatchesBareWidget() = runSwingUiTest {
+    fun tableSelectionModeMatchesBareWidget() = runComposeSwingTest {
         val bare = JTable()
         setContent {
             Table(rows = emptyList<String>()) { column("c") { it } }
@@ -228,7 +228,7 @@ class WrapperDefaultsMatchWidgetTest {
     }
 
     @Test
-    fun treeSelectionAndHandleDefaultsMatchBareWidget() = runSwingUiTest {
+    fun treeSelectionAndHandleDefaultsMatchBareWidget() = runComposeSwingTest {
         val bare = JTree()
         setContent { Tree(root = "r", children = { emptyList() }) }
         val wrapped = onNodeOfType<JTree>().fetch<JTree>()
@@ -242,7 +242,7 @@ class WrapperDefaultsMatchWidgetTest {
     }
 
     @Test
-    fun tabbedPaneDefaultsMatchBareWidget() = runSwingUiTest {
+    fun tabbedPaneDefaultsMatchBareWidget() = runComposeSwingTest {
         val bare = JTabbedPane()
         setContent { TabbedPane(selectedIndex = -1) {} }
         val wrapped = onNodeOfType<JTabbedPane>().fetch<JTabbedPane>()
@@ -251,7 +251,7 @@ class WrapperDefaultsMatchWidgetTest {
     }
 
     @Test
-    fun splitPaneDefaultsMatchBareWidget() = runSwingUiTest {
+    fun splitPaneDefaultsMatchBareWidget() = runComposeSwingTest {
         val bare = JSplitPane()
         setContent { SplitPane {} }
         val wrapped = onNodeOfType<JSplitPane>().fetch<JSplitPane>()
@@ -260,7 +260,7 @@ class WrapperDefaultsMatchWidgetTest {
     }
 
     @Test
-    fun scrollPaneDefaultsMatchBareWidget() = runSwingUiTest {
+    fun scrollPaneDefaultsMatchBareWidget() = runComposeSwingTest {
         val bare = JScrollPane()
         setContent { ScrollPane {} }
         val wrapped = onNodeOfType<JScrollPane>().fetch<JScrollPane>()

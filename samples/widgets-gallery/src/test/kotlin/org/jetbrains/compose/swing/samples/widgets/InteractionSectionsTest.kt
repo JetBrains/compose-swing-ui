@@ -1,12 +1,12 @@
 package org.jetbrains.compose.swing.samples.widgets
 
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import kotlin.test.Test
 
 class InteractionSectionsTest {
     @Test
     fun theContextMenuSectionMountsWithItsInitialEchoes() =
-        runSwingUiTest {
+        runComposeSwingTest {
             openSection("Context menu")
 
             onNodeWithText("Last action: none", substring = true).assertExists()
@@ -15,7 +15,7 @@ class InteractionSectionsTest {
 
     @Test
     fun theDataTransferSectionMountsWithItsInitialEchoes() =
-        runSwingUiTest {
+        runComposeSwingTest {
             openSection("Data transfer")
 
             onNodeWithText("Drop here: Nothing dropped yet", substring = true).assertExists()
@@ -24,7 +24,7 @@ class InteractionSectionsTest {
 
     @Test
     fun theStructuralToggleInsertsAndRemovesItsSubtree() =
-        runSwingUiTest {
+        runComposeSwingTest {
             openSection("Dynamic hierarchy")
 
             onNodeWithText("Details (this entire subtree was just inserted)", substring = true)
@@ -39,7 +39,7 @@ class InteractionSectionsTest {
 
     @Test
     fun theVisibleContrastKeepsTheSlotWhileTogglingVisibility() =
-        runSwingUiTest {
+        runComposeSwingTest {
             openSection("Dynamic hierarchy")
 
             onNodeWithText("Clicked 0 time(s)", substring = true).performClick()
@@ -51,7 +51,7 @@ class InteractionSectionsTest {
 
     @Test
     fun theCompositionLocalSectionMountsItsAccentedLabels() =
-        runSwingUiTest {
+        runComposeSwingTest {
             openSection("Composition locals")
 
             onNodeWithText("Middle-level accented label", substring = true).assertExists()
@@ -60,7 +60,7 @@ class InteractionSectionsTest {
 
     @Test
     fun theEffectsSectionDrivesDisposeAndDerivedState() =
-        runSwingUiTest {
+        runComposeSwingTest {
             openSection("Effects")
 
             onNodeWithText("Child has not left composition yet.", substring = true).assertExists()

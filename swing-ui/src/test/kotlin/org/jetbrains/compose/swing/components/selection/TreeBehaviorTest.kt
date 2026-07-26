@@ -6,7 +6,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JTree
 import javax.swing.tree.DefaultMutableTreeNode
 import javax.swing.tree.TreePath
@@ -47,7 +47,7 @@ class TreeBehaviorTest {
         )
 
     @Test
-    fun nestedDataRendersTheExpectedNodeStructure() = runSwingUiTest {
+    fun nestedDataRendersTheExpectedNodeStructure() = runComposeSwingTest {
         setContent {
             Tree(
                 root = sample,
@@ -69,7 +69,7 @@ class TreeBehaviorTest {
     }
 
     @Test
-    fun selectingANodeFiresOnSelectionChange() = runSwingUiTest {
+    fun selectingANodeFiresOnSelectionChange() = runComposeSwingTest {
         val reported = mutableListOf<List<List<Int>>>()
         setContent {
             Tree(
@@ -91,7 +91,7 @@ class TreeBehaviorTest {
     }
 
     @Test
-    fun stateDrivenDataChangeRebuildsTheTree() = runSwingUiTest {
+    fun stateDrivenDataChangeRebuildsTheTree() = runComposeSwingTest {
         var data by mutableStateOf(sample)
         setContent {
             Tree(

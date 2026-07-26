@@ -5,7 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.onNodeOfType
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JEditorPane
 import javax.swing.JTextPane
 import javax.swing.text.DefaultStyledDocument
@@ -25,7 +25,7 @@ import kotlin.test.assertTrue
  */
 class StateEditorTextPaneTest {
     @Test
-    fun editorPaneSharesTheStateDocument() = runSwingUiTest {
+    fun editorPaneSharesTheStateDocument() = runComposeSwingTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState("seed")
@@ -38,7 +38,7 @@ class StateEditorTextPaneTest {
     }
 
     @Test
-    fun editingStateUpdatesEditorPane() = runSwingUiTest {
+    fun editingStateUpdatesEditorPane() = runComposeSwingTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState("ab")
@@ -58,7 +58,7 @@ class StateEditorTextPaneTest {
     }
 
     @Test
-    fun typingIntoEditorPaneUpdatesStateText() = runSwingUiTest {
+    fun typingIntoEditorPaneUpdatesStateText() = runComposeSwingTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState()
@@ -73,7 +73,7 @@ class StateEditorTextPaneTest {
     }
 
     @Test
-    fun plainDocumentStateRendersEditorPaneAsPlainText() = runSwingUiTest {
+    fun plainDocumentStateRendersEditorPaneAsPlainText() = runComposeSwingTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState("plain")
@@ -87,7 +87,7 @@ class StateEditorTextPaneTest {
     }
 
     @Test
-    fun htmlDocumentStateRendersEditorPaneAsHtmlAndStaysAuthoritative() = runSwingUiTest {
+    fun htmlDocumentStateRendersEditorPaneAsHtmlAndStaysAuthoritative() = runComposeSwingTest {
         val document = HTMLEditorKit().createDefaultDocument()
         lateinit var state: DocumentState
         setContent {
@@ -110,7 +110,7 @@ class StateEditorTextPaneTest {
     }
 
     @Test
-    fun editorPaneRespectsEditableFlag() = runSwingUiTest {
+    fun editorPaneRespectsEditableFlag() = runComposeSwingTest {
         var editable by mutableStateOf(true)
         lateinit var state: DocumentState
         setContent {
@@ -127,7 +127,7 @@ class StateEditorTextPaneTest {
     }
 
     @Test
-    fun textPaneSharesTheStateStyledDocument() = runSwingUiTest {
+    fun textPaneSharesTheStateStyledDocument() = runComposeSwingTest {
         val document = DefaultStyledDocument().apply { insertString(0, "seed", null) }
         lateinit var state: DocumentState
         setContent {
@@ -141,7 +141,7 @@ class StateEditorTextPaneTest {
     }
 
     @Test
-    fun editingStateUpdatesTextPane() = runSwingUiTest {
+    fun editingStateUpdatesTextPane() = runComposeSwingTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState(document = DefaultStyledDocument().apply { insertString(0, "ab", null) })
@@ -161,7 +161,7 @@ class StateEditorTextPaneTest {
     }
 
     @Test
-    fun typingIntoTextPaneUpdatesStateText() = runSwingUiTest {
+    fun typingIntoTextPaneUpdatesStateText() = runComposeSwingTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState(document = DefaultStyledDocument())
@@ -176,7 +176,7 @@ class StateEditorTextPaneTest {
     }
 
     @Test
-    fun textPaneRespectsEditableFlag() = runSwingUiTest {
+    fun textPaneRespectsEditableFlag() = runComposeSwingTest {
         var editable by mutableStateOf(true)
         lateinit var state: DocumentState
         setContent {

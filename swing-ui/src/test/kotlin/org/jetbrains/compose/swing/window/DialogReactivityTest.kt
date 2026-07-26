@@ -4,7 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.test.onWindow
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.GraphicsEnvironment
 import javax.swing.JDialog
@@ -24,7 +24,7 @@ import kotlin.test.assertTrue
  */
 class DialogReactivityTest {
     @Test
-    fun titleReactsToRecomposition() = runSwingUiTest {
+    fun titleReactsToRecomposition() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         var title by mutableStateOf("dialog-title-test")
         setContent { Dialog(onCloseRequest = {}, title = title) {} }
@@ -36,7 +36,7 @@ class DialogReactivityTest {
     }
 
     @Test
-    fun visibleReactsToRecomposition() = runSwingUiTest {
+    fun visibleReactsToRecomposition() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         var visible by mutableStateOf(false)
         setContent { Dialog(onCloseRequest = {}, title = "dialog-visible-test", visible = visible) {} }
@@ -47,7 +47,7 @@ class DialogReactivityTest {
     }
 
     @Test
-    fun resizableReactsToRecomposition() = runSwingUiTest {
+    fun resizableReactsToRecomposition() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         var resizable by mutableStateOf(true)
         setContent { Dialog(onCloseRequest = {}, title = "dialog-resizable-test", resizable = resizable) {} }
@@ -59,7 +59,7 @@ class DialogReactivityTest {
     }
 
     @Test
-    fun visibilityFollowsAToggleAcrossRecompositions() = runSwingUiTest {
+    fun visibilityFollowsAToggleAcrossRecompositions() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         var visible by mutableStateOf(true)
         setContent { Dialog(onCloseRequest = {}, title = "dialog-visible-toggle-test", visible = visible) {} }

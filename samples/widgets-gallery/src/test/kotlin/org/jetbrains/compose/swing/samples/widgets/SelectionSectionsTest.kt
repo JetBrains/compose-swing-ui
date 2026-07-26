@@ -2,7 +2,7 @@ package org.jetbrains.compose.swing.samples.widgets
 
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.onNodeOfType
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JRadioButton
 import javax.swing.JTable
 import javax.swing.JTree
@@ -11,7 +11,7 @@ import kotlin.test.Test
 class SelectionSectionsTest {
     @Test
     fun theRadioGroupSelectsExactlyOneOption() =
-        runSwingUiTest {
+        runComposeSwingTest {
             openSection("RadioGroup")
 
             onNodeWithText("Selected plan: Free", substring = true).assertExists()
@@ -24,7 +24,7 @@ class SelectionSectionsTest {
 
     @Test
     fun theRadioGroupRendersOneButtonPerOption() =
-        runSwingUiTest {
+        runComposeSwingTest {
             openSection("RadioGroup")
 
             onAllNodesOfType<JRadioButton>().assertCountEquals(VERTICAL_PLANS + HORIZONTAL_SIZES)
@@ -32,7 +32,7 @@ class SelectionSectionsTest {
 
     @Test
     fun theTableSelectionFeedsTheEcho() =
-        runSwingUiTest {
+        runComposeSwingTest {
             openSection("Table")
 
             onNodeWithText("Selected: Ada Lovelace", substring = true).assertExists()
@@ -45,7 +45,7 @@ class SelectionSectionsTest {
 
     @Test
     fun theTableProjectsTypedRowsThroughItsColumns() =
-        runSwingUiTest {
+        runComposeSwingTest {
             openSection("Table")
 
             val table = onNodeOfType<JTable>().fetch<JTable>()
@@ -56,7 +56,7 @@ class SelectionSectionsTest {
 
     @Test
     fun theTreeSelectionResolvesBackToReadableNames() =
-        runSwingUiTest {
+        runComposeSwingTest {
             openSection("Tree")
 
             onNodeWithText("Selected path: (none)", substring = true).assertExists()

@@ -15,7 +15,6 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.swing.Swing
 import org.jetbrains.compose.swing.components.button.Button
-import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.modifier.interaction.defaultButton
 import org.jetbrains.compose.swing.setContent
 import java.awt.Component
@@ -30,7 +29,7 @@ import kotlin.test.assertSame
 
 /**
  * End-to-end tests for the `defaultButton` modifier mounted under a real [JRootPane]. They assert the
- * observable wiring — the root pane's default button — that pressing Enter would activate, which a bare
+ * observable wiring - the root pane's default button - that pressing Enter would activate, which a bare
  * `JPanel` test root cannot express because it has no root pane.
  */
 class DefaultButtonModifierTest {
@@ -58,31 +57,36 @@ class DefaultButtonModifierTest {
         waitForIdle()
     }
 
-    private fun buttonNamed(name: String): JButton = onEdt {
+    /** The single button the composition mounted under the root pane's content pane. */
+    private fun theButton(): JButton = onEdt {
         fun find(component: Component): JButton? = when {
-            component is JButton && component.name == name -> component
+            component is JButton -> component
             component is Container -> component.components.firstNotNullOfOrNull(::find)
             else -> null
         }
-        find(root) ?: error("No button named '$name'")
+        find(root) ?: error("the composition mounted no button")
     }
 
     @Test
     fun defaultButtonBecomesRootPaneDefault() {
         setContent {
-            Button("OK", modifier = SwingModifier.name("ok").defaultButton())
+            Button("OK", modifier = SwingModifier.defaultButton())
         }
-        assertSame(buttonNamed("ok"), onEdt { rootPane.defaultButton })
+        assertSame(
+            theButton(),
+            onEdt { rootPane.defaultButton },
+            "the modifier should make the button the root pane default",
+        )
     }
 
     @Test
     fun clearingDefaultButtonReleasesRootPaneDefault() {
         var isDefault by mutableStateOf(true)
         setContent {
-            Button("OK", modifier = SwingModifier.name("ok").defaultButton(isDefault))
+            Button("OK", modifier = SwingModifier.defaultButton(isDefault))
         }
         assertSame(
-            buttonNamed("ok"),
+            theButton(),
             onEdt { rootPane.defaultButton },
             "the button should start as the root pane default",
         )
@@ -96,13 +100,10 @@ class DefaultButtonModifierTest {
     fun removingDefaultButtonModifierReleasesRootPaneDefault() {
         var present by mutableStateOf(true)
         setContent {
-            Button(
-                "OK",
-                modifier = SwingModifier.name("ok").let { if (present) it.defaultButton() else it },
-            )
+            Button("OK", modifier = if (present) SwingModifier.defaultButton() else SwingModifier)
         }
         assertSame(
-            buttonNamed("ok"),
+            theButton(),
             onEdt { rootPane.defaultButton },
             "the button should start as the root pane default",
         )

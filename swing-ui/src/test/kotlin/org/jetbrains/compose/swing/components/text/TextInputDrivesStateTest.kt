@@ -5,8 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.BoxPanel
-import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import kotlin.test.Test
 
 /**
@@ -18,7 +17,7 @@ import kotlin.test.Test
  */
 class TextInputDrivesStateTest {
     @Test
-    fun textReplacementUpdatesBoundLabel() = runSwingUiTest {
+    fun textReplacementUpdatesBoundLabel() = runComposeSwingTest {
         var value by mutableStateOf("seed")
         setContent {
             BoxPanel {
@@ -41,7 +40,7 @@ class TextInputDrivesStateTest {
     }
 
     @Test
-    fun incrementalTextInputAccumulatesIntoState() = runSwingUiTest {
+    fun incrementalTextInputAccumulatesIntoState() = runComposeSwingTest {
         var value by mutableStateOf("ab")
         setContent {
             BoxPanel {

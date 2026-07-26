@@ -8,10 +8,10 @@ assumption, `Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), …)`).
 
 ## Usage
 
-Add the module as `testImplementation`, then write tests with `runSwingUiTest`:
+Add the module as `testImplementation`, then write tests with `runComposeSwingTest`:
 
 ```kotlin
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.components.button.Button
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -20,7 +20,7 @@ import kotlin.test.Test
 
 class CounterTest {
     @Test
-    fun clickingIncrements() = runSwingUiTest {
+    fun clickingIncrements() = runComposeSwingTest {
         var clicks by mutableStateOf(0)
         setContent {
             Button(text = "Clicks: $clicks", onClick = { clicks++ })
@@ -32,9 +32,11 @@ class CounterTest {
 ```
 
 The harness offers finders (`onNodeWithText`, `onNodeWithTag`, `onNodeOfType<T>()`, …), window
-finders (`onWindow`, `onWindowWithTitle`, `onAllWindows`), assertions (`assertExists`,
-`assertIsDisplayed`, `assertTextEquals`, `assertIsVisible`, …), actions (`performClick`,
-`performTextInput`, …), and golden-image screenshot comparison. See
+finders (`onWindow`, `onWindowWithTitle`, `onAllWindows`), composable matchers (`hasText`,
+`isSelected`, `hasAnyAncestor`, combined with `and`/`or`/`!`), relative navigation (`onParent`,
+`onChildren`, `onSiblings`, …), assertions (`assertExists`, `assertIsDisplayed`, `assertTextEquals`,
+`assert(matcher)`, …), actions (`performClick`, `performTextInput`, …), and golden-image screenshot
+comparison. See
 [`../docs/TESTING-COMPONENTS.md`](../docs/TESTING-COMPONENTS.md) for the full guide; the API itself
 is documented in KDoc.
 

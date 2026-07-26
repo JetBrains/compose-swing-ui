@@ -6,7 +6,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JEditorPane
 import javax.swing.JTextPane
 import kotlin.test.Test
@@ -21,7 +21,7 @@ import kotlin.test.assertTrue
  */
 class EditorTextPaneTest {
     @Test
-    fun editorPaneRendersValueAndContentType() = runSwingUiTest {
+    fun editorPaneRendersValueAndContentType() = runComposeSwingTest {
         setContent {
             EditorPane(
                 value = "hello",
@@ -35,7 +35,7 @@ class EditorTextPaneTest {
     }
 
     @Test
-    fun editorPaneReportsEditsThroughOnValueChange() = runSwingUiTest {
+    fun editorPaneReportsEditsThroughOnValueChange() = runComposeSwingTest {
         var text by mutableStateOf("start")
         val reported = mutableListOf<String>()
         setContent {
@@ -55,7 +55,7 @@ class EditorTextPaneTest {
     }
 
     @Test
-    fun editorPaneReflectsStateDrivenValue() = runSwingUiTest {
+    fun editorPaneReflectsStateDrivenValue() = runComposeSwingTest {
         var text by mutableStateOf("before")
         setContent { EditorPane(value = text, modifier = SwingModifier.testTag("ep")) }
         assertEquals(
@@ -74,7 +74,7 @@ class EditorTextPaneTest {
     }
 
     @Test
-    fun editorPaneSwitchesContentTypeAndKeepsReportingEdits() = runSwingUiTest {
+    fun editorPaneSwitchesContentTypeAndKeepsReportingEdits() = runComposeSwingTest {
         var html by mutableStateOf(false)
         var text by mutableStateOf("plain")
         val reported = mutableListOf<String>()
@@ -109,7 +109,7 @@ class EditorTextPaneTest {
     }
 
     @Test
-    fun editorPaneRespectsEditableFlag() = runSwingUiTest {
+    fun editorPaneRespectsEditableFlag() = runComposeSwingTest {
         var editable by mutableStateOf(true)
         setContent {
             EditorPane(
@@ -129,7 +129,7 @@ class EditorTextPaneTest {
     }
 
     @Test
-    fun textPaneRendersValueAndReportsEdits() = runSwingUiTest {
+    fun textPaneRendersValueAndReportsEdits() = runComposeSwingTest {
         var text by mutableStateOf("hello")
         val reported = mutableListOf<String>()
         setContent {
@@ -150,7 +150,7 @@ class EditorTextPaneTest {
     }
 
     @Test
-    fun textPaneReflectsStateAndRespectsEditableFlag() = runSwingUiTest {
+    fun textPaneReflectsStateAndRespectsEditableFlag() = runComposeSwingTest {
         var text by mutableStateOf("before")
         var editable by mutableStateOf(true)
         setContent {

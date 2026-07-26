@@ -1,13 +1,13 @@
 package org.jetbrains.compose.swing.samples.widgets
 
 import org.jetbrains.compose.swing.test.SwingMatcher
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import kotlin.test.Test
 
 class AccessibilitySectionTest {
     @Test
     fun theNamedFieldAdvertisesItsAccessibleMetadata() =
-        runSwingUiTest {
+        runComposeSwingTest {
             openSection("Accessibility")
 
             onNode(
@@ -18,7 +18,7 @@ class AccessibilitySectionTest {
 
     @Test
     fun theMnemonicAndDefaultButtonsDriveTheirCounters() =
-        runSwingUiTest {
+        runComposeSwingTest {
             openSection("Accessibility")
 
             onNodeWithText("Saved 0 time(s)", substring = true).assertExists()

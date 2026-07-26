@@ -35,7 +35,7 @@ ktlint_standard_function-naming = disabled
 ktlint_standard_no-consecutive-comments = disabled
 ktlint_standard_kdoc = disabled
 
-# Tests host their body in a trailing-lambda call (e.g. `fun x() = runSwingUiTest {`). Keep that
+# Tests host their body in a trailing-lambda call (e.g. `fun x() = runComposeSwingTest {`). Keep that
 # single-expression body on the signature line instead of wrapping it after `=`, so the test reads as
 # its name followed directly by the scenario. Only the wrapping of an expression body that already
 # fits the signature line is relaxed; the line-length limit and every other rule still apply.

@@ -10,8 +10,8 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.test.SwingUiTest
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Dimension
 import java.awt.image.BufferedImage
 import javax.swing.JComponent
@@ -33,7 +33,7 @@ import kotlin.test.assertTrue
  */
 class CanvasTest {
     @Test
-    fun drawsOnceInitiallyWithInitialValue() = runSwingUiTest {
+    fun drawsOnceInitiallyWithInitialValue() = runComposeSwingTest {
         val drawn = mutableListOf<Int>()
         setContent {
             Canvas(modifier = SwingModifier.testTag(CANVAS).preferredSize(SIZE)) { _, _, _ ->
@@ -47,7 +47,7 @@ class CanvasTest {
     }
 
     @Test
-    fun recompositionWithNewInputRedrawsWithNewValue() = runSwingUiTest {
+    fun recompositionWithNewInputRedrawsWithNewValue() = runComposeSwingTest {
         var value by mutableIntStateOf(7)
         var lastDrawn = Int.MIN_VALUE
         var drawCount = 0
@@ -76,7 +76,7 @@ class CanvasTest {
     }
 
     @Test
-    fun stateReadOnlyInsideOnDrawIsObservedAndRequestsRepaint() = runSwingUiTest {
+    fun stateReadOnlyInsideOnDrawIsObservedAndRequestsRepaint() = runComposeSwingTest {
         // `value` is NEVER read in the composition: only inside onDraw. So no recomposition can
         // happen when it changes — the only thing that can repaint the surface is the snapshot
         // observer wrapping onDraw. The lambda itself is stable (it captures the State delegate,
@@ -120,7 +120,7 @@ class CanvasTest {
     }
 
     @Test
-    fun canvasInsertedDuringRecompositionIsObservedAndRedraws() = runSwingUiTest {
+    fun canvasInsertedDuringRecompositionIsObservedAndRedraws() = runComposeSwingTest {
         // A Canvas inserted during a recomposition (rather than the initial composition) must still
         // adopt the composition owner's snapshot observer. The observer is stamped onto each node on the
         // applier's top-down insert pass, which precedes the node's update changes that copy it onto the
@@ -169,7 +169,7 @@ class CanvasTest {
     }
 
     @Test
-    fun canvasFirstActivatedViaReusableContentHostIsObserved() = runSwingUiTest {
+    fun canvasFirstActivatedViaReusableContentHostIsObserved() = runComposeSwingTest {
         // A Canvas whose first appearance is a ReusableContentHost activation (active false -> true) is
         // first inserted during a recomposition, like any conditionally-introduced surface. Its observer
         // must be wired so a state read only inside onDraw repaints it.
@@ -209,7 +209,7 @@ class CanvasTest {
     }
 
     @Test
-    fun removingCanvasDisposesNodeAndStopsDrawing() = runSwingUiTest {
+    fun removingCanvasDisposesNodeAndStopsDrawing() = runComposeSwingTest {
         var present by mutableStateOf(true)
         var drawCount = 0
         setContent {
@@ -237,7 +237,7 @@ class CanvasTest {
     }
 
     @Test
-    fun observerSurvivesOneCanvasDetachAndStillRepaintsTheOther() = runSwingUiTest {
+    fun observerSurvivesOneCanvasDetachAndStillRepaintsTheOther() = runComposeSwingTest {
         // Two canvases share the composition owner's single observer and both read the SAME state only
         // inside onDraw (never in the composition, so a change can repaint only via the observer).
         // Removing the first canvas must NOT tear down the shared observer: a later change to the state
@@ -285,11 +285,11 @@ class CanvasTest {
         )
     }
 
-    private fun SwingUiTest.forcePaint(tag: String) {
+    private fun ComposeSwingTest.forcePaint(tag: String) {
         forcePaint(onNodeWithTag(tag).fetch<JComponent>())
     }
 
-    private fun SwingUiTest.forcePaint(component: JComponent) {
+    private fun ComposeSwingTest.forcePaint(component: JComponent) {
         component.setSize(SIZE)
         val image = BufferedImage(SIZE.width, SIZE.height, BufferedImage.TYPE_INT_ARGB)
         val graphics = image.createGraphics()
@@ -307,7 +307,7 @@ class CanvasTest {
      * a reliable headless signal. Direct `paint(...)` passes (our [forcePaint]) bypass the manager, so
      * they never fire the callback.
      */
-    private fun SwingUiTest.installRepaintRecorder(
+    private fun ComposeSwingTest.installRepaintRecorder(
         component: JComponent,
         onRepaintRequest: () -> Unit,
     ) {

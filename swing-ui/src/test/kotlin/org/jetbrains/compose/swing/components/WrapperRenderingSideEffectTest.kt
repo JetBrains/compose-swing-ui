@@ -9,11 +9,10 @@ import org.jetbrains.compose.swing.components.text.TextArea
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
-import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.test.SwingUiTest
+import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.SwingNodeInteraction
 import org.jetbrains.compose.swing.test.onNodeOfType
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import java.awt.Component
@@ -31,9 +30,11 @@ import javax.swing.JSlider
 import javax.swing.JTextArea
 import javax.swing.JTextField
 import javax.swing.JToggleButton
+import javax.swing.LookAndFeel
 import javax.swing.SwingConstants
 import javax.swing.UIManager
 import javax.swing.plaf.metal.MetalLookAndFeel
+import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 
@@ -46,18 +47,29 @@ import kotlin.test.Test
  * bounds the composition assigned it, and captures it off-screen. It then builds the equivalent raw
  * Swing component **by hand**, gives it the exact same bounds, captures it through the same off-screen
  * pipeline, and asserts the two images are pixel-identical. Any rendering side effect the wrapper might
- * inject that the raw widget does not — a stray border, an altered font or color, an extra margin, a
- * shifted alignment, a changed opacity — would shift pixels and fail the comparison.
+ * inject that the raw widget does not - a stray border, an altered font or color, an extra margin, a
+ * shifted alignment, a changed opacity - would shift pixels and fail the comparison.
  *
  * The cross-platform Metal Look-and-Feel is pinned so the comparison is deterministic and the same on
  * every machine; both the composed and the raw widget resolve their visuals from that single LaF.
  */
 class WrapperRenderingSideEffectTest {
+    private var hostLookAndFeel: LookAndFeel? = null
+
     @BeforeTest
     fun pinLookAndFeel() {
         // Pin a single, always-available, cross-platform LaF so composed and raw widgets resolve the
         // same fonts, colors, borders and insets regardless of the host OS.
+        hostLookAndFeel = UIManager.getLookAndFeel()
         UIManager.setLookAndFeel(MetalLookAndFeel())
+    }
+
+    @AfterTest
+    fun restoreLookAndFeel() {
+        // The Look-and-Feel is process-wide state, and which one is installed decides the borders,
+        // fonts and insets every later component resolves. Restoring it keeps this test's requirement
+        // from deciding how the rest of the suite renders.
+        UIManager.setLookAndFeel(hostLookAndFeel)
     }
 
     @Test
@@ -65,10 +77,7 @@ class WrapperRenderingSideEffectTest {
         content = { Label(text = LABEL_TEXT) },
         find = { onNodeOfType<JLabel>() },
         buildRaw = {
-            JLabel().apply {
-                text = LABEL_TEXT
-                horizontalAlignment = SwingConstants.LEADING
-            }
+            JLabel().apply { text = LABEL_TEXT }
         },
     )
 
@@ -189,14 +198,7 @@ class WrapperRenderingSideEffectTest {
     fun passwordFieldAddsNoRenderingSideEffects() = assertWrapperMatchesRaw(
         content = { PasswordField(value = PASSWORD.toCharArray()) },
         find = { onNodeOfType<JPasswordField>() },
-        buildRaw = {
-            // Mirror the wrapper's declared default echo character, the one visible difference the
-            // wrapper sets versus a bare JPasswordField.
-            JPasswordField(0).apply {
-                echoChar = PASSWORD_ECHO_CHAR
-                text = PASSWORD
-            }
-        },
+        buildRaw = { JPasswordField(0).apply { text = PASSWORD } },
     )
 
     @Test
@@ -218,14 +220,22 @@ class WrapperRenderingSideEffectTest {
      */
     private fun assertWrapperMatchesRaw(
         content: @androidx.compose.runtime.Composable () -> Unit,
-        find: SwingUiTest.() -> SwingNodeInteraction,
+        find: ComposeSwingTest.() -> SwingNodeInteraction<Component>,
         buildRaw: () -> Component,
-    ) = runSwingUiTest {
+    ) = runComposeSwingTest {
         setContent { content() }
 
         val node = find()
         val composed: BufferedImage = node.captureToImage()
-        val raw: BufferedImage = buildRaw().captureToImage(composed.width, composed.height)
+        val raw: BufferedImage =
+            buildRaw()
+                .apply {
+                    // A composite widget (e.g. JComboBox) positions its internal children - the
+                    // arrow button, an editor - via its own LayoutManager; doLayout() is what runs
+                    // it. The composed equivalent gets this from the harness's own layout pass.
+                    setBounds(0, 0, composed.width, composed.height)
+                    doLayout()
+                }.captureToImage()
 
         // EXACT comparison: a single shifted pixel fails. Both images were rasterized through the same
         // off-screen pipeline with identical rendering hints, at identical bounds, under one pinned LaF.
@@ -245,7 +255,6 @@ class WrapperRenderingSideEffectTest {
         const val FIELD_TEXT = "field content"
         const val AREA_TEXT = "area content"
         const val PASSWORD = "secret"
-        const val PASSWORD_ECHO_CHAR = '•'
         const val SLIDER_VALUE = 42
         const val PROGRESS_VALUE = 70
         const val SEPARATOR_WIDTH = 120

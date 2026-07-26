@@ -2,7 +2,7 @@ package org.jetbrains.compose.swing.samples.widgets
 
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.onNodeOfType
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImageMatches
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import javax.swing.JSplitPane
@@ -14,7 +14,7 @@ import kotlin.test.assertTrue
 class LayoutSectionsTest {
     @Test
     fun theCardPanelSwitchesTheVisibleCard() =
-        runSwingUiTest {
+        runComposeSwingTest {
             openSection("Layouts")
 
             onNodeWithText("Card A", substring = true).assertExists()
@@ -27,7 +27,7 @@ class LayoutSectionsTest {
 
     @Test
     fun theOrientationToggleStaysConsistentInTheLayoutsSection() =
-        runSwingUiTest {
+        runComposeSwingTest {
             openSection("Layouts")
 
             onNodeWithText("lineStart (leading)", substring = true).assertExists()
@@ -38,7 +38,7 @@ class LayoutSectionsTest {
 
     @Test
     fun theControlledSplitDividerMovesFromButtonsAndEcho() =
-        runSwingUiTest {
+        runComposeSwingTest {
             openSection("Split & ToolBar")
 
             onNodeWithText("Divider location: 140 px", substring = true).assertExists()
@@ -51,7 +51,7 @@ class LayoutSectionsTest {
 
     @Test
     fun theToolBarButtonAndToggleDriveTheirEcho() =
-        runSwingUiTest {
+        runComposeSwingTest {
             openSection("Split & ToolBar")
 
             onNodeWithText("New clicks: 0", substring = true).assertExists()
@@ -65,7 +65,7 @@ class LayoutSectionsTest {
 
     @Test
     fun theScrollPaneSectionCapturesItsLaidOutSlotsToABitmapScreenshotTest() =
-        runSwingUiTest {
+        runComposeSwingTest {
             openSection("ScrollPane")
 
             val firstHeader = onNodeWithText("Col 0")
@@ -76,7 +76,7 @@ class LayoutSectionsTest {
 
     @Test
     fun theTabbedPaneSelectsAndAddsTabs() =
-        runSwingUiTest {
+        runComposeSwingTest {
             openSection("Tabs")
 
             onNodeWithText("Selected tab index: 0", substring = true).assertExists()

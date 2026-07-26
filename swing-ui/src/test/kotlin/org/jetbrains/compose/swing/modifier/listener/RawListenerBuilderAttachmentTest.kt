@@ -6,7 +6,7 @@ import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Container
 import java.awt.event.ComponentAdapter
 import java.awt.event.ComponentListener
@@ -37,49 +37,49 @@ import kotlin.test.assertTrue
  */
 class RawListenerBuilderAttachmentTest {
     @Test
-    fun keyListenerInstanceIsRegistered() = runSwingUiTest {
+    fun keyListenerInstanceIsRegistered() = runComposeSwingTest {
         val listener: KeyListener = object : KeyAdapter() {}
         setContent { Button("X", modifier = SwingModifier.name("b").keyListener(listener)) }
         assertTrue(onNodeWithName("b").fetch<JComponent>().keyListeners.any { it === listener })
     }
 
     @Test
-    fun focusListenerInstanceIsRegistered() = runSwingUiTest {
+    fun focusListenerInstanceIsRegistered() = runComposeSwingTest {
         val listener: FocusListener = object : FocusAdapter() {}
         setContent { Button("X", modifier = SwingModifier.name("b").focusListener(listener)) }
         assertTrue(onNodeWithName("b").fetch<JComponent>().focusListeners.any { it === listener })
     }
 
     @Test
-    fun componentListenerInstanceIsRegistered() = runSwingUiTest {
+    fun componentListenerInstanceIsRegistered() = runComposeSwingTest {
         val listener: ComponentListener = object : ComponentAdapter() {}
         setContent { Button("X", modifier = SwingModifier.name("b").componentListener(listener)) }
         assertTrue(onNodeWithName("b").fetch<JComponent>().componentListeners.any { it === listener })
     }
 
     @Test
-    fun mouseMotionListenerInstanceIsRegistered() = runSwingUiTest {
+    fun mouseMotionListenerInstanceIsRegistered() = runComposeSwingTest {
         val listener: MouseMotionListener = object : MouseAdapter() {}
         setContent { Button("X", modifier = SwingModifier.name("b").mouseMotionListener(listener)) }
         assertTrue(onNodeWithName("b").fetch<JComponent>().mouseMotionListeners.any { it === listener })
     }
 
     @Test
-    fun mouseWheelListenerInstanceIsRegistered() = runSwingUiTest {
+    fun mouseWheelListenerInstanceIsRegistered() = runComposeSwingTest {
         val listener = MouseWheelListener { }
         setContent { Button("X", modifier = SwingModifier.name("b").mouseWheelListener(listener)) }
         assertTrue(onNodeWithName("b").fetch<JComponent>().mouseWheelListeners.any { it === listener })
     }
 
     @Test
-    fun hierarchyListenerInstanceIsRegistered() = runSwingUiTest {
+    fun hierarchyListenerInstanceIsRegistered() = runComposeSwingTest {
         val listener = HierarchyListener { }
         setContent { Button("X", modifier = SwingModifier.name("b").hierarchyListener(listener)) }
         assertTrue(onNodeWithName("b").fetch<JComponent>().hierarchyListeners.any { it === listener })
     }
 
     @Test
-    fun containerListenerInstanceIsRegisteredOnAPanel() = runSwingUiTest {
+    fun containerListenerInstanceIsRegisteredOnAPanel() = runComposeSwingTest {
         val listener: ContainerListener = object : ContainerAdapter() {}
         setContent {
             Panel(modifier = SwingModifier.name("p").containerListener(listener)) {
@@ -91,7 +91,7 @@ class RawListenerBuilderAttachmentTest {
     }
 
     @Test
-    fun documentListenerInstanceIsRegisteredOnTheFieldsDocument() = runSwingUiTest {
+    fun documentListenerInstanceIsRegisteredOnTheFieldsDocument() = runComposeSwingTest {
         val listener: DocumentListener =
             object : DocumentListener {
                 override fun insertUpdate(e: DocumentEvent?) = Unit

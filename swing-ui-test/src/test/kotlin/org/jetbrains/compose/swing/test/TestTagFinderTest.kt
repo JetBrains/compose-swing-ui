@@ -14,13 +14,13 @@ import kotlin.test.assertEquals
 
 /**
  * Behavioral coverage for the `SwingModifier.testTag` modifier and the harness finders that read it:
- * [SwingUiTest.onNodeWithTag] and [SwingUiTest.onAllNodesWithTag]. A tag locates exactly the tagged
+ * [ComposeSwingTest.onNodeWithTag] and [ComposeSwingTest.onAllNodesWithTag]. A tag locates exactly the tagged
  * node, is independent of the component's name, leaves untagged nodes unmatched, and is removed when
  * the modifier leaves the chain.
  */
 class TestTagFinderTest {
     @Test
-    fun onNodeWithTagResolvesTheTaggedNode() = runSwingUiTest {
+    fun onNodeWithTagResolvesTheTaggedNode() = runComposeSwingTest {
         setContent {
             BoxPanel {
                 Label(text = "first", modifier = SwingModifier.testTag("target"))
@@ -33,7 +33,7 @@ class TestTagFinderTest {
     }
 
     @Test
-    fun testTagIsIndependentOfComponentName() = runSwingUiTest {
+    fun testTagIsIndependentOfComponentName() = runComposeSwingTest {
         setContent {
             Label(text = "lbl", modifier = SwingModifier.name("the-name").testTag("the-tag"))
         }
@@ -46,7 +46,7 @@ class TestTagFinderTest {
     }
 
     @Test
-    fun onAllNodesWithTagMatchesEveryTaggedNode() = runSwingUiTest {
+    fun onAllNodesWithTagMatchesEveryTaggedNode() = runComposeSwingTest {
         setContent {
             BoxPanel {
                 Label(text = "a", modifier = SwingModifier.testTag("row"))
@@ -62,7 +62,7 @@ class TestTagFinderTest {
     }
 
     @Test
-    fun removingTheTestTagModifierUntagsTheNode() = runSwingUiTest {
+    fun removingTheTestTagModifierUntagsTheNode() = runComposeSwingTest {
         var tagged by mutableStateOf(true)
         setContent {
             Label(

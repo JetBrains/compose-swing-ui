@@ -1,9 +1,9 @@
 package org.jetbrains.compose.swing.samples.widgets
 
+import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.SwingMatcher
-import org.jetbrains.compose.swing.test.SwingUiTest
 import org.jetbrains.compose.swing.test.onNodeOfType
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImageMatches
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import java.awt.Point
@@ -25,7 +25,7 @@ import kotlin.test.assertTrue
 class WidgetsGalleryTest {
     @Test
     fun theDefaultSectionRendersTheButtonCounter() =
-        runSwingUiTest {
+        runComposeSwingTest {
             setContent { ShowcaseShell() }
 
             onNodeWithText("Counter: 0", substring = true).assertExists()
@@ -37,7 +37,7 @@ class WidgetsGalleryTest {
 
     @Test
     fun theCheckBoxTogglesItsEcho() =
-        runSwingUiTest {
+        runComposeSwingTest {
             setContent { ShowcaseShell() }
 
             onNodeWithText("Feature is off", substring = true).assertExists()
@@ -47,7 +47,7 @@ class WidgetsGalleryTest {
 
     @Test
     fun togglingTheCheckBoxDoesNotMoveIt() =
-        runSwingUiTest {
+        runComposeSwingTest {
             setContent { ShowcaseShell() }
 
             val before = onNodeWithText("Enable feature").fetch<JCheckBox>().bounds
@@ -62,7 +62,7 @@ class WidgetsGalleryTest {
 
     @Test
     fun theComboBoxSelectionFeedsTheEcho() =
-        runSwingUiTest {
+        runComposeSwingTest {
             setContent { ShowcaseShell() }
 
             onNodeWithText("Selected: Kotlin", substring = true).assertExists()
@@ -75,7 +75,7 @@ class WidgetsGalleryTest {
 
     @Test
     fun switchingToTheAnimationSectionMountsItsProgressBar() =
-        runSwingUiTest {
+        runComposeSwingTest {
             openSection("Animation")
 
             val bar = onNodeOfType<JProgressBar>().fetch<JProgressBar>()
@@ -87,7 +87,7 @@ class WidgetsGalleryTest {
 
     @Test
     fun theAnimatedProgressBarStaysWithinItsScrollViewport() =
-        runSwingUiTest {
+        runComposeSwingTest {
             openSection("Animation")
 
             val bar = onNodeOfType<JProgressBar>().fetch<JProgressBar>()
@@ -101,7 +101,7 @@ class WidgetsGalleryTest {
 
     @Test
     fun switchingToTheFormInputsSectionDrivesASpinnerEcho() =
-        runSwingUiTest {
+        runComposeSwingTest {
             openSection("Form inputs")
 
             onNodeWithText("Count is 3", substring = true).assertExists()
@@ -113,7 +113,7 @@ class WidgetsGalleryTest {
 
     @Test
     fun theCustomComponentSectionWrapsAJComponentThroughSwingNode() =
-        runSwingUiTest {
+        runComposeSwingTest {
             openSection("Custom component")
 
             onNodeWithText("3 / 5", substring = true).assertExists()
@@ -124,7 +124,7 @@ class WidgetsGalleryTest {
 
     @Test
     fun theCustomWidgetRendersToAStableBitmapScreenshotTest() =
-        runSwingUiTest {
+        runComposeSwingTest {
             openSection("Custom component")
 
             val stars = onStarRating().captureToImage()
@@ -139,7 +139,7 @@ class WidgetsGalleryTest {
 
     @Test
     fun theComponentsSliderDrivesItsProgressBar() =
-        runSwingUiTest {
+        runComposeSwingTest {
             setContent { ShowcaseShell() }
 
             onNodeWithText("Amount: 40", substring = true).assertExists()
@@ -172,4 +172,4 @@ class WidgetsGalleryTest {
     }
 }
 
-private fun SwingUiTest.onStarRating() = onNodeWithTag(STAR_RATING_TAG)
+private fun ComposeSwingTest.onStarRating() = onNodeWithTag(STAR_RATING_TAG)

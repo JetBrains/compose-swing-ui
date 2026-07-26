@@ -1,12 +1,12 @@
 package org.jetbrains.compose.swing.samples.widgets
 
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import kotlin.test.Test
 
 class TopLevelSectionsTest {
     @Test
     fun theWindowsSectionMountsWithBothPeersClosed() =
-        runSwingUiTest {
+        runComposeSwingTest {
             openSection("Top-level windows")
 
             onNodeWithText("Window is closed", substring = true).assertExists()
@@ -15,7 +15,7 @@ class TopLevelSectionsTest {
 
     @Test
     fun theDesktopPaneAddsAndControlledClosesAnInternalFrame() =
-        runSwingUiTest {
+        runComposeSwingTest {
             openSection("Layered & MDI")
 
             onNodeWithText("Controlled closes: 0", substring = true).assertExists()
@@ -30,7 +30,7 @@ class TopLevelSectionsTest {
 
     @Test
     fun theLayeredPaneStacksItsDepthLayers() =
-        runSwingUiTest {
+        runComposeSwingTest {
             openSection("Layered & MDI")
 
             onNodeWithText("Default layer", substring = true).assertExists()
@@ -40,7 +40,7 @@ class TopLevelSectionsTest {
 
     @Test
     fun theTraySectionMountsWithTheIconHidden() =
-        runSwingUiTest {
+        runComposeSwingTest {
             openSection("System tray")
 
             onNodeWithText("Tray icon: hidden", substring = true).assertExists()

@@ -4,9 +4,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.test.SwingUiTest
+import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.onNodeOfType
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JSpinner
 import javax.swing.SpinnerListModel
 import javax.swing.SpinnerNumberModel
@@ -28,10 +28,10 @@ import kotlin.test.assertTrue
  * arbitrary model.
  */
 class SpinnerBehaviorTest {
-    private fun SwingUiTest.spinner(): JSpinner = onNodeOfType<JSpinner>().fetch()
+    private fun ComposeSwingTest.spinner(): JSpinner = onNodeOfType<JSpinner>().fetch()
 
     @Test
-    fun theIntFactoryRendersValueAndBoundsIntoTheNumberModel() = runSwingUiTest {
+    fun theIntFactoryRendersValueAndBoundsIntoTheNumberModel() = runComposeSwingTest {
         setContent { Spinner(rememberSpinnerState(value = 5, min = 0, max = 10, step = 2)) }
 
         val model = spinner().model as SpinnerNumberModel
@@ -42,7 +42,7 @@ class SpinnerBehaviorTest {
     }
 
     @Test
-    fun aNullBoundLeavesThatSideOpen() = runSwingUiTest {
+    fun aNullBoundLeavesThatSideOpen() = runComposeSwingTest {
         setContent { Spinner(rememberSpinnerState(value = 5)) }
 
         val model = spinner().model as SpinnerNumberModel
@@ -51,7 +51,7 @@ class SpinnerBehaviorTest {
     }
 
     @Test
-    fun steppingTheSpinnerIsReportedThroughStateValue() = runSwingUiTest {
+    fun steppingTheSpinnerIsReportedThroughStateValue() = runComposeSwingTest {
         lateinit var state: SpinnerState
         val observed = mutableListOf<Any?>()
         setContent {
@@ -71,7 +71,7 @@ class SpinnerBehaviorTest {
     }
 
     @Test
-    fun aValueWrittenThroughStateReachesTheSpinnerWithoutAnExtraChange() = runSwingUiTest {
+    fun aValueWrittenThroughStateReachesTheSpinnerWithoutAnExtraChange() = runComposeSwingTest {
         lateinit var state: SpinnerState
         var changes = 0
         setContent {
@@ -95,7 +95,7 @@ class SpinnerBehaviorTest {
     }
 
     @Test
-    fun theDoubleFactoryStepsByAFractionalStep() = runSwingUiTest {
+    fun theDoubleFactoryStepsByAFractionalStep() = runComposeSwingTest {
         lateinit var state: SpinnerState
         setContent {
             state = rememberSpinnerState(value = 1.0, min = 0.0, max = 2.0, step = 0.25)
@@ -111,7 +111,7 @@ class SpinnerBehaviorTest {
     }
 
     @Test
-    fun theListFactoryCyclesThroughItsItems() = runSwingUiTest {
+    fun theListFactoryCyclesThroughItsItems() = runComposeSwingTest {
         lateinit var state: SpinnerState
         setContent {
             state = rememberSpinnerState(items = listOf("red", "green", "blue"), selectedIndex = 0)
@@ -130,7 +130,7 @@ class SpinnerBehaviorTest {
     }
 
     @Test
-    fun theListFactoryHonoursTheSelectedIndex() = runSwingUiTest {
+    fun theListFactoryHonoursTheSelectedIndex() = runComposeSwingTest {
         lateinit var state: SpinnerState
         setContent {
             state = rememberSpinnerState(items = listOf("a", "b", "c"), selectedIndex = 1)
@@ -147,7 +147,7 @@ class SpinnerBehaviorTest {
     }
 
     @Test
-    fun theRawListenerOverloadNotifiesOnEveryChangeOfAnArbitraryModel() = runSwingUiTest {
+    fun theRawListenerOverloadNotifiesOnEveryChangeOfAnArbitraryModel() = runComposeSwingTest {
         val model = SpinnerNumberModel(5, 0, 10, 1)
         val received = mutableListOf<Any?>()
         val listener = ChangeListener { event -> received += (event.source as JSpinner).value }
@@ -162,7 +162,7 @@ class SpinnerBehaviorTest {
     }
 
     @Test
-    fun swappingTheStateRebindsTheModel() = runSwingUiTest {
+    fun swappingTheStateRebindsTheModel() = runComposeSwingTest {
         var useFirst by mutableStateOf(true)
         setContent {
             val first = rememberSpinnerState(value = 1, min = 0, max = 10)
@@ -179,7 +179,7 @@ class SpinnerBehaviorTest {
     }
 
     @Test
-    fun raisingTheMaxAcrossRecompositionIsHonouredAndPreservesTheValue() = runSwingUiTest {
+    fun raisingTheMaxAcrossRecompositionIsHonouredAndPreservesTheValue() = runComposeSwingTest {
         lateinit var state: SpinnerState
         var max by mutableStateOf(10)
         setContent {
@@ -207,7 +207,7 @@ class SpinnerBehaviorTest {
     }
 
     @Test
-    fun changingTheItemsAcrossRecompositionIsHonoured() = runSwingUiTest {
+    fun changingTheItemsAcrossRecompositionIsHonoured() = runComposeSwingTest {
         lateinit var state: SpinnerState
         var items by mutableStateOf(listOf("red", "green", "blue"))
         setContent {
@@ -234,7 +234,7 @@ class SpinnerBehaviorTest {
     }
 
     @Test
-    fun theValueArgumentIsStateOwnedAndNotDrivenByRecomposition() = runSwingUiTest {
+    fun theValueArgumentIsStateOwnedAndNotDrivenByRecomposition() = runComposeSwingTest {
         lateinit var state: SpinnerState
         var value by mutableStateOf(3)
         setContent {

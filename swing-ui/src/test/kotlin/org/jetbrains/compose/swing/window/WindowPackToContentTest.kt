@@ -4,7 +4,7 @@ import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.test.onWindow
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.Dimension
 import java.awt.GraphicsEnvironment
@@ -21,7 +21,7 @@ import kotlin.test.assertTrue
  */
 class WindowPackToContentTest {
     @Test
-    fun windowWithoutExplicitSizePacksToItsContent() = runSwingUiTest {
+    fun windowWithoutExplicitSizePacksToItsContent() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val state = WindowState()
         setContent {
@@ -47,7 +47,7 @@ class WindowPackToContentTest {
     }
 
     @Test
-    fun dialogWithoutExplicitSizePacksToItsContent() = runSwingUiTest {
+    fun dialogWithoutExplicitSizePacksToItsContent() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val state = DialogState()
         setContent {
@@ -71,7 +71,7 @@ class WindowPackToContentTest {
     }
 
     @Test
-    fun windowWithAnExplicitSizeIsAppliedVerbatim() = runSwingUiTest {
+    fun windowWithAnExplicitSizeIsAppliedVerbatim() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val state = WindowState(size = Dimension(420, 300))
         setContent {
@@ -88,7 +88,7 @@ class WindowPackToContentTest {
     }
 
     @Test
-    fun dialogWithAnExplicitSizeIsAppliedVerbatim() = runSwingUiTest {
+    fun dialogWithAnExplicitSizeIsAppliedVerbatim() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val state = DialogState(size = Dimension(360, 240))
         setContent {
@@ -105,7 +105,7 @@ class WindowPackToContentTest {
     }
 
     @Test
-    fun packedWindowSizeIsWrittenBackIntoTheState() = runSwingUiTest {
+    fun packedWindowSizeIsWrittenBackIntoTheState() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val state = WindowState()
         setContent {

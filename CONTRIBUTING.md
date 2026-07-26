@@ -30,7 +30,7 @@ requirement with a JUnit assumption (`Assumptions.assumeFalse(GraphicsEnvironmen
 
 ```kotlin
 @Test
-fun clickingTheButtonUpdatesTheLabel() = runSwingUiTest {
+fun clickingTheButtonUpdatesTheLabel() = runComposeSwingTest {
     var clicks by mutableStateOf(0)
     setContent {
         Button(text = "Clicks: $clicks", onClick = { clicks++ })

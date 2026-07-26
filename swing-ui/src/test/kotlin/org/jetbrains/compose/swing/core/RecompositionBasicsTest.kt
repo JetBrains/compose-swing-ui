@@ -9,8 +9,8 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.BoxPanel
 import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.test.SwingUiTest
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Container
 import javax.swing.JLabel
 import kotlin.test.Test
@@ -23,7 +23,7 @@ import kotlin.test.assertEquals
  */
 class RecompositionBasicsTest {
     @Test
-    fun stateChangeUpdatesLabelText() = runSwingUiTest {
+    fun stateChangeUpdatesLabelText() = runComposeSwingTest {
         var name by mutableStateOf("world")
         setContent {
             Label(text = "Hello, $name")
@@ -39,7 +39,7 @@ class RecompositionBasicsTest {
     }
 
     @Test
-    fun conditionalChildIsAddedAndRemoved() = runSwingUiTest {
+    fun conditionalChildIsAddedAndRemoved() = runComposeSwingTest {
         var visible by mutableStateOf(false)
         setContent {
             BoxPanel {
@@ -63,7 +63,7 @@ class RecompositionBasicsTest {
     }
 
     @Test
-    fun keyedListReordersWithoutLosingComponents() = runSwingUiTest {
+    fun keyedListReordersWithoutLosingComponents() = runComposeSwingTest {
         val items = mutableStateListOf("a", "b", "c")
         setContent {
             BoxPanel {
@@ -95,7 +95,7 @@ class RecompositionBasicsTest {
     }
 
     @Test
-    fun addingListItemKeepsExistingComponentIdentity() = runSwingUiTest {
+    fun addingListItemKeepsExistingComponentIdentity() = runComposeSwingTest {
         val items = mutableStateListOf("x", "y")
         setContent {
             BoxPanel {
@@ -114,9 +114,10 @@ class RecompositionBasicsTest {
         check(xBefore === xAfter) { "Existing keyed item \"x\" was recreated when a sibling was added." }
     }
 
-    private fun SwingUiTest.labelTextsInOrder(): List<String> = root.collectLabels().map { it.text }
+    private fun ComposeSwingTest.labelTextsInOrder(): List<String> = root.collectLabels().map { it.text }
 
-    private fun SwingUiTest.labelIdentitiesByText(): Map<String, JLabel> = root.collectLabels().associateBy { it.text }
+    private fun ComposeSwingTest.labelIdentitiesByText(): Map<String, JLabel> =
+        root.collectLabels().associateBy { it.text }
 }
 
 private fun Container.collectLabels(): List<JLabel> {

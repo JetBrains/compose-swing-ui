@@ -6,6 +6,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlin.test.Test
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
@@ -17,7 +18,7 @@ import kotlin.test.assertTrue
  * [org.jetbrains.compose.swing.components.Tray]) are NOT covered here: each constructs a real
  * `JFrame` / `JDialog` / system-tray peer and so needs a display; their lifecycle contract is
  * asserted in [ApplicationWindowKeepAliveTest], which skips where the environment lacks one. The
- * application loop itself needs no peer — it spins a recomposer on the EDT — so its start/exit
+ * application loop itself needs no peer - it spins a recomposer on the EDT - so its start/exit
  * contract is asserted by observable effects: the suspending entry point returns once the scope
  * requests exit, and the scope-bound coroutine variant completes its job.
  */
@@ -42,8 +43,8 @@ class ApplicationLifecycleTest {
         }
 
         assertTrue(contentComposed, "awaitApplication must compose its content")
-        assertTrue(
-            !sawWindow,
+        assertFalse(
+            sawWindow,
             "LocalWindow must be null in a bare application scope with no Window",
         )
     }

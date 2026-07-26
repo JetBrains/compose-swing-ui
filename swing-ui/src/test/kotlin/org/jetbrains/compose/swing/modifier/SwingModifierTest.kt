@@ -23,7 +23,7 @@ import org.jetbrains.compose.swing.modifier.listener.listener
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
 import org.jetbrains.compose.swing.modifier.listener.mouseMotionListener
 import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Color
 import java.awt.Component
 import java.awt.ComponentOrientation
@@ -59,13 +59,13 @@ class SwingModifierTest {
     }
 
     @Test
-    fun nameModifierMakesComponentFindable() = runSwingUiTest {
+    fun nameModifierMakesComponentFindable() = runComposeSwingTest {
         setContent { Button("Save", modifier = SwingModifier.name("save-button")) }
         onNodeWithName("save-button").assertExists()
     }
 
     @Test
-    fun appearanceModifierAppliesAndReactsToState() = runSwingUiTest {
+    fun appearanceModifierAppliesAndReactsToState() = runComposeSwingTest {
         var accent by mutableStateOf(true)
         setContent {
             Label(
@@ -89,7 +89,7 @@ class SwingModifierTest {
     }
 
     @Test
-    fun multipleModifierElementsAllApply() = runSwingUiTest {
+    fun multipleModifierElementsAllApply() = runComposeSwingTest {
         setContent {
             Label(
                 "X",
@@ -108,7 +108,7 @@ class SwingModifierTest {
     }
 
     @Test
-    fun removingAnElementRestoresThePriorDefault() = runSwingUiTest {
+    fun removingAnElementRestoresThePriorDefault() = runComposeSwingTest {
         var styled by mutableStateOf(true)
         setContent {
             Label("ctrl", modifier = SwingModifier.name("ctrl"))
@@ -136,7 +136,7 @@ class SwingModifierTest {
     }
 
     @Test
-    fun hoverListenerFiresAndStopsAfterItsElementIsRemoved() = runSwingUiTest {
+    fun hoverListenerFiresAndStopsAfterItsElementIsRemoved() = runComposeSwingTest {
         var hoverEnabled by mutableStateOf(true)
         var enterCount = 0
         setContent {
@@ -160,7 +160,7 @@ class SwingModifierTest {
     }
 
     @Test
-    fun hoverListenerSeesTheLatestCallbackWithoutReinstalling() = runSwingUiTest {
+    fun hoverListenerSeesTheLatestCallbackWithoutReinstalling() = runComposeSwingTest {
         var target by mutableStateOf("first")
         var captured = ""
         setContent {
@@ -178,7 +178,7 @@ class SwingModifierTest {
     }
 
     @Test
-    fun enabledModifierAppliesAndRestoresOnRemoval() = runSwingUiTest {
+    fun enabledModifierAppliesAndRestoresOnRemoval() = runComposeSwingTest {
         var disabled by mutableStateOf(true)
         setContent {
             Button(
@@ -201,7 +201,7 @@ class SwingModifierTest {
     }
 
     @Test
-    fun visibleModifierAppliesAndRestoresOnRemoval() = runSwingUiTest {
+    fun visibleModifierAppliesAndRestoresOnRemoval() = runComposeSwingTest {
         var hidden by mutableStateOf(true)
         setContent {
             Button(
@@ -224,7 +224,7 @@ class SwingModifierTest {
     }
 
     @Test
-    fun minimumSizeModifierAppliesAndRestoresOnRemoval() = runSwingUiTest {
+    fun minimumSizeModifierAppliesAndRestoresOnRemoval() = runComposeSwingTest {
         var constrained by mutableStateOf(true)
         setContent {
             Label(
@@ -255,7 +255,7 @@ class SwingModifierTest {
     }
 
     @Test
-    fun maximumSizeModifierAppliesAndRestoresOnRemoval() = runSwingUiTest {
+    fun maximumSizeModifierAppliesAndRestoresOnRemoval() = runComposeSwingTest {
         var constrained by mutableStateOf(true)
         setContent {
             Label(
@@ -286,7 +286,7 @@ class SwingModifierTest {
     }
 
     @Test
-    fun maximumSizeWidthHeightOverloadAppliesTheDimension() = runSwingUiTest {
+    fun maximumSizeWidthHeightOverloadAppliesTheDimension() = runComposeSwingTest {
         setContent {
             Label("X", modifier = SwingModifier.name("lbl").maximumSize(200, 80))
         }
@@ -302,7 +302,7 @@ class SwingModifierTest {
     }
 
     @Test
-    fun alignmentXModifierAppliesTheSetValue() = runSwingUiTest {
+    fun alignmentXModifierAppliesTheSetValue() = runComposeSwingTest {
         setContent {
             Label("X", modifier = SwingModifier.name("lbl").alignmentX(0.0f))
         }
@@ -314,7 +314,7 @@ class SwingModifierTest {
     }
 
     @Test
-    fun alignmentYModifierAppliesTheSetValue() = runSwingUiTest {
+    fun alignmentYModifierAppliesTheSetValue() = runComposeSwingTest {
         setContent {
             Label("X", modifier = SwingModifier.name("lbl").alignmentY(1.0f))
         }
@@ -326,7 +326,7 @@ class SwingModifierTest {
     }
 
     @Test
-    fun componentOrientationModifierAppliesAndRestoresOnRemoval() = runSwingUiTest {
+    fun componentOrientationModifierAppliesAndRestoresOnRemoval() = runComposeSwingTest {
         var rtl by mutableStateOf(true)
         setContent {
             Label("ctrl", modifier = SwingModifier.name("ctrl"))
@@ -354,7 +354,7 @@ class SwingModifierTest {
     }
 
     @Test
-    fun twoListenersOnOneComponentBothFire() = runSwingUiTest {
+    fun twoListenersOnOneComponentBothFire() = runComposeSwingTest {
         var first = 0
         var second = 0
         setContent {
@@ -383,7 +383,7 @@ class SwingModifierTest {
     }
 
     @Test
-    fun twoHoverModifiersBothFire() = runSwingUiTest {
+    fun twoHoverModifiersBothFire() = runComposeSwingTest {
         var first = 0
         var second = 0
         setContent {
@@ -405,7 +405,7 @@ class SwingModifierTest {
     }
 
     @Test
-    fun repeatedPropertyElementStillLastWins() = runSwingUiTest {
+    fun repeatedPropertyElementStillLastWins() = runComposeSwingTest {
         setContent {
             Label(
                 "X",
@@ -421,7 +421,7 @@ class SwingModifierTest {
     }
 
     @Test
-    fun removingOneAdditiveListenerLeavesTheOtherInstalled() = runSwingUiTest {
+    fun removingOneAdditiveListenerLeavesTheOtherInstalled() = runComposeSwingTest {
         var firstHoverEnabled by mutableStateOf(true)
         var first = 0
         var second = 0
@@ -451,7 +451,7 @@ class SwingModifierTest {
     }
 
     @Test
-    fun survivingListenerKeepsFiringWhenAKindChangeShiftsItsPosition() = runSwingUiTest {
+    fun survivingListenerKeepsFiringWhenAKindChangeShiftsItsPosition() = runComposeSwingTest {
         var hoverEnabled by mutableStateOf(true)
         var clickCount = 0
         setContent {
@@ -478,7 +478,7 @@ class SwingModifierTest {
     }
 
     @Test
-    fun listenerLeavingTheChainIsDetachedWhenAKindChangeShiftsPositions() = runSwingUiTest {
+    fun listenerLeavingTheChainIsDetachedWhenAKindChangeShiftsPositions() = runComposeSwingTest {
         var hoverEnabled by mutableStateOf(true)
         var enterCount = 0
         setContent {
@@ -505,7 +505,7 @@ class SwingModifierTest {
     }
 
     @Test
-    fun instanceListenerKindChangeAtOnePositionSwapsInstances() = runSwingUiTest {
+    fun instanceListenerKindChangeAtOnePositionSwapsInstances() = runComposeSwingTest {
         var mouseEnabled by mutableStateOf(true)
         var enterCount = 0
         var moveCount = 0
@@ -547,7 +547,7 @@ class SwingModifierTest {
     }
 
     @Test
-    fun sameKindPersistingPositionKeepsTheListenerInstalledWithoutReattaching() = runSwingUiTest {
+    fun sameKindPersistingPositionKeepsTheListenerInstalledWithoutReattaching() = runComposeSwingTest {
         var label by mutableStateOf("first")
         var attachCount = 0
         var detachCount = 0
@@ -587,7 +587,7 @@ class SwingModifierTest {
     }
 
     @Test
-    fun reuseDrainsBothPropertyAndAdditiveRecordsThenReinstalls() = runSwingUiTest {
+    fun reuseDrainsBothPropertyAndAdditiveRecordsThenReinstalls() = runComposeSwingTest {
         var active by mutableStateOf(true)
         var enterCount = 0
         setContent {
@@ -628,7 +628,7 @@ class SwingModifierTest {
     }
 
     @Test
-    fun customElementWrapsAnArbitraryProperty() = runSwingUiTest {
+    fun customElementWrapsAnArbitraryProperty() = runComposeSwingTest {
         setContent { Button("X", modifier = SwingModifier.name("b").then(ToolTipElement("hello"))) }
         assertEquals("hello", onNodeWithName("b").fetch<JComponent>().toolTipText)
     }

@@ -8,7 +8,7 @@ import org.jetbrains.compose.swing.modifier.interaction.focusTraversalIndex
 import org.jetbrains.compose.swing.modifier.interaction.focusable
 import org.jetbrains.compose.swing.modifier.interaction.orderedFocusTraversal
 import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JButton
 import javax.swing.JPanel
 import kotlin.test.Test
@@ -22,7 +22,7 @@ import kotlin.test.assertTrue
  */
 class FocusTraversalModifierTest {
     @Test
-    fun orderedFocusTraversalVisitsChildrenByIndex() = runSwingUiTest {
+    fun orderedFocusTraversalVisitsChildrenByIndex() = runComposeSwingTest {
         setContent {
             FlowPanel(modifier = SwingModifier.testTag("panel").orderedFocusTraversal()) {
                 TextField("", modifier = SwingModifier.testTag("third").focusTraversalIndex(30))
@@ -44,7 +44,7 @@ class FocusTraversalModifierTest {
     }
 
     @Test
-    fun orderedFocusTraversalRestoresPolicyOnRemoval() = runSwingUiTest {
+    fun orderedFocusTraversalRestoresPolicyOnRemoval() = runComposeSwingTest {
         setContent {
             FlowPanel(modifier = SwingModifier.testTag("panel").orderedFocusTraversal()) {
                 TextField("", modifier = SwingModifier.testTag("field"))
@@ -54,7 +54,7 @@ class FocusTraversalModifierTest {
     }
 
     @Test
-    fun focusableModifierLeavesComponentReachableForTraversal() = runSwingUiTest {
+    fun focusableModifierLeavesComponentReachableForTraversal() = runComposeSwingTest {
         setContent {
             FlowPanel(modifier = SwingModifier.testTag("panel").orderedFocusTraversal()) {
                 Button("A", modifier = SwingModifier.testTag("a").focusable(true).focusTraversalIndex(1))

@@ -6,7 +6,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.onNodeOfType
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
 import javax.swing.JLabel
 import javax.swing.JScrollPane
@@ -27,7 +27,7 @@ class ScrollPaneRegionTest {
     private fun labelTextOf(component: Component?): String? = (component as? JLabel)?.text
 
     @Test
-    fun contentReachesTheCentralViewport() = runSwingUiTest {
+    fun contentReachesTheCentralViewport() = runComposeSwingTest {
         setContent {
             ScrollPane {
                 content { Label(text = "body") }
@@ -39,7 +39,7 @@ class ScrollPaneRegionTest {
     }
 
     @Test
-    fun headersAndCornerReachTheirDedicatedSlots() = runSwingUiTest {
+    fun headersAndCornerReachTheirDedicatedSlots() = runComposeSwingTest {
         setContent {
             ScrollPane {
                 content { Label(text = "body") }
@@ -61,7 +61,7 @@ class ScrollPaneRegionTest {
     }
 
     @Test
-    fun redeclaringContentReplacesTheView() = runSwingUiTest {
+    fun redeclaringContentReplacesTheView() = runComposeSwingTest {
         var label by mutableStateOf("first")
         setContent {
             ScrollPane {
@@ -80,7 +80,7 @@ class ScrollPaneRegionTest {
     }
 
     @Test
-    fun removingARegionClearsTheJScrollPaneSlot() = runSwingUiTest {
+    fun removingARegionClearsTheJScrollPaneSlot() = runComposeSwingTest {
         var showHeaders by mutableStateOf(true)
         setContent {
             ScrollPane {
@@ -113,7 +113,7 @@ class ScrollPaneRegionTest {
     }
 
     @Test
-    fun removingContentClearsTheViewportView() = runSwingUiTest {
+    fun removingContentClearsTheViewportView() = runComposeSwingTest {
         var showContent by mutableStateOf(true)
         setContent {
             ScrollPane {

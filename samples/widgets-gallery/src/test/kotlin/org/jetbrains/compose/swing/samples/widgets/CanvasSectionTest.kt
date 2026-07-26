@@ -1,7 +1,7 @@
 package org.jetbrains.compose.swing.samples.widgets
 
 import org.jetbrains.compose.swing.test.onAllNodesOfType
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImageMatches
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import javax.swing.JSlider
@@ -11,7 +11,7 @@ import kotlin.test.assertTrue
 class CanvasSectionTest {
     @Test
     fun theSweepSliderEchoRecomposes() =
-        runSwingUiTest {
+        runComposeSwingTest {
             openSection("Canvas")
 
             onNodeWithText("Sweep: 70%", substring = true).assertExists()
@@ -25,7 +25,7 @@ class CanvasSectionTest {
 
     @Test
     fun theCanvasSurfaceRendersToAStableBitmapScreenshotTest() =
-        runSwingUiTest {
+        runComposeSwingTest {
             openSection("Canvas")
 
             val initial = onNodeWithTag(CANVAS_TAG).captureToImage()

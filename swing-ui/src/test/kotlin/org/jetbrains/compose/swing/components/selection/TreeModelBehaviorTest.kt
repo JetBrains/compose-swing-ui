@@ -7,7 +7,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JTree
 import javax.swing.event.TreeModelListener
 import javax.swing.tree.DefaultMutableTreeNode
@@ -58,7 +58,7 @@ class TreeModelBehaviorTest {
     }
 
     @Test
-    fun callerModelBacksTheTreeAsIs() = runSwingUiTest {
+    fun callerModelBacksTheTreeAsIs() = runComposeSwingTest {
         val model = sampleModel()
         setContent { Tree(model = model, modifier = SwingModifier.name("tree")) }
 
@@ -68,7 +68,7 @@ class TreeModelBehaviorTest {
     }
 
     @Test
-    fun selectingANodeFiresOnSelectionChange() = runSwingUiTest {
+    fun selectingANodeFiresOnSelectionChange() = runComposeSwingTest {
         val model = sampleModel()
         val reported = mutableListOf<List<List<Int>>>()
         setContent {
@@ -89,7 +89,7 @@ class TreeModelBehaviorTest {
     }
 
     @Test
-    fun controlledSelectionReAppliesAfterModelSwap() = runSwingUiTest {
+    fun controlledSelectionReAppliesAfterModelSwap() = runComposeSwingTest {
         var model by mutableStateOf(sampleModel())
         setContent {
             Tree(
@@ -159,7 +159,7 @@ class TreeModelBehaviorTest {
     }
 
     @Test
-    fun selectionResolvesForAModelWithoutDefaultMutableTreeNodeNodes() = runSwingUiTest {
+    fun selectionResolvesForAModelWithoutDefaultMutableTreeNodeNodes() = runComposeSwingTest {
         // root -> {fruit -> {apple, pear}, veg -> {carrot}}, built from plain Nodes: resolving and
         // reading back index paths must go through the model's accessors, never a node-type cast.
         val pear = Node("pear")
@@ -194,7 +194,7 @@ class TreeModelBehaviorTest {
     }
 
     @Test
-    fun reApplyingTheSameControlledSelectionDoesNotEcho() = runSwingUiTest {
+    fun reApplyingTheSameControlledSelectionDoesNotEcho() = runComposeSwingTest {
         val model = sampleModel()
         val reported = mutableListOf<List<List<Int>>>()
         var trigger by mutableStateOf(0)

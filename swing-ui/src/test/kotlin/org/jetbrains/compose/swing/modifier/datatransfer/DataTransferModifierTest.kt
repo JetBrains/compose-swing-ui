@@ -7,7 +7,7 @@ import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.GraphicsEnvironment
 import java.awt.datatransfer.Clipboard
 import java.awt.datatransfer.DataFlavor
@@ -73,7 +73,7 @@ class DataTransferModifierTest {
     }
 
     @Test
-    fun draggableInstallsAHandlerThatExportsTheTransferable() = runSwingUiTest {
+    fun draggableInstallsAHandlerThatExportsTheTransferable() = runComposeSwingTest {
         setContent {
             TextField(
                 value = "",
@@ -136,7 +136,7 @@ class DataTransferModifierTest {
     }
 
     @Test
-    fun draggableGestureStartsADragPastTheThresholdDistinctFromClipboard() = runSwingUiTest {
+    fun draggableGestureStartsADragPastTheThresholdDistinctFromClipboard() = runComposeSwingTest {
         val payload = StringSelection("dragged-payload")
         setContent {
             TextField(
@@ -190,7 +190,7 @@ class DataTransferModifierTest {
     ): MouseEvent = MouseEvent(component, id, System.currentTimeMillis(), 0, x, y, 1, false)
 
     @Test
-    fun dropTargetImportFiresOnDropWithTheTransferable() = runSwingUiTest {
+    fun dropTargetImportFiresOnDropWithTheTransferable() = runComposeSwingTest {
         var dropped: String? = null
         setContent {
             TextField(
@@ -218,7 +218,7 @@ class DataTransferModifierTest {
     }
 
     @Test
-    fun canImportGatesFlavorsBeforeOnDrop() = runSwingUiTest {
+    fun canImportGatesFlavorsBeforeOnDrop() = runComposeSwingTest {
         var dropCalls = 0
         setContent {
             TextField(
@@ -247,7 +247,7 @@ class DataTransferModifierTest {
     }
 
     @Test
-    fun clipboardCopyThenPasteRoundTripsAValue() = runSwingUiTest {
+    fun clipboardCopyThenPasteRoundTripsAValue() = runComposeSwingTest {
         var pasted: String? = null
         setContent {
             TextField(
@@ -278,7 +278,7 @@ class DataTransferModifierTest {
     }
 
     @Test
-    fun clipboardCutExportsAsMoveAndPastes() = runSwingUiTest {
+    fun clipboardCutExportsAsMoveAndPastes() = runComposeSwingTest {
         var pasted: String? = null
         setContent {
             TextField(
@@ -310,7 +310,7 @@ class DataTransferModifierTest {
     }
 
     @Test
-    fun clipboardHandleRoundTripsThroughTheBoundComponent() = runSwingUiTest {
+    fun clipboardHandleRoundTripsThroughTheBoundComponent() = runComposeSwingTest {
         var pasted: String? = null
         lateinit var handle: ClipboardHandle
         setContent {
@@ -352,7 +352,7 @@ class DataTransferModifierTest {
     }
 
     @Test
-    fun clipboardHandleIsInertWhileUnbound() = runSwingUiTest {
+    fun clipboardHandleIsInertWhileUnbound() = runComposeSwingTest {
         lateinit var handle: ClipboardHandle
         setContent {
             handle = rememberClipboardHandle()
@@ -368,7 +368,7 @@ class DataTransferModifierTest {
     }
 
     @Test
-    fun clipboardBindsTheStandardKeystrokesWhenRequested() = runSwingUiTest {
+    fun clipboardBindsTheStandardKeystrokesWhenRequested() = runComposeSwingTest {
         setContent {
             TextField(
                 value = "",
@@ -399,7 +399,7 @@ class DataTransferModifierTest {
     }
 
     @Test
-    fun draggableAndDropTargetShareOneHandlerOnTheSameComponent() = runSwingUiTest {
+    fun draggableAndDropTargetShareOneHandlerOnTheSameComponent() = runComposeSwingTest {
         var dropped: String? = null
         setContent {
             TextField(
@@ -436,7 +436,7 @@ class DataTransferModifierTest {
     }
 
     @Test
-    fun removingTheDropTargetModifierRestoresTheOriginalHandler() = runSwingUiTest {
+    fun removingTheDropTargetModifierRestoresTheOriginalHandler() = runComposeSwingTest {
         var enabled by mutableStateOf(true)
         setContent {
             TextField(
@@ -475,7 +475,7 @@ class DataTransferModifierTest {
     }
 
     @Test
-    fun draggableSeesTheLatestExporterAcrossRecomposition() = runSwingUiTest {
+    fun draggableSeesTheLatestExporterAcrossRecomposition() = runComposeSwingTest {
         var payload by mutableStateOf("first")
         setContent {
             TextField(

@@ -5,10 +5,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.test.SwingUiTest
+import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.onNodeOfType
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Rectangle
 import javax.swing.JDesktopPane
 import javax.swing.JInternalFrame
@@ -27,7 +27,7 @@ import kotlin.test.assertTrue
  * it.
  */
 class DesktopPaneBehaviorTest {
-    private fun SwingUiTest.desktop(): JDesktopPane = onNodeOfType<JDesktopPane>().fetch<JDesktopPane>()
+    private fun ComposeSwingTest.desktop(): JDesktopPane = onNodeOfType<JDesktopPane>().fetch<JDesktopPane>()
 
     private fun frames(desktop: JDesktopPane): List<JInternalFrame> =
         desktop.components.filterIsInstance<JInternalFrame>()
@@ -38,7 +38,7 @@ class DesktopPaneBehaviorTest {
     ): JInternalFrame = frames(desktop).single { it.title == title }
 
     @Test
-    fun eachDeclaredFrameIsHostedWithItsTitleBoundsAndControls() = runSwingUiTest {
+    fun eachDeclaredFrameIsHostedWithItsTitleBoundsAndControls() = runComposeSwingTest {
         setContent {
             DesktopPane {
                 internalFrame(
@@ -67,7 +67,7 @@ class DesktopPaneBehaviorTest {
     }
 
     @Test
-    fun framesAreAddedAndRemovedDynamically() = runSwingUiTest {
+    fun framesAreAddedAndRemovedDynamically() = runComposeSwingTest {
         var showSecond by mutableStateOf(true)
         setContent {
             DesktopPane {
@@ -92,7 +92,7 @@ class DesktopPaneBehaviorTest {
     }
 
     @Test
-    fun frameMetadataUpdatesOnRecomposition() = runSwingUiTest {
+    fun frameMetadataUpdatesOnRecomposition() = runComposeSwingTest {
         var title by mutableStateOf("Old")
         var resizable by mutableStateOf(true)
         var bounds by mutableStateOf(Rectangle(0, 0, 100, 100))
@@ -122,7 +122,7 @@ class DesktopPaneBehaviorTest {
     }
 
     @Test
-    fun activatingCloseRoutesThroughOnCloseWithoutClosingTheFrame() = runSwingUiTest {
+    fun activatingCloseRoutesThroughOnCloseWithoutClosingTheFrame() = runComposeSwingTest {
         var closes = 0
         var show by mutableStateOf(true)
         setContent {
@@ -154,7 +154,7 @@ class DesktopPaneBehaviorTest {
     }
 
     @Test
-    fun rawInternalFrameListenerOverloadReceivesFrameEvents() = runSwingUiTest {
+    fun rawInternalFrameListenerOverloadReceivesFrameEvents() = runComposeSwingTest {
         var closings = 0
         val listener =
             object : InternalFrameAdapter() {
@@ -183,7 +183,7 @@ class DesktopPaneBehaviorTest {
     }
 
     @Test
-    fun disposingTheDesktopPaneTearsItDown() = runSwingUiTest {
+    fun disposingTheDesktopPaneTearsItDown() = runComposeSwingTest {
         var show by mutableStateOf(true)
         setContent {
             if (show) {

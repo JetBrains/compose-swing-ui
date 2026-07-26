@@ -14,16 +14,15 @@ import org.jetbrains.compose.swing.modifier.accessibility.labelFor
 import org.jetbrains.compose.swing.modifier.accessibility.labelTarget
 import org.jetbrains.compose.swing.modifier.accessibility.mnemonic
 import org.jetbrains.compose.swing.modifier.accessibility.rememberLabelTarget
-import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
-import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.SwingMatcher
-import org.jetbrains.compose.swing.test.runSwingUiTest
-import java.awt.Component
+import org.jetbrains.compose.swing.test.onNodeOfType
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Dimension
 import java.awt.event.KeyEvent
 import javax.accessibility.AccessibleRole
 import javax.swing.JButton
+import javax.swing.JCheckBox
 import javax.swing.JLabel
 import javax.swing.JTextField
 import kotlin.test.Test
@@ -39,21 +38,16 @@ import kotlin.test.assertSame
  */
 class AccessibilityModifierTest {
     @Test
-    fun accessibleNameAppliesAndRestoresOnRemoval() = runSwingUiTest {
+    fun accessibleNameAppliesAndRestoresOnRemoval() = runComposeSwingTest {
         var named by mutableStateOf(true)
         setContent {
-            TextField(
-                "",
-                modifier =
-                    SwingModifier.testTag("field").let {
-                        if (named) it.accessibleName("City field") else it
-                    },
-            )
+            TextField("", modifier = if (named) SwingModifier.accessibleName("City field") else SwingModifier)
         }
+        val field = onNodeOfType<JTextField>()
         // A JTextField has no intrinsic accessible name, so the default is null.
         assertEquals(
             "City field",
-            onNodeWithTag("field").fetch<JTextField>().accessibleContext.accessibleName,
+            field.fetch().accessibleContext.accessibleName,
             "the accessible name should apply while the modifier is present",
         )
 
@@ -61,141 +55,130 @@ class AccessibilityModifierTest {
         awaitIdle()
         // The element left the chain, restoring the pre-modifier default (null for a text field).
         assertNull(
-            onNodeWithTag("field").fetch<JTextField>().accessibleContext.accessibleName,
+            field.fetch().accessibleContext.accessibleName,
             "removing the modifier should restore the null accessible name",
         )
     }
 
     @Test
-    fun accessibleDescriptionAppliesAndRestoresOnRemoval() = runSwingUiTest {
+    fun accessibleDescriptionAppliesAndRestoresOnRemoval() = runComposeSwingTest {
         var described by mutableStateOf(true)
         setContent {
             Button(
                 "Save",
                 modifier =
-                    SwingModifier.testTag("btn").let {
-                        if (described) it.accessibleDescription("Persist the document") else it
-                    },
+                    if (described) SwingModifier.accessibleDescription("Persist the document") else SwingModifier,
             )
         }
+        val button = onNodeOfType<JButton>()
         assertEquals(
             "Persist the document",
-            onNodeWithTag("btn").fetch<JButton>().accessibleContext.accessibleDescription,
+            button.fetch().accessibleContext.accessibleDescription,
             "the accessible description should apply while the modifier is present",
         )
 
         described = false
         awaitIdle()
         assertNull(
-            onNodeWithTag("btn").fetch<JButton>().accessibleContext.accessibleDescription,
+            button.fetch().accessibleContext.accessibleDescription,
             "removing the modifier should restore the null accessible description",
         )
     }
 
     @Test
-    fun accessibleNameAndDescriptionAreFoundByMatchers() = runSwingUiTest {
+    fun accessibleNameAndDescriptionAreFoundByMatchers() = runComposeSwingTest {
         setContent {
             Label(
                 "X",
                 modifier =
                     SwingModifier
-                        .testTag("lbl")
                         .accessibleName("Coordinate")
                         .accessibleDescription("The horizontal position"),
             )
         }
-        onNode(SwingMatcher.hasAccessibleName("Coordinate")).assertExists()
-        onNode(SwingMatcher.hasAccessibleDescription("The horizontal position")).assertExists()
+        // Each matcher finds the label the accessible state was declared on, not merely some node.
+        onNode(SwingMatcher.hasAccessibleName("Coordinate")).assert(SwingMatcher.isOfType<JLabel>())
+        onNode(SwingMatcher.hasAccessibleDescription("The horizontal position"))
+            .assert(SwingMatcher.isOfType<JLabel>())
     }
 
     @Test
-    fun canvasReportsIntrinsicCanvasRole() = runSwingUiTest {
+    fun canvasReportsIntrinsicCanvasRole() = runComposeSwingTest {
         setContent {
-            Canvas(
-                modifier =
-                    SwingModifier
-                        .testTag("surface")
-                        .preferredSize(Dimension(40, 40)),
-            ) { _, _, _ -> }
+            Canvas(modifier = SwingModifier.preferredSize(Dimension(40, 40))) { _, _, _ -> }
         }
-        // A drawing surface reports CANVAS by construction; a plain JComponent would report the generic
-        // SWING_COMPONENT role instead.
-        assertEquals(
-            AccessibleRole.CANVAS,
-            onNodeWithTag("surface").fetch<Component>().accessibleContext.accessibleRole,
-            "the canvas should report its intrinsic CANVAS role",
-        )
-        onNode(SwingMatcher.hasAccessibleRole(AccessibleRole.CANVAS)).assertExists()
+        // A drawing surface reports CANVAS by construction; a plain JComponent would report the
+        // generic SWING_COMPONENT role instead, so the role matcher picking out exactly the surface
+        // is what there is to assert.
+        onAllNodes(SwingMatcher.hasAccessibleRole(AccessibleRole.CANVAS)).assertCountEquals(1)
     }
 
     @Test
-    fun mnemonicOnButtonAppliesAndRestoresOnRemoval() = runSwingUiTest {
+    fun mnemonicOnButtonAppliesAndRestoresOnRemoval() = runComposeSwingTest {
         var withMnemonic by mutableStateOf(true)
         setContent {
-            Button(
-                "Save",
-                modifier =
-                    SwingModifier.testTag("btn").let {
-                        if (withMnemonic) it.mnemonic('S') else it
-                    },
-            )
+            Button("Save", modifier = if (withMnemonic) SwingModifier.mnemonic('S') else SwingModifier)
         }
-        assertEquals(
-            KeyEvent.VK_S,
-            onNodeWithTag("btn").fetch<JButton>().mnemonic,
-            "the mnemonic should apply while present",
-        )
+        val button = onNodeOfType<JButton>()
+        assertEquals(KeyEvent.VK_S, button.fetch().mnemonic, "the mnemonic should apply while present")
 
         withMnemonic = false
         awaitIdle()
+        assertEquals(0, button.fetch().mnemonic, "removing the modifier should restore the zero mnemonic")
+    }
+
+    @Test
+    fun mnemonicOnLabelSetsDisplayedMnemonic() = runComposeSwingTest {
+        setContent {
+            Label("Name", modifier = SwingModifier.mnemonic('N'))
+        }
         assertEquals(
-            0,
-            onNodeWithTag("btn").fetch<JButton>().mnemonic,
-            "removing the modifier should restore the zero mnemonic",
+            KeyEvent.VK_N,
+            onNodeOfType<JLabel>().fetch().displayedMnemonic,
+            "the mnemonic should reach a label as its displayed mnemonic",
         )
     }
 
     @Test
-    fun mnemonicOnLabelSetsDisplayedMnemonic() = runSwingUiTest {
-        setContent {
-            Label("Name", modifier = SwingModifier.testTag("lbl").mnemonic('N'))
-        }
-        assertEquals(KeyEvent.VK_N, onNodeWithTag("lbl").fetch<JLabel>().displayedMnemonic)
-    }
-
-    @Test
-    fun labelForAssociatesLabelWithItsTarget() = runSwingUiTest {
+    fun labelForAssociatesLabelWithItsTarget() = runComposeSwingTest {
         setContent {
             val usernameField = rememberLabelTarget()
             Label("Name", modifier = SwingModifier.labelFor(usernameField))
-            // testTag identifies the field to the test harness; labelTarget wires the caption to it.
-            TextField("", modifier = SwingModifier.labelTarget(usernameField).testTag("field"))
+            TextField("", modifier = SwingModifier.labelTarget(usernameField))
         }
         awaitIdle()
-        val field = onNodeWithTag("field").fetch<JTextField>()
-        assertSame(field, onNodeWithText("Name").fetch<JLabel>().labelFor)
+        assertSame(
+            onNodeOfType<JTextField>().fetch(),
+            onNodeWithText("Name").fetch<JLabel>().labelFor,
+            "the caption should be associated with the field the reference names",
+        )
     }
 
     @Test
-    fun labelForResolvesRegardlessOfDeclarationOrder() = runSwingUiTest {
+    fun labelForResolvesRegardlessOfDeclarationOrder() = runComposeSwingTest {
         setContent {
             val usernameField = rememberLabelTarget()
             // The target is declared before its label; the reference still pairs them once both attach.
-            TextField("", modifier = SwingModifier.labelTarget(usernameField).testTag("field"))
+            TextField("", modifier = SwingModifier.labelTarget(usernameField))
             Label("Name", modifier = SwingModifier.labelFor(usernameField))
         }
         awaitIdle()
         assertSame(
-            onNodeWithTag("field").fetch<JTextField>(),
+            onNodeOfType<JTextField>().fetch(),
             onNodeWithText("Name").fetch<JLabel>().labelFor,
+            "the caption should be associated with the field the reference names",
         )
     }
 
     @Test
-    fun checkBoxMnemonicApplies() = runSwingUiTest {
+    fun checkBoxMnemonicApplies() = runComposeSwingTest {
         setContent {
-            CheckBox(modifier = SwingModifier.testTag("cb").mnemonic('A'), text = "Agree")
+            CheckBox(text = "Agree", checked = false, modifier = SwingModifier.mnemonic('A'))
         }
-        assertEquals(KeyEvent.VK_A, onNodeWithTag("cb").fetch<javax.swing.JCheckBox>().mnemonic)
+        assertEquals(
+            KeyEvent.VK_A,
+            onNodeOfType<JCheckBox>().fetch().mnemonic,
+            "the mnemonic should reach a check box",
+        )
     }
 }

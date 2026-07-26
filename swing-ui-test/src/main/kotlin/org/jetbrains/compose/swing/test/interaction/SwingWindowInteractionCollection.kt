@@ -8,7 +8,7 @@ import java.awt.Window
  * against the live set of realized windows each time it is needed, so it reflects windows appearing and
  * disappearing across recomposition.
  *
- * All methods are intended to be called from a [org.jetbrains.compose.swing.test.runSwingUiTest]
+ * All methods are intended to be called from a [org.jetbrains.compose.swing.test.runComposeSwingTest]
  * body, which runs on the EDT.
  */
 public class SwingWindowInteractionCollection internal constructor(

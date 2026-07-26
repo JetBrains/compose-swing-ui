@@ -6,8 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.interaction.enabled
-import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -18,7 +17,7 @@ import kotlin.test.assertEquals
  */
 class ButtonTest {
     @Test
-    fun rendersTheGivenText() = runSwingUiTest {
+    fun rendersTheGivenText() = runComposeSwingTest {
         setContent {
             Button(text = "Save", onClick = {})
         }
@@ -26,7 +25,7 @@ class ButtonTest {
     }
 
     @Test
-    fun clickFiresOnClick() = runSwingUiTest {
+    fun clickFiresOnClick() = runComposeSwingTest {
         var clicks = 0
         setContent {
             Button(text = "Click me", onClick = { clicks++ })
@@ -36,7 +35,7 @@ class ButtonTest {
     }
 
     @Test
-    fun enabledModifierIsReflectedOnTheComponent() = runSwingUiTest {
+    fun enabledModifierIsReflectedOnTheComponent() = runComposeSwingTest {
         setContent {
             Button(text = "Disabled", modifier = SwingModifier.enabled(false), onClick = {})
         }
@@ -44,7 +43,7 @@ class ButtonTest {
     }
 
     @Test
-    fun stateDrivenTextUpdatesAfterRecomposition() = runSwingUiTest {
+    fun stateDrivenTextUpdatesAfterRecomposition() = runComposeSwingTest {
         var count by mutableIntStateOf(0)
         setContent {
             Button(text = "Clicks: $count", onClick = { count++ })
@@ -60,7 +59,7 @@ class ButtonTest {
     }
 
     @Test
-    fun enabledStateTogglesAcrossRecomposition() = runSwingUiTest {
+    fun enabledStateTogglesAcrossRecomposition() = runComposeSwingTest {
         var enabledState by mutableStateOf(true)
         setContent {
             Button(text = "Toggle", modifier = SwingModifier.enabled(enabledState), onClick = {})

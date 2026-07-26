@@ -11,33 +11,30 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.BorderPanel
-import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNotSame
 
 /**
- * Regression guards for the listener-reuse fix.
+ * Pins listener liveness across every path that swaps out the composable behind a Swing component.
  *
- * The contract under test: when a node is reused / deactivated-then-reactivated,
- * [org.jetbrains.compose.swing.core.SwingNodeHolder] must end up with its framework listener re-attached
- * so the recycled component keeps reacting (clicks still fire onClick).
+ * The contract under test: whichever way the runtime re-homes a node - recycling the existing
+ * component or building a new one - the resulting live component ends up with exactly one framework
+ * listener attached, so clicks keep dispatching to the currently composed `onClick`.
  *
- * All three reuse paths — **movableContent** move, **ReusableContentHost** reactivation, and
- * **`key()`-driven** reuse — are asserted live. The framework listener is installed as a modifier
- * element (the built-in domain listener merged into the node's chain), and
- * [org.jetbrains.compose.swing.core.SwingNodeHolder.reset] clears the node's modifier diff state on
- * reuse/deactivation — detaching the listener and dropping the cached chain — so the next
- * recomposition re-applies the chain and re-installs exactly one fresh listener (the historical
- * defect left the recycled component with zero listeners and thus dead).
+ * Three paths are asserted live: a **movableContent** move, a **ReusableContentHost**
+ * deactivate/reactivate cycle, and a **`key()`** change. The first two recycle the component
+ * instance; a `key()` change is an explicit identity change, so the runtime discards the old node and
+ * builds a fresh component. All three must dispatch clicks afterwards.
  */
 class ListenerReattachAfterReuseTest {
     /**
      * Moves a single [Button] between two BorderLayout regions via [movableContentOf]. The move
-     * triggers reuse/deactivation on the underlying holder. After it lands in its new region the
-     * click must still increment. This path is FIXED and asserted live.
+     * relocates the underlying node, and the relocated button must still increment on click.
      */
     @Test
-    fun movableButtonStillFiresAfterBeingMoved() = runSwingUiTest {
+    fun movableButtonStillFiresAfterBeingMoved() = runComposeSwingTest {
         var counter by mutableIntStateOf(0)
         var inNorth by mutableStateOf(true)
 
@@ -54,30 +51,25 @@ class ListenerReattachAfterReuseTest {
             }
         }
 
-        // Click before the move: establishes the listener works initially.
-        onNodeWithText("Move me").performClick()
-        check(counter == 1) { "pre-move click failed; counter=$counter" }
+        val button = onNodeWithText("Move me")
+        button.performClick()
+        assertEquals(1, counter, "precondition: the button must dispatch clicks before the move")
 
         // Force the move (NORTH -> SOUTH). The same component instance is reused in the new slot.
         inNorth = false
         awaitIdle()
 
-        // The reused button must STILL fire its onClick — reset() cleared the modifier diff state
-        // on the move, so the listener element re-installed when the chain re-applied.
-        onNodeWithText("Move me").performClick()
-        check(counter == 2) {
-            "Reused (moved) button's onClick did not fire — listener was not re-attached. " +
-                "counter=$counter"
-        }
+        button.performClick()
+        assertEquals(2, counter, "the moved button must still dispatch its onClick")
     }
 
     /**
-     * A button deactivated and reactivated via [ReusableContentHost] must keep its listener: on
-     * reactivation the recomposition re-attaches it and the holder reset no longer clobbers the
-     * freshly re-attached listener. Asserts the click still fires after a deactivate/reactivate cycle.
+     * A button deactivated and reactivated via [ReusableContentHost] keeps a live listener: the
+     * reactivating recomposition re-applies the modifier chain onto the recycled component. Asserts
+     * the click still fires after a deactivate/reactivate cycle.
      */
     @Test
-    fun deactivatedButtonReattachesListenerOnReactivation() = runSwingUiTest {
+    fun deactivatedButtonReattachesListenerOnReactivation() = runComposeSwingTest {
         var counter by mutableIntStateOf(0)
         var active by mutableStateOf(true)
 
@@ -91,8 +83,9 @@ class ListenerReattachAfterReuseTest {
             }
         }
 
-        onNodeWithText("Reusable").performClick()
-        check(counter == 1) { "initial click failed; counter=$counter" }
+        val button = onNodeWithText("Reusable")
+        button.performClick()
+        assertEquals(1, counter, "precondition: the button must dispatch clicks before deactivation")
 
         active = false
         awaitIdle()
@@ -100,20 +93,17 @@ class ListenerReattachAfterReuseTest {
         active = true
         awaitIdle()
 
-        onNodeWithText("Reusable").assertExists().performClick()
-        check(counter == 2) {
-            "Reactivated button's onClick did not fire — listener was not re-attached after " +
-                "deactivation. counter=$counter"
-        }
+        button.assertExists().performClick()
+        assertEquals(2, counter, "the reactivated button must still dispatch its onClick")
     }
 
     /**
-     * Toggling a [androidx.compose.runtime.key] reuses the component instance but rebinds onClick;
-     * the rebound listener must fire after the swap (same reset/re-attach ordering as the
-     * ReusableContentHost case). Asserts the new onClick fires after the key change.
+     * Changing the [androidx.compose.runtime.key] argument is an explicit identity change: the runtime
+     * discards the old keyed group and builds a fresh component, which must be wired to the newly
+     * composed onClick.
      */
     @Test
-    fun keyedButtonReusesComponentAndRebindsOnClick() = runSwingUiTest {
+    fun keyChangeBuildsANewComponentBoundToTheNewOnClick() = runComposeSwingTest {
         var counterA by mutableIntStateOf(0)
         var counterB by mutableIntStateOf(0)
         var useA by mutableStateOf(true)
@@ -129,17 +119,25 @@ class ListenerReattachAfterReuseTest {
             }
         }
 
-        onNodeWithText("Keyed").performClick()
-        check(counterA == 1 && counterB == 0) { "A=$counterA B=$counterB" }
+        val button = onNodeWithText("Keyed")
+        val before = button.fetch()
+        button.performClick()
+        assertEquals(1, counterA, "precondition: the button must dispatch clicks under the first key")
+        assertEquals(0, counterB, "precondition: only the first key's onClick may run before the swap")
 
         useA = false
         awaitIdle()
 
-        onNodeWithText("Keyed").performClick()
-        check(counterB == 1) {
-            "Reused (keyed) button did not fire its new onClick — listener not re-attached. " +
-                "A=$counterA B=$counterB"
-        }
+        val after = button.fetch()
+        assertNotSame(
+            before,
+            after,
+            "a key() change must build a fresh component instance rather than recycle the old one",
+        )
+
+        button.performClick()
+        assertEquals(1, counterB, "the component built for the new key must dispatch the new onClick")
+        assertEquals(1, counterA, "the discarded key's onClick must no longer run")
     }
 }
 

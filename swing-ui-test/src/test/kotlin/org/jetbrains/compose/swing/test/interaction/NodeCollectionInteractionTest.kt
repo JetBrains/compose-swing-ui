@@ -6,29 +6,32 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.BoxPanel
-import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.FlowPanel
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
+import org.jetbrains.compose.swing.modifier.interaction.enabled
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.onAllNodesOfType
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
+import javax.swing.JButton
 import javax.swing.JLabel
-import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertSame
+import kotlin.test.assertTrue
 
 /**
  * Behavioral coverage for [SwingNodeInteractionCollection], the multi-match handle returned by
- * [SwingUiTest.onAllNodesWithText]. The collection is lazy: it re-resolves its match set against the
+ * [ComposeSwingTest.onAllNodesWithText]. The collection is lazy: it re-resolves its match set against the
  * live AWT tree each time it is queried, so the same handle reflects components added or removed by
- * recomposition. These tests pin that re-resolution, the zero-match case, the chaining contract of
- * [SwingNodeInteractionCollection.assertCountEquals], and that a wrong count assertion fails.
+ * recomposition. These tests pin that re-resolution, the zero-match case, narrowing with
+ * [SwingNodeInteractionCollection.filter] / [SwingNodeInteractionCollection.filterToOne], the
+ * over-the-set assertions, and that each of them fails readably when the tree does not match.
  */
 class NodeCollectionInteractionTest {
     @Test
-    fun countAndFetchSizeAgreeForACollection() = runSwingUiTest {
+    fun countAndFetchSizeAgreeForACollection() = runComposeSwingTest {
         setContent {
             BoxPanel {
                 Label(text = "row")
@@ -43,14 +46,14 @@ class NodeCollectionInteractionTest {
     }
 
     @Test
-    fun fetchSizeIsZeroWhenNothingMatches() = runSwingUiTest {
+    fun fetchSizeIsZeroWhenNothingMatches() = runComposeSwingTest {
         setContent { Label(text = "present") }
         assertEquals(0, onAllNodesWithText("absent").fetchSize())
         onAllNodesWithText("absent").assertCountEquals(0)
     }
 
     @Test
-    fun assertCountEqualsReturnsTheSameCollectionForChaining() = runSwingUiTest {
+    fun assertCountEqualsReturnsTheSameCollectionForChaining() = runComposeSwingTest {
         setContent {
             BoxPanel {
                 Label(text = "row")
@@ -64,7 +67,7 @@ class NodeCollectionInteractionTest {
     }
 
     @Test
-    fun aWrongCountAssertionFails() = runSwingUiTest {
+    fun aWrongCountAssertionFails() = runComposeSwingTest {
         setContent {
             BoxPanel {
                 Label(text = "row")
@@ -75,7 +78,7 @@ class NodeCollectionInteractionTest {
     }
 
     @Test
-    fun fetchAllReturnsEveryMatchingComponentTypedAndInTreeOrder() = runSwingUiTest {
+    fun fetchAllReturnsEveryMatchingComponentTypedAndInTreeOrder() = runComposeSwingTest {
         setContent {
             BoxPanel {
                 Label(text = "alpha")
@@ -88,7 +91,7 @@ class NodeCollectionInteractionTest {
     }
 
     @Test
-    fun fetchAllFailsWhenAMatchedNodeIsNotTheRequestedType() = runSwingUiTest {
+    fun fetchAllFailsWhenAMatchedNodeIsNotTheRequestedType() = runComposeSwingTest {
         setContent {
             BoxPanel {
                 Label(text = "alpha")
@@ -100,31 +103,117 @@ class NodeCollectionInteractionTest {
     }
 
     @Test
-    fun withinNarrowsAQueryToTheGivenSubtree() = runSwingUiTest {
+    fun filteringOnAnAncestorNarrowsAQueryToThatSubtree() = runComposeSwingTest {
         setContent {
             BoxPanel {
-                Panel(modifier = SwingModifier.name("inside")) {
+                FlowPanel(modifier = SwingModifier.name("inside")) {
                     Label(text = "alpha")
                     Label(text = "beta")
                 }
                 Label(text = "outside")
             }
         }
-        // The tree-wide query sees all three labels; scoping to the named subtree keeps only the
+        // The tree-wide query sees all three labels; filtering on the named ancestor keeps only the
         // two that descend from it.
         assertEquals(3, onAllNodesOfType<JLabel>().fetchSize(), "the tree-wide query should see all three labels")
 
-        val inside = onNodeWithName("inside").fetch<JPanel>()
-        val scoped = onAllNodesOfType<JLabel>().within(inside).fetchAll<JLabel>()
+        val scoped = onAllNodesOfType<JLabel>().filter(SwingMatcher.hasAnyAncestor(SwingMatcher.hasName("inside")))
         assertEquals(
             listOf("alpha", "beta"),
-            scoped.map { it.text },
-            "within should keep only the subtree's two labels",
+            scoped.fetchAll<JLabel>().map { it.text },
+            "the ancestor filter should keep only the subtree's two labels",
         )
     }
 
     @Test
-    fun getTargetsTheMatchAtTheGivenIndex() = runSwingUiTest {
+    fun filterAndFilterToOneReResolveAgainstTheLiveTree() = runComposeSwingTest {
+        var rows by mutableIntStateOf(1)
+        setContent {
+            BoxPanel {
+                repeat(rows) { index -> Label(text = "row", modifier = SwingModifier.name("row-$index")) }
+            }
+        }
+        val filtered = onAllNodesWithText("row").filter(SwingMatcher.hasName("row-1"))
+        val one = onAllNodesWithText("row").filterToOne(SwingMatcher.hasName("row-1"))
+        // Neither handle resolved when it was created: the node it names does not exist yet.
+        filtered.assertCountEquals(0)
+        one.assertDoesNotExist()
+
+        rows = 3
+        awaitIdle()
+
+        filtered.assertCountEquals(1)
+        assertEquals("row-1", one.fetch<JLabel>().name, "filterToOne should resolve the newly composed node")
+    }
+
+    @Test
+    fun filterToOneFailsWhenTheFilterLeavesMoreThanOneNode() = runComposeSwingTest {
+        setContent {
+            BoxPanel {
+                Label(text = "row")
+                Label(text = "row")
+            }
+        }
+        val failure =
+            assertFailsWith<AssertionError> {
+                onAllNodesOfType<JLabel>().filterToOne(SwingMatcher.hasText("row")).assertExists()
+            }
+        val message = failure.message.orEmpty()
+        assertTrue(message.contains("found 2"), "the ambiguity should be quantified: $message")
+        assertTrue(
+            message.contains("filterToOne(hasText(\"row\"))"),
+            "the failure should name the filter that was applied: $message",
+        )
+    }
+
+    @Test
+    fun assertAllHoldsForEveryMatchAndNamesTheNodesThatViolateIt() = runComposeSwingTest {
+        setContent {
+            BoxPanel {
+                Button(text = "on", onClick = {})
+                Button(text = "off", onClick = {}, modifier = SwingModifier.enabled(false))
+            }
+        }
+        onAllNodesOfType<JButton>().filter(SwingMatcher.isEnabled()).assertAll(SwingMatcher.isEnabled())
+        // An empty match set has nothing that violates the matcher, so it satisfies assertAll.
+        onAllNodesWithText("absent").assertAll(SwingMatcher.isEnabled())
+
+        val failure =
+            assertFailsWith<AssertionError> { onAllNodesOfType<JButton>().assertAll(SwingMatcher.isEnabled()) }
+        val message = failure.message.orEmpty()
+        assertTrue(message.contains("1 of 2 did not"), "the violating share should be quantified: $message")
+        assertTrue(message.contains("isEnabled(true)"), "the failure should name the matcher: $message")
+        assertTrue(message.contains("text=\"off\""), "the failure should describe the violating node: $message")
+    }
+
+    @Test
+    fun assertAnyHoldsForOneMatchAndFailsReadablyOtherwise() = runComposeSwingTest {
+        setContent {
+            BoxPanel {
+                Label(text = "alpha")
+                Label(text = "beta")
+            }
+        }
+        onAllNodesOfType<JLabel>().assertAny(SwingMatcher.hasText("beta"))
+
+        val noneMatched =
+            assertFailsWith<AssertionError> { onAllNodesOfType<JLabel>().assertAny(SwingMatcher.hasText("gamma")) }
+        assertTrue(
+            noneMatched.message.orEmpty().contains("none of the 2 matched nodes did"),
+            "the failure should quantify the nodes that were checked: ${noneMatched.message}",
+        )
+
+        // An empty match set fails: there is no node that could satisfy the matcher.
+        val nothingMatched =
+            assertFailsWith<AssertionError> { onAllNodesWithText("absent").assertAny(SwingMatcher.hasText("absent")) }
+        assertTrue(
+            nothingMatched.message.orEmpty().contains("matched no node at all"),
+            "the empty-collection failure should say the query found nothing: ${nothingMatched.message}",
+        )
+    }
+
+    @Test
+    fun getTargetsTheMatchAtTheGivenIndex() = runComposeSwingTest {
         setContent {
             BoxPanel {
                 Label(text = "row", modifier = SwingModifier.name("row-0"))
@@ -139,14 +228,14 @@ class NodeCollectionInteractionTest {
     }
 
     @Test
-    fun getFailsOnUseWhenTheIndexIsOutOfBounds() = runSwingUiTest {
+    fun getFailsOnUseWhenTheIndexIsOutOfBounds() = runComposeSwingTest {
         setContent {
             BoxPanel {
                 Label(text = "row")
                 Label(text = "row")
             }
         }
-        // Creating the handle is fine — resolution is lazy — but using it must fail readably.
+        // Creating the handle is fine - resolution is lazy - but using it must fail readably.
         val outOfBounds = onAllNodesWithText("row")[2]
         assertFailsWith<AssertionError> { outOfBounds.assertExists() }
         assertFailsWith<AssertionError> { outOfBounds.fetch<JLabel>() }
@@ -155,7 +244,7 @@ class NodeCollectionInteractionTest {
     }
 
     @Test
-    fun onFirstAndOnLastTargetTheEndsAndTrackRecomposition() = runSwingUiTest {
+    fun onFirstAndOnLastTargetTheEndsAndTrackRecomposition() = runComposeSwingTest {
         var rows by mutableIntStateOf(2)
         setContent {
             BoxPanel {
@@ -181,25 +270,24 @@ class NodeCollectionInteractionTest {
     }
 
     @Test
-    fun getRespectsAWithinScope() = runSwingUiTest {
+    fun getIndexesTheFilteredMatchSet() = runComposeSwingTest {
         setContent {
             BoxPanel {
                 Label(text = "before")
-                Panel(modifier = SwingModifier.name("inside")) {
+                FlowPanel(modifier = SwingModifier.name("inside")) {
                     Label(text = "alpha")
                     Label(text = "beta")
                 }
             }
         }
-        val inside = onNodeWithName("inside").fetch<JPanel>()
-        val scoped = onAllNodesOfType<JLabel>().within(inside)
-        assertEquals("alpha", scoped.onFirst().fetch<JLabel>().text, "indexing should apply after the within scope")
-        assertEquals("beta", scoped[1].fetch<JLabel>().text, "indexing should apply after the within scope")
+        val scoped = onAllNodesOfType<JLabel>().filter(SwingMatcher.hasAnyAncestor(SwingMatcher.hasName("inside")))
+        assertEquals("alpha", scoped.onFirst().fetch<JLabel>().text, "indexing should apply after the filter")
+        assertEquals("beta", scoped[1].fetch<JLabel>().text, "indexing should apply after the filter")
         assertFailsWith<AssertionError> { scoped[2].assertExists() }
     }
 
     @Test
-    fun aHeldCollectionReResolvesAsRecompositionAddsAndRemovesMatches() = runSwingUiTest {
+    fun aHeldCollectionReResolvesAsRecompositionAddsAndRemovesMatches() = runComposeSwingTest {
         var rows by mutableIntStateOf(1)
         setContent {
             BoxPanel {

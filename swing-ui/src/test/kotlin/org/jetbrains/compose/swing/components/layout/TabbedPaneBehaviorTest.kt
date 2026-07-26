@@ -7,7 +7,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.onNodeOfType
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JTabbedPane
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -24,7 +24,7 @@ class TabbedPaneBehaviorTest {
     private fun titles(pane: JTabbedPane): List<String> = (0 until pane.tabCount).map { pane.getTitleAt(it) }
 
     @Test
-    fun tabsDeclaredInCompositionAreAdded() = runSwingUiTest {
+    fun tabsDeclaredInCompositionAreAdded() = runComposeSwingTest {
         setContent {
             TabbedPane(selectedIndex = 0, onSelectedIndexChange = {}) {
                 tab("General") { Label("g") }
@@ -38,7 +38,7 @@ class TabbedPaneBehaviorTest {
     }
 
     @Test
-    fun droppingATabFromCompositionRemovesItDynamically() = runSwingUiTest {
+    fun droppingATabFromCompositionRemovesItDynamically() = runComposeSwingTest {
         var showSecond by mutableStateOf(true)
         setContent {
             TabbedPane(selectedIndex = 0, onSelectedIndexChange = {}) {
@@ -66,7 +66,7 @@ class TabbedPaneBehaviorTest {
     }
 
     @Test
-    fun tabAttributesUpdateViaRecomposition() = runSwingUiTest {
+    fun tabAttributesUpdateViaRecomposition() = runComposeSwingTest {
         var title by mutableStateOf("Old")
         var enabled by mutableStateOf(true)
         setContent {
@@ -87,7 +87,7 @@ class TabbedPaneBehaviorTest {
     }
 
     @Test
-    fun selectedIndexIsControlledAndChangeCallbackFires() = runSwingUiTest {
+    fun selectedIndexIsControlledAndChangeCallbackFires() = runComposeSwingTest {
         val events = mutableListOf<Int>()
         var selected by mutableIntStateOf(0)
         setContent {

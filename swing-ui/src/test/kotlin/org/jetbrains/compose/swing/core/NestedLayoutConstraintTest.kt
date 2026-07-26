@@ -8,9 +8,9 @@ import org.jetbrains.compose.swing.components.layout.BorderPanel
 import org.jetbrains.compose.swing.components.layout.GridBagPanel
 import org.jetbrains.compose.swing.components.layout.GridPanel
 import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.test.SwingUiTest
+import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.onAllNodesOfType
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.BorderLayout
 import java.awt.Component
 import java.awt.Container
@@ -18,6 +18,7 @@ import java.awt.GridBagLayout
 import java.awt.GridLayout
 import java.awt.LayoutManager
 import javax.swing.JPanel
+import javax.swing.SwingUtilities
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertSame
@@ -40,13 +41,13 @@ import kotlin.test.assertTrue
  */
 class NestedLayoutConstraintTest {
     /** Resolves the single component with [text], failing with a tree dump otherwise. */
-    private fun SwingUiTest.componentWithText(text: String): Component = onNodeWithText(text).fetch<Component>()
+    private fun ComposeSwingTest.componentWithText(text: String): Component = onNodeWithText(text).fetch<Component>()
 
     /** The single [GridBagPanel]'s backing [JPanel] (the [JPanel] whose layout is a [GridBagLayout]). */
-    private fun SwingUiTest.gridBagPanel(): JPanel = singlePanelWithLayout<GridBagLayout>()
+    private fun ComposeSwingTest.gridBagPanel(): JPanel = singlePanelWithLayout<GridBagLayout>()
 
     @Test
-    fun gridBagPanelInsideBorderPanelCenterComposesWithoutCrashing() = runSwingUiTest {
+    fun gridBagPanelInsideBorderPanelCenterComposesWithoutCrashing() = runComposeSwingTest {
         // Before the fix this throws inside the applier (GridBagLayout rejects the "Center" string),
         // so setContent itself surfaces the crash and fails the test.
         setContent {
@@ -73,8 +74,8 @@ class NestedLayoutConstraintTest {
 
         // Its two labels are its own children, placed by GridBagLayout (default constraint).
         val labels =
-            onAllNodesWithText("one").within(gridBag).fetchAll<Component>() +
-                onAllNodesWithText("two").within(gridBag).fetchAll<Component>()
+            (onAllNodesWithText("one").fetchAll<Component>() + onAllNodesWithText("two").fetchAll<Component>())
+                .filter { SwingUtilities.isDescendingFrom(it, gridBag) }
         assertEquals(2, gridBag.componentCount, "GridBagPanel should hold exactly two children")
         assertTrue(
             labels.all { it.parent === gridBag },
@@ -83,7 +84,7 @@ class NestedLayoutConstraintTest {
     }
 
     @Test
-    fun switchingBorderCenterBetweenLeafAndNestedPanelNeverCarriesStaleConstraint() = runSwingUiTest {
+    fun switchingBorderCenterBetweenLeafAndNestedPanelNeverCarriesStaleConstraint() = runComposeSwingTest {
         // Models the sample's section switching: the BorderPanel CENTER toggles between a leaf
         // Label and a nested GridBagPanel { ... }. The reused/replaced node must not carry a stale
         // BorderLayout constraint into the nested panel's children on any recomposition.
@@ -131,7 +132,7 @@ class NestedLayoutConstraintTest {
     }
 
     @Test
-    fun gridAndGridBagChildrenInsideBorderRegionsUseTheDefaultConstraint() = runSwingUiTest {
+    fun gridAndGridBagChildrenInsideBorderRegionsUseTheDefaultConstraint() = runComposeSwingTest {
         // A GridPanel and a GridBagPanel placed in different BorderPanel regions. Each must add its
         // own children with the DEFAULT constraint (children present, no per-child BorderLayout
         // string), i.e. the children are laid out by the inner panel rather than rejected.
@@ -173,14 +174,14 @@ class NestedLayoutConstraintTest {
     }
 
     /** The [BorderLayout] constraint [text]'s component was placed at, within its [BorderPanel] parent. */
-    private fun SwingUiTest.centerConstraintOf(text: String): Any? {
+    private fun ComposeSwingTest.centerConstraintOf(text: String): Any? {
         val component = componentWithText(text)
         val parent = component.parent as JPanel
         return (parent.layout as BorderLayout).getConstraints(component)
     }
 
     /** Asserts the single nested child sits under the [GridBagPanel], placed by its [GridBagLayout]. */
-    private fun SwingUiTest.assertNestedChildLaidOutByGridBag() {
+    private fun ComposeSwingTest.assertNestedChildLaidOutByGridBag() {
         val child = componentWithText("nestedChild")
         val gridBag = child.parent as JPanel
         assertTrue(gridBag.layout is GridBagLayout, "nested child's parent is not a GridBagLayout panel")
@@ -188,7 +189,7 @@ class NestedLayoutConstraintTest {
     }
 
     /** The single [JPanel] whose layout is of type [L]. */
-    private inline fun <reified L : LayoutManager> SwingUiTest.singlePanelWithLayout(): JPanel {
+    private inline fun <reified L : LayoutManager> ComposeSwingTest.singlePanelWithLayout(): JPanel {
         val matches = onAllNodesOfType<JPanel>().fetchAll<JPanel>().filter { it.layout is L }
         return matches.singleOrNull()
             ?: throw AssertionError(
@@ -200,13 +201,16 @@ class NestedLayoutConstraintTest {
     private fun JPanel.borderConstraintOf(child: Component): Any? = (layout as BorderLayout).getConstraints(child)
 
     /** Asserts [container] holds exactly the labels with [texts], each a direct child. */
-    private fun SwingUiTest.assertChildrenAre(
+    private fun ComposeSwingTest.assertChildrenAre(
         container: Container,
         vararg texts: String,
     ) {
         assertEquals(texts.size, container.componentCount, "unexpected child count under $container")
         for (text in texts) {
-            val matches = onAllNodesWithText(text).within(container).fetchAll<Component>()
+            val matches =
+                onAllNodesWithText(text)
+                    .fetchAll<Component>()
+                    .filter { SwingUtilities.isDescendingFrom(it, container) }
             val child =
                 matches.singleOrNull()
                     ?: throw AssertionError(

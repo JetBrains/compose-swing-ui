@@ -1,9 +1,9 @@
 package org.jetbrains.compose.swing.samples.todo
 
+import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.SwingMatcher
-import org.jetbrains.compose.swing.test.SwingUiTest
 import org.jetbrains.compose.swing.test.onNodeOfType
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImageMatches
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import javax.swing.JButton
@@ -29,7 +29,7 @@ import kotlin.test.assertTrue
 class ReactiveTaskListTest {
     @Test
     fun theSummaryAndProgressBarReflectTheInitialState() =
-        runSwingUiTest {
+        runComposeSwingTest {
             setContent { ReactiveTaskList() }
 
             onNodeWithText("2 of 4 done").assertExists()
@@ -40,7 +40,7 @@ class ReactiveTaskListTest {
 
     @Test
     fun completingATaskUpdatesTheDerivedSummaryAndProgress() =
-        runSwingUiTest {
+        runComposeSwingTest {
             setContent { ReactiveTaskList() }
 
             // Toggle the third task (id 3), which starts incomplete: the derived summary and the bar move
@@ -54,7 +54,7 @@ class ReactiveTaskListTest {
 
     @Test
     fun theAddButtonIsDisabledUntilTheDraftIsNonBlank() =
-        runSwingUiTest {
+        runComposeSwingTest {
             setContent { ReactiveTaskList() }
 
             onAddButton().assertIsNotEnabled()
@@ -65,7 +65,7 @@ class ReactiveTaskListTest {
 
     @Test
     fun addingATaskInsertsAKeyedRowAndGrowsTheTotal() =
-        runSwingUiTest {
+        runComposeSwingTest {
             setContent { ReactiveTaskList() }
 
             // The fixture seeds ids 1..4, so a freshly added task takes id 5: a new keyed row appears and
@@ -86,7 +86,7 @@ class ReactiveTaskListTest {
 
     @Test
     fun removingATaskDropsItsRowFromTheTreeAndShrinksTheTotal() =
-        runSwingUiTest {
+        runComposeSwingTest {
             setContent { ReactiveTaskList() }
 
             onNodeWithTag(taskRowTag(2)).assertExists()
@@ -101,7 +101,7 @@ class ReactiveTaskListTest {
 
     @Test
     fun aTaskRowRendersToAStableBitmapScreenshotTest() =
-        runSwingUiTest {
+        runComposeSwingTest {
             setContent { ReactiveTaskList() }
 
             // Screenshot testing the sample: capture a tagged subtree as a real bitmap, then assert
@@ -121,7 +121,7 @@ class ReactiveTaskListTest {
 
     @Test
     fun aTaskRowKeepsAFixedHeightRegardlessOfTaskCount() =
-        runSwingUiTest {
+        runComposeSwingTest {
             setContent { ReactiveTaskList() }
 
             // A fixed-height row pins its maximum height to its preferred height, so a vertical
@@ -148,7 +148,7 @@ class ReactiveTaskListTest {
 
     @Test
     fun renamingOneRowLeavesTheOtherRowsUntouched() =
-        runSwingUiTest {
+        runComposeSwingTest {
             setContent { ReactiveTaskList() }
 
             val otherTitleBefore = onNodeWithTag(taskTitleTag(1)).fetch<JTextField>().text
@@ -169,7 +169,7 @@ class ReactiveTaskListTest {
 }
 
 /** The add-a-task text field, located by its accessible name rather than a test tag. */
-private fun SwingUiTest.onAddField() = onNode(SwingMatcher.hasAccessibleName("New task"))
+private fun ComposeSwingTest.onAddField() = onNode(SwingMatcher.hasAccessibleName("New task"))
 
 /** The add button, located by its visible label and button type rather than a test tag. */
-private fun SwingUiTest.onAddButton() = onNode(SwingMatcher.hasText("Add") and SwingMatcher.isOfType<JButton>())
+private fun ComposeSwingTest.onAddButton() = onNode(SwingMatcher.hasText("Add") and SwingMatcher.isOfType<JButton>())

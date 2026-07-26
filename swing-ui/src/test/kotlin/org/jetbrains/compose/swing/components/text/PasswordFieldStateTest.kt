@@ -2,7 +2,7 @@ package org.jetbrains.compose.swing.components.text
 
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.onNodeOfType
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JPasswordField
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -16,7 +16,7 @@ import kotlin.test.assertSame
  */
 class PasswordFieldStateTest {
     @Test
-    fun fieldSharesTheStateDocument() = runSwingUiTest {
+    fun fieldSharesTheStateDocument() = runComposeSwingTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState("seed")
@@ -28,7 +28,7 @@ class PasswordFieldStateTest {
     }
 
     @Test
-    fun stateTextAndEditUpdateTheField() = runSwingUiTest {
+    fun stateTextAndEditUpdateTheField() = runComposeSwingTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState("ab")
@@ -48,7 +48,7 @@ class PasswordFieldStateTest {
     }
 
     @Test
-    fun typingIntoFieldUpdatesStateText() = runSwingUiTest {
+    fun typingIntoFieldUpdatesStateText() = runComposeSwingTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState()
@@ -63,7 +63,7 @@ class PasswordFieldStateTest {
     }
 
     @Test
-    fun settingSelectionMovesTheCaret() = runSwingUiTest {
+    fun settingSelectionMovesTheCaret() = runComposeSwingTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState("hello world")
@@ -79,7 +79,7 @@ class PasswordFieldStateTest {
     }
 
     @Test
-    fun echoCharAppliesToTheField() = runSwingUiTest {
+    fun echoCharAppliesToTheField() = runComposeSwingTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState("hidden")
@@ -91,7 +91,7 @@ class PasswordFieldStateTest {
     }
 
     @Test
-    fun columnsApplyToTheField() = runSwingUiTest {
+    fun columnsApplyToTheField() = runComposeSwingTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState()

@@ -11,9 +11,9 @@ import javax.swing.JTextField
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-class SwingUiTestSmokeTest {
+class ComposeSwingTestSmokeTest {
     @Test
-    fun clickRecomposesAndUpdatesLabel() = runSwingUiTest {
+    fun clickRecomposesAndUpdatesLabel() = runComposeSwingTest {
         val count = mutableIntStateOf(0)
         setContent {
             Button(text = "Increment", onClick = { count.value++ })
@@ -30,7 +30,7 @@ class SwingUiTestSmokeTest {
     }
 
     @Test
-    fun textInputDrivesState() = runSwingUiTest {
+    fun textInputDrivesState() = runComposeSwingTest {
         var current = "start"
         val value = mutableStateOf("start")
         setContent {
@@ -46,7 +46,7 @@ class SwingUiTestSmokeTest {
     }
 
     @Test
-    fun bordersExposeConstraints() = runSwingUiTest {
+    fun bordersExposeConstraints() = runComposeSwingTest {
         setContent {
             BorderPanel {
                 north { Label(text = "N") }
@@ -59,7 +59,7 @@ class SwingUiTestSmokeTest {
     }
 
     @Test
-    fun collectionCountAndType() = runSwingUiTest {
+    fun collectionCountAndType() = runComposeSwingTest {
         setContent {
             Label(text = "dup")
             Label(text = "dup")
@@ -71,7 +71,7 @@ class SwingUiTestSmokeTest {
     }
 
     @Test
-    fun clickShowsStateThroughDeterministicIdle() = runSwingUiTest {
+    fun clickShowsStateThroughDeterministicIdle() = runComposeSwingTest {
         val ready = mutableStateOf(false)
         setContent {
             Button(text = "go", onClick = { ready.value = true })
@@ -85,7 +85,7 @@ class SwingUiTestSmokeTest {
     }
 
     @Test
-    fun waitUntilEscapeHatchObservesRecomposedState() = runSwingUiTest {
+    fun waitUntilEscapeHatchObservesRecomposedState() = runComposeSwingTest {
         val ready = mutableStateOf(false)
         setContent {
             Button(text = "go", onClick = { ready.value = true })
@@ -99,7 +99,7 @@ class SwingUiTestSmokeTest {
     }
 
     @Test
-    fun textFieldIsOfType() = runSwingUiTest {
+    fun textFieldIsOfType() = runComposeSwingTest {
         setContent { TextField(value = "x") }
         val matches = root.findMatching(SwingMatcher.isOfType<JTextField>())
         assertEquals(1, matches.size)

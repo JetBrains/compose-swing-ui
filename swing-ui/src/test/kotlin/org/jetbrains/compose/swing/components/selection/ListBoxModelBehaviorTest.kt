@@ -5,7 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.onNodeOfType
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.DefaultListModel
 import javax.swing.JList
 import kotlin.test.Test
@@ -20,7 +20,7 @@ import kotlin.test.assertSame
  */
 class ListBoxModelBehaviorTest {
     @Test
-    fun callerModelIsInstalledAsIs() = runSwingUiTest {
+    fun callerModelIsInstalledAsIs() = runComposeSwingTest {
         val model = DefaultListModel<String>().apply { addAll(listOf("a", "b", "c")) }
         setContent { ListBox(model = model) }
 
@@ -30,7 +30,7 @@ class ListBoxModelBehaviorTest {
     }
 
     @Test
-    fun settledSelectionChangeFiresOnSelectionChange() = runSwingUiTest {
+    fun settledSelectionChangeFiresOnSelectionChange() = runComposeSwingTest {
         val model = DefaultListModel<String>().apply { addAll(listOf("a", "b", "c")) }
         val events = mutableListOf<List<Int>>()
         setContent { ListBox(model = model, onSelectionChange = { events += it }) }
@@ -49,7 +49,7 @@ class ListBoxModelBehaviorTest {
     }
 
     @Test
-    fun selectedIndicesReAppliedAfterModelSwap() = runSwingUiTest {
+    fun selectedIndicesReAppliedAfterModelSwap() = runComposeSwingTest {
         val first = DefaultListModel<String>().apply { addAll(listOf("a", "b", "c")) }
         val second = DefaultListModel<String>().apply { addAll(listOf("a", "b", "c", "d")) }
         var model by mutableStateOf(first)
@@ -74,7 +74,7 @@ class ListBoxModelBehaviorTest {
     }
 
     @Test
-    fun reApplyingTheSameControlledSelectionDoesNotEcho() = runSwingUiTest {
+    fun reApplyingTheSameControlledSelectionDoesNotEcho() = runComposeSwingTest {
         val model = DefaultListModel<String>().apply { addAll(listOf("a", "b", "c")) }
         val reported = mutableListOf<List<Int>>()
         var trigger by mutableStateOf(0)

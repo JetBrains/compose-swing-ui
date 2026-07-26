@@ -6,9 +6,9 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.test.SwingUiTest
+import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.onNodeOfType
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JButton
 import javax.swing.JToolBar
 import javax.swing.SwingConstants
@@ -23,10 +23,10 @@ import kotlin.test.assertTrue
  * or removed in the composition appear and disappear from the tool bar.
  */
 class ToolBarBehaviorTest {
-    private fun SwingUiTest.toolBar(): JToolBar = onNodeOfType<JToolBar>().fetch()
+    private fun ComposeSwingTest.toolBar(): JToolBar = onNodeOfType<JToolBar>().fetch()
 
     @Test
-    fun declaredItemsBecomeToolBarChildrenInOrder() = runSwingUiTest {
+    fun declaredItemsBecomeToolBarChildrenInOrder() = runComposeSwingTest {
         setContent {
             ToolBar {
                 Button(text = "New", onClick = {})
@@ -40,7 +40,7 @@ class ToolBarBehaviorTest {
     }
 
     @Test
-    fun orientationMapsThrough() = runSwingUiTest {
+    fun orientationMapsThrough() = runComposeSwingTest {
         var orientation by mutableStateOf(SwingConstants.HORIZONTAL)
         setContent {
             ToolBar(orientation = orientation) {
@@ -57,7 +57,7 @@ class ToolBarBehaviorTest {
     }
 
     @Test
-    fun floatableMapsThrough() = runSwingUiTest {
+    fun floatableMapsThrough() = runComposeSwingTest {
         var floatable by mutableStateOf(true)
         setContent {
             ToolBar(floatable = floatable) {
@@ -74,7 +74,7 @@ class ToolBarBehaviorTest {
     }
 
     @Test
-    fun itemsAddedAndRemovedInCompositionAppearAndDisappear() = runSwingUiTest {
+    fun itemsAddedAndRemovedInCompositionAppearAndDisappear() = runComposeSwingTest {
         var showSecond by mutableStateOf(false)
         setContent {
             ToolBar {

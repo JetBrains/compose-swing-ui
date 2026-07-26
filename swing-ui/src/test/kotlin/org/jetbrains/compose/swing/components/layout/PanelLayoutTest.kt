@@ -7,7 +7,7 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.BorderLayout
 import java.awt.CardLayout
 import java.awt.FlowLayout
@@ -30,7 +30,7 @@ class PanelLayoutTest {
     private fun JPanel.childNames(): List<String?> = components.map { it.name }
 
     @Test
-    fun panelUsesProvidedLayoutManagerAndHostsChildren() = runSwingUiTest {
+    fun panelUsesProvidedLayoutManagerAndHostsChildren() = runComposeSwingTest {
         setContent {
             Panel(modifier = SwingModifier.name("p"), layout = BorderLayout()) {
                 Label("only", modifier = SwingModifier.name("child"))
@@ -43,7 +43,7 @@ class PanelLayoutTest {
     }
 
     @Test
-    fun flowPanelUsesFlowLayoutAndHostsChildrenInOrder() = runSwingUiTest {
+    fun flowPanelUsesFlowLayoutAndHostsChildrenInOrder() = runComposeSwingTest {
         setContent {
             FlowPanel(modifier = SwingModifier.name("fp")) {
                 Label("a", modifier = SwingModifier.name("a"))
@@ -56,7 +56,7 @@ class PanelLayoutTest {
     }
 
     @Test
-    fun boxPanelUsesBoxLayout() = runSwingUiTest {
+    fun boxPanelUsesBoxLayout() = runComposeSwingTest {
         setContent {
             BoxPanel(modifier = SwingModifier.name("bp"), axis = BoxLayout.X_AXIS) {
                 Label("a", modifier = SwingModifier.name("a"))
@@ -68,7 +68,7 @@ class PanelLayoutTest {
     }
 
     @Test
-    fun gridPanelUsesGridLayout() = runSwingUiTest {
+    fun gridPanelUsesGridLayout() = runComposeSwingTest {
         setContent {
             GridPanel(modifier = SwingModifier.name("gp"), rows = 2, cols = 2) {
                 Label("a", modifier = SwingModifier.name("a"))
@@ -81,7 +81,7 @@ class PanelLayoutTest {
     }
 
     @Test
-    fun gridBagPanelUsesGridBagLayout() = runSwingUiTest {
+    fun gridBagPanelUsesGridBagLayout() = runComposeSwingTest {
         setContent {
             GridBagPanel(modifier = SwingModifier.name("gbp")) {
                 Label("a", modifier = SwingModifier.name("a"))
@@ -93,7 +93,7 @@ class PanelLayoutTest {
     }
 
     @Test
-    fun cardPanelUsesCardLayout() = runSwingUiTest {
+    fun cardPanelUsesCardLayout() = runComposeSwingTest {
         setContent {
             CardPanel(modifier = SwingModifier.name("cp")) {
                 Label("a", modifier = SwingModifier.name("a"))
@@ -105,7 +105,7 @@ class PanelLayoutTest {
     }
 
     @Test
-    fun panelAddsAndRemovesChildrenAcrossRecomposition() = runSwingUiTest {
+    fun panelAddsAndRemovesChildrenAcrossRecomposition() = runComposeSwingTest {
         var showSecond by mutableStateOf(false)
         setContent {
             FlowPanel(modifier = SwingModifier.name("fp")) {
@@ -146,7 +146,7 @@ class PanelLayoutTest {
     }
 
     @Test
-    fun nestedPanelsHostTheirOwnChildren() = runSwingUiTest {
+    fun nestedPanelsHostTheirOwnChildren() = runComposeSwingTest {
         setContent {
             BoxPanel(modifier = SwingModifier.name("outer"), axis = BoxLayout.Y_AXIS) {
                 FlowPanel(modifier = SwingModifier.name("inner")) {

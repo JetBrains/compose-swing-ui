@@ -7,8 +7,8 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.test.SwingUiTest
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
 import java.awt.event.MouseEvent
 import javax.swing.JLabel
@@ -33,7 +33,7 @@ class PointerEventModifierTest {
         MouseEvent(component, MouseEvent.MOUSE_CLICKED, 0L, 0, 11, 13, 1, false, MouseEvent.BUTTON1)
 
     /** Delivers [event] to every `MouseListener` registered on [component], as Swing's dispatch does. */
-    private fun SwingUiTest.dispatch(
+    private fun ComposeSwingTest.dispatch(
         component: Component,
         event: MouseEvent,
     ) {
@@ -47,7 +47,7 @@ class PointerEventModifierTest {
     }
 
     @Test
-    fun pressReleaseAndClickCallbacksFireWithTheDeliveredEvent() = runSwingUiTest {
+    fun pressReleaseAndClickCallbacksFireWithTheDeliveredEvent() = runComposeSwingTest {
         val pressed = mutableListOf<MouseEvent>()
         val released = mutableListOf<MouseEvent>()
         val clicked = mutableListOf<MouseEvent>()
@@ -82,7 +82,7 @@ class PointerEventModifierTest {
     }
 
     @Test
-    fun callbacksStopFiringAfterTheModifierLeavesTheChain() = runSwingUiTest {
+    fun callbacksStopFiringAfterTheModifierLeavesTheChain() = runComposeSwingTest {
         var enabled by mutableStateOf(true)
         val pressed = mutableListOf<MouseEvent>()
         setContent {

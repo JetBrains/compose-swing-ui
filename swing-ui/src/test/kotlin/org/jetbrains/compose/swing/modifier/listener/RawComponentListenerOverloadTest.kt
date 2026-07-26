@@ -22,7 +22,7 @@ import org.jetbrains.compose.swing.components.text.TextPane
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.test.runSwingUiTest
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.event.ActionListener
 import java.beans.PropertyChangeListener
 import javax.swing.JButton
@@ -74,35 +74,35 @@ class RawComponentListenerOverloadTest {
     }
 
     @Test
-    fun buttonActionListenerOverloadRegistersInstance() = runSwingUiTest {
+    fun buttonActionListenerOverloadRegistersInstance() = runComposeSwingTest {
         val listener = ActionListener { }
         setContent { Button("X", actionListener = listener, modifier = SwingModifier.name("b")) }
         assertTrue(onNodeWithName("b").fetch<JButton>().actionListeners.any { it === listener })
     }
 
     @Test
-    fun checkBoxActionListenerOverloadRegistersInstance() = runSwingUiTest {
+    fun checkBoxActionListenerOverloadRegistersInstance() = runComposeSwingTest {
         val listener = ActionListener { }
         setContent { CheckBox("X", actionListener = listener, modifier = SwingModifier.name("c")) }
         assertTrue(onNodeWithName("c").fetch<JCheckBox>().actionListeners.any { it === listener })
     }
 
     @Test
-    fun radioButtonActionListenerOverloadRegistersInstance() = runSwingUiTest {
+    fun radioButtonActionListenerOverloadRegistersInstance() = runComposeSwingTest {
         val listener = ActionListener { }
         setContent { RadioButton("X", actionListener = listener, modifier = SwingModifier.name("r")) }
         assertTrue(onNodeWithName("r").fetch<JRadioButton>().actionListeners.any { it === listener })
     }
 
     @Test
-    fun toggleButtonActionListenerOverloadRegistersInstance() = runSwingUiTest {
+    fun toggleButtonActionListenerOverloadRegistersInstance() = runComposeSwingTest {
         val listener = ActionListener { }
         setContent { ToggleButton("X", actionListener = listener, modifier = SwingModifier.name("t")) }
         assertTrue(onNodeWithName("t").fetch<JToggleButton>().actionListeners.any { it === listener })
     }
 
     @Test
-    fun comboBoxActionListenerOverloadRegistersInstance() = runSwingUiTest {
+    fun comboBoxActionListenerOverloadRegistersInstance() = runComposeSwingTest {
         val listener = ActionListener { }
         setContent {
             ComboBox(items = listOf("a", "b"), actionListener = listener, modifier = SwingModifier.name("cb"))
@@ -111,14 +111,14 @@ class RawComponentListenerOverloadTest {
     }
 
     @Test
-    fun sliderChangeListenerOverloadRegistersInstance() = runSwingUiTest {
+    fun sliderChangeListenerOverloadRegistersInstance() = runComposeSwingTest {
         val listener = ChangeListener { }
         setContent { Slider(value = 5, changeListener = listener, modifier = SwingModifier.name("s")) }
         assertTrue(onNodeWithName("s").fetch<JSlider>().changeListeners.any { it === listener })
     }
 
     @Test
-    fun spinnerChangeListenerOverloadRegistersInstance() = runSwingUiTest {
+    fun spinnerChangeListenerOverloadRegistersInstance() = runComposeSwingTest {
         val listener = ChangeListener { }
         setContent {
             Spinner(
@@ -131,7 +131,7 @@ class RawComponentListenerOverloadTest {
     }
 
     @Test
-    fun tabbedPaneChangeListenerOverloadRegistersInstance() = runSwingUiTest {
+    fun tabbedPaneChangeListenerOverloadRegistersInstance() = runComposeSwingTest {
         val listener = ChangeListener { }
         setContent {
             TabbedPane(selectedIndex = 0, changeListener = listener, modifier = SwingModifier.name("tp")) {
@@ -142,7 +142,7 @@ class RawComponentListenerOverloadTest {
     }
 
     @Test
-    fun splitPaneDividerListenerOverloadRegistersInstance() = runSwingUiTest {
+    fun splitPaneDividerListenerOverloadRegistersInstance() = runComposeSwingTest {
         val listener = PropertyChangeListener { }
         setContent {
             SplitPane(dividerLocationListener = listener, modifier = SwingModifier.name("sp")) {
@@ -157,7 +157,7 @@ class RawComponentListenerOverloadTest {
     }
 
     @Test
-    fun tableListSelectionListenerOverloadRegistersInstance() = runSwingUiTest {
+    fun tableListSelectionListenerOverloadRegistersInstance() = runComposeSwingTest {
         val listener = ListSelectionListener { }
         setContent {
             ScrollPane {
@@ -178,7 +178,7 @@ class RawComponentListenerOverloadTest {
     }
 
     @Test
-    fun treeSelectionListenerOverloadRegistersInstance() = runSwingUiTest {
+    fun treeSelectionListenerOverloadRegistersInstance() = runComposeSwingTest {
         val listener = TreeSelectionListener { }
         setContent {
             ScrollPane {
@@ -196,7 +196,7 @@ class RawComponentListenerOverloadTest {
     }
 
     @Test
-    fun listBoxSelectionListenerOverloadRegistersInstance() = runSwingUiTest {
+    fun listBoxSelectionListenerOverloadRegistersInstance() = runComposeSwingTest {
         val listener = ListSelectionListener { }
         setContent {
             ScrollPane {
@@ -213,7 +213,7 @@ class RawComponentListenerOverloadTest {
     }
 
     @Test
-    fun formattedTextFieldValueListenerOverloadRegistersInstance() = runSwingUiTest {
+    fun formattedTextFieldValueListenerOverloadRegistersInstance() = runComposeSwingTest {
         val listener = PropertyChangeListener { }
         setContent {
             FormattedTextField(
@@ -227,21 +227,21 @@ class RawComponentListenerOverloadTest {
     }
 
     @Test
-    fun textFieldDocumentListenerOverloadRegistersInstance() = runSwingUiTest {
+    fun textFieldDocumentListenerOverloadRegistersInstance() = runComposeSwingTest {
         val listener = docListener()
         setContent { TextField("hi", documentListener = listener, modifier = SwingModifier.name("tf")) }
         assertTrue(onNodeWithName("tf").fetch<JTextField>().documentHas(listener))
     }
 
     @Test
-    fun textAreaDocumentListenerOverloadRegistersInstance() = runSwingUiTest {
+    fun textAreaDocumentListenerOverloadRegistersInstance() = runComposeSwingTest {
         val listener = docListener()
         setContent { TextArea("hi", documentListener = listener, modifier = SwingModifier.name("ta")) }
         assertTrue(onNodeWithName("ta").fetch<JTextArea>().documentHas(listener))
     }
 
     @Test
-    fun passwordFieldDocumentListenerOverloadRegistersInstance() = runSwingUiTest {
+    fun passwordFieldDocumentListenerOverloadRegistersInstance() = runComposeSwingTest {
         val listener = docListener()
         setContent {
             PasswordField(
@@ -254,14 +254,14 @@ class RawComponentListenerOverloadTest {
     }
 
     @Test
-    fun editorPaneDocumentListenerOverloadRegistersInstance() = runSwingUiTest {
+    fun editorPaneDocumentListenerOverloadRegistersInstance() = runComposeSwingTest {
         val listener = docListener()
         setContent { EditorPane("hi", documentListener = listener, modifier = SwingModifier.name("ep")) }
         assertTrue(onNodeWithName("ep").fetch<JEditorPane>().documentHas(listener))
     }
 
     @Test
-    fun textPaneDocumentListenerOverloadRegistersInstance() = runSwingUiTest {
+    fun textPaneDocumentListenerOverloadRegistersInstance() = runComposeSwingTest {
         val listener = docListener()
         setContent { TextPane("hi", documentListener = listener, modifier = SwingModifier.name("tpane")) }
         assertTrue(onNodeWithName("tpane").fetch<JTextPane>().documentHas(listener))
