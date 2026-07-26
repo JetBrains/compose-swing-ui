@@ -59,6 +59,23 @@ class ComboBoxSelectionFeedbackTest {
     }
 
     @Test
+    fun aChoiceTheCallerDoesNotAdoptDoesNotStand() = runComposeSwingTest {
+        val selection = 0
+        setContent {
+            ComboBox(items = listOf("red", "green", "blue"), selectedIndex = selection)
+        }
+
+        val combo = onNodeOfType<JComboBox<*>>().fetch()
+
+        // Choosing an item from the popup reaches the combo box the same way; with no
+        // onSelectionChange to adopt it, the choice does not stand past the settle awaitIdle drives.
+        combo.selectedIndex = 2
+        awaitIdle()
+
+        assertEquals(0, combo.selectedIndex, "a choice the caller does not adopt does not stand")
+    }
+
+    @Test
     fun anItemsChangeReAppliesTheDeclaredSelectionSilently() = runComposeSwingTest {
         val items = mutableStateListOf("red", "green", "blue")
         val received = mutableListOf<Int>()
@@ -109,7 +126,7 @@ class ComboBoxSelectionFeedbackTest {
     }
 
     @Test
-    fun aDeclaredSelectionOutOfRangeReportsNothing() = runComposeSwingTest {
+    fun aDeclaredSelectionOfMinusOneReportsNothing() = runComposeSwingTest {
         var selection by mutableStateOf(1)
         val received = mutableListOf<Int>()
         setContent {
@@ -123,6 +140,7 @@ class ComboBoxSelectionFeedbackTest {
         val combo = onNodeOfType<JComboBox<*>>().fetch()
         received.clear()
 
+        // `-1` is JSwing's own sentinel for no selection, not an index the items fail to cover.
         selection = -1
         awaitIdle()
 
@@ -131,7 +149,54 @@ class ComboBoxSelectionFeedbackTest {
     }
 
     @Test
-    fun aDeclaredSelectionChangeReachesNoRawActionListener() = runComposeSwingTest {
+    fun aDeclaredSelectionPastTheLastItemReportsNothing() = runComposeSwingTest {
+        var selection by mutableStateOf(1)
+        val received = mutableListOf<Int>()
+        setContent {
+            ComboBox(
+                items = listOf("red", "green", "blue"),
+                selectedIndex = selection,
+                onSelectionChange = { received += it },
+            )
+        }
+
+        val combo = onNodeOfType<JComboBox<*>>().fetch()
+        received.clear()
+
+        // Three items cover indices 0..2; declaring the index one past the last one is out of range.
+        selection = 3
+        awaitIdle()
+
+        assertEquals(-1, combo.selectedIndex, "a selection past the last item selects nothing")
+        assertEquals(emptyList(), received, "coercing an out-of-range selection reported itself back")
+    }
+
+    @Test
+    fun itemsShrinkingBelowTheDeclaredSelectionReportsNothing() = runComposeSwingTest {
+        val items = mutableStateListOf("red", "green", "blue")
+        val received = mutableListOf<Int>()
+        setContent {
+            ComboBox(
+                items = items.toList(),
+                selectedIndex = 2,
+                onSelectionChange = { received += it },
+            )
+        }
+
+        val combo = onNodeOfType<JComboBox<*>>().fetch()
+        received.clear()
+
+        // The declared index (2) named the last item; removing it leaves the declaration out of range.
+        items.removeAt(items.lastIndex)
+        awaitIdle()
+
+        assertEquals(2, combo.itemCount, "the removed item leaves the combo box")
+        assertEquals(-1, combo.selectedIndex, "a selection the shrunk items no longer cover selects nothing")
+        assertEquals(emptyList(), received, "the items change reported a selection change")
+    }
+
+    @Test
+    fun theRawActionListenerHearsADeclaredSelectionChangeAndItsReassertion() = runComposeSwingTest {
         var selection by mutableStateOf(0)
         val received = mutableListOf<Int>()
         val listener = ActionListener { event -> received += (event.source as JComboBox<*>).selectedIndex }
@@ -150,12 +215,18 @@ class ComboBoxSelectionFeedbackTest {
         awaitIdle()
 
         assertEquals(2, combo.selectedIndex, "the declared selection reaches the combo box")
-        assertEquals(emptyList(), received, "a declared selection change reached the raw listener")
+        assertEquals(listOf(2), received, "the raw listener hears the declared selection change like any other")
 
         combo.selectedIndex = 1
         awaitIdle()
 
-        assertEquals(listOf(1), received, "the user's choice after a declared write should reach the raw listener")
+        // With no `onSelectionChange` to adopt it, the user's direct choice loses to the still-declared
+        // index, which gets written back onto the combo box - a raw listener hears that write too.
+        assertEquals(
+            listOf(2, 1, 2),
+            received,
+            "the raw listener hears the user's choice and the wrapper's reassertion of the declared index",
+        )
     }
 
     @Test
@@ -195,7 +266,7 @@ class ComboBoxSelectionFeedbackTest {
     }
 
     @Test
-    fun aDeclaredSelectionChangeReachesNoRawActionListenerAsACommit() = runComposeSwingTest {
+    fun theRawActionListenerHearsADeclaredSelectionChangeAsACommitAndItsReassertion() = runComposeSwingTest {
         var selection by mutableStateOf(0)
         val commands = mutableListOf<String>()
         val listener = ActionListener { event: ActionEvent -> commands += event.actionCommand }
@@ -214,7 +285,7 @@ class ComboBoxSelectionFeedbackTest {
         selection = 2
         awaitIdle()
 
-        assertEquals(emptyList(), commands, "a declared selection change reached the raw listener")
+        assertEquals(listOf("comboBoxChanged"), commands, "the raw listener hears the declared selection change")
 
         val editor = combo.editor.editorComponent as JTextField
         editor.text = "purple"
@@ -222,11 +293,12 @@ class ComboBoxSelectionFeedbackTest {
         awaitIdle()
 
         // A commit moves the selection and then reports itself, so one gesture reaches a raw listener as
-        // both events a `JComboBox` publishes for it.
+        // both events a `JComboBox` publishes for it. With no `onSelectionChange` to adopt the commit,
+        // the still-declared index then gets written back too, and the raw listener hears that as well.
         assertEquals(
-            listOf("comboBoxChanged", "comboBoxEdited"),
+            listOf("comboBoxChanged", "comboBoxChanged", "comboBoxEdited", "comboBoxChanged"),
             commands,
-            "the user's commit should reach the raw listener",
+            "the user's commit and the wrapper's reassertion of the declared index both reach the raw listener",
         )
     }
 }

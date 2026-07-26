@@ -537,14 +537,21 @@ public final class org/jetbrains/compose/swing/modifier/interaction/ComposableSi
 	public final fun getLambda$-1490484271$swing_ui ()Lkotlin/jvm/functions/Function2;
 }
 
+public final class org/jetbrains/compose/swing/modifier/interaction/FocusRequester {
+	public static final field $stable I
+	public final fun requestFocus ()Z
+}
+
 public final class org/jetbrains/compose/swing/modifier/interaction/InteractionModifiersKt {
 	public static final fun contextMenu (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;I)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun defaultButton (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Z)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static synthetic fun defaultButton$default (Lorg/jetbrains/compose/swing/modifier/SwingModifier;ZILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun documentFilter (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljavax/swing/text/DocumentFilter;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun enabled (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Z)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun focusRequester (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/modifier/interaction/FocusRequester;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun focusTraversalIndex (Lorg/jetbrains/compose/swing/modifier/SwingModifier;I)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun focusable (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Z)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun inputVerifier (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function0;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun onAccept (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function0;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun onFocus (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static synthetic fun onFocus$default (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
@@ -553,6 +560,8 @@ public final class org/jetbrains/compose/swing/modifier/interaction/InteractionM
 	public static final fun onPointerEvent (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static synthetic fun onPointerEvent$default (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun orderedFocusTraversal (Lorg/jetbrains/compose/swing/modifier/SwingModifier;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun rememberFocusRequester (Landroidx/compose/runtime/Composer;I)Lorg/jetbrains/compose/swing/modifier/interaction/FocusRequester;
+	public static final fun verifyInputWhenFocusTarget (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Z)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 }
 
 public final class org/jetbrains/compose/swing/modifier/keyboard/KeyboardModifiersKt {
@@ -587,6 +596,8 @@ public final class org/jetbrains/compose/swing/modifier/layout/LayoutModifiersKt
 
 public final class org/jetbrains/compose/swing/modifier/listener/ListenerModifiersKt {
 	public static final fun actionListener (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/awt/event/ActionListener;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun adjustmentListener (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/awt/event/AdjustmentListener;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun caretListener (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljavax/swing/event/CaretListener;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun changeListener (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljavax/swing/event/ChangeListener;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun componentListener (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/awt/event/ComponentListener;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun containerListener (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/awt/event/ContainerListener;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;

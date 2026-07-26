@@ -15,9 +15,12 @@ import org.jetbrains.compose.swing.components.selection.rememberComposingListCel
 import org.jetbrains.compose.swing.declare
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
+import org.jetbrains.compose.swing.modifier.listener.actionListener
 import org.jetbrains.compose.swing.modifier.listener.listener
 import org.jetbrains.compose.swing.rememberAppliedValue
 import java.awt.event.ActionListener
+import java.awt.event.ItemEvent
+import java.awt.event.ItemListener
 import java.util.Vector
 import javax.swing.ComboBoxModel
 import javax.swing.DefaultComboBoxModel
@@ -57,28 +60,30 @@ public fun <T> ComboBox(
     maximumRowCount: Int = 8,
     itemContent: (@Composable ListItemScope.(item: T) -> Unit)? = null,
 ) {
-    ComboBox(
-        items = items,
-        actionListener = rememberSelectionListener(onSelectionChange, onValueCommit),
-        selectedIndex = selectedIndex,
-        modifier = modifier,
+    val applied = rememberAppliedValue(selectedIndex)
+    val listener = rememberSelectionListener(applied, onSelectionChange, onValueCommit)
+    ComboBoxNode(
+        modifier = modifier.actionListener(listener),
         editable = editable,
         maximumRowCount = maximumRowCount,
         itemContent = itemContent,
-    )
+    ) {
+        installItems(items, selectedIndex, applied)
+    }
 }
 
 /**
  * A `ComboBox` driven by a raw [ActionListener] instead of an `onSelectionChange` lambda. The
- * [actionListener] is notified of the user's choices only, and is removed on the same instance; pass a
- * stable instance (e.g. `remember {}`) to avoid churn. [selectedIndex] is declared, applied and re-asserted
- * as on the `onSelectionChange`-driven overload.
+ * [actionListener] is attached as-is and removed on the same instance; pass a stable instance
+ * (e.g. `remember {}`) to avoid churn. Being attached as-is, it is notified of every action event the
+ * combo box fires, including the one that applies [selectedIndex]. [selectedIndex] is declared, applied
+ * and re-asserted as on the `onSelectionChange`-driven overload.
  *
  * By default each item renders its `toString`; supply [itemContent] to render an arbitrary composable
  * cell per item against a [ListItemScope].
  *
  * @param items the list of items to display
- * @param actionListener the listener notified of the user's choices
+ * @param actionListener the listener notified of every action event the combo box fires
  * @param selectedIndex the index of the selected item; `-1` selects nothing
  * @param modifier the [SwingModifier] applied to the underlying component
  * @param editable whether the user can type a value into the combo box's editor; `false` by default.
@@ -99,23 +104,31 @@ public fun <T> ComboBox(
     itemContent: (@Composable ListItemScope.(item: T) -> Unit)? = null,
 ) {
     val applied = rememberAppliedValue(selectedIndex)
+    // The caller's listener is attached as-is, and is the only action listener on the combo box. The
+    // mirror rides the item-selection channel instead, so the declared selection still settles against
+    // wherever the combo box lands, whether that is the user's own choice or the caller's own write back.
+    val mirror =
+        remember(applied) {
+            ItemListener { event ->
+                if (event.stateChange == ItemEvent.SELECTED) {
+                    applied.observed((event.source as JComboBox<*>).selectedIndex)
+                }
+            }
+        }
     ComboBoxNode(
-        actionListener = actionListener,
-        applied = applied,
-        modifier = modifier,
+        modifier =
+            modifier
+                .actionListener(actionListener)
+                .listener<JComboBox<*>, ItemListener>(
+                    mirror,
+                    { c, l -> c.addItemListener(l) },
+                    { c, l -> c.removeItemListener(l) },
+                ),
         editable = editable,
         maximumRowCount = maximumRowCount,
         itemContent = itemContent,
     ) {
-        set(items) { newItems ->
-            // A prebuilt model already carrying the declared selection swaps in silently
-            // (setModel fires no action event); mutating the live model instead would echo the
-            // transient deselection and first-item auto-selection through the action listener.
-            val newModel = DefaultComboBoxModel(Vector(newItems))
-            newModel.selectedItem = newItems.getOrNull(selectedIndex)
-            this.model = newModel
-        }
-        declare(selectedIndex, applied, read = { this.selectedIndex }, write = { applySelection(this, it) })
+        installItems(items, selectedIndex, applied)
     }
 }
 
@@ -151,7 +164,7 @@ public fun <T> ComboBox(
 ) {
     ComboBox(
         model = model,
-        actionListener = rememberSelectionListener(onSelectionChange, onValueCommit),
+        actionListener = rememberSelectionListener(null, onSelectionChange, onValueCommit),
         modifier = modifier,
         editable = editable,
         maximumRowCount = maximumRowCount,
@@ -161,15 +174,15 @@ public fun <T> ComboBox(
 
 /**
  * A model-driven `ComboBox` driven by a raw [ActionListener] instead of an `onSelectionChange` lambda.
- * The [model] owns its items and selection and is never mutated by the library; the [actionListener]
- * is notified of the user's choices only, and is removed on the same instance, so pass a stable instance
- * (e.g. `remember {}`) to avoid churn. Swapping the [model] instance installs the new model verbatim.
+ * The [model] owns its items and selection and is never mutated by the library. The [actionListener] is
+ * attached as-is and removed on the same instance; pass a stable instance (e.g. `remember {}`) to avoid
+ * churn. Swapping the [model] instance installs the new model verbatim.
  *
  * By default each item renders its `toString`; supply [itemContent] to render an arbitrary composable
  * cell per item against a [ListItemScope].
  *
  * @param model the combo box model to render; owns its items and selection
- * @param actionListener the listener notified of the user's choices
+ * @param actionListener the listener notified of every action event the combo box fires
  * @param modifier the [SwingModifier] applied to the underlying component
  * @param editable whether the user can type a value into the combo box's editor; `false` by default.
  *   An editor commit reaches [actionListener] under the `"comboBoxEdited"` action command, carrying
@@ -188,9 +201,7 @@ public fun <T> ComboBox(
     itemContent: (@Composable ListItemScope.(item: T) -> Unit)? = null,
 ) {
     ComboBoxNode(
-        actionListener = actionListener,
-        applied = null,
-        modifier = modifier,
+        modifier = modifier.actionListener(actionListener),
         editable = editable,
         maximumRowCount = maximumRowCount,
         itemContent = itemContent,
@@ -202,13 +213,11 @@ public fun <T> ComboBox(
 /**
  * The `JComboBox` node every [ComboBox] overload renders: all of it but the content, which
  * [installContent] declares - a declarative items list in one family of overloads, the caller's own model
- * in the other. [applied] settles a declared selection against the combo box and is null where the caller's
- * model owns the selection, which makes the node observation-only.
+ * in the other. [modifier] already carries every listener the combo box needs, the caller's own raw
+ * listener included where a raw overload is driving it.
  */
 @Composable
 private fun <T> ComboBoxNode(
-    actionListener: ActionListener,
-    applied: AppliedValue<Int>?,
     modifier: SwingModifier,
     editable: Boolean,
     maximumRowCount: Int,
@@ -219,7 +228,6 @@ private fun <T> ComboBoxNode(
     // ComposingListCellRenderer stamps a recycled composition per row. A null itemContent renders
     // items through the combo box's own renderer.
     val itemRenderer = itemContent?.let { rememberComposingListCellRenderer(it) }
-    val observingListener = rememberObservingListener(actionListener, applied)
     SwingNode(
         factory = { JComboBox<T>() },
         update = {
@@ -227,65 +235,63 @@ private fun <T> ComboBoxNode(
             set(maximumRowCount) { this.maximumRowCount = it }
             set(itemRenderer) { applyItemRenderer(it) }
             installContent()
-            applyModifier(
-                modifier.listener<JComboBox<*>, ActionListener>(
-                    observingListener,
-                    { c, l -> c.addActionListener(l) },
-                    { c, l -> c.removeActionListener(l) },
-                ),
-            )
+            applyModifier(modifier)
         },
     )
 }
 
 /**
- * Remembers the [ActionListener] the node attaches: [actionListener], told of the selections the combo box
- * settles on that the composition did not declare.
- *
- * A combo box publishes an action event for every selection, the wrapper's own writes included, and the
- * value it carries is what tells them apart - a write leaves the box on the declaration, so the event it
- * raises names a selection the caller already holds. Committing the editor is the exception: it carries
- * text no index can name, so it is passed on whatever the selection settled at.
- *
- * With no [applied] the caller's model owns the selection, nothing is declared, and every event is news.
+ * Declares [items] and [selectedIndex] on the node both items-family [ComboBox] overloads render.
  */
-@Composable
-private fun rememberObservingListener(
-    actionListener: ActionListener,
-    applied: AppliedValue<Int>?,
-): ActionListener =
-    remember(actionListener, applied) {
-        ActionListener { event ->
-            val settled = (event.source as JComboBox<*>).selectedIndex
-            val isCommit = event.actionCommand == EDITOR_COMMITTED
-            val isNews = applied == null || (applied.observed(settled) || isCommit)
-            if (isNews) actionListener.actionPerformed(event)
-        }
+private fun <T> SwingNodeUpdater<JComboBox<T>>.installItems(
+    items: List<T>,
+    selectedIndex: Int,
+    applied: AppliedValue<Int>,
+) {
+    set(items) { newItems ->
+        // A prebuilt model already carrying the declared selection swaps in silently
+        // (setModel fires no action event); mutating the live model instead would echo the
+        // transient deselection and first-item auto-selection through the action listener.
+        val newModel = DefaultComboBoxModel(Vector(newItems))
+        newModel.selectedItem = newItems.getOrNull(selectedIndex)
+        this.model = newModel
     }
+    declare(selectedIndex, applied, read = { this.selectedIndex }, write = { applySelection(this, it) })
+}
 
 /**
- * Remembers a stable [ActionListener] that splits a combo box's action events into the two things a
- * caller can act on: committing the editor reports the text that was typed to [onValueCommit], and any
- * other change reports the settled `selectedIndex` to [onSelectionChange]. A commit therefore arrives
- * once, on the channel that can carry a value the items do not contain.
+ * Remembers the stable [ActionListener] the `onSelectionChange`-driven overloads attach: it splits a
+ * combo box's action events into the two things a caller can act on - committing the editor reports the
+ * text that was typed to [onValueCommit], and any other change reports the settled `selectedIndex` to
+ * [onSelectionChange]. A commit is reported regardless of [applied], since its text carries a value the
+ * items do not contain.
+ *
+ * Where [applied] tracks a declared selection, a plain selection change is narrowed to the user's own
+ * choices: the declaration is the composition's own state, so applying it - and the combo box publishing
+ * an action event for that write - is not itself a choice. A `null` [applied] means the caller's model
+ * owns the selection, so nothing is declared and every change is the user's.
  *
  * The listener instance is stable across recompositions so it attaches and detaches on the same object,
  * while the current callbacks are tracked through [rememberUpdatedState] so the latest ones are invoked.
  */
 @Composable
 private fun rememberSelectionListener(
+    applied: AppliedValue<Int>?,
     onSelectionChange: (Int) -> Unit,
     onValueCommit: (String) -> Unit,
 ): ActionListener {
     val selectionCallback = rememberUpdatedState(onSelectionChange)
     val commitCallback = rememberUpdatedState(onValueCommit)
-    return remember {
+    return remember(applied) {
         ActionListener { event ->
             val comboBox = event.source as JComboBox<*>
-            if (event.actionCommand == EDITOR_COMMITTED) {
+            val settled = comboBox.selectedIndex
+            val isCommit = event.actionCommand == EDITOR_COMMITTED
+            val isNews = applied == null || applied.observed(settled) || isCommit
+            if (isCommit) {
                 commitCallback.value(comboBox.selectedItem?.toString().orEmpty())
-            } else {
-                selectionCallback.value(comboBox.selectedIndex)
+            } else if (isNews) {
+                selectionCallback.value(settled)
             }
         }
     }

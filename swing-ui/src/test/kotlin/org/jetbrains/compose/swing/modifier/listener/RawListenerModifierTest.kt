@@ -3,11 +3,12 @@ package org.jetbrains.compose.swing.modifier.listener
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.components.ComboBox
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
+import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.name
-import org.jetbrains.compose.swing.setContent
+import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
 import java.awt.event.ActionEvent
@@ -16,8 +17,10 @@ import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import java.awt.event.MouseListener
 import java.beans.PropertyChangeListener
-import javax.swing.AbstractButton
-import javax.swing.JComponent
+import javax.swing.JButton
+import javax.swing.JComboBox
+import javax.swing.JLabel
+import javax.swing.JTextField
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -28,8 +31,8 @@ import kotlin.test.assertTrue
  * Swing component sees: that an existing listener **object** attached via a builder fires on the real
  * AWT event, that the SAME instance is registered and later removed (proved via the component's
  * `getXxxListeners()`), that two of a kind both install, that supplying a different instance swaps the
- * attachment, and that a builder whose target type the node is not is rejected at apply with the
- * centralized wrong-target error — never the internal diff/record machinery.
+ * attachment, and that a component no add/remove pair serves is rejected at apply with a message naming
+ * the kinds that are served - never the internal diff/record machinery.
  */
 class RawListenerModifierTest {
     private fun mousePressed(component: Component): MouseEvent =
@@ -44,9 +47,9 @@ class RawListenerModifierTest {
         var pressed = 0
         val listener = mousePressListener { pressed++ }
         setContent {
-            Button("X", modifier = SwingModifier.name("b").mouseListener(listener))
+            Button("X", modifier = SwingModifier.mouseListener(listener))
         }
-        val button = onNodeWithName("b").fetch<JComponent>()
+        val button = onNodeOfType<JButton>().fetch()
         // The exact instance we passed is the one registered on the component.
         assertTrue(button.mouseListeners.any { it === listener }, "the exact listener instance should be registered")
 
@@ -62,13 +65,10 @@ class RawListenerModifierTest {
         setContent {
             Button(
                 "X",
-                modifier =
-                    SwingModifier.name("b").let {
-                        if (attached) it.mouseListener(listener) else it
-                    },
+                modifier = if (attached) SwingModifier.mouseListener(listener) else SwingModifier,
             )
         }
-        val button = onNodeWithName("b").fetch<JComponent>()
+        val button = onNodeOfType<JButton>().fetch()
         assertTrue(button.mouseListeners.any { it === listener }, "the listener should be registered while present")
 
         attached = false
@@ -93,14 +93,10 @@ class RawListenerModifierTest {
         setContent {
             Button(
                 "X",
-                modifier =
-                    SwingModifier
-                        .name("b")
-                        .mouseListener(firstListener)
-                        .mouseListener(secondListener),
+                modifier = SwingModifier.mouseListener(firstListener).mouseListener(secondListener),
             )
         }
-        val button = onNodeWithName("b").fetch<JComponent>()
+        val button = onNodeOfType<JButton>().fetch()
         assertTrue(button.mouseListeners.any { it === firstListener }, "the first listener should be installed")
         assertTrue(button.mouseListeners.any { it === secondListener }, "the second listener should be installed")
 
@@ -120,11 +116,10 @@ class RawListenerModifierTest {
         setContent {
             Button(
                 "X",
-                modifier =
-                    SwingModifier.name("b").mouseListener(if (useFirst) firstListener else secondListener),
+                modifier = SwingModifier.mouseListener(if (useFirst) firstListener else secondListener),
             )
         }
-        val button = onNodeWithName("b").fetch<JComponent>()
+        val button = onNodeOfType<JButton>().fetch()
         assertTrue(
             button.mouseListeners.any { it === firstListener },
             "the first instance should be installed initially",
@@ -154,9 +149,9 @@ class RawListenerModifierTest {
                 seenNew = event.newValue
             }
         setContent {
-            Label("X", modifier = SwingModifier.name("lbl").propertyChangeListener("enabled", listener))
+            Label("X", modifier = SwingModifier.propertyChangeListener("enabled", listener))
         }
-        val label = onNodeWithName("lbl").fetch<JComponent>()
+        val label = onNodeOfType<JLabel>().fetch()
 
         label.toolTipText = "changed"
         assertEquals(0, fired, "a different bound property must not notify the enabled-bound listener")
@@ -176,9 +171,9 @@ class RawListenerModifierTest {
                 seenProperties += event.propertyName
             }
         setContent {
-            Label("X", modifier = SwingModifier.name("lbl").propertyChangeListener(listener))
+            Label("X", modifier = SwingModifier.propertyChangeListener(listener))
         }
-        val label = onNodeWithName("lbl").fetch<JComponent>()
+        val label = onNodeOfType<JLabel>().fetch()
 
         // The unbound overload observes every bound property: each distinct change fires it once.
         label.isEnabled = false
@@ -194,24 +189,20 @@ class RawListenerModifierTest {
     }
 
     @Test
-    fun actionListenerOnANonButtonTargetThrowsTheCentralizedWrongTargetError() = runComposeSwingTest {
+    fun actionListenerOnAComponentThatFiresNoActionEventNamesTheKindsThatDo() = runComposeSwingTest {
         val error =
             assertFailsWith<IllegalStateException> {
                 setContent {
-                    // A Label is a JComponent but not an AbstractButton, so actionListener's
-                    // AbstractButton target is wrong and the applier must reject it.
-                    Label(
-                        "X",
-                        modifier =
-                            SwingModifier.name("lbl").actionListener(ActionListener { }),
-                    )
+                    // A Label fires no action event, so no add/remove pair serves it and the attach must
+                    // say which kinds of component do.
+                    Label("X", modifier = SwingModifier.actionListener(ActionListener { }))
                 }
                 awaitIdle()
             }
         val message = error.message.orEmpty()
         assertTrue(
-            AbstractButton::class.java.name in message,
-            "the wrong-target error must name the required AbstractButton target, but was: $message",
+            "AbstractButton" in message && "JTextField" in message && "JComboBox" in message,
+            "the error must name the component kinds that fire action events, but was: $message",
         )
     }
 
@@ -220,13 +211,41 @@ class RawListenerModifierTest {
         var actions = 0
         val listener = ActionListener { actions++ }
         setContent {
-            Button("X", modifier = SwingModifier.name("b").actionListener(listener))
+            Button("X", modifier = SwingModifier.actionListener(listener))
         }
-        val button = onNodeWithName("b").fetch<AbstractButton>()
+        val button = onNodeOfType<JButton>().fetch()
         assertTrue(button.actionListeners.any { it === listener }, "the action listener instance should be registered")
 
         val event = ActionEvent(button, ActionEvent.ACTION_PERFORMED, "x")
         button.actionListeners.forEach { it.actionPerformed(event) }
         assertEquals(1, actions, "the registered action listener should fire once")
+    }
+
+    @Test
+    fun actionListenerOnATextFieldFiresWhenTheFieldPostsItsAction() = runComposeSwingTest {
+        var actions = 0
+        val listener = ActionListener { actions++ }
+        setContent {
+            TextField("query", modifier = SwingModifier.actionListener(listener))
+        }
+        val field = onNodeOfType<JTextField>().fetch()
+        assertTrue(field.actionListeners.any { it === listener }, "the instance should be registered on the field")
+
+        field.postActionEvent()
+        assertEquals(1, actions, "the field's action event should reach the registered listener")
+    }
+
+    @Test
+    fun actionListenerOnAComboBoxIsRegisteredOnTheBox() = runComposeSwingTest {
+        val listener = ActionListener { }
+        setContent {
+            ComboBox(
+                items = listOf("a", "b"),
+                selectedIndex = 0,
+                modifier = SwingModifier.actionListener(listener),
+            )
+        }
+        val box = onNodeOfType<JComboBox<*>>().fetch<JComboBox<*>>()
+        assertTrue(box.actionListeners.any { it === listener }, "the instance should be registered on the combo box")
     }
 }
