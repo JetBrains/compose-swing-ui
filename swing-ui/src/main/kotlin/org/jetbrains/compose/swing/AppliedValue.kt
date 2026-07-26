@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.core.dispatchToCaller
 import java.awt.Component
 
 /**
@@ -45,8 +46,17 @@ public class AppliedValue<V>(
      */
     private var observedValue by mutableStateOf(initial)
 
-    /** The reentrancy guard [isWriting] and [write] delegate to. */
-    private val applied = AppliedWrite()
+    /** Marks this mirror's own writes to its widget, so a move it provokes is told from the user's. */
+    private val appliedWrite = AppliedWrite()
+
+    /**
+     * What [declare] last settled [current] against: the declaration and the value the widget held for
+     * it, or [Unsettled] before the first pass has run. [isSettled] reads this, and a component composing
+     * its own settling rather than going through [declare] calls it directly while composing, to tell a
+     * pass with nothing new to settle from one that has.
+     */
+    private var lastDeclared: Any? = Unsettled
+    private var lastHeld: Any? = Unsettled
 
     /** What the widget currently holds. Reading this while composing subscribes to the user moving it. */
     internal val current: V get() = observedValue
@@ -65,10 +75,13 @@ public class AppliedValue<V>(
     }
 
     /** Whether a write of this wrapper's own to its widget is currently in flight. */
-    public val isWriting: Boolean get() = applied.isWriting
+    public val isWriting: Boolean get() = appliedWrite.isWriting
 
-    /** Runs [block] as the wrapper's own write to its widget. */
-    public fun write(block: () -> Unit): Unit = applied.write(block)
+    /**
+     * Runs [block] as the wrapper's own write to its widget, so the events it raises are recognizable as
+     * such rather than as something the user did.
+     */
+    public fun write(block: () -> Unit): Unit = appliedWrite.write(block)
 
     /**
      * Settles the widget on [declared]: written through [write] where [read] does not already answer with
@@ -83,14 +96,50 @@ public class AppliedValue<V>(
         declared: V,
         read: () -> V,
         write: (V) -> Unit,
-        onSettled: (V) -> Unit,
+        onSettled: (V) -> Unit = {},
     ) {
         if (read() != declared) this.write { write(declared) }
         val settled = read()
         observedValue = settled
-        if (settled != declared) onSettled(settled)
+        // Reached only while a composition is applying its changes, so a failure here would end that
+        // composition rather than surface to whoever wrote the callback.
+        if (settled != declared) dispatchToCaller { onSettled(settled) }
+    }
+
+    /**
+     * [settle]s the widget on [declared] unless the pair [declared] and [held] is the one already settled
+     * against, and records that pair as what the next pass compares itself with.
+     *
+     * The pair is what makes settling happen once for a pass however many times it is asked for, which is
+     * what lets a declaration and the value the widget holds be followed as the separate values they are.
+     */
+    internal fun settleUnlessSettled(
+        declared: V,
+        held: V,
+        read: () -> V,
+        write: (V) -> Unit,
+        onSettled: (V) -> Unit,
+    ) {
+        if (!isSettled(declared, held)) settle(declared, read, write, onSettled)
+    }
+
+    /**
+     * Whether [declared] and [held] are the pair this last settled against, and records them as the pair
+     * the next call compares itself with either way.
+     */
+    internal fun isSettled(
+        declared: V,
+        held: V,
+    ): Boolean {
+        val unchanged = lastDeclared !== Unsettled && lastDeclared == declared && lastHeld == held
+        lastDeclared = declared
+        lastHeld = held
+        return unchanged
     }
 }
+
+/** Marks [AppliedValue.lastDeclared] and [AppliedValue.lastHeld] as not yet settled on anything. */
+private object Unsettled
 
 /**
  * Remembers the [AppliedValue] a component settles one of its declarations through, seeded with [initial]
@@ -101,12 +150,6 @@ public class AppliedValue<V>(
  */
 @Composable
 public fun <V> rememberAppliedValue(initial: V): AppliedValue<V> = remember { AppliedValue(initial) }
-
-/** The pair a two-way declaration is applied on: what the composition asks for, and what the widget holds. */
-private data class Settlement<V>(
-    val declared: V,
-    val held: V,
-)
 
 /**
  * Declares [value] onto a widget property the user can also move, keeping [applied] in sync with it.
@@ -136,7 +179,14 @@ public fun <C : Component, V> SwingNodeUpdater<C>.declare(
     write: C.(V) -> Unit,
     onSettled: C.(V) -> Unit = {},
 ) {
-    set(Settlement(value, applied.current)) { settlement ->
-        applied.settle(settlement.declared, { read() }, { write(it) }, { onSettled(it) })
+    // Two sides move independently, and a [SwingNodeUpdater.set] follows one value, so each side gets its
+    // own. Whichever moved settles the pair; a pass that moved both finds the second already settled by
+    // the first, and a pass that moved neither runs no block at all.
+    val held = applied.current
+    set(value) { _ ->
+        applied.settleUnlessSettled(value, held, { read() }, { written -> write(written) }, { on -> onSettled(on) })
+    }
+    set(held) { _ ->
+        applied.settleUnlessSettled(value, held, { read() }, { written -> write(written) }, { on -> onSettled(on) })
     }
 }

@@ -75,6 +75,26 @@ class TableBehaviorTest {
     }
 
     @Test
+    fun aSelectionTheCallerDoesNotAdoptDoesNotStand() = runComposeSwingTest {
+        setContent {
+            Table(
+                rows = listOf(Person("Ada", 36), Person("Alan", 41)),
+                selectedRowIndices = listOf(0),
+            ) {
+                column("Name") { it.name }
+            }
+        }
+
+        val table = onNodeOfType<JTable>().fetch()
+        table.setRowSelectionInterval(1, 1)
+        awaitIdle()
+
+        // The table is already settled back onto the declared selection by the time the move's own
+        // recomposition finishes - not just once some later, unrelated recomposition happens to run.
+        assertEquals(listOf(0), table.selectedRows.toList(), "an unadopted selection change does not stand")
+    }
+
+    @Test
     fun editingAnEditableCellFiresOnCellEdit() = runComposeSwingTest {
         val edits = mutableListOf<Triple<String, Int, Any?>>()
         setContent {

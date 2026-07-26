@@ -5,13 +5,15 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import java.awt.image.BufferedImage
 import javax.swing.JSplitPane
 import javax.swing.LookAndFeel
 import javax.swing.SwingUtilities
 import kotlin.test.Test
-import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
@@ -160,13 +162,23 @@ class SplitPaneBehaviorTest {
         val reported = mutableListOf<Int>()
         var firstLabel by mutableStateOf("A")
         setContent {
-            SplitPane(onDividerLocationChange = { reported += it }) {
+            SplitPane(
+                modifier = SwingModifier.preferredSize(400, 300),
+                onDividerLocationChange = { reported += it },
+            ) {
                 first { Label(text = firstLabel) }
                 second { Label(text = "B") }
             }
         }
 
         val pane = onNodeOfType<JSplitPane>().fetch()
+        // A divider is only ever on screen, draggable, at a resolved position; painting resolves the
+        // default negative request the same way realizing the pane on screen would.
+        val image = BufferedImage(root.width, root.height, BufferedImage.TYPE_INT_ARGB)
+        val graphics = image.createGraphics()
+        root.paint(graphics)
+        graphics.dispose()
+        awaitIdle()
         reported.clear()
 
         // A user drag of the divider is observable as a dividerLocation property change.
@@ -181,17 +193,11 @@ class SplitPaneBehaviorTest {
     }
 
     @Test
-    fun aNegativeDividerLocationAppliesTheDocumentedReset() = runComposeSwingTest {
+    fun aNegativeDividerLocationIsWrittenThroughWithoutBeingReported() = runComposeSwingTest {
         val reported = mutableListOf<Int>()
         var location by mutableIntStateOf(200)
         setContent {
-            SplitPane(
-                dividerLocation = location,
-                onDividerLocationChange = {
-                    reported += it
-                    location = it
-                },
-            ) {
+            SplitPane(dividerLocation = location, onDividerLocationChange = { reported += it }) {
                 first { Label(text = "A") }
                 second { Label(text = "B") }
             }
@@ -199,14 +205,75 @@ class SplitPaneBehaviorTest {
 
         val pane = onNodeOfType<JSplitPane>().fetch()
         assertEquals(200, pane.dividerLocation, "the divider should start at the explicit location")
+        reported.clear()
 
-        // A negative offset is JSplitPane's documented request to re-derive the divider position
-        // from the sides' preferred sizes.
+        // A negative offset asks the pane to derive the divider position from the sides' preferred
+        // sizes. The pane keeps the request itself as its dividerLocation - the position the sides
+        // resolve to is the look and feel's to compute and is never published as the property - so the
+        // request is what stands here, and it reaches the pane without being mistaken for a user drag.
         location = -1
         awaitIdle()
 
-        assertContains(reported, -1, "an explicit -1 must be written through as the documented reset request")
-        assertNotEquals(200, pane.dividerLocation, "the reset must move the divider off the explicit location")
+        assertEquals(-1, pane.dividerLocation, "the pane holds the request the declaration made of it")
+        assertTrue(reported.isEmpty(), "a declared reset must not be reported as if the user made it")
+    }
+
+    @Test
+    fun aNegativeDividerLocationResolvedByPaintingIsNotReportedAsAUserMove() = runComposeSwingTest {
+        val reported = mutableListOf<Int>()
+        setContent {
+            SplitPane(
+                modifier = SwingModifier.preferredSize(400, 300),
+                onDividerLocationChange = { reported += it },
+            ) {
+                first { Label(text = "A") }
+                second { Label(text = "B") }
+            }
+        }
+
+        val pane = onNodeOfType<JSplitPane>().fetch()
+        reported.clear()
+
+        // A negative divider location resolves only once the pane is painted; painting the
+        // (unrealized, peer-less) test root offscreen is enough to trigger the same resolution a
+        // realized window would, publishing it as an ordinary dividerLocation property change.
+        val image = BufferedImage(root.width, root.height, BufferedImage.TYPE_INT_ARGB)
+        val graphics = image.createGraphics()
+        root.paint(graphics)
+        graphics.dispose()
+        awaitIdle()
+
+        assertTrue(reported.isEmpty(), "the pane settling a negative request must not be reported as a user move")
+
+        // A genuine drag afterwards is measured against the position the pane resolved to, and still reports.
+        val dragged = pane.dividerLocation + 30
+        pane.dividerLocation = dragged
+        awaitIdle()
+
+        assertEquals(dragged, reported.last(), "a drag made after the resolution must still report")
+    }
+
+    @Test
+    fun declaringANewDividerLocationDoesNotInvokeOnDividerLocationChange() = runComposeSwingTest {
+        val reported = mutableListOf<Int>()
+        var location by mutableIntStateOf(120)
+        setContent {
+            SplitPane(dividerLocation = location, onDividerLocationChange = { reported += it }) {
+                first { Label(text = "A") }
+                second { Label(text = "B") }
+            }
+        }
+
+        onNodeOfType<JSplitPane>().fetch()
+        reported.clear()
+
+        // JSplitPane fires its dividerLocation property change synchronously on every write,
+        // including this one; a caller that echoed every event back would see its own declaration
+        // reported as if the user had dragged to it.
+        location = 200
+        awaitIdle()
+
+        assertTrue(reported.isEmpty(), "a declared change must not be reported as if the user made it")
     }
 
     @Test

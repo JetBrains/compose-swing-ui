@@ -8,6 +8,7 @@ import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.DefaultListModel
 import javax.swing.JList
+import javax.swing.ListSelectionModel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -182,5 +183,35 @@ class ListBoxNodeReuseTest {
             "the row the new model cannot hold leaves the selection",
         )
         assertEquals(listOf(emptyList()), received, "the selection the reactivation left should be reported once")
+    }
+
+    @Test
+    fun aReactivationWithANarrowerModeReportsTheSelectionItLeaves() = runComposeSwingTest {
+        var active by mutableStateOf(true)
+        var mode by mutableStateOf(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION)
+        val received = mutableListOf<List<Int>>()
+        setContent {
+            ReusableContentHost(active = active) {
+                ListBox(items = colors, onSelectionChange = { received += it }, selectionMode = mode)
+            }
+        }
+        onNodeOfType<JList<*>>().fetch().selectionModel.setSelectionInterval(0, 1)
+        received.clear()
+
+        // A mode narrowed while the node is parked reaches the list on the reactivation pass, which applies
+        // it before the modifier reinstalls the listeners the list reports through.
+        active = false
+        awaitIdle()
+        mode = ListSelectionModel.SINGLE_SELECTION
+        awaitIdle()
+        active = true
+        awaitIdle()
+
+        assertEquals(
+            listOf(0),
+            onNodeOfType<JList<*>>().fetch().selectedIndices.toList(),
+            "the row the narrower mode still holds stays selected",
+        )
+        assertEquals(listOf(listOf(0)), received, "the selection the reactivation left should be reported once")
     }
 }

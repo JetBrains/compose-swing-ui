@@ -6,6 +6,8 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JPasswordField
+import javax.swing.event.DocumentEvent
+import javax.swing.event.DocumentListener
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -13,9 +15,10 @@ import kotlin.test.assertEquals
  * End-to-end tests for [PasswordField] over a real [SwingApplier]. They assert observable behavior on
  * the rendered [JPasswordField]: the controlled [CharArray] round-trips through `getPassword()`, typing
  * fires `onValueChange` with the typed characters, an external value change reflects into the field
- * without thrashing the caret (the content-equality guard skips a no-op set), and the echo character
- * tracks the composed value across recomposition, reverting to the look-and-feel default when null is
- * re-applied.
+ * without thrashing the caret (the content-equality guard skips a no-op set), the echo character
+ * tracks the composed value across recomposition, and an edit the caller does not adopt is settled back
+ * onto the declared value - on the `onValueChange` overload and on the raw `documentListener` overload
+ * alike.
  */
 class PasswordFieldBehaviorTest {
     @Test
@@ -78,4 +81,36 @@ class PasswordFieldBehaviorTest {
         awaitIdle()
         assertEquals('\u0000', field.echoChar, "NUL should be applied to show clear text")
     }
+
+    @Test
+    fun anEditTheCallerDoesNotAdoptDoesNotStand() = runComposeSwingTest {
+        setContent { PasswordField(value = "hunter2".toCharArray(), onValueChange = {}) }
+
+        val field = onNodeOfType<JPasswordField>()
+        field.performTextReplacement("intruder")
+
+        // The field is already settled back onto the declared value by the time the edit's own
+        // recomposition finishes - not just once some later, unrelated recomposition happens to run.
+        assertEquals("hunter2", String(field.fetch().password))
+    }
+
+    @Test
+    fun rawOverloadSettlesAnEditTheCallerDoesNotAdopt() = runComposeSwingTest {
+        setContent { PasswordField(value = "hunter2".toCharArray(), documentListener = noopDocumentListener()) }
+
+        val field = onNodeOfType<JPasswordField>()
+        field.performTextReplacement("intruder")
+
+        // The wrapper's own mirror listener, attached alongside the caller's raw one, is what lets the
+        // declared value settle back even with no onValueChange callback to report through.
+        assertEquals("hunter2", String(field.fetch().password))
+    }
+}
+
+private fun noopDocumentListener(): DocumentListener = object : DocumentListener {
+    override fun insertUpdate(e: DocumentEvent) = Unit
+
+    override fun removeUpdate(e: DocumentEvent) = Unit
+
+    override fun changedUpdate(e: DocumentEvent) = Unit
 }

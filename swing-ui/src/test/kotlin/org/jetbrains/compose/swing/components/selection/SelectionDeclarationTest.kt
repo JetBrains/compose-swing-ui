@@ -269,6 +269,24 @@ class SelectionDeclarationTest {
     }
 
     @Test
+    fun aTableRowSelectionDeclaredForTheFirstTimeIsAppliedAlongsideAModifierChange() = runComposeSwingTest {
+        var label by mutableStateOf("first")
+        var selection by mutableStateOf<List<Int>?>(null)
+        setContent {
+            Table(rows = people, modifier = SwingModifier.name(label), selectedRowIndices = selection) {
+                column("Name") { it.name }
+            }
+        }
+
+        label = "second"
+        selection = listOf(1)
+        awaitIdle()
+
+        val table = onNodeWithName("second").fetch<JTable>()
+        assertEquals(listOf(1), table.selectedRows.toList(), "the newly declared selection is applied")
+    }
+
+    @Test
     fun aRefusedListSelectionIsRestored() = runComposeSwingTest {
         var count by mutableStateOf(8)
         setContent {

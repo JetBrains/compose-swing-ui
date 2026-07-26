@@ -4,6 +4,7 @@ public final class org/jetbrains/compose/swing/AppliedValue {
 	public final fun isWriting ()Z
 	public final fun observed (Ljava/lang/Object;)Z
 	public final fun settle (Ljava/lang/Object;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;)V
+	public static synthetic fun settle$default (Lorg/jetbrains/compose/swing/AppliedValue;Ljava/lang/Object;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
 	public final fun write (Lkotlin/jvm/functions/Function0;)V
 }
 
@@ -544,6 +545,7 @@ public final class org/jetbrains/compose/swing/modifier/interaction/InteractionM
 	public static final fun enabled (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Z)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun focusTraversalIndex (Lorg/jetbrains/compose/swing/modifier/SwingModifier;I)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun focusable (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Z)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun onAccept (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function0;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun onFocus (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static synthetic fun onFocus$default (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun onHover (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;

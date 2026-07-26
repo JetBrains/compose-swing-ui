@@ -98,6 +98,49 @@ class ValueComponentsTest {
     }
 
     @Test
+    fun narrowingTheSliderRangeClampsTheValueAndReportsItOnce() = runComposeSwingTest {
+        var max by mutableIntStateOf(100)
+        val value = 50
+        val reported = mutableListOf<Int>()
+        setContent {
+            Slider(
+                value = value,
+                onValueChange = { reported += it },
+                min = 0,
+                max = max,
+            )
+        }
+        val slider = onNodeOfType<JSlider>().fetch()
+        assertEquals(50, slider.value, "the slider should start at its declared value")
+
+        // Narrowing the range below the declared value forces JSlider to clamp it on the spot; that
+        // clamp is the wrapper settling its own declaration, not a move the user made.
+        max = 30
+        awaitIdle()
+
+        assertEquals(30, slider.maximum, "the slider should take the narrowed range")
+        assertEquals(30, slider.value, "the slider should clamp to the narrowed range")
+        assertEquals(listOf(30), reported, "the clamp should be reported exactly once, as the value settled on")
+    }
+
+    @Test
+    fun aMoveTheCallerDoesNotAdoptDoesNotStand() = runComposeSwingTest {
+        // The declaration never moves: what the widget is left holding is the whole of what this pins.
+        val value by mutableIntStateOf(30)
+        setContent {
+            Slider(value = value, min = 0, max = 100)
+        }
+        val slider = onNodeOfType<JSlider>().fetch()
+
+        // Moving the knob directly is the same write path a drag takes; with no onValueChange to
+        // adopt it, the move does not stand past the settle awaitIdle drives.
+        slider.value = 70
+        awaitIdle()
+
+        assertEquals(30, slider.value, "a move the caller does not adopt does not stand")
+    }
+
+    @Test
     fun progressBarRendersValueRangeAndDeterminacy() = runComposeSwingTest {
         setContent {
             ProgressBar(

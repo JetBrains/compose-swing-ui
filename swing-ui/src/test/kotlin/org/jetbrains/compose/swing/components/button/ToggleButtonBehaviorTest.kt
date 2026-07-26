@@ -20,8 +20,9 @@ import kotlin.test.assertNull
  * against the live `JToggleButton`.
  *
  * The central guarantees: text renders onto the button; clicking toggles the selected state
- * and reports the new value; the pressed state is controlled from composition; and an external
- * pressed-state update applies without echoing back as a spurious callback.
+ * and reports the new value; the pressed state is controlled from composition; an external
+ * pressed-state update applies without echoing back as a spurious callback; and a click the caller
+ * does not adopt does not stand - the next settled pass writes the declared state back over it.
  */
 class ToggleButtonBehaviorTest {
     @Test
@@ -238,5 +239,35 @@ class ToggleButtonBehaviorTest {
 
         onNodeOfType<JToggleButton>().assert(SwingMatcher.isSelected())
         assertEquals(emptyList(), received, "a controlled update must not fire onPressedChange")
+    }
+
+    @Test
+    fun aPressTheCallerDoesNotAdoptDoesNotStand() = runComposeSwingTest {
+        var text by mutableStateOf("Bold")
+        setContent { ToggleButton(text = text, pressed = false) }
+
+        val toggle = onNodeOfType<JToggleButton>()
+        toggle.performClick()
+        toggle.assert(SwingMatcher.isSelected(false))
+
+        // An unrelated recomposition changes nothing here: the button was already showing the
+        // declared state right after the click, not just once this pass ran.
+        text = "Strong"
+        awaitIdle()
+        toggle.assert(SwingMatcher.isSelected(false))
+    }
+
+    @Test
+    fun aReleaseTheCallerDoesNotAdoptDoesNotStand() = runComposeSwingTest {
+        var text by mutableStateOf("Bold")
+        setContent { ToggleButton(text = text, pressed = true) }
+
+        val toggle = onNodeOfType<JToggleButton>()
+        toggle.performClick()
+        toggle.assert(SwingMatcher.isSelected())
+
+        text = "Strong"
+        awaitIdle()
+        toggle.assert(SwingMatcher.isSelected())
     }
 }

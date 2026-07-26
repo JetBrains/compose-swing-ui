@@ -7,6 +7,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JTable
+import javax.swing.ListSelectionModel
 import javax.swing.table.DefaultTableModel
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -294,5 +295,37 @@ class TableNodeReuseTest {
             "an undeclared selection should survive a reactivation of a model-driven table",
         )
         assertEquals(emptyList(), received, "a reactivation that keeps the selection has nothing to report")
+    }
+
+    @Test
+    fun aReactivationWithANarrowerModeReportsTheSelectionItLeaves() = runComposeSwingTest {
+        var active by mutableStateOf(true)
+        var mode by mutableStateOf(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION)
+        val received = mutableListOf<List<Int>>()
+        setContent {
+            ReusableContentHost(active = active) {
+                Table(rows = people, onSelectionChange = { received += it }, selectionMode = mode) {
+                    column("Name") { it.name }
+                }
+            }
+        }
+        onNodeOfType<JTable>().fetch().selectionModel.setSelectionInterval(0, 1)
+        received.clear()
+
+        // A mode narrowed while the node is parked reaches the table on the reactivation pass, which applies
+        // it before the modifier reinstalls the listeners the table reports through.
+        active = false
+        awaitIdle()
+        mode = ListSelectionModel.SINGLE_SELECTION
+        awaitIdle()
+        active = true
+        awaitIdle()
+
+        assertEquals(
+            listOf(0),
+            onNodeOfType<JTable>().fetch().selectedRows.toList(),
+            "the row the narrower mode still holds stays selected",
+        )
+        assertEquals(listOf(listOf(0)), received, "the selection the reactivation left should be reported once")
     }
 }

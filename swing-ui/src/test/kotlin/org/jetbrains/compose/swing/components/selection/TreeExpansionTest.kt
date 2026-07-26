@@ -329,7 +329,7 @@ class TreeExpansionTest {
     }
 
     @Test
-    fun anUndeclaredExpansionListenerInstallsNone() = runComposeSwingTest {
+    fun theExpansionListenerIsAlwaysInstalled() = runComposeSwingTest {
         var listener by mutableStateOf<TreeExpansionListener?>(null)
         setContent {
             Tree(
@@ -342,7 +342,11 @@ class TreeExpansionTest {
         }
 
         val tree = onNodeOfType<JTree>().fetch()
-        assertEquals(emptyList(), tree.libraryExpansionListeners(), "no listener was declared, so none is installed")
+        assertEquals(
+            1,
+            tree.libraryExpansionListeners().size,
+            "the wrapper keeps its own listener installed to track expansion even with no listener declared",
+        )
 
         listener =
             object : TreeExpansionListener {
@@ -352,11 +356,41 @@ class TreeExpansionTest {
             }
         awaitIdle()
 
-        assertEquals(1, tree.libraryExpansionListeners().size, "a declared listener is installed")
+        assertEquals(
+            1,
+            tree.libraryExpansionListeners().size,
+            "a declared listener replaces the wrapper's, not adds to it",
+        )
 
         listener = null
         awaitIdle()
 
-        assertEquals(emptyList(), tree.libraryExpansionListeners(), "dropping the listener removes it")
+        assertEquals(
+            1,
+            tree.libraryExpansionListeners().size,
+            "dropping the listener leaves the wrapper's own in place",
+        )
+    }
+
+    @Test
+    fun aDeclaredExpansionStandsWithNoExpansionListenerDeclared() = runComposeSwingTest {
+        setContent {
+            Tree(
+                root = sample,
+                children = { it.children },
+                label = { it.name },
+                treeSelectionListener = remember { TreeSelectionListener { } },
+                expandedPaths = listOf(emptyList()),
+            )
+        }
+
+        val tree = onNodeOfType<JTree>().fetch()
+        tree.expandPath(tree.pathTo(0))
+        awaitIdle()
+
+        assertFalse(
+            tree.isExpanded(tree.pathTo(0)),
+            "the declared expansion stands against a user expansion even with no listener to report it",
+        )
     }
 }

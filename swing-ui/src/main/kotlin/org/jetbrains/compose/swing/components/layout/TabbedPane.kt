@@ -12,7 +12,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.rememberUpdatedState
-import org.jetbrains.compose.swing.AppliedWrite
+import org.jetbrains.compose.swing.AppliedValue
 import org.jetbrains.compose.swing.SwingNode
 import org.jetbrains.compose.swing.constants.TabLayoutPolicy
 import org.jetbrains.compose.swing.constants.TabPlacement
@@ -20,12 +20,12 @@ import org.jetbrains.compose.swing.core.LocalSlotAttachment
 import org.jetbrains.compose.swing.core.LocalSwingConstraint
 import org.jetbrains.compose.swing.core.SlotAttachment
 import org.jetbrains.compose.swing.core.SlotNode
+import org.jetbrains.compose.swing.core.dispatchToCaller
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.changeListener
-import org.jetbrains.compose.swing.rememberAppliedWrite
+import org.jetbrains.compose.swing.rememberAppliedValue
 import org.jetbrains.compose.swing.setContentAsInteropHost
-import org.jetbrains.compose.swing.userOnly
 import java.awt.BorderLayout
 import java.awt.Component
 import java.awt.FlowLayout
@@ -142,9 +142,8 @@ private fun TabbedPaneImpl(
     // A JTabbedPane moves its selection on its own whenever the strip changes: the first tab to arrive
     // becomes the selection, and removing the selected tab falls back to a neighbour. Each of those moves
     // fires the very change event a click fires, so the writes that add and remove tabs run as this
-    // wrapper's own and the listener the pane registers on the caller's behalf is narrowed to what
-    // arrives outside one.
-    val applied = rememberAppliedWrite()
+    // wrapper's own, and the mirror is what tells that apart from the user's own selection.
+    val applied = rememberAppliedValue(selectedIndex)
     // The listener is attached once per pane and reaches the declared one through a handle each
     // composition refreshes, so a newly declared listener takes over without detaching and reattaching.
     val declaredListener = rememberUpdatedState(changeListener)
@@ -154,12 +153,16 @@ private fun TabbedPaneImpl(
     val reportedSelection = remember { intArrayOf(NO_TAB) }
     val listener =
         remember {
-            applied.userOnly(
-                ChangeListener { event ->
-                    reportedSelection[0] = (event.source as JTabbedPane).selectedIndex
+            ChangeListener { event ->
+                val current = (event.source as JTabbedPane).selectedIndex
+                // Only a move of the user's is theirs to be told about, and only one they were told about
+                // belongs in the record - a move the pane made under one of this wrapper's own writes is
+                // settled below, which is where the record catches up with it.
+                if (applied.observed(current)) {
+                    reportedSelection[0] = current
                     declaredListener.value.stateChanged(event)
-                },
-            )
+                }
+            }
         }
 
     SwingNode(
@@ -184,6 +187,13 @@ private fun TabbedPaneImpl(
         },
     )
 
+    // Reading the mirror here subscribes this composition to the user moving the pane's own selection, so
+    // a move away from the declaration invalidates on its own instead of waiting for an unrelated
+    // recomposition to notice it. The settle effect below still has to run on every composition regardless:
+    // an effect ordered ahead of it in the same pass can still move the pane between this read and the
+    // moment that effect runs, and only settling unconditionally catches a move landing in that window.
+    applied.current
+
     // Settle the selection once this composition's changes have reached the component tree. The tabs are
     // emitted in `content`, which the runtime applies after the node's update block, so a tab added by
     // the same composition is not yet a page of the pane while that block runs and there would be
@@ -203,18 +213,23 @@ private const val NO_TAB = -1
  * when that index names no tab of the strip.
  *
  * A declaration the pane can honour is asserted as one of [applied]'s own writes, so the caller does not
- * hear its own declaration back as an interaction. A declaration the pane cannot honour - an index past
- * the strip, which is what dropping the declared tab leaves behind - is a selection the caller believes
- * stands while the pane sits on the neighbour it fell back on. That tab is nothing the composition asked
- * for, so the caller is handed it rather than left with a selection the strip lost. [reported] carries the
- * tab the caller has last been told about, which is what keeps one fallback from being reported again on
- * every later composition - a write settled through [applied] already leaves its mirror pointed at the
- * pane's post-write value, so only a separate, deliberately-lagging record catches this case.
+ * hear its own declaration back as an interaction; [applied] mirrors whatever the pane is left on
+ * afterwards, which is what invalidates this composition again the moment the user moves away from the
+ * declaration. A declaration the pane cannot honour - an index past the strip, which is what dropping the
+ * declared tab leaves behind - is a selection the caller believes stands while the pane sits on the
+ * neighbour it fell back on. That tab is nothing the composition asked for, so the caller is handed it
+ * rather than left with a selection the strip lost. [reported] carries the tab the caller has last been
+ * told about, which is what keeps one fallback from being reported again on every later composition - a
+ * declaration the pane can honour already updates [reported] to the pane's post-write value, so only this
+ * separate, deliberately-lagging record catches the fallback case.
+ *
+ * The fallback reaches [listener] directly rather than from inside a write, so it runs contained the same
+ * way: a throw out of it is reported rather than left to end the composition applying this pass.
  */
 private fun settleSelection(
     pane: JTabbedPane,
     selectedIndex: Int,
-    applied: AppliedWrite,
+    applied: AppliedValue<Int>,
     reported: IntArray,
     listener: ChangeListener,
 ) {
@@ -229,7 +244,7 @@ private fun settleSelection(
     }
     if (pane.selectedIndex == reported[0]) return
     reported[0] = pane.selectedIndex
-    listener.stateChanged(ChangeEvent(pane))
+    dispatchToCaller { listener.stateChanged(ChangeEvent(pane)) }
 }
 
 /**
@@ -244,7 +259,7 @@ private fun settleSelection(
 private fun Tab(
     tab: TabDeclaration,
     headerParentContext: CompositionContext,
-    applied: AppliedWrite,
+    applied: AppliedValue<Int>,
 ) {
     val metadata = tab.metadata
     // The attachment captures only the install-time title/icon/tooltip; later edits flow through the
@@ -410,7 +425,7 @@ private class TabbedPaneScopeImpl : TabbedPaneScope {
  */
 private fun tabAttachment(
     metadata: TabMetadata,
-    applied: AppliedWrite,
+    applied: AppliedValue<Int>,
 ): SlotAttachment =
     SlotAttachment { host, component, index ->
         host as JTabbedPane

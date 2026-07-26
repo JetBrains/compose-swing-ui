@@ -4,7 +4,6 @@
 package org.jetbrains.compose.swing.components.text
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.compose.swing.AppliedValue
 import org.jetbrains.compose.swing.SwingNode
@@ -47,13 +46,7 @@ public fun TextArea(
 ) {
     val callback = rememberUpdatedState(onValueChange)
     val applied = rememberAppliedValue(value)
-    val listener =
-        remember(applied) {
-            documentChangeListener { event ->
-                val text = event.document.fullText()
-                if (applied.observed(text)) callback.value(text)
-            }
-        }
+    val listener = rememberUserEditListener(applied, callback)
     TextAreaNode(
         value = value,
         applied = applied,
@@ -112,10 +105,8 @@ public fun TextArea(
 }
 
 /**
- * The `JTextArea` node both [TextArea] overloads render. [value] is pushed on change only - unlike a
- * declared selection or a scalar widget property, an un-adopted edit is not undone on some later,
- * unrelated recomposition: nothing here reads [applied]'s mirror to gate the push, so typing is never
- * fought without a fresh [value] declaring otherwise.
+ * The `JTextArea` node both [TextArea] overloads render. [value] is settled through
+ * [pushDeclaredText].
  */
 @Composable
 private fun TextAreaNode(
@@ -139,7 +130,7 @@ private fun TextAreaNode(
                 this.columns = it
                 revalidate()
             }
-            set(value) { declared -> applied.settle(declared, { text }, { text = it }) {} }
+            pushDeclaredText(value, applied)
             set(editable) { this.isEditable = it }
             set(lineWrap) { this.lineWrap = it }
             set(wrapStyleWord) { this.wrapStyleWord = it }

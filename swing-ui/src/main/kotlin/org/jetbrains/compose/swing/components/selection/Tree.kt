@@ -6,7 +6,7 @@ package org.jetbrains.compose.swing.components.selection
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import org.jetbrains.compose.swing.AppliedWrite
+import org.jetbrains.compose.swing.AppliedValue
 import org.jetbrains.compose.swing.SwingNode
 import org.jetbrains.compose.swing.SwingNodeUpdater
 import org.jetbrains.compose.swing.constants.TreeSelectionMode
@@ -14,8 +14,8 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.treeExpansionListener
 import org.jetbrains.compose.swing.modifier.listener.treeSelectionListener
-import org.jetbrains.compose.swing.rememberAppliedWrite
-import org.jetbrains.compose.swing.userOnly
+import org.jetbrains.compose.swing.modifier.propertyElement
+import org.jetbrains.compose.swing.rememberAppliedValue
 import javax.swing.JTree
 import javax.swing.event.TreeExpansionEvent
 import javax.swing.event.TreeExpansionListener
@@ -56,11 +56,11 @@ import javax.swing.tree.TreeSelectionModel
  *
  * [onSelectionChange] and [onExpansionChange] report the user's changes only; rebuilding the structure
  * from new data produces neither. A declared selection or expansion is the composition's state and is
- * re-applied on every pass: it survives a rebuild, and a user change the caller does not adopt is undone.
- * Undeclared, either belongs to the user alone - the library never imposes one, and what the user reached
- * survives a rebuild as well, the nodes they closed as much as the ones they opened. A node the new
- * structure no longer has is the exception: it leaves the selection, and [onSelectionChange] reports what
- * is left of it.
+ * re-applied on every pass: it survives a rebuild, and a user change the caller does not adopt does not
+ * stand. Undeclared, either belongs to the user alone - the library never imposes one, and what the
+ * user reached survives a rebuild as well, the nodes they closed as much as the ones they opened. A node
+ * the new structure no longer has is the exception: it leaves the selection, and [onSelectionChange]
+ * reports what is left of it.
  *
  * @param root the root value of the tree
  * @param children yields the child values of a value, in display order
@@ -154,10 +154,10 @@ public fun <T> Tree(
         selectionMode = selectionMode,
         rootVisible = rootVisible,
         showsRootHandles = showsRootHandles,
-    ) { applied ->
+    ) { appliedSelection, appliedExpansion ->
         set(Triple(root, children, label)) { (rootValue, childrenOf, labelOf) ->
             installModel(
-                applied,
+                TreeBindings(appliedSelection, appliedExpansion),
                 DefaultTreeModel(buildNode(rootValue, childrenOf, labelOf)),
                 selectedPaths,
                 expandedPaths,
@@ -191,9 +191,9 @@ public fun <T> Tree(
  *
  * [onSelectionChange] and [onExpansionChange] report the user's changes only; installing a new [model]
  * produces neither. A declared selection or expansion is the composition's state and is re-applied on
- * every pass, so a user change the caller does not adopt is undone; undeclared, either belongs to the
- * user alone and is never imposed - the nodes the user closed stay closed across a model swap as surely
- * as the ones they opened stay open. A node the new model does not have is the exception: it leaves the
+ * every pass, so a user change the caller does not adopt does not stand; undeclared, either belongs to the
+ * user alone and is never imposed - the nodes the user closed stay closed across a model swap as surely as
+ * the ones they opened stay open. A node the new model does not have is the exception: it leaves the
  * selection, and [onSelectionChange] reports what is left of it.
  *
  * @param model the tree model to display; owned by the caller and never mutated by the library
@@ -281,9 +281,15 @@ public fun Tree(
         selectionMode = selectionMode,
         rootVisible = rootVisible,
         showsRootHandles = showsRootHandles,
-    ) { applied ->
+    ) { appliedSelection, appliedExpansion ->
         set(model) { newModel ->
-            installModel(applied, newModel, selectedPaths, expandedPaths, treeSelectionListener)
+            installModel(
+                TreeBindings(appliedSelection, appliedExpansion),
+                newModel,
+                selectedPaths,
+                expandedPaths,
+                treeSelectionListener,
+            )
         }
     }
 }
@@ -291,8 +297,8 @@ public fun Tree(
 /**
  * The `JTree` node every [Tree] overload renders: all of it but the structure, which [installContent]
  * declares - values walked through child accessors in one family of overloads, the caller's own model in
- * the other. [installContent] is handed the [AppliedWrite] marking the wrapper's writes to its widget,
- * since giving the tree a new structure is one of them.
+ * the other. [installContent] is handed the [AppliedValue]s mirroring the tree's selection and expansion,
+ * since giving the tree a new structure is one of the writes that moves both.
  */
 @Composable
 private fun TreeNode(
@@ -304,12 +310,42 @@ private fun TreeNode(
     @TreeSelectionMode selectionMode: Int,
     rootVisible: Boolean,
     showsRootHandles: Boolean?,
-    installContent: SwingNodeUpdater<JTree>.(AppliedWrite) -> Unit,
+    installContent: SwingNodeUpdater<JTree>.(
+        AppliedValue<List<List<Int>>?>,
+        AppliedValue<List<List<Int>>?>,
+    ) -> Unit,
 ) {
-    val applied = rememberAppliedWrite()
-    val userSelectionListener = remember(applied, treeSelectionListener) { applied.userOnly(treeSelectionListener) }
+    val appliedSelection = rememberAppliedValue(selectedPaths)
+    val appliedExpansion = rememberAppliedValue(expandedPaths)
+    val userSelectionListener =
+        remember(appliedSelection, treeSelectionListener) {
+            TreeSelectionListener { event ->
+                val tree = event.source as JTree
+                if (appliedSelection.observed(readSelection(tree, tree.model))) {
+                    treeSelectionListener.valueChanged(event)
+                }
+            }
+        }
     val userExpansionListener =
-        remember(applied, treeExpansionListener) { treeExpansionListener?.let { applied.userOnly(it) } }
+        remember(appliedExpansion, treeExpansionListener) {
+            object : TreeExpansionListener {
+                override fun treeExpanded(event: TreeExpansionEvent) =
+                    report(event) { target -> target.treeExpanded(event) }
+
+                override fun treeCollapsed(event: TreeExpansionEvent) =
+                    report(event) { target -> target.treeCollapsed(event) }
+
+                private fun report(
+                    event: TreeExpansionEvent,
+                    deliver: (TreeExpansionListener) -> Unit,
+                ) {
+                    val tree = event.source as JTree
+                    if (appliedExpansion.observed(readExpansion(tree, tree.model))) {
+                        treeExpansionListener?.let(deliver)
+                    }
+                }
+            }
+        }
 
     SwingNode(
         // A tree starts on a rootless model, which the same pass replaces with the declared one. A tree
@@ -317,12 +353,38 @@ private fun TreeNode(
         // is told apart from a later one.
         factory = { JTree(DefaultTreeModel(null)) },
         update = {
-            set(selectionMode) { mode -> applied.writeNarrowing(selectedPaths) { selectionModel.selectionMode = mode } }
-            set(rootVisible) { visible -> applied.writeNarrowing(selectedPaths) { isRootVisible = visible } }
-            set(showsRootHandles) { declared -> applyRootHandles(declared) }
-            installContent(applied)
-            reconcile { applied.write { applyDeclarations(selectedPaths, expandedPaths) } }
-            applyModifier(modifier.treeListeners(userSelectionListener, userExpansionListener))
+            set(selectionMode) { mode ->
+                narrowSelection(appliedSelection, selectedPaths, treeSelectionListener) {
+                    selectionModel.selectionMode = mode
+                }
+            }
+            set(rootVisible) { visible ->
+                narrowSelection(appliedSelection, selectedPaths, treeSelectionListener) { isRootVisible = visible }
+            }
+            installContent(appliedSelection, appliedExpansion)
+            // Reading both mirrors is what subscribes this composition to the user moving the tree's own
+            // selection or expansion, so the pass that follows settles each against its declaration: a
+            // change the caller adopts stands, and one it does not is written back over. Both reads have to
+            // run every pass regardless of the other's outcome, so neither is short-circuited away.
+            //
+            // The two are applied together rather than each through its own declare: what a tree shows is
+            // the two combined - a node is only selectable where its ancestors are open - so applying one
+            // without the other would leave the tree standing on a pairing neither declaration asked for.
+            // Each mirror still sees the write as its own, which is what the nesting is for.
+            val heldSelection = appliedSelection.current
+            val heldExpansion = appliedExpansion.current
+            val selectionSettled = appliedSelection.isSettled(selectedPaths, heldSelection)
+            val expansionSettled = appliedExpansion.isSettled(expandedPaths, heldExpansion)
+            if (!selectionSettled || !expansionSettled) {
+                reconcile {
+                    appliedSelection.write {
+                        appliedExpansion.write { applyDeclarations(selectedPaths, expandedPaths) }
+                    }
+                }
+            }
+            val treeModifier =
+                modifier.treeListeners(userSelectionListener, userExpansionListener).rootHandles(showsRootHandles)
+            applyModifier(treeModifier)
         },
     )
 }
@@ -369,50 +431,62 @@ private fun rememberExpansionListener(onExpansionChange: (List<List<Int>>) -> Un
 }
 
 /**
- * Applies [declared] as the tree's root-handle choice, and gives the property back when the declaration is
- * withdrawn: the choice the tree carried before a declaration first displaced it is captured then, and put
- * back the moment [declared] is `null` again, so an undeclared tree shows what its look and feel chose.
- *
- * A `JTree` takes an explicit choice as the client's own and stops accepting the one its look and feel
- * installs, which is what makes a declaration outrank the look and feel while it stands - and what leaves
- * the captured choice the only way back to it.
- *
- * The capture is kept on the tree rather than in the composition because the node is recyclable: the way
- * back has to outlive the composition that displaced the choice, and reach the one reactivated onto the
- * same tree.
+ * Folds in the tree's root-handle choice as a modifier element while [declared] is non-null, and drops
+ * the element the moment it goes back to `null`. A `JTree` takes an explicit choice as the client's own
+ * and stops accepting the one its look and feel installs, which is what makes a folded-in element
+ * outrank the look and feel while it stays in the chain; removing the element restores the choice the
+ * tree carried before it was folded in - the one its look and feel chose - through the same
+ * capture-on-attach, restore-on-detach every modifier property follows. Detaching on release, reuse and
+ * deactivate as well as on withdrawal is what gives a recycled tree its look and feel's choice back too.
  */
-private fun JTree.applyRootHandles(declared: Boolean?) {
-    val captured = getClientProperty(ROOT_HANDLES_KEY) as Boolean?
+private fun SwingModifier.rootHandles(declared: Boolean?): SwingModifier =
     if (declared == null) {
-        if (captured == null) return
-        putClientProperty(ROOT_HANDLES_KEY, null)
-        showsRootHandles = captured
-        return
+        this
+    } else {
+        this then
+            propertyElement<JTree, Boolean>(
+                declared,
+                read = { it.showsRootHandles },
+                write = { tree, value -> tree.showsRootHandles = value },
+            )
     }
-    if (captured == null) putClientProperty(ROOT_HANDLES_KEY, showsRootHandles)
-    showsRootHandles = declared
-}
 
-/** The key under which a tree keeps the root-handle choice a declaration displaced. */
-private const val ROOT_HANDLES_KEY: String = "org.jetbrains.compose.swing.showsRootHandles"
+/**
+ * The mirrors a tree settles its two declarations through: what is selected, and what is open.
+ *
+ * They travel together because installing a model can move both, and each has to see the other's write in
+ * flight for its listener to tell the wrapper's doing from the user's.
+ */
+private class TreeBindings(
+    val selection: AppliedValue<List<List<Int>>?>,
+    val expansion: AppliedValue<List<List<Int>>?>,
+)
 
 /**
  * Installs [newModel], keeping the nodes [declaredSelection] names selected - or, where the caller declared
  * nothing, the nodes the user had - and reporting to [target] the nodes the new structure no longer has.
  * See [installNarrowing].
  *
- * Installing a model re-opens the root as well, and the expansion is not the library's to decide either.
- * Where none was declared, the expansion the tree held is put back whole - the nodes that were open are
- * opened and every other one is closed - so a node the user had collapsed does not come back open. A tree
- * that had no root yet has nothing retained, and keeps the expansion a `JTree` gives a model it is handed.
+ * Installing a model re-opens the root as well. Where the caller declared an expansion, it is asserted on
+ * the new structure right away, so it stands from the moment the model is in. Where none was declared, the
+ * expansion is not the library's to decide, and the expansion the tree held is put back whole instead - the
+ * nodes that were open are opened and every other one is closed - so a node the user had collapsed does not
+ * come back open. A tree that had no root yet has nothing retained, and keeps the expansion a `JTree` gives
+ * a model it is handed.
+ *
+ * Both the selection narrowing and the expansion restore run as one write of each mirror in [bindings] -
+ * installing a model can move both, and each mirror has to see its own write coming for its listener to
+ * tell it apart from the user's.
  */
 private fun JTree.installModel(
-    applied: AppliedWrite,
+    bindings: TreeBindings,
     newModel: TreeModel,
     declaredSelection: List<List<Int>>?,
     declaredExpansion: List<List<Int>>?,
     target: TreeSelectionListener,
 ) {
+    val appliedSelection = bindings.selection
+    val appliedExpansion = bindings.expansion
     val hadRoot = model?.root != null
     val keptExpansion = readExpansion(this, model)
     val oldLead = leadSelectionPath
@@ -421,35 +495,38 @@ private fun JTree.installModel(
     // is searched for.
     val selectedNodes = selectionPaths.orEmpty()
     val selectedIndices = selectedNodes.map { pathToIndices(model, it) }
-    applied.installNarrowing(
-        declared = declaredSelection,
-        selection = { readSelection(this, model) },
-        apply = { paths -> applySelection(this, model, paths) },
-        report = { lost ->
-            // A tree re-fires its selection model's event as its own, with itself as the source, and that
-            // is the event a listener installed on the tree is handed. The nodes are the ones the new
-            // structure took out of the selection, so none of them is a node the event adds.
-            val nodes = selectedNodes.filterIndexed { position, _ -> selectedIndices[position] in lost }
-            val removed = BooleanArray(nodes.size)
-            target.valueChanged(TreeSelectionEvent(this, nodes.toTypedArray(), removed, oldLead, leadSelectionPath))
-        },
-    ) {
-        model = newModel
-        if (declaredExpansion == null && hadRoot) applyExpansion(this, newModel, keptExpansion)
+    appliedExpansion.write {
+        appliedSelection.installNarrowing(
+            declared = declaredSelection,
+            selection = { readSelection(this, model) },
+            apply = { paths -> applySelection(this, model, paths) },
+            report = { lost ->
+                // A tree re-fires its selection model's event as its own, with itself as the source, and
+                // that is the event a listener installed on the tree is handed. The nodes are the ones the
+                // new structure took out of the selection, so none of them is a node the event adds.
+                val nodes = selectedNodes.filterIndexed { position, _ -> selectedIndices[position] in lost }
+                val removed = BooleanArray(nodes.size)
+                target.valueChanged(
+                    TreeSelectionEvent(this, nodes.toTypedArray(), removed, oldLead, leadSelectionPath),
+                )
+            },
+        ) {
+            model = newModel
+            (declaredExpansion ?: keptExpansion.takeIf { hadRoot })?.let { applyExpansion(this, newModel, it) }
+        }
     }
+    appliedExpansion.observed(readExpansion(this, model))
 }
 
 /**
- * The tree's user-facing listeners as one chain: the selection listener, plus the expansion listener when
- * one was declared. An undeclared expansion listener adds no element, so none is installed.
+ * The tree's user-facing listeners as one chain: the selection listener and the expansion listener. Both
+ * feed their mirror on every user change regardless of whether the caller declared a raw listener of its
+ * own to forward to.
  */
 private fun SwingModifier.treeListeners(
     selectionListener: TreeSelectionListener,
-    expansionListener: TreeExpansionListener?,
-): SwingModifier {
-    val chain = treeSelectionListener(selectionListener)
-    return if (expansionListener == null) chain else chain.treeExpansionListener(expansionListener)
-}
+    expansionListener: TreeExpansionListener,
+): SwingModifier = treeSelectionListener(selectionListener).treeExpansionListener(expansionListener)
 
 /**
  * Builds a [DefaultMutableTreeNode] tree from [root] by recursively visiting [children]. Each node's

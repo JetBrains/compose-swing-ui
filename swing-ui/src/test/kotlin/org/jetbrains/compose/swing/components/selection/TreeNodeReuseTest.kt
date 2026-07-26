@@ -9,6 +9,7 @@ import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JTree
 import javax.swing.tree.DefaultMutableTreeNode
 import javax.swing.tree.DefaultTreeModel
+import javax.swing.tree.TreeSelectionModel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -150,5 +151,33 @@ class TreeNodeReuseTest {
             "the node the new model cannot hold leaves the selection",
         )
         assertEquals(listOf(emptyList()), received, "the selection the reactivation left should be reported once")
+    }
+
+    @Test
+    fun aReactivationWithANarrowerModeReportsTheSelectionItLeaves() = runComposeSwingTest {
+        var active by mutableStateOf(true)
+        var mode by mutableStateOf(TreeSelectionModel.DISCONTIGUOUS_TREE_SELECTION)
+        val received = mutableListOf<List<List<Int>>>()
+        val model = treeModel()
+        setContent {
+            ReusableContentHost(active = active) {
+                Tree(model = model, onSelectionChange = { received += it }, selectionMode = mode)
+            }
+        }
+        val tree = onNodeOfType<JTree>().fetch()
+        tree.selectionPaths = arrayOf(tree.pathTo(0), tree.pathTo(1))
+        received.clear()
+
+        // A mode narrowed while the node is parked reaches the tree on the reactivation pass, which applies
+        // it before the modifier reinstalls the listeners the tree reports through.
+        active = false
+        awaitIdle()
+        mode = TreeSelectionModel.SINGLE_TREE_SELECTION
+        awaitIdle()
+        active = true
+        awaitIdle()
+
+        assertEquals(1, onNodeOfType<JTree>().fetch().selectionCount, "the node the narrower mode holds stays")
+        assertEquals(listOf(listOf(listOf(0))), received, "the node the reactivation left should be reported once")
     }
 }

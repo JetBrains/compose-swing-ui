@@ -71,6 +71,19 @@ class ListBoxBehaviorTest {
     }
 
     @Test
+    fun aSelectionTheCallerDoesNotAdoptDoesNotStand() = runComposeSwingTest {
+        setContent { ListBox(items = listOf("a", "b", "c"), selectedIndices = listOf(0)) }
+
+        val list = onNodeOfType<JList<*>>().fetch()
+        list.selectedIndex = 1
+        awaitIdle()
+
+        // The list is already settled back onto the declared selection by the time the move's own
+        // recomposition finishes - not just once some later, unrelated recomposition happens to run.
+        assertEquals(listOf(0), list.selectedIndices.toList(), "an unadopted selection change does not stand")
+    }
+
+    @Test
     fun aDeclaredSelectionModeLimitsWhatTheUserCanSelect() = runComposeSwingTest {
         var selectionMode by mutableStateOf(ListSelectionModel.SINGLE_SELECTION)
         setContent { ListBox(items = listOf("a", "b", "c"), selectionMode = selectionMode) }

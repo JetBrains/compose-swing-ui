@@ -29,9 +29,8 @@ public interface TabbedPaneScope {
      * @param content the composable shown in the tab's body when it is selected
      */
     @Suppress("LongParameterList")
-    // One parameter per declarative aspect of a tab, all but its title and its body optional and named
-    // at the call site. A tab's title, icon, tooltip and enablement are independent aspects of the one
-    // tab rather than a value of their own, so there is no cohesive object among them to name instead.
+    // One parameter per independent declarative aspect of a tab, all but title and content optional
+    // and named at the call site.
     public fun tab(
         title: String,
         icon: Icon? = null,

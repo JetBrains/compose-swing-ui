@@ -27,6 +27,8 @@ import javax.swing.text.NumberFormatter
 import javax.swing.text.PlainDocument
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
+import kotlin.test.assertTrue
 
 /**
  * Pins what applying a declared value onto a text component does - to the callback, and to the state the
@@ -266,6 +268,11 @@ class DeclaredTextPushTest {
         value = "world"
         awaitIdle()
         assertEquals(emptyList(), reported, "a refused write reports nothing")
+        val refusal = takeCallerFailures().single()
+        assertTrue(
+            refusal.message?.contains("the document refuses this write") == true,
+            "the contained failure is the one the filter raised, not whatever else reached the thread",
+        )
 
         document.documentFilter = null
         document.insertString(document.length, "!", null)
@@ -289,6 +296,11 @@ class DeclaredTextPushTest {
         value = "not an int"
         awaitIdle()
         assertEquals(emptyList(), reported, "a refused write reports nothing")
+        val refusal = takeCallerFailures().single()
+        assertTrue(
+            refusal.stackTraceToString().contains("IntOnlyFormatter"),
+            "the contained failure is the one this formatter raised, not whatever else reached the thread",
+        )
 
         field.text = "7"
         field.commitEdit()

@@ -4,7 +4,6 @@
 package org.jetbrains.compose.swing.components.text
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.compose.swing.AppliedValue
 import org.jetbrains.compose.swing.SwingNode
@@ -39,13 +38,7 @@ public fun TextField(
 ) {
     val callback = rememberUpdatedState(onValueChange)
     val applied = rememberAppliedValue(value)
-    val listener =
-        remember(applied) {
-            documentChangeListener { event ->
-                val text = event.document.fullText()
-                if (applied.observed(text)) callback.value(text)
-            }
-        }
+    val listener = rememberUserEditListener(applied, callback)
     TextFieldNode(
         value = value,
         applied = applied,
@@ -90,10 +83,8 @@ public fun TextField(
 }
 
 /**
- * The `JTextField` node both [TextField] overloads render. [value] is pushed on change only - unlike a
- * declared selection or a scalar widget property, an un-adopted edit is not undone on some later,
- * unrelated recomposition: nothing here reads [applied]'s mirror to gate the push, so typing is never
- * fought without a fresh [value] declaring otherwise.
+ * The `JTextField` node both [TextField] overloads render. [value] is settled through
+ * [pushDeclaredText].
  */
 @Composable
 private fun TextFieldNode(
@@ -110,7 +101,7 @@ private fun TextFieldNode(
                 this.columns = it
                 revalidate()
             }
-            set(value) { declared -> applied.settle(declared, { text }, { text = it }) {} }
+            pushDeclaredText(value, applied)
             set(editable) { this.isEditable = it }
             applyModifier(modifier)
         },

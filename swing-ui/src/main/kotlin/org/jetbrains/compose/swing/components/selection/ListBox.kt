@@ -6,15 +6,15 @@ package org.jetbrains.compose.swing.components.selection
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import org.jetbrains.compose.swing.AppliedWrite
+import org.jetbrains.compose.swing.AppliedValue
 import org.jetbrains.compose.swing.SwingNode
 import org.jetbrains.compose.swing.SwingNodeUpdater
 import org.jetbrains.compose.swing.constants.SelectionMode
+import org.jetbrains.compose.swing.declare
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.listSelectionListener
-import org.jetbrains.compose.swing.rememberAppliedWrite
-import org.jetbrains.compose.swing.userOnly
+import org.jetbrains.compose.swing.rememberAppliedValue
 import java.util.Vector
 import javax.swing.JList
 import javax.swing.ListModel
@@ -44,9 +44,9 @@ import javax.swing.event.ListSelectionListener
  * across rows produces one callback at the end rather than one per row crossed, and rendering new
  * [items] produces none. A declared selection is the composition's state and is re-applied on every pass:
  * it survives an items change (an index the current items no longer cover is dropped), and a user change
- * the caller does not adopt is undone. Undeclared, the selection is the user's alone - never imposed, and
- * kept across an items change all the same; where the new items are too few to hold it, the rows that fall
- * outside them leave the selection and [onSelectionChange] reports what is left of it.
+ * the caller does not adopt does not stand. Undeclared, the selection is the user's alone - never
+ * imposed, and kept across an items change all the same; where the new items are too few to hold it, the
+ * rows that fall outside them leave the selection and [onSelectionChange] reports what is left of it.
  *
  * @param items the items to display
  * @param modifier the [SwingModifier] applied to the underlying component
@@ -136,9 +136,9 @@ public fun <T> ListBox(
  * [onSelectionChange] reports the user's selection changes only, once per settled change - so dragging
  * across rows produces one callback at the end rather than one per row crossed, and installing a new
  * [model] produces none. A declared selection is the composition's state and is re-applied on every pass,
- * so a user change the caller does not adopt is undone; undeclared, the selection is the user's alone and
- * is never imposed - where the new model is too short to hold it, the rows that fall outside it leave the
- * selection and [onSelectionChange] reports what is left of it.
+ * so a user change the caller does not adopt does not stand; undeclared, the selection is the user's alone
+ * and is never imposed - where the new model is too short to hold it, the rows that fall outside it leave
+ * the selection and [onSelectionChange] reports what is left of it.
  *
  * @param model the caller-owned list model to display; installed as-is and never mutated
  * @param modifier the [SwingModifier] applied to the underlying component
@@ -217,8 +217,8 @@ public fun <T> ListBox(
 /**
  * The `JList` node every [ListBox] overload renders: all of it but the content, which [installContent]
  * declares - a declarative items list in one family of overloads, the caller's own model in the other.
- * [installContent] is handed the [AppliedWrite] marking the wrapper's writes to its widget, since giving
- * the list new content is one of them.
+ * [installContent] is handed the [AppliedValue] mirroring the list's selection, since giving the list new
+ * content is one of the writes that moves it.
  */
 @Composable
 private fun <T> ListBoxNode(
@@ -228,23 +228,42 @@ private fun <T> ListBoxNode(
     @SelectionMode selectionMode: Int,
     visibleRowCount: Int,
     itemContent: (@Composable ListItemScope.(item: T) -> Unit)?,
-    installContent: SwingNodeUpdater<JList<T>>.(AppliedWrite) -> Unit,
+    installContent: SwingNodeUpdater<JList<T>>.(AppliedValue<List<Int>?>) -> Unit,
 ) {
     // The single conversion from itemContent to a JList cell renderer: one reused ComposingListCellRenderer
     // stamps a recycled composition per row. A null itemContent renders rows through the list's own renderer.
     val itemRenderer = itemContent?.let { rememberComposingListCellRenderer(it) }
-    val applied = rememberAppliedWrite()
-    val userSelectionListener = remember(applied, listSelectionListener) { applied.userOnly(listSelectionListener) }
+    val applied = rememberAppliedValue(selectedIndices)
+    // A drag publishes one selection per row crossed before it settles, so only the settled value is worth
+    // mirroring - mirroring an adjusting one would invalidate this composition, and re-assert the
+    // declaration, before the user has let go. Forwarding to the caller's own listener follows the write
+    // depth alone, exactly as it did without a mirror, so every adjusting event still reaches it.
+    val userSelectionListener =
+        remember(applied, listSelectionListener) {
+            ListSelectionListener { event ->
+                if (!event.valueIsAdjusting) applied.observed((event.source as JList<*>).selectedIndices.toList())
+                if (!applied.isWriting) listSelectionListener.valueChanged(event)
+            }
+        }
     SwingNode(
         factory = { JList<T>() },
         update = {
-            set(selectionMode) { mode -> applied.writeNarrowing(selectedIndices) { this.selectionMode = mode } }
+            set(selectionMode) { mode ->
+                narrowSelection(applied, selectedIndices, listSelectionListener) { this.selectionMode = mode }
+            }
             set(visibleRowCount) { count -> this.visibleRowCount = count }
             set(itemRenderer) { renderer -> applyItemRenderer(renderer) }
             installContent(applied)
-            // What the caller declares is the composition's state, so it is re-asserted on every pass:
-            // a user change the caller does not adopt is undone, and an undeclared one is left standing.
-            reconcile { applied.write { applySelection(this, selectedIndices) } }
+            // Run on every pass regardless of whether a selection is declared, so the set calls this makes
+            // always number the same and no later slot in this block shifts when one flips to the other.
+            // An undeclared (null) selection settles to itself: applySelection leaves the list alone for a
+            // null declaration, so the selection is never imposed, overwritten, or re-asserted for it.
+            declare(
+                selectedIndices,
+                applied,
+                { this.selectedIndices.toList() },
+                { indices -> applySelection(this, indices) },
+            )
             applyModifier(modifier.listSelectionListener(userSelectionListener))
         },
     )
@@ -274,7 +293,7 @@ private fun rememberSettledSelectionListener(onSelectionChange: (List<Int>) -> U
  * too short to hold. See [installNarrowing].
  */
 private fun JList<*>.installContent(
-    applied: AppliedWrite,
+    applied: AppliedValue<List<Int>?>,
     declared: List<Int>?,
     target: ListSelectionListener,
     install: () -> Unit,
@@ -283,12 +302,7 @@ private fun JList<*>.installContent(
         declared = declared,
         selection = { selectedIndices.toList() },
         apply = { rows -> applySelection(this, rows) },
-        report = { lost ->
-            // A list re-fires its selection model's event as its own, with itself as the source, and that
-            // is the event a listener installed on the list is handed. Both index lists are in ascending
-            // row order, so the rows that left the selection span the range the event describes as changed.
-            target.valueChanged(ListSelectionEvent(this, lost.first(), lost.last(), false))
-        },
+        report = { lost -> reportLostRows(target, lost) },
         install = install,
     )
 

@@ -34,8 +34,18 @@ class NodeTabInteractionTest {
     @Test
     fun clickingATabSelectsItAndReportsIt() = runComposeSwingTest {
         val reported = mutableListOf<Int>()
+        var selected by mutableIntStateOf(0)
         setContent {
-            TabbedPane(selectedIndex = 0, modifier = roomForTheStrip, onSelectedIndexChange = { reported += it }) {
+            // The pane holds the tab the composition declares, so the caller adopts the click for the
+            // selection it makes to be the one that stands.
+            TabbedPane(
+                selectedIndex = selected,
+                modifier = roomForTheStrip,
+                onSelectedIndexChange = {
+                    reported += it
+                    selected = it
+                },
+            ) {
                 tab("One") { Label("1") }
                 tab("Two") { Label("2") }
                 tab("Three") { Label("3") }
@@ -50,8 +60,15 @@ class NodeTabInteractionTest {
 
     @Test
     fun clickingATabShowsItsContent() = runComposeSwingTest {
+        var selected by mutableIntStateOf(0)
         setContent {
-            TabbedPane(selectedIndex = 0, modifier = roomForTheStrip) {
+            // The pane holds the tab the composition declares, so the caller adopts the click for the
+            // selection it makes to be the one that stands.
+            TabbedPane(
+                selectedIndex = selected,
+                modifier = roomForTheStrip,
+                onSelectedIndexChange = { selected = it },
+            ) {
                 tab("One") { Label("first") }
                 tab("Two") { Label("second") }
             }

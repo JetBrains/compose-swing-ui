@@ -206,6 +206,30 @@ class TreeBehaviorTest {
     }
 
     @Test
+    fun aSelectionTheCallerDoesNotAdoptDoesNotStand() = runComposeSwingTest {
+        setContent {
+            Tree(
+                root = sample,
+                children = { it.children },
+                label = { it.name },
+                selectedPaths = listOf(listOf(0)),
+            )
+        }
+
+        val tree = onNodeOfType<JTree>().fetch()
+        tree.selectionPath = tree.pathTo(1)
+        awaitIdle()
+
+        // The tree is already settled back onto the declared selection by the time the move's own
+        // recomposition finishes - not just once some later, unrelated recomposition happens to run.
+        assertEquals(
+            listOf(tree.pathTo(0)),
+            tree.selectionPaths?.toList(),
+            "an unadopted selection change does not stand",
+        )
+    }
+
+    @Test
     fun stateDrivenDataChangeRebuildsTheTree() = runComposeSwingTest {
         var data by mutableStateOf(sample)
         setContent {

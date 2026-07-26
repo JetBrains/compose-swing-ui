@@ -21,7 +21,8 @@ import kotlin.test.assertNull
  * The checked state is controlled: the box shows whatever `checked` holds, a click reports the new
  * state through the callback, and a value pushed in from composition applies without echoing back as a
  * callback. Text, checked state and the modifier are each driven through more than one value and back,
- * so a parameter honoured only when the component is built would fail here.
+ * so a parameter honoured only when the component is built would fail here. A click the caller does not
+ * adopt does not stand - the next settled pass writes the declared state back over it.
  */
 class CheckBoxBehaviorTest {
     @Test
@@ -228,5 +229,21 @@ class CheckBoxBehaviorTest {
         onNodeOfType<JCheckBox>().performClick()
         assertEquals(1, latest, "the newly declared listener receives the click")
         assertEquals(1, first, "the listener that left the declaration no longer fires")
+    }
+
+    @Test
+    fun aClickTheCallerDoesNotAdoptDoesNotStand() = runComposeSwingTest {
+        var text by mutableStateOf("Word wrap")
+        setContent { CheckBox(text = text, checked = false) }
+
+        val checkBox = onNodeOfType<JCheckBox>()
+        checkBox.performClick()
+        checkBox.assert(SwingMatcher.isSelected(false))
+
+        // An unrelated recomposition changes nothing here: the box was already showing the
+        // declared state right after the click, not just once this pass ran.
+        text = "Wrap lines"
+        awaitIdle()
+        checkBox.assert(SwingMatcher.isSelected(false))
     }
 }

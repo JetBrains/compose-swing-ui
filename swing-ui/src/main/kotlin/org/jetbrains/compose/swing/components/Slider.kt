@@ -192,8 +192,11 @@ private fun SliderNode(
         update = {
             // Everything that bounds or snaps the value goes in before the value itself, so a
             // recomposition that moves both lands the new value on the new grid rather than the old.
-            set(min) { this.minimum = it }
-            set(max) { this.maximum = it }
+            // Narrowing the range can force JSlider to clamp the value on the spot, which the change
+            // listener would otherwise see as an unannounced move; the write guard is what tells
+            // applied.observed() that the clamp is this declaration settling, not the user's.
+            set(min) { applied.write { this.minimum = it } }
+            set(max) { applied.write { this.maximum = it } }
             set(majorTickSpacing) { this.majorTickSpacing = it }
             set(minorTickSpacing) { this.minorTickSpacing = it }
             set(snapToTicks) { this.snapToTicks = it }

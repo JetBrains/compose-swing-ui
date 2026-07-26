@@ -4,7 +4,6 @@
 package org.jetbrains.compose.swing.components.text
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.compose.swing.AppliedValue
 import org.jetbrains.compose.swing.SwingNode
@@ -21,16 +20,22 @@ import javax.swing.text.html.HTMLDocument
 /**
  * A composable wrapper for `JEditorPane`.
  *
- * The pane interprets [value] according to [contentType]: as plain text, HTML, or RTF. Changing
- * [contentType] reinterprets [value] under the new type. The binding is reactive in both directions -
- * [value] is pushed onto the pane, and edits the user makes are reported through [onValueChange].
+ * [contentType] selects the kit the pane displays and edits through - plain text, HTML, or RTF - but
+ * [value] and [onValueChange] always carry the pane's plain document text, never the kit's serialized
+ * markup: under `text/html`, for instance, `value` is rendered as literal characters rather than parsed as
+ * tags. For markup content, bind a document that already holds the structure through the [DocumentState]
+ * overload ([EditorPane]) instead of round-tripping it as a `String`.
+ *
+ * Changing [contentType] re-renders [value] into the fresh document that content type's kit installs. The
+ * binding is otherwise reactive in both directions - [value] is pushed onto the pane, and edits the user
+ * makes are reported through [onValueChange].
  *
  * For incremental editing over a shared `Document`, undo/redo, or observing the text as a flow, drive the
  * pane with the [DocumentState] overload ([EditorPane]) and a [DocumentState] from `rememberDocumentState`.
  *
- * @param value the current text, interpreted as [contentType]
+ * @param value the pane's plain document text, regardless of [contentType]
  * @param modifier the [SwingModifier] applied to the underlying component
- * @param contentType the MIME type the text is interpreted as (a [ContentType] MIME string)
+ * @param contentType the MIME type the pane displays and edits through (a [ContentType] MIME string)
  * @param onValueChange callback invoked with the pane's new text when the pane is edited; applying
  *   [value] is not itself reported
  * @param editable whether the user can edit the text
@@ -46,15 +51,7 @@ public fun EditorPane(
 ) {
     val callback = rememberUpdatedState(onValueChange)
     val applied = rememberAppliedValue(value)
-    // The listener reads the pane's text from the document that fired, which is the document the
-    // pane holds: a switch of content type installs a fresh one.
-    val listener =
-        remember(applied) {
-            documentChangeListener { event ->
-                val text = event.document.fullText()
-                if (applied.observed(text)) callback.value(text)
-            }
-        }
+    val listener = rememberUserEditListener(applied, callback)
     EditorPaneNode(
         value = value,
         applied = applied,
@@ -73,10 +70,10 @@ public fun EditorPane(
  * For incremental editing over a shared `Document`, undo/redo, or observing the text as a flow, drive the
  * pane with the [DocumentState] overload ([EditorPane]) and a [DocumentState] from `rememberDocumentState`.
  *
- * @param value the current text, interpreted as [contentType]
+ * @param value the pane's plain document text, regardless of [contentType]
  * @param documentListener the listener notified of document edits
  * @param modifier the [SwingModifier] applied to the underlying component
- * @param contentType the MIME type the text is interpreted as (a [ContentType] MIME string)
+ * @param contentType the MIME type the pane displays and edits through (a [ContentType] MIME string)
  * @param editable whether the user can edit the text
  * @see EditorPane the [DocumentState]-driven overload for large or complex editors
  */
@@ -99,12 +96,10 @@ public fun EditorPane(
 }
 
 /**
- * The `JEditorPane` node both [EditorPane] overloads render. [value] is pushed on change only - unlike a
- * declared selection or a scalar widget property, an un-adopted edit is not undone on some later,
- * unrelated recomposition: nothing here reads [applied]'s mirror to gate the push, so typing is never
- * fought without a fresh [value] declaring otherwise. A content-type switch is the one push run
- * unconditionally regardless of [value] itself moving, since it is what leaves the pane with a fresh,
- * empty document to fill.
+ * The `JEditorPane` node both [EditorPane] overloads render. [value] is settled through
+ * [pushDeclaredText], representing the pane's plain document text regardless of [contentType]. A
+ * content-type switch is the one push run unconditionally regardless of [value] itself moving, since it
+ * is what leaves the pane with a fresh, empty document to fill.
  */
 @Composable
 private fun EditorPaneNode(
@@ -123,9 +118,9 @@ private fun EditorPaneNode(
             // regardless of whether the declaration itself moved since the last pass.
             set(contentType) { newContentType ->
                 this.contentType = newContentType
-                applied.settle(value, { text }, { text = it }) {}
+                applied.settle(value, { document.fullText() }, { document.replaceSpan(0, document.length, it) }) {}
             }
-            set(value) { declared -> applied.settle(declared, { text }, { text = it }) {} }
+            pushDeclaredText(value, applied)
             set(editable) { this.isEditable = it }
             applyModifier(modifier)
         },
@@ -199,13 +194,7 @@ public fun TextPane(
 ) {
     val callback = rememberUpdatedState(onValueChange)
     val applied = rememberAppliedValue(value)
-    val listener =
-        remember(applied) {
-            documentChangeListener { event ->
-                val text = event.document.fullText()
-                if (applied.observed(text)) callback.value(text)
-            }
-        }
+    val listener = rememberUserEditListener(applied, callback)
     TextPaneNode(
         value = value,
         applied = applied,
@@ -246,10 +235,7 @@ public fun TextPane(
 }
 
 /**
- * The `JTextPane` node both [TextPane] overloads render. [value] is pushed on change only - unlike a
- * declared selection or a scalar widget property, an un-adopted edit is not undone on some later,
- * unrelated recomposition: nothing here reads [applied]'s mirror to gate the push, so typing is never
- * fought without a fresh [value] declaring otherwise.
+ * The `JTextPane` node both [TextPane] overloads render. [value] is settled through [pushDeclaredText].
  */
 @Composable
 private fun TextPaneNode(
@@ -261,7 +247,7 @@ private fun TextPaneNode(
     SwingNode(
         factory = { JTextPane() },
         update = {
-            set(value) { declared -> applied.settle(declared, { text }, { text = it }) {} }
+            pushDeclaredText(value, applied)
             set(editable) { this.isEditable = it }
             applyModifier(modifier)
         },

@@ -35,10 +35,15 @@ import javax.swing.JFormattedTextField.AbstractFormatterFactory
  * ```
  * FormattedTextField(
  *     value = amount,
- *     formatterFactory = remember { DefaultFormatterFactory(NumberFormatter()) },
+ *     formatterFactory = remember {
+ *         DefaultFormatterFactory(NumberFormatter().apply { valueClass = Int::class.javaObjectType })
+ *     },
  *     onValueChange = { amount = it as Int },
  * )
  * ```
+ *
+ * A `NumberFormatter`'s `valueClass` decides the type [onValueChange] receives; set to
+ * `Int::class.javaObjectType` here, it is what makes the committed value the `Int` the example casts to.
  *
  * Installing a formatter re-renders the committed value through it, which replaces characters the user
  * has typed but not committed. A [formatterFactory] is installed whenever a different instance is

@@ -7,11 +7,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import org.jetbrains.compose.swing.AppliedValue
 import org.jetbrains.compose.swing.AppliedWrite
 import org.jetbrains.compose.swing.SwingNode
 import org.jetbrains.compose.swing.constants.SelectionMode
+import org.jetbrains.compose.swing.core.dispatchToCaller
+import org.jetbrains.compose.swing.declare
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
+import org.jetbrains.compose.swing.rememberAppliedValue
 import org.jetbrains.compose.swing.rememberAppliedWrite
 import org.jetbrains.compose.swing.userOnly
 import javax.swing.JTable
@@ -56,10 +60,10 @@ import javax.swing.table.TableModel
  * dragging across rows produces one callback at the end rather than one per row crossed, and
  * rendering new [rows] or new columns produces none. A declared selection is the composition's state and
  * is re-applied on every pass: it survives such a change (an index the current rows no longer cover is
- * dropped), and a user change the caller does not adopt is undone. Undeclared, the selection is the user's
- * alone - never imposed, and kept across new rows and new columns all the same; where the new rows are too
- * few to hold it, the rows that fall outside them leave the selection and [onSelectionChange] reports what
- * is left of it.
+ * dropped), and a user change the caller does not adopt does not stand. Undeclared, the selection is
+ * the user's alone - never imposed, and kept across new rows and new columns all the same; where the new
+ * rows are too few to hold it, the rows that fall outside them leave the selection and [onSelectionChange]
+ * reports what is left of it.
  *
  * The order and the widths of the columns are the same kind of state, declared with [columnLayout] and
  * reported through [onColumnLayoutChange]: dragging a column header sideways reorders the columns and
@@ -138,15 +142,23 @@ public fun <R> Table(
     // factory, because the node is recyclable: the table it hands to a later composition came with the
     // model of the content that built it, and rows refreshed into any other model reach no table.
     val model = remember { ColumnsTableModel<R>() }
-    val applied = rememberAppliedWrite()
-    val userSelectionListener = remember(applied, listSelectionListener) { applied.userOnly(listSelectionListener) }
+    // The column layout keeps marking its own writes through a bare reentrancy counter - it is not the
+    // mirrored property here - while the row selection gets a real mirror of its own.
+    val appliedColumn = rememberAppliedWrite()
+    val appliedSelection = rememberAppliedValue(selectedRowIndices)
+    val userSelectionListener = rememberUserSelectionListener(appliedSelection, listSelectionListener)
     val columnChannel = rememberColumnLayoutChannel(tableColumnModelListener)
-    val userColumnListener = remember(applied, columnChannel) { applied.userOnly(columnChannel.listener) }
+    val userColumnListener =
+        remember(appliedColumn, columnChannel) { appliedColumn.userOnly(columnChannel.listener) }
 
     SwingNode(
         factory = { JTable(model) },
         update = {
-            set(selectionMode) { mode -> applied.writeNarrowing(selectedRowIndices) { applySelectionMode(mode) } }
+            set(selectionMode) { mode ->
+                narrowSelection(appliedSelection, selectedRowIndices, listSelectionListener) {
+                    applySelectionMode(mode)
+                }
+            }
             // A table answers any model event by dropping its selection - a structure change rebuilds the
             // columns, and a data change spans every row - so the selection and the column layout that
             // should stand are restored as part of the same refresh that provokes the drop. Adopting this
@@ -154,17 +166,25 @@ public fun <R> Table(
             // model other than the one it holds, which leaves this nothing to do for the composition the
             // factory already handed the model to, and makes it the swap that gives a reactivated child the
             // model it drives - with what the table was holding carried across it.
-            // Running every pass is also what re-asserts a declared selection and a declared column layout:
-            // a user change the caller does not adopt is undone, while an undeclared one is left standing.
             reconcile {
                 val table = this
-                columnChannel.preserveAcross(columnModel, columnLayout, applied) {
-                    installContent(applied, selectedRowIndices, listSelectionListener) {
+                columnChannel.preserveAcross(columnModel, columnLayout, appliedColumn) {
+                    installContent(appliedSelection, selectedRowIndices, listSelectionListener) {
                         table.model = model
                         model.refresh(rows, columns)
                     }
                 }
             }
+            // Run on every pass regardless of whether a selection is declared, so the set calls this makes
+            // always number the same and no later slot in this block shifts when one flips to the other.
+            // An undeclared (null) selection settles to itself: applySelection leaves the table alone for a
+            // null declaration, so the selection is never imposed, overwritten, or re-asserted for it.
+            declare(
+                selectedRowIndices,
+                appliedSelection,
+                { selectedRows.toList() },
+                { indices -> applySelection(this, indices) },
+            )
             applyModifier(
                 modifier
                     .tableSelectionListener(userSelectionListener)
@@ -173,6 +193,25 @@ public fun <R> Table(
         },
     )
 }
+
+/**
+ * A [ListSelectionListener] that mirrors every settled selection into [applied] and forwards to [target]
+ * whatever arrives outside one of [applied]'s own writes - the adjusting events of a drag as well as the
+ * settled one, exactly as a caller's raw listener expects. Only the settled value is worth mirroring: an
+ * adjusting one would invalidate this composition, and re-assert the declaration, before the user has let
+ * go.
+ */
+@Composable
+private fun rememberUserSelectionListener(
+    applied: AppliedValue<List<Int>?>,
+    target: ListSelectionListener,
+): ListSelectionListener =
+    remember(applied, target) {
+        ListSelectionListener { event ->
+            if (!event.valueIsAdjusting) applied.observed((event.source as ListSelectionModel).selectedIndices())
+            if (!applied.isWriting) target.valueChanged(event)
+        }
+    }
 
 /**
  * A composable wrapper for `JTable` driven by a caller-owned [TableModel].
@@ -199,9 +238,9 @@ public fun <R> Table(
  * [onSelectionChange] reports the user's selection changes only, once per settled change - so dragging
  * across rows produces one callback at the end rather than one per row crossed, and installing a new
  * [model] produces none. A declared selection is the composition's state and is re-applied on every pass,
- * so a user change the caller does not adopt is undone; undeclared, the selection is the user's alone and
- * is never imposed - where the new model has too few rows to hold it, the rows that fall outside it leave
- * the selection and [onSelectionChange] reports what is left of it.
+ * so a user change the caller does not adopt does not stand; undeclared, the selection is the user's alone
+ * and is never imposed - where the new model has too few rows to hold it, the rows that fall outside it
+ * leave the selection and [onSelectionChange] reports what is left of it.
  *
  * The order and the widths of the columns are the same kind of state, declared with [columnLayout] and
  * reported through [onColumnLayoutChange]: dragging a column header sideways reorders the columns and
@@ -273,29 +312,44 @@ public fun Table(
     columnLayout: TableColumnLayout? = null,
     tableColumnModelListener: TableColumnModelListener? = null,
 ) {
-    val applied = rememberAppliedWrite()
-    val userSelectionListener = remember(applied, listSelectionListener) { applied.userOnly(listSelectionListener) }
+    val appliedColumn = rememberAppliedWrite()
+    val appliedSelection = rememberAppliedValue(selectedRowIndices)
+    val userSelectionListener = rememberUserSelectionListener(appliedSelection, listSelectionListener)
     val columnChannel = rememberColumnLayoutChannel(tableColumnModelListener)
-    val userColumnListener = remember(applied, columnChannel) { applied.userOnly(columnChannel.listener) }
+    val userColumnListener =
+        remember(appliedColumn, columnChannel) { appliedColumn.userOnly(columnChannel.listener) }
 
     SwingNode(
         factory = { JTable(model) },
         update = {
-            set(selectionMode) { mode -> applied.writeNarrowing(selectedRowIndices) { applySelectionMode(mode) } }
-            set(model) { newModel ->
-                columnChannel.preserveAcross(columnModel, columnLayout, applied) {
-                    installContent(applied, selectedRowIndices, listSelectionListener) { this.model = newModel }
+            set(selectionMode) { mode ->
+                narrowSelection(appliedSelection, selectedRowIndices, listSelectionListener) {
+                    applySelectionMode(mode)
                 }
             }
-            // What the caller declares is the composition's state, so it is re-asserted on every pass:
-            // a user change the caller does not adopt is undone, and an undeclared one is left standing.
-            reconcile {
-                applied.write {
-                    applySelection(this, selectedRowIndices)
-                    columnModel.applyColumnLayout(columnLayout)
+            set(model) { newModel ->
+                columnChannel.preserveAcross(columnModel, columnLayout, appliedColumn) {
+                    installContent(appliedSelection, selectedRowIndices, listSelectionListener) {
+                        this.model = newModel
+                    }
                 }
+            }
+            // The column layout is re-asserted every pass regardless of whether it moved, since it has no
+            // mirror of its own to invalidate this composition on a move away from it.
+            reconcile {
+                appliedColumn.write { columnModel.applyColumnLayout(columnLayout) }
                 columnChannel.adopt(columnModel.readColumnLayout())
             }
+            // Run on every pass regardless of whether a selection is declared, so the set calls this makes
+            // always number the same and no later slot in this block shifts when one flips to the other.
+            // An undeclared (null) selection settles to itself: applySelection leaves the table alone for a
+            // null declaration, so the selection is never imposed, overwritten, or re-asserted for it.
+            declare(
+                selectedRowIndices,
+                appliedSelection,
+                { selectedRows.toList() },
+                { indices -> applySelection(this, indices) },
+            )
             applyModifier(
                 modifier
                     .tableSelectionListener(userSelectionListener)
@@ -389,7 +443,9 @@ private class ColumnLayoutChannel(
         // The columns are put back as this wrapper's own write, so nothing they publish carries the loss
         // out; a margin change over the model they are left in is how the caller hears what they were left
         // holding.
-        if (declared == null && !settled.holds(retained)) target.value?.columnMarginChanged(ChangeEvent(columns))
+        if (declared == null && !settled.holds(retained)) {
+            dispatchToCaller { target.value?.columnMarginChanged(ChangeEvent(columns)) }
+        }
     }
 
     /**
@@ -585,7 +641,7 @@ private fun JTable.applySelectionMode(
  * too short to hold. See [installNarrowing].
  */
 private fun JTable.installContent(
-    applied: AppliedWrite,
+    applied: AppliedValue<List<Int>?>,
     declared: List<Int>?,
     target: ListSelectionListener,
     install: () -> Unit,
@@ -593,12 +649,8 @@ private fun JTable.installContent(
     applied.installNarrowing(
         declared = declared,
         selection = { selectedRows.toList() },
-        apply = { rows -> applySelection(this, rows) },
-        report = { lost ->
-            // Both lists are in ascending row order, so the rows that left the selection span the range
-            // the event describes as changed.
-            target.valueChanged(ListSelectionEvent(selectionModel, lost.first(), lost.last(), false))
-        },
+        apply = { indices -> applySelection(this, indices) },
+        report = { lost -> reportLostRows(target, lost) },
         install = install,
     )
 

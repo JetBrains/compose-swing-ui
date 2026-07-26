@@ -9,6 +9,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.AppliedValue
 import org.jetbrains.compose.swing.SwingNode
 import org.jetbrains.compose.swing.constants.SplitOrientation
 import org.jetbrains.compose.swing.core.SlotAttachment
@@ -16,6 +17,7 @@ import org.jetbrains.compose.swing.core.SlotNode
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.propertyChangeListener
+import org.jetbrains.compose.swing.rememberAppliedValue
 import java.beans.PropertyChangeListener
 import javax.swing.JSplitPane
 import javax.swing.UIManager
@@ -33,18 +35,22 @@ import javax.swing.UIManager
  * Each side hosts exactly one child; redeclaring a side replaces its child, and dropping a side (e.g.
  * behind an `if`) clears it.
  *
- * The divider position is controlled: pass a pixel offset as [dividerLocation] to place the divider,
- * and [onDividerLocationChange] fires with the new offset whenever the divider moves. The default
- * `-1` is `JSplitPane`'s own initial divider location; as `setDividerLocation` documents, a negative
- * offset resets the divider to a position honoring the sides' preferred sizes (shaped by
- * [resizeWeight]).
+ * Pass a pixel offset as [dividerLocation] to place the divider; [onDividerLocationChange] fires with
+ * the new offset when the user moves it. An offset is applied when it changes and is not asserted
+ * again, so a divider the user has dragged stays where they left it. The default `-1` is
+ * `JSplitPane`'s own initial divider location, asking the pane to derive the position from the sides'
+ * preferred sizes (shaped by [resizeWeight]); the pane keeps that request as its divider location until
+ * it is realized on screen, at which point it resolves the position itself - that resolution is the
+ * look and feel settling the request, not a move, and is not reported.
  *
  * @param modifier the [SwingModifier] applied to the underlying `JSplitPane`
  * @param orientation the axis along which the two sides are arranged
  * @param dividerLocation the divider offset in pixels (controlled); a negative offset - the default
  *   `-1` is `JSplitPane`'s own initial divider location - resets the divider to honor the sides'
  *   preferred sizes
- * @param onDividerLocationChange callback invoked with the new offset when the divider moves
+ * @param onDividerLocationChange callback invoked with the new offset when the user moves the
+ *   divider; an offset the declaration itself applies is not reported, nor is the position a negative
+ *   request resolves to once the pane is realized on screen
  * @param resizeWeight how extra space is shared when the pane resizes, from `0.0` (all to the second
  *   side) to `1.0` (all to the first side)
  * @param oneTouchExpandable whether the divider carries a widget that collapses either side in one
@@ -66,13 +72,31 @@ public fun SplitPane(
     block: SplitPaneScope.() -> Unit,
 ) {
     val callback = rememberUpdatedState(onDividerLocationChange)
+    val declaredOffset = rememberUpdatedState(dividerLocation)
+    val applied = rememberAppliedValue(dividerLocation)
+    // The pane publishes its new offset for every move, its own and the user's alike, including the
+    // position a negative request resolves to once realized on screen. The binding answers which is
+    // which by value: a move that lands on the declaration is the declaration arriving, and a move
+    // answering a negative request the mirror still holds is that same resolution, settled into the
+    // mirror without being reported. A move away from either is the user's, reported once, and every
+    // later move is then measured against the resolved position.
     val listener =
-        remember { PropertyChangeListener { event -> callback.value((event.source as JSplitPane).dividerLocation) } }
-    SplitPane(
-        dividerLocationListener = listener,
-        modifier = modifier,
+        remember(applied) {
+            PropertyChangeListener { event ->
+                val moved = (event.source as JSplitPane).dividerLocation
+                val declared = declaredOffset.value
+                if (declared < 0 && applied.current == declared) {
+                    applied.observed(moved)
+                } else if (applied.observed(moved)) {
+                    callback.value(moved)
+                }
+            }
+        }
+    SplitPaneImpl(
+        modifier = modifier.propertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY, listener),
         orientation = orientation,
         dividerLocation = dividerLocation,
+        applied = applied,
         resizeWeight = resizeWeight,
         oneTouchExpandable = oneTouchExpandable,
         dividerSize = dividerSize,
@@ -83,7 +107,10 @@ public fun SplitPane(
 /**
  * A [SplitPane] driven by a raw [PropertyChangeListener] instead of an `onDividerLocationChange`
  * lambda. The listener is attached for the `dividerLocation` property as-is and removed on the same
- * instance; pass a stable instance (e.g. `remember {}`) to avoid churn.
+ * instance; pass a stable instance (e.g. `remember {}`) to avoid churn. Attached as-is, it hears every
+ * `dividerLocation` change the pane publishes, including the pane's own writes and, for a negative
+ * (default) [dividerLocation], the position that request resolves to once realized on screen -
+ * `old=-1 new=<resolved>` - indistinguishable from a user's move.
  *
  * @param dividerLocationListener the listener notified when the `dividerLocation` property changes
  * @param modifier the [SwingModifier] applied to the underlying `JSplitPane`
@@ -110,29 +137,33 @@ public fun SplitPane(
     dividerSize: Int? = null,
     block: SplitPaneScope.() -> Unit,
 ) {
+    val applied = rememberAppliedValue(dividerLocation)
     SplitPaneImpl(
-        modifier = modifier,
+        modifier = modifier.propertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY, dividerLocationListener),
         orientation = orientation,
         dividerLocation = dividerLocation,
+        applied = applied,
         resizeWeight = resizeWeight,
         oneTouchExpandable = oneTouchExpandable,
         dividerSize = dividerSize,
-        dividerListener = { pane ->
-            pane.propertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY, dividerLocationListener)
-        },
         block = block,
     )
 }
 
+/**
+ * The `JSplitPane` node both public [SplitPane] overloads render. [dividerLocation] is applied on change
+ * and marked through [applied], so the offset the pane publishes for the wrapper's own write is
+ * recognizable as such and only the user's moves are reported.
+ */
 @Composable
 private fun SplitPaneImpl(
     modifier: SwingModifier,
     @SplitOrientation orientation: Int,
     dividerLocation: Int,
+    applied: AppliedValue<Int>,
     resizeWeight: Double,
     oneTouchExpandable: Boolean?,
     dividerSize: Int?,
-    dividerListener: (SwingModifier) -> SwingModifier,
     block: SplitPaneScope.() -> Unit,
 ) {
     // Collected fresh on every pass, so a side the caller stops declaring is cleared (see SwingNode).
@@ -153,21 +184,24 @@ private fun SplitPaneImpl(
         update = {
             set(orientation) { this.orientation = it }
             set(resizeWeight) { this.resizeWeight = it }
-            // Apply the controlled location only when the composed value changes and differs from
-            // the live position: a recomposition with an unchanged value never fights a user drag,
-            // and a programmatic set never echoes back through the divider listener as a spurious
-            // onDividerLocationChange. An explicit change to a negative offset writes through and
-            // gets setDividerLocation's documented reset-to-preferred-sizes semantics.
+            // Applied on change, never re-asserted: the default offset is a request to derive the
+            // position from the sides' preferred sizes rather than a position to hold, so a pass that
+            // redeclares it must leave a divider the user has since dragged where it stands.
+            // setDividerLocation fires its property change synchronously, so the write below reaches
+            // the attached listener exactly as a drag does; running it through applied is what marks it
+            // as the wrapper's own, leaving the listener to report the user's moves alone.
             set(dividerLocation) { location ->
                 if (this.dividerLocation != location) {
-                    this.dividerLocation = location
+                    applied.write { this.dividerLocation = location }
                 }
             }
             update(oneTouchExpandable) { declared ->
                 if (declared != null) {
                     isOneTouchExpandable = declared
-                } else if (isOneTouchExpandable != lookAndFeelOneTouchExpandable) {
-                    isOneTouchExpandable = lookAndFeelOneTouchExpandable
+                } else {
+                    if (isOneTouchExpandable != lookAndFeelOneTouchExpandable) {
+                        isOneTouchExpandable = lookAndFeelOneTouchExpandable
+                    }
                 }
             }
             update(dividerSize) { declared ->
@@ -180,7 +214,7 @@ private fun SplitPaneImpl(
                     }
                 }
             }
-            applyModifier(dividerListener(modifier))
+            applyModifier(modifier)
         },
         content = {
             scope.first?.let { first ->

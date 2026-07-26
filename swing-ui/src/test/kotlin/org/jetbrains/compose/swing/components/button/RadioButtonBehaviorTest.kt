@@ -21,7 +21,8 @@ import kotlin.test.assertNull
  * The selected state is controlled: the button shows whatever `selected` holds, a value pushed in from
  * composition applies without echoing back as a callback, and the user selecting the button reports
  * through `onSelect`. Text, selected state and the modifier are each driven through more than one
- * value and back.
+ * value and back, and a gesture the caller does not adopt does not stand - the next settled pass writes
+ * the declared state back over it.
  */
 class RadioButtonBehaviorTest {
     @Test
@@ -193,5 +194,35 @@ class RadioButtonBehaviorTest {
         onNodeOfType<JRadioButton>().performClick()
         assertEquals(1, latest, "the newly declared listener receives the gesture")
         assertEquals(1, first, "the listener that left the declaration no longer fires")
+    }
+
+    @Test
+    fun aSelectionTheCallerDoesNotAdoptDoesNotStand() = runComposeSwingTest {
+        var text by mutableStateOf("Compact")
+        setContent { RadioButton(text = text, selected = false) }
+
+        val radioButton = onNodeOfType<JRadioButton>()
+        radioButton.performClick()
+        radioButton.assert(SwingMatcher.isSelected(false))
+
+        // An unrelated recomposition changes nothing here: the button was already showing the
+        // declared state right after the click, not just once this pass ran.
+        text = "Comfortable"
+        awaitIdle()
+        radioButton.assert(SwingMatcher.isSelected(false))
+    }
+
+    @Test
+    fun aClearingClickTheCallerDoesNotAdoptDoesNotStand() = runComposeSwingTest {
+        var text by mutableStateOf("Compact")
+        setContent { RadioButton(text = text, selected = true) }
+
+        val radioButton = onNodeOfType<JRadioButton>()
+        radioButton.performClick()
+        radioButton.assert(SwingMatcher.isSelected())
+
+        text = "Comfortable"
+        awaitIdle()
+        radioButton.assert(SwingMatcher.isSelected())
     }
 }

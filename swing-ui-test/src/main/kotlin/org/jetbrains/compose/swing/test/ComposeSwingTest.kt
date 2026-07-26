@@ -16,6 +16,7 @@ import kotlinx.coroutines.test.TestResult
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
+import org.jetbrains.compose.swing.core.ContainedCallerFailure
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.interaction.NodePick
 import org.jetbrains.compose.swing.test.interaction.SwingNodeInteraction
@@ -82,6 +83,21 @@ public interface ComposeSwingTest {
      * surrounding test framework times out.
      */
     public suspend fun awaitIdle()
+
+    /**
+     * Removes and returns the failures raised by callbacks this test supplied and contained by the
+     * composition, oldest first.
+     *
+     * A callback that throws while a wrapper is writing to its widget does not stop the composition -
+     * one misbehaving listener cannot be allowed to leave a window unable to answer state - and a test
+     * whose callback threw fails on it once the test ends. A test that provokes such a failure on
+     * purpose takes it from here and asserts on it; what it takes no longer fails the test.
+     *
+     * A failure arrives here once the pass that provoked it has been driven, so take it after the
+     * [awaitIdle] or [awaitEventsDelivered] that settles the write - taking it before returns nothing and
+     * leaves the failure to end the test.
+     */
+    public fun takeCallerFailures(): List<Throwable>
 
     /**
      * Suspends until every AWT notification already queued on the event dispatch thread has been
@@ -317,7 +333,38 @@ private class ComposeSwingTestImpl(
      */
     private var compositionFailure: Throwable? = null
 
+    /**
+     * The event dispatch thread the test runs on, and the handler it reported uncaught exceptions through
+     * before this test claimed it.
+     */
+    private val dispatchThread: Thread = Thread.currentThread()
+    private val enclosingHandler: Thread.UncaughtExceptionHandler? = dispatchThread.uncaughtExceptionHandler
+
+    /**
+     * The failures raised by code the caller supplied and contained rather than allowed to end the
+     * composition - a listener or callback that threw while a wrapper was writing to its widget. Each
+     * entry is the original failure the caller's code raised, unwrapped from the marker the library
+     * reports it through.
+     *
+     * A contained failure leaves the composition working, which is what production wants and what would
+     * otherwise let a test pass over a callback that never finished. Collected here so the test that
+     * provoked one fails on it, and named in the report of any gate that gives up first.
+     */
+    private val callerFailures = mutableListOf<Throwable>()
+
     init {
+        dispatchThread.setUncaughtExceptionHandler { thread, failure ->
+            // Only a ContainedCallerFailure names a caller callback the library deliberately contained;
+            // anything else reaching this handler - a genuine library crash, or unrelated work posted to
+            // the EDT - is not this test's callback failing, and goes to whichever handler the thread
+            // reported through before this test claimed it.
+            val contained = failure as? ContainedCallerFailure
+            if (contained != null) {
+                callerFailures += contained.cause ?: contained
+            } else {
+                enclosingHandler?.uncaughtException(thread, failure)
+            }
+        }
         scope.launch {
             try {
                 recomposer.runRecomposeAndApplyChanges()
@@ -335,7 +382,21 @@ private class ComposeSwingTestImpl(
             ?.let {
                 "\nRecomposition ended earlier with $it - the composition has applied nothing since, so what " +
                     "the tree shows below is what it was left holding.\n" + it.stackTraceToString()
-            }.orEmpty()
+            }.orEmpty() + callerFailureNote()
+
+    /** Names the callback failures contained so far, for a gate reporting what it could not settle. */
+    private fun callerFailureNote(): String =
+        if (callerFailures.isEmpty()) {
+            ""
+        } else {
+            callerFailures.joinToString(
+                prefix =
+                    "\n${callerFailures.size} callback(s) supplied by this test threw while a wrapper was " +
+                        "writing to its widget. The composition carried on, so the tree below reflects a " +
+                        "callback that never finished.\n",
+                separator = "\n",
+            ) { it.stackTraceToString() }
+        }
 
     override fun setContent(content: @Composable () -> Unit) {
         check(!contentSet) { "setContent may only be called once per test." }
@@ -599,6 +660,12 @@ private class ComposeSwingTestImpl(
             root.findMatchingIncludingSelf(SwingMatcher.isRoot(root))
         }
 
+    override fun takeCallerFailures(): List<Throwable> {
+        val taken = callerFailures.toList()
+        callerFailures.clear()
+        return taken
+    }
+
     override fun onWindow(matcher: SwingMatcher): SwingWindowInteraction =
         SwingWindowInteraction(this, matcher, description = matcher.description)
 
@@ -609,6 +676,20 @@ private class ComposeSwingTestImpl(
         disposeHandle?.dispose()
         recomposer.cancel()
         scope.cancel()
+        dispatchThread.setUncaughtExceptionHandler(enclosingHandler)
+        val contained = callerFailures.toList()
+        if (contained.isNotEmpty()) {
+            // The composition contains these so a misbehaving callback cannot stop a window answering
+            // state. A test is the one place that has to hear about them: a callback that threw did not
+            // do what the test asked of it, whatever the widgets ended up showing.
+            val failure =
+                AssertionError(
+                    "${contained.size} callback(s) supplied by this test threw while a wrapper was writing " +
+                        "to its widget. The composition contained them and carried on; the test cannot.",
+                )
+            contained.forEach(failure::addSuppressed)
+            throw failure
+        }
     }
 
     private companion object {

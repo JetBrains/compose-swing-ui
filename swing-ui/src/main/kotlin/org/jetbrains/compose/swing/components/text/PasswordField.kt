@@ -6,13 +6,14 @@ package org.jetbrains.compose.swing.components.text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import org.jetbrains.compose.swing.AppliedWrite
+import org.jetbrains.compose.swing.AppliedValue
 import org.jetbrains.compose.swing.SwingNode
 import org.jetbrains.compose.swing.SwingNodeUpdater
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.documentListener
-import org.jetbrains.compose.swing.rememberAppliedWrite
+import org.jetbrains.compose.swing.rememberAppliedValue
+import java.util.Arrays
 import javax.swing.JPasswordField
 import javax.swing.event.DocumentListener
 import javax.swing.text.Document
@@ -21,8 +22,16 @@ import javax.swing.text.Segment
 /**
  * A composable wrapper for JPasswordField.
  *
- * The value is a [CharArray] of raw characters rather than a `String`, so a security-sensitive caller
- * controls every copy of the password.
+ * The value is a [CharArray] of raw characters rather than a `String`, keeping this wrapper's own
+ * boundary - [value], [onValueChange], and the comparison it makes against the field's current
+ * characters - free of an extra, unzeroable `String` copy of the password. Committing an edit still
+ * goes through `JPasswordField.setText(String)`, which materializes the password as a `String` on its
+ * way into the field. That copy, the characters this wrapper mirrors internally to settle a move away
+ * from [value], and any copy Swing itself retains, are all outside what a caller can zero.
+ *
+ * This field is strictly controlled: characters the field settles on that [onValueChange] does not
+ * answer with a matching [value] are settled back onto the declared value on the very next pass, so the
+ * field never ends up holding characters the caller has not adopted.
  *
  * Array ownership: the array delivered to [onValueChange] is a fresh copy owned by the receiver,
  * free to retain or zero. The [value] array stays owned by the caller, read only through the next
@@ -51,14 +60,16 @@ public fun PasswordField(
     editable: Boolean = true,
 ) {
     val callback = rememberUpdatedState(onValueChange)
-    // A CharArray compares by identity, not content, so there is no value to mirror here the way a
-    // String- or Int-valued field does - only whether a write of this wrapper's own is in flight.
-    val applied = rememberAppliedWrite()
+    val applied = rememberAppliedValue(value)
     // Deliver the raw characters by reading the document into a char array via a Segment, keeping
-    // the password out of an unzeroable String.
+    // the password out of an unzeroable String. The array applied mirrors is retained as-is; the
+    // callback is handed a distinct copy of its own, free to zero without corrupting that mirror.
     val listener =
         remember(applied) {
-            documentChangeListener { event -> if (!applied.isWriting) callback.value(event.document.fullPassword()) }
+            documentChangeListener { event ->
+                val current = event.document.fullPassword()
+                if (applied.observed(current)) callback.value(current.copyOf())
+            }
         }
     PasswordFieldNode(
         value = value,
@@ -75,6 +86,10 @@ public fun PasswordField(
  * `onValueChange` lambda. The [documentListener] is attached to the field's document as-is and removed
  * on the same instance; pass a stable instance (e.g. `remember {}`) to avoid churn. Being attached
  * as-is, it observes every change to that document, including the one that applies [value].
+ *
+ * This field is strictly controlled: characters the field settles on that are not followed by [value]
+ * moving to match are settled back onto the declared value on the very next pass, so the field never
+ * ends up holding characters the caller has not adopted.
  *
  * The [value] array stays owned by the caller, read only through the next recomposition; zeroing
  * it once it stops being the current value is the caller's responsibility.
@@ -100,11 +115,18 @@ public fun PasswordField(
     columns: Int = 0,
     editable: Boolean = true,
 ) {
-    val applied = rememberAppliedWrite()
+    val applied = rememberAppliedValue(value)
+    // Feeds applied's mirror on every edit, alongside the caller's own raw listener, so the settlement
+    // declarePassword makes keeps comparing against what the field currently holds rather than stale
+    // characters from an edit nothing else observed.
+    val mirror =
+        remember(applied) {
+            documentChangeListener { event -> applied.observed(event.document.fullPassword()) }
+        }
     PasswordFieldNode(
         value = value,
         applied = applied,
-        modifier = modifier.documentListener(documentListener),
+        modifier = modifier.documentListener(documentListener).documentListener(mirror),
         echoChar = echoChar,
         columns = columns,
         editable = editable,
@@ -112,15 +134,13 @@ public fun PasswordField(
 }
 
 /**
- * The `JPasswordField` node both character-array [PasswordField] overloads render. [value] is written
- * as [applied]'s own write - marking it lets a listener narrowed to the user's own edits (the lambda
- * overload's) stay silent for it, where the raw overload's caller-supplied listener, attached as-is,
- * observes it like any other edit.
+ * The `JPasswordField` node both character-array [PasswordField] overloads render. [value] is settled
+ * through [declarePassword].
  */
 @Composable
 private fun PasswordFieldNode(
     value: CharArray,
-    applied: AppliedWrite,
+    applied: AppliedValue<CharArray>,
     modifier: SwingModifier,
     echoChar: Char?,
     columns: Int,
@@ -131,17 +151,59 @@ private fun PasswordFieldNode(
         columns = columns,
         editable = editable,
         update = {
-            // CharArray has identity equality, so `set(value)` runs on every recomposition; the
-            // content compare against the live getPassword() is what actually guards the write and
-            // prevents resetting the caret when the field already holds these characters.
-            set(value) {
-                applied.write {
-                    if (!this.password.contentEquals(it)) this.text = String(it)
-                }
-            }
+            declarePassword(value, applied)
             applyModifier(modifier)
         },
     )
+}
+
+/**
+ * The pairing [declarePassword]'s `set` key needs: a [declared] value and the field's own [held]
+ * characters, compared by content rather than the reference identity a [CharArray] otherwise has, so
+ * the key changes exactly when either one does.
+ */
+private class PasswordSettlement(
+    val declared: CharArray,
+    val held: CharArray,
+) {
+    override fun equals(other: Any?): Boolean =
+        this === other ||
+            (
+                other is PasswordSettlement &&
+                    declared.contentEquals(other.declared) &&
+                    held.contentEquals(other.held)
+            )
+
+    override fun hashCode(): Int = 31 * declared.contentHashCode() + held.contentHashCode()
+}
+
+/**
+ * Settles [value] onto this password field: written where the field does not already hold these
+ * characters, through [applied] so the write does not echo back as the user's own. Reading
+ * [AppliedValue.current] as part of the settlement key is what makes the field's own reported
+ * characters an ordinary composition dependency, so a move away from [value] the caller does not adopt
+ * is settled back on the very next pass rather than left standing until some later, unrelated
+ * recomposition happens to run this again.
+ *
+ * `getPassword()` results read purely for the content comparison are zeroed once compared; the
+ * characters [applied] mirrors afterward are not, and stay reachable, replaced rather than zeroed, until
+ * the next settlement.
+ */
+private fun <C : JPasswordField> SwingNodeUpdater<C>.declarePassword(
+    value: CharArray,
+    applied: AppliedValue<CharArray>,
+) {
+    set(PasswordSettlement(value, applied.current)) { settlement ->
+        val current = password
+        try {
+            if (!current.contentEquals(settlement.declared)) {
+                applied.write { text = String(settlement.declared) }
+            }
+        } finally {
+            Arrays.fill(current, '\u0000')
+        }
+        applied.observed(password)
+    }
 }
 
 /**

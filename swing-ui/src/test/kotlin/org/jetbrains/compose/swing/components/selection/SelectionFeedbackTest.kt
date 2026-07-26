@@ -10,11 +10,14 @@ import javax.swing.DefaultListModel
 import javax.swing.JList
 import javax.swing.JTable
 import javax.swing.JTree
+import javax.swing.event.ListSelectionListener
+import javax.swing.event.TreeSelectionListener
 import javax.swing.table.DefaultTableModel
 import javax.swing.tree.DefaultMutableTreeNode
 import javax.swing.tree.DefaultTreeModel
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /**
  * The selection callbacks of [Table], [ListBox] and [Tree] report user interaction only. Re-rendering
@@ -617,5 +620,75 @@ class SelectionFeedbackTest {
 
         assertEquals(listOf("pear"), tree.selectedLabels(), "the new declared selection applied")
         assertEquals(emptyList(), received, "a declared selection change reported itself back")
+    }
+
+    @Test
+    fun aListenerThatFailsOnTheListNarrowingReportLeavesLaterItemsApplied() = runComposeSwingTest {
+        var items by mutableStateOf(listOf("red", "green", "blue"))
+        var failing by mutableStateOf(false)
+        val listener = ListSelectionListener { if (failing) error("the list narrowing report fails") }
+        setContent {
+            ListBox(items = items, listSelectionListener = listener)
+        }
+
+        val list = onNodeOfType<JList<*>>().fetch()
+        list.selectionModel.setSelectionInterval(2, 2)
+
+        failing = true
+        // Shrinking below the selected row is what makes the narrowing reach this listener.
+        items = listOf("red")
+        awaitIdle()
+        assertEquals(emptyList(), list.selectedIndices.toList(), "no row of the old selection is left to select")
+
+        failing = false
+        items = listOf("red", "green", "blue", "violet")
+        awaitIdle()
+
+        assertEquals(4, list.model.size, "a later declared items change must still reach the list")
+        val failures = takeCallerFailures()
+        assertTrue(failures.isNotEmpty(), "the narrowing report's failure is contained")
+        assertTrue(
+            failures.any { "the list narrowing report fails" in it.message.orEmpty() },
+            "the contained failure should be the narrowing report's own, but was: $failures",
+        )
+    }
+
+    @Test
+    fun aListenerThatFailsOnTheTreeNarrowingReportLeavesLaterStructureApplied() = runComposeSwingTest {
+        var leafCount by mutableStateOf(2)
+        var failing by mutableStateOf(false)
+        val listener = TreeSelectionListener { if (failing) error("the tree narrowing report fails") }
+        setContent {
+            Tree(
+                root = "root of $leafCount",
+                children = { if (it.startsWith("root")) leaves.take(leafCount) else emptyList() },
+                treeSelectionListener = listener,
+            )
+        }
+
+        val tree = onNodeOfType<JTree>().fetch()
+        tree.selectionPaths = arrayOf(tree.pathTo(1))
+
+        failing = true
+        // Dropping every leaf is what makes the narrowing reach this listener.
+        leafCount = 0
+        awaitIdle()
+        assertEquals(emptyList(), tree.selectedLabels(), "no node of the old selection is left to select")
+
+        failing = false
+        leafCount = 2
+        awaitIdle()
+
+        assertEquals(
+            2,
+            tree.model.getChildCount(tree.model.root),
+            "a later declared structure change must still reach the tree",
+        )
+        val failures = takeCallerFailures()
+        assertTrue(failures.isNotEmpty(), "the narrowing report's failure is contained")
+        assertTrue(
+            failures.any { "the tree narrowing report fails" in it.message.orEmpty() },
+            "the contained failure should be the narrowing report's own, but was: $failures",
+        )
     }
 }

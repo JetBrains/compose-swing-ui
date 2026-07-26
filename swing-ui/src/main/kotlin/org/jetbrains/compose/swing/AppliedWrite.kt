@@ -2,6 +2,7 @@ package org.jetbrains.compose.swing
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import org.jetbrains.compose.swing.core.reportCallerFailure
 import javax.swing.event.ChangeEvent
 import javax.swing.event.ChangeListener
 import javax.swing.event.ListSelectionEvent
@@ -42,11 +43,23 @@ internal class AppliedWrite {
      * change with a side effect on the property a declaration governs - still belongs here: [isWriting]
      * marks it as the wrapper's regardless of what the widget is left holding. A write that throws still
      * lowers the count, so the wrapper's next write is not mistaken for a nested one.
+     *
+     * A widget notifies its listeners from inside the write that provokes them, so a listener the caller
+     * attached runs before [block] returns and its failure is contained rather than carried outward. The
+     * write is driven by a composition applying its changes, and a failure reaching that would end the
+     * composition for good; contained, it is reported where Swing reports one raised under its own event
+     * pump, and the pass finishes.
+     *
+     * Every type is contained because what those listeners throw is theirs to choose: naming a narrower
+     * set would leave whichever type went unnamed free to end the composition.
      */
+    @Suppress("TooGenericExceptionCaught")
     fun write(block: () -> Unit) {
         writeDepth++
         try {
             block()
+        } catch (failure: Throwable) {
+            reportCallerFailure(failure)
         } finally {
             writeDepth--
         }
