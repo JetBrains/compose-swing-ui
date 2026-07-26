@@ -11,7 +11,6 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.actionListener
 import java.awt.event.ActionListener
-import javax.swing.Icon
 import javax.swing.JToggleButton
 
 /**
@@ -29,7 +28,6 @@ import javax.swing.JToggleButton
  * @param modifier the [SwingModifier] applied to the underlying component
  * @param pressed whether the button is in its pressed (selected) state
  * @param onPressedChange callback invoked with the new pressed state when the button is toggled
- * @param icon optional icon shown alongside the text; `null` shows text only
  */
 @Composable
 public fun ToggleButton(
@@ -37,11 +35,10 @@ public fun ToggleButton(
     modifier: SwingModifier = SwingModifier,
     pressed: Boolean = false,
     onPressedChange: (Boolean) -> Unit = {},
-    icon: Icon? = null,
 ) {
     val callback = rememberUpdatedState(onPressedChange)
     val listener = remember { ActionListener { event -> callback.value((event.source as JToggleButton).isSelected) } }
-    ToggleButton(text = text, actionListener = listener, modifier = modifier, pressed = pressed, icon = icon)
+    ToggleButton(text = text, actionListener = listener, modifier = modifier, pressed = pressed)
 }
 
 /**
@@ -53,7 +50,6 @@ public fun ToggleButton(
  * @param actionListener the listener notified when the button is toggled
  * @param modifier the [SwingModifier] applied to the underlying component
  * @param pressed whether the button is in its pressed (selected) state
- * @param icon optional icon shown alongside the text; `null` shows text only
  */
 @Composable
 public fun ToggleButton(
@@ -61,15 +57,13 @@ public fun ToggleButton(
     actionListener: ActionListener,
     modifier: SwingModifier = SwingModifier,
     pressed: Boolean = false,
-    icon: Icon? = null,
 ) {
     SwingNode(
         factory = { JToggleButton() },
         update = {
             set(text) { this.text = it }
-            set(icon) { this.icon = it }
             set(pressed) { if (this.isSelected != it) this.isSelected = it }
-            applyModifier(SwingModifier.actionListener(actionListener) then modifier)
+            applyModifier(modifier.actionListener(actionListener))
         },
     )
 }

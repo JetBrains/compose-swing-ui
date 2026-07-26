@@ -7,6 +7,7 @@ import org.jetbrains.compose.swing.components.layout.GridPanel
 import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.background
+import org.jetbrains.compose.swing.modifier.appearance.horizontalAlignment
 import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import java.awt.Color
@@ -76,7 +77,7 @@ private fun Cell(
             SwingModifier
                 .opaque(true)
                 .background(color)
-                .preferredSize(Dimension(60, 24)),
-        horizontalAlignment = SwingConstants.CENTER,
+                .preferredSize(Dimension(60, 24))
+                .horizontalAlignment(SwingConstants.CENTER),
     )
 }

@@ -18,6 +18,7 @@ import org.jetbrains.compose.swing.components.selection.ListBox
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.accessibility.accessibleName
 import org.jetbrains.compose.swing.modifier.appearance.border
+import org.jetbrains.compose.swing.modifier.appearance.horizontalAlignment
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import java.awt.Dimension
 import java.awt.Window
@@ -88,14 +89,14 @@ internal fun ShowcaseShell() {
         }
         south {
             Label(
-                "Section: ${showcaseSections.getOrNull(selected)?.title ?: "—"}",
-                horizontalAlignment = SwingConstants.LEADING,
+                "Section: ${showcaseSections.getOrNull(selected)?.title ?: "-"}",
+                modifier = SwingModifier.horizontalAlignment(SwingConstants.LEADING),
             )
         }
     }
 }
 
-// The canned text File > Open loads into the shared editor document — a stand-in for a real file's
+// The canned text File > Open loads into the shared editor document - a stand-in for a real file's
 // contents, so the sample stays self-contained and needs no file on disk.
 private const val SAMPLE_DOCUMENT =
     "Opened from the File menu.\n\n" +

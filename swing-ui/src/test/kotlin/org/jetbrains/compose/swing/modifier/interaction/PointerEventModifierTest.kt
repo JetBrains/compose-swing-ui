@@ -5,9 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.name
-import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
 import java.awt.event.MouseEvent
@@ -33,7 +31,7 @@ class PointerEventModifierTest {
         MouseEvent(component, MouseEvent.MOUSE_CLICKED, 0L, 0, 11, 13, 1, false, MouseEvent.BUTTON1)
 
     /** Delivers [event] to every `MouseListener` registered on [component], as Swing's dispatch does. */
-    private fun ComposeSwingTest.dispatch(
+    private fun dispatch(
         component: Component,
         event: MouseEvent,
     ) {
@@ -55,14 +53,14 @@ class PointerEventModifierTest {
             Label(
                 text = "target",
                 modifier =
-                    SwingModifier.name("target").onPointerEvent(
+                    SwingModifier.onPointerEvent(
                         onPress = { pressed += it },
                         onRelease = { released += it },
                         onClick = { clicked += it },
                     ),
             )
         }
-        val label = onNodeWithName("target").fetch<JLabel>()
+        val label = onNodeOfType<JLabel>().fetch()
 
         val press = pressEvent(label)
         val release = releaseEvent(label)
@@ -89,12 +87,10 @@ class PointerEventModifierTest {
             Label(
                 text = "target",
                 modifier =
-                    SwingModifier.name("target").let {
-                        if (enabled) it.onPointerEvent(onPress = { e -> pressed += e }) else it
-                    },
+                    if (enabled) SwingModifier.onPointerEvent(onPress = { pressed += it }) else SwingModifier,
             )
         }
-        val label = onNodeWithName("target").fetch<JLabel>()
+        val label = onNodeOfType<JLabel>().fetch()
 
         dispatch(label, pressEvent(label))
         assertEquals(1, pressed.size, "the press callback should fire while the modifier is present")

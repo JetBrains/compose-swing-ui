@@ -16,6 +16,7 @@ import org.jetbrains.compose.swing.components.layout.ToolBar
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.border
+import org.jetbrains.compose.swing.modifier.appearance.horizontalAlignment
 import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import java.awt.Color
@@ -58,7 +59,7 @@ private fun ControlledSplitCard() {
 }
 
 // A bare Label is non-opaque, so the two sides would read as one flat surface; a distinct background
-// plus an edge border on each side makes the split — and the draggable divider — plainly visible.
+// plus an edge border on each side makes the split - and the draggable divider - plainly visible.
 @Composable
 private fun SplitPaneSide(
     text: String,
@@ -70,8 +71,8 @@ private fun SplitPaneSide(
             SwingModifier
                 .opaque(true)
                 .background(color)
-                .border(BorderFactory.createLineBorder(Color(0x90, 0xA4, 0xAE))),
-        horizontalAlignment = SwingConstants.CENTER,
+                .border(BorderFactory.createLineBorder(Color(0x90, 0xA4, 0xAE)))
+                .horizontalAlignment(SwingConstants.CENTER),
     )
 }
 

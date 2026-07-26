@@ -12,6 +12,7 @@ import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.listener
 import java.awt.event.ActionListener
 import javax.swing.JRadioButtonMenuItem
+import javax.swing.KeyStroke
 
 /**
  * A composable wrapper for JRadioButtonMenuItem.
@@ -19,6 +20,8 @@ import javax.swing.JRadioButtonMenuItem
  * @param text the text of the menu item
  * @param modifier the [SwingModifier] applied to the underlying component
  * @param selected whether the menu item is selected
+ * @param accelerator the key combination that activates the item without navigating the menu
+ *   hierarchy, displayed next to its text; `null` (the default) leaves the item without one
  * @param onSelect callback invoked when the menu item is selected
  */
 @Composable
@@ -26,12 +29,19 @@ public fun RadioButtonMenuItem(
     text: String,
     modifier: SwingModifier = SwingModifier,
     selected: Boolean = false,
+    accelerator: KeyStroke? = null,
     onSelect: () -> Unit = {},
 ) {
     val callback = rememberUpdatedState(onSelect)
     val listener =
         remember { ActionListener { event -> if ((event.source as JRadioButtonMenuItem).isSelected) callback.value() } }
-    RadioButtonMenuItem(text = text, actionListener = listener, modifier = modifier, selected = selected)
+    RadioButtonMenuItem(
+        text = text,
+        actionListener = listener,
+        modifier = modifier,
+        selected = selected,
+        accelerator = accelerator,
+    )
 }
 
 /**
@@ -43,6 +53,8 @@ public fun RadioButtonMenuItem(
  * @param actionListener the listener notified when the item is activated
  * @param modifier the [SwingModifier] applied to the underlying component
  * @param selected whether the menu item is selected
+ * @param accelerator the key combination that activates the item without navigating the menu
+ *   hierarchy, displayed next to its text; `null` (the default) leaves the item without one
  */
 @Composable
 public fun RadioButtonMenuItem(
@@ -50,19 +62,20 @@ public fun RadioButtonMenuItem(
     actionListener: ActionListener,
     modifier: SwingModifier = SwingModifier,
     selected: Boolean = false,
+    accelerator: KeyStroke? = null,
 ) {
     MenuNode(
         factory = { JRadioButtonMenuItem() },
         update = {
             set(text) { this.text = it }
             set(selected) { this.isSelected = it }
+            set(accelerator) { this.accelerator = it }
             applyModifier(
-                SwingModifier
-                    .listener<JRadioButtonMenuItem, ActionListener>(
-                        actionListener,
-                        { c, l -> c.addActionListener(l) },
-                        { c, l -> c.removeActionListener(l) },
-                    ) then modifier,
+                modifier.listener<JRadioButtonMenuItem, ActionListener>(
+                    actionListener,
+                    { c, l -> c.addActionListener(l) },
+                    { c, l -> c.removeActionListener(l) },
+                ),
             )
         },
     )

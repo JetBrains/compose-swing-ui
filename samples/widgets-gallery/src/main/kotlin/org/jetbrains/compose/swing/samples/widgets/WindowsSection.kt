@@ -9,6 +9,8 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.BorderPanel
 import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.appearance.horizontalAlignment
 import org.jetbrains.compose.swing.window.Dialog
 import org.jetbrains.compose.swing.window.Window
 import org.jetbrains.compose.swing.window.rememberDialogState
@@ -47,7 +49,7 @@ private fun SecondaryWindowCard() {
                     center {
                         Label(
                             "A second top-level window, composed declaratively.",
-                            horizontalAlignment = SwingConstants.CENTER,
+                            modifier = SwingModifier.horizontalAlignment(SwingConstants.CENTER),
                         )
                     }
                     south {
@@ -81,7 +83,7 @@ private fun ModalDialogCard() {
                     center {
                         Label(
                             "This dialog blocks its owner while shown.",
-                            horizontalAlignment = SwingConstants.CENTER,
+                            modifier = SwingModifier.horizontalAlignment(SwingConstants.CENTER),
                         )
                     }
                     south {

@@ -8,6 +8,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.border
 import org.jetbrains.compose.swing.modifier.appearance.font
 import org.jetbrains.compose.swing.modifier.appearance.foreground
+import org.jetbrains.compose.swing.modifier.appearance.horizontalAlignment
 import org.jetbrains.compose.swing.modifier.layout.maximumSize
 import org.jetbrains.compose.swing.modifier.layout.minimumSize
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
@@ -18,7 +19,7 @@ import javax.swing.BorderFactory
 import javax.swing.BoxLayout
 import javax.swing.SwingConstants
 
-// Shared layout primitives — consistent spacing, typography, and the card shape — so the sample reads
+// Shared layout primitives - consistent spacing, typography, and the card shape - so the sample reads
 // as one design rather than a raw widget grid.
 
 internal const val ROW_GAP: Int = 8
@@ -40,8 +41,8 @@ internal fun SampleTitle(text: String) {
         modifier =
             SwingModifier
                 .font(Font(Font.SANS_SERIF, Font.BOLD, 20))
-                .foreground(Color(0x2D, 0x4B, 0x73)),
-        horizontalAlignment = SwingConstants.LEADING,
+                .foreground(Color(0x2D, 0x4B, 0x73))
+                .horizontalAlignment(SwingConstants.LEADING),
     )
 }
 
@@ -54,8 +55,8 @@ internal fun Caption(text: String) {
         modifier =
             SwingModifier
                 .font(Font(Font.SANS_SERIF, Font.PLAIN, 14))
-                .foreground(Color(0x5A, 0x5A, 0x5A)),
-        horizontalAlignment = SwingConstants.LEADING,
+                .foreground(Color(0x5A, 0x5A, 0x5A))
+                .horizontalAlignment(SwingConstants.LEADING),
     )
 }
 
@@ -82,7 +83,7 @@ internal fun Card(
 }
 
 // A label that echoes live state ("3 of 5 done"). Pinning preferred/minimum/maximum to a fixed width
-// stops it from re-measuring and shifting its neighbours every time the value grows or shrinks — the
+// stops it from re-measuring and shifting its neighbours every time the value grows or shrinks - the
 // most visible source of jitter in a reactive Swing UI. Height stays flexible.
 @Composable
 internal fun ValueLabel(
@@ -95,7 +96,7 @@ internal fun ValueLabel(
             SwingModifier
                 .preferredSize(Dimension(width, 22))
                 .minimumSize(Dimension(width, 22))
-                .maximumSize(Dimension(width, Int.MAX_VALUE)),
-        horizontalAlignment = SwingConstants.LEADING,
+                .maximumSize(Dimension(width, Int.MAX_VALUE))
+                .horizontalAlignment(SwingConstants.LEADING),
     )
 }

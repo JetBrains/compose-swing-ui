@@ -5,27 +5,28 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JSplitPane
+import javax.swing.LookAndFeel
+import javax.swing.SwingUtilities
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
 import kotlin.test.assertSame
+import kotlin.test.assertTrue
 
 /**
  * Behavioral tests for [SplitPane]. They assert what an observer of the live [JSplitPane] sees: each
  * declared side becomes the matching left/right (top/bottom) component, dropping a side clears it,
- * orientation and resize weight map through, and the divider position is controlled while a user drag
- * fires the callback.
+ * orientation and resize weight map through, the divider position is controlled while a user drag
+ * fires the callback, and the divider size and one-touch flag follow the look and feel until the
+ * caller declares them.
  */
 class SplitPaneBehaviorTest {
-    private fun ComposeSwingTest.splitPane(): JSplitPane = onNodeOfType<JSplitPane>().fetch()
-
     @Test
     fun declaredSidesBecomeTheLeftAndRightComponents() = runComposeSwingTest {
         setContent {
@@ -35,7 +36,7 @@ class SplitPaneBehaviorTest {
             }
         }
 
-        val pane = splitPane()
+        val pane = onNodeOfType<JSplitPane>().fetch()
         onNodeWithText("Leading").assertExists()
         onNodeWithText("Trailing").assertExists()
         // The first side is hosted as the left component, the second as the right component.
@@ -59,7 +60,7 @@ class SplitPaneBehaviorTest {
             }
         }
 
-        val pane = splitPane()
+        val pane = onNodeOfType<JSplitPane>().fetch()
         onNodeWithText("Trailing").assertExists()
 
         showSecond = false
@@ -85,7 +86,7 @@ class SplitPaneBehaviorTest {
             }
         }
 
-        val pane = splitPane()
+        val pane = onNodeOfType<JSplitPane>().fetch()
         onNodeWithText("First").assertExists()
 
         flag = false
@@ -112,7 +113,7 @@ class SplitPaneBehaviorTest {
             }
         }
 
-        val pane = splitPane()
+        val pane = onNodeOfType<JSplitPane>().fetch()
         assertEquals(
             JSplitPane.HORIZONTAL_SPLIT,
             pane.orientation,
@@ -133,7 +134,7 @@ class SplitPaneBehaviorTest {
             }
         }
 
-        assertEquals(0.25, splitPane().resizeWeight)
+        assertEquals(0.25, onNodeOfType<JSplitPane>().fetch().resizeWeight)
     }
 
     @Test
@@ -146,7 +147,7 @@ class SplitPaneBehaviorTest {
             }
         }
 
-        val pane = splitPane()
+        val pane = onNodeOfType<JSplitPane>().fetch()
         assertEquals(120, pane.dividerLocation, "the divider should start at the controlled location")
 
         location = 200
@@ -165,7 +166,7 @@ class SplitPaneBehaviorTest {
             }
         }
 
-        val pane = splitPane()
+        val pane = onNodeOfType<JSplitPane>().fetch()
         reported.clear()
 
         // A user drag of the divider is observable as a dividerLocation property change.
@@ -196,7 +197,7 @@ class SplitPaneBehaviorTest {
             }
         }
 
-        val pane = splitPane()
+        val pane = onNodeOfType<JSplitPane>().fetch()
         assertEquals(200, pane.dividerLocation, "the divider should start at the explicit location")
 
         // A negative offset is JSplitPane's documented request to re-derive the divider position
@@ -225,7 +226,7 @@ class SplitPaneBehaviorTest {
             }
         }
 
-        val pane = splitPane()
+        val pane = onNodeOfType<JSplitPane>().fetch()
         reported.clear()
 
         // A user drag of the divider is observable as a dividerLocation property change.
@@ -234,5 +235,90 @@ class SplitPaneBehaviorTest {
 
         assertEquals(175, reported.last(), "dragging the divider should report the new location")
         assertEquals(175, pane.dividerLocation, "the divider should land at the dragged location")
+    }
+
+    @Test
+    fun undeclaredDividerSizeAndOneTouchFlagFollowTheLookAndFeel() = runComposeSwingTest {
+        setContent {
+            SplitPane {
+                first { Label(text = "A") }
+                second { Label(text = "B") }
+            }
+        }
+
+        val pane = onNodeOfType<JSplitPane>().fetch()
+        val bare = JSplitPane()
+        assertEquals(bare.dividerSize, pane.dividerSize, "the divider size should start at the look-and-feel size")
+        assertEquals(
+            bare.isOneTouchExpandable,
+            pane.isOneTouchExpandable,
+            "the one-touch flag should start at the look-and-feel value",
+        )
+
+        // A look and feel installs either property only onto a pane that has never had it set
+        // explicitly, so an undeclared property must leave the pane as receptive as a bare widget.
+        val installedSize = bare.dividerSize + 7
+        val installedOneTouch = !bare.isOneTouchExpandable
+        for (target in listOf(pane, bare)) {
+            LookAndFeel.installProperty(target, "dividerSize", installedSize)
+            LookAndFeel.installProperty(target, "oneTouchExpandable", installedOneTouch)
+        }
+        assertEquals(installedSize, pane.dividerSize, "the pane should accept a look-and-feel divider size")
+        assertEquals(
+            installedOneTouch,
+            pane.isOneTouchExpandable,
+            "the pane should accept a look-and-feel one-touch flag",
+        )
+
+        SwingUtilities.updateComponentTreeUI(pane)
+        SwingUtilities.updateComponentTreeUI(bare)
+        assertEquals(bare.dividerSize, pane.dividerSize, "the divider size should still track a bare widget")
+        assertEquals(
+            bare.isOneTouchExpandable,
+            pane.isOneTouchExpandable,
+            "the one-touch flag should still track a bare widget",
+        )
+    }
+
+    @Test
+    fun dividerSizeMapsThrough() = runComposeSwingTest {
+        var size by mutableIntStateOf(12)
+        setContent {
+            SplitPane(dividerSize = size) {
+                first { Label(text = "A") }
+                second { Label(text = "B") }
+            }
+        }
+
+        val pane = onNodeOfType<JSplitPane>().fetch()
+        assertEquals(12, pane.dividerSize, "the pane should start at the declared divider size")
+
+        size = 20
+        awaitIdle()
+        assertEquals(20, pane.dividerSize, "the divider size should follow the declared value")
+
+        LookAndFeel.installProperty(pane, "dividerSize", 41)
+        assertEquals(20, pane.dividerSize, "a declared divider size should outrank the look and feel")
+    }
+
+    @Test
+    fun oneTouchExpandableMapsThrough() = runComposeSwingTest {
+        var expandable by mutableStateOf(true)
+        setContent {
+            SplitPane(oneTouchExpandable = expandable) {
+                first { Label(text = "A") }
+                second { Label(text = "B") }
+            }
+        }
+
+        val pane = onNodeOfType<JSplitPane>().fetch()
+        assertTrue(pane.isOneTouchExpandable, "the pane should start with the declared one-touch flag")
+
+        expandable = false
+        awaitIdle()
+        assertFalse(pane.isOneTouchExpandable, "the one-touch flag should follow the declared value")
+
+        LookAndFeel.installProperty(pane, "oneTouchExpandable", true)
+        assertFalse(pane.isOneTouchExpandable, "a declared one-touch flag should outrank the look and feel")
     }
 }

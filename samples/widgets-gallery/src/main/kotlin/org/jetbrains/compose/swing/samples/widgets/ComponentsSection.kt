@@ -21,6 +21,7 @@ import org.jetbrains.compose.swing.components.text.PasswordField
 import org.jetbrains.compose.swing.components.text.TextArea
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.appearance.horizontalAlignment
 import org.jetbrains.compose.swing.modifier.layout.alignmentX
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import java.awt.Dimension
@@ -55,7 +56,7 @@ private fun ButtonAndLabelCard() {
             Button("Decrement", onClick = { counter-- })
             Button("Reset", onClick = { counter = 0 })
         }
-        Label("Right-aligned label", horizontalAlignment = SwingConstants.RIGHT)
+        Label("Right-aligned label", modifier = SwingModifier.horizontalAlignment(SwingConstants.RIGHT))
     }
 }
 
