@@ -17,6 +17,7 @@ import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
 import java.awt.Color
 import java.awt.Dimension
+import java.awt.FlowLayout
 import java.awt.Graphics
 import java.awt.Graphics2D
 import java.awt.Polygon
@@ -24,9 +25,8 @@ import java.awt.RenderingHints
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import javax.swing.JComponent
-import javax.swing.SwingConstants
 
-// The extensibility lesson: the same primitive that builds the library's wrappers — SwingNode — folds
+// The extensibility lesson: the same primitive that builds the library's wrappers - SwingNode - folds
 // your own Swing component into the composition as a first-class citizen. factory constructs it, update
 // pushes state onto it, and a mouseListener modifier reports input back out; from the composition's
 // point of view it behaves exactly like a built-in widget.
@@ -36,14 +36,14 @@ internal fun CustomComponentSection() {
         SectionHeading("Custom component")
         ExampleCard("A hand-written JComponent wrapped with SwingNode") {
             WrappedCaption(
-                "StarRating is a plain Swing JComponent defined right in this sample — not a library " +
+                "StarRating is a plain Swing JComponent defined right in this sample - not a library " +
                     "wrapper. SwingNode folds it into the composition: state flows in through `update`, " +
                     "clicks flow out through a mouseListener, and it drives the composables around it.",
             )
 
             var rating by remember { mutableIntStateOf(3) }
 
-            FlowPanel(alignment = SwingConstants.LEADING) {
+            FlowPanel(alignment = FlowLayout.LEADING) {
                 StarRating(
                     rating = rating,
                     onRatingChange = { rating = it },
@@ -82,9 +82,9 @@ private fun StarRating(
         update = {
             set(rating) { this.rating = it }
             applyModifier(
-                SwingModifier
+                modifier
                     .mouseListener(listener)
-                    .preferredSize(Dimension(MAX_STARS * STAR_BOX, STAR_BOX)) then modifier,
+                    .preferredSize(Dimension(MAX_STARS * STAR_BOX, STAR_BOX)),
             )
         },
     )

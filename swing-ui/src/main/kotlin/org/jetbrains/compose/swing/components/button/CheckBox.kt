@@ -55,7 +55,7 @@ public fun CheckBox(
         update = {
             set(text) { this.text = it }
             set(checked) { this.isSelected = it }
-            applyModifier(SwingModifier.actionListener(actionListener) then modifier)
+            applyModifier(modifier.actionListener(actionListener))
         },
     )
 }

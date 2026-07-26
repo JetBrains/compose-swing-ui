@@ -51,7 +51,7 @@ public fun Button(
         factory = { JButton() },
         update = {
             set(text) { this.text = it }
-            applyModifier(SwingModifier.actionListener(actionListener) then modifier)
+            applyModifier(modifier.actionListener(actionListener))
         },
     )
 }

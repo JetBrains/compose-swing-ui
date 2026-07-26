@@ -12,15 +12,21 @@ import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 
 /*
- * Interaction SwingModifiers — focusability and input listeners.
+ * Interaction SwingModifiers - focusability and input listeners.
  *
  * The listener elements (onHover/onFocus/onPointerEvent) install one Swing listener for the node's
  * life whose body reads node fields refreshed by `update`, so passing fresh lambdas each recomposition
- * is fine — no reattach. They are removed when the element leaves the chain or the node is
+ * is fine - no reattach. They are removed when the element leaves the chain or the node is
  * released/reused.
  */
 
-/** Sets `isFocusable`. */
+/**
+ * Sets `isFocusable`, declaring whether this component can receive keyboard focus.
+ *
+ * Swing's traversal goes by the declaration rather than by what the component's type is focusable for:
+ * a caption marked focusable takes its place in the Tab order, and a control marked non-focusable is
+ * skipped.
+ */
 public fun SwingModifier.focusable(focusable: Boolean): SwingModifier =
     this then
         propertyElement<Component, Boolean>(
@@ -30,7 +36,7 @@ public fun SwingModifier.focusable(focusable: Boolean): SwingModifier =
         )
 
 /**
- * Sets `isEnabled` — whether the component responds to user input and paints in its enabled state.
+ * Sets `isEnabled` - whether the component responds to user input and paints in its enabled state.
  *
  * Sets `isEnabled` on **this component only**: disabling a container does not disable the components
  * inside it, so disable each child you want disabled.
@@ -60,7 +66,7 @@ public fun SwingModifier.onFocus(
  * Installs mouse press/release/click handlers. [onPress] fires on `MOUSE_PRESSED`, [onRelease] on
  * `MOUSE_RELEASED`, and [onClick] on a completed click; each receives the [MouseEvent] (button, click
  * count, point, modifiers). This is the low-level complement to a widget's domain `onClick`: use it
- * for arbitrary components (a Label, a Panel) or for right/middle-button handling.
+ * for arbitrary components (a Label, a FlowPanel) or for right/middle-button handling.
  *
  * Multiple `onPointerEvent` applications all fire. Callbacks are read live, so passing fresh lambdas
  * each recomposition is fine.

@@ -9,6 +9,7 @@ import java.awt.Component
 import java.awt.Container
 import java.awt.FocusTraversalPolicy
 import javax.swing.JComponent
+import javax.swing.LayoutFocusTraversalPolicy
 
 /**
  * Assigns this component a position in its container's keyboard focus-traversal order. Lower indices
@@ -30,6 +31,11 @@ public fun SwingModifier.focusTraversalIndex(index: Int): SwingModifier =
  * Makes this container a focus-cycle root whose Tab order follows its children's
  * [focusTraversalIndex] values (ascending), rather than their on-screen geometry. Children without an
  * index are visited after the indexed ones. Requires a `JComponent` target.
+ *
+ * Only the order changes: which components Tab stops on stays Swing's own judgement. A control is a
+ * stop exactly where it would be in a hand-written form, so captions, layout containers and anything
+ * that cannot take the keyboard are stepped over. [focusable] declares that judgement for the
+ * component it is applied to.
  */
 public fun SwingModifier.orderedFocusTraversal(): SwingModifier = this then OrderedFocusTraversalElement
 
@@ -81,54 +87,82 @@ private class SavedFocusTraversal(
 )
 
 /**
- * Orders a container's focusable descendants by their [focusTraversalIndex] (ascending), falling back
- * to child order for components without an index, which are visited after all indexed ones.
+ * The policy every ordered container is given: Swing's own layout traversal policy, sorting the cycle
+ * by [focusTraversalIndex] instead of by geometry and leaving the judgement of what a stop is to the
+ * policy a Swing form is traversed with.
  */
-private object CompositionOrderFocusTraversalPolicy : FocusTraversalPolicy() {
-    private fun orderedFocusables(aContainer: Container): List<Component> {
-        val focusables = mutableListOf<Component>()
-
-        fun isTraversable(child: Component): Boolean =
-            child.isFocusable && child.isVisible && child.isEnabled && child.focusTraversalKeysEnabled
-
-        fun collect(container: Container) {
-            for (child in container.components) {
-                if (isTraversable(child)) focusables += child
-                if (child is Container && !child.isFocusCycleRoot) collect(child)
-            }
-        }
-        collect(aContainer)
-
-        // Stable sort: indexed components by ascending index first, un-indexed ones keep their order
-        // after them (a missing index sorts as the largest possible position).
-        return focusables.sortedBy { component ->
-            (component as? JComponent)?.getClientProperty(FOCUS_TRAVERSAL_INDEX_KEY) as? Int ?: Int.MAX_VALUE
-        }
+private object CompositionOrderFocusTraversalPolicy : LayoutFocusTraversalPolicy() {
+    init {
+        setComparator(CompositionOrderComparator)
     }
+}
 
-    override fun getComponentAfter(
-        aContainer: Container,
-        aComponent: Component,
-    ): Component? {
-        val ordered = orderedFocusables(aContainer)
-        if (ordered.isEmpty()) return null
-        val current = ordered.indexOf(aComponent)
-        return ordered[(current + 1) % ordered.size]
+/**
+ * Orders components by declared traversal position first and by containment order after.
+ *
+ * No two distinct components of one tree compare equal: the sorted cycle is looked up by comparison, so
+ * a component tying with another would be located at that other one's place in it.
+ */
+private object CompositionOrderComparator : Comparator<Component> {
+    override fun compare(
+        first: Component,
+        second: Component,
+    ): Int {
+        val byIndex = first.effectiveTraversalIndex().compareTo(second.effectiveTraversalIndex())
+        return if (byIndex != 0) byIndex else compareContainmentOrder(first, second)
     }
+}
 
-    override fun getComponentBefore(
-        aContainer: Container,
-        aComponent: Component,
-    ): Component? {
-        val ordered = orderedFocusables(aContainer)
-        if (ordered.isEmpty()) return null
-        val current = ordered.indexOf(aComponent)
-        return ordered[(current - 1 + ordered.size) % ordered.size]
+/**
+ * The position this component sorts at: its own [focusTraversalIndex], or the earliest one declared
+ * anywhere inside it where that is earlier. A container therefore never sorts after its own contents,
+ * and a component with no index anywhere sorts after every indexed one.
+ */
+private fun Component.effectiveTraversalIndex(): Int {
+    var earliest = (this as? JComponent)?.getClientProperty(FOCUS_TRAVERSAL_INDEX_KEY) as? Int ?: Int.MAX_VALUE
+    if (this is Container) {
+        for (child in components) earliest = minOf(earliest, child.effectiveTraversalIndex())
     }
+    return earliest
+}
 
-    override fun getFirstComponent(aContainer: Container): Component? = orderedFocusables(aContainer).firstOrNull()
+/**
+ * Compares two components by where they sit in the tree, in the depth-first order a focus cycle is
+ * walked in: an ancestor precedes its descendants, and cousins follow the order their nearest common
+ * container holds their branches in.
+ */
+private fun compareContainmentOrder(
+    first: Component,
+    second: Component,
+): Int {
+    val firstPath = first.pathFromTop()
+    val secondPath = second.pathFromTop()
+    var shared = 0
+    while (shared < firstPath.size && shared < secondPath.size && firstPath[shared] === secondPath[shared]) {
+        shared++
+    }
+    return when (shared) {
+        firstPath.size, secondPath.size -> firstPath.size.compareTo(secondPath.size)
+        else -> compareSiblingOrder(firstPath[shared], secondPath[shared])
+    }
+}
 
-    override fun getLastComponent(aContainer: Container): Component? = orderedFocusables(aContainer).lastOrNull()
+/** This component and its containers, outermost first. */
+private fun Component.pathFromTop(): List<Component> {
+    val path = ArrayDeque<Component>()
+    var node: Component? = this
+    while (node != null) {
+        path.addFirst(node)
+        node = node.parent
+    }
+    return path
+}
 
-    override fun getDefaultComponent(aContainer: Container): Component? = getFirstComponent(aContainer)
+/** Compares two children of one container by the order it holds them in. */
+private fun compareSiblingOrder(
+    first: Component,
+    second: Component,
+): Int {
+    val parent = first.parent
+    return parent?.let { it.getComponentZOrder(first).compareTo(it.getComponentZOrder(second)) } ?: 0
 }

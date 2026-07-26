@@ -9,13 +9,13 @@ import org.jetbrains.compose.swing.components.layout.BoxPanel
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
-import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Dimension
 import java.awt.image.BufferedImage
 import javax.swing.JComponent
 import javax.swing.RepaintManager
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -32,6 +32,20 @@ import kotlin.test.assertTrue
  * callbacks on the single event dispatch thread.
  */
 class CanvasTest {
+    private var hostRepaintManager: RepaintManager? = null
+
+    @BeforeTest
+    fun rememberRepaintManager() {
+        hostRepaintManager = RepaintManager.currentManager(null)
+    }
+
+    @AfterTest
+    fun restoreRepaintManager() {
+        // The repaint manager is process-wide, and a recorder left installed intercepts the repaints
+        // of every later test. Restoring it keeps the recording local to the test that asked for it.
+        RepaintManager.setCurrentManager(hostRepaintManager)
+    }
+
     @Test
     fun drawsOnceInitiallyWithInitialValue() = runComposeSwingTest {
         val drawn = mutableListOf<Int>()
@@ -41,7 +55,7 @@ class CanvasTest {
             }
         }
 
-        forcePaint(CANVAS)
+        forcePaint(onNodeWithTag(CANVAS).fetch<JComponent>())
 
         assertEquals(listOf(1), drawn, "Canvas should draw exactly once after the initial paint.")
     }
@@ -61,7 +75,8 @@ class CanvasTest {
             }
         }
 
-        forcePaint(CANVAS)
+        val canvas = onNodeWithTag(CANVAS).fetch<JComponent>()
+        forcePaint(canvas)
         assertEquals(7, lastDrawn, "Initial paint should draw the initial value.")
         assertEquals(1, drawCount, "the initial paint should draw exactly once")
 
@@ -69,7 +84,7 @@ class CanvasTest {
         awaitIdle()
         // Recomposition installed a fresh onDraw and requested a repaint; force the paint to flush
         // it deterministically in headless mode.
-        forcePaint(CANVAS)
+        forcePaint(canvas)
 
         assertEquals(42, lastDrawn, "After recomposition the new value must be drawn.")
         assertEquals(2, drawCount, "A new onDraw should have produced a second draw.")
@@ -78,7 +93,7 @@ class CanvasTest {
     @Test
     fun stateReadOnlyInsideOnDrawIsObservedAndRequestsRepaint() = runComposeSwingTest {
         // `value` is NEVER read in the composition: only inside onDraw. So no recomposition can
-        // happen when it changes — the only thing that can repaint the surface is the snapshot
+        // happen when it changes - the only thing that can repaint the surface is the snapshot
         // observer wrapping onDraw. The lambda itself is stable (it captures the State delegate,
         // not a value), so Canvas() is skippable and never hands the surface a fresh onDraw.
         val value = mutableIntStateOf(7)
@@ -113,7 +128,7 @@ class CanvasTest {
                 "$repaintRequests repaint requests.",
         )
 
-        // And when that requested repaint is serviced, onDraw re-runs and reads the NEW value —
+        // And when that requested repaint is serviced, onDraw re-runs and reads the NEW value -
         // proving the observation drives a real redraw, not a stale one.
         forcePaint(canvas)
         assertEquals(42, lastDrawn, "The serviced repaint must redraw with the new value.")
@@ -126,7 +141,7 @@ class CanvasTest {
         // applier's top-down insert pass, which precedes the node's update changes that copy it onto the
         // surface; stamping it on the bottom-up pass instead would copy a not-yet-set observer for a
         // recomposition insert, leaving the surface unobserved. `value` is read ONLY inside onDraw, so
-        // the only thing that can repaint the surface is the observer — an unwired one requests no
+        // the only thing that can repaint the surface is the observer - an unwired one requests no
         // repaint.
         val value = mutableIntStateOf(7)
         var present by mutableStateOf(false)
@@ -209,7 +224,11 @@ class CanvasTest {
     }
 
     @Test
-    fun removingCanvasDisposesNodeAndStopsDrawing() = runComposeSwingTest {
+    fun removingCanvasDetachesItAndStopsObservingItsReads() = runComposeSwingTest {
+        // `value` is read ONLY inside onDraw, so the observer is the only thing that can repaint the
+        // surface. Removing the canvas releases its node, which drops its tracked reads from the shared
+        // observer: a later change to the state it used to read must reach it no more.
+        val value = mutableIntStateOf(7)
         var present by mutableStateOf(true)
         var drawCount = 0
         setContent {
@@ -217,6 +236,7 @@ class CanvasTest {
                 Label(text = "anchor")
                 if (present) {
                     Canvas(modifier = SwingModifier.testTag(CANVAS).preferredSize(SIZE)) { _, _, _ ->
+                        value.intValue
                         drawCount++
                     }
                 }
@@ -224,6 +244,8 @@ class CanvasTest {
         }
 
         val canvas = onNodeWithTag(CANVAS).fetch<JComponent>()
+        var repaintRequests = 0
+        installRepaintRecorder(canvas) { repaintRequests++ }
         forcePaint(canvas)
         assertEquals(1, drawCount, "the canvas should draw once before removal")
 
@@ -231,8 +253,18 @@ class CanvasTest {
         awaitIdle()
 
         onNodeWithTag(CANVAS).assertDoesNotExist()
-        // The disposed component receives no further draws even if its old reference is painted.
         assertTrue(canvas.parent == null, "Removed canvas should be detached from the tree.")
+
+        repaintRequests = 0
+        value.intValue = 42
+        awaitIdle()
+
+        assertEquals(
+            0,
+            repaintRequests,
+            "A change to state the removed canvas used to read must request no repaint of it: its node " +
+                "released, so the shared observer no longer tracks its reads.",
+        )
         assertEquals(1, drawCount, "No further onDraw should occur after removal.")
     }
 
@@ -262,7 +294,7 @@ class CanvasTest {
         installRepaintRecorder(second) { secondRepaints++ }
 
         // Paint both so the observer tracks each one's read of `value`.
-        forcePaint(FIRST)
+        forcePaint(onNodeWithTag(FIRST).fetch<JComponent>())
         forcePaint(second)
         secondRepaints = 0
 
@@ -272,7 +304,7 @@ class CanvasTest {
         awaitIdle()
         onNodeWithTag(FIRST).assertDoesNotExist()
 
-        // A change to the still-observed state must repaint the surviving canvas — proving the shared
+        // A change to the still-observed state must repaint the surviving canvas - proving the shared
         // observer was not disposed by the first canvas's detach.
         value.intValue = 42
         awaitIdle()
@@ -285,11 +317,8 @@ class CanvasTest {
         )
     }
 
-    private fun ComposeSwingTest.forcePaint(tag: String) {
-        forcePaint(onNodeWithTag(tag).fetch<JComponent>())
-    }
-
-    private fun ComposeSwingTest.forcePaint(component: JComponent) {
+    /** Rasterizes [component] off-screen, which is what drives its `onDraw` deterministically headless. */
+    private fun forcePaint(component: JComponent) {
         component.setSize(SIZE)
         val image = BufferedImage(SIZE.width, SIZE.height, BufferedImage.TYPE_INT_ARGB)
         val graphics = image.createGraphics()
@@ -307,7 +336,7 @@ class CanvasTest {
      * a reliable headless signal. Direct `paint(...)` passes (our [forcePaint]) bypass the manager, so
      * they never fire the callback.
      */
-    private fun ComposeSwingTest.installRepaintRecorder(
+    private fun installRepaintRecorder(
         component: JComponent,
         onRepaintRequest: () -> Unit,
     ) {

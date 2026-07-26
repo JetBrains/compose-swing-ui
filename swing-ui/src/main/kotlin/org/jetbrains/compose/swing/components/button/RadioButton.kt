@@ -56,7 +56,7 @@ public fun RadioButton(
         update = {
             set(text) { this.text = it }
             set(selected) { this.isSelected = it }
-            applyModifier(SwingModifier.actionListener(actionListener) then modifier)
+            applyModifier(modifier.actionListener(actionListener))
         },
     )
 }

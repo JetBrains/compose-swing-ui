@@ -123,9 +123,8 @@ class WindowRecomposerSharingTest {
 
     @Test
     fun detachedContainerWithoutWindowAncestorDefersInsteadOfThrowing() {
-        // No window ancestor, no stamped context, no injected recomposer: the non-injected path no
-        // longer throws. It defers the mount until the container is attached to a window (mirroring
-        // Compose Multiplatform's runOnceComponentAttached), and hands back a usable handle now.
+        // No window ancestor, no stamped context, no injected recomposer: the mount is deferred until
+        // the container is attached to a window, and a usable handle comes back now.
         //
         // The deferral is observable headless: setContent installs exactly ONE HierarchyListener that
         // is waiting for the attach event, and mounts nothing yet (no child components appear).
@@ -162,12 +161,6 @@ class WindowRecomposerSharingTest {
         // Idempotent: double-dispose is safe and leaves no listener behind.
         onEdt { handle.dispose() }
         assertEquals(0, onEdt { orphan.hierarchyListeners.size }, "a double-dispose must leave no listener behind")
-
-        // NOTE: the defer-THEN-attach-THEN-mount transition needs the container to gain a real
-        // top-level Window ancestor, i.e. a realized window on a display. This test stays
-        // display-independent and asserts the deferred/no-throw/clean-dispose behavior, exactly as
-        // the other tests in this suite stand in for the real-window path. The attach->mount path
-        // is covered by the sample apps, which realize real windows.
     }
 
     @Test

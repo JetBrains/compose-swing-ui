@@ -26,11 +26,11 @@ import org.jetbrains.compose.swing.modifier.interaction.enabled
 import org.jetbrains.compose.swing.modifier.layout.maximumSize
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import java.awt.Dimension
+import java.awt.FlowLayout
 import javax.swing.BoxLayout
-import javax.swing.SwingConstants
 
 // A reactive to-do list on one screen. A single SnapshotStateList of tasks is the source of truth:
-// every view that reads it — the "N of M done" summary, the progress bar, the rows — recomposes when
+// every view that reads it - the "N of M done" summary, the progress bar, the rows - recomposes when
 // it changes. Each row is keyed by a stable task id, so adding or completing one task never disturbs
 // another row's identity or its in-progress edit.
 @Composable
@@ -71,7 +71,7 @@ private fun SummaryRow(
     total: Int,
 ) {
     Card("Progress") {
-        FlowPanel(alignment = SwingConstants.LEADING) {
+        FlowPanel(alignment = FlowLayout.LEADING) {
             // Fixed-width label so the bar to its right never shifts as the counts change.
             ValueLabel(text = "$done of $total done", width = 120)
             ProgressBar(
@@ -96,7 +96,7 @@ private fun AddTaskRow(onAdd: (String) -> Unit) {
             }
         }
 
-        FlowPanel(alignment = SwingConstants.LEADING) {
+        FlowPanel(alignment = FlowLayout.LEADING) {
             TextField(
                 value = draft,
                 onValueChange = { draft = it },
@@ -126,7 +126,7 @@ private fun TaskRows(
             BoxPanel(axis = BoxLayout.Y_AXIS) {
                 if (tasks.isEmpty()) {
                     Card("Tasks") {
-                        Label("No tasks yet — add one above.")
+                        Label("No tasks yet - add one above.")
                     }
                 } else {
                     tasks.forEach { task ->

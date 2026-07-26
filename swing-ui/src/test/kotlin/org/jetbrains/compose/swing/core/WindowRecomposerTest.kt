@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.swing.Swing
 import kotlinx.coroutines.withTimeout
@@ -20,7 +21,6 @@ import kotlin.test.Test
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertSame
-import kotlin.test.assertTrue
 
 /**
  * Behavioral tests for the per-window recomposer on the real-window path: a realized top-level
@@ -50,7 +50,9 @@ class WindowRecomposerTest {
             islandA.setContent { Label(text = "a=$shared") }
             islandB.setContent { Label(text = "b=$shared") }
 
-            awaitUntil { labelTextOrNull(islandA) == "a=v0" && labelTextOrNull(islandB) == "b=v0" }
+            awaitUntil("both islands render the initial shared state") {
+                labelTextOrNull(islandA) == "a=v0" && labelTextOrNull(islandB) == "b=v0"
+            }
 
             // The window created exactly one recomposer, and both islands resolved to it.
             val windowRecomposer = frame.windowRecomposerOrNull()
@@ -67,7 +69,9 @@ class WindowRecomposerTest {
             )
 
             shared = "v1"
-            awaitUntil { labelTextOrNull(islandA) == "a=v1" && labelTextOrNull(islandB) == "b=v1" }
+            awaitUntil("both islands recompose to the changed shared state") {
+                labelTextOrNull(islandA) == "a=v1" && labelTextOrNull(islandB) == "b=v1"
+            }
         } finally {
             frame.dispose()
         }
@@ -116,7 +120,7 @@ class WindowRecomposerTest {
             // Disposing the realized window fires windowClosed, whose teardown clears the memoized
             // slot: the very next lookup finds nothing again.
             frame.dispose()
-            awaitUntil { frame.windowRecomposerOrNull() == null }
+            awaitUntil("the closed window clears its recomposer slot") { frame.windowRecomposerOrNull() == null }
             assertNull(
                 frame.windowRecomposerOrNull(),
                 "closing the window must clear its recomposer slot",
@@ -156,16 +160,23 @@ class WindowRecomposerTest {
 
     /**
      * Suspends on the EDT until [condition] holds, yielding the EDT back between checks so the window's
-     * real frame-clock timer can fire and the window recomposer can mount and recompose content. Bounded
-     * by a wall-clock deadline so a condition that never becomes true fails fast instead of hanging.
+     * real frame-clock timer can fire and the window recomposer can mount and recompose content. A
+     * condition that never becomes true fails the test at the deadline, naming [description], instead
+     * of hanging.
      */
-    private suspend fun awaitUntil(condition: () -> Boolean) {
-        withTimeout(SETTLE_TIMEOUT_MILLIS) {
-            while (!condition()) {
-                yield()
+    private suspend fun awaitUntil(
+        description: String,
+        condition: () -> Boolean,
+    ) {
+        try {
+            withTimeout(SETTLE_TIMEOUT_MILLIS) {
+                while (!condition()) {
+                    yield()
+                }
             }
+        } catch (timedOut: TimeoutCancellationException) {
+            throw AssertionError("Timed out after ${SETTLE_TIMEOUT_MILLIS}ms waiting until $description", timedOut)
         }
-        assertTrue(condition(), "condition did not hold after settling")
     }
 
     private companion object {
