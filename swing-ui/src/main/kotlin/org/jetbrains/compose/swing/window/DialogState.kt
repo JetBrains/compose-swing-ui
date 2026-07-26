@@ -27,30 +27,25 @@ public fun rememberDialogState(
 /**
  * A state object that can be hoisted to control and observe a [Dialog]'s geometry.
  *
- * @param position the initial value for [DialogState.position]
- * @param size the initial value for [DialogState.size]; a null size sizes the dialog to its content,
- *   while a non-null size is applied verbatim
- */
-public fun DialogState(
-    position: WindowPosition = WindowPosition.PlatformDefault,
-    size: Dimension? = null,
-): DialogState = DialogStateImpl(position, size?.width ?: 0, size?.height ?: 0)
-
-/**
- * A state object that can be hoisted to control and observe a [Dialog]'s geometry.
- *
  * Both properties are two-way: assigning to them repositions or resizes the realized dialog, and a
  * user dragging or resizing the dialog writes the new geometry back into the state.
+ *
+ * @param position the initial value for [position]
+ * @param size the initial value for [size]; a null size sizes the dialog to its content, while a
+ *   non-null size is applied verbatim
  */
-public interface DialogState {
+public class DialogState(
+    position: WindowPosition = WindowPosition.PlatformDefault,
+    size: Dimension? = null,
+) {
     /** The current top-left position of the dialog on screen. */
-    public var position: WindowPosition
+    public var position: WindowPosition by mutableStateOf(position)
 
     /** The current width of the dialog, in pixels. */
-    public var width: Int
+    public var width: Int by mutableIntStateOf(size?.width ?: 0)
 
     /** The current height of the dialog, in pixels. */
-    public var height: Int
+    public var height: Int by mutableIntStateOf(size?.height ?: 0)
 
     /**
      * The current size of the dialog, a [width]/[height] pair in pixels.
@@ -64,14 +59,4 @@ public interface DialogState {
             width = value.width
             height = value.height
         }
-}
-
-private class DialogStateImpl(
-    position: WindowPosition,
-    width: Int,
-    height: Int,
-) : DialogState {
-    override var position by mutableStateOf(position)
-    override var width by mutableIntStateOf(width)
-    override var height by mutableIntStateOf(height)
 }

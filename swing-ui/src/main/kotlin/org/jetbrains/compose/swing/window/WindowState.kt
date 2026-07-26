@@ -31,33 +31,28 @@ public fun rememberWindowState(
 /**
  * A state object that can be hoisted to control and observe a [Window]'s geometry and extended state.
  *
- * @param position the initial value for [WindowState.position]
- * @param size the initial value for [WindowState.size]; a null size sizes the window to its content,
- *   while a non-null size is applied verbatim
- * @param extendedState the initial value for [WindowState.extendedState]
- */
-public fun WindowState(
-    position: WindowPosition = WindowPosition.PlatformDefault,
-    size: Dimension? = null,
-    @WindowExtendedState extendedState: Int = Frame.NORMAL,
-): WindowState = WindowStateImpl(position, size?.width ?: 0, size?.height ?: 0, extendedState)
-
-/**
- * A state object that can be hoisted to control and observe a [Window]'s geometry and extended state.
- *
  * Every property is two-way: assigning to one repositions, resizes, maximizes, minimizes or restores
  * the realized window, and a user driving the same change through the window system writes the new
  * value back into the state.
+ *
+ * @param position the initial value for [position]
+ * @param size the initial value for [size]; a null size sizes the window to its content, while a
+ *   non-null size is applied verbatim
+ * @param extendedState the initial value for [extendedState]
  */
-public interface WindowState {
+public class WindowState(
+    position: WindowPosition = WindowPosition.PlatformDefault,
+    size: Dimension? = null,
+    @WindowExtendedState extendedState: Int = Frame.NORMAL,
+) {
     /** The current top-left position of the window on screen. */
-    public var position: WindowPosition
+    public var position: WindowPosition by mutableStateOf(position)
 
     /** The current width of the window, in pixels. */
-    public var width: Int
+    public var width: Int by mutableIntStateOf(size?.width ?: 0)
 
     /** The current height of the window, in pixels. */
-    public var height: Int
+    public var height: Int by mutableIntStateOf(size?.height ?: 0)
 
     /**
      * The current size of the window, a [width]/[height] pair in pixels.
@@ -78,17 +73,5 @@ public interface WindowState {
      * [Frame.NORMAL] restores it.
      */
     @WindowExtendedState
-    public var extendedState: Int
-}
-
-private class WindowStateImpl(
-    position: WindowPosition,
-    width: Int,
-    height: Int,
-    extendedState: Int,
-) : WindowState {
-    override var position by mutableStateOf(position)
-    override var width by mutableIntStateOf(width)
-    override var height by mutableIntStateOf(height)
-    override var extendedState by mutableIntStateOf(extendedState)
+    public var extendedState: Int by mutableIntStateOf(extendedState)
 }

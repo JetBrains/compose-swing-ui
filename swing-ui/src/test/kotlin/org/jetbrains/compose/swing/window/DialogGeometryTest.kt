@@ -6,7 +6,6 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.test.onWindow
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Assumptions.assumeFalse
-import org.junit.jupiter.api.Assumptions.assumeTrue
 import java.awt.Dimension
 import java.awt.GraphicsEnvironment
 import java.awt.Point
@@ -26,7 +25,7 @@ class DialogGeometryTest {
     @Test
     fun initialGeometryIsAppliedToTheDialog() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
-        val state = DialogState(position = WindowPosition(140, 90), size = Dimension(360, 260))
+        val state = DialogState(position = WindowPosition.Absolute(140, 90), size = Dimension(360, 260))
         setContent { Dialog(onCloseRequest = {}, state = state, title = "dialog-initial-geometry") {} }
         val dialog = onWindow().fetch<JDialog>()
         assertEquals(Dimension(360, 260), dialog.size)
@@ -36,21 +35,28 @@ class DialogGeometryTest {
     @Test
     fun positionReactsToStateChange() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
-        val state = DialogState(position = WindowPosition(140, 90))
+        // An explicit size keeps the dialog out of the size-to-content path, so its placement is the
+        // one the state declares rather than one a pack settled on.
+        val state = DialogState(position = WindowPosition.Absolute(140, 90), size = Dimension(360, 260))
         setContent { Dialog(onCloseRequest = {}, state = state, title = "dialog-position-react") {} }
         val dialog = onWindow().fetch<JDialog>()
-        assertEquals(Point(140, 90), dialog.location)
-        state.position = WindowPosition(240, 170)
-        // Repositioning an already-mapped window is a window-manager capability (like maximizing): a
-        // display server without one (e.g. the CI's Xvfb) leaves the dialog where it is. Probe whether
-        // the move takes and skip where it is unhonored instead of failing; the apply path itself is
-        // covered by platformDefaultToAbsolutePositionMovesTheDialog, which drives an unmapped window.
-        val moved =
-            runCatching {
-                waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { dialog.location == Point(240, 170) }
-            }.isSuccess
-        assumeTrue(moved, "repositioning a mapped window requires window-manager move support")
-        assertEquals(Point(240, 170), dialog.location)
+        assertEquals(Point(140, 90), dialog.location, "the dialog must realize at the position the state holds")
+        // Moving a realized dialog is an asynchronous native reshape; wait for it to reach the declared
+        // placement rather than assert right after the compose frame that requests it.
+        state.position = WindowPosition.Absolute(240, 170)
+        waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { dialog.location == Point(240, 170) }
+        assertEquals(
+            Point(240, 170),
+            dialog.location,
+            "the dialog must move to the position the state takes after the first apply",
+        )
+        state.position = WindowPosition.Absolute(140, 90)
+        waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { dialog.location == Point(140, 90) }
+        assertEquals(
+            Point(140, 90),
+            dialog.location,
+            "the dialog must move back to a position the state returns to",
+        )
     }
 
     @Test
@@ -73,6 +79,7 @@ class DialogGeometryTest {
         val state = DialogState(size = Dimension(360, 260))
         setContent { Dialog(onCloseRequest = {}, state = state, title = "dialog-width-react") {} }
         val dialog = onWindow().fetch<JDialog>()
+        assertEquals(Dimension(360, 260), dialog.size, "the dialog must realize with the size the state holds")
         state.width = 520
         waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { dialog.size == Dimension(520, 260) }
         assertEquals(
@@ -88,6 +95,7 @@ class DialogGeometryTest {
         val state = DialogState(size = Dimension(360, 260))
         setContent { Dialog(onCloseRequest = {}, state = state, title = "dialog-height-react") {} }
         val dialog = onWindow().fetch<JDialog>()
+        assertEquals(Dimension(360, 260), dialog.size, "the dialog must realize with the size the state holds")
         state.height = 420
         waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { dialog.size == Dimension(360, 420) }
         assertEquals(
@@ -164,22 +172,17 @@ class DialogGeometryTest {
     @Test
     fun userMoveIsWrittenBackIntoState() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
-        val state = DialogState(position = WindowPosition(140, 90))
+        // An explicit size keeps the dialog out of the size-to-content path, so the move the write-back
+        // reports is the one this test drives rather than a placement a pack settled on.
+        val state = DialogState(position = WindowPosition.Absolute(140, 90), size = Dimension(360, 260))
         setContent { Dialog(onCloseRequest = {}, state = state, title = "dialog-user-move") {} }
         val dialog = onWindow().fetch<JDialog>()
-        dialog.setLocation(320, 210)
-        // The move write-back is driven by a native component-moved event. A display server without a
-        // window manager (e.g. the CI's Xvfb) updates the dialog's location but never delivers that
-        // event, so — like maximizing — honoring a move is a window-manager capability: probe it and
-        // skip where it is absent instead of failing.
-        val moveWrittenBack =
-            runCatching {
-                waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) {
-                    state.position == WindowPosition(320, 210)
-                }
-            }.isSuccess
-        assumeTrue(moveWrittenBack, "a window-move write-back requires window-manager move events")
-        assertEquals(WindowPosition(320, 210), state.position)
+        moveWindowLikeAUser(dialog, Point(320, 210)) { state.position == WindowPosition.Absolute(320, 210) }
+        assertEquals(
+            WindowPosition.Absolute(320, 210),
+            state.position,
+            "a move of the realized dialog must be written back into the state",
+        )
     }
 
     @Test
@@ -203,14 +206,13 @@ class DialogGeometryTest {
     fun platformDefaultPositionNeverRepositionsTheDialog() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         var title by mutableStateOf("dialog-platform-default")
-        val state = DialogState()
+        val state = DialogState(position = WindowPosition.Absolute(320, 210))
         setContent { Dialog(onCloseRequest = {}, state = state, title = title, visible = false) {} }
         val dialog = onWindow().fetch<JDialog>()
-        // Give the peer a concrete placement (written back into the state as an absolute position),
-        // then return the state to PlatformDefault: an unspecified position leaves placement alone
-        // instead of forcing its (0, 0) coordinates onto the peer.
-        dialog.setLocation(320, 210)
-        waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { state.position == WindowPosition(320, 210) }
+        // The peer is placed at concrete coordinates first, and the state then returns to
+        // PlatformDefault: a placement request carries no coordinates, so it leaves an already-placed
+        // peer where it is.
+        assertEquals(Point(320, 210), dialog.location, "the dialog must realize at the declared position")
         state.position = WindowPosition.PlatformDefault
         awaitIdle()
         title = "dialog-platform-default-updated"
@@ -235,7 +237,7 @@ class DialogGeometryTest {
             Dialog(onCloseRequest = {}, state = state, title = "dialog-platform-to-absolute", visible = false) {}
         }
         val dialog = onWindow().fetch<JDialog>()
-        state.position = WindowPosition(240, 170)
+        state.position = WindowPosition.Absolute(240, 170)
         awaitIdle()
         assertEquals(
             Point(240, 170),
@@ -247,6 +249,6 @@ class DialogGeometryTest {
 
 /**
  * Wall-clock deadline for conditions gated on native window-system notifications (moves, resizes,
- * maximize transitions), which arrive with real latency — including window-manager animations.
+ * maximize transitions), which arrive with real latency - including window-manager animations.
  */
 private const val NATIVE_EVENT_TIMEOUT_MILLIS = 10_000L

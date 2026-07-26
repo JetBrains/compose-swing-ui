@@ -33,7 +33,19 @@ import javax.swing.JScrollPane
  *
  * Set a fixed viewport size with `modifier = SwingModifier.preferredSize(...)`.
  *
+ * The scroll position is hoistable state, so the application can read it, drive it, and follow the
+ * user's scrolling:
+ *
+ * ```
+ * val scroll = rememberScrollState()
+ * Button(text = "To the bottom", onClick = { scroll.y = scroll.maxY })
+ * ScrollPane(state = scroll) {
+ *     content { LongList() }
+ * }
+ * ```
+ *
  * @param modifier the [SwingModifier] applied to the underlying `JScrollPane`
+ * @param state the pane's two-way scroll position; see [ScrollState]
  * @param verticalScrollbar the vertical scrollbar policy
  * @param horizontalScrollbar the horizontal scrollbar policy
  * @param block declares the content, header, and corner slots; see [ScrollPaneScope]
@@ -41,13 +53,12 @@ import javax.swing.JScrollPane
 @Composable
 public fun ScrollPane(
     modifier: SwingModifier = SwingModifier,
+    state: ScrollState = rememberScrollState(),
     @VerticalScrollbarPolicy verticalScrollbar: Int = JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
     @HorizontalScrollbarPolicy horizontalScrollbar: Int = JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED,
     block: ScrollPaneScope.() -> Unit,
 ) {
-    // Collect the slot declarations fresh on every composition so a region the caller stops declaring
-    // (e.g. behind an `if`) becomes null and its node is removed — the applier then uninstalls it and
-    // clears the JScrollPane slot. A remembered, mutated scope would retain the stale declaration.
+    // Collected fresh on every pass, so a region the caller stops declaring releases its slot (see SwingNode).
     val scope = ScrollPaneScopeImpl().apply(block)
 
     SwingNode(
@@ -62,7 +73,7 @@ public fun ScrollPane(
         update = {
             set(verticalScrollbar) { verticalScrollBarPolicy = it }
             set(horizontalScrollbar) { horizontalScrollBarPolicy = it }
-            applyModifier(modifier)
+            applyModifier(modifier.scrollStateBinding(state))
         },
         content = {
             scope.content?.let { content ->

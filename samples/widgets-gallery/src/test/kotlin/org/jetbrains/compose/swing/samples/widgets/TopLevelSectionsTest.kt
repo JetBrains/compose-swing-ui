@@ -13,6 +13,23 @@ class TopLevelSectionsTest {
             onNodeWithText("No dialog acknowledged yet", substring = true).assertExists()
         }
 
+    // The window card reads its hoisted WindowState into labels and writes it from buttons, so the
+    // readout tracks a state change made from the composition's own side of the two-way contract.
+    @Test
+    fun theWindowGeometryReadoutFollowsTheStateAControlDrives() =
+        runComposeSwingTest {
+            openSection("Top-level windows")
+
+            onNodeWithText("Position: PlatformDefault", substring = true).assertExists()
+            onNodeWithText("Size: 320 x 200", substring = true).assertExists()
+
+            onNodeWithText("Widen by 40").performClick()
+            onNodeWithText("Size: 360 x 200", substring = true).assertExists()
+
+            onNodeWithText("Centre on screen").performClick()
+            onNodeWithText("Position: CenteredOnScreen", substring = true).assertExists()
+        }
+
     @Test
     fun theDesktopPaneAddsAndControlledClosesAnInternalFrame() =
         runComposeSwingTest {

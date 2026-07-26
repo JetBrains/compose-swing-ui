@@ -3,6 +3,9 @@ package org.jetbrains.compose.swing.window
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import java.awt.Dialog
+import java.awt.Dimension
+import java.awt.Image
+import java.awt.Toolkit
 import javax.swing.JDialog
 import javax.swing.SwingUtilities
 import javax.swing.WindowConstants
@@ -20,19 +23,39 @@ import javax.swing.WindowConstants
  * [content]. Descendants of the dialog read it as their [LocalWindow]. A shown dialog keeps
  * recomposing while it is visible.
  *
- * The [title], [visible] and [resizable] arguments are reactive: changing any of them in a
- * recomposition updates the realized dialog accordingly. Geometry is driven by [state], which is
- * two-way: assigning to [DialogState.position]/[DialogState.size] repositions or resizes the dialog,
- * and a user dragging or resizing the dialog writes the new geometry back into [state].
+ * [content] receives the dialog as its [WindowScope]: what the dialog carries besides its content - its
+ * [MenuBar] - is declared on that scope.
+ *
+ * The [title], [modality], [visible], [resizable], [alwaysOnTop], [iconImage] and [minimumSize]
+ * arguments are reactive: changing any of them in a recomposition updates the realized dialog
+ * accordingly. A [modality] change may have no effect on a dialog that is already showing until it is
+ * hidden and shown again. Geometry is driven by [state], which is two-way: assigning to
+ * [DialogState.position]/[DialogState.size] repositions or resizes the dialog, and a user dragging or
+ * resizing the dialog writes the new geometry back into [state].
+ *
+ * [undecorated] and the owning window are reactive too, at a higher price: a dialog takes its owner at
+ * construction and AWT only accepts decorations on a dialog that is not yet realized, so changing either
+ * releases the dialog peer and builds a replacement. The content is re-hosted in the new peer - its
+ * composition, and any state remembered in it, starts over - while the geometry held in [state] and the
+ * declared visibility are re-applied to the replacement. A look and feel that draws the dialog
+ * decorations itself (see [JDialog.setDefaultLookAndFeelDecorated]) draws them on the replacement too,
+ * whatever [undecorated] declares.
  *
  * @param onCloseRequest callback to be called when the user attempts to close the dialog
  * @param state the hoistable, observable geometry (position and size) of the dialog
  * @param title the title of the dialog
- * @param modality the AWT modality of the dialog; defaults to [Dialog.ModalityType.MODELESS] (the
- *   JDialog default)
+ * @param modality the AWT modality of the dialog, defaulting to [Dialog.ModalityType.MODELESS] (the
+ *   JDialog default); a modality type the toolkit does not support leaves the dialog modeless
  * @param visible whether the dialog should be visible
  * @param resizable whether the dialog can be resized
- * @param content the composable content of the dialog
+ * @param alwaysOnTop whether the dialog stays above other windows; ignored on platforms that do not
+ *   support an always-on-top window
+ * @param iconImage the image shown as the dialog's icon, or null for the platform default
+ * @param minimumSize the smallest size the dialog can take, or null to leave the floor to the dialog's
+ *   layout; a declared or user-driven size below the floor is raised to it
+ * @param undecorated whether the dialog is shown without its platform decorations (title bar and
+ *   border)
+ * @param content the composable content of the dialog, receiving the dialog as its [WindowScope]
  */
 @Composable
 public fun Dialog(
@@ -42,33 +65,52 @@ public fun Dialog(
     modality: Dialog.ModalityType = Dialog.ModalityType.MODELESS,
     visible: Boolean = true,
     resizable: Boolean = true,
-    content: @Composable () -> Unit,
+    alwaysOnTop: Boolean = false,
+    iconImage: Image? = null,
+    minimumSize: Dimension? = null,
+    undecorated: Boolean = false,
+    content: @Composable WindowScope.() -> Unit,
 ) {
     val owner = LocalWindow.current
 
-    // Owner and modality are fixed for the dialog's lifetime, so the peer is created once.
+    // The owner and the decorations are both chosen at construction: a dialog takes its owner as a
+    // constructor argument, and JDialog.setUndecorated is rejected once the peer is displayable, so a
+    // change of either builds a new dialog rather than writing onto the realized one. Only an explicit
+    // undecorated declaration is written, so a dialog that decorates itself through its look and feel
+    // keeps both the decoration style and the undecorated flag that pairing needs. The modality pins
+    // nothing: AWT accepts a change on a built dialog, so the reactive apply carries it rather than
+    // rebuilding. The constructor still takes the declaration, so a peer realized before the dialog is
+    // first shown - sizing to content realizes one - is created with the modality the dialog declares.
     val dialog =
-        remember {
-            JDialog(owner, modality).also { it.defaultCloseOperation = WindowConstants.DO_NOTHING_ON_CLOSE }
+        remember(owner, undecorated) {
+            JDialog(owner, modality).also {
+                if (undecorated) it.isUndecorated = true
+                it.defaultCloseOperation = WindowConstants.DO_NOTHING_ON_CLOSE
+            }
         }
 
     // Holds the geometry that is currently in sync between [state] and the realized dialog. Shared by
-    // the apply and the write-back listener so the two directions never fight.
-    val appliedGeometry = remember { AppliedGeometry() }
+    // the apply and the write-back listener so the two directions never fight, and tied to the dialog it
+    // describes: a replacement dialog starts out of sync and is given the geometry [state] holds.
+    val appliedGeometry = remember(dialog) { AppliedGeometry() }
 
     // Tracks the latest visibility requested on the dialog, or null while there is no request to
     // honor. A modal show is deferred to a later EDT tick, so the realized `isVisible` lags the
     // request; this guards against scheduling the same transition again on the recompositions that
     // happen before the deferred runnable executes, and each deferred runnable applies only while it
     // still carries this latest request. Cleared when the dialog leaves the composition, which
-    // retires any still-queued transition.
-    val requestedVisible = remember { arrayOfNulls<Boolean>(1) }
+    // retires any still-queued transition. Tied to the dialog it tracks: a replacement dialog starts with
+    // no request, so the declared visibility is applied to it afresh.
+    val requestedVisible = remember(dialog) { arrayOfNulls<Boolean>(1) }
 
     CompositionOwnedWindowHost(
         peer = dialog,
         onCloseRequest = onCloseRequest,
         title = title,
         resizable = resizable,
+        alwaysOnTop = alwaysOnTop,
+        iconImage = iconImage,
+        minimumSize = minimumSize,
         position = state.position,
         width = state.width,
         height = state.height,
@@ -87,6 +129,9 @@ public fun Dialog(
             retireQueuedShow
         },
         applyExtras = {
+            // Modality is written before the visibility flip, so a dialog about to be shown is shown
+            // with the modality it declares.
+            dialog.applyModality(modality)
             if (requestedVisible[0] != visible) {
                 requestedVisible[0] = visible
                 // Defer the show to a fresh EDT tick: a modal setVisible(true) blocks inside a nested
@@ -108,4 +153,20 @@ public fun Dialog(
         },
         content = content,
     )
+}
+
+/**
+ * Pushes the declared [modality] onto this dialog when it differs from the modality the dialog already
+ * carries. A type the toolkit does not support resolves to [Dialog.ModalityType.MODELESS], the same
+ * substitution [java.awt.Dialog.setModalityType] applies, so the declaration is compared against the
+ * modality the dialog will actually take and settles instead of being rewritten on every recomposition.
+ */
+private fun JDialog.applyModality(modality: Dialog.ModalityType) {
+    val effective =
+        if (Toolkit.getDefaultToolkit().isModalityTypeSupported(modality)) {
+            modality
+        } else {
+            Dialog.ModalityType.MODELESS
+        }
+    if (modalityType != effective) modalityType = effective
 }

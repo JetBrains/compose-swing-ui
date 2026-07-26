@@ -3,6 +3,9 @@ package org.jetbrains.compose.swing.window
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.test.onWindow
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Assumptions.assumeFalse
@@ -10,11 +13,14 @@ import org.junit.jupiter.api.Assumptions.assumeTrue
 import java.awt.Dimension
 import java.awt.Frame
 import java.awt.GraphicsEnvironment
+import java.awt.Image
 import java.awt.Point
 import java.awt.Toolkit
+import java.awt.image.BufferedImage
 import javax.swing.JFrame
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
@@ -34,6 +40,9 @@ class WindowReactivityTest {
         title = "title-test-updated"
         awaitIdle()
         assertEquals("title-test-updated", frame.title, "the frame title must follow the recomposed value")
+        title = "title-test"
+        awaitIdle()
+        assertEquals("title-test", frame.title, "the frame title must follow the recomposed value back")
     }
 
     @Test
@@ -41,6 +50,12 @@ class WindowReactivityTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         var visible by mutableStateOf(false)
         setContent { Window(onCloseRequest = {}, title = "visible-test", visible = visible) {} }
+        onWindow().assertIsNotVisible()
+        visible = true
+        awaitIdle()
+        onWindow().assertIsVisible()
+        visible = false
+        awaitIdle()
         onWindow().assertIsNotVisible()
         visible = true
         awaitIdle()
@@ -56,13 +71,68 @@ class WindowReactivityTest {
         assertTrue(frame.isResizable, "the frame must realize resizable while resizable is declared true")
         resizable = false
         awaitIdle()
-        assertTrue(!frame.isResizable, "the frame must stop being resizable once resizable recomposes to false")
+        assertFalse(frame.isResizable, "the frame must stop being resizable once resizable recomposes to false")
+        resizable = true
+        awaitIdle()
+        assertTrue(frame.isResizable, "the frame must become resizable again once resizable recomposes back to true")
+    }
+
+    @Test
+    fun alwaysOnTopReactsToRecomposition() = runComposeSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        assumeTrue(
+            Toolkit.getDefaultToolkit().isAlwaysOnTopSupported,
+            "keeping a window above the others requires toolkit support for always-on-top",
+        )
+        var alwaysOnTop by mutableStateOf(true)
+        setContent {
+            Window(onCloseRequest = {}, title = "always-on-top-test", visible = false, alwaysOnTop = alwaysOnTop) {}
+        }
+        val frame = onWindow().fetch<JFrame>()
+        assertTrue(frame.isAlwaysOnTop, "the frame must realize always on top while alwaysOnTop is declared true")
+        alwaysOnTop = false
+        awaitIdle()
+        assertFalse(
+            frame.isAlwaysOnTop,
+            "the frame must stop being always on top once alwaysOnTop recomposes to false",
+        )
+        alwaysOnTop = true
+        awaitIdle()
+        assertTrue(
+            frame.isAlwaysOnTop,
+            "the frame must go back above the others once alwaysOnTop recomposes back to true",
+        )
+    }
+
+    @Test
+    fun iconImageReactsToRecomposition() = runComposeSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        val icon: Image = BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB)
+        val replacementIcon: Image = BufferedImage(32, 32, BufferedImage.TYPE_INT_ARGB)
+        var iconImage by mutableStateOf<Image?>(icon)
+        setContent {
+            Window(onCloseRequest = {}, title = "icon-image-test", visible = false, iconImage = iconImage) {}
+        }
+        val frame = onWindow().fetch<JFrame>()
+        assertEquals(icon, frame.iconImage, "the declared image must become the frame's icon")
+        iconImage = replacementIcon
+        awaitIdle()
+        assertEquals(replacementIcon, frame.iconImage, "the frame's icon must follow the recomposed image")
+        iconImage = null
+        awaitIdle()
+        assertTrue(
+            frame.iconImages.isEmpty(),
+            "a null iconImage must clear the frame's icon, restoring the platform default",
+        )
+        iconImage = icon
+        awaitIdle()
+        assertEquals(icon, frame.iconImage, "an image declared over a cleared icon must become the frame's icon")
     }
 
     @Test
     fun initialGeometryIsAppliedToTheFrame() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
-        val state = WindowState(position = WindowPosition(120, 80), size = Dimension(320, 240))
+        val state = WindowState(position = WindowPosition.Absolute(120, 80), size = Dimension(320, 240))
         setContent { Window(onCloseRequest = {}, state = state, title = "initial-geometry-test") {} }
         val frame = onWindow().fetch<JFrame>()
         assertEquals(Dimension(320, 240), frame.size)
@@ -72,21 +142,28 @@ class WindowReactivityTest {
     @Test
     fun positionReactsToStateChange() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
-        val state = WindowState(position = WindowPosition(120, 80))
+        // An explicit size keeps the frame out of the size-to-content path, so its placement is the
+        // one the state declares rather than one a pack settled on.
+        val state = WindowState(position = WindowPosition.Absolute(120, 80), size = Dimension(320, 240))
         setContent { Window(onCloseRequest = {}, state = state, title = "position-test") {} }
         val frame = onWindow().fetch<JFrame>()
-        assertEquals(Point(120, 80), frame.location)
-        state.position = WindowPosition(220, 160)
-        // Repositioning an already-mapped window is a window-manager capability (like maximizing): a
-        // display server without one (e.g. the CI's Xvfb) leaves the frame where it is. Probe whether
-        // the move takes and skip where it is unhonored instead of failing; the apply path itself is
-        // covered by platformDefaultToAbsolutePositionMovesTheFrame, which drives an unmapped window.
-        val moved =
-            runCatching {
-                waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { frame.location == Point(220, 160) }
-            }.isSuccess
-        assumeTrue(moved, "repositioning a mapped window requires window-manager move support")
-        assertEquals(Point(220, 160), frame.location)
+        assertEquals(Point(120, 80), frame.location, "the frame must realize at the position the state holds")
+        // Moving a realized frame is an asynchronous native reshape; wait for it to reach the declared
+        // placement rather than assert right after the compose frame that requests it.
+        state.position = WindowPosition.Absolute(220, 160)
+        waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { frame.location == Point(220, 160) }
+        assertEquals(
+            Point(220, 160),
+            frame.location,
+            "the frame must move to the position the state takes after the first apply",
+        )
+        state.position = WindowPosition.Absolute(120, 80)
+        waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { frame.location == Point(120, 80) }
+        assertEquals(
+            Point(120, 80),
+            frame.location,
+            "the frame must move back to a position the state returns to",
+        )
     }
 
     @Test
@@ -109,6 +186,7 @@ class WindowReactivityTest {
         val state = WindowState(size = Dimension(320, 240))
         setContent { Window(onCloseRequest = {}, state = state, title = "width-test") {} }
         val frame = onWindow().fetch<JFrame>()
+        assertEquals(Dimension(320, 240), frame.size, "the frame must realize with the size the state holds")
         state.width = 500
         waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { frame.size == Dimension(500, 240) }
         assertEquals(
@@ -124,12 +202,114 @@ class WindowReactivityTest {
         val state = WindowState(size = Dimension(320, 240))
         setContent { Window(onCloseRequest = {}, state = state, title = "height-test") {} }
         val frame = onWindow().fetch<JFrame>()
+        assertEquals(Dimension(320, 240), frame.size, "the frame must realize with the size the state holds")
         state.height = 400
         waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { frame.size == Dimension(320, 400) }
         assertEquals(
             Dimension(320, 400),
             frame.size,
             "assigning height must resize the realized frame, leaving its width unchanged",
+        )
+    }
+
+    @Test
+    fun minimumSizeRaisesASmallerDeclaredSize() = runComposeSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        val state = WindowState(size = Dimension(200, 150))
+        setContent {
+            Window(
+                onCloseRequest = {},
+                state = state,
+                title = "minimum-size-test",
+                minimumSize = Dimension(320, 240),
+            ) {}
+        }
+        assertEquals(
+            Dimension(320, 240),
+            onWindow().fetch<JFrame>().size,
+            "a declared size below the declared minimum size must be raised to that minimum",
+        )
+    }
+
+    @Test
+    fun minimumSizeRaisesASizeTakenFromTheContent() = runComposeSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        setContent {
+            // No size is declared, so the frame takes one from its content; the content asks for less
+            // than the floor allows.
+            Window(
+                onCloseRequest = {},
+                title = "minimum-size-pack-test",
+                minimumSize = Dimension(320, 240),
+            ) {
+                FlowPanel(modifier = SwingModifier.preferredSize(40, 30))
+            }
+        }
+        assertEquals(
+            Dimension(320, 240),
+            onWindow().fetch<JFrame>().size,
+            "a size taken from content smaller than the declared minimum must be raised to that minimum",
+        )
+    }
+
+    @Test
+    fun minimumSizeReactsToRecomposition() = runComposeSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        var minimumSize by mutableStateOf<Dimension?>(Dimension(320, 240))
+        val state = WindowState(size = Dimension(200, 150))
+        setContent {
+            Window(
+                onCloseRequest = {},
+                state = state,
+                title = "minimum-size-release-test",
+                minimumSize = minimumSize,
+            ) {}
+        }
+        val frame = onWindow().fetch<JFrame>()
+        assertEquals(Dimension(320, 240), frame.minimumSize, "the declared minimum size must reach the frame")
+        minimumSize = Dimension(400, 300)
+        awaitIdle()
+        assertEquals(
+            Dimension(400, 300),
+            frame.minimumSize,
+            "the frame's minimum size must follow the recomposed value",
+        )
+        minimumSize = null
+        awaitIdle()
+        assertFalse(
+            frame.isMinimumSizeSet,
+            "a null minimumSize must release the floor, leaving the minimum size to the frame's layout",
+        )
+        minimumSize = Dimension(320, 240)
+        awaitIdle()
+        assertEquals(
+            Dimension(320, 240),
+            frame.minimumSize,
+            "a minimum size declared over a released floor must reach the frame",
+        )
+    }
+
+    @Test
+    fun mutatingADeclaredMinimumSizeLeavesTheFrameFloorUntouched() = runComposeSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        val declaredMinimumSize = Dimension(320, 240)
+        setContent {
+            Window(
+                onCloseRequest = {},
+                title = "minimum-size-copy-inert-test",
+                visible = false,
+                minimumSize = declaredMinimumSize,
+            ) {}
+        }
+        val frame = onWindow().fetch<JFrame>()
+        // The floor is only ever moved by a declaration the composition applies, so mutating the
+        // Dimension the composition was handed cannot move it behind the composition's back.
+        declaredMinimumSize.setSize(500, 400)
+        awaitIdle()
+        assertEquals(
+            Dimension(320, 240),
+            frame.minimumSize,
+            "mutating the declared Dimension must leave the realized frame's minimum size untouched",
         )
     }
 
@@ -200,22 +380,17 @@ class WindowReactivityTest {
     @Test
     fun userMoveIsWrittenBackIntoState() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
-        val state = WindowState(position = WindowPosition(120, 80))
+        // An explicit size keeps the frame out of the size-to-content path, so the move the write-back
+        // reports is the one this test drives rather than a placement a pack settled on.
+        val state = WindowState(position = WindowPosition.Absolute(120, 80), size = Dimension(320, 240))
         setContent { Window(onCloseRequest = {}, state = state, title = "user-move-test") {} }
         val frame = onWindow().fetch<JFrame>()
-        frame.setLocation(300, 200)
-        // The move write-back is driven by a native component-moved event. A display server without a
-        // window manager (e.g. the CI's Xvfb) updates the frame's location but never delivers that
-        // event, so — like maximizing — honoring a move is a window-manager capability: probe it and
-        // skip where it is absent instead of failing.
-        val moveWrittenBack =
-            runCatching {
-                waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) {
-                    state.position == WindowPosition(300, 200)
-                }
-            }.isSuccess
-        assumeTrue(moveWrittenBack, "a window-move write-back requires window-manager move events")
-        assertEquals(WindowPosition(300, 200), state.position)
+        moveWindowLikeAUser(frame, Point(300, 200)) { state.position == WindowPosition.Absolute(300, 200) }
+        assertEquals(
+            WindowPosition.Absolute(300, 200),
+            state.position,
+            "a move of the realized frame must be written back into the state",
+        )
     }
 
     @Test
@@ -239,14 +414,13 @@ class WindowReactivityTest {
     fun platformDefaultPositionNeverRepositionsTheFrame() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         var title by mutableStateOf("platform-default-test")
-        val state = WindowState()
+        val state = WindowState(position = WindowPosition.Absolute(300, 200))
         setContent { Window(onCloseRequest = {}, state = state, title = title, visible = false) {} }
         val frame = onWindow().fetch<JFrame>()
-        // Give the peer a concrete placement (written back into the state as an absolute position),
-        // then return the state to PlatformDefault: an unspecified position leaves placement alone
-        // instead of forcing its (0, 0) coordinates onto the peer.
-        frame.setLocation(300, 200)
-        waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { state.position == WindowPosition(300, 200) }
+        // The peer is placed at concrete coordinates first, and the state then returns to
+        // PlatformDefault: a placement request carries no coordinates, so it leaves an already-placed
+        // peer where it is.
+        assertEquals(Point(300, 200), frame.location, "the frame must realize at the declared position")
         state.position = WindowPosition.PlatformDefault
         awaitIdle()
         title = "platform-default-test-updated"
@@ -271,7 +445,7 @@ class WindowReactivityTest {
             Window(onCloseRequest = {}, state = state, title = "platform-to-absolute-test", visible = false) {}
         }
         val frame = onWindow().fetch<JFrame>()
-        state.position = WindowPosition(260, 180)
+        state.position = WindowPosition.Absolute(260, 180)
         awaitIdle()
         assertEquals(
             Point(260, 180),
@@ -362,6 +536,6 @@ private fun assumeMaximizeIsSupported() {
 
 /**
  * Wall-clock deadline for conditions gated on native window-system notifications (moves, resizes,
- * maximize transitions), which arrive with real latency — including window-manager animations.
+ * maximize transitions), which arrive with real latency - including window-manager animations.
  */
 private const val NATIVE_EVENT_TIMEOUT_MILLIS = 10_000L
