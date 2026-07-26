@@ -20,7 +20,7 @@ private data class Person(
 )
 
 // Table: typed rows projected through declared columns, with controlled single-row selection echoed
-// into a Label. The Age column is editable — a committed edit flows through onCellEdit back into the
+// into a Label. The Age column is editable - a committed edit flows through onCellEdit back into the
 // backing list, so the next composition shows the new value.
 @Composable
 internal fun TableSection() {

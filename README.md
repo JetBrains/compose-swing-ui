@@ -1,6 +1,6 @@
 # Compose Swing UI
 
-A declarative, reactive way to build **Swing** UIs using Jetpack Compose's composition model —
+A declarative, reactive way to build **Swing** UIs using Jetpack Compose's composition model -
 built on **Compose Runtime only**. No skiko, no Compose Multiplatform UI, no Skia renderer. Your
 components are real `JButton`/`JLabel`/`JPanel` widgets, laid out by Swing's own `LayoutManager`s
 and painted by the platform look-and-feel; Compose drives state and composition.
@@ -22,6 +22,8 @@ import org.jetbrains.compose.swing.components.layout.BorderPanel
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.FlowPanel
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.appearance.horizontalAlignment
 import org.jetbrains.compose.swing.window.Window
 import org.jetbrains.compose.swing.window.application
 import javax.swing.SwingConstants
@@ -32,7 +34,10 @@ fun main() = application {
 
         BorderPanel {
             north {
-                Label("Compose Swing UI", horizontalAlignment = SwingConstants.CENTER)
+                Label(
+                    "Compose Swing UI",
+                    modifier = SwingModifier.horizontalAlignment(SwingConstants.CENTER),
+                )
             }
             center {
                 FlowPanel {
@@ -42,7 +47,10 @@ fun main() = application {
                 }
             }
             south {
-                Label("Status: ready", horizontalAlignment = SwingConstants.CENTER)
+                Label(
+                    "Status: ready",
+                    modifier = SwingModifier.horizontalAlignment(SwingConstants.CENTER),
+                )
             }
         }
     }
@@ -54,6 +62,10 @@ compass family (`north`/`south`/`east`/`west`/`center`) and an orientation-aware
 (`pageStart`/`pageEnd`/`lineStart`/`lineEnd`, resolved against the panel's component orientation).
 Placement is parent-driven; declare only the regions you need, and declaring a region again replaces
 it. Prefer one family per edge.
+
+Every component family the library ships - text inputs, buttons, selection, layout containers,
+windows, dialogs and menus - is catalogued with the parameters that decide how it behaves in
+[`docs/COMPONENTS.md`](docs/COMPONENTS.md).
 
 ## Mounting into existing Swing (`setContent`)
 
@@ -100,37 +112,55 @@ joins that composition and shares its recomposition scope.
 
 ## Menus
 
-`JMenuBar.setContent` drives a menu tree from the same import:
-
-```kotlin
-import org.jetbrains.compose.swing.components.Menu
-import org.jetbrains.compose.swing.components.MenuItem
-import org.jetbrains.compose.swing.components.MenuSeparator
-import org.jetbrains.compose.swing.setContent // JMenuBar.setContent
-import javax.swing.JMenuBar
-
-val menuBar = JMenuBar()
-menuBar.setContent {
-    Menu("File") {
-        MenuItem("New", onClick = { println("New") })
-        MenuItem("Open", onClick = { println("Open") })
-        MenuSeparator()
-        MenuItem("Exit", onClick = { /* … */ })
-    }
-}
-frame.jMenuBar = menuBar
-```
-
-## Styling & interaction with `SwingModifier`
-
-Components take an optional `modifier: SwingModifier = SwingModifier` parameter for visual and
-interaction concerns — colors, fonts, borders, tooltips, focus, hover. Build a chain with the
-extension builders and the framework diffs it across recompositions, restoring the original value of
-any element you remove:
+`MenuBar` declares the menu bar of the window whose content it is composed in, driven by the state its
+content reads. It is declared on the window scope a `Window` and a `Dialog` give their content, so a
+menu bar with no window to carry it does not compile:
 
 ```kotlin
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.Menu
+import org.jetbrains.compose.swing.components.MenuItem
+import org.jetbrains.compose.swing.components.MenuSeparator
+import org.jetbrains.compose.swing.window.MenuBar
+import org.jetbrains.compose.swing.window.Window
+import org.jetbrains.compose.swing.window.application
+
+application {
+    var opened by remember { mutableStateOf("nothing") }
+    Window(onCloseRequest = ::exitApplication, title = "Editor") {
+        MenuBar {
+            Menu("File") {
+                MenuItem("New", onClick = { opened = "a new file" })
+                MenuItem("Open", onClick = { opened = "an existing file" })
+                MenuSeparator()
+                MenuItem("Exit", onClick = ::exitApplication)
+            }
+        }
+        Label("Opened: $opened")
+    }
+}
+```
+
+The same tree fills a context menu through `SwingModifier.contextMenu { ... }` and a tray icon's menu
+through `Tray(menu = { ... })`. On a `JMenuBar` the application builds itself, `JMenuBar.setContent { ... }`
+takes it too.
+
+## Styling & interaction with `SwingModifier`
+
+Components take an optional `modifier: SwingModifier = SwingModifier` parameter for visual and
+interaction concerns - colors, fonts, borders, tooltips, focus, hover. Build a chain with the
+extension builders and the framework diffs it across recompositions, restoring the original value of
+any element you remove:
+
+```kotlin
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -140,26 +170,36 @@ import org.jetbrains.compose.swing.modifier.interaction.onHover
 import java.awt.Color
 import javax.swing.BorderFactory
 
-var hovered by mutableStateOf(false)
-Button(
-    text = "Save",
-    onClick = { /* … */ },
-    modifier = SwingModifier
-        .foreground(Color.WHITE)
-        .border(BorderFactory.createLineBorder(if (hovered) Color.BLUE else Color.GRAY))
-        .onHover(onEnter = { hovered = true }, onExit = { hovered = false }),
-)
+@Composable
+fun SaveButton(onSave: () -> Unit) {
+    var hovered by remember { mutableStateOf(false) }
+    val border = remember(hovered) {
+        BorderFactory.createLineBorder(if (hovered) Color.BLUE else Color.GRAY)
+    }
+    Button(
+        text = "Save",
+        onClick = onSave,
+        modifier =
+            SwingModifier
+                .foreground(Color.WHITE)
+                .border(border)
+                .onHover(onEnter = { hovered = true }, onExit = { hovered = false }),
+    )
+}
 ```
 
+Hoist the value objects a chain carries - a `Border`, `Font` or `Icon` - into `remember`, as above.
+
 Domain callbacks like `onClick` and `onValueChange` stay ordinary parameters; only cross-cutting
-styling and interaction flow through `modifier`. Builders are grouped by concern: appearance, layout,
-metadata, interaction, and accessibility. See
-[`docs/CUSTOM-COMPONENTS.md`](docs/CUSTOM-COMPONENTS.md) for writing your own modifier elements and
-listeners.
+styling and interaction flow through `modifier`. Builders are grouped by concern: appearance, content
+placement, button painting, text colors, layout, metadata, interaction (which carries the typed
+listener builders), keyboard, data transfer, and accessibility. See
+[`docs/CUSTOM-COMPONENTS.md`](docs/CUSTOM-COMPONENTS.md) for what an unhoisted instance costs, and for
+writing your own modifier elements and listeners.
 
 ## Bring your own Swing component
 
-Any Swing `Component` can be hosted directly with `SwingNode` — a first-class, supported way to bring
+Any Swing `Component` can be hosted directly with `SwingNode` - a first-class, supported way to bring
 custom Swing components into a composition. Every built-in wrapper is built on `SwingNode` the same
 way. See [`docs/CUSTOM-COMPONENTS.md`](docs/CUSTOM-COMPONENTS.md) for a step-by-step guide, and
 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for how the composition drives the Swing tree.
@@ -169,15 +209,15 @@ way. See [`docs/CUSTOM-COMPONENTS.md`](docs/CUSTOM-COMPONENTS.md) for a step-by-
 `swing-ui-animation` provides the familiar `animate*AsState`, `Animatable`, `updateTransition` /
 `Transition`, `rememberInfiniteTransition`, easing curves (including `CubicBezierEasing`) and the
 `spring` / `tween` / `keyframes` specs, for the `Float`, `Int` and generic (`TwoWayConverter`) value
-types — supply a `TwoWayConverter` for your own type (e.g. `java.awt.Color`).
+types - supply a `TwoWayConverter` for your own type (e.g. `java.awt.Color`).
 
-Animations run with no extra wiring: any `animate*` used inside a `setContent { … }` composition is
+Animations run with no extra wiring: any `animate*` used inside a `setContent { ... }` composition is
 driven by the window's frame clock automatically, advancing at the display's refresh rate while an
 animation is in flight. See [`swing-ui-animation/README.md`](swing-ui-animation/README.md).
 
 ## Testing
 
-Add `:swing-ui-test` and write plain `@Test` methods — the harness is synchronous and deterministic
+Add `:swing-ui-test` and write plain `@Test` methods - the harness is synchronous and deterministic
 (off-screen, never sleeps):
 
 ```kotlin
@@ -213,20 +253,24 @@ and screenshot comparison the harness offers.
 ./gradlew test                           # tests only
 ```
 
-Full quality-gate command (what CI runs):
+Full quality-gate command (what CI runs) - the build logic is an included build, so its own gates are
+requested separately from the rest:
 
 ```bash
-./gradlew build checkKotlinAbi ktlintCheck detekt test :buildSrc:ktlintCheck :buildSrc:detekt
+./gradlew :buildSrc:ktlintCheck :buildSrc:detekt
+./gradlew build
 ```
+
+[`CONTRIBUTING.md`](CONTRIBUTING.md) walks through what each gate covers.
 
 ## Modules
 
-- `swing-ui` — the library: composition runtime wired to Swing, plus composable wrappers over Swing
+- `swing-ui` - the library: composition runtime wired to Swing, plus composable wrappers over Swing
   components and layouts. See [`swing-ui/README.md`](swing-ui/README.md).
-- `swing-ui-animation` — the animation engine. See
+- `swing-ui-animation` - the animation engine. See
   [`swing-ui-animation/README.md`](swing-ui-animation/README.md).
-- `swing-ui-test` — the test harness. See [`swing-ui-test/README.md`](swing-ui-test/README.md).
-- `samples/todo-app`, `samples/widgets-gallery` — runnable showcases.
+- `swing-ui-test` - the test harness. See [`swing-ui-test/README.md`](swing-ui-test/README.md).
+- `samples/todo-app`, `samples/widgets-gallery` - runnable showcases.
 
 ## Stability
 
@@ -235,7 +279,7 @@ consume the libraries.
 
 ## License
 
-Licensed under the Apache License, Version 2.0 — see [LICENSE](LICENSE).
+Licensed under the Apache License, Version 2.0 - see [LICENSE](LICENSE).
 
 `swing-ui-animation` additionally redistributes source code from the Android Open Source Project's
 Jetpack Compose `animation-core` under the same license; see that module's `META-INF/NOTICE` and the

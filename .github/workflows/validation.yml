@@ -38,11 +38,12 @@ jobs:
             :buildSrc:ktlintCheck :buildSrc:detekt
 
       # `build` runs `check` for every module (compile, ktlintCheck, detekt, the Android Lint
-      # Compose checks, test, and swing-ui's jacocoTestCoverageVerification) plus `assemble`.
-      # Driving it generically gates new modules automatically without enumerating them.
-      # `checkKotlinAbi` validates the committed api/*.api dumps and is not part of `check`, so it
-      # is requested explicitly. `--continue` reports every failure in a single run. Run under
-      # xvfb-run so window tests have a display and exercise real top-level peers.
+      # Compose checks, test, checkKotlinAbi, and the jacocoTestCoverageVerification floors)
+      # plus `assemble`. Driving it generically gates new modules automatically without
+      # enumerating them. `checkKotlinAbi` validates the committed api/*.api dumps; it is named
+      # explicitly alongside `build` so it stands out in the step's task list. `--continue`
+      # reports every failure in a single run. Run under xvfb-run so window tests have a
+      # display and exercise real top-level peers.
       - shell: bash
         name: Build & Run Gates
         run: |

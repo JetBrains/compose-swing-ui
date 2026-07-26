@@ -37,7 +37,7 @@ import javax.swing.BorderFactory
 import javax.swing.BoxLayout
 
 // A gallery where each SwingModifier builder visibly affects a real widget, across the modifier
-// families — appearance, layout, interaction, keyboard, and raw listeners. State is hoisted so the
+// families - appearance, layout, interaction, keyboard, and raw listeners. State is hoisted so the
 // appearance modifiers toggle, the interaction modifiers update a live status label, and the
 // keyboard/raw-listener modifiers fire counters.
 @Composable
@@ -89,7 +89,7 @@ private fun SizeAndVisibilityCard() {
         FlowPanel(modifier = SwingModifier.alignmentX(LEFT_ALIGNED)) {
             Button("Wide button", modifier = SwingModifier.preferredSize(Dimension(WIDE_BUTTON, BUTTON_HEIGHT)))
             // The slot's footprint is reserved by the wrapping panel's preferredSize, so visible(false)
-            // hides the button but keeps it attached and the row does not collapse — unlike conditional
+            // hides the button but keeps it attached and the row does not collapse - unlike conditional
             // composition (if (shown) Button(...)), which drops the child and lets the layout reflow.
             FlowPanel(
                 modifier = SwingModifier.preferredSize(Dimension(120, BUTTON_HEIGHT)),

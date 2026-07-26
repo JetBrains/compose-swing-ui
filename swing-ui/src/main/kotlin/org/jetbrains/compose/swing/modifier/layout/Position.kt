@@ -10,7 +10,7 @@ import java.awt.Point
 import java.awt.Rectangle
 
 /**
- * Sets the component's `bounds` — its position and size within its parent. Effective in a parent that
+ * Sets the component's `bounds` - its position and size within its parent. Effective in a parent that
  * does not lay its children out (a null layout, or a `LayeredPane`), where each child positions itself.
  *
  * @param x the left edge relative to the parent
@@ -34,7 +34,7 @@ public fun SwingModifier.bounds(
 /**
  * Sets the component's actual location to ([x], [y]) relative to its parent, like `setLocation`. A
  * layout manager overrides this on its next layout pass, so it takes effect for components positioned
- * by themselves — those in a null layout or a `JLayeredPane`.
+ * by themselves - those in a null layout or a `JLayeredPane`.
  *
  * [x], [y], and [location] each read-modify-write the live location, so they compose per axis with the
  * later call in the chain winning that axis: `x(10).y(20)` yields (10, 20), `x(10)` and `y(20)`

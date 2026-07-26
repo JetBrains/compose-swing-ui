@@ -8,7 +8,7 @@ import org.jetbrains.compose.swing.modifier.propertyElement
 import java.awt.Component
 
 /**
- * Sets `isVisible` — whether the component is shown in its parent's layout.
+ * Sets `isVisible` - whether the component is shown in its parent's layout.
  *
  * A hidden component stays attached to its parent and keeps its full native state (selection, scroll
  * position, focus history, model), so toggling it back on recreates nothing. Reach for `visible` when

@@ -17,7 +17,7 @@ import javax.swing.text.PlainDocument
 
 // The document the editor section edits and the File menu loads into. The menu bar and the shell are
 // separate compositions, so they cannot share a remembered DocumentState; they share this one plain
-// document instead — constructed outside any composition, both sides reference it by name. File > Open
+// document instead - constructed outside any composition, both sides reference it by name. File > Open
 // replaces its content; the section's DocumentState wraps it and re-renders the loaded text.
 internal val galleryEditorDocument =
     PlainDocument().apply {
@@ -25,7 +25,7 @@ internal val galleryEditorDocument =
     }
 
 // Replaces the whole content of the shared editor document. The Editor section's DocumentState observes
-// this document, so the new text appears in the area — and its live counts update — without any wiring
+// this document, so the new text appears in the area - and its live counts update - without any wiring
 // between the two compositions.
 internal fun setEditorText(text: String) {
     galleryEditorDocument.replace(0, galleryEditorDocument.length, text, null)
@@ -34,7 +34,7 @@ internal fun setEditorText(text: String) {
 // A multiline editor built on the state-based text model over the shared document: one DocumentState is
 // the whole source of truth. The area renders the state's own document (no value round-trip per
 // keystroke), the Undo/Redo buttons drive and observe that same state, and the status line reads its
-// live text — the advantage a single small field cannot show.
+// live text - the advantage a single small field cannot show.
 @Composable
 internal fun EditorSection() {
     SectionColumn {
@@ -51,7 +51,7 @@ private fun DocumentEditorCard() {
         val state = rememberDocumentState(document = galleryEditorDocument)
 
         // Derived from the observable text: reading state.text here subscribes to edits, so the counts
-        // refresh on every keystroke — including edits made by undo, redo, and File > Open — with no
+        // refresh on every keystroke - including edits made by undo, redo, and File > Open - with no
         // manual wiring.
         val text = state.text
         val characters = text.length
@@ -59,7 +59,7 @@ private fun DocumentEditorCard() {
         val words = text.split(WHITESPACE).count { it.isNotBlank() }
 
         // canUndo / canRedo are snapshot-observable, so the buttons enable and disable themselves as
-        // history changes — no listener, no state mirror to keep in sync.
+        // history changes - no listener, no state mirror to keep in sync.
         FlowPanel(alignment = FlowLayout.LEADING, modifier = SwingModifier.alignmentX(LEFT_ALIGNED)) {
             Button(text = "Undo", onClick = state::undo, modifier = SwingModifier.enabled(state.canUndo))
             Button(text = "Redo", onClick = state::redo, modifier = SwingModifier.enabled(state.canRedo))

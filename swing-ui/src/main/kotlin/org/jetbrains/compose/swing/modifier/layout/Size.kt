@@ -64,7 +64,7 @@ public fun SwingModifier.maximumSize(
 
 /**
  * Sets the component's actual size to [width] by [height], like `setSize`. A layout manager overrides
- * this on its next layout pass, so it takes effect for components positioned by themselves — those in
+ * this on its next layout pass, so it takes effect for components positioned by themselves - those in
  * a null layout or a `JLayeredPane`. To influence a managed layout, use [preferredSize], [minimumSize],
  * or [maximumSize] instead.
  *

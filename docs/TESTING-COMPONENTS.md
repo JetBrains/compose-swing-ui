@@ -147,19 +147,19 @@ assertEquals(2, list.selectedIndex)
 
 A menu is not part of the component tree its invoker lives in, so there is no node to find for it.
 Reach it through the component that holds it — a window's `jMenuBar`, a component's
-`componentPopupMenu` — and compare its whole content against what was declared in one assertion with
-`menuItemTexts()`, which reports an item by its text and a separator as `null`:
+`componentPopupMenu` — with the typed `fetch<T>()`, then read its content through `JMenu`'s own
+`itemCount` and `getItem(index)`, which reports a separator as `null`:
 
 ```kotlin
 import javax.swing.JFrame
-import org.jetbrains.compose.swing.test.menuItemTexts
 
 val fileMenu = onWindowWithTitle("Editor").fetch<JFrame>().jMenuBar.getMenu(0)
-assertEquals(listOf("New", null, "Open"), fileMenu.menuItemTexts())
+val items = (0 until fileMenu.itemCount).map { fileMenu.getItem(it)?.text }
+assertEquals(listOf("New", null, "Open"), items)
 ```
 
-Only the menu's own level is read: a submenu appears by its own label, and what it drops down is read
-by calling `menuItemTexts()` on the submenu.
+Only the menu's own level is read this way: a submenu appears as its own item, named by its `text`,
+and what it drops down is read the same way, off the `JMenu` that item is.
 
 ## Driving interactions
 
@@ -210,6 +210,35 @@ component the test did not expect is a real failure and belongs in a plain asser
 ```kotlin
 onNodeWithTag("amount").performFocusLost()
 onNodeWithTag("amount").assertTextEquals("42.00")
+```
+
+## Callback failures
+
+A callback that throws while a wrapper is writing to its widget - settling a value the widget clamped to
+its own grid or range, for instance - does not end the composition: the write finishes and the failure is
+contained rather than left to end whichever coroutine happens to observe it. Left untaken, such a failure
+still fails the test at teardown, naming the callback that never finished its job.
+
+A test that provokes one on purpose takes it with `takeCallerFailures()` and asserts on it directly; what
+it takes no longer fails the test:
+
+```kotlin
+@Test
+fun aThrowingCallbackIsContainedAndReported() = runComposeSwingTest {
+    var max by mutableIntStateOf(100)
+    setContent {
+        Slider(value = 50, max = max, onValueChange = { error("boom") })
+    }
+
+    // Narrowing the range below the declared value forces the slider to clamp it on the spot, which is
+    // the wrapper writing its own settled value back - exactly where a callback failure is contained.
+    max = 30
+    awaitIdle()
+
+    val failures = takeCallerFailures()
+    assertEquals(1, failures.size)
+    assertEquals("boom", failures.single().message)
+}
 ```
 
 ## Testing windows and dialogs

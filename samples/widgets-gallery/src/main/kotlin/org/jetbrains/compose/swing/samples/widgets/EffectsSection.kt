@@ -20,7 +20,7 @@ import org.jetbrains.compose.swing.modifier.layout.alignmentX
 
 // Compose effects running over the Swing recomposer: coroutine-backed LaunchedEffect, lifecycle-aware
 // DisposableEffect (its onDispose fires when the child leaves composition), and snapshot-derived
-// derivedStateOf — proof that the coroutine and snapshot bridges are wired to the Swing frame clock.
+// derivedStateOf - proof that the coroutine and snapshot bridges are wired to the Swing frame clock.
 @Composable
 internal fun EffectsSection() {
     SectionColumn {

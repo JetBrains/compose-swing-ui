@@ -15,7 +15,7 @@ import javax.swing.JLabel
  * the label's `JLabel.setLabelFor` is then wired to that component so the label's mnemonic moves focus
  * to it and assistive technologies read the two as a pair.
  *
- * The reference carries the component directly — there is no name or tag to match and no tree search —
+ * The reference carries the component directly - there is no name or tag to match and no tree search -
  * so the association holds no matter which of the label and its target is declared or laid out first.
  * Binding a second component displaces the first; a label whose target is unbound reads `null`.
  */

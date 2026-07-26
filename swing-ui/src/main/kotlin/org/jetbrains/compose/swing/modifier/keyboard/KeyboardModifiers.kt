@@ -11,7 +11,7 @@ import javax.swing.JComponent
 import javax.swing.KeyStroke
 
 /*
- * Keyboard SwingModifiers — raw key events and key-stroke -> action bindings.
+ * Keyboard SwingModifiers - raw key events and key-stroke -> action bindings.
  *
  * Callbacks are read live, so passing fresh lambdas each recomposition is fine. The focus scope of a
  * key-stroke binding is expressed with [FocusCondition].
@@ -21,7 +21,7 @@ import javax.swing.KeyStroke
  * Installs a [KeyListener] whose every event is forwarded to [onKeyEvent].
  *
  * [onKeyEvent] receives each [KeyEvent] (`KEY_PRESSED` / `KEY_RELEASED` / `KEY_TYPED`, read from
- * `event.id`) and returns `true` if it consumed the event — in which case the event stops further
+ * `event.id`) and returns `true` if it consumed the event - in which case the event stops further
  * processing, mirroring Compose's `onKeyEvent`. The component must be focusable and focused to
  * receive these (see [focusable]); for shortcuts that should work regardless of which component holds
  * focus, prefer [onKeyStroke].
@@ -33,7 +33,7 @@ public fun SwingModifier.onKeyEvent(onKeyEvent: (KeyEvent) -> Boolean): SwingMod
     this then KeyEventElement(onKeyEvent)
 
 /**
- * Binds a single [KeyStroke] to [onAction] via the component's `InputMap`/`ActionMap` — the
+ * Binds a single [KeyStroke] to [onAction] via the component's `InputMap`/`ActionMap` - the
  * idiomatic Swing path for shortcuts. [condition] selects the focus scope (a [FocusCondition]
  * `JComponent.WHEN_*` value) and defaults to [JComponent.WHEN_FOCUSED].
  *

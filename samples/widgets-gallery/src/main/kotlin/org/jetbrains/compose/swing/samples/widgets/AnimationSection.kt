@@ -38,7 +38,7 @@ import javax.swing.BorderFactory
 
 // The animation engine driving real Swing rendering over the window's frame clock: an eased
 // animateIntAsState, a physical spring, and an infinite looping transition. In every case the target
-// is plain hoisted Compose state and the animation interpolates toward it — no timers, no manual frames.
+// is plain hoisted Compose state and the animation interpolates toward it - no timers, no manual frames.
 @Composable
 internal fun AnimationSection() {
     SectionColumn {
@@ -95,7 +95,7 @@ private fun SpringMarkerCard() {
         )
 
         WrappedCaption(
-            "A spring with medium bounce settles the marker at the far end instead of stopping dead — " +
+            "A spring with medium bounce settles the marker at the far end instead of stopping dead - " +
                 "the position overshoots and rebounds before resting, just like a physical spring.",
         )
         Canvas(
@@ -128,7 +128,7 @@ private fun InfinitePulseCard() {
         var running by remember { mutableStateOf(false) }
 
         WrappedCaption(
-            "An infinite transition reverses a value between two bounds forever, with no end state — " +
+            "An infinite transition reverses a value between two bounds forever, with no end state - " +
                 "here it breathes the disc's radius. Toggle it off and the section rests at a stable frame.",
         )
         // Compose the transition only while running: an always-on infinite animation would never let

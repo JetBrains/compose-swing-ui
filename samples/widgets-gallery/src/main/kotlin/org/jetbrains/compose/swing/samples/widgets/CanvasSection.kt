@@ -26,7 +26,7 @@ import java.awt.geom.Ellipse2D
 import java.awt.geom.Path2D
 import javax.swing.BorderFactory
 
-// Canvas custom drawing through the raw Graphics2D pipeline — none of it a built-in widget, all of it
+// Canvas custom drawing through the raw Graphics2D pipeline - none of it a built-in widget, all of it
 // hand-rendered. The slider values are read directly inside onDraw: Canvas observes the snapshot state
 // touched while drawing, so moving a slider repaints the surface automatically, with no read hoisted
 // into the composition or captured into the lambda.

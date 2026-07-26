@@ -7,7 +7,7 @@ import java.awt.BorderLayout
  * Declarative regions of a [BorderPanel].
  *
  * Each region hosts a single composable. Declaring a region more than once replaces the previous
- * declaration — the last call wins.
+ * declaration - the last call wins.
  *
  * Two families of region are available:
  *  - absolute compass: [north], [south], [east], [west], [center];

@@ -5,7 +5,7 @@ import javax.swing.JSplitPane
 
 /**
  * The two sides of a [SplitPane], each hosting a single composable. Declaring a side more than once
- * replaces the previous declaration — the last call wins.
+ * replaces the previous declaration - the last call wins.
  *
  * Under [JSplitPane.HORIZONTAL_SPLIT] the [first] side is the left, the [second] the right; under
  * [JSplitPane.VERTICAL_SPLIT] the [first] side is the top, the [second] the bottom.

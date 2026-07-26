@@ -9,7 +9,7 @@ import java.awt.Component
 import java.awt.ComponentOrientation
 
 /**
- * Sets `componentOrientation` — the component's left-to-right / right-to-left orientation.
+ * Sets `componentOrientation` - the component's left-to-right / right-to-left orientation.
  *
  * Sets the orientation on **this component only**; it does not propagate to children. To apply it
  * recursively, use Swing's `Component.applyComponentOrientation` on the tree.

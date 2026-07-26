@@ -19,7 +19,7 @@ public fun SwingModifier.font(font: Font?): SwingModifier =
                 c.font = v
                 // JComponent.setFont already revalidates and repaints. A plain AWT Component only
                 // invalidates, so a font change that resizes it stays invisible until an unrelated
-                // relayout — request one here for the non-JComponent target.
+                // relayout - request one here for the non-JComponent target.
                 if (c !is JComponent) {
                     c.revalidate()
                     c.repaint()

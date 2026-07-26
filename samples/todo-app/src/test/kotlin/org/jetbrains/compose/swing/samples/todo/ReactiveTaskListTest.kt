@@ -18,10 +18,10 @@ import kotlin.test.assertTrue
 /**
  * Behavioral coverage for [ReactiveTaskList], driven entirely through the public test harness. Each
  * test exercises a user gesture where it really lands (a click, a text replacement) and reads the live
- * Swing tree the recomposition produced — never a private field or composition slot.
+ * Swing tree the recomposition produced - never a private field or composition slot.
  *
- * Components are located the way a user would identify them — by visible text, by type, or by
- * accessible name — except a specific keyed row, which is addressed by its per-row test tag because
+ * Components are located the way a user would identify them - by visible text, by type, or by
+ * accessible name - except a specific keyed row, which is addressed by its per-row test tag because
  * rows otherwise look alike.
  *
  * The starting fixture has four tasks, two of them already done, so "2 of 4 done" is the initial state.
@@ -112,7 +112,7 @@ class ReactiveTaskListTest {
             // The render is stable: capturing the same, unchanged row again matches the first capture.
             onNodeWithTag(taskRowTag(3)).assertImageMatches(expected = row)
 
-            // A genuinely different element (a whole different-sized subtree) does NOT match it — the
+            // A genuinely different element (a whole different-sized subtree) does NOT match it - the
             // comparison rejects it on the size mismatch alone, so the assertion throws.
             assertFailsWith<AssertionError> {
                 onNodeOfType<JProgressBar>().assertImageMatches(expected = row)

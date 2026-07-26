@@ -31,8 +31,8 @@ import kotlin.test.assertNotNull
  * has left the composition. The dialog is composed modeless so showing it never blocks the driving
  * thread. Skipped in headless environments where no real peer can be realized.
  *
- * The interleaving under test — two recompositions landing on one event-dispatch turn, ahead of the
- * deferred show that the first of them queued — requires recomposition to be driven synchronously.
+ * The interleaving under test - two recompositions landing on one event-dispatch turn, ahead of the
+ * deferred show that the first of them queued - requires recomposition to be driven synchronously.
  * The shared harness advances recomposition through queued event-dispatch turns, which lets every
  * already-queued runnable (including the deferred show) run between frames, so this test drives a
  * minimal immediate-dispatch recomposer of its own.
@@ -45,7 +45,7 @@ class DialogLifecycleTest {
             val clock = BroadcastFrameClock()
             val recomposer = Recomposer(coroutineContext + clock)
             // The immediate dispatcher resumes the recomposer inline, so a snapshot flush moves it to
-            // its frame await and a frame sent to [clock] recomposes before control returns — letting
+            // its frame await and a frame sent to [clock] recomposes before control returns - letting
             // [recomposeNow] complete a whole recomposition ahead of runnables an earlier
             // recomposition queued on the event queue.
             val runner = launch(Dispatchers.Swing.immediate + clock) { recomposer.runRecomposeAndApplyChanges() }

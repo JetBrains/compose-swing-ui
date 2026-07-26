@@ -9,10 +9,10 @@ import javax.swing.JComponent
 import javax.swing.JLabel
 
 /**
- * Sets the keyboard mnemonic — the underlined letter that activates the component when pressed with the
+ * Sets the keyboard mnemonic - the underlined letter that activates the component when pressed with the
  * platform menu modifier (typically Alt). On a button it activates the button; on a label it moves
  * focus to the label's [labelFor] target. Requires an `AbstractButton` (Button, CheckBox, RadioButton,
- * menu item, …) or a `JLabel` target.
+ * menu item, ...) or a `JLabel` target.
  *
  * @param mnemonic the character to use as the mnemonic.
  */

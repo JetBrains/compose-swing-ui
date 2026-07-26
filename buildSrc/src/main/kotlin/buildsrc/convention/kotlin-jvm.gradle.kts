@@ -14,8 +14,8 @@ kotlin {
     compilerOptions {
         allWarningsAsErrors.set(true)
         // JVM default methods without DefaultImpls bridges. Bridges only serve binaries compiled
-        // against a previously published DefaultImpls-bearing release — none exist before the first
-        // release — and removing them later would be binary-breaking, so bridge-less is the one-way
+        // against a previously published DefaultImpls-bearing release - none exist before the first
+        // release - and removing them later would be binary-breaking, so bridge-less is the one-way
         // door taken now. The vendored animation fork also requires this mode: upstream's
         // @JvmDefaultWithCompatibility annotations (re-adding bridges per interface where androidx
         // promises them) are only accepted by the compiler under it.

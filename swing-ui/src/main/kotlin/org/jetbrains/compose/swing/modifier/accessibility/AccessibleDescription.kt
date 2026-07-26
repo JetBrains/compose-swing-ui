@@ -8,7 +8,7 @@ import org.jetbrains.compose.swing.modifier.propertyElement
 import java.awt.Component
 
 /**
- * Sets the component's accessible description — a longer localized explanation assistive technologies
+ * Sets the component's accessible description - a longer localized explanation assistive technologies
  * can read after the name. `null` clears any description this modifier set.
  *
  * @param description the accessible description to advertise, or `null` to clear it.

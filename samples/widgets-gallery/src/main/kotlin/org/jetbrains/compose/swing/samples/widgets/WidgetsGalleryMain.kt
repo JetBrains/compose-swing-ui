@@ -24,14 +24,14 @@ fun main() {
     SwingUtilities.invokeLater {
         installLookAndFeel()
 
-        val frame = JFrame("Compose Swing UI — Widgets gallery")
+        val frame = JFrame("Compose Swing UI - Widgets gallery")
         frame.defaultCloseOperation = JFrame.EXIT_ON_CLOSE
         frame.size = Dimension(WINDOW_WIDTH, WINDOW_HEIGHT)
         frame.setLocationRelativeTo(null)
 
         // Attach the menu bar to the frame before setting its content: the menu content then resolves
         // its parent composition by walking up to the owning window immediately, mounting synchronously.
-        // (Content on a detached bar is also supported — it simply defers until the bar is attached.)
+        // (Content on a detached bar is also supported - it simply defers until the bar is attached.)
         val menuBar = JMenuBar()
         frame.jMenuBar = menuBar
         menuBar.setContent { ShowcaseMenuBar(owner = frame, onExit = { frame.dispose() }) }

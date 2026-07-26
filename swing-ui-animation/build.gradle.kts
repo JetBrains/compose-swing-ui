@@ -3,7 +3,7 @@ import org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation
 plugins {
     id("buildsrc.convention.kotlin-jvm")
     id("buildsrc.convention.publishing")
-    jacoco
+    id("buildsrc.convention.jacoco-coverage")
 }
 
 // A verbatim AOSP fork of Compose animation-core, so it is intentionally exempt from the shared
@@ -41,33 +41,10 @@ dependencies {
     testImplementation(libs.kotlinxCoroutinesTest)
 }
 
-tasks.named<JacocoReport>("jacocoTestReport") {
-    dependsOn(tasks.named("test"))
-    reports {
-        xml.required.set(true)
-        html.required.set(true)
-    }
-}
-tasks.named("test") {
-    finalizedBy(tasks.named("jacocoTestReport"))
-}
-
 // Regression ratchet: the floor sits a few points under the currently achieved ratio so ordinary noise
 // never breaks the build while a real coverage regression does.
-tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
-    dependsOn(tasks.named("jacocoTestReport"))
-    violationRules {
-        rule {
-            limit {
-                counter = "LINE"
-                value = "COVEREDRATIO"
-                minimum = "0.20".toBigDecimal()
-            }
-        }
-    }
-}
-tasks.named("check") {
-    dependsOn(tasks.named("jacocoTestCoverageVerification"))
+jacocoCoverage {
+    lineMinimum.set("0.20".toBigDecimal())
 }
 
 publishing {

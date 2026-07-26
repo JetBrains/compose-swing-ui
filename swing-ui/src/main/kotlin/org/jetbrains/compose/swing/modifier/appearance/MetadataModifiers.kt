@@ -8,11 +8,11 @@ import java.awt.Component
 import javax.swing.JComponent
 
 /*
- * Metadata SwingModifiers — auxiliary data that does not change appearance or layout: the component
+ * Metadata SwingModifiers - auxiliary data that does not change appearance or layout: the component
  * name, tooltip, look-and-feel client properties, and the test tag.
  */
 
-/** Sets `name` — the key components are looked up by in tests and automation; `null` clears it. */
+/** Sets `name` - the key components are looked up by in tests and automation; `null` clears it. */
 public fun SwingModifier.name(name: String?): SwingModifier =
     this then propertyElement<Component, String?>(name, read = { it.name }, write = { c, v -> c.name = v })
 
@@ -49,7 +49,7 @@ public fun SwingModifier.toolTip(text: String?): SwingModifier =
         )
 
 /**
- * Sets a `putClientProperty` entry — the escape hatch for look-and-feel styling keys (e.g. FlatLaf)
+ * Sets a `putClientProperty` entry - the escape hatch for look-and-feel styling keys (e.g. FlatLaf)
  * and accessibility hints. Each distinct [key] is an independent modifier slot; `null` restores the
  * value the component had before. Requires a `JComponent` target.
  */

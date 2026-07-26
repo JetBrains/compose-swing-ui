@@ -4,7 +4,7 @@ plugins {
     id("buildsrc.convention.kotlin-jvm")
     id("buildsrc.convention.kotlin-quality")
     id("buildsrc.convention.publishing")
-    jacoco
+    id("buildsrc.convention.jacoco-coverage")
 }
 
 kotlin {
@@ -67,35 +67,9 @@ configurations.matching { it.name.startsWith("test") }.configureEach {
     }
 }
 
-tasks.named<JacocoReport>("jacocoTestReport") {
-    dependsOn(tasks.named("test"))
-    reports {
-        xml.required.set(true)
-        html.required.set(true)
-    }
-}
-tasks.named("test") {
-    finalizedBy(tasks.named("jacocoTestReport"))
-}
-
-// Regression ratchet: the floor sits a few points under the currently achieved ratio so ordinary noise
-// never breaks the build while a real coverage regression does. The gate measures every class: tests
-// run under a display (CI supplies one via xvfb), so display-dependent code — windows, dialogs, tray,
-// the per-window recomposer — is exercised and must be counted, not excluded.
-tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
-    dependsOn(tasks.named("jacocoTestReport"))
-    violationRules {
-        rule {
-            limit {
-                counter = "LINE"
-                value = "COVEREDRATIO"
-                minimum = 0.9.toBigDecimal()
-            }
-        }
-    }
-}
-tasks.named("check") {
-    dependsOn(tasks.named("jacocoTestCoverageVerification"))
+jacocoCoverage {
+    lineMinimum.set("0.90".toBigDecimal())
+    branchMinimum.set("0.75".toBigDecimal())
 }
 
 tasks.withType<Test>().configureEach {

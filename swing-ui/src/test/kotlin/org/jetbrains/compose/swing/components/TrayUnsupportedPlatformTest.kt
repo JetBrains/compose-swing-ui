@@ -16,7 +16,7 @@ import kotlin.test.assertTrue
  *
  * Where [SystemTray.isSupported] is `false` the icon cannot be registered, so [Tray] degrades
  * loudly rather than silently: it reports the condition on the standard error stream, naming the
- * probe a caller can use, and it holds no application keep-alive — an application whose only
+ * probe a caller can use, and it holds no application keep-alive - an application whose only
  * content is a [Tray] ends instead of hanging invisibly with no icon.
  *
  * Each case gates on the platform actually lacking a system tray (skipped where one exists).

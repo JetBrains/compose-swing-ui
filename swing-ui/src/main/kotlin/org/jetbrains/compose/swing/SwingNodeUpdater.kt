@@ -10,7 +10,7 @@ import java.awt.Component
  * `this` inside [set], [update] and [reconcile] blocks.
  *
  * Use [set]/[update] for reactive property updates and [reconcile] for unconditional reconciliation.
- * Listeners are installed through the modifier mechanism — see
+ * Listeners are installed through the modifier mechanism - see
  * [org.jetbrains.compose.swing.modifier.listener] and `docs/CUSTOM-COMPONENTS.md`.
  */
 @JvmInline
@@ -36,7 +36,7 @@ public value class SwingNodeUpdater<T : Component>
             }
 
         /**
-         * Reactively applies [value] to the component, but — unlike [set] — skips the very first
+         * Reactively applies [value] to the component, but - unlike [set] - skips the very first
          * composition. Use it when the [factory][SwingNode] already initialized the component with
          * [value] (e.g. a constructor argument), so the block only needs to run on subsequent
          * changes.
@@ -64,8 +64,8 @@ public value class SwingNodeUpdater<T : Component>
             }
 
         /**
-         * Hands the composition owner's shared [SnapshotStateObserver] — stamped onto this node's
-         * holder by the applier at insert — to [block] with the typed component as `this`, so a
+         * Hands the composition owner's shared [SnapshotStateObserver] - stamped onto this node's
+         * holder by the applier at insert - to [block] with the typed component as `this`, so a
          * snapshot-observing component (e.g. `Canvas`) can adopt it. Runs on every composition like
          * [reconcile]; the observer is owner-stable, so re-running is idempotent.
          */

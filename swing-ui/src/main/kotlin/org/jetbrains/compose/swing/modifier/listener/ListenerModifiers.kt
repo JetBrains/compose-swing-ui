@@ -17,7 +17,7 @@ import java.awt.event.MouseMotionListener
 import java.awt.event.MouseWheelListener
 
 /**
- * Installs a listener instance on the target component via the modifier mechanism — the single
+ * Installs a listener instance on the target component via the modifier mechanism - the single
  * listener seam in the library, the one every reactive listener is built on (the typed instance
  * builders like [mouseListener]/[actionListener], the model builders like [changeListener], the
  * multi-method interaction builders like `onHover`, and the built-in domain callbacks of every
@@ -32,6 +32,13 @@ import java.awt.event.MouseWheelListener
  *
  * [T] is the component type the listener attaches to; [attach]/[detach] receive it already typed, and
  * a node that is not a [T] is rejected at apply with a clear error.
+ *
+ * Reach for it last: it is the one place in the everyday API that names a component type, and a typed
+ * builder or a callback modifier covers the ordinary cases. Adding and removing a listener through the
+ * component it hands you is safe, which is what the seam exists for. Using that component to write a
+ * property the composition declares, or to add or remove children, makes a second manager of something
+ * the composition already owns - the write is undone by the next recomposition, or the two managers
+ * corrupt each other's bookkeeping.
  *
  * @param instance the Swing/AWT listener (or model listener) object to install.
  * @param attach adds [instance] to the (already-typed) component.
@@ -110,17 +117,17 @@ internal class InstanceListenerNode<T : Component, L : Any> : SwingModifier.Node
 }
 
 /*
- * Typed instance builders — attach an EXISTING Swing/AWT listener object to a component as-is.
+ * Typed instance builders - attach an EXISTING Swing/AWT listener object to a component as-is.
  *
  * Semantics for every builder:
  *  - the instance is added once, on install, and the SAME instance is removed on detach/reuse;
  *  - two of the same builder both install and both fire;
  *  - if a DIFFERENT instance (reference inequality) is supplied on a later recomposition, the old
- *    instance is detached and the new one attached — so pass a STABLE instance (e.g. `remember {}`) to
+ *    instance is detached and the new one attached - so pass a STABLE instance (e.g. `remember {}`) to
  *    avoid that churn;
  *  - multi-method interfaces are passed as objects; single-method (SAM) interfaces also accept a lambda
  *    via Kotlin SAM conversion, but a fresh lambda each recomposition is a new instance and triggers
- *    the detach-old/attach-new swap above — `remember {}` it to keep one stable instance.
+ *    the detach-old/attach-new swap above - `remember {}` it to keep one stable instance.
  */
 
 /** Attaches a [MouseListener] (`addMouseListener`/`removeMouseListener`). */

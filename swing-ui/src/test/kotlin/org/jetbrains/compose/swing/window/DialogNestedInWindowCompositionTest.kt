@@ -11,7 +11,6 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.DisposableHandle
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.setContentAsInteropHost
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -36,7 +35,7 @@ import kotlin.test.assertEquals
  * only the explicit parent context joins the two compositions.
  *
  * The observable contract: a value provided and a state owned in the window scope reach the detached
- * dialog content and recompose it when the window-scope state changes — proving the nesting, not a
+ * dialog content and recompose it when the window-scope state changes - proving the nesting, not a
  * coincidental independent root that would see only CompositionLocal defaults.
  */
 class DialogNestedInWindowCompositionTest {

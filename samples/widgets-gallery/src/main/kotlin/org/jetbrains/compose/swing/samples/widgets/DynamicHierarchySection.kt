@@ -18,7 +18,7 @@ import org.jetbrains.compose.swing.modifier.layout.alignmentX
 import org.jetbrains.compose.swing.modifier.layout.visible
 
 // State-driven dynamic hierarchy: conditional composition (if{}) inserts or removes a whole subtree
-// from the component tree, taking its state with it — contrasted with visible(), which keeps the slot
+// from the component tree, taking its state with it - contrasted with visible(), which keeps the slot
 // in place and merely hides it.
 @Composable
 internal fun DynamicHierarchySection() {

@@ -8,7 +8,7 @@ import javax.swing.JButton
 import javax.swing.SwingUtilities
 
 /**
- * Makes this button the window's default button — the one activated by pressing Enter regardless of
+ * Makes this button the window's default button - the one activated by pressing Enter regardless of
  * which component holds focus. The association is established against the surrounding window's root
  * pane once the tree is laid out; passing `false` releases it. Requires a `JButton` target.
  *

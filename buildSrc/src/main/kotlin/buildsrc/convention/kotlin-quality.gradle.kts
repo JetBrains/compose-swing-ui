@@ -38,8 +38,8 @@ tasks.withType<Detekt>().configureEach {
 }
 
 // The default `detekt` task runs without type resolution, so rules that need the compile classpath
-// (UseOrEmpty, UseCheckOrError, ImplicitDefaultLocale, …) never fire. Wire the type-resolution tasks
-// detektMain/detektTest — which compile the sources first — into `check` so those rules are enforced.
+// (UseOrEmpty, UseCheckOrError, ImplicitDefaultLocale, ...) never fire. Wire the type-resolution tasks
+// detektMain/detektTest - which compile the sources first - into `check` so those rules are enforced.
 tasks.named("check") {
     dependsOn(tasks.named("detektMain"), tasks.named("detektTest"))
 }

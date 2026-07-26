@@ -4,7 +4,7 @@ plugins {
     id("buildsrc.convention.kotlin-jvm")
     id("buildsrc.convention.kotlin-quality")
     id("buildsrc.convention.publishing")
-    jacoco
+    id("buildsrc.convention.jacoco-coverage")
 }
 
 kotlin {
@@ -33,15 +33,9 @@ dependencies {
     api(libs.kotlinxCoroutinesSwing)
 }
 
-tasks.named<JacocoReport>("jacocoTestReport") {
-    dependsOn(tasks.named("test"))
-    reports {
-        xml.required.set(true)
-        html.required.set(true)
-    }
-}
-tasks.named("test") {
-    finalizedBy(tasks.named("jacocoTestReport"))
+jacocoCoverage {
+    lineMinimum.set("0.85".toBigDecimal())
+    branchMinimum.set("0.80".toBigDecimal())
 }
 
 publishing {

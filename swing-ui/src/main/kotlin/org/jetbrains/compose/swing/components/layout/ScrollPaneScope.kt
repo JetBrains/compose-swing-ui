@@ -8,7 +8,7 @@ import org.jetbrains.compose.swing.constants.ScrollPaneCorner
  *
  * Each slot hosts a composable that becomes the single view of the corresponding `JViewport`
  * (content, row header, column header) or the single child of a corner host. Declaring a slot more
- * than once replaces the previous declaration — the last call wins.
+ * than once replaces the previous declaration - the last call wins.
  */
 public interface ScrollPaneScope {
     /** The scrollable content, shown in the JScrollPane's central viewport. */

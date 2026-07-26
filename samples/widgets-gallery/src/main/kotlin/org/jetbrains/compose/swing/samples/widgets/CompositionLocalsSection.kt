@@ -18,7 +18,7 @@ import java.awt.Color
 private val LocalAccent = staticCompositionLocalOf { Color.BLUE }
 
 // A staticCompositionLocalOf driving Swing components: a picker provides the chosen accent near the top,
-// and helpers nested several layers deep read LocalAccent.current to colour their labels — so changing
+// and helpers nested several layers deep read LocalAccent.current to colour their labels - so changing
 // the selection repaints the whole subtree without threading the value through every level.
 @Composable
 internal fun CompositionLocalsSection() {

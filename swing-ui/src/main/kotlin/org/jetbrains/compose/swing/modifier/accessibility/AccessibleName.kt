@@ -8,9 +8,9 @@ import org.jetbrains.compose.swing.modifier.propertyElement
 import java.awt.Component
 
 /**
- * Sets the component's accessible name — the short localized string assistive technologies announce
+ * Sets the component's accessible name - the short localized string assistive technologies announce
  * for it. `null` clears any name this modifier set. Mirrors Compose's
- * `semantics { contentDescription = … }`.
+ * `semantics { contentDescription = ... }`.
  *
  * @param name the accessible name to advertise, or `null` to clear it.
  */

@@ -17,7 +17,7 @@ import java.awt.Dimension
 import javax.swing.JTabbedPane
 
 // TabbedPane: a controlled selected index synced with external buttons, an optionally-disabled tab,
-// and a dynamically added/removed tab — each tab(...) appearing or disappearing drives the matching
+// and a dynamically added/removed tab - each tab(...) appearing or disappearing drives the matching
 // insert/remove through the slot mechanism.
 @Composable
 internal fun TabsSection() {
