@@ -27,7 +27,6 @@ import kotlin.math.max
  * Animation<T>, DecayAnimation does not have an end value defined. The end value is a result of the
  * animation rather than an input.
  */
-@ExperimentalSwingAnimationApi
 public interface FloatDecayAnimationSpec {
     /**
      * This is the absolute value of a velocity threshold, below which the animation is considered
@@ -100,7 +99,6 @@ private const val ExponentialDecayFriction = -4.2f
  * @param absVelocityThreshold The speed at which the animation is considered close enough to rest
  *   for the animation to finish.
  */
-@ExperimentalSwingAnimationApi
 public class FloatExponentialDecaySpec(
     @FloatRange(from = 0.0, fromInclusive = false) frictionMultiplier: Float = 1f,
     @FloatRange(from = 0.0, fromInclusive = false) absVelocityThreshold: Float = 0.1f,

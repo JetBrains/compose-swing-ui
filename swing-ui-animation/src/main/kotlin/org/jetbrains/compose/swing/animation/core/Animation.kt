@@ -38,7 +38,6 @@ import org.jetbrains.compose.swing.animation.core.internal.JvmDefaultWithCompati
  * @see [updateTransition]
  */
 @JvmDefaultWithCompatibility
-@ExperimentalSwingAnimationApi
 public interface Animation<T, V : AnimationVector> {
     /** This amount of time in nanoseconds that the animation will run before it finishes */
     @get:Suppress("MethodNameUnits")
@@ -95,7 +94,6 @@ internal const val SecondsToMillis: Long = 1_000L
  *
  * @param playTimeNanos the play time that is used to calculate the velocity of the animation.
  */
-@ExperimentalSwingAnimationApi
 public fun <T, V : AnimationVector> Animation<T, V>.getVelocityFromNanos(playTimeNanos: Long): T =
     typeConverter.convertFromVector(getVelocityVectorFromNanos(playTimeNanos))
 
@@ -109,7 +107,6 @@ public fun <T, V : AnimationVector> Animation<T, V>.getVelocityFromNanos(playTim
  * @param initialVelocity the initial velocity to start the animation at
  */
 @RestrictTo(RestrictTo.Scope.LIBRARY)
-@ExperimentalSwingAnimationApi
 public fun <V : AnimationVector> VectorizedAnimationSpec<V>.createAnimation(
     initialValue: V,
     targetValue: V,
@@ -144,7 +141,6 @@ public fun <V : AnimationVector> VectorizedAnimationSpec<V>.createAnimation(
  * @param initialVelocity the start velocity (of type [T] of the animation
  * @param typeConverter the [TwoWayConverter] that is used to convert animation type [T] from/to [V]
  */
-@ExperimentalSwingAnimationApi
 public fun <T, V : AnimationVector> TargetBasedAnimation(
     animationSpec: AnimationSpec<T>,
     typeConverter: TwoWayConverter<T, V>,
@@ -184,7 +180,6 @@ public fun <T, V : AnimationVector> TargetBasedAnimation(
  * @see [updateTransition]
  * @see [Animatable]
  */
-@ExperimentalSwingAnimationApi
 public class TargetBasedAnimation<T, V : AnimationVector>
     internal constructor(
         internal val animationSpec: VectorizedAnimationSpec<V>,
@@ -345,7 +340,6 @@ public class TargetBasedAnimation<T, V : AnimationVector>
  * @see Animatable.animateDecay
  * @see AnimationState.animateDecay
  */
-@ExperimentalSwingAnimationApi
 public class DecayAnimation<T, V : AnimationVector> // @VisibleForTesting
     constructor(
         private val animationSpec: VectorizedDecayAnimationSpec<V>,
@@ -485,7 +479,6 @@ public class DecayAnimation<T, V : AnimationVector> // @VisibleForTesting
  * @param initialValue starting value that will be passed to the decay animation
  * @param initialVelocity starting velocity for the decay animation, 0f by default
  */
-@ExperimentalSwingAnimationApi
 public fun DecayAnimation(
     animationSpec: FloatDecayAnimationSpec,
     initialValue: Float,

@@ -46,7 +46,6 @@ import org.jetbrains.compose.swing.animation.core.AnimationEndReason.Finished
  * @see animateDecay
  */
 @Suppress("NotCloseable")
-@ExperimentalSwingAnimationApi
 public class Animatable<T, V : AnimationVector>
     @RememberInComposition
     constructor(
@@ -428,7 +427,6 @@ public class Animatable<T, V : AnimationVector>
  *   [Spring.DefaultDisplacementThreshold] by default.
  */
 @RememberInComposition
-@ExperimentalSwingAnimationApi
 public fun Animatable(
     initialValue: Float,
     visibilityThreshold: Float = Spring.DefaultDisplacementThreshold,
@@ -447,7 +445,6 @@ public fun Animatable(
  *   [BoundReached] being the end reason.
  *
  */
-@ExperimentalSwingAnimationApi
 public class AnimationResult<T, V : AnimationVector>(
     /**
      * The state of the animation in its last frame before it's canceled or reset. This captures the

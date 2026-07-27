@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalSwingAnimationApi::class)
-
 package org.jetbrains.compose.swing.samples.widgets
 
 import androidx.compose.runtime.Composable
@@ -8,7 +6,6 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.animation.core.ExperimentalSwingAnimationApi
 import org.jetbrains.compose.swing.animation.core.FastOutSlowInEasing
 import org.jetbrains.compose.swing.animation.core.RepeatMode
 import org.jetbrains.compose.swing.animation.core.Spring

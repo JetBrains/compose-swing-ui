@@ -35,7 +35,6 @@ import org.jetbrains.compose.swing.animation.core.internal.JvmDefaultWithCompati
  * @see [VectorizedAnimationSpec]
  */
 @JvmDefaultWithCompatibility
-@ExperimentalSwingAnimationApi
 public interface FloatAnimationSpec : AnimationSpec<Float> {
     /**
      * Calculates the value of the animation at given the playtime, with the provided start/end
@@ -130,7 +129,6 @@ public interface FloatAnimationSpec : AnimationSpec<Float> {
  * @param visibilityThreshold The value threshold such that the animation is no longer significant.
  *   e.g. 1px for translation animations. Defaults to [Spring.DefaultDisplacementThreshold]
  */
-@ExperimentalSwingAnimationApi
 public class FloatSpringSpec(
     public val dampingRatio: Float = Spring.DampingRatioNoBouncy,
     public val stiffness: Float = Spring.StiffnessMedium,
@@ -198,7 +196,6 @@ public class FloatSpringSpec(
  * @param easing the easing function that will be used to interoplate between the start and end
  *   value of the animation. Defaults to [FastOutSlowInEasing].
  */
-@ExperimentalSwingAnimationApi
 public class FloatTweenSpec(
     public val duration: Int = DefaultDurationMillis,
     public val delay: Int = 0,

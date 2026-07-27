@@ -28,7 +28,6 @@ import androidx.compose.runtime.withFrameNanos
  * context (in compose-swing-ui that is the per-window Swing frame clock). Behaves like
  * [withFrameNanos] and is the entry point used by infinite animations.
  */
-@ExperimentalSwingAnimationApi
 public suspend fun <R> withInfiniteAnimationFrameNanos(onFrame: (frameTimeNanos: Long) -> R): R =
     withFrameNanos(onFrame)
 
@@ -37,6 +36,5 @@ public suspend fun <R> withInfiniteAnimationFrameNanos(onFrame: (frameTimeNanos:
  * like [withFrameMillis].
  */
 @Suppress("UnnecessaryLambdaCreation")
-@ExperimentalSwingAnimationApi
 public suspend inline fun <R> withInfiniteAnimationFrameMillis(crossinline onFrame: (frameTimeMillis: Long) -> R): R =
     withInfiniteAnimationFrameNanos { onFrame(it / 1_000_000L) }

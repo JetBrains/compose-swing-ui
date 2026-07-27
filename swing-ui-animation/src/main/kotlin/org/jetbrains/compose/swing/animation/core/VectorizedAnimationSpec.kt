@@ -46,7 +46,6 @@ import kotlin.math.min
  * @see Animation
  */
 @JvmDefaultWithCompatibility
-@ExperimentalSwingAnimationApi
 public interface VectorizedAnimationSpec<V : AnimationVector> {
     /**
      * Whether or not the [VectorizedAnimationSpec] specifies an infinite animation. That is, one
@@ -167,7 +166,6 @@ internal fun <V : AnimationVector> VectorizedAnimationSpec<V>.getValueFromMillis
  * __not__ implement this is: [InfiniteRepeatableSpec].
  */
 @JvmDefaultWithCompatibility
-@ExperimentalSwingAnimationApi
 public interface VectorizedFiniteAnimationSpec<V : AnimationVector> : VectorizedAnimationSpec<V> {
     override val isInfinite: Boolean
         get() = false
@@ -175,7 +173,6 @@ public interface VectorizedFiniteAnimationSpec<V : AnimationVector> : Vectorized
 
 /** Base class for [VectorizedAnimationSpec]s that are based on a fixed [durationMillis]. */
 @JvmDefaultWithCompatibility
-@ExperimentalSwingAnimationApi
 public interface VectorizedDurationBasedAnimationSpec<V : AnimationVector> : VectorizedFiniteAnimationSpec<V> {
     /** duration is the amount of time while animation is not yet finished. */
     public val durationMillis: Int
@@ -224,7 +221,6 @@ internal fun VectorizedDurationBasedAnimationSpec<*>.clampPlayTime(playTime: Lon
  *
  * @see [KeyframesSpec]
  */
-@ExperimentalSwingAnimationApi
 public class VectorizedKeyframesSpec<V : AnimationVector>
     internal constructor(
         // List of all timestamps. Must include start (time = 0), end (time = durationMillis) and all
@@ -534,7 +530,6 @@ internal data class VectorizedKeyframeSpecElementInfo<V : AnimationVector>(
  * @see ArcAnimationSpec
  */
 @JvmInline
-@ExperimentalSwingAnimationApi
 public value class ArcMode internal constructor(
     internal val value: Int,
 ) {
@@ -566,7 +561,6 @@ public value class ArcMode internal constructor(
  * @param delayMillis the amount of time (in milliseconds) that the animation should wait before it
  *   starts. Defaults to 0.
  */
-@ExperimentalSwingAnimationApi
 public class VectorizedSnapSpec<V : AnimationVector>(
     override val delayMillis: Int = 0,
 ) : VectorizedDurationBasedAnimationSpec<V> {
@@ -606,7 +600,6 @@ public class VectorizedSnapSpec<V : AnimationVector>(
  *   [RepeatMode.Restart]) or from the end (i.e. [RepeatMode.Reverse])
  * @param initialStartOffset offsets the start of the animation
  */
-@ExperimentalSwingAnimationApi
 public class VectorizedInfiniteRepeatableSpec<V : AnimationVector>(
     private val animation: VectorizedDurationBasedAnimationSpec<V>,
     private val repeatMode: RepeatMode = RepeatMode.Restart,
@@ -718,7 +711,6 @@ public class VectorizedInfiniteRepeatableSpec<V : AnimationVector>(
  *   [RepeatMode.Restart]) or from the end (i.e. [RepeatMode.Reverse])
  * @param initialStartOffset offsets the start of the animation
  */
-@ExperimentalSwingAnimationApi
 public class VectorizedRepeatableSpec<V : AnimationVector>(
     private val iterations: Int,
     private val animation: VectorizedDurationBasedAnimationSpec<V>,
@@ -813,7 +805,6 @@ public class VectorizedRepeatableSpec<V : AnimationVector>(
 }
 
 /** Physics class contains a number of recommended configurations for physics animations. */
-@ExperimentalSwingAnimationApi
 public object Spring {
     /** Stiffness constant for extremely stiff spring */
     public const val StiffnessHigh: Float = 10_000f
@@ -873,7 +864,6 @@ internal interface Animations {
 /**
  * [VectorizedSpringSpec] uses spring animations to animate (each dimension of) [AnimationVector]s.
  */
-@ExperimentalSwingAnimationApi
 public class VectorizedSpringSpec<V : AnimationVector>
     private constructor(
         public val dampingRatio: Float,
@@ -949,7 +939,6 @@ private fun <V : AnimationVector> createSpringAnimations(
  * @param easing the easing curve used by the animation. [FastOutSlowInEasing] by default.
  */
 // TODO: Support different tween on different dimens
-@ExperimentalSwingAnimationApi
 public class VectorizedTweenSpec<V : AnimationVector>(
     override val durationMillis: Int = DefaultDurationMillis,
     override val delayMillis: Int = 0,
@@ -978,7 +967,6 @@ public class VectorizedTweenSpec<V : AnimationVector>(
  * into a multi-dimensional [VectorizedFloatAnimationSpec], by using the same [FloatAnimationSpec]
  * on each dimension of the [AnimationVector] that is being animated.
  */
-@ExperimentalSwingAnimationApi
 public class VectorizedFloatAnimationSpec<V : AnimationVector>
     internal constructor(
         private val anims: Animations,

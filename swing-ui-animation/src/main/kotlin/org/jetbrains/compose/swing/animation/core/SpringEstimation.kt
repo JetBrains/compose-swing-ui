@@ -32,7 +32,6 @@ private const val MAX_LONG_MILLIS: Long = Long.MAX_VALUE / 1_000_000
 
 /** Returns the estimated time that the spring will last be at [delta] */
 @RestrictTo(RestrictTo.Scope.LIBRARY)
-@ExperimentalSwingAnimationApi
 public fun estimateAnimationDurationMillis(
     stiffness: Float,
     dampingRatio: Float,
@@ -56,7 +55,6 @@ public fun estimateAnimationDurationMillis(
 
 /** Returns the estimated time that the spring will last be at [delta] */
 @RestrictTo(RestrictTo.Scope.LIBRARY)
-@ExperimentalSwingAnimationApi
 public fun estimateAnimationDurationMillis(
     stiffness: Double,
     dampingRatio: Double,
@@ -89,7 +87,6 @@ public fun estimateAnimationDurationMillis(
 
 /** Returns the estimated time that the spring will last be at [delta] */
 @RestrictTo(RestrictTo.Scope.LIBRARY)
-@ExperimentalSwingAnimationApi
 public fun estimateAnimationDurationMillis(
     springConstant: Double,
     dampingCoefficient: Double,

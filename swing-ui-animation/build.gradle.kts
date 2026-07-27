@@ -12,14 +12,6 @@ plugins {
 kotlin {
     explicitApi()
 
-    // The whole public surface is gated behind @ExperimentalSwingAnimationApi so external consumers
-    // must opt in. The module's own production code and tests build against that surface, so opt in
-    // module-wide here: this applies to every compilation (main + test) without weakening the
-    // requirement for downstream consumers and without touching the generated public ABI.
-    compilerOptions {
-        optIn.add("org.jetbrains.compose.swing.animation.core.ExperimentalSwingAnimationApi")
-    }
-
     @OptIn(ExperimentalAbiValidation::class)
     abiValidation {
         enabled.set(true)

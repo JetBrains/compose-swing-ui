@@ -23,7 +23,6 @@ package org.jetbrains.compose.swing.animation.core
  * [AnimationVector], and convert the [AnimationVector] back to the type [T]. This allows animations
  * to run on any type of objects, e.g. position, rectangle, color, etc.
  */
-@ExperimentalSwingAnimationApi
 public interface TwoWayConverter<T, V : AnimationVector> {
     /**
      * Defines how a type [T] should be converted to a Vector type (i.e. [AnimationVector1D],
@@ -47,7 +46,6 @@ public interface TwoWayConverter<T, V : AnimationVector> {
  * @param convertToVector converts from type [T] to [AnimationVector]
  * @param convertFromVector converts from [AnimationVector] to type [T]
  */
-@ExperimentalSwingAnimationApi
 public fun <T, V : AnimationVector> TwoWayConverter(
     convertToVector: (T) -> V,
     convertFromVector: (V) -> T,
@@ -66,12 +64,10 @@ internal inline fun lerp(
 ) = (start * (1 - fraction) + stop * fraction)
 
 /** A [TwoWayConverter] that converts [Float] from and to [AnimationVector1D] */
-@ExperimentalSwingAnimationApi
 public val Float.Companion.VectorConverter: TwoWayConverter<Float, AnimationVector1D>
     get() = FloatToVector
 
 /** A [TwoWayConverter] that converts [Int] from and to [AnimationVector1D] */
-@ExperimentalSwingAnimationApi
 public val Int.Companion.VectorConverter: TwoWayConverter<Int, AnimationVector1D>
     get() = IntToVector
 

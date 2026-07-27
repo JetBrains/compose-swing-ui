@@ -37,7 +37,6 @@ import androidx.compose.runtime.setValue
  * @param isRunning whether the [AnimationState] is currently being updated by an animation. False
  *   by default
  */
-@ExperimentalSwingAnimationApi
 public class AnimationState<T, V : AnimationVector>(
     public val typeConverter: TwoWayConverter<T, V>,
     initialValue: T,
@@ -101,7 +100,6 @@ public class AnimationState<T, V : AnimationVector>(
  * Indicates whether the given [AnimationState] is for an animation that has finished, indicated by
  * [AnimationState.finishedTimeNanos] having a specified value.
  */
-@ExperimentalSwingAnimationApi
 public val AnimationState<*, *>.isFinished: Boolean
     get() = finishedTimeNanos != AnimationConstants.UnspecifiedTime
 
@@ -111,7 +109,6 @@ public val AnimationState<*, *>.isFinished: Boolean
  *
  * @see [AnimationState.animateTo]
  */
-@ExperimentalSwingAnimationApi
 public class AnimationScope<T, V : AnimationVector>
     internal constructor(
         initialValue: T,
@@ -209,7 +206,6 @@ public class AnimationScope<T, V : AnimationVector>
  * @return A new [AnimationState] instance copied from the given instance, with some fields
  *   optionally altered
  */
-@ExperimentalSwingAnimationApi
 public fun <T, V : AnimationVector> AnimationState<T, V>.copy(
     value: T = this.value,
     velocityVector: V? = this.velocityVector.copy(),
@@ -243,7 +239,6 @@ public fun <T, V : AnimationVector> AnimationState<T, V>.copy(
  * @return A new [AnimationState] instance copied from the given instance, with some fields
  *   optionally altered
  */
-@ExperimentalSwingAnimationApi
 public fun AnimationState<Float, AnimationVector1D>.copy(
     value: Float = this.value,
     velocity: Float = this.velocityVector.value,
@@ -273,7 +268,6 @@ public fun AnimationState<Float, AnimationVector1D>.copy(
  *   by default
  * @return A new [AnimationState] instance
  */
-@ExperimentalSwingAnimationApi
 public fun AnimationState(
     initialValue: Float,
     initialVelocity: Float = 0f,
@@ -304,7 +298,6 @@ public fun AnimationState(
  *   by default
  * @return A new [AnimationState] instance
  */
-@ExperimentalSwingAnimationApi
 public fun <T, V : AnimationVector> AnimationState(
     typeConverter: TwoWayConverter<T, V>,
     initialValue: T,
@@ -328,6 +321,5 @@ public fun <T, V : AnimationVector> AnimationState(
  *
  * @return a new AnimationVector instance of type [V].
  */
-@ExperimentalSwingAnimationApi
 public fun <T, V : AnimationVector> TwoWayConverter<T, V>.createZeroVectorFrom(value: T): V =
     convertToVector(value).also { it.reset() }

@@ -38,7 +38,6 @@ import kotlin.coroutines.coroutineContext
  *   for that frame.
  * @see AnimationState.animateTo
  */
-@ExperimentalSwingAnimationApi
 public suspend fun animate(
     initialValue: Float,
     targetValue: Float,
@@ -64,7 +63,6 @@ public suspend fun animate(
  * @param block Will be invoked on each animation frame with up-to-date value and velocity.
  * @see AnimationState.animateDecay
  */
-@ExperimentalSwingAnimationApi
 public suspend fun animateDecay(
     initialValue: Float,
     initialVelocity: Float,
@@ -90,7 +88,6 @@ public suspend fun animateDecay(
  *
  * @see AnimationState.animateTo
  */
-@ExperimentalSwingAnimationApi
 public suspend fun <T, V : AnimationVector> animate(
     typeConverter: TwoWayConverter<T, V>,
     initialValue: T,
@@ -135,7 +132,6 @@ public suspend fun <T, V : AnimationVector> animate(
  *   [block] will not be invoked again. The animation loop will exit after the [block] returns. All
  *   the animation related info can be accessed via [AnimationScope].
  */
-@ExperimentalSwingAnimationApi
 public suspend fun <T, V : AnimationVector> AnimationState<T, V>.animateTo(
     targetValue: T,
     animationSpec: AnimationSpec<T> = spring(),
@@ -179,7 +175,6 @@ public suspend fun <T, V : AnimationVector> AnimationState<T, V>.animateTo(
  *   loop will exit after the [block] returns. All the animation related info can be accessed via
  *   [AnimationScope].
  */
-@ExperimentalSwingAnimationApi
 public suspend fun <T, V : AnimationVector> AnimationState<T, V>.animateDecay(
     animationSpec: DecayAnimationSpec<T>,
     sequentialAnimation: Boolean = false,

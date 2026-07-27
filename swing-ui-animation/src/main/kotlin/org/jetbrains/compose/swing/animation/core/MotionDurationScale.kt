@@ -34,7 +34,6 @@ import kotlin.coroutines.CoroutineContext
  * add it to the coroutine context the animation runs in.
  */
 @Stable
-@ExperimentalSwingAnimationApi
 public interface MotionDurationScale : CoroutineContext.Element {
     /**
      * Defines the multiplier for the duration of the motion. This value should be non-negative.

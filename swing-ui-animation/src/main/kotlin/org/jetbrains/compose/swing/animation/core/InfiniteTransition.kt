@@ -39,7 +39,6 @@ import kotlinx.coroutines.flow.first
  * @param label A label for differentiating this animation from others in android studio.
  */
 @Composable
-@ExperimentalSwingAnimationApi
 public fun rememberInfiniteTransition(label: String = "InfiniteTransition"): InfiniteTransition {
     val infiniteTransition = remember { InfiniteTransition(label) }
     infiniteTransition.run()
@@ -55,7 +54,6 @@ public fun rememberInfiniteTransition(label: String = "InfiniteTransition"): Inf
  *
  * @param label A label for differentiating this animation from others in android studio.
  */
-@ExperimentalSwingAnimationApi
 public class InfiniteTransition internal constructor(
     public val label: String,
 ) {
@@ -234,7 +232,6 @@ public class InfiniteTransition internal constructor(
  * @see [androidx.compose.animation.animateColor]
  */
 @Composable
-@ExperimentalSwingAnimationApi
 public fun <T, V : AnimationVector> InfiniteTransition.animateValue(
     initialValue: T,
     targetValue: T,
@@ -286,7 +283,6 @@ public fun <T, V : AnimationVector> InfiniteTransition.animateValue(
  * @see [androidx.compose.animation.animateColor]
  */
 @Composable
-@ExperimentalSwingAnimationApi
 public fun InfiniteTransition.animateFloat(
     initialValue: Float,
     targetValue: Float,
@@ -299,7 +295,6 @@ public fun InfiniteTransition.animateFloat(
     level = DeprecationLevel.HIDDEN,
 )
 @Composable
-@ExperimentalSwingAnimationApi
 public fun rememberInfiniteTransition(): InfiniteTransition = rememberInfiniteTransition("InfiniteTransition")
 
 @Deprecated(
@@ -307,7 +302,6 @@ public fun rememberInfiniteTransition(): InfiniteTransition = rememberInfiniteTr
     level = DeprecationLevel.HIDDEN,
 )
 @Composable
-@ExperimentalSwingAnimationApi
 public fun <T, V : AnimationVector> InfiniteTransition.animateValue(
     initialValue: T,
     targetValue: T,
@@ -327,7 +321,6 @@ public fun <T, V : AnimationVector> InfiniteTransition.animateValue(
     level = DeprecationLevel.HIDDEN,
 )
 @Composable
-@ExperimentalSwingAnimationApi
 public fun InfiniteTransition.animateFloat(
     initialValue: Float,
     targetValue: Float,

@@ -32,7 +32,6 @@ import androidx.annotation.FloatRange
  * multi-dimensional way. It is particularly useful for smoothly handling animation interruptions
  * (such as when the target changes during the animation).
  */
-@ExperimentalSwingAnimationApi
 public interface DecayAnimationSpec<T> {
     /**
      * Creates a [VectorizedDecayAnimationSpec] with the given [TwoWayConverter].
@@ -52,7 +51,6 @@ public interface DecayAnimationSpec<T> {
  *
  * @return target value where the animation will come to a natural stop
  */
-@ExperimentalSwingAnimationApi
 public fun <T, V : AnimationVector> DecayAnimationSpec<T>.calculateTargetValue(
     typeConverter: TwoWayConverter<T, V>,
     initialValue: T,
@@ -73,7 +71,6 @@ public fun <T, V : AnimationVector> DecayAnimationSpec<T>.calculateTargetValue(
  *
  * @return target value where the animation will come to a natural stop
  */
-@ExperimentalSwingAnimationApi
 public fun DecayAnimationSpec<Float>.calculateTargetValue(
     initialValue: Float,
     initialVelocity: Float,
@@ -100,7 +97,6 @@ public fun DecayAnimationSpec<Float>.calculateTargetValue(
  * @param absVelocityThreshold The minimum speed, below which the animation is considered finished.
  *   Must be greater than `0`.
  */
-@ExperimentalSwingAnimationApi
 public fun <T> exponentialDecay(
     @FloatRange(from = 0.0, fromInclusive = false) frictionMultiplier: Float = 1f,
     @FloatRange(from = 0.0, fromInclusive = false) absVelocityThreshold: Float = 0.1f,
@@ -111,7 +107,6 @@ public fun <T> exponentialDecay(
  * Creates a [DecayAnimationSpec] from a [FloatDecayAnimationSpec] by applying the given
  * [FloatDecayAnimationSpec] on every dimension of the [AnimationVector] that [T] converts to.
  */
-@ExperimentalSwingAnimationApi
 public fun <T> FloatDecayAnimationSpec.generateDecayAnimationSpec(): DecayAnimationSpec<T> =
     DecayAnimationSpecImpl(this)
 

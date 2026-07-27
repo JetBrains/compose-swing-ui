@@ -34,7 +34,6 @@ package org.jetbrains.compose.swing.animation.core
  *
  * @see DecayAnimation
  */
-@ExperimentalSwingAnimationApi
 public interface VectorizedDecayAnimationSpec<V : AnimationVector> {
     /**
      * This is the absolute value of a velocity threshold, below which the animation is considered

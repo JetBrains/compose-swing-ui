@@ -75,7 +75,6 @@ import kotlin.math.roundToLong
  * @see Transition.animateValue
  */
 @Composable
-@ExperimentalSwingAnimationApi
 public fun <T> updateTransition(
     targetState: T,
     label: String? = null,
@@ -107,7 +106,6 @@ public fun <T> updateTransition(
  * @param initialState The initial state of the transition.
  */
 @ExperimentalDeferredTransitionApi
-@ExperimentalSwingAnimationApi
 public class DeferredTransitionState<S>(
     initialState: S,
 ) : TransitionState<S>() {
@@ -177,7 +175,6 @@ public class DeferredTransitionState<S>(
  */
 @Stable
 @ExperimentalDeferredTransitionApi
-@ExperimentalSwingAnimationApi
 public class DeferredTransition<S>
     internal constructor(
         transitionState: DeferredTransitionState<S>,
@@ -203,7 +200,6 @@ public class DeferredTransition<S>
  */
 @ExperimentalDeferredTransitionApi
 @Composable
-@ExperimentalSwingAnimationApi
 public fun <T> rememberTransition(
     transitionState: DeferredTransitionState<T>,
     label: String? = null,
@@ -215,7 +211,6 @@ internal const val AnimationDebugDurationScale = 1
  * Use with [rememberTransition] to create a [Transition] that can be dynamically targeted with
  * [MutableTransitionState] or seekable with [SeekableTransitionState].
  */
-@ExperimentalSwingAnimationApi
 public sealed class TransitionState<S> {
     /**
      * Current state of the transition. If there is an active transition, [currentState] and
@@ -268,7 +263,6 @@ private class PreventExhaustiveWhenTransitionState : TransitionState<Any?>() {
  *
  * @see rememberTransition
  */
-@ExperimentalSwingAnimationApi
 public class MutableTransitionState<S>(
     initialState: S,
 ) : TransitionState<S>() {
@@ -323,7 +317,6 @@ private val SeekableTransitionStateTotalDurationChanged: (SeekableTransitionStat
  * cannot be reassigned to a different [Transition] instance.
  *
  */
-@ExperimentalSwingAnimationApi
 public class SeekableTransitionState<S>(
     initialState: S,
 ) : TransitionState<S>() {
@@ -918,7 +911,6 @@ public class SeekableTransitionState<S>(
  *
  */
 @Composable
-@ExperimentalSwingAnimationApi
 public fun <T> rememberTransition(
     transitionState: TransitionState<T>,
     label: String? = null,
@@ -999,7 +991,6 @@ public fun <T> rememberTransition(
     replaceWith = ReplaceWith("rememberTransition(transitionState, label)"),
 )
 @Composable
-@ExperimentalSwingAnimationApi
 public fun <T> updateTransition(
     transitionState: MutableTransitionState<T>,
     label: String? = null,
@@ -1026,7 +1017,6 @@ public fun <T> updateTransition(
  */
 // TODO: Support creating Transition outside of composition and support imperative use of Transition
 @Stable
-@ExperimentalSwingAnimationApi
 public sealed class Transition<S>
     protected constructor(
         private val transitionState: TransitionState<S>,
@@ -1971,7 +1961,6 @@ private const val ResetAnimationSnapTarget = -5f
  */
 @RestrictTo(RestrictTo.Scope.LIBRARY)
 @Composable
-@ExperimentalSwingAnimationApi
 public fun <S, T, V : AnimationVector> Transition<S>.createDeferredAnimation(
     typeConverter: TwoWayConverter<T, V>,
     label: String = "DeferredAnimation",
@@ -2000,7 +1989,6 @@ public fun <S, T, V : AnimationVector> Transition<S>.createDeferredAnimation(
  */
 @ExperimentalTransitionApi
 @Composable
-@ExperimentalSwingAnimationApi
 public inline fun <S, T> Transition<S>.createChildTransition(
     label: String = "ChildTransition",
     transformToChildState: @Composable (parentState: S) -> T,
@@ -2078,7 +2066,6 @@ internal fun <S, T> Transition<S>.createChildTransitionInternal(
  * @see androidx.compose.animation.animateColor
  */
 @Composable
-@ExperimentalSwingAnimationApi
 public inline fun <S, T, V : AnimationVector> Transition<S>.animateValue(
     typeConverter: TwoWayConverter<T, V>,
     noinline transitionSpec: @Composable Transition.Segment<S>.() -> FiniteAnimationSpec<T> = {
@@ -2192,7 +2179,6 @@ private fun <S, T, V : AnimationVector> Transition<S>.UpdateInitialAndTargetValu
  * @see androidx.compose.animation.animateColor
  */
 @Composable
-@ExperimentalSwingAnimationApi
 public inline fun <S> Transition<S>.animateFloat(
     noinline transitionSpec: @Composable Transition.Segment<S>.() -> FiniteAnimationSpec<Float> = {
         spring()
@@ -2223,7 +2209,6 @@ public inline fun <S> Transition<S>.animateFloat(
  * @return A [State] object, the value of which is updated by animation
  */
 @Composable
-@ExperimentalSwingAnimationApi
 public inline fun <S> Transition<S>.animateInt(
     noinline transitionSpec: @Composable Transition.Segment<S>.() -> FiniteAnimationSpec<Int> = {
         spring(visibilityThreshold = 1)

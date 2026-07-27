@@ -57,7 +57,6 @@ private const val DefaultFloatVisibilityThreshold = 0.01f
  * @return A [State] object, the value of which is updated by animation.
  */
 @Composable
-@ExperimentalSwingAnimationApi
 public fun animateFloatAsState(
     targetValue: Float,
     animationSpec: AnimationSpec<Float> = defaultAnimation,
@@ -105,7 +104,6 @@ public fun animateFloatAsState(
  * @return A [State] object, the value of which is updated by animation.
  */
 @Composable
-@ExperimentalSwingAnimationApi
 public fun animateIntAsState(
     targetValue: Int,
     animationSpec: AnimationSpec<Int> = intDefaultSpring,
@@ -145,7 +143,6 @@ private val intDefaultSpring = spring(visibilityThreshold = Int.VisibilityThresh
  * @return A [State] object, the value of which is updated by animation.
  */
 @Composable
-@ExperimentalSwingAnimationApi
 public fun <T, V : AnimationVector> animateValueAsState(
     targetValue: T,
     typeConverter: TwoWayConverter<T, V>,
@@ -197,7 +194,6 @@ public fun <T, V : AnimationVector> animateValueAsState(
     level = DeprecationLevel.HIDDEN,
 )
 @Composable
-@ExperimentalSwingAnimationApi
 public fun animateFloatAsState(
     targetValue: Float,
     animationSpec: AnimationSpec<Float> = defaultAnimation,
@@ -216,7 +212,6 @@ public fun animateFloatAsState(
     level = DeprecationLevel.HIDDEN,
 )
 @Composable
-@ExperimentalSwingAnimationApi
 public fun animateIntAsState(
     targetValue: Int,
     animationSpec: AnimationSpec<Int> = intDefaultSpring,
@@ -234,7 +229,6 @@ public fun animateIntAsState(
     level = DeprecationLevel.HIDDEN,
 )
 @Composable
-@ExperimentalSwingAnimationApi
 public fun <T, V : AnimationVector> animateValueAsState(
     targetValue: T,
     typeConverter: TwoWayConverter<T, V>,

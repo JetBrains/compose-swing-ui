@@ -21,7 +21,6 @@ package org.jetbrains.compose.swing.animation.core
  * no longer visible. The animation system uses this to signal to some default [spring] animations
  * to stop when the value is close enough to the target.
  */
-@ExperimentalSwingAnimationApi
 public val Int.Companion.VisibilityThreshold: Int
     get() = 1
 

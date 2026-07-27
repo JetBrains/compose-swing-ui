@@ -25,7 +25,6 @@ package org.jetbrains.compose.swing.animation.core
  * object should be converted to [AnimationVector2D], whereas an object that describes rectangle
  * bounds should convert to [AnimationVector4D].
  */
-@ExperimentalSwingAnimationApi
 public sealed class AnimationVector {
     internal abstract fun reset()
 
@@ -46,7 +45,6 @@ public sealed class AnimationVector {
  *
  * @param v1 value to set on the value field of [AnimationVector1D]
  */
-@ExperimentalSwingAnimationApi
 public fun AnimationVector(v1: Float): AnimationVector1D = AnimationVector1D(v1)
 
 /**
@@ -55,7 +53,6 @@ public fun AnimationVector(v1: Float): AnimationVector1D = AnimationVector1D(v1)
  * @param v1 value to set on the first dimension
  * @param v2 value to set on the second dimension
  */
-@ExperimentalSwingAnimationApi
 public fun AnimationVector(
     v1: Float,
     v2: Float,
@@ -68,7 +65,6 @@ public fun AnimationVector(
  * @param v2 value to set on the second dimension
  * @param v3 value to set on the third dimension
  */
-@ExperimentalSwingAnimationApi
 public fun AnimationVector(
     v1: Float,
     v2: Float,
@@ -83,7 +79,6 @@ public fun AnimationVector(
  * @param v3 value to set on the third dimension
  * @param v4 value to set on the fourth dimension
  */
-@ExperimentalSwingAnimationApi
 public fun AnimationVector(
     v1: Float,
     v2: Float,
@@ -116,7 +111,6 @@ internal fun <T : AnimationVector> T.copyFrom(source: T) {
  *
  * @param initVal initial value to set the [value] field to.
  */
-@ExperimentalSwingAnimationApi
 public class AnimationVector1D(
     initVal: Float,
 ) : AnimationVector() {
@@ -163,7 +157,6 @@ public class AnimationVector1D(
  * @param v1 initial value to set on the first dimension
  * @param v2 initial value to set on the second dimension
  */
-@ExperimentalSwingAnimationApi
 public class AnimationVector2D(
     v1: Float,
     v2: Float,
@@ -217,7 +210,6 @@ public class AnimationVector2D(
  * @param v2 initial value to set on the second dimension
  * @param v3 initial value to set on the third dimension
  */
-@ExperimentalSwingAnimationApi
 public class AnimationVector3D(
     v1: Float,
     v2: Float,
@@ -282,7 +274,6 @@ public class AnimationVector3D(
  * @param v3 initial value to set on the third dimension
  * @param v4 initial value to set on the fourth dimension
  */
-@ExperimentalSwingAnimationApi
 public class AnimationVector4D(
     v1: Float,
     v2: Float,

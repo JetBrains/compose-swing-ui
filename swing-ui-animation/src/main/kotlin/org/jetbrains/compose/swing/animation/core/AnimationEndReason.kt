@@ -17,7 +17,6 @@
 package org.jetbrains.compose.swing.animation.core
 
 /** Possible reasons for [Animatable]s to end. */
-@ExperimentalSwingAnimationApi
 public enum class AnimationEndReason {
     /**
      * Animation will be forced to end when its value reaches upper/lower bound (if they have been

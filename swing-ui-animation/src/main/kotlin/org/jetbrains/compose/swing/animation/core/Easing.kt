@@ -33,7 +33,6 @@ import kotlin.math.max
  * An [Easing] must map fraction=0.0 to 0.0 and fraction=1.0 to 1.0.
  */
 @Stable
-@ExperimentalSwingAnimationApi
 public fun interface Easing {
     public fun transform(fraction: Float): Float
 }
@@ -47,7 +46,6 @@ public fun interface Easing {
  *
  * This is equivalent to the Android `FastOutSlowInInterpolator`
  */
-@ExperimentalSwingAnimationApi
 public val FastOutSlowInEasing: Easing = CubicBezierEasing(0.4f, 0.0f, 0.2f, 1.0f)
 
 /**
@@ -56,7 +54,6 @@ public val FastOutSlowInEasing: Easing = CubicBezierEasing(0.4f, 0.0f, 0.2f, 1.0
  *
  * This is equivalent to the Android `LinearOutSlowInInterpolator`
  */
-@ExperimentalSwingAnimationApi
 public val LinearOutSlowInEasing: Easing = CubicBezierEasing(0.0f, 0.0f, 0.2f, 1.0f)
 
 /**
@@ -65,14 +62,12 @@ public val LinearOutSlowInEasing: Easing = CubicBezierEasing(0.0f, 0.0f, 0.2f, 1
  *
  * This is equivalent to the Android `FastOutLinearInInterpolator`
  */
-@ExperimentalSwingAnimationApi
 public val FastOutLinearInEasing: Easing = CubicBezierEasing(0.4f, 0.0f, 1.0f, 1.0f)
 
 /**
  * It returns fraction unmodified. This is useful as a default value for cases where a [Easing] is
  * required but no actual easing is desired.
  */
-@ExperimentalSwingAnimationApi
 public val LinearEasing: Easing = Easing { fraction -> fraction }
 
 // This is equal to 1f.ulp or 1f.nextUp() - 1f, but neither ulp nor nextUp() are part of all KMP
@@ -105,7 +100,6 @@ private const val OneUlpAt1 = 1.1920929e-7f
  * @see FastOutLinearInEasing
  */
 @Immutable
-@ExperimentalSwingAnimationApi
 public class CubicBezierEasing(
     private val a: Float,
     private val b: Float,
