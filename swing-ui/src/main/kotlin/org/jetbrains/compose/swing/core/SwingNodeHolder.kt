@@ -143,6 +143,27 @@ internal class SwingNodeHolder<out T : Component>
         internal var slotUninstall: (() -> Unit)? = null
 
         /**
+         * The children the [SwingApplier] has attached to this node's [component], in composition order.
+         *
+         * A move reads each moved child's current [constraint] back from here, since Swing drops a
+         * constraint on `remove` and no layout manager offers it back; a removal of [childrenFillSlots]
+         * children runs each one's [slotUninstall] to release the host slot. Held on the node rather than
+         * in a map keyed by container, so it goes away with the node and leaves nothing behind for a
+         * subtree the composition has dropped.
+         */
+        internal val children: MutableList<SwingNodeHolder<*>> = ArrayList()
+
+        /**
+         * Whether [children] were installed through their own [slotAttachment] rather than added to the
+         * component as ordinary indexed children.
+         *
+         * A node's children are one index space and the two kinds are reached through different Swing
+         * calls, so they cannot be mixed under one node; the applier refuses the second kind. Meaningless
+         * while [children] is empty, and set again by the next child added.
+         */
+        internal var childrenFillSlots: Boolean = false
+
+        /**
          * The composition owner's shared [SnapshotStateObserver], stamped onto this node by the
          * [SwingApplier] on the top-down insert pass. A snapshot-observing component (e.g. `Canvas`) reads
          * it from here to register its paint reads, instead of resolving a `CompositionLocal`. `null` in a

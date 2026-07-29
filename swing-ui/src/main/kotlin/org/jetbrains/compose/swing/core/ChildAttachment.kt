@@ -85,6 +85,11 @@ internal val LocalSwingConstraint: ProvidableCompositionLocal<Any?> = staticComp
  * that [content] emits is installed into the host through the attachment and uninstalled on removal.
  * [content] must emit exactly one node - each such slot hosts a single view.
  *
+ * A host's children are one index space, and the two kinds are reached through different Swing calls, so
+ * a host whose children fill slots may hold no children added by index alongside them - a host node that
+ * declares slots declares nothing else. Mixing the two fails where the second kind is added, naming the
+ * host.
+ *
  * @param attachment installs the region's node into the host and returns its uninstall action.
  * @param content emits the single node whose component fills the slot.
  */

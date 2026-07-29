@@ -10,7 +10,9 @@ import javax.swing.JPanel
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertSame
+import kotlin.test.assertTrue
 
 /**
  * Low-level unit tests that drive [SwingApplier] directly over a root [JPanel], with no Compose
@@ -410,5 +412,49 @@ class SwingApplierTest {
             root.revalidateCount,
             "the untouched root should not be revalidated",
         )
+    }
+
+    /** A holder whose node fills a host slot, installing nothing and releasing nothing. */
+    private fun slotHolder(component: Component): SwingNodeHolder<*> =
+        holder(component).apply { slotAttachment = SlotAttachment { _, _, _ -> {} } }
+
+    @Test
+    fun aSlotChildIsRefusedWhereChildrenAreAlreadyAddedByIndex() = onEdt {
+        val applier = applierFor(JPanel())
+        applier.insertBottomUp(0, holder(JLabel("by index")))
+
+        // A node's children are one index space, and the two kinds are addressed through different
+        // lists, so a container holding both would have its children reached by the other kind's index.
+        val failure = assertFailsWith<IllegalStateException> { applier.insertBottomUp(1, slotHolder(JLabel("slot"))) }
+
+        val message = failure.message.orEmpty()
+        assertTrue(message.contains("already holds children added by index"), "the failure should say why: $message")
+        assertTrue(message.contains("JPanel"), "the failure should name the host: $message")
+    }
+
+    @Test
+    fun aChildAddedByIndexIsRefusedWhereSlotChildrenAreAlreadyInstalled() = onEdt {
+        val applier = applierFor(JPanel())
+        applier.insertBottomUp(0, slotHolder(JLabel("slot")))
+
+        val failure = assertFailsWith<IllegalStateException> { applier.insertBottomUp(1, holder(JLabel("by index"))) }
+
+        val message = failure.message.orEmpty()
+        assertTrue(message.contains("already holds slot-attached children"), "the failure should say why: $message")
+        assertTrue(message.contains("JPanel"), "the failure should name the host: $message")
+    }
+
+    @Test
+    fun aHostWhoseSlotChildrenAllLeftTakesChildrenByIndex() = onEdt {
+        val root = JPanel()
+        val applier = applierFor(root)
+        applier.insertBottomUp(0, slotHolder(JLabel("slot")))
+        applier.remove(0, 1)
+
+        // The refusal is about children held at the same time, not about what the host once held.
+        val label = JLabel("by index")
+        applier.insertBottomUp(0, holder(label))
+
+        assertSame(label, root.getComponent(0), "the host should take the child by index")
     }
 }
