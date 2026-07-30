@@ -51,10 +51,30 @@ jobs:
         env:
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
           VERSION: ${{ inputs.version }}
           SUFFIX: ${{ inputs.suffix }}
         run: |
-          ./gradlew --no-daemon --stacktrace publish -Pversion="$VERSION" -PversionSuffix="$SUFFIX"
+          ./gradlew --no-daemon --stacktrace \
+            -Pversion="$VERSION" -PversionSuffix="$SUFFIX" \
+            publish
+
+      - shell: bash
+        name: Upload Release to Maven Central
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CENTRAL_TOKEN_USER: ${{ secrets.CENTRAL_TOKEN_USER }}
+          CENTRAL_TOKEN_PASS: ${{ secrets.CENTRAL_TOKEN_PASS }}
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+          VERSION: ${{ inputs.version }}
+          SUFFIX: ${{ inputs.suffix }}
+        run: |
+          ./gradlew --no-daemon --stacktrace \
+            -Pversion="$VERSION" -PversionSuffix="$SUFFIX" \
+            publishAggregationToCentralPortal
 
       - shell: bash
         name: Create GitHub Release

@@ -10,6 +10,7 @@ ktlint = "1.8.0"
 ktlint-gradle = "14.0.1"
 androidLint = "9.2.1"
 composeLintChecks = "1.5.2"
+nmcp = "1.6.1"
 
 [libraries]
 kotlinGradlePlugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
@@ -26,6 +27,7 @@ ktlint-gradle-plugin = { module = "org.jlleitschuh.gradle:ktlint-gradle", versio
 androidLint-gradle-plugin = { module = "com.android.lint:com.android.lint.gradle.plugin", version.ref = "androidLint" }
 composeLintChecks = { module = "com.slack.lint.compose:compose-lint-checks", version.ref = "composeLintChecks" }
 kotlinComposeCompilerPluginEmbeddable = { module = "org.jetbrains.kotlin:kotlin-compose-compiler-plugin-embeddable", version.ref = "kotlin" }
+nmcp-gradle-plugin = { module = "com.gradleup.nmcp:com.gradleup.nmcp.gradle.plugin", version.ref = "nmcp" }
 
 [plugins]
 detekt = { id = "dev.detekt", version.ref = "detekt" }

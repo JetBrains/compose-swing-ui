@@ -21,6 +21,8 @@ dependencies {
     // The standalone Android Lint plugin, so the kotlin-quality convention plugin can apply it to JVM
     // modules and host the Compose lint checks without pulling in AGP or the Android SDK.
     implementation(libs.androidLint.gradle.plugin)
+    // Contributes each publishing module's publications to the root project's Central Portal aggregation.
+    implementation(libs.nmcp.gradle.plugin)
 }
 
 // buildSrc is an included build and cannot apply its own precompiled `kotlin-quality` convention

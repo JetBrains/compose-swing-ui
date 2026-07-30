@@ -5,6 +5,8 @@ import org.gradle.api.publish.maven.tasks.PublishToMavenRepository
 
 plugins {
     `maven-publish`
+    signing
+    id("com.gradleup.nmcp")
 }
 
 private val publishGroup: String =
@@ -25,6 +27,9 @@ version = publishVersion
 private val coordinates = resolveRepositoryCoordinates()
 private val publishUsername = publishUsername()
 private val publishToken = publishToken()
+
+private val signingKey: String? = resolveSigningKey()
+private val signingPassword: String = resolveSigningPassword()
 
 extensions.configure<JavaPluginExtension> {
     withSourcesJar()
@@ -80,14 +85,24 @@ publishing {
     }
 }
 
+signing {
+    isRequired = signingKey != null
+    if (signingKey != null) {
+        useInMemoryPgpKeys(signingKey, signingPassword)
+    }
+    sign(publishing.publications["maven"])
+}
+
 // The fallback `<name>/<name>` slug exists only so publishToMavenLocal works with no GitHub
 // environment configured; a remote publish would bake its synthesized POM urls into the published
 // artifact, so remote publish tasks demand an explicitly configured slug.
 tasks.withType<PublishToMavenRepository>().configureEach {
+    val coordinatesAreExplicit = coordinates.isExplicit
+    val repositoryName = repository.name
     doFirst {
-        if (!coordinates.isExplicit) {
+        if (!coordinatesAreExplicit) {
             throw GradleException(
-                "Publishing to the ${repository.name} repository requires explicit repository " +
+                "Publishing to the $repositoryName repository requires explicit repository " +
                     "coordinates: set -PrepositorySlug=<owner>/<repo> or the GITHUB_REPOSITORY " +
                     "environment variable.",
             )
