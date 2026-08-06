@@ -10,6 +10,7 @@ import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.accessibility.accessibleDescription
 import org.jetbrains.compose.swing.modifier.accessibility.accessibleName
+import org.jetbrains.compose.swing.modifier.accessibility.displayedMnemonicIndex
 import org.jetbrains.compose.swing.modifier.accessibility.labelFor
 import org.jetbrains.compose.swing.modifier.accessibility.labelTarget
 import org.jetbrains.compose.swing.modifier.accessibility.mnemonic
@@ -33,8 +34,7 @@ import kotlin.test.assertSame
 /**
  * Behavioral coverage for the accessibility modifiers. Each test reads back the applied state through
  * the live component's `AccessibleContext` or the Swing affordance the modifier wires (label
- * association, mnemonic), and asserts restoration to the pre-modifier default once an element leaves
- * the chain.
+ * association, mnemonic).
  */
 class AccessibilityModifierTest {
     @Test
@@ -44,7 +44,7 @@ class AccessibilityModifierTest {
             TextField("", modifier = if (named) SwingModifier.accessibleName("City field") else SwingModifier)
         }
         val field = onNodeOfType<JTextField>()
-        // A JTextField has no intrinsic accessible name, so the default is null.
+        // A JTextField has no intrinsic accessible name, so the pre-modifier default is null.
         assertEquals(
             "City field",
             field.fetch().accessibleContext.accessibleName,
@@ -53,7 +53,6 @@ class AccessibilityModifierTest {
 
         named = false
         awaitIdle()
-        // The element left the chain, restoring the pre-modifier default (null for a text field).
         assertNull(
             field.fetch().accessibleContext.accessibleName,
             "removing the modifier should restore the null accessible name",
@@ -96,7 +95,7 @@ class AccessibilityModifierTest {
                         .accessibleDescription("The horizontal position"),
             )
         }
-        // Each matcher finds the label the accessible state was declared on, not merely some node.
+        // Each matcher must find the label the accessible state was declared on, not any node.
         onNode(SwingMatcher.hasAccessibleName("Coordinate")).assert(SwingMatcher.isOfType<JLabel>())
         onNode(SwingMatcher.hasAccessibleDescription("The horizontal position"))
             .assert(SwingMatcher.isOfType<JLabel>())
@@ -107,9 +106,7 @@ class AccessibilityModifierTest {
         setContent {
             Canvas(modifier = SwingModifier.preferredSize(Dimension(40, 40))) { _, _, _ -> }
         }
-        // A drawing surface reports CANVAS by construction; a plain JComponent would report the
-        // generic SWING_COMPONENT role instead, so the role matcher picking out exactly the surface
-        // is what there is to assert.
+        // A drawing surface reports CANVAS by construction; a plain JComponent reports SWING_COMPONENT.
         onAllNodes(SwingMatcher.hasAccessibleRole(AccessibleRole.CANVAS)).assertCountEquals(1)
     }
 
@@ -158,7 +155,7 @@ class AccessibilityModifierTest {
     fun labelForResolvesRegardlessOfDeclarationOrder() = runComposeSwingTest {
         setContent {
             val usernameField = rememberLabelTarget()
-            // The target is declared before its label; the reference still pairs them once both attach.
+            // The target is declared before its label; the pairing still resolves once both attach.
             TextField("", modifier = SwingModifier.labelTarget(usernameField))
             Label("Name", modifier = SwingModifier.labelFor(usernameField))
         }
@@ -171,6 +168,30 @@ class AccessibilityModifierTest {
     }
 
     @Test
+    fun aCaptionCanItselfBeCaptioned() = runComposeSwingTest {
+        setContent {
+            val field = rememberLabelTarget()
+            val caption = rememberLabelTarget()
+            // The middle label captions the field and is itself the outer label's captioned target.
+            Label("Section", modifier = SwingModifier.labelFor(caption))
+            Label("Name", modifier = SwingModifier.labelFor(field).labelTarget(caption))
+            TextField("", modifier = SwingModifier.labelTarget(field))
+        }
+        awaitIdle()
+        val name = onNodeWithText("Name").fetch<JLabel>()
+        assertSame(
+            onNodeOfType<JTextField>().fetch(),
+            name.labelFor,
+            "the caption should be associated with the field it captions",
+        )
+        assertSame(
+            name,
+            onNodeWithText("Section").fetch<JLabel>().labelFor,
+            "the outer caption should be associated with the label it captions",
+        )
+    }
+
+    @Test
     fun checkBoxMnemonicApplies() = runComposeSwingTest {
         setContent {
             CheckBox(text = "Agree", checked = false, modifier = SwingModifier.mnemonic('A'))
@@ -179,6 +200,81 @@ class AccessibilityModifierTest {
             KeyEvent.VK_A,
             onNodeOfType<JCheckBox>().fetch().mnemonic,
             "the mnemonic should reach a check box",
+        )
+    }
+
+    @Test
+    fun aKeyCodeMnemonicNamesAKeyNoCharacterTypes() = runComposeSwingTest {
+        setContent {
+            Button("Help", modifier = SwingModifier.mnemonic(KeyEvent.VK_F2))
+            Label("Name", modifier = SwingModifier.mnemonic(KeyEvent.VK_F3))
+        }
+        assertEquals(KeyEvent.VK_F2, onNodeOfType<JButton>().fetch().mnemonic, "the button's key code")
+        assertEquals(KeyEvent.VK_F3, onNodeOfType<JLabel>().fetch().displayedMnemonic, "the label's key code")
+    }
+
+    @Test
+    fun aCharacterMnemonicResolvesToTheSameKeyInEitherCase() = runComposeSwingTest {
+        setContent {
+            Button("Save", modifier = SwingModifier.mnemonic('s'))
+            CheckBox(text = "Save all", checked = false, modifier = SwingModifier.mnemonic('S'))
+        }
+        assertEquals(KeyEvent.VK_S, onNodeOfType<JButton>().fetch().mnemonic, "the lower-case character")
+        assertEquals(KeyEvent.VK_S, onNodeOfType<JCheckBox>().fetch().mnemonic, "the upper-case character")
+    }
+
+    @Test
+    fun theDisplayedIndexPicksWhichOccurrenceIsUnderlined() = runComposeSwingTest {
+        var chosen by mutableStateOf(false)
+        setContent {
+            // "Save As" carries the mnemonic letter 'A' twice: in "Save" and in "As".
+            Button(
+                "Save As",
+                modifier = SwingModifier.mnemonic('A').let { if (chosen) it.displayedMnemonicIndex(5) else it },
+            )
+        }
+        val button = onNodeOfType<JButton>().fetch()
+        assertEquals(1, button.displayedMnemonicIndex, "the first occurrence is Swing's own answer")
+
+        chosen = true
+        awaitIdle()
+        assertEquals(5, button.displayedMnemonicIndex, "the declared index names the second occurrence")
+
+        chosen = false
+        awaitIdle()
+        assertEquals(1, button.displayedMnemonicIndex, "dropping the index restores Swing's own answer")
+    }
+
+    @Test
+    fun aDisplayedIndexOfMinusOneUnderlinesNoOccurrence() = runComposeSwingTest {
+        var underlined by mutableStateOf(true)
+        setContent {
+            Button(
+                "Save As",
+                modifier = SwingModifier.mnemonic('A').displayedMnemonicIndex(if (underlined) 5 else -1),
+            )
+        }
+        val button = onNodeOfType<JButton>().fetch()
+        assertEquals(5, button.displayedMnemonicIndex, "the declared index names the second occurrence")
+
+        underlined = false
+        awaitIdle()
+        assertEquals(
+            -1,
+            button.displayedMnemonicIndex,
+            "-1 leaves the mnemonic letter undecorated rather than falling back to an occurrence",
+        )
+    }
+
+    @Test
+    fun theDisplayedIndexReachesALabel() = runComposeSwingTest {
+        setContent {
+            Label("Save As", modifier = SwingModifier.mnemonic('A').displayedMnemonicIndex(5))
+        }
+        assertEquals(
+            5,
+            onNodeOfType<JLabel>().fetch().displayedMnemonicIndex,
+            "the declared index should reach a label",
         )
     }
 }

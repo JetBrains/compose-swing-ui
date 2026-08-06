@@ -15,6 +15,8 @@ import java.awt.event.AdjustmentListener
  * A scroll pane's own position is hoistable state
  * ([ScrollState][org.jetbrains.compose.swing.components.layout.ScrollState]); this builder is for a
  * scrollbar a custom component drives itself.
+ *
+ * @see java.awt.Adjustable.addAdjustmentListener
  */
 public fun SwingModifier.adjustmentListener(listener: AdjustmentListener): SwingModifier =
     listener<Component, AdjustmentListener>(
@@ -24,9 +26,8 @@ public fun SwingModifier.adjustmentListener(listener: AdjustmentListener): Swing
     )
 
 /**
- * The target as the [Adjustable] that declares the adjustment-listener pair, which is the scrollbars -
- * `javax.swing.JScrollBar` and `java.awt.Scrollbar`. A component that is not one is rejected at apply,
- * where the chain is built, rather than silently observing nothing.
+ * Casts to [Adjustable], the interface the scrollbar classes implement. A component that isn't one
+ * fails loudly when the chain is built, instead of silently attaching nothing.
  */
 private fun Component.asAdjustable(): Adjustable =
     this as? Adjustable

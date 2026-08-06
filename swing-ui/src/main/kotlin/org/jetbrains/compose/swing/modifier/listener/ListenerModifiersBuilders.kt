@@ -9,20 +9,24 @@ import java.awt.event.ActionListener
 import java.beans.PropertyChangeListener
 import javax.swing.AbstractButton
 import javax.swing.JComboBox
+import javax.swing.JFileChooser
 import javax.swing.JTextField
 import javax.swing.event.DocumentListener
 import javax.swing.text.JTextComponent
+import java.awt.Button as AwtButton
+import java.awt.List as AwtList
+import java.awt.TextField as AwtTextField
 
 /*
  * Typed instance builders for model- and role-specific listeners - property change, action, and
- * text-document. They share the by-identity add/remove contract of the builders in ListenerModifiers.kt:
- * the instance is added once, the same instance is removed on detach, and supplying a different instance
- * on recomposition detaches the old one and attaches the new.
+ * text-document - built on [listener]'s by-identity add/remove contract.
  */
 
 /**
  * Attaches an unbound [PropertyChangeListener] (`addPropertyChangeListener`), notified of every bound
  * property change. For a single property, prefer the [name][propertyChangeListener] overload.
+ *
+ * @see java.awt.Component.addPropertyChangeListener
  */
 public fun SwingModifier.propertyChangeListener(listener: PropertyChangeListener): SwingModifier =
     listener<Component, PropertyChangeListener>(
@@ -34,6 +38,8 @@ public fun SwingModifier.propertyChangeListener(listener: PropertyChangeListener
 /**
  * Attaches a [PropertyChangeListener] bound to the property [name]
  * (`addPropertyChangeListener(name, listener)`), notified only of changes to that property.
+ *
+ * @see java.awt.Component.addPropertyChangeListener
  */
 public fun SwingModifier.propertyChangeListener(
     name: String,
@@ -47,10 +53,13 @@ public fun SwingModifier.propertyChangeListener(
 
 /**
  * Attaches an [ActionListener] (`addActionListener`/`removeActionListener`) to a component that fires
- * action events (`AbstractButton` - so `JButton`, `JCheckBox`, ... -, `JTextField`, or `JComboBox`).
+ * action events (`AbstractButton` - so `JButton`, `JCheckBox`, ... -, `JTextField`, `JComboBox`,
+ * `JFileChooser`, and the AWT `Button`, `TextField`, and `List`).
  *
  * A text field fires its action event when the user presses Enter in it; the interaction family's
  * `onAccept` is the same channel with a live callback in place of a listener instance.
+ *
+ * @see java.awt.event.ActionListener
  */
 public fun SwingModifier.actionListener(listener: ActionListener): SwingModifier =
     listener<Component, ActionListener>(
@@ -59,37 +68,41 @@ public fun SwingModifier.actionListener(listener: ActionListener): SwingModifier
         { c, l -> actionListenerRegistrar(c).remove(l) },
     )
 
-/**
- * The matched widget's `addActionListener`/`removeActionListener` pair, resolved once so a single
- * narrowing [when][actionListenerRegistrar] backs both attach and detach.
- */
+/** The matched widget's `addActionListener`/`removeActionListener` pair. */
 private class ActionListenerRegistrar(
     val add: (ActionListener) -> Unit,
     val remove: (ActionListener) -> Unit,
 )
 
 /**
- * The Swing widgets that publish action events through `addActionListener`/`removeActionListener` share
+ * The components that publish action events through `addActionListener`/`removeActionListener` share
  * no common supertype that declares the pair, so [actionListener] routes through this single narrowing
- * dispatch, which yields the matched widget's add/remove pair for both attach and detach.
+ * dispatch, which yields the matched component's add/remove pair for both attach and detach.
  */
 private fun actionListenerRegistrar(component: Component): ActionListenerRegistrar =
     when (component) {
         is AbstractButton -> ActionListenerRegistrar(component::addActionListener, component::removeActionListener)
         is JTextField -> ActionListenerRegistrar(component::addActionListener, component::removeActionListener)
         is JComboBox<*> -> ActionListenerRegistrar(component::addActionListener, component::removeActionListener)
+        is JFileChooser -> ActionListenerRegistrar(component::addActionListener, component::removeActionListener)
+        is AwtButton -> ActionListenerRegistrar(component::addActionListener, component::removeActionListener)
+        is AwtTextField -> ActionListenerRegistrar(component::addActionListener, component::removeActionListener)
+        is AwtList -> ActionListenerRegistrar(component::addActionListener, component::removeActionListener)
         else -> error(actionListenerTargetError(component))
     }
 
 private fun actionListenerTargetError(component: Component): String =
     "actionListener requires a component that fires action events " +
-        "(AbstractButton, JTextField, JComboBox), " +
+        "(AbstractButton, JTextField, JComboBox, JFileChooser, " +
+        "java.awt.Button, java.awt.TextField, java.awt.List), " +
         "but the component is a ${component.javaClass.name}"
 
 /**
  * Attaches a [DocumentListener] to the text component's `document` (`document.addDocumentListener`).
  * Requires a [JTextComponent] target (`JTextField`, `JTextArea`, ...). The listener observes the
  * `document` the component holds at install time.
+ *
+ * @see javax.swing.text.Document.addDocumentListener
  */
 public fun SwingModifier.documentListener(listener: DocumentListener): SwingModifier =
     listener<JTextComponent, DocumentListener>(

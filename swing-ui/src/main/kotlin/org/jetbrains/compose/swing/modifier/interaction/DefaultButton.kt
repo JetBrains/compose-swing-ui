@@ -13,6 +13,7 @@ import javax.swing.SwingUtilities
  * pane once the tree is laid out; passing `false` releases it. Requires a `JButton` target.
  *
  * @param default whether this button is the window's default button.
+ * @see javax.swing.JRootPane.setDefaultButton
  */
 public fun SwingModifier.defaultButton(default: Boolean = true): SwingModifier = this then DefaultButtonElement(default)
 

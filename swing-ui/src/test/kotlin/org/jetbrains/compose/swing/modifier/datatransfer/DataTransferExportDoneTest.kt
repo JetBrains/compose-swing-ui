@@ -268,6 +268,30 @@ class DataTransferExportDoneTest {
     }
 
     @Test
+    fun anOnExportDoneOnlyComponentKeepsTheCopyItAlreadyHad() = runComposeSwingTest {
+        // Declaring onExportDone alone claims no source: with nothing of its own to export, the
+        // component's own copy must still work, exactly as if no data-transfer modifier were declared.
+        setContent {
+            TextField(
+                value = "copy me",
+                onValueChange = {},
+                modifier = SwingModifier.onExportDone { _, _, _ -> },
+            )
+        }
+        val field = onNodeOfType<JTextField>().fetch()
+        field.selectAll()
+        val clipboard = localClipboard()
+
+        field.transferHandler.exportToClipboard(field, clipboard, TransferHandler.COPY)
+
+        assertEquals(
+            "copy me",
+            clipboard.getData(DataFlavor.stringFlavor) as String,
+            "an onExportDone-only component must keep the copy it already had",
+        )
+    }
+
+    @Test
     fun theSeamReceivesExportsRegardlessOfWhichSiblingModifierOwnsTheExporter() = runComposeSwingTest {
         // One component, one handler, one completion seam: with a draggable owning the export slice
         // beside a clipboard modifier, a clipboard export carries the draggable's payload - and the

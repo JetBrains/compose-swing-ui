@@ -26,6 +26,8 @@ import java.awt.event.MouseEvent
  * Swing's traversal goes by the declaration rather than by what the component's type is focusable for:
  * a caption marked focusable takes its place in the Tab order, and a control marked non-focusable is
  * skipped.
+ *
+ * @see java.awt.Component.setFocusable
  */
 public fun SwingModifier.focusable(focusable: Boolean): SwingModifier =
     this then
@@ -40,6 +42,8 @@ public fun SwingModifier.focusable(focusable: Boolean): SwingModifier =
  *
  * Sets `isEnabled` on **this component only**: disabling a container does not disable the components
  * inside it, so disable each child you want disabled.
+ *
+ * @see java.awt.Component.setEnabled
  */
 public fun SwingModifier.enabled(enabled: Boolean): SwingModifier =
     this then
@@ -50,13 +54,21 @@ public fun SwingModifier.enabled(enabled: Boolean): SwingModifier =
             write = { c, v -> c.isEnabled = v },
         )
 
-/** Installs mouse enter/exit handlers. */
+/**
+ * Installs mouse enter/exit handlers.
+ *
+ * @see java.awt.Component.addMouseListener
+ */
 public fun SwingModifier.onHover(
     onEnter: () -> Unit = {},
     onExit: () -> Unit = {},
 ): SwingModifier = this then HoverElement(onEnter, onExit)
 
-/** Installs focus gained/lost handlers. */
+/**
+ * Installs focus gained/lost handlers.
+ *
+ * @see java.awt.Component.addFocusListener
+ */
 public fun SwingModifier.onFocus(
     onGained: () -> Unit = {},
     onLost: () -> Unit = {},
@@ -70,6 +82,8 @@ public fun SwingModifier.onFocus(
  *
  * Multiple `onPointerEvent` applications all fire. Callbacks are read live, so passing fresh lambdas
  * each recomposition is fine.
+ *
+ * @see java.awt.Component.addMouseListener
  */
 public fun SwingModifier.onPointerEvent(
     onPress: ((MouseEvent) -> Unit)? = null,

@@ -17,6 +17,8 @@ import javax.swing.JLabel
  * button; a component with no icon lays out the same either way.
  *
  * @param position a [HorizontalAlignment] `SwingConstants` value.
+ * @see javax.swing.JLabel.setHorizontalTextPosition
+ * @see javax.swing.AbstractButton.setHorizontalTextPosition
  */
 public fun SwingModifier.horizontalTextPosition(
     @HorizontalAlignment position: Int,
@@ -27,6 +29,8 @@ public fun SwingModifier.horizontalTextPosition(
  * built on a button; a component with no icon lays out the same either way.
  *
  * @param position a [VerticalAlignment] `SwingConstants` value.
+ * @see javax.swing.JLabel.setVerticalTextPosition
+ * @see javax.swing.AbstractButton.setVerticalTextPosition
  */
 public fun SwingModifier.verticalTextPosition(
     @VerticalAlignment position: Int,
@@ -36,8 +40,11 @@ public fun SwingModifier.verticalTextPosition(
  * Sets the space between a component's icon and its text. Applies to labels and to everything built on
  * a button.
  *
- * A button stops taking this from the look and feel once the property is set, and Swing offers no way to
- * hand it back. A label has no such latch.
+ * A button stops taking this from the look and feel once set, and Swing offers no way to hand it back.
+ * A label has no such latch.
+ *
+ * @see javax.swing.JLabel.setIconTextGap
+ * @see javax.swing.AbstractButton.setIconTextGap
  */
 public fun SwingModifier.iconTextGap(gap: Int): SwingModifier =
     this then MultiTargetPropertyElement(IconTextGapProperty, gap)

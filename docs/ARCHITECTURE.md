@@ -1,8 +1,8 @@
 # Architecture
 
 Compose Swing UI is a Compose-runtime binding over Swing. Layout, measurement, and painting stay
-with Swing: your composition produces real `java.awt.Component`s, and Swing's own `LayoutManager`s
-and look-and-feel size and paint them. What the library adds is Compose's composition model -
+with Swing: your composition produces real `java.awt.Component`s, sized and placed by Swing's layout
+pass and painted by the look-and-feel. What the library adds is Compose's composition model -
 composition and recomposition, snapshot state, effects, and a frame clock - driving a live AWT
 component tree on the Event Dispatch Thread (EDT).
 
@@ -138,6 +138,16 @@ Closed sets of Swing integer (and a few string) constants - scrollbar policies, 
 selection modes, and the like - are exposed as typed constant sets. A parameter that takes one of
 these accepts exactly the values the wrapped Swing API expects, so an unintended value is flagged
 in the IDE while the value passed at runtime is the plain Swing constant, with no translation layer.
+
+Where an element takes over behavior a widget already has, it takes over only what it declares. Data
+transfer is the clearest case: a component's export and its import are separate, and the modifiers
+that configure them share one transfer handler over the component's own. Declaring `draggable` or
+`clipboard` decides what the component exports; declaring `dropTarget` or `clipboard` decides what it
+imports, and every drop and paste that reaches it. Whichever direction is left undeclared is left to
+the component, so a widget that ships an import of its own - a text component's paste - still performs
+it beside a declared export, and the actions a source offers stay the ones it offers on its own beside
+a declared import. The last element to leave takes the shared handler with it and puts the original
+back.
 
 ---
 

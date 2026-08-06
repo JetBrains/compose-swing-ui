@@ -14,6 +14,8 @@ import javax.swing.text.JTextComponent
  * A text component takes these colours from the look and feel, and only while they have not been set;
  * once one is set here, it holds until the modifier leaves the chain, which puts back the colour the
  * look and feel had supplied.
+ *
+ * @see javax.swing.text.JTextComponent.setCaretColor
  */
 public fun SwingModifier.caretColor(color: Color): SwingModifier =
     this then
@@ -29,7 +31,11 @@ public fun SwingModifier.caretColor(color: Color): SwingModifier =
             },
         )
 
-/** Sets the background painted behind selected text in a text component. */
+/**
+ * Sets the background painted behind selected text in a text component.
+ *
+ * @see javax.swing.text.JTextComponent.setSelectionColor
+ */
 public fun SwingModifier.selectionColor(color: Color): SwingModifier =
     this then
         propertyElement<JTextComponent, Color>(
@@ -41,7 +47,11 @@ public fun SwingModifier.selectionColor(color: Color): SwingModifier =
             },
         )
 
-/** Sets the colour selected text is drawn in. */
+/**
+ * Sets the colour selected text is drawn in.
+ *
+ * @see javax.swing.text.JTextComponent.setSelectedTextColor
+ */
 public fun SwingModifier.selectedTextColor(color: Color): SwingModifier =
     this then
         propertyElement<JTextComponent, Color>(
@@ -53,7 +63,11 @@ public fun SwingModifier.selectedTextColor(color: Color): SwingModifier =
             },
         )
 
-/** Sets the colour text is drawn in while the component is disabled. */
+/**
+ * Sets the colour text is drawn in while the component is disabled.
+ *
+ * @see javax.swing.text.JTextComponent.setDisabledTextColor
+ */
 public fun SwingModifier.disabledTextColor(color: Color): SwingModifier =
     this then
         propertyElement<JTextComponent, Color>(

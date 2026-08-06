@@ -8,6 +8,10 @@ import org.jetbrains.compose.swing.modifier.propertyElement
 import java.awt.Component
 import java.awt.Cursor
 
-/** Sets `cursor`; `null` restores the inherited cursor. */
+/**
+ * Sets `cursor`; `null` restores the inherited cursor.
+ *
+ * @see java.awt.Component.setCursor
+ */
 public fun SwingModifier.cursor(cursor: Cursor?): SwingModifier =
     this then propertyElement<Component, Cursor?>(cursor, read = { it.cursor }, write = { c, v -> c.cursor = v })

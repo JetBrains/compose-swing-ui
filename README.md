@@ -57,11 +57,8 @@ fun main() = application {
 }
 ```
 
-`BorderPanel` exposes each `BorderLayout` region as a declarative slot in a receiver DSL: an absolute
-compass family (`north`/`south`/`east`/`west`/`center`) and an orientation-aware family
-(`pageStart`/`pageEnd`/`lineStart`/`lineEnd`, resolved against the panel's component orientation).
-Placement is parent-driven; declare only the regions you need, and declaring a region again replaces
-it. Prefer one family per edge.
+`BorderPanel` exposes each `BorderLayout` region as a declarative slot in a receiver DSL; declare only
+the regions you need.
 
 Every component family the library ships - text inputs, buttons, selection, layout containers,
 windows, dialogs and menus - is catalogued with the parameters that decide how it behaves in
@@ -129,7 +126,7 @@ import org.jetbrains.compose.swing.window.MenuBar
 import org.jetbrains.compose.swing.window.Window
 import org.jetbrains.compose.swing.window.application
 
-application {
+fun main() = application {
     var opened by remember { mutableStateOf("nothing") }
     Window(onCloseRequest = ::exitApplication, title = "Editor") {
         MenuBar {
@@ -153,8 +150,7 @@ takes it too.
 
 Components take an optional `modifier: SwingModifier = SwingModifier` parameter for visual and
 interaction concerns - colors, fonts, borders, tooltips, focus, hover. Build a chain with the
-extension builders and the framework diffs it across recompositions, restoring the original value of
-any element you remove:
+extension builders:
 
 ```kotlin
 import androidx.compose.runtime.Composable
@@ -164,31 +160,28 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.border
 import org.jetbrains.compose.swing.modifier.appearance.foreground
+import org.jetbrains.compose.swing.modifier.appearance.lineBorder
 import org.jetbrains.compose.swing.modifier.interaction.onHover
 import java.awt.Color
-import javax.swing.BorderFactory
 
 @Composable
 fun SaveButton(onSave: () -> Unit) {
     var hovered by remember { mutableStateOf(false) }
-    val border = remember(hovered) {
-        BorderFactory.createLineBorder(if (hovered) Color.BLUE else Color.GRAY)
-    }
     Button(
         text = "Save",
         onClick = onSave,
         modifier =
             SwingModifier
                 .foreground(Color.WHITE)
-                .border(border)
+                .lineBorder(if (hovered) Color.BLUE else Color.GRAY)
                 .onHover(onEnter = { hovered = true }, onExit = { hovered = false }),
     )
 }
 ```
 
-Hoist the value objects a chain carries - a `Border`, `Font` or `Icon` - into `remember`, as above.
+`lineBorder` and `emptyBorder` declare a border by its values and rebuild it only when they change.
+Hoist the other value objects a chain carries - a `Font` or an `Icon` - into `remember`.
 
 Domain callbacks like `onClick` and `onValueChange` stay ordinary parameters; only cross-cutting
 styling and interaction flow through `modifier`. Builders are grouped by concern: appearance, content
@@ -217,29 +210,8 @@ animation is in flight. See [`swing-ui-animation/README.md`](swing-ui-animation/
 
 ## Testing
 
-Add `:swing-ui-test` and write plain `@Test` methods - the harness is synchronous and deterministic
-(off-screen, never sleeps):
-
-```kotlin
-import org.jetbrains.compose.swing.test.runComposeSwingTest
-import org.jetbrains.compose.swing.components.button.Button
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import kotlin.test.Test
-
-class CounterTest {
-    @Test
-    fun clickingIncrements() = runComposeSwingTest {
-        var clicks by mutableStateOf(0)
-        setContent {
-            Button(text = "Clicks: $clicks", onClick = { clicks++ })
-        }
-        onNodeWithText("Clicks: 0").performClick()
-        onNodeWithText("Clicks: 1").assertExists()
-    }
-}
-```
+Add `:swing-ui-test` and write plain `@Test` methods whose body is a `runComposeSwingTest { ... }`
+block - the harness is synchronous and deterministic (off-screen, never sleeps).
 
 See [`docs/TESTING-COMPONENTS.md`](docs/TESTING-COMPONENTS.md) for the finders, assertions, actions,
 and screenshot comparison the harness offers.
@@ -253,8 +225,7 @@ and screenshot comparison the harness offers.
 ./gradlew test                           # tests only
 ```
 
-Full quality-gate command (what CI runs) - the build logic is an included build, so its own gates are
-requested separately from the rest:
+Full quality-gate command (what CI runs):
 
 ```bash
 ./gradlew :buildSrc:ktlintCheck :buildSrc:detekt

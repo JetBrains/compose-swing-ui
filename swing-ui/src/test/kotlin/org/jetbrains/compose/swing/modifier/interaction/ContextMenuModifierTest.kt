@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.modifier.interaction
 
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -10,8 +11,11 @@ import org.jetbrains.compose.swing.components.Menu
 import org.jetbrains.compose.swing.components.MenuItem
 import org.jetbrains.compose.swing.components.MenuSeparator
 import org.jetbrains.compose.swing.components.RadioButtonMenuItem
+import org.jetbrains.compose.swing.components.layout.Column
 import org.jetbrains.compose.swing.menuItemTexts
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.applyModifier
+import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
@@ -23,22 +27,28 @@ import javax.swing.JMenu
 import javax.swing.JMenuItem
 import javax.swing.JPopupMenu
 import javax.swing.JRadioButtonMenuItem
+import javax.swing.event.PopupMenuEvent
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
  * Behavioral tests for the `contextMenu` modifier. They assert what an observer of the live Swing
- * component sees: that the popup trigger is installed as a real [java.awt.event.MouseListener], that a
- * popup-trigger [MouseEvent] builds a [JPopupMenu] whose items mirror the composed menu tree, that
- * selecting an item runs its callback, and that the items reflect current composition state.
+ * component sees: that the declared menu becomes the component's own [JPopupMenu] and the popup trigger
+ * is installed as a real [java.awt.event.MouseListener], that either gesture - a popup-trigger
+ * [MouseEvent], or the component's popup menu the keyboard binding reaches - builds a [JPopupMenu] whose
+ * items mirror the composed menu tree, that selecting an item runs its callback, and that the items
+ * reflect current composition state.
  *
- * The popup is presented headless via the internal `display` seam, which captures the populated
+ * The popup is presented headless through the `display` seam, which captures the populated
  * [JPopupMenu] instead of calling [JPopupMenu.show] (no on-screen peer is realized in the test
- * harness). Every assertion inspects the real popup structure.
+ * harness). Every assertion inspects the real popup structure. A close is driven the way the popup
+ * itself publishes one, through its `PopupMenuListener` contract, so the user's dismissal travels its
+ * production path.
  */
 class ContextMenuModifierTest {
     private fun popupTrigger(component: Component): MouseEvent = MouseEvent(
@@ -52,6 +62,14 @@ class ContextMenuModifierTest {
         // popupTrigger = true: this is the platform popup gesture.
         true,
     )
+
+    /**
+     * Closes [popup] the way it closes on its own: Swing publishes the close to the popup's listeners as
+     * it goes invisible, whether the user selected an item, pressed Escape or clicked away.
+     */
+    private fun publishClose(popup: JPopupMenu) {
+        popup.popupMenuListeners.forEach { it.popupMenuWillBecomeInvisible(PopupMenuEvent(popup)) }
+    }
 
     @Test
     fun popupTriggerBuildsAPopupMirroringTheComposedMenu() = runComposeSwingTest {
@@ -84,6 +102,39 @@ class ContextMenuModifierTest {
             listOf("Cut", "Copy", null, "Paste"),
             popup.menuItemTexts(),
             "the popup should mirror the composed menu items",
+        )
+    }
+
+    @Test
+    fun theKeyboardGestureOpensTheComposedMenu() = runComposeSwingTest {
+        var captured: JPopupMenu? = null
+        setContent {
+            Label(
+                "target",
+                modifier =
+                    SwingModifier.contextMenu(
+                        display = { popup, _, _, _ -> captured = popup },
+                    ) {
+                        MenuItem("Cut")
+                        MenuItem("Paste")
+                    },
+            )
+        }
+        val target = onNodeOfType<JLabel>().fetch()
+        // What the keyboard binding a look and feel gives a context menu asks of the component: show
+        // the popup menu the component carries, over the component itself.
+        val componentPopup =
+            assertNotNull(
+                target.componentPopupMenu,
+                "the declared menu must be the component's own popup menu, the one the keyboard reaches",
+            )
+
+        componentPopup.show(target, 3, 4)
+
+        assertEquals(
+            listOf("Cut", "Paste"),
+            (captured ?: error("the keyboard gesture did not build a popup")).menuItemTexts(),
+            "the keyboard gesture must open the menu the composition declares",
         )
     }
 
@@ -271,7 +322,7 @@ class ContextMenuModifierTest {
         assertFalse(second.isSelected, "Second starts unselected")
 
         // Selecting Second drives the hoisted index; a reopened popup reflects the single new selection.
-        // doClick toggles the unselected item to selected, then fires, so onSelect sees isSelected.
+        // doClick toggles the unselected item to selected, then fires, so the callback reports it selected.
         second.doClick()
         awaitIdle()
         assertEquals(1, selected, "selecting the second radio item must drive the hoisted index")
@@ -356,7 +407,7 @@ class ContextMenuModifierTest {
     }
 
     @Test
-    fun eachContextMenuInTheChainOpensOnTheGesture() = runComposeSwingTest {
+    fun theLastContextMenuInTheChainOwnsTheGesture() = runComposeSwingTest {
         val opened = mutableListOf<String?>()
         val record: (JPopupMenu, Component, Int, Int) -> Unit = { popup, _, _, _ ->
             opened += popup.menuItemTexts().single()
@@ -370,9 +421,9 @@ class ContextMenuModifierTest {
         target.dispatchEvent(popupTrigger(target))
 
         assertEquals(
-            listOf("Cut", "Paste"),
-            opened.sortedBy { it.orEmpty() },
-            "each call is its own slot: one gesture must open every menu the chain declares",
+            listOf<String?>("Paste"),
+            opened.toList(),
+            "a component has one popup menu: the chain's last declaration owns it",
         )
     }
 
@@ -415,6 +466,178 @@ class ContextMenuModifierTest {
             (captured ?: error("no popup")).menuItemTexts(),
             "the menu must open again once the modifier returns to the chain",
         )
+    }
+
+    @Test
+    fun droppingTheModifierRestoresTheComponentsPopupMenu() = runComposeSwingTest {
+        var withMenu by mutableStateOf(true)
+        setContent {
+            val modifier =
+                if (withMenu) {
+                    SwingModifier.contextMenu { MenuItem("Cut") }
+                } else {
+                    SwingModifier
+                }
+            Label("target", modifier = modifier)
+        }
+        val target = onNodeOfType<JLabel>().fetch()
+        assertNotNull(
+            target.componentPopupMenu,
+            "the declared menu must be the component's popup menu while the modifier is in the chain",
+        )
+
+        withMenu = false
+        awaitIdle()
+        assertNull(
+            target.componentPopupMenu,
+            "the popup menu the component carried before the declaration must come back",
+        )
+    }
+
+    @Test
+    fun droppingTheModifierClearsTheOwnMenuRatherThanPinningAnInheritedOne() = runComposeSwingTest {
+        var withMenu by mutableStateOf(true)
+        setContent {
+            Column(modifier = SwingModifier.contextMenu { MenuItem("Outer") }) {
+                val inner =
+                    if (withMenu) {
+                        SwingModifier.contextMenu { MenuItem("Inner") }
+                    } else {
+                        SwingModifier
+                    }
+                SwingNode(
+                    factory = { JLabel("target").apply { inheritsPopupMenu = true } },
+                    update = { applyModifier(inner) },
+                )
+            }
+        }
+        val target = onNodeOfType<JLabel>().fetch()
+        assertNotNull(
+            target.componentPopupMenu,
+            "the declared inner menu must be the component's popup menu while the modifier is in the chain",
+        )
+
+        withMenu = false
+        awaitIdle()
+
+        // With inheritance switched off, getComponentPopupMenu() answers the component's own field
+        // directly: a captured-and-restored ancestor menu would still show up here, a cleared one would not.
+        target.inheritsPopupMenu = false
+        assertNull(
+            target.componentPopupMenu,
+            "the component's own popup menu must be cleared, not left pinned to the ancestor menu it inherited",
+        )
+    }
+
+    @Test
+    fun eitherGestureReportsTheMenuOpening() = runComposeSwingTest {
+        val opened = mutableListOf<List<String?>>()
+        var captured: JPopupMenu? = null
+        setContent {
+            Label(
+                "target",
+                modifier =
+                    SwingModifier.contextMenu(
+                        onOpen = { opened += (captured ?: error("no popup")).menuItemTexts() },
+                        display = { popup, _, _, _ -> captured = popup },
+                    ) {
+                        MenuItem("Cut")
+                    },
+            )
+        }
+        val target = onNodeOfType<JLabel>().fetch()
+
+        target.dispatchEvent(popupTrigger(target))
+        // What the keyboard binding asks of the component: show the popup menu the component carries.
+        target.componentPopupMenu.show(target, 3, 4)
+
+        assertEquals(
+            listOf(listOf("Cut"), listOf("Cut")),
+            opened.toList(),
+            "the pointer gesture and the keyboard gesture must each report the menu they put on screen",
+        )
+    }
+
+    @Test
+    fun eitherGestureReportsTheUserClosingTheMenu() = runComposeSwingTest {
+        val captured = mutableListOf<JPopupMenu>()
+        var closes = 0
+        setContent {
+            Label(
+                "target",
+                modifier =
+                    SwingModifier.contextMenu(
+                        onClose = { closes++ },
+                        display = { popup, _, _, _ -> captured += popup },
+                    ) {
+                        MenuItem("Cut")
+                    },
+            )
+        }
+        val target = onNodeOfType<JLabel>().fetch()
+
+        target.dispatchEvent(popupTrigger(target))
+        assertEquals(0, closes, "a menu that is up has not closed")
+        publishClose(captured.lastOrNull() ?: error("the pointer gesture did not build a popup"))
+        assertEquals(1, closes, "the user closing the menu the pointer opened must be reported")
+
+        target.componentPopupMenu.show(target, 3, 4)
+        publishClose(captured.lastOrNull() ?: error("the keyboard gesture did not build a popup"))
+        assertEquals(2, closes, "and a menu the keyboard opened must report its close the same way")
+        assertEquals(2, captured.distinct().size, "each gesture must build a popup of its own")
+    }
+
+    @Test
+    fun aDismissedMenuReportsClosedOnce() = runComposeSwingTest {
+        var captured: JPopupMenu? = null
+        var closes = 0
+        var released = 0
+        setContent {
+            Label(
+                "target",
+                modifier =
+                    SwingModifier.contextMenu(
+                        onClose = { closes++ },
+                        display = { popup, _, _, _ -> captured = popup },
+                    ) {
+                        DisposableEffect(Unit) { onDispose { released++ } }
+                        MenuItem("Cut")
+                    },
+            )
+        }
+        val target = onNodeOfType<JLabel>().fetch()
+        target.dispatchEvent(popupTrigger(target))
+        val popup = captured ?: error("popup-trigger event did not build a popup")
+
+        // A menu dismissed by clicking away goes invisible, and its close is published as it goes; the
+        // menu it took away is gone for good, however many times that close is published.
+        publishClose(popup)
+        publishClose(popup)
+        awaitIdle()
+
+        assertEquals(1, closes, "one menu the user dismissed is one close")
+        assertEquals(1, released, "and its composition is released with it, once")
+    }
+
+    @Test
+    fun aPresentationThatRefusesTheMenuReportsNoOpen() = runComposeSwingTest {
+        var opens = 0
+        setContent {
+            Label(
+                "target",
+                modifier =
+                    SwingModifier.contextMenu(
+                        onOpen = { opens++ },
+                        display = { _, _, _, _ -> throw IllegalComponentStateException("no place for the menu") },
+                    ) {
+                        MenuItem("Cut")
+                    },
+            )
+        }
+        val target = onNodeOfType<JLabel>().fetch()
+
+        assertFailsWith<IllegalComponentStateException> { target.dispatchEvent(popupTrigger(target)) }
+        assertEquals(0, opens, "a menu that never reached the screen has not opened")
     }
 
     @Test

@@ -9,7 +9,11 @@ import java.awt.Color
 import java.awt.Component
 import javax.swing.JComponent
 
-/** Sets `background`; on a non-opaque component also chain [opaque]`(true)` for it to paint. */
+/**
+ * Sets `background`; on a non-opaque component also chain [opaque]`(true)` for it to paint.
+ *
+ * @see java.awt.Component.setBackground
+ */
 public fun SwingModifier.background(color: Color?): SwingModifier =
     this then
         propertyElement<Component, Color?>(

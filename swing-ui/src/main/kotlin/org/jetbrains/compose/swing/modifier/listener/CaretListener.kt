@@ -15,6 +15,8 @@ import javax.swing.text.JTextComponent
  * The listener observes the component's caret rather than a document, so it keeps reporting after the
  * component's `document` is replaced - unlike [documentListener], which binds the document the
  * component holds at install time.
+ *
+ * @see javax.swing.text.JTextComponent.addCaretListener
  */
 public fun SwingModifier.caretListener(listener: CaretListener): SwingModifier =
     listener<JTextComponent, CaretListener>(

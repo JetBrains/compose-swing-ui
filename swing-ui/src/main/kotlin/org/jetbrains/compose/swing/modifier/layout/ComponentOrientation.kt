@@ -13,6 +13,8 @@ import java.awt.ComponentOrientation
  *
  * Sets the orientation on **this component only**; it does not propagate to children. To apply it
  * recursively, use Swing's `Component.applyComponentOrientation` on the tree.
+ *
+ * @see java.awt.Component.setComponentOrientation
  */
 public fun SwingModifier.componentOrientation(orientation: ComponentOrientation): SwingModifier =
     this then

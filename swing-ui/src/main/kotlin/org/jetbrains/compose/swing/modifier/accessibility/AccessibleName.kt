@@ -13,6 +13,7 @@ import java.awt.Component
  * `semantics { contentDescription = ... }`.
  *
  * @param name the accessible name to advertise, or `null` to clear it.
+ * @see javax.accessibility.AccessibleContext.setAccessibleName
  */
 public fun SwingModifier.accessibleName(name: String?): SwingModifier =
     this then

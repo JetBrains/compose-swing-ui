@@ -28,6 +28,8 @@ import javax.swing.KeyStroke
  *
  * Multiple `onKeyEvent` applications all fire. [onKeyEvent] is read live, so passing a fresh lambda
  * each recomposition is fine.
+ *
+ * @see java.awt.Component.addKeyListener
  */
 public fun SwingModifier.onKeyEvent(onKeyEvent: (KeyEvent) -> Boolean): SwingModifier =
     this then KeyEventElement(onKeyEvent)
@@ -40,6 +42,8 @@ public fun SwingModifier.onKeyEvent(onKeyEvent: (KeyEvent) -> Boolean): SwingMod
  * Distinct keystrokes compose independently. Binding the **same** [keyStroke] in the same [condition]
  * twice on one component throws at install. [onAction] is read live, so passing a fresh lambda each
  * recomposition is fine. Requires a [JComponent] target.
+ *
+ * @see javax.swing.JComponent.getInputMap
  */
 public fun SwingModifier.onKeyStroke(
     keyStroke: KeyStroke,
@@ -51,6 +55,9 @@ public fun SwingModifier.onKeyStroke(
  * Convenience overload of [onKeyStroke] that parses [keyStroke] via `KeyStroke.getKeyStroke(String)`
  * (e.g. `"ctrl S"`, `"meta shift Z"`). Throws at install if the string is not a valid key-stroke
  * descriptor.
+ *
+ * @see javax.swing.JComponent.getInputMap
+ * @see javax.swing.KeyStroke.getKeyStroke
  */
 public fun SwingModifier.onKeyStroke(
     keyStroke: String,

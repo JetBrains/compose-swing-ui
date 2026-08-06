@@ -16,6 +16,8 @@ import java.awt.Component
  *
  * Declaring it on two components of one window is a contradiction the modifier does not resolve: the
  * one realized last takes the focus.
+ *
+ * @see java.awt.Component.requestFocusInWindow
  */
 public fun SwingModifier.initialFocus(): SwingModifier = this then InitialFocusElement
 
@@ -30,8 +32,7 @@ private object InitialFocusElement : SwingModifier.Element<Component, InitialFoc
     class Node : SwingModifier.Node<Component>() {
         private val showing = ShowingWait()
 
-        // The wait ends with the request it was waiting to make, which is what keeps the declaration to a
-        // single request per attach.
+        // The wait resolves the first time the component shows, so this requests focus at most once per attach.
         override fun onAttach(): Unit = showing.awaitShowing(component) { component.requestFocusInWindow() }
 
         override fun onDetach(): Unit = showing.cancel()

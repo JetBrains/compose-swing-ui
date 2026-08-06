@@ -13,21 +13,25 @@ import java.awt.Color
 import java.awt.Cursor
 import java.awt.Dimension
 import java.awt.Font
+import java.awt.Insets
 import javax.swing.BorderFactory
 import javax.swing.JLabel
 import javax.swing.border.Border
+import javax.swing.border.LineBorder
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
+import kotlin.test.assertNotSame
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
- * Behavioral coverage for the appearance and metadata [SwingModifier]s that lacked a dedicated suite:
- * font, border, cursor, toolTip, clientProperty, focusable and preferredSize. Each test asserts the
- * applied Swing property AND its restoration to the pre-modifier default once the element leaves the
- * chain - the round-trip contract every property element promises.
+ * Behavioral coverage for the appearance and metadata [SwingModifier]s that lack a dedicated suite:
+ * font, border, cursor, clientProperty, focusable and preferredSize. Each test asserts the applied
+ * Swing property AND its restoration to the pre-modifier default once the element leaves the chain -
+ * the round-trip contract every property element promises.
  */
 class AppearanceMetadataModifierTest {
     @Test
@@ -72,6 +76,129 @@ class AppearanceMetadataModifierTest {
     }
 
     @Test
+    fun lineBorderAppliesTheColorAndThickness() = runComposeSwingTest {
+        setContent { Label("X", modifier = SwingModifier.lineBorder(Color.RED, 3)) }
+        val border = onNodeOfType<JLabel>().fetch<JLabel>().border
+        assertIs<LineBorder>(border, "the builder should install a line border")
+        assertEquals(Color.RED, border.lineColor, "the declared color should reach the border")
+        assertEquals(3, border.thickness, "the declared thickness should reach the border")
+    }
+
+    @Test
+    fun lineBorderDefaultsToASingleThickness() = runComposeSwingTest {
+        setContent { Label("X", modifier = SwingModifier.lineBorder(Color.BLUE)) }
+        val border = onNodeOfType<JLabel>().fetch<JLabel>().border
+        assertIs<LineBorder>(border, "the builder should install a line border")
+        assertEquals(1, border.thickness, "the default thickness should match the line Swing itself draws")
+    }
+
+    @Test
+    fun emptyBorderAppliesTheInsets() = runComposeSwingTest {
+        setContent { Label("X", modifier = SwingModifier.emptyBorder(1, 2, 3, 4)) }
+        val label = onNodeOfType<JLabel>().fetch<JLabel>()
+        assertEquals(
+            Insets(1, 2, 3, 4),
+            label.border.getBorderInsets(label),
+            "the sides should be taken in top, left, bottom, right order",
+        )
+    }
+
+    @Test
+    fun emptyBorderInsetsFormAppliesTheInsets() = runComposeSwingTest {
+        setContent { Label("X", modifier = SwingModifier.emptyBorder(Insets(1, 2, 3, 4))) }
+        val label = onNodeOfType<JLabel>().fetch<JLabel>()
+        assertEquals(Insets(1, 2, 3, 4), label.border.getBorderInsets(label), "the insets should reach the border")
+    }
+
+    @Test
+    fun emptyBorderUniformFormAppliesEverySide() = runComposeSwingTest {
+        setContent { Label("X", modifier = SwingModifier.emptyBorder(5)) }
+        val label = onNodeOfType<JLabel>().fetch<JLabel>()
+        assertEquals(Insets(5, 5, 5, 5), label.border.getBorderInsets(label), "one count should cover every side")
+    }
+
+    @Test
+    fun lineBorderKeepsTheSameBorderWhileItsValuesAreUnchanged() = runComposeSwingTest {
+        var caption by mutableStateOf("first")
+        setContent { Label(caption, modifier = SwingModifier.lineBorder(Color.RED, 2)) }
+        val label = onNodeOfType<JLabel>()
+        val first = label.fetch<JLabel>().border
+
+        caption = "second"
+        awaitIdle()
+        // The declaration is made of values, so a recomposition that leaves them alone leaves the
+        // border the component already holds in place instead of exchanging it for an equal one.
+        assertSame(first, label.fetch<JLabel>().border, "an unchanged declaration should keep the border")
+    }
+
+    @Test
+    fun lineBorderReplacesTheBorderWhenItsColorChanges() = runComposeSwingTest {
+        var color by mutableStateOf(Color.RED)
+        setContent { Label("X", modifier = SwingModifier.lineBorder(color)) }
+        val label = onNodeOfType<JLabel>()
+        val first = label.fetch<JLabel>().border
+
+        color = Color.BLUE
+        awaitIdle()
+        val second = label.fetch<JLabel>().border
+        assertNotSame(first, second, "a changed color should rebuild the border")
+        assertIs<LineBorder>(second, "the rebuilt border should still be a line border")
+        assertEquals(Color.BLUE, second.lineColor, "the new color should reach the border")
+    }
+
+    @Test
+    fun lineBorderRestoresTheDefaultOnRemoval() = runComposeSwingTest {
+        var styled by mutableStateOf(true)
+        setContent {
+            Label("untouched")
+            Label("styled", modifier = if (styled) SwingModifier.lineBorder(Color.RED) else SwingModifier)
+        }
+        val styledLabel = onNodeWithText("styled")
+        val default = onNodeWithText("untouched").fetch<JLabel>().border
+        assertIs<LineBorder>(styledLabel.fetch<JLabel>().border, "the line border should apply while present")
+
+        styled = false
+        awaitIdle()
+        assertSame(
+            default,
+            styledLabel.fetch<JLabel>().border,
+            "removing the modifier should restore the default border",
+        )
+    }
+
+    @Test
+    fun theLastBorderDeclarationInTheChainWins() = runComposeSwingTest {
+        var styled by mutableStateOf(true)
+        setContent {
+            Label("untouched")
+            Label(
+                "styled",
+                modifier = if (styled) SwingModifier.lineBorder(Color.RED).emptyBorder(4) else SwingModifier,
+            )
+        }
+        val styledLabel = onNodeWithText("styled")
+        val default = onNodeWithText("untouched").fetch<JLabel>().border
+        val label = styledLabel.fetch<JLabel>()
+        // A line border of the default thickness would report 1 on every side, and the two of them
+        // compounded would report 5: the component carries the last declaration alone.
+        assertEquals(
+            Insets(4, 4, 4, 4),
+            label.border.getBorderInsets(label),
+            "the last declaration should own the component's one border",
+        )
+
+        styled = false
+        awaitIdle()
+        // Both declarations shared the one slot, so removing them puts back the border the component
+        // started with rather than the one the earlier declaration would have captured.
+        assertSame(
+            default,
+            styledLabel.fetch<JLabel>().border,
+            "removing both declarations should restore the default border",
+        )
+    }
+
+    @Test
     fun cursorModifierAppliesAndRestoresOnRemoval() = runComposeSwingTest {
         val hand = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
         var styled by mutableStateOf(true)
@@ -90,21 +217,6 @@ class AppearanceMetadataModifierTest {
             styledLabel.fetch<JLabel>().cursor,
             "removing the modifier should restore the default cursor",
         )
-    }
-
-    @Test
-    fun toolTipModifierAppliesAndRestoresOnRemoval() = runComposeSwingTest {
-        var styled by mutableStateOf(true)
-        setContent {
-            Label("X", modifier = if (styled) SwingModifier.toolTip("hint") else SwingModifier)
-        }
-        val label = onNodeOfType<JLabel>()
-        assertEquals("hint", label.fetch<JLabel>().toolTipText, "the tooltip should apply while present")
-
-        styled = false
-        awaitIdle()
-        // The element left the chain, so the tooltip is cleared back to the prior (null) default.
-        assertNull(label.fetch<JLabel>().toolTipText, "removing the modifier should clear the tooltip")
     }
 
     @Test

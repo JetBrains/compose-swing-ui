@@ -34,6 +34,7 @@ import javax.swing.text.JTextComponent
  * ```
  *
  * @param filter the [DocumentFilter] to apply, or `null` to remove the installed filter.
+ * @see javax.swing.text.AbstractDocument.setDocumentFilter
  */
 public fun SwingModifier.documentFilter(filter: DocumentFilter?): SwingModifier =
     this then DocumentFilterElement(filter)

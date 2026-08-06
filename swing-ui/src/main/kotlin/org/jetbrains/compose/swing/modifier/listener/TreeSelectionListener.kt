@@ -9,7 +9,9 @@ import javax.swing.JTree as SwingJTree
 
 /**
  * Attaches a [TreeSelectionListener]
- * (`addTreeSelectionListener`/`removeTreeSelectionListener`). Requires a [SwingJTree] target.
+ * (`addTreeSelectionListener`/`removeTreeSelectionListener`). Requires a [javax.swing.JTree] target.
+ *
+ * @see javax.swing.JTree.addTreeSelectionListener
  */
 public fun SwingModifier.treeSelectionListener(listener: TreeSelectionListener): SwingModifier =
     listener<SwingJTree, TreeSelectionListener>(

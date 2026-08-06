@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.modifier.datatransfer
 
+import org.jetbrains.compose.swing.platform.hostOs
 import java.awt.HeadlessException
 import java.awt.Toolkit
 import java.awt.datatransfer.Clipboard
@@ -48,14 +49,10 @@ internal fun Clipboard.contentsOrNull(): Transferable? =
  * The platform menu-shortcut modifier for clipboard key bindings: Command (META) on macOS, Control
  * elsewhere.
  */
-internal fun menuShortcutMask(): Int {
-    val mac = System.getProperty("os.name").orEmpty().startsWith("Mac", ignoreCase = true)
-    return if (mac) InputEvent.META_DOWN_MASK else InputEvent.CTRL_DOWN_MASK
-}
+internal fun menuShortcutMask(): Int = if (hostOs.isMacOs) InputEvent.META_DOWN_MASK else InputEvent.CTRL_DOWN_MASK
 
 /**
- * Returns the [SharedTransferHandler] installed on [component], installing one on first need. The
- * single handler every data-transfer modifier configures.
+ * Returns the [SharedTransferHandler] installed on [component], installing one on first need.
  */
 internal fun installedHandler(component: JComponent): SharedTransferHandler {
     val existing = component.transferHandler

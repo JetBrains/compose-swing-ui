@@ -630,26 +630,28 @@ class DataTransferModifierTest {
     }
 
     @Test
-    fun aDragOnlyComponentImportsNothing() = runComposeSwingTest {
+    fun aDragOnlyComponentKeepsTheImportItAlreadyHad() = runComposeSwingTest {
+        var edited: String? = null
         setContent {
             TextField(
                 value = "",
-                onValueChange = {},
+                onValueChange = { edited = it },
                 modifier = SwingModifier.draggable(TransferHandler.COPY) { StringSelection("out") },
             )
         }
         val source = onNodeOfType<JTextField>().fetch()
         val handler = assertNotNull(source.transferHandler, "draggable must install a TransferHandler")
 
-        // The component declares no drop capability, so the handler refuses every import outright,
-        // without consulting any flavor.
-        val incoming = support(source, StringSelection("in"))
-        assertFalse(handler.canImport(incoming), "a component with no drop target must refuse to import")
-        assertFalse(handler.importData(incoming), "a component with no drop target must not import data")
+        // The component declares no drop, so its import stays its own: a text field's paste still
+        // inserts the value, exactly as it does with no data-transfer modifier applied.
+        val incoming = support(source, StringSelection("pasted-in"))
+        assertTrue(handler.canImport(incoming), "a component with no declared drop keeps its own import")
+        assertTrue(handler.importData(incoming), "the component's own import must run the paste")
+        assertEquals("pasted-in", edited, "the pasted value must reach the text field")
     }
 
     @Test
-    fun aDropOnlyComponentExportsNothing() = runComposeSwingTest {
+    fun aDropOnlyComponentKeepsTheActionsItOffersOnItsOwn() = runComposeSwingTest {
         setContent {
             TextField(
                 value = "",
@@ -661,19 +663,51 @@ class DataTransferModifierTest {
         val target = onNodeOfType<JTextField>().fetch()
         val handler = assertNotNull(target.transferHandler, "dropTarget must install a TransferHandler")
 
-        // With no drag source declared, the handler offers no exportable action and produces nothing
-        // to export, so a drag started on it carries no payload.
-        assertEquals(
-            TransferHandler.NONE,
-            handler.getSourceActions(target),
-            "a component with no drag source offers no exported action",
+        // No drag source is declared, so the offered actions stay the editable text field's own -
+        // which include the copy it offers with no data-transfer modifier applied.
+        assertTrue(
+            (handler.getSourceActions(target) and TransferHandler.COPY) != 0,
+            "a component with no declared drag source keeps the actions it offers on its own",
         )
+        // The declared export is the only one this handler produces, so with none declared it
+        // produces nothing and a drag or clipboard export started on it carries no payload.
         val clipboard = localClipboard()
         handler.exportToClipboard(target, clipboard, TransferHandler.COPY)
         assertFalse(
             clipboard.isDataFlavorAvailable(DataFlavor.stringFlavor),
-            "a component with no drag source exports nothing",
+            "a component with no declared drag source exports nothing",
         )
+    }
+
+    @Test
+    fun aDeclaredDropOwnsTheImportInPlaceOfTheComponentsOwn() = runComposeSwingTest {
+        var edited: String? = null
+        var drops = 0
+        setContent {
+            TextField(
+                value = "",
+                onValueChange = { edited = it },
+                modifier =
+                    SwingModifier.dropTarget(
+                        acceptedActions = TransferHandler.COPY,
+                        onDrop = {
+                            drops++
+                            false
+                        },
+                    ),
+            )
+        }
+        val target = onNodeOfType<JTextField>().fetch()
+        val handler = assertNotNull(target.transferHandler, "dropTarget must install a TransferHandler")
+
+        // The declared drop decides the import alone: its refusal is the outcome, and the paste the
+        // text field performs on its own never runs beside it.
+        assertFalse(
+            handler.importData(support(target, StringSelection("dropped"))),
+            "the declared drop's refusal must be the import's outcome",
+        )
+        assertEquals(1, drops, "the declared onDrop must run for the import")
+        assertNull(edited, "the component's own import must not run beside the declared one")
     }
 
     @Test

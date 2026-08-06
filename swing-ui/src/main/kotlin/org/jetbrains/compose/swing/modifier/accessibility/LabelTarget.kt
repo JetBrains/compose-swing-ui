@@ -4,8 +4,10 @@
 package org.jetbrains.compose.swing.modifier.accessibility
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.binding
 import java.awt.Component
 import javax.swing.JLabel
 
@@ -19,15 +21,15 @@ import javax.swing.JLabel
  * so the association holds no matter which of the label and its target is declared or laid out first.
  * Binding a second component displaces the first; a label whose target is unbound reads `null`.
  */
+@Stable
 public class LabelTarget internal constructor() {
-    // The captioned component, or null while no labelTarget modifier binds this reference.
+    // The captioned component, null while no labelTarget modifier binds it.
     private var target: Component? = null
 
-    // The labels pointing at this reference; each keeps its labelFor in sync with target. A single
-    // reference may caption more than one label.
+    // Labels captioning this reference; each keeps its labelFor in sync with target.
     private val labels = mutableListOf<JLabel>()
 
-    /** Binds [component] as the captioned target, displacing any previously bound one. */
+    /** Binds [component] as the captioned target. */
     internal fun bindTarget(component: Component) {
         target = component
         labels.forEach { it.labelFor = component }
@@ -59,74 +61,20 @@ public fun rememberLabelTarget(): LabelTarget = remember { LabelTarget() }
 
 /**
  * Marks this component as the captioned target of [target], so a label whose [labelFor] modifier carries
- * the same [target] wires its `JLabel.setLabelFor` to this component. The association tracks the live
- * component and needs no name, tag, or layout pass.
+ * the same [target] wires its `JLabel.setLabelFor` to this component.
  *
  * @param target the label-target reference this component is bound to.
+ * @see javax.swing.JLabel.setLabelFor
  */
-public fun SwingModifier.labelTarget(target: LabelTarget): SwingModifier = this then LabelTargetElement(target)
+public fun SwingModifier.labelTarget(target: LabelTarget): SwingModifier =
+    binding(Component::class.java, target, LabelTarget::bindTarget, LabelTarget::unbindTarget)
 
 /**
  * Marks this label as the caption for the component bound to [target] via the [labelTarget] modifier,
- * wiring `JLabel.setLabelFor` so the label's mnemonic moves focus to that component and assistive
- * technologies read the two as a pair. Requires a `JLabel` target.
+ * wiring `JLabel.setLabelFor` to that component. Requires a `JLabel` target.
  *
  * @param target the label-target reference identifying the captioned component.
+ * @see javax.swing.JLabel.setLabelFor
  */
-public fun SwingModifier.labelFor(target: LabelTarget): SwingModifier = this then LabelForElement(target)
-
-private class LabelTargetElement(
-    private val target: LabelTarget,
-) : SwingModifier.Element<Component, LabelTargetElement.Node> {
-    override val targetType: Class<Component> get() = Component::class.java
-
-    override fun create(): Node = Node()
-
-    override fun update(node: Node) {
-        node.target = target
-    }
-
-    class Node : SwingModifier.Node<Component>() {
-        // Rebinds this component from the old reference to the new whenever the passed reference changes;
-        // detach clears it. `component` is valid for the whole attach..detach window these run in.
-        var target: LabelTarget? = null
-            set(value) {
-                if (value === field) return
-                field?.unbindTarget(component)
-                field = value
-                value?.bindTarget(component)
-            }
-
-        override fun onDetach() {
-            target = null
-        }
-    }
-}
-
-private class LabelForElement(
-    private val target: LabelTarget,
-) : SwingModifier.Element<JLabel, LabelForElement.Node> {
-    override val targetType: Class<JLabel> get() = JLabel::class.java
-
-    override fun create(): Node = Node()
-
-    override fun update(node: Node) {
-        node.target = target
-    }
-
-    class Node : SwingModifier.Node<JLabel>() {
-        // Registers this label with the reference so its labelFor tracks whichever component is bound;
-        // re-registers when the passed reference changes and deregisters on detach.
-        var target: LabelTarget? = null
-            set(value) {
-                if (value === field) return
-                field?.removeLabel(component)
-                field = value
-                value?.addLabel(component)
-            }
-
-        override fun onDetach() {
-            target = null
-        }
-    }
-}
+public fun SwingModifier.labelFor(target: LabelTarget): SwingModifier =
+    binding(JLabel::class.java, target, LabelTarget::addLabel, LabelTarget::removeLabel)

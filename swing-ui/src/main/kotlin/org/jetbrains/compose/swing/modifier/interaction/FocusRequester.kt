@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.binding
 import java.awt.Component
 
 /**
@@ -25,19 +26,16 @@ import java.awt.Component
  */
 @Stable
 public class FocusRequester internal constructor() {
-    // The component this requester currently drives, or null while it is bound to none. Written only by
-    // the binding node, whose lifecycle owns the relationship.
+    // The bound component, or null when unbound. Written only by the binding node, whose lifecycle owns
+    // this relationship.
     private var target: Component? = null
 
     /**
-     * Moves keyboard focus to the bound component, returning whether the request could be made.
+     * Moves keyboard focus to the bound component, returning whether the request could be made. Returns
+     * `false` when no component is bound; otherwise delegates to the bound component's own
+     * `requestFocusInWindow`.
      *
-     * `false` means nothing was asked for: no component is bound, the bound component is not in a state
-     * that can take focus - it must be showing, focusable and inside a focusable window - or it already
-     * holds the keyboard, which Swing likewise reports as a request it did not make. `true` means the
-     * request reached the platform, which grants it asynchronously, so the component holds the focus
-     * only once it has been notified of the gain. That is the contract of the widget's own
-     * `requestFocusInWindow`, which is likewise advisory.
+     * @see java.awt.Component.requestFocusInWindow
      */
     public fun requestFocus(): Boolean = target?.requestFocusInWindow() ?: false
 
@@ -61,34 +59,8 @@ public fun rememberFocusRequester(): FocusRequester = remember { FocusRequester(
  * binding over from the previous one.
  *
  * One component takes one requester: declaring two on the same chain binds the last one.
+ *
+ * @see java.awt.Component.requestFocusInWindow
  */
 public fun SwingModifier.focusRequester(focusRequester: FocusRequester): SwingModifier =
-    this then FocusRequesterElement(focusRequester)
-
-private class FocusRequesterElement(
-    private val focusRequester: FocusRequester,
-) : SwingModifier.Element<Component, FocusRequesterElement.Node> {
-    override val targetType: Class<Component> get() = Component::class.java
-
-    override fun create(): Node = Node()
-
-    override fun update(node: Node) {
-        node.requester = focusRequester
-    }
-
-    class Node : SwingModifier.Node<Component>() {
-        // The currently bound requester, held so a swap unbinds exactly the previous one - the one thing
-        // the declaration site cannot know.
-        var requester: FocusRequester? = null
-            set(value) {
-                if (value === field) return
-                field?.unbind(component)
-                field = value
-                value?.bind(component)
-            }
-
-        override fun onDetach() {
-            requester = null
-        }
-    }
-}
+    binding(Component::class.java, focusRequester, FocusRequester::bind, FocusRequester::unbind)

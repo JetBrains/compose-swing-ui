@@ -13,10 +13,7 @@ import java.awt.Rectangle
  * Sets the component's `bounds` - its position and size within its parent. Effective in a parent that
  * does not lay its children out (a null layout, or a `LayeredPane`), where each child positions itself.
  *
- * @param x the left edge relative to the parent
- * @param y the top edge relative to the parent
- * @param width the width
- * @param height the height
+ * @see java.awt.Component.setBounds
  */
 public fun SwingModifier.bounds(
     x: Int,
@@ -41,6 +38,8 @@ public fun SwingModifier.bounds(
  * combining; `x(10).location(20, 30)` yields (20, 30) (the later [location] wins the x axis);
  * `location(20, 30).x(10)` yields (10, 30) (the later [x] wins the x axis, the y axis stays from
  * [location]).
+ *
+ * @see java.awt.Component.setLocation
  */
 public fun SwingModifier.location(
     x: Int,
@@ -51,6 +50,8 @@ public fun SwingModifier.location(
  * Sets the component's actual location to [point], like `setLocation`. See [location] (the `Int`
  * overload) for how it takes effect only outside a managed layout and how [location]/[x]/[y] compose
  * per axis.
+ *
+ * @see java.awt.Component.setLocation
  */
 public fun SwingModifier.location(point: Point): SwingModifier =
     this then propertyElement<Component, Point>(point, read = { it.location }, write = { c, v -> c.location = v })
@@ -59,6 +60,8 @@ public fun SwingModifier.location(point: Point): SwingModifier =
  * Sets the component's actual x position to [value], keeping its current y, like `setLocation(x, y)`.
  * See [location] (the `Int` overload) for how it takes effect only outside a managed layout and how
  * [location]/[x]/[y] compose per axis.
+ *
+ * @see java.awt.Component.setLocation
  */
 public fun SwingModifier.x(value: Int): SwingModifier =
     this then propertyElement<Component, Int>(value, read = { it.x }, write = { c, v -> c.setLocation(v, c.y) })
@@ -67,6 +70,8 @@ public fun SwingModifier.x(value: Int): SwingModifier =
  * Sets the component's actual y position to [value], keeping its current x, like `setLocation(x, y)`.
  * See [location] (the `Int` overload) for how it takes effect only outside a managed layout and how
  * [location]/[x]/[y] compose per axis.
+ *
+ * @see java.awt.Component.setLocation
  */
 public fun SwingModifier.y(value: Int): SwingModifier =
     this then propertyElement<Component, Int>(value, read = { it.y }, write = { c, v -> c.setLocation(c.x, v) })

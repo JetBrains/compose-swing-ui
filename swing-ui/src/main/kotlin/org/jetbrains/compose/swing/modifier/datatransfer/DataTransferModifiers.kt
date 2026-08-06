@@ -1,14 +1,17 @@
 package org.jetbrains.compose.swing.modifier.datatransfer
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
 import org.jetbrains.compose.swing.constants.TransferAction
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.binding
 import java.awt.Point
 import java.awt.datatransfer.Clipboard
 import java.awt.datatransfer.DataFlavor
 import java.awt.datatransfer.Transferable
 import java.awt.dnd.DragSource
+import java.awt.event.InputEvent
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import javax.swing.JComponent
@@ -28,16 +31,22 @@ import kotlin.math.abs
  * [exportedActions] declares which operations the source offers (a [TransferAction] `TransferHandler`
  * action bit-mask, e.g. `TransferHandler.COPY`, `TransferHandler.COPY_OR_MOVE`); a drop is permitted
  * only for an operation also accepted by the target. [transferable] is invoked when a drag begins on
- * the component (already typed [JComponent]) and returns the data to transfer, or `null` to start no
- * drag.
+ * the component and returns the data to transfer, or `null` to start no drag.
  *
  * The outcome of every export - the completed action, including a `MOVE` whose data the source
  * should remove - is reported through [onExportDone].
+ *
+ * Declaring a source takes over the component's export: [transferable] and [exportedActions] are what
+ * it exports and what it offers, in place of whatever it exported on its own. Its import is left
+ * alone - without a [dropTarget] or a [clipboard] on the same component, a drop or a paste is handled
+ * exactly as the component handles it.
  *
  * Requires a [JComponent] target. Composes with [dropTarget] and [clipboard] on the same component:
  * all three configure one underlying transfer handler, so a component can be a drag source, a drop
  * target, and clipboard-enabled at once. [transferable] and [exportedActions] are read on each drag,
  * so passing fresh values across recompositions takes effect immediately.
+ *
+ * @see javax.swing.TransferHandler.createTransferable
  */
 public fun SwingModifier.draggable(
     @TransferAction exportedActions: Int,
@@ -53,9 +62,16 @@ public fun SwingModifier.draggable(
  * any flavor, so gating is opt-in. [onDrop] is invoked on an accepted drop with the dropped
  * [Transferable] and returns whether the import succeeded.
  *
+ * Declaring a drop takes over the component's import: [canImport] and [onDrop] decide every drop and
+ * paste that reaches it, in place of whatever it imported on its own. Without a [draggable] or a
+ * [clipboard] on the same component, the actions it offers as a source stay the ones it offers on its
+ * own.
+ *
  * Requires a [JComponent] target. Composes with [draggable] and [clipboard] on the same component.
  * [onDrop], [canImport], and [acceptedActions] are read on each drop, so passing fresh values across
  * recompositions takes effect immediately.
+ *
+ * @see javax.swing.TransferHandler.importData
  */
 public fun SwingModifier.dropTarget(
     @TransferAction acceptedActions: Int,
@@ -74,6 +90,9 @@ public fun SwingModifier.dropTarget(
  * [Transferable] to [onPaste], which returns whether the import succeeded. [canImport] defaults to
  * accepting any flavor.
  *
+ * Declaring a clipboard takes over both directions: copy and cut export [transferable] and a paste
+ * imports through [onPaste], in place of whatever the component exported and imported on its own.
+ *
  * When [bindKeys] is `true` (the default), the platform copy/cut/paste keystrokes (the menu-shortcut
  * modifier with `C`/`X`/`V`) are bound on the component so the standard shortcuts trigger these
  * operations while it is focused; pass `false` to enable the operations without installing key
@@ -84,6 +103,8 @@ public fun SwingModifier.dropTarget(
  * handle binds to the component this modifier is applied to, so [ClipboardHandle.copy],
  * [ClipboardHandle.cut] and [ClipboardHandle.paste] drive these same operations from an event handler
  * (e.g. a menu item) without the caller ever touching the [JComponent].
+ *
+ * @see javax.swing.TransferHandler.exportToClipboard
  */
 public fun SwingModifier.clipboard(
     transferable: (component: JComponent) -> Transferable?,
@@ -91,23 +112,34 @@ public fun SwingModifier.clipboard(
     canImport: (flavors: List<DataFlavor>) -> Boolean = { true },
     bindKeys: Boolean = true,
     handle: ClipboardHandle? = null,
-): SwingModifier = this then ClipboardElement(transferable, onPaste, canImport, bindKeys, handle)
+): SwingModifier =
+    (this then ClipboardElement(transferable, onPaste, canImport, bindKeys))
+        .binding(JComponent::class.java, handle, ClipboardHandle::bind, ClipboardHandle::unbind)
 
 /**
- * Registers a callback told the outcome of every data-transfer export that starts on the component:
- * once a drag ends or a clipboard copy/cut completes, [onExportDone] receives the component, the
- * exported data, and the [TransferAction] that occurred - `TransferHandler.COPY`,
- * `TransferHandler.MOVE`, or `TransferHandler.NONE` when nothing was transferred, in which case the
- * data is whatever the export offered, or `null` where it produced none.
+ * Registers a callback told the outcome of every export a [draggable] or [clipboard] source declared
+ * on this component produces: once a drag ends or a clipboard copy/cut completes, [onExportDone]
+ * receives the exported data and the [TransferAction] that occurred -
+ * `TransferHandler.COPY`, `TransferHandler.MOVE`, or `TransferHandler.NONE` when nothing was
+ * transferred, in which case the data is whatever the export offered, or `null` where it produced none.
  * A source offering `MOVE` implements move semantics here: on a reported `MOVE` it removes the moved
  * data. With no callback registered a completed export removes nothing, like
  * `TransferHandler.exportDone` itself.
  *
+ * Declaring [onExportDone] alone, with neither a [draggable] nor a [clipboard] source on the same
+ * component, has nothing of its own to export through this seam: the component's own copy and cut keep
+ * running unclaimed, and [onExportDone] is not invoked for them. A drag it starts is not claimed either,
+ * but is not left alone the way copy and cut are: the drag machinery re-reads the component's transfer
+ * handler once it recognizes the gesture, finds no declared transferable there, and completes as
+ * `TransferHandler.NONE` - a completion [onExportDone] does receive, even though no drag actually ran.
+ *
  * Requires a [JComponent] target. Composes with [draggable] and [clipboard] on the same component:
  * the component's data-transfer modifiers configure one underlying transfer handler with a single
- * export-completion seam, so the callback observes every export regardless of which modifier
- * initiated it. [onExportDone] is read on each export, so passing a fresh value across recompositions
- * takes effect immediately.
+ * export-completion seam, so the callback observes every export a declared source on this component
+ * produces, regardless of which modifier declared that source. [onExportDone] is read on each export,
+ * so passing a fresh value across recompositions takes effect immediately.
+ *
+ * @see javax.swing.TransferHandler.exportDone
  */
 public fun SwingModifier.onExportDone(
     onExportDone: (component: JComponent, data: Transferable?, action: Int) -> Unit,
@@ -123,6 +155,7 @@ public fun SwingModifier.onExportDone(
  * before the modifier applies or after it leaves the chain - [copy] and [cut] are no-ops and [paste]
  * returns `false`.
  */
+@Stable
 public class ClipboardHandle internal constructor(
     // The clipboard copy/cut/paste act on, resolved on each operation and `null` where the environment
     // has none, which leaves every operation a no-op.
@@ -136,6 +169,8 @@ public class ClipboardHandle internal constructor(
      * Copies to the system clipboard: exports the value the bound component's [clipboard] modifier
      * produces as a `TransferHandler.COPY`. A no-op while the handle is unbound or no clipboard is
      * reachable; a clipboard that refuses the value completes the export as `TransferHandler.NONE`.
+     *
+     * @see javax.swing.TransferHandler.exportToClipboard
      */
     public fun copy() {
         export(TransferHandler.COPY)
@@ -146,6 +181,8 @@ public class ClipboardHandle internal constructor(
      * produces as a `TransferHandler.MOVE`, reported through the component's [onExportDone] so the
      * source can remove the moved data. A no-op while the handle is unbound or no clipboard is
      * reachable; a clipboard that refuses the value reports `TransferHandler.NONE` in place of the move.
+     *
+     * @see javax.swing.TransferHandler.exportToClipboard
      */
     public fun cut() {
         export(TransferHandler.MOVE)
@@ -156,6 +193,8 @@ public class ClipboardHandle internal constructor(
      * modifier's `canImport` accepts the flavors, imports the contents through that modifier's
      * `onPaste`. Returns whether the import succeeded; returns `false` while the handle is unbound, or
      * while no clipboard is reachable or its contents cannot be read.
+     *
+     * @see javax.swing.TransferHandler.importData
      */
     public fun paste(): Boolean {
         val component = component ?: return false
@@ -316,7 +355,6 @@ private class ClipboardElement(
     private val onPaste: (Transferable) -> Boolean,
     private val canImport: (List<DataFlavor>) -> Boolean,
     private val bindKeys: Boolean,
-    private val handle: ClipboardHandle?,
 ) : SwingModifier.Element<JComponent, ClipboardElement.Node> {
     override val targetType: Class<JComponent> get() = JComponent::class.java
 
@@ -326,7 +364,6 @@ private class ClipboardElement(
         node.transferable = transferable
         node.onPaste = onPaste
         node.canImport = canImport
-        node.handle = handle
         node.apply()
     }
 
@@ -336,17 +373,6 @@ private class ClipboardElement(
         var transferable: (JComponent) -> Transferable? = { null }
         var onPaste: (Transferable) -> Boolean = { false }
         var canImport: (List<DataFlavor>) -> Boolean = { true }
-
-        // The handle to drive copy/cut/paste, read live so a handle passed on a later recomposition
-        // binds to this component and one that leaves (or is replaced) unbinds. The field holds the
-        // currently bound handle, so onDetach unbinds exactly the one this node bound.
-        var handle: ClipboardHandle? = null
-            set(value) {
-                if (value === field) return
-                field?.unbind(component)
-                field = value
-                value?.bind(component)
-            }
 
         private var keysBound = false
 
@@ -374,8 +400,6 @@ private class ClipboardElement(
 
         override fun onDetach() {
             val component = component
-            // Clearing the handle runs its setter, which unbinds this component from the bound handle.
-            handle = null
             clearSlotIfOwned(component, this) { it.source }
             clearSlotIfOwned(component, this) { it.drop }
             if (keysBound) unbindClipboardKeys(component)
@@ -464,7 +488,8 @@ internal class DropConfig(
  * [source] (drag/clipboard export) slot, a [drop] (drop/clipboard import) slot, and the
  * [onExportDone] export-completion seam, and routes the `TransferHandler` callbacks to whichever are
  * occupied, so drag, drop, and clipboard coexist on a single component. [original] is the handler the
- * component had before this one was installed, so it can be restored once every slot is empty.
+ * component had before this one was installed: it answers the callbacks no slot is occupied for, and
+ * is restored once every slot is empty.
  */
 internal class SharedTransferHandler : TransferHandler() {
     var original: TransferHandler? = null
@@ -473,7 +498,44 @@ internal class SharedTransferHandler : TransferHandler() {
     val drop = SliceSlot<DropConfig>()
     val onExportDone = SliceSlot<(JComponent, Transferable?, Int) -> Unit>()
 
-    override fun getSourceActions(c: JComponent?): Int = source.value?.exportedActions ?: NONE
+    /**
+     * Whether the component's own handler is the one that exports. `createTransferable` and `exportDone`
+     * are `protected`, so they cannot be forwarded to [original] the way the import callbacks are: a
+     * component that declared no source would otherwise answer `getSourceActions` on its handler's
+     * behalf and then hand back no transferable, and its copy and cut would stop working - even where an
+     * [onExportDone] is declared, since it has nothing of its own to export. With no source slot occupied
+     * the two public export entry points are given to [original] whole instead.
+     *
+     * That hand-off is complete for [exportToClipboard]: it calls `createTransferable` and `exportDone`
+     * on itself, so [original]'s own `exportDone` answers the export instead of [onExportDone]. It is not
+     * complete for [exportAsDrag]: Swing's drag machinery re-reads the component's *installed* transfer
+     * handler - still this one - once the gesture is recognized, so the drag finds no transferable here
+     * and [onExportDone] receives its `TransferHandler.NONE` completion instead of [original] ever
+     * running.
+     */
+    private val exportsThroughOriginal: TransferHandler?
+        get() = if (source.value == null) original else null
+
+    override fun exportToClipboard(
+        comp: JComponent,
+        clip: Clipboard,
+        action: Int,
+    ) {
+        val owner = exportsThroughOriginal
+        if (owner == null) super.exportToClipboard(comp, clip, action) else owner.exportToClipboard(comp, clip, action)
+    }
+
+    override fun exportAsDrag(
+        comp: JComponent,
+        event: InputEvent,
+        action: Int,
+    ) {
+        val owner = exportsThroughOriginal
+        if (owner == null) super.exportAsDrag(comp, event, action) else owner.exportAsDrag(comp, event, action)
+    }
+
+    override fun getSourceActions(c: JComponent?): Int =
+        source.value?.exportedActions ?: original?.getSourceActions(c) ?: NONE
 
     override fun createTransferable(c: JComponent): Transferable? = source.value?.transferable?.invoke(c)
 
@@ -488,14 +550,16 @@ internal class SharedTransferHandler : TransferHandler() {
         onExportDone.value?.invoke(source, data, action)
     }
 
+    // With a drop slice occupied the declared import decides; with none, the component keeps the
+    // import it already had, so a widget that ships one (a text component's paste) still performs it.
     override fun canImport(support: TransferSupport): Boolean {
-        val config = drop.value ?: return false
+        val config = drop.value ?: return original?.canImport(support) ?: false
         val actionAccepted = !support.isDrop || (config.acceptedActions and support.dropAction) != 0
         return actionAccepted && config.canImport(support.dataFlavors.asList())
     }
 
     override fun importData(support: TransferSupport): Boolean {
-        val config = drop.value ?: return false
+        val config = drop.value ?: return original?.importData(support) ?: false
         return canImport(support) && config.onImport(support.transferable)
     }
 }

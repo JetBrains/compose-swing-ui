@@ -4,15 +4,19 @@ import org.intellij.lang.annotations.MagicConstant
 import java.awt.FlowLayout
 import java.awt.Frame
 import java.awt.GridBagConstraints
+import java.util.Calendar
 import javax.swing.BoxLayout
 import javax.swing.JComponent
 import javax.swing.JFormattedTextField
+import javax.swing.JList
 import javax.swing.JScrollPane
 import javax.swing.JSplitPane
 import javax.swing.JTabbedPane
+import javax.swing.JTable
 import javax.swing.ListSelectionModel
 import javax.swing.SwingConstants
 import javax.swing.TransferHandler
+import javax.swing.text.DefaultCaret
 import javax.swing.tree.TreeSelectionModel
 
 /*
@@ -59,6 +63,10 @@ public annotation class HorizontalScrollbarPolicy
         JScrollPane.UPPER_TRAILING_CORNER,
         JScrollPane.LOWER_LEADING_CORNER,
         JScrollPane.LOWER_TRAILING_CORNER,
+        JScrollPane.UPPER_LEFT_CORNER,
+        JScrollPane.UPPER_RIGHT_CORNER,
+        JScrollPane.LOWER_LEFT_CORNER,
+        JScrollPane.LOWER_RIGHT_CORNER,
     ],
 )
 public annotation class ScrollPaneCorner
@@ -73,6 +81,34 @@ public annotation class ScrollPaneCorner
     ],
 )
 public annotation class SelectionMode
+
+/**
+ * A `JList` cell layout (`VERTICAL`/`VERTICAL_WRAP`/`HORIZONTAL_WRAP`), for `ListBox`: a single column
+ * of cells, or cells wrapped into as many columns or rows as the space allows - filling column by
+ * column for `VERTICAL_WRAP`, row by row for `HORIZONTAL_WRAP`.
+ */
+@Retention(AnnotationRetention.BINARY)
+@MagicConstant(
+    intValues = [
+        JList.VERTICAL.toLong(),
+        JList.VERTICAL_WRAP.toLong(),
+        JList.HORIZONTAL_WRAP.toLong(),
+    ],
+)
+public annotation class ListLayoutOrientation
+
+/** A `JTable` auto-resize mode (`AUTO_RESIZE_*`). */
+@Retention(AnnotationRetention.BINARY)
+@MagicConstant(
+    intValues = [
+        JTable.AUTO_RESIZE_OFF.toLong(),
+        JTable.AUTO_RESIZE_NEXT_COLUMN.toLong(),
+        JTable.AUTO_RESIZE_SUBSEQUENT_COLUMNS.toLong(),
+        JTable.AUTO_RESIZE_LAST_COLUMN.toLong(),
+        JTable.AUTO_RESIZE_ALL_COLUMNS.toLong(),
+    ],
+)
+public annotation class AutoResizeMode
 
 /** A `TreeSelectionModel` selection mode (`*_TREE_SELECTION`), for `Tree`. */
 @Retention(AnnotationRetention.BINARY)
@@ -188,8 +224,7 @@ public annotation class SplitOrientation
 
 /**
  * A `GridBagConstraints` anchor: where a child sits inside its display area when the area is larger
- * than the child. Absolute (`CENTER`, `NORTH`, ...), orientation-relative (`PAGE_START`, `LINE_END`, ...)
- * and baseline-relative (`BASELINE`, `ABOVE_BASELINE_LEADING`, ...) values are all accepted.
+ * than the child.
  */
 @Retention(AnnotationRetention.BINARY)
 @MagicConstant(
@@ -252,6 +287,20 @@ public annotation class GridBagFill
 public annotation class FocusLostBehavior
 
 /**
+ * A `DefaultCaret` update policy (`ALWAYS_UPDATE`/`NEVER_UPDATE`/`UPDATE_WHEN_ON_EDT`): whether the
+ * caret is carried along by an edit made elsewhere in the document, and from which thread.
+ */
+@Retention(AnnotationRetention.BINARY)
+@MagicConstant(
+    intValues = [
+        DefaultCaret.ALWAYS_UPDATE.toLong(),
+        DefaultCaret.NEVER_UPDATE.toLong(),
+        DefaultCaret.UPDATE_WHEN_ON_EDT.toLong(),
+    ],
+)
+public annotation class CaretUpdatePolicy
+
+/**
  * A `JComponent` input-map focus condition (`WHEN_FOCUSED`, `WHEN_ANCESTOR_OF_FOCUSED_COMPONENT`,
  * `WHEN_IN_FOCUSED_WINDOW`), passed to `getInputMap(int)`.
  */
@@ -302,3 +351,31 @@ public annotation class ContentType
     ],
 )
 public annotation class WindowExtendedState
+
+/**
+ * A `Calendar` field a date sequence advances by one unit of, as `SpinnerDateModel` steps its value
+ * (`ERA`, `YEAR`, `MONTH`, `WEEK_OF_YEAR`, `WEEK_OF_MONTH`, `DAY_OF_MONTH`, `DAY_OF_YEAR`,
+ * `DAY_OF_WEEK`, `DAY_OF_WEEK_IN_MONTH`, `AM_PM`, `HOUR`, `HOUR_OF_DAY`, `MINUTE`, `SECOND`,
+ * `MILLISECOND`).
+ */
+@Retention(AnnotationRetention.BINARY)
+@MagicConstant(
+    intValues = [
+        Calendar.ERA.toLong(),
+        Calendar.YEAR.toLong(),
+        Calendar.MONTH.toLong(),
+        Calendar.WEEK_OF_YEAR.toLong(),
+        Calendar.WEEK_OF_MONTH.toLong(),
+        Calendar.DAY_OF_MONTH.toLong(),
+        Calendar.DAY_OF_YEAR.toLong(),
+        Calendar.DAY_OF_WEEK.toLong(),
+        Calendar.DAY_OF_WEEK_IN_MONTH.toLong(),
+        Calendar.AM_PM.toLong(),
+        Calendar.HOUR.toLong(),
+        Calendar.HOUR_OF_DAY.toLong(),
+        Calendar.MINUTE.toLong(),
+        Calendar.SECOND.toLong(),
+        Calendar.MILLISECOND.toLong(),
+    ],
+)
+public annotation class CalendarField

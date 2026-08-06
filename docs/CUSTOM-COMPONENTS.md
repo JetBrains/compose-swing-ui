@@ -470,8 +470,8 @@ public fun SwingModifier.toolTip(text: String?): SwingModifier =
 ```
 
 The built-in `toolTip` builder is the same property shape - capture in attach, write in update,
-restore in detach - reusing a shared property node internally; the code above is the public
-`Element`/`Node` path you write for a property the library does not ship.
+restore in detach; the code above is the public `Element`/`Node` path you write for a property the
+library does not ship.
 
 For a property every component has (no `JComponent`-only access), target `Component` instead -
 `Element<Component, ...>` with `targetType = Component::class.java` - and the node's `component` arrives

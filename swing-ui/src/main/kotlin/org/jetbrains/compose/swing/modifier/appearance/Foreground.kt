@@ -9,7 +9,11 @@ import java.awt.Color
 import java.awt.Component
 import javax.swing.JComponent
 
-/** Sets `foreground`; `null` restores the inherited/look-and-feel default. */
+/**
+ * Sets `foreground`; `null` restores the inherited/look-and-feel default.
+ *
+ * @see java.awt.Component.setForeground
+ */
 public fun SwingModifier.foreground(color: Color?): SwingModifier =
     this then
         propertyElement<Component, Color?>(

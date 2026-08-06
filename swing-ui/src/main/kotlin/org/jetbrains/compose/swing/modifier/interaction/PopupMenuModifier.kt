@@ -47,6 +47,7 @@ import javax.swing.JPopupMenu
  * @param expanded whether the menu is open.
  * @param onDismiss invoked when the user closes the menu.
  * @param content the composable menu tree shown in the menu.
+ * @see javax.swing.JPopupMenu.show
  */
 @Composable
 public fun SwingModifier.popupMenu(

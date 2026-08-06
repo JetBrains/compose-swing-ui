@@ -19,6 +19,9 @@ import javax.swing.JTextField
  * Applies to labels, to everything built on a button, and to single-line text fields.
  *
  * @param alignment a [HorizontalAlignment] `SwingConstants` value.
+ * @see javax.swing.JLabel.setHorizontalAlignment
+ * @see javax.swing.AbstractButton.setHorizontalAlignment
+ * @see javax.swing.JTextField.setHorizontalAlignment
  */
 public fun SwingModifier.horizontalAlignment(
     @HorizontalAlignment alignment: Int,
@@ -31,6 +34,8 @@ public fun SwingModifier.horizontalAlignment(
  * and offers no vertical alignment of its own.
  *
  * @param alignment a [VerticalAlignment] `SwingConstants` value.
+ * @see javax.swing.JLabel.setVerticalAlignment
+ * @see javax.swing.AbstractButton.setVerticalAlignment
  */
 public fun SwingModifier.verticalAlignment(
     @VerticalAlignment alignment: Int,

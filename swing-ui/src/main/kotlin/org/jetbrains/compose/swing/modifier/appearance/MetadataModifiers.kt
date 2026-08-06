@@ -11,10 +11,14 @@ import javax.swing.JComponent
 
 /*
  * Metadata SwingModifiers - auxiliary data that does not change appearance or layout: the component
- * name, tooltip, look-and-feel client properties, and the test tag.
+ * name, look-and-feel client properties, and the test tag.
  */
 
-/** Sets `name` - the key components are looked up by in tests and automation; `null` clears it. */
+/**
+ * Sets `name` - the key components are looked up by in tests and automation; `null` clears it.
+ *
+ * @see java.awt.Component.setName
+ */
 public fun SwingModifier.name(name: String?): SwingModifier =
     this then propertyElement<Component, String?>(name, read = { it.name }, write = { c, v -> c.name = v })
 
@@ -34,26 +38,18 @@ private class TestTagElement(
         write = { c, v -> c.putClientProperty(TEST_TAG_CLIENT_PROPERTY_KEY, v) },
     )
 
-/** Sets `toolTipText`; `null` clears the tooltip. Requires a `JComponent` target. */
-public fun SwingModifier.toolTip(text: String?): SwingModifier =
-    this then
-        propertyElement<JComponent, String?>(
-            text,
-            read = { it.toolTipText },
-            write = { c, v -> c.toolTipText = v },
-        )
-
 /**
  * Sets a `putClientProperty` entry - the escape hatch for look-and-feel styling keys (e.g. FlatLaf)
  * and accessibility hints. Each distinct [key] is an independent modifier slot; `null` restores the
  * value the component had before. Requires a `JComponent` target.
+ *
+ * @see javax.swing.JComponent.putClientProperty
  */
 public fun SwingModifier.clientProperty(
     key: Any,
     value: Any?,
 ): SwingModifier =
     this then
-        // Key the slot by the client-property key so distinct client properties are independent slots.
         KeyedPropertyElement(
             JComponent::class.java,
             key,

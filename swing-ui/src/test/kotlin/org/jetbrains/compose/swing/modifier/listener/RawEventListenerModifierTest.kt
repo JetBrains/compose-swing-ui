@@ -10,10 +10,13 @@ import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import java.awt.Color
+import javax.swing.JColorChooser
 import javax.swing.JInternalFrame
 import javax.swing.JList
 import javax.swing.JSlider
 import javax.swing.JTree
+import javax.swing.colorchooser.DefaultColorSelectionModel
 import javax.swing.event.ChangeEvent
 import javax.swing.event.ChangeListener
 import javax.swing.event.InternalFrameAdapter
@@ -125,6 +128,30 @@ class RawEventListenerModifierTest {
         val event = InternalFrameEvent(frame, InternalFrameEvent.INTERNAL_FRAME_CLOSING)
         frame.internalFrameListeners.forEach { it.internalFrameClosing(event) }
         assertEquals(1, closing, "the registered listener should fire once on the closing event")
+    }
+
+    @Test
+    fun changeListenerOnAColorChooserIsRegisteredOnItsSelectionModelAndFiresOnASelection() = runComposeSwingTest {
+        var fired = 0
+        val listener = ChangeListener { fired++ }
+        setContent {
+            SwingNode(
+                factory = { JColorChooser() },
+                update = {
+                    applyModifier(SwingModifier.changeListener(listener))
+                },
+            )
+        }
+        val chooser = onNodeOfType<JColorChooser>().fetch()
+        val model = chooser.selectionModel as DefaultColorSelectionModel
+        assertTrue(
+            model.changeListeners.any { it === listener },
+            "the listener instance should be registered on the chooser's selection model",
+        )
+
+        model.selectedColor = Color.RED
+        awaitIdle()
+        assertTrue(fired > 0, "the registered listener must fire when the chooser's selected colour changes")
     }
 
     @Test

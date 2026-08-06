@@ -17,14 +17,16 @@ import javax.swing.text.JTextComponent
  *
  * This is the space inside the border; to put space outside it, size the component or space it in its
  * container. Removing the modifier restores the space the look and feel had chosen.
+ *
+ * @see javax.swing.AbstractButton.setMargin
+ * @see javax.swing.text.JTextComponent.setMargin
  */
 public fun SwingModifier.margin(margin: Insets): SwingModifier =
     this then MultiTargetPropertyElement(MarginProperty, margin)
 
 /**
- * A button and a text component each declare this for themselves, with nothing between them declaring
- * it. The value read back is nullable - both report no margin as null - even though a caller always
- * supplies one.
+ * A button and a text component each declare margin for themselves, and no supertype between them
+ * declares it. Both report no margin as null, even though the public function always takes an [Insets].
  */
 private val MarginProperty =
     MultiTargetProperty<Insets?>(
@@ -35,7 +37,7 @@ private val MarginProperty =
         ),
         propertyCase<JTextComponent, Insets?>(
             read = { it.margin },
-            // A text component only invalidates on this one, so ask for the layout it needs.
+            // JTextComponent.setMargin does not revalidate on its own; ask for the layout it needs.
             write = { c, v ->
                 c.margin = v
                 c.revalidate()

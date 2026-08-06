@@ -28,6 +28,8 @@ import javax.swing.JComponent
  * A component whose gate must be bypassed - a Cancel button, which has to activate whatever the focused
  * field holds - declares [verifyInputWhenFocusTarget] `false` instead. Removing this modifier puts back
  * the verifier the component carried before it was applied.
+ *
+ * @see javax.swing.JComponent.setInputVerifier
  */
 public fun SwingModifier.inputVerifier(verify: () -> Boolean): SwingModifier = this then InputVerifierElement(verify)
 
@@ -35,6 +37,8 @@ public fun SwingModifier.inputVerifier(verify: () -> Boolean): SwingModifier = t
  * Whether the [inputVerifier] of the component that currently holds the keyboard is consulted before
  * focus moves to *this* component. Swing's own value is `true`; declare `false` on a control that must
  * act regardless of what the focused field holds, such as a Cancel button or a scrollbar.
+ *
+ * @see javax.swing.JComponent.setVerifyInputWhenFocusTarget
  */
 public fun SwingModifier.verifyInputWhenFocusTarget(verify: Boolean): SwingModifier =
     this then

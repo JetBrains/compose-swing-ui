@@ -36,6 +36,8 @@ public fun SwingModifier.focusTraversalIndex(index: Int): SwingModifier =
  * stop exactly where it would be in a hand-written form, so captions, layout containers and anything
  * that cannot take the keyboard are stepped over. [focusable] declares that judgement for the
  * component it is applied to.
+ *
+ * @see java.awt.Container.setFocusTraversalPolicy
  */
 public fun SwingModifier.orderedFocusTraversal(): SwingModifier = this then OrderedFocusTraversalElement
 
@@ -87,9 +89,8 @@ private class SavedFocusTraversal(
 )
 
 /**
- * The policy every ordered container is given: Swing's own layout traversal policy, sorting the cycle
- * by [focusTraversalIndex] instead of by geometry and leaving the judgement of what a stop is to the
- * policy a Swing form is traversed with.
+ * The policy every ordered container is given, sorting the focus cycle by [focusTraversalIndex] instead
+ * of geometry.
  */
 private object CompositionOrderFocusTraversalPolicy : LayoutFocusTraversalPolicy() {
     init {
@@ -158,7 +159,6 @@ private fun Component.pathFromTop(): List<Component> {
     return path
 }
 
-/** Compares two children of one container by the order it holds them in. */
 private fun compareSiblingOrder(
     first: Component,
     second: Component,

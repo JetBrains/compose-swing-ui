@@ -4,8 +4,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.MenuItem
+import org.jetbrains.compose.swing.components.ProgressBar
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.button.CheckBox
+import org.jetbrains.compose.swing.components.layout.ToolBar
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.composeMenu
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -17,7 +19,9 @@ import java.awt.Insets
 import javax.swing.JButton
 import javax.swing.JCheckBox
 import javax.swing.JMenuItem
+import javax.swing.JProgressBar
 import javax.swing.JTextField
+import javax.swing.JToolBar
 import javax.swing.SwingUtilities
 import javax.swing.UIManager
 import javax.swing.plaf.nimbus.NimbusLookAndFeel
@@ -70,6 +74,19 @@ class ButtonAndTextAppearanceModifierTest {
         awaitIdle()
 
         assertTrue(button.isBorderPainted, "dropping it restores the button's own painting")
+    }
+
+    @Test
+    fun borderPaintingReachesTheComponentsOutsideAButtonsFamilyThatCarryIt() = runComposeSwingTest {
+        // A progress bar and a tool bar declare border painting for themselves, sharing no supertype
+        // that carries it with a button, so the modifier reaches each of them through its own accessor.
+        setContent {
+            ProgressBar(value = 50, modifier = SwingModifier.borderPainted(false))
+            ToolBar(modifier = SwingModifier.borderPainted(false))
+        }
+
+        assertFalse(onNodeOfType<JProgressBar>().fetch().isBorderPainted, "progress bar")
+        assertFalse(onNodeOfType<JToolBar>().fetch().isBorderPainted, "tool bar")
     }
 
     @Test
