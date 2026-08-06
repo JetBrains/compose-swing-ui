@@ -1,6 +1,5 @@
 package org.jetbrains.compose.swing.modifier.listener
 
-import org.jetbrains.compose.swing.SwingNode
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.Slider
 import org.jetbrains.compose.swing.components.layout.ScrollPane
@@ -8,6 +7,7 @@ import org.jetbrains.compose.swing.components.selection.ListBox
 import org.jetbrains.compose.swing.components.selection.Tree
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
+import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JInternalFrame

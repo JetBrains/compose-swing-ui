@@ -1,6 +1,8 @@
 package org.jetbrains.compose.swing.core
 
 import androidx.compose.runtime.snapshots.SnapshotStateObserver
+import org.jetbrains.compose.swing.node.SwingApplier
+import org.jetbrains.compose.swing.node.SwingNodeHolder
 import java.awt.BorderLayout
 import java.awt.Component
 import java.awt.Container
@@ -40,13 +42,11 @@ class SwingApplierArrayOrderTest {
 
     private fun holder(component: Component): SwingNodeHolder<*> = SwingNodeHolder(component)
 
-    /** Observers created for the appliers under test, disposed in [disposeObservers]. */
     private val observers = mutableListOf<SnapshotStateObserver>()
 
     /**
-     * Builds a [SwingApplier] over [root] with a snapshot observer this test owns and disposes, so the
-     * global apply-observer registration the applier starts is torn down at test end rather than
-     * leaked (the production path disposes it with the composition mount).
+     * Builds a [SwingApplier] over [root]. Production disposes its snapshot observer when the
+     * composition unmounts; without a composition here, this test disposes it itself in [disposeObservers].
      */
     private fun applierFor(root: Container): SwingApplier {
         val observer = SnapshotStateObserver { it() }.apply { start() }
@@ -72,18 +72,17 @@ class SwingApplierArrayOrderTest {
 
         applier.onBeginChanges()
         applier.onContainer(applier.root) {
-            // index 0: constrained NORTH
             insertBottomUp(0, constrainedHolder(namedButton("north"), BorderLayout.NORTH))
-            // index 1: constrained CENTER
             insertBottomUp(1, constrainedHolder(namedButton("center"), BorderLayout.CENTER))
-            // index 2: constrained SOUTH
             insertBottomUp(2, constrainedHolder(namedButton("south"), BorderLayout.SOUTH))
         }
         applier.onEndChanges()
 
-        // Array order == composition order, NOT BorderLayout's internal region order.
+        // Array order equals composition order, not BorderLayout's own region order.
         assertEquals(listOf("north", "center", "south"), childNames(root), "array order should match composition order")
-        // And each constraint really was applied (the 3-arg add did both jobs).
+        // Index and constraint come from one Container.add(component, constraint, index) call, so an
+        // ordering test asserts both: a two-argument indexed add still passes the order check above,
+        // and a three-argument append still passes SwingApplierConstraintTest.
         val layout = root.layout as BorderLayout
         assertEquals(
             BorderLayout.NORTH,
@@ -122,7 +121,6 @@ class SwingApplierArrayOrderTest {
         applier.onEndChanges()
         assertEquals(listOf("center", "south"), childNames(root), "the container should start without a north child")
 
-        // Now the north slot turns on: Compose inserts it at composition index 0.
         applier.onBeginChanges()
         applier.onContainer(applier.root) {
             insertBottomUp(0, constrainedHolder(namedButton("north"), BorderLayout.NORTH))
@@ -161,21 +159,18 @@ class SwingApplierArrayOrderTest {
             "all three children should be present before removal",
         )
 
-        // Remove composition index 0 (the NORTH child).
         applier.onBeginChanges()
         applier.onContainer(applier.root) {
             remove(0, 1)
         }
         applier.onEndChanges()
 
-        // NORTH is gone; CENTER and SOUTH remain with identity and constraints intact.
         assertEquals(listOf("center", "south"), childNames(root), "remove(0) should drop the NORTH child")
         val layout = root.layout as BorderLayout
         assertSame(center, root.getComponent(0), "the CENTER instance should remain at array index 0")
         assertSame(south, root.getComponent(1), "the SOUTH instance should remain at array index 1")
         assertEquals(BorderLayout.CENTER, layout.getConstraints(center), "the CENTER child should keep its constraint")
         assertEquals(BorderLayout.SOUTH, layout.getConstraints(south), "the SOUTH child should keep its constraint")
-        // The removed NORTH child no longer has any constraint association.
         assertNull(layout.getConstraints(north), "the removed NORTH child should have no constraint association")
     }
 
@@ -191,7 +186,7 @@ class SwingApplierArrayOrderTest {
         applier.onBeginChanges()
         applier.onContainer(applier.root) {
             insertBottomUp(0, constrainedHolder(namedButton("north"), BorderLayout.NORTH))
-            insertBottomUp(1, holder(namedButton("plain"))) // unconstrained
+            insertBottomUp(1, holder(namedButton("plain")))
             insertBottomUp(2, constrainedHolder(namedButton("south"), BorderLayout.SOUTH))
         }
         applier.onEndChanges()

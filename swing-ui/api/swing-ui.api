@@ -1,39 +1,7 @@
-public final class org/jetbrains/compose/swing/AppliedValue {
-	public static final field $stable I
-	public fun <init> (Ljava/lang/Object;)V
-	public final fun isWriting ()Z
-	public final fun observed (Ljava/lang/Object;)Z
-	public final fun settle (Ljava/lang/Object;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;)V
-	public static synthetic fun settle$default (Lorg/jetbrains/compose/swing/AppliedValue;Ljava/lang/Object;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
-	public final fun write (Lkotlin/jvm/functions/Function0;)V
-}
-
-public final class org/jetbrains/compose/swing/AppliedValueKt {
-	public static final fun declare-BL0tohg (Landroidx/compose/runtime/Composer;Ljava/lang/Object;Lorg/jetbrains/compose/swing/AppliedValue;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;)V
-	public static synthetic fun declare-BL0tohg$default (Landroidx/compose/runtime/Composer;Ljava/lang/Object;Lorg/jetbrains/compose/swing/AppliedValue;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
-	public static final fun rememberAppliedValue (Ljava/lang/Object;Landroidx/compose/runtime/Composer;I)Lorg/jetbrains/compose/swing/AppliedValue;
-}
-
 public final class org/jetbrains/compose/swing/SetContentKt {
 	public static final fun setContent (Ljava/awt/Container;Lkotlin/jvm/functions/Function2;)Lkotlinx/coroutines/DisposableHandle;
 	public static final fun setContent (Ljava/awt/Window;Lkotlin/jvm/functions/Function2;)Lkotlinx/coroutines/DisposableHandle;
 	public static final fun setContent (Ljavax/swing/JMenuBar;Lkotlin/jvm/functions/Function2;)Lkotlinx/coroutines/DisposableHandle;
-}
-
-public final class org/jetbrains/compose/swing/SwingNodeUpdater {
-	public static final synthetic fun box-impl (Landroidx/compose/runtime/Composer;)Lorg/jetbrains/compose/swing/SwingNodeUpdater;
-	public static fun constructor-impl (Landroidx/compose/runtime/Composer;)Landroidx/compose/runtime/Composer;
-	public fun equals (Ljava/lang/Object;)Z
-	public static fun equals-impl (Landroidx/compose/runtime/Composer;Ljava/lang/Object;)Z
-	public static final fun equals-impl0 (Landroidx/compose/runtime/Composer;Landroidx/compose/runtime/Composer;)Z
-	public fun hashCode ()I
-	public static fun hashCode-impl (Landroidx/compose/runtime/Composer;)I
-	public static final fun reconcile-impl (Landroidx/compose/runtime/Composer;Lkotlin/jvm/functions/Function1;)V
-	public static final fun set-impl (Landroidx/compose/runtime/Composer;Ljava/lang/Object;Lkotlin/jvm/functions/Function2;)V
-	public fun toString ()Ljava/lang/String;
-	public static fun toString-impl (Landroidx/compose/runtime/Composer;)Ljava/lang/String;
-	public final synthetic fun unbox-impl ()Landroidx/compose/runtime/Composer;
-	public static final fun update-impl (Landroidx/compose/runtime/Composer;Ljava/lang/Object;Lkotlin/jvm/functions/Function2;)V
 }
 
 public abstract interface annotation class org/jetbrains/compose/swing/annotations/InternalSwingUiApi : java/lang/annotation/Annotation {
@@ -47,12 +15,21 @@ public abstract interface annotation class org/jetbrains/compose/swing/annotatio
 
 public final class org/jetbrains/compose/swing/components/ComponentsKt {
 	public static final fun Canvas (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+	public static final fun CheckBoxMenuItem (Ljava/lang/String;Ljava/awt/event/ActionListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;ZLjavax/swing/KeyStroke;Landroidx/compose/runtime/Composer;II)V
+	public static final fun CheckBoxMenuItem (Ljava/lang/String;Lorg/jetbrains/compose/swing/modifier/SwingModifier;ZLjavax/swing/KeyStroke;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
 	public static final fun ComboBox (Ljava/util/List;ILorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;ZLkotlin/jvm/functions/Function1;ILkotlin/jvm/functions/Function4;Landroidx/compose/runtime/Composer;II)V
 	public static final fun ComboBox (Ljava/util/List;Ljava/awt/event/ActionListener;ILorg/jetbrains/compose/swing/modifier/SwingModifier;ZILkotlin/jvm/functions/Function4;Landroidx/compose/runtime/Composer;II)V
 	public static final fun ComboBox (Ljavax/swing/ComboBoxModel;Ljava/awt/event/ActionListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;ZILkotlin/jvm/functions/Function4;Landroidx/compose/runtime/Composer;II)V
 	public static final fun ComboBox (Ljavax/swing/ComboBoxModel;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;ZLkotlin/jvm/functions/Function1;ILkotlin/jvm/functions/Function4;Landroidx/compose/runtime/Composer;II)V
 	public static final fun Label (Ljava/lang/String;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Landroidx/compose/runtime/Composer;II)V
+	public static final fun Menu (Ljava/lang/String;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
+	public static final fun MenuItem (Ljava/lang/String;Ljava/awt/event/ActionListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljavax/swing/KeyStroke;Landroidx/compose/runtime/Composer;II)V
+	public static final fun MenuItem (Ljava/lang/String;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljavax/swing/KeyStroke;Lkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;II)V
+	public static final fun MenuSeparator (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Landroidx/compose/runtime/Composer;II)V
 	public static final fun ProgressBar (ILorg/jetbrains/compose/swing/modifier/SwingModifier;IIZIZLjava/lang/String;Landroidx/compose/runtime/Composer;II)V
+	public static final fun RadioButtonMenuGroup (ILkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;I)V
+	public static final fun RadioButtonMenuItem (Ljava/lang/String;Ljava/awt/event/ActionListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;ZLjavax/swing/KeyStroke;Landroidx/compose/runtime/Composer;II)V
+	public static final fun RadioButtonMenuItem (Ljava/lang/String;Lorg/jetbrains/compose/swing/modifier/SwingModifier;ZLjavax/swing/KeyStroke;Lkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;II)V
 	public static final fun Separator (Lorg/jetbrains/compose/swing/modifier/SwingModifier;ILandroidx/compose/runtime/Composer;II)V
 	public static final fun Slider (ILjavax/swing/event/ChangeListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;IIIZIIZZLjava/util/Map;ZLandroidx/compose/runtime/Composer;III)V
 	public static final fun Slider (ILorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;IIIZIIZZLjava/util/Map;ZLandroidx/compose/runtime/Composer;III)V
@@ -73,18 +50,6 @@ public final class org/jetbrains/compose/swing/components/ComposableSingletons$T
 	public static final field INSTANCE Lorg/jetbrains/compose/swing/components/ComposableSingletons$TrayKt;
 	public fun <init> ()V
 	public final fun getLambda$-1905108586$swing_ui ()Lkotlin/jvm/functions/Function2;
-}
-
-public final class org/jetbrains/compose/swing/components/MenuComponentsKt {
-	public static final fun CheckBoxMenuItem (Ljava/lang/String;Ljava/awt/event/ActionListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;ZLjavax/swing/KeyStroke;Landroidx/compose/runtime/Composer;II)V
-	public static final fun CheckBoxMenuItem (Ljava/lang/String;Lorg/jetbrains/compose/swing/modifier/SwingModifier;ZLjavax/swing/KeyStroke;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
-	public static final fun Menu (Ljava/lang/String;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
-	public static final fun MenuItem (Ljava/lang/String;Ljava/awt/event/ActionListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljavax/swing/KeyStroke;Landroidx/compose/runtime/Composer;II)V
-	public static final fun MenuItem (Ljava/lang/String;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljavax/swing/KeyStroke;Lkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;II)V
-	public static final fun MenuSeparator (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Landroidx/compose/runtime/Composer;II)V
-	public static final fun RadioButtonMenuGroup (ILkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;I)V
-	public static final fun RadioButtonMenuItem (Ljava/lang/String;Ljava/awt/event/ActionListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;ZLjavax/swing/KeyStroke;Landroidx/compose/runtime/Composer;II)V
-	public static final fun RadioButtonMenuItem (Ljava/lang/String;Lorg/jetbrains/compose/swing/modifier/SwingModifier;ZLjavax/swing/KeyStroke;Lkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;II)V
 }
 
 public abstract interface class org/jetbrains/compose/swing/components/RadioButtonMenuGroupScope {
@@ -116,6 +81,7 @@ public final class org/jetbrains/compose/swing/components/button/ButtonComponent
 public final class org/jetbrains/compose/swing/components/desktop/DesktopComponentsKt {
 	public static final fun DesktopPane (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
 	public static final fun LayeredPane (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
+	public static final fun rememberInternalFrameState (Ljava/awt/Rectangle;ZZLandroidx/compose/runtime/Composer;II)Lorg/jetbrains/compose/swing/components/desktop/InternalFrameState;
 }
 
 public abstract interface class org/jetbrains/compose/swing/components/desktop/DesktopPaneScope {
@@ -158,10 +124,6 @@ public final class org/jetbrains/compose/swing/components/desktop/InternalFrameS
 	public final fun setWidth (I)V
 	public final fun setX (I)V
 	public final fun setY (I)V
-}
-
-public final class org/jetbrains/compose/swing/components/desktop/InternalFrameStateKt {
-	public static final fun rememberInternalFrameState (Ljava/awt/Rectangle;ZZLandroidx/compose/runtime/Composer;II)Lorg/jetbrains/compose/swing/components/desktop/InternalFrameState;
 }
 
 public abstract interface class org/jetbrains/compose/swing/components/desktop/LayeredPaneScope {
@@ -235,6 +197,7 @@ public final class org/jetbrains/compose/swing/components/layout/LayoutComponent
 	public static final fun TabbedPane (ILorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;IILkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
 	public static final fun ToolBar (Lorg/jetbrains/compose/swing/modifier/SwingModifier;IZLjava/lang/Boolean;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
 	public static final fun ToolBarSeparator (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/awt/Dimension;Landroidx/compose/runtime/Composer;II)V
+	public static final fun rememberScrollState (IILandroidx/compose/runtime/Composer;II)Lorg/jetbrains/compose/swing/components/layout/ScrollState;
 }
 
 public abstract interface class org/jetbrains/compose/swing/components/layout/ScrollPaneScope {
@@ -256,10 +219,6 @@ public final class org/jetbrains/compose/swing/components/layout/ScrollState {
 	public final fun getY ()I
 	public final fun setX (I)V
 	public final fun setY (I)V
-}
-
-public final class org/jetbrains/compose/swing/components/layout/ScrollStateKt {
-	public static final fun rememberScrollState (IILandroidx/compose/runtime/Composer;II)Lorg/jetbrains/compose/swing/components/layout/ScrollState;
 }
 
 public abstract interface class org/jetbrains/compose/swing/components/layout/SplitPaneScope {
@@ -440,51 +399,6 @@ public abstract interface annotation class org/jetbrains/compose/swing/constants
 public abstract interface annotation class org/jetbrains/compose/swing/constants/WindowExtendedState : java/lang/annotation/Annotation {
 }
 
-public final class org/jetbrains/compose/swing/core/ChildAttachmentKt {
-	public static final fun SlotNode (Lorg/jetbrains/compose/swing/core/SlotAttachment;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;I)V
-	public static final fun SwingConstraint (Ljava/lang/Object;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;I)V
-	public static final fun getLocalSlotAttachment ()Landroidx/compose/runtime/ProvidableCompositionLocal;
-	public static final fun getLocalSwingConstraint ()Landroidx/compose/runtime/ProvidableCompositionLocal;
-}
-
-public final class org/jetbrains/compose/swing/core/MenuApplier : androidx/compose/runtime/AbstractApplier {
-	public static final field $stable I
-	public fun <init> (Ljavax/swing/JComponent;)V
-	public synthetic fun insertBottomUp (ILjava/lang/Object;)V
-	public fun insertBottomUp (ILorg/jetbrains/compose/swing/core/SwingNodeHolder;)V
-	public synthetic fun insertTopDown (ILjava/lang/Object;)V
-	public fun insertTopDown (ILorg/jetbrains/compose/swing/core/SwingNodeHolder;)V
-	public fun move (III)V
-	public fun onEndChanges ()V
-	public fun remove (II)V
-}
-
-public final class org/jetbrains/compose/swing/core/SwingApplier : androidx/compose/runtime/AbstractApplier {
-	public static final field $stable I
-	public synthetic fun insertBottomUp (ILjava/lang/Object;)V
-	public fun insertBottomUp (ILorg/jetbrains/compose/swing/core/SwingNodeHolder;)V
-	public synthetic fun insertTopDown (ILjava/lang/Object;)V
-	public fun insertTopDown (ILorg/jetbrains/compose/swing/core/SwingNodeHolder;)V
-	public fun move (III)V
-	public fun onEndChanges ()V
-	public fun remove (II)V
-}
-
-public final class org/jetbrains/compose/swing/core/SwingNodeHolder : androidx/compose/runtime/ComposeNodeLifecycleCallback {
-	public static final field $stable I
-	public fun <init> (Ljava/awt/Component;)V
-	public final fun applyConstraint (Ljava/lang/Object;)V
-	public final fun getComponent ()Ljava/awt/Component;
-	public final fun getReleaseBlock ()Lkotlin/jvm/functions/Function0;
-	public final fun getSlotAttachment ()Lorg/jetbrains/compose/swing/core/SlotAttachment;
-	public final fun hostSubcompositions (Landroidx/compose/runtime/CompositionContext;)V
-	public fun onDeactivate ()V
-	public fun onRelease ()V
-	public fun onReuse ()V
-	public final fun setReleaseBlock (Lkotlin/jvm/functions/Function0;)V
-	public final fun setSlotAttachment (Lorg/jetbrains/compose/swing/core/SlotAttachment;)V
-}
-
 public abstract interface class org/jetbrains/compose/swing/modifier/SwingModifier {
 	public static final field Companion Lorg/jetbrains/compose/swing/modifier/SwingModifier$Companion;
 	public abstract fun foldIn (Ljava/lang/Object;Lkotlin/jvm/functions/Function2;)Ljava/lang/Object;
@@ -514,10 +428,10 @@ public class org/jetbrains/compose/swing/modifier/SwingModifier$Node {
 }
 
 public final class org/jetbrains/compose/swing/modifier/SwingModifierKt {
-	public static final fun applyModifier-pzkUc6s (Landroidx/compose/runtime/Composer;Lorg/jetbrains/compose/swing/modifier/SwingModifier;)V
+	public static final fun applyModifier-pWFREzI (Landroidx/compose/runtime/Composer;Lorg/jetbrains/compose/swing/modifier/SwingModifier;)V
 }
 
-public final class org/jetbrains/compose/swing/modifier/accessibility/AccessibilityModifiersKt {
+public final class org/jetbrains/compose/swing/modifier/accessibility/AccessibilityModifierKt {
 	public static final fun accessibleDescription (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/lang/String;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun accessibleName (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/lang/String;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun labelFor (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/modifier/accessibility/LabelTarget;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
@@ -530,11 +444,12 @@ public final class org/jetbrains/compose/swing/modifier/accessibility/LabelTarge
 	public static final field $stable I
 }
 
-public final class org/jetbrains/compose/swing/modifier/appearance/AppearanceModifiersKt {
+public final class org/jetbrains/compose/swing/modifier/appearance/AppearanceModifierKt {
 	public static final fun background (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/awt/Color;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun border (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljavax/swing/border/Border;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun borderPainted (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Z)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun caretColor (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/awt/Color;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun clientProperty (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/lang/Object;Ljava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun contentAreaFilled (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Z)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun cursor (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/awt/Cursor;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun disabledTextColor (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/awt/Color;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
@@ -546,18 +461,14 @@ public final class org/jetbrains/compose/swing/modifier/appearance/AppearanceMod
 	public static final fun icon (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljavax/swing/Icon;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun iconTextGap (Lorg/jetbrains/compose/swing/modifier/SwingModifier;I)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun margin (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/awt/Insets;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun name (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/lang/String;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun opaque (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Z)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun selectedTextColor (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/awt/Color;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun selectionColor (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/awt/Color;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
-	public static final fun verticalAlignment (Lorg/jetbrains/compose/swing/modifier/SwingModifier;I)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
-	public static final fun verticalTextPosition (Lorg/jetbrains/compose/swing/modifier/SwingModifier;I)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
-}
-
-public final class org/jetbrains/compose/swing/modifier/appearance/MetadataModifiersKt {
-	public static final fun clientProperty (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/lang/Object;Ljava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
-	public static final fun name (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/lang/String;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun testTag (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/lang/String;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun toolTip (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/lang/String;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun verticalAlignment (Lorg/jetbrains/compose/swing/modifier/SwingModifier;I)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun verticalTextPosition (Lorg/jetbrains/compose/swing/modifier/SwingModifier;I)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 }
 
 public final class org/jetbrains/compose/swing/modifier/datatransfer/ClipboardHandle {
@@ -594,7 +505,7 @@ public final class org/jetbrains/compose/swing/modifier/interaction/FocusRequest
 	public final fun requestFocus ()Z
 }
 
-public final class org/jetbrains/compose/swing/modifier/interaction/InteractionModifiersKt {
+public final class org/jetbrains/compose/swing/modifier/interaction/InteractionModifierKt {
 	public static final fun contextMenu (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;I)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun defaultButton (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Z)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static synthetic fun defaultButton$default (Lorg/jetbrains/compose/swing/modifier/SwingModifier;ZILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
@@ -626,7 +537,7 @@ public final class org/jetbrains/compose/swing/modifier/keyboard/KeyboardModifie
 	public static synthetic fun onKeyStroke$default (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljavax/swing/KeyStroke;ILkotlin/jvm/functions/Function0;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 }
 
-public final class org/jetbrains/compose/swing/modifier/layout/LayoutModifiersKt {
+public final class org/jetbrains/compose/swing/modifier/layout/LayoutModifierKt {
 	public static final fun alignmentX (Lorg/jetbrains/compose/swing/modifier/SwingModifier;F)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun alignmentY (Lorg/jetbrains/compose/swing/modifier/SwingModifier;F)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun bounds (Lorg/jetbrains/compose/swing/modifier/SwingModifier;IIII)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
@@ -648,7 +559,7 @@ public final class org/jetbrains/compose/swing/modifier/layout/LayoutModifiersKt
 	public static final fun y (Lorg/jetbrains/compose/swing/modifier/SwingModifier;I)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 }
 
-public final class org/jetbrains/compose/swing/modifier/listener/ListenerModifiersKt {
+public final class org/jetbrains/compose/swing/modifier/listener/ListenerModifierKt {
 	public static final fun actionListener (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/awt/event/ActionListener;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun adjustmentListener (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/awt/event/AdjustmentListener;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun caretListener (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljavax/swing/event/CaretListener;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
@@ -670,23 +581,80 @@ public final class org/jetbrains/compose/swing/modifier/listener/ListenerModifie
 	public static final fun treeSelectionListener (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljavax/swing/event/TreeSelectionListener;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 }
 
-public final class org/jetbrains/compose/swing/window/ApplicationKt {
-	public static final fun application (ZLkotlin/jvm/functions/Function3;)V
-	public static synthetic fun application$default (ZLkotlin/jvm/functions/Function3;ILjava/lang/Object;)V
-	public static final fun awaitApplication (Lkotlin/jvm/functions/Function3;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public static final fun launchApplication (Lkotlinx/coroutines/CoroutineScope;Lkotlin/jvm/functions/Function3;)Lkotlinx/coroutines/Job;
+public final class org/jetbrains/compose/swing/node/AppliedValue {
+	public static final field $stable I
+	public fun <init> (Ljava/lang/Object;)V
+	public final fun isWriting ()Z
+	public final fun observed (Ljava/lang/Object;)Z
+	public final fun settle (Ljava/lang/Object;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;)V
+	public static synthetic fun settle$default (Lorg/jetbrains/compose/swing/node/AppliedValue;Ljava/lang/Object;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+	public final fun write (Lkotlin/jvm/functions/Function0;)V
+}
+
+public final class org/jetbrains/compose/swing/node/MenuApplier : androidx/compose/runtime/AbstractApplier {
+	public static final field $stable I
+	public fun <init> (Ljavax/swing/JComponent;)V
+	public synthetic fun insertBottomUp (ILjava/lang/Object;)V
+	public fun insertBottomUp (ILorg/jetbrains/compose/swing/node/SwingNodeHolder;)V
+	public synthetic fun insertTopDown (ILjava/lang/Object;)V
+	public fun insertTopDown (ILorg/jetbrains/compose/swing/node/SwingNodeHolder;)V
+	public fun move (III)V
+	public fun onEndChanges ()V
+	public fun remove (II)V
+}
+
+public final class org/jetbrains/compose/swing/node/NodeKt {
+	public static final fun SlotNode (Lorg/jetbrains/compose/swing/node/SlotAttachment;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;I)V
+	public static final fun SwingConstraint (Ljava/lang/Object;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;I)V
+	public static final fun declare-aOxawFc (Landroidx/compose/runtime/Composer;Ljava/lang/Object;Lorg/jetbrains/compose/swing/node/AppliedValue;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;)V
+	public static synthetic fun declare-aOxawFc$default (Landroidx/compose/runtime/Composer;Ljava/lang/Object;Lorg/jetbrains/compose/swing/node/AppliedValue;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
+	public static final fun rememberAppliedValue (Ljava/lang/Object;Landroidx/compose/runtime/Composer;I)Lorg/jetbrains/compose/swing/node/AppliedValue;
+}
+
+public final class org/jetbrains/compose/swing/node/SwingApplier : androidx/compose/runtime/AbstractApplier {
+	public static final field $stable I
+	public synthetic fun insertBottomUp (ILjava/lang/Object;)V
+	public fun insertBottomUp (ILorg/jetbrains/compose/swing/node/SwingNodeHolder;)V
+	public synthetic fun insertTopDown (ILjava/lang/Object;)V
+	public fun insertTopDown (ILorg/jetbrains/compose/swing/node/SwingNodeHolder;)V
+	public fun move (III)V
+	public fun onEndChanges ()V
+	public fun remove (II)V
+}
+
+public final class org/jetbrains/compose/swing/node/SwingNodeHolder : androidx/compose/runtime/ComposeNodeLifecycleCallback {
+	public static final field $stable I
+	public fun <init> (Ljava/awt/Component;)V
+	public final fun applyConstraint (Ljava/lang/Object;)V
+	public final fun getComponent ()Ljava/awt/Component;
+	public final fun getReleaseBlock ()Lkotlin/jvm/functions/Function0;
+	public final fun getSlotAttachment ()Lorg/jetbrains/compose/swing/node/SlotAttachment;
+	public final fun hostSubcompositions (Landroidx/compose/runtime/CompositionContext;)V
+	public fun onDeactivate ()V
+	public fun onRelease ()V
+	public fun onReuse ()V
+	public final fun setReleaseBlock (Lkotlin/jvm/functions/Function0;)V
+	public final fun setSlotAttachment (Lorg/jetbrains/compose/swing/node/SlotAttachment;)V
+}
+
+public final class org/jetbrains/compose/swing/node/SwingNodeUpdater {
+	public static final synthetic fun box-impl (Landroidx/compose/runtime/Composer;)Lorg/jetbrains/compose/swing/node/SwingNodeUpdater;
+	public static fun constructor-impl (Landroidx/compose/runtime/Composer;)Landroidx/compose/runtime/Composer;
+	public fun equals (Ljava/lang/Object;)Z
+	public static fun equals-impl (Landroidx/compose/runtime/Composer;Ljava/lang/Object;)Z
+	public static final fun equals-impl0 (Landroidx/compose/runtime/Composer;Landroidx/compose/runtime/Composer;)Z
+	public fun hashCode ()I
+	public static fun hashCode-impl (Landroidx/compose/runtime/Composer;)I
+	public static final fun reconcile-impl (Landroidx/compose/runtime/Composer;Lkotlin/jvm/functions/Function1;)V
+	public static final fun set-impl (Landroidx/compose/runtime/Composer;Ljava/lang/Object;Lkotlin/jvm/functions/Function2;)V
+	public fun toString ()Ljava/lang/String;
+	public static fun toString-impl (Landroidx/compose/runtime/Composer;)Ljava/lang/String;
+	public final synthetic fun unbox-impl ()Landroidx/compose/runtime/Composer;
+	public static final fun update-impl (Landroidx/compose/runtime/Composer;Ljava/lang/Object;Lkotlin/jvm/functions/Function2;)V
 }
 
 public abstract interface class org/jetbrains/compose/swing/window/ApplicationScope {
 	public abstract fun exitApplication ()V
-}
-
-public final class org/jetbrains/compose/swing/window/CompositionLocalsKt {
-	public static final fun getLocalWindow ()Landroidx/compose/runtime/ProvidableCompositionLocal;
-}
-
-public final class org/jetbrains/compose/swing/window/DialogKt {
-	public static final fun Dialog (Lkotlin/jvm/functions/Function0;Lorg/jetbrains/compose/swing/window/DialogState;Ljava/lang/String;Ljava/awt/Dialog$ModalityType;ZZZLjava/awt/Image;Ljava/awt/Dimension;ZLkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
 }
 
 public final class org/jetbrains/compose/swing/window/DialogState {
@@ -704,16 +672,17 @@ public final class org/jetbrains/compose/swing/window/DialogState {
 	public final fun setWidth (I)V
 }
 
-public final class org/jetbrains/compose/swing/window/DialogStateKt {
-	public static final fun rememberDialogState (Lorg/jetbrains/compose/swing/window/WindowPosition;Ljava/awt/Dimension;Landroidx/compose/runtime/Composer;II)Lorg/jetbrains/compose/swing/window/DialogState;
-}
-
-public final class org/jetbrains/compose/swing/window/MenuBarKt {
-	public static final fun MenuBar (Lorg/jetbrains/compose/swing/window/WindowScope;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;I)V
-}
-
 public final class org/jetbrains/compose/swing/window/WindowKt {
+	public static final fun Dialog (Lkotlin/jvm/functions/Function0;Lorg/jetbrains/compose/swing/window/DialogState;Ljava/lang/String;Ljava/awt/Dialog$ModalityType;ZZZLjava/awt/Image;Ljava/awt/Dimension;ZLkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
+	public static final fun MenuBar (Lorg/jetbrains/compose/swing/window/WindowScope;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;I)V
 	public static final fun Window (Lkotlin/jvm/functions/Function0;Lorg/jetbrains/compose/swing/window/WindowState;Ljava/lang/String;ZZZLjava/awt/Image;Ljava/awt/Dimension;ZLkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+	public static final fun application (ZLkotlin/jvm/functions/Function3;)V
+	public static synthetic fun application$default (ZLkotlin/jvm/functions/Function3;ILjava/lang/Object;)V
+	public static final fun awaitApplication (Lkotlin/jvm/functions/Function3;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun getLocalWindow ()Landroidx/compose/runtime/ProvidableCompositionLocal;
+	public static final fun launchApplication (Lkotlinx/coroutines/CoroutineScope;Lkotlin/jvm/functions/Function3;)Lkotlinx/coroutines/Job;
+	public static final fun rememberDialogState (Lorg/jetbrains/compose/swing/window/WindowPosition;Ljava/awt/Dimension;Landroidx/compose/runtime/Composer;II)Lorg/jetbrains/compose/swing/window/DialogState;
+	public static final fun rememberWindowState (Lorg/jetbrains/compose/swing/window/WindowPosition;Ljava/awt/Dimension;ILandroidx/compose/runtime/Composer;II)Lorg/jetbrains/compose/swing/window/WindowState;
 }
 
 public abstract interface class org/jetbrains/compose/swing/window/WindowPosition {
@@ -767,9 +736,5 @@ public final class org/jetbrains/compose/swing/window/WindowState {
 	public final fun setPosition (Lorg/jetbrains/compose/swing/window/WindowPosition;)V
 	public final fun setSize (Ljava/awt/Dimension;)V
 	public final fun setWidth (I)V
-}
-
-public final class org/jetbrains/compose/swing/window/WindowStateKt {
-	public static final fun rememberWindowState (Lorg/jetbrains/compose/swing/window/WindowPosition;Ljava/awt/Dimension;ILandroidx/compose/runtime/Composer;II)Lorg/jetbrains/compose/swing/window/WindowState;
 }
 

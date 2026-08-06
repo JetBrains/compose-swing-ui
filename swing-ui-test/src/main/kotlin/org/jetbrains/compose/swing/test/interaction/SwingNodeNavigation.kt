@@ -1,3 +1,6 @@
+@file:JvmMultifileClass
+@file:JvmName("InteractionTestKt")
+
 package org.jetbrains.compose.swing.test.interaction
 
 import org.jetbrains.compose.swing.test.childComponents
@@ -8,7 +11,7 @@ import java.awt.Component
 /**
  * Returns a handle to the parent of the matched node.
  *
- * The step is lazy like the query it extends: the node and its parent are resolved against the live
+ * Like the query it extends, this is lazy: the node and its parent are resolved against the live
  * AWT tree on each use. Resolution fails when the query itself does not resolve to a single node, or
  * when the node has no parent.
  */
@@ -16,43 +19,43 @@ public fun SwingNodeInteraction<*>.onParent(): SwingNodeInteraction<Component> =
     derivedNode("onParent()") { listOfNotNull(it.parent) }
 
 /**
- * Returns a handle to the direct children of the matched node, in the order its container holds
- * them. A node that holds no children yields an empty collection.
+ * Returns a handle to the matched node's direct children, in their container's order. A node with
+ * no children yields an empty collection.
  */
 public fun SwingNodeInteraction<*>.onChildren(): SwingNodeInteractionCollection<Component> =
     derivedNodes("onChildren()") { it.childComponents() }
 
 /**
- * Returns a handle to the only direct child of the matched node. Use this where the node holds
- * exactly one child; resolution fails when it holds any other number.
+ * Returns a handle to the matched node's only direct child. Resolution fails unless the node holds
+ * exactly one child.
  */
 public fun SwingNodeInteraction<*>.onChild(): SwingNodeInteraction<Component> =
     derivedNode("onChild()") { it.childComponents() }
 
 /**
- * Returns a handle to the direct child of the matched node at [index]. Convenience for
+ * Returns a handle to the matched node's direct child at [index]. Convenience for
  * [onChildren]`()[index]`.
  */
 public fun SwingNodeInteraction<*>.onChildAt(index: Int): SwingNodeInteraction<Component> = onChildren()[index]
 
 /**
- * Returns a handle to the siblings of the matched node: every other child of its parent, in the
- * parent's order. A node with no parent yields an empty collection.
+ * Returns a handle to the matched node's siblings: every other child of its parent, in the parent's
+ * order. A node with no parent yields an empty collection.
  */
 public fun SwingNodeInteraction<*>.onSiblings(): SwingNodeInteractionCollection<Component> =
     derivedNodes("onSiblings()") { it.siblingComponents() }
 
 /**
- * Returns a handle to the only sibling of the matched node. Use this where the node's parent holds
- * exactly two children; resolution fails when the node has any other number of siblings.
+ * Returns a handle to the matched node's only sibling. Resolution fails unless the node's parent
+ * holds exactly two children.
  */
 public fun SwingNodeInteraction<*>.onSibling(): SwingNodeInteraction<Component> =
     derivedNode("onSibling()") { it.siblingComponents() }
 
 /**
- * Returns a handle to the ancestors of the matched node, nearest first, up to and including the root
- * the query searches - the composition root, or the content pane for a window-scoped query. A node
- * that is itself that root yields an empty collection.
+ * Returns a handle to the matched node's ancestors, nearest first, up to and including the root the
+ * query searches - the composition root, or the content pane for a window-scoped query. A node that
+ * is itself that root yields an empty collection.
  */
 public fun SwingNodeInteraction<*>.onAncestors(): SwingNodeInteractionCollection<Component> =
     derivedNodes("onAncestors()") { node ->
@@ -66,8 +69,7 @@ public fun SwingNodeInteraction<*>.onAncestors(): SwingNodeInteractionCollection
 
 /**
  * Returns a handle to every component below the matched node, at any depth, in depth-first
- * pre-order. The node itself is never part of the result, so this is how a query is scoped to one
- * subtree:
+ * pre-order. The node itself is excluded, which is how a query scopes to one subtree:
  *
  * ```
  * onNodeWithTag("editor").onDescendants().filter(SwingMatcher.isOfType<JLabel>())
@@ -78,8 +80,8 @@ public fun SwingNodeInteraction<*>.onDescendants(): SwingNodeInteractionCollecti
 
 /**
  * A single-node handle onto the components [step] derives from this interaction's node, described as
- * this query's description followed by [stepName]. Resolution of both the node and the step is
- * deferred to each use of the returned handle.
+ * this query's description followed by [stepName]. Node and step resolution are deferred to each
+ * use of the returned handle.
  */
 private fun SwingNodeInteraction<*>.derivedNode(
     stepName: String,

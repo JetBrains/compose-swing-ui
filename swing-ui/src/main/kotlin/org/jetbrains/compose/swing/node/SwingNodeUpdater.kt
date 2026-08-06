@@ -1,8 +1,7 @@
-package org.jetbrains.compose.swing
+package org.jetbrains.compose.swing.node
 
 import androidx.compose.runtime.Updater
 import androidx.compose.runtime.snapshots.SnapshotStateObserver
-import org.jetbrains.compose.swing.core.SwingNodeHolder
 import java.awt.Component
 
 /**

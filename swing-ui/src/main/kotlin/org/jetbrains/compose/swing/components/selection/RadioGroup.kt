@@ -4,11 +4,11 @@
 package org.jetbrains.compose.swing.components.selection
 
 import androidx.compose.runtime.Composable
-import org.jetbrains.compose.swing.SwingNode
 import org.jetbrains.compose.swing.components.layout.BoxPanel
 import org.jetbrains.compose.swing.constants.BoxAxis
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
+import org.jetbrains.compose.swing.node.SwingNode
 import javax.swing.BoxLayout
 import javax.swing.JRadioButton
 

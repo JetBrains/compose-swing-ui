@@ -4,9 +4,9 @@
 package org.jetbrains.compose.swing.components
 
 import androidx.compose.runtime.Composable
-import org.jetbrains.compose.swing.SwingNode
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
+import org.jetbrains.compose.swing.node.SwingNode
 import javax.swing.JLabel
 
 /**

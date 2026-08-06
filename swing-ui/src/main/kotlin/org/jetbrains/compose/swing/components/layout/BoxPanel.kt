@@ -4,10 +4,10 @@
 package org.jetbrains.compose.swing.components.layout
 
 import androidx.compose.runtime.Composable
-import org.jetbrains.compose.swing.SwingNode
 import org.jetbrains.compose.swing.constants.BoxAxis
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
+import org.jetbrains.compose.swing.node.SwingNode
 import javax.swing.BoxLayout
 import javax.swing.JPanel
 

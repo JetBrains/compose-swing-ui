@@ -6,14 +6,14 @@ package org.jetbrains.compose.swing.components.layout
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
-import org.jetbrains.compose.swing.SwingNode
 import org.jetbrains.compose.swing.constants.HorizontalScrollbarPolicy
 import org.jetbrains.compose.swing.constants.ScrollPaneCorner
 import org.jetbrains.compose.swing.constants.VerticalScrollbarPolicy
-import org.jetbrains.compose.swing.core.SlotAttachment
-import org.jetbrains.compose.swing.core.SlotNode
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
+import org.jetbrains.compose.swing.node.SlotAttachment
+import org.jetbrains.compose.swing.node.SlotNode
+import org.jetbrains.compose.swing.node.SwingNode
 import java.awt.Component
 import javax.swing.JScrollPane
 

@@ -1,4 +1,4 @@
-package org.jetbrains.compose.swing.core
+package org.jetbrains.compose.swing.node
 
 import androidx.compose.runtime.AbstractApplier
 import androidx.compose.runtime.snapshots.SnapshotStateObserver
@@ -9,7 +9,7 @@ import java.util.IdentityHashMap
 import javax.swing.RootPaneContainer
 
 /**
- * The [androidx.compose.runtime.Applier] that [org.jetbrains.compose.swing.SwingNode] emits into, mutating
+ * The [androidx.compose.runtime.Applier] that [org.jetbrains.compose.swing.node.SwingNode] emits into, mutating
  * the Swing component tree as the composition changes.
  *
  * Construct one over a root [Container] and a [SnapshotStateObserver] owned by the surrounding
@@ -28,7 +28,7 @@ import javax.swing.RootPaneContainer
  *
  * Internal runtime type; not public API.
  *
- * @see org.jetbrains.compose.swing.SwingNode
+ * @see org.jetbrains.compose.swing.node.SwingNode
  */
 @PublishedApi
 internal class SwingApplier internal constructor(

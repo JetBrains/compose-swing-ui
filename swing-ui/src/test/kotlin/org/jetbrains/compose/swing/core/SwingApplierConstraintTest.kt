@@ -1,6 +1,8 @@
 package org.jetbrains.compose.swing.core
 
 import androidx.compose.runtime.snapshots.SnapshotStateObserver
+import org.jetbrains.compose.swing.node.SwingApplier
+import org.jetbrains.compose.swing.node.SwingNodeHolder
 import java.awt.BorderLayout
 import java.awt.Component
 import java.awt.Container
@@ -36,13 +38,11 @@ class SwingApplierConstraintTest {
         constraint: Any,
     ): SwingNodeHolder<*> = SwingNodeHolder(component).also { it.applyConstraint(constraint) }
 
-    /** Observers created for the appliers under test, disposed in [disposeObservers]. */
     private val observers = mutableListOf<SnapshotStateObserver>()
 
     /**
-     * Builds a [SwingApplier] over [root] with a snapshot observer this test owns and disposes, so the
-     * global apply-observer registration the applier starts is torn down at test end rather than
-     * leaked (the production path disposes it with the composition mount).
+     * Builds a [SwingApplier] over [root]. Production disposes its snapshot observer when the
+     * composition unmounts; without a composition here, this test disposes it itself in [disposeObservers].
      */
     private fun applierFor(root: Container): SwingApplier {
         val observer = SnapshotStateObserver { it() }.apply { start() }
@@ -98,7 +98,6 @@ class SwingApplierConstraintTest {
         assertEquals(BorderLayout.NORTH, constraintOf(root, north), "north lost its constraint across the move")
         assertEquals(BorderLayout.CENTER, constraintOf(root, center), "center lost its constraint across the move")
         assertEquals(BorderLayout.SOUTH, constraintOf(root, south), "south lost its constraint across the move")
-        // All three components are still attached to the same parent after the reorder.
         assertEquals(3, root.componentCount, "the reorder must not drop or duplicate any child")
     }
 
@@ -157,7 +156,6 @@ class SwingApplierConstraintTest {
         applier.onEndChanges()
 
         assertEquals(0, root.componentCount, "remove must detach the child from the parent")
-        // BorderLayout no longer reports any constraint for the detached component.
         assertEquals(null, constraintOf(root, south), "a removed child must leave no stale constraint entry")
     }
 }

@@ -1,5 +1,5 @@
 @file:JvmMultifileClass
-@file:JvmName("LayoutModifiersKt")
+@file:JvmName("LayoutModifierKt")
 
 package org.jetbrains.compose.swing.modifier.layout
 

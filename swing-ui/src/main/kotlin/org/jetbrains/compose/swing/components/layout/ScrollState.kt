@@ -1,3 +1,6 @@
+@file:JvmMultifileClass
+@file:JvmName("LayoutComponentsKt")
+
 package org.jetbrains.compose.swing.components.layout
 
 import androidx.compose.runtime.Composable

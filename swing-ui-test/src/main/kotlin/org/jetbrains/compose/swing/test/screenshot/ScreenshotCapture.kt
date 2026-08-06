@@ -1,3 +1,6 @@
+@file:JvmMultifileClass
+@file:JvmName("ScreenshotTestKt")
+
 package org.jetbrains.compose.swing.test.screenshot
 
 import org.jetbrains.compose.swing.test.ComposeSwingTest
@@ -7,8 +10,7 @@ import java.awt.Component
 import java.awt.image.BufferedImage
 
 /**
- * Renders the matched component, together with everything drawn inside it, to an off-screen image
- * exactly as it is currently laid out.
+ * Renders the matched component, together with everything drawn inside it, to an off-screen image.
  *
  * The component must be displayed (laid out with a non-zero size); this is the same contract as
  * [assertIsDisplayed]. Call after the composition has settled so the captured image reflects the
@@ -37,8 +39,6 @@ public fun SwingNodeInteractionCollection<*>.captureToImages(): List<BufferedIma
  * Renders the whole composition root, together with everything drawn inside it, to an off-screen
  * image. Equivalent to capturing the node returned by [ComposeSwingTest.onRoot].
  *
- * Call after the composition has settled so the captured image reflects the latest state.
- *
  * @return an image whose width and height match the root's laid-out size.
  * @throws AssertionError if the root has a zero laid-out size.
  */
@@ -48,11 +48,11 @@ public fun ComposeSwingTest.captureToImage(): BufferedImage = onRoot().captureTo
  * Renders an arbitrary, hand-built raw AWT/Swing component to an off-screen image at its own laid-out
  * size, independently of any composition.
  *
- * This is the raw-Swing counterpart of [SwingNodeInteraction.captureToImage]: it lets a test render a
- * hand-written reference component (e.g. a plain `JButton`) through the same off-screen pipeline used
- * to capture composed components, so the two images can be compared pixel-for-pixel. Give the
- * component the same bounds as the composed component you are comparing against before capturing it,
- * so both images share identical dimensions.
+ * This is the raw-Swing counterpart of [SwingNodeInteraction.captureToImage]: it renders a
+ * hand-written reference component (e.g. a plain `JButton`) through the same pipeline used for
+ * composed components, so the two images can be compared pixel-for-pixel. Give the component the
+ * same bounds as the composed component you are comparing against, so both images share identical
+ * dimensions.
  *
  * @return an image whose width and height match the component's current size.
  * @throws AssertionError if the component has a zero size.
@@ -66,10 +66,9 @@ public fun Component.captureToImage(): BufferedImage {
     val image = BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB)
     val graphics = image.createGraphics()
     try {
-        // printAll (not paintAll) renders a component and its descendants to an arbitrary Graphics
-        // regardless of on-screen showing state; paintAll early-returns for a component with no
-        // realized peer, leaving the image blank. The harness never realizes a window, so the print
-        // path is what actually rasterizes the component's pixels off-screen.
+        // printAll (not paintAll) renders the component and its descendants regardless of on-screen
+        // showing state. paintAll returns early for a component with no realized peer, leaving the
+        // image blank; the harness never realizes a window, so print is the path that draws pixels.
         printAll(graphics)
     } finally {
         graphics.dispose()

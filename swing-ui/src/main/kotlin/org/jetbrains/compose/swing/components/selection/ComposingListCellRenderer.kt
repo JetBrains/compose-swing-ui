@@ -11,10 +11,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.core.LocalSlotAttachment
-import org.jetbrains.compose.swing.core.LocalSwingConstraint
-import org.jetbrains.compose.swing.core.SwingApplier
 import org.jetbrains.compose.swing.core.SwingCompositionMount
+import org.jetbrains.compose.swing.node.LocalSlotAttachment
+import org.jetbrains.compose.swing.node.LocalSwingConstraint
+import org.jetbrains.compose.swing.node.SwingApplier
 import java.awt.Component
 import javax.swing.JComboBox
 import javax.swing.JList

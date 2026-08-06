@@ -1,6 +1,9 @@
 package org.jetbrains.compose.swing.core
 
 import androidx.compose.runtime.snapshots.SnapshotStateObserver
+import org.jetbrains.compose.swing.node.SlotAttachment
+import org.jetbrains.compose.swing.node.SwingApplier
+import org.jetbrains.compose.swing.node.SwingNodeHolder
 import java.awt.Component
 import java.awt.Container
 import java.awt.EventQueue
@@ -74,7 +77,7 @@ class SwingApplierTest {
     }
 
     /**
-     * Positions the applier's `current` on [container]'s holder, runs [block] against the applier,
+     * Positions the applier's `current` on [holder], runs [block] against the applier,
      * and returns to the root. [insertBottomUp] and friends always operate on `current`, so tests
      * must navigate there first via [SwingApplier.down].
      */

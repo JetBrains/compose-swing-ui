@@ -1,12 +1,12 @@
 package org.jetbrains.compose.swing.test
 
-import org.jetbrains.compose.swing.SwingNode
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.BoxPanel
 import org.jetbrains.compose.swing.components.layout.FlowPanel
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.interaction.enabled
+import org.jetbrains.compose.swing.node.SwingNode
 import java.awt.Canvas
 import javax.swing.JLabel
 import kotlin.test.Test
@@ -14,13 +14,12 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
- * Pins the tree dump the harness attaches to a failing query - the diagnostic every downstream test
+ * Pins the tree dump the harness attaches to a failing query, the diagnostic every downstream test
  * failure is read through.
  *
- * The dump identifies each component by type and by the attributes queries match on, and it is
- * bounded in both depth and length so a deep or wide tree cannot bury the failure message. Whatever
- * is elided is announced by a `(truncated ...)` marker, and the top of the tree - the part that
- * identifies the defect - is always kept.
+ * The dump names each component by type and by the attributes a query can match on. It is bounded
+ * in depth and length, so a deep or wide tree cannot bury the failure message. An elided part is
+ * marked with `(truncated ...)`, and the top of the tree, which identifies the defect, is always kept.
  */
 class TreeDumpDiagnosticsTest {
     @Test
@@ -36,7 +35,6 @@ class TreeDumpDiagnosticsTest {
                     },
                 )
                 Button(text = "off", onClick = {}, modifier = SwingModifier.enabled(false))
-                // A raw AWT leaf is not a Container; the walk must describe it and move on.
                 SwingNode(factory = { Canvas() })
             }
         }
@@ -104,7 +102,6 @@ class TreeDumpDiagnosticsTest {
             dump.lines().size < WIDE_FANOUT,
             "the line bound should keep the dump shorter than the tree it describes:\n$dump",
         )
-        // The top of the tree survives truncation, so the reader still sees where the query ran.
         assertTrue(dump.contains("row-0"), "the first rows should be kept:\n$dump")
         assertTrue(
             !dump.contains("row-${WIDE_FANOUT - 1}"),
@@ -112,17 +109,14 @@ class TreeDumpDiagnosticsTest {
         )
     }
 
-    /**
-     * Runs a query that cannot resolve and returns the tree dump carried by its failure, which is how
-     * the dump reaches a downstream consumer.
-     */
+    /** Returns the tree dump carried by an unresolved query's failure. */
     private fun ComposeSwingTest.failingQueryDump(): String {
         val failure = assertFailsWith<AssertionError> { onNodeWithText("no-such-node").assertExists() }
         return failure.message.orEmpty()
     }
 
     private companion object {
-        // Wider than the dump's own line bound, so the bound is genuinely exercised.
+        // Exceeds the dump's line bound, so the bound is actually exercised.
         const val WIDE_FANOUT: Int = 150
     }
 }

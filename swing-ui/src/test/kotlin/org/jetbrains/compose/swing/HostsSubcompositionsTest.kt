@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JPanel
 import kotlin.test.Test
@@ -39,16 +40,11 @@ class HostsSubcompositionsTest {
                 }
             }
 
-            // A descendant component whose own setContent (no injected recomposer) must resolve the
-            // surrounding composition through the COMPOSITION_KEY stamp left on the host panel by the
-            // opt-in.
             val child = JPanel().also { hostPanel.add(it) }
 
             var observed: String? = null
             val handle =
                 child.setContent {
-                    // Read the parent-provided local; if the child nested into the surrounding
-                    // composition it sees PROVIDED, otherwise the local's UNPROVIDED default.
                     val greeting by remember { mutableStateOf("") }
                     observed = LocalGreeting.current + greeting
                 }
@@ -80,7 +76,6 @@ class HostsSubcompositionsTest {
                 }
             }
 
-            // While present, the stamp is published so descendants can discover it.
             assertEquals(
                 true,
                 hostPanel.getClientProperty(COMPOSITION_KEY_FOR_TEST) != null,

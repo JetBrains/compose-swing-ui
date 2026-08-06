@@ -1,5 +1,5 @@
 @file:JvmMultifileClass
-@file:JvmName("ListenerModifiersKt")
+@file:JvmName("ListenerModifierKt")
 
 package org.jetbrains.compose.swing.modifier.listener
 

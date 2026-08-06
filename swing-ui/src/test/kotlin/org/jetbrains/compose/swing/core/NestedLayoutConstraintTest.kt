@@ -18,7 +18,7 @@ import java.awt.GridBagConstraints
 import kotlin.test.Test
 
 /**
- * A container [org.jetbrains.compose.swing.SwingNode] placed in a [BorderPanel] region reads that
+ * A container [org.jetbrains.compose.swing.node.SwingNode] placed in a [BorderPanel] region reads that
  * region from `LocalSwingConstraint` for its OWN placement, and resets the local for its content, so
  * each of its children is placed by the inner panel's own layout manager under the constraint that
  * panel provides. Carrying the region down instead is not merely a misplacement: a [GridBagPanel]

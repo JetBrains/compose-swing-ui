@@ -18,7 +18,7 @@ import kotlin.test.assertSame
 /**
  * Proves the behaviour the `ReusableComposeNode` switch buys: a node that is parked/reactivated or
  * moved across recompositions is **recycled**, not recreated. The same backing Swing [Component]
- * instance survives, and the holder's [org.jetbrains.compose.swing.core.SwingNodeHolder.onReuse] /
+ * instance survives, and the holder's [org.jetbrains.compose.swing.node.SwingNodeHolder.onReuse] /
  * `onDeactivate` has drained the previous node's state so the recycled component reacts to the new
  * content rather than the old.
  *

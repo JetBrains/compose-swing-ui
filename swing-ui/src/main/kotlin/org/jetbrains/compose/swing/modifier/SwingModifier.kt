@@ -1,9 +1,9 @@
 package org.jetbrains.compose.swing.modifier
 
 import androidx.compose.runtime.Stable
-import org.jetbrains.compose.swing.SwingNodeUpdater
 import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
-import org.jetbrains.compose.swing.core.SwingNodeHolder
+import org.jetbrains.compose.swing.node.SwingNodeHolder
+import org.jetbrains.compose.swing.node.SwingNodeUpdater
 import java.awt.Component
 
 /**

@@ -3,8 +3,8 @@ package org.jetbrains.compose.swing.modifier
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.SwingNode
 import org.jetbrains.compose.swing.modifier.layout.componentOrientation
+import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.BorderLayout
 import java.awt.ComponentOrientation
@@ -25,13 +25,7 @@ import kotlin.test.assertTrue
  * plumbing is inert without a peer - and that the children then swapped horizontal edges.
  */
 class LayoutOrientationTest {
-    /**
-     * A [BorderLayout] panel that counts how many times a relayout was requested on it.
-     *
-     * The counter is a `static` shared instance rather than an instance field because `JPanel`'s
-     * superclass constructor (and `add`) can call `revalidate()` before this subclass's instance
-     * fields are initialized; a `null` instance field would NPE there.
-     */
+    /** A [BorderLayout] panel that counts how many times a relayout was requested on it. */
     private class RevalidateCountingPanel(
         private val revalidateCount: AtomicInteger?,
     ) : JPanel(BorderLayout()) {
@@ -68,7 +62,6 @@ class LayoutOrientationTest {
             )
         }
 
-        // Left-to-right baseline: LINE_START on the left, LINE_END on the right.
         val leadingLtr = leading.x
         val trailingLtr = trailing.x
         assertTrue(
@@ -89,7 +82,6 @@ class LayoutOrientationTest {
                 "never invalidated, so a reactive RTL change would not re-lay-out.",
         )
 
-        // Consequence: the children have swapped edges under RTL.
         val leadingRtl = leading.x
         val trailingRtl = trailing.x
         assertTrue(

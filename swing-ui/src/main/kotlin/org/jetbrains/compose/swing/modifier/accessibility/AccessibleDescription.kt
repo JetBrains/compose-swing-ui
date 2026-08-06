@@ -1,5 +1,5 @@
 @file:JvmMultifileClass
-@file:JvmName("AccessibilityModifiersKt")
+@file:JvmName("AccessibilityModifierKt")
 
 package org.jetbrains.compose.swing.modifier.accessibility
 

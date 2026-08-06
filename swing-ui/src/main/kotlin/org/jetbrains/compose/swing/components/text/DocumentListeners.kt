@@ -3,10 +3,10 @@ package org.jetbrains.compose.swing.components.text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.remember
-import org.jetbrains.compose.swing.AppliedValue
-import org.jetbrains.compose.swing.SwingNodeUpdater
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.listener
+import org.jetbrains.compose.swing.node.AppliedValue
+import org.jetbrains.compose.swing.node.SwingNodeUpdater
 import java.beans.PropertyChangeEvent
 import java.beans.PropertyChangeListener
 import javax.swing.event.DocumentEvent

@@ -5,9 +5,9 @@ package org.jetbrains.compose.swing.components
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.snapshots.SnapshotStateObserver
-import org.jetbrains.compose.swing.SwingNode
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
+import org.jetbrains.compose.swing.node.SwingNode
 import java.awt.Graphics
 import java.awt.Graphics2D
 import javax.accessibility.AccessibleContext

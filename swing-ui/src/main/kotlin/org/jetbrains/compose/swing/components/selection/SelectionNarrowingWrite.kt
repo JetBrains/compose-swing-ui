@@ -1,7 +1,7 @@
 package org.jetbrains.compose.swing.components.selection
 
-import org.jetbrains.compose.swing.AppliedValue
 import org.jetbrains.compose.swing.core.dispatchToCaller
+import org.jetbrains.compose.swing.node.AppliedValue
 import javax.swing.JList
 import javax.swing.JTable
 import javax.swing.JTree

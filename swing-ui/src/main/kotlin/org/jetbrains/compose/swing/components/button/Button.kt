@@ -6,10 +6,10 @@ package org.jetbrains.compose.swing.components.button
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import org.jetbrains.compose.swing.SwingNode
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.actionListener
+import org.jetbrains.compose.swing.node.SwingNode
 import java.awt.event.ActionListener
 import javax.swing.JButton
 

@@ -6,13 +6,13 @@ package org.jetbrains.compose.swing.components.text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import org.jetbrains.compose.swing.AppliedValue
-import org.jetbrains.compose.swing.SwingNode
 import org.jetbrains.compose.swing.constants.FocusLostBehavior
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.propertyChangeListener
-import org.jetbrains.compose.swing.rememberAppliedValue
+import org.jetbrains.compose.swing.node.AppliedValue
+import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.node.rememberAppliedValue
 import java.beans.PropertyChangeListener
 import javax.swing.JFormattedTextField
 import javax.swing.JFormattedTextField.AbstractFormatterFactory

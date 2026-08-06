@@ -7,7 +7,6 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.swing.Swing
-import org.jetbrains.compose.swing.core.GlobalSnapshotManager.ensureStarted
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -19,6 +18,14 @@ import java.util.concurrent.atomic.AtomicBoolean
  * Composition bootstrapping mechanisms for a particular platform/framework should call
  * [ensureStarted] during setup to initialize periodic global snapshot notifications. These
  * notifications are always sent on the Swing event dispatch thread via [Dispatchers.Swing].
+ *
+ * This is the guarantee a [SnapshotStateObserver][androidx.compose.runtime.snapshots.SnapshotStateObserver]
+ * elsewhere in this module can rely on for a write made the ordinary way - an assignment to a
+ * `mutableStateOf` outside of an explicit snapshot - since that write reaches its observer only
+ * through the notification this class schedules. A write applied through an explicit
+ * [Snapshot][androidx.compose.runtime.snapshots.Snapshot] (`takeMutableSnapshot`, then `apply()`)
+ * bypasses this class entirely: its observers are notified synchronously, on whatever thread called
+ * `apply()`.
  */
 internal object GlobalSnapshotManager {
     private val started = AtomicBoolean(false)

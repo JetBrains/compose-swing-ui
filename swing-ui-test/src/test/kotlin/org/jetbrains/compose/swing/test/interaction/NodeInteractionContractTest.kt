@@ -1,6 +1,5 @@
 package org.jetbrains.compose.swing.test.interaction
 
-import org.jetbrains.compose.swing.SwingNode
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.BoxPanel
 import org.jetbrains.compose.swing.components.layout.CardPanel
@@ -9,6 +8,7 @@ import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.modifier.layout.visible
+import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest

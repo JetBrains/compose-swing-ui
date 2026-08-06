@@ -61,6 +61,19 @@ public final class org/jetbrains/compose/swing/test/SwingMatcher$Companion {
 	public final fun ofType (Ljava/lang/Class;)Lorg/jetbrains/compose/swing/test/SwingMatcher;
 }
 
+public final class org/jetbrains/compose/swing/test/interaction/InteractionTestKt {
+	public static final fun assertProperty (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/lang/Object;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
+	public static synthetic fun assertProperty$default (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/lang/Object;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
+	public static final fun onAncestors (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;
+	public static final fun onChild (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
+	public static final fun onChildAt (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;I)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
+	public static final fun onChildren (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;
+	public static final fun onDescendants (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;
+	public static final fun onParent (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
+	public static final fun onSibling (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
+	public static final fun onSiblings (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;
+}
+
 public final class org/jetbrains/compose/swing/test/interaction/SwingNodeInteraction {
 	public static final field $stable I
 	public final fun assert (Lorg/jetbrains/compose/swing/test/SwingMatcher;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
@@ -106,22 +119,6 @@ public final class org/jetbrains/compose/swing/test/interaction/SwingNodeInterac
 	public final fun retype (Lkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;
 }
 
-public final class org/jetbrains/compose/swing/test/interaction/SwingNodeNavigationKt {
-	public static final fun onAncestors (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;
-	public static final fun onChild (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
-	public static final fun onChildAt (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;I)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
-	public static final fun onChildren (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;
-	public static final fun onDescendants (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;
-	public static final fun onParent (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
-	public static final fun onSibling (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
-	public static final fun onSiblings (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;
-}
-
-public final class org/jetbrains/compose/swing/test/interaction/SwingNodePropertyAssertionKt {
-	public static final fun assertProperty (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/lang/Object;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
-	public static synthetic fun assertProperty$default (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/lang/Object;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
-}
-
 public final class org/jetbrains/compose/swing/test/interaction/SwingWindowInteraction {
 	public static final field $stable I
 	public final fun assertDoesNotExist ()V
@@ -149,7 +146,7 @@ public final class org/jetbrains/compose/swing/test/interaction/SwingWindowInter
 	public final fun resolveAll ()Ljava/util/List;
 }
 
-public final class org/jetbrains/compose/swing/test/screenshot/GoldenScreenshotKt {
+public final class org/jetbrains/compose/swing/test/screenshot/ScreenshotTestKt {
 	public static final fun assertImageAgainstGolden (Lorg/jetbrains/compose/swing/test/ComposeSwingTest;Ljava/awt/image/BufferedImage;Ljava/lang/String;D)V
 	public static final fun assertImageAgainstGolden (Lorg/jetbrains/compose/swing/test/ComposeSwingTest;Ljava/lang/String;D)V
 	public static final fun assertImageAgainstGolden (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/lang/String;D)V
@@ -162,9 +159,6 @@ public final class org/jetbrains/compose/swing/test/screenshot/GoldenScreenshotK
 	public static synthetic fun assertImageMatches$default (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/awt/image/BufferedImage;DILjava/lang/Object;)V
 	public static final fun assertImagesPixelPerfect (Lorg/jetbrains/compose/swing/test/ComposeSwingTest;Ljava/awt/image/BufferedImage;Ljava/awt/image/BufferedImage;I)V
 	public static synthetic fun assertImagesPixelPerfect$default (Lorg/jetbrains/compose/swing/test/ComposeSwingTest;Ljava/awt/image/BufferedImage;Ljava/awt/image/BufferedImage;IILjava/lang/Object;)V
-}
-
-public final class org/jetbrains/compose/swing/test/screenshot/ScreenshotCaptureKt {
 	public static final fun captureToImage (Ljava/awt/Component;)Ljava/awt/image/BufferedImage;
 	public static final fun captureToImage (Lorg/jetbrains/compose/swing/test/ComposeSwingTest;)Ljava/awt/image/BufferedImage;
 	public static final fun captureToImage (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;)Ljava/awt/image/BufferedImage;

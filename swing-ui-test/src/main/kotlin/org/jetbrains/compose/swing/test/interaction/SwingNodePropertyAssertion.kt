@@ -1,3 +1,6 @@
+@file:JvmMultifileClass
+@file:JvmName("InteractionTestKt")
+
 package org.jetbrains.compose.swing.test.interaction
 
 import java.awt.Component
@@ -13,12 +16,11 @@ import java.awt.Component
  * onNodeOfType<JSplitPane>().assertProperty(180) { dividerLocation }
  * ```
  *
- * The failure names the query and both values - `Node 'isOfType(JSplitPane)' property was 200,
- * expected 180.` - and appends [message], which is what tells several property assertions on the
- * same node apart.
+ * The failure names the query and both values, e.g. `Node 'isOfType(JSplitPane)' property was 200, expected 180.` It
+ * appends [message], which tells several property assertions on the same node apart.
  *
- * Use this for a property the assertion vocabulary does not already cover; a property that has its
- * own assertion or matcher reads better through it, and reading several properties of one node reads
+ * Use this for a property the assertion vocabulary does not cover. A property with its own
+ * assertion or matcher reads better through that. Reading several properties of one node reads
  * better through a single [SwingNodeInteraction.fetch].
  */
 public fun <T : Component, V> SwingNodeInteraction<T>.assertProperty(

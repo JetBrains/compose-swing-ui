@@ -1,6 +1,6 @@
 package org.jetbrains.compose.swing.components.layout
 
-import org.jetbrains.compose.swing.SwingNodeUpdater
+import org.jetbrains.compose.swing.node.SwingNodeUpdater
 import java.awt.LayoutManager
 import javax.swing.JPanel
 

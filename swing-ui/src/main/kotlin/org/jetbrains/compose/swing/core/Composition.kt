@@ -12,8 +12,8 @@ import javax.swing.JComponent
 import javax.swing.SwingUtilities
 
 /**
- * Client property key for storing the [CompositionContext] associated with a component,
- * so that nested compositions can discover their parent and share its recomposition scope.
+ * Client property key under which a component's [CompositionContext] is stored, so nested
+ * compositions can find their parent and share its recomposition scope.
  */
 internal const val COMPOSITION_KEY: String = "org.jetbrains.compose.swing.composition"
 
@@ -21,9 +21,9 @@ internal const val COMPOSITION_KEY: String = "org.jetbrains.compose.swing.compos
  * Finds the parent [CompositionContext] by walking the Swing component tree, reading the
  * [COMPOSITION_KEY] client property off each [JComponent].
  *
- * The walk is **self-first**: the receiver itself is checked before its ancestors, so a component
- * stamped with a context (e.g. an interop host, or a window root pane) is discovered by a
- * `setContent` call on that very component, not only by its descendants.
+ * The walk is self-first: it checks the receiver before its ancestors, so a component stamped with a
+ * context (an interop host, or a window root pane) is found by a `setContent` call on that component
+ * itself, not only by its descendants.
  */
 internal fun Component.findParentCompositionContext(): CompositionContext? {
     var current: Component? = this
@@ -37,11 +37,11 @@ internal fun Component.findParentCompositionContext(): CompositionContext? {
 }
 
 /**
- * Publishes [context] as [host]'s [COMPOSITION_KEY] client property so that descendant `setContent`
- * calls (and a self-first [findParentCompositionContext] on [host] itself) discover it as their parent.
+ * Publishes [context] as [host]'s [COMPOSITION_KEY] client property, so descendant `setContent` calls
+ * (and a self-first [findParentCompositionContext] on [host] itself) find it as their parent.
  *
- * [host] may be `null` (a non-[JComponent] container has no client-property bag to stamp); the call is
- * then a no-op and the returned action does nothing.
+ * [host] may be `null`: a non-[JComponent] container has no client-property bag to stamp, so the call
+ * is then a no-op and the returned action does nothing.
  *
  * @return an idempotent action that clears the stamp. The caller invokes it from its own teardown.
  */
@@ -57,8 +57,8 @@ internal fun publishCompositionContext(
 /**
  * Asserts the caller is on the Swing Event Dispatch Thread, failing loudly otherwise.
  *
- * Composition entry points and applier mutations must run on the EDT; calling them off-EDT
- * leads to non-deterministic corruption that is hard to diagnose, so we fail fast instead.
+ * Composition entry points and applier mutations must run on the EDT. Off-EDT, they corrupt state in
+ * ways that are hard to diagnose, so this fails fast instead.
  */
 internal fun checkEventDispatchThread() {
     check(SwingUtilities.isEventDispatchThread()) {
@@ -70,15 +70,15 @@ internal fun checkEventDispatchThread() {
 /**
  * Mounts a single island [Composition] as a child of a [CompositionContext].
  *
- * The island shares its parent's recomposition runtime (the parent context owns the recomposer,
- * clock, and scope); this mount owns its [Composition], and the [SnapshotStateObserver] where the
- * island has one. Disposing it disposes what it owns - just this island, never the parent.
+ * The island shares its parent's recomposition runtime - the parent context owns the recomposer, clock
+ * and scope. This mount owns only its [Composition] and, where the island has one, its
+ * [SnapshotStateObserver]; disposing it disposes just this island, never the parent.
  *
  * An island over an applier that observes snapshot state is the composition owner for the components
- * that do (e.g. `Canvas`): it owns one [SnapshotStateObserver] shared by every such component in this
- * composition, each registered as its own scope. The applier stamps that observer onto each node it
- * inserts, so a component reaches it from its [SwingNodeHolder] rather than resolving a
- * `CompositionLocal`.
+ * that do (`Canvas`, for example): it owns one [SnapshotStateObserver] shared by every such component,
+ * each registered as its own scope. The applier stamps that observer onto every node it inserts, so a
+ * component reaches it through its [org.jetbrains.compose.swing.node.SwingNodeHolder] instead of
+ * resolving a `CompositionLocal`.
  */
 internal class SwingCompositionMount private constructor(
     private val composition: Composition,
@@ -89,25 +89,22 @@ internal class SwingCompositionMount private constructor(
     }
 
     /**
-     * Applies [writeState] to the island's driving state and then recomposes this island
-     * **synchronously**, applying its changes on the caller's thread and driving both passes to
-     * completion before returning. This bypasses the parent recomposer's asynchronous, frame-clock-gated
-     * loop: the island is a [ControlledComposition], so its own [recompose]/[applyChanges] run inline.
+     * Applies [writeState] to the island's driving state, then recomposes this island synchronously:
+     * both passes run and complete on the caller's thread before this returns. This bypasses the parent
+     * recomposer's asynchronous, frame-clock-gated loop, using the island's own
+     * [ControlledComposition.recompose] and [ControlledComposition.applyChanges] directly.
      *
      * Intended for a host that must have its Swing subtree fully materialized the instant it returns - a
      * `ListCellRenderer` stamping the same reused composition for each row Swing asks it to paint.
      *
-     * The state writes are performed inside a mutable snapshot whose read/write observers feed this
-     * composition directly (via [ControlledComposition.recordReadOf]/[ControlledComposition.recordWriteOf]),
-     * rather than left to the parent recomposer to observe on its own (asynchronous) schedule. That is
-     * what makes each stamp's write invalidate the cell body *now*, so a synchronous [recompose] here
-     * re-runs it - without it, only the parent recomposer would eventually pick the write up, and this
-     * synchronous recompose would see nothing to do.
+     * [writeState] runs inside a mutable snapshot whose read/write observers feed this composition
+     * directly, so its writes invalidate the composition now instead of waiting for the parent
+     * recomposer's own schedule.
      *
-     * Once the mount is [dispose]d a stamp is a no-op: a Swing widget keeps invoking a renderer it
-     * captured (focus and layout passes dispatch against a widget while its window is torn down), so
-     * this call stays safe on a disposed island instead of recomposing it. [writeState] is skipped
-     * too - recording reads and writes against a disposed composition is dead work.
+     * Once the mount is [dispose]d, a stamp is a no-op instead of an error: a Swing widget keeps invoking
+     * a renderer it captured even while its window is torn down (during focus and layout passes), so
+     * this call must stay safe to make on a disposed island. [writeState] is skipped too, since recording
+     * reads and writes against a disposed composition is dead work.
      *
      * Must be called on the Event Dispatch Thread.
      */
@@ -118,11 +115,10 @@ internal class SwingCompositionMount private constructor(
             writeState()
             return
         }
-        // Recompose the island inside a mutable snapshot whose read/write observers feed this
-        // composition, exactly as a recomposer wraps a composition it drives. This is load-bearing: the
-        // composition only re-records the state it reads (its `observations`) when composed under such a
-        // snapshot, so without this wrapper the FIRST stamp would compose but a SECOND would find nothing
-        // observing the row inputs and skip recomposing - the cell would freeze on the first row's value.
+        // Recompose inside a mutable snapshot whose observers feed this composition, the way a
+        // recomposer wraps a composition it drives. A composition only re-records the state it reads
+        // when composed under such a snapshot: without this, a second stamp would find nothing observing
+        // the row inputs and skip recomposing, freezing the cell on the first row's value.
         val snapshot =
             Snapshot.takeMutableSnapshot(
                 readObserver = { controlled.recordReadOf(it) },
@@ -130,11 +126,6 @@ internal class SwingCompositionMount private constructor(
             )
         try {
             snapshot.enter {
-                // The row inputs are written here so the write observer records them against the
-                // composition, invalidating the scopes that read them; recompose() then re-runs those
-                // scopes and applyChanges() flushes them through the applier so the Swing tree is
-                // materialized before this returns. Both are synchronous and take no frame from the
-                // parent recomposer's clock.
                 writeState()
                 if (controlled.recompose()) {
                     controlled.applyChanges()
@@ -156,18 +147,20 @@ internal class SwingCompositionMount private constructor(
     companion object {
         /**
          * Mounts a child composition of [parent]. [applierFactory] builds the [Applier] over the
-         * owner's freshly started [SnapshotStateObserver], which [SwingApplier] stamps onto every node
-         * it inserts so a snapshot-observing component can adopt it.
+         * owner's freshly started [SnapshotStateObserver], which
+         * [org.jetbrains.compose.swing.node.SwingApplier] stamps onto every node it inserts so a
+         * snapshot-observing component can adopt it.
          */
         fun nested(
             parent: CompositionContext,
             applierFactory: (SnapshotStateObserver) -> Applier<*>,
         ): SwingCompositionMount {
             GlobalSnapshotManager.ensureStarted()
-            // One observer shared by every snapshot-observing component (e.g. Canvas) in this owner. The
-            // change callback runs directly: apply notifications are already pumped on the event dispatch
-            // thread (see GlobalSnapshotManager) and a component reacts with repaint(), which is
-            // thread-safe, so no extra thread marshaling is needed.
+            // Shared by every snapshot-observing component (e.g. Canvas) in this owner. The callback runs
+            // directly, with no invokeLater: an ordinary write's notification already runs on the EDT
+            // (see GlobalSnapshotManager), and marshaling would only add a turn's latency to what the
+            // callback actually does here - schedule a repaint(), which is thread-safe regardless of what
+            // thread calls it, so nothing here depends on the notification having arrived on the EDT.
             val observer = SnapshotStateObserver { onChanged -> onChanged() }.apply { start() }
             return SwingCompositionMount(
                 composition = Composition(applierFactory(observer), parent),

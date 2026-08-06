@@ -1,5 +1,5 @@
 @file:JvmMultifileClass
-@file:JvmName("InteractionModifiersKt")
+@file:JvmName("InteractionModifierKt")
 
 package org.jetbrains.compose.swing.modifier.interaction
 

@@ -10,9 +10,10 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.annotations.SwingComposable
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.BorderPanel
-import org.jetbrains.compose.swing.core.SwingConstraint
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
+import org.jetbrains.compose.swing.node.SwingConstraint
+import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.onChildAt
 import org.jetbrains.compose.swing.test.interaction.onChildren

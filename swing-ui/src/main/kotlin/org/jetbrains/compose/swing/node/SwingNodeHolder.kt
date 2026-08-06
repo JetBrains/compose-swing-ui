@@ -1,9 +1,10 @@
-package org.jetbrains.compose.swing.core
+package org.jetbrains.compose.swing.node
 
 import androidx.compose.runtime.ComposeNodeLifecycleCallback
 import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.snapshots.SnapshotStateObserver
 import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
+import org.jetbrains.compose.swing.core.COMPOSITION_KEY
 import org.jetbrains.compose.swing.modifier.SwingModifierState
 import org.jetbrains.compose.swing.modifier.resetModifierState
 import java.awt.Component
@@ -16,7 +17,7 @@ import javax.swing.JComponent
  * children go through a dedicated setter rather than the generic `Container.add` used by the
  * [SwingApplier]. Two host shapes are covered:
  * - **Single-occupancy slots**, e.g. `JScrollPane`'s viewport / header / corner regions, each reached
- *   via `setViewportView` / `setRowHeaderView` / `setColumnHeaderView` / `setCorner`. The [index] is
+ *   via `setViewportView` / `setRowHeaderView` / `setColumnHeaderView` / `setCorner`. The `index` is
  *   always `0`.
  * - **Ordered multi-occupancy hosts**, e.g. a `JTabbedPane` whose tabs are placed at an index via
  *   `insertTab(title, icon, component, tip, index)`.
@@ -111,7 +112,8 @@ internal class SwingNodeHolder<out T : Component>
         internal var releaseBlock: (() -> Unit)? = null
 
         /**
-         * Diff state for the node's [SwingModifier] chain. Written by [applyModifier]; reset on
+         * Diff state for the node's [org.jetbrains.compose.swing.modifier.SwingModifier] chain.
+         * Written by [org.jetbrains.compose.swing.modifier.applyModifier]; reset on
          * release/reuse/deactivation so a recycled node restores its modified properties and drops
          * modifier-installed listeners.
          *

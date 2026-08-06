@@ -1,5 +1,5 @@
 @file:JvmMultifileClass
-@file:JvmName("AppearanceModifiersKt")
+@file:JvmName("AppearanceModifierKt")
 
 package org.jetbrains.compose.swing.modifier.appearance
 

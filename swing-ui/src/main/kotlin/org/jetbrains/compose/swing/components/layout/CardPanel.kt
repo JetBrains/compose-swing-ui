@@ -8,10 +8,10 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
-import org.jetbrains.compose.swing.SwingNode
-import org.jetbrains.compose.swing.core.LocalSwingConstraint
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
+import org.jetbrains.compose.swing.node.LocalSwingConstraint
+import org.jetbrains.compose.swing.node.SwingNode
 import java.awt.CardLayout
 import javax.swing.JPanel
 

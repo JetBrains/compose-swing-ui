@@ -8,13 +8,13 @@ import kotlinx.coroutines.DisposableHandle
 import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import org.jetbrains.compose.swing.annotations.SwingComposable
 import org.jetbrains.compose.swing.annotations.SwingMenuComposable
-import org.jetbrains.compose.swing.core.MenuApplier
-import org.jetbrains.compose.swing.core.SwingApplier
 import org.jetbrains.compose.swing.core.SwingCompositionMount
 import org.jetbrains.compose.swing.core.checkEventDispatchThread
 import org.jetbrains.compose.swing.core.findParentCompositionContext
 import org.jetbrains.compose.swing.core.getOrCreateWindowRecomposer
 import org.jetbrains.compose.swing.core.publishCompositionContext
+import org.jetbrains.compose.swing.node.MenuApplier
+import org.jetbrains.compose.swing.node.SwingApplier
 import java.awt.Component
 import java.awt.Container
 import java.awt.Window

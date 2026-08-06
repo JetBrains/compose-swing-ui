@@ -1,15 +1,15 @@
 @file:JvmMultifileClass
-@file:JvmName("MenuComponentsKt")
+@file:JvmName("ComponentsKt")
 
 package org.jetbrains.compose.swing.components
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import org.jetbrains.compose.swing.MenuNode
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.listener
+import org.jetbrains.compose.swing.node.MenuNode
 import java.awt.event.ActionListener
 import javax.swing.JCheckBoxMenuItem
 import javax.swing.KeyStroke

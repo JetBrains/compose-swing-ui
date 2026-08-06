@@ -4,7 +4,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.SwingNode
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.FlowPanel
@@ -15,6 +14,7 @@ import org.jetbrains.compose.swing.modifier.interaction.focusTraversalIndex
 import org.jetbrains.compose.swing.modifier.interaction.focusable
 import org.jetbrains.compose.swing.modifier.interaction.orderedFocusTraversal
 import org.jetbrains.compose.swing.modifier.layout.visible
+import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.SwingNodeInteraction
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -42,11 +42,7 @@ import java.awt.Panel as AwtPanel
 private const val FORM_TITLE = "focus-traversal-form"
 private const val PANEL_TAG = "panel"
 
-/**
- * Realizes [content] in a window, so the components under test have a peer. Swing admits only
- * displayable components to a focus cycle, so a form the window system has never seen offers nothing to
- * traverse.
- */
+/** Realizes [content] in a window, so the components under test have a peer for the focus cycle. */
 private fun ComposeSwingTest.setFormContent(content: @Composable () -> Unit) {
     setContent {
         Window(onCloseRequest = {}, title = FORM_TITLE, visible = true) { content() }
@@ -139,9 +135,8 @@ class FocusTraversalModifierTest {
         val field = onNodeOfType<JTextField>().fetch()
         val policy = panel.focusTraversalPolicy
 
-        // The harness root is never attached to a window, so nothing under it is displayable. A text
-        // field the window system holds no peer for cannot be given the keyboard and is therefore no
-        // traversal stop, however ordinary a control it is.
+        // The harness root is never attached to a window, so nothing under it is displayable, and a
+        // component with no peer cannot be given the keyboard.
         assertFalse(field.isDisplayable, "an unrealized form has no peer")
         assertNull(policy.getFirstComponent(panel), "a form with no peer has no first component")
         assertNull(policy.getLastComponent(panel), "a form with no peer has no last component")
@@ -162,8 +157,6 @@ class FocusTraversalModifierTest {
         val first = formControl("first").fetch<JTextField>()
         val second = formControl("second").fetch<JTextField>()
 
-        // The order is a cycle: stepping past the last lands on the first, and stepping back from the
-        // first lands on the last.
         assertSame(first, policy.getComponentAfter(panel, second), "the order should wrap forward to the first")
         assertSame(second, policy.getComponentBefore(panel, first), "the order should wrap backward to the last")
         assertSame(first, policy.getComponentBefore(panel, second), "the previous of the second is the first")
@@ -276,8 +269,7 @@ class FocusTraversalModifierTest {
         val nested = formControl("nested").fetch<JTextField>()
         val outer = formControl("outer").fetch<JTextField>()
 
-        // The order spans the whole cycle, not just direct children: a grandchild takes its indexed
-        // place among the top-level ones.
+        // The order spans the whole cycle: a grandchild takes its indexed place among the top-level ones.
         assertSame(nested, policy.getFirstComponent(panel), "a nested child joins the order at its index")
         assertSame(outer, policy.getComponentAfter(panel, nested), "the order interleaves nesting levels by index")
     }
@@ -324,7 +316,6 @@ class FocusTraversalModifierTest {
         val policy = panel.focusTraversalPolicy
         val caption = formControl("caption").fetch<JLabel>()
 
-        // Every child is opted out of focus, so the container offers nothing to traverse.
         assertNull(policy.getFirstComponent(panel), "a container with no focusable child has no first component")
         assertNull(policy.getLastComponent(panel), "a container with no focusable child has no last component")
         assertNull(policy.getComponentAfter(panel, caption), "there is nothing to step forward to")
@@ -387,7 +378,6 @@ class FocusTraversalModifierTest {
         val legend = formControl("Legend").fetch<JLabel>()
         val ok = formControl("OK").fetch<JButton>()
 
-        // A label declared focusable becomes a stop; a button declared non-focusable stops being one.
         assertSame(legend, policy.getFirstComponent(panel), "the label declared focusable is a stop")
         assertSame(ok, policy.getComponentAfter(panel, legend), "the button declared non-focusable is skipped")
         assertSame(ok, policy.getLastComponent(panel), "only the label and the remaining button are stops")

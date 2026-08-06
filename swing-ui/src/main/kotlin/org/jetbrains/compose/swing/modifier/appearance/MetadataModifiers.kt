@@ -1,6 +1,8 @@
+@file:JvmMultifileClass
+@file:JvmName("AppearanceModifierKt")
+
 package org.jetbrains.compose.swing.modifier.appearance
 
-import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import org.jetbrains.compose.swing.modifier.PropertyElement
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.propertyElement
@@ -31,13 +33,6 @@ private class TestTagElement(
         read = { it.getClientProperty(TEST_TAG_CLIENT_PROPERTY_KEY) },
         write = { c, v -> c.putClientProperty(TEST_TAG_CLIENT_PROPERTY_KEY, v) },
     )
-
-/**
- * The `JComponent` client-property key under which [testTag] stores its tag. The test harness reads
- * this key to resolve a tagged component; it is not intended for application use.
- */
-@InternalSwingUiApi
-public val TEST_TAG_CLIENT_PROPERTY_KEY: Any = "org.jetbrains.compose.swing.testTag"
 
 /** Sets `toolTipText`; `null` clears the tooltip. Requires a `JComponent` target. */
 public fun SwingModifier.toolTip(text: String?): SwingModifier =

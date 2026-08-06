@@ -1,6 +1,3 @@
-@file:JvmMultifileClass
-@file:JvmName("TextComponentsKt")
-
 package org.jetbrains.compose.swing.components.text
 
 import javax.swing.text.Document

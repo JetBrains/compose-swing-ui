@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.interaction.onChildren
 import org.jetbrains.compose.swing.test.interaction.onParent
 import org.jetbrains.compose.swing.test.onNodeOfType

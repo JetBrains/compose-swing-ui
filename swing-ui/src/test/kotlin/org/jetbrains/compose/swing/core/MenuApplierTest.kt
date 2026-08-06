@@ -1,5 +1,7 @@
 package org.jetbrains.compose.swing.core
 
+import org.jetbrains.compose.swing.node.MenuApplier
+import org.jetbrains.compose.swing.node.SwingNodeHolder
 import java.awt.Component
 import javax.swing.JMenu
 import javax.swing.JMenuBar
@@ -11,16 +13,15 @@ import kotlin.test.assertSame
 
 /**
  * Low-level unit tests that drive [MenuApplier] directly over a root [JMenuBar], with no Compose
- * runtime, recomposer, or clock involved - the menu counterpart of `SwingApplierTest`. Now that the
- * menu applier operates on [SwingNodeHolder] wrappers (so menu nodes get the same lifecycle
- * callbacks as ordinary components), these tests pin its AWT-tree manipulation math: that children
- * are added to the right menu container (a `JMenu` routes to its popup), in composition order, and
- * that remove/move/clear address the AWT array by index correctly.
+ * runtime, recomposer, or clock involved - the menu counterpart of `SwingApplierTest`. The menu
+ * applier operates on [SwingNodeHolder] wrappers, so menu nodes get the same lifecycle callbacks as
+ * ordinary components. These tests pin its AWT-tree manipulation: children land in the right menu
+ * container (a `JMenu` routes to its popup), in composition order, and remove/move/clear address the
+ * AWT array by index correctly.
  *
- * All AWT work happens on the calling thread, which is acceptable for unit tests of pure tree
- * manipulation (no EDT-bound timers or compositions are created here), and is why the menu content is
- * read by the local `itemNames` rather than by the shared test helper's `menuItemTexts()`, which reads
- * a live menu on the EDT.
+ * All AWT work happens on the calling thread, since these are pure tree-manipulation tests with no
+ * EDT-bound timers or compositions. That is why menu content is read by the local `itemNames` rather
+ * than by the shared test helper's `menuItemTexts()`, which reads a live menu on the EDT.
  */
 class MenuApplierTest {
     private fun holder(component: Component): SwingNodeHolder<*> = SwingNodeHolder(component)

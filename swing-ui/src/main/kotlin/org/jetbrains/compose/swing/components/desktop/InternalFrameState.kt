@@ -1,3 +1,6 @@
+@file:JvmMultifileClass
+@file:JvmName("DesktopComponentsKt")
+
 package org.jetbrains.compose.swing.components.desktop
 
 import androidx.compose.runtime.Composable

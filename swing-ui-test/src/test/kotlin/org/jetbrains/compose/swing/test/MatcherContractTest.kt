@@ -3,7 +3,6 @@ package org.jetbrains.compose.swing.test
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.SwingNode
 import org.jetbrains.compose.swing.components.ComboBox
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
@@ -13,6 +12,7 @@ import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.modifier.interaction.enabled
+import org.jetbrains.compose.swing.node.SwingNode
 import java.awt.Canvas
 import javax.accessibility.AccessibleRole
 import javax.swing.JComboBox

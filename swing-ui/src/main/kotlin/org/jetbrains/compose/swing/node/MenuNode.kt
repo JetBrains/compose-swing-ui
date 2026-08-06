@@ -1,11 +1,12 @@
-package org.jetbrains.compose.swing
+@file:JvmMultifileClass
+@file:JvmName("NodeKt")
+
+package org.jetbrains.compose.swing.node
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisallowComposableCalls
 import androidx.compose.runtime.ReusableComposeNode
 import org.jetbrains.compose.swing.annotations.SwingMenuComposable
-import org.jetbrains.compose.swing.core.MenuApplier
-import org.jetbrains.compose.swing.core.SwingNodeHolder
 import java.awt.Component
 
 /**

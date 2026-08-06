@@ -1,3 +1,6 @@
+@file:JvmMultifileClass
+@file:JvmName("ScreenshotTestKt")
+
 package org.jetbrains.compose.swing.test.screenshot
 
 import org.jetbrains.compose.swing.test.ComposeSwingTest
@@ -11,9 +14,9 @@ import javax.imageio.ImageIO
  * [goldenIdentifier], failing the test on a visual difference.
  *
  * The golden image is loaded from the test resources at `golden/<goldenIdentifier>.png` and compared
- * by structural similarity at [threshold] (higher is stricter). On a mismatch the captured, expected
- * and difference images are written to the build results directory for inspection and an
- * [AssertionError] is thrown describing the difference and the file locations.
+ * by structural similarity at [threshold]. On a mismatch the captured, expected and difference
+ * images are written to the build results directory for inspection, and an [AssertionError] is
+ * thrown describing the difference and the file locations.
  *
  * When record mode is enabled the captured image is written as the new golden into the test
  * resources and the assertion passes; this lets you record or refresh goldens on demand.
@@ -120,10 +123,9 @@ public fun SwingNodeInteraction<*>.assertImageMatches(
 }
 
 /**
- * Asserts [image] matches [expected] pixel-for-pixel, allowing at most [maxDifferentPixels] differing
- * pixels (default `0`, i.e. byte-exact). Use this for the strictest comparisons - proving two
- * independently rendered components rasterize identically - where the structural-similarity tolerance
- * of [assertImageMatches] would be too lenient to catch a stray border, margin or alignment shift.
+ * Asserts [image] matches [expected] pixel-for-pixel, allowing at most [maxDifferentPixels] differing pixels (default
+ * `0`, i.e. byte-exact). Use this to prove two independently rendered components rasterize identically, where the
+ * tolerance of [assertImageMatches] would miss a stray border, margin or alignment shift.
  *
  * @param expected the reference image.
  * @param image the image under test.

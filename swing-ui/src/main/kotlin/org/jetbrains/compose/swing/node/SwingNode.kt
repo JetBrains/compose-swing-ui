@@ -1,4 +1,7 @@
-package org.jetbrains.compose.swing
+@file:JvmMultifileClass
+@file:JvmName("NodeKt")
+
+package org.jetbrains.compose.swing.node
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -6,11 +9,6 @@ import androidx.compose.runtime.DisallowComposableCalls
 import androidx.compose.runtime.ReusableComposeNode
 import androidx.compose.runtime.rememberCompositionContext
 import org.jetbrains.compose.swing.annotations.SwingComposable
-import org.jetbrains.compose.swing.core.LocalSlotAttachment
-import org.jetbrains.compose.swing.core.LocalSwingConstraint
-import org.jetbrains.compose.swing.core.SwingApplier
-import org.jetbrains.compose.swing.core.SwingConstraint
-import org.jetbrains.compose.swing.core.SwingNodeHolder
 import java.awt.Component
 
 /**

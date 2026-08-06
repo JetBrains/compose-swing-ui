@@ -1,6 +1,3 @@
-@file:JvmMultifileClass
-@file:JvmName("SelectionComponentsKt")
-
 package org.jetbrains.compose.swing.components.selection
 
 import javax.swing.table.TableColumnModel

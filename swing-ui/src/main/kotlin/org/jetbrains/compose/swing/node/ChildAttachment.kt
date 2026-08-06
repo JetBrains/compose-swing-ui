@@ -1,4 +1,7 @@
-package org.jetbrains.compose.swing.core
+@file:JvmMultifileClass
+@file:JvmName("NodeKt")
+
+package org.jetbrains.compose.swing.node
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider

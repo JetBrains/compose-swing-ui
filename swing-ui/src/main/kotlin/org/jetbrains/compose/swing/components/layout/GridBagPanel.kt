@@ -6,12 +6,12 @@ package org.jetbrains.compose.swing.components.layout
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.key
-import org.jetbrains.compose.swing.SwingNode
 import org.jetbrains.compose.swing.constants.GridBagAnchor
 import org.jetbrains.compose.swing.constants.GridBagFill
-import org.jetbrains.compose.swing.core.LocalSwingConstraint
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
+import org.jetbrains.compose.swing.node.LocalSwingConstraint
+import org.jetbrains.compose.swing.node.SwingNode
 import java.awt.GridBagConstraints
 import java.awt.GridBagLayout
 import java.awt.Insets

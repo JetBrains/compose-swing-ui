@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.core
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifierDiff
 import org.jetbrains.compose.swing.modifier.listener.listener
+import org.jetbrains.compose.swing.node.SwingNodeHolder
 import javax.swing.JButton
 import kotlin.test.Test
 import kotlin.test.assertEquals

@@ -1,15 +1,15 @@
 @file:JvmMultifileClass
-@file:JvmName("MenuComponentsKt")
+@file:JvmName("ComponentsKt")
 
 package org.jetbrains.compose.swing.components
 
 import androidx.compose.runtime.Composable
-import org.jetbrains.compose.swing.MenuNode
 import org.jetbrains.compose.swing.components.selection.ButtonGroupOption
 import org.jetbrains.compose.swing.components.selection.applyGroupSelection
 import org.jetbrains.compose.swing.components.selection.rememberButtonGroup
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
+import org.jetbrains.compose.swing.node.MenuNode
 import javax.swing.JRadioButtonMenuItem
 import javax.swing.KeyStroke
 

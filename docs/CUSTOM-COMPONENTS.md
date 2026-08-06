@@ -228,12 +228,12 @@ Three pieces work together:
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import org.jetbrains.compose.swing.SwingNode
-import org.jetbrains.compose.swing.declare
+import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.node.declare
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.actionListener
-import org.jetbrains.compose.swing.rememberAppliedValue
+import org.jetbrains.compose.swing.node.rememberAppliedValue
 import java.awt.event.ActionListener
 import javax.swing.JCheckBox
 
@@ -572,7 +572,7 @@ Here is a complete, compilable wrapper for `JSpinner`, mirroring how `TextField`
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import org.jetbrains.compose.swing.SwingNode
+import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.changeListener
@@ -624,7 +624,7 @@ emitted by `content` are added by the framework's applier:
 
 ```kotlin
 import androidx.compose.runtime.Composable
-import org.jetbrains.compose.swing.SwingNode
+import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.annotations.SwingComposable
 import java.awt.FlowLayout
 import javax.swing.JPanel
@@ -652,7 +652,7 @@ A container whose layout manager needs to know *where* each child goes - a `Bord
 composes, with `SwingConstraint`:
 
 ```kotlin
-import org.jetbrains.compose.swing.core.SwingConstraint
+import org.jetbrains.compose.swing.node.SwingConstraint
 
 /** The placements your container offers, and where the constraint's type belongs. */
 interface MosaicScope {

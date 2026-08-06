@@ -14,8 +14,8 @@ import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import org.jetbrains.compose.swing.annotations.SwingMenuComposable
 import org.jetbrains.compose.swing.core.KeepEnclosingApplicationAlive
-import org.jetbrains.compose.swing.core.MenuApplier
 import org.jetbrains.compose.swing.core.SwingCompositionMount
+import org.jetbrains.compose.swing.node.MenuApplier
 import java.awt.Image
 import java.awt.SystemTray
 import java.awt.TrayIcon

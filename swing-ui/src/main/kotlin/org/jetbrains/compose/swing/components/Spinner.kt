@@ -4,10 +4,10 @@
 package org.jetbrains.compose.swing.components
 
 import androidx.compose.runtime.Composable
-import org.jetbrains.compose.swing.SwingNode
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.changeListener
+import org.jetbrains.compose.swing.node.SwingNode
 import javax.swing.JSpinner
 import javax.swing.SpinnerModel
 import javax.swing.event.ChangeListener
