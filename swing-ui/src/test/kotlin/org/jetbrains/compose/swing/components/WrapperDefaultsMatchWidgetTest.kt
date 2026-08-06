@@ -142,7 +142,7 @@ class WrapperDefaultsMatchWidgetTest {
     @Test
     fun spinnerDefaultsMatchBareWidget() = runComposeSwingTest {
         val bare = JSpinner().model as SpinnerNumberModel
-        setContent { Spinner(rememberSpinnerState(initialValue = bare.number.toInt())) }
+        setContent { Spinner(value = bare.number.toInt()) }
         val wrapped = onNodeOfType<JSpinner>().fetch().model as SpinnerNumberModel
         assertEquals(bare.value, wrapped.value, "value")
         assertEquals(bare.stepSize, wrapped.stepSize, "stepSize")

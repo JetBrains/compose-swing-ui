@@ -10,7 +10,6 @@ import org.jetbrains.compose.swing.components.Spinner
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.button.ToggleButton
 import org.jetbrains.compose.swing.components.layout.FlowPanel
-import org.jetbrains.compose.swing.components.rememberSpinnerState
 import org.jetbrains.compose.swing.components.text.FormattedTextField
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.components.text.rememberDocumentState
@@ -47,19 +46,19 @@ internal fun FormInputsSection() {
 @Composable
 private fun IntSpinnerCard() {
     ExampleCard("Spinner (Int)") {
-        val count = rememberSpinnerState(initialValue = 3, min = 0, max = 10, step = 1)
+        var count by remember { mutableStateOf(3) }
         FlowPanel {
             Label("Count:")
-            Spinner(count)
+            Spinner(count, onValueChange = { count = it.toInt() }, min = 0, max = 10, step = 1)
         }
-        Label("Count is ${count.value}")
+        Label("Count is $count")
     }
 }
 
 @Composable
 private fun DoubleSpinnerCard() {
     ExampleCard("Spinner (Double)") {
-        val rate = rememberSpinnerState(initialValue = 1.5, min = 0.0, max = 5.0, step = 0.5)
+        var rate by remember { mutableStateOf(1.5) }
         FlowPanel {
             Label("Rate:")
             Spinner(
@@ -67,9 +66,13 @@ private fun DoubleSpinnerCard() {
                 // The default editor is sized for short integers and would clip "1.5" to "1."; a wider
                 // preferred width lets the whole fractional value show.
                 modifier = SwingModifier.preferredSize(Dimension(80, 28)),
+                onValueChange = { rate = it.toDouble() },
+                min = 0.0,
+                max = 5.0,
+                step = 0.5,
             )
         }
-        Label("Rate is ${rate.value}")
+        Label("Rate is $rate")
     }
 }
 
@@ -77,12 +80,12 @@ private fun DoubleSpinnerCard() {
 private fun ListSpinnerCard() {
     ExampleCard("Spinner (list)") {
         val sizes = listOf("S", "M", "L", "XL")
-        val size = rememberSpinnerState(items = sizes, initialSelectedIndex = 1)
+        var size by remember { mutableStateOf(sizes[1]) }
         FlowPanel {
             Label("Size:")
-            Spinner(size)
+            Spinner(items = sizes, value = size, onValueChange = { size = it })
         }
-        Label("Size is ${size.value} (index ${sizes.indexOf(size.value)})")
+        Label("Size is $size (index ${sizes.indexOf(size)})")
     }
 }
 
@@ -90,7 +93,7 @@ private fun ListSpinnerCard() {
 private fun ToggleButtonCard() {
     ExampleCard("ToggleButton") {
         var bold by remember { mutableStateOf(false) }
-        ToggleButton(text = "Bold", pressed = bold, onPressedChange = { bold = it })
+        ToggleButton(text = "Bold", selected = bold, onSelectedChange = { bold = it })
         Label("Bold is ${if (bold) "on" else "off"}")
     }
 }

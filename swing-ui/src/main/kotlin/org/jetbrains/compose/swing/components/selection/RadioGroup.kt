@@ -9,6 +9,7 @@ import org.jetbrains.compose.swing.constants.BoxAxis
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.node.declare
 import javax.swing.BoxLayout
 import javax.swing.JRadioButton
 
@@ -36,6 +37,7 @@ import javax.swing.JRadioButton
  * @param modifier the [SwingModifier] applied to the group's panel
  * @param axis the axis along which the options are arranged (a [BoxAxis] `BoxLayout` value)
  * @param content declares the options; see [RadioGroupScope]
+ * @see javax.swing.ButtonGroup
  */
 @Composable
 public fun RadioGroup(
@@ -51,12 +53,13 @@ public fun RadioGroup(
 
     BoxPanel(modifier = modifier, axis = axis) {
         scope.options.forEachIndexed { index, option ->
-            ButtonGroupOption(group, index, option.modifier, onSelectionChange) { optionModifier ->
+            val selected = index == selectedIndex
+            ButtonGroupOption(group, index, option.modifier, selected, onSelectionChange) { optionModifier, applied ->
                 SwingNode(
                     factory = { JRadioButton() },
                     update = {
                         set(option.text) { this.text = it }
-                        reconcile { applyGroupSelection(group, index == selectedIndex) }
+                        declare(selected, applied, { isSelected }, { applyGroupSelection(group, it) })
                         applyModifier(optionModifier)
                     },
                 )
@@ -69,13 +72,16 @@ public fun RadioGroup(
  * Declarative choices of a [RadioGroup]. Each [option] call appends one radio button, in call order;
  * its position is the index reported to [RadioGroup]'s `onSelectionChange` and matched against
  * `selectedIndex`.
+ *
+ * @see javax.swing.ButtonGroup
  */
-public interface RadioGroupScope {
+public sealed interface RadioGroupScope {
     /**
      * Declares one choice.
      *
      * @param text the label shown next to the radio button
      * @param modifier the [SwingModifier] applied to this option's radio button
+     * @see javax.swing.JRadioButton
      */
     public fun option(
         text: String,

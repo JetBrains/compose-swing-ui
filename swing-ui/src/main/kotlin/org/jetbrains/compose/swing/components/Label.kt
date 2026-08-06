@@ -14,6 +14,7 @@ import javax.swing.JLabel
  *
  * @param text the text to display
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @see javax.swing.JLabel
  */
 @Composable
 public fun Label(

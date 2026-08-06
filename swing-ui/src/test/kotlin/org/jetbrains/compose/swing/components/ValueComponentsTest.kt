@@ -7,6 +7,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.text.TextArea
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import javax.swing.DefaultBoundedRangeModel
 import javax.swing.JLabel
 import javax.swing.JProgressBar
 import javax.swing.JSeparator
@@ -138,6 +139,89 @@ class ValueComponentsTest {
         awaitIdle()
 
         assertEquals(30, slider.value, "a move the caller does not adopt does not stand")
+    }
+
+    @Test
+    fun aDragReportsEveryStepAndSettlesOnceOnReleaseWithoutReassertingMidDrag() = runComposeSwingTest {
+        val changed = mutableListOf<Int>()
+        val settled = mutableListOf<Int>()
+        setContent {
+            // The declaration is left at 0 throughout and never adopts the drag, so a widget write mid-
+            // drag standing unreverted is what shows the fixed value is not reasserted while adjusting.
+            Slider(
+                value = 0,
+                onValueChange = { changed += it },
+                onValueSettled = { settled += it },
+                min = 0,
+                max = 100,
+            )
+        }
+        val slider = onNodeOfType<JSlider>().fetch()
+
+        // What a drag does to a JSlider: valueIsAdjusting true for every step it passes through, and
+        // false again for the value it is released on.
+        slider.setValueIsAdjusting(true)
+        slider.value = 10
+        slider.value = 20
+        slider.value = 30
+        awaitIdle()
+
+        assertEquals(listOf(10, 20, 30), changed, "onValueChange should see every value the drag passed through")
+        assertEquals(emptyList(), settled, "onValueSettled should not fire while the drag is still adjusting")
+        assertEquals(
+            30,
+            slider.value,
+            "the fixed declaration should not be reasserted onto a slider the user is still dragging",
+        )
+
+        slider.setValueIsAdjusting(false)
+        awaitIdle()
+
+        assertEquals(
+            listOf(10, 20, 30),
+            changed,
+            "releasing should not re-report the steps the drag already published",
+        )
+        assertEquals(
+            listOf(30),
+            settled,
+            "onValueSettled should fire exactly once, with the value the drag released on",
+        )
+    }
+
+    @Test
+    fun aDragOnAModelDrivenSliderReportsEveryStepAndSettlesOnceOnRelease() = runComposeSwingTest {
+        val model = DefaultBoundedRangeModel(0, 0, 0, 100)
+        val changed = mutableListOf<Int>()
+        val settled = mutableListOf<Int>()
+        setContent {
+            Slider(model = model, onValueChange = { changed += it }, onValueSettled = { settled += it })
+        }
+        val slider = onNodeOfType<JSlider>().fetch()
+
+        slider.setValueIsAdjusting(true)
+        slider.value = 10
+        slider.value = 20
+        slider.value = 30
+        awaitIdle()
+
+        assertEquals(listOf(10, 20, 30), changed, "onValueChange should see every value the drag passed through")
+        assertEquals(emptyList(), settled, "onValueSettled should not fire while the drag is still adjusting")
+        assertEquals(30, model.value, "nothing is declared over a caller's model, so the drag's own value stands")
+
+        slider.setValueIsAdjusting(false)
+        awaitIdle()
+
+        assertEquals(
+            listOf(10, 20, 30),
+            changed,
+            "releasing should not re-report the steps the drag already published",
+        )
+        assertEquals(
+            listOf(30),
+            settled,
+            "onValueSettled should fire exactly once, with the value the drag released on",
+        )
     }
 
     @Test

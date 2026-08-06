@@ -39,8 +39,8 @@ private fun EditorPaneCard() {
         FlowPanel(modifier = SwingModifier.alignmentX(LEFT_ALIGNED)) {
             ToggleButton(
                 text = if (html) "Content type: Html" else "Content type: PlainText",
-                pressed = html,
-                onPressedChange = { html = it },
+                selected = html,
+                onSelectedChange = { html = it },
             )
         }
         ScrollPane(modifier = SwingModifier.preferredSize(Dimension(360, 120)).alignmentX(LEFT_ALIGNED)) {

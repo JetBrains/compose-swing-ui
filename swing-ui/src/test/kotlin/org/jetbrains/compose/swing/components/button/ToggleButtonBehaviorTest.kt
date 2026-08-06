@@ -18,11 +18,6 @@ import kotlin.test.assertNull
 /**
  * Behavioral tests for [ToggleButton], driven through the real composition pipeline and asserting
  * against the live `JToggleButton`.
- *
- * The central guarantees: text renders onto the button; clicking toggles the selected state
- * and reports the new value; the pressed state is controlled from composition; an external
- * pressed-state update applies without echoing back as a spurious callback; and a click the caller
- * does not adopt does not stand - the next settled pass writes the declared state back over it.
  */
 class ToggleButtonBehaviorTest {
     @Test
@@ -34,15 +29,15 @@ class ToggleButtonBehaviorTest {
 
     @Test
     fun clickingTogglesAndReportsTheNewState() = runComposeSwingTest {
-        var pressed by mutableStateOf(false)
+        var selected by mutableStateOf(false)
         val received = mutableListOf<Boolean>()
         setContent {
             ToggleButton(
                 text = "Bold",
-                pressed = pressed,
-                onPressedChange = {
+                selected = selected,
+                onSelectedChange = {
                     received += it
-                    pressed = it
+                    selected = it
                 },
             )
         }
@@ -52,7 +47,7 @@ class ToggleButtonBehaviorTest {
 
         toggle.performClick()
         toggle.assert(SwingMatcher.isSelected())
-        assertEquals(listOf(true), received, "reports the new pressed state")
+        assertEquals(listOf(true), received, "reports the new selected state")
 
         toggle.performClick()
         toggle.assert(SwingMatcher.isSelected(false))
@@ -106,7 +101,7 @@ class ToggleButtonBehaviorTest {
             // reports a different value: a callback captured once when the button was built keeps
             // reporting the round it was born in, however often the declaration changes.
             val current = round
-            ToggleButton(text = "Bold", onPressedChange = { runs += current })
+            ToggleButton(text = "Bold", onSelectedChange = { runs += current })
         }
 
         onNodeOfType<JToggleButton>().performClick()
@@ -122,7 +117,7 @@ class ToggleButtonBehaviorTest {
     fun recompositionLeavesExactlyOneListenerOnTheButton() = runComposeSwingTest {
         var text by mutableStateOf("One")
         val reported = mutableListOf<Boolean>()
-        setContent { ToggleButton(text = text, onPressedChange = { reported += it }) }
+        setContent { ToggleButton(text = text, onSelectedChange = { reported += it }) }
 
         text = "Two"
         awaitIdle()
@@ -139,27 +134,27 @@ class ToggleButtonBehaviorTest {
     }
 
     @Test
-    fun thePressedStateFollowsTheStateDrivingIt() = runComposeSwingTest {
+    fun theSelectedStateFollowsTheStateDrivingIt() = runComposeSwingTest {
         // A JToggleButton is built released, so declaring `true` first proves the parameter reaches the
         // button on the very first composition rather than the button merely keeping its own default.
-        var pressed by mutableStateOf(true)
-        setContent { ToggleButton(text = "Bold", pressed = pressed) }
+        var selected by mutableStateOf(true)
+        setContent { ToggleButton(text = "Bold", selected = selected) }
 
         onNodeOfType<JToggleButton>().assert(SwingMatcher.isSelected())
 
-        pressed = false
+        selected = false
         awaitIdle()
         onNodeOfType<JToggleButton>().assert(SwingMatcher.isSelected(false))
 
-        pressed = true
+        selected = true
         awaitIdle()
         onNodeOfType<JToggleButton>().assert(SwingMatcher.isSelected())
     }
 
     @Test
-    fun theRawListenerOverloadAppliesTextAndPressedStateAndFires() = runComposeSwingTest {
+    fun theRawListenerOverloadAppliesTextAndSelectedStateAndFires() = runComposeSwingTest {
         var text by mutableStateOf("Bold")
-        var pressed by mutableStateOf(false)
+        var selected by mutableStateOf(false)
         var tip by mutableStateOf<String?>("Bold text")
         val reported = mutableListOf<Boolean>()
         setContent {
@@ -169,7 +164,7 @@ class ToggleButtonBehaviorTest {
                 text = text,
                 actionListener = listener,
                 modifier = tip?.let { SwingModifier.toolTip(it) } ?: SwingModifier,
-                pressed = pressed,
+                selected = selected,
             )
         }
 
@@ -178,7 +173,7 @@ class ToggleButtonBehaviorTest {
         toggle.assert(SwingMatcher.isSelected(false))
 
         text = "Strong"
-        pressed = true
+        selected = true
         tip = null
         awaitIdle()
         toggle.assertTextEquals("Strong")
@@ -187,7 +182,7 @@ class ToggleButtonBehaviorTest {
         assertNull(button.toolTipText, "dropping the element restores the tooltip the button had without it")
         assertEquals(1, button.actionListeners.size, "a stable listener instance stays attached exactly once")
 
-        pressed = false
+        selected = false
         awaitIdle()
         toggle.assert(SwingMatcher.isSelected(false))
 
@@ -223,28 +218,28 @@ class ToggleButtonBehaviorTest {
     }
 
     @Test
-    fun controlledPressedStateAppliesWithoutCallback() = runComposeSwingTest {
-        var pressed by mutableStateOf(false)
+    fun controlledSelectedStateAppliesWithoutCallback() = runComposeSwingTest {
+        var selected by mutableStateOf(false)
         val received = mutableListOf<Boolean>()
         setContent {
-            ToggleButton(text = "Bold", pressed = pressed, onPressedChange = { received += it })
+            ToggleButton(text = "Bold", selected = selected, onSelectedChange = { received += it })
         }
 
         onNodeOfType<JToggleButton>().assert(SwingMatcher.isSelected(false))
 
-        // Pushing pressed=true from composition must update the button without firing the callback:
-        // only a user-driven click reports through onPressedChange.
-        pressed = true
+        // Pushing selected=true from composition must update the button without firing the callback:
+        // only a user-driven click reports through onSelectedChange.
+        selected = true
         awaitIdle()
 
         onNodeOfType<JToggleButton>().assert(SwingMatcher.isSelected())
-        assertEquals(emptyList(), received, "a controlled update must not fire onPressedChange")
+        assertEquals(emptyList(), received, "a controlled update must not fire onSelectedChange")
     }
 
     @Test
-    fun aPressTheCallerDoesNotAdoptDoesNotStand() = runComposeSwingTest {
+    fun aSelectingClickTheCallerDoesNotAdoptDoesNotStand() = runComposeSwingTest {
         var text by mutableStateOf("Bold")
-        setContent { ToggleButton(text = text, pressed = false) }
+        setContent { ToggleButton(text = text, selected = false) }
 
         val toggle = onNodeOfType<JToggleButton>()
         toggle.performClick()
@@ -258,9 +253,9 @@ class ToggleButtonBehaviorTest {
     }
 
     @Test
-    fun aReleaseTheCallerDoesNotAdoptDoesNotStand() = runComposeSwingTest {
+    fun aClearingClickTheCallerDoesNotAdoptDoesNotStand() = runComposeSwingTest {
         var text by mutableStateOf("Bold")
-        setContent { ToggleButton(text = text, pressed = true) }
+        setContent { ToggleButton(text = text, selected = true) }
 
         val toggle = onNodeOfType<JToggleButton>()
         toggle.performClick()

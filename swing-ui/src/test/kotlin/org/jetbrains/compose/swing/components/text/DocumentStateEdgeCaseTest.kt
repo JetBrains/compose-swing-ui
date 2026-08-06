@@ -62,8 +62,7 @@ class DocumentStateEdgeCaseTest {
             TextField(state = state)
         }
 
-        // The block runs and places the caret, but makes no document change, so there is nothing worth
-        // undoing.
+        // The block places the caret but makes no document change, so it records nothing undoable.
         state.edit { placeCaretAtEnd() }
         awaitIdle()
 
@@ -90,6 +89,46 @@ class DocumentStateEdgeCaseTest {
         val field = onNodeOfType<JTextField>().fetch()
         assertEquals(0, field.selectionStart, "the stored selection should reach the caret on bind")
         assertEquals(5, field.selectionEnd, "the stored selection should reach the caret on bind")
+    }
+
+    @Test
+    fun selectionBeyondTheDocumentSettlesToARangeTheFieldHas() = runComposeSwingTest {
+        lateinit var state: DocumentState
+        setContent {
+            state = rememberDocumentState("abc")
+            TextField(state = state)
+        }
+
+        // A field cannot hold a caret past its last character, so the assignment settles at the
+        // document's end and that settled range is the selection the state reports.
+        state.selection = TextRange(99, 99)
+        awaitIdle()
+
+        val field = onNodeOfType<JTextField>().fetch()
+        assertEquals(3, field.caretPosition, "the field settles a caret past the end at the document's end")
+        assertEquals(TextRange(3, 3), state.selection, "the state reports the range the field settled on")
+    }
+
+    @Test
+    fun selectionLeftOutsideAShrunkDocumentSettlesWhenTheFieldMounts() = runComposeSwingTest {
+        lateinit var state: DocumentState
+        var mounted by mutableStateOf(false)
+        setContent {
+            state = rememberDocumentState("hello world")
+            if (mounted) TextField(state = state)
+        }
+
+        // The selection is in range when it is assigned, and the text shrinks past it while no
+        // component renders the state, so nothing settles it until a field binds.
+        state.selection = TextRange(11, 11)
+        state.text = "abc"
+
+        mounted = true
+        awaitIdle()
+
+        val field = onNodeOfType<JTextField>().fetch()
+        assertEquals(3, field.caretPosition, "the caret lands at the end of the document the field renders")
+        assertEquals(TextRange(3, 3), state.selection, "the state reports the range the field settled on at bind")
     }
 
     @Test

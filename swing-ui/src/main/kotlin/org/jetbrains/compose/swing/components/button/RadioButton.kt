@@ -24,16 +24,17 @@ import javax.swing.JRadioButton
  * @param text the text to display next to the radio button
  * @param modifier the [SwingModifier] applied to the underlying component
  * @param selected whether the radio button is selected
- * @param onSelect callback invoked when the radio button is selected
+ * @param onSelectedChange callback invoked with the new selected state when the button is activated
+ * @see javax.swing.JRadioButton
  */
 @Composable
 public fun RadioButton(
     text: String,
     modifier: SwingModifier = SwingModifier,
     selected: Boolean = false,
-    onSelect: () -> Unit = {},
+    onSelectedChange: (Boolean) -> Unit = {},
 ) {
-    val callback = rememberUpdatedState(onSelect)
+    val callback = rememberUpdatedState(onSelectedChange)
     val applied = rememberAppliedValue(selected)
     // The button publishes its new state for every activation, its own and the user's alike. The binding
     // answers which is which by value: a move that lands on the declaration is the declaration arriving.
@@ -41,7 +42,7 @@ public fun RadioButton(
         remember(applied) {
             ActionListener { event ->
                 val isSelected = (event.source as JRadioButton).isSelected
-                if (applied.observed(isSelected) && isSelected) callback.value()
+                if (applied.observed(isSelected)) callback.value(isSelected)
             }
         }
     RadioButtonNode(
@@ -53,14 +54,15 @@ public fun RadioButton(
 }
 
 /**
- * A composable wrapper for JRadioButton driven by a raw [ActionListener] instead of an `onSelect`
- * lambda. The [actionListener] is attached as-is and removed on the same instance; pass a stable
- * instance (e.g. `remember {}`) to avoid churn.
+ * A composable wrapper for JRadioButton driven by a raw [ActionListener] instead of an
+ * `onSelectedChange` lambda. The [actionListener] is attached as-is and removed on the same instance;
+ * pass a stable instance (e.g. `remember {}`) to avoid churn.
  *
  * @param text the text to display next to the radio button
  * @param actionListener the listener notified when the radio button is activated
  * @param modifier the [SwingModifier] applied to the underlying component
  * @param selected whether the radio button is selected
+ * @see javax.swing.JRadioButton
  */
 @Composable
 public fun RadioButton(

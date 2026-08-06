@@ -52,6 +52,7 @@ import javax.swing.event.PopupMenuListener
  * @param imageAutoSize whether [image] is scaled to the size the platform's tray allocates,
  *   rather than painted at its own size.
  * @param menu the composable menu tree opened on the popup gesture.
+ * @see java.awt.TrayIcon
  */
 @Composable
 public fun Tray(
@@ -85,6 +86,10 @@ public fun Tray(
     val menuHost = remember { TrayMenuHost(parentContext) { currentMenu() } }
     val trayIcon = remember { TrayIcon(image) }
 
+    // TrayIcon extends Object, not java.awt.Component, so it cannot back a SwingNodeHolder<out T :
+    // Component> - the applier's node type is bounded to Component. There is no node for it to carry an
+    // update block, so the value is pushed here instead, hand-rolling the change guard a node's set()
+    // would give for free.
     SideEffect {
         if (trayIcon.image != image) trayIcon.image = image
         if (trayIcon.toolTip != tooltip) trayIcon.toolTip = tooltip

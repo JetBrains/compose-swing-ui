@@ -102,9 +102,9 @@ private fun ToggleCard() {
 
         var choice by remember { mutableIntStateOf(0) }
         FlowPanel(modifier = SwingModifier.alignmentX(LEFT_ALIGNED)) {
-            RadioButton(text = "Low", selected = choice == 0, onSelect = { choice = 0 })
-            RadioButton(text = "Medium", selected = choice == 1, onSelect = { choice = 1 })
-            RadioButton(text = "High", selected = choice == 2, onSelect = { choice = 2 })
+            RadioButton(text = "Low", selected = choice == 0, onSelectedChange = { choice = 0 })
+            RadioButton(text = "Medium", selected = choice == 1, onSelectedChange = { choice = 1 })
+            RadioButton(text = "High", selected = choice == 2, onSelectedChange = { choice = 2 })
         }
         Label("Priority index: $choice")
     }

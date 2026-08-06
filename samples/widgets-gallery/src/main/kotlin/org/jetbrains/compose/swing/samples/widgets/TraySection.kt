@@ -35,8 +35,8 @@ private fun TrayToggleCard() {
 
         ToggleButton(
             text = "Show tray icon",
-            pressed = showTray,
-            onPressedChange = { showTray = it },
+            selected = showTray,
+            onSelectedChange = { showTray = it },
         )
         WrappedCaption(
             "The tray icon is present only while this section is open: the Tray lives in the section's " +

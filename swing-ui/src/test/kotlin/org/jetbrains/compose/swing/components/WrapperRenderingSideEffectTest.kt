@@ -137,8 +137,8 @@ class WrapperRenderingSideEffectTest {
     )
 
     @Test
-    fun pressedToggleButtonAddsNoRenderingSideEffects() = assertWrapperMatchesRaw(
-        content = { ToggleButton(text = TOGGLE_TEXT, pressed = true) },
+    fun selectedToggleButtonAddsNoRenderingSideEffects() = assertWrapperMatchesRaw(
+        content = { ToggleButton(text = TOGGLE_TEXT, selected = true) },
         find = { onNodeOfType<JToggleButton>() },
         buildRaw = {
             JToggleButton().apply {

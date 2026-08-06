@@ -58,8 +58,8 @@ internal fun ShowcaseMenuBar(
     Menu("View") {
         CheckBoxMenuItem("Wrap text", checked = wrapText, onCheckedChange = { wrapText = it })
         MenuSeparator()
-        RadioButtonMenuItem("Comfortable", selected = density == 0, onSelect = { density = 0 })
-        RadioButtonMenuItem("Compact", selected = density == 1, onSelect = { density = 1 })
+        RadioButtonMenuItem("Comfortable", selected = density == 0, onSelectedChange = { density = 0 })
+        RadioButtonMenuItem("Compact", selected = density == 1, onSelectedChange = { density = 1 })
     }
 }
 

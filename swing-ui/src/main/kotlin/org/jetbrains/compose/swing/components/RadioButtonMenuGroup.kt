@@ -10,6 +10,7 @@ import org.jetbrains.compose.swing.components.selection.rememberButtonGroup
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.node.MenuNode
+import org.jetbrains.compose.swing.node.declare
 import javax.swing.JRadioButtonMenuItem
 import javax.swing.KeyStroke
 
@@ -36,6 +37,7 @@ import javax.swing.KeyStroke
  *   `-1`, leaves every option unselected
  * @param onSelectionChange callback invoked with the option's index when the user selects it
  * @param content declares the options; see [RadioButtonMenuGroupScope]
+ * @see javax.swing.ButtonGroup
  */
 @Composable
 public fun RadioButtonMenuGroup(
@@ -48,13 +50,14 @@ public fun RadioButtonMenuGroup(
     val group = rememberButtonGroup()
 
     scope.options.forEachIndexed { index, option ->
-        ButtonGroupOption(group, index, option.modifier, onSelectionChange) { optionModifier ->
+        val selected = index == selectedIndex
+        ButtonGroupOption(group, index, option.modifier, selected, onSelectionChange) { optionModifier, applied ->
             MenuNode(
                 factory = { JRadioButtonMenuItem() },
                 update = {
                     set(option.text) { this.text = it }
                     set(option.accelerator) { this.accelerator = it }
-                    reconcile { applyGroupSelection(group, index == selectedIndex) }
+                    declare(selected, applied, { isSelected }, { applyGroupSelection(group, it) })
                     applyModifier(optionModifier)
                 },
             )
@@ -66,8 +69,10 @@ public fun RadioButtonMenuGroup(
  * Declarative choices of a [RadioButtonMenuGroup]. Each [option] call appends one radio button menu
  * item, in call order; its position is the index reported to [RadioButtonMenuGroup]'s
  * `onSelectionChange` and matched against `selectedIndex`.
+ *
+ * @see javax.swing.ButtonGroup
  */
-public interface RadioButtonMenuGroupScope {
+public sealed interface RadioButtonMenuGroupScope {
     /**
      * Declares one choice.
      *
@@ -75,6 +80,7 @@ public interface RadioButtonMenuGroupScope {
      * @param modifier the [SwingModifier] applied to this option's menu item
      * @param accelerator the key combination that activates the item without navigating the menu
      *   hierarchy, displayed next to its text; `null` (the default) leaves the item without one
+     * @see javax.swing.JRadioButtonMenuItem
      */
     public fun option(
         text: String,

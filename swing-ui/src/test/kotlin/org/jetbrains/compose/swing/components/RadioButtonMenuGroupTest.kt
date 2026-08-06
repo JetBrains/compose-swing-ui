@@ -20,9 +20,9 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 /**
- * Behavioral coverage for [RadioButtonMenuGroup]. Each test asserts what an observer of the live menu
- * sees: which `JRadioButtonMenuItem` is selected, that exactly one is selected at a time, and the
- * index the user's callback receives when the user picks an option.
+ * Behavioral coverage for [RadioButtonMenuGroup], checked against the live menu: which
+ * `JRadioButtonMenuItem` is selected, that exactly one is selected at a time, and the index the
+ * callback receives when the user picks an option.
  */
 class RadioButtonMenuGroupTest {
     private fun RadioButtonMenuGroupScope.threeOptions() {
@@ -80,7 +80,7 @@ class RadioButtonMenuGroupTest {
     }
 
     @Test
-    fun aSelectionTheCallerDoesNotAdoptIsUndoneByTheNextRecomposition() = runComposeSwingTest {
+    fun aSelectionTheCallerDoesNotAdoptDoesNotStand() = runComposeSwingTest {
         var label by mutableStateOf("first")
         val popup =
             composeMenu {
@@ -93,13 +93,39 @@ class RadioButtonMenuGroupTest {
 
         options(popup)[2].doClick()
         awaitIdle()
-        assertEquals(listOf("Large"), selectedTexts(popup), "the user's choice reaches the menu")
 
-        // The pass changes a property that has nothing to do with selection, which is precisely the pass
-        // that has to put the declared option back.
+        // The pick moves the group's selection, so the declared option loses it without being picked
+        // itself; the pass the pick provokes puts the declaration back on both of them.
+        assertEquals(listOf("Small"), selectedTexts(popup), "the declared option should be selected again")
+
+        // An unrelated recomposition changes nothing here: the declared option was already the selected
+        // one right after the pick, not just once this pass ran.
         label = "second"
         awaitIdle()
-        assertEquals(listOf("Small"), selectedTexts(popup), "the declared option should be selected again")
+        assertEquals(listOf("Small"), selectedTexts(popup), "the declared option should still be selected")
+    }
+
+    @Test
+    fun aSelectionTheCallerAdoptsStands() = runComposeSwingTest {
+        var selectedIndex by mutableIntStateOf(0)
+        var label by mutableStateOf("first")
+        val popup =
+            composeMenu {
+                RadioButtonMenuGroup(selectedIndex = selectedIndex, onSelectionChange = { selectedIndex = it }) {
+                    option("Small", modifier = SwingModifier.name(label))
+                    option("Medium")
+                    option("Large")
+                }
+            }
+
+        options(popup)[2].doClick()
+        awaitIdle()
+        assertEquals(listOf("Large"), selectedTexts(popup), "the user's choice reaches the menu")
+
+        // A pass that carries the adopted index leaves the user's choice exactly where it is.
+        label = "second"
+        awaitIdle()
+        assertEquals(listOf("Large"), selectedTexts(popup), "the adopted choice should stay selected")
     }
 
     @Test

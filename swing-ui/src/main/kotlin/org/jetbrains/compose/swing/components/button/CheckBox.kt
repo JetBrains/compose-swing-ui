@@ -25,6 +25,7 @@ import javax.swing.JCheckBox
  * @param checked whether the checkbox is checked
  * @param modifier the [SwingModifier] applied to the underlying component
  * @param onCheckedChange callback invoked when the checked state changes
+ * @see javax.swing.JCheckBox
  */
 @Composable
 public fun CheckBox(
@@ -61,6 +62,7 @@ public fun CheckBox(
  * @param actionListener the listener notified when the checkbox is toggled
  * @param checked whether the checkbox is checked
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @see javax.swing.JCheckBox
  */
 @Composable
 public fun CheckBox(

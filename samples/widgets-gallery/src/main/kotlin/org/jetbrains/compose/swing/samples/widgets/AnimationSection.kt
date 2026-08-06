@@ -136,7 +136,7 @@ private fun InfinitePulseCard() {
             StaticDisc()
         }
         FlowPanel(modifier = SwingModifier.alignmentX(LEFT_ALIGNED)) {
-            ToggleButton(text = "Running", pressed = running, onPressedChange = { running = it })
+            ToggleButton(text = "Running", selected = running, onSelectedChange = { running = it })
         }
     }
 }

@@ -16,6 +16,7 @@ import javax.swing.JMenu
  * @param text the text of the menu
  * @param modifier the [SwingModifier] applied to the underlying component
  * @param content the composable content of the menu (menu items)
+ * @see javax.swing.JMenu
  */
 @Composable
 public fun Menu(

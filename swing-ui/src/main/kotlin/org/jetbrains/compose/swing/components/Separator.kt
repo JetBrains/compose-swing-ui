@@ -17,6 +17,7 @@ import javax.swing.SwingConstants
  *
  * @param modifier the [SwingModifier] applied to the underlying component
  * @param orientation the orientation of the separator (an [Orientation] `SwingConstants` value)
+ * @see javax.swing.JSeparator
  */
 @Composable
 public fun Separator(

@@ -11,6 +11,7 @@ import javax.swing.JSlider
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotSame
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -18,7 +19,8 @@ import kotlin.test.assertTrue
  * Behavioral coverage for the tick marks and value labels of a [Slider]: the spacings and the painting
  * flags reach the live `JSlider` and follow a state-driven recomposition, snapping resolves a value to
  * the closest tick, and the declared label map decides which labels are drawn - with Swing's own labels
- * at the major tick marks standing in whenever no map is declared.
+ * at the major tick marks standing in whenever no map is declared and a later map replacing the labels
+ * the one before it drew.
  */
 class SliderTicksTest {
     /** The values the slider draws a label at, in ascending order. */
@@ -166,6 +168,28 @@ class SliderTicksTest {
     }
 
     @Test
+    fun swappingOneLabelMapForAnotherRepaintsTheTexts() = runComposeSwingTest {
+        var labels by mutableStateOf(mapOf(0 to "quiet", 100 to "loud"))
+        setContent {
+            Slider(value = 30, min = 0, max = 100, majorTickSpacing = 25, paintLabels = true, labels = labels)
+        }
+        val slider = onNodeOfType<JSlider>().fetch()
+        assertEquals("quiet", slider.labelTextAt(0), "the declared text is what the slider paints")
+
+        labels = mapOf(0 to "silent", 100 to "silent")
+        awaitIdle()
+
+        assertEquals(listOf(0, 100), slider.labelledValues(), "the new map decides which values are labelled")
+        assertEquals("silent", slider.labelTextAt(0), "the new text replaces the one the old map declared")
+        assertEquals("silent", slider.labelTextAt(100), "at every value the new map declares it at")
+        assertNotSame(
+            slider.labelTable[0],
+            slider.labelTable[100],
+            "each entry is drawn by a label of its own, two entries reading alike included",
+        )
+    }
+
+    @Test
     fun aDeclaredLabelMapStandsWhenTheRangeMoves() = runComposeSwingTest {
         var labels by mutableStateOf<Map<Int, String>?>(null)
         var max by mutableIntStateOf(100)
@@ -263,5 +287,28 @@ class SliderTicksTest {
         awaitIdle()
 
         assertNull(slider.labelTable, "without a major tick spacing there are no labels to fall back on")
+    }
+
+    @Test
+    fun rememberedLabelsPaintTheirTextAndTheSameTableSurvivesAnUnchangedRecomposition() = runComposeSwingTest {
+        var value by mutableIntStateOf(30)
+        setContent {
+            val labels = mapOf(0 to "quiet", 100 to "loud")
+            Slider(value = value, min = 0, max = 100, majorTickSpacing = 25, paintLabels = true, labels = labels)
+        }
+
+        val slider = onNodeOfType<JSlider>().fetch()
+        assertEquals(listOf(0, 100), slider.labelledValues(), "only the declared values should be labelled")
+        assertEquals("quiet", slider.labelTextAt(0), "the label should render the declared text")
+        assertEquals("loud", slider.labelTextAt(100), "the label should render the declared text")
+
+        val installedTable = slider.labelTable
+        value = 40
+        awaitIdle()
+
+        assertTrue(
+            installedTable === slider.labelTable,
+            "a table built from texts that stand unchanged should not be installed afresh",
+        )
     }
 }

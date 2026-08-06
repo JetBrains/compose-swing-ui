@@ -22,6 +22,7 @@ import javax.swing.KeyStroke
  * @param accelerator the key combination that activates the item without navigating the menu
  *   hierarchy, displayed next to its text; `null` (the default) leaves the item without one
  * @param onClick callback to be invoked when the menu item is clicked
+ * @see javax.swing.JMenuItem
  */
 @Composable
 public fun MenuItem(
@@ -45,6 +46,7 @@ public fun MenuItem(
  * @param modifier the [SwingModifier] applied to the underlying component
  * @param accelerator the key combination that activates the item without navigating the menu
  *   hierarchy, displayed next to its text; `null` (the default) leaves the item without one
+ * @see javax.swing.JMenuItem
  */
 @Composable
 public fun MenuItem(

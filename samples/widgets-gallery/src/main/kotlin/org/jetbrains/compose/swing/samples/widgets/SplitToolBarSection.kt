@@ -116,7 +116,7 @@ private fun ToolBarCard() {
             floatable = floatable,
         ) {
             Button("New", onClick = { clicks++ })
-            ToggleButton(text = "Bold", pressed = bold, onPressedChange = { bold = it })
+            ToggleButton(text = "Bold", selected = bold, onSelectedChange = { bold = it })
         }
     }
 }

@@ -45,10 +45,9 @@ import kotlin.test.assertTrue
  * reflect current composition state.
  *
  * The popup is presented headless through the `display` seam, which captures the populated
- * [JPopupMenu] instead of calling [JPopupMenu.show] (no on-screen peer is realized in the test
- * harness). Every assertion inspects the real popup structure. A close is driven the way the popup
- * itself publishes one, through its `PopupMenuListener` contract, so the user's dismissal travels its
- * production path.
+ * [JPopupMenu] instead of calling [JPopupMenu.show] (no on-screen peer is realized in the test harness).
+ * A close is driven the way the popup itself publishes one, through its `PopupMenuListener` contract, so
+ * the user's dismissal travels its production path.
  */
 class ContextMenuModifierTest {
     private fun popupTrigger(component: Component): MouseEvent = MouseEvent(
@@ -246,7 +245,7 @@ class ContextMenuModifierTest {
         )
 
         // Firing the trigger drives the default presentation, which asks the popup to show over the
-        // invoker - an unrealized, off-screen component in the harness. The default honestly defers to
+        // invoker - an unrealized, off-screen component in the harness. The default defers to
         // JPopupMenu.show, which requires a component showing on screen; that is the observable
         // contract of "present over the invoker at the trigger point".
         assertFailsWith<IllegalComponentStateException>(
@@ -279,12 +278,10 @@ class ContextMenuModifierTest {
         assertEquals("Wrap", item.text, "the checkbox menu item should carry its label")
         assertTrue(item.isSelected, "the checkbox item must reflect the initial checked state")
 
-        // Toggling the item fires onCheckedChange with the new state, flipping the hoisted flag.
         item.doClick()
         awaitIdle()
         assertFalse(wrap, "clicking the checkbox item must drive its hoisted state to unchecked")
 
-        // A popup opened after the state flips reflects the new (unchecked) state.
         captured = null
         target.dispatchEvent(popupTrigger(target))
         val reopened = (captured ?: error("no popup")).getComponent(0) as JCheckBoxMenuItem
@@ -302,8 +299,8 @@ class ContextMenuModifierTest {
                     SwingModifier.contextMenu(
                         display = { popup, _, _, _ -> captured = popup },
                     ) {
-                        RadioButtonMenuItem("First", selected = selected == 0, onSelect = { selected = 0 })
-                        RadioButtonMenuItem("Second", selected = selected == 1, onSelect = { selected = 1 })
+                        RadioButtonMenuItem("First", selected = selected == 0, onSelectedChange = { selected = 0 })
+                        RadioButtonMenuItem("Second", selected = selected == 1, onSelectedChange = { selected = 1 })
                     },
             )
         }
@@ -321,8 +318,6 @@ class ContextMenuModifierTest {
         assertTrue(first.isSelected, "First starts selected")
         assertFalse(second.isSelected, "Second starts unselected")
 
-        // Selecting Second drives the hoisted index; a reopened popup reflects the single new selection.
-        // doClick toggles the unselected item to selected, then fires, so the callback reports it selected.
         second.doClick()
         awaitIdle()
         assertEquals(1, selected, "selecting the second radio item must drive the hoisted index")
@@ -548,7 +543,6 @@ class ContextMenuModifierTest {
         val target = onNodeOfType<JLabel>().fetch()
 
         target.dispatchEvent(popupTrigger(target))
-        // What the keyboard binding asks of the component: show the popup menu the component carries.
         target.componentPopupMenu.show(target, 3, 4)
 
         assertEquals(

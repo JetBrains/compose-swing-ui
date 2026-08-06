@@ -19,10 +19,9 @@ import kotlin.test.assertNull
  * Behavioral coverage for both [RadioButton] overloads, asserted on the live `JRadioButton`.
  *
  * The selected state is controlled: the button shows whatever `selected` holds, a value pushed in from
- * composition applies without echoing back as a callback, and the user selecting the button reports
- * through `onSelect`. Text, selected state and the modifier are each driven through more than one
- * value and back, and a gesture the caller does not adopt does not stand - the next settled pass writes
- * the declared state back over it.
+ * composition applies without echoing back as a callback, and both edges of a user gesture - choosing
+ * and clearing the button - report through `onSelectedChange`. A gesture the caller does not adopt does
+ * not stand: the next settled pass writes the declared state back over it.
  */
 class RadioButtonBehaviorTest {
     @Test
@@ -43,9 +42,8 @@ class RadioButtonBehaviorTest {
 
     @Test
     fun theSelectedStateFollowsTheStateDrivingIt() = runComposeSwingTest {
-        // A JRadioButton is built unselected, so declaring `true` first proves the parameter reaches
-        // the button on the very first composition rather than the button merely keeping its own
-        // default.
+        // A JRadioButton starts unselected, so declaring `true` first proves the parameter reaches the
+        // button on the first composition, not just the button's own default.
         var selected by mutableStateOf(true)
         setContent { RadioButton(text = "Compact", selected = selected) }
 
@@ -61,11 +59,37 @@ class RadioButtonBehaviorTest {
     }
 
     @Test
+    fun clickingReportsTheNewSelectedStateAndTheButtonKeepsIt() = runComposeSwingTest {
+        var selected by mutableStateOf(false)
+        val reported = mutableListOf<Boolean>()
+        setContent {
+            RadioButton(
+                text = "Compact",
+                selected = selected,
+                onSelectedChange = {
+                    reported += it
+                    selected = it
+                },
+            )
+        }
+
+        val radioButton = onNodeOfType<JRadioButton>()
+        radioButton.performClick()
+        assertEquals(listOf(true), reported, "the click reports the button being chosen")
+        radioButton.assert(SwingMatcher.isSelected())
+
+        // A button with no group is cleared by a second click, and that edge reaches the caller too.
+        radioButton.performClick()
+        assertEquals(listOf(true, false), reported, "the second click reports the button being cleared")
+        radioButton.assert(SwingMatcher.isSelected(false))
+    }
+
+    @Test
     fun aSelectedStatePushedFromCompositionDoesNotFireTheCallback() = runComposeSwingTest {
         var selected by mutableStateOf(false)
         var selects = 0
         setContent {
-            RadioButton(text = "Compact", selected = selected, onSelect = { selects++ })
+            RadioButton(text = "Compact", selected = selected, onSelectedChange = { selects++ })
         }
 
         selected = true
@@ -80,16 +104,15 @@ class RadioButtonBehaviorTest {
         var round by mutableStateOf(1)
         val runs = mutableListOf<Int>()
         setContent {
-            // The round is captured at composition time, so every pass declares a callback that
-            // reports a different value: a callback captured once when the button was built keeps
-            // reporting the round it was born in, however often the declaration changes.
+            // Each pass captures `round` at composition time, so a callback keeps reporting the round
+            // it was built with, however often the declaration changes.
             val current = round
             RadioButton(
                 text = "Compact",
                 selected = selected,
-                onSelect = {
+                onSelectedChange = {
                     runs += current
-                    selected = true
+                    selected = it
                 },
             )
         }
@@ -205,8 +228,8 @@ class RadioButtonBehaviorTest {
         radioButton.performClick()
         radioButton.assert(SwingMatcher.isSelected(false))
 
-        // An unrelated recomposition changes nothing here: the button was already showing the
-        // declared state right after the click, not just once this pass ran.
+        // An unrelated recomposition changes nothing: the button already showed the declared state
+        // right after the click, not only once this pass ran.
         text = "Comfortable"
         awaitIdle()
         radioButton.assert(SwingMatcher.isSelected(false))

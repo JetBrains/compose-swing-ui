@@ -78,21 +78,21 @@ class SelectionComponentsTest {
     }
 
     @Test
-    fun clickingUnselectedRadioButtonFiresOnSelectAndAdoptingItSelectsTheWidget() = runComposeSwingTest {
+    fun clickingUnselectedRadioButtonReportsTheChangeAndAdoptingItSelectsTheWidget() = runComposeSwingTest {
         var selected by mutableStateOf(false)
-        var selectCount = 0
+        val reported = mutableListOf<Boolean>()
         setContent {
             RadioButton(
                 text = "Option A",
                 selected = selected,
-                onSelect = {
-                    selectCount++
-                    selected = true
+                onSelectedChange = {
+                    reported += it
+                    selected = it
                 },
             )
         }
         onNodeOfType<JRadioButton>().performClick()
-        assertEquals(1, selectCount, "clicking an unselected radio should fire onSelect once")
+        assertEquals(listOf(true), reported, "clicking an unselected radio should report it selected once")
         onNodeOfType<JRadioButton>().assert(isSelected())
     }
 

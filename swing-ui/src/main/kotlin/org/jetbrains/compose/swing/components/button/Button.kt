@@ -19,6 +19,7 @@ import javax.swing.JButton
  * @param text the text to display on the button
  * @param modifier the [SwingModifier] applied to the underlying component
  * @param onClick callback to be invoked when the button is clicked
+ * @see javax.swing.JButton
  */
 @Composable
 public fun Button(
@@ -40,6 +41,7 @@ public fun Button(
  * @param text the text to display on the button
  * @param actionListener the listener notified when the button is activated
  * @param modifier the [SwingModifier] applied to the underlying component
+ * @see javax.swing.JButton
  */
 @Composable
 public fun Button(

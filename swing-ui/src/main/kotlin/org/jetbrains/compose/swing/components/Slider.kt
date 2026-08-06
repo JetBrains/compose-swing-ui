@@ -4,6 +4,7 @@
 package org.jetbrains.compose.swing.components
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.compose.swing.constants.Orientation
@@ -13,6 +14,7 @@ import org.jetbrains.compose.swing.modifier.listener.changeListener
 import org.jetbrains.compose.swing.modifier.listener.listener
 import org.jetbrains.compose.swing.node.AppliedValue
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.node.SwingNodeUpdater
 import org.jetbrains.compose.swing.node.declare
 import org.jetbrains.compose.swing.node.rememberAppliedValue
 import java.beans.PropertyChangeListener
@@ -22,17 +24,27 @@ import javax.swing.JComponent
 import javax.swing.JLabel
 import javax.swing.JSlider
 import javax.swing.SwingConstants
-import javax.swing.event.ChangeEvent
 import javax.swing.event.ChangeListener
 
 /**
  * A composable wrapper for JSlider.
  *
+ * A drag is published a value at a time: the slider passes through every value between the one it was
+ * grabbed at and the one it is let go on, and each of them reaches [onValueChange] as the user reaches it,
+ * while [onValueSettled] hears the value the drag was released on and none of the ones it passed through.
+ * A caller that follows the drag adopts [onValueChange]; a caller that acts on the released value alone -
+ * one that starts work too expensive to run per step - takes [onValueSettled] and leaves [value] where it
+ * is until then, and the slider follows the mouse in the meantime.
+ *
  * @param value the current value
  * @param modifier the [SwingModifier] applied to the underlying component
- * @param onValueChange callback invoked with the value the user moves the slider to, and with the value
- *   the slider is left on where it cannot hold [value] - one outside the range, or one off the grid
- *   [snapToTicks] resolves to; applying a [value] the slider can hold is not itself reported
+ * @param onValueChange callback invoked with every value the user moves the slider to, the ones a drag
+ *   passes through included, and with the value the slider is left on where it cannot hold [value] - one
+ *   outside the range, or one off the grid [snapToTicks] resolves to; applying a [value] the slider can
+ *   hold is not itself reported
+ * @param onValueSettled callback invoked with the value the slider settles on: the one a drag is released
+ *   on, one the user reaches outside a drag, and the value the slider is left on where it cannot hold
+ *   [value]
  * @param min the minimum value
  * @param max the maximum value
  * @param orientation the orientation of the slider (an [Orientation] `SwingConstants` value)
@@ -41,16 +53,18 @@ import javax.swing.event.ChangeListener
  * @param minorTickSpacing the value distance between minor tick marks, `0` for none
  * @param paintTicks whether the tick marks are painted
  * @param paintLabels whether the value labels are painted
- * @param labels the labels to paint, keyed by the value each one sits at; `null` leaves the labels to
- *   Swing, which draws one at every major tick mark when [paintLabels] is `true` and
+ * @param labels the text to draw at each value, keyed by the value the label sits at. `null` leaves the
+ *   labels to Swing, which draws one at every major tick mark when [paintLabels] is `true` and
  *   [majorTickSpacing] is positive
  * @param snapToTicks whether a value the user picks resolves to the closest tick mark
+ * @see javax.swing.JSlider
  */
 @Composable
 public fun Slider(
     value: Int,
     modifier: SwingModifier = SwingModifier,
     onValueChange: (Int) -> Unit = {},
+    onValueSettled: (Int) -> Unit = {},
     min: Int = 0,
     max: Int = 100,
     @Orientation orientation: Int = SwingConstants.HORIZONTAL,
@@ -62,26 +76,11 @@ public fun Slider(
     labels: Map<Int, String>? = null,
     snapToTicks: Boolean = false,
 ) {
-    val callback = rememberUpdatedState(onValueChange)
     val applied = rememberAppliedValue(value)
-    // The slider publishes every value it moves to, the wrapper's own writes included. What it last held is
-    // what tells them apart, and a write of the wrapper's is silent whatever value it lands on.
-    val listener =
-        remember(applied) {
-            ChangeListener { event ->
-                val moved = (event.source as JSlider).value
-                if (applied.observed(moved)) callback.value(moved)
-            }
-        }
+    val channel = rememberSliderValueChannel(applied, applied, value, onValueChange, onValueSettled)
     SliderNode(
-        value = value,
-        applied = applied,
-        modifier = modifier.changeListener(listener),
-        // A slider left on a value of its own is where the composition's declaration ended up, and the
-        // callback is the only way the caller learns of it.
-        onSettled = { settled -> callback.value(settled) },
-        min = min,
-        max = max,
+        modifier = modifier.changeListener(channel.listener),
+        labelRange = min..max,
         orientation = orientation,
         inverted = inverted,
         majorTickSpacing = majorTickSpacing,
@@ -90,14 +89,25 @@ public fun Slider(
         paintLabels = paintLabels,
         labels = labels,
         snapToTicks = snapToTicks,
-    )
+    ) {
+        // Narrowing the range can force JSlider to clamp the value on the spot, which the change listener
+        // would otherwise see as an unannounced move; the write guard is what tells the channel that the
+        // clamp is this declaration settling, not the user's.
+        set(min) { applied.write { this.minimum = it } }
+        set(max) { applied.write { this.maximum = it } }
+        // A slider left on a value of its own is where the composition's declaration ended up, and the
+        // callbacks are the only way the caller learns of it.
+        declare(value, applied, JSlider::getValue, JSlider::setValue) { settled -> channel.settledOn(settled) }
+    }
 }
 
 /**
- * A composable wrapper for JSlider driven by a raw [ChangeListener] instead of an `onValueChange`
- * lambda. The [changeListener] is attached as-is and removed on the same instance; pass a stable
- * instance (e.g. `remember {}`) to avoid a detach/re-attach on every recomposition. Being attached
- * as-is, it is notified of every change to the slider's value, including the one that applies [value].
+ * A composable wrapper for JSlider driven by a raw [ChangeListener] instead of the `onValueChange` and
+ * `onValueSettled` lambdas. The [changeListener] is attached as-is and removed on the same instance; pass a
+ * stable instance (e.g. `remember {}`) to avoid a detach/re-attach on every recomposition. Being attached
+ * as-is, it is notified of every change to the slider's value - the values a drag passes through as well as
+ * the one it settles on, and the change that applies [value] included - and reads `getValueIsAdjusting` off
+ * the slider to tell them apart.
  *
  * @param value the current value
  * @param changeListener the listener notified when the value changes
@@ -110,10 +120,11 @@ public fun Slider(
  * @param minorTickSpacing the value distance between minor tick marks, `0` for none
  * @param paintTicks whether the tick marks are painted
  * @param paintLabels whether the value labels are painted
- * @param labels the labels to paint, keyed by the value each one sits at; `null` leaves the labels to
- *   Swing, which draws one at every major tick mark when [paintLabels] is `true` and
+ * @param labels the text to draw at each value, keyed by the value the label sits at. `null` leaves the
+ *   labels to Swing, which draws one at every major tick mark when [paintLabels] is `true` and
  *   [majorTickSpacing] is positive
  * @param snapToTicks whether a value the user picks resolves to the closest tick mark
+ * @see javax.swing.JSlider
  */
 @Composable
 public fun Slider(
@@ -136,11 +147,14 @@ public fun Slider(
     // rides the model's own channel instead, so the slider's listener list is the caller's alone.
     val mirror =
         remember(applied) {
-            ChangeListener { event -> applied.observed((event.source as BoundedRangeModel).value) }
+            ChangeListener { event ->
+                // Only the value a drag settles on is mirrored: mirroring one it passes through would
+                // invalidate this composition, and re-assert the declaration, before the user has let go.
+                val model = event.source as BoundedRangeModel
+                if (!model.valueIsAdjusting) applied.observed(model.value)
+            }
         }
     SliderNode(
-        value = value,
-        applied = applied,
         modifier =
             modifier
                 .changeListener(changeListener)
@@ -149,10 +163,82 @@ public fun Slider(
                     { slider, listener -> slider.model.addChangeListener(listener) },
                     { slider, listener -> slider.model.removeChangeListener(listener) },
                 ),
+        labelRange = min..max,
+        orientation = orientation,
+        inverted = inverted,
+        majorTickSpacing = majorTickSpacing,
+        minorTickSpacing = minorTickSpacing,
+        paintTicks = paintTicks,
+        paintLabels = paintLabels,
+        labels = labels,
+        snapToTicks = snapToTicks,
+    ) {
+        set(min) { applied.write { this.minimum = it } }
+        set(max) { applied.write { this.maximum = it } }
         // The listener is attached as-is, so the slider has already told it where it settled.
-        onSettled = {},
-        min = min,
-        max = max,
+        declare(value, applied, JSlider::getValue, JSlider::setValue)
+    }
+}
+
+/**
+ * A composable wrapper for JSlider driven by a caller-owned [BoundedRangeModel]. The model owns the value
+ * and the range, so nothing is declared over it: the slider renders whatever the model holds, the library
+ * never writes to it, and a model the caller mutates repaints the slider without a recomposition. Supplying
+ * a new [model] instance installs it on recomposition.
+ *
+ * This is what lets one range drive several widgets - a slider and the [ProgressBar] reading it out, or two
+ * views of the same position - since each of them renders the model as-is:
+ *
+ * ```
+ * val range = remember { DefaultBoundedRangeModel(30, 0, 0, 100) }
+ * Slider(model = range)
+ * ProgressBar(model = range)
+ * ```
+ *
+ * A drag reaches [onValueChange] a value at a time and [onValueSettled] once, on the value it is released
+ * on; see the declared-value [Slider] for what each channel carries.
+ *
+ * @param model the range the slider renders and the user moves; owned by the caller and never written to
+ *   by the library
+ * @param modifier the [SwingModifier] applied to the underlying component
+ * @param onValueChange callback invoked with every value the slider publishes, the ones a drag passes
+ *   through included
+ * @param onValueSettled callback invoked with the value the slider settles on: the one a drag is released
+ *   on, and one the value reaches outside a drag
+ * @param orientation the orientation of the slider (an [Orientation] `SwingConstants` value)
+ * @param inverted whether the value axis runs backwards, with the maximum at the left or bottom end
+ * @param majorTickSpacing the value distance between major tick marks, `0` for none
+ * @param minorTickSpacing the value distance between minor tick marks, `0` for none
+ * @param paintTicks whether the tick marks are painted
+ * @param paintLabels whether the value labels are painted
+ * @param labels the text to draw at each value, keyed by the value the label sits at. `null` leaves the
+ *   labels to Swing, which draws one at every major tick mark when [paintLabels] is `true` and
+ *   [majorTickSpacing] is positive
+ * @param snapToTicks whether a value the user picks resolves to the closest tick mark
+ * @see javax.swing.JSlider
+ */
+@Composable
+public fun Slider(
+    model: BoundedRangeModel,
+    modifier: SwingModifier = SwingModifier,
+    onValueChange: (Int) -> Unit = {},
+    onValueSettled: (Int) -> Unit = {},
+    @Orientation orientation: Int = SwingConstants.HORIZONTAL,
+    inverted: Boolean = false,
+    majorTickSpacing: Int = 0,
+    minorTickSpacing: Int = 0,
+    paintTicks: Boolean = false,
+    paintLabels: Boolean = false,
+    labels: Map<Int, String>? = null,
+    snapToTicks: Boolean = false,
+) {
+    // Nothing is declared over a caller's model, so there is no mirror for the channel to settle against
+    // and every value the slider publishes is the model's own.
+    val channel = rememberSliderValueChannel(null, model, model.value, onValueChange, onValueSettled)
+    Slider(
+        model = model,
+        changeListener = channel.listener,
+        modifier = modifier,
         orientation = orientation,
         inverted = inverted,
         majorTickSpacing = majorTickSpacing,
@@ -165,19 +251,74 @@ public fun Slider(
 }
 
 /**
- * The `JSlider` node both [Slider] overloads render. [value] is settled against the slider through
- * [applied] rather than applied on change: the user can drag the slider out from under the declaration, and
- * a declaration equal to the last one still has to stand. [onSettled] is handed the value where the slider
- * answers a declaration with one of its own - outside its range, or off the grid it snaps to.
+ * A model-driven `Slider` driven by a raw [ChangeListener] instead of the `onValueChange` and
+ * `onValueSettled` lambdas. The [model] is rendered as-is and never written to by the library. The
+ * [changeListener] is attached as-is and removed on the same instance; pass a stable instance (e.g.
+ * `remember {}`) to avoid churn, and read `getValueIsAdjusting` off the slider to tell the values a drag
+ * passes through from the one it settles on.
+ *
+ * @param model the range the slider renders and the user moves; owned by the caller and never written to
+ *   by the library
+ * @param changeListener the listener notified when the value changes
+ * @param modifier the [SwingModifier] applied to the underlying component
+ * @param orientation the orientation of the slider (an [Orientation] `SwingConstants` value)
+ * @param inverted whether the value axis runs backwards, with the maximum at the left or bottom end
+ * @param majorTickSpacing the value distance between major tick marks, `0` for none
+ * @param minorTickSpacing the value distance between minor tick marks, `0` for none
+ * @param paintTicks whether the tick marks are painted
+ * @param paintLabels whether the value labels are painted
+ * @param labels the text to draw at each value, keyed by the value the label sits at. `null` leaves the
+ *   labels to Swing, which draws one at every major tick mark when [paintLabels] is `true` and
+ *   [majorTickSpacing] is positive
+ * @param snapToTicks whether a value the user picks resolves to the closest tick mark
+ * @see javax.swing.JSlider
+ */
+@Composable
+public fun Slider(
+    model: BoundedRangeModel,
+    changeListener: ChangeListener,
+    modifier: SwingModifier = SwingModifier,
+    @Orientation orientation: Int = SwingConstants.HORIZONTAL,
+    inverted: Boolean = false,
+    majorTickSpacing: Int = 0,
+    minorTickSpacing: Int = 0,
+    paintTicks: Boolean = false,
+    paintLabels: Boolean = false,
+    labels: Map<Int, String>? = null,
+    snapToTicks: Boolean = false,
+) {
+    SliderNode(
+        modifier = modifier.changeListener(changeListener),
+        // The range Swing's own labels are generated over is the model's, read as it stands: a range the
+        // caller moves inside the model reaches the labels through the slider's own regeneration.
+        labelRange = model.minimum..model.maximum,
+        orientation = orientation,
+        inverted = inverted,
+        majorTickSpacing = majorTickSpacing,
+        minorTickSpacing = minorTickSpacing,
+        paintTicks = paintTicks,
+        paintLabels = paintLabels,
+        labels = labels,
+        snapToTicks = snapToTicks,
+    ) {
+        set(model) { this.model = it }
+    }
+}
+
+/**
+ * The `JSlider` node every [Slider] overload renders: all of it but the range, which [installRange]
+ * declares - a value between a minimum and a maximum in one family of overloads, the caller's own model in
+ * the other. [labelRange] is the range Swing's own labels are generated over, and [modifier] already
+ * carries every listener the slider needs.
+ *
+ * A declared value is settled against the slider through an [AppliedValue] rather than applied on change:
+ * the user can drag the slider out from under the declaration, and a declaration equal to the last one
+ * still has to stand.
  */
 @Composable
 private fun SliderNode(
-    value: Int,
-    applied: AppliedValue<Int>,
     modifier: SwingModifier,
-    onSettled: JSlider.(Int) -> Unit,
-    min: Int,
-    max: Int,
+    labelRange: IntRange,
     @Orientation orientation: Int,
     inverted: Boolean,
     majorTickSpacing: Int,
@@ -186,21 +327,17 @@ private fun SliderNode(
     paintLabels: Boolean,
     labels: Map<Int, String>?,
     snapToTicks: Boolean,
+    installRange: SwingNodeUpdater<JSlider>.() -> Unit,
 ) {
     SwingNode(
-        factory = { JSlider(min, max, value) },
+        factory = { JSlider() },
         update = {
-            // Everything that bounds or snaps the value goes in before the value itself, so a
-            // recomposition that moves both lands the new value on the new grid rather than the old.
-            // Narrowing the range can force JSlider to clamp the value on the spot, which the change
-            // listener would otherwise see as an unannounced move; the write guard is what tells
-            // applied.observed() that the clamp is this declaration settling, not the user's.
-            set(min) { applied.write { this.minimum = it } }
-            set(max) { applied.write { this.maximum = it } }
+            // Everything that snaps the value goes in before the range itself, so a recomposition that
+            // moves both lands the new value on the new grid rather than the old.
             set(majorTickSpacing) { this.majorTickSpacing = it }
             set(minorTickSpacing) { this.minorTickSpacing = it }
             set(snapToTicks) { this.snapToTicks = it }
-            declare(value, applied, JSlider::getValue, JSlider::setValue, onSettled)
+            installRange()
             set(orientation) { this.orientation = it }
             set(inverted) { this.inverted = it }
             set(paintTicks) { this.paintTicks = it }
@@ -212,7 +349,7 @@ private fun SliderNode(
             // rewriting a declared map, and would fail outright on a range change once there is no
             // table left for it to regenerate. What the slider paints is derived here instead, from
             // the declared map or from the spacing and the range Swing's own labels sit on.
-            set(LabelDeclaration(labels, majorTickSpacing, min, max)) { declaration ->
+            set(LabelDeclaration(labels, majorTickSpacing, labelRange)) { declaration ->
                 (labelTable as? PropertyChangeListener)?.let { removePropertyChangeListener(it) }
                 this.labelTable = declaration.labels?.toLabelTable() ?: standardLabels()
             }
@@ -223,19 +360,90 @@ private fun SliderNode(
 }
 
 /**
+ * One slider's value channel: the value the caller and the slider currently agree on, whether a drag is
+ * underway, and the [listener] the slider's own values reach the caller through.
+ *
+ * A drag publishes a value per step before it settles, and only the value it settles on is mirrored into
+ * [applied] - mirroring one it passes through would invalidate the composition, and re-assert the
+ * declaration, before the user has let go. Every step still reaches [onValueChange], since following the
+ * drag is what that channel is for, while [onValueSettled] hears the value the drag ends on - which is news
+ * even where the caller already adopted it, because the release is what it reports.
+ *
+ * A `null` [applied] is a caller-owned model: nothing is declared over it, so nothing tells the wrapper's
+ * own writes from the user's and every value the slider publishes is news.
+ */
+private class SliderValueChannel(
+    private val applied: AppliedValue<Int>?,
+    agreed: Int,
+    private val onValueChange: State<(Int) -> Unit>,
+    private val onValueSettled: State<(Int) -> Unit>,
+) {
+    private var agreed: Int = agreed
+    private var adjusting: Boolean = false
+
+    /** Reports the values the slider publishes. Install it on the slider. */
+    val listener: ChangeListener = ChangeListener { event -> publish(event.source as JSlider) }
+
+    /**
+     * Reports [value] as the value the slider answered a declaration with, on both channels: it is where
+     * the declaration ended up, and the caller hears of it here or not at all.
+     */
+    fun settledOn(value: Int) {
+        agreed = value
+        onValueChange.value(value)
+        onValueSettled.value(value)
+    }
+
+    private fun publish(slider: JSlider) {
+        val value = slider.value
+        val isAdjusting = slider.valueIsAdjusting
+        val released = adjusting && !isAdjusting
+        adjusting = isAdjusting
+        if (!isAdjusting) applied?.observed(value)
+        val isNews = value != agreed && applied?.isWriting != true
+        agreed = value
+        if (isNews) onValueChange.value(value)
+        if (!isAdjusting && (isNews || released)) onValueSettled.value(value)
+    }
+}
+
+/**
+ * Remembers the [SliderValueChannel] the lambda-driven overloads report through, seeded with [value] so
+ * the first value the slider publishes is measured against what the composition declares. The callbacks are
+ * tracked through [rememberUpdatedState], so the latest ones are invoked without the channel being rebuilt.
+ *
+ * [range] is what the channel measures values against - the [AppliedValue] a declared value settles
+ * through, or a caller's own model. A slider given a different model is measuring against a different
+ * range, so the channel is rebuilt around the value that model arrived holding rather than left seeded
+ * with a value the slider no longer shows.
+ */
+@Composable
+private fun rememberSliderValueChannel(
+    applied: AppliedValue<Int>?,
+    range: Any?,
+    value: Int,
+    onValueChange: (Int) -> Unit,
+    onValueSettled: (Int) -> Unit,
+): SliderValueChannel {
+    val change = rememberUpdatedState(onValueChange)
+    val settled = rememberUpdatedState(onValueSettled)
+    return remember(range) { SliderValueChannel(applied, value, change, settled) }
+}
+
+/**
  * What the labels a slider paints are derived from: the declared map, or - where none is declared - the
  * major tick spacing and the range Swing's own labels are generated over.
  */
 private data class LabelDeclaration(
     val labels: Map<Int, String>?,
     val majorTickSpacing: Int,
-    val min: Int,
-    val max: Int,
+    val range: IntRange,
 )
 
+/** The `JSlider` label table this text draws as, one [JLabel] per entry. */
 private fun Map<Int, String>.toLabelTable(): Hashtable<Int, JComponent> {
     val table = Hashtable<Int, JComponent>()
-    forEach { (value, text) -> table[value] = JLabel(text) }
+    for ((value, text) in this) table[value] = JLabel(text)
     return table
 }
 

@@ -33,14 +33,16 @@ onCheckedChange = ...)`, `TabbedPane(selectedIndex, onSelectedIndexChange = ...)
 the component renders what you pass and reports what the user did. A value you push in is reflected
 without echoing back through the callback, so adopting a reported change cannot loop.
 
-**A hoisted state holder.** `DocumentState`, `FormattedValueState`, `SpinnerState`, `WindowState`,
-`DialogState`, `InternalFrameState`, `ScrollState`. The holder owns the value, is snapshot-observable,
-and is **two-way**: assigning to it drives the widget, and the user's own gesture writes back into it.
-See [Hoisted state](#hoisted-state).
+**A hoisted state holder.** `DocumentState`, `FormattedValueState`, `WindowState`, `DialogState`,
+`InternalFrameState`, `ScrollState`. The holder owns the value, is snapshot-observable, and is
+**two-way**: assigning to it drives the widget, and the user's own gesture writes back into it. See
+[Hoisted state](#hoisted-state).
 
 **A raw Swing model.** `ComboBox(model)`, `ListBox(model)`, `Table(model)`, `Tree(model)`,
-`Spinner(model, changeListener)`. When you already have a `ComboBoxModel`, `TableModel` or
-`TreeModel`, hand it over and the component renders it. The model stays yours.
+`Spinner(model, changeListener)`, `Slider(model)`, `ProgressBar(model)`. When you already have a
+`ComboBoxModel`, `TableModel`, `TreeModel` or `BoundedRangeModel`, hand it over and the component
+renders it. The model stays yours - a `BoundedRangeModel` you hand to both `Slider` and `ProgressBar`
+is what lets a bar track a slider without either owning the value.
 
 Most components that take a lambda callback also offer an overload taking the corresponding raw Swing
 listener instead, for when you already hold a listener object: `ActionListener` (the buttons, the
@@ -141,18 +143,19 @@ EditorPane(
 | Component | What it is |
 | --- | --- |
 | `Button` | A push button over `JButton`, with `onClick`. |
-| `ToggleButton` | A button over `JToggleButton` that stays in, with `pressed`/`onPressedChange`. |
+| `ToggleButton` | A button over `JToggleButton` that stays in, with `selected`/`onSelectedChange`. |
 | `CheckBox` | A checkbox over `JCheckBox`, with `checked`/`onCheckedChange`. |
-| `RadioButton` | One radio button over `JRadioButton`, with `selected`/`onSelect`. |
+| `RadioButton` | One radio button over `JRadioButton`, with `selected`/`onSelectedChange`. |
 | `RadioGroup` | A set of mutually exclusive radio buttons declared as `option(...)` calls, selected by index. |
 | `ComboBox` | A drop-down over `JComboBox`, optionally editable, optionally rendering each item as a composable cell. |
 | `Slider` | A slider over `JSlider`, with ticks and a label table. |
-| `Spinner` | A stepper over `JSpinner`, driven by a [`SpinnerState`](#spinnerstate) or a raw `SpinnerModel`. |
+| `Spinner` | A stepper over `JSpinner` over a number, a date or a list of items, or a raw `SpinnerModel`. |
 | `ProgressBar` | A determinate or indeterminate bar over `JProgressBar`. |
 | `Separator` | A divider over `JSeparator` between the items of any container. |
 
-`Button` reports a click; the two-state controls take the state in and report the state the user asked
-for, so a toggle the caller does not adopt goes back where it was.
+`Button` reports a click; the two-state controls - `CheckBox`, `ToggleButton` and a standalone
+`RadioButton` - take the state in and report the state the user asked for, in both directions, so a
+toggle the caller does not adopt goes back where it was.
 
 ```kotlin
 var wrap by remember { mutableStateOf(false) }
@@ -160,12 +163,14 @@ var pinned by remember { mutableStateOf(false) }
 
 Button("Save", modifier = SwingModifier.icon(saveIcon), onClick = ::save)
 CheckBox("Word wrap", checked = wrap, onCheckedChange = { wrap = it })
-ToggleButton("Pin", pressed = pinned, onPressedChange = { pinned = it })
+ToggleButton("Pin", selected = pinned, onSelectedChange = { pinned = it })
 ```
 
 A `RadioGroup` owns the button group, so you declare the options and the selected index rather than
-wiring exclusivity yourself. Individual `RadioButton`s remain available for a layout the group's own
-axis does not cover.
+wiring exclusivity yourself. The index is the composition's state on every pass, so a pick the caller
+does not adopt goes back to the declared option - including the option the group cleared without it
+being clicked, which a grouped button loses in silence. `RadioButtonMenuGroup` behaves the same way in
+a menu. Individual `RadioButton`s remain available for a layout the group's own axis does not cover.
 
 ```kotlin
 var theme by remember { mutableStateOf(0) }
@@ -201,7 +206,9 @@ ComboBox(
 `Slider` and `ProgressBar` both range over `0`..`100` by default and are horizontal, as is
 `Separator`. A slider's `labels` map declares the label table that `paintLabels` then paints; a
 progress bar's `stringPainted` alone gives a percentage readout, and `string` overrides the text it
-paints.
+paints. A drag reaches `onValueChange` a value at a time, for every value it passes through;
+`onValueSettled` hears only the value the drag is released on, which is the one to act on where that
+work is too expensive to repeat per step.
 
 ```kotlin
 var zoom by remember { mutableStateOf(100) }
@@ -209,6 +216,7 @@ var zoom by remember { mutableStateOf(100) }
 Slider(
     value = zoom,
     onValueChange = { zoom = it },
+    onValueSettled = { println("settled on $it") },
     min = 50,
     max = 200,
     majorTickSpacing = 50,
@@ -217,6 +225,33 @@ Slider(
 )
 ProgressBar(value = zoom, min = 50, max = 200, stringPainted = true)
 Separator(orientation = SwingConstants.HORIZONTAL)
+```
+
+`Slider` and `ProgressBar` also take a caller-owned `BoundedRangeModel` in place of `value`. The model
+owns the range; the library renders it and never writes to it, so mutating the model repaints the
+widgets without a recomposition. Handing the same instance to both is what lets a bar track a slider
+without either of them owning the value:
+
+```kotlin
+val range = remember { DefaultBoundedRangeModel(30, 0, 0, 100) }
+
+Slider(model = range)
+ProgressBar(model = range)
+```
+
+A `Spinner` shows its value through an editor, and two parameters decide which one. `format` is the
+pattern the spinner's own editor renders and parses with - a `DecimalFormat` pattern over a number
+model, a `SimpleDateFormat` pattern over a date one - and `null` formats the value the way the locale
+does. `editor` replaces that editor with a composable, composed into the spinner as an island of the
+enclosing composition, so the editing surface reads the same state and composition locals the call
+site does. A fresh lambda each pass recomposes the island rather than rebuilding it, so characters
+typed but not committed stand. Declaring both is refused: each names what the spinner shows.
+
+```kotlin
+var hour by remember { mutableStateOf(9) }
+
+Spinner(hour, onValueChange = { hour = it.toInt() }, min = 0, max = 23, format = "00")
+Spinner(hour, onValueChange = { hour = it.toInt() }, min = 0, max = 23) { Label("$hour o'clock") }
 ```
 
 ---
@@ -543,18 +578,22 @@ To mount a composition into a Swing window or container you already own, use `se
 | --- | --- |
 | `Menu` | A menu over `JMenu` holding further menu content; nest it for a submenu. |
 | `MenuItem` | A command over `JMenuItem`, with an `accelerator` and `onClick`. |
-| `CheckBoxMenuItem` | A checkable item over `JCheckBoxMenuItem`. |
-| `RadioButtonMenuItem` | One exclusive item over `JRadioButtonMenuItem`. |
+| `CheckBoxMenuItem` | A checkable item over `JCheckBoxMenuItem`, with `checked`/`onCheckedChange`. |
+| `RadioButtonMenuItem` | One exclusive item over `JRadioButtonMenuItem`, with `selected`/`onSelectedChange`. |
 | `RadioButtonMenuGroup` | A set of mutually exclusive menu items, selected by index. |
-| `MenuSeparator` | A divider between menu items. |
+| `MenuSeparator` | A divider between menu items, over `JPopupMenu.Separator`. |
 | `MenuBar` | The menu bar of a window, declared in that window's content. |
 
 Menu content is composed like any other content: `MenuBar { }` in the content of a `Window` or a
 `Dialog` declares that window's menu bar, `JMenuBar.setContent { }` composes a bar you own yourself,
 and the same tree serves a context menu (the `contextMenu` modifier) and a [`Tray`](#system-tray)
-popup. An item's label, checked flag and enabled state follow composition state like any other
-component's. An `accelerator` is a `KeyStroke` that fires the item without opening the menu; a
-mnemonic is the `mnemonic` modifier.
+popup. A `contextMenu` becomes the component's own popup menu, so the pointer gesture and the keyboard
+binding a look and feel gives a context menu both open it; the target must therefore be a `JComponent`,
+and the last `contextMenu` in a chain owns it. An item's label, checked flag and enabled state follow
+composition state like any other component's, and a checkable item takes its state the way the
+two-state controls do: what the composition declares is what the item shows, so a choice the caller
+does not adopt goes back where it was. An `accelerator` is a `KeyStroke` that fires the item without
+opening the menu; a mnemonic is the `mnemonic` modifier.
 
 ```kotlin
 val bar = JMenuBar()
@@ -577,6 +616,31 @@ bar.setContent {
     }
 }
 frame.jMenuBar = bar
+```
+
+There is no command type, so one command reached from two surfaces - a menu item and a toolbar button
+that go grey together - is a shared value and a shared modifier. Both surfaces read the one state and
+apply the one chain, so enabling and disabling them is a single state write.
+
+```kotlin
+Window(onCloseRequest = ::exitApplication) {
+    var dirty by remember { mutableStateOf(false) }
+    val whenDirty = SwingModifier.enabled(dirty)
+
+    MenuBar {
+        Menu("File") {
+            MenuItem(
+                "Save",
+                modifier = whenDirty,
+                accelerator = KeyStroke.getKeyStroke("control S"),
+                onClick = ::save,
+            )
+        }
+    }
+    ToolBar {
+        Button("Save", modifier = whenDirty, onClick = ::save)
+    }
+}
 ```
 
 ---
@@ -684,24 +748,6 @@ Column {
         },
     )
     Button("Undo", modifier = SwingModifier.enabled(note.canUndo), onClick = note::undo)
-}
-```
-
-### `SpinnerState`
-
-Owns the `SpinnerModel` a `Spinner` renders, so a step taken through the spinner and a value written
-through the state are the same content. `value` is the observable property.
-
-`rememberSpinnerState(initialValue, min, max, step)` builds a numeric spinner - a `null` bound is
-open on that side, and `step` defaults to `1`. The bounds are declarative: changing one updates the
-spinner in place. `rememberSpinnerState(items, initialSelectedIndex)` builds one that steps through
-a list instead. `model` is the model itself.
-
-```kotlin
-val count = rememberSpinnerState(initialValue = 3, min = 0, max = 10)
-Row {
-    Spinner(count)
-    Label("Count is ${count.value}")
 }
 ```
 

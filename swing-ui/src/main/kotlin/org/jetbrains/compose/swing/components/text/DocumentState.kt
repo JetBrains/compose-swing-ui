@@ -131,14 +131,18 @@ public class DocumentState internal constructor(
      * subscription to caret changes; assigning moves the caret and selection of the bound component
      * (or, while unmounted, stores the value to apply when a component binds).
      *
+     * A bound component settles the assigned range against the document it renders, and the settled
+     * range is what this property then reports: assigning an offset past the document's end reports the
+     * end.
+     *
      * @see javax.swing.text.Caret.setDot
      */
     public var selection: TextRange
         get() = selectionState
         set(value) {
-            selectionState = value
-            appliedSelection = value
-            component?.applySelection(value)
+            val settled = component?.applySelection(value) ?: value
+            selectionState = settled
+            appliedSelection = settled
         }
 
     /**
@@ -221,8 +225,9 @@ public class DocumentState internal constructor(
     /**
      * Installs this state's document into [target] and wires the two-way selection sync, so the state
      * and the component share one model until [unbind]. The caret's initial selection is set from the
-     * state's stored value. If this state already drives a different component, that component is
-     * unbound first, so a state renders at most one component.
+     * state's stored value, and the range the caret settles on is what the state reports afterwards. If
+     * this state already drives a different component, that component is unbound first, so a state
+     * renders at most one component.
      *
      * A component is likewise owned by at most one [DocumentState]; handing that ownership from one
      * state to another is the binding element's job - its node unbinds the previous owner before
@@ -233,8 +238,9 @@ public class DocumentState internal constructor(
         component?.let { unbind(it) }
         component = target
         target.document = document
-        target.applySelection(selectionState)
-        appliedSelection = selectionState
+        val settled = target.applySelection(selectionState)
+        selectionState = settled
+        appliedSelection = settled
         target.addCaretListener(caretListener)
     }
 
@@ -385,12 +391,16 @@ private fun Document.readText(): String {
 // Applies [range] to the component's caret as a directional selection: the anchor lands on the range's
 // start and the caret on its end, so a reversed range keeps its direction. setDot collapses any
 // existing selection to the anchor, then moveDot extends the caret away from it to the range end.
-private fun JTextComponent.applySelection(range: TextRange) {
+// Answers the range the caret settled on, read back from the caret itself: a range reaching past the
+// document, or one a navigation filter redirects, settles somewhere else than it asked for, and that
+// landing place - not the request - is the selection the component has.
+private fun JTextComponent.applySelection(range: TextRange): TextRange {
     val docLength = document.length
     val anchor = range.start.coerceIn(0, docLength)
     val dot = range.end.coerceIn(0, docLength)
     caret.setDot(anchor)
     caret.moveDot(dot)
+    return TextRange(caret.mark, caret.dot)
 }
 
 // Applies the minimal changed span between [current] and [next] through document.replace, so a small

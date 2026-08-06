@@ -60,7 +60,6 @@ class RadioGroupTest {
 
         onNodeWithText("Medium").performClick()
 
-        // Clicking option 1 reports its index and moves the selection there, clearing option 0.
         assertEquals(listOf(1), reported, "clicking option 1 should report its index")
         onNodeWithText("Small").assert(isSelected(false))
         onNodeWithText("Medium").assert(isSelected())
@@ -68,7 +67,7 @@ class RadioGroupTest {
     }
 
     @Test
-    fun aClickTheCallerDoesNotAdoptIsUndoneByTheNextRecomposition() = runComposeSwingTest {
+    fun aClickTheCallerDoesNotAdoptDoesNotStand() = runComposeSwingTest {
         var label by mutableStateOf("first")
         setContent {
             RadioGroup(
@@ -79,17 +78,45 @@ class RadioGroupTest {
         }
 
         onNodeWithText("Large").performClick()
+
+        // The click moves the group's selection, so the declared option loses it without being clicked
+        // itself; the pass the click provokes puts the declaration back on both of them.
         onAllNodesOfType<JRadioButton>()
             .filterToOne(isSelected())
-            .assertTextEquals("Large")
+            .assertTextEquals("Small")
 
-        // The pass changes a property that has nothing to do with selection, which is precisely the pass
-        // that has to put the declared option back.
+        // An unrelated recomposition changes nothing: the declared option was already the selected one
+        // right after the click, not only once this pass ran.
         label = "second"
         awaitIdle()
         onAllNodesOfType<JRadioButton>()
             .filterToOne(isSelected())
             .assertTextEquals("Small")
+    }
+
+    @Test
+    fun aClickTheCallerAdoptsStands() = runComposeSwingTest {
+        var selectedIndex by mutableIntStateOf(0)
+        var label by mutableStateOf("first")
+        setContent {
+            RadioGroup(
+                selectedIndex = selectedIndex,
+                onSelectionChange = { selectedIndex = it },
+                modifier = SwingModifier.name(label),
+            ) { threeOptions() }
+        }
+
+        onNodeWithText("Large").performClick()
+        onAllNodesOfType<JRadioButton>()
+            .filterToOne(isSelected())
+            .assertTextEquals("Large")
+
+        // A pass that carries the adopted index leaves the user's choice exactly where it is.
+        label = "second"
+        awaitIdle()
+        onAllNodesOfType<JRadioButton>()
+            .filterToOne(isSelected())
+            .assertTextEquals("Large")
     }
 
     @Test
@@ -120,7 +147,6 @@ class RadioGroupTest {
             ) { threeOptions() }
         }
 
-        // Driving selection from state must not loop back through the user-click callback.
         selectedIndex = 1
         awaitIdle()
         onNodeWithText("Medium").assert(isSelected())
@@ -132,8 +158,6 @@ class RadioGroupTest {
         setContent {
             RadioGroup(selectedIndex = -1, onSelectionChange = {}) { threeOptions() }
         }
-        // An out-of-range index (-1) leaves every option cleared: the three buttons are all there and
-        // none of them is selected.
         onAllNodesOfType<JRadioButton>()
             .assertCountEquals(3)
             .filter(isSelected())
@@ -160,7 +184,6 @@ class RadioGroupTest {
 
         onNodeWithText("Large").performClick()
 
-        // The first user pick out of the "no selection" state reports its index and selects it.
         assertEquals(listOf(2), reported, "the first pick should report its index")
         onAllNodesOfType<JRadioButton>()
             .filterToOne(isSelected())
@@ -175,7 +198,6 @@ class RadioGroupTest {
         }
         onAllNodesOfType<JRadioButton>().filter(isSelected()).assertCountEquals(0)
 
-        // Driving the controlled index from -1 (none) to a valid option moves the selection there.
         selectedIndex = 1
         awaitIdle()
         onAllNodesOfType<JRadioButton>()
@@ -193,8 +215,8 @@ class RadioGroupTest {
             .filterToOne(isSelected())
             .assertTextEquals("Medium")
 
-        // A grouped button refuses a plain deselect, so withdrawing the controlled index has to reach
-        // the group itself; without that the option stays selected and the state and the tree diverge.
+        // Withdrawing the controlled index has to reach the group itself; without that the option
+        // stays selected and the state and the tree diverge.
         selectedIndex = -1
         awaitIdle()
         onAllNodesOfType<JRadioButton>()
@@ -241,26 +263,20 @@ class RadioGroupTest {
         onNodeWithText("Medium").assertExists()
         onNodeWithText("Extra").assertDoesNotExist()
 
-        // Add an option behind the condition; it joins the shared group.
         showExtra = true
         awaitIdle()
         onNodeWithText("Extra").assertExists()
 
-        // Selecting the newly added option clears the others: exclusion holds across the dynamic
-        // membership change, so exactly one button is selected.
         onNodeWithText("Extra").performClick()
         onAllNodesOfType<JRadioButton>()
             .filterToOne(isSelected())
             .assertTextEquals("Extra")
 
-        // Selecting an original option again leaves only it selected, proving the group still
-        // enforces single selection after the option set grew.
         onNodeWithText("Medium").performClick()
         onAllNodesOfType<JRadioButton>()
             .filterToOne(isSelected())
             .assertTextEquals("Medium")
 
-        // Remove the conditional option; its button drops out and the group keeps single selection.
         showExtra = false
         awaitIdle()
         onNodeWithText("Extra").assertDoesNotExist()

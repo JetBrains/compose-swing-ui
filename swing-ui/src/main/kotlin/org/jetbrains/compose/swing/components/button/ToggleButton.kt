@@ -19,65 +19,67 @@ import java.awt.event.ItemListener
 import javax.swing.JToggleButton
 
 /**
- * A composable wrapper for `JToggleButton`, a two-state button that stays pressed until clicked again.
+ * A composable wrapper for `JToggleButton`, a two-state button that stays in until clicked again.
  *
- * The pressed state is controlled via [pressed] + [onPressedChange]: the button shows whatever
- * [pressed] holds, and a click toggles it, reporting the new state through [onPressedChange]. A state
+ * The selected state is controlled via [selected] + [onSelectedChange]: the button shows whatever
+ * [selected] holds, and a click toggles it, reporting the new state through [onSelectedChange]. A state
  * the caller pushes in is reflected without echoing back through the callback.
  *
  * ```
- * ToggleButton(text = "Bold", pressed = bold, onPressedChange = { bold = it })
+ * ToggleButton(text = "Bold", selected = bold, onSelectedChange = { bold = it })
  * ```
  *
  * @param text the text to display on the button
  * @param modifier the [SwingModifier] applied to the underlying component
- * @param pressed whether the button is in its pressed (selected) state
- * @param onPressedChange callback invoked with the new pressed state when the button is toggled
+ * @param selected whether the button is in its selected state
+ * @param onSelectedChange callback invoked with the new selected state when the button is toggled
+ * @see javax.swing.JToggleButton
  */
 @Composable
 public fun ToggleButton(
     text: String,
     modifier: SwingModifier = SwingModifier,
-    pressed: Boolean = false,
-    onPressedChange: (Boolean) -> Unit = {},
+    selected: Boolean = false,
+    onSelectedChange: (Boolean) -> Unit = {},
 ) {
-    val callback = rememberUpdatedState(onPressedChange)
-    val applied = rememberAppliedValue(pressed)
+    val callback = rememberUpdatedState(onSelectedChange)
+    val applied = rememberAppliedValue(selected)
     // The button publishes its new state for every toggle, its own and the user's alike. The binding
     // answers which is which by value: a toggle that lands on the declaration is the declaration arriving.
     val listener =
         remember(applied) {
             ActionListener { event ->
-                val isPressed = (event.source as JToggleButton).isSelected
-                if (applied.observed(isPressed)) callback.value(isPressed)
+                val isSelected = (event.source as JToggleButton).isSelected
+                if (applied.observed(isSelected)) callback.value(isSelected)
             }
         }
     ToggleButtonNode(
         text = text,
         modifier = modifier.actionListener(listener),
-        pressed = pressed,
+        selected = selected,
         applied = applied,
     )
 }
 
 /**
- * A [ToggleButton] driven by a raw [ActionListener] instead of an `onPressedChange` lambda. The
+ * A [ToggleButton] driven by a raw [ActionListener] instead of an `onSelectedChange` lambda. The
  * listener is attached as-is and removed on the same instance; pass a stable instance (e.g.
  * `remember {}`) to avoid churn.
  *
  * @param text the text to display on the button
  * @param actionListener the listener notified when the button is toggled
  * @param modifier the [SwingModifier] applied to the underlying component
- * @param pressed whether the button is in its pressed (selected) state
+ * @param selected whether the button is in its selected state
+ * @see javax.swing.JToggleButton
  */
 @Composable
 public fun ToggleButton(
     text: String,
     actionListener: ActionListener,
     modifier: SwingModifier = SwingModifier,
-    pressed: Boolean = false,
+    selected: Boolean = false,
 ) {
-    val applied = rememberAppliedValue(pressed)
+    val applied = rememberAppliedValue(selected)
     // The caller's listener is attached as-is, and is the only action listener on the button. What is
     // applied watches the button's own value channel instead, so a toggle the caller does not adopt is
     // still put back without the wrapper taking a slot on the channel the caller was handed.
@@ -95,13 +97,13 @@ public fun ToggleButton(
                     { c, l -> c.addItemListener(l) },
                     { c, l -> c.removeItemListener(l) },
                 ),
-        pressed = pressed,
+        selected = selected,
         applied = applied,
     )
 }
 
 /**
- * The `JToggleButton` node both [ToggleButton] overloads render. [pressed] is settled against the button
+ * The `JToggleButton` node both [ToggleButton] overloads render. [selected] is settled against the button
  * through [applied] rather than applied on change: the user can toggle the button out from under the
  * declaration, and a declaration equal to the last one still has to stand.
  */
@@ -109,14 +111,14 @@ public fun ToggleButton(
 private fun ToggleButtonNode(
     text: String,
     modifier: SwingModifier,
-    pressed: Boolean,
+    selected: Boolean,
     applied: AppliedValue<Boolean>,
 ) {
     SwingNode(
         factory = { JToggleButton() },
         update = {
             set(text) { this.text = it }
-            declare(pressed, applied, JToggleButton::isSelected, JToggleButton::setSelected)
+            declare(selected, applied, JToggleButton::isSelected, JToggleButton::setSelected)
             applyModifier(modifier)
         },
     )

@@ -5,8 +5,13 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.interaction.buttonGroup
 import org.jetbrains.compose.swing.modifier.listener.actionListener
+import org.jetbrains.compose.swing.modifier.listener.itemListener
+import org.jetbrains.compose.swing.node.AppliedValue
+import org.jetbrains.compose.swing.node.rememberAppliedValue
 import java.awt.event.ActionListener
+import java.awt.event.ItemListener
 import javax.swing.AbstractButton
 import javax.swing.ButtonGroup
 
@@ -19,13 +24,16 @@ import javax.swing.ButtonGroup
 internal fun rememberButtonGroup(): ButtonGroup = remember { ButtonGroup() }
 
 /**
- * Wires one option of a controlled group selection and emits it through [content], which receives the
- * [SwingModifier] the option's node has to apply: the declared [modifier], the listener reporting a user
- * selection, and the membership that enrolls the node in [group].
+ * Wires one option of a controlled group selection and emits it through [content].
  *
  * The option's composition identity is its position, so the applier installs and uninstalls nodes to
- * match the declarations while each joins and leaves [group] with its membership element. The listener
- * is stable for the option's slot and reads the latest [onSelectionChange].
+ * match the declarations while each joins and leaves [group] with its membership element. The listeners
+ * are stable for the option's slot and read the latest [onSelectionChange].
+ *
+ * The selection moves through the group, so an option can lose it without being touched: the member the
+ * group clears raises no action event at all. The mirror therefore follows the button's own item
+ * channel, which every member publishes its state on, while the action channel stays what reports the
+ * user's pick.
  *
  * One option is the whole of what this wires. Which options there are is the scope contract of the
  * component declaring them, so the component collects them itself and calls this per option.
@@ -33,18 +41,23 @@ internal fun rememberButtonGroup(): ButtonGroup = remember { ButtonGroup() }
  * @param group the group shared by every option of the same selection
  * @param index the option's zero-based position, which is what a user selection reports
  * @param modifier the modifier declared for this option
+ * @param selected whether this option is the one the composition declares as selected
  * @param onSelectionChange callback invoked with [index] when the user selects this option
- * @param content emits the option's node with the modifier it has to apply
+ * @param content receives the [SwingModifier] the option's node has to apply - [modifier], the
+ *   listeners watching the option, and the membership that enrolls the node in [group] - along with the
+ *   [AppliedValue] its node settles [selected] against
  */
 @Composable
 internal fun ButtonGroupOption(
     group: ButtonGroup,
     index: Int,
     modifier: SwingModifier,
+    selected: Boolean,
     onSelectionChange: (Int) -> Unit,
-    content: @Composable (SwingModifier) -> Unit,
+    content: @Composable (SwingModifier, AppliedValue<Boolean>) -> Unit,
 ) {
     key(index) {
+        val applied = rememberAppliedValue(selected)
         val onSelectionChangeState = rememberUpdatedState(onSelectionChange)
         val listener =
             remember {
@@ -52,21 +65,19 @@ internal fun ButtonGroupOption(
                     if ((event.source as AbstractButton).isSelected) onSelectionChangeState.value(index)
                 }
             }
-        content(modifier.actionListener(listener).buttonGroupMembership(group))
+        val observing =
+            remember(applied) {
+                ItemListener { event -> applied.observed((event.source as AbstractButton).isSelected) }
+            }
+        content(
+            modifier
+                .actionListener(listener)
+                .itemListener(observing)
+                .buttonGroup(group),
+            applied,
+        )
     }
 }
-
-/**
- * Keeps this button in [group] for exactly as long as it is in the composition: it joins when the
- * element is applied and leaves when the option is dropped or the node is released, recycled or
- * parked, so a departed option stops taking part in the group's exclusion instead of lingering as a
- * hidden member.
- *
- * The group instance is stable for the lifetime of the composable that owns it, so an element always
- * carries the group its node already joined.
- */
-internal fun SwingModifier.buttonGroupMembership(group: ButtonGroup): SwingModifier =
-    this then ButtonGroupMembershipElement(group)
 
 /**
  * Moves this button to [selected] within [group], leaving it alone when it already is.
@@ -86,22 +97,4 @@ internal fun AbstractButton.applyGroupSelection(
 ) {
     if (isSelected == selected) return
     if (selected) isSelected = true else group.clearSelection()
-}
-
-private class ButtonGroupMembershipElement(
-    private val group: ButtonGroup,
-) : SwingModifier.Element<AbstractButton, ButtonGroupMembershipElement.Node> {
-    override val targetType: Class<AbstractButton> get() = AbstractButton::class.java
-
-    override fun create(): Node = Node(group)
-
-    override fun update(node: Node) = Unit
-
-    class Node(
-        private val group: ButtonGroup,
-    ) : SwingModifier.Node<AbstractButton>() {
-        override fun onAttach(): Unit = group.add(component)
-
-        override fun onDetach(): Unit = group.remove(component)
-    }
 }
