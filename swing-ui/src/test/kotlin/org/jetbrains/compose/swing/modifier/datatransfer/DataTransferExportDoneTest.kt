@@ -26,15 +26,10 @@ import kotlin.test.assertNull
  * and observe outcomes through its public export surface. No native peer is required.
  */
 class DataTransferExportDoneTest {
-    // A local clipboard standing in for the system clipboard, a shared environment-dependent global
-    // that is absent entirely without a display. Driving the installed handler's exportToClipboard
-    // against it asserts the exact export the public helpers perform on the real clipboard.
     private fun localClipboard(): Clipboard = Clipboard("data-transfer-export-done-test")
 
     @Test
     fun cutAndCopyExportTheSameValueDifferingOnlyInTheReportedAction() = runComposeSwingTest {
-        // Counts how many times the source produced its Transferable: cut must NOT export more or
-        // differently than copy - they share one exporter; only the action constant differs.
         var exports = 0
         setContent {
             TextField(
@@ -66,9 +61,8 @@ class DataTransferExportDoneTest {
                 copiedValue to cutValue
             }
 
-        // The semantic contract: cut and copy export byte-for-byte the same value. The MOVE vs COPY
-        // action is reported to Swing for the operation's intent, but the exported payload is
-        // identical because both route through the single `transferable` exporter.
+        // The MOVE vs COPY action is reported to Swing for the operation's intent; the exported
+        // payload is identical because both route through the single `transferable` exporter.
         assertEquals("payload", copied, "copy must export the source payload")
         assertEquals(copied, cut, "cut must export the same value copy does; only the action differs")
         assertEquals(2, exports, "both exports must go through the one source exporter")
@@ -100,10 +94,7 @@ class DataTransferExportDoneTest {
             run {
                 val handler =
                     assertNotNull(component.transferHandler, "the clipboard modifier should install a transfer handler")
-                // Perform the cut.
                 handler.exportToClipboard(component, cutClipboard, TransferHandler.MOVE)
-                // No source-side removal ran, so a second export still produces the same value,
-                // proving the cut alone did not clear the source.
                 handler.exportToClipboard(component, afterCutClipboard, TransferHandler.COPY)
                 afterCutClipboard.getData(DataFlavor.stringFlavor) as String
             }
@@ -131,7 +122,7 @@ class DataTransferExportDoneTest {
                             transferable = { StringSelection(value) },
                             onPaste = { true },
                             bindKeys = false,
-                        ).onExportDone { _, _, action ->
+                        ).onExportDone { _, action ->
                             reportedActions += action
                             if (action == TransferHandler.MOVE) value = ""
                         },
@@ -177,7 +168,7 @@ class DataTransferExportDoneTest {
                             transferable = { StringSelection(value) },
                             onPaste = { true },
                             bindKeys = false,
-                        ).onExportDone { _, _, action ->
+                        ).onExportDone { _, action ->
                             reportedAction = action
                             if (action == TransferHandler.MOVE) value = ""
                         },
@@ -217,7 +208,7 @@ class DataTransferExportDoneTest {
                             transferable = { null },
                             onPaste = { true },
                             bindKeys = false,
-                        ).onExportDone { _, data, action ->
+                        ).onExportDone { data, action ->
                             reportedAction = action
                             reportedData = data
                         },
@@ -248,7 +239,7 @@ class DataTransferExportDoneTest {
                             transferable = { StringSelection(text.substring(selection)) },
                             onPaste = { true },
                             bindKeys = false,
-                        ).onExportDone { _, _, action ->
+                        ).onExportDone { _, action ->
                             if (action == TransferHandler.MOVE) text = text.removeRange(selection)
                         },
             )
@@ -275,7 +266,7 @@ class DataTransferExportDoneTest {
             TextField(
                 value = "copy me",
                 onValueChange = {},
-                modifier = SwingModifier.onExportDone { _, _, _ -> },
+                modifier = SwingModifier.onExportDone { _, _ -> },
             )
         }
         val field = onNodeOfType<JTextField>().fetch()
@@ -308,7 +299,7 @@ class DataTransferExportDoneTest {
                             transferable = { StringSelection("unowned") },
                             onPaste = { true },
                             bindKeys = false,
-                        ).onExportDone { _, _, action -> reportedAction = action },
+                        ).onExportDone { _, action -> reportedAction = action },
             )
         }
         val component = onNodeOfType<JTextField>().fetch()

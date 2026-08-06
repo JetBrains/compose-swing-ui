@@ -4,8 +4,10 @@ import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
+import org.jetbrains.compose.swing.modifier.layout.componentOrientation
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import java.awt.ComponentOrientation
 import java.awt.Dimension
 import java.awt.Rectangle
 import javax.swing.JPanel
@@ -26,14 +28,14 @@ internal const val CHILD_HEIGHT: Int = 40
 internal const val CHILD_COUNT: Int = 3
 
 /**
- * The modifier of the row or column under test: a tag to find it by, and a size for its parent to
- * impose on it. Every fixture size is larger than what the children ask for, so what the container
- * does with the space they leave is observable.
+ * The modifier of the row or column under test: a tag to find it by, a size for its parent to impose on
+ * it, and the reading direction its arrangement and cross-axis alignment resolve against.
  */
 internal fun containerModifier(
     width: Int,
     height: Int,
-): SwingModifier = SwingModifier.testTag(CONTAINER_TAG).preferredSize(width, height)
+    orientation: ComponentOrientation = ComponentOrientation.LEFT_TO_RIGHT,
+): SwingModifier = SwingModifier.testTag(CONTAINER_TAG).preferredSize(width, height).componentOrientation(orientation)
 
 /**
  * A child asking for one fixed size and declaring no maximum of its own, so the extent it ends up

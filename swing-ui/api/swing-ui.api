@@ -612,12 +612,12 @@ public final class org/jetbrains/compose/swing/modifier/datatransfer/ClipboardHa
 }
 
 public final class org/jetbrains/compose/swing/modifier/datatransfer/DataTransferModifiersKt {
-	public static final fun clipboard (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;ZLorg/jetbrains/compose/swing/modifier/datatransfer/ClipboardHandle;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
-	public static synthetic fun clipboard$default (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;ZLorg/jetbrains/compose/swing/modifier/datatransfer/ClipboardHandle;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
-	public static final fun draggable (Lorg/jetbrains/compose/swing/modifier/SwingModifier;ILkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun clipboard (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;ZLorg/jetbrains/compose/swing/modifier/datatransfer/ClipboardHandle;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static synthetic fun clipboard$default (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;ZLorg/jetbrains/compose/swing/modifier/datatransfer/ClipboardHandle;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun draggable (Lorg/jetbrains/compose/swing/modifier/SwingModifier;ILkotlin/jvm/functions/Function0;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun dropTarget (Lorg/jetbrains/compose/swing/modifier/SwingModifier;ILkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static synthetic fun dropTarget$default (Lorg/jetbrains/compose/swing/modifier/SwingModifier;ILkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
-	public static final fun onExportDone (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function3;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun onExportDone (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function2;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun rememberClipboardHandle (Landroidx/compose/runtime/Composer;I)Lorg/jetbrains/compose/swing/modifier/datatransfer/ClipboardHandle;
 }
 

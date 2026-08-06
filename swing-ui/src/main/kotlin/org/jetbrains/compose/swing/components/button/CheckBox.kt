@@ -4,18 +4,12 @@
 package org.jetbrains.compose.swing.components.button
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.actionListener
-import org.jetbrains.compose.swing.modifier.listener.listener
 import org.jetbrains.compose.swing.node.AppliedValue
 import org.jetbrains.compose.swing.node.SwingNode
-import org.jetbrains.compose.swing.node.declare
-import org.jetbrains.compose.swing.node.rememberAppliedValue
 import java.awt.event.ActionListener
-import java.awt.event.ItemListener
 import javax.swing.JCheckBox
 
 /**
@@ -34,20 +28,10 @@ public fun CheckBox(
     modifier: SwingModifier = SwingModifier,
     onCheckedChange: (Boolean) -> Unit = {},
 ) {
-    val callback = rememberUpdatedState(onCheckedChange)
-    val applied = rememberAppliedValue(checked)
-    // The box publishes its new value for every toggle, its own and the user's alike. The binding answers
-    // which is which by value: a toggle that lands on the declaration is the declaration arriving.
-    val listener =
-        remember(applied) {
-            ActionListener { event ->
-                val selected = (event.source as JCheckBox).isSelected
-                if (applied.observed(selected)) callback.value(selected)
-            }
-        }
+    val (reporting, applied) = rememberToggleReporting(checked, onCheckedChange)
     CheckBoxNode(
         text = text,
-        modifier = modifier.actionListener(listener),
+        modifier = modifier.then(reporting),
         checked = checked,
         applied = applied,
     )
@@ -71,24 +55,10 @@ public fun CheckBox(
     checked: Boolean,
     modifier: SwingModifier = SwingModifier,
 ) {
-    val applied = rememberAppliedValue(checked)
-    // The caller's listener is attached as-is, and is the only action listener on the box. What is applied
-    // watches the box's own value channel instead, so a toggle the caller does not adopt is still put back
-    // without the wrapper taking a slot on the channel the caller was handed.
-    val observing =
-        remember(applied) {
-            ItemListener { event -> applied.observed((event.source as JCheckBox).isSelected) }
-        }
+    val (mirroring, applied) = rememberToggleMirroring(checked, actionListener)
     CheckBoxNode(
         text = text,
-        modifier =
-            modifier
-                .actionListener(actionListener)
-                .listener<JCheckBox, ItemListener>(
-                    observing,
-                    { c, l -> c.addItemListener(l) },
-                    { c, l -> c.removeItemListener(l) },
-                ),
+        modifier = modifier.then(mirroring),
         checked = checked,
         applied = applied,
     )
@@ -110,7 +80,7 @@ private fun CheckBoxNode(
         factory = { JCheckBox() },
         update = {
             set(text) { this.text = it }
-            declare(checked, applied, JCheckBox::isSelected, JCheckBox::setSelected)
+            declareSelected(checked, applied)
             applyModifier(modifier)
         },
     )

@@ -102,37 +102,37 @@ internal class ComposingTreeCellRenderer<T>(
         leaf: Boolean,
         row: Int,
         hasFocus: Boolean,
-    ): Component =
-        island.stamp {
-            currentValue = valueOf(value)
+    ): Component {
+        // A node the tree stamps carries the TreeNodeValue wrapper; the value it holds is the node's own
+        // to be `null` or not. The wrapper's presence is what names a node, never the value's nullity.
+        val carried = (value as? DefaultMutableTreeNode)?.userObject as? TreeNodeValue<*>
+        return island.stamp(hasCell = carried != null) {
+            currentValue = valueOf(carried)
             scope.row = row
             scope.isSelected = selected
             scope.isExpanded = expanded
             scope.isLeaf = leaf
             scope.hasFocus = hasFocus
         }
+    }
 
     /** Disposes this renderer's node island; see [CellStampIsland.dispose]. */
     fun dispose(): Unit = island.dispose()
 
     /**
-     * The value [node] stands for, or `null` for a node that carries none - the empty node a
-     * composition holding nothing composes is what such a row is stamped with.
+     * The value [carried] holds. This renderer is installed by a value-driven Tree alone, and every node
+     * such a Tree builds carries a TreeNodeValue holding a value of that Tree's own element type.
      */
-    private fun valueOf(node: Any?): T? {
-        val carried = (node as? DefaultMutableTreeNode)?.userObject
-        if (carried !is TreeNodeValue<*>) return null
-        // This renderer is installed by a value-driven Tree alone, and every node such a Tree builds
-        // carries a TreeNodeValue holding a value of that Tree's own element type.
+    private fun valueOf(carried: TreeNodeValue<*>?): T? {
         @Suppress("UNCHECKED_CAST")
-        val value = carried.value as T
-        return value
+        return carried?.value as T?
     }
 }
 
 /**
- * The node body a [ComposingTreeCellRenderer]'s island composes. A `null` value is the degenerate empty
- * node before the first stamp, which composes no component at all.
+ * The node body a [ComposingTreeCellRenderer]'s island composes; the island composes it only where the
+ * stamp names a node, so [valueState] always holds that node's value here - itself `null` among the
+ * values a node can hold.
  */
 @Composable
 private fun <T> TreeNodeCell(
@@ -140,10 +140,9 @@ private fun <T> TreeNodeCell(
     scope: TreeNodeScope,
     nodeContent: State<@Composable TreeNodeScope.(value: T) -> Unit>,
 ) {
-    val value = valueState.value
-    if (value != null) {
-        scope.(nodeContent.value)(value)
-    }
+    @Suppress("UNCHECKED_CAST")
+    val value = valueState.value as T
+    scope.(nodeContent.value)(value)
 }
 
 /** The mutable backing of [TreeNodeScope]; its fields are written once per stamp. */

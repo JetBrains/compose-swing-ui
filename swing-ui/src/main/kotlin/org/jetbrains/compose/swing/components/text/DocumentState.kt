@@ -179,7 +179,7 @@ public class DocumentState internal constructor(
     public fun edit(block: DocumentEditScope.() -> Unit) {
         val buffer = DocumentEditScope(document)
         recordAsOneEdit { buffer.block() }
-        buffer.pendingSelection?.let { selection = it }
+        buffer.pendingSelection?.let { resolveSelection -> selection = resolveSelection() }
     }
 
     /**

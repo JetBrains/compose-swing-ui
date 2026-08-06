@@ -7,19 +7,18 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import java.awt.ComponentOrientation
 import java.awt.Dimension
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
  * An arrangement decides where the space a container's children leave along its axis goes. The
- * children keep the extent they asked for either way, so the whole of an arrangement's effect is the
- * position each child ends up at, which is what every test here reads back.
+ * children keep the extent they asked for either way, so an arrangement's whole effect is the position
+ * each child ends up at, which is what every test here reads back.
  *
- * The container is always given more room along its axis than its children ask for, so there is space
- * left over to place; the fixture children are three, one, and none, because an arrangement that
- * shares space out between children has to answer for the cases where there are no gaps to share it
- * into.
+ * The fixture children are three, one, and none, because an arrangement that shares space out between
+ * children has to answer for the cases where there are no gaps to share it into.
  */
 class RowColumnArrangementTest {
     @Test
@@ -133,6 +132,18 @@ class RowColumnArrangementTest {
     }
 
     @Test
+    fun startPacksTheChildrenAgainstTheRightEdgeOfARightToLeftRow() = runComposeSwingTest {
+        setContent { ArrangedRow(Arrangement.Start, ComponentOrientation.RIGHT_TO_LEFT) }
+
+        assertEquals(
+            rowCells(250, 200, 150),
+            childBounds(),
+            "Arrangement.Start must pack the children against the row's leading edge, the right one " +
+                "under a right-to-left orientation, leaving the surplus after them",
+        )
+    }
+
+    @Test
     fun endPacksTheChildrenAgainstTheTrailingEdgeOfTheRow() = runComposeSwingTest {
         setContent { ArrangedRow(Arrangement.End) }
 
@@ -144,6 +155,18 @@ class RowColumnArrangementTest {
     }
 
     @Test
+    fun endPacksTheChildrenAgainstTheLeftEdgeOfARightToLeftRow() = runComposeSwingTest {
+        setContent { ArrangedRow(Arrangement.End, ComponentOrientation.RIGHT_TO_LEFT) }
+
+        assertEquals(
+            rowCells(100, 50, 0),
+            childBounds(),
+            "Arrangement.End must pack the children against the row's trailing edge, the left one " +
+                "under a right-to-left orientation, leaving the surplus before them",
+        )
+    }
+
+    @Test
     fun aRowSplitsItsSurplusIntoTheGapsBetweenChildren() = runComposeSwingTest {
         setContent { ArrangedRow(Arrangement.SpaceBetween) }
 
@@ -151,6 +174,19 @@ class RowColumnArrangementTest {
             rowCells(0, 125, 250),
             childBounds(),
             "an arrangement that serves either axis must share the surplus out along the row as well",
+        )
+    }
+
+    @Test
+    fun aRightToLeftRowSplitsItsSurplusIntoTheGapsBetweenChildrenInMirroredOrder() = runComposeSwingTest {
+        setContent { ArrangedRow(Arrangement.SpaceBetween, ComponentOrientation.RIGHT_TO_LEFT) }
+
+        assertEquals(
+            rowCells(250, 125, 0),
+            childBounds(),
+            "Arrangement.SpaceBetween must share the surplus out between the children in their " +
+                "declaration order read from the row's leading edge, the right one under a " +
+                "right-to-left orientation",
         )
     }
 
@@ -186,6 +222,32 @@ class RowColumnArrangementTest {
             childBounds(),
             "Arrangement.aligned must keep the children edge to edge and place the group at its " +
                 "horizontal alignment",
+        )
+    }
+
+    @Test
+    fun aRightToLeftRowHoldsTheFixedGapItsArrangementDeclares() = runComposeSwingTest {
+        setContent { ArrangedRow(Arrangement.spacedBy(GAP), ComponentOrientation.RIGHT_TO_LEFT) }
+
+        assertEquals(
+            rowCells(250, 190, 130),
+            childBounds(),
+            "Arrangement.spacedBy must hold its gap between the children and pack the group against " +
+                "the row's leading edge, the right one under a right-to-left orientation",
+        )
+    }
+
+    @Test
+    fun aRightToLeftRowSpacedByPlacesTheWholeGroupAtTheAlignmentItIsGiven() = runComposeSwingTest {
+        setContent {
+            ArrangedRow(Arrangement.spacedBy(GAP, Alignment.End), ComponentOrientation.RIGHT_TO_LEFT)
+        }
+
+        assertEquals(
+            rowCells(120, 60, 0),
+            childBounds(),
+            "Arrangement.spacedBy must keep its gap and put the group as a whole where its horizontal " +
+                "alignment says, resolved against the row's right-to-left orientation",
         )
     }
 
@@ -226,6 +288,57 @@ class RowColumnArrangementTest {
             columnRows(130),
             childBounds(),
             "Arrangement.SpaceEvenly leaves a lone child one equal gap above it and one below",
+        )
+    }
+
+    @Test
+    fun aLoneChildInARightToLeftRowGoesWhereEachArrangementPutsIt() = runComposeSwingTest {
+        var arrangement by mutableStateOf(Arrangement.Start)
+        setContent { ArrangedLoneRightToLeftRow(arrangement) }
+
+        assertEquals(
+            rowCells(250),
+            childBounds(),
+            "Arrangement.Start puts a lone child at the row's leading edge, the right one under a " +
+                "right-to-left orientation",
+        )
+
+        arrangement = Arrangement.End
+        awaitIdle()
+        assertEquals(
+            rowCells(0),
+            childBounds(),
+            "Arrangement.End puts a lone child at the row's trailing edge, the left one under a " +
+                "right-to-left orientation",
+        )
+
+        arrangement = Arrangement.Center
+        awaitIdle()
+        assertEquals(rowCells(125), childBounds(), "Arrangement.Center puts a lone child halfway across the row")
+
+        arrangement = Arrangement.SpaceBetween
+        awaitIdle()
+        assertEquals(
+            rowCells(250),
+            childBounds(),
+            "Arrangement.SpaceBetween has no gap to fill for a lone child, which stays at the row's " +
+                "leading edge, the right one under a right-to-left orientation",
+        )
+
+        arrangement = Arrangement.SpaceAround
+        awaitIdle()
+        assertEquals(
+            rowCells(125),
+            childBounds(),
+            "Arrangement.SpaceAround gives a lone child the whole surplus as its own gap, half on each side",
+        )
+
+        arrangement = Arrangement.SpaceEvenly
+        awaitIdle()
+        assertEquals(
+            rowCells(125),
+            childBounds(),
+            "Arrangement.SpaceEvenly leaves a lone child one equal gap on each side",
         )
     }
 
@@ -315,11 +428,29 @@ private fun ArrangedLoneColumn(arrangement: Arrangement.Vertical) {
 
 /** A row with more width than its three children ask for, so it has surplus to place. */
 @Composable
-private fun ArrangedRow(arrangement: Arrangement.Horizontal) {
+private fun ArrangedRow(
+    arrangement: Arrangement.Horizontal,
+    orientation: ComponentOrientation = ComponentOrientation.LEFT_TO_RIGHT,
+) {
     Row(
-        modifier = containerModifier(CONTAINER_MAIN, CONTAINER_CROSS),
+        modifier = containerModifier(CONTAINER_MAIN, CONTAINER_CROSS, orientation),
         horizontalArrangement = arrangement,
     ) {
         repeat(CHILD_COUNT) { SizedChild(it) }
+    }
+}
+
+/**
+ * A right-to-left row with a single child, the case an arrangement has no gap between children to fill
+ * and the leading edge is the right one.
+ */
+@Composable
+private fun ArrangedLoneRightToLeftRow(arrangement: Arrangement.Horizontal) {
+    Row(
+        modifier =
+            containerModifier(CONTAINER_MAIN, CONTAINER_CROSS, ComponentOrientation.RIGHT_TO_LEFT),
+        horizontalArrangement = arrangement,
+    ) {
+        SizedChild(0)
     }
 }

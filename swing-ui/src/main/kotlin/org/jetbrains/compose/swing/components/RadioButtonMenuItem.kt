@@ -4,18 +4,15 @@
 package org.jetbrains.compose.swing.components
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
+import org.jetbrains.compose.swing.components.button.declareSelected
+import org.jetbrains.compose.swing.components.button.rememberToggleMirroring
+import org.jetbrains.compose.swing.components.button.rememberToggleReporting
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.actionListener
-import org.jetbrains.compose.swing.modifier.listener.itemListener
 import org.jetbrains.compose.swing.node.AppliedValue
 import org.jetbrains.compose.swing.node.MenuNode
-import org.jetbrains.compose.swing.node.declare
-import org.jetbrains.compose.swing.node.rememberAppliedValue
 import java.awt.event.ActionListener
-import java.awt.event.ItemListener
 import javax.swing.JRadioButtonMenuItem
 import javax.swing.KeyStroke
 
@@ -38,20 +35,10 @@ public fun RadioButtonMenuItem(
     accelerator: KeyStroke? = null,
     onSelectedChange: (Boolean) -> Unit = {},
 ) {
-    val callback = rememberUpdatedState(onSelectedChange)
-    val applied = rememberAppliedValue(selected)
-    // The item publishes its new state for every activation, its own and the user's alike. The binding
-    // answers which is which by value: a move that lands on the declaration is the declaration arriving.
-    val listener =
-        remember(applied) {
-            ActionListener { event ->
-                val isSelected = (event.source as JRadioButtonMenuItem).isSelected
-                if (applied.observed(isSelected)) callback.value(isSelected)
-            }
-        }
+    val (reporting, applied) = rememberToggleReporting(selected, onSelectedChange)
     RadioButtonMenuItemNode(
         text = text,
-        modifier = modifier.actionListener(listener),
+        modifier = modifier.then(reporting),
         selected = selected,
         accelerator = accelerator,
         applied = applied,
@@ -79,20 +66,10 @@ public fun RadioButtonMenuItem(
     selected: Boolean = false,
     accelerator: KeyStroke? = null,
 ) {
-    val applied = rememberAppliedValue(selected)
-    // The caller's listener is attached as-is, and is the only action listener on the item. What is applied
-    // watches the item's own value channel instead, so a move the caller does not adopt is still put back
-    // without the wrapper taking a slot on the channel the caller was handed.
-    val observing =
-        remember(applied) {
-            ItemListener { event -> applied.observed((event.source as JRadioButtonMenuItem).isSelected) }
-        }
+    val (mirroring, applied) = rememberToggleMirroring(selected, actionListener)
     RadioButtonMenuItemNode(
         text = text,
-        modifier =
-            modifier
-                .actionListener(actionListener)
-                .itemListener(observing),
+        modifier = modifier.then(mirroring),
         selected = selected,
         accelerator = accelerator,
         applied = applied,
@@ -116,7 +93,7 @@ private fun RadioButtonMenuItemNode(
         factory = { JRadioButtonMenuItem() },
         update = {
             set(text) { this.text = it }
-            declare(selected, applied, JRadioButtonMenuItem::isSelected, JRadioButtonMenuItem::setSelected)
+            declareSelected(selected, applied)
             set(accelerator) { this.accelerator = it }
             applyModifier(modifier)
         },

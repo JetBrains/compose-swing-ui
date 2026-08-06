@@ -6,9 +6,12 @@ import java.awt.Component
 import java.awt.event.ActionEvent
 import java.awt.event.KeyEvent
 import java.awt.event.KeyListener
+import java.util.Collections
+import java.util.WeakHashMap
 import javax.swing.AbstractAction
 import javax.swing.JComponent
 import javax.swing.KeyStroke
+import javax.swing.SwingUtilities
 
 /*
  * Keyboard SwingModifiers - raw key events and key-stroke -> action bindings.
@@ -23,8 +26,8 @@ import javax.swing.KeyStroke
  * [onKeyEvent] receives each [KeyEvent] (`KEY_PRESSED` / `KEY_RELEASED` / `KEY_TYPED`, read from
  * `event.id`) and returns `true` if it consumed the event - in which case the event stops further
  * processing, mirroring Compose's `onKeyEvent`. The component must be focusable and focused to
- * receive these (see [focusable]); for shortcuts that should work regardless of which component holds
- * focus, prefer [onKeyStroke].
+ * receive these (see [focusable][org.jetbrains.compose.swing.modifier.interaction.focusable]); for
+ * shortcuts that should work regardless of which component holds focus, prefer [onKeyStroke].
  *
  * Multiple `onKeyEvent` applications all fire. [onKeyEvent] is read live, so passing a fresh lambda
  * each recomposition is fine.
@@ -40,7 +43,8 @@ public fun SwingModifier.onKeyEvent(onKeyEvent: (KeyEvent) -> Boolean): SwingMod
  * `JComponent.WHEN_*` value) and defaults to [JComponent.WHEN_FOCUSED].
  *
  * Distinct keystrokes compose independently. Binding the **same** [keyStroke] in the same [condition]
- * twice on one component throws at install. [onAction] is read live, so passing a fresh lambda each
+ * twice on one component is reported once the change pass has settled, so two bindings that exchange
+ * their keystrokes in one pass are unaffected. [onAction] is read live, so passing a fresh lambda each
  * recomposition is fine. Requires a [JComponent] target.
  *
  * @see javax.swing.JComponent.getInputMap
@@ -109,10 +113,12 @@ private class KeyEventElement(
 }
 
 /**
- * The additive [SwingModifier.Element] backing [onKeyStroke]. On attach it registers a binding in
- * `getInputMap(condition)` + `actionMap` under a unique key (the node instance), reading [onAction]
- * from the node's field refreshed by `update`; on detach it removes both entries. Binding the same
- * [keyStroke] in the same [condition] twice throws.
+ * The additive [SwingModifier.Element] backing [onKeyStroke]. Each `update` re-keys the binding in
+ * `getInputMap(condition)` + `actionMap` under a unique key (the node instance) for the declared
+ * [keyStroke]/[condition] pair, unbinding the previous pair first when either changed, and reads
+ * [onAction] from the node's field refreshed by `update`; `onDetach` removes the currently bound pair.
+ * Binding the same [keyStroke] in the same [condition] twice is reported once the change pass has
+ * settled.
  */
 private class KeyStrokeElement(
     private val keyStroke: KeyStroke,
@@ -122,50 +128,106 @@ private class KeyStrokeElement(
     override val targetType: Class<JComponent> get() = JComponent::class.java
     override val additive: Boolean get() = true
 
-    override fun create(): Node = Node(keyStroke, condition)
+    override fun create(): Node = Node()
 
     override fun update(node: Node) {
         node.onAction = onAction
+        node.rebind(keyStroke, condition)
     }
 
-    class Node(
-        private val keyStroke: KeyStroke,
-        @param:FocusCondition private val condition: Int,
-    ) : SwingModifier.Node<JComponent>() {
+    class Node : SwingModifier.Node<JComponent>() {
         var onAction: () -> Unit = {}
 
         // A unique ActionMap key per application (the node instance), so removing one binding never
         // clobbers another's entry.
         private val actionKey: Any = this
 
-        override fun onAttach() {
-            val component = component
-            val inputMap = component.getInputMap(condition)
-            val actionMap = component.actionMap
+        private var boundKeyStroke: KeyStroke? = null
 
-            // Detect a same-keystroke double-bind in the same condition: if this keystroke already maps
-            // to an action key whose action is one of ours, another onKeyStroke owns it. Swing maps one
-            // keystroke to one action per condition, so the second binding would silently shadow the
-            // first.
-            val existingKey = inputMap.get(keyStroke)
-            if (existingKey != null && actionMap.get(existingKey) is KeyStrokeAction) {
+        @FocusCondition
+        private var boundCondition: Int = JComponent.WHEN_FOCUSED
+
+        /** Registers this node so a sibling's deferred check also verifies it; see [scheduleOwnershipCheck]. */
+        override fun onAttach() {
+            liveNodesByComponent.getOrPut(component) { mutableSetOf() }.add(this)
+        }
+
+        /** Binds [keyStroke]/[condition], first unbinding the currently bound pair if either differs. */
+        fun rebind(
+            keyStroke: KeyStroke,
+            @FocusCondition condition: Int,
+        ) {
+            if (boundKeyStroke == keyStroke && boundCondition == condition) return
+            unbind()
+            bind(keyStroke, condition)
+        }
+
+        private fun bind(
+            keyStroke: KeyStroke,
+            @FocusCondition condition: Int,
+        ) {
+            component.getInputMap(condition).put(keyStroke, actionKey)
+            component.actionMap.put(actionKey, KeyStrokeAction { onAction() })
+            boundKeyStroke = keyStroke
+            boundCondition = condition
+            scheduleOwnershipCheck()
+        }
+
+        private fun unbind() {
+            val keyStroke = boundKeyStroke ?: return
+            val inputMap = component.getInputMap(boundCondition)
+            // Remove only our own entries, leaving any binding installed elsewhere intact.
+            if (inputMap.get(keyStroke) === actionKey) inputMap.remove(keyStroke)
+            component.actionMap.remove(actionKey)
+            boundKeyStroke = null
+        }
+
+        /** Reports if another [KeyStrokeAction] has taken over this node's bound key-stroke. */
+        private fun checkOwnership() {
+            val keyStroke = boundKeyStroke ?: return
+            val currentKey = component.getInputMap(boundCondition).get(keyStroke)
+            if (currentKey !== actionKey && component.actionMap.get(currentKey) is KeyStrokeAction) {
                 error(
                     "onKeyStroke($keyStroke) is already bound in this focus condition on this " +
                         "component; a key-stroke can only be bound once per condition. Use distinct " +
                         "key-strokes or a single binding.",
                 )
             }
+        }
 
-            inputMap.put(keyStroke, actionKey)
-            actionMap.put(actionKey, KeyStrokeAction { onAction() })
+        /**
+         * Asks for the ownership check of every live [KeyStrokeElement.Node] on this component, a turn
+         * after the event queue processes the change pass in flight: two bindings that exchange
+         * key-strokes in one pass each release their old stroke and take their new one while the other
+         * still holds it, so reading ownership mid-pass would flag a legal swap. Deferring also keeps
+         * the refusal off the apply phase, where a throw would kill the composition for good instead of
+         * reaching the caller.
+         *
+         * Scoped to every node on the component, not just this one: a binding that did not rebind this
+         * pass runs no check of its own, yet it is exactly the one a colliding sibling can take a stroke
+         * from. Checking the whole component catches that.
+         */
+        private fun scheduleOwnershipCheck() {
+            val component = component
+            if (!checkScheduledFor.add(component)) return
+            SwingUtilities.invokeLater {
+                checkScheduledFor.remove(component)
+                liveNodesByComponent[component]?.forEach(Node::checkOwnership)
+            }
         }
 
         override fun onDetach() {
-            val component = component
-            val inputMap = component.getInputMap(condition)
-            // Remove only our own entries, leaving any binding installed elsewhere intact.
-            if (inputMap.get(keyStroke) === actionKey) inputMap.remove(keyStroke)
-            component.actionMap.remove(actionKey)
+            unbind()
+            liveNodesByComponent[component]?.remove(this)
+        }
+
+        private companion object {
+            /** Every attached node, per component, so a check can cover siblings that did not run this pass. */
+            private val liveNodesByComponent = WeakHashMap<JComponent, MutableSet<Node>>()
+
+            /** Components with an ownership check already queued for the next turn of the event queue. */
+            private val checkScheduledFor: MutableSet<JComponent> =
+                Collections.newSetFromMap(WeakHashMap<JComponent, Boolean>())
         }
     }
 }

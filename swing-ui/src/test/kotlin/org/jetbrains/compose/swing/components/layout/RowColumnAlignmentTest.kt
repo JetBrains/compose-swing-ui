@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.components.layout
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import java.awt.ComponentOrientation
 import java.awt.Rectangle
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -29,6 +30,18 @@ class RowColumnAlignmentTest {
     }
 
     @Test
+    fun startPutsAChildAgainstTheRightEdgeOfARightToLeftColumn() = runComposeSwingTest {
+        setContent { AlignedColumn(Alignment.Start, ComponentOrientation.RIGHT_TO_LEFT) }
+
+        assertEquals(
+            listOf(Rectangle(150, 0, CHILD_WIDTH, CHILD_HEIGHT)),
+            childBounds(),
+            "Alignment.Start must put the child against the column's leading edge, the right one under " +
+                "a right-to-left orientation",
+        )
+    }
+
+    @Test
     fun centerHorizontallyPutsAChildHalfwayAcrossTheColumn() = runComposeSwingTest {
         setContent { AlignedColumn(Alignment.CenterHorizontally) }
 
@@ -40,6 +53,18 @@ class RowColumnAlignmentTest {
     }
 
     @Test
+    fun centerHorizontallyPutsAChildHalfwayAcrossARightToLeftColumn() = runComposeSwingTest {
+        setContent { AlignedColumn(Alignment.CenterHorizontally, ComponentOrientation.RIGHT_TO_LEFT) }
+
+        assertEquals(
+            listOf(Rectangle(75, 0, CHILD_WIDTH, CHILD_HEIGHT)),
+            childBounds(),
+            "Alignment.CenterHorizontally must leave equal width on either side of the child under a " +
+                "right-to-left orientation too",
+        )
+    }
+
+    @Test
     fun endPutsAChildAgainstTheTrailingEdgeOfTheColumn() = runComposeSwingTest {
         setContent { AlignedColumn(Alignment.End) }
 
@@ -47,6 +72,18 @@ class RowColumnAlignmentTest {
             listOf(Rectangle(150, 0, CHILD_WIDTH, CHILD_HEIGHT)),
             childBounds(),
             "Alignment.End must put the child against the column's trailing edge",
+        )
+    }
+
+    @Test
+    fun endPutsAChildAgainstTheLeftEdgeOfARightToLeftColumn() = runComposeSwingTest {
+        setContent { AlignedColumn(Alignment.End, ComponentOrientation.RIGHT_TO_LEFT) }
+
+        assertEquals(
+            listOf(Rectangle(0, 0, CHILD_WIDTH, CHILD_HEIGHT)),
+            childBounds(),
+            "Alignment.End must put the child against the column's trailing edge, the left one under a " +
+                "right-to-left orientation",
         )
     }
 
@@ -136,9 +173,12 @@ private const val ALONG_EXTENT = 120
 
 /** A column wider than its child, so the width the child leaves is there for an alignment to use. */
 @Composable
-private fun AlignedColumn(alignment: Alignment.Horizontal) {
+private fun AlignedColumn(
+    alignment: Alignment.Horizontal,
+    orientation: ComponentOrientation = ComponentOrientation.LEFT_TO_RIGHT,
+) {
     Column(
-        modifier = containerModifier(ACROSS_EXTENT, ALONG_EXTENT),
+        modifier = containerModifier(ACROSS_EXTENT, ALONG_EXTENT, orientation),
         horizontalAlignment = alignment,
     ) {
         SizedChild(0)

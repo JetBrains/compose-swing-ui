@@ -128,7 +128,7 @@ private fun ColumnScope.OnExportDoneCard() {
                     SwingModifier
                         .border(dashed)
                         .draggable(exportedActions = TransferHandler.MOVE) { StringSelection(payload) }
-                        .onExportDone { _, _, action ->
+                        .onExportDone { _, action ->
                             lastOutcome =
                                 when (action) {
                                     TransferHandler.MOVE -> "moved"

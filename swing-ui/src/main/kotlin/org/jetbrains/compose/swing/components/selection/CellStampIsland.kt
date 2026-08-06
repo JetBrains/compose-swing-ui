@@ -3,6 +3,8 @@ package org.jetbrains.compose.swing.components.selection
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.State
+import androidx.compose.runtime.mutableStateOf
 import org.jetbrains.compose.swing.core.SwingCompositionMount
 import org.jetbrains.compose.swing.node.LocalSwingConstraint
 import org.jetbrains.compose.swing.node.SlotAttachment
@@ -29,8 +31,9 @@ import java.awt.Container
  * @param parentContext the enclosing composition this island joins.
  * @param singleComponentMessage reports a cell body that composes more than one component, in the words
  *   of the widget the island stamps for.
- * @param body the cell body every stamp composes, holding the composition state the stamps write; it
- *   composes nothing where there is no cell to render, which is what leaves the widget the empty cell.
+ * @param body the cell body every stamp composes, holding the composition state the stamps write; a
+ *   [stamp] whose `hasCell` is `false` composes none of it, which is what leaves the widget the empty
+ *   cell - decided once here rather than by each renderer inferring it from the value it stamped.
  */
 internal class CellStampIsland(
     parentContext: CompositionContext,
@@ -57,11 +60,16 @@ internal class CellStampIsland(
             }
         }
 
+    // Whether the widget named a cell for the pending stamp to render, decided once here so every
+    // renderer states its own presence signal rather than this island - or a renderer - inferring it
+    // from the nullity of the value the cell body reads.
+    private val hasCellState = mutableStateOf(false)
+
     // The island's own composition, mounted as this island is created and disposed by [dispose]. It joins
     // parentContext but is a separate ControlledComposition, driven synchronously by [stamp].
     private val mount: SwingCompositionMount =
         SwingCompositionMount.nested(parentContext) { observer -> SwingApplier(EMPTY_CELL, observer) }.apply {
-            setContent { Stamp(slot, body) }
+            setContent { Stamp(hasCellState, slot, body) }
         }
 
     // Re-entrancy guard: the synchronous recompose+apply below runs the applier, which revalidates the
@@ -70,18 +78,29 @@ internal class CellStampIsland(
     private var stamping = false
 
     /**
-     * Writes the cell inputs through [writeInputs] and recomposes-and-applies this island synchronously,
-     * so the cell's Swing subtree is fully materialized before the component this returns reaches the
-     * widget's `CellRendererPane` to paint. The write is recorded against the island composition so the
-     * synchronous recompose sees the change; this takes no frame from the window recomposer.
+     * Writes [hasCell] and the cell inputs through [writeInputs], then recomposes-and-applies this island
+     * synchronously, so the cell's Swing subtree is fully materialized before the component this returns
+     * reaches the widget's `CellRendererPane` to paint. The write is recorded against the island
+     * composition so the synchronous recompose sees the change; this takes no frame from the window
+     * recomposer.
      *
-     * @return the component the cell composed, or the empty cell where it composed none.
+     * @param hasCell whether the widget named a cell for this stamp to render - a presence signal each
+     *   renderer draws from its own widget's inputs (an index, a carried wrapper, and the like), never
+     *   from whether the value [writeInputs] writes happens to be `null`.
+     * @param writeInputs writes the cell inputs `body` reads once composed.
+     * @return the component the cell composed, or the empty cell where [hasCell] was `false`.
      */
-    fun stamp(writeInputs: () -> Unit): Component {
+    fun stamp(
+        hasCell: Boolean,
+        writeInputs: () -> Unit,
+    ): Component {
         if (stamping) return cell ?: EMPTY_CELL
         stamping = true
         try {
-            mount.recomposeSynchronously(writeInputs)
+            mount.recomposeSynchronously {
+                hasCellState.value = hasCell
+                writeInputs()
+            }
         } finally {
             stamping = false
         }
@@ -105,15 +124,19 @@ internal class CellStampIsland(
  * whatever hosts the widget (e.g. a `GridBagPanel` cell). It is reset here: what a cell composes is
  * placed by the widget that renders it, not by the enclosing container. [slot] replaces the enclosing
  * slot attachment for the same reason, and is what takes the component the cell composes.
+ *
+ * [body] composes only where [hasCell] is `true`; a stamp that names no cell leaves the slot untaken,
+ * which is what leaves the widget the empty cell.
  */
 @Composable
 private fun Stamp(
+    hasCell: State<Boolean>,
     slot: SlotAttachment,
     body: @Composable () -> Unit,
 ) {
     CompositionLocalProvider(LocalSwingConstraint provides null) {
         SlotNode(slot) {
-            body()
+            if (hasCell.value) body()
         }
     }
 }

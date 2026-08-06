@@ -4,18 +4,15 @@
 package org.jetbrains.compose.swing.components
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
+import org.jetbrains.compose.swing.components.button.declareSelected
+import org.jetbrains.compose.swing.components.button.rememberToggleMirroring
+import org.jetbrains.compose.swing.components.button.rememberToggleReporting
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.actionListener
-import org.jetbrains.compose.swing.modifier.listener.itemListener
 import org.jetbrains.compose.swing.node.AppliedValue
 import org.jetbrains.compose.swing.node.MenuNode
-import org.jetbrains.compose.swing.node.declare
-import org.jetbrains.compose.swing.node.rememberAppliedValue
 import java.awt.event.ActionListener
-import java.awt.event.ItemListener
 import javax.swing.JCheckBoxMenuItem
 import javax.swing.KeyStroke
 
@@ -38,20 +35,10 @@ public fun CheckBoxMenuItem(
     accelerator: KeyStroke? = null,
     onCheckedChange: (Boolean) -> Unit = {},
 ) {
-    val callback = rememberUpdatedState(onCheckedChange)
-    val applied = rememberAppliedValue(checked)
-    // The item publishes its new value for every toggle, its own and the user's alike. The binding answers
-    // which is which by value: a toggle that lands on the declaration is the declaration arriving.
-    val listener =
-        remember(applied) {
-            ActionListener { event ->
-                val selected = (event.source as JCheckBoxMenuItem).isSelected
-                if (applied.observed(selected)) callback.value(selected)
-            }
-        }
+    val (reporting, applied) = rememberToggleReporting(checked, onCheckedChange)
     CheckBoxMenuItemNode(
         text = text,
-        modifier = modifier.actionListener(listener),
+        modifier = modifier.then(reporting),
         checked = checked,
         accelerator = accelerator,
         applied = applied,
@@ -79,20 +66,10 @@ public fun CheckBoxMenuItem(
     checked: Boolean = false,
     accelerator: KeyStroke? = null,
 ) {
-    val applied = rememberAppliedValue(checked)
-    // The caller's listener is attached as-is, and is the only action listener on the item. What is applied
-    // watches the item's own value channel instead, so a toggle the caller does not adopt is still put back
-    // without the wrapper taking a slot on the channel the caller was handed.
-    val observing =
-        remember(applied) {
-            ItemListener { event -> applied.observed((event.source as JCheckBoxMenuItem).isSelected) }
-        }
+    val (mirroring, applied) = rememberToggleMirroring(checked, actionListener)
     CheckBoxMenuItemNode(
         text = text,
-        modifier =
-            modifier
-                .actionListener(actionListener)
-                .itemListener(observing),
+        modifier = modifier.then(mirroring),
         checked = checked,
         accelerator = accelerator,
         applied = applied,
@@ -116,7 +93,7 @@ private fun CheckBoxMenuItemNode(
         factory = { JCheckBoxMenuItem() },
         update = {
             set(text) { this.text = it }
-            declare(checked, applied, JCheckBoxMenuItem::isSelected, JCheckBoxMenuItem::setSelected)
+            declareSelected(checked, applied)
             set(accelerator) { this.accelerator = it }
             applyModifier(modifier)
         },

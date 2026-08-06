@@ -57,8 +57,7 @@ public sealed interface TableCellScope {
 internal class ComposingTableCellRenderer<R>(
     parentContext: CompositionContext,
     private val rowAt: (rowIndex: Int) -> R?,
-) : TableCellRenderer,
-    ComposingCellRenderer {
+) : TableCellRenderer {
     // The cell inputs, held as composition state so writing them invalidates the cell body that reads
     // them. A single reused cell (null before the first stamp) keeps the size-1 pool the rubber-stamp
     // model expects.
@@ -70,8 +69,6 @@ internal class ComposingTableCellRenderer<R>(
     // is honoured without rebuilding this renderer or its island. It is null until the column this
     // renderer was built for hands over the body it declares, which composes the empty cell.
     private val contentState = mutableStateOf<(@Composable TableCellScope.(row: R) -> Unit)?>(null)
-
-    override val displaced: DisplacedRenderer = DisplacedRenderer()
 
     private val island =
         CellStampIsland(
@@ -99,8 +96,13 @@ internal class ComposingTableCellRenderer<R>(
         // rows and columns the table was given, so both are converted before they reach it.
         val rowIndex = table.convertRowIndexToModel(row)
         val columnIndex = table.convertColumnIndexToModel(column)
-        return island.stamp {
-            currentRow = rowAt(rowIndex)
+        // A row the table hands the cell, `null` among them, is the row named for this stamp; only a
+        // model index the table's own row count no longer covers names none. The row's own value can be
+        // `null` too, so presence is read from the index bound rather than from what `rowAt` answers.
+        val hasRow = rowIndex in 0 until table.model.rowCount
+        val resolvedRow = if (hasRow) rowAt(rowIndex) else null
+        return island.stamp(hasCell = hasRow) {
+            currentRow = resolvedRow
             scope.rowIndex = rowIndex
             scope.columnIndex = columnIndex
             scope.isSelected = isSelected
@@ -113,9 +115,10 @@ internal class ComposingTableCellRenderer<R>(
 }
 
 /**
- * The cell body a [ComposingTableCellRenderer]'s island composes. A `null` row is the degenerate empty
- * cell before the first stamp, and the one a cell whose row the table no longer holds is stamped with;
- * so is a column that declares no cell body. Either composes no component at all.
+ * The cell body a [ComposingTableCellRenderer]'s island composes; the island composes it only where the
+ * stamp names a row, so [rowState] always holds that row here - itself `null` among the values a row can
+ * hold. A column that declares no cell body composes nothing regardless: that one is about the
+ * declaration, not the row.
  */
 @Composable
 private fun <R> TableCell(
@@ -123,11 +126,11 @@ private fun <R> TableCell(
     scope: TableCellScope,
     cellContent: State<(@Composable TableCellScope.(row: R) -> Unit)?>,
 ) {
-    val row = rowState.value
-    val content = cellContent.value
-    if (row != null && content != null) {
-        scope.content(row)
-    }
+    val content = cellContent.value ?: return
+
+    @Suppress("UNCHECKED_CAST")
+    val row = rowState.value as R
+    scope.content(row)
 }
 
 /** The mutable backing of [TableCellScope]; its fields are written once per stamp. */
@@ -156,12 +159,11 @@ internal class TableCellIslands<R>(
     private val parentContext: CompositionContext,
     private val rowAt: (rowIndex: Int) -> R?,
 ) {
-    // Keyed by the index of the column's declaration, which is the model index of the column it renders.
-    private val islands = HashMap<Int, ComposingTableCellRenderer<R>>()
-
-    // How many columns the latest declarations describe. A column beyond them is one the table is about
-    // to rebuild, and is left alone rather than handed a renderer for a column that no longer exists.
-    private var declaredColumns = 0
+    // One slot per column the latest declarations describe, in the space they are declared in - which is
+    // the model index of the column each one renders. A column declaring no cell body holds `null`, and
+    // the size is what a column past the declarations is recognized by: one the table is about to
+    // rebuild, left alone rather than handed a renderer for a column that no longer exists.
+    private val islands = mutableListOf<ComposingTableCellRenderer<R>?>()
 
     /**
      * Takes each of [columns]' cell bodies as what that column's later stamps compose, mounting an island
@@ -169,53 +171,51 @@ internal class TableCellIslands<R>(
      * longer does.
      */
     fun adopt(columns: List<ColumnDeclaration<R>>) {
-        declaredColumns = columns.size
-        val held = islands.entries.iterator()
-        while (held.hasNext()) {
-            val entry = held.next()
-            if (columns.getOrNull(entry.key)?.cellContent == null) {
-                entry.value.dispose()
-                held.remove()
-            }
-        }
+        for (index in columns.size until islands.size) islands[index]?.dispose()
+        if (islands.size > columns.size) islands.subList(columns.size, islands.size).clear()
+        while (islands.size < columns.size) islands.add(null)
         columns.forEachIndexed { index, column ->
-            val content = column.cellContent ?: return@forEachIndexed
-            islands.getOrPut(index) { ComposingTableCellRenderer(parentContext, rowAt) }.adopt(content)
+            val content = column.cellContent
+            if (content == null) {
+                islands[index]?.dispose()
+                islands[index] = null
+            } else {
+                val island = islands[index] ?: ComposingTableCellRenderer(parentContext, rowAt)
+                islands[index] = island
+                island.adopt(content)
+            }
         }
     }
 
     /**
-     * Puts each held island's renderer onto the column it stamps for, and takes off the columns that hold
-     * none of them the renderer a composable cell had left there. A column the table built renders through
-     * no renderer of its own, which is what leaves its cells to the one the table picks by the column's
-     * class; that is what a column giving up a composable cell is handed back.
+     * Puts each held island's renderer onto the column it stamps for, and every column that holds none of
+     * them back to no renderer of its own - which is what leaves its cells to the one the table picks by
+     * the column's class, exactly as a column the table built and never gave a composable cell renders. No
+     * column of this table ever carries a renderer other than an island's or `null`, so a column already
+     * holding the renderer it should is left untouched.
      *
      * A structure change builds the columns afresh, so this runs on every pass rather than once.
      */
     fun install(table: JTable) {
         for (position in 0 until table.columnModel.columnCount) {
             val column = table.columnModel.getColumn(position)
-            if (column.modelIndex >= declaredColumns) continue
-            applyComposingRenderer<TableCellRenderer>(
-                renderer = islands[column.modelIndex],
-                installed = column.cellRenderer,
-            ) { renderer -> column.cellRenderer = renderer }
+            if (column.modelIndex >= islands.size) continue
+            val renderer = islands[column.modelIndex]
+            if (column.cellRenderer !== renderer) column.cellRenderer = renderer
         }
     }
 
-    /** Gives every column of [table] back the renderer it rendered through before a composable cell. */
+    /** Clears every column of [table] back to no renderer of its own; see [install]. */
     fun uninstall(table: JTable) {
         for (position in 0 until table.columnModel.columnCount) {
             val column = table.columnModel.getColumn(position)
-            applyComposingRenderer<TableCellRenderer>(renderer = null, installed = column.cellRenderer) { renderer ->
-                column.cellRenderer = renderer
-            }
+            if (column.cellRenderer != null) column.cellRenderer = null
         }
     }
 
     /** Disposes every island, leaving the columns that held one rendering through none. */
     fun dispose() {
-        islands.values.forEach { it.dispose() }
+        islands.forEach { it?.dispose() }
         islands.clear()
     }
 }

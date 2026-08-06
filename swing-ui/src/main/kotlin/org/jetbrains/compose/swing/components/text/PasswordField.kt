@@ -12,6 +12,7 @@ import org.jetbrains.compose.swing.modifier.listener.documentListener
 import org.jetbrains.compose.swing.node.AppliedValue
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
+import org.jetbrains.compose.swing.node.declare
 import org.jetbrains.compose.swing.node.rememberAppliedValue
 import javax.swing.JPasswordField
 import javax.swing.event.DocumentListener
@@ -21,12 +22,12 @@ import javax.swing.text.Segment
 /**
  * A composable wrapper for JPasswordField.
  *
- * The value is a [CharArray] of raw characters rather than a `String`, keeping this wrapper's own
- * boundary - [value], [onValueChange], and the comparison it makes against the field's current
- * characters - free of an extra, unzeroable `String` copy of the password. Committing an edit still
- * goes through `JPasswordField.setText(String)`, which materializes the password as a `String` on its
- * way into the field. That copy, the characters this wrapper mirrors internally to settle a move away
- * from [value], and any copy Swing itself retains, are all outside what a caller can zero.
+ * The value is a [CharArray] of raw characters rather than a `String`, so [value], [onValueChange] and
+ * the comparison this wrapper makes against the field's characters need no extra, unzeroable `String`
+ * copy of the password. Committing an edit still makes one: `JPasswordField.setText` takes a `String`,
+ * so the password is materialized as one on its way into the field. That copy, the characters this
+ * wrapper goes on mirroring to settle a move away from [value], and any copy Swing itself retains are
+ * all outside what a caller can zero.
  *
  * This field is strictly controlled: characters the field settles on that [onValueChange] does not
  * answer with a matching [value] are settled back onto the declared value on the very next pass, so the
@@ -172,48 +173,30 @@ private class PasswordChars(
 }
 
 /**
- * Declares [value] as this password field's characters, keeping [applied] in sync with them: they are
- * written where the field does not already hold them, through [applied] so the write does not echo back
- * as the user's own, and characters the field settles on that the caller does not answer with a
- * matching [value] are settled back onto the declared ones on the pass that carries their answer.
+ * Declares [value] as this password field's characters, keeping [applied] in sync with them through
+ * [declare]: they are written where the field does not already hold them, through [applied] so the write
+ * does not echo back as the user's own, and characters the field settles on that the caller does not
+ * answer with a matching [value] are settled back onto the declared ones on the pass that carries their
+ * answer.
+ *
+ * `getPassword()` answers with a fresh array on every call and leaves zeroing it to whoever read it, and
+ * a settlement reads one for each comparison it makes. Each read zeroes the array the read before it
+ * produced, so the one array left standing is the last: the characters [applied] goes on mirroring as
+ * what the field held.
  */
 private fun <C : JPasswordField> SwingNodeUpdater<C>.declarePassword(
     value: CharArray,
     applied: AppliedValue<PasswordChars>,
 ) {
-    // The declaration and the characters the field holds move independently, and a `set` follows one
-    // value, so each side keys its own. The pair is what settles once for a pass however many times the
-    // pass asks for it; a pass in which neither side moved runs no block at all.
-    val declared = PasswordChars(value)
-    val held = applied.current
-    set(declared) { _ -> settlePassword(declared, held, applied) }
-    set(held) { _ -> settlePassword(declared, held, applied) }
-}
-
-/**
- * Settles this field on [declared] through [applied], unless the pair [declared] and [held] is the one
- * [applied] already settled against.
- *
- * `getPassword()` answers with a fresh array on every call and leaves zeroing it to whoever read it,
- * and a settlement reads one for each comparison it makes. Each read zeroes the array the read before
- * it produced, so the one array left standing is the last: the characters [applied] goes on mirroring
- * as what the field held.
- */
-private fun JPasswordField.settlePassword(
-    declared: PasswordChars,
-    held: PasswordChars,
-    applied: AppliedValue<PasswordChars>,
-) {
     val lastRead = arrayOfNulls<CharArray>(1)
-    applied.settleUnlessSettled(
-        declared = declared,
-        held = held,
+    declare(
+        value = PasswordChars(value),
+        applied = applied,
         read = {
             lastRead[0]?.fill('\u0000')
             PasswordChars(password).also { lastRead[0] = it.chars }
         },
         write = { text = String(it.chars) },
-        onSettled = {},
     )
 }
 

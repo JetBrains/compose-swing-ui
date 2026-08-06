@@ -97,6 +97,31 @@ class TableComposableCellTest {
     }
 
     @Test
+    fun aNullRowRendersThroughTheCellBodyLikeAnyOther() = runComposeSwingTest {
+        val rows: List<Person?> = listOf(null, Person("Alan", 41))
+        setContent {
+            Table(rows = rows) {
+                column(
+                    header = "Name",
+                    cellContent = { row -> Label(row?.name ?: "(none)") },
+                ) { it?.name }
+            }
+        }
+
+        val table = onNodeOfType<JTable>().fetch()
+        assertEquals(
+            "(none)",
+            table.stampCell(row = 0, column = 0).firstLabelText(),
+            "a row whose value is null is a row the cell body renders",
+        )
+        assertEquals(
+            "Alan",
+            table.stampCell(row = 1, column = 0).firstLabelText(),
+            "the next row renders its own value",
+        )
+    }
+
+    @Test
     fun theCellScopeReflectsSelection() = runComposeSwingTest {
         setContent {
             Table(rows = people) {

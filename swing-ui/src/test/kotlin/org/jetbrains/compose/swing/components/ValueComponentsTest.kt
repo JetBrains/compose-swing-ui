@@ -260,6 +260,21 @@ class ValueComponentsTest {
     }
 
     @Test
+    fun progressBarReflectsARaisedMinimumOnRecomposition() = runComposeSwingTest {
+        var min by mutableIntStateOf(0)
+        setContent {
+            ProgressBar(value = 50, min = min, max = 100)
+        }
+        val bar = onNodeOfType<JProgressBar>().fetch()
+        assertEquals(0, bar.minimum, "the progress bar should start at its declared minimum")
+
+        min = 30
+        awaitIdle()
+        assertEquals(30, bar.minimum, "the progress bar should reflect the raised minimum")
+        assertEquals(50, bar.value, "a value the raised minimum still admits should stand")
+    }
+
+    @Test
     fun progressBarWidenedWithItsValueKeepsTheValue() = runComposeSwingTest {
         var max by mutableIntStateOf(100)
         var value by mutableIntStateOf(50)

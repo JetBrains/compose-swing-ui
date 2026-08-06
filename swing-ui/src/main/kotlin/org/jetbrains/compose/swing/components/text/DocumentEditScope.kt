@@ -25,11 +25,13 @@ public class DocumentEditScope internal constructor(
     private val document: Document,
 ) {
     /**
-     * The selection to apply once the block completes, or `null` to leave the caret where the underlying
-     * document places it after the edits (its default follows the last insertion). The last placement
-     * call in the block wins, so a [selectAll] followed by a [placeCaretAtEnd] leaves a collapsed caret.
+     * The selection to apply once the block completes: a function resolved against the buffer's document
+     * at that point, once every edit in the block has been applied, or `null` to leave the caret where
+     * the underlying document places it after the edits (its default follows the last insertion). The
+     * last placement call in the block wins, so a [selectAll] followed by a [placeCaretAtEnd] leaves a
+     * collapsed caret.
      */
-    internal var pendingSelection: TextRange? = null
+    internal var pendingSelection: (() -> TextRange)? = null
 
     /**
      * The length of the buffered content.
@@ -144,13 +146,13 @@ public class DocumentEditScope internal constructor(
         document.replaceSpan(0, document.length, text.toString(), attributes)
     }
 
-    /** Places the caret at the end of the buffer once the block completes. */
+    /** Places the caret at the end of the buffer as it stands once the block completes. */
     public fun placeCaretAtEnd() {
-        pendingSelection = TextRange(document.length, document.length)
+        pendingSelection = { TextRange(document.length, document.length) }
     }
 
-    /** Selects the whole buffer once the block completes. */
+    /** Selects the whole buffer as it stands once the block completes. */
     public fun selectAll() {
-        pendingSelection = TextRange(0, document.length)
+        pendingSelection = { TextRange(0, document.length) }
     }
 }

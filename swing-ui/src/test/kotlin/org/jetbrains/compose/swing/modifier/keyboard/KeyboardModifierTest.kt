@@ -36,10 +36,10 @@ class KeyboardModifierTest {
     ): KeyEvent = KeyEvent(component, KeyEvent.KEY_PRESSED, 0L, 0, keyCode, KeyEvent.CHAR_UNDEFINED)
 
     /**
-     * Delivers [event] to every [KeyListener] installed on this component. Headless tests cannot route
-     * a real key event through the KeyboardFocusManager (no focused, showing peer), so we invoke the
-     * installed listeners directly - this still asserts the observable behavior of the listener the
-     * modifier attached (it forwards the event and consumes it when the callback returns true).
+     * Delivers [event] to every [java.awt.event.KeyListener] installed on this component. Headless
+     * tests cannot route a real key event through the KeyboardFocusManager (no focused, showing peer),
+     * so this invokes the installed listeners directly - it still asserts the observable behavior the
+     * modifier attached: it forwards the event and consumes it when the callback returns true.
      */
     private fun Component.deliverKeyPressed(event: KeyEvent) {
         for (listener in keyListeners) listener.keyPressed(event)
@@ -54,7 +54,6 @@ class KeyboardModifierTest {
     private fun mouseClicked(component: Component): MouseEvent =
         MouseEvent(component, MouseEvent.MOUSE_CLICKED, 0L, 0, 1, 1, 1, false)
 
-    /** Fires the action bound to [keyStroke] in [condition] through the real InputMap/ActionMap. */
     private fun JComponent.fireBinding(
         keyStroke: KeyStroke,
         condition: Int = JComponent.WHEN_FOCUSED,
@@ -207,6 +206,110 @@ class KeyboardModifierTest {
                                 .onKeyStroke("ctrl S") {},
                     )
                 }
+                // The check runs a turn after the pass that bound these, once it has settled.
+                awaitIdle()
+            }
+        assertTrue(
+            failure.message?.contains("already bound") == true,
+            "the collision message must explain the double-bind, was: ${failure.message}",
+        )
+    }
+
+    @Test
+    fun twoBindingsMayExchangeTheirKeyStrokesInOnePass() = runComposeSwingTest {
+        var swapped by mutableStateOf(false)
+        var save = 0
+        var open = 0
+        setContent {
+            TextField(
+                value = "",
+                onValueChange = {},
+                modifier =
+                    if (!swapped) {
+                        SwingModifier
+                            .onKeyStroke("ctrl S") { save++ }
+                            .onKeyStroke("ctrl O") { open++ }
+                    } else {
+                        SwingModifier
+                            .onKeyStroke("ctrl O") { save++ }
+                            .onKeyStroke("ctrl S") { open++ }
+                    },
+            )
+        }
+        val field = onNodeOfType<JTextField>().fetch()
+        field.fireBinding(KeyStroke.getKeyStroke("ctrl S"))
+        field.fireBinding(KeyStroke.getKeyStroke("ctrl O"))
+        assertEquals(1, save, "the ctrl-S binding should fire the save action before the swap")
+        assertEquals(1, open, "the ctrl-O binding should fire the open action before the swap")
+
+        swapped = true
+        awaitIdle()
+
+        field.fireBinding(KeyStroke.getKeyStroke("ctrl O"))
+        field.fireBinding(KeyStroke.getKeyStroke("ctrl S"))
+        assertEquals(2, save, "ctrl-O must now fire the save action, the callback that declared it after the swap")
+        assertEquals(2, open, "ctrl-S must now fire the open action, the callback that declared it after the swap")
+    }
+
+    @Test
+    fun aSecondBindingAddedByALaterRecompositionIsStillReportedAsADoubleBind() = runComposeSwingTest {
+        var addSecond by mutableStateOf(false)
+        val stroke = KeyStroke.getKeyStroke("ctrl S")
+        val failure =
+            assertFailsWith<IllegalStateException> {
+                setContent {
+                    TextField(
+                        value = "",
+                        onValueChange = {},
+                        modifier =
+                            if (!addSecond) {
+                                SwingModifier.onKeyStroke(stroke) {}
+                            } else {
+                                SwingModifier
+                                    .onKeyStroke(stroke) {}
+                                    .onKeyStroke(stroke) {}
+                            },
+                    )
+                }
+                // The first binding settles alone, unchallenged, before the second one arrives.
+                awaitIdle()
+
+                addSecond = true
+                // The check runs a turn after this pass that added the second binding, once it has settled.
+                awaitIdle()
+            }
+        assertTrue(
+            failure.message?.contains("already bound") == true,
+            "the collision message must explain the double-bind, was: ${failure.message}",
+        )
+    }
+
+    @Test
+    fun aStableSiblingLosingItsStrokeIsStillReportedAsADoubleBind() = runComposeSwingTest {
+        val saveStroke = KeyStroke.getKeyStroke("ctrl S")
+        val openStroke = KeyStroke.getKeyStroke("ctrl O")
+        var remapped by mutableStateOf(false)
+        val onSave: () -> Unit = {}
+        val onOpen: () -> Unit = {}
+        val failure =
+            assertFailsWith<IllegalStateException> {
+                setContent {
+                    TextField(
+                        value = "",
+                        onValueChange = {},
+                        modifier =
+                            SwingModifier
+                                .onKeyStroke(saveStroke, onAction = onSave)
+                                .onKeyStroke(if (remapped) saveStroke else openStroke, onAction = onOpen),
+                    )
+                }
+                awaitIdle()
+
+                remapped = true
+                // The first binding's stroke and callback are unchanged, so its element still equals the
+                // one its slot holds and its own update does not run this pass - only the second,
+                // remapped one does, taking over the stroke the first still believes it owns.
+                awaitIdle()
             }
         assertTrue(
             failure.message?.contains("already bound") == true,
@@ -258,6 +361,59 @@ class KeyboardModifierTest {
             field.fetch<JTextField>().getInputMap(JComponent.WHEN_FOCUSED).get(stroke) == null,
             "the binding must be removed when its element leaves the chain",
         )
+    }
+
+    @Test
+    fun recomposingWithADifferentKeyStrokeUnbindsTheOldOneAndBindsTheNew() = runComposeSwingTest {
+        var stroke by mutableStateOf(KeyStroke.getKeyStroke("ctrl S"))
+        var fired = 0
+        setContent {
+            TextField(
+                value = "",
+                onValueChange = {},
+                modifier = SwingModifier.onKeyStroke(stroke) { fired++ },
+            )
+        }
+        val field = onNodeOfType<JTextField>().fetch()
+        field.fireBinding(KeyStroke.getKeyStroke("ctrl S"))
+        assertEquals(1, fired, "the first stroke should fire before recomposition")
+
+        stroke = KeyStroke.getKeyStroke("ctrl O")
+        awaitIdle()
+
+        assertTrue(
+            field.getInputMap(JComponent.WHEN_FOCUSED).get(KeyStroke.getKeyStroke("ctrl S")) == null,
+            "the old stroke must no longer be bound once recomposition declares a different one",
+        )
+        field.fireBinding(KeyStroke.getKeyStroke("ctrl O"))
+        assertEquals(2, fired, "the newly declared stroke must fire its action after recomposition")
+    }
+
+    @Test
+    fun recomposingWithADifferentConditionMovesTheBindingToTheNewInputMap() = runComposeSwingTest {
+        var condition by mutableStateOf(JComponent.WHEN_FOCUSED)
+        var fired = 0
+        val stroke = KeyStroke.getKeyStroke("ctrl S")
+        setContent {
+            TextField(
+                value = "",
+                onValueChange = {},
+                modifier = SwingModifier.onKeyStroke(stroke, condition) { fired++ },
+            )
+        }
+        val field = onNodeOfType<JTextField>().fetch()
+        field.fireBinding(stroke, JComponent.WHEN_FOCUSED)
+        assertEquals(1, fired, "the binding should fire under the first condition before recomposition")
+
+        condition = JComponent.WHEN_IN_FOCUSED_WINDOW
+        awaitIdle()
+
+        assertTrue(
+            field.getInputMap(JComponent.WHEN_FOCUSED).get(stroke) == null,
+            "the old condition's InputMap must no longer hold the stroke once recomposition declares a new condition",
+        )
+        field.fireBinding(stroke, JComponent.WHEN_IN_FOCUSED_WINDOW)
+        assertEquals(2, fired, "the binding must fire under the newly declared condition after recomposition")
     }
 
     @Test
@@ -325,8 +481,8 @@ class KeyboardModifierTest {
         field.fetch<JTextField>().fireBinding(stroke)
         assertEquals(1, fired, "the binding should fire once before reuse")
 
-        // Deactivate then reactivate: resetModifierState drains the additive binding (removing the
-        // InputMap/ActionMap entries); re-activation reinstalls them on the reused node.
+        // Deactivation drains the additive binding via resetModifierState, removing the InputMap/
+        // ActionMap entries; reactivation reinstalls them on the reused node.
         active = false
         awaitIdle()
         active = true

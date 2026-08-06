@@ -71,8 +71,8 @@ configurations.matching { it.name.startsWith("test") }.configureEach {
 }
 
 jacocoCoverage {
-    lineMinimum.set("0.90".toBigDecimal())
-    branchMinimum.set("0.75".toBigDecimal())
+    lineMinimum.set("0.95".toBigDecimal())
+    branchMinimum.set("0.80".toBigDecimal())
 }
 
 tasks.withType<Test>().configureEach {

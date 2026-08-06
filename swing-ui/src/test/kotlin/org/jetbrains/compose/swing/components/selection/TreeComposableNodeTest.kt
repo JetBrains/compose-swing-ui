@@ -91,6 +91,29 @@ class TreeComposableNodeTest {
     }
 
     @Test
+    fun aNullValueRendersThroughTheNodeBodyLikeAnyOther() = runComposeSwingTest {
+        val root: Branch? = Branch("root")
+        setContent {
+            Tree(
+                root = root,
+                children = { parent -> if (parent === root) listOf(null, Branch("leaf")) else emptyList() },
+                label = { it?.name ?: "(none)" },
+                expandedPaths = setOf(emptyList()),
+            ) { value ->
+                Label(value?.name ?: "(none)")
+            }
+        }
+
+        val tree = onNodeOfType<JTree>().fetch()
+        assertEquals(
+            "(none)",
+            tree.stampRow(1).firstLabelText(),
+            "a node whose value is null is a node the node body renders",
+        )
+        assertEquals("leaf", tree.stampRow(2).firstLabelText(), "the next node renders its own value")
+    }
+
+    @Test
     fun aComposableNodeKeepsTheLabelAsTheNodesText() = runComposeSwingTest {
         setContent {
             Tree(

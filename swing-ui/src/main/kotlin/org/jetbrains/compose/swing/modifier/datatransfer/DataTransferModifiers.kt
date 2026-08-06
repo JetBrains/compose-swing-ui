@@ -50,7 +50,7 @@ import kotlin.math.abs
  */
 public fun SwingModifier.draggable(
     @TransferAction exportedActions: Int,
-    transferable: (component: JComponent) -> Transferable?,
+    transferable: () -> Transferable?,
 ): SwingModifier = this then DraggableElement(exportedActions, transferable)
 
 /**
@@ -107,7 +107,7 @@ public fun SwingModifier.dropTarget(
  * @see javax.swing.TransferHandler.exportToClipboard
  */
 public fun SwingModifier.clipboard(
-    transferable: (component: JComponent) -> Transferable?,
+    transferable: () -> Transferable?,
     onPaste: (transferable: Transferable) -> Boolean,
     canImport: (flavors: List<DataFlavor>) -> Boolean = { true },
     bindKeys: Boolean = true,
@@ -141,9 +141,8 @@ public fun SwingModifier.clipboard(
  *
  * @see javax.swing.TransferHandler.exportDone
  */
-public fun SwingModifier.onExportDone(
-    onExportDone: (component: JComponent, data: Transferable?, action: Int) -> Unit,
-): SwingModifier = this then ExportDoneElement(onExportDone)
+public fun SwingModifier.onExportDone(onExportDone: (data: Transferable?, action: Int) -> Unit): SwingModifier =
+    this then ExportDoneElement(onExportDone)
 
 /**
  * A programmatic trigger for the clipboard copy/cut/paste of the component a [clipboard] modifier binds
@@ -238,7 +237,7 @@ public fun rememberClipboardHandle(): ClipboardHandle = remember { ClipboardHand
 
 private class DraggableElement(
     @param:TransferAction private val exportedActions: Int,
-    private val transferable: (JComponent) -> Transferable?,
+    private val transferable: () -> Transferable?,
 ) : SwingModifier.Element<JComponent, DraggableElement.Node> {
     override val targetType: Class<JComponent> get() = JComponent::class.java
 
@@ -351,37 +350,35 @@ private class DropTargetElement(
 }
 
 private class ClipboardElement(
-    private val transferable: (JComponent) -> Transferable?,
+    private val transferable: () -> Transferable?,
     private val onPaste: (Transferable) -> Boolean,
     private val canImport: (List<DataFlavor>) -> Boolean,
     private val bindKeys: Boolean,
 ) : SwingModifier.Element<JComponent, ClipboardElement.Node> {
     override val targetType: Class<JComponent> get() = JComponent::class.java
 
-    override fun create(): Node = Node(bindKeys)
+    override fun create(): Node = Node()
 
     override fun update(node: Node) {
         node.transferable = transferable
         node.onPaste = onPaste
         node.canImport = canImport
-        node.apply()
+        node.apply(bindKeys)
     }
 
-    class Node(
-        private val bindKeys: Boolean,
-    ) : SwingModifier.Node<JComponent>() {
-        var transferable: (JComponent) -> Transferable? = { null }
+    class Node : SwingModifier.Node<JComponent>() {
+        var transferable: () -> Transferable? = { null }
         var onPaste: (Transferable) -> Boolean = { false }
         var canImport: (List<DataFlavor>) -> Boolean = { true }
 
         private var keysBound = false
 
-        fun apply() {
+        fun apply(bindKeys: Boolean) {
             val component = component
             val handler = installedHandler(component)
             // Clipboard export reuses the drag source's exporter (copy/cut both produce the same
             // value); declaring COPY_OR_MOVE lets exportToClipboard run for either action.
-            val sourceConfig = SourceConfig(TransferHandler.COPY_OR_MOVE) { transferable(it) }
+            val sourceConfig = SourceConfig(TransferHandler.COPY_OR_MOVE) { transferable() }
             // Refresh the slot if we still own it; otherwise claim it only while it is free, so a
             // sibling draggable's export is left intact.
             if (!handler.source.set(this, sourceConfig) && handler.source.value == null) {
@@ -392,9 +389,18 @@ private class ClipboardElement(
             if (!handler.drop.set(this, dropConfig)) {
                 handler.drop.install(this, dropConfig)
             }
-            if (bindKeys && !keysBound) {
-                bindClipboardKeys(component)
-                keysBound = true
+            // The declared bindKeys is read on every update, so toggling it binds or unbinds the
+            // platform copy/cut/paste keystrokes in place, matching every other declared value here.
+            when {
+                bindKeys && !keysBound -> {
+                    bindClipboardKeys(component)
+                    keysBound = true
+                }
+
+                !bindKeys && keysBound -> {
+                    unbindClipboardKeys(component)
+                    keysBound = false
+                }
             }
         }
 
@@ -410,7 +416,7 @@ private class ClipboardElement(
 }
 
 private class ExportDoneElement(
-    private val onExportDone: (JComponent, Transferable?, Int) -> Unit,
+    private val onExportDone: (Transferable?, Int) -> Unit,
 ) : SwingModifier.Element<JComponent, ExportDoneElement.Node> {
     override val targetType: Class<JComponent> get() = JComponent::class.java
 
@@ -422,7 +428,7 @@ private class ExportDoneElement(
     }
 
     class Node : SwingModifier.Node<JComponent>() {
-        var onExportDone: ((JComponent, Transferable?, Int) -> Unit)? = null
+        var onExportDone: ((Transferable?, Int) -> Unit)? = null
 
         fun apply() {
             val onExportDone = onExportDone ?: return
@@ -473,7 +479,7 @@ private fun unbindClipboardKeys(component: JComponent) {
 /** A drag-source/clipboard-export slice: what to export and which operations it offers. */
 internal class SourceConfig(
     val exportedActions: Int,
-    val transferable: (JComponent) -> Transferable?,
+    val transferable: () -> Transferable?,
 )
 
 /** A drop-target/clipboard-import slice: which operations and flavors it accepts and how to import. */
@@ -496,7 +502,7 @@ internal class SharedTransferHandler : TransferHandler() {
 
     val source = SliceSlot<SourceConfig>()
     val drop = SliceSlot<DropConfig>()
-    val onExportDone = SliceSlot<(JComponent, Transferable?, Int) -> Unit>()
+    val onExportDone = SliceSlot<(Transferable?, Int) -> Unit>()
 
     /**
      * Whether the component's own handler is the one that exports. `createTransferable` and `exportDone`
@@ -537,7 +543,7 @@ internal class SharedTransferHandler : TransferHandler() {
     override fun getSourceActions(c: JComponent?): Int =
         source.value?.exportedActions ?: original?.getSourceActions(c) ?: NONE
 
-    override fun createTransferable(c: JComponent): Transferable? = source.value?.transferable?.invoke(c)
+    override fun createTransferable(c: JComponent): Transferable? = source.value?.transferable?.invoke()
 
     // Every export path (drag end, clipboard export, failed export) terminates here; data is null
     // when the action is NONE. The seam is where the component implements MOVE cleanup, so route
@@ -547,14 +553,14 @@ internal class SharedTransferHandler : TransferHandler() {
         data: Transferable?,
         action: Int,
     ) {
-        onExportDone.value?.invoke(source, data, action)
+        onExportDone.value?.invoke(data, action)
     }
 
     // With a drop slice occupied the declared import decides; with none, the component keeps the
     // import it already had, so a widget that ships one (a text component's paste) still performs it.
     override fun canImport(support: TransferSupport): Boolean {
         val config = drop.value ?: return original?.canImport(support) ?: false
-        val actionAccepted = !support.isDrop || (config.acceptedActions and support.dropAction) != 0
+        val actionAccepted = acceptsDropAction(support.isDrop, config.acceptedActions) { support.dropAction }
         return actionAccepted && config.canImport(support.dataFlavors.asList())
     }
 
@@ -563,6 +569,20 @@ internal class SharedTransferHandler : TransferHandler() {
         return canImport(support) && config.onImport(support.transferable)
     }
 }
+
+/**
+ * Whether a drop's action clears a declared drop target's accepted-actions gate. A clipboard paste
+ * ([isDrop] `false`) carries no action to gate on and always clears it; a drop clears it only when
+ * [dropAction] shares a bit with [acceptedActions].
+ *
+ * [dropAction] is asked for only once [isDrop] says there is one: a `TransferSupport` that is not a
+ * drop throws rather than answer what action it carries.
+ */
+internal fun acceptsDropAction(
+    isDrop: Boolean,
+    acceptedActions: Int,
+    dropAction: () -> Int,
+): Boolean = !isDrop || (acceptedActions and dropAction()) != 0
 
 /**
  * One capability slot of a [SharedTransferHandler], owned by exactly one node. Ownership is tracked

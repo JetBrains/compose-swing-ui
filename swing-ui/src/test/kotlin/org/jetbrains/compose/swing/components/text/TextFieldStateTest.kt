@@ -251,6 +251,43 @@ class TextFieldStateTest {
     }
 
     @Test
+    fun placeCaretAtEndBeforeALaterAppendLandsAfterTheAppendedText() = runComposeSwingTest {
+        lateinit var state: DocumentState
+        setContent {
+            state = rememberDocumentState("ab")
+            TextField(state = state)
+        }
+
+        state.edit {
+            placeCaretAtEnd()
+            append(" more")
+        }
+        awaitIdle()
+
+        onNodeOfType<JTextField>().assertTextEquals("ab more")
+        assertEquals(TextRange(7, 7), state.selection)
+    }
+
+    @Test
+    fun selectAllBeforeALaterAppendCoversTheAppendedTextToo() = runComposeSwingTest {
+        lateinit var state: DocumentState
+        setContent {
+            state = rememberDocumentState("ab")
+            TextField(state = state)
+        }
+
+        val field = onNodeOfType<JTextField>().fetch()
+        state.edit {
+            selectAll()
+            append("cd")
+        }
+        awaitIdle()
+
+        assertEquals(TextRange(0, 4), state.selection)
+        assertEquals("abcd", field.selectedText)
+    }
+
+    @Test
     fun theTextIsObservableAsAFlowOfTheCurrentValueAndSubsequentEdits() = runComposeSwingTest {
         lateinit var state: DocumentState
         setContent {

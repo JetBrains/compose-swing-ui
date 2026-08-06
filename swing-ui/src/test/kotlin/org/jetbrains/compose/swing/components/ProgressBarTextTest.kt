@@ -11,6 +11,7 @@ import javax.swing.JProgressBar
 import javax.swing.SwingConstants
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
@@ -52,6 +53,23 @@ class ProgressBarTextTest {
         val bar = onNodeOfType<JProgressBar>().fetch()
         assertTrue(bar.isStringPainted, "the bar should paint text over itself")
         assertEquals("Copying", bar.string, "a declared string replaces the completion percentage")
+    }
+
+    @Test
+    fun stringPaintedTogglesOnRecomposition() = runComposeSwingTest {
+        var stringPainted by mutableStateOf(false)
+        setContent { ProgressBar(min = 0, max = 200, value = 50, stringPainted = stringPainted) }
+
+        val bar = onNodeOfType<JProgressBar>().fetch()
+        assertFalse(bar.isStringPainted, "the bar should start without painted text")
+
+        stringPainted = true
+        awaitIdle()
+        assertTrue(bar.isStringPainted, "the bar should paint text once declared")
+
+        stringPainted = false
+        awaitIdle()
+        assertFalse(bar.isStringPainted, "the bar should stop painting text once cleared")
     }
 
     @Test

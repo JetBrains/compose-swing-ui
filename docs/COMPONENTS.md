@@ -25,18 +25,14 @@ described in
 
 ## How a component takes state
 
-Three shapes appear throughout the catalogue. Which one a component uses tells you where its state
-lives.
+Which shape a component uses tells you where its state lives. The declared value and the hoistable
+holder are described in [`ARCHITECTURE.md`](ARCHITECTURE.md#shapes-for-state-the-user-can-change).
 
 **A value and a callback.** `TextField(value, onValueChange = ...)`, `CheckBox(text, checked,
-onCheckedChange = ...)`, `TabbedPane(selectedIndex, onSelectedIndexChange = ...)`. You own the state;
-the component renders what you pass and reports what the user did. A value you push in is reflected
-without echoing back through the callback, so adopting a reported change cannot loop.
+onCheckedChange = ...)`, `TabbedPane(selectedIndex, onSelectedIndexChange = ...)`.
 
 **A hoisted state holder.** `DocumentState`, `FormattedValueState`, `WindowState`, `DialogState`,
-`InternalFrameState`, `ScrollState`, `ListState`, `TreeState`. The holder owns the value, is
-snapshot-observable, and is **two-way**: assigning to it drives the widget, and the user's own gesture
-writes back into it. See [Hoisted state](#hoisted-state).
+`InternalFrameState`, `ScrollState`, `ListState`, `TreeState`. See [Hoisted state](#hoisted-state).
 
 **A raw Swing model.** `ComboBox(model)`, `ListBox(model)`, `Table(model)`, `Tree(model)`,
 `Spinner(model, changeListener)`, `Slider(model)`, `ProgressBar(model)`. When you already have a
@@ -47,11 +43,22 @@ is what lets a bar track a slider without either owning the value.
 Most components that take a lambda callback also offer an overload taking the corresponding raw Swing
 listener instead, for when you already hold a listener object: `ActionListener` (the buttons, the
 menu items, `ComboBox`), `ChangeListener` (`Slider`, `Spinner`, `TabbedPane`), `DocumentListener`
-(`TextField`, `TextArea`, `TextPane`, `EditorPane`, `PasswordField`), `ListSelectionListener`
-(`ListBox`, `Table`), `TableColumnModelListener` (a `Table`'s column layout),
-`TreeSelectionListener` and `TreeExpansionListener` (`Tree`), `PropertyChangeListener`
-(`FormattedTextField`, `SplitPane`) and `InternalFrameListener` (`internalFrame`). The KDoc on each
-overload says which events it carries.
+(`TextField`, `TextArea`, `TextPane`, `PasswordField`), `HyperlinkListener` (`EditorPane`),
+`ListSelectionListener` (`ListBox`, `Table`), `TableColumnModelListener` (a `Table`'s column layout),
+`RowSorterListener` (a `Table`'s sort order), `TreeSelectionListener`, `TreeExpansionListener` and
+`TreeWillExpandListener` (`Tree`), `PropertyChangeListener` (`FormattedTextField`, `SplitPane`) and
+`InternalFrameListener` (`internalFrame`). The KDoc on each overload says which events it carries.
+
+`javax.swing.Action` extends `ActionListener`, so an `Action` you already own is one of those listeners
+and the raw-listener overloads take it as it is: `Button("Save", actionListener = save)`,
+`MenuItem("Save", actionListener = save)`.
+
+The same listeners are also modifier elements, which is how you hear events from a component the
+catalogue does not wrap. `actionListener` reaches everything that publishes an action event - an
+`AbstractButton`, a `JTextField`, a `JComboBox`, a `JFileChooser`, and the AWT `Button`, `TextField`
+and `List` - and `changeListener` everything that publishes a change event - a `JSlider`, a `JSpinner`,
+a `JTabbedPane`, a `JProgressBar`, an `AbstractButton`, a `JViewport` and a `JColorChooser`, which
+publishes through the `selectionModel` it holds when the listener is installed.
 
 ### Declaring a selection, or leaving it alone
 
@@ -92,10 +99,9 @@ compare equal are one and the same selection.
 `onValueChange`, a `value` plus a `DocumentListener`, and a [`DocumentState`](#documentstate) that
 owns the document outright.
 
-The `value` forms are strictly controlled. The component holds what the composition declares: an edit
-the caller does not adopt - one `onValueChange` is not answered with a matching `value` - is settled
-back onto the declared text on the very next pass, so the component never stands on text the caller
-has not taken. `FormattedTextField` holds its committed value the same way.
+The `value` forms are strictly controlled, settled like every other
+[declared value](ARCHITECTURE.md#shapes-for-state-the-user-can-change). `FormattedTextField` holds its
+committed value the same way.
 
 Reach for the hoisted `DocumentState` form where you do not need the text on every keystroke: the
 state owns the document, so there is no un-adopted edit to settle at all, and it is also what gives
@@ -482,19 +488,21 @@ BorderPanel {
 }
 ```
 
-`Row` and `Column` are the two single-axis stacks you reach for most. Every child keeps the size it
-prefers on both axes; the space the container has left over along its axis is placed by an
-`Arrangement` (`Top`, `Bottom`, `Start`, `End`, `Center`, `SpaceBetween`, `SpaceAround`,
-`SpaceEvenly`, `spacedBy(gap)`, `aligned(...)`), and each child sits across the axis where an
-`Alignment` puts it. Spacing and every other measure here is in pixels.
+`Row` and `Column` are the two single-axis stacks you reach for most. Along its axis, a child keeps
+the size it prefers, and the space the container has left over is placed by an `Arrangement`
+(`Top`, `Bottom`, `Start`, `End`, `Center`, `SpaceBetween`, `SpaceAround`, `SpaceEvenly`,
+`spacedBy(gap)`, `aligned(...)`). Across the axis, a child sits where an `Alignment` puts it, or
+takes the whole cross extent in its place. Spacing and every other measure here is in pixels.
 
-A child claims a share of the leftover space with `weight`, or names its own cross-axis placement
-with `align`, through the `RowScope` / `ColumnScope` its content is written in - both are modifier
-extensions, so children stay plain:
+A child claims a share of the leftover space with `weight`, names its own cross-axis placement
+with `align`, or takes the whole cross extent with `fillWidth` / `fillHeight` in place of both its
+own `align` and the container's cross-axis alignment, capped by an explicit `maximumSize` where it
+declares one - through the `RowScope` / `ColumnScope` its content is written in, modifier
+extensions so children stay plain:
 
 ```kotlin
 Column(verticalArrangement = Arrangement.spacedBy(8), horizontalAlignment = Alignment.Start) {
-    Row(modifier = SwingModifier.fillWidth(), horizontalArrangement = Arrangement.End) {
+    Row(horizontalArrangement = Arrangement.End, modifier = SwingModifier.fillWidth()) {
         Button("Back", onClick = ::open)
         Button("Forward", onClick = ::open)
     }

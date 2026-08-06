@@ -71,10 +71,6 @@ internal class ComposingListCellRenderer<T>(
     // The row inputs, held as composition state so writing them invalidates the cell body that reads
     // them. A single reused item cell keeps the size-1 pool the rubber-stamp model expects.
     private val itemState = mutableStateOf<Any?>(null)
-
-    // Whether the widget has named an item for the cell to render - separately from the item itself, so
-    // a null item is an item like any other and only a stamp that names none composes nothing.
-    private val hasItemState = mutableStateOf(false)
     private val scope = MutableListItemScope()
 
     private val island =
@@ -83,7 +79,7 @@ internal class ComposingListCellRenderer<T>(
             "A composable cell renders a single component, and this one composes several. Compose them " +
                 "into one container - a panel whose layout arranges them - and the widget renders that.",
         ) {
-            Cell(itemState, hasItemState, scope, currentItemContent)
+            Cell(itemState, scope, currentItemContent)
         }
 
     override fun getListCellRendererComponent(
@@ -93,12 +89,10 @@ internal class ComposingListCellRenderer<T>(
         isSelected: Boolean,
         cellHasFocus: Boolean,
     ): Component =
-        island.stamp {
+        // Every row the widget paints names the item it holds, `null` among them. A combo box's display
+        // area is the one stamp made for no row at all, and with nothing selected it names no item either.
+        island.stamp(hasCell = index >= 0 || value != null) {
             itemState.value = value
-            // Every row the widget paints names the item it holds, `null` among them. A combo box's
-            // display area is the one stamp made for no row at all, and with nothing selected it names
-            // no item either.
-            hasItemState.value = index >= 0 || value != null
             scope.index = index
             scope.isSelected = isSelected
             scope.cellHasFocus = cellHasFocus
@@ -109,18 +103,16 @@ internal class ComposingListCellRenderer<T>(
 }
 
 /**
- * The cell body a [ComposingListCellRenderer]'s island composes. A stamp that names no item - the
- * degenerate empty cell before the first stamp, and a combo box's display area with nothing selected -
- * composes no component at all.
+ * The cell body a [ComposingListCellRenderer]'s island composes; the island composes it only where the
+ * stamp names an item, so [itemState] always holds that item here - itself `null` among the values an
+ * item can hold.
  */
 @Composable
 private fun <T> Cell(
     itemState: State<Any?>,
-    hasItemState: State<Boolean>,
     scope: ListItemScope,
     itemContent: State<@Composable ListItemScope.(item: T) -> Unit>,
 ) {
-    if (!hasItemState.value) return
     // A widget stamps the items of the model the composable that installed this renderer gave it, so
     // the item is of the element type that composable declares its cell body over.
     @Suppress("UNCHECKED_CAST")

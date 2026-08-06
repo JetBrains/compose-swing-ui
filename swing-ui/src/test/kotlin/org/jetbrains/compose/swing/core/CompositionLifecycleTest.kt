@@ -19,6 +19,8 @@ import kotlinx.coroutines.swing.Swing
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import org.jetbrains.compose.swing.assumeFrameDeiconifies
+import org.jetbrains.compose.swing.assumeFrameIconifies
 import org.jetbrains.compose.swing.assumeKeyboardFocusIsPossible
 import org.jetbrains.compose.swing.assumeWindowBecomesFocused
 import org.jetbrains.compose.swing.setContent
@@ -42,6 +44,7 @@ import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNotSame
 import kotlin.test.assertSame
+import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
@@ -193,6 +196,47 @@ class CompositionLifecycleTest {
                 other.dispose()
                 frame.dispose()
             }
+        }
+    }
+
+    @Test
+    fun minimizingTheWindowDropsToCreatedAndRestoringItShowsTheContentAgain() = runComposeSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        val panel = JPanel()
+        val reader = LifecycleReader()
+        val handle = panel.setContent { reader.Observe() }
+        val frame = frameHolding(MINIMIZED_TITLE, panel)
+        try {
+            // Iconification is a change the window system posts only for a window it is actually
+            // showing, so the frame is shown here rather than merely realized as the other STARTED
+            // cases are - a background agent shows a window without ever focusing it, which is the
+            // unfocused STARTED this case starts from.
+            frame.isVisible = true
+            awaitState(reader, Lifecycle.State.STARTED)
+            assertEquals(
+                Lifecycle.State.STARTED,
+                reader.state,
+                "content in a shown window must report STARTED before it is minimized",
+            )
+
+            assumeFrameIconifies(frame)
+            awaitState(reader, Lifecycle.State.CREATED)
+            assertEquals(
+                Lifecycle.State.CREATED,
+                reader.state,
+                "content whose window is minimized must report CREATED",
+            )
+
+            assumeFrameDeiconifies(frame)
+            awaitStateAtLeast(reader, Lifecycle.State.STARTED)
+            assertTrue(
+                reader.state?.isAtLeast(Lifecycle.State.STARTED) == true,
+                "content whose window is restored from minimization must be shown again, but its owner " +
+                    "reports ${reader.state}",
+            )
+        } finally {
+            handle.dispose()
+            frame.dispose()
         }
     }
 
@@ -757,6 +801,24 @@ private suspend fun awaitState(
     }
 }
 
+/**
+ * Suspends until [reader] reports [state] or a state above it, on the terms [awaitState] waits on.
+ *
+ * A window the window system restores from minimization is shown again, and whether it hands the
+ * keyboard focus back with it is that window system's own decision - so what a case can hold such a
+ * window to is the floor the two outcomes share, and the state above it is asserted where the case
+ * turns the focus on itself.
+ */
+private suspend fun awaitStateAtLeast(
+    reader: LifecycleReader,
+    state: Lifecycle.State,
+) {
+    val deadline = TimeSource.Monotonic.markNow() + STATE_TIMEOUT
+    while (reader.state?.isAtLeast(state) != true && !deadline.hasPassedNow()) {
+        delay(POLL_INTERVAL)
+    }
+}
+
 /** Distinct per case, so a window one case leaves behind cannot be mistaken for another case's. */
 private const val UNFOCUSED_TITLE = "lifecycle-unfocused-window"
 private const val FOCUSED_TITLE = "lifecycle-focused-window"
@@ -764,6 +826,7 @@ private const val FOCUS_MOVE_TITLE = "lifecycle-focus-move-window"
 private const val FOCUS_STEALER_TITLE = "lifecycle-focus-stealer-window"
 private const val DISPOSED_TITLE = "lifecycle-disposed-content-window"
 private const val REPARENTED_TITLE = "lifecycle-reparented-window"
+private const val MINIMIZED_TITLE = "lifecycle-minimized-window"
 private const val OWN_OWNER_TITLE = "lifecycle-own-owner-window"
 private const val OWN_OWNER_DIALOG_HOST_TITLE = "lifecycle-own-owner-dialog-host-window"
 private const val OWN_OWNER_DIALOG_TITLE = "lifecycle-own-owner-dialog"

@@ -199,10 +199,14 @@ is decides which one a component uses.
 - **A declared value with a change callback** is the ordinary shape. The composition holds the value
   and passes it in, and the component reports the user's change back through a callback beside it - a
   text field's `value` and `onValueChange`, a table's `selectedRowIndices` and `onSelectionChange`, its
-  `columnLayout` and `onColumnLayoutChange`. The declared value is applied on every recomposition, so
-  the state the composition holds is what is on screen. Where declaring is optional the value is
-  nullable: leaving it out leaves that aspect to the widget, while the callback still reports what the
-  user did with it.
+  `columnLayout` and `onColumnLayoutChange`. Settling runs in both directions on every pass. The
+  declaration is written where the component does not already hold it, and a change the caller does not
+  answer with a matching value is settled back onto the declared one on the pass that carries their
+  answer - so the state the composition holds is what is on screen, and the component never stands on a
+  value the caller has not adopted. A value the composition pushes in is not reported back through the
+  callback, so adopting a reported change cannot loop. A text component's content follows that contract
+  exactly as a selection and a geometry do. Where declaring is optional the value is nullable: leaving
+  it out leaves that aspect to the widget, while the callback still reports what the user did with it.
 
 - **A hoistable state holder** - an `XState` type with a matching `rememberXState` factory - carries
   state that is a group of related values rather than one, that includes values the component reports
