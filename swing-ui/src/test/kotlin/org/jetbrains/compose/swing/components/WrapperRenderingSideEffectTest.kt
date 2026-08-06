@@ -43,15 +43,9 @@ import kotlin.test.Test
  * pixels it paints are identical to those of a hand-written raw widget configured with the same public
  * values.
  *
- * For each wrapper the test renders the library composable under the harness, reads the laid-out
- * bounds the composition assigned it, and captures it off-screen. It then builds the equivalent raw
- * Swing component **by hand**, gives it the exact same bounds, captures it through the same off-screen
- * pipeline, and asserts the two images are pixel-identical. Any rendering side effect the wrapper might
- * inject that the raw widget does not - a stray border, an altered font or color, an extra margin, a
- * shifted alignment, a changed opacity - would shift pixels and fail the comparison.
- *
- * The cross-platform Metal Look-and-Feel is pinned so the comparison is deterministic and the same on
- * every machine; both the composed and the raw widget resolve their visuals from that single LaF.
+ * Any rendering side effect the wrapper might inject that the raw widget does not - a stray border, an
+ * altered font or color, an extra margin, a shifted alignment, a changed opacity - shifts pixels and
+ * fails the comparison.
  */
 class WrapperRenderingSideEffectTest {
     private var hostLookAndFeel: LookAndFeel? = null
@@ -203,7 +197,7 @@ class WrapperRenderingSideEffectTest {
 
     @Test
     fun comboBoxAddsNoRenderingSideEffects() = assertWrapperMatchesRaw(
-        content = { ComboBox(items = COMBO_ITEMS, selectedIndex = 0) },
+        content = { ComboBox(items = COMBO_ITEMS, selectedItem = COMBO_ITEMS.first()) },
         find = { onNodeOfType<JComboBox<*>>() },
         buildRaw = {
             JComboBox<String>().apply {
@@ -237,8 +231,6 @@ class WrapperRenderingSideEffectTest {
                     doLayout()
                 }.captureToImage()
 
-        // EXACT comparison: a single shifted pixel fails. Both images were rasterized through the same
-        // off-screen pipeline with identical rendering hints, at identical bounds, under one pinned LaF.
         assertImagesPixelPerfect(
             expected = raw,
             image = composed,

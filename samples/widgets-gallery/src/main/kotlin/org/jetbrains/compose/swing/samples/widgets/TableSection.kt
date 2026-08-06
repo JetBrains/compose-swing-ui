@@ -8,6 +8,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.components.selection.Table
+import org.jetbrains.compose.swing.components.selection.column
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import java.awt.Dimension
@@ -43,7 +44,7 @@ private fun SelectableTableCard() {
                 ),
             )
         }
-        var selection by remember { mutableStateOf(listOf(0)) }
+        var selection by remember { mutableStateOf(setOf(0)) }
 
         ScrollPane(modifier = SwingModifier.preferredSize(Dimension(360, 140))) {
             content {
@@ -58,8 +59,7 @@ private fun SelectableTableCard() {
                     column(
                         header = "Age",
                         isEditable = true,
-                        onCellEdit = { _, rowIndex, newValue ->
-                            val age = (newValue as? String)?.toIntOrNull()
+                        onCellEdit = { _, rowIndex, age ->
                             if (age != null) {
                                 people =
                                     people.mapIndexed { index, person ->

@@ -6,6 +6,7 @@ package org.jetbrains.compose.swing.components.selection
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import org.jetbrains.compose.swing.constants.ListLayoutOrientation
 import org.jetbrains.compose.swing.constants.SelectionMode
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
@@ -19,7 +20,6 @@ import java.util.Vector
 import javax.swing.JList
 import javax.swing.ListModel
 import javax.swing.ListSelectionModel
-import javax.swing.event.ListSelectionEvent
 import javax.swing.event.ListSelectionListener
 
 /**
@@ -28,7 +28,8 @@ import javax.swing.event.ListSelectionListener
  * Items are declarative data. By default each row renders its item's `toString`; supply [itemContent]
  * to render an arbitrary composable cell per row (a `Row` of an icon, labels, ...). Selection is declared
  * with [selectedIndices] and reported through [onSelectionChange], expressed as the general multi-select
- * shape so one component covers all of [SelectionMode]'s modes. Place it in a [ScrollPane] to scroll:
+ * shape so one component covers all of [SelectionMode]'s modes. Place it in a
+ * [org.jetbrains.compose.swing.components.layout.ScrollPane] to scroll:
  *
  * ```
  * ScrollPane {
@@ -48,6 +49,13 @@ import javax.swing.event.ListSelectionListener
  * imposed, and kept across an items change all the same; where the new items are too few to hold it, the
  * rows that fall outside them leave the selection and [onSelectionChange] reports what is left of it.
  *
+ * [layoutOrientation] decides how the cells are laid out: a single column, or wrapped into as many
+ * columns or rows as the space the list is given allows. A wrapping list draws far more cells at once,
+ * and a list sizes itself by measuring them - one measurement per row through the renderer, and with a
+ * composable [itemContent] each of those is a cell stamped through a nested composition. Declaring a
+ * [prototypeCellValue] collapses that to a single measurement every cell is sized by; [fixedCellWidth]
+ * and [fixedCellHeight] state a size outright and spare it even that one.
+ *
  * @param items the items to display
  * @param modifier the [SwingModifier] applied to the underlying component
  * @param selectedIndices the selected row indices the caller declares; `null` - the default - leaves the
@@ -55,17 +63,29 @@ import javax.swing.event.ListSelectionListener
  * @param onSelectionChange callback invoked when the user settles on a new selection
  * @param selectionMode how many rows/ranges may be selected
  * @param visibleRowCount preferred number of visible rows (`JList.setVisibleRowCount`)
+ * @param layoutOrientation whether the cells form a single column or wrap into columns or rows
+ * @param prototypeCellValue an item measured once, through the same renderer the rows use, to size every
+ *   cell; `null` - the default - measures each row for itself
+ * @param fixedCellWidth the width in pixels of every cell; `-1` - the default - takes the width from
+ *   [prototypeCellValue], or from each row's own measurement where no prototype is declared
+ * @param fixedCellHeight the height in pixels of every cell; `-1` - the default - takes the height from
+ *   [prototypeCellValue], or from each row's own measurement where no prototype is declared
  * @param itemContent optional composable cell rendered per row against a [ListItemScope]; `null` keeps
  *   the default `toString` rendering
+ * @see javax.swing.JList
  */
 @Composable
 public fun <T> ListBox(
     items: List<T>,
     modifier: SwingModifier = SwingModifier,
-    selectedIndices: List<Int>? = null,
-    onSelectionChange: (List<Int>) -> Unit = {},
+    selectedIndices: Set<Int>? = null,
+    onSelectionChange: (Set<Int>) -> Unit = {},
     @SelectionMode selectionMode: Int = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION,
     visibleRowCount: Int = 8,
+    @ListLayoutOrientation layoutOrientation: Int = JList.VERTICAL,
+    prototypeCellValue: T? = null,
+    fixedCellWidth: Int = -1,
+    fixedCellHeight: Int = -1,
     itemContent: (@Composable ListItemScope.(item: T) -> Unit)? = null,
 ) {
     ListBox(
@@ -75,6 +95,10 @@ public fun <T> ListBox(
         selectedIndices = selectedIndices,
         selectionMode = selectionMode,
         visibleRowCount = visibleRowCount,
+        layoutOrientation = layoutOrientation,
+        prototypeCellValue = prototypeCellValue,
+        fixedCellWidth = fixedCellWidth,
+        fixedCellHeight = fixedCellHeight,
         itemContent = itemContent,
     )
 }
@@ -92,17 +116,29 @@ public fun <T> ListBox(
  *   selection to the user
  * @param selectionMode how many rows/ranges may be selected
  * @param visibleRowCount preferred number of visible rows (`JList.setVisibleRowCount`)
+ * @param layoutOrientation whether the cells form a single column or wrap into columns or rows
+ * @param prototypeCellValue an item measured once, through the same renderer the rows use, to size every
+ *   cell; `null` - the default - measures each row for itself
+ * @param fixedCellWidth the width in pixels of every cell; `-1` - the default - takes the width from
+ *   [prototypeCellValue], or from each row's own measurement where no prototype is declared
+ * @param fixedCellHeight the height in pixels of every cell; `-1` - the default - takes the height from
+ *   [prototypeCellValue], or from each row's own measurement where no prototype is declared
  * @param itemContent optional composable cell rendered per row against a [ListItemScope]; `null` keeps
  *   the default `toString` rendering
+ * @see javax.swing.JList
  */
 @Composable
 public fun <T> ListBox(
     items: List<T>,
     listSelectionListener: ListSelectionListener,
     modifier: SwingModifier = SwingModifier,
-    selectedIndices: List<Int>? = null,
+    selectedIndices: Set<Int>? = null,
     @SelectionMode selectionMode: Int = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION,
     visibleRowCount: Int = 8,
+    @ListLayoutOrientation layoutOrientation: Int = JList.VERTICAL,
+    prototypeCellValue: T? = null,
+    fixedCellWidth: Int = -1,
+    fixedCellHeight: Int = -1,
     itemContent: (@Composable ListItemScope.(item: T) -> Unit)? = null,
 ) {
     ListBoxNode(
@@ -111,6 +147,10 @@ public fun <T> ListBox(
         selectedIndices = selectedIndices,
         selectionMode = selectionMode,
         visibleRowCount = visibleRowCount,
+        layoutOrientation = layoutOrientation,
+        prototypeCellValue = prototypeCellValue,
+        fixedCellWidth = fixedCellWidth,
+        fixedCellHeight = fixedCellHeight,
         itemContent = itemContent,
     ) { applied ->
         set(items) { newItems ->
@@ -147,17 +187,29 @@ public fun <T> ListBox(
  * @param onSelectionChange callback invoked when the user settles on a new selection
  * @param selectionMode how many rows/ranges may be selected
  * @param visibleRowCount preferred number of visible rows (`JList.setVisibleRowCount`)
+ * @param layoutOrientation whether the cells form a single column or wrap into columns or rows
+ * @param prototypeCellValue an item measured once, through the same renderer the rows use, to size every
+ *   cell; `null` - the default - measures each row for itself
+ * @param fixedCellWidth the width in pixels of every cell; `-1` - the default - takes the width from
+ *   [prototypeCellValue], or from each row's own measurement where no prototype is declared
+ * @param fixedCellHeight the height in pixels of every cell; `-1` - the default - takes the height from
+ *   [prototypeCellValue], or from each row's own measurement where no prototype is declared
  * @param itemContent optional composable cell rendered per row against a [ListItemScope]; `null` keeps
  *   the default `toString` rendering
+ * @see javax.swing.JList
  */
 @Composable
 public fun <T> ListBox(
     model: ListModel<T>,
     modifier: SwingModifier = SwingModifier,
-    selectedIndices: List<Int>? = null,
-    onSelectionChange: (List<Int>) -> Unit = {},
+    selectedIndices: Set<Int>? = null,
+    onSelectionChange: (Set<Int>) -> Unit = {},
     @SelectionMode selectionMode: Int = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION,
     visibleRowCount: Int = 8,
+    @ListLayoutOrientation layoutOrientation: Int = JList.VERTICAL,
+    prototypeCellValue: T? = null,
+    fixedCellWidth: Int = -1,
+    fixedCellHeight: Int = -1,
     itemContent: (@Composable ListItemScope.(item: T) -> Unit)? = null,
 ) {
     ListBox(
@@ -167,6 +219,10 @@ public fun <T> ListBox(
         selectedIndices = selectedIndices,
         selectionMode = selectionMode,
         visibleRowCount = visibleRowCount,
+        layoutOrientation = layoutOrientation,
+        prototypeCellValue = prototypeCellValue,
+        fixedCellWidth = fixedCellWidth,
+        fixedCellHeight = fixedCellHeight,
         itemContent = itemContent,
     )
 }
@@ -187,17 +243,29 @@ public fun <T> ListBox(
  *   selection to the user
  * @param selectionMode how many rows/ranges may be selected
  * @param visibleRowCount preferred number of visible rows (`JList.setVisibleRowCount`)
+ * @param layoutOrientation whether the cells form a single column or wrap into columns or rows
+ * @param prototypeCellValue an item measured once, through the same renderer the rows use, to size every
+ *   cell; `null` - the default - measures each row for itself
+ * @param fixedCellWidth the width in pixels of every cell; `-1` - the default - takes the width from
+ *   [prototypeCellValue], or from each row's own measurement where no prototype is declared
+ * @param fixedCellHeight the height in pixels of every cell; `-1` - the default - takes the height from
+ *   [prototypeCellValue], or from each row's own measurement where no prototype is declared
  * @param itemContent optional composable cell rendered per row against a [ListItemScope]; `null` keeps
  *   the default `toString` rendering
+ * @see javax.swing.JList
  */
 @Composable
 public fun <T> ListBox(
     model: ListModel<T>,
     listSelectionListener: ListSelectionListener,
     modifier: SwingModifier = SwingModifier,
-    selectedIndices: List<Int>? = null,
+    selectedIndices: Set<Int>? = null,
     @SelectionMode selectionMode: Int = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION,
     visibleRowCount: Int = 8,
+    @ListLayoutOrientation layoutOrientation: Int = JList.VERTICAL,
+    prototypeCellValue: T? = null,
+    fixedCellWidth: Int = -1,
+    fixedCellHeight: Int = -1,
     itemContent: (@Composable ListItemScope.(item: T) -> Unit)? = null,
 ) {
     ListBoxNode(
@@ -206,12 +274,126 @@ public fun <T> ListBox(
         selectedIndices = selectedIndices,
         selectionMode = selectionMode,
         visibleRowCount = visibleRowCount,
+        layoutOrientation = layoutOrientation,
+        prototypeCellValue = prototypeCellValue,
+        fixedCellWidth = fixedCellWidth,
+        fixedCellHeight = fixedCellHeight,
         itemContent = itemContent,
     ) { applied ->
         set(model) { newModel ->
             installContent(applied, selectedIndices, listSelectionListener) { this.model = newModel }
         }
     }
+}
+
+/**
+ * A [ListBox] driven by a [ListState] instead of a declared `selectedIndices` and an `onSelectionChange`
+ * lambda. The state owns the selection: the rows it holds are what the list shows selected, the user's
+ * own selecting is written back into it, and it is where a row is revealed from.
+ *
+ * ```
+ * val state = rememberListState()
+ *
+ * ScrollPane {
+ *     ListBox(items = rows, state = state, modifier = SwingModifier.viewport())
+ * }
+ * Label("Selected: ${state.selectedIndices.size}")
+ * ```
+ *
+ * @param items the items to display
+ * @param state the hoistable selection state the list applies and reports into; see [ListState]
+ * @param modifier the [SwingModifier] applied to the underlying component
+ * @param selectionMode how many rows/ranges may be selected
+ * @param visibleRowCount preferred number of visible rows (`JList.setVisibleRowCount`)
+ * @param layoutOrientation whether the cells form a single column or wrap into columns or rows
+ * @param prototypeCellValue an item measured once, through the same renderer the rows use, to size every
+ *   cell; `null` - the default - measures each row for itself
+ * @param fixedCellWidth the width in pixels of every cell; `-1` - the default - takes the width from
+ *   [prototypeCellValue], or from each row's own measurement where no prototype is declared
+ * @param fixedCellHeight the height in pixels of every cell; `-1` - the default - takes the height from
+ *   [prototypeCellValue], or from each row's own measurement where no prototype is declared
+ * @param itemContent optional composable cell rendered per row against a [ListItemScope]; `null` keeps
+ *   the default `toString` rendering
+ * @see javax.swing.JList
+ */
+@Composable
+public fun <T> ListBox(
+    items: List<T>,
+    state: ListState,
+    modifier: SwingModifier = SwingModifier,
+    @SelectionMode selectionMode: Int = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION,
+    visibleRowCount: Int = 8,
+    @ListLayoutOrientation layoutOrientation: Int = JList.VERTICAL,
+    prototypeCellValue: T? = null,
+    fixedCellWidth: Int = -1,
+    fixedCellHeight: Int = -1,
+    itemContent: (@Composable ListItemScope.(item: T) -> Unit)? = null,
+) {
+    ListBox(
+        items = items,
+        modifier = modifier.listStateBinding(state),
+        selectedIndices = state.selectedIndices,
+        onSelectionChange = { indices -> state.selectedIndices = indices },
+        selectionMode = selectionMode,
+        visibleRowCount = visibleRowCount,
+        layoutOrientation = layoutOrientation,
+        prototypeCellValue = prototypeCellValue,
+        fixedCellWidth = fixedCellWidth,
+        fixedCellHeight = fixedCellHeight,
+        itemContent = itemContent,
+    )
+}
+
+/**
+ * A model-driven [ListBox] driven by a [ListState] instead of a declared `selectedIndices` and an
+ * `onSelectionChange` lambda. The state owns the selection: the rows it holds are what the list shows
+ * selected, the user's own selecting is written back into it, and it is where a row is revealed from.
+ *
+ * The [model] is installed as-is and observed only: the library never mutates it, so element changes are
+ * the caller's responsibility, and the selection survives a model swap.
+ *
+ * @param model the caller-owned list model to display; installed as-is and never mutated
+ * @param state the hoistable selection state the list applies and reports into; see [ListState]
+ * @param modifier the [SwingModifier] applied to the underlying component
+ * @param selectionMode how many rows/ranges may be selected
+ * @param visibleRowCount preferred number of visible rows (`JList.setVisibleRowCount`)
+ * @param layoutOrientation whether the cells form a single column or wrap into columns or rows
+ * @param prototypeCellValue an item measured once, through the same renderer the rows use, to size every
+ *   cell; `null` - the default - measures each row for itself
+ * @param fixedCellWidth the width in pixels of every cell; `-1` - the default - takes the width from
+ *   [prototypeCellValue], or from each row's own measurement where no prototype is declared
+ * @param fixedCellHeight the height in pixels of every cell; `-1` - the default - takes the height from
+ *   [prototypeCellValue], or from each row's own measurement where no prototype is declared
+ * @param itemContent optional composable cell rendered per row against a [ListItemScope]; `null` keeps
+ *   the default `toString` rendering
+ * @see javax.swing.JList
+ */
+@Composable
+public fun <T> ListBox(
+    model: ListModel<T>,
+    state: ListState,
+    modifier: SwingModifier = SwingModifier,
+    @SelectionMode selectionMode: Int = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION,
+    visibleRowCount: Int = 8,
+    @ListLayoutOrientation layoutOrientation: Int = JList.VERTICAL,
+    prototypeCellValue: T? = null,
+    fixedCellWidth: Int = -1,
+    fixedCellHeight: Int = -1,
+    itemContent: (@Composable ListItemScope.(item: T) -> Unit)? = null,
+) {
+    ListBox(
+        model = model,
+        modifier = modifier.listStateBinding(state),
+        selectedIndices = state.selectedIndices,
+        onSelectionChange = { indices -> state.selectedIndices = indices },
+        selectionMode = selectionMode,
+        visibleRowCount = visibleRowCount,
+        layoutOrientation = layoutOrientation,
+        prototypeCellValue = prototypeCellValue,
+        fixedCellWidth = fixedCellWidth,
+        fixedCellHeight = fixedCellHeight,
+        itemContent = itemContent,
+    )
 }
 
 /**
@@ -224,11 +406,15 @@ public fun <T> ListBox(
 private fun <T> ListBoxNode(
     listSelectionListener: ListSelectionListener,
     modifier: SwingModifier,
-    selectedIndices: List<Int>?,
+    selectedIndices: Set<Int>?,
     @SelectionMode selectionMode: Int,
     visibleRowCount: Int,
+    @ListLayoutOrientation layoutOrientation: Int,
+    prototypeCellValue: T?,
+    fixedCellWidth: Int,
+    fixedCellHeight: Int,
     itemContent: (@Composable ListItemScope.(item: T) -> Unit)?,
-    installContent: SwingNodeUpdater<JList<T>>.(AppliedValue<List<Int>?>) -> Unit,
+    installContent: SwingNodeUpdater<JList<T>>.(AppliedValue<Set<Int>?>) -> Unit,
 ) {
     // The single conversion from itemContent to a JList cell renderer: one reused ComposingListCellRenderer
     // stamps a recycled composition per row. A null itemContent renders rows through the list's own renderer.
@@ -241,7 +427,7 @@ private fun <T> ListBoxNode(
     val userSelectionListener =
         remember(applied, listSelectionListener) {
             ListSelectionListener { event ->
-                if (!event.valueIsAdjusting) applied.observed((event.source as JList<*>).selectedIndices.toList())
+                if (!event.valueIsAdjusting) applied.observed((event.source as JList<*>).selectedIndices.toSet())
                 if (!applied.isWriting) listSelectionListener.valueChanged(event)
             }
         }
@@ -252,7 +438,7 @@ private fun <T> ListBoxNode(
                 narrowSelection(applied, selectedIndices, listSelectionListener) { this.selectionMode = mode }
             }
             set(visibleRowCount) { count -> this.visibleRowCount = count }
-            set(itemRenderer) { renderer -> applyItemRenderer(renderer) }
+            set(layoutOrientation) { orientation -> this.layoutOrientation = orientation }
             installContent(applied)
             // Run on every pass regardless of whether a selection is declared, so the set calls this makes
             // always number the same and no later slot in this block shifts when one flips to the other.
@@ -261,10 +447,18 @@ private fun <T> ListBoxNode(
             declare(
                 selectedIndices,
                 applied,
-                { this.selectedIndices.toList() },
+                { this.selectedIndices.toSet() },
                 { indices -> applySelection(this, indices) },
             )
-            applyModifier(modifier.listSelectionListener(userSelectionListener))
+            // The cell sizing follows the renderer in the chain, and the chain applies its elements in the
+            // order they are declared: a prototype is measured through whichever renderer is installed,
+            // and the composable cell is the one whose per-row measurement the caller is buying out.
+            applyModifier(
+                modifier
+                    .listSelectionListener(userSelectionListener)
+                    .composableItemCells(itemRenderer)
+                    .listCellSizing(prototypeCellValue, fixedCellWidth, fixedCellHeight),
+            )
         },
     )
 }
@@ -276,13 +470,13 @@ private fun <T> ListBoxNode(
  * listener.
  */
 @Composable
-private fun rememberSettledSelectionListener(onSelectionChange: (List<Int>) -> Unit): ListSelectionListener {
+private fun rememberSettledSelectionListener(onSelectionChange: (Set<Int>) -> Unit): ListSelectionListener {
     val callback = rememberUpdatedState(onSelectionChange)
     // A JList re-fires its selection event with the list itself as the source, so read the settled
     // selection back from the list once the value stops adjusting.
     return remember {
         ListSelectionListener { event ->
-            if (!event.valueIsAdjusting) callback.value((event.source as JList<*>).selectedIndices.toList())
+            if (!event.valueIsAdjusting) callback.value((event.source as JList<*>).selectedIndices.toSet())
         }
     }
 }
@@ -293,14 +487,14 @@ private fun rememberSettledSelectionListener(onSelectionChange: (List<Int>) -> U
  * too short to hold. See [installNarrowing].
  */
 private fun JList<*>.installContent(
-    applied: AppliedValue<List<Int>?>,
-    declared: List<Int>?,
+    applied: AppliedValue<Set<Int>?>,
+    declared: Set<Int>?,
     target: ListSelectionListener,
     install: () -> Unit,
 ): Unit =
     applied.installNarrowing(
         declared = declared,
-        selection = { selectedIndices.toList() },
+        selection = { selectedIndices.toSet() },
         apply = { rows -> applySelection(this, rows) },
         report = { lost -> reportLostRows(target, lost) },
         install = install,
@@ -311,17 +505,21 @@ private fun JList<*>.installContent(
  * covers. A selection that already matches is left alone, so a recomposition that changed nothing
  * touches the list's selection model not at all, and a `null` declaration leaves it alone entirely.
  *
+ * The rows are selected in ascending order, whatever order [indices] iterates in, so every set that names
+ * the same rows leaves the list on the same selection and on the same lead row - the highest of them, left
+ * behind by the last row selected.
+ *
  * A list clears its selection before it selects, and each step of that is a settled change of its own;
  * marking the pair as one adjusting run leaves the list publishing a single settled selection.
  */
 private fun applySelection(
     list: JList<*>,
-    indices: List<Int>?,
+    indices: Set<Int>?,
 ) {
     if (indices == null) return
     val itemCount = list.model.size
-    val valid = indices.filter { it in 0 until itemCount }
-    if (list.selectedIndices.toList() == valid) return
+    val valid = indices.filterTo(sortedSetOf()) { it in 0 until itemCount }
+    if (list.selectedIndices.toSet() == valid) return
     val selectionModel = list.selectionModel
     selectionModel.valueIsAdjusting = true
     list.selectedIndices = valid.toIntArray()

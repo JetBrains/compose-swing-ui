@@ -31,6 +31,10 @@ import kotlin.test.assertEquals
  * A user's click reaches a widget as a selection write, so these tests select through the widget's own
  * selection API to stand in for one. The recomposition each test provokes changes a property
  * that has nothing to do with selection, which is precisely the pass that must not disturb it.
+ *
+ * A declaration names rows and not an order: whichever order it iterates in, the rows are applied
+ * ascending, so every declaration of the same rows leaves the widget on the same selection and the same
+ * lead row - the highest of them, left behind by the last row selected.
  */
 class SelectionDeclarationTest {
     private data class Entry(
@@ -55,7 +59,6 @@ class SelectionDeclarationTest {
     private fun tableModel(vararg names: String): DefaultTableModel =
         DefaultTableModel(arrayOf<Any>("Name"), 0).apply { for (name in names) addRow(arrayOf<Any>(name)) }
 
-    /** The labels of the nodes the tree has selected. */
     private fun JTree.selectedLabels(): List<String> = selectionPaths.orEmpty().map { it.lastPathComponent.toString() }
 
     private fun treeModel(rootLabel: String): DefaultTreeModel {
@@ -67,7 +70,7 @@ class SelectionDeclarationTest {
     @Test
     fun anUndeclaredTableSelectionSurvivesARecomposition() = runComposeSwingTest {
         var label by mutableStateOf("first")
-        val received = mutableListOf<List<Int>>()
+        val received = mutableListOf<Set<Int>>()
         setContent {
             Table(
                 rows = people,
@@ -92,7 +95,7 @@ class SelectionDeclarationTest {
     @Test
     fun anUndeclaredTableSelectionSurvivesARowsRefresh() = runComposeSwingTest {
         val rows = mutableStateListOf(*people.toTypedArray())
-        val received = mutableListOf<List<Int>>()
+        val received = mutableListOf<Set<Int>>()
         setContent {
             Table(rows = rows.toList(), onSelectionChange = { received += it }) {
                 column("Name") { it.name }
@@ -113,7 +116,7 @@ class SelectionDeclarationTest {
     @Test
     fun anUndeclaredTableSelectionSurvivesAModelSwap() = runComposeSwingTest {
         var model by mutableStateOf(tableModel("Ada", "Alan", "Grace"))
-        val received = mutableListOf<List<Int>>()
+        val received = mutableListOf<Set<Int>>()
         setContent {
             Table(model = model, onSelectionChange = { received += it })
         }
@@ -132,7 +135,7 @@ class SelectionDeclarationTest {
     @Test
     fun anUndeclaredListSelectionSurvivesAnItemsChange() = runComposeSwingTest {
         val items = mutableStateListOf("red", "green", "blue")
-        val received = mutableListOf<List<Int>>()
+        val received = mutableListOf<Set<Int>>()
         setContent {
             ListBox(items = items.toList(), onSelectionChange = { received += it })
         }
@@ -151,7 +154,7 @@ class SelectionDeclarationTest {
     @Test
     fun anUndeclaredListSelectionSurvivesAModelSwap() = runComposeSwingTest {
         var model by mutableStateOf(listModel("red", "green"))
-        val received = mutableListOf<List<Int>>()
+        val received = mutableListOf<Set<Int>>()
         setContent {
             ListBox(model = model, onSelectionChange = { received += it })
         }
@@ -170,7 +173,7 @@ class SelectionDeclarationTest {
     @Test
     fun anUndeclaredTreeSelectionSurvivesAStructureChange() = runComposeSwingTest {
         var label by mutableStateOf("root")
-        val received = mutableListOf<List<List<Int>>>()
+        val received = mutableListOf<Set<List<Int>>>()
         setContent {
             Tree(
                 root = sample.copy(name = label),
@@ -194,7 +197,7 @@ class SelectionDeclarationTest {
     @Test
     fun anUndeclaredTreeSelectionSurvivesAModelSwap() = runComposeSwingTest {
         var model by mutableStateOf(treeModel("root"))
-        val received = mutableListOf<List<List<Int>>>()
+        val received = mutableListOf<Set<List<Int>>>()
         setContent {
             Tree(model = model, onSelectionChange = { received += it })
         }
@@ -217,7 +220,7 @@ class SelectionDeclarationTest {
             Table(
                 rows = people,
                 modifier = SwingModifier.name(label),
-                selectedRowIndices = listOf(0),
+                selectedRowIndices = setOf(0),
             ) {
                 column("Name") { it.name }
             }
@@ -237,7 +240,7 @@ class SelectionDeclarationTest {
     fun aDeclaredEmptySelectionClearsWhatTheUserPicked() = runComposeSwingTest {
         var label by mutableStateOf("first")
         setContent {
-            Table(rows = people, modifier = SwingModifier.name(label), selectedRowIndices = emptyList()) {
+            Table(rows = people, modifier = SwingModifier.name(label), selectedRowIndices = emptySet()) {
                 column("Name") { it.name }
             }
         }
@@ -256,7 +259,7 @@ class SelectionDeclarationTest {
         var label by mutableStateOf("first")
         val model = tableModel("Ada", "Alan", "Grace")
         setContent {
-            Table(model = model, modifier = SwingModifier.name(label), selectedRowIndices = listOf(0))
+            Table(model = model, modifier = SwingModifier.name(label), selectedRowIndices = setOf(0))
         }
 
         val table = onNodeOfType<JTable>().fetch()
@@ -271,7 +274,7 @@ class SelectionDeclarationTest {
     @Test
     fun aTableRowSelectionDeclaredForTheFirstTimeIsAppliedAlongsideAModifierChange() = runComposeSwingTest {
         var label by mutableStateOf("first")
-        var selection by mutableStateOf<List<Int>?>(null)
+        var selection by mutableStateOf<Set<Int>?>(null)
         setContent {
             Table(rows = people, modifier = SwingModifier.name(label), selectedRowIndices = selection) {
                 column("Name") { it.name }
@@ -279,7 +282,7 @@ class SelectionDeclarationTest {
         }
 
         label = "second"
-        selection = listOf(1)
+        selection = setOf(1)
         awaitIdle()
 
         val table = onNodeWithName("second").fetch<JTable>()
@@ -290,7 +293,7 @@ class SelectionDeclarationTest {
     fun aRefusedListSelectionIsRestored() = runComposeSwingTest {
         var count by mutableStateOf(8)
         setContent {
-            ListBox(items = listOf("red", "green", "blue"), selectedIndices = listOf(0), visibleRowCount = count)
+            ListBox(items = listOf("red", "green", "blue"), selectedIndices = setOf(0), visibleRowCount = count)
         }
 
         val list = onNodeOfType<JList<*>>().fetch()
@@ -308,7 +311,7 @@ class SelectionDeclarationTest {
         var count by mutableStateOf(8)
         val model = listModel("red", "green", "blue")
         setContent {
-            ListBox(model = model, selectedIndices = listOf(0), visibleRowCount = count)
+            ListBox(model = model, selectedIndices = setOf(0), visibleRowCount = count)
         }
 
         val list = onNodeOfType<JList<*>>().fetch()
@@ -321,24 +324,48 @@ class SelectionDeclarationTest {
     }
 
     @Test
+    fun aTableSelectionIsAppliedAscendingWhateverOrderItIsDeclaredIn() = runComposeSwingTest {
+        setContent {
+            Table(rows = people, selectedRowIndices = linkedSetOf(2, 0, 1)) {
+                column("Name") { it.name }
+            }
+        }
+
+        val table = onNodeOfType<JTable>().fetch()
+        assertEquals(listOf(0, 1, 2), table.selectedRows.toList(), "the declared rows reach the table")
+        assertEquals(2, table.selectionModel.leadSelectionIndex, "the highest declared row is selected last")
+    }
+
+    @Test
+    fun aListSelectionIsAppliedAscendingWhateverOrderItIsDeclaredIn() = runComposeSwingTest {
+        setContent {
+            ListBox(items = listOf("red", "green", "blue"), selectedIndices = linkedSetOf(2, 0, 1))
+        }
+
+        val list = onNodeOfType<JList<*>>().fetch()
+        assertEquals(listOf(0, 1, 2), list.selectedIndices.toList(), "the declared rows reach the list")
+        assertEquals(2, list.selectionModel.leadSelectionIndex, "the highest declared row is selected last")
+    }
+
+    @Test
     fun aRefusedComboBoxSelectionIsRestored() = runComposeSwingTest {
         var label by mutableStateOf("first")
         setContent {
             ComboBox(
                 items = listOf("red", "green", "blue"),
                 modifier = SwingModifier.name(label),
-                selectedIndex = 0,
+                selectedItem = "red",
             )
         }
 
         val combo = onNodeOfType<JComboBox<*>>().fetch()
         combo.selectedIndex = 2
-        assertEquals(2, combo.selectedIndex, "the user's choice reaches the widget")
+        assertEquals("blue", combo.selectedItem, "the user's choice reaches the widget")
 
         label = "second"
         awaitIdle()
 
-        assertEquals(0, combo.selectedIndex, "the declared selection is re-applied")
+        assertEquals("red", combo.selectedItem, "the declared selection is re-applied")
     }
 
     @Test
@@ -346,7 +373,7 @@ class SelectionDeclarationTest {
         var label by mutableStateOf("first")
         val model = treeModel("root")
         setContent {
-            Tree(model = model, modifier = SwingModifier.name(label), selectedPaths = listOf(listOf(0)))
+            Tree(model = model, modifier = SwingModifier.name(label), selectedPaths = setOf(listOf(0)))
         }
 
         val tree = onNodeOfType<JTree>().fetch()

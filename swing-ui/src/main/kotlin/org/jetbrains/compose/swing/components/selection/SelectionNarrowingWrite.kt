@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.components.selection
 
+import org.jetbrains.compose.swing.constants.SelectionMode
 import org.jetbrains.compose.swing.core.dispatchToCaller
 import org.jetbrains.compose.swing.node.AppliedValue
 import javax.swing.JList
@@ -9,6 +10,7 @@ import javax.swing.event.ListSelectionEvent
 import javax.swing.event.ListSelectionListener
 import javax.swing.event.TreeSelectionEvent
 import javax.swing.event.TreeSelectionListener
+import javax.swing.tree.TreePath
 
 /*
  * The two writes a selection component makes to its widget that the widget answers by dropping selection,
@@ -34,10 +36,10 @@ import javax.swing.event.TreeSelectionListener
  * [report] reaches the caller's own listener directly rather than from inside a write, so it runs contained
  * the same way, and a throw out of it is reported rather than left to end the composition.
  */
-internal fun <S> AppliedValue<List<S>?>.writeNarrowing(
-    declaredSelection: List<S>?,
-    selection: () -> List<S>,
-    report: (List<S>) -> Unit,
+internal fun <S> AppliedValue<Set<S>?>.writeNarrowing(
+    declaredSelection: Set<S>?,
+    selection: () -> Set<S>,
+    report: (Set<S>) -> Unit,
     block: () -> Unit,
 ) {
     if (declaredSelection != null) {
@@ -48,7 +50,7 @@ internal fun <S> AppliedValue<List<S>?>.writeNarrowing(
     write(block)
     val settled = selection()
     observed(settled)
-    val lost = held.filterNot { it in settled }
+    val lost = held - settled
     if (lost.isNotEmpty()) dispatchToCaller { report(lost) }
 }
 
@@ -61,21 +63,20 @@ internal fun <S> AppliedValue<List<S>?>.writeNarrowing(
  * Content the user's selection reaches past is the one case where part of that selection is gone for good.
  * Putting the selection back has to follow the install that drops it, so it runs as this wrapper's own
  * write, and the part of the selection the new content could not hold is handed to [report] once that
- * write has returned - reporting it rather than leaving it to the widget's own event is what makes the
- * loss reach the caller on the pass that reactivates a parked node, where the listeners a modifier
- * installs are detached. [report] reaches the caller's own listener directly rather than from inside a
- * write, so it runs contained the same way, and a throw out of it is reported rather than left to end the
- * composition.
+ * write has returned, the same way [writeNarrowing] hands off a loss.
  *
  * The mirror is read back through [selection] once the write is done, the same way [AppliedValue.settle]
  * does - a listener attached to the widget would record the same value as it happens, but this holds
- * regardless of whether one is attached to catch it.
+ * regardless of whether one is attached to catch it. That one read is both what the mirror records and
+ * what the loss is measured against: nothing between them touches the widget, so a second read would
+ * walk the same selection to the same answer. This runs on every pass a filter is reconciled over, and a
+ * selection read is a walk of every selected row.
  */
-internal fun <S> AppliedValue<List<S>?>.installNarrowing(
-    declared: List<S>?,
-    selection: () -> List<S>,
-    apply: (List<S>) -> Unit,
-    report: (List<S>) -> Unit,
+internal fun <S> AppliedValue<Set<S>?>.installNarrowing(
+    declared: Set<S>?,
+    selection: () -> Set<S>,
+    apply: (Set<S>) -> Unit,
+    report: (Set<S>) -> Unit,
     install: () -> Unit,
 ) {
     val retained = declared ?: selection()
@@ -83,10 +84,10 @@ internal fun <S> AppliedValue<List<S>?>.installNarrowing(
         install()
         apply(retained)
     }
-    observed(selection())
-    if (declared != null) return
     val settled = selection()
-    val lost = retained.filterNot { it in settled }
+    observed(settled)
+    if (declared != null) return
+    val lost = retained - settled
     if (lost.isNotEmpty()) dispatchToCaller { report(lost) }
 }
 
@@ -96,14 +97,14 @@ internal fun <S> AppliedValue<List<S>?>.installNarrowing(
  * [writeNarrowing].
  */
 internal fun JList<*>.narrowSelection(
-    applied: AppliedValue<List<Int>?>,
-    declared: List<Int>?,
+    applied: AppliedValue<Set<Int>?>,
+    declared: Set<Int>?,
     target: ListSelectionListener,
     block: () -> Unit,
 ): Unit =
     applied.writeNarrowing(
         declaredSelection = declared,
-        selection = { selectedIndices.toList() },
+        selection = { selectedIndices.toSet() },
         report = { lost -> reportLostRows(target, lost) },
         block = block,
     )
@@ -112,13 +113,45 @@ internal fun JList<*>.narrowSelection(
  * Tells [target] that [lost] left the list's selection.
  *
  * A list re-fires its selection model's event as its own, with itself as the source, and that is the event a
- * listener installed on the list is handed. Both index lists are in ascending row order, so the rows that
- * left the selection span the range the event describes as changed.
+ * listener installed on the list is handed. The lowest and the highest of the rows that left the selection
+ * bound the range the event describes as changed.
  */
 internal fun JList<*>.reportLostRows(
     target: ListSelectionListener,
-    lost: List<Int>,
-) = target.valueChanged(ListSelectionEvent(this, lost.first(), lost.last(), false))
+    lost: Set<Int>,
+) = target.valueChanged(ListSelectionEvent(this, lost.min(), lost.max(), false))
+
+/**
+ * The rows [this] table has selected, named in the model's own row space - the space a [Table]'s declared
+ * and reported row selection is expressed in. A screen row is a position that a sort order and a row filter
+ * both move, so the two spaces part company the moment either is in play; a table with neither shows the
+ * model row by row, which makes them the same numbers.
+ */
+internal fun JTable.selectedModelRows(): Set<Int> {
+    // `getSelectedRows` hands out an array of its own, so the conversion is done in that array: one walk
+    // of the selection and one boxing of it, on a path reconciled over every pass.
+    val rows = selectedRows
+    for (index in rows.indices) rows[index] = convertRowIndexToModel(rows[index])
+    return rows.toSet()
+}
+
+/**
+ * Puts the table's rows and columns in selection [mode] by writing it to the two selection models the mode
+ * belongs to.
+ *
+ * A selection model narrows a selection only as far as the new mode forces: a mode that holds one row keeps
+ * the first row that was selected, a wider mode keeps the whole selection, and the mode a model is already in
+ * changes nothing - which matters because the mode a caller declares is the composition's state and arrives
+ * again on every pass, including the one that reactivates a parked child onto the table it built. The table's
+ * own `setSelectionMode` empties the selection before it changes either model, and the selection is not the
+ * library's to empty: a list and a table declared alike answer a narrower mode alike.
+ */
+internal fun JTable.applySelectionMode(
+    @SelectionMode mode: Int,
+) {
+    selectionModel.selectionMode = mode
+    columnModel.selectionModel.selectionMode = mode
+}
 
 /**
  * Applies through [block] a property the table answers by dropping rows the property no longer lets it hold,
@@ -126,26 +159,28 @@ internal fun JList<*>.reportLostRows(
  * [writeNarrowing].
  */
 internal fun JTable.narrowSelection(
-    applied: AppliedValue<List<Int>?>,
-    declared: List<Int>?,
+    applied: AppliedValue<Set<Int>?>,
+    declared: Set<Int>?,
     target: ListSelectionListener,
     block: () -> Unit,
 ): Unit =
     applied.writeNarrowing(
         declaredSelection = declared,
-        selection = { selectedRows.toList() },
+        selection = { selectedModelRows() },
         report = { lost -> reportLostRows(target, lost) },
         block = block,
     )
 
 /**
- * Tells [target] that [lost] left the table's selection. Both index lists are in ascending row order, so the
- * rows that left the selection span the range the event describes as changed.
+ * Tells [target] that [lost] left the table's selection, as a selection event of the table's own - the event
+ * a table's raw listener is handed. The lowest and the highest of the rows that left the selection bound the
+ * range the event describes as changed; that range names model rows, the only space left for a row the table
+ * no longer shows.
  */
 internal fun JTable.reportLostRows(
     target: ListSelectionListener,
-    lost: List<Int>,
-) = target.valueChanged(ListSelectionEvent(selectionModel, lost.first(), lost.last(), false))
+    lost: Set<Int>,
+) = target.valueChanged(ListSelectionEvent(this, lost.min(), lost.max(), false))
 
 /**
  * Applies through [block] a property the tree answers by dropping nodes the property no longer lets it hold,
@@ -153,8 +188,8 @@ internal fun JTable.reportLostRows(
  * [writeNarrowing].
  */
 internal fun JTree.narrowSelection(
-    applied: AppliedValue<List<List<Int>>?>,
-    declared: List<List<Int>>?,
+    applied: AppliedValue<Set<List<Int>>?>,
+    declared: Set<List<Int>>?,
     target: TreeSelectionListener,
     block: () -> Unit,
 ) {
@@ -167,16 +202,27 @@ internal fun JTree.narrowSelection(
     applied.writeNarrowing(
         declaredSelection = declared,
         selection = { readSelection(this, model) },
-        report = { lost ->
-            // A tree re-fires its selection model's event as its own, with itself as the source, and that is
-            // the event a listener installed on the tree is handed. The nodes are the ones the property took
-            // out of the selection, so none of them is a node the event adds.
-            val nodes = selectedNodes.filterIndexed { position, _ -> selectedIndices[position] in lost }
-            val removed = BooleanArray(nodes.size)
-            target.valueChanged(
-                TreeSelectionEvent(this, nodes.toTypedArray(), removed, oldLead, leadSelectionPath),
-            )
-        },
+        report = { lost -> reportLostPaths(target, selectedNodes, selectedIndices, lost, oldLead) },
         block = block,
     )
+}
+
+/**
+ * Tells [target] that [lost] left the tree's selection: the nodes among [selectedNodes] whose matching
+ * entry in [selectedIndices] names one of the lost index paths, as removed from a selection event of the
+ * tree's own, with [oldLead] and the tree's current lead path.
+ *
+ * A tree re-fires its selection model's event as its own, with itself as the source, and that is the event
+ * a listener installed on the tree is handed.
+ */
+internal fun JTree.reportLostPaths(
+    target: TreeSelectionListener,
+    selectedNodes: Array<out TreePath>,
+    selectedIndices: List<List<Int>>,
+    lost: Set<List<Int>>,
+    oldLead: TreePath?,
+) {
+    val nodes = selectedNodes.filterIndexed { position, _ -> selectedIndices[position] in lost }
+    val removed = BooleanArray(nodes.size)
+    target.valueChanged(TreeSelectionEvent(this, nodes.toTypedArray(), removed, oldLead, leadSelectionPath))
 }

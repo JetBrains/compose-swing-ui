@@ -1,7 +1,6 @@
 package org.jetbrains.compose.swing.components.selection
 
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.ComboBox
@@ -97,29 +96,29 @@ class SelectionComponentsTest {
     }
 
     @Test
-    fun comboBoxRendersItemsAndSelectedIndex() = runComposeSwingTest {
+    fun comboBoxRendersItemsAndSelectedItem() = runComposeSwingTest {
         setContent {
-            ComboBox(items = listOf("Red", "Green", "Blue"), selectedIndex = 1)
+            ComboBox(items = listOf("Red", "Green", "Blue"), selectedItem = "Green")
         }
         val combo = onNodeOfType<JComboBox<*>>().fetch()
         assertEquals(3, combo.itemCount, "the combo box should hold all three items")
         assertEquals("Red", combo.getItemAt(0), "item 0 should be Red")
         assertEquals("Blue", combo.getItemAt(2), "item 2 should be Blue")
-        assertEquals(1, combo.selectedIndex, "the combo box should honor the selected index")
-        assertEquals("Green", combo.selectedItem, "the selected item should match the selected index")
+        assertEquals("Green", combo.selectedItem, "the combo box should honor the declared item")
+        assertEquals(1, combo.selectedIndex, "the declared item should be selected where it sits")
     }
 
     @Test
     fun changingComboBoxSelectionFiresOnSelectionChangeExactlyOnce() = runComposeSwingTest {
-        var selectedIndex by mutableIntStateOf(0)
-        val reported = mutableListOf<Int>()
+        var selectedItem by mutableStateOf<String?>("Red")
+        val reported = mutableListOf<String?>()
         setContent {
             ComboBox(
                 items = listOf("Red", "Green", "Blue"),
-                selectedIndex = selectedIndex,
+                selectedItem = selectedItem,
                 onSelectionChange = {
                     reported += it
-                    selectedIndex = it
+                    selectedItem = it
                 },
             )
         }
@@ -127,21 +126,21 @@ class SelectionComponentsTest {
         combo.selectedIndex = 2
         awaitIdle()
         assertEquals(
-            listOf(2),
+            listOf<String?>("Blue"),
             reported,
-            "a selection change should fire onSelectionChange exactly once with the new index",
+            "a selection change should fire onSelectionChange exactly once with the new item",
         )
-        assertEquals(2, combo.selectedIndex, "the combo box should land on the new index")
+        assertEquals("Blue", combo.selectedItem, "the combo box should land on the new item")
     }
 
     @Test
     fun comboBoxItemsRebuildDoesNotFireOnSelectionChange() = runComposeSwingTest {
         var items by mutableStateOf(listOf("Red", "Green", "Blue"))
-        val reported = mutableListOf<Int>()
+        val reported = mutableListOf<String?>()
         setContent {
             ComboBox(
                 items = items,
-                selectedIndex = 1,
+                selectedItem = "Green",
                 onSelectionChange = { reported += it },
             )
         }
@@ -156,37 +155,37 @@ class SelectionComponentsTest {
     fun comboBoxItemsRebuildPreservesDeclaredSelection() = runComposeSwingTest {
         var items by mutableStateOf(listOf("Red", "Green", "Blue"))
         setContent {
-            ComboBox(items = items, selectedIndex = 1)
+            ComboBox(items = items, selectedItem = "Green")
         }
         val combo = onNodeOfType<JComboBox<*>>().fetch()
-        assertEquals(1, combo.selectedIndex, "the declared selection should render initially")
+        assertEquals("Green", combo.selectedItem, "the declared selection should render initially")
 
         items = listOf("Red", "Green", "Blue", "Yellow")
         awaitIdle()
         assertEquals(4, combo.itemCount, "the rebuilt combo box should hold the new items")
-        assertEquals(1, combo.selectedIndex, "the declared selection should survive an items rebuild")
+        assertEquals("Green", combo.selectedItem, "the declared selection should survive an items rebuild")
     }
 
     @Test
-    fun comboBoxSelectedIndexMinusOneDeselects() = runComposeSwingTest {
-        var selectedIndex by mutableIntStateOf(1)
+    fun comboBoxSelectedItemNullDeselects() = runComposeSwingTest {
+        var selectedItem by mutableStateOf<String?>("Green")
         setContent {
-            ComboBox(items = listOf("Red", "Green", "Blue"), selectedIndex = selectedIndex)
+            ComboBox(items = listOf("Red", "Green", "Blue"), selectedItem = selectedItem)
         }
         val combo = onNodeOfType<JComboBox<*>>().fetch()
-        assertEquals(1, combo.selectedIndex, "the declared selection should render initially")
+        assertEquals("Green", combo.selectedItem, "the declared selection should render initially")
 
-        selectedIndex = -1
+        selectedItem = null
         awaitIdle()
-        assertEquals(-1, combo.selectedIndex, "selectedIndex -1 should clear the selection")
-        assertNull(combo.selectedItem, "no item should remain selected after deselection")
+        assertNull(combo.selectedItem, "a null selectedItem should clear the selection")
+        assertEquals(-1, combo.selectedIndex, "no item should remain selected after deselection")
     }
 
     @Test
     fun comboBoxRebuildsItemsOnRecomposition() = runComposeSwingTest {
         var items by mutableStateOf(listOf("A", "B"))
         setContent {
-            ComboBox(items = items, selectedIndex = 0)
+            ComboBox(items = items, selectedItem = items.first())
         }
         val combo = onNodeOfType<JComboBox<*>>().fetch()
         assertEquals(2, combo.itemCount, "the combo box should start with two items")

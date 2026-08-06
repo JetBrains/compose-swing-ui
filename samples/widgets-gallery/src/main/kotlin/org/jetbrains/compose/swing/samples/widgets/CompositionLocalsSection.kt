@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -32,16 +33,17 @@ internal fun CompositionLocalsSection() {
                     "Crimson" to Color(0xC6, 0x28, 0x28),
                     "Purple" to Color(0x6A, 0x1B, 0x9A),
                 )
-            var accentIndex by remember { mutableIntStateOf(0) }
+            var accent by remember { mutableStateOf(choices.first()) }
             FlowPanel {
                 Label("Accent:")
                 ComboBox(
-                    items = choices.map { it.first },
-                    selectedIndex = accentIndex,
-                    onSelectionChange = { accentIndex = it },
+                    items = choices,
+                    selectedItem = accent,
+                    onSelectionChange = { accent = it ?: choices.first() },
+                    itemContent = { Label(it.first) },
                 )
             }
-            CompositionLocalProvider(LocalAccent provides choices[accentIndex].second) {
+            CompositionLocalProvider(LocalAccent provides accent.second) {
                 OuterPanel()
             }
         }

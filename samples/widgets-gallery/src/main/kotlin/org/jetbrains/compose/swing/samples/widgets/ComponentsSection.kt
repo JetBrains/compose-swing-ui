@@ -127,8 +127,8 @@ private fun ChoiceCard() {
             Label("Language:")
             ComboBox(
                 items = options,
-                selectedIndex = selected,
-                onSelectionChange = { selected = it },
+                selectedItem = options.getOrNull(selected),
+                onSelectionChange = { item -> selected = options.indexOf(item) },
             ) { language ->
                 FlowPanel {
                     Label(language.glyph)
@@ -169,7 +169,7 @@ private fun RangeCard() {
 private fun ListBoxCard() {
     ExampleCard("ListBox in a ScrollPane") {
         val rows = (1..30).map { "Row $it" }
-        var selection by remember { mutableStateOf(listOf(0)) }
+        var selection by remember { mutableStateOf(setOf(0)) }
         ScrollPane(modifier = SwingModifier.preferredSize(Dimension(220, 120)).alignmentX(LEFT_ALIGNED)) {
             content {
                 // itemContent renders each row as a composable cell: a bullet glyph plus the row text,

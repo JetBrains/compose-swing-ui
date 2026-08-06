@@ -31,11 +31,11 @@ private fun JTree.libraryExpansionListeners(): List<TreeExpansionListener> =
 
 /**
  * Expansion is state: [Tree] applies the expansion the composition declares, reports the expansion the
- * user reaches, and keeps a declared expansion across a structure change - which a `JTree` otherwise
- * discards along with the model it belonged to.
+ * user reaches, and keeps a declared expansion across a structure change, which a plain `JTree` discards
+ * along with the model it belonged to.
  *
- * Expanding through `JTree.expandPath` is what the tree's UI does when the user clicks a handle, so
- * driving expansion that way exercises the same path a click takes.
+ * Tests drive expansion through `JTree.expandPath`, the same call the tree's UI makes when the user
+ * clicks a handle.
  */
 class TreeExpansionTest {
     private val sample =
@@ -47,7 +47,6 @@ class TreeExpansionTest {
             ),
         )
 
-    /** Three levels of expandable nodes: root, then `a`, then `b`, each holding the next. */
     private val deep = Entry("root", listOf(Entry("a", listOf(Entry("b", listOf(Entry("c")))))))
 
     private fun sampleModel(rootLabel: String): DefaultTreeModel {
@@ -58,7 +57,7 @@ class TreeExpansionTest {
 
     @Test
     fun expandingANodeReportsEveryExpandedNode() = runComposeSwingTest {
-        val received = mutableListOf<List<List<Int>>>()
+        val received = mutableListOf<Set<List<Int>>>()
         setContent {
             Tree(
                 root = sample,
@@ -72,18 +71,18 @@ class TreeExpansionTest {
         tree.expandPath(tree.pathTo(0))
         awaitIdle()
 
-        assertEquals(listOf(listOf(emptyList(), listOf(0))), received, "expanded nodes in document order")
+        assertEquals(listOf(setOf(emptyList(), listOf(0))), received, "every expanded node is reported")
 
         tree.collapsePath(tree.pathTo(0))
         awaitIdle()
 
-        assertEquals(listOf(emptyList()), received.last(), "a collapse reports the expansion that remains")
+        assertEquals(setOf(emptyList()), received.last(), "a collapse reports the expansion that remains")
     }
 
     @Test
     fun aDeclaredExpansionReachesTheTree() = runComposeSwingTest {
-        var expansion by mutableStateOf(listOf(emptyList<Int>(), listOf(1)))
-        val received = mutableListOf<List<List<Int>>>()
+        var expansion by mutableStateOf(setOf(emptyList<Int>(), listOf(1)))
+        val received = mutableListOf<Set<List<Int>>>()
         setContent {
             Tree(
                 root = sample,
@@ -98,9 +97,8 @@ class TreeExpansionTest {
         assertTrue(tree.isExpanded(tree.pathTo(1)), "the declared node should be expanded")
         assertFalse(tree.isExpanded(tree.pathTo(0)), "an undeclared node should be collapsed")
 
-        // Every node the declaration leaves out is collapsed again, so expansion is genuinely
-        // controlled rather than only additive.
-        expansion = listOf(emptyList(), listOf(0))
+        // Every node the declaration leaves out collapses again: expansion is controlled, not only additive.
+        expansion = setOf(emptyList(), listOf(0))
         awaitIdle()
 
         assertTrue(tree.isExpanded(tree.pathTo(0)), "the newly declared node should be expanded")
@@ -115,7 +113,7 @@ class TreeExpansionTest {
                 root = sample,
                 children = { it.children },
                 label = { it.name },
-                expandedPaths = listOf(listOf(0)),
+                expandedPaths = setOf(listOf(0)),
             )
         }
 
@@ -127,8 +125,8 @@ class TreeExpansionTest {
     @Test
     fun aDeclaredExpansionSurvivesAStructureChange() = runComposeSwingTest {
         var label by mutableStateOf("root")
-        var expansion by mutableStateOf(listOf(emptyList<Int>(), listOf(0)))
-        val received = mutableListOf<List<List<Int>>>()
+        var expansion by mutableStateOf(setOf(emptyList<Int>(), listOf(0)))
+        val received = mutableListOf<Set<List<Int>>>()
         setContent {
             Tree(
                 root = sample.copy(name = label),
@@ -149,7 +147,7 @@ class TreeExpansionTest {
         awaitIdle()
 
         assertTrue(tree.isExpanded(tree.pathTo(0)), "expansion survives a structure change")
-        assertEquals(listOf(emptyList(), listOf(0)), expansion, "the controlled expansion survives")
+        assertEquals(setOf(emptyList(), listOf(0)), expansion, "the controlled expansion survives")
         assertEquals(emptyList(), received, "a structure change reported an expansion change")
     }
 
@@ -168,8 +166,7 @@ class TreeExpansionTest {
         val tree = onNodeOfType<JTree>().fetch()
         tree.expandPath(tree.pathTo(0))
 
-        // A recomposition that declares no expansion has no opinion about it, so what the user opened
-        // stays open.
+        // A recomposition that declares no expansion has no opinion, so what the user opened stays open.
         rootVisible = false
         awaitIdle()
 
@@ -179,7 +176,7 @@ class TreeExpansionTest {
     @Test
     fun anUndeclaredExpansionSurvivesAStructureChange() = runComposeSwingTest {
         var label by mutableStateOf("root")
-        val received = mutableListOf<List<List<Int>>>()
+        val received = mutableListOf<Set<List<Int>>>()
         setContent {
             Tree(
                 root = sample.copy(name = label),
@@ -203,7 +200,7 @@ class TreeExpansionTest {
     @Test
     fun anUndeclaredExpansionSurvivesAModelSwap() = runComposeSwingTest {
         var model by mutableStateOf(sampleModel("root"))
-        val received = mutableListOf<List<List<Int>>>()
+        val received = mutableListOf<Set<List<Int>>>()
         setContent {
             Tree(model = model, onExpansionChange = { received += it })
         }
@@ -222,7 +219,7 @@ class TreeExpansionTest {
     @Test
     fun anUndeclaredCollapseSurvivesAStructureChange() = runComposeSwingTest {
         var label by mutableStateOf("root")
-        val received = mutableListOf<List<List<Int>>>()
+        val received = mutableListOf<Set<List<Int>>>()
         setContent {
             Tree(
                 root = sample.copy(name = label),
@@ -247,7 +244,7 @@ class TreeExpansionTest {
     @Test
     fun anUndeclaredCollapseSurvivesAModelSwap() = runComposeSwingTest {
         var model by mutableStateOf(sampleModel("root"))
-        val received = mutableListOf<List<List<Int>>>()
+        val received = mutableListOf<Set<List<Int>>>()
         setContent {
             Tree(model = model, onExpansionChange = { received += it })
         }
@@ -273,7 +270,7 @@ class TreeExpansionTest {
                 children = { it.children },
                 label = { it.name },
                 modifier = SwingModifier.name(label),
-                expandedPaths = listOf(emptyList()),
+                expandedPaths = setOf(emptyList()),
             )
         }
 
@@ -289,7 +286,7 @@ class TreeExpansionTest {
 
     @Test
     fun aNarrowedExpansionCollapsesTheDeepestNodesFirst() = runComposeSwingTest {
-        var expansion by mutableStateOf(listOf(emptyList(), listOf(0), listOf(0, 0)))
+        var expansion by mutableStateOf(setOf(emptyList(), listOf(0), listOf(0, 0)))
         setContent {
             Tree(root = deep, children = { it.children }, label = { it.name }, expandedPaths = expansion)
         }
@@ -297,7 +294,7 @@ class TreeExpansionTest {
         val tree = onNodeOfType<JTree>().fetch()
         assertTrue(tree.isExpanded(tree.pathTo(0, 0)), "the declared nodes should be expanded")
 
-        expansion = listOf(emptyList())
+        expansion = setOf(emptyList())
         awaitIdle()
 
         assertTrue(tree.isExpanded(tree.pathTo()), "the still-declared root stays expanded")
@@ -313,8 +310,8 @@ class TreeExpansionTest {
                 children = { it.children },
                 label = { it.name },
                 // The declared expansion leaves the subtree holding the declared selection closed.
-                expandedPaths = listOf(emptyList()),
-                selectedPaths = listOf(listOf(0, 0)),
+                expandedPaths = setOf(emptyList()),
+                selectedPaths = setOf(listOf(0, 0)),
             )
         }
 
@@ -380,7 +377,7 @@ class TreeExpansionTest {
                 children = { it.children },
                 label = { it.name },
                 treeSelectionListener = remember { TreeSelectionListener { } },
-                expandedPaths = listOf(emptyList()),
+                expandedPaths = setOf(emptyList()),
             )
         }
 

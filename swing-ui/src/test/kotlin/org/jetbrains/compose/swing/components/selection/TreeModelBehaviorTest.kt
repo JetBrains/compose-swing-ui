@@ -21,7 +21,7 @@ import kotlin.test.assertSame
  * composition pipeline and asserting against the live `JTree`.
  *
  * The central guarantees: a caller-supplied [TreeModel] backs the tree as-is; user selection fires
- * `onSelectionChange` with each selected node's index path; a controlled [selectedPaths] re-applies
+ * `onSelectionChange` with each selected node's index path; a controlled `selectedPaths` re-applies
  * after a model swap even though `setModel` clears the selection; and a controlled selection update
  * does not echo back as a spurious callback. Paths resolve through the model's own accessors, so a
  * model that does not use [DefaultMutableTreeNode] nodes still selects correctly.
@@ -53,7 +53,7 @@ class TreeModelBehaviorTest {
     @Test
     fun selectingANodeFiresOnSelectionChange() = runComposeSwingTest {
         val model = sampleModel()
-        val reported = mutableListOf<List<List<Int>>>()
+        val reported = mutableListOf<Set<List<Int>>>()
         setContent {
             Tree(
                 model = model,
@@ -68,7 +68,7 @@ class TreeModelBehaviorTest {
         awaitIdle()
 
         assertEquals(
-            listOf(listOf(listOf(0, 1))),
+            listOf(setOf(listOf(0, 1))),
             reported,
             "the selected node should be reported once, as its index path",
         )
@@ -80,7 +80,7 @@ class TreeModelBehaviorTest {
         setContent {
             Tree(
                 model = model,
-                selectedPaths = listOf(listOf(0, 1)),
+                selectedPaths = setOf(listOf(0, 1)),
             )
         }
 
@@ -91,8 +91,6 @@ class TreeModelBehaviorTest {
             "initial selection applied",
         )
 
-        // A model swap runs setModel, which clears selection; the controlled selection must re-apply
-        // so the selection survives the swap.
         model = sampleModel()
         awaitIdle()
 
@@ -145,8 +143,6 @@ class TreeModelBehaviorTest {
 
     @Test
     fun selectionResolvesForAModelWithoutDefaultMutableTreeNodeNodes() = runComposeSwingTest {
-        // root -> {fruit -> {apple, pear}, veg -> {carrot}}, built from plain Nodes: resolving and
-        // reading back index paths must go through the model's accessors, never a node-type cast.
         val pear = Node("pear")
         val model =
             NodeTreeModel(
@@ -158,29 +154,27 @@ class TreeModelBehaviorTest {
                     ),
                 ),
             )
-        val reported = mutableListOf<List<List<Int>>>()
+        val reported = mutableListOf<Set<List<Int>>>()
         setContent {
             Tree(
                 model = model,
-                selectedPaths = listOf(listOf(0, 1)),
+                selectedPaths = setOf(listOf(0, 1)),
                 onSelectionChange = { reported += it },
             )
         }
 
-        // The controlled path [0, 1] (root -> fruit -> pear) resolves to the exact Node instance.
         val tree = onNodeOfType<JTree>().fetch()
         assertSame(pear, tree.selectionPath?.lastPathComponent, "controlled path [0,1] resolves to the pear node")
 
-        // A user-driven selection of "carrot" (root -> veg -> carrot) reads back as its index path.
         tree.selectionPath = model.pathTo(1, 0)
         awaitIdle()
-        assertEquals(listOf(listOf(1, 0)), reported.last(), "the selected node reads back as its index path")
+        assertEquals(setOf(listOf(1, 0)), reported.last(), "the selected node reads back as its index path")
     }
 
     @Test
     fun reApplyingTheSameControlledSelectionDoesNotEcho() = runComposeSwingTest {
         val model = sampleModel()
-        val reported = mutableListOf<List<List<Int>>>()
+        val reported = mutableListOf<Set<List<Int>>>()
         var trigger by mutableStateOf(0)
         setContent {
             // Recompose without changing selectedPaths: the echo-guard must skip re-setting an
@@ -188,7 +182,7 @@ class TreeModelBehaviorTest {
             trigger
             Tree(
                 model = remember { model },
-                selectedPaths = listOf(listOf(0, 1)),
+                selectedPaths = setOf(listOf(0, 1)),
                 onSelectionChange = { reported += it },
             )
         }

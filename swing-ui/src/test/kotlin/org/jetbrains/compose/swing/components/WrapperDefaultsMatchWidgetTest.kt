@@ -11,6 +11,7 @@ import org.jetbrains.compose.swing.components.layout.ToolBarSeparator
 import org.jetbrains.compose.swing.components.selection.ListBox
 import org.jetbrains.compose.swing.components.selection.Table
 import org.jetbrains.compose.swing.components.selection.Tree
+import org.jetbrains.compose.swing.components.selection.column
 import org.jetbrains.compose.swing.components.text.EditorPane
 import org.jetbrains.compose.swing.components.text.FormattedTextField
 import org.jetbrains.compose.swing.components.text.PasswordField

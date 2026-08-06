@@ -13,6 +13,7 @@ import org.jetbrains.compose.swing.components.layout.TabbedPane
 import org.jetbrains.compose.swing.components.selection.ListBox
 import org.jetbrains.compose.swing.components.selection.Table
 import org.jetbrains.compose.swing.components.selection.Tree
+import org.jetbrains.compose.swing.components.selection.column
 import org.jetbrains.compose.swing.components.text.EditorPane
 import org.jetbrains.compose.swing.components.text.FormattedTextField
 import org.jetbrains.compose.swing.components.text.PasswordField
@@ -124,7 +125,7 @@ class RawComponentListenerOverloadTest {
     fun comboBoxActionListenerOverloadNotifiesInstance() = runComposeSwingTest {
         var notified = false
         val listener = ActionListener { notified = true }
-        setContent { ComboBox(items = listOf("a", "b"), actionListener = listener, selectedIndex = 0) }
+        setContent { ComboBox(items = listOf("a", "b"), actionListener = listener, selectedItem = "a") }
         onNodeOfType<JComboBox<*>>().fetch<JComboBox<*>>().selectedIndex = 1
         assertTrue(notified, "driving the widget the way the user would should reach the declared listener")
     }

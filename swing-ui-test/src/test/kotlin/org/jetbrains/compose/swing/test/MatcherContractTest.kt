@@ -197,7 +197,7 @@ class MatcherContractTest {
         setContent {
             BoxPanel {
                 TextField(value = "typed", editable = editable)
-                ComboBox(items = listOf("one", "two"), selectedIndex = -1, editable = false)
+                ComboBox(items = listOf("one", "two"), selectedItem = null, editable = false)
                 Label(text = "plain")
             }
         }

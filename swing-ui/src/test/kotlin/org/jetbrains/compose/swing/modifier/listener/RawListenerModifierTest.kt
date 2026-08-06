@@ -8,6 +8,8 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.applyModifier
+import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
@@ -19,20 +21,20 @@ import java.awt.event.MouseListener
 import java.beans.PropertyChangeListener
 import javax.swing.JButton
 import javax.swing.JComboBox
+import javax.swing.JFileChooser
 import javax.swing.JLabel
 import javax.swing.JTextField
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
+import java.awt.Button as AwtButton
+import java.awt.List as AwtList
+import java.awt.TextField as AwtTextField
 
 /**
  * Behavioral tests for the typed instance listener builders. They assert what an observer of the live
- * Swing component sees: that an existing listener **object** attached via a builder fires on the real
- * AWT event, that the SAME instance is registered and later removed (proved via the component's
- * `getXxxListeners()`), that two of a kind both install, that supplying a different instance swaps the
- * attachment, and that a component no add/remove pair serves is rejected at apply with a message naming
- * the kinds that are served - never the internal diff/record machinery.
+ * Swing component sees.
  */
 class RawListenerModifierTest {
     private fun mousePressed(component: Component): MouseEvent =
@@ -50,7 +52,6 @@ class RawListenerModifierTest {
             Button("X", modifier = SwingModifier.mouseListener(listener))
         }
         val button = onNodeOfType<JButton>().fetch()
-        // The exact instance we passed is the one registered on the component.
         assertTrue(button.mouseListeners.any { it === listener }, "the exact listener instance should be registered")
 
         button.dispatchEvent(mousePressed(button))
@@ -73,7 +74,6 @@ class RawListenerModifierTest {
 
         attached = false
         awaitIdle()
-        // AWT removes by identity: the exact instance must be gone, and it must stop firing.
         assertTrue(
             button.mouseListeners.none {
                 it === listener
@@ -101,7 +101,6 @@ class RawListenerModifierTest {
         assertTrue(button.mouseListeners.any { it === secondListener }, "the second listener should be installed")
 
         button.dispatchEvent(mousePressed(button))
-        // Additive: both instances install and both fire, neither replaces the other.
         assertEquals(1, first, "the first listener should fire once")
         assertEquals(1, second, "the second listener should fire once")
     }
@@ -127,8 +126,6 @@ class RawListenerModifierTest {
         button.dispatchEvent(mousePressed(button))
         assertEquals(1, first, "the first instance should fire while installed")
 
-        // A different instance arrives on recomposition: the old one must be removed and the new
-        // one attached (no duplicate, the old stops firing).
         useFirst = false
         awaitIdle()
         assertTrue(button.mouseListeners.none { it === firstListener }, "swapping should detach the old instance")
@@ -175,7 +172,6 @@ class RawListenerModifierTest {
         }
         val label = onNodeOfType<JLabel>().fetch()
 
-        // The unbound overload observes every bound property: each distinct change fires it once.
         label.isEnabled = false
         assertEquals(1, fired, "the first bound-property change must notify the unbound listener once")
 
@@ -193,8 +189,6 @@ class RawListenerModifierTest {
         val error =
             assertFailsWith<IllegalStateException> {
                 setContent {
-                    // A Label fires no action event, so no add/remove pair serves it and the attach must
-                    // say which kinds of component do.
                     Label("X", modifier = SwingModifier.actionListener(ActionListener { }))
                 }
                 awaitIdle()
@@ -241,11 +235,62 @@ class RawListenerModifierTest {
         setContent {
             ComboBox(
                 items = listOf("a", "b"),
-                selectedIndex = 0,
+                selectedItem = "a",
                 modifier = SwingModifier.actionListener(listener),
             )
         }
         val box = onNodeOfType<JComboBox<*>>().fetch<JComboBox<*>>()
         assertTrue(box.actionListeners.any { it === listener }, "the instance should be registered on the combo box")
+    }
+
+    @Test
+    fun actionListenerOnAFileChooserIsRegisteredOnTheChooser() = runComposeSwingTest {
+        val listener = ActionListener { }
+        setContent {
+            SwingNode(
+                factory = { JFileChooser() },
+                update = {
+                    applyModifier(SwingModifier.actionListener(listener))
+                },
+            )
+        }
+        val chooser = onNodeOfType<JFileChooser>().fetch()
+        assertTrue(
+            chooser.actionListeners.any { it === listener },
+            "the instance should be registered on the file chooser",
+        )
+    }
+
+    @Test
+    fun actionListenerOnRawAwtComponentsIsRegisteredOnEach() = runComposeSwingTest {
+        val buttonListener = ActionListener { }
+        val textFieldListener = ActionListener { }
+        val listListener = ActionListener { }
+        setContent {
+            SwingNode(
+                factory = { AwtButton() },
+                update = { applyModifier(SwingModifier.actionListener(buttonListener)) },
+            )
+            SwingNode(
+                factory = { AwtTextField() },
+                update = { applyModifier(SwingModifier.actionListener(textFieldListener)) },
+            )
+            SwingNode(
+                factory = { AwtList() },
+                update = { applyModifier(SwingModifier.actionListener(listListener)) },
+            )
+        }
+        assertTrue(
+            onNodeOfType<AwtButton>().fetch().actionListeners.any { it === buttonListener },
+            "the instance should be registered on the AWT button",
+        )
+        assertTrue(
+            onNodeOfType<AwtTextField>().fetch().actionListeners.any { it === textFieldListener },
+            "the instance should be registered on the AWT text field",
+        )
+        assertTrue(
+            onNodeOfType<AwtList>().fetch().actionListeners.any { it === listListener },
+            "the instance should be registered on the AWT list",
+        )
     }
 }

@@ -58,10 +58,9 @@ class TreeBehaviorTest {
 
         val tree = onNodeOfType<JTree>().fetch()
         val installed = !tree.showsRootHandles
-        // A look and feel installs this property through installProperty, which a JTree honours only
-        // while the property has never been set explicitly. Asking the tree to take a look-and-feel
-        // value is therefore what distinguishes "left to the look and feel" from "set to the same
-        // value", and it does so whatever the host's look and feel happens to default to.
+        // installProperty on a JTree only takes effect while the property has never been set explicitly,
+        // so asking the tree to take a look-and-feel value is what distinguishes "left to the look and
+        // feel" from "set to the same value", whatever the host's look and feel defaults to.
         LookAndFeel.installProperty(tree, "showsRootHandles", installed)
         assertEquals(
             installed,
@@ -160,6 +159,102 @@ class TreeBehaviorTest {
     }
 
     @Test
+    fun anUndeclaredRowHeightStaysOpenToTheLookAndFeel() = runComposeSwingTest {
+        setContent {
+            Tree(
+                root = sample,
+                children = { it.children },
+                label = { it.name },
+            )
+        }
+
+        val tree = onNodeOfType<JTree>().fetch()
+        // installProperty applies the same way here: only while rowHeight was never set explicitly.
+        val installed = tree.rowHeight + 7
+        LookAndFeel.installProperty(tree, "rowHeight", installed)
+        assertEquals(
+            installed,
+            tree.rowHeight,
+            "an undeclared row height should still accept the look and feel's value",
+        )
+    }
+
+    @Test
+    fun aWithdrawnRowHeightGoesBackToTheLookAndFeelsOwn() = runComposeSwingTest {
+        var declared: Int? by mutableStateOf(null)
+        setContent {
+            Tree(
+                root = sample,
+                children = { it.children },
+                label = { it.name },
+                rowHeight = declared,
+            )
+        }
+
+        val tree = onNodeOfType<JTree>().fetch()
+        // Declaring a height different from the look and feel's own is what makes the withdrawal observable.
+        val ownHeight = tree.rowHeight
+
+        declared = ownHeight + 9
+        awaitIdle()
+        assertEquals(ownHeight + 9, tree.rowHeight, "a declared row height should be applied")
+
+        declared = null
+        awaitIdle()
+        assertEquals(
+            ownHeight,
+            tree.rowHeight,
+            "withdrawing the declaration should give the look and feel's own height back",
+        )
+    }
+
+    @Test
+    fun undeclaredSizingLeavesTheTreesOwnDefaults() = runComposeSwingTest {
+        setContent {
+            Tree(
+                root = sample,
+                children = { it.children },
+                label = { it.name },
+            )
+        }
+
+        val tree = onNodeOfType<JTree>().fetch()
+        val own = JTree()
+        assertEquals(own.visibleRowCount, tree.visibleRowCount, "the visible row count should be a JTree's own")
+        assertEquals(own.toggleClickCount, tree.toggleClickCount, "the toggle click count should be a JTree's own")
+    }
+
+    @Test
+    fun theSizingParametersAreReAppliedOnRecomposition() = runComposeSwingTest {
+        var rowHeight: Int? by mutableStateOf(24)
+        var visibleRowCount by mutableStateOf(12)
+        var toggleClickCount by mutableStateOf(1)
+        setContent {
+            Tree(
+                root = sample,
+                children = { it.children },
+                label = { it.name },
+                rowHeight = rowHeight,
+                visibleRowCount = visibleRowCount,
+                toggleClickCount = toggleClickCount,
+            )
+        }
+
+        val tree = onNodeOfType<JTree>().fetch()
+        assertEquals(24, tree.rowHeight, "the declared row height should reach the tree")
+        assertEquals(12, tree.visibleRowCount, "the declared visible row count should reach the tree")
+        assertEquals(1, tree.toggleClickCount, "the declared toggle click count should reach the tree")
+
+        rowHeight = 0
+        visibleRowCount = 5
+        toggleClickCount = 3
+        awaitIdle()
+        assertEquals(0, tree.rowHeight, "a row height of zero should reach the tree, so each row sizes itself")
+        assertEquals(5, tree.visibleRowCount, "a changed visible row count should be re-applied")
+        assertEquals(3, tree.toggleClickCount, "a changed toggle click count should be re-applied")
+    }
+
+    @Test
     fun nestedDataRendersTheExpectedNodeStructure() = runComposeSwingTest {
         setContent {
             Tree(
@@ -171,7 +266,7 @@ class TreeBehaviorTest {
 
         val tree = onNodeOfType<JTree>().fetch()
         val root = tree.model.root as DefaultMutableTreeNode
-        assertEquals("root", root.userObject, "the root node should render its label")
+        assertEquals("root", tree.labelAt(emptyList()), "the root node should render its label")
         assertEquals(2, root.childCount, "the root should have two children")
         assertEquals("fruit", tree.labelAt(listOf(0)), "node [0] should be fruit")
         assertEquals("veg", tree.labelAt(listOf(1)), "node [1] should be veg")
@@ -182,7 +277,7 @@ class TreeBehaviorTest {
 
     @Test
     fun selectingANodeFiresOnSelectionChange() = runComposeSwingTest {
-        val reported = mutableListOf<List<List<Int>>>()
+        val reported = mutableListOf<Set<List<Int>>>()
         setContent {
             Tree(
                 root = sample,
@@ -199,7 +294,7 @@ class TreeBehaviorTest {
         awaitIdle()
 
         assertEquals(
-            listOf(listOf(listOf(0, 1))),
+            listOf(setOf(listOf(0, 1))),
             reported,
             "the selected node should be reported once, as its index path",
         )
@@ -212,7 +307,7 @@ class TreeBehaviorTest {
                 root = sample,
                 children = { it.children },
                 label = { it.name },
-                selectedPaths = listOf(listOf(0)),
+                selectedPaths = setOf(listOf(0)),
             )
         }
 
@@ -265,7 +360,7 @@ class TreeBehaviorTest {
                 children = { it.children },
                 label = { it.name },
                 rootVisible = rootVisible,
-                expandedPaths = listOf(emptyList()),
+                expandedPaths = setOf(emptyList()),
             )
         }
 
@@ -288,10 +383,10 @@ class TreeBehaviorTest {
     @Test
     fun theLatestCallbacksAreTheOnesThatRun() = runComposeSwingTest {
         val reported = mutableListOf<String>()
-        val firstSelection: (List<List<Int>>) -> Unit = { reported += "first selection" }
-        val secondSelection: (List<List<Int>>) -> Unit = { reported += "second selection" }
-        val firstExpansion: (List<List<Int>>) -> Unit = { reported += "first expansion" }
-        val secondExpansion: (List<List<Int>>) -> Unit = { reported += "second expansion" }
+        val firstSelection: (Set<List<Int>>) -> Unit = { reported += "first selection" }
+        val secondSelection: (Set<List<Int>>) -> Unit = { reported += "second selection" }
+        val firstExpansion: (Set<List<Int>>) -> Unit = { reported += "first expansion" }
+        val secondExpansion: (Set<List<Int>>) -> Unit = { reported += "second expansion" }
         var second by mutableStateOf(false)
         setContent {
             Tree(

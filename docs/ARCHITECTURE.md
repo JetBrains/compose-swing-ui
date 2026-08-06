@@ -199,15 +199,19 @@ is decides which one a component uses.
 
 - **An imperative handle** carries an interaction that is an event and leaves no value behind. A
   `FocusRequester` moves the keyboard when the application decides to - a validation failure, a
-  toolbar action, a shortcut - and a request that has happened leaves nothing for a later recomposition
-  to re-apply, so instead of a declared value it is a handle the caller holds, calls, and binds to a
-  component with a modifier. Where a component already hands out a state holder, its gestures ride on
-  that holder instead of on a handle of their own: a `FormattedValueState` commits an edit the user
+  toolbar action, a shortcut - and a `ClipboardHandle` copies, cuts or pastes when a menu item asks,
+  without the user pressing the shortcut. A request that has happened leaves nothing for a
+  later recomposition to re-apply, so instead of a declared value it is a handle the caller holds,
+  calls, and binds to a component with a modifier. A handle names the component it drives, so what it
+  can do is what that component can do. Where a component already hands out a state holder, its
+  gestures ride on that holder instead of on a handle of their own: a `ListState` reveals a row of its
+  list and a `TreeState` a node of its tree, and a `FormattedValueState` commits an edit the user
   typed but never entered.
 
 In short: a value the composition can name is declared, with a callback beside it; a group of values
-the component itself keeps and reports is a state holder; an action with no value is a handle. For how
-a component of your own takes a value in and reports a change out, see
+the component itself keeps and reports is a state holder; an action with no value is a handle, or a
+call on the holder that already carries the component's state. For how a component of your own takes
+a value in and reports a change out, see
 [`CUSTOM-COMPONENTS.md`](CUSTOM-COMPONENTS.md).
 
 ---

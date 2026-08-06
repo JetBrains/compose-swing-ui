@@ -7,14 +7,13 @@ import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JList
 import javax.swing.ListSelectionModel
+import javax.swing.event.ListSelectionListener
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * End-to-end tests for [ListBox] over a real [SwingApplier]. They assert observable behavior on the
- * rendered [JList]: items render into the model, a settled selection change fires `onSelectionChange`,
- * the controlled selection is re-applied after an items change (which `setListData` clears), and the
- * declared selection mode and visible row count reach the list and follow a later change.
+ * End-to-end tests for [ListBox] over a real [SwingApplier][org.jetbrains.compose.swing.node.SwingApplier].
+ * They assert observable behavior on the rendered [JList].
  */
 class ListBoxBehaviorTest {
     @Test
@@ -32,26 +31,24 @@ class ListBoxBehaviorTest {
 
     @Test
     fun settledSelectionChangeFiresOnSelectionChange() = runComposeSwingTest {
-        val events = mutableListOf<List<Int>>()
+        val events = mutableListOf<Set<Int>>()
         setContent { ListBox(items = listOf("a", "b", "c"), onSelectionChange = { events += it }) }
 
         val list = onNodeOfType<JList<*>>().fetch()
-        // setValueIsAdjusting(true) marks the run as in-progress: those interim events must NOT fire.
         list.selectionModel.valueIsAdjusting = true
         list.selectedIndex = 1
         awaitIdle()
         assertEquals(emptyList(), events, "an adjusting selection must not fire onSelectionChange")
 
-        // Settling the run delivers exactly one callback with the final selection.
         list.selectionModel.valueIsAdjusting = false
         awaitIdle()
-        assertEquals(listOf(listOf(1)), events, "settling should fire exactly one callback with the final selection")
+        assertEquals(listOf(setOf(1)), events, "settling should fire exactly one callback with the final selection")
     }
 
     @Test
     fun selectedIndicesReAppliedAfterItemsChange() = runComposeSwingTest {
         var items by mutableStateOf(listOf("a", "b", "c"))
-        var selection by mutableStateOf(listOf(1))
+        var selection by mutableStateOf(setOf(1))
         setContent {
             ListBox(
                 items = items,
@@ -72,7 +69,7 @@ class ListBoxBehaviorTest {
 
     @Test
     fun aSelectionTheCallerDoesNotAdoptDoesNotStand() = runComposeSwingTest {
-        setContent { ListBox(items = listOf("a", "b", "c"), selectedIndices = listOf(0)) }
+        setContent { ListBox(items = listOf("a", "b", "c"), selectedIndices = setOf(0)) }
 
         val list = onNodeOfType<JList<*>>().fetch()
         list.selectedIndex = 1
@@ -114,8 +111,8 @@ class ListBoxBehaviorTest {
     @Test
     fun theLatestSelectionCallbackIsTheOneThatRuns() = runComposeSwingTest {
         val reported = mutableListOf<String>()
-        val first: (List<Int>) -> Unit = { reported += "first" }
-        val second: (List<Int>) -> Unit = { reported += "second" }
+        val first: (Set<Int>) -> Unit = { reported += "first" }
+        val second: (Set<Int>) -> Unit = { reported += "second" }
         var useSecond by mutableStateOf(false)
         setContent {
             ListBox(items = listOf("a", "b", "c"), onSelectionChange = if (useSecond) second else first)
@@ -128,5 +125,23 @@ class ListBoxBehaviorTest {
         awaitIdle()
 
         assertEquals(listOf("second"), reported, "a callback the recomposition replaced is not the one that runs")
+    }
+
+    @Test
+    fun aRawListenerReadsTheAnchorAndLeadOfTheSelectionOffTheEvent() = runComposeSwingTest {
+        val positions = mutableListOf<Pair<Int, Int>>()
+        val listener =
+            ListSelectionListener { event ->
+                val list = event.source as JList<*>
+                if (!event.valueIsAdjusting) positions += list.anchorSelectionIndex to list.leadSelectionIndex
+            }
+        setContent { ListBox(items = listOf("a", "b", "c"), listSelectionListener = listener) }
+
+        // A range is anchored where it began and led by where it reached, and a list's selection event is
+        // sourced at the list itself - so both positions are read back off it along with the selection.
+        onNodeOfType<JList<*>>().fetch().selectionModel.setSelectionInterval(2, 0)
+        awaitIdle()
+
+        assertEquals(listOf(2 to 0), positions, "the anchor and lead of the range should reach the listener")
     }
 }

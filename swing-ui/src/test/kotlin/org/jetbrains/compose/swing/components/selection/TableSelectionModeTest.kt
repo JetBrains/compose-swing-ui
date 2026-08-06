@@ -54,7 +54,7 @@ class TableSelectionModeTest {
     @Test
     fun aWiderSelectionModeKeepsTheSelectionTheUserMade() = runComposeSwingTest {
         var mode by mutableStateOf(ListSelectionModel.SINGLE_SELECTION)
-        val received = mutableListOf<List<Int>>()
+        val received = mutableListOf<Set<Int>>()
         setContent {
             Table(rows = people, onSelectionChange = { received += it }, selectionMode = mode) {
                 column("Name") { it.name }
@@ -75,7 +75,7 @@ class TableSelectionModeTest {
     @Test
     fun aWiderSelectionModeKeepsTheSelectionTheUserMadeOnAModelDrivenTable() = runComposeSwingTest {
         var mode by mutableStateOf(ListSelectionModel.SINGLE_SELECTION)
-        val received = mutableListOf<List<Int>>()
+        val received = mutableListOf<Set<Int>>()
         val model = tableModel()
         setContent {
             Table(model = model, onSelectionChange = { received += it }, selectionMode = mode)
@@ -95,11 +95,11 @@ class TableSelectionModeTest {
     @Test
     fun aWiderSelectionModeKeepsADeclaredSelection() = runComposeSwingTest {
         var mode by mutableStateOf(ListSelectionModel.SINGLE_SELECTION)
-        val received = mutableListOf<List<Int>>()
+        val received = mutableListOf<Set<Int>>()
         setContent {
             Table(
                 rows = people,
-                selectedRowIndices = listOf(1),
+                selectedRowIndices = setOf(1),
                 onSelectionChange = { received += it },
                 selectionMode = mode,
             ) {
@@ -121,8 +121,8 @@ class TableSelectionModeTest {
     @Test
     fun aTableAndAListNarrowTheUsersSelectionAlike() = runComposeSwingTest {
         var mode by mutableStateOf(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION)
-        val fromTable = mutableListOf<List<Int>>()
-        val fromList = mutableListOf<List<Int>>()
+        val fromTable = mutableListOf<Set<Int>>()
+        val fromList = mutableListOf<Set<Int>>()
         setContent {
             Table(rows = people, onSelectionChange = { fromTable += it }, selectionMode = mode) {
                 column("Name") { it.name }

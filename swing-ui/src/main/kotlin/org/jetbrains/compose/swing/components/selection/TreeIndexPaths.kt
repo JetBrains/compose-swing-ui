@@ -19,8 +19,8 @@ import javax.swing.tree.TreePath
  * asked to collapse; applied first, it would not outlast the expansion that follows.
  */
 internal fun JTree.applyDeclarations(
-    declaredSelection: List<List<Int>>?,
-    declaredExpansion: List<List<Int>>?,
+    declaredSelection: Set<List<Int>>?,
+    declaredExpansion: Set<List<Int>>?,
 ) {
     applyExpansion(this, model, declaredExpansion)
     applySelection(this, model, declaredSelection)
@@ -58,13 +58,27 @@ internal fun pathToIndices(
 }
 
 /**
- * Reads the tree's current selection back as index paths (each the chain of child indices from the
- * root to a selected node), in the order the selection model reports them.
+ * Reads the tree's current selection back as index paths, each the chain of child indices from the root to
+ * a selected node.
  */
 internal fun readSelection(
     tree: JTree,
     model: TreeModel,
-): List<List<Int>> = tree.selectionPaths?.map { pathToIndices(model, it) }.orEmpty()
+): Set<List<Int>> = tree.selectionPaths?.mapTo(mutableSetOf()) { pathToIndices(model, it) }.orEmpty()
+
+/**
+ * Index paths in document order: a node before its descendants, siblings by child position. Applying a
+ * selection or an expansion in it is what leaves a tree the same - the same lead node, and the same order
+ * of the expansions a will-expand listener is announced - for every set that names the same nodes.
+ */
+private val documentOrder =
+    Comparator<List<Int>> { left, right ->
+        for (depth in 0 until minOf(left.size, right.size)) {
+            val step = left[depth].compareTo(right[depth])
+            if (step != 0) return@Comparator step
+        }
+        left.size.compareTo(right.size)
+    }
 
 /**
  * Re-applies [selectedPaths] as the tree's selection. Paths that no longer resolve against the current
@@ -73,11 +87,11 @@ internal fun readSelection(
 internal fun applySelection(
     tree: JTree,
     model: TreeModel,
-    selectedPaths: List<List<Int>>?,
+    selectedPaths: Set<List<Int>>?,
 ) {
     if (selectedPaths == null) return
-    val resolved = selectedPaths.mapNotNull { resolvePath(model, it) }
-    if (readSelection(tree, model) == resolved.map { pathToIndices(model, it) }) return
+    val resolved = selectedPaths.sortedWith(documentOrder).mapNotNull { resolvePath(model, it) }
+    if (readSelection(tree, model) == resolved.mapTo(mutableSetOf()) { pathToIndices(model, it) }) return
     if (resolved.isEmpty()) {
         tree.clearSelection()
     } else {
@@ -86,18 +100,17 @@ internal fun applySelection(
 }
 
 /**
- * Reads every expanded node of the tree back as index paths, walking the structure from the root so
- * they come out in document order: a node before its children, siblings in child order. A node under a
- * collapsed one is not expanded, and so is not reported.
+ * Reads every expanded node of the tree back as index paths, walking the structure from the root. A node
+ * under a collapsed one is not expanded, and so is not reported.
  */
 internal fun readExpansion(
     tree: JTree,
     model: TreeModel,
-): List<List<Int>> {
-    val root = model.root ?: return emptyList()
+): Set<List<Int>> {
+    val root = model.root ?: return emptySet()
     val expanded = ArrayList<List<Int>>()
     collectExpanded(tree, model, TreePath(root), emptyList(), expanded)
-    return expanded
+    return expanded.toSet()
 }
 
 /** Appends the node at [path] and each of its expanded descendants to [into], in document order. */
@@ -125,7 +138,7 @@ private fun collectExpanded(
 internal fun applyExpansion(
     tree: JTree,
     model: TreeModel,
-    expandedPaths: List<List<Int>>?,
+    expandedPaths: Set<List<Int>>?,
 ) {
     if (expandedPaths == null) return
     val declared = expandPaths(tree, model, expandedPaths)
@@ -139,14 +152,14 @@ internal fun applyExpansion(
 
 /**
  * Expands every node [indexPaths] names that the current structure still resolves, and returns the paths
- * it resolved.
+ * it resolved. The nodes are opened in document order, so an ancestor opens before its descendants.
  */
 private fun expandPaths(
     tree: JTree,
     model: TreeModel,
-    indexPaths: List<List<Int>>,
+    indexPaths: Set<List<Int>>,
 ): List<TreePath> {
-    val resolved = indexPaths.mapNotNull { resolvePath(model, it) }
+    val resolved = indexPaths.sortedWith(documentOrder).mapNotNull { resolvePath(model, it) }
     for (path in resolved) tree.expandPath(path)
     return resolved
 }

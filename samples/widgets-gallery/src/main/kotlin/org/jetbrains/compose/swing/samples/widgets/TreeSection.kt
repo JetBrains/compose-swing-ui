@@ -43,7 +43,7 @@ internal fun TreeSection() {
     SectionColumn {
         SectionHeading("Tree")
         ExampleCard("Tree from nested data with selection bound to state") {
-            var selection by remember { mutableStateOf<List<List<Int>>>(emptyList()) }
+            var selection by remember { mutableStateOf<Set<List<Int>>>(emptySet()) }
 
             ScrollPane(modifier = SwingModifier.preferredSize(Dimension(360, 220))) {
                 content {
@@ -61,7 +61,7 @@ internal fun TreeSection() {
     }
 }
 
-private fun describeSelection(selection: List<List<Int>>): String {
+private fun describeSelection(selection: Set<List<Int>>): String {
     val path = selection.firstOrNull() ?: return "(none)"
     val names = ArrayList<String>(path.size + 1)
     var node = sampleTree

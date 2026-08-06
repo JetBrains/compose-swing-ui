@@ -13,10 +13,11 @@ import kotlin.test.assertEquals
 import kotlin.test.assertSame
 
 /**
- * End-to-end tests for the model-driven [ListBox] overload over a real [SwingApplier]. They assert
- * observable behavior on the rendered [JList]: the caller's [javax.swing.ListModel] is installed
- * as-is, a settled selection change fires `onSelectionChange`, the controlled selection survives a
- * model swap (which `setModel` clears), a programmatic selection set does not echo back, and the declared
+ * End-to-end tests for the model-driven [ListBox] overload over a real
+ * [SwingApplier][org.jetbrains.compose.swing.node.SwingApplier]. They assert observable behavior on
+ * the rendered [JList]: the caller's [javax.swing.ListModel] is installed as-is, a settled
+ * selection change fires `onSelectionChange`, the controlled selection survives a model swap
+ * (which `setModel` clears), a programmatic selection set does not echo back, and the declared
  * selection mode and visible row count reach the list and follow a later change.
  */
 class ListBoxModelBehaviorTest {
@@ -33,7 +34,7 @@ class ListBoxModelBehaviorTest {
     @Test
     fun settledSelectionChangeFiresOnSelectionChange() = runComposeSwingTest {
         val model = DefaultListModel<String>().apply { addAll(listOf("a", "b", "c")) }
-        val events = mutableListOf<List<Int>>()
+        val events = mutableListOf<Set<Int>>()
         setContent { ListBox(model = model, onSelectionChange = { events += it }) }
 
         val list = onNodeOfType<JList<*>>().fetch()
@@ -46,7 +47,7 @@ class ListBoxModelBehaviorTest {
         // Settling the run delivers exactly one callback with the final selection.
         list.selectionModel.valueIsAdjusting = false
         awaitIdle()
-        assertEquals(listOf(listOf(1)), events, "settling should fire exactly one callback with the final selection")
+        assertEquals(listOf(setOf(1)), events, "settling should fire exactly one callback with the final selection")
     }
 
     @Test
@@ -54,7 +55,7 @@ class ListBoxModelBehaviorTest {
         val first = DefaultListModel<String>().apply { addAll(listOf("a", "b", "c")) }
         val second = DefaultListModel<String>().apply { addAll(listOf("a", "b", "c", "d")) }
         var model by mutableStateOf(first)
-        var selection by mutableStateOf(listOf(1))
+        var selection by mutableStateOf(setOf(1))
         setContent {
             ListBox(
                 model = model,
@@ -77,7 +78,7 @@ class ListBoxModelBehaviorTest {
     @Test
     fun reApplyingTheSameControlledSelectionDoesNotEcho() = runComposeSwingTest {
         val model = DefaultListModel<String>().apply { addAll(listOf("a", "b", "c")) }
-        val reported = mutableListOf<List<Int>>()
+        val reported = mutableListOf<Set<Int>>()
         var trigger by mutableStateOf(0)
         setContent {
             // Recompose without changing selectedIndices: the echo-guard must skip re-setting an
@@ -85,7 +86,7 @@ class ListBoxModelBehaviorTest {
             trigger
             ListBox(
                 model = model,
-                selectedIndices = listOf(1),
+                selectedIndices = setOf(1),
                 onSelectionChange = { reported += it },
             )
         }

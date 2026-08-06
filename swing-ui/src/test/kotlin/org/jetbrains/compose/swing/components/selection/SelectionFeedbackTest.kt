@@ -21,14 +21,14 @@ import kotlin.test.assertTrue
 
 /**
  * The selection callbacks of [Table], [ListBox] and [Tree] report user interaction only. Re-rendering
- * declared data - new rows, new items, a new structure, a new model instance - is the library writing
- * to its own widget, so the selection the caller declared survives it and no selection callback fires.
- * Data too small to hold that declaration is no exception: the widget takes as much of it as the data
- * allows, and the declaration itself still stands, there being nothing reported for the caller to adopt.
+ * declared data - new rows, new items, a new structure, a new model instance - is the library writing to
+ * its own widget, so the selection the caller declared survives it and no callback fires. Data too small
+ * to hold that declaration is no exception: the widget takes as much of it as the data allows, and the
+ * declaration still stands, since nothing is reported for the caller to adopt.
  *
- * Each test drives the wrapper through the real applier and mirrors the callback back into the
- * controlled state, exactly as a caller would: a callback that reported a change the user never made
- * would therefore corrupt that state, which is what these tests observe.
+ * Each test drives the wrapper through the real applier and mirrors the callback back into the controlled
+ * state, as a caller would. A callback that reports a change the user never made would corrupt that state,
+ * which is what these tests catch.
  */
 class SelectionFeedbackTest {
     private val leaves = listOf("apple", "pear")
@@ -54,8 +54,8 @@ class SelectionFeedbackTest {
     @Test
     fun aRowsOnlyRefreshKeepsTheTableSelection() = runComposeSwingTest {
         val rows = mutableStateListOf(Person("Ada", 36), Person("Alan", 41), Person("Grace", 50))
-        var selection by mutableStateOf(listOf(1))
-        val received = mutableListOf<List<Int>>()
+        var selection by mutableStateOf(setOf(1))
+        val received = mutableListOf<Set<Int>>()
         setContent {
             Table(
                 rows = rows.toList(),
@@ -78,15 +78,15 @@ class SelectionFeedbackTest {
         awaitIdle()
 
         assertEquals(listOf(1), table.selectedRows.toList(), "selection survives a rows-only refresh")
-        assertEquals(listOf(1), selection, "controlled selection survives a rows-only refresh")
+        assertEquals(setOf(1), selection, "controlled selection survives a rows-only refresh")
         assertEquals(emptyList(), received, "a rows-only refresh reported a selection change")
     }
 
     @Test
     fun aColumnStructureChangeKeepsTheTableSelection() = runComposeSwingTest {
         var withAge by mutableStateOf(false)
-        var selection by mutableStateOf(listOf(2))
-        val received = mutableListOf<List<Int>>()
+        var selection by mutableStateOf(setOf(2))
+        val received = mutableListOf<Set<Int>>()
         setContent {
             Table(
                 rows = listOf(Person("Ada", 36), Person("Alan", 41), Person("Grace", 50)),
@@ -115,8 +115,8 @@ class SelectionFeedbackTest {
 
     @Test
     fun aProgrammaticTableSelectionReportsNothing() = runComposeSwingTest {
-        var selection by mutableStateOf(listOf(0))
-        val received = mutableListOf<List<Int>>()
+        var selection by mutableStateOf(setOf(0))
+        val received = mutableListOf<Set<Int>>()
         setContent {
             Table(
                 rows = listOf(Person("Ada", 36), Person("Alan", 41), Person("Grace", 50)),
@@ -130,7 +130,7 @@ class SelectionFeedbackTest {
         val table = onNodeOfType<JTable>().fetch()
         received.clear()
 
-        selection = listOf(2)
+        selection = setOf(2)
         awaitIdle()
 
         assertEquals(listOf(2), table.selectedRows.toList(), "declared selection applied")
@@ -140,8 +140,8 @@ class SelectionFeedbackTest {
     @Test
     fun anItemsChangeKeepsTheListSelection() = runComposeSwingTest {
         val items = mutableStateListOf("red", "green", "blue")
-        var selection by mutableStateOf(listOf(1))
-        val received = mutableListOf<List<Int>>()
+        var selection by mutableStateOf(setOf(1))
+        val received = mutableListOf<Set<Int>>()
         setContent {
             ListBox(
                 items = items.toList(),
@@ -162,14 +162,14 @@ class SelectionFeedbackTest {
 
         assertEquals(4, list.model.size, "the added item reached the list")
         assertEquals(listOf(1), list.selectedIndices.toList(), "selection survives an items change")
-        assertEquals(listOf(1), selection, "controlled selection survives an items change")
+        assertEquals(setOf(1), selection, "controlled selection survives an items change")
         assertEquals(emptyList(), received, "an items change reported a selection change")
     }
 
     @Test
     fun aProgrammaticListSelectionReportsNothing() = runComposeSwingTest {
-        var selection by mutableStateOf(listOf(1))
-        val received = mutableListOf<List<Int>>()
+        var selection by mutableStateOf(setOf(1))
+        val received = mutableListOf<Set<Int>>()
         setContent {
             ListBox(
                 items = listOf("red", "green", "blue"),
@@ -181,7 +181,7 @@ class SelectionFeedbackTest {
         val list = onNodeOfType<JList<*>>().fetch()
         received.clear()
 
-        selection = listOf(2)
+        selection = setOf(2)
         awaitIdle()
 
         assertEquals(listOf(2), list.selectedIndices.toList(), "declared selection applied")
@@ -191,8 +191,8 @@ class SelectionFeedbackTest {
     @Test
     fun aModelSwapKeepsTheListSelection() = runComposeSwingTest {
         var model by mutableStateOf(listModel("red", "green"))
-        var selection by mutableStateOf(listOf(1))
-        val received = mutableListOf<List<Int>>()
+        var selection by mutableStateOf(setOf(1))
+        val received = mutableListOf<Set<Int>>()
         setContent {
             ListBox(
                 model = model,
@@ -218,8 +218,8 @@ class SelectionFeedbackTest {
     @Test
     fun aStructureChangeKeepsTheTreeSelection() = runComposeSwingTest {
         var rootLabel by mutableStateOf("root")
-        var selection by mutableStateOf(listOf(listOf(0)))
-        val received = mutableListOf<List<List<Int>>>()
+        var selection by mutableStateOf(setOf(listOf(0)))
+        val received = mutableListOf<Set<List<Int>>>()
         setContent {
             Tree(
                 root = rootLabel,
@@ -240,15 +240,15 @@ class SelectionFeedbackTest {
         awaitIdle()
 
         assertEquals(listOf("apple"), tree.selectedLabels(), "selection survives a structure change")
-        assertEquals(listOf(listOf(0)), selection, "controlled selection survives a structure change")
+        assertEquals(setOf(listOf(0)), selection, "controlled selection survives a structure change")
         assertEquals(emptyList(), received, "a structure change reported a selection change")
     }
 
     @Test
     fun aTreeModelSwapKeepsTheSelection() = runComposeSwingTest {
         var model by mutableStateOf(treeModel("root"))
-        var selection by mutableStateOf(listOf(listOf(1)))
-        val received = mutableListOf<List<List<Int>>>()
+        var selection by mutableStateOf(setOf(listOf(1)))
+        val received = mutableListOf<Set<List<Int>>>()
         setContent {
             Tree(
                 model = model,
@@ -268,14 +268,14 @@ class SelectionFeedbackTest {
         awaitIdle()
 
         assertEquals(listOf("pear"), tree.selectedLabels(), "selection survives a model swap")
-        assertEquals(listOf(listOf(1)), selection, "controlled selection survives a model swap")
+        assertEquals(setOf(listOf(1)), selection, "controlled selection survives a model swap")
         assertEquals(emptyList(), received, "a model swap reported a selection change")
     }
 
     @Test
     fun itemsTooFewForTheListSelectionReportTheNarrowing() = runComposeSwingTest {
         var items by mutableStateOf(listOf("red", "green", "blue", "violet"))
-        val received = mutableListOf<List<Int>>()
+        val received = mutableListOf<Set<Int>>()
         setContent {
             ListBox(items = items, onSelectionChange = { received += it })
         }
@@ -288,13 +288,13 @@ class SelectionFeedbackTest {
         awaitIdle()
 
         assertEquals(listOf(1), list.selectedIndices.toList(), "the rows the new items still hold stay selected")
-        assertEquals(listOf(listOf(1)), received, "the rows the user loses are reported once, as the new selection")
+        assertEquals(listOf(setOf(1)), received, "the rows the user loses are reported once, as the new selection")
     }
 
     @Test
     fun itemsThatHoldNoneOfTheListSelectionReportTheLoss() = runComposeSwingTest {
         var items by mutableStateOf(listOf("red", "green", "blue"))
-        val received = mutableListOf<List<Int>>()
+        val received = mutableListOf<Set<Int>>()
         setContent {
             ListBox(items = items, onSelectionChange = { received += it })
         }
@@ -307,13 +307,13 @@ class SelectionFeedbackTest {
         awaitIdle()
 
         assertEquals(emptyList(), list.selectedIndices.toList(), "no row of the old selection is left to select")
-        assertEquals(listOf(emptyList()), received, "losing the whole selection is reported once")
+        assertEquals(listOf(emptySet()), received, "losing the whole selection is reported once")
     }
 
     @Test
     fun aModelTooShortForTheListSelectionReportsTheNarrowing() = runComposeSwingTest {
         var model by mutableStateOf(listModel("red", "green", "blue"))
-        val received = mutableListOf<List<Int>>()
+        val received = mutableListOf<Set<Int>>()
         setContent {
             ListBox(model = model, onSelectionChange = { received += it })
         }
@@ -326,14 +326,14 @@ class SelectionFeedbackTest {
         awaitIdle()
 
         assertEquals(listOf(1), list.selectedIndices.toList(), "the row the new model still holds stays selected")
-        assertEquals(listOf(listOf(1)), received, "the rows the user loses are reported once, as the new selection")
+        assertEquals(listOf(setOf(1)), received, "the rows the user loses are reported once, as the new selection")
     }
 
     @Test
     fun anItemsChangeThatDropsADeclaredListRowReportsNothing() = runComposeSwingTest {
         var items by mutableStateOf(listOf("red", "green", "blue"))
-        var selection by mutableStateOf(listOf(2))
-        val received = mutableListOf<List<Int>>()
+        var selection by mutableStateOf(setOf(2))
+        val received = mutableListOf<Set<Int>>()
         setContent {
             ListBox(
                 items = items,
@@ -353,15 +353,15 @@ class SelectionFeedbackTest {
         awaitIdle()
 
         assertEquals(emptyList(), list.selectedIndices.toList(), "the new items hold none of the declared selection")
-        assertEquals(listOf(2), selection, "the caller's state is left as it declared it")
+        assertEquals(setOf(2), selection, "the caller's state is left as it declared it")
         assertEquals(emptyList(), received, "an items change reported the wrapper's own write")
     }
 
     @Test
     fun aListModelSwapThatDropsADeclaredRowReportsNothing() = runComposeSwingTest {
         var model by mutableStateOf(listModel("red", "green", "blue"))
-        var selection by mutableStateOf(listOf(2))
-        val received = mutableListOf<List<Int>>()
+        var selection by mutableStateOf(setOf(2))
+        val received = mutableListOf<Set<Int>>()
         setContent {
             ListBox(
                 model = model,
@@ -381,14 +381,14 @@ class SelectionFeedbackTest {
         awaitIdle()
 
         assertEquals(emptyList(), list.selectedIndices.toList(), "the new model holds none of the declared selection")
-        assertEquals(listOf(2), selection, "the caller's state is left as it declared it")
+        assertEquals(setOf(2), selection, "the caller's state is left as it declared it")
         assertEquals(emptyList(), received, "a model swap reported the wrapper's own write")
     }
 
     @Test
     fun rowsTooFewForTheTableSelectionReportTheNarrowing() = runComposeSwingTest {
         var rows by mutableStateOf(listOf(Person("Ada", 36), Person("Alan", 41), Person("Grace", 50)))
-        val received = mutableListOf<List<Int>>()
+        val received = mutableListOf<Set<Int>>()
         setContent {
             Table(rows = rows, onSelectionChange = { received += it }) {
                 column("Name") { it.name }
@@ -403,13 +403,13 @@ class SelectionFeedbackTest {
         awaitIdle()
 
         assertEquals(listOf(0, 1), table.selectedRows.toList(), "the rows the new data still holds stay selected")
-        assertEquals(listOf(listOf(0, 1)), received, "the rows the user loses are reported once, as the new selection")
+        assertEquals(listOf(setOf(0, 1)), received, "the rows the user loses are reported once, as the new selection")
     }
 
     @Test
     fun rowsThatHoldNoneOfTheTableSelectionReportTheLoss() = runComposeSwingTest {
         var rows by mutableStateOf(listOf(Person("Ada", 36), Person("Alan", 41), Person("Grace", 50)))
-        val received = mutableListOf<List<Int>>()
+        val received = mutableListOf<Set<Int>>()
         setContent {
             Table(rows = rows, onSelectionChange = { received += it }) {
                 column("Name") { it.name }
@@ -424,14 +424,14 @@ class SelectionFeedbackTest {
         awaitIdle()
 
         assertEquals(emptyList(), table.selectedRows.toList(), "no row of the old selection is left to select")
-        assertEquals(listOf(emptyList()), received, "losing the whole selection is reported once")
+        assertEquals(listOf(emptySet()), received, "losing the whole selection is reported once")
     }
 
     @Test
     fun aRowsChangeThatDropsADeclaredTableRowReportsNothing() = runComposeSwingTest {
         var rows by mutableStateOf(listOf(Person("Ada", 36), Person("Alan", 41), Person("Grace", 50)))
-        var selection by mutableStateOf(listOf(2))
-        val received = mutableListOf<List<Int>>()
+        var selection by mutableStateOf(setOf(2))
+        val received = mutableListOf<Set<Int>>()
         setContent {
             Table(
                 rows = rows,
@@ -453,15 +453,15 @@ class SelectionFeedbackTest {
         awaitIdle()
 
         assertEquals(emptyList(), table.selectedRows.toList(), "the new rows hold none of the declared selection")
-        assertEquals(listOf(2), selection, "the caller's state is left as it declared it")
+        assertEquals(setOf(2), selection, "the caller's state is left as it declared it")
         assertEquals(emptyList(), received, "a rows change reported the wrapper's own write")
     }
 
     @Test
     fun aTableModelSwapThatDropsADeclaredRowReportsNothing() = runComposeSwingTest {
         var model by mutableStateOf(tableModel("Ada", "Alan", "Grace"))
-        var selection by mutableStateOf(listOf(2))
-        val received = mutableListOf<List<Int>>()
+        var selection by mutableStateOf(setOf(2))
+        val received = mutableListOf<Set<Int>>()
         setContent {
             Table(
                 model = model,
@@ -481,19 +481,19 @@ class SelectionFeedbackTest {
         awaitIdle()
 
         assertEquals(emptyList(), table.selectedRows.toList(), "the new model holds none of the declared selection")
-        assertEquals(listOf(2), selection, "the caller's state is left as it declared it")
+        assertEquals(setOf(2), selection, "the caller's state is left as it declared it")
         assertEquals(emptyList(), received, "a model swap reported the wrapper's own write")
     }
 
     @Test
     fun aStructureThatDropsASelectedTreeNodeReportsTheNarrowing() = runComposeSwingTest {
         var leafCount by mutableStateOf(2)
-        val received = mutableListOf<List<List<Int>>>()
-        val expansions = mutableListOf<List<List<Int>>>()
+        val received = mutableListOf<Set<List<Int>>>()
+        val expansions = mutableListOf<Set<List<Int>>>()
         setContent {
             Tree(
-                // The root value itself carries the leaf count, so a change to it is a change to the
-                // declared data rather than to a lambda the composition memoizes.
+                // The root value carries the leaf count, so changing it changes declared data, not a
+                // memoized lambda.
                 root = "root of $leafCount",
                 children = { if (it.startsWith("root")) leaves.take(leafCount) else emptyList() },
                 onSelectionChange = { received += it },
@@ -510,18 +510,18 @@ class SelectionFeedbackTest {
         awaitIdle()
 
         assertEquals(listOf("apple"), tree.selectedLabels(), "the node the new structure still holds stays selected")
-        assertEquals(listOf(listOf(listOf(0))), received, "the node the user loses is reported once")
+        assertEquals(listOf(setOf(listOf(0))), received, "the node the user loses is reported once")
         assertEquals(emptyList(), expansions, "a structure change reported an expansion change")
     }
 
     @Test
     fun aStructureThatDropsEverySelectedTreeNodeReportsTheLoss() = runComposeSwingTest {
         var leafCount by mutableStateOf(2)
-        val received = mutableListOf<List<List<Int>>>()
+        val received = mutableListOf<Set<List<Int>>>()
         setContent {
             Tree(
-                // The root value itself carries the leaf count, so a change to it is a change to the
-                // declared data rather than to a lambda the composition memoizes.
+                // The root value carries the leaf count, so changing it changes declared data, not a
+                // memoized lambda.
                 root = "root of $leafCount",
                 children = { if (it.startsWith("root")) leaves.take(leafCount) else emptyList() },
                 onSelectionChange = { received += it },
@@ -536,18 +536,18 @@ class SelectionFeedbackTest {
         awaitIdle()
 
         assertEquals(emptyList(), tree.selectedLabels(), "no node of the old selection is left to select")
-        assertEquals(listOf(emptyList()), received, "losing the whole selection is reported once")
+        assertEquals(listOf(emptySet()), received, "losing the whole selection is reported once")
     }
 
     @Test
     fun aStructureThatDropsADeclaredTreeNodeReportsNothing() = runComposeSwingTest {
         var leafCount by mutableStateOf(2)
-        var selection by mutableStateOf(listOf(listOf(1)))
-        val received = mutableListOf<List<List<Int>>>()
+        var selection by mutableStateOf(setOf(listOf(1)))
+        val received = mutableListOf<Set<List<Int>>>()
         setContent {
             Tree(
-                // The root value itself carries the leaf count, so a change to it is a change to the
-                // declared data rather than to a lambda the composition memoizes.
+                // The root value carries the leaf count, so changing it changes declared data, not a
+                // memoized lambda.
                 root = "root of $leafCount",
                 children = { if (it.startsWith("root")) leaves.take(leafCount) else emptyList() },
                 selectedPaths = selection,
@@ -566,15 +566,15 @@ class SelectionFeedbackTest {
         awaitIdle()
 
         assertEquals(emptyList(), tree.selectedLabels(), "the new structure holds none of the declared selection")
-        assertEquals(listOf(listOf(1)), selection, "the caller's state is left as it declared it")
+        assertEquals(setOf(listOf(1)), selection, "the caller's state is left as it declared it")
         assertEquals(emptyList(), received, "a structure change reported the wrapper's own write")
     }
 
     @Test
     fun aTreeModelSwapThatDropsADeclaredNodeReportsNothing() = runComposeSwingTest {
         var model by mutableStateOf(treeModel("root"))
-        var selection by mutableStateOf(listOf(listOf(1)))
-        val received = mutableListOf<List<List<Int>>>()
+        var selection by mutableStateOf(setOf(listOf(1)))
+        val received = mutableListOf<Set<List<Int>>>()
         setContent {
             Tree(
                 model = model,
@@ -594,14 +594,14 @@ class SelectionFeedbackTest {
         awaitIdle()
 
         assertEquals(emptyList(), tree.selectedLabels(), "the new model holds none of the declared selection")
-        assertEquals(listOf(listOf(1)), selection, "the caller's state is left as it declared it")
+        assertEquals(setOf(listOf(1)), selection, "the caller's state is left as it declared it")
         assertEquals(emptyList(), received, "a model swap reported the wrapper's own write")
     }
 
     @Test
     fun aProgrammaticTreeSelectionReportsNothing() = runComposeSwingTest {
-        var selection by mutableStateOf(listOf(listOf(0)))
-        val received = mutableListOf<List<List<Int>>>()
+        var selection by mutableStateOf(setOf(listOf(0)))
+        val received = mutableListOf<Set<List<Int>>>()
         val model = treeModel("root")
         setContent {
             Tree(
@@ -615,7 +615,7 @@ class SelectionFeedbackTest {
         assertEquals(listOf("apple"), tree.selectedLabels(), "declared selection applied")
         received.clear()
 
-        selection = listOf(listOf(1))
+        selection = setOf(listOf(1))
         awaitIdle()
 
         assertEquals(listOf("pear"), tree.selectedLabels(), "the new declared selection applied")

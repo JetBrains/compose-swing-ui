@@ -4,25 +4,31 @@ import androidx.compose.runtime.ReusableContentHost
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.DefaultListModel
+import javax.swing.JLabel
 import javax.swing.JList
 import javax.swing.ListSelectionModel
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /**
- * A list node is recyclable: a parked [ReusableContentHost] child is reactivated onto the `JList` the node
- * already holds, and the node's factory does not run a second time.
+ * A list node is recyclable: a parked [ReusableContentHost] child reactivates onto the `JList` the node
+ * already holds, and the node's factory does not run again.
  *
- * A reactivation re-applies every declared parameter onto a list that is already holding a selection, so it
+ * A reactivation re-applies every declared parameter onto a list that already holds a selection, so this
  * is where the two owners of a selection pull hardest against each other. A declared selection is the
- * composition's state and is re-asserted; an undeclared one is the user's, and reaching the same
- * declarations by way of a reactivation is not a reason for it to disappear. Where the content the
- * reactivation brings really cannot hold it, what is left of it reaches the caller all the same - the
- * listeners a modifier installs are detached while a node is parked, so a loss reported through the widget's
- * own event would be lost with them.
+ * composition's state, so it is re-asserted. An undeclared selection is the user's; reaching the same
+ * declaration through a reactivation is not a reason for it to disappear. When the reactivated content
+ * cannot hold the selection, what is left of it still reaches the caller: the listeners a modifier
+ * installs are detached while a node is parked, so a loss reported only through the widget's own event
+ * would otherwise be lost with them.
+ *
+ * A composable cell is owned the same way: the island stamping it lives only while the node is in the
+ * composition, so a reactivation stamps the composable cell again.
  */
 class ListBoxNodeReuseTest {
     private val colors = listOf("red", "green")
@@ -32,11 +38,42 @@ class ListBoxNodeReuseTest {
         DefaultListModel<String>().apply { for (color in colors.take(size)) addElement(color) }
 
     @Test
+    fun aParkedListRendersItsOwnCellsAndStampsTheComposableOneAgainOnReactivation() = runComposeSwingTest {
+        var active by mutableStateOf(true)
+        setContent {
+            ReusableContentHost(active = active) {
+                ListBox(items = colors) { item -> Label(item) }
+            }
+        }
+        val list = onNodeOfType<JList<*>>().fetch<JList<String>>()
+        assertEquals("red", list.stampCell(index = 0).firstLabelText(), "the composable cell should render row 0")
+
+        active = false
+        awaitIdle()
+
+        // A parked list keeps its place in the Swing tree and goes on painting, while the cell island
+        // behind its composable cell is gone, so the renderer it used before that cell has to be back
+        // on it by then.
+        val parked = list.stampCell(index = 0)
+        assertTrue(parked is JLabel, "a parked list should render rows through the renderer of its own")
+        assertEquals("red", (parked as JLabel).text, "the list's own renderer renders the item's toString")
+
+        active = true
+        awaitIdle()
+
+        assertEquals(
+            "green",
+            onNodeOfType<JList<*>>().fetch<JList<String>>().stampCell(index = 1).firstLabelText(),
+            "a reactivated list should stamp the composable cell again",
+        )
+    }
+
+    @Test
     fun aReactivatedListStillHoldsItsControlledSelection() = runComposeSwingTest {
         var active by mutableStateOf(true)
         setContent {
             ReusableContentHost(active = active) {
-                ListBox(items = colors, selectedIndices = listOf(1))
+                ListBox(items = colors, selectedIndices = setOf(1))
             }
         }
         val list = onNodeOfType<JList<*>>().fetch()
@@ -60,7 +97,7 @@ class ListBoxNodeReuseTest {
         val model = listModel()
         setContent {
             ReusableContentHost(active = active) {
-                ListBox(model = model, selectedIndices = listOf(1))
+                ListBox(model = model, selectedIndices = setOf(1))
             }
         }
         val list = onNodeOfType<JList<*>>().fetch()
@@ -81,7 +118,7 @@ class ListBoxNodeReuseTest {
     @Test
     fun aReactivatedListKeepsTheSelectionTheUserMade() = runComposeSwingTest {
         var active by mutableStateOf(true)
-        val received = mutableListOf<List<Int>>()
+        val received = mutableListOf<Set<Int>>()
         setContent {
             ReusableContentHost(active = active) {
                 ListBox(items = colors, onSelectionChange = { received += it })
@@ -106,7 +143,7 @@ class ListBoxNodeReuseTest {
     @Test
     fun aReactivatedModelDrivenListKeepsTheSelectionTheUserMade() = runComposeSwingTest {
         var active by mutableStateOf(true)
-        val received = mutableListOf<List<Int>>()
+        val received = mutableListOf<Set<Int>>()
         val model = listModel()
         setContent {
             ReusableContentHost(active = active) {
@@ -133,7 +170,7 @@ class ListBoxNodeReuseTest {
     fun aReactivationTooFewItemsToHoldTheUsersSelectionReportsWhatIsLeftOfIt() = runComposeSwingTest {
         var active by mutableStateOf(true)
         var items by mutableStateOf(colors)
-        val received = mutableListOf<List<Int>>()
+        val received = mutableListOf<Set<Int>>()
         setContent {
             ReusableContentHost(active = active) {
                 ListBox(items = items, onSelectionChange = { received += it })
@@ -154,14 +191,14 @@ class ListBoxNodeReuseTest {
             onNodeOfType<JList<*>>().fetch().selectedIndices.toList(),
             "the row the new items cannot hold leaves the selection",
         )
-        assertEquals(listOf(emptyList()), received, "the selection the reactivation left should be reported once")
+        assertEquals(listOf(emptySet()), received, "the selection the reactivation left should be reported once")
     }
 
     @Test
     fun aReactivationWithAModelTooShortToHoldTheUsersSelectionReportsWhatIsLeftOfIt() = runComposeSwingTest {
         var active by mutableStateOf(true)
         var model by mutableStateOf(listModel())
-        val received = mutableListOf<List<Int>>()
+        val received = mutableListOf<Set<Int>>()
         setContent {
             ReusableContentHost(active = active) {
                 ListBox(model = model, onSelectionChange = { received += it })
@@ -182,14 +219,14 @@ class ListBoxNodeReuseTest {
             onNodeOfType<JList<*>>().fetch().selectedIndices.toList(),
             "the row the new model cannot hold leaves the selection",
         )
-        assertEquals(listOf(emptyList()), received, "the selection the reactivation left should be reported once")
+        assertEquals(listOf(emptySet()), received, "the selection the reactivation left should be reported once")
     }
 
     @Test
     fun aReactivationWithANarrowerModeReportsTheSelectionItLeaves() = runComposeSwingTest {
         var active by mutableStateOf(true)
         var mode by mutableStateOf(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION)
-        val received = mutableListOf<List<Int>>()
+        val received = mutableListOf<Set<Int>>()
         setContent {
             ReusableContentHost(active = active) {
                 ListBox(items = colors, onSelectionChange = { received += it }, selectionMode = mode)
@@ -212,6 +249,6 @@ class ListBoxNodeReuseTest {
             onNodeOfType<JList<*>>().fetch().selectedIndices.toList(),
             "the row the narrower mode still holds stays selected",
         )
-        assertEquals(listOf(listOf(0)), received, "the selection the reactivation left should be reported once")
+        assertEquals(listOf(setOf(0)), received, "the selection the reactivation left should be reported once")
     }
 }

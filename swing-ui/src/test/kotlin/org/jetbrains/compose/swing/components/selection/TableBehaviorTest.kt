@@ -8,7 +8,9 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import javax.swing.JCheckBox
 import javax.swing.JTable
+import javax.swing.JTextField
 import javax.swing.ListSelectionModel
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -20,14 +22,8 @@ import kotlin.test.assertTrue
  * Behavioral tests for [Table], driven through the real composition pipeline and asserting against
  * the live `JTable` and its `TableModel`.
  *
- * The central guarantees: rows/columns render into the model; user selection fires
- * `onSelectionChange` with the selected row indices; committing an edit on an editable cell fires
- * `onCellEdit`; state-driven row changes rebuild the model; a pass that changed no data leaves the
- * table's columns alone; and a controlled selection update does not echo back as a spurious callback.
- *
- * Headless caveat: no native peer realizes, so a cell edit is committed through the same
- * model-write path the cell editor uses on commit (`JTable.setValueAt`), and a user selection is
- * driven through the table's selection model, exactly where a real mouse gesture would land.
+ * The root is never attached to a window, so no native peer realizes. Where the editor itself is
+ * under test, it is driven directly, since opening one on screen would take the focus.
  */
 class TableBehaviorTest {
     @Test
@@ -53,7 +49,7 @@ class TableBehaviorTest {
 
     @Test
     fun selectingRowsFiresOnSelectionChange() = runComposeSwingTest {
-        val received = mutableListOf<List<Int>>()
+        val received = mutableListOf<Set<Int>>()
         setContent {
             Table(
                 rows = listOf(Person("Ada", 36), Person("Alan", 41), Person("Grace", 50)),
@@ -71,7 +67,7 @@ class TableBehaviorTest {
         table.addRowSelectionInterval(2, 2)
         awaitIdle()
 
-        assertEquals(listOf(0, 2), received.last(), "selected row indices reported to callback")
+        assertEquals(setOf(0, 2), received.last(), "selected row indices reported to callback")
     }
 
     @Test
@@ -79,7 +75,7 @@ class TableBehaviorTest {
         setContent {
             Table(
                 rows = listOf(Person("Ada", 36), Person("Alan", 41)),
-                selectedRowIndices = listOf(0),
+                selectedRowIndices = setOf(0),
             ) {
                 column("Name") { it.name }
             }
@@ -120,6 +116,61 @@ class TableBehaviorTest {
     }
 
     @Test
+    fun eachColumnAnswersWithTheClassOfTheValuesItHolds() = runComposeSwingTest {
+        setContent {
+            Table(rows = listOf(Person("Ada", 36))) {
+                column("Name") { it.name }
+                column("Age") { it.age }
+                column("Senior") { it.age > 40 }
+            }
+        }
+
+        val model = onNodeOfType<JTable>().fetch().model
+        assertEquals(String::class.java, model.getColumnClass(0), "a column of names holds strings")
+        assertEquals(Int::class.javaObjectType, model.getColumnClass(1), "a column of ages holds integers")
+        assertEquals(Boolean::class.javaObjectType, model.getColumnClass(2), "a column of flags holds booleans")
+    }
+
+    @Test
+    fun aBooleanColumnRendersAsACheckBox() = runComposeSwingTest {
+        setContent {
+            Table(rows = listOf(Person("Ada", 36))) {
+                column("Name") { it.name }
+                column("Senior") { it.age > 40 }
+            }
+        }
+
+        // A table picks a cell's renderer by the column's class, so the class the column declares is
+        // what decides whether a flag is drawn as a checkbox or written out as text. The wrapper
+        // installs no renderer of its own.
+        val table = onNodeOfType<JTable>().fetch()
+        assertTrue(table.getCellRenderer(0, 1) is JCheckBox, "a boolean column should draw a checkbox")
+        assertFalse(table.getCellRenderer(0, 0) is JCheckBox, "a string column should not")
+    }
+
+    @Test
+    fun anIntColumnCommitsItsEditAsAnInt() = runComposeSwingTest {
+        val edits = mutableListOf<Any?>()
+        setContent {
+            Table(rows = listOf(Person("Ada", 36))) {
+                column("Age", isEditable = true, onCellEdit = { _, _, newValue -> edits += newValue }) { it.age }
+            }
+        }
+
+        // The column's class picks the editor as well as the renderer. Driving the editor, not the
+        // model, puts under test how it turns typed text into a value of the
+        // column's class; committing it is the model write JTable makes once editing stops.
+        val table = onNodeOfType<JTable>().fetch()
+        val editor = table.getCellEditor(0, 0)
+        val typedInto = editor.getTableCellEditorComponent(table, 36, false, 0, 0) as JTextField
+        typedInto.text = "37"
+        editor.stopCellEditing()
+        table.setValueAt(editor.cellEditorValue, 0, 0)
+
+        assertEquals(listOf<Any?>(37), edits, "an int column should commit the edited value as an int")
+    }
+
+    @Test
     fun stateDrivenRowsUpdateTheTable() = runComposeSwingTest {
         val rows = mutableStateListOf(Person("Ada", 36))
         setContent {
@@ -150,8 +201,8 @@ class TableBehaviorTest {
         // The controller mirrors the callback back into the controlled state, exactly as a real
         // caller would. The selection guard must make this converge: applying an external update
         // settles on that selection without oscillating between values frame after frame.
-        var selection by mutableStateOf(listOf(0))
-        val received = mutableListOf<List<Int>>()
+        var selection by mutableStateOf(setOf(0))
+        val received = mutableListOf<Set<Int>>()
         setContent {
             Table(
                 rows = listOf(Person("Ada", 36), Person("Alan", 41), Person("Grace", 50)),
@@ -171,13 +222,13 @@ class TableBehaviorTest {
         // A purely external selection update applies to the table and settles. Because the guard
         // skips re-applying an unchanged selection, any echoed callback carries the SAME new
         // indices the controller already holds, so it does not bounce back to the old value.
-        selection = listOf(2)
+        selection = setOf(2)
         awaitIdle()
 
         assertEquals(listOf(2), table.selectedRows.toList(), "external selection applied")
-        assertEquals(listOf(2), selection, "controlled state settled on the new selection")
+        assertEquals(setOf(2), selection, "controlled state settled on the new selection")
         assertTrue(
-            received.all { it == listOf(2) },
+            received.all { it == setOf(2) },
             "selection oscillated instead of converging: $received",
         )
 

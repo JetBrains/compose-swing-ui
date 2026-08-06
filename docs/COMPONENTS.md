@@ -34,9 +34,9 @@ the component renders what you pass and reports what the user did. A value you p
 without echoing back through the callback, so adopting a reported change cannot loop.
 
 **A hoisted state holder.** `DocumentState`, `FormattedValueState`, `WindowState`, `DialogState`,
-`InternalFrameState`, `ScrollState`. The holder owns the value, is snapshot-observable, and is
-**two-way**: assigning to it drives the widget, and the user's own gesture writes back into it. See
-[Hoisted state](#hoisted-state).
+`InternalFrameState`, `ScrollState`, `ListState`, `TreeState`. The holder owns the value, is
+snapshot-observable, and is **two-way**: assigning to it drives the widget, and the user's own gesture
+writes back into it. See [Hoisted state](#hoisted-state).
 
 **A raw Swing model.** `ComboBox(model)`, `ListBox(model)`, `Table(model)`, `Tree(model)`,
 `Spinner(model, changeListener)`, `Slider(model)`, `ProgressBar(model)`. When you already have a
@@ -64,9 +64,15 @@ every pass: it survives new items, and a user change your callback does not adop
 the new items are too few to hold it, what falls outside them leaves and the callback reports what is
 left.
 
+A `ListBox` and a `Tree` also take a `ListState` or a `TreeState` in place of those parameters, which
+holds the same facets as two-way state and reveals a row besides; see
+[Lists and tables](#lists-and-tables).
+
 Either way the callback reports the user's changes only, once per settled change - dragging across
 rows produces one call at the end, and rendering fresh items produces none. A `ComboBox` is always
-controlled instead: its `selectedIndex` names the chosen item, and `-1` names none.
+controlled instead: its `selectedItem` names the chosen item, `null` names none, and so does an item
+the current `items` do not contain. The selection names an item and not a position, so items that
+compare equal are one and the same selection.
 
 ---
 
@@ -189,12 +195,12 @@ before scrolling - to `8`.
 
 ```kotlin
 val presets = listOf("Small", "Medium", "Large")
-var selected by remember { mutableStateOf(0) }
+var selected by remember { mutableStateOf<String?>(presets.first()) }
 var typed by remember { mutableStateOf("") }
 
 ComboBox(
     items = presets,
-    selectedIndex = selected,
+    selectedItem = selected,
     onSelectionChange = { selected = it },
     editable = true,
     onValueCommit = { typed = it },
@@ -262,16 +268,20 @@ Spinner(hour, onValueChange = { hour = it.toInt() }, min = 0, max = 23) { Label(
 | --- | --- |
 | `ListBox` | A list over `JList`: items in, selected indices out, optionally with a composable cell per row. |
 | `Table` | A grid over `JTable` whose rows are data and whose columns are declarations. |
-| `Tree` | A tree over `JTree` built from a root and a children function, addressed by index paths. |
+| `Tree` | A tree over `JTree` built from a root and a children function, addressed by index paths, optionally with a composable node per row. |
 
 All three take a `selectionMode` from `ListSelectionModel`/`TreeSelectionModel` and report selection
 as the general multi-select shape, so one component covers every mode. `ListBox` and `Table` default
 to `ListSelectionModel.MULTIPLE_INTERVAL_SELECTION`, `Tree` to
-`TreeSelectionModel.DISCONTIGUOUS_TREE_SELECTION`. A `ListBox`'s `visibleRowCount` defaults to `8`.
+`TreeSelectionModel.DISCONTIGUOUS_TREE_SELECTION`. A `ListBox`'s `visibleRowCount` defaults to `8`, a
+`Tree`'s to `20`, and a `Tree`'s `toggleClickCount` - the clicks that open or close a node, `0` for
+neither - to `2`. `Table` and `Tree` both take a `rowHeight`, which defaults to `null` and leaves the
+height to the installed look and feel; a `Tree`'s `0` asks each node's rendering how tall it wants to
+be, which is what lets a composable node size itself.
 
 ```kotlin
 val languages = listOf("Kotlin", "Java", "Scala")
-var selection by remember { mutableStateOf(listOf(0)) }
+var selection by remember { mutableStateOf(setOf(0)) }
 
 ListBox(
     items = languages,
@@ -284,13 +294,63 @@ ListBox(
 }
 ```
 
-A `Table`'s columns are declared with a header, a value extractor over the row type, and optionally
-in-place editing. A committed cell edit arrives at `onCellEdit` with the row, its index and the new
-value; the displayed value changes when the next composition supplies fresh `rows`. Put a table in a
-`ScrollPane` to scroll it and to show its column header.
+A composable cell - a `ListBox` or `ComboBox` `itemContent`, a column's `cellContent`, a `Tree`'s
+`nodeContent` - composes **one** component, and that component is what the widget renders the row
+with: it is bounded at the row and laid out there. Compose several components into a panel and the row
+is that panel, arranged by its layout - a cell composing several components on its own is refused,
+since only one of them could be the row. Everything inside is ordinary Swing: gaps, alignment and a
+fixed slot for a leading glyph are the panel's layout to decide, and its background is painted over
+the row's unless `opaque(false)` says otherwise.
 
 ```kotlin
-var selection by remember { mutableStateOf(emptyList<Int>()) }
+ComboBox(items = languages, selectedItem = selected, onSelectionChange = { selected = it }) { language ->
+    BorderPanel(modifier = SwingModifier.opaque(false)) {
+        west { Label(language.glyph, modifier = SwingModifier.preferredSize(24, 24)) }
+        center { Label(language.name) }
+    }
+}
+```
+
+A list measures each row by what its cell asks for. A tree does the same where its `rowHeight` is `0`,
+and otherwise gives every row the one height. A table never does: every one of its rows is the same
+height, whatever its cells ask for, so a cell taller than the text a table sizes its rows for is what
+`rowHeight` is there for.
+
+A `ComboBox` renders its selected item in a display area whose height its look and feel fixes,
+whatever the cell asks for, so a cell taller than that is cut off there. Check a tall cell against the
+look and feel the application actually runs under, since each one sets that height for itself.
+
+A `Table`'s columns are declared with a header and a value extractor over the row type. A column is
+**typed**: the class the extractor returns is what the table renders and edits the column's cells as,
+so a `Boolean` column draws a checkbox and hands `onCellEdit` a `Boolean`, and an `Int` column hands
+it an `Int`. Where the class is not the extractor's own, declare it with the overload that takes a
+`columnClass`. Put a table in a `ScrollPane` to scroll it and to show its column header.
+
+A row is always named by its index into `rows` - the model's own row space, the space
+`TableColumnLayout.modelIndices` names columns in - and never by the position it is drawn at. Sorting
+and filtering move where a row is shown and leave the row each index names alone, so a selection, a
+cell edit and a column layout all keep meaning what they meant.
+
+Editing is per column and, where you want it, per row: `isEditable` opens a whole column, and
+`isCellEditable` answers for one row of it. A committed edit arrives at `onCellEdit` with the row, its
+index and the new value; the displayed value changes when the next composition supplies fresh `rows`.
+
+Sorting is off until `sortable` turns it on, as it is on a bare `JTable`. With it on, a click on a
+column header sorts by that column, `sortKeys` declares the order the rows are in and `onSortChange`
+reports the order a click leaves them in, and `rowFilter` decides which of them are shown at all. Each
+column brings its own `isSortable` and `comparator` to that sorting. A declared order is the
+composition's state and is re-applied on every pass, so a header click the caller does not adopt does
+not stand; left undeclared, the order is the user's alone and is never imposed.
+
+The sizing surface is the same shape. `columnLayout` declares the order and the preferred widths of
+the columns and `onColumnLayoutChange` reports where a header drag or a divider drag left them; a
+column's own `minWidth` and `maxWidth` bound every width it can be left at, a drag's as much as a
+declaration's; `autoResizeMode` decides how the columns share out a change to the table's width; and
+`fillsViewportHeight` stretches the table to the viewport showing it rather than to the rows it holds.
+
+```kotlin
+var selection by remember { mutableStateOf(emptySet<Int>()) }
+var order by remember { mutableStateOf(listOf(SortKey(1, SortOrder.ASCENDING))) }
 
 ScrollPane {
     content {
@@ -298,30 +358,88 @@ ScrollPane {
             rows = people,
             selectedRowIndices = selection,
             onSelectionChange = { selection = it },
+            sortable = true,
+            sortKeys = order,
+            onSortChange = { order = it },
+            rowHeight = 28,
         ) {
             column("Name", isEditable = true, onCellEdit = { row, _, value -> rename(row, value) }) { it.name }
-            column("Age") { it.age }
+            column("Age", isCellEditable = { row, _ -> row.isDraft }) { it.age }
+            column("Owner", cellContent = { row -> FlowPanel { Label(row.avatar); Label(row.owner) } }) { it.owner }
         }
     }
 }
 ```
 
 A `Tree` is built from your own node type: a `root`, a `children` function, and a `label` for the
-text of a node. Selection and expansion are both expressed as index paths - a `List<Int>` per node,
-walked from the root - so they mean the same thing across two compositions of the same shape.
-`rootVisible` defaults to `true`.
+text of a node. Selection and expansion are both a set of index paths - a `List<Int>` of child
+positions per node, walked from the root - so they mean the same thing across two compositions of the
+same shape. `rootVisible` defaults to `true`.
+
+`nodeContent` renders a node as a composable of its own, against a `TreeNodeScope` carrying the node's
+`row`, `isSelected`, `isExpanded`, `isLeaf` and `hasFocus`. `label` keeps its meaning either way: it
+is the node's text where the tree renders the text itself, and its accessible text in both cases.
+Give a tree with composable nodes a `rowHeight` of `0` so each node is measured by what it composes.
+
+`isEditable` lets the user edit a node's text in place, and a committed edit hands `onNodeEdit` the
+value edited, its index path and what was entered. Editing is a report and never a mutation: the row
+goes on showing what the data says until a later composition supplies data that says otherwise, and
+the tree `root` and `children` describe is never written to.
+
+`onWillExpand` is asked before a node opens - whether the user opened it or a declared expansion did -
+and returning `false` leaves it closed. Together with `hasChildren` that is also how children are
+loaded lazily: a value `children` yields nothing for is a leaf with no handle to click, and declaring
+`hasChildren` lets such a value call itself a branch all the same, so the user can ask for children
+the data does not hold yet and `onWillExpand` - or `onExpansionChange` - is where fetching them starts.
 
 ```kotlin
-var expanded by remember { mutableStateOf(listOf(emptyList<Int>())) }
+var expanded by remember { mutableStateOf(setOf(emptyList<Int>())) }
 
 Tree(
     root = fileTree,
     children = { it.children },
     label = { it.label },
+    hasChildren = { it.isDirectory },
     expandedPaths = expanded,
     onExpansionChange = { expanded = it },
-)
+    onWillExpand = { node, _ ->
+        loadChildren(node)
+        true
+    },
+    rowHeight = 0,
+) { node ->
+    FlowPanel { Label(node.icon); Label(node.label) }
+}
 ```
+
+A `ListState` holds what one `ListBox` has selected, and a `TreeState` what one `Tree` has selected and
+open. Each also carries the gesture that brings one row into view when the application decides to - a
+row just added, a search hit, a node a load has just filled in. Hoist one with `rememberListState()`
+or `rememberTreeState()` and pass it as `state`; a widget driven by a state takes no
+`selectedIndices`/`expandedPaths` and no `onSelectionChange`/`onExpansionChange`, since the state is
+where those facets live.
+
+`revealIndex(index)` reveals a `ListBox` row, and `revealPath(path)` a `Tree` node, opening every
+ancestor hiding it. Each call answers whether it reached anything. Revealing is a gesture and not a
+declaration: it scrolls where it is called and leaves nothing behind, so no later pass scrolls back and
+where the user scrolls afterwards stands. A state drives one component at a time - passing it to a
+second moves it there.
+
+A row is revealed once the list holds it, so reveal from an effect that runs after the composition
+declaring it, not from the callback that declared it.
+
+```kotlin
+val state = rememberListState()
+
+Button("Add", onClick = { items = items + Item() })
+LaunchedEffect(items) { state.revealIndex(items.lastIndex) }
+ScrollPane {
+    content { ListBox(items = items, state = state) }
+}
+```
+
+To reveal a region of a scroll pane's content rather than a row of a widget, use
+[`ScrollState.revealRect`](#scrollstate).
 
 ---
 
@@ -814,6 +932,38 @@ state.
 
 The position outlives the content it was reached in, so a pane that leaves the composition and comes back
 comes back where the user left it.
+
+### `ListState`
+
+Owns what one `ListBox` has selected. `selectedIndices` is two-way: assigning it selects those rows,
+and the user selecting others - by click, drag or keyboard - writes them back. The rows it names are
+the composition's own and are re-applied on every pass, so a list driven by a state never stands on a
+selection the state does not hold, and a row the items do not reach goes on being named here until
+items that reach it show it selected again.
+
+`revealIndex(index)` brings a row into view when the application decides to - a row just added, a
+search hit - and answers whether the list held one to reveal. Revealing is a gesture rather than a
+declaration: it scrolls where it is called and leaves nothing behind, so no later pass scrolls back and
+where the user scrolls afterwards stands.
+
+Create it with `rememberListState(initialSelectedIndices)` and pass it to `ListBox` as `state`, in
+place of `selectedIndices` and `onSelectionChange`. A state drives one list at a time - passing it to a
+second moves it there. See [Lists and tables](#lists-and-tables).
+
+### `TreeState`
+
+The same for one `Tree`, over index paths from the root: `[]` is the root, `[0]` its first child, and
+`[0, 2]` that child's third child. `selectedPaths` and `expandedPaths` are both two-way and both
+re-applied on every pass, so a state starting on the empty expansion opens nothing - start it on
+`setOf(emptyList())` for a tree that opens on its root.
+
+`revealPath(path)` brings a node into view, opening every ancestor that hides it, and answers whether
+the tree held such a node. The ancestors it opens arrive in `expandedPaths` like the user's own
+opening.
+
+Create it with `rememberTreeState(initialSelectedPaths, initialExpandedPaths)` and pass it to `Tree` as
+`state`, in place of `selectedPaths`/`onSelectionChange` and `expandedPaths`/`onExpansionChange`. A
+state drives one tree at a time.
 
 ---
 

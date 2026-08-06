@@ -16,6 +16,8 @@ import javax.swing.table.TableColumnModel
  * @param modelIndices the model index of each view column, left to right
  * @param preferredWidths the preferred width in pixels of each view column, left to right
  * @throws IllegalArgumentException if the two lists are of different sizes
+ * @see javax.swing.table.TableColumnModel
+ * @see javax.swing.table.TableColumn.setPreferredWidth
  */
 public class TableColumnLayout(
     public val modelIndices: List<Int>,

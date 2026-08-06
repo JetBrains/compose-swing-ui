@@ -4,13 +4,17 @@ import androidx.compose.runtime.ReusableContentHost
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import java.awt.Component
+import javax.swing.JLabel
 import javax.swing.JTable
 import javax.swing.ListSelectionModel
 import javax.swing.table.DefaultTableModel
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /**
  * A table node is recyclable: a parked [ReusableContentHost] child is reactivated onto the `JTable` the
@@ -26,6 +30,10 @@ import kotlin.test.assertEquals
  * reactivation brings really cannot hold it, what is left of it reaches the caller all the same - the
  * listeners a modifier installs are detached while a node is parked, so a loss reported through the widget's
  * own event would be lost with them.
+ *
+ * A column's composable cell is owned the same way: the island stamping it lives only while the node is in
+ * the composition, so a parked table paints that column through the renderer it picks by the column's
+ * class, and a reactivation stamps the composable cell again.
  */
 class TableNodeReuseTest {
     private val people = listOf(Person("Ada", 36), Person("Alan", 41))
@@ -40,11 +48,12 @@ class TableNodeReuseTest {
     private fun JTable.modelIndices(): List<Int> =
         (0 until columnModel.columnCount).map { columnModel.getColumn(it).modelIndex }
 
-    /** Reorders the columns as a header drag does, by moving the column at [from] to [to]. */
-    private fun JTable.dragColumn(
-        from: Int,
-        to: Int,
-    ) = columnModel.moveColumn(from, to)
+    /** Swaps this two-column table's columns as a header drag does, moving the view column, not the model. */
+    private fun JTable.swapColumns() = columnModel.moveColumn(0, 1)
+
+    /** Renders the cell at [row] of the first column through the renderer the table picks, as painting does. */
+    private fun JTable.stampCell(row: Int): Component = getCellRenderer(row, 0)
+        .getTableCellRendererComponent(this, getValueAt(row, 0), false, false, row, 0)
 
     @Test
     fun aReactivatedTableRendersRowsDeclaredAfterReactivation() = runComposeSwingTest {
@@ -85,7 +94,7 @@ class TableNodeReuseTest {
             ReusableContentHost(active = active) {
                 Table(
                     rows = people,
-                    selectedRowIndices = listOf(1),
+                    selectedRowIndices = setOf(1),
                 ) {
                     column("Name") { it.name }
                 }
@@ -112,7 +121,7 @@ class TableNodeReuseTest {
         val model = tableModel()
         setContent {
             ReusableContentHost(active = active) {
-                Table(model = model, selectedRowIndices = listOf(1))
+                Table(model = model, selectedRowIndices = setOf(1))
             }
         }
         val table = onNodeOfType<JTable>().fetch()
@@ -133,7 +142,7 @@ class TableNodeReuseTest {
     @Test
     fun aReactivatedTableKeepsTheSelectionTheUserMade() = runComposeSwingTest {
         var active by mutableStateOf(true)
-        val received = mutableListOf<List<Int>>()
+        val received = mutableListOf<Set<Int>>()
         setContent {
             ReusableContentHost(active = active) {
                 Table(rows = people, onSelectionChange = { received += it }) {
@@ -169,7 +178,7 @@ class TableNodeReuseTest {
             }
         }
         val table = onNodeOfType<JTable>().fetch()
-        table.dragColumn(0, 1)
+        table.swapColumns()
         assertEquals(listOf(1, 0), table.modelIndices(), "the drag should reorder the columns")
 
         active = false
@@ -188,7 +197,7 @@ class TableNodeReuseTest {
     fun aReactivationTooFewRowsToHoldTheUsersSelectionReportsWhatIsLeftOfIt() = runComposeSwingTest {
         var active by mutableStateOf(true)
         var rows by mutableStateOf(people)
-        val received = mutableListOf<List<Int>>()
+        val received = mutableListOf<Set<Int>>()
         setContent {
             ReusableContentHost(active = active) {
                 Table(rows = rows, onSelectionChange = { received += it }) {
@@ -211,14 +220,14 @@ class TableNodeReuseTest {
             onNodeOfType<JTable>().fetch().selectedRows.toList(),
             "the row the new rows cannot hold leaves the selection",
         )
-        assertEquals(listOf(emptyList()), received, "the selection the reactivation left should be reported once")
+        assertEquals(listOf(emptySet()), received, "the selection the reactivation left should be reported once")
     }
 
     @Test
     fun aReactivationWithAModelTooSmallToHoldTheUsersSelectionReportsWhatIsLeftOfIt() = runComposeSwingTest {
         var active by mutableStateOf(true)
         var model by mutableStateOf(tableModel())
-        val received = mutableListOf<List<Int>>()
+        val received = mutableListOf<Set<Int>>()
         setContent {
             ReusableContentHost(active = active) {
                 Table(model = model, onSelectionChange = { received += it })
@@ -239,7 +248,7 @@ class TableNodeReuseTest {
             onNodeOfType<JTable>().fetch().selectedRows.toList(),
             "the row the new model cannot hold leaves the selection",
         )
-        assertEquals(listOf(emptyList()), received, "the selection the reactivation left should be reported once")
+        assertEquals(listOf(emptySet()), received, "the selection the reactivation left should be reported once")
     }
 
     @Test
@@ -252,7 +261,7 @@ class TableNodeReuseTest {
             }
         }
         val table = onNodeOfType<JTable>().fetch()
-        table.dragColumn(0, 1)
+        table.swapColumns()
         assertEquals(listOf(1, 0), table.modelIndices(), "the drag should reorder the columns")
 
         active = false
@@ -274,7 +283,7 @@ class TableNodeReuseTest {
     @Test
     fun aReactivatedModelDrivenTableKeepsTheSelectionTheUserMade() = runComposeSwingTest {
         var active by mutableStateOf(true)
-        val received = mutableListOf<List<Int>>()
+        val received = mutableListOf<Set<Int>>()
         val model = tableModel()
         setContent {
             ReusableContentHost(active = active) {
@@ -301,7 +310,7 @@ class TableNodeReuseTest {
     fun aReactivationWithANarrowerModeReportsTheSelectionItLeaves() = runComposeSwingTest {
         var active by mutableStateOf(true)
         var mode by mutableStateOf(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION)
-        val received = mutableListOf<List<Int>>()
+        val received = mutableListOf<Set<Int>>()
         setContent {
             ReusableContentHost(active = active) {
                 Table(rows = people, onSelectionChange = { received += it }, selectionMode = mode) {
@@ -326,6 +335,36 @@ class TableNodeReuseTest {
             onNodeOfType<JTable>().fetch().selectedRows.toList(),
             "the row the narrower mode still holds stays selected",
         )
-        assertEquals(listOf(listOf(0)), received, "the selection the reactivation left should be reported once")
+        assertEquals(listOf(setOf(0)), received, "the selection the reactivation left should be reported once")
+    }
+
+    @Test
+    fun aParkedTableRendersItsOwnCellsAndStampsTheComposableOneAgainOnReactivation() = runComposeSwingTest {
+        var active by mutableStateOf(true)
+        setContent {
+            ReusableContentHost(active = active) {
+                Table(rows = people) {
+                    column(header = "Name", cellContent = { row -> Label("<${row.name}>") }) { it.name }
+                }
+            }
+        }
+        val table = onNodeOfType<JTable>().fetch()
+        assertEquals("<Ada>", table.stampCell(row = 0).firstLabelText(), "the composable cell should render row 0")
+
+        active = false
+        awaitIdle()
+
+        val parked = table.stampCell(row = 0)
+        assertTrue(parked is JLabel, "a parked table should render a column through the renderer it picks by class")
+        assertEquals("Ada", (parked as JLabel).text, "that renderer renders the cell value's toString")
+
+        active = true
+        awaitIdle()
+
+        assertEquals(
+            "<Alan>",
+            onNodeOfType<JTable>().fetch().stampCell(row = 1).firstLabelText(),
+            "a reactivated table should stamp the composable cell again",
+        )
     }
 }

@@ -75,7 +75,7 @@ internal fun ShowcaseShell() {
                 content {
                     ListBox(
                         items = showcaseSections.map { it.title },
-                        selectedIndices = listOf(selected),
+                        selectedIndices = setOf(selected),
                         onSelectionChange = { indices -> indices.firstOrNull()?.let { selected = it } },
                         selectionMode = ListSelectionModel.SINGLE_SELECTION,
                         visibleRowCount = showcaseSections.size,

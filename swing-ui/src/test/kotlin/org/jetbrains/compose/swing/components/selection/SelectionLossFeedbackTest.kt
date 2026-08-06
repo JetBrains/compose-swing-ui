@@ -35,7 +35,6 @@ import kotlin.test.assertEquals
  * itself, and the widget's own event reaches a raw listener directly.
  */
 class SelectionLossFeedbackTest {
-    /** A value tree feeding the data-driven [Tree]: each [Entry] yields its [children] and renders its [name]. */
     private data class Entry(
         val name: String,
         val children: List<Entry> = emptyList(),
@@ -57,7 +56,7 @@ class SelectionLossFeedbackTest {
     @Test
     fun aNarrowerListSelectionModeReportsWhatTheUserKeeps() = runComposeSwingTest {
         var mode by mutableStateOf(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION)
-        val received = mutableListOf<List<Int>>()
+        val received = mutableListOf<Set<Int>>()
         setContent {
             ListBox(
                 items = listOf("red", "green", "blue"),
@@ -74,13 +73,13 @@ class SelectionLossFeedbackTest {
         awaitIdle()
 
         assertEquals(listOf(0), list.selectedIndices.toList(), "the row the narrower mode still holds stays selected")
-        assertEquals(listOf(listOf(0)), received, "the rows the user loses are reported once, as the new selection")
+        assertEquals(listOf(setOf(0)), received, "the rows the user loses are reported once, as the new selection")
     }
 
     @Test
     fun aNarrowerTableSelectionModeReportsWhatTheUserKeeps() = runComposeSwingTest {
         var mode by mutableStateOf(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION)
-        val received = mutableListOf<List<Int>>()
+        val received = mutableListOf<Set<Int>>()
         setContent {
             Table(rows = people, onSelectionChange = { received += it }, selectionMode = mode) {
                 column("Name") { it.name }
@@ -95,13 +94,13 @@ class SelectionLossFeedbackTest {
         awaitIdle()
 
         assertEquals(listOf(0), table.selectedRows.toList(), "the row the narrower mode still holds stays selected")
-        assertEquals(listOf(listOf(0)), received, "the rows the user loses are reported once, as the new selection")
+        assertEquals(listOf(setOf(0)), received, "the rows the user loses are reported once, as the new selection")
     }
 
     @Test
     fun aNarrowerModelTableSelectionModeReportsWhatTheUserKeeps() = runComposeSwingTest {
         var mode by mutableStateOf(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION)
-        val received = mutableListOf<List<Int>>()
+        val received = mutableListOf<Set<Int>>()
         val model = tableModel()
         setContent {
             Table(model = model, onSelectionChange = { received += it }, selectionMode = mode)
@@ -115,13 +114,13 @@ class SelectionLossFeedbackTest {
         awaitIdle()
 
         assertEquals(listOf(0), table.selectedRows.toList(), "the row the narrower mode still holds stays selected")
-        assertEquals(listOf(listOf(0)), received, "the rows the user loses are reported once, as the new selection")
+        assertEquals(listOf(setOf(0)), received, "the rows the user loses are reported once, as the new selection")
     }
 
     @Test
     fun aNarrowerTreeSelectionModeReportsWhatTheUserKeeps() = runComposeSwingTest {
         var mode by mutableStateOf(TreeSelectionModel.DISCONTIGUOUS_TREE_SELECTION)
-        val received = mutableListOf<List<List<Int>>>()
+        val received = mutableListOf<Set<List<Int>>>()
         val model = treeModel()
         setContent {
             Tree(model = model, onSelectionChange = { received += it }, selectionMode = mode)
@@ -135,13 +134,13 @@ class SelectionLossFeedbackTest {
         awaitIdle()
 
         assertEquals(1, tree.selectionCount, "the node the narrower mode still holds stays selected")
-        assertEquals(listOf(listOf(listOf(0))), received, "the node the user loses is reported once")
+        assertEquals(listOf(setOf(listOf(0))), received, "the node the user loses is reported once")
     }
 
     @Test
     fun aNarrowerValueTreeSelectionModeReportsWhatTheUserKeeps() = runComposeSwingTest {
         var mode by mutableStateOf(TreeSelectionModel.DISCONTIGUOUS_TREE_SELECTION)
-        val received = mutableListOf<List<List<Int>>>()
+        val received = mutableListOf<Set<List<Int>>>()
         setContent {
             Tree(
                 root = sample,
@@ -160,13 +159,13 @@ class SelectionLossFeedbackTest {
         awaitIdle()
 
         assertEquals(1, tree.selectionCount, "the node the narrower mode still holds stays selected")
-        assertEquals(listOf(listOf(listOf(0))), received, "the node the user loses is reported once")
+        assertEquals(listOf(setOf(listOf(0))), received, "the node the user loses is reported once")
     }
 
     @Test
     fun hidingTheRootReportsTheSelectionItTakesAway() = runComposeSwingTest {
         var rootVisible by mutableStateOf(true)
-        val received = mutableListOf<List<List<Int>>>()
+        val received = mutableListOf<Set<List<Int>>>()
         val model = treeModel()
         setContent {
             Tree(model = model, onSelectionChange = { received += it }, rootVisible = rootVisible)
@@ -180,13 +179,13 @@ class SelectionLossFeedbackTest {
         awaitIdle()
 
         assertEquals(0, tree.selectionCount, "a hidden root cannot stay selected")
-        assertEquals(listOf(emptyList()), received, "losing the whole selection is reported once")
+        assertEquals(listOf(emptySet()), received, "losing the whole selection is reported once")
     }
 
     @Test
     fun hidingTheRootOfAValueTreeReportsTheSelectionItTakesAway() = runComposeSwingTest {
         var rootVisible by mutableStateOf(true)
-        val received = mutableListOf<List<List<Int>>>()
+        val received = mutableListOf<Set<List<Int>>>()
         setContent {
             Tree(
                 root = sample,
@@ -205,14 +204,14 @@ class SelectionLossFeedbackTest {
         awaitIdle()
 
         assertEquals(0, tree.selectionCount, "a hidden root cannot stay selected")
-        assertEquals(listOf(emptyList()), received, "losing the whole selection is reported once")
+        assertEquals(listOf(emptySet()), received, "losing the whole selection is reported once")
     }
 
     @Test
     fun hidingTheRootDoesNotDestroyADeclaredSelection() = runComposeSwingTest {
         var rootVisible by mutableStateOf(true)
-        var selection by mutableStateOf(listOf(emptyList<Int>()))
-        val received = mutableListOf<List<List<Int>>>()
+        var selection by mutableStateOf(setOf(emptyList<Int>()))
+        val received = mutableListOf<Set<List<Int>>>()
         val model = treeModel()
         setContent {
             Tree(
@@ -234,15 +233,15 @@ class SelectionLossFeedbackTest {
         awaitIdle()
 
         assertEquals(1, tree.selectionCount, "the declared selection should still stand")
-        assertEquals(listOf(emptyList()), selection, "the caller's state is left as it declared it")
+        assertEquals(setOf(emptyList()), selection, "the caller's state is left as it declared it")
         assertEquals(emptyList(), received, "hiding the root reported the wrapper's own write")
     }
 
     @Test
     fun hidingTheRootOfAValueTreeDoesNotDestroyADeclaredSelection() = runComposeSwingTest {
         var rootVisible by mutableStateOf(true)
-        var selection by mutableStateOf(listOf(emptyList<Int>()))
-        val received = mutableListOf<List<List<Int>>>()
+        var selection by mutableStateOf(setOf(emptyList<Int>()))
+        val received = mutableListOf<Set<List<Int>>>()
         setContent {
             Tree(
                 root = sample,
@@ -265,15 +264,15 @@ class SelectionLossFeedbackTest {
         awaitIdle()
 
         assertEquals(1, tree.selectionCount, "the declared selection should still stand")
-        assertEquals(listOf(emptyList()), selection, "the caller's state is left as it declared it")
+        assertEquals(setOf(emptyList()), selection, "the caller's state is left as it declared it")
         assertEquals(emptyList(), received, "hiding the root reported the wrapper's own write")
     }
 
     @Test
     fun narrowingTheTableModeDoesNotEmptyADeclaredSelection() = runComposeSwingTest {
         var mode by mutableStateOf(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION)
-        var selection by mutableStateOf(listOf(0, 1, 2))
-        val received = mutableListOf<List<Int>>()
+        var selection by mutableStateOf(setOf(0, 1, 2))
+        val received = mutableListOf<Set<Int>>()
         setContent {
             Table(
                 rows = people,
@@ -296,15 +295,15 @@ class SelectionLossFeedbackTest {
         awaitIdle()
 
         assertEquals(1, table.selectedRows.size, "a single-selection table can still hold one declared row")
-        assertEquals(listOf(0, 1, 2), selection, "the caller's state is left as it declared it")
+        assertEquals(setOf(0, 1, 2), selection, "the caller's state is left as it declared it")
         assertEquals(emptyList(), received, "a narrower mode reported the wrapper's own write")
     }
 
     @Test
     fun narrowingTheModelTableModeDoesNotEmptyADeclaredSelection() = runComposeSwingTest {
         var mode by mutableStateOf(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION)
-        var selection by mutableStateOf(listOf(0, 1, 2))
-        val received = mutableListOf<List<Int>>()
+        var selection by mutableStateOf(setOf(0, 1, 2))
+        val received = mutableListOf<Set<Int>>()
         val model = tableModel()
         setContent {
             Table(
@@ -326,18 +325,18 @@ class SelectionLossFeedbackTest {
         awaitIdle()
 
         assertEquals(1, table.selectedRows.size, "a single-selection model-driven table still holds one declared row")
-        assertEquals(listOf(0, 1, 2), selection, "the caller's state is left as it declared it")
+        assertEquals(setOf(0, 1, 2), selection, "the caller's state is left as it declared it")
         assertEquals(emptyList(), received, "a narrower mode reported the wrapper's own write")
     }
 
     @Test
     fun aNarrowerListSelectionModeLeavesADeclaredSelectionUnreported() = runComposeSwingTest {
         var mode by mutableStateOf(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION)
-        val received = mutableListOf<List<Int>>()
+        val received = mutableListOf<Set<Int>>()
         setContent {
             ListBox(
                 items = listOf("red", "green", "blue"),
-                selectedIndices = listOf(0, 1, 2),
+                selectedIndices = setOf(0, 1, 2),
                 onSelectionChange = { received += it },
                 selectionMode = mode,
             )
@@ -357,11 +356,11 @@ class SelectionLossFeedbackTest {
     @Test
     fun aNarrowerTableSelectionModeLeavesADeclaredSelectionUnreported() = runComposeSwingTest {
         var mode by mutableStateOf(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION)
-        val received = mutableListOf<List<Int>>()
+        val received = mutableListOf<Set<Int>>()
         setContent {
             Table(
                 rows = people,
-                selectedRowIndices = listOf(0, 1, 2),
+                selectedRowIndices = setOf(0, 1, 2),
                 onSelectionChange = { received += it },
                 selectionMode = mode,
             ) {
@@ -383,12 +382,12 @@ class SelectionLossFeedbackTest {
     @Test
     fun aNarrowerTreeSelectionModeLeavesADeclaredSelectionUnreported() = runComposeSwingTest {
         var mode by mutableStateOf(TreeSelectionModel.DISCONTIGUOUS_TREE_SELECTION)
-        val received = mutableListOf<List<List<Int>>>()
+        val received = mutableListOf<Set<List<Int>>>()
         val model = treeModel()
         setContent {
             Tree(
                 model = model,
-                selectedPaths = listOf(listOf(0), listOf(1)),
+                selectedPaths = setOf(listOf(0), listOf(1)),
                 onSelectionChange = { received += it },
                 selectionMode = mode,
             )
@@ -408,13 +407,13 @@ class SelectionLossFeedbackTest {
     @Test
     fun aNarrowerValueTreeSelectionModeLeavesADeclaredSelectionUnreported() = runComposeSwingTest {
         var mode by mutableStateOf(TreeSelectionModel.DISCONTIGUOUS_TREE_SELECTION)
-        val received = mutableListOf<List<List<Int>>>()
+        val received = mutableListOf<Set<List<Int>>>()
         setContent {
             Tree(
                 root = sample,
                 children = { it.children },
                 label = { it.name },
-                selectedPaths = listOf(listOf(0), listOf(1)),
+                selectedPaths = setOf(listOf(0), listOf(1)),
                 onSelectionChange = { received += it },
                 selectionMode = mode,
             )
@@ -434,12 +433,12 @@ class SelectionLossFeedbackTest {
     @Test
     fun hidingTheRootLeavesADeclaredSelectionUnreported() = runComposeSwingTest {
         var rootVisible by mutableStateOf(true)
-        val received = mutableListOf<List<List<Int>>>()
+        val received = mutableListOf<Set<List<Int>>>()
         val model = treeModel()
         setContent {
             Tree(
                 model = model,
-                selectedPaths = listOf(emptyList()),
+                selectedPaths = setOf(emptyList()),
                 onSelectionChange = { received += it },
                 rootVisible = rootVisible,
             )
@@ -465,7 +464,7 @@ class SelectionLossFeedbackTest {
             ListBox(
                 items = listOf("red", "green", "blue"),
                 listSelectionListener = listener,
-                selectedIndices = listOf(0, 1, 2),
+                selectedIndices = setOf(0, 1, 2),
                 selectionMode = mode,
             )
         }
@@ -494,7 +493,7 @@ class SelectionLossFeedbackTest {
             Table(
                 rows = people,
                 listSelectionListener = listener,
-                selectedRowIndices = listOf(0, 1, 2),
+                selectedRowIndices = setOf(0, 1, 2),
                 selectionMode = mode,
             ) {
                 column("Name") { it.name }
@@ -526,7 +525,7 @@ class SelectionLossFeedbackTest {
             Tree(
                 model = model,
                 treeSelectionListener = listener,
-                selectedPaths = listOf(emptyList()),
+                selectedPaths = setOf(emptyList()),
                 rootVisible = rootVisible,
             )
         }
@@ -552,7 +551,7 @@ class SelectionLossFeedbackTest {
             Table(
                 model = model,
                 listSelectionListener = listener,
-                selectedRowIndices = listOf(0, 1, 2),
+                selectedRowIndices = setOf(0, 1, 2),
                 selectionMode = mode,
             )
         }
@@ -583,7 +582,7 @@ class SelectionLossFeedbackTest {
                 children = { it.children },
                 label = { it.name },
                 treeSelectionListener = listener,
-                selectedPaths = listOf(listOf(0), listOf(1)),
+                selectedPaths = setOf(listOf(0), listOf(1)),
                 selectionMode = mode,
             )
         }
@@ -610,7 +609,7 @@ class SelectionLossFeedbackTest {
                 children = { it.children },
                 label = { it.name },
                 treeSelectionListener = listener,
-                selectedPaths = listOf(emptyList()),
+                selectedPaths = setOf(emptyList()),
                 rootVisible = rootVisible,
             )
         }

@@ -8,6 +8,8 @@ import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JTable
 import javax.swing.ListSelectionModel
+import javax.swing.RowSorter.SortKey
+import javax.swing.SortOrder
 import javax.swing.table.DefaultTableModel
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -19,9 +21,10 @@ import kotlin.test.assertTrue
  * composition pipeline and asserting against the live `JTable`.
  *
  * The central guarantees: a caller-supplied `TableModel` renders as-is; user selection fires
- * `onSelectionChange` with the selected row indices; a controlled `selectedRowIndices` re-applies
- * after a model swap even though `setModel` clears the selection; and a controlled selection update
- * does not echo back as a spurious callback.
+ * `onSelectionChange` with the selected row indices, which name rows of the model however the rows are
+ * sorted on screen; a controlled `selectedRowIndices` re-applies after a model swap even though
+ * `setModel` clears the selection; and a controlled selection update does not echo back as a spurious
+ * callback.
  */
 class TableModelBehaviorTest {
     private fun tableModel(vararg names: String): DefaultTableModel =
@@ -41,7 +44,7 @@ class TableModelBehaviorTest {
 
     @Test
     fun selectingRowsFiresOnSelectionChange() = runComposeSwingTest {
-        val received = mutableListOf<List<Int>>()
+        val received = mutableListOf<Set<Int>>()
         setContent {
             Table(
                 model = tableModel("Ada", "Alan", "Grace"),
@@ -55,7 +58,7 @@ class TableModelBehaviorTest {
         table.addRowSelectionInterval(2, 2)
         awaitIdle()
 
-        assertEquals(listOf(0, 2), received.last(), "selected row indices reported to callback")
+        assertEquals(setOf(0, 2), received.last(), "selected row indices reported to callback")
     }
 
     @Test
@@ -64,7 +67,7 @@ class TableModelBehaviorTest {
         setContent {
             Table(
                 model = model,
-                selectedRowIndices = listOf(1),
+                selectedRowIndices = setOf(1),
             )
         }
 
@@ -81,9 +84,30 @@ class TableModelBehaviorTest {
     }
 
     @Test
+    fun aSelectedRowIsNamedByItsPlaceInTheModel() = runComposeSwingTest {
+        val received = mutableListOf<Set<Int>>()
+        setContent {
+            Table(
+                model = tableModel("Ada", "Alan", "Grace"),
+                onSelectionChange = { received += it },
+                sortable = true,
+                sortKeys = listOf(SortKey(0, SortOrder.DESCENDING)),
+            )
+        }
+
+        val table = onNodeOfType<JTable>().fetch()
+        assertEquals("Grace", table.getValueAt(0, 0), "the declared order should put the last row on top")
+
+        table.setRowSelectionInterval(0, 0)
+        awaitIdle()
+
+        assertEquals(setOf(2), received.last(), "the row on top is reported by its place in the model")
+    }
+
+    @Test
     fun controlledSelectionUpdateConvergesWithoutALoop() = runComposeSwingTest {
-        var selection by mutableStateOf(listOf(0))
-        val received = mutableListOf<List<Int>>()
+        var selection by mutableStateOf(setOf(0))
+        val received = mutableListOf<Set<Int>>()
         setContent {
             val model = remember { tableModel("Ada", "Alan", "Grace") }
             Table(
@@ -99,12 +123,12 @@ class TableModelBehaviorTest {
         val table = onNodeOfType<JTable>().fetch()
         assertEquals(listOf(0), table.selectedRows.toList(), "initial selection applied")
 
-        selection = listOf(2)
+        selection = setOf(2)
         awaitIdle()
 
         assertEquals(listOf(2), table.selectedRows.toList(), "external selection applied")
-        assertEquals(listOf(2), selection, "controlled state settled on the new selection")
-        assertTrue(received.all { it == listOf(2) }, "selection oscillated instead of converging: $received")
+        assertEquals(setOf(2), selection, "controlled state settled on the new selection")
+        assertTrue(received.all { it == setOf(2) }, "selection oscillated instead of converging: $received")
 
         val callbacksAfterSettle = received.size
         awaitIdle()
