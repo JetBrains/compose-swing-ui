@@ -28,7 +28,7 @@ import kotlin.test.assertTrue
  * End-to-end tests for [TabbedPane]. They assert observable behavior on the
  * rendered [JTabbedPane]: a tab declared in the composition is added (tabCount/title), a tab dropped
  * from the composition is removed dynamically through the node lifecycle (no per-tab effect), tab
- * attributes update via recomposition, and the controlled [selectedIndex] drives the selection while a
+ * attributes update via recomposition, and the controlled `selectedIndex` drives the selection while a
  * user change fires the callback. A declared tab header renders the tab in the strip, follows its own
  * state, sees the state hoisted around the pane, and goes away with its tab.
  */
@@ -172,13 +172,14 @@ class TabbedPaneBehaviorTest {
     }
 
     @Test
-    fun theStateInATabBodyBelongsToThePositionItWasDeclaredIn() = runComposeSwingTest {
+    fun theStateInAnUnkeyedTabBodyBelongsToThePositionItWasDeclaredIn() = runComposeSwingTest {
         var leading by mutableStateOf(false)
         val created = intArrayOf(0)
         setContent {
-            // Every tab is declared from one call site, so nothing but its position distinguishes a tab
-            // from its siblings. Each body names the declaration that created the state it holds, and
-            // the order in which that state was created, so a body that outlives its declaration shows.
+            // Every tab is declared from one call site and none is given a key, so nothing but its
+            // position distinguishes a tab from its siblings. Each body names the declaration that created
+            // the state it holds, and the order in which that state was created, so a body that outlives
+            // its declaration shows.
             TabbedPane(selectedIndex = 0, onSelectedIndexChange = {}) {
                 val declared = if (leading) listOf("added", "one", "two") else listOf("one", "two")
                 declared.forEach { name -> tab(name) { Label(remember { "$name#${++created[0]}" }) } }

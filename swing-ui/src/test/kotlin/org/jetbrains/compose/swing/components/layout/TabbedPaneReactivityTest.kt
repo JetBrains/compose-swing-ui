@@ -10,6 +10,8 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import java.awt.Color
+import java.awt.event.KeyEvent
 import java.awt.image.BufferedImage
 import javax.swing.Icon
 import javax.swing.ImageIcon
@@ -159,6 +161,143 @@ class TabbedPaneReactivityTest {
         awaitIdle()
         assertEquals("General", pane.getTitleAt(0), "the tab should return to its first title")
         assertTrue(pane.isEnabledAt(0), "the tab should be selectable again")
+    }
+
+    @Test
+    fun aTabsMnemonicAndItsExplicitIndexBothReachTheTabOnTheFirstPass() = runComposeSwingTest {
+        setContent {
+            TabbedPane(selectedIndex = 0) {
+                // "Settings" underlines its first 't' (index 2) on its own; the explicit index names the
+                // second one instead, so which of the two the tab shows is what the assertion tells apart.
+                tab("Settings", mnemonic = KeyEvent.VK_T, displayedMnemonicIndex = 3) { Label("g") }
+            }
+        }
+
+        val pane = onNodeOfType<JTabbedPane>().fetch()
+        assertEquals(KeyEvent.VK_T, pane.getMnemonicAt(0), "the declared mnemonic should reach the tab")
+        assertEquals(
+            3,
+            pane.getDisplayedMnemonicIndexAt(0),
+            "the explicit index should override the character the mnemonic underlines on its own",
+        )
+    }
+
+    @Test
+    fun withdrawingTheExplicitIndexBringsBackTheMnemonicsOwnComputedIndex() = runComposeSwingTest {
+        var displayedMnemonicIndex by mutableStateOf<Int?>(3)
+        setContent {
+            TabbedPane(selectedIndex = 0) {
+                tab("Settings", mnemonic = KeyEvent.VK_T, displayedMnemonicIndex = displayedMnemonicIndex) {
+                    Label("g")
+                }
+            }
+        }
+        val pane = onNodeOfType<JTabbedPane>().fetch()
+        assertEquals(3, pane.getDisplayedMnemonicIndexAt(0), "the tab should start on the explicit index")
+
+        displayedMnemonicIndex = null
+        awaitIdle()
+
+        assertEquals(
+            2,
+            pane.getDisplayedMnemonicIndexAt(0),
+            "withdrawing the explicit index should restore the character the mnemonic itself underlines",
+        )
+        assertEquals(KeyEvent.VK_T, pane.getMnemonicAt(0), "the mnemonic itself should be left untouched")
+    }
+
+    @Test
+    fun changingTheMnemonicKeepsAnExplicitIndexItDidNotMove() = runComposeSwingTest {
+        var mnemonic by mutableIntStateOf(-1)
+        setContent {
+            TabbedPane(selectedIndex = 0) {
+                tab("Settings", mnemonic = mnemonic, displayedMnemonicIndex = 3) { Label("g") }
+            }
+        }
+        val pane = onNodeOfType<JTabbedPane>().fetch()
+        assertEquals(3, pane.getDisplayedMnemonicIndexAt(0), "the tab should start on the declared explicit index")
+
+        mnemonic = KeyEvent.VK_T
+        awaitIdle()
+
+        assertEquals(KeyEvent.VK_T, pane.getMnemonicAt(0), "the tab should adopt the new mnemonic")
+        assertEquals(
+            3,
+            pane.getDisplayedMnemonicIndexAt(0),
+            "an explicit index the declaration did not move should not be wiped by the mnemonic's own recompute",
+        )
+    }
+
+    @Test
+    fun changingTheTitleAloneKeepsAnExplicitIndexAndWithdrawingItStillRestoresTheComputedOne() = runComposeSwingTest {
+        var title by mutableStateOf("Save")
+        var displayedMnemonicIndex by mutableStateOf<Int?>(1)
+        setContent {
+            TabbedPane(selectedIndex = 0) {
+                tab(title, mnemonic = KeyEvent.VK_S, displayedMnemonicIndex = displayedMnemonicIndex) { Label("g") }
+            }
+        }
+        val pane = onNodeOfType<JTabbedPane>().fetch()
+        assertEquals(1, pane.getDisplayedMnemonicIndexAt(0), "the tab should start on the declared explicit index")
+
+        title = "Save As"
+        awaitIdle()
+
+        assertEquals("Save As", pane.getTitleAt(0), "the tab should adopt the new title")
+        assertEquals(
+            1,
+            pane.getDisplayedMnemonicIndexAt(0),
+            "a title-only change should not let the title's own recompute overwrite the declared index",
+        )
+
+        displayedMnemonicIndex = null
+        awaitIdle()
+
+        assertEquals(
+            0,
+            pane.getDisplayedMnemonicIndexAt(0),
+            "withdrawing the explicit index should still restore the character the mnemonic itself underlines",
+        )
+    }
+
+    @Test
+    fun aTabsBackgroundAndForegroundReachTheTabOnTheFirstPassAndFollowAChangedDeclaration() = runComposeSwingTest {
+        // Declared with actual colors from the very first composition, so the assertion below tells apart
+        // a background/foreground genuinely applied at insertTab time from one merely left at the pane's
+        // own default, which a tab declared without either would also read back as.
+        var background by mutableStateOf<Color?>(Color.RED)
+        var foreground by mutableStateOf<Color?>(Color.WHITE)
+        setContent {
+            TabbedPane(selectedIndex = 0) {
+                tab("General", background = background, foreground = foreground) { Label("g") }
+            }
+        }
+
+        val pane = onNodeOfType<JTabbedPane>().fetch()
+        val paneBackground = pane.background
+        val paneForeground = pane.foreground
+        assertEquals(
+            Color.RED,
+            pane.getBackgroundAt(0),
+            "the declared background should reach the tab on the first pass",
+        )
+        assertEquals(
+            Color.WHITE,
+            pane.getForegroundAt(0),
+            "the declared foreground should reach the tab on the first pass",
+        )
+
+        background = Color.BLUE
+        foreground = Color.BLACK
+        awaitIdle()
+        assertEquals(Color.BLUE, pane.getBackgroundAt(0), "a new background should replace the previous one")
+        assertEquals(Color.BLACK, pane.getForegroundAt(0), "a new foreground should replace the previous one")
+
+        background = null
+        foreground = null
+        awaitIdle()
+        assertEquals(paneBackground, pane.getBackgroundAt(0), "dropping the background should restore the pane's own")
+        assertEquals(paneForeground, pane.getForegroundAt(0), "dropping the foreground should restore the pane's own")
     }
 
     @Test

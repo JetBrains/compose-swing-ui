@@ -79,26 +79,31 @@ class PanelLayoutTest {
             }
             Row {
                 Label("c")
+                Label("d")
             }
         }
 
         val column = onNodeWithText("a").onParent()
-        assertEquals(
-            BoxLayout.Y_AXIS,
-            (column.fetch<JPanel>().layout as BoxLayout).axis,
-            "a column should stack its content",
-        )
         column.onChildren().assertCountEquals(2)
         column.onChildAt(0).assertTextEquals("a")
         column.onChildAt(1).assertTextEquals("b")
+        val stacked = column.fetch<JPanel>().components.map { it.bounds }
+        assertEquals(stacked[0].x, stacked[1].x, "a column should keep its content on one vertical line")
+        assertTrue(
+            stacked[0].y + stacked[0].height <= stacked[1].y,
+            "a column should stack its content, each child below the one before it",
+        )
 
         val row = onNodeWithText("c").onParent()
-        assertEquals(
-            BoxLayout.X_AXIS,
-            (row.fetch<JPanel>().layout as BoxLayout).axis,
-            "a row should line its content up",
+        row.onChildren().assertCountEquals(2)
+        row.onChildAt(0).assertTextEquals("c")
+        row.onChildAt(1).assertTextEquals("d")
+        val linedUp = row.fetch<JPanel>().components.map { it.bounds }
+        assertEquals(linedUp[0].y, linedUp[1].y, "a row should keep its content on one horizontal line")
+        assertTrue(
+            linedUp[0].x + linedUp[0].width <= linedUp[1].x,
+            "a row should line its content up, each child after the one before it",
         )
-        row.onChildren().assertCountEquals(1)
     }
 
     @Test

@@ -35,6 +35,7 @@ import javax.swing.JPanel
  *
  * @param modifier the [SwingModifier] applied to the panel
  * @param block declares the items; see [GridBagPanelScope]
+ * @see java.awt.GridBagLayout
  */
 @Composable
 public fun GridBagPanel(

@@ -2,6 +2,7 @@ package org.jetbrains.compose.swing.components.layout
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.test.ComposeSwingTest
@@ -14,6 +15,7 @@ import javax.swing.JLabel
 import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertSame
 
 /**
  * Behavioral tests for the [CardPanel] scope-based DSL.
@@ -160,6 +162,31 @@ class CardPanelBehaviorTest {
         // The card renders its new caption on the very component it already held, still on top.
         assertEquals("second", body.text, "the card's content should follow its declaration")
         onNodeWithText("second").assertIsVisible()
+    }
+
+    @Test
+    fun aCardKeepsItsBodyWhenACardIsDeclaredAheadOfIt() = runComposeSwingTest {
+        var leading by mutableStateOf(false)
+        val created = intArrayOf(0)
+        setContent {
+            // Every card is declared from one call site, so nothing but its key distinguishes a card from
+            // its siblings. Each body names the declaration that created the state it holds, and the order
+            // in which that state was created, so a body that outlives its declaration shows.
+            CardPanel(selectedCard = "one") {
+                val declared = if (leading) listOf("added", "one", "two") else listOf("one", "two")
+                declared.forEach { key -> card(key) { Label(remember { "$key#${++created[0]}" }) } }
+            }
+        }
+
+        assertDeckHolds("one#1", "two#2")
+        val standingBody = onNodeWithText("one#1").fetch<JLabel>()
+
+        leading = true
+        awaitIdle()
+        // State belongs to the key: the standing cards keep theirs and only the new declaration starts
+        // fresh, on the very component each card was already realized as.
+        assertDeckHolds("added#3", "one#1", "two#2")
+        assertSame(standingBody, onNodeWithText("one#1").fetch<JLabel>(), "the standing card should keep its body")
     }
 
     @Test

@@ -33,6 +33,7 @@ import javax.swing.JLayeredPane
  *
  * @param modifier the [SwingModifier] applied to the underlying `JLayeredPane`
  * @param block declares the layered children; see [LayeredPaneScope]
+ * @see javax.swing.JLayeredPane
  */
 @Composable
 public fun LayeredPane(

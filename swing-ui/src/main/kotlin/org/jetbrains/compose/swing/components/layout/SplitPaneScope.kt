@@ -9,11 +9,21 @@ import javax.swing.JSplitPane
  *
  * Under [JSplitPane.HORIZONTAL_SPLIT] the [first] side is the left, the [second] the right; under
  * [JSplitPane.VERTICAL_SPLIT] the [first] side is the top, the [second] the bottom.
+ *
+ * @see javax.swing.JSplitPane
  */
-public interface SplitPaneScope {
-    /** The leading side: left under a horizontal split, top under a vertical split. */
+public sealed interface SplitPaneScope {
+    /**
+     * The leading side: left under a horizontal split, top under a vertical split.
+     *
+     * @see javax.swing.JSplitPane.setLeftComponent
+     */
     public fun first(block: @Composable () -> Unit)
 
-    /** The trailing side: right under a horizontal split, bottom under a vertical split. */
+    /**
+     * The trailing side: right under a horizontal split, bottom under a vertical split.
+     *
+     * @see javax.swing.JSplitPane.setRightComponent
+     */
     public fun second(block: @Composable () -> Unit)
 }

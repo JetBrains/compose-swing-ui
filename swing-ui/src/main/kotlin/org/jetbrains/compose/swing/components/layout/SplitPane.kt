@@ -58,7 +58,12 @@ import javax.swing.UIManager
  *   declared settles at its answer for good
  * @param dividerSize the divider thickness in pixels; `null` leaves the size to the installed look and
  *   feel, and a size withdrawn after being declared settles at its answer for good
+ * @param continuousLayout whether the two sides are laid out continuously as the divider is dragged
+ *   rather than once it is released, where the drag draws an outline of where the divider is heading;
+ *   `null` leaves the choice to the installed look and feel, and a choice withdrawn after being declared
+ *   settles at its answer for good
  * @param block declares the two sides; see [SplitPaneScope]
+ * @see javax.swing.JSplitPane
  */
 @Composable
 public fun SplitPane(
@@ -69,6 +74,7 @@ public fun SplitPane(
     resizeWeight: Double = 0.0,
     oneTouchExpandable: Boolean? = null,
     dividerSize: Int? = null,
+    continuousLayout: Boolean? = null,
     block: SplitPaneScope.() -> Unit,
 ) {
     val callback = rememberUpdatedState(onDividerLocationChange)
@@ -100,6 +106,7 @@ public fun SplitPane(
         resizeWeight = resizeWeight,
         oneTouchExpandable = oneTouchExpandable,
         dividerSize = dividerSize,
+        continuousLayout = continuousLayout,
         block = block,
     )
 }
@@ -118,13 +125,19 @@ public fun SplitPane(
  * @param dividerLocation the divider offset in pixels (controlled); a negative offset - the default
  *   `-1` is `JSplitPane`'s own initial divider location - resets the divider to honor the sides'
  *   preferred sizes
- * @param resizeWeight how extra space is shared when the pane resizes
+ * @param resizeWeight how extra space is shared when the pane resizes, from `0.0` (all to the second
+ *   side) to `1.0` (all to the first side)
  * @param oneTouchExpandable whether the divider carries a widget that collapses either side in one
  *   click; `null` leaves the choice to the installed look and feel, and a choice withdrawn after being
  *   declared settles at its answer for good
  * @param dividerSize the divider thickness in pixels; `null` leaves the size to the installed look and
  *   feel, and a size withdrawn after being declared settles at its answer for good
+ * @param continuousLayout whether the two sides are laid out continuously as the divider is dragged
+ *   rather than once it is released, where the drag draws an outline of where the divider is heading;
+ *   `null` leaves the choice to the installed look and feel, and a choice withdrawn after being declared
+ *   settles at its answer for good
  * @param block declares the two sides; see [SplitPaneScope]
+ * @see javax.swing.JSplitPane
  */
 @Composable
 public fun SplitPane(
@@ -135,6 +148,7 @@ public fun SplitPane(
     resizeWeight: Double = 0.0,
     oneTouchExpandable: Boolean? = null,
     dividerSize: Int? = null,
+    continuousLayout: Boolean? = null,
     block: SplitPaneScope.() -> Unit,
 ) {
     val applied = rememberAppliedValue(dividerLocation)
@@ -146,6 +160,7 @@ public fun SplitPane(
         resizeWeight = resizeWeight,
         oneTouchExpandable = oneTouchExpandable,
         dividerSize = dividerSize,
+        continuousLayout = continuousLayout,
         block = block,
     )
 }
@@ -164,21 +179,26 @@ private fun SplitPaneImpl(
     resizeWeight: Double,
     oneTouchExpandable: Boolean?,
     dividerSize: Int?,
+    continuousLayout: Boolean?,
     block: SplitPaneScope.() -> Unit,
 ) {
     // Collected fresh on every pass, so a side the caller stops declaring is cleared (see SwingNode).
     val scope = SplitPaneScopeImpl().apply(block)
-    // No UIManager default names oneTouchExpandable - a look and feel that wants it on sets it directly
-    // in its own installUI - so the answer is read straight off the pane's own construction, before any
-    // declared choice overrides it, rather than off a widget built solely to ask.
+    // No UIManager default names oneTouchExpandable or continuousLayout - a look and feel that wants
+    // either sets it directly in its own installUI - so both answers are read straight off the pane's
+    // own construction, before any declared choice overrides them, rather than off a widget built
+    // solely to ask.
     var lookAndFeelOneTouchExpandable by remember { mutableStateOf(false) }
+    var lookAndFeelContinuousLayout by remember { mutableStateOf(false) }
 
     SwingNode(
         factory = {
             JSplitPane().also { pane ->
                 lookAndFeelOneTouchExpandable = pane.isOneTouchExpandable
+                lookAndFeelContinuousLayout = pane.isContinuousLayout
                 oneTouchExpandable?.let { pane.isOneTouchExpandable = it }
                 dividerSize?.let { pane.dividerSize = it }
+                continuousLayout?.let { pane.isContinuousLayout = it }
             }
         },
         update = {
@@ -196,22 +216,18 @@ private fun SplitPaneImpl(
                 }
             }
             update(oneTouchExpandable) { declared ->
-                if (declared != null) {
-                    isOneTouchExpandable = declared
-                } else {
-                    if (isOneTouchExpandable != lookAndFeelOneTouchExpandable) {
-                        isOneTouchExpandable = lookAndFeelOneTouchExpandable
-                    }
+                settleOn(declared, lookAndFeelOneTouchExpandable, { isOneTouchExpandable }) {
+                    isOneTouchExpandable = it
                 }
             }
             update(dividerSize) { declared ->
-                if (declared != null) {
-                    this.dividerSize = declared
-                } else {
-                    val lookAndFeelAnswer = UIManager.get(DIVIDER_SIZE_DEFAULT) as? Int
-                    if (lookAndFeelAnswer != null && this.dividerSize != lookAndFeelAnswer) {
-                        this.dividerSize = lookAndFeelAnswer
-                    }
+                settleOn(declared, UIManager.get(DIVIDER_SIZE_DEFAULT) as? Int, { this.dividerSize }) {
+                    this.dividerSize = it
+                }
+            }
+            update(continuousLayout) { declared ->
+                settleOn(declared, lookAndFeelContinuousLayout, { isContinuousLayout }) {
+                    isContinuousLayout = it
                 }
             }
             applyModifier(modifier)
@@ -242,6 +258,24 @@ private class SplitPaneScopeImpl : SplitPaneScope {
     override fun second(block: @Composable () -> Unit) {
         second = block
     }
+}
+
+/**
+ * Puts a component on [declared], or on [lookAndFeelAnswer] where the declaration is withdrawn, and
+ * writes nothing where the component already holds it or where neither names a value.
+ *
+ * This is what every look-and-feel-defaulted property of a split pane, and a scroll pane's viewport
+ * border, does: a withdrawn declaration hands the property back rather than leaving the last declared
+ * value standing.
+ */
+internal inline fun <V> settleOn(
+    declared: V?,
+    lookAndFeelAnswer: V?,
+    read: () -> V,
+    write: (V) -> Unit,
+) {
+    val target = declared ?: lookAndFeelAnswer ?: return
+    if (read() != target) write(target)
 }
 
 /** The look-and-feel default a split pane's UI reads while the pane records no divider size of its own. */

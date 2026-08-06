@@ -27,6 +27,7 @@ import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.rememberAppliedValue
 import org.jetbrains.compose.swing.setContentAsInteropHost
 import java.awt.BorderLayout
+import java.awt.Color
 import java.awt.Component
 import java.awt.FlowLayout
 import javax.swing.Icon
@@ -64,6 +65,7 @@ import javax.swing.event.ChangeListener
  * @param tabPlacement where the tab strip is drawn
  * @param tabLayoutPolicy how the tab strip handles overflow
  * @param block declares the tabs; see [TabbedPaneScope]
+ * @see javax.swing.JTabbedPane
  */
 @Composable
 public fun TabbedPane(
@@ -99,6 +101,7 @@ public fun TabbedPane(
  * @param tabPlacement where the tab strip is drawn
  * @param tabLayoutPolicy how the tab strip handles overflow
  * @param block declares the tabs; see [TabbedPaneScope]
+ * @see javax.swing.JTabbedPane
  */
 @Composable
 public fun TabbedPane(
@@ -306,6 +309,19 @@ private fun Tab(
                 set(metadata.icon) { pane?.setIconAt(at, it) }
                 set(metadata.tooltip) { pane?.setToolTipTextAt(at, it) }
                 set(metadata.enabled) { pane?.setEnabledAt(at, it) }
+                // The underline follows the title together with both mnemonic values: setTitleAt itself
+                // recomputes the underline from the title, so a title-only change must also re-run this
+                // write or the declared index would be silently lost to that recomputation. Setting the
+                // mnemonic recomputes the underline from the title, so an explicit index is written after
+                // it, and withdrawing that index is what re-runs the mnemonic to get the computed
+                // underline back.
+                val mnemonicKey = Triple(metadata.title, metadata.mnemonic, metadata.displayedMnemonicIndex)
+                set(mnemonicKey) { (_, mnemonic, index) ->
+                    pane?.setMnemonicAt(at, mnemonic)
+                    if (index != null) pane?.setDisplayedMnemonicIndexAt(at, index)
+                }
+                set(metadata.background) { pane?.setBackgroundAt(at, it) }
+                set(metadata.foreground) { pane?.setForegroundAt(at, it) }
             },
             content = { tab.content() },
         )
@@ -375,11 +391,18 @@ private fun TabHeaderHost(
 }
 
 /** A tab's per-composition appearance snapshot: what the strip renders for it and whether it selects. */
+@Suppress("LongParameterList")
+// One field per aspect [TabbedPaneScope.tab] declares, in the same one-to-one correspondence: grouping
+// any of them here would introduce a shape the declaration itself does not have.
 private class TabMetadata(
     val title: String,
     val icon: Icon?,
     val tooltip: String?,
     val enabled: Boolean,
+    val mnemonic: Int,
+    val displayedMnemonicIndex: Int?,
+    val background: Color?,
+    val foreground: Color?,
 )
 
 /**
@@ -400,10 +423,24 @@ private class TabbedPaneScopeImpl : TabbedPaneScope {
         icon: Icon?,
         tooltip: String?,
         enabled: Boolean,
+        mnemonic: Int,
+        displayedMnemonicIndex: Int?,
+        background: Color?,
+        foreground: Color?,
         header: (@Composable () -> Unit)?,
         content: @Composable () -> Unit,
     ) {
-        val metadata = TabMetadata(title = title, icon = icon, tooltip = tooltip, enabled = enabled)
+        val metadata =
+            TabMetadata(
+                title = title,
+                icon = icon,
+                tooltip = tooltip,
+                enabled = enabled,
+                mnemonic = mnemonic,
+                displayedMnemonicIndex = displayedMnemonicIndex,
+                background = background,
+                foreground = foreground,
+            )
         tabs.add(TabDeclaration(metadata, header, content))
     }
 }
@@ -431,7 +468,12 @@ private fun tabAttachment(
         host as JTabbedPane
         applied.write {
             host.insertTab(metadata.title, metadata.icon, component, metadata.tooltip, index)
-            host.setEnabledAt(host.indexOfComponent(component), metadata.enabled)
+            val at = host.indexOfComponent(component)
+            host.setEnabledAt(at, metadata.enabled)
+            host.setMnemonicAt(at, metadata.mnemonic)
+            metadata.displayedMnemonicIndex?.let { host.setDisplayedMnemonicIndexAt(at, it) }
+            host.setBackgroundAt(at, metadata.background)
+            host.setForegroundAt(at, metadata.foreground)
         }
         // Detach by component, not by the install-time index: an earlier sibling may have been
         // removed first, shifting this tab down. JTabbedPane.remove(component) resolves the live

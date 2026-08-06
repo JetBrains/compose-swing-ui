@@ -68,12 +68,12 @@ class LayoutContentReactivityTest {
 
     @Test
     fun aColumnFollowsItsContent() = runComposeSwingTest {
-        assertTheContentIsFollowed { content -> Column(content = content) }
+        assertTheContentIsFollowed { content -> Column { content() } }
     }
 
     @Test
     fun aRowFollowsItsContent() = runComposeSwingTest {
-        assertTheContentIsFollowed { content -> Row(content = content) }
+        assertTheContentIsFollowed { content -> Row { content() } }
     }
 
     @Test

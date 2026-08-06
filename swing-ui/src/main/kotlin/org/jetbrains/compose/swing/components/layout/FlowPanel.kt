@@ -20,6 +20,7 @@ import javax.swing.JPanel
  * @param hgap the horizontal gap between components
  * @param vgap the vertical gap between components
  * @param content the composable content of the panel
+ * @see java.awt.FlowLayout
  */
 @Composable
 public fun FlowPanel(

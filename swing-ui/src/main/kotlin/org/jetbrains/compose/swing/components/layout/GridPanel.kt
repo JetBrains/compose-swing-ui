@@ -23,6 +23,7 @@ import javax.swing.JPanel
  * @param vgap the vertical gap between components
  * @param content the composable content of the panel
  * @throws IllegalArgumentException if both [rows] and [cols] are zero
+ * @see java.awt.GridLayout
  */
 @Composable
 public fun GridPanel(
@@ -47,9 +48,8 @@ public fun GridPanel(
 }
 
 /**
- * Writes both grid dimensions, the non-zero one first. A `GridLayout` refuses a zero row count while
- * its column count is zero and vice versa, so the dimension being zeroed is always written against a
- * dimension that is already non-zero.
+ * Writes both dimensions, the non-zero one first: `GridLayout` refuses a zero row count while its
+ * column count is also zero, and vice versa.
  */
 private fun GridLayout.applyDimensions(
     rows: Int,

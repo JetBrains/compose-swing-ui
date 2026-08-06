@@ -31,6 +31,7 @@ import javax.swing.JPanel
  * @param hgap the horizontal gap between regions
  * @param vgap the vertical gap between regions
  * @param block declares the regions; see [BorderPanelScope]
+ * @see java.awt.BorderLayout
  */
 @Composable
 public fun BorderPanel(

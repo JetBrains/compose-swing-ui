@@ -205,8 +205,8 @@ is decides which one a component uses.
   calls, and binds to a component with a modifier. A handle names the component it drives, so what it
   can do is what that component can do. Where a component already hands out a state holder, its
   gestures ride on that holder instead of on a handle of their own: a `ListState` reveals a row of its
-  list and a `TreeState` a node of its tree, and a `FormattedValueState` commits an edit the user
-  typed but never entered.
+  list and a `TreeState` a node of its tree, a `ScrollState` reveals a region of the content it
+  scrolls, and a `FormattedValueState` commits an edit the user typed but never entered.
 
 In short: a value the composition can name is declared, with a callback beside it; a group of values
 the component itself keeps and reports is a state holder; an action with no value is a handle, or a

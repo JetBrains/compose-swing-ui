@@ -493,6 +493,122 @@ class ScrollStateTest {
         )
     }
 
+    /** What the state answers about the room left, in the order the axes and directions are declared. */
+    private fun ScrollState.roomLeft(): List<Boolean> =
+        listOf(canScrollForwardX, canScrollBackwardX, canScrollForwardY, canScrollBackwardY)
+
+    @Test
+    fun theRoomLeftToScrollIsAnsweredPerAxisAndDirection() = runComposeSwingTest {
+        val state = paneWithRoomToScroll()
+
+        assertEquals(
+            listOf(true, false, true, false),
+            state.roomLeft(),
+            "a pane standing at the start of content larger than it has room ahead of it and none behind",
+        )
+
+        state.x = 20
+        state.y = 30
+        awaitIdle()
+        assertEquals(
+            listOf(true, true, true, true),
+            state.roomLeft(),
+            "one standing between the ends has room in both directions on both axes",
+        )
+
+        state.x = state.maxX
+        state.y = state.maxY
+        awaitIdle()
+        assertEquals(
+            listOf(false, true, false, true),
+            state.roomLeft(),
+            "and one at the largest position has nothing left ahead of it",
+        )
+    }
+
+    @Test
+    fun contentNoLargerThanTheViewportLeavesNowhereToScroll() = runComposeSwingTest {
+        var declared: ScrollState? = null
+        setContent {
+            val state = rememberScrollState()
+            declared = state
+            ScrollPane(modifier = SwingModifier.preferredSize(300, 200), state = state) {
+                content { Label("body", modifier = SwingModifier.preferredSize(50, 40)) }
+            }
+        }
+        val state = declared ?: error("the scroll pane did not compose")
+
+        assertEquals(
+            listOf(false, false, false, false),
+            state.roomLeft(),
+            "content the viewport shows whole can be scrolled in no direction",
+        )
+    }
+
+    @Test
+    fun aStateNoPaneRendersHasNoRoomAheadOfIt() = runComposeSwingTest {
+        var declared: ScrollState? = null
+        var visible by mutableStateOf(true)
+        setContent {
+            val state = rememberScrollState()
+            declared = state
+            if (visible) {
+                ScrollPane(modifier = SwingModifier.preferredSize(100, 50), state = state) {
+                    content { Label("body", modifier = SwingModifier.preferredSize(300, 400)) }
+                }
+            }
+        }
+        val state = declared ?: error("the scroll pane did not compose")
+        assertEquals(listOf(true, false, true, false), state.roomLeft(), "the pane's room is there to lose")
+
+        visible = false
+        awaitIdle()
+
+        assertEquals(
+            listOf(false, false),
+            listOf(state.canScrollForwardX, state.canScrollForwardY),
+            "a state without a pane knows of no content beyond a viewport, so nothing lies ahead of it",
+        )
+    }
+
+    @Test
+    fun aReaderOfTheRoomLeftStandsStillUntilTheAnswerChanges() = runComposeSwingTest {
+        val answers = mutableListOf<Boolean>()
+        var declared: ScrollState? = null
+        setContent {
+            val state = rememberScrollState()
+            declared = state
+            ScrollPane(modifier = SwingModifier.preferredSize(100, 50), state = state) {
+                content { Label("body", modifier = SwingModifier.preferredSize(300, 400)) }
+            }
+            RoomBelowReader(state) { answers += it }
+        }
+        val state = declared ?: error("the scroll pane did not compose")
+        awaitIdle()
+        assertEquals(true, answers.lastOrNull(), "the reader is told there is room below the pane it reads")
+        val settled = answers.size
+
+        state.y = 10
+        awaitIdle()
+        state.y = 20
+        awaitIdle()
+        assertEquals(
+            settled,
+            answers.size,
+            "scrolling with room still left must leave a reader of the answer alone",
+        )
+
+        state.y = state.maxY
+        awaitIdle()
+        assertEquals(settled + 1, answers.size, "reaching the end of the content must reach the reader")
+        assertEquals(false, answers.last(), "which is where the answer turns")
+
+        state.y = 0
+        awaitIdle()
+        assertEquals(settled + 2, answers.size, "and leaving the end must reach them again")
+        assertEquals(true, answers.last(), "with the answer turned back")
+    }
+
     @Test
     fun aPaneWithNothingToShowHasNowhereToScroll() = runComposeSwingTest {
         var declared: ScrollState? = null
@@ -511,4 +627,18 @@ class ScrollStateTest {
             "a viewport with nothing to move stays where it is",
         )
     }
+}
+
+/**
+ * Renders whether [state] has room left below it, and reports the answer through [onRoomBelow] once per
+ * pass this reader composes - so a report is made exactly when what the reader read invalidated it.
+ */
+@Composable
+private fun RoomBelowReader(
+    state: ScrollState,
+    onRoomBelow: (Boolean) -> Unit,
+) {
+    val roomBelow = state.canScrollForwardY
+    onRoomBelow(roomBelow)
+    Label(if (roomBelow) "more below" else "at the bottom")
 }

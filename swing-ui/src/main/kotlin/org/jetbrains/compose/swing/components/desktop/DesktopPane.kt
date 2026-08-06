@@ -62,6 +62,7 @@ import javax.swing.event.InternalFrameListener
  *
  * @param modifier the [SwingModifier] applied to the underlying `JDesktopPane`
  * @param block declares the internal frames; see [DesktopPaneScope]
+ * @see javax.swing.JDesktopPane
  */
 @Composable
 public fun DesktopPane(
@@ -97,6 +98,10 @@ public fun DesktopPane(
  * @property resizable whether the frame can be resized
  * @property maximizable whether the frame can be maximized
  * @property iconifiable whether the frame can be iconified
+ * @see javax.swing.JInternalFrame.setClosable
+ * @see javax.swing.JInternalFrame.setResizable
+ * @see javax.swing.JInternalFrame.setMaximizable
+ * @see javax.swing.JInternalFrame.setIconifiable
  */
 public class InternalFrameControls(
     public val closable: Boolean = false,
@@ -115,8 +120,10 @@ public class InternalFrameControls(
  * identified by the `key` it is given, and by its position among the declared frames when it is given
  * none; so in a list frames are added to and removed from, give each frame a key of its own, and the
  * frames declared after a removed one stay the frames the user left behind.
+ *
+ * @see javax.swing.JInternalFrame
  */
-public interface DesktopPaneScope {
+public sealed interface DesktopPaneScope {
     /**
      * Declares one internal frame.
      *
@@ -128,6 +135,7 @@ public interface DesktopPaneScope {
      *   frame from the composition in response to actually close it
      * @param modifier the [SwingModifier] applied to the frame
      * @param content the composable shown in the frame's body
+     * @see javax.swing.JInternalFrame
      */
     @Suppress("LongParameterList")
     // Independent declarative aspects of one frame - title, geometry, identity, controls, close
@@ -156,6 +164,7 @@ public interface DesktopPaneScope {
      * @param controls which window controls the frame shows
      * @param modifier the [SwingModifier] applied to the frame
      * @param content the composable shown in the frame's body
+     * @see javax.swing.JInternalFrame
      */
     @Suppress("LongParameterList")
     // Independent declarative aspects of one frame with no cohesive object among them, the raw listener
@@ -185,6 +194,7 @@ public interface DesktopPaneScope {
      *   frame from the composition in response to actually close it
      * @param modifier the [SwingModifier] applied to the frame
      * @param content the composable shown in the frame's body
+     * @see javax.swing.JInternalFrame
      */
     @Suppress("LongParameterList")
     // Independent declarative aspects of one frame with no cohesive object among them, the hoisted state
@@ -210,6 +220,7 @@ public interface DesktopPaneScope {
      * @param controls which window controls the frame shows
      * @param modifier the [SwingModifier] applied to the frame
      * @param content the composable shown in the frame's body
+     * @see javax.swing.JInternalFrame
      */
     @Suppress("LongParameterList")
     // Independent declarative aspects of one frame with no cohesive object among them, hoisted state and

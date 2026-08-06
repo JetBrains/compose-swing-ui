@@ -513,7 +513,9 @@ GridBagPanel {
 }
 ```
 
-`CardPanel` shows the card whose key equals its `selectedCard`, so switching pages is a state write.
+`CardPanel` shows the card whose key equals its `selectedCard`, so switching pages is a state write. A
+card's key is also its composition identity: the card keeps what its content remembers however the
+cards declared around it change.
 
 ```kotlin
 var step by remember { mutableStateOf("details") }
@@ -525,15 +527,18 @@ Button("Next", onClick = { step = "payment" })
 ```
 
 A `TabbedPane` tab carries a title, icon, tooltip and enabled flag, and can take over what the tab
-strip renders for it with a `header` composable - the title and icon still name it. A tab's identity
-is positional: state its body remembers belongs to the position rather than to the declaration, so
-hoist anything that must outlive an insertion above the pane. `tabPlacement` defaults to
-`JTabbedPane.TOP` and `tabLayoutPolicy` to `JTabbedPane.WRAP_TAB_LAYOUT`.
+strip renders for it with a `header` composable - the title and icon still name it, for accessibility
+and as the values recomposition writes. A tab's identity is positional: state its body remembers belongs
+to the position rather than to the declaration, so hoist anything that must outlive an insertion above
+the pane. A tab can also carry a `mnemonic` that selects it from the keyboard, a
+`displayedMnemonicIndex` naming which character the strip underlines, and a `background` and
+`foreground` of its own. `tabPlacement` defaults to `JTabbedPane.TOP` and `tabLayoutPolicy` to
+`JTabbedPane.WRAP_TAB_LAYOUT`.
 
 ```kotlin
 var tab by remember { mutableStateOf(0) }
 TabbedPane(selectedIndex = tab, onSelectedIndexChange = { tab = it }) {
-    tab(title = "Source") { Body() }
+    tab(title = "Source", mnemonic = KeyEvent.VK_S) { Body() }
     tab(title = "Console", header = { Label("Console", modifier = SwingModifier.icon(saveIcon)) }) { Body() }
 }
 ```
@@ -541,7 +546,10 @@ TabbedPane(selectedIndex = tab, onSelectedIndexChange = { tab = it }) {
 A `SplitPane`'s `first` side is the left or the top depending on `orientation`, which defaults to
 `JSplitPane.HORIZONTAL_SPLIT`. `dividerLocation` is declared and `onDividerLocationChange` reports
 where the user dragged it; `resizeWeight` decides which side keeps extra space, and
-`oneTouchExpandable` and `dividerSize` shape the divider itself.
+`oneTouchExpandable` and `dividerSize` shape the divider itself. `continuousLayout` lays the two sides
+out as the divider is dragged rather than once it is released. Each of those three leaves the choice to
+the look and feel while it is `null`, and settles at the look and feel's answer if it is withdrawn after
+being declared.
 
 ```kotlin
 var divider by remember { mutableStateOf(240) }
@@ -558,7 +566,9 @@ SplitPane(
 ```
 
 A `ScrollPane` has four slots: `content`, `rowHeader`, `columnHeader` and `corner(key)`. Both
-scrollbar policies default to as-needed.
+scrollbar policies default to as-needed. `viewportBorder` draws a border around the viewport, inside the
+pane's own and outside the scrolled content, and leaves it to the look and feel while it is `null`;
+`wheelScrollingEnabled` decides whether the mouse wheel scrolls the pane at all.
 Its scroll position is hoisted into a [`ScrollState`](#scrollstate).
 
 ```kotlin
@@ -566,6 +576,18 @@ ScrollPane(horizontalScrollbar = JScrollPane.HORIZONTAL_SCROLLBAR_NEVER) {
     columnHeader { Label("Rows") }
     content { Body() }
     corner(JScrollPane.UPPER_TRAILING_CORNER) { Label("#") }
+}
+```
+
+A `JScrollPane` asks the view it holds how far an arrow button and a page scroll it, and whether it
+takes the viewport's width or height instead of its preferred one. Content that answers none of those is
+scrolled by the pane's defaults; `content` takes those four answers, and declaring any of them hosts the
+content in a body that answers the viewport on its behalf. A widget that already answers for itself - a
+table, a list, a tree, a text area - is declared without them.
+
+```kotlin
+ScrollPane {
+    content(unitIncrement = 16, blockIncrement = 160, tracksViewportWidth = true) { WrappingBody() }
 }
 ```
 
@@ -930,8 +952,21 @@ whole of it, and `maxX` and `maxY` the largest position that still shows content
 state.maxY` scrolls to the bottom of whatever is currently there. Each is `0` while no pane renders the
 state.
 
+`canScrollForwardX`, `canScrollBackwardX`, `canScrollForwardY` and `canScrollBackwardY` answer whether an
+axis has anywhere left to scroll, for a caller that offers a way to scroll further and wants it disabled
+at the end. The forward pair is `false` once the position stands at `maxX` or `maxY`, so content the
+viewport shows whole can be scrolled forward nowhere; the backward pair is `false` while the position
+stands at `0`. A reader of one of them stands still until the answer itself changes, rather than
+following every scrolled pixel.
+
 The position outlives the content it was reached in, so a pane that leaves the composition and comes back
 comes back where the user left it.
+
+`revealRect(rect)` scrolls to a region of the content instead of to a coordinate, for a caller that knows
+where something is but not where the pane has to stand to show it. The rectangle is in the content's own
+coordinates, whatever the pane is currently scrolled to, and the call answers whether a pane with content
+was there to scroll. Wherever it lands is reported back through `x` and `y`, like the user's own
+scrolling.
 
 ### `ListState`
 

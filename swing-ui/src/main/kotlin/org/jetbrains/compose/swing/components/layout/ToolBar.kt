@@ -34,6 +34,7 @@ import javax.swing.UIManager
  *   or `null` to leave that choice to the look and feel; a choice withdrawn after being declared
  *   settles at its answer for good
  * @param content the items hosted by the tool bar
+ * @see javax.swing.JToolBar
  */
 @Composable
 public fun ToolBar(

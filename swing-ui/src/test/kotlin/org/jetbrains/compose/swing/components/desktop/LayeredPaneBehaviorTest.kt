@@ -22,7 +22,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 /**
- * Behavioral tests for [LayeredPane] over a real [SwingApplier]. Each assertion reads the rendered
+ * Behavioral tests for [LayeredPane] over a real
+ * [SwingApplier][org.jetbrains.compose.swing.node.SwingApplier]. Each assertion reads the rendered
  * [JLayeredPane]: a declared child is hosted on it at its requested depth (`JLayeredPane.getLayer`),
  * children are added and removed dynamically as the composition changes, a child's layer re-applies on
  * recomposition, and disposing the pane tears it down.

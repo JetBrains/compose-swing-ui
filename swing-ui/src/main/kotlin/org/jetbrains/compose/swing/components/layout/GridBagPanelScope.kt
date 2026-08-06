@@ -13,8 +13,10 @@ import java.awt.Insets
  * An item hosts exactly one child; dropping an item (e.g. behind an `if`) removes its child. The
  * parameters carry `GridBagConstraints`' own field names and defaults, so a grid-bag layout written
  * against Swing transfers field for field.
+ *
+ * @see java.awt.GridBagLayout
  */
-public interface GridBagPanelScope {
+public sealed interface GridBagPanelScope {
     /**
      * Declares one item and the constraints its child is laid out under.
      *
@@ -44,6 +46,7 @@ public interface GridBagPanelScope {
      * @param ipady the internal vertical padding: the child is at least its minimum height plus this
      *   many pixels tall
      * @param content the single composable placed in the cell
+     * @see java.awt.GridBagConstraints
      */
     @Suppress("LongParameterList")
     // One parameter per GridBagConstraints field, under the field's own name and at the field's own

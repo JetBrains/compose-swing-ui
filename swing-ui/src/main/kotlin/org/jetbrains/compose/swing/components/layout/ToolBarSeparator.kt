@@ -27,22 +27,18 @@ import javax.swing.JToolBar
  * }
  * ```
  *
- * A tool bar turns the separators it hosts to match its own orientation, so a vertical tool bar draws
- * its separators across itself and a horizontal one draws them down itself.
- *
  * @param modifier the [SwingModifier] applied to the underlying component
  * @param size the size of the separator; `null` by default, which leaves the size to the look and feel
+ * @see javax.swing.JToolBar.Separator
  */
 @Composable
 public fun ToolBarSeparator(
     modifier: SwingModifier = SwingModifier,
     size: Dimension? = null,
 ) {
-    // No UIManager default alone names this size - a look and feel swaps its ToolBar.separatorSize
-    // default between width and height depending on the separator's own orientation, and only applies
-    // it while the separator carries no size of its own - so the answer is read straight off the
-    // separator's own construction, before a declared size overrides it, rather than off a widget built
-    // solely to ask.
+    // UIManager alone can't name this size: a look and feel swaps ToolBar.separatorSize between width
+    // and height by the separator's own orientation, and only while the separator carries no size of
+    // its own. Read it off a real separator's construction instead, before a declared size overrides it.
     var lookAndFeelSize by remember { mutableStateOf<Dimension?>(null) }
     SwingNode(
         factory = {
@@ -61,8 +57,7 @@ public fun ToolBarSeparator(
                         separatorSize = lookAndFeelAnswer
                     }
                 }
-                // Sizing a separator only invalidates it, so ask for the layout pass that lets the size
-                // take effect.
+                // Sizing only invalidates the separator; ask for the layout pass that applies it.
                 revalidate()
             }
             applyModifier(modifier)
