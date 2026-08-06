@@ -161,12 +161,7 @@ public suspend fun awaitApplication(content: @Composable ApplicationScope.() -> 
                 val recomposer = Recomposer(coroutineContext)
                 var isOpen by mutableStateOf(true)
 
-                val applicationScope =
-                    object : ApplicationScope {
-                        override fun exitApplication() {
-                            isOpen = false
-                        }
-                    }
+                val applicationScope = ApplicationScopeImpl { isOpen = false }
 
                 launch {
                     recomposer.runRecomposeAndApplyChanges()
@@ -198,13 +193,21 @@ public suspend fun awaitApplication(content: @Composable ApplicationScope.() -> 
  * Scope used by [application], [awaitApplication], [launchApplication]
  */
 @Stable
-public interface ApplicationScope {
+public sealed interface ApplicationScope {
     /**
      * Close all windows created inside the application and cancel all launched effects
      * (they launch via [androidx.compose.runtime.LaunchedEffect] and
      * [androidx.compose.runtime.rememberCoroutineScope]).
      */
     public fun exitApplication()
+}
+
+private class ApplicationScopeImpl(
+    private val exit: () -> Unit,
+) : ApplicationScope {
+    override fun exitApplication() {
+        exit()
+    }
 }
 
 private class ApplicationApplier : Applier<Any> {

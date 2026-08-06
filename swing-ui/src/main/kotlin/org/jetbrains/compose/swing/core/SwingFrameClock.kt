@@ -2,8 +2,8 @@ package org.jetbrains.compose.swing.core
 
 import androidx.compose.runtime.BroadcastFrameClock
 import androidx.compose.runtime.MonotonicFrameClock
+import java.awt.Component
 import java.awt.DisplayMode
-import java.awt.Window
 import javax.swing.Timer
 
 /**
@@ -17,16 +17,15 @@ import javax.swing.Timer
  * composition is torn down to guarantee the timer is stopped.
  *
  * The cadence is a best-effort, nominal wall-clock rate, not vsync or variable-refresh-rate (VRR)
- * synchronization: actual frame delivery jitters with EDT load. A window's clock is cadenced to that
- * window's reported display refresh rate (see [displayRefreshRate]) and follows it as the window
- * moves between displays.
+ * synchronization: actual frame delivery jitters with EDT load. [displayRefreshRate] reads a
+ * component's display refresh rate to seed that cadence.
  */
 internal class SwingFrameClock(
     framesPerSecond: Int = DEFAULT_FRAMES_PER_SECOND,
 ) : MonotonicFrameClock {
     private val timer: Timer = Timer(delayMillisFor(framesPerSecond), null)
 
-    /** The current frame interval in milliseconds, i.e. the active cadence the timer fires at. */
+    /** The timer's current cadence, in milliseconds. */
     val frameDelayMillis: Int
         get() = timer.delay
 
@@ -40,7 +39,6 @@ internal class SwingFrameClock(
 
     init {
         timer.addActionListener {
-            // Runs on the EDT.
             broadcastClock.sendFrame(System.nanoTime())
             if (!broadcastClock.hasAwaiters) {
                 timer.stop()
@@ -76,13 +74,13 @@ internal class SwingFrameClock(
             (MILLIS_PER_SECOND / framesPerSecond.coerceAtLeast(1)).coerceAtLeast(1)
 
         /**
-         * The window's current display refresh rate in frames per second, read from
-         * `window.graphicsConfiguration.device.displayMode.refreshRate` and falling back to
+         * The component's current display refresh rate in frames per second, read from
+         * `graphicsConfiguration.device.displayMode.refreshRate` and falling back to
          * [DEFAULT_FRAMES_PER_SECOND] when the display reports an unknown
-         * ([DisplayMode.REFRESH_RATE_UNKNOWN]) or non-positive rate, or the window has no
-         * [java.awt.GraphicsConfiguration] yet.
+         * ([DisplayMode.REFRESH_RATE_UNKNOWN]) or non-positive rate, or the component has no
+         * [java.awt.GraphicsConfiguration] - which is what a component outside any container reports.
          */
-        fun Window.displayRefreshRate(): Int {
+        fun Component.displayRefreshRate(): Int {
             val rate = graphicsConfiguration?.device?.displayMode?.refreshRate ?: DisplayMode.REFRESH_RATE_UNKNOWN
             return if (rate == DisplayMode.REFRESH_RATE_UNKNOWN || rate <= 0) DEFAULT_FRAMES_PER_SECOND else rate
         }

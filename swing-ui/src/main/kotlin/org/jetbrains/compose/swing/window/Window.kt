@@ -50,6 +50,7 @@ import javax.swing.WindowConstants
  * @param undecorated whether the window is shown without its platform decorations (title bar and
  *   border)
  * @param content the composable content of the window, receiving the window as its [WindowScope]
+ * @see javax.swing.JFrame
  */
 @Composable
 public fun Window(

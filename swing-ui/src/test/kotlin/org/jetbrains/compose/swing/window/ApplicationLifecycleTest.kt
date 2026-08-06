@@ -8,6 +8,7 @@ import kotlinx.coroutines.withTimeout
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Behavioral coverage for the application lifecycle entry points, which run entirely on a Compose
@@ -29,7 +30,7 @@ class ApplicationLifecycleTest {
         var sawWindow = true
 
         // Bounded so a lifecycle that never settles fails fast instead of hanging the suite.
-        withTimeout(WALL_CLOCK_TIMEOUT_MILLIS) {
+        withTimeout(WALL_CLOCK_TIMEOUT) {
             awaitApplication {
                 contentComposed = true
                 // LocalWindow is null under a bare application scope that has created no Window;
@@ -54,7 +55,7 @@ class ApplicationLifecycleTest {
         val scope = CoroutineScope(coroutineContext + Job())
         try {
             val job = scope.launchApplication { LaunchedEffect(Unit) { exitApplication() } }
-            withTimeout(WALL_CLOCK_TIMEOUT_MILLIS) { job.join() }
+            withTimeout(WALL_CLOCK_TIMEOUT) { job.join() }
             assertTrue(job.isCompleted, "the launched application job must complete after exit")
         } finally {
             scope.coroutineContext[Job]?.cancel()
@@ -62,6 +63,6 @@ class ApplicationLifecycleTest {
     }
 
     private companion object {
-        const val WALL_CLOCK_TIMEOUT_MILLIS: Long = 10_000
+        val WALL_CLOCK_TIMEOUT = 10.seconds
     }
 }

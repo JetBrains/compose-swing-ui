@@ -18,6 +18,7 @@ import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Behavioural tests asserting that a [Dialog] leaving the composition fully releases its realized
@@ -58,7 +59,7 @@ class DialogLifecycleTest {
                     }
                 }
             try {
-                withTimeout(TIMEOUT_MILLIS) {
+                withTimeout(TIMEOUT) {
                     settle(recomposer, clock)
                     val dialog = assertNotNull(realizedDialog(), "Dialog did not realize a JDialog")
                     // Request the show and remove the dialog from the composition on the same
@@ -90,7 +91,7 @@ class DialogLifecycleTest {
 }
 
 private const val DIALOG_TITLE = "dialog-pending-show-test"
-private const val TIMEOUT_MILLIS = 15_000L
+private val TIMEOUT = 15.seconds
 private const val MAX_SYNCHRONOUS_FRAMES = 100
 
 /**

@@ -1,150 +1,95 @@
 package org.jetbrains.compose.swing.core
 
-import androidx.compose.runtime.Recomposer
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.swing.Swing
-import org.jetbrains.compose.swing.core.SwingFrameClock.Companion.displayRefreshRate
+import androidx.compose.runtime.CompositionContext
+import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import java.awt.Window
 import java.awt.event.WindowAdapter
 import java.awt.event.WindowEvent
-import java.beans.PropertyChangeListener
-import java.util.WeakHashMap
-import javax.swing.JRootPane
+import javax.swing.JComponent
 import javax.swing.RootPaneContainer
 
 /**
- * Owns the one-per-[Window] composition runtime: a single [Recomposer], the [SwingFrameClock] that
- * drives it, and the [CoroutineScope] they run on. Every island mounted into the same window shares
- * one of these, so two `setContent` calls under one window recompose on one recomposer and one frame
- * clock.
+ * The [CompositionContext] every composition in this window shares, created on the first call and the
+ * same one on every call after it.
  *
- * Created lazily on the first `setContent` that resolves to the window (see
- * [Window.getOrCreateWindowRecomposer]) and torn down when the window is closed/disposed.
+ * Content mounted under it recomposes together with the rest of this window's content, on one
+ * recomposition scope paced by the display the window is on. The window owns the context and tears it
+ * down when it is disposed.
+ *
+ * Pass it as the parent context of a mount to join this window's composition - which is what a mount
+ * on a container already under this window resolves to on its own.
+ *
+ * Must be called on the Event Dispatch Thread.
+ *
+ * Marked [InternalSwingUiApi]; it may change without notice in any release.
  */
-internal class WindowRecomposer private constructor(
-    val recomposer: Recomposer,
-    private val clock: SwingFrameClock,
-    private val scope: CoroutineScope,
-    private val window: Window,
-    private val refreshRateListener: PropertyChangeListener,
-) {
-    private var disposed = false
+@InternalSwingUiApi
+public fun Window.compositionContext(): CompositionContext {
+    checkEventDispatchThread()
+    return getOrCreateRecomposer().recomposer
+}
 
-    fun dispose() {
-        if (disposed) return
-        disposed = true
-        window.removePropertyChangeListener(GRAPHICS_CONFIGURATION_PROPERTY, refreshRateListener)
-        recomposer.cancel()
-        clock.dispose()
-        scope.cancel()
-    }
-
-    companion object {
-        /**
-         * The bound property [Window] fires when its [java.awt.GraphicsConfiguration] changes, i.e. when
-         * the window moves to a screen device with a potentially different display refresh rate.
-         */
-        private const val GRAPHICS_CONFIGURATION_PROPERTY: String = "graphicsConfiguration"
-
-        fun create(window: Window): WindowRecomposer {
-            GlobalSnapshotManager.ensureStarted()
-            val clock = SwingFrameClock(window.displayRefreshRate())
-            val scope = CoroutineScope(Dispatchers.Swing + Job() + clock)
-            val recomposer = Recomposer(scope.coroutineContext)
-            scope.launch {
-                recomposer.runRecomposeAndApplyChanges()
-            }
-            // Retime the clock when the window moves to a display with a different refresh rate. Fires on
-            // the EDT; SwingFrameClock.setFramesPerSecond early-returns when the cadence is unchanged.
-            val refreshRateListener = PropertyChangeListener { clock.setFramesPerSecond(window.displayRefreshRate()) }
-            window.addPropertyChangeListener(GRAPHICS_CONFIGURATION_PROPERTY, refreshRateListener)
-            return WindowRecomposer(recomposer, clock, scope, window, refreshRateListener)
-        }
+/**
+ * A window's [SwingRecomposer], held by the listener that tears it down when the window is
+ * disposed.
+ *
+ * A window is asked for its runtime through the registration it already keeps: the listener that ends
+ * the runtime is the same one that names it, so which runtime a window has is answered by the window
+ * itself rather than tracked anywhere else. Removing the listener is therefore the whole of releasing
+ * the runtime, and a window that is garbage collected takes its runtime with it.
+ */
+private class WindowRecomposerHolder(
+    val runtime: SwingRecomposer,
+    private val stampedOn: JComponent?,
+) : WindowAdapter() {
+    override fun windowClosed(e: WindowEvent) {
+        e.window.removeWindowListener(this)
+        stampedOn?.setCompositionContext(null)
+        runtime.dispose()
     }
 }
 
 /**
- * Client-property key under which a window's [WindowRecomposer] is memoized on its [JRootPane], so it
- * is created at most once per window. Windows that are not [RootPaneContainer]s fall back to
- * [windowRecomposers].
+ * Returns the [SwingRecomposer] already created for this window, or `null` if none exists yet.
+ * Does NOT create one. EDT-only.
  */
-private const val WINDOW_RECOMPOSER_KEY: String = "org.jetbrains.compose.swing.windowRecomposer"
+internal fun Window.recomposerOrNull(): SwingRecomposer? =
+    windowListeners.firstNotNullOfOrNull { (it as? WindowRecomposerHolder)?.runtime }
 
 /**
- * Side table for [Window]s that are not [RootPaneContainer]s and therefore have no [JRootPane] to
- * carry the [WINDOW_RECOMPOSER_KEY] client property. Weakly keyed so a disposed, unreferenced window
- * does not pin its runtime.
- */
-private val windowRecomposers = WeakHashMap<Window, WindowRecomposer>()
-
-/**
- * The [JRootPane] that carries this window's recomposer slot, or `null` for a non-[RootPaneContainer]
- * window (which uses the [windowRecomposers] side table instead).
- */
-private val Window.recomposerRootPane: JRootPane?
-    get() = (this as? RootPaneContainer)?.rootPane
-
-/**
- * Returns the [WindowRecomposer] already created for this window, or `null` if none exists yet. Does
- * NOT create one. EDT-only.
- */
-internal fun Window.windowRecomposerOrNull(): WindowRecomposer? {
-    val rootPane = recomposerRootPane
-    return if (rootPane != null) {
-        rootPane.getClientProperty(WINDOW_RECOMPOSER_KEY) as? WindowRecomposer
-    } else {
-        windowRecomposers[this]
-    }
-}
-
-/**
- * Returns this window's single [Recomposer], creating the backing [WindowRecomposer] (recomposer +
- * frame clock + scope) on first call and memoizing it on the window.
+ * The [Window] whose own shared composition scope [context] is, or `null` when [context] is something
+ * else - a context published by a host composition, or a root created for a component.
  *
- * On creation the recomposer is also published as the window's [COMPOSITION_KEY]
- * [androidx.compose.runtime.CompositionContext] on the [JRootPane] (when present), so descendant
- * `setContent` calls resolving via [findParentCompositionContext] share this same scope. A
+ * This answers from [context] alone, so a mount handed a window's context states that window even while
+ * the container it composes into hangs off no window at all. The answer is read back off the windows
+ * themselves, so it costs a pass over the windows this application has open. EDT-only.
+ */
+internal fun windowOwning(context: CompositionContext): Window? =
+    Window.getWindows().firstOrNull { it.recomposerOrNull()?.recomposer === context }
+
+/**
+ * Returns this window's single [SwingRecomposer], creating it (recomposer + frame clock +
+ * scope) on first call and memoizing it on the window, so every island in one window recomposes on one
+ * recomposer and one frame clock.
+ *
+ * On creation the runtime's recomposer is also published as the window's [COMPOSITION_KEY]
+ * [androidx.compose.runtime.CompositionContext] on the [javax.swing.JRootPane] (when present), so
+ * descendant `setContent` calls resolving via [findParentCompositionContext] share this same scope. A
  * [WindowAdapter.windowClosed] listener is registered once that tears everything down when the window
- * is disposed.
+ * is disposed: a window is the one host with a permanent "finished" lifecycle event, which is what
+ * lets it own its runtime rather than hand a disposal to a caller.
  *
  * EDT-only.
  */
-internal fun Window.getOrCreateWindowRecomposer(): Recomposer {
-    windowRecomposerOrNull()?.let { return it.recomposer }
+internal fun Window.getOrCreateRecomposer(): SwingRecomposer {
+    recomposerOrNull()?.let { return it }
 
-    val created = WindowRecomposer.create(this)
-    val rootPane = recomposerRootPane
-    // Centralized COMPOSITION_KEY publication (see publishCompositionContext); the returned action
-    // clears the stamp and is invoked from this window's windowClosed teardown below. The separate
-    // WINDOW_RECOMPOSER_KEY memoization is local to this file and stays inline.
-    val clearCompositionStamp =
-        if (rootPane != null) {
-            rootPane.putClientProperty(WINDOW_RECOMPOSER_KEY, created)
-            publishCompositionContext(rootPane, created.recomposer)
-        } else {
-            windowRecomposers[this] = created
-            {}
-        }
+    val created = SwingRecomposer.create(this)
+    // The holder clears this stamp from the window's teardown, so it stands exactly as long as the
+    // recomposer behind it.
+    val stampedOn = (this as? RootPaneContainer)?.rootPane
+    stampedOn?.setCompositionContext(created.recomposer)
+    addWindowListener(WindowRecomposerHolder(created, stampedOn))
 
-    addWindowListener(
-        object : WindowAdapter() {
-            override fun windowClosed(e: WindowEvent) {
-                removeWindowListener(this)
-                val pane = recomposerRootPane
-                if (pane != null) {
-                    pane.putClientProperty(WINDOW_RECOMPOSER_KEY, null)
-                    clearCompositionStamp()
-                } else {
-                    windowRecomposers.remove(this@getOrCreateWindowRecomposer)
-                }
-                created.dispose()
-            }
-        },
-    )
-
-    return created.recomposer
+    return created
 }

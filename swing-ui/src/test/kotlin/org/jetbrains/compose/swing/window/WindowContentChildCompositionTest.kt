@@ -29,6 +29,7 @@ import javax.swing.SwingUtilities
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Canary for the app->window context flow (design fork F1, "preserve/hybrid"): content mounted
@@ -169,7 +170,7 @@ class WindowContentChildCompositionTest {
     }
 
     private companion object {
-        const val FRAME_INTERVAL_NANOS: Long = 16_666_667L
+        val FRAME_INTERVAL_NANOS: Long = (1.seconds / 60).inWholeNanoseconds
         const val MAX_IDLE_FRAMES: Int = 10_000
         const val HOST_SIZE: Int = 200
     }

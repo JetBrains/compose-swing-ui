@@ -36,18 +36,31 @@ public fun rememberDialogState(
  * @param position the initial value for [position]
  * @param size the initial value for [size]; a null size sizes the dialog to its content, while a
  *   non-null size is applied verbatim
+ * @see javax.swing.JDialog
  */
 public class DialogState(
     position: WindowPosition = WindowPosition.PlatformDefault,
     size: Dimension? = null,
 ) {
-    /** The current top-left position of the dialog on screen. */
+    /**
+     * The current top-left position of the dialog on screen.
+     *
+     * @see java.awt.Component.setLocation
+     */
     public var position: WindowPosition by mutableStateOf(position)
 
-    /** The current width of the dialog, in pixels. */
+    /**
+     * The current width of the dialog, in pixels.
+     *
+     * @see java.awt.Component.setSize
+     */
     public var width: Int by mutableIntStateOf(size?.width ?: 0)
 
-    /** The current height of the dialog, in pixels. */
+    /**
+     * The current height of the dialog, in pixels.
+     *
+     * @see java.awt.Component.setSize
+     */
     public var height: Int by mutableIntStateOf(size?.height ?: 0)
 
     /**
@@ -55,6 +68,8 @@ public class DialogState(
      *
      * Reading returns a detached copy, matching [java.awt.Component.getSize] semantics; resize the
      * dialog by assigning a new value here or by setting [width] and [height] individually.
+     *
+     * @see java.awt.Component.setSize
      */
     public var size: Dimension
         get() = Dimension(width, height)

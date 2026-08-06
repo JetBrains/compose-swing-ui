@@ -3,257 +3,108 @@ package org.jetbrains.compose.swing
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ComposableOpenTarget
 import androidx.compose.runtime.CompositionContext
-import androidx.compose.runtime.Recomposer
+import androidx.compose.runtime.State
 import kotlinx.coroutines.DisposableHandle
-import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import org.jetbrains.compose.swing.annotations.SwingComposable
 import org.jetbrains.compose.swing.annotations.SwingMenuComposable
+import org.jetbrains.compose.swing.core.MountParent
 import org.jetbrains.compose.swing.core.SwingCompositionMount
 import org.jetbrains.compose.swing.core.checkEventDispatchThread
-import org.jetbrains.compose.swing.core.findParentCompositionContext
-import org.jetbrains.compose.swing.core.getOrCreateWindowRecomposer
-import org.jetbrains.compose.swing.core.publishCompositionContext
+import org.jetbrains.compose.swing.core.mountUnderNamedParent
+import org.jetbrains.compose.swing.core.mountWhenParentResolves
+import org.jetbrains.compose.swing.core.setCompositionContext
 import org.jetbrains.compose.swing.node.MenuApplier
 import org.jetbrains.compose.swing.node.SwingApplier
-import java.awt.Component
+import org.jetbrains.compose.swing.window.ProvideIslandLocals
 import java.awt.Container
 import java.awt.Window
-import java.awt.event.HierarchyEvent
-import java.awt.event.HierarchyListener
 import javax.swing.JComponent
 import javax.swing.JMenuBar
 import javax.swing.RootPaneContainer
-import javax.swing.SwingUtilities
 
 /**
  * Sets the composable [content] of any [Container] (a `JPanel`, a window's content pane, ...).
  *
- * This is the everyday entry point - just `container.setContent { ... }`. When the container is
- * nested under another composition the content joins that composition and shares its scope;
- * otherwise it joins the composition shared by the owning top-level [Window], so every island in one
- * window recomposes together.
+ * With no [parent] the content joins the composition the container's own place in the Swing tree
+ * resolves to: an enclosing
+ * composition when the container is nested under one, otherwise the composition shared by the owning
+ * top-level [Window], so every island in one window recomposes together. A container detached from any
+ * window is **not** an error: the content is mounted as soon as the container is attached to a window,
+ * and disposing the returned handle before that happens mounts nothing.
  *
- * A container detached from any window is **not** an error: the content is mounted as soon as the
- * container is attached to a window. Disposing the returned handle before that happens mounts nothing.
+ * A [parent] drives the composition instead, and the content composes **on this call**, whatever the
+ * container is attached to - which is what reaches a container that is built to be read rather than
+ * shown. The caller owns what they pass: disposing the returned handle disposes this island's
+ * composition and leaves [parent] running. A container that later ends up in a different window joins
+ * the composition of the window it is then in, recreating this island's content there.
+ *
+ * The content reads its [LocalWindow][org.jetbrains.compose.swing.window.LocalWindow] from the
+ * composition it joins, and the window this container is in wherever that composition names none.
+ *
+ * The content also reads a [LifecycleOwner][androidx.lifecycle.LifecycleOwner] as its
+ * [LocalLifecycleOwner][androidx.lifecycle.compose.LocalLifecycleOwner], shared with everything this
+ * content hosts - a popup, a menu, an overlay. It is the owner the composition this content joins
+ * carries, so an owner provided over that composition - by a caller, or by a navigation library -
+ * reaches this content too. Failing that it is the owner of composed content this container hangs under,
+ * a window's own content as a rule. Content that finds neither is given an owner of its own following
+ * this container, and only such an owner is ended at `DESTROYED` by disposing the returned handle. A
+ * [Window][org.jetbrains.compose.swing.window.Window] or
+ * [Dialog][org.jetbrains.compose.swing.window.Dialog] composed in this content is a top-level window of
+ * its own and states an owner of its own, whatever stands over the declaration. Being attached,
+ * minimized or focused are facts about a single window, and a dialog holds exactly the focus its owner
+ * gives up.
+ *
+ * An owner reports `RESUMED` while the content it follows is in a window showing at full size that holds
+ * the keyboard focus, `STARTED` while that content is shown without the focus, and `CREATED` while it has
+ * no native peer - detached, or in a window Swing has not realized yet - or while its window is minimized.
+ * It answers for the content it was given to follow, so content reading an owner it did not get for itself
+ * reports where that window's content stands rather than where this container hangs. Since `RESUMED` is
+ * the focused state, `repeatOnLifecycle(RESUMED)` ends its work the moment the user switches to another
+ * window - work that should run for as long as the content is on screen belongs under `STARTED`.
  *
  * Must be called on the Event Dispatch Thread.
  *
+ * @param parent the composition context this content joins and shares the recomposition scope of.
+ *   Defaults to `null`, meaning the composition the container's own place in the Swing tree resolves to.
  * @param content the composable content to set
  * @return a [DisposableHandle] that disposes this island's composition when invoked (or, if the mount
  *   has not happened yet, cancels it).
  */
 public fun Container.setContent(
-    content:
-        @Composable @SwingComposable
-        () -> Unit,
-): DisposableHandle =
-    setContent(
-        recomposer = null,
-        content = content,
-    )
-
-/**
- * Integration seam for [Container.setContent] that hosts the composition inside a caller-owned
- * [Recomposer]. For the everyday call use the
- * [single-argument overload][setContent] (`container.setContent { ... }`).
- *
- * When a [recomposer] is supplied it drives the composition and the **caller owns its lifecycle**:
- * disposing the returned handle disposes this island's composition but leaves the recomposer running.
- * The content is mounted immediately. When [recomposer] is `null`, the content joins a composition as
- * the everyday overload does.
- *
- * Must be called on the Event Dispatch Thread.
- *
- * @param recomposer a caller-owned recomposer that drives the composition and whose lifecycle the
- *   caller owns. Defaults to `null`, meaning join a composition as the everyday overload does.
- * @param content the composable content to set
- * @return a [DisposableHandle] that disposes this island's composition when invoked.
- */
-@InternalSwingUiApi
-public fun Container.setContent(
-    recomposer: Recomposer? = null,
+    parent: CompositionContext? = null,
     content:
         @Composable @SwingComposable
         () -> Unit,
 ): DisposableHandle {
     checkEventDispatchThread()
 
-    if (recomposer != null) {
-        val mount = SwingCompositionMount.nested(recomposer) { observer -> SwingApplier(this, observer) }
-        mount.setContent(content)
-        return DisposableHandle { mount.dispose() }
-    }
-
-    return mountWhenParentResolves(this) { parent ->
-        val mount = SwingCompositionMount.nested(parent) { observer -> SwingApplier(this, observer) }
-        mount.setContent(content)
-        mount
+    val mount = { resolved: MountParent, window: State<Window?> -> mountIsland(resolved, window, content) }
+    return if (parent == null) {
+        mountWhenParentResolves(this, mount)
+    } else {
+        mountUnderNamedParent(this, parent, mount)
     }
 }
 
 /**
- * Resolves the [CompositionContext] a non-injected `setContent` on [component] should nest into
- * **right now**, or `null` if it cannot be resolved yet (the container has no host stamp and no window
- * ancestor, so the mount must be deferred until [component] is attached to a window).
+ * Mounts [content] into this container as an island of [parent]'s composition, stating [window] as the
+ * window the content reads.
  *
- * Resolution order: first an existing host discovered self-first up the Swing tree, then the owning
- * window's shared recomposer.
+ * A window's shared recomposer is a composition root rather than a composition, so it carries no
+ * [androidx.compose.runtime.CompositionLocal]s and the window has to be stated here. [window] is the one
+ * the mount stands in and follows, so content mounted under no window reads the one it later reaches.
  */
-private fun resolveWindowParentContextOrNull(component: Component): CompositionContext? {
-    component.findParentCompositionContext()?.let { return it }
-
-    val window = SwingUtilities.getWindowAncestor(component) ?: (component as? Window)
-    return window?.getOrCreateWindowRecomposer()
+private fun Container.mountIsland(
+    parent: MountParent,
+    window: State<Window?>,
+    content:
+        @Composable @SwingComposable
+        () -> Unit,
+): SwingCompositionMount {
+    val mount = SwingCompositionMount.nested(parent.context) { observer -> SwingApplier(this, observer) }
+    mount.setContent { ProvideIslandLocals(window, this, content = content) }
+    return mount
 }
-
-/**
- * Mounts a non-injected `setContent` on [component] as soon as its parent [CompositionContext] can be
- * resolved, and returns a [DisposableHandle] over the (possibly still pending) mount.
- *
- * If the parent resolves immediately (a host stamp self-first up the tree, or the owning window's
- * recomposer), [mount] runs synchronously here. Otherwise the mount is **deferred** until [component]
- * gains a window ancestor, at which point the parent is re-resolved and [mount] runs.
- *
- * The returned handle is idempotent: disposing before attach removes the pending listener and mounts
- * nothing; disposing after mount disposes the mount.
- */
-private fun mountWhenParentResolves(
-    component: Component,
-    mount: (CompositionContext) -> SwingCompositionMount,
-): DisposableHandle {
-    val state = DeferredMountState(component, mount)
-    state.start()
-    return state
-}
-
-/**
- * The explicit lifecycle of a (possibly deferred) non-injected `setContent` mount.
- *
- * The mount is exactly one of three phases at any time:
- *  - [Pending] - no parent resolved yet; a window-attach listener is armed waiting for one;
- *  - [Mounted] - a parent resolved and the composition is live;
- *  - [Disposed] - torn down; terminal, reached at most once.
- *
- * Modeling the phase explicitly (rather than a `disposed` flag plus the implicit
- * "composition != null => mounted" invariant) lets the transitions reject illegal moves
- * structurally - e.g. a window-attach event that fires after disposal cannot mount.
- */
-private enum class MountPhase { Pending, Mounted, Disposed }
-
-/**
- * The lifecycle state machine backing a (possibly deferred) non-injected `setContent` mount.
- *
- * Lives only on the EDT, so its fields need no synchronization. It moves from *pending* to *mounted*
- * once a parent resolves, or to *disposed* on teardown, reaching disposed at most once. All phase
- * transitions go through this object, so no caller can drive it into an illegal state.
- *
- * @param component the container whose parent context is resolved (self-first walk, then window).
- * @param mount creates and starts the [SwingCompositionMount] once the parent context is known.
- */
-private class DeferredMountState(
-    private val component: Component,
-    private val mount: (CompositionContext) -> SwingCompositionMount,
-) : DisposableHandle {
-    private var phase = MountPhase.Pending
-
-    /** Handle removing the pending attach listener; held only while [MountPhase.Pending]. */
-    private var pendingAttachListener: DisposableHandle? = null
-
-    /** The live composition; held only while [MountPhase.Mounted]. */
-    private var composition: SwingCompositionMount? = null
-
-    /**
-     * Resolves the parent and mounts now if it can; otherwise stays pending and arms a window-attach
-     * listener that retries the resolution the moment [component] gains a window ancestor.
-     *
-     * A stamped host (self-first walk) or an already-attached window resolves immediately; deferral is
-     * only for the genuinely detached, unstamped case.
-     */
-    fun start() {
-        if (tryMount()) return
-        pendingAttachListener = runOnceAttachedToWindow(component) { tryMount() }
-    }
-
-    /**
-     * Resolves the parent and, if available, transitions [MountPhase.Pending] -> [MountPhase.Mounted].
-     * No-op (returns `false`) unless currently pending and a parent resolves - so it cannot mount after
-     * disposal, nor mount twice. Returns `true` once the content has been mounted.
-     */
-    private fun tryMount(): Boolean {
-        val parent =
-            if (phase == MountPhase.Pending) resolveWindowParentContextOrNull(component) else null
-        if (parent != null) {
-            pendingAttachListener?.dispose()
-            pendingAttachListener = null
-            composition = mount(parent)
-            phase = MountPhase.Mounted
-        }
-        return parent != null
-    }
-
-    override fun dispose() {
-        if (phase == MountPhase.Disposed) return
-        phase = MountPhase.Disposed
-        pendingAttachListener?.dispose()
-        pendingAttachListener = null
-        composition?.dispose()
-        composition = null
-    }
-}
-
-/**
- * Runs [block] once [component] is attached to a top-level [Window]: immediately if it already has a
- * window ancestor, otherwise when it first gains one. [block] runs at most once.
- *
- * Attachment is observed through a [HierarchyListener] on [component].
- *
- * @return a [DisposableHandle] that, if [block] has not run yet, removes the pending listener; a no-op
- *   once [block] has already run. Disposing is idempotent.
- */
-private fun runOnceAttachedToWindow(
-    component: Component,
-    block: () -> Unit,
-): DisposableHandle {
-    if (component.isAttachedToWindow()) {
-        block()
-        return DisposableHandle { }
-    }
-
-    var pending = true
-    lateinit var listener: HierarchyListener
-    listener =
-        HierarchyListener { event ->
-            if (event.changeFlags and ATTACH_CHANGE_FLAGS == 0L) return@HierarchyListener
-            if (pending && component.isAttachedToWindow()) {
-                pending = false
-                component.removeHierarchyListener(listener)
-                block()
-            }
-        }
-    component.addHierarchyListener(listener)
-    return DisposableHandle {
-        if (pending) {
-            pending = false
-            component.removeHierarchyListener(listener)
-        }
-    }
-}
-
-/** A [Window] is its own ancestor; any other component is attached once it has a window ancestor. */
-private fun Component.isAttachedToWindow(): Boolean = this is Window || SwingUtilities.getWindowAncestor(this) != null
-
-/**
- * The [HierarchyEvent] change flags that can hand a previously detached [Component] a window ancestor:
- * a parent reattachment ([HierarchyEvent.PARENT_CHANGED]), the component becoming displayable
- * ([HierarchyEvent.DISPLAYABILITY_CHANGED]), or its showing state changing
- * ([HierarchyEvent.SHOWING_CHANGED]). Other hierarchy events are irrelevant to attachment.
- */
-private const val ATTACH_CHANGE_FLAGS: Long =
-    (
-        HierarchyEvent.PARENT_CHANGED or
-            HierarchyEvent.DISPLAYABILITY_CHANGED or
-            HierarchyEvent.SHOWING_CHANGED
-    ).toLong()
 
 /**
  * Hosts [content] inside [this] container as a child of an explicit [parent] [CompositionContext], so
@@ -278,12 +129,13 @@ internal fun Container.setContentAsInteropHost(
 ): DisposableHandle {
     checkEventDispatchThread()
 
-    val clearStamp = publishCompositionContext(this as? JComponent, parent)
+    val host = this as? JComponent
+    host?.setCompositionContext(parent)
 
     val mount = SwingCompositionMount.nested(parent) { observer -> SwingApplier(this, observer) }
     mount.setContent(content)
     return DisposableHandle {
-        clearStamp()
+        host?.setCompositionContext(null)
         mount.dispose()
     }
 }
@@ -324,8 +176,9 @@ public fun Window.setContent(
  * A menu bar is routinely built **before** it is installed on its frame (`bar.setContent { ... }` then
  * `frame.jMenuBar = bar`), so at the call site it usually has no window ancestor yet. As with
  * [Container.setContent], that is **not** an error: the content is mounted the moment the menu bar
- * gains a window ancestor (when it is installed on the frame). Must be called on the Event Dispatch
- * Thread.
+ * gains a window ancestor (when it is installed on the frame) - and the menu tree reads that window as
+ * its [LocalWindow][org.jetbrains.compose.swing.window.LocalWindow], so an item's callback reaches the
+ * window its menu hangs off. Must be called on the Event Dispatch Thread.
  *
  * @param content the composable menu tree (`Menu`, `MenuItem`, ...)
  * @return a [DisposableHandle] that disposes this menu-bar composition (or cancels it if it has not
@@ -339,9 +192,9 @@ public fun JMenuBar.setContent(
 ): DisposableHandle {
     checkEventDispatchThread()
 
-    return mountWhenParentResolves(this) { parent ->
-        val mount = SwingCompositionMount.nestedUnobserved(parent) { MenuApplier(this) }
-        mount.setContent(content)
+    return mountWhenParentResolves(this) { parent, window ->
+        val mount = SwingCompositionMount.nestedUnobserved(parent.context) { MenuApplier(this) }
+        mount.setContent { ProvideIslandLocals(window, this, content = content) }
         mount
     }
 }

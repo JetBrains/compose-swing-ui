@@ -52,13 +52,6 @@ internal class AppliedGeometry {
      * actually stands rather than trading placements with it indefinitely.
      */
     var placementReasserted: Boolean = false
-
-    /**
-     * Whether an unspecified (0x0) size has already been resolved to the content's preferred size by
-     * [java.awt.Window.pack]. Guards against re-packing on later recompositions that observe the state
-     * still at 0x0 before the pack's realized size has been written back.
-     */
-    var packed: Boolean = false
 }
 
 /**
@@ -67,11 +60,12 @@ internal class AppliedGeometry {
  * Swing dispatcher), so the AWT mutations are thread-safe.
  *
  * An unspecified size (a 0x0 [width] by [height]) sizes the window to its content's preferred size via
- * [java.awt.Window.pack] the first time it is applied; the realized size then flows back into the state
- * through the geometry write-back listener. A non-null size is applied verbatim through [setSize].
+ * [java.awt.Window.pack]; the realized size then flows back into the state through the geometry
+ * write-back listener, so declaring 0x0 again fits the window to whatever its content has become. A
+ * size of any other value is applied verbatim through [setSize].
  *
  * A [WindowPosition.PlatformDefault] position is left to the platform, while a centering position
- * resolves against the screen or the owning window. The position is applied after
+ * resolves against the screen, the owning window or a named window. The position is applied after
  * the size, so centering measures the size the window has just been given.
  */
 internal fun Window.applyGeometry(
@@ -80,13 +74,13 @@ internal fun Window.applyGeometry(
     height: Int,
     applied: AppliedGeometry,
 ) {
-    if (width == 0 && height == 0) {
-        if (!applied.packed) {
-            pack()
-            applied.packed = true
-        }
-    } else if (applied.width != width || applied.height != height) {
-        setSize(width, height)
+    // A size settles like any other declared value: it is applied as it arrives and not asserted again
+    // while it stands, so a window the user has resized is left where they left it. Sizing to the content
+    // is the same declaration written 0 by 0, and the size the window takes from it flows back into the
+    // state - which is what makes a later 0 by 0 a change again, and re-fits the window to content that
+    // has since grown.
+    if (applied.width != width || applied.height != height) {
+        if (width == 0 && height == 0) pack() else setSize(width, height)
         applied.width = width
         applied.height = height
     }
@@ -97,8 +91,9 @@ internal fun Window.applyGeometry(
         // The coordinates the window is asked to stand on, or null where the position names none and
         // leaves the window where it already is. A window system need not have moved the window by the
         // time it answers, so what was asked for - not what the window reports afterwards - is what a
-        // later report has to be settled against. A centering position resolves against the screen or
-        // the owner as the window system does it, so the coordinates it settles on are read back.
+        // later report has to be settled against. A centering position resolves against the screen, the
+        // owner or a named window as the window system does it, so the coordinates it settles on are
+        // read back.
         val placement =
             when (position) {
                 WindowPosition.PlatformDefault -> {
@@ -114,6 +109,11 @@ internal fun Window.applyGeometry(
                 // owes here, so the absence of an owner needs no case of its own.
                 WindowPosition.CenteredOnOwner -> {
                     setLocationRelativeTo(owner)
+                    location
+                }
+
+                is WindowPosition.CenteredOn -> {
+                    setLocationRelativeTo(position.window)
                     location
                 }
 
@@ -136,8 +136,7 @@ internal fun Window.applyGeometry(
 
 /**
  * Pushes the declared [extendedState] onto this frame when it differs from what is already in sync,
- * updating [applied] to match. Runs on the event dispatch thread (the composition's Swing
- * dispatcher), so the AWT mutation is thread-safe.
+ * updating [applied] to match. Runs on the event dispatch thread, like [applyGeometry].
  */
 internal fun Frame.applyExtendedState(
     @WindowExtendedState extendedState: Int,
@@ -232,9 +231,8 @@ internal fun Window.installGeometryWriteBack(
             override fun componentMoved(e: ComponentEvent) {
                 if (!reconcileWithOutstandingPlacement()) return
                 val newPosition = WindowPosition.Absolute(x, y)
-                // A move whose result already matches what was last applied is an echo of our own
-                // apply (or a stale event); leaving the state untouched keeps a declared change from
-                // being reverted before the next apply observes it.
+                // An echo of our own apply, like the resize case above: skip it so a declared change is
+                // not reverted before the next apply observes it.
                 val echoesTheLastApply = applied.position == newPosition
                 // Nobody can drag a window that is not on screen, so a move that contradicts declared
                 // coordinates while the window is off screen is the platform placing the window; the

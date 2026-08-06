@@ -25,6 +25,7 @@ import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertSame
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * `Container.setContent` accepts any container, a root-pane container such as a [JInternalFrame]
@@ -150,7 +151,7 @@ class RootPaneContainerContentHostTest {
     }
 
     private companion object {
-        const val FRAME_INTERVAL_NANOS: Long = 16_666_667L
+        val FRAME_INTERVAL_NANOS: Long = (1.seconds / 60).inWholeNanoseconds
         const val MAX_IDLE_FRAMES: Int = 10_000
         const val SIZE: Int = 200
     }

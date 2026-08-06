@@ -682,14 +682,38 @@ Windows and dialogs composed inside one run as part of that application's compos
 application-scope state and `CompositionLocal`s flow into their content.
 
 A window's content is given the window as its scope, and what the window carries besides that content
-is declared there: `MenuBar { }` is the one such declaration, so it can only be written where there is
-a window to carry the bar.
+is declared there: `MenuBar { }` and `GlassPane { }` are those declarations, so each can only be
+written where there is a window to carry it.
+
+`GlassPane { }` is the sheet above everything else in the window: it covers the whole window, it is
+transparent where its content paints nothing, and while it is shown the window's mouse events reach
+it - a drag-and-drop hint, a progress veil, anything drawn over the window rather than in it.
+The content fills the pane, so a layout composable inside it places what the overlay is made of. The
+pane is over the window while the declaration is composed, and the window carries the glass pane it
+carried before once the declaration leaves, so an overlay that comes and goes is an `if` around the
+call. A window carries one glass pane, so one declaration serves a window.
+
+```kotlin
+Window(onCloseRequest = ::exitApplication) {
+    var loading by remember { mutableStateOf(true) }
+
+    if (loading) {
+        GlassPane {
+            GridBagPanel {
+                item { ProgressBar(value = 0, indeterminate = true) }
+            }
+        }
+    }
+    Button("Done", onClick = { loading = false })
+}
+```
 
 A window exists while it is composed: opening one is composing it, closing it is not composing it,
 and `onCloseRequest` is where you flip the state that decides. `title` starts empty, `resizable` is
 `true`, `alwaysOnTop` is `false`, `undecorated` is `false`, and a dialog's `modality` is
 `ModalityType.MODELESS`. A `Dialog` composed inside a window's content takes that window as its
-owner.
+owner - the window its modality blocks and the one `WindowPosition.CenteredOnOwner` centres it on -
+and `owner` names a different window to be owned by instead.
 
 ```kotlin
 application {
@@ -726,6 +750,52 @@ if (asking) {
 
 To mount a composition into a Swing window or container you already own, use `setContent` - see
 [`ARCHITECTURE.md`](ARCHITECTURE.md#mounting-a-composition).
+
+Content reads the window it lives in as `LocalWindow`, whether that window was composed or is one you
+own and mounted into, so a `Dialog` finds its owner without being told and a menu item's callback can
+reach the window its bar hangs off. Read it where plain Swing wants a parent window - `JFileChooser`,
+`JOptionPane`, `toFront()`. It is `null` wherever the content stands in no window at all: under a bare
+`application { }` scope that has created no window, and in content composed under a composition of your
+own before its container has been added anywhere. Such content reads the window it is added to from the
+moment it arrives there.
+
+A file chooser and a message box are calls rather than components: each blocks where it is called and
+returns an answer, so they stay plain Swing. `JFileChooser` and `JOptionPane` work as they are from a
+callback, and the library ships no wrapper for them - where a plain Swing class already works well
+from composable code, it stays plain Swing. What such a call wants from the composition is a parent
+window, and that is what `LocalWindow.current` is: read it while composing, use it where the call
+takes an owner.
+
+```kotlin
+val window = LocalWindow.current
+var path by remember { mutableStateOf<String?>(null) }
+
+Row {
+    Button(
+        "Open...",
+        onClick = {
+            val chooser = JFileChooser()
+            if (chooser.showOpenDialog(window) == JFileChooser.APPROVE_OPTION) {
+                path = chooser.selectedFile.path
+            }
+        },
+    )
+    Button(
+        "Close",
+        modifier = SwingModifier.enabled(path != null),
+        onClick = {
+            val answer =
+                JOptionPane.showConfirmDialog(
+                    window,
+                    "Close $path without saving?",
+                    "Close",
+                    JOptionPane.YES_NO_OPTION,
+                )
+            if (answer == JOptionPane.YES_OPTION) path = null
+        },
+    )
+}
+```
 
 ---
 
@@ -936,9 +1006,13 @@ back. `rememberWindowState(position, size, extendedState)` creates one, and a `n
 sizes the window to its content.
 
 `position` is a `WindowPosition`: either `Absolute(x, y)` or a placement request -
-`PlatformDefault`, `CenteredOnScreen`, `CenteredOnOwner`. A request carries no coordinates of its
-own, and the placement it resolves to is written back as an `Absolute`, so reading `position` after
-the window is shown always gives concrete coordinates.
+`PlatformDefault`, `CenteredOnScreen`, `CenteredOnOwner`, `CenteredOn(window)`. A request carries no
+coordinates of its own, and the placement it resolves to is written back as an `Absolute`, so reading
+`position` after the window is shown always gives concrete coordinates.
+
+`CenteredOn(window)` centres on any window - `LocalWindow.current` is the window the declaring content
+sits in - on the bounds that window holds as the position is applied, so the centred window stands
+where it was put once the other one moves on.
 
 ### `DialogState`
 

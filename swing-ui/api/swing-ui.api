@@ -1,7 +1,8 @@
 public final class org/jetbrains/compose/swing/SetContentKt {
-	public static final fun setContent (Ljava/awt/Container;Lkotlin/jvm/functions/Function2;)Lkotlinx/coroutines/DisposableHandle;
+	public static final fun setContent (Ljava/awt/Container;Landroidx/compose/runtime/CompositionContext;Lkotlin/jvm/functions/Function2;)Lkotlinx/coroutines/DisposableHandle;
 	public static final fun setContent (Ljava/awt/Window;Lkotlin/jvm/functions/Function2;)Lkotlinx/coroutines/DisposableHandle;
 	public static final fun setContent (Ljavax/swing/JMenuBar;Lkotlin/jvm/functions/Function2;)Lkotlinx/coroutines/DisposableHandle;
+	public static synthetic fun setContent$default (Ljava/awt/Container;Landroidx/compose/runtime/CompositionContext;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)Lkotlinx/coroutines/DisposableHandle;
 }
 
 public abstract interface annotation class org/jetbrains/compose/swing/annotations/InternalSwingUiApi : java/lang/annotation/Annotation {
@@ -826,13 +827,14 @@ public final class org/jetbrains/compose/swing/window/DialogState {
 }
 
 public final class org/jetbrains/compose/swing/window/WindowKt {
-	public static final fun Dialog (Lkotlin/jvm/functions/Function0;Lorg/jetbrains/compose/swing/window/DialogState;Ljava/lang/String;Ljava/awt/Dialog$ModalityType;ZZZLjava/awt/Image;Ljava/awt/Dimension;ZLkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
+	public static final fun Dialog (Lkotlin/jvm/functions/Function0;Lorg/jetbrains/compose/swing/window/DialogState;Ljava/awt/Window;Ljava/lang/String;Ljava/awt/Dialog$ModalityType;ZZZLjava/awt/Image;Ljava/awt/Dimension;ZLkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;III)V
+	public static final fun GlassPane (Lorg/jetbrains/compose/swing/window/WindowScope;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;I)V
 	public static final fun MenuBar (Lorg/jetbrains/compose/swing/window/WindowScope;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;I)V
 	public static final fun Window (Lkotlin/jvm/functions/Function0;Lorg/jetbrains/compose/swing/window/WindowState;Ljava/lang/String;ZZZLjava/awt/Image;Ljava/awt/Dimension;ZLkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
 	public static final fun application (ZLkotlin/jvm/functions/Function3;)V
 	public static synthetic fun application$default (ZLkotlin/jvm/functions/Function3;ILjava/lang/Object;)V
 	public static final fun awaitApplication (Lkotlin/jvm/functions/Function3;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public static final fun getLocalWindow ()Landroidx/compose/runtime/ProvidableCompositionLocal;
+	public static final fun getLocalWindow ()Landroidx/compose/runtime/CompositionLocal;
 	public static final fun launchApplication (Lkotlinx/coroutines/CoroutineScope;Lkotlin/jvm/functions/Function3;)Lkotlinx/coroutines/Job;
 	public static final fun rememberDialogState (Lorg/jetbrains/compose/swing/window/WindowPosition;Ljava/awt/Dimension;Landroidx/compose/runtime/Composer;II)Lorg/jetbrains/compose/swing/window/DialogState;
 	public static final fun rememberWindowState (Lorg/jetbrains/compose/swing/window/WindowPosition;Ljava/awt/Dimension;ILandroidx/compose/runtime/Composer;II)Lorg/jetbrains/compose/swing/window/WindowState;
@@ -847,6 +849,15 @@ public final class org/jetbrains/compose/swing/window/WindowPosition$Absolute : 
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getX ()I
 	public final fun getY ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class org/jetbrains/compose/swing/window/WindowPosition$CenteredOn : org/jetbrains/compose/swing/window/WindowPosition {
+	public static final field $stable I
+	public fun <init> (Ljava/awt/Window;)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getWindow ()Ljava/awt/Window;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }

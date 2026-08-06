@@ -46,6 +46,7 @@ import javax.swing.JRootPane
  * the bar it carried.
  *
  * @param content the composable menu tree shown as the window's menu bar.
+ * @see javax.swing.JRootPane.setJMenuBar
  */
 @Composable
 @SwingComposable
@@ -54,9 +55,8 @@ public fun WindowScope.MenuBar(
         @Composable @SwingMenuComposable
         () -> Unit,
 ) {
-    // The tree is hosted as a child of this composition, so state around the MenuBar reaches the menu
-    // items and their callbacks, and a menu tree that merely changes flows in through the handle the
-    // recomposition refreshes.
+    // A menu tree that only changes, rather than remounts, flows in through rememberUpdatedState so the
+    // running composition picks it up on its next recomposition.
     val currentContent by rememberUpdatedState(content)
     val parentContext = rememberCompositionContext()
     val scope = this
@@ -66,8 +66,8 @@ public fun WindowScope.MenuBar(
         if (serving != null) {
             // Answering this declaration ends the composition both of them belong to, which is not
             // itself a withdrawal of the one already serving the window, so it is withdrawn here: the
-            // window - which a caller may own and keep - is handed back the bar it carried before, and
-            // carries no record to refuse the next declaration reaching it.
+            // window - which a caller may own and keep - carries no record to refuse the next
+            // declaration reaching it.
             serving.withdraw()
             error(
                 "Two MenuBar { } declarations are composed in this window at once, and a window " +

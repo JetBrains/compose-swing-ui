@@ -246,7 +246,7 @@ class DialogReactivityTest {
         try {
             var owner by mutableStateOf<Window?>(first)
             setContent {
-                CompositionLocalProvider(LocalWindow provides owner) {
+                CompositionLocalProvider(LocalProvidableWindow provides owner) {
                     Dialog(onCloseRequest = {}, title = "dialog-owner-test") {}
                 }
             }
@@ -289,7 +289,7 @@ class DialogReactivityTest {
             val state = DialogState(size = Dimension(360, 260))
             var owner by mutableStateOf<Window?>(null)
             setContent {
-                CompositionLocalProvider(LocalWindow provides owner) {
+                CompositionLocalProvider(LocalProvidableWindow provides owner) {
                     Dialog(onCloseRequest = {}, state = state, title = "dialog-reowned-geometry-test") {
                         Label(text = "dialog-reowned-content")
                     }

@@ -10,6 +10,7 @@ import kotlin.test.Test
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Pins the thread-confinement contract of the composition entry points: every `setContent` overload
@@ -53,7 +54,7 @@ class EventDispatchThreadContractTest {
         val worker =
             Thread({ failure = runCatching(call).exceptionOrNull() }, OFF_EDT_THREAD_NAME)
         worker.start()
-        worker.join(JOIN_TIMEOUT_MILLIS)
+        worker.join(JOIN_TIMEOUT.inWholeMilliseconds)
 
         val thrown = assertNotNull(failure, "setContent off the Event Dispatch Thread must fail")
         assertIs<IllegalStateException>(thrown, "the off-EDT call must be rejected as illegal state")
@@ -70,6 +71,6 @@ class EventDispatchThreadContractTest {
 
     private companion object {
         const val OFF_EDT_THREAD_NAME: String = "off-edt-caller"
-        const val JOIN_TIMEOUT_MILLIS: Long = 10_000
+        val JOIN_TIMEOUT = 10.seconds
     }
 }

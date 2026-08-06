@@ -10,6 +10,9 @@ import kotlinx.coroutines.swing.Swing
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.core.findParentCompositionContext
+import org.jetbrains.compose.swing.core.getOrCreateRecomposer
+import org.jetbrains.compose.swing.core.recomposerOrNull
 import org.jetbrains.compose.swing.setContent
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.Container
@@ -21,18 +24,18 @@ import kotlin.test.Test
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertSame
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Behavioral tests for the per-window recomposer on the real-window path: a realized top-level
- * [java.awt.Window] whose islands resolve their composition through
- * [Window.getOrCreateWindowRecomposer]. Unlike the off-screen sharing tests, these tests realize a
- * real [JFrame] so the on-window resolution, memoization, and window-close teardown all run against a
- * live peer.
+ * [java.awt.Window] whose islands resolve their composition through [getOrCreateRecomposer]. These
+ * tests realize a real [JFrame] so the on-window resolution, memoization, and window-close teardown
+ * all run against a live peer.
  *
- * Every case realizes a real top-level peer, so each skips (reports SKIPPED) on a headless
- * environment. Realized frames are disposed on every exit path so no peer leaks. The window
- * recomposer is driven by the window's own real Swing frame-clock timer; the test body runs on the
- * EDT and yields it back between checks, letting that timer fire, until a bounded deadline.
+ * Each case skips (reports SKIPPED) on a headless environment, since it needs a real top-level peer.
+ * Realized frames are disposed on every exit path so no peer leaks. The window recomposer runs on the
+ * window's own Swing frame-clock timer, so the test body runs on the EDT and yields it back between
+ * checks until a bounded deadline.
  */
 class WindowRecomposerTest {
     @Test
@@ -40,10 +43,9 @@ class WindowRecomposerTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val frame = realizedFrame()
         try {
-            // Two independent islands mounted into the same realized window, each reading ONE shared
-            // Compose state. If both islands join the window's single recomposer, driving a single
-            // state change recomposes BOTH; if each island had spun up its own runtime, one clock
-            // could not drive the other.
+            // Two islands share one Compose state. If both join the window's single recomposer, one
+            // state change recomposes both; if each had spun up its own runtime, one clock could not
+            // drive the other.
             var shared by mutableStateOf("v0")
             val islandA = onEdtChild(frame)
             val islandB = onEdtChild(frame)
@@ -54,8 +56,7 @@ class WindowRecomposerTest {
                 labelTextOrNull(islandA) == "a=v0" && labelTextOrNull(islandB) == "b=v0"
             }
 
-            // The window created exactly one recomposer, and both islands resolved to it.
-            val windowRecomposer = frame.windowRecomposerOrNull()
+            val windowRecomposer = frame.recomposerOrNull()
             assertNotNull(windowRecomposer, "mounting an island into a realized window must create its recomposer")
             assertSame(
                 windowRecomposer.recomposer,
@@ -82,24 +83,22 @@ class WindowRecomposerTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val frame = realizedFrame()
         try {
-            // Nothing has resolved the window yet, so no recomposer exists.
             assertNull(
-                frame.windowRecomposerOrNull(),
+                frame.recomposerOrNull(),
                 "a window that nothing has mounted into must have no recomposer yet",
             )
 
-            // First resolution creates it; a second resolution returns the very same recomposer.
-            val first = frame.getOrCreateWindowRecomposer()
-            val second = frame.getOrCreateWindowRecomposer()
-            assertSame(first, second, "getOrCreateWindowRecomposer must memoize one recomposer per window")
+            val first = frame.getOrCreateRecomposer()
+            val second = frame.getOrCreateRecomposer()
+            assertSame(first, second, "getOrCreateRecomposer must memoize one runtime per window")
 
-            // And it is now observable through the non-creating lookup.
-            val memoized = frame.windowRecomposerOrNull()
+            // Also observable through the non-creating lookup.
+            val memoized = frame.recomposerOrNull()
             assertNotNull(memoized, "the created recomposer must be memoized on the window")
             assertSame(
-                first,
+                first.recomposer,
                 memoized.recomposer,
-                "windowRecomposerOrNull must return the recomposer getOrCreateWindowRecomposer created",
+                "recomposerOrNull must return the recomposer getOrCreateRecomposer created",
             )
         } finally {
             frame.dispose()
@@ -111,18 +110,17 @@ class WindowRecomposerTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val frame = realizedFrame()
         try {
-            frame.getOrCreateWindowRecomposer()
+            frame.getOrCreateRecomposer()
             assertNotNull(
-                frame.windowRecomposerOrNull(),
+                frame.recomposerOrNull(),
                 "resolving the window must have created its recomposer",
             )
 
-            // Disposing the realized window fires windowClosed, whose teardown clears the memoized
-            // slot: the very next lookup finds nothing again.
+            // Disposing the window fires windowClosed, whose teardown clears the memoized slot.
             frame.dispose()
-            awaitUntil("the closed window clears its recomposer slot") { frame.windowRecomposerOrNull() == null }
+            awaitUntil("the closed window clears its recomposer slot") { frame.recomposerOrNull() == null }
             assertNull(
-                frame.windowRecomposerOrNull(),
+                frame.recomposerOrNull(),
                 "closing the window must clear its recomposer slot",
             )
         } finally {
@@ -131,9 +129,9 @@ class WindowRecomposerTest {
     }
 
     /**
-     * A realized, off-screen [JFrame] with a live peer. Packing realizes the peer without showing the
-     * frame, so disposing it fires the `windowClosed` event the recomposer teardown listens for while
-     * never flashing a window on screen. Must be called on the EDT.
+     * A realized, off-screen [JFrame] with a live peer. Packing realizes the peer without showing it,
+     * so disposing it fires the `windowClosed` event the recomposer teardown listens for. Must be
+     * called on the EDT.
      */
     private fun realizedFrame(): JFrame = JFrame().apply {
         defaultCloseOperation = JFrame.DISPOSE_ON_CLOSE
@@ -160,27 +158,26 @@ class WindowRecomposerTest {
 
     /**
      * Suspends on the EDT until [condition] holds, yielding the EDT back between checks so the window's
-     * real frame-clock timer can fire and the window recomposer can mount and recompose content. A
-     * condition that never becomes true fails the test at the deadline, naming [description], instead
-     * of hanging.
+     * frame-clock timer can fire and mount or recompose content. A condition that never becomes true
+     * fails the test at the deadline, naming [description], instead of hanging.
      */
     private suspend fun awaitUntil(
         description: String,
         condition: () -> Boolean,
     ) {
         try {
-            withTimeout(SETTLE_TIMEOUT_MILLIS) {
+            withTimeout(SETTLE_TIMEOUT) {
                 while (!condition()) {
                     yield()
                 }
             }
         } catch (timedOut: TimeoutCancellationException) {
-            throw AssertionError("Timed out after ${SETTLE_TIMEOUT_MILLIS}ms waiting until $description", timedOut)
+            throw AssertionError("Timed out after $SETTLE_TIMEOUT waiting until $description", timedOut)
         }
     }
 
     private companion object {
         const val FRAME_SIZE: Int = 200
-        const val SETTLE_TIMEOUT_MILLIS: Long = 10_000
+        val SETTLE_TIMEOUT = 10.seconds
     }
 }

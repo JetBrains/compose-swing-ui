@@ -17,9 +17,12 @@ import javax.swing.WindowConstants
  * Composes a Dialog (JDialog) with the given content.
  *
  * The declarative control surface mirrors [Window] (`visible` + `onCloseRequest`, no imperative
- * handle), adding owner resolution and AWT [modality]. The dialog is owned by the nearest enclosing
- * [Window], read from [LocalWindow]; under a bare `application { }` scope with no window the dialog
- * is ownerless, and modal blocking only takes effect when there is an owning window.
+ * handle), adding owner resolution and AWT [modality]. The dialog is owned by [owner], which defaults
+ * to the nearest enclosing [Window] read from [LocalWindow]. The owner is the window a modal dialog
+ * blocks and the one a [WindowPosition.CenteredOnOwner] position centres the dialog on. A dialog with
+ * no [owner] under a bare `application { }` scope, which creates no window, is ownerless: modal
+ * blocking takes effect where there is an owning window, and centring on the owner resolves against
+ * the screen.
  *
  * The dialog content runs as part of the enclosing (application or window) composition: state from
  * that scope and any [androidx.compose.runtime.CompositionLocal] provided above the dialog flow into
@@ -37,15 +40,17 @@ import javax.swing.WindowConstants
  * resizing the dialog writes the new geometry back into [state].
  *
  * [undecorated] and the owning window are reactive too, at a higher price: a dialog takes its owner at
- * construction and AWT only accepts decorations on a dialog that is not yet realized, so changing either
- * releases the dialog peer and builds a replacement. The content is re-hosted in the new peer - its
- * composition, and any state remembered in it, starts over - while the geometry held in [state] and the
- * declared visibility are re-applied to the replacement. A look and feel that draws the dialog
- * decorations itself (see [JDialog.setDefaultLookAndFeelDecorated]) draws them on the replacement too,
- * whatever [undecorated] declares.
+ * construction and AWT only accepts decorations on a dialog that is not yet realized, so declaring
+ * another owner or another decoration releases the dialog peer and builds a replacement. The content is
+ * re-hosted in the new peer - its composition, and any state remembered in it, starts over - while the
+ * geometry held in [state] and the declared visibility are re-applied to the replacement. A look and
+ * feel that draws the dialog decorations itself (see [JDialog.setDefaultLookAndFeelDecorated]) draws
+ * them on the replacement too, whatever [undecorated] declares.
  *
  * @param onCloseRequest callback to be called when the user attempts to close the dialog
  * @param state the hoistable, observable geometry (position and size) of the dialog
+ * @param owner the window that owns the dialog, or null to take the nearest enclosing [Window] from
+ *   [LocalWindow]
  * @param title the title of the dialog
  * @param modality the AWT modality of the dialog, defaulting to [Dialog.ModalityType.MODELESS] (the
  *   JDialog default); a modality type the toolkit does not support leaves the dialog modeless
@@ -59,11 +64,13 @@ import javax.swing.WindowConstants
  * @param undecorated whether the dialog is shown without its platform decorations (title bar and
  *   border)
  * @param content the composable content of the dialog, receiving the dialog as its [WindowScope]
+ * @see javax.swing.JDialog
  */
 @Composable
 public fun Dialog(
     onCloseRequest: () -> Unit,
     state: DialogState = rememberDialogState(),
+    owner: java.awt.Window? = null,
     title: String = "",
     modality: Dialog.ModalityType = Dialog.ModalityType.MODELESS,
     visible: Boolean = true,
@@ -74,7 +81,9 @@ public fun Dialog(
     undecorated: Boolean = false,
     content: @Composable WindowScope.() -> Unit,
 ) {
-    val owner = LocalWindow.current
+    // A named owner stands on its own: the enclosing window is read only where none is named, so a
+    // dialog that names its owner is left alone by whichever window it happens to be composed under.
+    val owningWindow = owner ?: LocalWindow.current
 
     // The owner and the decorations are both chosen at construction: a dialog takes its owner as a
     // constructor argument, and JDialog.setUndecorated is rejected once the peer is displayable, so a
@@ -85,8 +94,8 @@ public fun Dialog(
     // rebuilding. The constructor still takes the declaration, so a peer realized before the dialog is
     // first shown - sizing to content realizes one - is created with the modality the dialog declares.
     val dialog =
-        remember(owner, undecorated) {
-            JDialog(owner, modality).also {
+        remember(owningWindow, undecorated) {
+            JDialog(owningWindow, modality).also {
                 if (undecorated) it.isUndecorated = true
                 it.defaultCloseOperation = WindowConstants.DO_NOTHING_ON_CLOSE
             }

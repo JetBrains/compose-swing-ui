@@ -7,6 +7,7 @@ import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.ControlledComposition
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.runtime.snapshots.SnapshotStateObserver
+import androidx.lifecycle.LifecycleOwner
 import java.awt.Component
 import javax.swing.JComponent
 import javax.swing.SwingUtilities
@@ -37,21 +38,16 @@ internal fun Component.findParentCompositionContext(): CompositionContext? {
 }
 
 /**
- * Publishes [context] as [host]'s [COMPOSITION_KEY] client property, so descendant `setContent` calls
- * (and a self-first [findParentCompositionContext] on [host] itself) find it as their parent.
+ * Sets [context] as this component's [COMPOSITION_KEY] client property, so descendant `setContent` calls
+ * - and a self-first [findParentCompositionContext] on this component itself - find it as their parent,
+ * and clears it again when passed `null`.
  *
- * [host] may be `null`: a non-[JComponent] container has no client-property bag to stamp, so the call
- * is then a no-op and the returned action does nothing.
- *
- * @return an idempotent action that clears the stamp. The caller invokes it from its own teardown.
+ * The stamp is the caller's: clear it from the same teardown that ends the composition behind it. A
+ * container that is no [JComponent] carries no client-property bag, so a caller holding one of those
+ * stamps nothing.
  */
-internal fun publishCompositionContext(
-    host: JComponent?,
-    context: CompositionContext,
-): () -> Unit {
-    if (host == null) return {}
-    host.putClientProperty(COMPOSITION_KEY, context)
-    return { host.putClientProperty(COMPOSITION_KEY, null) }
+internal fun JComponent.setCompositionContext(context: CompositionContext?) {
+    putClientProperty(COMPOSITION_KEY, context)
 }
 
 /**

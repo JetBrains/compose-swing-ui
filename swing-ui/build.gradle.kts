@@ -36,6 +36,9 @@ val composeCompilerPluginClasspath: Configuration by configurations.creating {
 
 dependencies {
     api(libs.composeRuntime)
+    // Mounted content reads its LifecycleOwner through androidx.lifecycle.compose.LocalLifecycleOwner,
+    // so the Lifecycle vocabulary belongs on consumers' compile classpath.
+    api(libs.androidxLifecycleRuntimeCompose)
     // DisposableHandle appears in public signatures (setContent returns it), so the common coroutine
     // types must be on consumers' compile classpath; the Swing dispatcher stays an implementation detail.
     api(libs.kotlinxCoroutinesCore)

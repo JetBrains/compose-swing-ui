@@ -14,7 +14,8 @@ import kotlin.test.assertTrue
  * emitted as an ordinary open one and only the Kotlin compiler refuses to implement it. What holds at this
  * target instead is what the JVM itself enforces: a final class with no accessible constructor, and members
  * marked synthetic so `javac` will not resolve a call to them. These cases read the built class for exactly
- * that: finality, constructor visibility, and the accessor a caller would otherwise bind to.
+ * that: finality, constructor visibility, the factory a caller would otherwise call, and the accessor a
+ * caller would otherwise bind to.
  */
 class WindowScopeJavaAccessTest {
     @Test
@@ -39,6 +40,22 @@ class WindowScopeJavaAccessTest {
             reachable,
             "every constructor of ${WindowScope::class.java.name} must be private or synthetic, or a Java " +
                 "caller could build a scope standing for no window",
+        )
+    }
+
+    @Test
+    fun theFactoryThatMakesAScopeIsSyntheticSoAJavaCallerCannotBindToIt() {
+        val factories = WindowScope.Companion::class.java.declaredMethods.filter { it.name == "of" }
+
+        assertTrue(
+            factories.isNotEmpty(),
+            "${WindowScope.Companion::class.java.name} must declare a method named of for this case to " +
+                "be about reaching it",
+        )
+        assertTrue(
+            factories.all { it.isSynthetic },
+            "the factory that makes a scope must be synthetic, or a Java caller could build a scope over " +
+                "any root pane",
         )
     }
 

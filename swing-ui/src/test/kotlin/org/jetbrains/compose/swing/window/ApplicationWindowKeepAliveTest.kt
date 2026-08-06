@@ -16,6 +16,7 @@ import java.awt.SystemTray
 import java.awt.image.BufferedImage
 import kotlin.test.Test
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Behavioral coverage for the lifecycle contract that a [Window], [Dialog], or [Tray] in the
@@ -43,7 +44,7 @@ class ApplicationWindowKeepAliveTest {
         assertTrue(appJob.isActive, "application exited while a Window was still in the composition")
 
         withContext(Dispatchers.Swing) { scope.exitApplication() }
-        withTimeout(EXIT_TIMEOUT_MILLIS) { appJob.join() }
+        withTimeout(EXIT_TIMEOUT) { appJob.join() }
         assertTrue(appJob.isCompleted, "application did not exit after exitApplication()")
     }
 
@@ -62,7 +63,7 @@ class ApplicationWindowKeepAliveTest {
         assertTrue(appJob.isActive, "application exited while a Dialog was still in the composition")
 
         withContext(Dispatchers.Swing) { scope.exitApplication() }
-        withTimeout(EXIT_TIMEOUT_MILLIS) { appJob.join() }
+        withTimeout(EXIT_TIMEOUT) { appJob.join() }
         assertTrue(appJob.isCompleted, "application did not exit after exitApplication()")
     }
 
@@ -84,14 +85,14 @@ class ApplicationWindowKeepAliveTest {
             assertTrue(appJob.isActive, "application exited while a Tray was still in the composition")
 
             withContext(Dispatchers.Swing) { scope.exitApplication() }
-            withTimeout(EXIT_TIMEOUT_MILLIS) { appJob.join() }
+            withTimeout(EXIT_TIMEOUT) { appJob.join() }
             assertTrue(appJob.isCompleted, "application did not exit after exitApplication()")
         } finally {
             // The tray icon is a real peer in the platform's status area; cancelling the application
             // on every exit path disposes its composition and removes the icon, so a failure cannot
             // leak the icon into the user's environment.
             appJob.cancel()
-            withTimeout(EXIT_TIMEOUT_MILLIS) { appJob.join() }
+            withTimeout(EXIT_TIMEOUT) { appJob.join() }
         }
     }
 
@@ -111,6 +112,6 @@ class ApplicationWindowKeepAliveTest {
 
     private companion object {
         const val SETTLE_ROUND_TRIPS: Int = 40
-        const val EXIT_TIMEOUT_MILLIS: Long = 5_000
+        val EXIT_TIMEOUT = 5.seconds
     }
 }

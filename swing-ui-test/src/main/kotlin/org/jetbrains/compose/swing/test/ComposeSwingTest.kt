@@ -402,7 +402,7 @@ private class ComposeSwingTestImpl(
         check(!contentSet) { "setContent may only be called once per test." }
         contentSet = true
         // We are already on the EDT (the whole test body runs there), so mount synchronously.
-        disposeHandle = root.setContent(recomposer = recomposer, content = content)
+        disposeHandle = root.setContent(parent = recomposer, content = content)
         // Drive an initial settle so the AWT tree reflects the initial state before returning. We are
         // on the EDT and cannot suspend here, so we pump frames and let the recomposer (queued on the
         // EDT) make progress by spinning a nested AWT secondary loop between frames.

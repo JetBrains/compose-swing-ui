@@ -1,8 +1,6 @@
 package org.jetbrains.compose.swing.samples.widgets
 
-import androidx.compose.runtime.CompositionLocalProvider
 import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.window.LocalWindow
 import java.awt.Dimension
 import java.awt.Insets
 import javax.swing.JFrame
@@ -36,12 +34,7 @@ fun main() {
         frame.jMenuBar = menuBar
         menuBar.setContent { ShowcaseMenuBar(owner = frame, onExit = { frame.dispose() }) }
 
-        frame.setContent {
-            // Publish the frame so descendants (e.g. the modal dialog section) can resolve a real owner.
-            CompositionLocalProvider(LocalWindow provides frame) {
-                ShowcaseShell()
-            }
-        }
+        frame.setContent { ShowcaseShell() }
 
         frame.isVisible = true
     }

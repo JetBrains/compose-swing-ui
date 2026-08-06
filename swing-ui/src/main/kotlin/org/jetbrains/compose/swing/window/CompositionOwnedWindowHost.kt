@@ -1,15 +1,17 @@
 package org.jetbrains.compose.swing.window
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.compose.swing.core.KeepEnclosingApplicationAlive
+import org.jetbrains.compose.swing.core.setCompositionContext
 import org.jetbrains.compose.swing.setContentAsInteropHost
+import java.awt.Container
 import java.awt.Dialog
 import java.awt.Dimension
 import java.awt.Frame
@@ -17,6 +19,7 @@ import java.awt.Image
 import java.awt.Window
 import java.awt.event.WindowAdapter
 import java.awt.event.WindowEvent
+import javax.swing.JComponent
 import javax.swing.RootPaneContainer
 
 /**
@@ -112,9 +115,19 @@ internal fun CompositionOwnedWindowHost(
 
         val removeExtras = installExtras()
 
+        // This peer is a composition root: its content reads this window and a lifecycle owner, the same
+        // locals a `setContent` root states, whether the composition around it came from a `setContent`
+        // or from `application { }`, which is a root of no window at all. The owner comes out as this
+        // window's own: the content pane's ancestors end at the peer, which publishes no owner, so the
+        // root mints one - which is what a window needs, attachment, minimization and focus being facts
+        // about this window alone.
         val handle =
             container.contentPane.setContentAsInteropHost(parentContext) {
-                CompositionLocalProvider(LocalWindow provides peer) {
+                // A composed window is its content's window for as long as that peer stands, so the
+                // window the locals follow is this one and never moves.
+                val standingIn = remember(peer) { mutableStateOf<Window?>(peer) }
+                ProvideWindowLocals(standingIn, container.contentPane) {
+                    PublishIslandParent(container.contentPane)
                     scope.currentContent()
                 }
             }
@@ -129,6 +142,10 @@ internal fun CompositionOwnedWindowHost(
     }
 
     // Reactive params: re-applied whenever the corresponding argument changes across recomposition.
+    // They are pushed from here because the peer stands above the node tree rather than in it - the tree
+    // the applier drives is rooted at container.contentPane, through setContentAsInteropHost above, and
+    // the peer only hosts that root as its RootPaneContainer. No node stands for the window itself, so
+    // its chrome has no update block to travel in.
     // Effect bodies run on the composition's Swing dispatcher (the EDT), so these mutations are
     // EDT-safe. Geometry is applied before [applyExtras] so the peer is sized and positioned before its
     // visibility (and, for a frame, its extended state) is flipped.
@@ -142,6 +159,27 @@ internal fun CompositionOwnedWindowHost(
         peer.applyMinimumSize(minimumSize)
         peer.applyGeometry(position, width, height, appliedGeometry)
         applyExtras()
+    }
+}
+
+/**
+ * Publishes the composition this composes in as the parent a `setContent` on [contentPane], or on
+ * anything under it, joins - for as long as this stays composed.
+ *
+ * The peer's content is hosted under a context captured in the enclosing composition, which is the
+ * composition of whatever the declaration was made in: an island joining that one reads the window
+ * around the declaration, which for a dialog declared in a window's content is the frame behind it.
+ * The context published here is captured under the locals this peer states, so an island nested in
+ * this window reads them - the window it is really in above all - and recomposes with the rest of the
+ * content it is nested in.
+ */
+@Composable
+private fun PublishIslandParent(contentPane: Container) {
+    val context = rememberCompositionContext()
+    DisposableEffect(contentPane, context) {
+        val host = contentPane as? JComponent
+        host?.setCompositionContext(context)
+        onDispose { host?.setCompositionContext(null) }
     }
 }
 

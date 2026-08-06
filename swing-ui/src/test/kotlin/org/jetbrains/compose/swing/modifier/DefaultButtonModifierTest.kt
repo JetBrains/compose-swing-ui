@@ -53,7 +53,7 @@ class DefaultButtonModifierTest {
     }
 
     private fun setContent(content: @Composable () -> Unit) {
-        onEdt { handle = root.setContent(recomposer = recomposer, content = content) }
+        onEdt { handle = root.setContent(parent = recomposer, content = content) }
         waitForIdle()
     }
 

@@ -22,7 +22,28 @@ on that thread. A mount looks for a composition already hosted above it in the S
 with the container itself, and joins that one, sharing its scope and `CompositionLocal`s. Failing
 that, it joins the composition scope belonging to its window. Every mount nests into something, so
 two containers given content under one window recompose together, on that window's recomposer and
-its frame clock.
+its frame clock. A container that is in no window yet is mounted the moment it is added to one.
+
+A mount can also be given the composition it nests into: `window.compositionContext()` is a window's
+own scope. A scope of its own comes from a runtime created for a component with
+`SwingRecomposer.create(component)`, whose `compositionContext` the mount takes as its parent and
+whose disposal the caller owns - an integration-level entry point, opted into with
+`@OptIn(InternalSwingUiApi::class)`.
+`container.setContent(parent) { ... }` then composes on the call, whatever the
+container is attached to, which is what serves a container built to be read rather than shown. Such
+a container joins the composition of the window it is in should it later be added to one, so a
+window's content still recomposes on one recomposer and one frame clock.
+
+Content reads a `LifecycleOwner` through `LocalLifecycleOwner`, shared by everything that content
+hosts - popups, menus, overlays. A mount resolves that owner from where its container hangs in the
+Swing tree: it takes the one a mount at or above it published there, and only where that walk answers
+nothing does it get an owner of its own following its container. A `Window` or `Dialog` composed in it
+is a top-level window of its own and always gets one of its own, since being attached, minimized or
+focused are facts about a single window. An owner answers for the content it follows, so a mount that
+resolved one reports where that content stands rather than where its own container hangs, and
+disposing that mount leaves the owner live - only the mount an owner was made for ends it. Attachment
+to the Swing tree, minimization of the window, and that window's keyboard focus move an owner between
+`CREATED`, `STARTED`, and `RESUMED`; the KDoc on `setContent` is the reference for which is which.
 
 Mounting returns a handle. Disposing it tears that content down.
 
