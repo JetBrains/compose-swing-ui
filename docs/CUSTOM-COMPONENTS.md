@@ -342,7 +342,8 @@ public fun MyWidget(
 
 Built-in modifier builders are extension functions on `SwingModifier`, grouped by concern:
 
-- **Appearance** - `foreground`, `background`, `font`, `border`, `opaque`, `cursor`.
+- **Appearance** - `foreground`, `background`, `font`, `border` and the `lineBorder` / `emptyBorder`
+  pair that declares one by its values, `opaque`, `cursor`.
 - **Content placement** - `icon`, `iconTextGap`, `horizontalAlignment`, `verticalAlignment`,
   `horizontalTextPosition`, `verticalTextPosition`, `margin`: where a component's icon, text and
   content sit inside it. Each reaches every kind of component that declares the property - `icon`,
@@ -365,14 +366,12 @@ Built-in modifier builders are extension functions on `SwingModifier`, grouped b
 - **Accessibility** - `accessibleName`, `accessibleDescription`, `mnemonic`, and the `labelFor` /
   `labelTarget` pair that captions one component with another.
 
-Chain them: `SwingModifier.foreground(Color.RED).border(lineBorder).onHover { ... }`. The framework
+Chain them: `SwingModifier.foreground(Color.RED).lineBorder(Color.GRAY).onHover { ... }`. The framework
 diffs the chain across recompositions, applies new/changed elements, and **restores the original
 value** of any element that is removed from the chain.
 
 When your component contributes its own elements (for example the binding listener that drives its
-callback), chain them **onto** the caller's `modifier` - `modifier.yourElement(...)` - so the caller's
-`modifier` is the base of the chain, following the Jetpack Compose convention of a `modifier`-first
-chain.
+callback), chain them **onto** the caller's `modifier` - `modifier.yourElement(...)`.
 
 ## Writing a custom property element
 
@@ -483,11 +482,13 @@ typed as `java.awt.Component`.
 
 To attach an existing Swing/AWT listener **object** as-is, use the typed instance builders. Each takes
 the listener instance, expresses the target component type, and owns the lifecycle: the same instance
-is added on install and removed on detach/reset/reuse (AWT removes by identity), so the runtime never
-touches listeners the host app added and you never write a manual `removeXxxListener`.
+is added on install and removed on detach/reset/reuse (AWT removes by identity), so pass a stable
+instance and leave both the add and the remove to the builder. See
+[`ARCHITECTURE.md`](ARCHITECTURE.md#the-node-lifecycle-and-listeners) for listener lifetimes and why
+listeners the host app attached are untouched.
 
 ```kotlin
-val onMove = remember { object : MouseAdapter() { override fun mouseMoved(e: MouseEvent) { ... } } }
+val onMove = remember { object : MouseAdapter() { override fun mouseMoved(e: MouseEvent) { /* ... */ } } }
 SwingModifier.name("canvas").mouseMotionListener(onMove)
 ```
 
@@ -542,8 +543,7 @@ component already typed, and a node whose component is not a `T` is rejected at 
 error. There is no `key` parameter - like the typed builders, it is **additive**.
 
 The same `instance` is added once via `attach` when the element enters the chain and removed via
-`detach` when it leaves or the node is released/reused - the runtime never touches listeners the host
-app added, and you never write a manual `removeXxxListener`. Supplying a *different* instance
+`detach` when it leaves or the node is released/reused. Supplying a *different* instance
 (reference inequality) on a later recomposition detaches the old one and attaches the new, so pass a
 **stable** instance - `remember { ... }` it. To keep the latest callbacks visible without re-attaching,
 wrap the callback in `rememberUpdatedState` and read it from inside the remembered listener.
@@ -692,10 +692,24 @@ that takes no constraints places the child by index. It follows composition stat
 value: change it and the child moves within the same parent, keeping its position among its siblings.
 
 Changed is decided by `equals`. A placement rebuilt in the composable body is compared against the one
-the child already sits under, so a value that compares by value costs nothing to rebuild, while one
-that compares by identity re-registers the child with the layout manager on every pass. Derive it from
-the declaration rather than from a cursor running through the emitting loop, too: a placement computed
-from how many children came before it changes for every later child the moment one is inserted.
+the child already sits under, and only a difference re-registers the child: the framework takes it out
+of the layout manager and adds it back under the new value, then revalidates the parent. A value that
+compares by value therefore costs nothing to rebuild, while one that compares by identity - a bare
+`GridBagConstraints`, a class of your own that never overrode `equals` - is a new instance on every
+pass and puts every child through that removal and re-add on every composition. What that costs is the
+manager's, not the framework's: a `LayoutManager2` that keeps anything derived from the placements it
+has been handed - a grid, a set of measured column widths, a row cache - discards and rebuilds it each
+time, because a re-registration reaches it as the same `removeLayoutComponent`/`addLayoutComponent`
+pair a real structural change does. Give a placement of your own a value `equals`, as `GridBagPanel`
+does for the constraints its items declare.
+
+Derive that value from the declaration rather than from a cursor running through the emitting loop,
+too: a placement computed from how many children came before it changes for every later child the
+moment one is inserted, and every one of them is then re-registered. This is advice about the
+placement value. The `key` a child is emitted under is a separate question, answered in *What the
+composition owns* - and answered there with position as the fallback, which is why `GridBagPanel`,
+whose items state their own cells, still emits them under `key(index)`: a declaration that carries
+nothing to tell it from its siblings has nothing else to be keyed by.
 
 A receiver DSL like the one above keeps the constraint's type inside your container - `MosaicScope`
 is the whole placement API your callers see, and `BorderPanel`'s regions and `GridBagPanel`'s items
@@ -703,35 +717,76 @@ are the same shape over a fixed, nameable set of placements. A container that wo
 its placements out takes a plain content lambda instead and lets callers wrap children in
 `SwingConstraint` themselves.
 
-Three things make such a scope a declaration rather than a build, and every scope in this guide has all
-three:
+Three things make a recording scope like this a declaration rather than a build, and every scope this
+library ships has all three:
 
 - **The block is an ordinary lambda, not a `@Composable` one.** Running it records placements; nothing
   is composed while it runs. The composing happens afterwards, inside `content`, where the applier is
-  listening. The two parameter names say which is which throughout this library: a `block: Scope.() ->
-  Unit` is run to be recorded, a `content: @Composable () -> Unit` is emitted to become children. This
-  holds at every level: a nested block the scope offers - a group, a section, an indented run - is
-  recorded the same way and is an ordinary lambda too, and only the leaf slots are `@Composable`.
-  Marking the block `@Composable` is not a harmless widening. It composes in the composition around
-  yours, so a component a caller emits straight into the block becomes a child of whatever encloses
-  your container - and it compiles. An ordinary block makes it a compile error.
+  listening. This holds at every level: a nested block the scope offers - a group, a section, an
+  indented run - is recorded the same way and is an ordinary lambda too, and only the leaf slots are
+  `@Composable`.
+  What an ordinary block buys is that a component a caller emits straight into it, outside any
+  placement, does not compile. What it costs is call-site identity: every child now leaves one emitting
+  loop inside your container, so a declaration is identified by its position among the declarations
+  rather than by the place in the caller's code that made it. Insert a declaration in the middle and
+  every declaration from there on is handed the child that belonged to the one that used to follow it,
+  along with whatever that child held - a typed-in text, a caret, a tree's expansion - and the
+  declaration left at the end is built afresh. A recorded scope therefore offers a `key` parameter per
+  declaration - whatever the caller knows tells one of theirs from another, wrapped around the
+  placement as it is emitted - and a container whose children hold what the user typed is a container
+  whose callers will need it.
 - **What a placement records is a `@Composable` lambda.** The scope holds the caller's `content`
   unevaluated and hands it back to `SwingConstraint`, so each child is composed in the container's own
   content and becomes a node. A scope that recorded components instead would have built them outside
   the composition, where nothing can update or release them. It records them in one sequence, too:
   children reach the applier in the order `content` emits them, so a scope that keeps a list per kind
   of declaration emits them grouped by kind, in an order the caller never wrote and cannot express.
-- **The scope is built fresh each composition** - constructed and applied in the composable body,
-  never `remember`ed. Its contents are then exactly what this composition declared, so a placement the
-  caller stops declaring disappears. A remembered scope keeps every placement any earlier composition
-  ever made, and grows on each pass.
+- **A scope that records is built fresh each composition** - constructed and applied in the composable
+  body, never `remember`ed. Its contents are then exactly what this composition declared, so a
+  placement the caller stops declaring disappears, where a remembered recording scope keeps every
+  placement any earlier composition ever made and grows on each pass. The rule is about accumulation,
+  not about receivers: one that records nothing and only carries where in your container its
+  declarations sit - a group token, an indent depth, whatever a nested block narrows for the
+  declarations inside it - is an ordinary value, and `remember(group, indent) { ... }` is how to build
+  it, so a recomposition does not hand its declarations a new receiver.
+
+Marking the block `@Composable` is the other shape, and what it changes is where a stray child lands
+and what identifies the ones that were placed properly. Where it lands follows where you run the
+block. Run it in your own composable body - as a composite assembled from built-in containers does,
+`Framed` below - and a component emitted straight into it composes in the composition around yours, so
+it becomes a child of whatever encloses your container, silently, and it compiles. Pass the block into
+your own `content` instead, so it runs inside your `SwingNode`, and that component reaches your own
+layout manager carrying no placement, where the manager can refuse it and say so:
+
+```text
+Every component of a form belongs to a row. Emit this one inside FormRow { ... }: javax.swing.JTextField[...]
+```
+
+A runtime boundary rather than a compile-time one, but a boundary you can name. In exchange every
+declaration keeps the identity of the call that made it, so `if (showEmail) FormRow("Email")` followed
+by `FormRow("Phone")` leaves the phone row's component and its contents alone when the email row
+appears, with no `key` from anyone. That is the whole trade: a compile-time boundary and positional
+identity, against call-site identity and a boundary you write yourself. The containers this library
+ships are recorded scopes, and a container placing components its caller hands it whole is usually
+right to be one; a container whose own declarations wrap state-holding widgets is the case that wants
+`@Composable` declarations.
+
+The choice reaches the caller through the names, too. A recorded declaration is an ordinary function
+and reads `item(...)`, `north(...)`, `cell(...)`; a `@Composable` declaration is a `Unit`-returning
+composable and is PascalCase by convention, which IDE inspections enforce. Callers of such a scope
+write `FormRow("Name")`, not `row("Name")` - and the container's name in front is not decoration: a
+bare `Row` member takes precedence over this library's own `Row` for every call inside the block.
 
 Two things such a scope should not do. It should not spend a component on a slot: wrapping every child
 in a panel of your own to carry something - a modifier, a border, an alignment - puts a real container
 with a real layout between the caller's component and yours, and a `modifier` the slot accepted is then
-applied to that container instead of to the component the caller wrote. What the container has to say
-about a child is the placement it emits the child under; what the caller has to say about their own
-component is a `modifier` on that component. And it should not accept a declaration it does not emit:
+applied to that container instead of to the component the caller wrote. It also changes what the layout
+above sees: a parent measures and inspects the children it holds, so a gap policy that treats a nested
+panel differently from a control, or an alignment that lines a label up against the field beside it,
+reads the wrapper you inserted instead of the component, and the same components laid out through your
+container stop matching the ones laid out without it. What the container has to say about a child is
+the placement it emits the child under; what the caller has to say about their own component is a
+`modifier` on that component. And it should not accept a declaration it does not emit:
 an unemitted slot is not an error anywhere, because the applier only ever hears about the children it
 is given, so such a declaration is simply a child that is not there. A parameter the scope accepts and
 never applies is the same silence one level down - either it reaches the component or it leaves the
@@ -740,6 +795,40 @@ signature.
 Placement belongs to the container that composes the child: `SwingConstraint` reaches the nodes its
 own content emits, and a container composed inside takes the constraint for itself and lays its own
 children out under the constraints it provides them.
+
+A placement is not per child, either. `SwingConstraint` reaches every component its content emits
+directly, so one placement can cover a run of siblings, and what several components under one value
+mean is the manager's to decide: a manager that reads the value as a coordinate puts them all in the
+same place, one that reads it as the group they belong to lays each of them out within that group. The
+examples here place one child each because each of their placements names one position; a placement
+that names a region, a row or a group is free to cover everything in it.
+
+### When the placement is not something the caller states
+
+The placements above are values the caller writes: a region name, a cell, a pair of grid coordinates.
+A manager of your own may instead derive a child's placement from the children around it - a form whose
+column count is its widest row's, a group whose leading gap depends on whether another group precedes
+it, a band that divides its width among whatever ended up in it. Nothing changes about how the
+placement travels. What changes is that your container cannot compute the answer while it emits,
+because the answer needs every declaration, and that your manager cannot hold on to what it derived,
+because the next composition may change it.
+
+Two things carry a manager like that. The first is that the component array *is* the declared
+structure. Every child is added at its composition index - a constrained child through the
+three-argument `Container.add(Component, Object, int)`, precisely so that applying a placement does not
+cost the array its order - and later removals and moves address that same array. A manager is therefore
+free to read `parent.components`, and the constraints it registered for them, as the whole structure
+the caller declared, in the order they declared it, and to derive from all of it when it is asked to
+measure or to lay out. Deriving at `addLayoutComponent` time is the part that does not work: the child
+arriving knows nothing about the ones still to come.
+
+The second is that what the placement carries is the child's part in that structure - which row this
+control belongs to, how deep its group is - rather than the coordinates the manager will work out from
+it. That keeps the placement something a single declaration can produce on its own, so it compares
+equal to the last composition's whenever the declaration did not change and only the children whose
+part really moved are re-registered. A placement carrying the derived coordinate would change for every
+child the moment any one of them changed, and put the whole container through a remove-and-re-add on
+every pass.
 
 ## Building a custom shared hierarchy
 
@@ -802,7 +891,10 @@ Four things make a composite of this shape behave:
 
 - **Hold the scope to its three rules** - an ordinary block, recording `@Composable` lambdas, into a
   scope built fresh each composition (see *Placing children under constraints*). A slot is a
-  declaration the composite emits, exactly as a placement is.
+  declaration the composite emits, exactly as a placement is. The ordinary block is not a choice at
+  this shape: a composite has no `content` of its own to run the block inside, so a `@Composable` one
+  would compose in the composition around the composite and a component emitted straight into it would
+  land outside the composite altogether.
 - **Keep the composite composable-shaped** - state in, callbacks out, and a `modifier` parameter
   chained onto the outermost container it emits, so a caller styles the composite the way they style
   any component.

@@ -176,6 +176,51 @@ class SwingConstraintTest {
     }
 
     @Test
+    fun placedChildrenSitInTheComponentArrayInDeclarationOrder() = runComposeSwingTest {
+        var withSubtitle by mutableStateOf(false)
+        setContent {
+            MosaicPanel {
+                cell(row = 0, column = 0) { Label("title") }
+                if (withSubtitle) cell(row = 1, column = 0) { Label("subtitle") }
+                cell(row = 2, column = 0) { Label("body") }
+            }
+        }
+        val panel = onNodeWithText("title").onParent()
+        panel.onChildAt(0).assertTextEquals("title")
+        panel.onChildAt(1).assertTextEquals("body")
+
+        withSubtitle = true
+        awaitIdle()
+
+        // A declaration that appears between two others takes its own place in the component array,
+        // constraint and all, so a layout manager reading that array reads the structure the caller
+        // declared, in the order they declared it.
+        panel.onChildren().assertCountEquals(3)
+        panel.onChildAt(0).assertTextEquals("title")
+        panel.onChildAt(1).assertTextEquals("subtitle")
+        panel.onChildAt(2).assertTextEquals("body")
+    }
+
+    @Test
+    fun onePlacementCoversEveryChildDeclaredUnderIt() = runComposeSwingTest {
+        setContent {
+            MosaicPanel {
+                cell(row = 0, column = 0) {
+                    Label("name")
+                    Label("value")
+                }
+            }
+        }
+
+        // A placement reaches every component its content emits, not just a first one, so a container
+        // is free to offer a declaration that covers a whole run of children.
+        val cell = MosaicCell(row = 0, column = 0)
+        val mosaic = managerPlacing<MosaicLayout>("name")
+        assertEquals(cell, mosaic.cellOf(onNodeWithText("name").fetch()), "name")
+        assertEquals(cell, mosaic.cellOf(onNodeWithText("value").fetch()), "value")
+    }
+
+    @Test
     fun aConstraintPlacesTheChildInItsRegion() = runComposeSwingTest {
         setContent {
             BorderContainer {

@@ -45,6 +45,7 @@ import org.jetbrains.compose.swing.annotations.SwingComposable
  *
  * @param constraint the placement the parent container's layout manager registers each component under.
  * @param content emits the components placed under [constraint].
+ * @see java.awt.Container.add
  */
 @Composable
 public fun SwingConstraint(

@@ -123,6 +123,57 @@ public abstract interface class org/jetbrains/compose/swing/components/desktop/L
 	public abstract fun layer (ILkotlin/jvm/functions/Function2;)V
 }
 
+public final class org/jetbrains/compose/swing/components/layout/Alignment {
+	public static final field $stable I
+	public static final field INSTANCE Lorg/jetbrains/compose/swing/components/layout/Alignment;
+	public final fun getBottom ()Lorg/jetbrains/compose/swing/components/layout/Alignment$Vertical;
+	public final fun getCenterHorizontally ()Lorg/jetbrains/compose/swing/components/layout/Alignment$Horizontal;
+	public final fun getCenterVertically ()Lorg/jetbrains/compose/swing/components/layout/Alignment$Vertical;
+	public final fun getEnd ()Lorg/jetbrains/compose/swing/components/layout/Alignment$Horizontal;
+	public final fun getStart ()Lorg/jetbrains/compose/swing/components/layout/Alignment$Horizontal;
+	public final fun getTop ()Lorg/jetbrains/compose/swing/components/layout/Alignment$Vertical;
+}
+
+public abstract interface class org/jetbrains/compose/swing/components/layout/Alignment$Horizontal {
+	public abstract fun align (IILjava/awt/ComponentOrientation;)I
+}
+
+public abstract interface class org/jetbrains/compose/swing/components/layout/Alignment$Vertical {
+	public abstract fun align (II)I
+}
+
+public final class org/jetbrains/compose/swing/components/layout/Arrangement {
+	public static final field $stable I
+	public static final field INSTANCE Lorg/jetbrains/compose/swing/components/layout/Arrangement;
+	public final fun aligned (Lorg/jetbrains/compose/swing/components/layout/Alignment$Horizontal;)Lorg/jetbrains/compose/swing/components/layout/Arrangement$Horizontal;
+	public final fun aligned (Lorg/jetbrains/compose/swing/components/layout/Alignment$Vertical;)Lorg/jetbrains/compose/swing/components/layout/Arrangement$Vertical;
+	public final fun getBottom ()Lorg/jetbrains/compose/swing/components/layout/Arrangement$Vertical;
+	public final fun getCenter ()Lorg/jetbrains/compose/swing/components/layout/Arrangement$HorizontalOrVertical;
+	public final fun getEnd ()Lorg/jetbrains/compose/swing/components/layout/Arrangement$Horizontal;
+	public final fun getSpaceAround ()Lorg/jetbrains/compose/swing/components/layout/Arrangement$HorizontalOrVertical;
+	public final fun getSpaceBetween ()Lorg/jetbrains/compose/swing/components/layout/Arrangement$HorizontalOrVertical;
+	public final fun getSpaceEvenly ()Lorg/jetbrains/compose/swing/components/layout/Arrangement$HorizontalOrVertical;
+	public final fun getStart ()Lorg/jetbrains/compose/swing/components/layout/Arrangement$Horizontal;
+	public final fun getTop ()Lorg/jetbrains/compose/swing/components/layout/Arrangement$Vertical;
+	public final fun spacedBy (I)Lorg/jetbrains/compose/swing/components/layout/Arrangement$HorizontalOrVertical;
+	public final fun spacedBy (ILorg/jetbrains/compose/swing/components/layout/Alignment$Horizontal;)Lorg/jetbrains/compose/swing/components/layout/Arrangement$Horizontal;
+	public final fun spacedBy (ILorg/jetbrains/compose/swing/components/layout/Alignment$Vertical;)Lorg/jetbrains/compose/swing/components/layout/Arrangement$Vertical;
+}
+
+public abstract interface class org/jetbrains/compose/swing/components/layout/Arrangement$Horizontal {
+	public abstract fun arrange (I[ILjava/awt/ComponentOrientation;[I)V
+	public fun getSpacing ()I
+}
+
+public abstract interface class org/jetbrains/compose/swing/components/layout/Arrangement$HorizontalOrVertical : org/jetbrains/compose/swing/components/layout/Arrangement$Horizontal, org/jetbrains/compose/swing/components/layout/Arrangement$Vertical {
+	public fun getSpacing ()I
+}
+
+public abstract interface class org/jetbrains/compose/swing/components/layout/Arrangement$Vertical {
+	public abstract fun arrange (I[I[I)V
+	public fun getSpacing ()I
+}
+
 public abstract interface class org/jetbrains/compose/swing/components/layout/BorderPanelScope {
 	public abstract fun center (Lkotlin/jvm/functions/Function2;)V
 	public abstract fun east (Lkotlin/jvm/functions/Function2;)V
@@ -139,11 +190,16 @@ public abstract interface class org/jetbrains/compose/swing/components/layout/Ca
 	public abstract fun card (Ljava/lang/String;Lkotlin/jvm/functions/Function2;)V
 }
 
+public abstract interface class org/jetbrains/compose/swing/components/layout/ColumnScope {
+	public abstract fun align (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/components/layout/Alignment$Horizontal;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public abstract fun fillWidth (Lorg/jetbrains/compose/swing/modifier/SwingModifier;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public abstract fun weight (Lorg/jetbrains/compose/swing/modifier/SwingModifier;FZ)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static synthetic fun weight$default (Lorg/jetbrains/compose/swing/components/layout/ColumnScope;Lorg/jetbrains/compose/swing/modifier/SwingModifier;FZILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+}
+
 public final class org/jetbrains/compose/swing/components/layout/ComposableSingletons$BoxPanelKt {
 	public static final field INSTANCE Lorg/jetbrains/compose/swing/components/layout/ComposableSingletons$BoxPanelKt;
 	public fun <init> ()V
-	public final fun getLambda$-1905159728$swing_ui ()Lkotlin/jvm/functions/Function2;
-	public final fun getLambda$1033783150$swing_ui ()Lkotlin/jvm/functions/Function2;
 	public final fun getLambda$1819195700$swing_ui ()Lkotlin/jvm/functions/Function2;
 }
 
@@ -174,13 +230,13 @@ public final class org/jetbrains/compose/swing/components/layout/LayoutComponent
 	public static final fun BorderPanel (Lorg/jetbrains/compose/swing/modifier/SwingModifier;IILkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
 	public static final fun BoxPanel (Lorg/jetbrains/compose/swing/modifier/SwingModifier;ILkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
 	public static final fun CardPanel (Ljava/lang/String;Lorg/jetbrains/compose/swing/modifier/SwingModifier;IILkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
-	public static final fun Column (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
+	public static final fun Column (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/components/layout/Arrangement$Vertical;Lorg/jetbrains/compose/swing/components/layout/Alignment$Horizontal;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
 	public static final fun FlowPanel (Lorg/jetbrains/compose/swing/modifier/SwingModifier;IIILkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
 	public static final fun Glue (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/lang/Integer;Landroidx/compose/runtime/Composer;II)V
 	public static final fun GridBagPanel (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
 	public static final fun GridPanel (Lorg/jetbrains/compose/swing/modifier/SwingModifier;IIIILkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
 	public static final fun RigidArea (IILorg/jetbrains/compose/swing/modifier/SwingModifier;Landroidx/compose/runtime/Composer;II)V
-	public static final fun Row (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
+	public static final fun Row (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/components/layout/Arrangement$Horizontal;Lorg/jetbrains/compose/swing/components/layout/Alignment$Vertical;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
 	public static final fun ScrollPane (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/components/layout/ScrollState;IILjavax/swing/border/Border;ZLkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
 	public static final fun Spacer (ILorg/jetbrains/compose/swing/modifier/SwingModifier;Landroidx/compose/runtime/Composer;II)V
 	public static final fun SplitPane (Ljava/beans/PropertyChangeListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;IIDLjava/lang/Boolean;Ljava/lang/Integer;Ljava/lang/Boolean;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
@@ -191,6 +247,13 @@ public final class org/jetbrains/compose/swing/components/layout/LayoutComponent
 	public static final fun ToolBar (Lorg/jetbrains/compose/swing/modifier/SwingModifier;IZLjava/lang/Boolean;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
 	public static final fun ToolBarSeparator (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/awt/Dimension;Landroidx/compose/runtime/Composer;II)V
 	public static final fun rememberScrollState (IILandroidx/compose/runtime/Composer;II)Lorg/jetbrains/compose/swing/components/layout/ScrollState;
+}
+
+public abstract interface class org/jetbrains/compose/swing/components/layout/RowScope {
+	public abstract fun align (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/components/layout/Alignment$Vertical;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public abstract fun fillHeight (Lorg/jetbrains/compose/swing/modifier/SwingModifier;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public abstract fun weight (Lorg/jetbrains/compose/swing/modifier/SwingModifier;FZ)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static synthetic fun weight$default (Lorg/jetbrains/compose/swing/components/layout/RowScope;Lorg/jetbrains/compose/swing/modifier/SwingModifier;FZILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 }
 
 public abstract interface class org/jetbrains/compose/swing/components/layout/ScrollPaneScope {

@@ -452,7 +452,7 @@ children go into named slots declared through a receiver DSL.
 | Component | What it is |
 | --- | --- |
 | `BoxPanel` | A single-axis stack over `BoxLayout`. |
-| `Row`, `Column` | `BoxPanel` fixed to the horizontal and vertical axis. |
+| `Row`, `Column` | A single-axis stack holding each child at the size it prefers, with its leftover space placed by an `Arrangement`. |
 | `FlowPanel` | A wrapping strip over `FlowLayout`. |
 | `GridPanel` | Equal-sized cells over `GridLayout`. |
 | `BorderPanel` | Four edges and a filling centre over `BorderLayout`, as named slots. |
@@ -482,20 +482,37 @@ BorderPanel {
 }
 ```
 
-`Row` and `Column` are the two axes of `BoxPanel` you reach for most; `FlowPanel` centres its
-children and gaps them by `5` pixels, and `GridPanel` starts as a single row that grows a column per
-child, with no gaps.
+`Row` and `Column` are the two single-axis stacks you reach for most. Every child keeps the size it
+prefers on both axes; the space the container has left over along its axis is placed by an
+`Arrangement` (`Top`, `Bottom`, `Start`, `End`, `Center`, `SpaceBetween`, `SpaceAround`,
+`SpaceEvenly`, `spacedBy(gap)`, `aligned(...)`), and each child sits across the axis where an
+`Alignment` puts it. Spacing and every other measure here is in pixels.
+
+A child claims a share of the leftover space with `weight`, or names its own cross-axis placement
+with `align`, through the `RowScope` / `ColumnScope` its content is written in - both are modifier
+extensions, so children stay plain:
 
 ```kotlin
-Column {
-    Row {
+Column(verticalArrangement = Arrangement.spacedBy(8), horizontalAlignment = Alignment.Start) {
+    Row(modifier = SwingModifier.fillWidth(), horizontalArrangement = Arrangement.End) {
         Button("Back", onClick = ::open)
         Button("Forward", onClick = ::open)
     }
-    FlowPanel(hgap = 8, vgap = 4) { Body() }
-    GridPanel(rows = 2, cols = 2, hgap = 4, vgap = 4) { Body() }
+    FlowPanel(modifier = SwingModifier.weight(1f), hgap = 8, vgap = 4) { Body() }
+    Label("Status", modifier = SwingModifier.align(Alignment.CenterHorizontally))
 }
 ```
+
+A weighted child takes its share of what is left after every child that claims none has taken the
+size it prefers, in proportion to the weights; `weight(w, fill = false)` lets it settle for the size
+it prefers and leaves the rest to the arrangement. An explicit `maximumSize` caps that share.
+
+`BoxPanel` is the direct `BoxLayout` wrapper, and a `ToolBar` lays its controls out the same way:
+each shares its leftover space out among the children that have room between the size they prefer and
+their maximum size, in proportion to that room. `Glue` is empty space with the most room of all, so it
+takes the largest share, and `Strut` and `RigidArea` are the fixed gaps between items. `FlowPanel`
+centres its children and gaps them by `5` pixels, and `GridPanel` starts as a single row that grows a
+column per child, with no gaps.
 
 `GridBagPanel`'s `item` takes one parameter per `GridBagConstraints` field, under the field's own
 name and with its own default, so a grid-bag layout written against Swing carries over field for

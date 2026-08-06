@@ -15,6 +15,7 @@ import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Dimension
 import javax.swing.Box
+import javax.swing.BoxLayout
 import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.SwingConstants
@@ -164,28 +165,28 @@ class BoxFillersTest {
     @Test
     fun glueBetweenTwoItemsPushesTheSecondToTheTrailingEdge() = runComposeSwingTest {
         setContent {
-            Row(modifier = SwingModifier.preferredSize(400, 40)) {
+            BoxPanel(axis = BoxLayout.X_AXIS, modifier = SwingModifier.preferredSize(400, 40)) {
                 Label("leading", modifier = SwingModifier.fixed())
                 Glue()
                 Label("trailing", modifier = SwingModifier.fixed())
             }
         }
 
-        val row = onNodeWithText("leading").onParent().fetch<JPanel>()
+        val box = onNodeWithText("leading").onParent().fetch<JPanel>()
         val leading = onNodeWithText("leading").fetch<JLabel>()
         val trailing = onNodeWithText("trailing").fetch<JLabel>()
-        assertEquals(0, leading.x, "the leading item stays at the row's leading edge")
+        assertEquals(0, leading.x, "the leading item stays at the box's leading edge")
         assertEquals(
-            row.width,
+            box.width,
             trailing.x + trailing.width,
-            "the glue must take the row's leftover width, leaving the trailing item at the far end",
+            "the glue must take the box's leftover width, leaving the trailing item at the far end",
         )
     }
 
     @Test
     fun withoutGlueTheItemsStayPackedTogether() = runComposeSwingTest {
         setContent {
-            Row(modifier = SwingModifier.preferredSize(400, 40)) {
+            BoxPanel(axis = BoxLayout.X_AXIS, modifier = SwingModifier.preferredSize(400, 40)) {
                 Label("leading", modifier = SwingModifier.fixed())
                 Label("trailing", modifier = SwingModifier.fixed())
             }

@@ -93,6 +93,10 @@ public inline fun <reified T : Component> SwingNode(
  * emitted at rather than to the declaration made there, so reordering declarations leaves that state
  * where it was unless [androidx.compose.runtime.key] gives each child an identity of its own.
  *
+ * The component's own child array holds the children in the order [content] emits them, whatever
+ * placement each was emitted under, so a layout manager of your own can read `getComponents` as the
+ * structure this composition declared and derive from all of it at measure or layout time.
+ *
  * [hostsSubcompositions] behaves as in the leaf overload. Defaults to `false`.
  */
 @Composable
