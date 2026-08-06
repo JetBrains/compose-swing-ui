@@ -201,7 +201,9 @@ is decides which one a component uses.
   `FocusRequester` moves the keyboard when the application decides to - a validation failure, a
   toolbar action, a shortcut - and a request that has happened leaves nothing for a later recomposition
   to re-apply, so instead of a declared value it is a handle the caller holds, calls, and binds to a
-  component with a modifier.
+  component with a modifier. Where a component already hands out a state holder, its gestures ride on
+  that holder instead of on a handle of their own: a `FormattedValueState` commits an edit the user
+  typed but never entered.
 
 In short: a value the composition can name is declared, with a callback beside it; a group of values
 the component itself keeps and reports is a state holder; an action with no value is a handle. For how

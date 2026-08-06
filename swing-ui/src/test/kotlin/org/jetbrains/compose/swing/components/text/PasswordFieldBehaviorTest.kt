@@ -12,13 +12,11 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * End-to-end tests for [PasswordField] over a real [SwingApplier]. They assert observable behavior on
- * the rendered [JPasswordField]: the controlled [CharArray] round-trips through `getPassword()`, typing
- * fires `onValueChange` with the typed characters, an external value change reflects into the field
- * without thrashing the caret (the content-equality guard skips a no-op set), the echo character
- * tracks the composed value across recomposition, and an edit the caller does not adopt is settled back
- * onto the declared value - on the `onValueChange` overload and on the raw `documentListener` overload
- * alike.
+ * End-to-end tests for [PasswordField] over a real
+ * [SwingApplier][org.jetbrains.compose.swing.node.SwingApplier], asserting observable behavior on the
+ * rendered [JPasswordField]: the controlled [CharArray] round-trips through `getPassword()`, an external
+ * value change reflects without thrashing the caret (the content-equality guard skips a no-op set), and
+ * an edit the caller does not adopt settles back onto the declared value.
  */
 class PasswordFieldBehaviorTest {
     @Test
@@ -56,7 +54,6 @@ class PasswordFieldBehaviorTest {
         awaitIdle()
         assertEquals(2, field.caretPosition, "no-op set thrashed the caret")
 
-        // A genuinely different value updates the field.
         value = "second".toCharArray()
         awaitIdle()
         assertEquals("second", String(field.password), "a genuinely different value should update the field")
@@ -76,7 +73,6 @@ class PasswordFieldBehaviorTest {
         awaitIdle()
         assertEquals(defaultEchoChar, field.echoChar, "null should reset to the look-and-feel default")
 
-        // The NUL character (U+0000) renders the text in clear text.
         echoChar = '\u0000'
         awaitIdle()
         assertEquals('\u0000', field.echoChar, "NUL should be applied to show clear text")
@@ -89,8 +85,22 @@ class PasswordFieldBehaviorTest {
         val field = onNodeOfType<JPasswordField>()
         field.performTextReplacement("intruder")
 
-        // The field is already settled back onto the declared value by the time the edit's own
-        // recomposition finishes - not just once some later, unrelated recomposition happens to run.
+        // The declared value is written back on the pass the edit itself provokes, so the field never
+        // stands on characters the caller has not adopted.
+        assertEquals("hunter2", String(field.fetch().password))
+    }
+
+    @Test
+    fun successiveEditsTheCallerDoesNotAdoptEachSettleBack() = runComposeSwingTest {
+        setContent { PasswordField(value = "hunter2".toCharArray(), onValueChange = {}) }
+
+        val field = onNodeOfType<JPasswordField>()
+        field.performTextReplacement("intruder")
+        assertEquals("hunter2", String(field.fetch().password))
+
+        // A settlement measures against the characters the field holds on its own pass, so the second
+        // edit is settled back just as the first was rather than being taken for one already answered.
+        field.performTextReplacement("interloper")
         assertEquals("hunter2", String(field.fetch().password))
     }
 
@@ -101,8 +111,8 @@ class PasswordFieldBehaviorTest {
         val field = onNodeOfType<JPasswordField>()
         field.performTextReplacement("intruder")
 
-        // The wrapper's own mirror listener, attached alongside the caller's raw one, is what lets the
-        // declared value settle back even with no onValueChange callback to report through.
+        // The wrapper's own mirror listener, attached alongside the caller's raw one, is what keeps the
+        // declared value settling back with no onValueChange callback to report through.
         assertEquals("hunter2", String(field.fetch().password))
     }
 }

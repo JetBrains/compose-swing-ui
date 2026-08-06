@@ -1,7 +1,4 @@
-@file:JvmMultifileClass
-@file:JvmName("TextComponentsKt")
-
-package org.jetbrains.compose.swing.components.text
+package org.jetbrains.compose.swing.text
 
 /**
  * A range of characters in a text document, expressed as a directional anchor([start])/caret([end])
@@ -11,9 +8,6 @@ package org.jetbrains.compose.swing.components.text
  * `start != end` is directional: `TextRange(2, 5)` anchors at 2 with the caret at 5, while
  * `TextRange(5, 2)` anchors at 5 with the caret at 2. A range where [start] equals [end] is a
  * collapsed caret at that offset with no selected text.
- *
- * @param start the anchor offset.
- * @param end the caret offset.
  */
 @JvmInline
 public value class TextRange private constructor(

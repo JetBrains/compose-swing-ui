@@ -4,23 +4,23 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.remember
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.binding
 import org.jetbrains.compose.swing.modifier.listener.listener
 import org.jetbrains.compose.swing.node.AppliedValue
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
+import org.jetbrains.compose.swing.node.declare
 import java.beans.PropertyChangeEvent
 import java.beans.PropertyChangeListener
 import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
 import javax.swing.text.AbstractDocument
+import javax.swing.text.AttributeSet
 import javax.swing.text.Document
 import javax.swing.text.JTextComponent
 
 /*
  * Internal document helpers for the text components: the registration site a text component's document
- * presents across document swaps, and the reads and writes the wrappers make against a document. The
- * listener helper hands the caller's own listener to the instance-based [listener] seam, so that seam's
- * by-identity contract applies unchanged - the instance the caller keeps is the instance attached and
- * the instance detached.
+ * presents across document swaps, and the reads and writes the wrappers make against a document.
  */
 
 /**
@@ -48,28 +48,58 @@ internal fun SwingModifier.swappableDocumentListener(listener: DocumentListener)
         },
     )
 
-/** Reads the full text of [this] document. */
+/**
+ * Attaches [mirror] to a text component's document as the binding's own observer of what the component
+ * holds, kept on the document the component currently holds - it leaves an outgoing document for the
+ * incoming one exactly as [swappableDocumentListener] does - and removed when the binding ends (see
+ * [binding]).
+ *
+ * Text shares the document's single listener list because that is all a `JTextComponent` has: the
+ * component publishes its changes through its document, and there is no second model for a mirror to
+ * ride the way a slider's rides its `BoundedRangeModel`. Installing the mirror as part of the binding
+ * rather than through the [documentListener][org.jetbrains.compose.swing.modifier.listener.documentListener]
+ * seam is what keeps the caller's chain theirs - the listeners a caller declares are the listeners
+ * the chain carries, and the mirror joins and leaves with the component instead.
+ */
+internal fun SwingModifier.textMirrorBinding(mirror: DocumentListener): SwingModifier =
+    binding(
+        JTextComponent::class.java,
+        mirror,
+        { documentListener, component ->
+            component.document.addDocumentListener(documentListener)
+            component.addPropertyChangeListener("document", DocumentSwapListener(documentListener))
+        },
+        { documentListener, component ->
+            component.document.removeDocumentListener(documentListener)
+            component.documentSwapListenerFor(documentListener)?.let {
+                component.removePropertyChangeListener("document", it)
+            }
+        },
+    )
+
 internal fun Document.fullText(): String = getText(0, length)
 
 /**
- * Replaces the `[offset, offset + length)` region of [this] document with [text]. When the document is
- * an [AbstractDocument] (as `PlainDocument` and the default text-component documents are) the change is
- * applied through its atomic `replace`, so any installed `DocumentFilter` sees one replace; otherwise
- * it falls back to a `remove` followed by an `insertString`.
+ * Replaces the `[offset, offset + length)` region of [this] document with [text], which carries
+ * [attributes] where the document models them. When the document is an [AbstractDocument] (as
+ * `PlainDocument` and the default text-component documents are) the change is applied through its
+ * atomic `replace`, so any installed `DocumentFilter` sees one replace; otherwise it falls back to a
+ * `remove` followed by an `insertString`.
  */
 internal fun Document.replaceSpan(
     offset: Int,
     length: Int,
     text: String,
+    attributes: AttributeSet? = null,
 ) {
     when (this) {
         is AbstractDocument -> {
-            replace(offset, length, text, null)
+            replace(offset, length, text, attributes)
         }
 
         else -> {
             if (length > 0) remove(offset, length)
-            if (text.isNotEmpty()) insertString(offset, text, null)
+            if (text.isNotEmpty()) insertString(offset, text, attributes)
         }
     }
 }
@@ -92,8 +122,8 @@ internal fun documentChangeListener(onChange: (DocumentEvent) -> Unit): Document
  * every edit, staying silent for an edit that only echoes a write [applied] is making of its own -
  * settling a declared value back onto the component - so [callback] hears the user's own edits and
  * nothing else. A declared value the component cannot hold verbatim - an installed `DocumentFilter`
- * rewrote or refused it - settles silently: neither this listener nor [pushDeclaredText] reports what
- * the component actually holds back to [callback].
+ * rewrote or refused it - settles silently: neither this listener nor [declareText] reports what the
+ * component actually holds back to [callback].
  */
 @Composable
 internal fun rememberUserEditListener(
@@ -108,19 +138,33 @@ internal fun rememberUserEditListener(
     }
 
 /**
- * Settles [value] onto this text component's document: written where the component does not already
- * hold it, through [applied] so the write does not echo back as the user's own. Unlike a declared
- * selection or a scalar widget property, an un-adopted edit is not undone on some later, unrelated
- * recomposition - nothing here reads [applied]'s mirror to gate the push, so typing is never fought
- * without a fresh [value] declaring otherwise.
+ * Remembers a [DocumentListener] that feeds [applied]'s mirror the text a component's document holds
+ * after every edit and reports nothing. It is what a component driven by a caller's own raw listener
+ * settles against: the mirror keeps moving with the document, so [declareText] compares against the
+ * text the component holds now with no callback in the picture.
  */
-internal fun <C : JTextComponent> SwingNodeUpdater<C>.pushDeclaredText(
+@Composable
+internal fun rememberTextMirrorListener(applied: AppliedValue<String>): DocumentListener =
+    remember(applied) {
+        documentChangeListener { event -> applied.observed(event.document.fullText()) }
+    }
+
+/**
+ * Declares [value] as this text component's document text, keeping [applied] in sync with it: the text
+ * is written where the component does not already hold it, through [applied] so the write does not echo
+ * back as the user's own, and an edit the caller does not answer with a matching [value] is settled
+ * back onto the declared text on the pass that carries their answer.
+ */
+internal fun <C : JTextComponent> SwingNodeUpdater<C>.declareText(
     value: String,
     applied: AppliedValue<String>,
 ) {
-    set(value) { declared ->
-        applied.settle(declared, { document.fullText() }, { document.replaceSpan(0, document.length, it) }) {}
-    }
+    declare(
+        value,
+        applied,
+        read = { document.fullText() },
+        write = { document.replaceSpan(0, document.length, it) },
+    )
 }
 
 /**

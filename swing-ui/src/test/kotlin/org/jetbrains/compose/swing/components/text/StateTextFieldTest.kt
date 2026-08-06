@@ -8,6 +8,7 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.BoxPanel
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.jetbrains.compose.swing.text.TextRange
 import javax.swing.JTextField
 import javax.swing.text.PlainDocument
 import kotlin.test.Test
@@ -27,8 +28,14 @@ class StateTextFieldTest {
             TextField(state = state)
         }
 
-        val field = onNodeOfType<JTextField>().fetch()
-        assertSame(state.document, field.document, "the field must render the state's own document")
+        // Sharing one document means an edit made through either side is what the other renders: a write
+        // through the state reaches the field, and typing in the field reaches the state.
+        state.edit { append(" grown") }
+        awaitIdle()
+        onNodeOfType<JTextField>().assertTextEquals("seed grown")
+
+        onNodeOfType<JTextField>().performTextReplacement("typed")
+        assertEquals("typed", state.text.toString())
     }
 
     @Test
@@ -64,12 +71,13 @@ class StateTextFieldTest {
 
     @Test
     fun externalDocumentMutationRecomposesASiblingReadingStateText() = runComposeSwingTest {
-        // A caller may mutate the shared document directly rather than through the state. Reading
+        // A caller may mutate a document it supplied directly rather than through the state. Reading
         // state.text registers a snapshot subscription to the document generation, so a direct document
         // edit must invalidate that reader even though it never went through the state's API.
+        val document = PlainDocument().apply { insertString(0, "hi", null) }
         lateinit var state: DocumentState
         setContent {
-            state = rememberDocumentState("hi")
+            state = rememberDocumentState(document = document)
             BoxPanel {
                 TextField(state = state)
                 Label(text = "Echo: ${state.text}")
@@ -78,7 +86,7 @@ class StateTextFieldTest {
 
         onNodeWithText("Echo: hi").assertExists()
 
-        state.document.insertString(state.document.length, " there", null)
+        document.insertString(document.length, " there", null)
         awaitIdle()
 
         onNodeWithText("Echo: hi there").assertExists()
@@ -110,9 +118,8 @@ class StateTextFieldTest {
 
     @Test
     fun undoAndRedoRecomposeASiblingReadingAvailability() = runComposeSwingTest {
-        // Reading state.canUndo / state.canRedo inside a composable subscribes to the document generation.
-        // An edit, and then an undo and a redo, each change the document and so must recompose a sibling
-        // that renders undo/redo availability.
+        // Reading state.canUndo / state.canRedo subscribes to the document generation, so an edit, an
+        // undo, and a redo each recompose a sibling that renders undo/redo availability.
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState("base")
@@ -178,11 +185,9 @@ class StateTextFieldTest {
 
     @Test
     fun swappingTheStateParamDetachesTheFormerStatesCaretListener() = runComposeSwingTest {
-        // A field is owned by at most one state. When the `state` argument swaps to a different state,
-        // binding the new state installs its document into the field, which resets the caret; the former
-        // state must already be unbound so that reset does not drive the former state's caret listener. So
-        // the field must render the new state's document, a subsequent caret change must reach only the new
-        // state, and the former state's selection must be left as it was.
+        // A field is owned by at most one state. Swapping `state` installs the new state's document,
+        // which resets the caret, so the former state must already be unbound - otherwise that reset
+        // would drive the former state's caret listener too.
         lateinit var stateA: DocumentState
         lateinit var stateB: DocumentState
         var useA by mutableStateOf(true)
@@ -193,7 +198,7 @@ class StateTextFieldTest {
         }
 
         val field = onNodeOfType<JTextField>().fetch()
-        assertSame(stateA.document, field.document)
+        assertEquals("first", field.text)
 
         // Give stateA a distinctive selection so a stray caret event driven by the swap would change it.
         field.select(1, 4)
@@ -203,7 +208,7 @@ class StateTextFieldTest {
         useA = false
         awaitIdle()
 
-        assertSame(stateB.document, field.document, "after the swap the field renders the new state's document")
+        assertEquals("second", field.text, "after the swap the field renders the new state's document")
         assertEquals(
             TextRange(1, 4),
             stateA.selection,
@@ -248,11 +253,10 @@ class StateTextFieldTest {
 
     @Test
     fun aParkedFieldDoesNotDriveASurvivingStateUntilReactivated() = runComposeSwingTest {
-        // The state is held at a longer-lived scope than the field: constructed outside the composition, it
-        // is never forgotten when the field parks, standing in for a state hoisted above a collapsible or
-        // reused region. Parking the field (ReusableContentHost deactivated) must detach the binding with the
-        // node's modifiers so the parked field stops driving the surviving state; reactivating rebinds and
-        // restores the state's selection.
+        // The state is constructed outside the composition, so it is never forgotten when the field
+        // parks - standing in for a state hoisted above a collapsible or reused region. Parking
+        // (ReusableContentHost deactivated) must detach the binding through the node's modifiers, so the
+        // parked field stops driving the surviving state; reactivating rebinds it.
         val document = PlainDocument().apply { insertString(0, "parked text", null) }
         val state = DocumentState(document)
         var active by mutableStateOf(true)
@@ -274,9 +278,8 @@ class StateTextFieldTest {
         active = false
         awaitIdle()
 
-        // The state genuinely survives the park (it was never remembered, so it is not forgotten): its own
-        // document listener is still attached. This is what makes the red exercise the binding's detach
-        // rather than a full state teardown.
+        // The state genuinely survives the park (never remembered, so never forgotten): its own document
+        // listener stays attached, so this test exercises the binding's detach, not a full state teardown.
         assertEquals(
             documentListenersWhileBound,
             document.documentListeners.size,
@@ -292,7 +295,7 @@ class StateTextFieldTest {
         awaitIdle()
 
         val reattached = onNodeOfType<JTextField>().fetch()
-        assertSame(state.document, reattached.document, "reactivating restores the binding")
+        assertSame(document, reattached.document, "reactivating restores the binding")
         assertEquals(TextRange(0, 6), state.selection, "the state's selection survives parking")
     }
 }

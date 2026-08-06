@@ -25,7 +25,9 @@ import kotlin.test.assertTrue
 class TextEditableTest {
     @Test
     fun editableTextFieldAcceptsTypedText() = runComposeSwingTest {
-        setContent { TextField(value = "seed") }
+        // The caller adopts what is typed, so the character stands rather than being settled away.
+        var text by mutableStateOf("seed")
+        setContent { TextField(value = text, onValueChange = { text = it }) }
 
         val field = onNodeOfType<JTextField>().fetch()
         field.typeCharacter('X')

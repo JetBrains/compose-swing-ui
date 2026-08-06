@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.jetbrains.compose.swing.text.TextRange
 import javax.swing.JTextField
 import kotlin.coroutines.coroutineContext
 import kotlin.test.Test

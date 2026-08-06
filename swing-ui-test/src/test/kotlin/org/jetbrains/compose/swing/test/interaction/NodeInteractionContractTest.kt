@@ -5,6 +5,7 @@ import org.jetbrains.compose.swing.components.layout.BoxPanel
 import org.jetbrains.compose.swing.components.layout.CardPanel
 import org.jetbrains.compose.swing.components.layout.FlowPanel
 import org.jetbrains.compose.swing.components.text.TextField
+import org.jetbrains.compose.swing.components.text.rememberDocumentState
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.modifier.layout.visible
@@ -186,7 +187,9 @@ class NodeInteractionContractTest {
 
     @Test
     fun performTextInputAppendsAndPerformTextReplacementOverwrites() = runComposeSwingTest {
-        setContent { TextField(value = "seed") }
+        // A state-driven field holds the text it is given: what the actions leave behind is theirs, not
+        // a declared value settling over them.
+        setContent { TextField(state = rememberDocumentState("seed")) }
 
         onNodeOfType<JTextField>().performTextInput("-more")
         assertEquals(

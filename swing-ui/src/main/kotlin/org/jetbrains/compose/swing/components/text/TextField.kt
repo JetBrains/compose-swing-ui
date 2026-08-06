@@ -17,6 +17,10 @@ import javax.swing.event.DocumentListener
 /**
  * A composable wrapper for JTextField.
  *
+ * This field is strictly controlled: text the field settles on that [onValueChange] does not answer
+ * with a matching [value] is settled back onto the declared value on the very next pass, so the field
+ * never ends up holding text the caller has not adopted.
+ *
  * For incremental editing over a shared `Document`, undo/redo, or observing the text as a flow, drive the
  * field with the [DocumentState] overload ([TextField]) and a [DocumentState] from `rememberDocumentState`.
  *
@@ -27,6 +31,7 @@ import javax.swing.event.DocumentListener
  * @param columns the number of columns
  * @param editable whether the user can edit the text
  * @see TextField the [DocumentState]-driven overload for large or complex editors
+ * @see javax.swing.JTextField
  */
 @Composable
 public fun TextField(
@@ -54,6 +59,10 @@ public fun TextField(
  * instance; pass a stable instance (e.g. `remember {}`) to avoid churn. Being attached as-is, it
  * observes every change to that document, including the one that applies [value].
  *
+ * This field is strictly controlled: text the field settles on that is not followed by [value] moving
+ * to match is settled back onto the declared value on the very next pass, so the field never ends up
+ * holding text the caller has not adopted.
+ *
  * For incremental editing over a shared `Document`, undo/redo, or observing the text as a flow, drive the
  * field with the [DocumentState] overload ([TextField]) and a [DocumentState] from `rememberDocumentState`.
  *
@@ -63,6 +72,7 @@ public fun TextField(
  * @param columns the number of columns
  * @param editable whether the user can edit the text
  * @see TextField the [DocumentState]-driven overload for large or complex editors
+ * @see javax.swing.JTextField
  */
 @Composable
 public fun TextField(
@@ -73,18 +83,18 @@ public fun TextField(
     editable: Boolean = true,
 ) {
     val applied = rememberAppliedValue(value)
+    val mirror = rememberTextMirrorListener(applied)
     TextFieldNode(
         value = value,
         applied = applied,
-        modifier = modifier.documentListener(documentListener),
+        modifier = modifier.documentListener(documentListener).textMirrorBinding(mirror),
         columns = columns,
         editable = editable,
     )
 }
 
 /**
- * The `JTextField` node both [TextField] overloads render. [value] is settled through
- * [pushDeclaredText].
+ * The `JTextField` node both [TextField] overloads render. [value] is settled through [declareText].
  */
 @Composable
 private fun TextFieldNode(
@@ -101,7 +111,7 @@ private fun TextFieldNode(
                 this.columns = it
                 revalidate()
             }
-            pushDeclaredText(value, applied)
+            declareText(value, applied)
             set(editable) { this.isEditable = it }
             applyModifier(modifier)
         },
@@ -115,9 +125,10 @@ private fun TextFieldNode(
  * truth; there is no `onValueChange`.
  *
  * @param state the hoistable text state the field renders and drives.
- * @param modifier the [SwingModifier] applied to the underlying component.
- * @param columns the number of columns.
- * @param editable whether the user can edit the text.
+ * @param modifier the [SwingModifier] applied to the underlying component
+ * @param columns the number of columns
+ * @param editable whether the user can edit the text
+ * @see javax.swing.JTextField
  */
 @Composable
 public fun TextField(

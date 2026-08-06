@@ -49,7 +49,10 @@ class DocumentStateAdoptionTest {
             field.fetch().document,
             "the field renders the newly adopted document itself",
         )
-        assertSame(second, state.document, "the state adopts the newly passed document")
+        // The state renders the caller's own document instance, not a copy: mutating it directly - never
+        // through the state's API - is what the state then reports.
+        second.insertString(second.length, "!", null)
+        assertEquals("second!", state.text.toString(), "the state adopts the newly passed document itself")
         assertNotSame(firstState, state, "a different document yields a new state")
     }
 

@@ -13,7 +13,6 @@ import org.jetbrains.compose.swing.node.AppliedValue
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
 import org.jetbrains.compose.swing.node.rememberAppliedValue
-import java.util.Arrays
 import javax.swing.JPasswordField
 import javax.swing.event.DocumentListener
 import javax.swing.text.Document
@@ -49,6 +48,7 @@ import javax.swing.text.Segment
  * @param columns the number of columns
  * @param editable whether the user can edit the text
  * @see PasswordField the [DocumentState]-driven overload for large or complex editors
+ * @see javax.swing.JPasswordField
  */
 @Composable
 public fun PasswordField(
@@ -60,7 +60,7 @@ public fun PasswordField(
     editable: Boolean = true,
 ) {
     val callback = rememberUpdatedState(onValueChange)
-    val applied = rememberAppliedValue(value)
+    val applied = rememberAppliedValue(PasswordChars(value))
     // Deliver the raw characters by reading the document into a char array via a Segment, keeping
     // the password out of an unzeroable String. The array applied mirrors is retained as-is; the
     // callback is handed a distinct copy of its own, free to zero without corrupting that mirror.
@@ -68,7 +68,7 @@ public fun PasswordField(
         remember(applied) {
             documentChangeListener { event ->
                 val current = event.document.fullPassword()
-                if (applied.observed(current)) callback.value(current.copyOf())
+                if (applied.observed(PasswordChars(current))) callback.value(current.copyOf())
             }
         }
     PasswordFieldNode(
@@ -105,6 +105,7 @@ public fun PasswordField(
  * @param columns the number of columns
  * @param editable whether the user can edit the text
  * @see PasswordField the [DocumentState]-driven overload for large or complex editors
+ * @see javax.swing.JPasswordField
  */
 @Composable
 public fun PasswordField(
@@ -115,18 +116,18 @@ public fun PasswordField(
     columns: Int = 0,
     editable: Boolean = true,
 ) {
-    val applied = rememberAppliedValue(value)
+    val applied = rememberAppliedValue(PasswordChars(value))
     // Feeds applied's mirror on every edit, alongside the caller's own raw listener, so the settlement
     // declarePassword makes keeps comparing against what the field currently holds rather than stale
     // characters from an edit nothing else observed.
     val mirror =
         remember(applied) {
-            documentChangeListener { event -> applied.observed(event.document.fullPassword()) }
+            documentChangeListener { event -> applied.observed(PasswordChars(event.document.fullPassword())) }
         }
     PasswordFieldNode(
         value = value,
         applied = applied,
-        modifier = modifier.documentListener(documentListener).documentListener(mirror),
+        modifier = modifier.documentListener(documentListener).textMirrorBinding(mirror),
         echoChar = echoChar,
         columns = columns,
         editable = editable,
@@ -140,7 +141,7 @@ public fun PasswordField(
 @Composable
 private fun PasswordFieldNode(
     value: CharArray,
-    applied: AppliedValue<CharArray>,
+    applied: AppliedValue<PasswordChars>,
     modifier: SwingModifier,
     echoChar: Char?,
     columns: Int,
@@ -158,52 +159,62 @@ private fun PasswordFieldNode(
 }
 
 /**
- * The pairing [declarePassword]'s `set` key needs: a [declared] value and the field's own [held]
- * characters, compared by content rather than the reference identity a [CharArray] otherwise has, so
- * the key changes exactly when either one does.
+ * The characters a password field declares or holds, compared by content rather than the reference
+ * identity a [CharArray] otherwise has, so a settlement runs exactly when the characters change.
  */
-private class PasswordSettlement(
-    val declared: CharArray,
-    val held: CharArray,
+private class PasswordChars(
+    val chars: CharArray,
 ) {
     override fun equals(other: Any?): Boolean =
-        this === other ||
-            (
-                other is PasswordSettlement &&
-                    declared.contentEquals(other.declared) &&
-                    held.contentEquals(other.held)
-            )
+        this === other || (other is PasswordChars && chars.contentEquals(other.chars))
 
-    override fun hashCode(): Int = 31 * declared.contentHashCode() + held.contentHashCode()
+    override fun hashCode(): Int = chars.contentHashCode()
 }
 
 /**
- * Settles [value] onto this password field: written where the field does not already hold these
- * characters, through [applied] so the write does not echo back as the user's own. Reading
- * [AppliedValue.current] as part of the settlement key is what makes the field's own reported
- * characters an ordinary composition dependency, so a move away from [value] the caller does not adopt
- * is settled back on the very next pass rather than left standing until some later, unrelated
- * recomposition happens to run this again.
- *
- * `getPassword()` results read purely for the content comparison are zeroed once compared; the
- * characters [applied] mirrors afterward are not, and stay reachable, replaced rather than zeroed, until
- * the next settlement.
+ * Declares [value] as this password field's characters, keeping [applied] in sync with them: they are
+ * written where the field does not already hold them, through [applied] so the write does not echo back
+ * as the user's own, and characters the field settles on that the caller does not answer with a
+ * matching [value] are settled back onto the declared ones on the pass that carries their answer.
  */
 private fun <C : JPasswordField> SwingNodeUpdater<C>.declarePassword(
     value: CharArray,
-    applied: AppliedValue<CharArray>,
+    applied: AppliedValue<PasswordChars>,
 ) {
-    set(PasswordSettlement(value, applied.current)) { settlement ->
-        val current = password
-        try {
-            if (!current.contentEquals(settlement.declared)) {
-                applied.write { text = String(settlement.declared) }
-            }
-        } finally {
-            Arrays.fill(current, '\u0000')
-        }
-        applied.observed(password)
-    }
+    // The declaration and the characters the field holds move independently, and a `set` follows one
+    // value, so each side keys its own. The pair is what settles once for a pass however many times the
+    // pass asks for it; a pass in which neither side moved runs no block at all.
+    val declared = PasswordChars(value)
+    val held = applied.current
+    set(declared) { _ -> settlePassword(declared, held, applied) }
+    set(held) { _ -> settlePassword(declared, held, applied) }
+}
+
+/**
+ * Settles this field on [declared] through [applied], unless the pair [declared] and [held] is the one
+ * [applied] already settled against.
+ *
+ * `getPassword()` answers with a fresh array on every call and leaves zeroing it to whoever read it,
+ * and a settlement reads one for each comparison it makes. Each read zeroes the array the read before
+ * it produced, so the one array left standing is the last: the characters [applied] goes on mirroring
+ * as what the field held.
+ */
+private fun JPasswordField.settlePassword(
+    declared: PasswordChars,
+    held: PasswordChars,
+    applied: AppliedValue<PasswordChars>,
+) {
+    val lastRead = arrayOfNulls<CharArray>(1)
+    applied.settleUnlessSettled(
+        declared = declared,
+        held = held,
+        read = {
+            lastRead[0]?.fill('\u0000')
+            PasswordChars(password).also { lastRead[0] = it.chars }
+        },
+        write = { text = String(it.chars) },
+        onSettled = {},
+    )
 }
 
 /**
@@ -216,11 +227,12 @@ private fun <C : JPasswordField> SwingNodeUpdater<C>.declarePassword(
  * `String`, which the caller cannot zero and which persists on the heap until garbage-collected.
  *
  * @param state the hoistable text state the field renders and drives.
- * @param modifier the [SwingModifier] applied to the underlying component.
+ * @param modifier the [SwingModifier] applied to the underlying component
  * @param echoChar the masking character; `null` applies the look-and-feel's installed echo character,
- *   and the NUL character (U+0000) shows the text in clear text.
- * @param columns the number of columns.
- * @param editable whether the user can edit the text.
+ *   and the NUL character (U+0000) shows the text in clear text
+ * @param columns the number of columns
+ * @param editable whether the user can edit the text
+ * @see javax.swing.JPasswordField
  */
 @Composable
 public fun PasswordField(

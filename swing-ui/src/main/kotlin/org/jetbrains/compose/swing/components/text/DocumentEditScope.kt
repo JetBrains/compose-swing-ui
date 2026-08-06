@@ -1,5 +1,7 @@
 package org.jetbrains.compose.swing.components.text
 
+import org.jetbrains.compose.swing.text.TextRange
+import javax.swing.text.AttributeSet
 import javax.swing.text.Document
 
 /**
@@ -10,6 +12,14 @@ import javax.swing.text.Document
  * Offsets address the buffer's current content and shift as edits are applied, exactly as they do
  * against the underlying document: an [insert] at offset 2 makes a following [delete] at offset 2
  * operate on the text after the insertion.
+ *
+ * Every call that writes text has an overload taking an [AttributeSet], the attributes the written run
+ * carries - a bold word, a colored span, a link. They reach a document that models attributes: the
+ * styled document a [TextPane] renders, or the one an editable [EditorPane]'s kit builds. A document
+ * that holds characters alone - the plain text a [TextField] or a [TextArea] renders - ignores them, so
+ * the text arrives unstyled rather than refused.
+ *
+ * @see javax.swing.text.Document
  */
 public class DocumentEditScope internal constructor(
     private val document: Document,
@@ -21,10 +31,18 @@ public class DocumentEditScope internal constructor(
      */
     internal var pendingSelection: TextRange? = null
 
-    /** The length of the buffered content. */
+    /**
+     * The length of the buffered content.
+     *
+     * @see javax.swing.text.Document.getLength
+     */
     public val length: Int get() = document.length
 
-    /** Inserts [text] at [offset], shifting following content right. */
+    /**
+     * Inserts [text] at [offset], shifting following content right.
+     *
+     * @see javax.swing.text.Document.insertString
+     */
     public fun insert(
         offset: Int,
         text: CharSequence,
@@ -32,7 +50,24 @@ public class DocumentEditScope internal constructor(
         document.insertString(offset, text.toString(), null)
     }
 
-    /** Replaces the characters in `[start, end)` with [text]. */
+    /**
+     * Inserts [text] carrying [attributes] at [offset], shifting following content right.
+     *
+     * @see javax.swing.text.Document.insertString
+     */
+    public fun insert(
+        offset: Int,
+        text: CharSequence,
+        attributes: AttributeSet,
+    ) {
+        document.insertString(offset, text.toString(), attributes)
+    }
+
+    /**
+     * Replaces the characters in `[start, end)` with [text].
+     *
+     * @see javax.swing.text.AbstractDocument.replace
+     */
     public fun replace(
         start: Int,
         end: Int,
@@ -41,7 +76,25 @@ public class DocumentEditScope internal constructor(
         document.replaceSpan(start, end - start, text.toString())
     }
 
-    /** Deletes the characters in `[start, end)`. */
+    /**
+     * Replaces the characters in `[start, end)` with [text] carrying [attributes].
+     *
+     * @see javax.swing.text.AbstractDocument.replace
+     */
+    public fun replace(
+        start: Int,
+        end: Int,
+        text: CharSequence,
+        attributes: AttributeSet,
+    ) {
+        document.replaceSpan(start, end - start, text.toString(), attributes)
+    }
+
+    /**
+     * Deletes the characters in `[start, end)`.
+     *
+     * @see javax.swing.text.Document.remove
+     */
     public fun delete(
         start: Int,
         end: Int,
@@ -49,14 +102,46 @@ public class DocumentEditScope internal constructor(
         document.remove(start, end - start)
     }
 
-    /** Appends [text] to the end of the buffer. */
+    /**
+     * Appends [text] to the end of the buffer.
+     *
+     * @see javax.swing.text.Document.insertString
+     */
     public fun append(text: CharSequence) {
         document.insertString(document.length, text.toString(), null)
     }
 
-    /** Replaces the whole buffer with [text]. */
+    /**
+     * Appends [text] carrying [attributes] to the end of the buffer.
+     *
+     * @see javax.swing.text.Document.insertString
+     */
+    public fun append(
+        text: CharSequence,
+        attributes: AttributeSet,
+    ) {
+        document.insertString(document.length, text.toString(), attributes)
+    }
+
+    /**
+     * Replaces the whole buffer with [text].
+     *
+     * @see javax.swing.text.AbstractDocument.replace
+     */
     public fun setText(text: CharSequence) {
         document.replaceSpan(0, document.length, text.toString())
+    }
+
+    /**
+     * Replaces the whole buffer with [text] carrying [attributes].
+     *
+     * @see javax.swing.text.AbstractDocument.replace
+     */
+    public fun setText(
+        text: CharSequence,
+        attributes: AttributeSet,
+    ) {
+        document.replaceSpan(0, document.length, text.toString(), attributes)
     }
 
     /** Places the caret at the end of the buffer once the block completes. */

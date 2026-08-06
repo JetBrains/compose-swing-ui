@@ -2,10 +2,10 @@ package org.jetbrains.compose.swing.components.text
 
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.jetbrains.compose.swing.text.TextRange
 import javax.swing.JPasswordField
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertSame
 
 /**
  * Behavioral tests for the state-based [PasswordField] overload driving a realized [JPasswordField]
@@ -22,8 +22,15 @@ class PasswordFieldStateTest {
             PasswordField(state = state)
         }
 
+        // Sharing one document means an edit made through either side is what the other renders: a write
+        // through the state reaches the field, and typing in the field reaches the state.
+        state.edit { append(" grown") }
+        awaitIdle()
         val field = onNodeOfType<JPasswordField>().fetch()
-        assertSame(state.document, field.document, "the field must render the state's own document")
+        assertEquals("seed grown", String(field.password))
+
+        onNodeOfType<JPasswordField>().performTextReplacement("typed")
+        assertEquals("typed", state.text.toString())
     }
 
     @Test

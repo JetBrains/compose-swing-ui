@@ -33,10 +33,10 @@ onCheckedChange = ...)`, `TabbedPane(selectedIndex, onSelectedIndexChange = ...)
 the component renders what you pass and reports what the user did. A value you push in is reflected
 without echoing back through the callback, so adopting a reported change cannot loop.
 
-**A hoisted state holder.** `DocumentState`, `SpinnerState`, `WindowState`, `DialogState`,
-`InternalFrameState`, `ScrollState`. The holder owns the value, is snapshot-observable, and is
-**two-way**: assigning to it drives the widget, and the user's own gesture writes back into it. See
-[Hoisted state](#hoisted-state).
+**A hoisted state holder.** `DocumentState`, `FormattedValueState`, `SpinnerState`, `WindowState`,
+`DialogState`, `InternalFrameState`, `ScrollState`. The holder owns the value, is snapshot-observable,
+and is **two-way**: assigning to it drives the widget, and the user's own gesture writes back into it.
+See [Hoisted state](#hoisted-state).
 
 **A raw Swing model.** `ComboBox(model)`, `ListBox(model)`, `Table(model)`, `Tree(model)`,
 `Spinner(model, changeListener)`. When you already have a `ComboBoxModel`, `TableModel` or
@@ -78,16 +78,39 @@ controlled instead: its `selectedIndex` names the chosen item, and `-1` names no
 | `FormattedTextField` | A field over `JFormattedTextField` that parses and formats a typed value through an `AbstractFormatterFactory`. |
 | `TextArea` | Multi-line plain text over `JTextArea`. |
 | `TextPane` | Styled multi-line text over `JTextPane`. |
-| `EditorPane` | Multi-line text over `JEditorPane` rendered per its `contentType`. |
+| `EditorPane` | Markup over `JEditorPane`, rendered through the editor kit its `contentType` names. |
 
-`TextField`, `TextArea`, `TextPane`, `EditorPane` and `PasswordField` each come in three forms: a
-`value` plus `onValueChange`, a `value` plus a `DocumentListener`, and a
-[`DocumentState`](#documentstate) that owns the document outright. Reach for the state form when you
-want incremental edits over a large document, undo/redo, or the text as observable state.
+`TextField`, `TextArea`, `TextPane` and `PasswordField` each come in three forms: a `value` plus
+`onValueChange`, a `value` plus a `DocumentListener`, and a [`DocumentState`](#documentstate) that
+owns the document outright.
+
+The `value` forms are strictly controlled. The component holds what the composition declares: an edit
+the caller does not adopt - one `onValueChange` is not answered with a matching `value` - is settled
+back onto the declared text on the very next pass, so the component never stands on text the caller
+has not taken. `FormattedTextField` holds its committed value the same way.
+
+Reach for the hoisted `DocumentState` form where you do not need the text on every keystroke: the
+state owns the document, so there is no un-adopted edit to settle at all, and it is also what gives
+you incremental edits over a large document, undo/redo, and the text as observable state.
+`TextField(value, onValueChange)` is for the caller who genuinely drives the value.
+
+`EditorPane` comes in two: a `markup` string it renders and reports nothing back from, and a
+[`DocumentState`](#documentstate) for text the user authors. Its `contentType` names the editor kit
+that parses the markup and defaults to `"text/plain"`. A rendered pane is not editable - it holds only
+what you declare - and reports an activated link to `onLinkActivate` as the raw `href` without opening
+anything; pass a `baseUrl` for relative `href`s and `<img src>`s to resolve against, or a
+`HyperlinkListener` in place of the lambda to hear hover events and reach the resolved `URL`.
 
 `columns` and `rows` default to `0`, which sizes the field from its content rather than a column
-count. `editable` defaults to `true`. `EditorPane`'s `contentType` defaults to `"text/plain"`, and
-`FormattedTextField`'s `focusLostBehavior` to `JFormattedTextField.COMMIT_OR_REVERT`.
+count. `editable` defaults to `true`, and `FormattedTextField`'s `focusLostBehavior` to
+`JFormattedTextField.COMMIT_OR_REVERT`.
+
+`FormattedTextField` also takes an `onEditValidChange` callback, reporting whether the in-progress
+edit currently parses. Its hoisted form, a [`FormattedValueState`](#formattedvaluestate) from
+`rememberFormattedValueState`, carries that as observable `isEditValid` beside the committed `value`
+the field drives, and its `commit()` lets a caller outside the field - a dialog's OK button - take the
+pending edit where it stands. A state-driven field has no `onValueChange` and no `onEditValidChange`:
+the state is the single source of truth.
 
 ```kotlin
 var query by remember { mutableStateOf("") }
@@ -104,7 +127,11 @@ FormattedTextField(
     formatterFactory = DefaultFormatterFactory(NumberFormatter(DecimalFormat("#,##0.00"))),
     columns = 12,
 )
-EditorPane(value = "<h1>Report</h1>", contentType = "text/html", editable = false)
+EditorPane(
+    markup = "<h1>Report</h1><p>See the <a href=\"/q3\">details</a>.</p>",
+    contentType = "text/html",
+    onLinkActivate = { href -> open(href) },
+)
 ```
 
 ---
@@ -624,11 +651,22 @@ read of the whole document.
   change, with `placeCaretAtEnd()` and `selectAll()` to place the caret afterwards.
 - `undo()`, `redo()`, `canUndo`, `canRedo` - one `edit { }` block, or one assignment to `text`, is one
   undoable step.
-- `document` - the document itself, for the times you need to hand it to Swing code.
 
 Create it with `rememberDocumentState(initialText)`, or `rememberDocumentState(document)` to adopt a
 document you already have. Pass it to `TextField`, `TextArea`, `TextPane`, `EditorPane` or
 `PasswordField` as `state`.
+
+A `contentType` names the language the document is written in, and the editor kit registered for it
+both builds the document and reads `initialText` as source: `"text/html"` gives an `HTMLDocument`
+holding parsed markup, `"text/rtf"` the styled model a `TextPane` requires, and the default
+`"text/plain"` a plain document holding the text as characters. An `EditorPane` renders the state
+through that same kit. Pass `kit` instead when the kit is configured - a style sheet of your own, a
+custom parser - or alongside `document` to name the language of a document you are adopting.
+
+```kotlin
+val report = rememberDocumentState("<h1>Report</h1><p>Q3 was <b>strong</b>.</p>", contentType = "text/html")
+EditorPane(state = report, editable = false)
+```
 
 ```kotlin
 val note = rememberDocumentState("Dear ")
@@ -666,6 +704,25 @@ Row {
     Label("Count is ${count.value}")
 }
 ```
+
+### `FormattedValueState`
+
+Owns the value a `FormattedTextField` renders, typed as the field's formatter produces it - an `Int`,
+a `Date`, a `String`. A value the field commits, whether the user pressed Enter or the field lost the
+focus, is written back into the state, and the state is where the value lives, so a state-driven field
+takes no `onValueChange` and no `onEditValidChange`.
+
+- `value` - the committed value, readable and assignable; assigning it re-renders the field's
+  characters, which replaces characters the user has typed but not committed.
+- `isEditValid` - whether the characters the field currently shows parse. It follows what the user
+  types rather than what the field commits, so a part-typed edit reports `false` while `value` stands
+  where the last commit left it - which is what gates a form's save button.
+- `commit()` - takes the field's current text as its value and answers whether it was taken. It is how
+  a caller outside the field - a dialog's OK button - takes an edit the user typed but never entered;
+  the typed text stays either way.
+
+Create it with `rememberFormattedValueState(initialValue)` and pass it to `FormattedTextField` as
+`state`. A state renders one field at a time - declaring it on a second moves it there.
 
 ### `WindowState`
 

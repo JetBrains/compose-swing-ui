@@ -4,127 +4,141 @@
 package org.jetbrains.compose.swing.components.text
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.compose.swing.constants.ContentType
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
+import org.jetbrains.compose.swing.modifier.listener.hyperlinkListener
 import org.jetbrains.compose.swing.node.AppliedValue
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.rememberAppliedValue
+import java.net.URL
 import javax.swing.JEditorPane
 import javax.swing.JTextPane
 import javax.swing.event.DocumentListener
-import javax.swing.text.Document
+import javax.swing.event.HyperlinkEvent
+import javax.swing.event.HyperlinkListener
+import javax.swing.text.EditorKit
 import javax.swing.text.html.HTMLDocument
 
 /**
- * A composable wrapper for `JEditorPane`.
+ * A composable wrapper for `JEditorPane` rendering [markup], source written in the language
+ * [contentType] names. The kit registered for that content type parses it, so
+ * `EditorPane("<h1>Report</h1>", contentType = "text/html")` renders a heading rather than the
+ * characters that spell one.
  *
- * [contentType] selects the kit the pane displays and edits through - plain text, HTML, or RTF - but
- * [value] and [onValueChange] always carry the pane's plain document text, never the kit's serialized
- * markup: under `text/html`, for instance, `value` is rendered as literal characters rather than parsed as
- * tags. For markup content, bind a document that already holds the structure through the [DocumentState]
- * overload ([EditorPane]) instead of round-tripping it as a `String`.
+ * The pane renders and does not report: it holds no text the caller does not declare, and the user
+ * cannot type into it. To let the user author rich text, drive a pane with a [DocumentState] through
+ * the [state][EditorPane] overload, which owns the document and reports what is typed into it.
  *
- * Changing [contentType] re-renders [value] into the fresh document that content type's kit installs. The
- * binding is otherwise reactive in both directions - [value] is pushed onto the pane, and edits the user
- * makes are reported through [onValueChange].
+ * A link the user activates is reported to [onLinkActivate] as the raw `href`, and nothing is opened -
+ * where the link leads is the caller's to decide. [baseUrl] is the HTML document's base: what relative
+ * references in the source, `href` and `<img src>` alike, resolve against, and without one they resolve
+ * against nothing. A base reaches only a content type that renders into an HTML document, a kit whose
+ * model holds no base having nothing to resolve against in the first place.
  *
- * For incremental editing over a shared `Document`, undo/redo, or observing the text as a flow, drive the
- * pane with the [DocumentState] overload ([EditorPane]) and a [DocumentState] from `rememberDocumentState`.
- *
- * @param value the pane's plain document text, regardless of [contentType]
+ * @param markup the source, written in [contentType]'s language, the pane renders
  * @param modifier the [SwingModifier] applied to the underlying component
- * @param contentType the MIME type the pane displays and edits through (a [ContentType] MIME string)
- * @param onValueChange callback invoked with the pane's new text when the pane is edited; applying
- *   [value] is not itself reported
- * @param editable whether the user can edit the text
- * @see EditorPane the [DocumentState]-driven overload for large or complex editors
+ * @param contentType the MIME type naming the kit that parses and renders [markup] (a [ContentType]
+ *   MIME string)
+ * @param baseUrl the location relative references in HTML [markup] resolve against
+ * @param onLinkActivate callback invoked with the raw `href` of a link the user activates
+ * @throws IllegalArgumentException if no editor kit is registered for [contentType].
+ * @see EditorPane the [DocumentState]-driven overload, for text the user authors
+ * @see javax.swing.JEditorPane
  */
 @Composable
 public fun EditorPane(
-    value: String,
+    markup: String,
     modifier: SwingModifier = SwingModifier,
     @ContentType contentType: String = "text/plain",
-    onValueChange: (String) -> Unit = {},
-    editable: Boolean = true,
+    baseUrl: URL? = null,
+    onLinkActivate: (String) -> Unit = {},
 ) {
-    val callback = rememberUpdatedState(onValueChange)
-    val applied = rememberAppliedValue(value)
-    val listener = rememberUserEditListener(applied, callback)
-    EditorPaneNode(
-        value = value,
-        applied = applied,
-        modifier = modifier.swappableDocumentListener(listener),
+    val callback = rememberUpdatedState(onLinkActivate)
+    val listener =
+        remember {
+            HyperlinkListener { event ->
+                if (event.eventType == HyperlinkEvent.EventType.ACTIVATED) callback.value(event.description)
+            }
+        }
+    EditorPane(
+        markup = markup,
+        hyperlinkListener = listener,
+        modifier = modifier,
         contentType = contentType,
-        editable = editable,
+        baseUrl = baseUrl,
     )
 }
 
 /**
- * A [EditorPane] driven by a raw [DocumentListener] instead of an `onValueChange` lambda. The listener
- * observes the document the pane currently holds and follows it when a [contentType] switch installs a
- * fresh one; pass a stable instance (e.g. `remember {}`) to avoid churn. Being attached as-is, it
- * observes every change to that document, including the one that applies [value].
+ * An [EditorPane] driven by a raw [HyperlinkListener] instead of an `onLinkActivate` lambda. The
+ * listener hears every link event the pane publishes - entered and left as well as activated - and
+ * reaches the resolved `URL` and the source element behind each; pass a stable instance (e.g.
+ * `remember {}`) to avoid churn.
  *
- * For incremental editing over a shared `Document`, undo/redo, or observing the text as a flow, drive the
- * pane with the [DocumentState] overload ([EditorPane]) and a [DocumentState] from `rememberDocumentState`.
- *
- * @param value the pane's plain document text, regardless of [contentType]
- * @param documentListener the listener notified of document edits
+ * @param markup the source, written in [contentType]'s language, the pane renders
+ * @param hyperlinkListener the listener notified of link events
  * @param modifier the [SwingModifier] applied to the underlying component
- * @param contentType the MIME type the pane displays and edits through (a [ContentType] MIME string)
- * @param editable whether the user can edit the text
- * @see EditorPane the [DocumentState]-driven overload for large or complex editors
+ * @param contentType the MIME type naming the kit that parses and renders [markup] (a [ContentType]
+ *   MIME string)
+ * @param baseUrl the location relative references in HTML [markup] resolve against
+ * @throws IllegalArgumentException if no editor kit is registered for [contentType].
+ * @see EditorPane the [DocumentState]-driven overload, for text the user authors
+ * @see javax.swing.JEditorPane
  */
 @Composable
 public fun EditorPane(
-    value: String,
-    documentListener: DocumentListener,
+    markup: String,
+    hyperlinkListener: HyperlinkListener,
     modifier: SwingModifier = SwingModifier,
     @ContentType contentType: String = "text/plain",
-    editable: Boolean = true,
+    baseUrl: URL? = null,
 ) {
-    val applied = rememberAppliedValue(value)
-    EditorPaneNode(
-        value = value,
-        applied = applied,
-        modifier = modifier.swappableDocumentListener(documentListener),
-        contentType = contentType,
-        editable = editable,
-    )
-}
-
-/**
- * The `JEditorPane` node both [EditorPane] overloads render. [value] is settled through
- * [pushDeclaredText], representing the pane's plain document text regardless of [contentType]. A
- * content-type switch is the one push run unconditionally regardless of [value] itself moving, since it
- * is what leaves the pane with a fresh, empty document to fill.
- */
-@Composable
-private fun EditorPaneNode(
-    value: String,
-    applied: AppliedValue<String>,
-    modifier: SwingModifier,
-    @ContentType contentType: String,
-    editable: Boolean,
-) {
+    // The kit is held across recompositions so the pane can tell the one it already has from a new one:
+    // the registry clones per call, and a pane asked for its content type answers with what its kit calls
+    // itself, which need not be the type it was registered under - `application/rtf` reports `text/rtf`.
+    val kit = remember(contentType) { editorKitFor(contentType) }
     SwingNode(
         factory = { JEditorPane() },
         update = {
-            // A content type installs the editor kit that interprets the text, together with that kit's
-            // own empty document, so the text is rendered into that document after the switch - the
-            // value it renders has not changed, but the document holding it has, so it is re-settled
-            // regardless of whether the declaration itself moved since the last pass.
-            set(contentType) { newContentType ->
-                this.contentType = newContentType
-                applied.settle(value, { document.fullText() }, { document.replaceSpan(0, document.length, it) }) {}
+            // A rendered pane holds only what is declared, so the user cannot type into it - and a
+            // JEditorPane publishes link events only while it is not editable.
+            set(false) { this.isEditable = it }
+            set(RenderedSource(kit, baseUrl, markup)) { source ->
+                // Installing a kit brings its own empty document with it, so the base and the source are
+                // written into whichever document the pane is left holding. The three are pushed together
+                // for that reason: a change to any one of them re-renders all three.
+                if (this.editorKit !== source.kit) this.editorKit = source.kit
+                (document as? HTMLDocument)?.base = source.baseUrl
+                this.text = source.markup
             }
-            pushDeclaredText(value, applied)
-            set(editable) { this.isEditable = it }
-            applyModifier(modifier)
+            applyModifier(modifier.hyperlinkListener(hyperlinkListener))
         },
     )
+}
+
+/**
+ * The source a rendered [EditorPane] shows: the kit reading its language, base location, and markup.
+ *
+ * Equality compares [baseUrl] by its external form rather than as a `URL`: `URL.equals` resolves the
+ * host to compare addresses, a blocking DNS lookup this class must not trigger on every
+ * recomposition's equality check. The kit is compared by identity, not structurally - the registry
+ * clones a fresh kit per call, so two renders of the same content type never share an instance to
+ * compare equal by.
+ */
+private class RenderedSource(
+    val kit: EditorKit,
+    val baseUrl: URL?,
+    val markup: String,
+) {
+    private val baseHref = baseUrl?.toExternalForm()
+
+    override fun equals(other: Any?): Boolean =
+        other is RenderedSource && kit === other.kit && baseHref == other.baseHref && markup == other.markup
+
+    override fun hashCode(): Int = 31 * (31 * System.identityHashCode(kit) + baseHref.hashCode()) + markup.hashCode()
 }
 
 /**
@@ -133,15 +147,21 @@ private fun EditorPaneNode(
  * the caret is kept two-way with [DocumentState.selection]. The state is the single source of
  * truth; there is no `onValueChange`.
  *
- * The pane's content type is derived from the state's document: an `HTMLDocument` renders as HTML and
- * any other document - including the `PlainDocument` `rememberDocumentState` creates by default -
- * renders as plain text. Handing the state a different document re-derives it. To render HTML, back the
- * state with a matching document, for example
- * `rememberDocumentState(document = remember { HTMLEditorKit().createDefaultDocument() })`.
+ * The pane renders the state's document through the editor kit the state was built with, so markup is
+ * rendered rather than shown as the characters that spell it:
+ * ```
+ * EditorPane(state = rememberDocumentState("<h1>Report</h1>", contentType = "text/html"))
+ * ```
+ * A state that adopted a document without naming a kit is rendered through the pane's own, plain text.
+ *
+ * With [editable] the pane is Swing's rich-text editor: the user authors the rendered content, and what
+ * they write is the state's own text. Hyperlinks in an HTML document are live only while the pane is
+ * not editable, as they are in any `JEditorPane`.
  *
  * @param state the hoistable text state the pane renders and drives.
- * @param modifier the [SwingModifier] applied to the underlying component.
- * @param editable whether the user can edit the text.
+ * @param modifier the [SwingModifier] applied to the underlying component
+ * @param editable whether the user can edit the text
+ * @see javax.swing.JEditorPane
  */
 @Composable
 public fun EditorPane(
@@ -152,28 +172,28 @@ public fun EditorPane(
     SwingNode(
         factory = { JEditorPane() },
         update = {
-            // Apply the content type the state's document is rendered as before binding the document:
-            // JEditorPane derives the content type it reports from its editor kit, and assigning the
-            // content type installs the kit registered for it - a look-and-feel replacement included -
-            // together with that kit's own default document. Update blocks run in recorded order, so the
-            // binding element installs the state's document over that default once the kit is in place.
-            set(contentTypeOf(state.document)) { this.contentType = it }
+            // Install the kit before binding the document: a kit brings its own default document with
+            // it, so whichever goes in second is what the pane is left holding. Update blocks run in
+            // recorded order and the modifier is applied last, so the binding element installs the
+            // state's document over the kit's default once the kit is in place.
+            set(state.editorKit) { kit ->
+                if (kit == null) this.contentType = "text/plain" else this.editorKit = kit
+            }
             set(editable) { this.isEditable = it }
             applyModifier(modifier.documentStateBinding(state))
         },
     )
 }
 
-// The MIME content type a document is rendered as: an HTMLDocument holds markup and needs the kit whose
-// views can read it, and every other document is rendered as plain text.
-@ContentType
-private fun contentTypeOf(document: Document): String = if (document is HTMLDocument) "text/html" else "text/plain"
-
 /**
  * A composable wrapper for `JTextPane`, an editor over a styled document.
  *
  * The binding is reactive in both directions - [value] is pushed onto the pane, and edits the user
  * makes are reported through [onValueChange].
+ *
+ * This pane is strictly controlled: text the pane settles on that [onValueChange] does not answer with
+ * a matching [value] is settled back onto the declared value on the very next pass, so the pane never
+ * ends up holding text the caller has not adopted.
  *
  * For incremental editing over a shared `Document`, undo/redo, or observing the text as a flow, drive the
  * pane with the [DocumentState] overload ([TextPane]) and a [DocumentState] from `rememberDocumentState`.
@@ -184,6 +204,7 @@ private fun contentTypeOf(document: Document): String = if (document is HTMLDocu
  *   [value] is not itself reported
  * @param editable whether the user can edit the text
  * @see TextPane the [DocumentState]-driven overload for large or complex editors
+ * @see javax.swing.JTextPane
  */
 @Composable
 public fun TextPane(
@@ -209,6 +230,10 @@ public fun TextPane(
  * instance (e.g. `remember {}`) to avoid churn. Being attached as-is, it observes every change to that
  * document, including the one that applies [value].
  *
+ * This pane is strictly controlled: text the pane settles on that is not followed by [value] moving to
+ * match is settled back onto the declared value on the very next pass, so the pane never ends up
+ * holding text the caller has not adopted.
+ *
  * For incremental editing over a shared `Document`, undo/redo, or observing the text as a flow, drive the
  * pane with the [DocumentState] overload ([TextPane]) and a [DocumentState] from `rememberDocumentState`.
  *
@@ -217,6 +242,7 @@ public fun TextPane(
  * @param modifier the [SwingModifier] applied to the underlying component
  * @param editable whether the user can edit the text
  * @see TextPane the [DocumentState]-driven overload for large or complex editors
+ * @see javax.swing.JTextPane
  */
 @Composable
 public fun TextPane(
@@ -226,16 +252,17 @@ public fun TextPane(
     editable: Boolean = true,
 ) {
     val applied = rememberAppliedValue(value)
+    val mirror = rememberTextMirrorListener(applied)
     TextPaneNode(
         value = value,
         applied = applied,
-        modifier = modifier.swappableDocumentListener(documentListener),
+        modifier = modifier.swappableDocumentListener(documentListener).textMirrorBinding(mirror),
         editable = editable,
     )
 }
 
 /**
- * The `JTextPane` node both [TextPane] overloads render. [value] is settled through [pushDeclaredText].
+ * The `JTextPane` node both [TextPane] overloads render. [value] is settled through [declareText].
  */
 @Composable
 private fun TextPaneNode(
@@ -247,7 +274,7 @@ private fun TextPaneNode(
     SwingNode(
         factory = { JTextPane() },
         update = {
-            pushDeclaredText(value, applied)
+            declareText(value, applied)
             set(editable) { this.isEditable = it }
             applyModifier(modifier)
         },
@@ -260,12 +287,13 @@ private fun TextPaneNode(
  * the caret is kept two-way with [DocumentState.selection]. The state is the single source of
  * truth; there is no `onValueChange`.
  *
- * A `JTextPane` renders a styled document, so [state] must wrap a `StyledDocument` (e.g. a
- * `DefaultStyledDocument` passed to `rememberDocumentState(document = ...)`).
+ * A `JTextPane` renders a styled document, so [state] must wrap a `StyledDocument` - the model
+ * `rememberDocumentState(contentType = "text/rtf")` builds.
  *
  * @param state the hoistable text state, over a `StyledDocument`, the pane renders and drives.
- * @param modifier the [SwingModifier] applied to the underlying component.
- * @param editable whether the user can edit the text.
+ * @param modifier the [SwingModifier] applied to the underlying component
+ * @param editable whether the user can edit the text
+ * @see javax.swing.JTextPane
  */
 @Composable
 public fun TextPane(

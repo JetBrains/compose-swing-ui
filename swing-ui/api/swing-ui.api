@@ -276,13 +276,17 @@ public abstract interface class org/jetbrains/compose/swing/components/selection
 public final class org/jetbrains/compose/swing/components/text/DocumentEditScope {
 	public static final field $stable I
 	public final fun append (Ljava/lang/CharSequence;)V
+	public final fun append (Ljava/lang/CharSequence;Ljavax/swing/text/AttributeSet;)V
 	public final fun delete (II)V
 	public final fun getLength ()I
 	public final fun insert (ILjava/lang/CharSequence;)V
+	public final fun insert (ILjava/lang/CharSequence;Ljavax/swing/text/AttributeSet;)V
 	public final fun placeCaretAtEnd ()V
 	public final fun replace (IILjava/lang/CharSequence;)V
+	public final fun replace (IILjava/lang/CharSequence;Ljavax/swing/text/AttributeSet;)V
 	public final fun selectAll ()V
 	public final fun setText (Ljava/lang/CharSequence;)V
+	public final fun setText (Ljava/lang/CharSequence;Ljavax/swing/text/AttributeSet;)V
 }
 
 public final class org/jetbrains/compose/swing/components/text/DocumentState : androidx/compose/runtime/RememberObserver {
@@ -290,53 +294,48 @@ public final class org/jetbrains/compose/swing/components/text/DocumentState : a
 	public final fun edit (Lkotlin/jvm/functions/Function1;)V
 	public final fun getCanRedo ()Z
 	public final fun getCanUndo ()Z
-	public final fun getDocument ()Ljavax/swing/text/Document;
-	public final fun getSelection-k4IjzbE ()J
+	public final fun getSelection-IYW-KFQ ()J
 	public final fun getText ()Ljava/lang/CharSequence;
 	public fun onAbandoned ()V
 	public fun onForgotten ()V
 	public fun onRemembered ()V
 	public final fun redo ()V
-	public final fun setSelection-gEniQAQ (J)V
+	public final fun setSelection-XFT27GA (J)V
 	public final fun setText (Ljava/lang/CharSequence;)V
 	public final fun undo ()V
 }
 
+public final class org/jetbrains/compose/swing/components/text/FormattedValueState {
+	public static final field $stable I
+	public final fun commit ()Z
+	public final fun getValue ()Ljava/lang/Object;
+	public final fun isEditValid ()Z
+	public final fun setValue (Ljava/lang/Object;)V
+}
+
 public final class org/jetbrains/compose/swing/components/text/TextComponentsKt {
-	public static final fun EditorPane (Ljava/lang/String;Ljavax/swing/event/DocumentListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/lang/String;ZLandroidx/compose/runtime/Composer;II)V
-	public static final fun EditorPane (Ljava/lang/String;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ZLandroidx/compose/runtime/Composer;II)V
+	public static final fun EditorPane (Ljava/lang/String;Ljavax/swing/event/HyperlinkListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/lang/String;Ljava/net/URL;Landroidx/compose/runtime/Composer;II)V
+	public static final fun EditorPane (Ljava/lang/String;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/lang/String;Ljava/net/URL;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
 	public static final fun EditorPane (Lorg/jetbrains/compose/swing/components/text/DocumentState;Lorg/jetbrains/compose/swing/modifier/SwingModifier;ZLandroidx/compose/runtime/Composer;II)V
-	public static final fun FormattedTextField (Ljava/lang/Object;Ljava/beans/PropertyChangeListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljavax/swing/JFormattedTextField$AbstractFormatterFactory;IIZLandroidx/compose/runtime/Composer;II)V
-	public static final fun FormattedTextField (Ljava/lang/Object;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljavax/swing/JFormattedTextField$AbstractFormatterFactory;Lkotlin/jvm/functions/Function1;IIZLandroidx/compose/runtime/Composer;II)V
+	public static final fun FormattedTextField (Ljava/lang/Object;Ljava/beans/PropertyChangeListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljavax/swing/JFormattedTextField$AbstractFormatterFactory;Lkotlin/jvm/functions/Function1;IIZLandroidx/compose/runtime/Composer;II)V
+	public static final fun FormattedTextField (Ljava/lang/Object;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljavax/swing/JFormattedTextField$AbstractFormatterFactory;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;IIZLandroidx/compose/runtime/Composer;II)V
+	public static final fun FormattedTextField (Lorg/jetbrains/compose/swing/components/text/FormattedValueState;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljavax/swing/JFormattedTextField$AbstractFormatterFactory;IIZLandroidx/compose/runtime/Composer;II)V
 	public static final fun PasswordField (Lorg/jetbrains/compose/swing/components/text/DocumentState;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/lang/Character;IZLandroidx/compose/runtime/Composer;II)V
 	public static final fun PasswordField ([CLjavax/swing/event/DocumentListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/lang/Character;IZLandroidx/compose/runtime/Composer;II)V
 	public static final fun PasswordField ([CLorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;Ljava/lang/Character;IZLandroidx/compose/runtime/Composer;II)V
-	public static final fun TextArea (Ljava/lang/String;Ljavax/swing/event/DocumentListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;IIZZZLandroidx/compose/runtime/Composer;II)V
-	public static final fun TextArea (Ljava/lang/String;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;IIZZZLandroidx/compose/runtime/Composer;II)V
-	public static final fun TextArea (Lorg/jetbrains/compose/swing/components/text/DocumentState;Lorg/jetbrains/compose/swing/modifier/SwingModifier;IIZZZLandroidx/compose/runtime/Composer;II)V
+	public static final fun TextArea (Ljava/lang/String;Ljavax/swing/event/DocumentListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;IIZZZILandroidx/compose/runtime/Composer;II)V
+	public static final fun TextArea (Ljava/lang/String;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;IIZZZILandroidx/compose/runtime/Composer;II)V
+	public static final fun TextArea (Lorg/jetbrains/compose/swing/components/text/DocumentState;Lorg/jetbrains/compose/swing/modifier/SwingModifier;IIZZZILandroidx/compose/runtime/Composer;II)V
 	public static final fun TextField (Ljava/lang/String;Ljavax/swing/event/DocumentListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;IZLandroidx/compose/runtime/Composer;II)V
 	public static final fun TextField (Ljava/lang/String;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;IZLandroidx/compose/runtime/Composer;II)V
 	public static final fun TextField (Lorg/jetbrains/compose/swing/components/text/DocumentState;Lorg/jetbrains/compose/swing/modifier/SwingModifier;IZLandroidx/compose/runtime/Composer;II)V
 	public static final fun TextPane (Ljava/lang/String;Ljavax/swing/event/DocumentListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;ZLandroidx/compose/runtime/Composer;II)V
 	public static final fun TextPane (Ljava/lang/String;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;ZLandroidx/compose/runtime/Composer;II)V
 	public static final fun TextPane (Lorg/jetbrains/compose/swing/components/text/DocumentState;Lorg/jetbrains/compose/swing/modifier/SwingModifier;ZLandroidx/compose/runtime/Composer;II)V
-	public static final fun rememberDocumentState (Ljava/lang/CharSequence;Landroidx/compose/runtime/Composer;II)Lorg/jetbrains/compose/swing/components/text/DocumentState;
-	public static final fun rememberDocumentState (Ljavax/swing/text/Document;Landroidx/compose/runtime/Composer;I)Lorg/jetbrains/compose/swing/components/text/DocumentState;
-}
-
-public final class org/jetbrains/compose/swing/components/text/TextRange {
-	public static final synthetic fun box-impl (J)Lorg/jetbrains/compose/swing/components/text/TextRange;
-	public static fun constructor-impl (II)J
-	public fun equals (Ljava/lang/Object;)Z
-	public static fun equals-impl (JLjava/lang/Object;)Z
-	public static final fun equals-impl0 (JJ)Z
-	public static final fun getEnd-impl (J)I
-	public static final fun getStart-impl (J)I
-	public fun hashCode ()I
-	public static fun hashCode-impl (J)I
-	public fun toString ()Ljava/lang/String;
-	public static fun toString-impl (J)Ljava/lang/String;
-	public final synthetic fun unbox-impl ()J
+	public static final fun rememberDocumentState (Ljava/lang/CharSequence;Ljava/lang/String;Landroidx/compose/runtime/Composer;II)Lorg/jetbrains/compose/swing/components/text/DocumentState;
+	public static final fun rememberDocumentState (Ljavax/swing/text/Document;Ljavax/swing/text/EditorKit;Landroidx/compose/runtime/Composer;II)Lorg/jetbrains/compose/swing/components/text/DocumentState;
+	public static final fun rememberDocumentState (Ljavax/swing/text/EditorKit;Ljava/lang/CharSequence;Landroidx/compose/runtime/Composer;II)Lorg/jetbrains/compose/swing/components/text/DocumentState;
+	public static final fun rememberFormattedValueState (Ljava/lang/Object;Landroidx/compose/runtime/Composer;II)Lorg/jetbrains/compose/swing/components/text/FormattedValueState;
 }
 
 public abstract interface annotation class org/jetbrains/compose/swing/constants/AutoResizeMode : java/lang/annotation/Annotation {
@@ -475,6 +474,7 @@ public final class org/jetbrains/compose/swing/modifier/appearance/AppearanceMod
 	public static final fun focusPainted (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Z)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun font (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/awt/Font;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun foreground (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/awt/Color;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun highlights (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/util/List;Ljavax/swing/text/Highlighter$HighlightPainter;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun horizontalAlignment (Lorg/jetbrains/compose/swing/modifier/SwingModifier;I)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun horizontalTextPosition (Lorg/jetbrains/compose/swing/modifier/SwingModifier;I)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun icon (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljavax/swing/Icon;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
@@ -535,6 +535,7 @@ public final class org/jetbrains/compose/swing/modifier/interaction/FocusRequest
 public final class org/jetbrains/compose/swing/modifier/interaction/InteractionModifierKt {
 	public static final fun actionCommand (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/lang/String;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun buttonGroup (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljavax/swing/ButtonGroup;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun caretUpdatePolicy (Lorg/jetbrains/compose/swing/modifier/SwingModifier;I)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun contextMenu (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun defaultButton (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Z)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static synthetic fun defaultButton$default (Lorg/jetbrains/compose/swing/modifier/SwingModifier;ZILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
@@ -598,6 +599,7 @@ public final class org/jetbrains/compose/swing/modifier/listener/ListenerModifie
 	public static final fun documentListener (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljavax/swing/event/DocumentListener;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun focusListener (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/awt/event/FocusListener;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun hierarchyListener (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/awt/event/HierarchyListener;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun hyperlinkListener (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljavax/swing/event/HyperlinkListener;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun internalFrameListener (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljavax/swing/event/InternalFrameListener;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun itemListener (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/awt/event/ItemListener;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun keyListener (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/awt/event/KeyListener;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
@@ -681,6 +683,21 @@ public final class org/jetbrains/compose/swing/node/SwingNodeUpdater {
 	public static fun toString-impl (Landroidx/compose/runtime/Composer;)Ljava/lang/String;
 	public final synthetic fun unbox-impl ()Landroidx/compose/runtime/Composer;
 	public static final fun update-impl (Landroidx/compose/runtime/Composer;Ljava/lang/Object;Lkotlin/jvm/functions/Function2;)V
+}
+
+public final class org/jetbrains/compose/swing/text/TextRange {
+	public static final synthetic fun box-impl (J)Lorg/jetbrains/compose/swing/text/TextRange;
+	public static fun constructor-impl (II)J
+	public fun equals (Ljava/lang/Object;)Z
+	public static fun equals-impl (JLjava/lang/Object;)Z
+	public static final fun equals-impl0 (JJ)Z
+	public static final fun getEnd-impl (J)I
+	public static final fun getStart-impl (J)I
+	public fun hashCode ()I
+	public static fun hashCode-impl (J)I
+	public fun toString ()Ljava/lang/String;
+	public static fun toString-impl (J)Ljava/lang/String;
+	public final synthetic fun unbox-impl ()J
 }
 
 public abstract interface class org/jetbrains/compose/swing/window/ApplicationScope {

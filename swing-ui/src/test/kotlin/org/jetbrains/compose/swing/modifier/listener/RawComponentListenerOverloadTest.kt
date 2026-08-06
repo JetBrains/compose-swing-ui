@@ -45,6 +45,7 @@ import javax.swing.SpinnerNumberModel
 import javax.swing.event.ChangeListener
 import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
+import javax.swing.event.HyperlinkListener
 import javax.swing.event.ListSelectionListener
 import javax.swing.event.TreeExpansionEvent
 import javax.swing.event.TreeExpansionListener
@@ -297,11 +298,11 @@ class RawComponentListenerOverloadTest {
     }
 
     @Test
-    fun editorPaneDocumentListenerOverloadRegistersInstance() = runComposeSwingTest {
-        val listener = docListener()
-        setContent { EditorPane("hi", documentListener = listener) }
+    fun editorPaneHyperlinkListenerOverloadRegistersInstance() = runComposeSwingTest {
+        val listener = HyperlinkListener { }
+        setContent { EditorPane("hi", hyperlinkListener = listener) }
         assertTrue(
-            onNodeOfType<JEditorPane>().fetch().documentHas(listener),
+            listener in onNodeOfType<JEditorPane>().fetch().hyperlinkListeners,
             "the declared listener instance should be registered on the widget",
         )
     }

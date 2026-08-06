@@ -10,13 +10,18 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.constants.ContentType
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.binding
+import org.jetbrains.compose.swing.text.TextRange
+import java.io.StringReader
+import javax.swing.JEditorPane
 import javax.swing.event.CaretListener
 import javax.swing.event.DocumentListener
 import javax.swing.event.UndoableEditEvent
 import javax.swing.text.Document
+import javax.swing.text.EditorKit
 import javax.swing.text.JTextComponent
-import javax.swing.text.PlainDocument
 import javax.swing.text.Segment
 import javax.swing.undo.CompoundEdit
 import javax.swing.undo.UndoManager
@@ -25,16 +30,23 @@ import javax.swing.undo.UndoManager
  * A hoistable state holder for a text component that owns the [Document] the component renders. The
  * state and the bound component share one document, so an edit made through this state is what the
  * component displays, and text the user types into the component is what this state reports - there is
- * no value to keep in sync and no round-trip per keystroke.
+ * no value to keep in sync and no round-trip per keystroke. A caller who needs a document of their own
+ * supplies it at [rememberDocumentState]; content is otherwise read through [text] and changed through
+ * [edit].
  *
  * [text] and [selection] are snapshot-observable: reading them inside a composable (or a
  * `snapshotFlow` collector) subscribes to later edits, so the reader recomposes when the document or
  * the caret changes. [text] is materialized on demand from the document, so typing does not pay for a full
  * read until a caller actually asks for the whole text.
+ *
+ * @see javax.swing.text.Document
  */
 public class DocumentState internal constructor(
-    /** The [Document] this state owns and the bound component renders. */
-    public val document: Document,
+    // The document this state owns and the bound component renders.
+    internal val document: Document,
+    // The kit that reads and renders the language [document] is written in, or null when no kit was
+    // named for it and the bound component's own kit renders it.
+    internal val editorKit: EditorKit? = null,
 ) : RememberObserver {
     // A generation counter bumped by [documentListener] on every insert/remove/attribute change. The
     // values derived from the document ([text], [canUndo], [canRedo]) are not mirrored into snapshot state
@@ -98,6 +110,8 @@ public class DocumentState internal constructor(
      * The current text of the document. Reading registers a snapshot subscription to later edits;
      * assigning diffs the new value against the current content and applies only the changed span
      * through the document, leaving the surrounding text untouched.
+     *
+     * @see javax.swing.text.Document.getText
      */
     public var text: CharSequence
         get() {
@@ -116,6 +130,8 @@ public class DocumentState internal constructor(
      * The current selection, a directional [TextRange] over the caret. Reading registers a snapshot
      * subscription to caret changes; assigning moves the caret and selection of the bound component
      * (or, while unmounted, stores the value to apply when a component binds).
+     *
+     * @see javax.swing.text.Caret.setDot
      */
     public var selection: TextRange
         get() = selectionState
@@ -125,7 +141,11 @@ public class DocumentState internal constructor(
             component?.applySelection(value)
         }
 
-    /** Whether an [undo] is currently available; snapshot-observable. */
+    /**
+     * Whether an [undo] is currently available; snapshot-observable.
+     *
+     * @see javax.swing.undo.UndoManager.canUndo
+     */
     public val canUndo: Boolean
         get() {
             // Register the snapshot read of [generation]; an undo or redo edits the document and bumps
@@ -134,7 +154,11 @@ public class DocumentState internal constructor(
             return undoManager.canUndo()
         }
 
-    /** Whether a [redo] is currently available; snapshot-observable. */
+    /**
+     * Whether a [redo] is currently available; snapshot-observable.
+     *
+     * @see javax.swing.undo.UndoManager.canRedo
+     */
     public val canRedo: Boolean
         get() {
             generation
@@ -145,6 +169,8 @@ public class DocumentState internal constructor(
      * Applies a batch of edits to the document as one compound change. Insertions, replacements and
      * deletions made on the [DocumentEditScope] are committed together, then the caret is placed as the
      * block requested (its default rests after the last insertion).
+     *
+     * @see javax.swing.undo.CompoundEdit
      */
     public fun edit(block: DocumentEditScope.() -> Unit) {
         val buffer = DocumentEditScope(document)
@@ -152,12 +178,20 @@ public class DocumentState internal constructor(
         buffer.pendingSelection?.let { selection = it }
     }
 
-    /** Reverts the most recent edit, if any. */
+    /**
+     * Reverts the most recent edit, if any.
+     *
+     * @see javax.swing.undo.UndoManager.undo
+     */
     public fun undo() {
         if (undoManager.canUndo()) undoManager.undo()
     }
 
-    /** Reapplies the most recently undone edit, if any. */
+    /**
+     * Reapplies the most recently undone edit, if any.
+     *
+     * @see javax.swing.undo.UndoManager.redo
+     */
     public fun redo() {
         if (undoManager.canRedo()) undoManager.redo()
     }
@@ -229,70 +263,117 @@ public class DocumentState internal constructor(
 }
 
 /**
- * Binds [state] to the composable's text component through the modifier chain, so ownership follows
- * the modifier node's lifecycle: a state swap on recomposition unbinds the previous owner before
- * binding the new one, and the node detaching (the component leaving the composition, being recycled
- * for reuse, or parking while deactivated) unbinds outright.
+ * Binds [state] to the composable's text component through the modifier chain, so ownership of the
+ * component follows the binding; see [binding].
  */
 internal fun SwingModifier.documentStateBinding(state: DocumentState): SwingModifier =
-    this then DocumentStateElement(state)
-
-private class DocumentStateElement(
-    private val state: DocumentState,
-) : SwingModifier.Element<JTextComponent, DocumentStateElement.Node> {
-    override val targetType: Class<JTextComponent> get() = JTextComponent::class.java
-
-    override fun create(): Node = Node()
-
-    override fun update(node: Node) {
-        node.state = state
-    }
-
-    class Node : SwingModifier.Node<JTextComponent>() {
-        // The currently bound state, held so a swap unbinds exactly the previous owner - the one
-        // thing the composable's update block cannot know. Same shape as ClipboardElement.Node.handle.
-        var state: DocumentState? = null
-            set(value) {
-                if (value === field) return
-                field?.unbind(component)
-                field = value
-                value?.bind(component)
-            }
-
-        override fun onDetach() {
-            state = null
-        }
-    }
-}
+    binding(JTextComponent::class.java, state, DocumentState::bind, DocumentState::unbind)
 
 /**
- * Creates and remembers a [DocumentState] over a fresh [PlainDocument] seeded with [initialText].
+ * Creates and remembers a [DocumentState] over a fresh document in the language [contentType] names,
+ * seeded with [initialText].
+ *
+ * The content type picks the editor kit registered for it, which both builds the document and reads
+ * [initialText] as source written in that language: `text/plain` yields a `PlainDocument` holding the
+ * text as characters, `text/html` an `HTMLDocument` holding the markup parsed, `text/rtf` a
+ * `StyledDocument` - the model a `JTextPane` requires. An [EditorPane] bound to the state renders it
+ * through that same kit.
+ *
+ * A kit reads its own language and nothing else, so source it cannot make sense of contributes nothing:
+ * a `text/rtf` state seeded with text that is not RTF starts empty rather than reporting it, an empty
+ * result being what source that legitimately renders to nothing produces too.
  *
  * A later change to [initialText] neither recreates nor mutates the state; drive the field afterwards
- * through the returned state's [DocumentState.text], [DocumentState.edit] and related members.
+ * through the returned state's [DocumentState.text], [DocumentState.edit] and related members. A later
+ * change to [contentType] builds a new state in the new language, seeded from [initialText] as it
+ * reads on that pass.
  *
- * @param initialText the text the document starts with.
+ * @param initialText the source, written in [contentType]'s language, the document starts with.
+ * @param contentType the MIME type naming the kit that builds and reads the document.
+ * @throws IllegalArgumentException if no editor kit is registered for [contentType].
+ * @see javax.swing.JEditorPane.createEditorKitForContentType
  */
 @Composable
-public fun rememberDocumentState(initialText: CharSequence = ""): DocumentState =
-    remember {
-        DocumentState(PlainDocument().apply { insertString(0, initialText.toString(), null) })
-    }
+public fun rememberDocumentState(
+    initialText: CharSequence = "",
+    @ContentType contentType: String = "text/plain",
+): DocumentState = remember(contentType) { documentStateOver(editorKitFor(contentType), initialText) }
+
+/**
+ * Creates and remembers a [DocumentState] over a fresh document built by [kit] and seeded by reading
+ * [initialText] through it. Reach for this over the [contentType][rememberDocumentState] form when the
+ * kit is configured - a style sheet of your own, a custom parser, a kit class the registry does not
+ * name.
+ *
+ * The state is tied to the kit's identity: a different [kit] builds a new state. Pass a kit that
+ * outlives a recomposition - one kept in a `remember` - so the state is rebuilt only when the kit
+ * really changes.
+ *
+ * @param kit the editor kit that builds the document, reads [initialText] into it, and renders it.
+ * @param initialText the source, written in the kit's language, the document starts with.
+ * @see javax.swing.text.EditorKit.createDefaultDocument
+ */
+@Composable
+public fun rememberDocumentState(
+    kit: EditorKit,
+    initialText: CharSequence = "",
+): DocumentState = remember(kit) { documentStateOver(kit, initialText) }
 
 /**
  * Creates and remembers a [DocumentState] over an existing [document], leaving its current content in
  * place. The bound field renders this exact document, so a caller keeping a reference to it observes the
  * same edits the state does.
  *
- * The state is tied to the document's identity: a different [document] builds a new state over it, the
- * field switches to rendering that document, and the previous state releases the one it held. Pass a
- * document that outlives a recomposition - one owned outside the composition or kept in a `remember` -
- * so the state is rebuilt only when the rendered document really changes.
+ * Name the [kit] that reads the document's language to have an [EditorPane] render it through that kit;
+ * without one the pane renders the document through its own, which is plain text.
+ *
+ * The state is tied to the identity of both: a different [document] or [kit] builds a new state, the
+ * field switches to rendering it, and the previous state releases what it held. Pass values that
+ * outlive a recomposition - owned outside the composition or kept in a `remember` - so the state is
+ * rebuilt only when what it renders really changes.
  *
  * @param document the document the state adopts and the field renders.
+ * @param kit the editor kit that reads the document's language, or `null` to leave the choice to the
+ *   field.
+ * @see javax.swing.text.Document
  */
 @Composable
-public fun rememberDocumentState(document: Document): DocumentState = remember(document) { DocumentState(document) }
+public fun rememberDocumentState(
+    document: Document,
+    kit: EditorKit? = null,
+): DocumentState = remember(document, kit) { DocumentState(document, kit) }
+
+/**
+ * The kit registered for [contentType]. The registry answers null for a type nothing is registered
+ * for, which is a caller naming a language the runtime cannot read - reported rather than quietly
+ * answered with plain text, which would render markup as characters.
+ *
+ * A media type carries its parameters after a `;` - `text/html; charset=UTF-8` - which the registry is
+ * not keyed by, so they are dropped before the lookup. Nothing here reads a document out of a stream, so
+ * the charset such a parameter names has nothing to decode.
+ *
+ * The registry hands out a fresh clone per call, so hold the result across recompositions - the caller
+ * that installs it compares kits by identity.
+ */
+internal fun editorKitFor(
+    @ContentType contentType: String,
+): EditorKit {
+    val mediaType = contentType.substringBefore(';').trim()
+    return requireNotNull(JEditorPane.createEditorKitForContentType(mediaType)) {
+        "No editor kit is registered for content type \"$mediaType\""
+    }
+}
+
+// Builds the document [kit] creates for its own language and fills it by reading [initialText] through
+// that kit, so source arrives parsed rather than as the characters that spell it.
+private fun documentStateOver(
+    kit: EditorKit,
+    initialText: CharSequence,
+): DocumentState {
+    val document = kit.createDefaultDocument()
+    if (initialText.isNotEmpty()) kit.read(StringReader(initialText.toString()), document, 0)
+    return DocumentState(document, kit)
+}
 
 // Reads the whole document text through a reusable Segment, avoiding a defensive copy on the read path.
 private fun Document.readText(): String {

@@ -17,9 +17,10 @@ import org.jetbrains.compose.swing.modifier.layout.alignmentX
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import java.awt.Dimension
 
-// The rich-text editors EditorPane and TextPane, each bound to a remember { mutableStateOf(...) } value
-// so edits and the echo label stay in lock-step. The EditorPane flips its ContentType between plain text
-// and HTML so the same markup is shown raw, then rendered.
+// The rich-text components EditorPane and TextPane. The EditorPane renders markup it is given, flipping
+// its ContentType between plain text and HTML so the same source is shown raw, then rendered. The
+// TextPane is bound to a remember { mutableStateOf(...) } value so edits and the echo label stay in
+// lock-step.
 @Composable
 internal fun RichTextSection() {
     SectionColumn {
@@ -32,9 +33,8 @@ internal fun RichTextSection() {
 @Composable
 private fun EditorPaneCard() {
     ExampleCard("EditorPane (PlainText / Html)") {
-        var markup by remember { mutableStateOf("<h2>Hello</h2><p>Edit me, then render as <b>HTML</b>.</p>") }
+        val markup = "<h2>Hello</h2><p>Shown raw, then rendered as <b>HTML</b>.</p>"
         var html by remember { mutableStateOf(false) }
-        var editable by remember { mutableStateOf(true) }
 
         FlowPanel(modifier = SwingModifier.alignmentX(LEFT_ALIGNED)) {
             ToggleButton(
@@ -42,15 +42,12 @@ private fun EditorPaneCard() {
                 pressed = html,
                 onPressedChange = { html = it },
             )
-            CheckBox(text = "Editable", checked = editable, onCheckedChange = { editable = it })
         }
         ScrollPane(modifier = SwingModifier.preferredSize(Dimension(360, 120)).alignmentX(LEFT_ALIGNED)) {
             content {
                 EditorPane(
-                    value = markup,
+                    markup,
                     contentType = if (html) "text/html" else "text/plain",
-                    onValueChange = { markup = it },
-                    editable = editable,
                 )
             }
         }

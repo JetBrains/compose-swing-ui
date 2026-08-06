@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.jetbrains.compose.swing.text.TextRange
 import javax.swing.JTextField
 import javax.swing.text.BadLocationException
 import kotlin.test.Test
@@ -103,8 +104,7 @@ class DocumentStateEdgeCaseTest {
         val fields = onAllNodesOfType<JTextField>().fetchAll()
         val first = fields[0]
         val second = fields[1]
-        assertSame(state.document, first.document, "both fields render the state's document")
-        assertSame(state.document, second.document, "both fields render the state's document")
+        assertSame(first.document, second.document, "both fields render the same document")
 
         // A state drives at most one component: the later bind took ownership, so only that field's
         // caret feeds the state's selection.

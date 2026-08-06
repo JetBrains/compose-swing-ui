@@ -17,6 +17,7 @@ import org.jetbrains.compose.swing.components.text.PasswordField
 import org.jetbrains.compose.swing.components.text.TextArea
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.components.text.TextPane
+import org.jetbrains.compose.swing.components.text.rememberDocumentState
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.DefaultComboBoxModel
@@ -88,7 +89,7 @@ class WrapperDefaultsMatchWidgetTest {
     @Test
     fun editorPaneDefaultsMatchBareWidget() = runComposeSwingTest {
         val bare = JEditorPane()
-        setContent { EditorPane(value = "") }
+        setContent { EditorPane(state = rememberDocumentState()) }
         val wrapped = onNodeOfType<JEditorPane>().fetch()
         assertEquals(bare.contentType, wrapped.contentType, "contentType")
         assertEquals(bare.isEditable, wrapped.isEditable, "editable")

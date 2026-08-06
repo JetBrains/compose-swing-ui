@@ -17,6 +17,10 @@ import javax.swing.event.DocumentListener
 /**
  * A composable wrapper for JTextArea.
  *
+ * This area is strictly controlled: text the area settles on that [onValueChange] does not answer with
+ * a matching [value] is settled back onto the declared value on the very next pass, so the area never
+ * ends up holding text the caller has not adopted.
+ *
  * For incremental editing over a shared `Document`, undo/redo, or observing the text as a flow, drive the
  * area with the [DocumentState] overload ([TextArea]) and a [DocumentState] from `rememberDocumentState`.
  *
@@ -31,7 +35,9 @@ import javax.swing.event.DocumentListener
  *   by default, so long lines run past the width
  * @param wrapStyleWord whether wrapped lines break at word boundaries rather than at character
  *   boundaries; `false` by default, and only consulted while [lineWrap] is on
+ * @param tabSize the number of characters a tab expands to, `8` by default
  * @see TextArea the [DocumentState]-driven overload for large or complex editors
+ * @see javax.swing.JTextArea
  */
 @Composable
 public fun TextArea(
@@ -43,6 +49,7 @@ public fun TextArea(
     editable: Boolean = true,
     lineWrap: Boolean = false,
     wrapStyleWord: Boolean = false,
+    tabSize: Int = DEFAULT_TAB_SIZE,
 ) {
     val callback = rememberUpdatedState(onValueChange)
     val applied = rememberAppliedValue(value)
@@ -56,6 +63,7 @@ public fun TextArea(
         editable = editable,
         lineWrap = lineWrap,
         wrapStyleWord = wrapStyleWord,
+        tabSize = tabSize,
     )
 }
 
@@ -64,6 +72,10 @@ public fun TextArea(
  * lambda. The [documentListener] is attached to the area's document as-is and removed on the same
  * instance; pass a stable instance (e.g. `remember {}`) to avoid churn. Being attached as-is, it
  * observes every change to that document, including the one that applies [value].
+ *
+ * This area is strictly controlled: text the area settles on that is not followed by [value] moving to
+ * match is settled back onto the declared value on the very next pass, so the area never ends up
+ * holding text the caller has not adopted.
  *
  * For incremental editing over a shared `Document`, undo/redo, or observing the text as a flow, drive the
  * area with the [DocumentState] overload ([TextArea]) and a [DocumentState] from `rememberDocumentState`.
@@ -78,7 +90,9 @@ public fun TextArea(
  *   by default, so long lines run past the width
  * @param wrapStyleWord whether wrapped lines break at word boundaries rather than at character
  *   boundaries; `false` by default, and only consulted while [lineWrap] is on
+ * @param tabSize the number of characters a tab expands to, `8` by default
  * @see TextArea the [DocumentState]-driven overload for large or complex editors
+ * @see javax.swing.JTextArea
  */
 @Composable
 public fun TextArea(
@@ -90,23 +104,25 @@ public fun TextArea(
     editable: Boolean = true,
     lineWrap: Boolean = false,
     wrapStyleWord: Boolean = false,
+    tabSize: Int = DEFAULT_TAB_SIZE,
 ) {
     val applied = rememberAppliedValue(value)
+    val mirror = rememberTextMirrorListener(applied)
     TextAreaNode(
         value = value,
         applied = applied,
-        modifier = modifier.documentListener(documentListener),
+        modifier = modifier.documentListener(documentListener).textMirrorBinding(mirror),
         rows = rows,
         columns = columns,
         editable = editable,
         lineWrap = lineWrap,
         wrapStyleWord = wrapStyleWord,
+        tabSize = tabSize,
     )
 }
 
 /**
- * The `JTextArea` node both [TextArea] overloads render. [value] is settled through
- * [pushDeclaredText].
+ * The `JTextArea` node both [TextArea] overloads render. [value] is settled through [declareText].
  */
 @Composable
 private fun TextAreaNode(
@@ -118,6 +134,7 @@ private fun TextAreaNode(
     editable: Boolean,
     lineWrap: Boolean,
     wrapStyleWord: Boolean,
+    tabSize: Int,
 ) {
     SwingNode(
         factory = { JTextArea(rows, columns) },
@@ -130,10 +147,11 @@ private fun TextAreaNode(
                 this.columns = it
                 revalidate()
             }
-            pushDeclaredText(value, applied)
+            declareText(value, applied)
             set(editable) { this.isEditable = it }
             set(lineWrap) { this.lineWrap = it }
             set(wrapStyleWord) { this.wrapStyleWord = it }
+            set(tabSize) { this.tabSize = it }
             applyModifier(modifier)
         },
     )
@@ -146,14 +164,16 @@ private fun TextAreaNode(
  * there is no `onValueChange`.
  *
  * @param state the hoistable text state the area renders and drives.
- * @param modifier the [SwingModifier] applied to the underlying component.
- * @param rows the number of rows.
- * @param columns the number of columns.
- * @param editable whether the user can edit the text.
+ * @param modifier the [SwingModifier] applied to the underlying component
+ * @param rows the number of rows
+ * @param columns the number of columns
+ * @param editable whether the user can edit the text
  * @param lineWrap whether lines too long for the area's width are wrapped onto the next line; `false`
- *   by default, so long lines run past the width.
+ *   by default, so long lines run past the width
  * @param wrapStyleWord whether wrapped lines break at word boundaries rather than at character
- *   boundaries; `false` by default, and only consulted while [lineWrap] is on.
+ *   boundaries; `false` by default, and only consulted while [lineWrap] is on
+ * @param tabSize the number of characters a tab expands to, `8` by default
+ * @see javax.swing.JTextArea
  */
 @Composable
 public fun TextArea(
@@ -164,6 +184,7 @@ public fun TextArea(
     editable: Boolean = true,
     lineWrap: Boolean = false,
     wrapStyleWord: Boolean = false,
+    tabSize: Int = DEFAULT_TAB_SIZE,
 ) {
     SwingNode(
         factory = { JTextArea(rows, columns) },
@@ -180,6 +201,14 @@ public fun TextArea(
             set(lineWrap) { this.lineWrap = it }
             set(wrapStyleWord) { this.wrapStyleWord = it }
             applyModifier(modifier.documentStateBinding(state))
+            // A tab size is held by the document rather than by the area, so it is declared after the
+            // modifier has installed the state's own document: a size written before that swap stays
+            // behind on the document the swap discards. Keying it on the state as well re-declares it
+            // onto the document a later state brings.
+            set(state to tabSize) { (_, size) -> this.tabSize = size }
         },
     )
 }
+
+/** The number of characters `JTextArea` expands a tab to where nothing else is declared. */
+private const val DEFAULT_TAB_SIZE = 8

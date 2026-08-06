@@ -10,7 +10,6 @@ import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.beans.PropertyChangeListener
 import java.text.ParseException
-import javax.swing.JEditorPane
 import javax.swing.JFormattedTextField
 import javax.swing.JPasswordField
 import javax.swing.JTextArea
@@ -27,22 +26,25 @@ import javax.swing.text.NumberFormatter
 import javax.swing.text.PlainDocument
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 /**
- * Pins what applying a declared value onto a text component does - to the callback, and to the state the
- * component already holds.
+ * Pins what applying a declared value onto a text component does to the `onValueChange` callback, and
+ * to the state the component already holds.
  *
- * An `onValueChange` callback reports the edits made to the component and only those. A declared value
- * the composition applies is not an edit, and `JTextComponent.setText` applies it as a removal of the
- * whole document followed by an insertion, so an unguarded binding would report an empty document and
- * then the pushed text for a change the application already knows about. The suppression covers the
- * wrapper's own write only: a raw `DocumentListener` the application supplies is attached to the document
- * as-is and keeps observing every change, the applied value included.
+ * A callback reports only edits made to the component. A declared value the composition applies is not
+ * an edit. `JTextComponent.setText` applies it as a removal of the whole document followed by an
+ * insertion, so an unguarded binding would report an empty document and then the pushed text for a
+ * change the application already knows about. The suppression covers only the wrapper's own write: a raw
+ * `DocumentListener` the application supplies stays attached to the document as-is and keeps observing
+ * every change, the applied value included.
  *
- * Applying a value the component already holds is skipped, so a re-application does not move the caret;
- * and a declared write that throws leaves the callback reporting the user's later edits.
+ * Applying a value the component already holds is skipped, so a re-application does not move the caret.
+ * A declared write that throws still leaves the callback reporting the user's later edits.
+ *
+ * The declaration is the source of truth in both directions: an edit the caller does not answer with a
+ * matching value settles back onto the declared one on the pass that carries their answer, so a
+ * component never stands on content the caller has not adopted.
  */
 class DeclaredTextPushTest {
     @Test
@@ -106,47 +108,6 @@ class DeclaredTextPushTest {
     }
 
     @Test
-    fun editorPaneReportsNoEditForAnAppliedValue() = runComposeSwingTest {
-        var value by mutableStateOf("hello")
-        val reported = mutableListOf<String>()
-        setContent { EditorPane(value = value, onValueChange = { reported += it }) }
-
-        value = "world"
-        awaitIdle()
-
-        val pane = onNodeOfType<JEditorPane>()
-        pane.assertTextEquals("world")
-        assertEquals(emptyList(), reported, "applying a value is not an edit")
-
-        pane.fetch().type("!")
-        awaitIdle()
-        assertEquals(listOf("world!"), reported, "a keystroke is reported once, with the new text")
-    }
-
-    @Test
-    fun editorPaneReportsNoEditForAnAppliedContentType() = runComposeSwingTest {
-        var html by mutableStateOf(false)
-        val reported = mutableListOf<String>()
-        setContent {
-            EditorPane(
-                value = "hello",
-                contentType = if (html) "text/html" else "text/plain",
-                onValueChange = { reported += it },
-            )
-        }
-
-        html = true
-        awaitIdle()
-
-        assertEquals(
-            "text/html",
-            onNodeOfType<JEditorPane>().fetch().contentType,
-            "the pane switches content type",
-        )
-        assertEquals(emptyList(), reported, "reinterpreting the value under a new content type is not an edit")
-    }
-
-    @Test
     fun textPaneReportsNoEditForAnAppliedValue() = runComposeSwingTest {
         var value by mutableStateOf("hello")
         val reported = mutableListOf<String>()
@@ -202,8 +163,8 @@ class DeclaredTextPushTest {
     fun rawDocumentListenerObservesTheAppliedValue() = runComposeSwingTest {
         var value by mutableStateOf("hello")
         val seen = mutableListOf<String>()
-        // Each event carries the length the document has once it is applied, so the sequence shows the
-        // shape of the write and not merely that something happened.
+        // Each event carries the document's length at that point, so the sequence shows the shape of
+        // the write, not just that something happened.
         val listener =
             object : DocumentListener {
                 override fun insertUpdate(e: DocumentEvent) {
@@ -263,8 +224,7 @@ class DeclaredTextPushTest {
         val document = onNodeOfType<JTextField>().fetch().document as AbstractDocument
         document.documentFilter = RefusingFilter()
 
-        // The filter refuses the write that applies the declared value, so the value never reaches the
-        // document and the callback has nothing to report.
+        // The filter refuses the write that applies the declared value, so it never reaches the document.
         value = "world"
         awaitIdle()
         assertEquals(emptyList(), reported, "a refused write reports nothing")
@@ -287,12 +247,21 @@ class DeclaredTextPushTest {
         val reported = mutableListOf<Any?>()
         setContent {
             val factory = remember { DefaultFormatterFactory(IntOnlyFormatter()) }
-            FormattedTextField(value = value, formatterFactory = factory, onValueChange = { reported += it })
+            FormattedTextField(
+                value = value,
+                formatterFactory = factory,
+                // The commit is adopted, so the field settles on the caller's declared value, not the
+                // refused one.
+                onValueChange = {
+                    reported += it
+                    value = it
+                },
+            )
         }
         val field = onNodeOfType<JFormattedTextField>().fetch()
 
         // Applying a value renders it through the formatter, and this formatter refuses a value it was
-        // not written for - so the write throws where the wrapper is making it.
+        // not written for, so the write throws where the wrapper makes it.
         value = "not an int"
         awaitIdle()
         assertEquals(emptyList(), reported, "a refused write reports nothing")
@@ -310,25 +279,110 @@ class DeclaredTextPushTest {
     }
 
     @Test
-    fun aTypedEditSurvivesARecompositionTheKeystrokeDidNotCause() = runComposeSwingTest {
-        // columns is unrelated to value, so changing it recomposes this component without the mirror
-        // itself moving - the one pass a value pushed only on change must not fight the user's edit on.
-        var columns by mutableStateOf(0)
-        setContent { TextField(value = "hello", columns = columns) }
+    fun aTextFieldEditTheCallerDoesNotAdoptIsSettledBack() = runComposeSwingTest {
+        setContent { TextField(value = "hello") }
 
         onNodeOfType<JTextField>().fetch().type("!")
         awaitIdle()
 
-        columns = 8
+        onNodeOfType<JTextField>().assertTextEquals("hello")
+    }
+
+    @Test
+    fun aTextAreaEditTheCallerDoesNotAdoptIsSettledBack() = runComposeSwingTest {
+        setContent { TextArea(value = "hello") }
+
+        onNodeOfType<JTextArea>().fetch().type("!")
         awaitIdle()
 
-        onNodeOfType<JTextField>().assertTextEquals("hello!")
+        onNodeOfType<JTextArea>().assertTextEquals("hello")
+    }
+
+    @Test
+    fun aTextPaneEditTheCallerDoesNotAdoptIsSettledBack() = runComposeSwingTest {
+        setContent { TextPane(value = "hello") }
+
+        onNodeOfType<JTextPane>().fetch().type("!")
+        awaitIdle()
+
+        onNodeOfType<JTextPane>().assertTextEquals("hello")
+    }
+
+    @Test
+    fun aCommitTheCallerDoesNotAdoptIsSettledBack() = runComposeSwingTest {
+        setContent {
+            val factory = remember { integerFactory() }
+            FormattedTextField(value = 1, formatterFactory = factory)
+        }
+
+        val field = onNodeOfType<JFormattedTextField>().fetch()
+        field.text = "250"
+        field.commitEdit()
+        awaitIdle()
+
+        assertEquals(1, field.value, "the declared value is written back over a commit nothing adopted")
+        assertEquals("1", field.text, "and the field renders the value it was left on")
+    }
+
+    @Test
+    fun aRawTextFieldEditTheCallerDoesNotAdoptIsSettledBack() = runComposeSwingTest {
+        val seen = mutableListOf<String>()
+        val listener = documentChangeListener { seen += it.document.fullText() }
+        setContent { TextField(value = "hello", documentListener = listener) }
+
+        onNodeOfType<JTextField>().fetch().type("!")
+        awaitIdle()
+
+        onNodeOfType<JTextField>().assertTextEquals("hello")
+        assertEquals("hello", seen.last(), "the raw listener observes the settling write like any other change")
+    }
+
+    @Test
+    fun aRawTextAreaEditTheCallerDoesNotAdoptIsSettledBack() = runComposeSwingTest {
+        val listener = documentChangeListener {}
+        setContent { TextArea(value = "hello", documentListener = listener) }
+
+        onNodeOfType<JTextArea>().fetch().type("!")
+        awaitIdle()
+
+        onNodeOfType<JTextArea>().assertTextEquals("hello")
+    }
+
+    @Test
+    fun aRawTextPaneEditTheCallerDoesNotAdoptIsSettledBack() = runComposeSwingTest {
+        val listener = documentChangeListener {}
+        setContent { TextPane(value = "hello", documentListener = listener) }
+
+        onNodeOfType<JTextPane>().fetch().type("!")
+        awaitIdle()
+
+        onNodeOfType<JTextPane>().assertTextEquals("hello")
+    }
+
+    @Test
+    fun aRawFormattedCommitTheCallerDoesNotAdoptIsSettledBack() = runComposeSwingTest {
+        val listener = PropertyChangeListener {}
+        setContent {
+            val factory = remember { integerFactory() }
+            FormattedTextField(
+                value = 1,
+                valuePropertyChangeListener = listener,
+                formatterFactory = factory,
+            )
+        }
+
+        val field = onNodeOfType<JFormattedTextField>().fetch()
+        field.text = "250"
+        field.commitEdit()
+        awaitIdle()
+
+        assertEquals(1, field.value, "the wrapper's own mirror settles the commit back with no callback in play")
     }
 
     @Test
     fun aNestedWriteKeepsTheOuterOneSilent() {
-        // No wrapper nests a write of its own inside another, so the write is driven directly here to
-        // hold it to the nesting its callers may rely on.
+        // No wrapper nests a write inside another, so this drives AppliedValue directly to pin the
+        // nesting behavior callers may rely on.
         val reported = mutableListOf<String>()
         val document = PlainDocument()
         val applied = AppliedValue(Unit)
@@ -357,8 +411,7 @@ private class RefusingFilter : DocumentFilter() {
     ): Unit = error("the document refuses this write")
 }
 
-// A formatter for integer values: it renders an Int, reads one back, and refuses a value of any other
-// type - the way a formatter written for one value class treats a value it cannot render.
+// Formats Int values only: renders an Int, parses one back, and refuses any other type.
 private class IntOnlyFormatter : JFormattedTextField.AbstractFormatter() {
     override fun stringToValue(text: String?): Any = text?.trim()?.toIntOrNull() ?: throw ParseException(text, 0)
 

@@ -25,8 +25,14 @@ class StateTextAreaTest {
             TextArea(state = state)
         }
 
-        val area = onNodeOfType<JTextArea>().fetch()
-        assertSame(state.document, area.document, "the area must render the state's own document")
+        // Sharing one document means an edit made through either side is what the other renders: a write
+        // through the state reaches the area, and typing in the area reaches the state.
+        state.edit { append(" grown") }
+        awaitIdle()
+        onNodeOfType<JTextArea>().assertTextEquals("seed grown")
+
+        onNodeOfType<JTextArea>().performTextReplacement("typed")
+        assertEquals("typed", state.text.toString())
     }
 
     @Test
