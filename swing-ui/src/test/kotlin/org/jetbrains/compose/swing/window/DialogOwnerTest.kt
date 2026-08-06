@@ -18,6 +18,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Behavioural tests for the window a [Dialog] names as its owner: the named window owns the dialog
@@ -136,7 +137,7 @@ class DialogOwnerTest {
         try {
             // A window is centered on another's bounds only while that other is on screen; before that it
             // contributes nothing but its screen.
-            waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { named.isShowing }
+            waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { named.isShowing }
             val state = DialogState(position = WindowPosition.CenteredOnOwner, size = Dimension(240, 160))
             setContent {
                 Dialog(
@@ -212,7 +213,7 @@ private fun assertNearOwner(
  * Wall-clock deadline for conditions gated on native window-system notifications, which arrive with
  * real latency - including window-manager animations.
  */
-private const val NATIVE_EVENT_TIMEOUT_MILLIS = 10_000L
+private val NATIVE_EVENT_TIMEOUT = 10.seconds
 
 /** Slack allowed on a realized placement, in pixels. */
 private const val OWNER_POSITION_TOLERANCE_PIXELS = 4

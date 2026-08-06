@@ -133,15 +133,26 @@ onNodeWithTag("submit")
     .assertTextEquals("Submit")
 ```
 
-When you need to read a property the assertions do not cover, reach the live component with the typed
-`fetch<T>()` and assert on it directly:
+A check that is not one of the named assertions is still asserted through the node: `assert(matcher)`
+takes any `SwingMatcher`, so the failure message keeps the finder's context:
+
+```kotlin
+onNodeOfType<JCheckBox>().assert(SwingMatcher.isSelected())
+```
+
+`fetch<T>()` hands back the live component itself. Its purpose is the comparison only the component
+can answer: that the widget settled on the value the composition declared, or that the same instance
+survived a recomposition:
 
 ```kotlin
 import javax.swing.JList
 
 val list = onNodeOfType<JList<*>>().fetch<JList<*>>()
-assertEquals(2, list.selectedIndex)
+assertEquals(2, list.selectedIndex, "the declared selection is the one the widget holds")
 ```
+
+Prefer an assertion or a matcher wherever one covers the property, and reach for `fetch<T>()` where
+the Swing side of the contract is itself the subject.
 
 ### Menus
 
@@ -179,33 +190,28 @@ onNodeWithText("Save").performClick()
 ### Tabs
 
 A tabbed pane's strip is drawn by the look and feel rather than built from child components, so there
-is no node to find for a tab. `performTabClick(index)` aims a real click at the tab, and the pane's own
-UI turns it into a selection — which is what reaches the pane's listeners, and so a wrapper's
-callbacks. Writing the pane's selected index instead would be indistinguishable from the write the
-composition itself makes.
+is no node to find for a tab. `performTabClick(index)` aims a real click at it instead: writing the
+pane's selected index directly would be the composition's own write, not a user's, and a wrapper that
+tells the two apart could not be tested that way. A tab the strip does not currently show has no
+position to click; the action says so rather than landing on nothing.
 
 ```kotlin
 onNodeOfType<JTabbedPane>().performTabClick(2)
 ```
 
-A tab the strip does not currently show has no position to click; the action says so rather than
-landing on nothing.
-
 ### Focus
 
-A focus notification and focus ownership are two different things off-screen, and the harness keeps
-them apart. `performFocusGained()` and `performFocusLost()` deliver a notification to the component, so
-behaviour a widget drives from a focus change — reformatting a value, committing an edit — happens and
-can be asserted without a display. Ownership is the windowing system's: it is held by a component of
-the focused window, so under the harness root, which is attached to no window, `assertIsFocusOwner()`
-never holds. Assert ownership only for a composition hosted in a realized, focused window — and note
-that whether a window becomes focused is the window system's decision, not the test's: a process it
-declines to activate shows and lays out windows normally while none of them ever becomes focused. Wait
-for the window to report itself focused and skip the test with a JUnit assumption when it never does, so
-such an environment reports SKIPPED instead of failing. Focus can also be taken away again once
-granted, so hold the same assumption over every later wait: a window that is no longer the focused one
-is the environment withdrawing what ownership needs, while a focused window whose keyboard went to a
-component the test did not expect is a real failure and belongs in a plain assertion.
+A focus notification and focus ownership are two different things off-screen. `performFocusGained()`
+and `performFocusLost()` deliver a notification to the component without a display. `assertIsFocusOwner()`
+needs real ownership, which only a realized, focused window can grant — never the harness root.
+
+Whether a window becomes focused is the window system's decision, not the test's. A process the window
+system declines to activate still shows and lays out its windows; none of them ever becomes focused.
+Wait for the window to report itself focused, and skip the test with a JUnit assumption when it never
+does, so such an environment reports SKIPPED instead of failing. Hold the same assumption over every
+later wait, too: focus can be taken away again once granted, and a window that is no longer the focused
+one is the environment withdrawing what ownership needs. A focused window whose keyboard went to a
+component the test did not expect is a different case — a real failure, asserted plainly.
 
 ```kotlin
 onNodeWithTag("amount").performFocusLost()
@@ -215,9 +221,9 @@ onNodeWithTag("amount").assertTextEquals("42.00")
 ## Callback failures
 
 A callback that throws while a wrapper is writing to its widget - settling a value the widget clamped to
-its own grid or range, for instance - does not end the composition: the write finishes and the failure is
-contained rather than left to end whichever coroutine happens to observe it. Left untaken, such a failure
-still fails the test at teardown, naming the callback that never finished its job.
+its own grid or range, for instance - is contained instead of failing the test on the spot. The write
+finishes and the composition keeps working, so a test may go on writing state, recomposing and asserting
+after the throw. Left untaken, the failure still fails the test at teardown, naming the callback.
 
 A test that provokes one on purpose takes it with `takeCallerFailures()` and asserts on it directly; what
 it takes no longer fails the test:
@@ -245,8 +251,8 @@ fun aThrowingCallbackIsContainedAndReported() = runComposeSwingTest {
 
 Content that composes `Window { }` or `Dialog { }` realizes a real top-level peer, which needs a
 display: start such a test with a JUnit assumption,
-`Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), …)`, so it reports SKIPPED on headless CI
-and runs everywhere else.
+`Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(), …)`, so it reports SKIPPED where there is
+no display and runs everywhere else.
 
 Window finders resolve against every window currently realized in the test JVM, whether or not it
 is shown:
@@ -305,6 +311,43 @@ onNodeOfType<JLabel>().assertTextEquals("not recomposed yet")
 awaitIdle()
 onNodeOfType<JLabel>().assertTextEquals("recomposed")
 ```
+
+### Driving frames by hand
+
+`awaitIdle()` reaches a settled composition by sending it frames, so anything driven by
+`withFrameNanos` — an animation, most of all — has already run to completion by the time a test looks
+at it. `mainClock` hands that decision to the test:
+
+```kotlin
+mainClock.autoAdvance = false
+setContent { /* ... */ }
+
+mainClock.advanceTimeBy(150.milliseconds)
+awaitIdle()
+onNodeOfType<JLabel>().assertTextEquals("halfway")
+```
+
+With `autoAdvance` off, `awaitIdle()` — and `waitUntil { … }` with it — drains pending recomposition,
+snapshot and event-dispatch work but produces no frame of its own, so it returns on exactly the state
+a frame would have moved past.
+`advanceTimeByFrame()` sends one frame; `advanceTimeBy(duration)` steps in whole frames until
+`currentTime` has advanced by at least `duration`, or delivers the whole span as a single frame with
+`ignoreFrameDuration = true`; `advanceTimeUntil { … }` sends frames until a condition holds, failing
+once it has advanced past its `timeout` of composition time. `frameDuration` is one frame of a 60Hz
+display — the step every frame the harness sends advances composition time by, not the host display's
+refresh rate.
+
+The clock governs the test's own off-screen composition. Content composed under a real `Window` or
+`Dialog` recomposes on that window's recomposer, paced by its display, and is unaffected.
+
+### What an unrealized tree does not do
+
+The harness root is never attached to a window, so nothing composed in it is ever *displayable*, and
+the Swing wiring that happens on `addNotify` does not run. The visible case is a `Table` inside a
+`ScrollPane`: `JTable` installs its own header on the enclosing scroll pane from `addNotify`, so
+off-screen there is no `columnHeader` view to find and no header to click. The table's sorting,
+selection and column model all behave normally — only the header component is absent. A test that
+needs it should compose the content under a `Window { }`, which realizes a real peer.
 
 ## Screenshot comparison
 

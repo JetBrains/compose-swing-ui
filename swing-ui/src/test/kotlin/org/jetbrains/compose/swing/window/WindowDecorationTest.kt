@@ -21,6 +21,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotSame
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Behavioural tests covering the platform decorations of a [Window] and a [Dialog]: a peer declared
@@ -239,14 +240,14 @@ class WindowDecorationTest {
         val window = onWindowWithTitle("extended-state-replacement-test")
         val realized = window.fetch<JFrame>()
         state.extendedState = Frame.MAXIMIZED_BOTH
-        waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { realized.extendedState == Frame.MAXIMIZED_BOTH }
+        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { realized.extendedState == Frame.MAXIMIZED_BOTH }
 
         undecorated = false
         awaitIdle()
 
         val replacement = window.fetch<JFrame>()
         assertNotSame(realized, replacement, "a decoration change must realize a replacement window")
-        waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { replacement.extendedState == Frame.MAXIMIZED_BOTH }
+        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { replacement.extendedState == Frame.MAXIMIZED_BOTH }
         assertEquals(
             Frame.MAXIMIZED_BOTH,
             replacement.extendedState,
@@ -307,7 +308,7 @@ class WindowDecorationTest {
         val replacement = window.fetch<JFrame>()
         assertNotSame(realized, replacement, "a decoration change must realize a replacement window")
         replacement.size = Dimension(640, 480)
-        waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { state.size == Dimension(640, 480) }
+        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { state.size == Dimension(640, 480) }
         assertEquals(
             Dimension(640, 480),
             state.size,
@@ -341,7 +342,7 @@ class WindowDecorationTest {
         val replacement = window.fetch<JFrame>()
         assertNotSame(realized, replacement, "a decoration change must realize a replacement window")
         replacement.extendedState = Frame.MAXIMIZED_BOTH
-        waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { state.extendedState == Frame.MAXIMIZED_BOTH }
+        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { state.extendedState == Frame.MAXIMIZED_BOTH }
         assertEquals(
             Frame.MAXIMIZED_BOTH,
             state.extendedState,
@@ -354,4 +355,4 @@ class WindowDecorationTest {
  * Wall-clock deadline for conditions gated on native window-system notifications (moves, resizes,
  * maximize transitions), which arrive with real latency - including window-manager animations.
  */
-private const val NATIVE_EVENT_TIMEOUT_MILLIS = 10_000L
+private val NATIVE_EVENT_TIMEOUT = 10.seconds

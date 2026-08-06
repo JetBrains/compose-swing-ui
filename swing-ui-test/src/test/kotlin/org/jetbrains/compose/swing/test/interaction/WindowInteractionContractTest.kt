@@ -23,6 +23,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Pins the failure contracts of the window-query surface and the remaining window-scoped finders.
@@ -185,7 +186,7 @@ class WindowInteractionContractTest {
 
         val failure =
             assertFailsWith<AssertionError> {
-                waitUntil(timeoutMillis = WAIT_TIMEOUT_MILLIS) { false }
+                waitUntil(timeout = WAIT_TIMEOUT) { false }
             }
         val message = failure.message.orEmpty()
         assertTrue(
@@ -214,6 +215,6 @@ class WindowInteractionContractTest {
     private companion object {
         // Short enough to keep the suite quick; the condition is never true, so the wait always
         // runs to its deadline.
-        const val WAIT_TIMEOUT_MILLIS: Long = 100
+        val WAIT_TIMEOUT = 100.milliseconds
     }
 }

@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.toolTip
+import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -21,7 +22,8 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * Behavioral tests for [DesktopPane] over a real [SwingApplier]. Each assertion reads the rendered
+ * Behavioral tests for [DesktopPane] over a real
+ * [SwingApplier][org.jetbrains.compose.swing.node.SwingApplier]. Each assertion reads the rendered
  * [JDesktopPane] and its [JInternalFrame] children: a declared frame is hosted with its title, bounds,
  * controls, and modifier; frames are added and removed dynamically; metadata updates on recomposition;
  * and the close control routes through `onClose` while leaving the frame in place until the composition
@@ -53,8 +55,8 @@ class DesktopPaneBehaviorTest {
         }
 
         onAllNodesOfType<JInternalFrame>().assertCountEquals(1)
+        onNodeOfType<JInternalFrame>().assert(SwingMatcher.hasTitle("Editor"))
         val frame = onNodeOfType<JInternalFrame>().fetch()
-        assertEquals("Editor", frame.title, "the frame should carry its declared title")
         assertEquals(Rectangle(10, 20, 300, 200), frame.bounds, "the frame should take its declared bounds")
         onNodeOfType<JInternalFrame>().assertIsVisible()
         assertTrue(frame.isClosable, "the frame should be closable as declared")
@@ -86,11 +88,7 @@ class DesktopPaneBehaviorTest {
         showSecond = false
         awaitIdle()
         onAllNodesOfType<JInternalFrame>().assertCountEquals(1)
-        assertEquals(
-            "One",
-            onNodeOfType<JInternalFrame>().fetch().title,
-            "the frame still declared is the one that should have survived",
-        )
+        onNodeOfType<JInternalFrame>().assert(SwingMatcher.hasTitle("One"))
 
         showSecond = true
         awaitIdle()

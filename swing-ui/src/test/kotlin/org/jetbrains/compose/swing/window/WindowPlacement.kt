@@ -4,6 +4,7 @@ import org.jetbrains.compose.swing.test.ComposeSwingTest
 import java.awt.Point
 import java.awt.Window
 import java.awt.event.ComponentEvent
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Places this window at [location] and notifies the move, the way a window system placing a window
@@ -87,7 +88,7 @@ internal suspend fun ComposeSwingTest.moveWindowLikeAUser(
     target: Point,
     settled: () -> Boolean,
 ) {
-    waitUntil(timeoutMillis = USER_MOVE_TIMEOUT_MILLIS) {
+    waitUntil(timeout = USER_MOVE_TIMEOUT) {
         window.placeAt(target)
         settled()
     }
@@ -98,4 +99,4 @@ internal suspend fun ComposeSwingTest.moveWindowLikeAUser(
  * window system takes to put a window on screen is its own affair and varies from run to run. The wait
  * ends on its next check once the move has landed, so its length costs a quicker run nothing.
  */
-private const val USER_MOVE_TIMEOUT_MILLIS = 10_000L
+private val USER_MOVE_TIMEOUT = 10.seconds

@@ -15,6 +15,7 @@ import javax.swing.JDialog
 import javax.swing.JFrame
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Behavioural tests asserting that the `state` argument of a [Window] or [Dialog] is reactive in both
@@ -36,7 +37,7 @@ class WindowStateHoistingTest {
         assertEquals(Dimension(320, 240), frame.size, "the frame must realize with the geometry of the declared state")
 
         state = second
-        waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { frame.size == Dimension(480, 360) }
+        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { frame.size == Dimension(480, 360) }
         assertEquals(
             Dimension(480, 360),
             frame.size,
@@ -44,7 +45,7 @@ class WindowStateHoistingTest {
         )
 
         state = first
-        waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { frame.size == Dimension(320, 240) }
+        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { frame.size == Dimension(320, 240) }
         assertEquals(
             Dimension(320, 240),
             frame.size,
@@ -62,10 +63,10 @@ class WindowStateHoistingTest {
         val frame = onWindow().fetch<JFrame>()
 
         state = second
-        waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { frame.size == Dimension(480, 360) }
+        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { frame.size == Dimension(480, 360) }
 
         frame.size = Dimension(640, 480)
-        waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { second.size == Dimension(640, 480) }
+        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { second.size == Dimension(640, 480) }
         assertEquals(
             Dimension(640, 480),
             second.size,
@@ -92,10 +93,10 @@ class WindowStateHoistingTest {
         val frame = onWindow().fetch<JFrame>()
 
         state = second
-        waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { frame.size == Dimension(480, 360) }
+        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { frame.size == Dimension(480, 360) }
 
         frame.extendedState = Frame.MAXIMIZED_BOTH
-        waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { second.extendedState == Frame.MAXIMIZED_BOTH }
+        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { second.extendedState == Frame.MAXIMIZED_BOTH }
         assertEquals(
             Frame.MAXIMIZED_BOTH,
             second.extendedState,
@@ -123,7 +124,7 @@ class WindowStateHoistingTest {
         )
 
         state = second
-        waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { dialog.size == Dimension(520, 420) }
+        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { dialog.size == Dimension(520, 420) }
         assertEquals(
             Dimension(520, 420),
             dialog.size,
@@ -131,7 +132,7 @@ class WindowStateHoistingTest {
         )
 
         state = first
-        waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { dialog.size == Dimension(360, 260) }
+        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { dialog.size == Dimension(360, 260) }
         assertEquals(
             Dimension(360, 260),
             dialog.size,
@@ -149,10 +150,10 @@ class WindowStateHoistingTest {
         val dialog = onWindow().fetch<JDialog>()
 
         state = second
-        waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { dialog.size == Dimension(520, 420) }
+        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { dialog.size == Dimension(520, 420) }
 
         dialog.size = Dimension(640, 480)
-        waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { second.size == Dimension(640, 480) }
+        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { second.size == Dimension(640, 480) }
         assertEquals(
             Dimension(640, 480),
             second.size,
@@ -170,4 +171,4 @@ class WindowStateHoistingTest {
  * Wall-clock deadline for conditions gated on native window-system notifications (moves, resizes,
  * maximize transitions), which arrive with real latency - including window-manager animations.
  */
-private const val NATIVE_EVENT_TIMEOUT_MILLIS = 10_000L
+private val NATIVE_EVENT_TIMEOUT = 10.seconds

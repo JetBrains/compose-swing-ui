@@ -16,6 +16,7 @@ import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Behavioural tests asserting that a centering [WindowPosition] places a realized peer:
@@ -74,7 +75,7 @@ class WindowCenteringTest {
         val owner = onWindowWithTitle("centering-owner").fetch<JFrame>()
         // A window is centered on its owner's bounds only while the owner is on screen; before that
         // the owner contributes nothing but its screen. Compose the dialog once the owner is showing.
-        waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { owner.isShowing }
+        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { owner.isShowing }
         dialogComposed = true
         awaitIdle()
         val dialog = onWindowWithTitle("centered-on-owner").fetch<JDialog>()
@@ -107,7 +108,7 @@ class WindowCenteringTest {
             }
         }
         val owner = onWindowWithTitle("screen-centering-owner").fetch<JFrame>()
-        waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { owner.isShowing }
+        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { owner.isShowing }
         dialogComposed = true
         awaitIdle()
         val dialog = onWindowWithTitle("owned-centered-on-screen").fetch<JDialog>()
@@ -130,7 +131,7 @@ class WindowCenteringTest {
         }
         val frame = onWindow().fetch<JFrame>()
         // The placement travels back on a component-moved event, delivered on a later dispatch.
-        waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { state.position is WindowPosition.Absolute }
+        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { state.position is WindowPosition.Absolute }
         assertEquals(
             WindowPosition.Absolute(frame.x, frame.y),
             state.position,
@@ -159,7 +160,7 @@ private fun assertNear(
  * Wall-clock deadline for conditions gated on native window-system notifications (moves, resizes,
  * maximize transitions), which arrive with real latency - including window-manager animations.
  */
-private const val NATIVE_EVENT_TIMEOUT_MILLIS = 10_000L
+private val NATIVE_EVENT_TIMEOUT = 10.seconds
 
 /** Slack allowed on a realized placement, in pixels. */
 private const val POSITION_TOLERANCE_PIXELS = 4

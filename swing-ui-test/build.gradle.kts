@@ -25,12 +25,25 @@ kotlin {
     }
 }
 
+lint {
+    // This module is test infrastructure. An API marked visible for testing - androidx's
+    // LifecycleRegistry.createUnsafe among them - is reached here by the audience it was widened for,
+    // never from production code.
+    disable += "VisibleForTests"
+}
+
 dependencies {
     api(project(":swing-ui"))
     api(libs.composeRuntime)
     api(kotlin("test"))
     api(libs.kotlinxCoroutinesTest)
     api(libs.kotlinxCoroutinesSwing)
+    // @Nls localisation annotations. CLASS/IDE-only: compileOnly so they warn consumers in-IDE across
+    // the jar boundary without leaking org.jetbrains:annotations to the published runtime.
+    compileOnly(libs.jetbrainsAnnotations)
+    // The harness's own tests drive real animations to show what manual frame control does to one.
+    // Test-only: the published harness does not depend on the animation module.
+    testImplementation(project(":swing-ui-animation"))
 }
 
 jacocoCoverage {

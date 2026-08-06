@@ -12,6 +12,7 @@ import java.awt.Point
 import javax.swing.JDialog
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Behavioural tests asserting that [Dialog] geometry is two-way with the realized [JDialog]:
@@ -44,14 +45,14 @@ class DialogGeometryTest {
         // Moving a realized dialog is an asynchronous native reshape; wait for it to reach the declared
         // placement rather than assert right after the compose frame that requests it.
         state.position = WindowPosition.Absolute(240, 170)
-        waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { dialog.location == Point(240, 170) }
+        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { dialog.location == Point(240, 170) }
         assertEquals(
             Point(240, 170),
             dialog.location,
             "the dialog must move to the position the state takes after the first apply",
         )
         state.position = WindowPosition.Absolute(140, 90)
-        waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { dialog.location == Point(140, 90) }
+        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { dialog.location == Point(140, 90) }
         assertEquals(
             Point(140, 90),
             dialog.location,
@@ -69,7 +70,7 @@ class DialogGeometryTest {
         state.size = Dimension(520, 420)
         // Applying size to the peer is an asynchronous native resize; wait for the dialog to reach the
         // target rather than assert right after the compose frame that requests it.
-        waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { dialog.size == Dimension(520, 420) }
+        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { dialog.size == Dimension(520, 420) }
         assertEquals(Dimension(520, 420), dialog.size)
     }
 
@@ -81,7 +82,7 @@ class DialogGeometryTest {
         val dialog = onWindow().fetch<JDialog>()
         assertEquals(Dimension(360, 260), dialog.size, "the dialog must realize with the size the state holds")
         state.width = 520
-        waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { dialog.size == Dimension(520, 260) }
+        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { dialog.size == Dimension(520, 260) }
         assertEquals(
             Dimension(520, 260),
             dialog.size,
@@ -97,7 +98,7 @@ class DialogGeometryTest {
         val dialog = onWindow().fetch<JDialog>()
         assertEquals(Dimension(360, 260), dialog.size, "the dialog must realize with the size the state holds")
         state.height = 420
-        waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { dialog.size == Dimension(360, 420) }
+        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { dialog.size == Dimension(360, 420) }
         assertEquals(
             Dimension(360, 420),
             dialog.size,
@@ -143,7 +144,7 @@ class DialogGeometryTest {
         // The native resize settles asynchronously, and a stale resize event can momentarily echo the
         // prior size back into the state before the resize completes; wait for the dialog AND the state
         // to both reach the assigned size rather than catch that transient.
-        waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) {
+        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) {
             dialog.size == Dimension(520, 420) && state.size == Dimension(520, 420)
         }
         assertEquals(
@@ -165,7 +166,7 @@ class DialogGeometryTest {
         setContent { Dialog(onCloseRequest = {}, state = state, title = "dialog-user-resize") {} }
         val dialog = onWindow().fetch<JDialog>()
         dialog.size = Dimension(640, 480)
-        waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { state.size == Dimension(640, 480) }
+        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { state.size == Dimension(640, 480) }
         assertEquals(Dimension(640, 480), state.size)
     }
 
@@ -195,7 +196,7 @@ class DialogGeometryTest {
         // The native resize settles asynchronously, and a stale resize event can momentarily echo the
         // prior size back into the state before the resize completes; wait for the dialog AND the state
         // to both reach the assigned size rather than catch that transient.
-        waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) {
+        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) {
             dialog.size == Dimension(640, 480) && state.size == Dimension(640, 480)
         }
         assertEquals(Dimension(640, 480), dialog.size)
@@ -251,4 +252,4 @@ class DialogGeometryTest {
  * Wall-clock deadline for conditions gated on native window-system notifications (moves, resizes,
  * maximize transitions), which arrive with real latency - including window-manager animations.
  */
-private const val NATIVE_EVENT_TIMEOUT_MILLIS = 10_000L
+private val NATIVE_EVENT_TIMEOUT = 10.seconds

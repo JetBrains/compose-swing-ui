@@ -1,6 +1,8 @@
 public abstract interface class org/jetbrains/compose/swing/test/ComposeSwingTest {
 	public abstract fun awaitEventsDelivered (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun awaitIdle (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun getLifecycleState ()Landroidx/lifecycle/Lifecycle$State;
+	public abstract fun getMainClock ()Lorg/jetbrains/compose/swing/test/MainTestClock;
 	public abstract fun getRoot ()Ljava/awt/Container;
 	public abstract fun onAllNodes (Lorg/jetbrains/compose/swing/test/SwingMatcher;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;
 	public abstract fun onAllNodesWithTag (Ljava/lang/String;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;
@@ -15,9 +17,10 @@ public abstract interface class org/jetbrains/compose/swing/test/ComposeSwingTes
 	public abstract fun onRoot ()Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
 	public abstract fun onWindow (Lorg/jetbrains/compose/swing/test/SwingMatcher;)Lorg/jetbrains/compose/swing/test/interaction/SwingWindowInteraction;
 	public abstract fun setContent (Lkotlin/jvm/functions/Function2;)V
+	public abstract fun setLifecycleState (Landroidx/lifecycle/Lifecycle$State;)V
 	public abstract fun takeCallerFailures ()Ljava/util/List;
-	public abstract fun waitUntil (JLkotlin/jvm/functions/Function0;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public static synthetic fun waitUntil$default (Lorg/jetbrains/compose/swing/test/ComposeSwingTest;JLkotlin/jvm/functions/Function0;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public abstract fun waitUntil-KLykuaI (JLkotlin/jvm/functions/Function0;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun waitUntil-KLykuaI$default (Lorg/jetbrains/compose/swing/test/ComposeSwingTest;JLkotlin/jvm/functions/Function0;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 }
 
 public final class org/jetbrains/compose/swing/test/ComposeSwingTestKt {
@@ -26,6 +29,18 @@ public final class org/jetbrains/compose/swing/test/ComposeSwingTestKt {
 	public static final fun onWindowWithTitle (Lorg/jetbrains/compose/swing/test/ComposeSwingTest;Ljava/lang/String;)Lorg/jetbrains/compose/swing/test/interaction/SwingWindowInteraction;
 	public static final fun runComposeSwingTest-8Mi8wO0 (Ljava/awt/Dimension;JLkotlin/jvm/functions/Function2;)V
 	public static synthetic fun runComposeSwingTest-8Mi8wO0$default (Ljava/awt/Dimension;JLkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
+}
+
+public abstract interface class org/jetbrains/compose/swing/test/MainTestClock {
+	public abstract fun advanceTimeBy-VtjQ1oo (JZ)V
+	public static synthetic fun advanceTimeBy-VtjQ1oo$default (Lorg/jetbrains/compose/swing/test/MainTestClock;JZILjava/lang/Object;)V
+	public abstract fun advanceTimeByFrame ()V
+	public abstract fun advanceTimeUntil-KLykuaI (JLkotlin/jvm/functions/Function0;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun advanceTimeUntil-KLykuaI$default (Lorg/jetbrains/compose/swing/test/MainTestClock;JLkotlin/jvm/functions/Function0;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public abstract fun getAutoAdvance ()Z
+	public abstract fun getCurrentTime-UwyO8pc ()J
+	public abstract fun getFrameDuration-UwyO8pc ()J
+	public abstract fun setAutoAdvance (Z)V
 }
 
 public final class org/jetbrains/compose/swing/test/SwingMatcher {

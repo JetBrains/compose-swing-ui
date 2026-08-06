@@ -25,6 +25,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotSame
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Behavioural tests asserting that a [Dialog] declaration is reactive: mutating Compose state that
@@ -311,7 +312,7 @@ class DialogReactivityTest {
             dialog.onNodeWithText("dialog-reowned-content").assertExists()
 
             replacement.size = Dimension(520, 420)
-            waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { state.size == Dimension(520, 420) }
+            waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { state.size == Dimension(520, 420) }
             assertEquals(
                 Dimension(520, 420),
                 state.size,
@@ -341,4 +342,4 @@ class DialogReactivityTest {
  * Wall-clock deadline for conditions gated on native window-system notifications (resizes), which
  * arrive with real latency.
  */
-private const val NATIVE_EVENT_TIMEOUT_MILLIS = 10_000L
+private val NATIVE_EVENT_TIMEOUT = 10.seconds

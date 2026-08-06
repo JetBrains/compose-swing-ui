@@ -7,13 +7,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import org.jetbrains.compose.swing.components.Label
+import javax.swing.SwingUtilities
 import kotlin.test.Test
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
- * Pins the frame bound the two settling gates - [ComposeSwingTest.setContent]'s initial settle and
- * [ComposeSwingTest.awaitIdle] - give up at.
+ * Pins the frame bound the settling gates - [ComposeSwingTest.setContent]'s initial settle,
+ * [ComposeSwingTest.awaitIdle] and [MainTestClock.advanceTimeByFrame] - give up at.
  *
  * A composition that produces fresh work on every frame is never quiescent, so a gate that waited for
  * quiescence with no bound would keep sending frames until the surrounding test framework's timeout,
@@ -83,6 +84,38 @@ class SettleFrameBoundTest {
             "the failure should report the outstanding work it gave up on: $message",
         )
         assertTrue(message.contains("restless for"), "the failure should carry a dump of the tree: $message")
+    }
+
+    @Test
+    fun advanceTimeByFrameFailsReadablyForAQueueThatNeverQuiesces() = runComposeSwingTest {
+        setContent { Label(text = "spinning") }
+
+        // advanceTimeByFrame sends exactly one frame and then only drains the event queue, so a
+        // composition-driven restless effect settles it (parked awaiting the next explicit frame); only
+        // a queue that never empties - not a frame count - can keep the drain from finding it idle. The
+        // flag stops the chain once the gate has given up, so it does not outlive this test.
+        var reposting = true
+        lateinit var repost: Runnable
+        repost = Runnable { if (reposting) SwingUtilities.invokeLater(repost) }
+        SwingUtilities.invokeLater(repost)
+
+        val failure =
+            try {
+                assertFailsWith<AssertionError> { mainClock.advanceTimeByFrame() }
+            } finally {
+                reposting = false
+            }
+
+        val message = failure.message.orEmpty()
+        assertTrue(
+            message.contains("mainClock.advanceTimeByFrame did not settle"),
+            "the failure should name the real caller: $message",
+        )
+        assertTrue(
+            message.contains("drain passes following one frame"),
+            "the failure should describe passes after a single frame, not a frame count: $message",
+        )
+        assertTrue(message.contains("spinning"), "the failure should carry a dump of the tree: $message")
     }
 
     private companion object {

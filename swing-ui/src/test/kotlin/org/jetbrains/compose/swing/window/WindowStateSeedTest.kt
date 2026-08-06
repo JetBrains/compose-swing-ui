@@ -17,6 +17,7 @@ import javax.swing.JDialog
 import javax.swing.JFrame
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Behavioural tests asserting that the arguments of [rememberWindowState] and [rememberDialogState] are
@@ -56,7 +57,7 @@ class WindowStateSeedTest {
         assertEquals(placement, frame.location, "a later seed must not move the frame")
 
         state.size = Dimension(500, 400)
-        waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { frame.size == Dimension(500, 400) }
+        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { frame.size == Dimension(500, 400) }
         assertEquals(
             Dimension(500, 400),
             frame.size,
@@ -127,7 +128,7 @@ class WindowStateSeedTest {
         assertEquals(placement, dialog.location, "a later seed must not move the dialog")
 
         state.size = Dimension(520, 420)
-        waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { dialog.size == Dimension(520, 420) }
+        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { dialog.size == Dimension(520, 420) }
         assertEquals(
             Dimension(520, 420),
             dialog.size,
@@ -140,4 +141,4 @@ class WindowStateSeedTest {
  * Wall-clock deadline for conditions gated on native window-system notifications (moves, resizes,
  * maximize transitions), which arrive with real latency - including window-manager animations.
  */
-private const val NATIVE_EVENT_TIMEOUT_MILLIS = 10_000L
+private val NATIVE_EVENT_TIMEOUT = 10.seconds

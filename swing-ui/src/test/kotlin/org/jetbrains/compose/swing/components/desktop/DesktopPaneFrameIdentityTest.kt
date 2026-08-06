@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.test.SwingMatcher.Companion.hasAnyDescendant
 import org.jetbrains.compose.swing.test.SwingMatcher.Companion.hasText
+import org.jetbrains.compose.swing.test.SwingMatcher.Companion.hasTitle
 import org.jetbrains.compose.swing.test.SwingMatcher.Companion.isOfType
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -53,8 +54,8 @@ class DesktopPaneFrameIdentityTest {
         awaitIdle()
 
         onAllNodesOfType<JInternalFrame>().assertCountEquals(1)
+        onNodeOfType<JInternalFrame>().assert(hasTitle("Console"))
         val survivor = onNodeOfType<JInternalFrame>().fetch()
-        assertEquals("Console", survivor.title, "only the frame still declared should remain")
         assertSame(console, survivor, "the surviving frame should be the window the user dragged")
         assertEquals(
             Rectangle(DRAGGED_X, DRAGGED_Y, 120, 90),
@@ -86,8 +87,8 @@ class DesktopPaneFrameIdentityTest {
         awaitIdle()
 
         onAllNodesOfType<JInternalFrame>().assertCountEquals(1)
+        onNodeOfType<JInternalFrame>().assert(hasTitle("Console"))
         val survivor = onNodeOfType<JInternalFrame>().fetch()
-        assertEquals("Console", survivor.title, "only the frame still declared should remain")
         assertSame(consoleFrame, survivor, "the surviving frame should be the window the user dragged")
         assertEquals(
             Rectangle(DRAGGED_X, DRAGGED_Y, 120, 90),

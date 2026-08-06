@@ -18,6 +18,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Behavioural tests for [WindowPosition.CenteredOn], the position that names the window to center on:
@@ -75,7 +76,7 @@ class WindowPositionCenteredOnTest {
         // screen instead of on the window it names lands elsewhere and fails the assertion.
         val named = shownFrame("centered-on-reference", Rectangle(screen.x + 40, screen.y + 40, 480, 360))
         try {
-            waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { named.isShowing }
+            waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { named.isShowing }
             val state = WindowState(position = WindowPosition.CenteredOn(named), size = Dimension(240, 160))
             setContent { Window(onCloseRequest = {}, state = state, title = "centered-on-follower") {} }
 
@@ -99,7 +100,7 @@ class WindowPositionCenteredOnTest {
         val first = shownFrame("centered-on-first", Rectangle(screen.x + 40, screen.y + 40, 480, 360))
         val second = shownFrame("centered-on-second", Rectangle(screen.x + 560, screen.y + 40, 480, 360))
         try {
-            waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { first.isShowing && second.isShowing }
+            waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { first.isShowing && second.isShowing }
             val state = WindowState(position = WindowPosition.CenteredOn(first), size = Dimension(240, 160))
             setContent { Window(onCloseRequest = {}, state = state, title = "centered-on-reowned-follower") {} }
 
@@ -108,7 +109,7 @@ class WindowPositionCenteredOnTest {
 
             // The resolved placement travels back into the state, so the next declaration is made over
             // the coordinates the first one settled on rather than racing them.
-            waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { state.position is WindowPosition.Absolute }
+            waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { state.position is WindowPosition.Absolute }
             state.position = WindowPosition.CenteredOn(second)
             awaitIdle()
             assertCenteredOn(
@@ -128,13 +129,13 @@ class WindowPositionCenteredOnTest {
         val screen = GraphicsEnvironment.getLocalGraphicsEnvironment().maximumWindowBounds
         val named = shownFrame("centered-on-write-back-reference", Rectangle(screen.x + 40, screen.y + 40, 480, 360))
         try {
-            waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { named.isShowing }
+            waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { named.isShowing }
             val state = WindowState(position = WindowPosition.CenteredOn(named), size = Dimension(240, 160))
             setContent { Window(onCloseRequest = {}, state = state, title = "centered-on-write-back") {} }
 
             val follower = onWindowWithTitle("centered-on-write-back").fetch<JFrame>()
             // The placement travels back on a component-moved event, delivered on a later dispatch.
-            waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { state.position is WindowPosition.Absolute }
+            waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { state.position is WindowPosition.Absolute }
             assertEquals(
                 WindowPosition.Absolute(follower.x, follower.y),
                 state.position,
@@ -151,19 +152,19 @@ class WindowPositionCenteredOnTest {
         val screen = GraphicsEnvironment.getLocalGraphicsEnvironment().maximumWindowBounds
         val named = shownFrame("centered-on-moving-reference", Rectangle(screen.x + 40, screen.y + 40, 480, 360))
         try {
-            waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { named.isShowing }
+            waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { named.isShowing }
             val state = WindowState(position = WindowPosition.CenteredOn(named), size = Dimension(240, 160))
             setContent { Window(onCloseRequest = {}, state = state, title = "centered-on-standing-still") {} }
 
             val follower = onWindowWithTitle("centered-on-standing-still").fetch<JFrame>()
             // Wait for the resolved placement to reach the state: only then does declaring the centering
             // again ask for something the state does not already hold.
-            waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { state.position is WindowPosition.Absolute }
+            waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { state.position is WindowPosition.Absolute }
             val placed = follower.location
             val standingOn = named.locationOnScreen
 
             named.setLocation(standingOn.x + 200, standingOn.y + 120)
-            waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { named.locationOnScreen != standingOn }
+            waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { named.locationOnScreen != standingOn }
             awaitIdle()
             assertEquals(
                 placed,
@@ -189,7 +190,7 @@ class WindowPositionCenteredOnTest {
         val screen = GraphicsEnvironment.getLocalGraphicsEnvironment().maximumWindowBounds
         val named = shownFrame("centered-on-outliving-reference", Rectangle(screen.x + 40, screen.y + 40, 480, 360))
         try {
-            waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { named.isShowing }
+            waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { named.isShowing }
             val state = WindowState(position = WindowPosition.CenteredOn(named), size = Dimension(240, 160))
             var composed by mutableStateOf(true)
             setContent {
@@ -199,7 +200,7 @@ class WindowPositionCenteredOnTest {
             }
 
             val follower = onWindowWithTitle("centered-on-transient").fetch<JFrame>()
-            waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { state.position is WindowPosition.Absolute }
+            waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { state.position is WindowPosition.Absolute }
             val resolved = state.position
 
             composed = false
@@ -271,7 +272,7 @@ private fun assertNearCenter(
  * Wall-clock deadline for conditions gated on native window-system notifications (moves, shows), which
  * arrive with real latency - including window-manager animations.
  */
-private const val NATIVE_EVENT_TIMEOUT_MILLIS = 10_000L
+private val NATIVE_EVENT_TIMEOUT = 10.seconds
 
 /** Slack allowed on a realized placement, in pixels. */
 private const val CENTERING_TOLERANCE_PIXELS = 4

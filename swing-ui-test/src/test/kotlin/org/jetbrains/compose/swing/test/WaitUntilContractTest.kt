@@ -8,8 +8,10 @@ import androidx.compose.runtime.withFrameNanos
 import org.jetbrains.compose.swing.components.Label
 import javax.swing.SwingUtilities
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Pins [ComposeSwingTest.waitUntil] - the harness's escape hatch for a condition that cannot be expressed
@@ -24,7 +26,7 @@ class WaitUntilContractTest {
         setContent { Label(text = "settled") }
 
         // The condition holds on the first evaluation, so the wait consumes no frame and no deadline.
-        waitUntil(timeoutMillis = WAIT_TIMEOUT_MILLIS) { true }
+        waitUntil(timeout = WAIT_TIMEOUT) { true }
     }
 
     @Test
@@ -73,7 +75,7 @@ class WaitUntilContractTest {
 
         val failure =
             assertFailsWith<AssertionError> {
-                waitUntil(timeoutMillis = WAIT_TIMEOUT_MILLIS) { false }
+                waitUntil(timeout = WAIT_TIMEOUT) { false }
             }
         val message = failure.message.orEmpty()
         assertTrue(
@@ -81,12 +83,46 @@ class WaitUntilContractTest {
             "the failure should say the condition was never met: $message",
         )
         assertTrue(
-            message.contains("${WAIT_TIMEOUT_MILLIS}ms"),
+            message.contains(WAIT_TIMEOUT.toString()),
             "the failure should report the deadline it ran to: $message",
         )
         assertTrue(
             message.contains("never-changes"),
             "the failure should carry a dump of the tree it waited on: $message",
+        )
+    }
+
+    @Test
+    fun waitUntilSendsNoFrameOfItsOwnWhileAutoAdvanceIsOff() = runComposeSwingTest {
+        var framesConsumed = 0
+        var arrived = false
+        mainClock.autoAdvance = false
+        setContent {
+            LaunchedEffect(Unit) {
+                while (true) {
+                    withFrameNanos { }
+                    framesConsumed++
+                }
+            }
+            Label(text = "host")
+        }
+        val timeAfterSetContent = mainClock.currentTime
+
+        // The condition is met by dispatched event-dispatch-thread work alone, which the wait must
+        // still drive while the test owns the frames.
+        SwingUtilities.invokeLater { arrived = true }
+        waitUntil(timeout = WAIT_TIMEOUT) { arrived }
+
+        assertEquals(
+            timeAfterSetContent,
+            mainClock.currentTime,
+            "waitUntil must not send a frame of its own while autoAdvance is off, so currentTime must " +
+                "stay exactly where the initial settle left it",
+        )
+        assertEquals(
+            0,
+            framesConsumed,
+            "waitUntil must leave an effect parked on a frame where it is while autoAdvance is off",
         )
     }
 
@@ -102,7 +138,7 @@ class WaitUntilContractTest {
 
     private companion object {
         // Short enough to keep the suite quick while still exercising the wall-clock deadline.
-        const val WAIT_TIMEOUT_MILLIS: Long = 100
+        val WAIT_TIMEOUT = 100.milliseconds
 
         // More frames than a single wait pass produces, so the wait must keep driving them.
         const val AWAITED_FRAMES: Int = 3

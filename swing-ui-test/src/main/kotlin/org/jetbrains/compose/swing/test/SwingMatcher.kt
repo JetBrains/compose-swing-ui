@@ -9,6 +9,7 @@ import javax.accessibility.AccessibleRole
 import javax.swing.AbstractButton
 import javax.swing.JComboBox
 import javax.swing.JComponent
+import javax.swing.JInternalFrame
 import javax.swing.text.JTextComponent
 
 /**
@@ -18,6 +19,8 @@ import javax.swing.text.JTextComponent
  *
  * Matching reads component state directly; callers are responsible for invoking matchers on the
  * EDT (the finder infrastructure does this).
+ *
+ * @property description what this matcher looks for, as it reads in a failure message.
  */
 public class SwingMatcher internal constructor(
     public val description: String,
@@ -41,6 +44,7 @@ public class SwingMatcher internal constructor(
     /** Returns a matcher satisfied exactly when this one is not. */
     public operator fun not(): SwingMatcher = SwingMatcher("!($description)") { !predicate(it) }
 
+    /** Built-in matchers, and the entry point for building others with [and], [or] and [not]. */
     public companion object {
         /**
          * Matches a component whose textual content equals [text], or contains it when [substring]
@@ -96,14 +100,17 @@ public class SwingMatcher internal constructor(
             }
 
         /**
-         * Matches a top-level window whose title equals [title], read from [Frame.getTitle] or
-         * [Dialog.getTitle]. Use with [ComposeSwingTest.onWindow] to pick one window out of several.
+         * Matches a component whose title equals [title], read from [Frame.getTitle],
+         * [Dialog.getTitle] or [JInternalFrame.getTitle]. Use it with [ComposeSwingTest.onWindow] to
+         * pick one window out of several, and with a node query to assert the title of a frame
+         * standing on a desktop.
          */
         public fun hasTitle(title: String): SwingMatcher =
             SwingMatcher("hasTitle(\"$title\")") { component ->
                 when (component) {
                     is Frame -> component.title == title
                     is Dialog -> component.title == title
+                    is JInternalFrame -> component.title == title
                     else -> false
                 }
             }

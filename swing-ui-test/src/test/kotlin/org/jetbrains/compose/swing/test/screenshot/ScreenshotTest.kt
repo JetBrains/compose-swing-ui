@@ -99,9 +99,14 @@ class ScreenshotTest {
         val image = onNodeWithText("Click me").captureToImage()
         val inverted = invert(image)
 
-        assertFailsWith<AssertionError> {
-            assertImageMatches(expected = image, image = inverted)
-        }
+        val failure =
+            assertFailsWith<AssertionError> {
+                assertImageMatches(expected = image, image = inverted)
+            }
+        assertTrue(
+            failure.message.orEmpty().contains("Image does not match the expected image."),
+            "the failure should say the images did not match: ${failure.message}",
+        )
     }
 
     @Test

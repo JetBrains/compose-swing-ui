@@ -16,6 +16,7 @@ import org.jetbrains.compose.swing.node.SwingNode
 import java.awt.Canvas
 import javax.accessibility.AccessibleRole
 import javax.swing.JComboBox
+import javax.swing.JInternalFrame
 import javax.swing.JLabel
 import javax.swing.JTextField
 import kotlin.test.Test
@@ -89,10 +90,22 @@ class MatcherContractTest {
     fun hasTitleMatchesNoPlainComponent() = runComposeSwingTest {
         setContent { Label(text = "not a window") }
 
-        // Titles belong to top-level Frames and Dialogs; a component inside the tree never matches,
-        // so a mistyped window query cannot silently resolve to a plain component.
+        // A title belongs to a window or an internal frame; a plain component carries none and never
+        // matches, so a mistyped title query cannot silently resolve to one.
         onAllNodes(SwingMatcher.hasTitle("not a window")).assertCountEquals(0)
         onAllNodes(SwingMatcher.hasTitle("")).assertCountEquals(0)
+    }
+
+    @Test
+    fun hasTitleMatchesAnInternalFrameInTheTree() = runComposeSwingTest {
+        setContent { SwingNode(factory = { JInternalFrame("Editor") }) }
+
+        // An internal frame carries a title like a window does, and lives inside the component tree,
+        // so a node query is what reaches it. Its own panes carry no title, which leaves the frame as
+        // the single match.
+        onNodeOfType<JInternalFrame>().assert(SwingMatcher.hasTitle("Editor"))
+        onAllNodes(SwingMatcher.hasTitle("Editor")).assertCountEquals(1)
+        onAllNodes(SwingMatcher.hasTitle("Console")).assertCountEquals(0)
     }
 
     @Test

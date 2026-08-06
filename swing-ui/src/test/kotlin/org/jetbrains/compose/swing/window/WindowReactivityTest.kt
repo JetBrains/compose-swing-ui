@@ -22,6 +22,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Behavioural tests asserting that [Window] arguments are reactive: mutating Compose state that
@@ -151,14 +152,14 @@ class WindowReactivityTest {
         // Moving a realized frame is an asynchronous native reshape; wait for it to reach the declared
         // placement rather than assert right after the compose frame that requests it.
         state.position = WindowPosition.Absolute(220, 160)
-        waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { frame.location == Point(220, 160) }
+        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { frame.location == Point(220, 160) }
         assertEquals(
             Point(220, 160),
             frame.location,
             "the frame must move to the position the state takes after the first apply",
         )
         state.position = WindowPosition.Absolute(120, 80)
-        waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { frame.location == Point(120, 80) }
+        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { frame.location == Point(120, 80) }
         assertEquals(
             Point(120, 80),
             frame.location,
@@ -176,7 +177,7 @@ class WindowReactivityTest {
         state.size = Dimension(500, 400)
         // Applying size to the peer is an asynchronous native resize; wait for the frame to reach the
         // target rather than assert right after the compose frame that requests it.
-        waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { frame.size == Dimension(500, 400) }
+        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { frame.size == Dimension(500, 400) }
         assertEquals(Dimension(500, 400), frame.size)
     }
 
@@ -188,7 +189,7 @@ class WindowReactivityTest {
         val frame = onWindow().fetch<JFrame>()
         assertEquals(Dimension(320, 240), frame.size, "the frame must realize with the size the state holds")
         state.width = 500
-        waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { frame.size == Dimension(500, 240) }
+        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { frame.size == Dimension(500, 240) }
         assertEquals(
             Dimension(500, 240),
             frame.size,
@@ -204,7 +205,7 @@ class WindowReactivityTest {
         val frame = onWindow().fetch<JFrame>()
         assertEquals(Dimension(320, 240), frame.size, "the frame must realize with the size the state holds")
         state.height = 400
-        waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { frame.size == Dimension(320, 400) }
+        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { frame.size == Dimension(320, 400) }
         assertEquals(
             Dimension(320, 400),
             frame.size,
@@ -351,7 +352,7 @@ class WindowReactivityTest {
         // The native resize settles asynchronously, and a stale resize event can momentarily echo the
         // prior size back into the state before the resize completes; wait for the frame AND the state
         // to both reach the assigned size rather than catch that transient.
-        waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) {
+        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) {
             frame.size == Dimension(640, 480) && state.size == Dimension(640, 480)
         }
         assertEquals(
@@ -373,7 +374,7 @@ class WindowReactivityTest {
         setContent { Window(onCloseRequest = {}, state = state, title = "user-resize-test") {} }
         val frame = onWindow().fetch<JFrame>()
         frame.size = Dimension(640, 480)
-        waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { state.size == Dimension(640, 480) }
+        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { state.size == Dimension(640, 480) }
         assertEquals(Dimension(640, 480), state.size)
     }
 
@@ -403,7 +404,7 @@ class WindowReactivityTest {
         // The native resize settles asynchronously, and a stale resize event can momentarily echo the
         // prior size back into the state before the resize completes; wait for the dialog AND the state
         // to both reach the assigned size rather than catch that transient.
-        waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) {
+        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) {
             frame.size == Dimension(640, 480) && state.size == Dimension(640, 480)
         }
         assertEquals(Dimension(640, 480), frame.size)
@@ -492,7 +493,7 @@ class WindowReactivityTest {
         setContent { Window(onCloseRequest = {}, state = state, title = "user-maximize-test") {} }
         val frame = onWindow().fetch<JFrame>()
         frame.extendedState = Frame.MAXIMIZED_BOTH
-        waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { state.extendedState == Frame.MAXIMIZED_BOTH }
+        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { state.extendedState == Frame.MAXIMIZED_BOTH }
         assertEquals(
             Frame.MAXIMIZED_BOTH,
             state.extendedState,
@@ -508,7 +509,7 @@ class WindowReactivityTest {
         setContent { Window(onCloseRequest = {}, state = state, title = "maximize-no-feedback-loop-test") {} }
         val frame = onWindow().fetch<JFrame>()
         frame.extendedState = Frame.MAXIMIZED_BOTH
-        waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { state.extendedState == Frame.MAXIMIZED_BOTH }
+        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { state.extendedState == Frame.MAXIMIZED_BOTH }
         // The write-back updated both the state and the applied extended state, so the next apply is a
         // no-op and the user's maximize survives instead of being reverted to the initial declared
         // NORMAL value.
@@ -538,4 +539,4 @@ private fun assumeMaximizeIsSupported() {
  * Wall-clock deadline for conditions gated on native window-system notifications (moves, resizes,
  * maximize transitions), which arrive with real latency - including window-manager animations.
  */
-private const val NATIVE_EVENT_TIMEOUT_MILLIS = 10_000L
+private val NATIVE_EVENT_TIMEOUT = 10.seconds

@@ -24,6 +24,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotSame
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Behavioural tests for the declarative glass pane of a [Window] and a [Dialog]: the declared content
@@ -328,7 +329,7 @@ class WindowGlassPaneTest {
         // A root pane sizes its glass pane to the whole window as it lays itself out, so an arriving
         // pane is given those bounds once the root pane has been laid out again.
         val pane = frame.rootPane.glassPane
-        waitUntil(timeoutMillis = LAYOUT_PASS_TIMEOUT_MILLIS) { pane.size == frame.rootPane.size }
+        waitUntil(timeout = LAYOUT_PASS_TIMEOUT) { pane.size == frame.rootPane.size }
         assertEquals(
             frame.rootPane.size,
             pane.size,
@@ -357,4 +358,4 @@ private fun Component.componentsBelow(): Sequence<Component> = sequence {
  * Wall-clock deadline for a layout pass a root pane schedules for itself, which a realized window runs
  * off its own event queue.
  */
-private const val LAYOUT_PASS_TIMEOUT_MILLIS = 10_000L
+private val LAYOUT_PASS_TIMEOUT = 10.seconds

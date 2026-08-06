@@ -13,6 +13,7 @@ import javax.swing.JFrame
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Behavioural tests asserting that a [Window] or [Dialog] created without an explicit size is sized to
@@ -114,7 +115,7 @@ class WindowPackToContentTest {
             }
         }
         val frame = onWindow().fetch<JFrame>()
-        waitUntil(timeoutMillis = NATIVE_EVENT_TIMEOUT_MILLIS) { state.size == frame.size }
+        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { state.size == frame.size }
         assertEquals(
             frame.size,
             state.size,
@@ -138,4 +139,4 @@ private val INVENTED_DIALOG_SIZE = Dimension(400, 300)
  * Wall-clock deadline for conditions gated on native window-system notifications (the resize echo that
  * follows a pack), which arrive with real latency.
  */
-private const val NATIVE_EVENT_TIMEOUT_MILLIS = 10_000L
+private val NATIVE_EVENT_TIMEOUT = 10.seconds
