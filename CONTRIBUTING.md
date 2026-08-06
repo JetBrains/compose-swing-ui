@@ -18,15 +18,29 @@ the quality gates every change must pass, and the code style.
 # Tests only
 ./gradlew test
 
+# One module, or one test class, while iterating
+./gradlew :swing-ui:test
+./gradlew :swing-ui:test --tests '*ComboBoxEditableTest*'
+
 # Run a sample application
 ./gradlew :samples:todo-app:run
 ./gradlew :samples:widgets-gallery:run
 ```
 
+Scope a run while iterating; `./gradlew test` runs every module's suite. The modules test each other:
+`:swing-ui-test` publishes the harness that `:swing-ui`'s own tests are written against, so a harness
+change is exercised far more by the library's suite than by the harness's own, and both samples' tests
+sit downstream of the two. A scoped run belongs to the edit loop; the gate below is what a change is
+judged by.
+
 Tests are deterministic and never sleep. Harness-driven tests never attach their root to a window,
 so they run with or without a display. A test that realizes a real top-level peer declares that
 requirement with a JUnit assumption (`Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(),
-...)`), so it reports skipped without a display. Write UI tests with the `:swing-ui-test` harness:
+...)`), so it reports skipped without a display, and others gate the same way on a capability the
+environment may withhold. A run with no failures is therefore not necessarily a complete one: the
+ignored count in `<module>/build/reports/tests/test/index.html` says what did not run, and the
+quality gates below cover which of those CI runs for you. Write UI tests with the `:swing-ui-test`
+harness:
 
 ```kotlin
 @Test
@@ -69,7 +83,12 @@ Piece by piece:
   ```bash
   ./gradlew ktlintFormat
   ```
-- **`detekt`** - static analysis (`config/detekt/detekt.yml`, on top of the default config).
+- **`detekt`** - static analysis (`config/detekt/detekt.yml`, on top of the default config). The gate
+  runs it through `check`, which wires the type-resolution variants, `detektMain` and `detektTest`;
+  rules that need the compile classpath only fire there. When scoping a run to one module while
+  iterating, invoke `:module:detektMain` and `:module:detektTest` rather than the plain
+  `:module:detekt` task, which runs without type resolution and stays silent on those rules. This
+  does not apply to `buildSrc`, whose plain `detekt` task (below) is its own gate.
 - **`checkKotlinAbi`** - the Kotlin Gradle plugin's built-in ABI validation, comparing the compiled
   surface against the committed `.api` dumps. If you change the **public API**, regenerate them and
   review the diff:

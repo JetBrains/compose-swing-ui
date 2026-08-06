@@ -19,6 +19,11 @@ out/
 ### Kotlin ###
 .kotlin
 
+### AI agent tooling ###
+# `.agents/skills` and the per-tool symlinks to it are tracked; per-machine state is not.
+.claude/settings.local.json
+.claude/worktrees/
+
 ### Eclipse ###
 .apt_generated
 .classpath
