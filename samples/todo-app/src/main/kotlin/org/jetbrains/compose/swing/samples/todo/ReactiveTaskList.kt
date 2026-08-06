@@ -14,20 +14,20 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.ProgressBar
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.button.CheckBox
+import org.jetbrains.compose.swing.components.layout.Alignment
+import org.jetbrains.compose.swing.components.layout.Arrangement
 import org.jetbrains.compose.swing.components.layout.BorderPanel
-import org.jetbrains.compose.swing.components.layout.BoxPanel
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Column
+import org.jetbrains.compose.swing.components.layout.ColumnScope
+import org.jetbrains.compose.swing.components.layout.Row
 import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.accessibility.accessibleName
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.interaction.enabled
-import org.jetbrains.compose.swing.modifier.layout.maximumSize
+import org.jetbrains.compose.swing.modifier.interaction.onAccept
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
-import java.awt.Dimension
-import java.awt.FlowLayout
-import javax.swing.BoxLayout
 
 // A reactive to-do list on one screen. A single SnapshotStateList of tasks is the source of truth:
 // every view that reads it - the "N of M done" summary, the progress bar, the rows - recomposes when
@@ -42,9 +42,11 @@ internal fun ReactiveTaskList() {
     val total by remember { derivedStateOf { tasks.size } }
     val done by remember { derivedStateOf { tasks.count { it.done } } }
 
+    // A border layout splits the screen: the header keeps the height it asks for in the north region,
+    // and the scrolling list takes whatever height the window has left in the centre.
     BorderPanel(hgap = 0, vgap = ROW_GAP) {
         north {
-            BoxPanel(axis = BoxLayout.Y_AXIS) {
+            Column(verticalArrangement = Arrangement.spacedBy(ROW_GAP)) {
                 SampleTitle("Reactive task list")
                 Caption(
                     "One state list drives the summary, the progress bar, and the rows. " +
@@ -66,12 +68,12 @@ internal fun ReactiveTaskList() {
 }
 
 @Composable
-private fun SummaryRow(
+private fun ColumnScope.SummaryRow(
     done: Int,
     total: Int,
 ) {
     Card("Progress") {
-        FlowPanel(alignment = FlowLayout.LEADING) {
+        Row(horizontalArrangement = Arrangement.spacedBy(ROW_GAP), verticalAlignment = Alignment.CenterVertically) {
             // Fixed-width label so the bar to its right never shifts as the counts change.
             ValueLabel(text = "$done of $total done", width = 120)
             ProgressBar(
@@ -84,7 +86,7 @@ private fun SummaryRow(
 }
 
 @Composable
-private fun AddTaskRow(onAdd: (String) -> Unit) {
+private fun ColumnScope.AddTaskRow(onAdd: (String) -> Unit) {
     Card("Add a task") {
         var draft by remember { mutableStateOf("") }
         val canAdd by remember { derivedStateOf { draft.isNotBlank() } }
@@ -96,12 +98,12 @@ private fun AddTaskRow(onAdd: (String) -> Unit) {
             }
         }
 
-        FlowPanel(alignment = FlowLayout.LEADING) {
+        Row(horizontalArrangement = Arrangement.spacedBy(ROW_GAP), verticalAlignment = Alignment.CenterVertically) {
             TextField(
                 value = draft,
                 onValueChange = { draft = it },
                 columns = 28,
-                modifier = SwingModifier.accessibleName("New task"),
+                modifier = SwingModifier.accessibleName("New task").onAccept { commit() },
             )
             Button(
                 text = "Add",
@@ -121,9 +123,9 @@ private fun TaskRows(
 ) {
     // The dynamic list: rows are inserted into and removed from the live Swing tree as the list grows
     // and shrinks (structural recomposition), not merely shown and hidden.
-    ScrollPane {
+    ScrollPane(modifier = SwingModifier.preferredSize(0, 320)) {
         content {
-            BoxPanel(axis = BoxLayout.Y_AXIS) {
+            Column(verticalArrangement = Arrangement.spacedBy(ROW_GAP)) {
                 if (tasks.isEmpty()) {
                     Card("Tasks") {
                         Label("No tasks yet - add one above.")
@@ -148,47 +150,37 @@ private fun TaskRows(
 }
 
 @Composable
-private fun TaskRow(
+private fun ColumnScope.TaskRow(
     task: Task,
     onToggle: (Boolean) -> Unit,
     onRename: (String) -> Unit,
     onRemove: () -> Unit,
 ) {
-    // A row of a fixed height: preferred + maximum pin the height to 32 so a BoxLayout parent stretches
-    // the row across the full width but never grows it taller. Toggling completion or editing the title
-    // never changes the row's size or the position of any control.
-    BorderPanel(
-        modifier =
-            SwingModifier
-                .testTag(taskRowTag(task.id))
-                .preferredSize(Dimension(0, 32))
-                .maximumSize(Dimension(Int.MAX_VALUE, 32)),
-        hgap = ROW_GAP,
-        vgap = 0,
+    // The row spans the width of the list and the title takes whatever that leaves, so the toggle stays
+    // at the leading edge and Remove at the trailing one however wide the window is. Every control keeps
+    // the height it asks for, so toggling completion or editing the title never changes the row's height.
+    Row(
+        modifier = SwingModifier.testTag(taskRowTag(task.id)).fillWidth(),
+        horizontalArrangement = Arrangement.spacedBy(ROW_GAP),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        west {
-            CheckBox(
-                text = "",
-                checked = task.done,
-                onCheckedChange = onToggle,
-                modifier = SwingModifier.testTag(taskToggleTag(task.id)),
-            )
-        }
-        center {
-            TextField(
-                value = task.title,
-                onValueChange = onRename,
-                columns = 28,
-                modifier = SwingModifier.testTag(taskTitleTag(task.id)),
-            )
-        }
-        east {
-            Button(
-                text = "Remove",
-                onClick = onRemove,
-                modifier = SwingModifier.testTag(taskRemoveTag(task.id)),
-            )
-        }
+        CheckBox(
+            text = "",
+            checked = task.done,
+            onCheckedChange = onToggle,
+            modifier = SwingModifier.testTag(taskToggleTag(task.id)),
+        )
+        TextField(
+            value = task.title,
+            onValueChange = onRename,
+            columns = 28,
+            modifier = SwingModifier.weight(1f).testTag(taskTitleTag(task.id)),
+        )
+        Button(
+            text = "Remove",
+            onClick = onRemove,
+            modifier = SwingModifier.testTag(taskRemoveTag(task.id)),
+        )
     }
 }
 

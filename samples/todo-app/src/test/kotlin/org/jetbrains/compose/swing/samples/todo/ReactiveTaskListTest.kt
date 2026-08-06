@@ -9,6 +9,7 @@ import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import javax.swing.JButton
 import javax.swing.JPanel
 import javax.swing.JProgressBar
+import javax.swing.JScrollPane
 import javax.swing.JTextField
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -85,6 +86,24 @@ class ReactiveTaskListTest {
         }
 
     @Test
+    fun pressingEnterInTheDraftFieldCommitsTheTaskAndClearsTheDraft() =
+        runComposeSwingTest {
+            setContent { ReactiveTaskList() }
+
+            onAddField().performTextReplacement("Ship the sample")
+            onAddField().fetch<JTextField>().postActionEvent()
+            awaitIdle()
+
+            onNodeWithTag(taskRowTag(5)).assertExists()
+            onNodeWithText("2 of 5 done").assertExists()
+            assertEquals(
+                "",
+                onAddField().fetch<JTextField>().text,
+                "the draft field clears once Enter commits the task",
+            )
+        }
+
+    @Test
     fun removingATaskDropsItsRowFromTheTreeAndShrinksTheTotal() =
         runComposeSwingTest {
             setContent { ReactiveTaskList() }
@@ -124,16 +143,16 @@ class ReactiveTaskListTest {
         runComposeSwingTest {
             setContent { ReactiveTaskList() }
 
-            // A fixed-height row pins its maximum height to its preferred height, so a vertical
-            // layout cannot stretch it toward an unbounded maximum when few tasks leave surplus space.
+            // The column places the height it has left over instead of pushing it into a child, so a
+            // row is laid out at exactly the height it asks for however much room the list has.
             val rowWithFourTasks = onNodeWithTag(taskRowTag(3)).fetch<JPanel>()
-            assertEquals(
-                rowWithFourTasks.preferredSize.height,
-                rowWithFourTasks.maximumSize.height,
-                "a row cannot stretch beyond its preferred height",
-            )
             val heightWithFourTasks = rowWithFourTasks.height
             assertTrue(heightWithFourTasks > 0, "the row must have a real, laid-out height")
+            assertEquals(
+                rowWithFourTasks.preferredSize.height,
+                heightWithFourTasks,
+                "a row is laid out at the height it prefers",
+            )
 
             // Removing a task leaves the layout surplus vertical space, yet the surviving row's
             // laid-out height stays exactly what it was with the fuller list.
@@ -143,6 +162,49 @@ class ReactiveTaskListTest {
                 heightWithFourTasks,
                 onNodeWithTag(taskRowTag(3)).fetch<JPanel>().height,
                 "a row's laid-out height does not depend on the task count",
+            )
+        }
+
+    @Test
+    fun aTaskRowSpansTheWidthOfTheList() =
+        runComposeSwingTest {
+            setContent { ReactiveTaskList() }
+
+            // The row declares a cross-axis fill, so the list column hands it the whole width it has to
+            // give rather than the narrower width the row's own controls ask for.
+            val row = onNodeWithTag(taskRowTag(3)).fetch<JPanel>()
+            val list = row.parent
+            val listInsets = list.insets
+            assertEquals(
+                list.width - listInsets.left - listInsets.right,
+                row.width,
+                "a row takes the whole width the list column has to give",
+            )
+        }
+
+    @Test
+    fun theTaskListStaysAtItsPreferredHeightOnceTasksOverflowIt() =
+        runComposeSwingTest {
+            setContent { ReactiveTaskList() }
+
+            val pane = onNodeOfType<JScrollPane>().fetch<JScrollPane>()
+            val heightWithFourTasks = pane.height
+            assertEquals(320, heightWithFourTasks, "the list is laid out at its declared preferred height")
+
+            // Add enough tasks to overflow the fixed-height viewport.
+            repeat(EXTRA_TASKS_TO_OVERFLOW_THE_LIST) { index ->
+                onAddField().performTextReplacement("Task $index")
+                onAddButton().performClick()
+            }
+
+            assertEquals(
+                heightWithFourTasks,
+                pane.height,
+                "the scroll pane's own height must not grow as tasks overflow it",
+            )
+            assertTrue(
+                pane.viewport.view.preferredSize.height > pane.height,
+                "the list content must grow past the viewport once tasks overflow it",
             )
         }
 
@@ -173,3 +235,6 @@ private fun ComposeSwingTest.onAddField() = onNode(SwingMatcher.hasAccessibleNam
 
 /** The add button, located by its visible label and button type rather than a test tag. */
 private fun ComposeSwingTest.onAddButton() = onNode(SwingMatcher.hasText("Add") and SwingMatcher.isOfType<JButton>())
+
+/** More tasks than the list's 320px preferred height can show without scrolling. */
+private const val EXTRA_TASKS_TO_OVERFLOW_THE_LIST = 20

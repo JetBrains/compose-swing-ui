@@ -1,22 +1,22 @@
 package org.jetbrains.compose.swing.samples.todo
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.BorderPanel
-import org.jetbrains.compose.swing.components.layout.BoxPanel
+import org.jetbrains.compose.swing.components.layout.Column
+import org.jetbrains.compose.swing.components.layout.ColumnScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.border
+import org.jetbrains.compose.swing.modifier.appearance.emptyBorder
 import org.jetbrains.compose.swing.modifier.appearance.font
 import org.jetbrains.compose.swing.modifier.appearance.foreground
 import org.jetbrains.compose.swing.modifier.appearance.horizontalAlignment
-import org.jetbrains.compose.swing.modifier.layout.maximumSize
-import org.jetbrains.compose.swing.modifier.layout.minimumSize
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import java.awt.Color
 import java.awt.Dimension
 import java.awt.Font
 import javax.swing.BorderFactory
-import javax.swing.BoxLayout
 import javax.swing.SwingConstants
 
 // Shared layout primitives - consistent spacing, typography, and the card shape - so the sample reads
@@ -28,7 +28,7 @@ internal const val ROW_GAP: Int = 8
 @Composable
 internal fun ReactiveTaskListScreen() {
     BorderPanel(
-        modifier = SwingModifier.border(BorderFactory.createEmptyBorder(16, 16, 16, 16)),
+        modifier = SwingModifier.emptyBorder(16),
     ) {
         center { ReactiveTaskList() }
     }
@@ -60,31 +60,30 @@ internal fun Caption(text: String) {
     )
 }
 
+// A titled box that spans the width of the column it sits in, and whose content stacks top to bottom,
+// each item at the size it asks for, so the card is exactly as tall as what it holds.
 @Composable
-internal fun Card(
+internal fun ColumnScope.Card(
     title: String,
     content: @Composable () -> Unit,
 ) {
-    BorderPanel(
-        modifier =
-            SwingModifier.border(
-                BorderFactory.createCompoundBorder(
-                    BorderFactory.createTitledBorder(title),
-                    BorderFactory.createEmptyBorder(ROW_GAP, ROW_GAP, ROW_GAP, ROW_GAP),
-                ),
-            ),
-    ) {
-        north {
-            BoxPanel(axis = BoxLayout.Y_AXIS) {
-                content()
-            }
+    // A border is compared by identity, so one built inline would be a new border on every recomposition
+    // and would be written to the panel each time.
+    val cardBorder =
+        remember(title) {
+            BorderFactory.createCompoundBorder(
+                BorderFactory.createTitledBorder(title),
+                BorderFactory.createEmptyBorder(ROW_GAP, ROW_GAP, ROW_GAP, ROW_GAP),
+            )
         }
+    Column(modifier = SwingModifier.border(cardBorder).fillWidth()) {
+        content()
     }
 }
 
-// A label that echoes live state ("3 of 5 done"). Pinning preferred/minimum/maximum to a fixed width
-// stops it from re-measuring and shifting its neighbours every time the value grows or shrinks - the
-// most visible source of jitter in a reactive Swing UI. Height stays flexible.
+// A label that echoes live state ("3 of 5 done"). Asking for a fixed width stops it from re-measuring
+// and shifting its neighbours every time the value grows or shrinks - the most visible source of jitter
+// in a reactive Swing UI.
 @Composable
 internal fun ValueLabel(
     text: String,
@@ -95,8 +94,6 @@ internal fun ValueLabel(
         modifier =
             SwingModifier
                 .preferredSize(Dimension(width, 22))
-                .minimumSize(Dimension(width, 22))
-                .maximumSize(Dimension(width, Int.MAX_VALUE))
                 .horizontalAlignment(SwingConstants.LEADING),
     )
 }

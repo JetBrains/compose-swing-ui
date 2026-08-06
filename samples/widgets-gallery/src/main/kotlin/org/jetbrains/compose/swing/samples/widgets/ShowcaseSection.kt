@@ -1,9 +1,10 @@
 package org.jetbrains.compose.swing.samples.widgets
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.components.layout.BorderPanel
-import org.jetbrains.compose.swing.components.layout.BoxPanel
+import org.jetbrains.compose.swing.components.layout.Column
+import org.jetbrains.compose.swing.components.layout.ColumnScope
 import org.jetbrains.compose.swing.components.layout.FlowPanel
 import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -11,22 +12,36 @@ import org.jetbrains.compose.swing.modifier.appearance.border
 import org.jetbrains.compose.swing.modifier.appearance.font
 import org.jetbrains.compose.swing.modifier.appearance.foreground
 import org.jetbrains.compose.swing.modifier.appearance.horizontalAlignment
-import org.jetbrains.compose.swing.modifier.layout.alignmentX
+import org.jetbrains.compose.swing.samples.widgets.components.ComponentsSection
+import org.jetbrains.compose.swing.samples.widgets.components.FormInputsSection
+import org.jetbrains.compose.swing.samples.widgets.components.RadioGroupSection
+import org.jetbrains.compose.swing.samples.widgets.custom.CanvasSection
+import org.jetbrains.compose.swing.samples.widgets.custom.CustomComponentSection
+import org.jetbrains.compose.swing.samples.widgets.layout.LayoutsSection
+import org.jetbrains.compose.swing.samples.widgets.layout.ScrollPaneSection
+import org.jetbrains.compose.swing.samples.widgets.layout.SplitToolBarSection
+import org.jetbrains.compose.swing.samples.widgets.layout.TabsSection
+import org.jetbrains.compose.swing.samples.widgets.modifier.AccessibilitySection
+import org.jetbrains.compose.swing.samples.widgets.modifier.ContextMenuSection
+import org.jetbrains.compose.swing.samples.widgets.modifier.DataTransferSection
+import org.jetbrains.compose.swing.samples.widgets.modifier.ModifierGallery
+import org.jetbrains.compose.swing.samples.widgets.runtime.AnimationSection
+import org.jetbrains.compose.swing.samples.widgets.runtime.CompositionLocalsSection
+import org.jetbrains.compose.swing.samples.widgets.runtime.DynamicHierarchySection
+import org.jetbrains.compose.swing.samples.widgets.runtime.EffectsSection
+import org.jetbrains.compose.swing.samples.widgets.selection.TableSection
+import org.jetbrains.compose.swing.samples.widgets.selection.TreeSection
+import org.jetbrains.compose.swing.samples.widgets.text.EditorSection
+import org.jetbrains.compose.swing.samples.widgets.text.RichTextSection
+import org.jetbrains.compose.swing.samples.widgets.window.LayeredAndMdiSection
+import org.jetbrains.compose.swing.samples.widgets.window.TraySection
+import org.jetbrains.compose.swing.samples.widgets.window.WindowsSection
 import java.awt.Color
-import java.awt.Component
 import java.awt.FlowLayout
 import java.awt.Font
 import javax.swing.BorderFactory
-import javax.swing.BoxLayout
 import javax.swing.JScrollPane
 import javax.swing.SwingConstants
-
-// The left-edge alignment shared by every direct child of a card column. A vertical BoxLayout lines its
-// children up by alignmentX; leaf controls already report 0.0 but panels default to centered (0.5), and
-// mixing the two pushes the left-aligned controls sideways to track the centered ones - an offset that
-// shifts whenever the column width changes, so a control visibly jumps on toggle. Tagging every panel
-// sibling with this keeps the column flush-left and stable.
-internal const val LEFT_ALIGNED: Float = Component.LEFT_ALIGNMENT
 
 // A navigable section of the showcase: a sidebar title paired with the composable that renders its body,
 // so adding a section is a single list entry and the navigation shell and the body switch read from one source.
@@ -63,38 +78,38 @@ internal val showcaseSections: List<ShowcaseSection> =
         ShowcaseSection("Modifier gallery") { ModifierGallery() },
     )
 
+// One example, titled and boxed. The card spans the width of the section column it sits in, and is the
+// column its own examples stack in: each one keeps the size it asks for and starts at the card's leading
+// edge, so a card is exactly as tall as its content.
 @Composable
-internal fun ExampleCard(
+internal fun ColumnScope.ExampleCard(
     title: String,
-    content: @Composable () -> Unit,
+    content: @Composable ColumnScope.() -> Unit,
 ) {
-    BorderPanel(
-        modifier =
-            SwingModifier.border(
-                BorderFactory.createCompoundBorder(
-                    BorderFactory.createTitledBorder(title),
-                    BorderFactory.createEmptyBorder(6, 6, 6, 6),
-                ),
-            ),
-    ) {
-        north {
-            BoxPanel(axis = BoxLayout.Y_AXIS) {
-                content()
-            }
+    // A border is compared by identity, so one built inline would be a new border on every recomposition
+    // and would be written to the panel each time.
+    val cardBorder =
+        remember(title) {
+            BorderFactory.createCompoundBorder(
+                BorderFactory.createTitledBorder(title),
+                BorderFactory.createEmptyBorder(6, 6, 6, 6),
+            )
         }
+    Column(modifier = SwingModifier.border(cardBorder).fillWidth()) {
+        content()
     }
 }
 
 // The standard body shape for a section: a vertical column of cards that scrolls vertically only, so a
 // wide example never forces a sideways scrollbar onto the whole section.
 @Composable
-internal fun SectionColumn(cards: @Composable () -> Unit) {
+internal fun SectionColumn(cards: @Composable ColumnScope.() -> Unit) {
     ScrollPane(
         verticalScrollbar = JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
         horizontalScrollbar = JScrollPane.HORIZONTAL_SCROLLBAR_NEVER,
     ) {
         content {
-            BoxPanel(axis = BoxLayout.Y_AXIS) {
+            Column {
                 cards()
             }
         }
