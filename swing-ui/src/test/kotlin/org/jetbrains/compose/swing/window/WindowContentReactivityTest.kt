@@ -12,7 +12,7 @@ import java.awt.GraphicsEnvironment
 import kotlin.test.Test
 
 /**
- * Behavioural tests asserting that the `content` of a realized [Window] or [Dialog] keeps recomposing:
+ * Behavioral tests asserting that the `content` of a realized [Window] or [Dialog] keeps recomposing:
  * a changed child declaration reaches the peer's component tree, and a child that the declaration adds
  * or drops appears in and disappears from it.
  *

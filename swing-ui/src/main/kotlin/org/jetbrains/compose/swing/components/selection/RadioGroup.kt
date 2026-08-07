@@ -4,6 +4,7 @@
 package org.jetbrains.compose.swing.components.selection
 
 import androidx.compose.runtime.Composable
+import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.components.layout.BoxPanel
 import org.jetbrains.compose.swing.constants.BoxAxis
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -84,14 +85,14 @@ public sealed interface RadioGroupScope {
      * @see javax.swing.JRadioButton
      */
     public fun option(
-        text: String,
+        text: @Nls String,
         modifier: SwingModifier = SwingModifier,
     )
 }
 
 /** One declared choice: its label and the [SwingModifier] for its button. */
 private class RadioOption(
-    val text: String,
+    val text: @Nls String,
     val modifier: SwingModifier,
 )
 
@@ -99,7 +100,7 @@ private class RadioGroupScopeImpl : RadioGroupScope {
     val options: MutableList<RadioOption> = ArrayList()
 
     override fun option(
-        text: String,
+        text: @Nls String,
         modifier: SwingModifier,
     ) {
         options.add(RadioOption(text, modifier))

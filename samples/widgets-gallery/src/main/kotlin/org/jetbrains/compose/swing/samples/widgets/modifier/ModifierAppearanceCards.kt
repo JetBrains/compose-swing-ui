@@ -45,7 +45,6 @@ import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.WrappedCaption
 import org.jetbrains.compose.swing.samples.widgets.rememberDotIcon
 import java.awt.Color
-import java.awt.Component
 import java.awt.Cursor
 import java.awt.Dimension
 import java.awt.Font
@@ -145,7 +144,7 @@ internal fun ColumnScope.TextPositionCard() {
         val textRow = intArrayOf(SwingConstants.TOP, SwingConstants.CENTER, SwingConstants.BOTTOM)[vertical]
         FlowPanel(modifier = SwingModifier.preferredSize(Dimension(260, 90))) {
             Button(
-                "Labelled",
+                "Labeled",
                 modifier =
                     SwingModifier
                         .icon(dot)

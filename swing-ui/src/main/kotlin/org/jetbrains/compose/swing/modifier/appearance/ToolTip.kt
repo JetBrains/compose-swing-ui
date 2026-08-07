@@ -3,6 +3,7 @@
 
 package org.jetbrains.compose.swing.modifier.appearance
 
+import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
@@ -19,7 +20,8 @@ import javax.swing.ToolTipManager
  *
  * @see javax.swing.JComponent.setToolTipText
  */
-public fun SwingModifier.toolTip(text: String?): SwingModifier = this then ToolTipElement(text = text, textAt = null)
+public fun SwingModifier.toolTip(text: @Nls String?): SwingModifier =
+    this then ToolTipElement(text = text, textAt = null)
 
 /**
  * Sets the tooltip per pointer location: [text] is asked for the tooltip belonging to the place the
@@ -36,7 +38,7 @@ public fun SwingModifier.toolTip(text: String?): SwingModifier = this then ToolT
  *
  * @see javax.swing.JComponent.setToolTipText
  */
-public fun SwingModifier.toolTip(text: (event: MouseEvent) -> String?): SwingModifier =
+public fun SwingModifier.toolTip(text: (event: MouseEvent) -> @Nls String?): SwingModifier =
     this then ToolTipElement(text = null, textAt = text)
 
 /**
@@ -46,8 +48,8 @@ public fun SwingModifier.toolTip(text: (event: MouseEvent) -> String?): SwingMod
  * field so that a fresh lambda each recomposition is fine.
  */
 private class ToolTipElement(
-    private val text: String?,
-    private val textAt: ((event: MouseEvent) -> String?)?,
+    private val text: @Nls String?,
+    private val textAt: ((event: MouseEvent) -> @Nls String?)?,
 ) : SwingModifier.Element<JComponent, ToolTipElement.Node> {
     override val targetType: Class<JComponent> get() = JComponent::class.java
 
@@ -62,8 +64,8 @@ private class ToolTipElement(
      * per-location declaration follows the pointer, publishing the tooltip of the place under it.
      */
     class Node : SwingModifier.Node<JComponent>() {
-        private var textAt: ((event: MouseEvent) -> String?)? = null
-        private var original: String? = null
+        private var textAt: ((event: MouseEvent) -> @Nls String?)? = null
+        private var original: @Nls String? = null
         private var following = false
 
         // Publishes the tooltip of the place under the pointer as the component's tooltip text, the one
@@ -95,8 +97,8 @@ private class ToolTipElement(
 
         /** Applies the declared form, constant or per location. Called from the element's `update`. */
         fun apply(
-            text: String?,
-            textAt: ((event: MouseEvent) -> String?)?,
+            text: @Nls String?,
+            textAt: ((event: MouseEvent) -> @Nls String?)?,
         ) {
             this.textAt = textAt
             if (textAt == null) {

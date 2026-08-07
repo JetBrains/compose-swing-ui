@@ -24,7 +24,7 @@ import javax.swing.BoxLayout
 @Composable
 internal fun ColumnScope.TextColorsCard() {
     ExampleCard("caretColor / selectionColor / selectedTextColor / disabledTextColor") {
-        var text by remember { mutableStateOf("Select part of this text to see the selection colours.") }
+        var text by remember { mutableStateOf("Select part of this text to see the selection colors.") }
         var caret by remember { mutableStateOf(TEXT_COLOR_SWATCHES[0]) }
         var selection by remember { mutableStateOf(TEXT_COLOR_SWATCHES[3]) }
         var selectedText by remember { mutableStateOf(TEXT_COLOR_SWATCHES[1]) }

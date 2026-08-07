@@ -21,7 +21,7 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Behavioural tests for the window a [Dialog] names as its owner: the named window owns the dialog
+ * Behavioral tests for the window a [Dialog] names as its owner: the named window owns the dialog
  * whichever window the dialog happens to be composed in, a dialog naming none takes the window it is
  * composed in, a recomposition naming another window re-owns the dialog, and the owner is the window a
  * [WindowPosition.CenteredOnOwner] position resolves against.

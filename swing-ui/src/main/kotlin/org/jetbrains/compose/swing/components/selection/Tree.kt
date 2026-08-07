@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.constants.TreeSelectionMode
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
@@ -113,7 +114,7 @@ public fun <T> Tree(
     root: T,
     children: (T) -> List<T>,
     modifier: SwingModifier = SwingModifier,
-    label: (T) -> String = { it.toString() },
+    label: (T) -> @Nls String = { it.toString() },
     hasChildren: ((T) -> Boolean)? = null,
     selectedPaths: Set<List<Int>>? = null,
     onSelectionChange: (Set<List<Int>>) -> Unit = {},
@@ -199,7 +200,7 @@ public fun <T> Tree(
     children: (T) -> List<T>,
     treeSelectionListener: TreeSelectionListener,
     modifier: SwingModifier = SwingModifier,
-    label: (T) -> String = { it.toString() },
+    label: (T) -> @Nls String = { it.toString() },
     hasChildren: ((T) -> Boolean)? = null,
     selectedPaths: Set<List<Int>>? = null,
     expandedPaths: Set<List<Int>>? = null,
@@ -452,7 +453,7 @@ public fun <T> Tree(
     children: (T) -> List<T>,
     state: TreeState,
     modifier: SwingModifier = SwingModifier,
-    label: (T) -> String = { it.toString() },
+    label: (T) -> @Nls String = { it.toString() },
     hasChildren: ((T) -> Boolean)? = null,
     onWillExpand: ((value: T, path: List<Int>) -> Boolean)? = null,
     isEditable: Boolean = false,
@@ -764,7 +765,7 @@ private fun JTree.installModel(
 private data class TreeContent<T>(
     val root: T,
     val children: (T) -> List<T>,
-    val label: (T) -> String,
+    val label: (T) -> @Nls String,
     val hasChildren: ((T) -> Boolean)?,
 ) {
     /**

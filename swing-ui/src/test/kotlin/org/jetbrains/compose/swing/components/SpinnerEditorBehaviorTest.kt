@@ -75,7 +75,7 @@ class SpinnerEditorBehaviorTest {
     }
 
     @Test
-    fun changingTheFormatAcrossRecompositionIsHonoured() = runComposeSwingTest {
+    fun changingTheFormatAcrossRecompositionIsHonored() = runComposeSwingTest {
         var format by mutableStateOf("#0.00")
         setContent { Spinner(value = 1.5, step = 0.5, format = format) }
         awaitIdle()

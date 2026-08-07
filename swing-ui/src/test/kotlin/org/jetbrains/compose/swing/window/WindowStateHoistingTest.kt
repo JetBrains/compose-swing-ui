@@ -18,7 +18,7 @@ import kotlin.test.assertEquals
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Behavioural tests asserting that the `state` argument of a [Window] or [Dialog] is reactive in both
+ * Behavioral tests asserting that the `state` argument of a [Window] or [Dialog] is reactive in both
  * directions: a recomposition that hands over a different state holder drives the realized peer from
  * the new holder, and the peer's user-driven geometry and extended-state changes are written back into
  * that same holder rather than into the one it replaced.

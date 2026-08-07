@@ -31,7 +31,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * A flat button and a recoloured text selection are properties of the components themselves, so they
+ * A flat button and a recolored text selection are properties of the components themselves, so they
  * are carried by modifiers rather than by each wrapper. These pin that the value is applied, that it
  * follows the state driving it, and that removing it restores the value the component carried before.
  *
@@ -90,7 +90,7 @@ class ButtonAndTextAppearanceModifierTest {
     }
 
     @Test
-    fun textColoursReachATextField() = runComposeSwingTest {
+    fun textColorsReachATextField() = runComposeSwingTest {
         setContent {
             TextField(
                 value = "",
@@ -111,35 +111,35 @@ class ButtonAndTextAppearanceModifierTest {
     }
 
     @Test
-    fun aCaretColourFollowsTheStateDrivingIt() = runComposeSwingTest {
+    fun aCaretColorFollowsTheStateDrivingIt() = runComposeSwingTest {
         var color by mutableStateOf(Color.RED)
         setContent { TextField(value = "", modifier = SwingModifier.caretColor(color)) }
 
         val field = onNodeOfType<JTextField>().fetch()
-        assertEquals(Color.RED, field.caretColor, "the declared colour")
+        assertEquals(Color.RED, field.caretColor, "the declared color")
 
         color = Color.BLUE
         awaitIdle()
 
-        assertEquals(Color.BLUE, field.caretColor, "the colour follows its state")
+        assertEquals(Color.BLUE, field.caretColor, "the color follows its state")
     }
 
     @Test
-    fun droppingACaretColourRestoresTheLookAndFeelsOwn() = runComposeSwingTest {
-        var recoloured by mutableStateOf(true)
+    fun droppingACaretColorRestoresTheLookAndFeelsOwn() = runComposeSwingTest {
+        var recolored by mutableStateOf(true)
         setContent {
-            TextField(value = "", modifier = if (recoloured) SwingModifier.caretColor(Color.RED) else SwingModifier)
+            TextField(value = "", modifier = if (recolored) SwingModifier.caretColor(Color.RED) else SwingModifier)
         }
 
         val field = onNodeOfType<JTextField>().fetch()
         val installed = field.caretColor
-        assertEquals(Color.RED, installed, "the colour applies while declared")
+        assertEquals(Color.RED, installed, "the color applies while declared")
 
-        recoloured = false
+        recolored = false
         awaitIdle()
 
-        // The element captured the look and feel's own colour before writing, so that is what returns.
-        assertTrue(field.caretColor != Color.RED, "dropping it restores the look and feel's colour")
+        // The element captured the look and feel's own color before writing, so that is what returns.
+        assertTrue(field.caretColor != Color.RED, "dropping it restores the look and feel's color")
     }
 
     @Test

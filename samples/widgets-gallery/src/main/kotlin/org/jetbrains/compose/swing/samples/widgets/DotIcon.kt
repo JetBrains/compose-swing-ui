@@ -9,7 +9,7 @@ import java.awt.Graphics2D
 import java.awt.RenderingHints
 import javax.swing.Icon
 
-/** A small filled dot, used to tell a button's icon states apart by colour alone. */
+/** A small filled dot, used to tell a button's icon states apart by color alone. */
 internal class DotIcon(
     private val color: Color,
     private val size: Int = DOT_ICON_SIZE,

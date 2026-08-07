@@ -5,6 +5,7 @@ package org.jetbrains.compose.swing.window
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import org.jetbrains.annotations.Nls
 import java.awt.Dialog
 import java.awt.Dimension
 import java.awt.Image
@@ -19,9 +20,9 @@ import javax.swing.WindowConstants
  * The declarative control surface mirrors [Window] (`visible` + `onCloseRequest`, no imperative
  * handle), adding owner resolution and AWT [modality]. The dialog is owned by [owner], which defaults
  * to the nearest enclosing [Window] read from [LocalWindow]. The owner is the window a modal dialog
- * blocks and the one a [WindowPosition.CenteredOnOwner] position centres the dialog on. A dialog with
+ * blocks and the one a [WindowPosition.CenteredOnOwner] position centers the dialog on. A dialog with
  * no [owner] under a bare `application { }` scope, which creates no window, is ownerless: modal
- * blocking takes effect where there is an owning window, and centring on the owner resolves against
+ * blocking takes effect where there is an owning window, and centering on the owner resolves against
  * the screen.
  *
  * The dialog content runs as part of the enclosing (application or window) composition: state from
@@ -71,7 +72,7 @@ public fun Dialog(
     onCloseRequest: () -> Unit,
     state: DialogState = rememberDialogState(),
     owner: java.awt.Window? = null,
-    title: String = "",
+    title: @Nls String = "",
     modality: Dialog.ModalityType = Dialog.ModalityType.MODELESS,
     visible: Boolean = true,
     resizable: Boolean = true,

@@ -81,8 +81,8 @@ internal fun ColumnScope.ColumnCard() {
             verticalArrangement = Arrangement.spacedBy(6),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Button("Centred by the column")
-            Button("Centred too")
+            Button("Centered by the column")
+            Button("Centered too")
             Button("Aligned to the end", modifier = SwingModifier.align(Alignment.End))
         }
     }

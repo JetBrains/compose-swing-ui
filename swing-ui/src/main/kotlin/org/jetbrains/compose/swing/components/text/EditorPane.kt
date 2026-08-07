@@ -6,6 +6,7 @@ package org.jetbrains.compose.swing.components.text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.constants.ContentType
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
@@ -50,7 +51,7 @@ import javax.swing.text.html.HTMLDocument
  */
 @Composable
 public fun EditorPane(
-    markup: String,
+    markup: @Nls String,
     modifier: SwingModifier = SwingModifier,
     @ContentType contentType: String = "text/plain",
     baseUrl: URL? = null,
@@ -90,7 +91,7 @@ public fun EditorPane(
  */
 @Composable
 public fun EditorPane(
-    markup: String,
+    markup: @Nls String,
     hyperlinkListener: HyperlinkListener,
     modifier: SwingModifier = SwingModifier,
     @ContentType contentType: String = "text/plain",
@@ -103,8 +104,8 @@ public fun EditorPane(
     SwingNode(
         factory = { JEditorPane() },
         update = {
-            // A rendered pane holds only what is declared, so the user cannot type into it - and a
-            // JEditorPane publishes link events only while it is not editable.
+            // A JEditorPane publishes link events only while it is not editable, so this pane is fixed
+            // non-editable.
             set(false) { this.isEditable = it }
             set(RenderedSource(kit, baseUrl, markup)) { source ->
                 // Installing a kit brings its own empty document with it, so the base and the source are
@@ -131,7 +132,7 @@ public fun EditorPane(
 private class RenderedSource(
     val kit: EditorKit,
     val baseUrl: URL?,
-    val markup: String,
+    val markup: @Nls String,
 ) {
     private val baseHref = baseUrl?.toExternalForm()
 
@@ -156,7 +157,7 @@ private class RenderedSource(
  *
  * With [editable] the pane is Swing's rich-text editor: the user authors the rendered content, and what
  * they write is the state's own text. Hyperlinks in an HTML document are live only while the pane is
- * not editable, as they are in any `JEditorPane`.
+ * not editable.
  *
  * @param state the hoistable text state the pane renders and drives.
  * @param modifier the [SwingModifier] applied to the underlying component
@@ -208,9 +209,9 @@ public fun EditorPane(
  */
 @Composable
 public fun TextPane(
-    value: String,
+    value: @Nls String,
     modifier: SwingModifier = SwingModifier,
-    onValueChange: (String) -> Unit = {},
+    onValueChange: (@Nls String) -> Unit = {},
     editable: Boolean = true,
 ) {
     val callback = rememberUpdatedState(onValueChange)
@@ -246,7 +247,7 @@ public fun TextPane(
  */
 @Composable
 public fun TextPane(
-    value: String,
+    value: @Nls String,
     documentListener: DocumentListener,
     modifier: SwingModifier = SwingModifier,
     editable: Boolean = true,
@@ -266,7 +267,7 @@ public fun TextPane(
  */
 @Composable
 private fun TextPaneNode(
-    value: String,
+    value: @Nls String,
     applied: AppliedValue<String>,
     modifier: SwingModifier,
     editable: Boolean,

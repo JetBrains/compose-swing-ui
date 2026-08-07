@@ -19,7 +19,7 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Behavioural tests asserting that a centering [WindowPosition] places a realized peer:
+ * Behavioral tests asserting that a centering [WindowPosition] places a realized peer:
  * [WindowPosition.CenteredOnScreen] centers it on the screen, [WindowPosition.CenteredOnOwner] on the
  * window that owns it, and the resolved placement is written back into the driving state as concrete
  * coordinates.

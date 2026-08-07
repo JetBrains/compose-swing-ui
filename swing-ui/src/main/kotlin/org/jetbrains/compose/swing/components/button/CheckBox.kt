@@ -4,9 +4,9 @@
 package org.jetbrains.compose.swing.components.button
 
 import androidx.compose.runtime.Composable
+import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
-import org.jetbrains.compose.swing.modifier.listener.actionListener
 import org.jetbrains.compose.swing.node.AppliedValue
 import org.jetbrains.compose.swing.node.SwingNode
 import java.awt.event.ActionListener
@@ -23,7 +23,7 @@ import javax.swing.JCheckBox
  */
 @Composable
 public fun CheckBox(
-    text: String,
+    text: @Nls String,
     checked: Boolean,
     modifier: SwingModifier = SwingModifier,
     onCheckedChange: (Boolean) -> Unit = {},
@@ -50,7 +50,7 @@ public fun CheckBox(
  */
 @Composable
 public fun CheckBox(
-    text: String,
+    text: @Nls String,
     actionListener: ActionListener,
     checked: Boolean,
     modifier: SwingModifier = SwingModifier,
@@ -71,7 +71,7 @@ public fun CheckBox(
  */
 @Composable
 private fun CheckBoxNode(
-    text: String,
+    text: @Nls String,
     modifier: SwingModifier,
     checked: Boolean,
     applied: AppliedValue<Boolean>,

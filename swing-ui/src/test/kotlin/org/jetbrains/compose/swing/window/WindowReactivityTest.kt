@@ -25,7 +25,7 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Behavioural tests asserting that [Window] arguments are reactive: mutating Compose state that
+ * Behavioral tests asserting that [Window] arguments are reactive: mutating Compose state that
  * feeds a [Window] argument is reflected on the realized [JFrame] once the change is applied, and
  * that [WindowState] geometry is two-way with the realized frame. Skipped in headless environments
  * where no real peer can be realized.

@@ -1,6 +1,7 @@
 package org.jetbrains.compose.swing.components.layout
 
 import androidx.compose.runtime.Composable
+import org.jetbrains.annotations.Nls
 import java.awt.Color
 import javax.swing.Icon
 
@@ -47,9 +48,9 @@ public sealed interface TabbedPaneScope {
     // One parameter per independent declarative aspect of a tab, all but title and content optional
     // and named at the call site.
     public fun tab(
-        title: String,
+        title: @Nls String,
         icon: Icon? = null,
-        tooltip: String? = null,
+        tooltip: @Nls String? = null,
         enabled: Boolean = true,
         mnemonic: Int = NO_MNEMONIC,
         displayedMnemonicIndex: Int? = null,

@@ -25,7 +25,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Behavioural coverage for what a [FormattedTextField] does with the keyboard: an edit the user leaves
+ * Behavioral coverage for what a [FormattedTextField] does with the keyboard: an edit the user leaves
  * uncommitted is settled when focus goes elsewhere, exactly once and carrying the parsed value, and
  * taking focus back does not report a commit the user never made.
  *

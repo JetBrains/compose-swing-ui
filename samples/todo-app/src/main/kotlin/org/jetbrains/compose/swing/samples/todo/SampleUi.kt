@@ -82,7 +82,7 @@ internal fun ColumnScope.Card(
 }
 
 // A label that echoes live state ("3 of 5 done"). Asking for a fixed width stops it from re-measuring
-// and shifting its neighbours every time the value grows or shrinks - the most visible source of jitter
+// and shifting its neighbors every time the value grows or shrinks - the most visible source of jitter
 // in a reactive Swing UI.
 @Composable
 internal fun ValueLabel(

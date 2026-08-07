@@ -1,6 +1,6 @@
 # Components
 
-This is the catalogue of what Compose Swing UI ships: every component family, grouped the way you
+This is the catalog of what Compose Swing UI ships: every component family, grouped the way you
 reach for one, with the parameters that decide how it behaves. The KDoc on each function is the
 per-parameter reference. The concepts behind the binding are in
 [`ARCHITECTURE.md`](ARCHITECTURE.md), and building a component of your own is
@@ -16,7 +16,7 @@ exactly as the freshly constructed Swing widget does, so the defaults quoted her
 this library's. A parameter with no single correct default - `CheckBox`'s `checked`, or a
 `ComboBox` built over `items` rather than a `ComboBoxModel` - is required instead.
 
-Cross-cutting configuration - colours, fonts, borders, sizes, tooltips, accessibility, keyboard
+Cross-cutting configuration - colors, fonts, borders, sizes, tooltips, accessibility, keyboard
 bindings, data transfer, raw listeners - arrives as a `SwingModifier` chain passed as `modifier`,
 described in
 [`CUSTOM-COMPONENTS.md`](CUSTOM-COMPONENTS.md#styling-with-a-modifier-swingmodifier-parameter).
@@ -54,7 +54,7 @@ and the raw-listener overloads take it as it is: `Button("Save", actionListener 
 `MenuItem("Save", actionListener = save)`.
 
 The same listeners are also modifier elements, which is how you hear events from a component the
-catalogue does not wrap. `actionListener` reaches everything that publishes an action event - an
+catalog does not wrap. `actionListener` reaches everything that publishes an action event - an
 `AbstractButton`, a `JTextField`, a `JComboBox`, a `JFileChooser`, and the AWT `Button`, `TextField`
 and `List` - and `changeListener` everything that publishes a change event - a `JSlider`, a `JSpinner`,
 a `JTabbedPane`, a `JProgressBar`, an `AbstractButton`, a `JViewport` and a `JColorChooser`, which
@@ -461,7 +461,7 @@ children go into named slots declared through a receiver DSL.
 | `Row`, `Column` | A single-axis stack holding each child at the size it prefers, with its leftover space placed by an `Arrangement`. |
 | `FlowPanel` | A wrapping strip over `FlowLayout`. |
 | `GridPanel` | Equal-sized cells over `GridLayout`. |
-| `BorderPanel` | Four edges and a filling centre over `BorderLayout`, as named slots. |
+| `BorderPanel` | Four edges and a filling center over `BorderLayout`, as named slots. |
 | `GridBagPanel` | Cell-by-cell placement over `GridBagLayout`, one `item(...)` per child. |
 | `CardPanel` | A deck over `CardLayout`, one card visible at a time, addressed by key. |
 | `TabbedPane` | Tabs over `JTabbedPane`, each declared with `tab(...)`. |
@@ -519,7 +519,7 @@ it prefers and leaves the rest to the arrangement. An explicit `maximumSize` cap
 each shares its leftover space out among the children that have room between the size they prefer and
 their maximum size, in proportion to that room. `Glue` is empty space with the most room of all, so it
 takes the largest share, and `Strut` and `RigidArea` are the fixed gaps between items. `FlowPanel`
-centres its children and gaps them by `5` pixels, and `GridPanel` starts as a single row that grows a
+centers its children and gaps them by `5` pixels, and `GridPanel` starts as a single row that grows a
 column per child, with no gaps.
 
 `GridBagPanel`'s `item` takes one parameter per `GridBagConstraints` field, under the field's own
@@ -720,7 +720,7 @@ A window exists while it is composed: opening one is composing it, closing it is
 and `onCloseRequest` is where you flip the state that decides. `title` starts empty, `resizable` is
 `true`, `alwaysOnTop` is `false`, `undecorated` is `false`, and a dialog's `modality` is
 `ModalityType.MODELESS`. A `Dialog` composed inside a window's content takes that window as its
-owner - the window its modality blocks and the one `WindowPosition.CenteredOnOwner` centres it on -
+owner - the window its modality blocks and the one `WindowPosition.CenteredOnOwner` centers it on -
 and `owner` names a different window to be owned by instead.
 
 ```kotlin
@@ -730,7 +730,7 @@ application {
     Window(onCloseRequest = ::exitApplication, state = state, title = "Editor") {
         Column {
             Label("${state.width} x ${state.height} at ${state.position}")
-            Button("Centre", onClick = { state.position = WindowPosition.CenteredOnScreen })
+            Button("Center", onClick = { state.position = WindowPosition.CenteredOnScreen })
             Button("Widen", onClick = { state.width += 80 })
         }
     }
@@ -854,7 +854,7 @@ frame.jMenuBar = bar
 ```
 
 There is no command type, so one command reached from two surfaces - a menu item and a toolbar button
-that go grey together - is a shared value and a shared modifier. Both surfaces read the one state and
+that go gray together - is a shared value and a shared modifier. Both surfaces read the one state and
 apply the one chain, so enabling and disabling them is a single state write.
 
 ```kotlin
@@ -1018,8 +1018,8 @@ sizes the window to its content.
 coordinates of its own, and the placement it resolves to is written back as an `Absolute`, so reading
 `position` after the window is shown always gives concrete coordinates.
 
-`CenteredOn(window)` centres on any window - `LocalWindow.current` is the window the declaring content
-sits in - on the bounds that window holds as the position is applied, so the centred window stands
+`CenteredOn(window)` centers on any window - `LocalWindow.current` is the window the declaring content
+sits in - on the bounds that window holds as the position is applied, so the centered window stands
 where it was put once the other one moves on.
 
 ### `DialogState`
@@ -1103,7 +1103,7 @@ state drives one tree at a time.
 
 ## Anything else
 
-The catalogue is not the boundary of what you can compose. Any Swing `Component` can be hosted
+The catalog is not the boundary of what you can compose. Any Swing `Component` can be hosted
 directly with `SwingNode`, any menu component with `MenuNode`, and a property no builder covers can be
 written as a modifier element of your own. [`CUSTOM-COMPONENTS.md`](CUSTOM-COMPONENTS.md) is the guide
 to all three.

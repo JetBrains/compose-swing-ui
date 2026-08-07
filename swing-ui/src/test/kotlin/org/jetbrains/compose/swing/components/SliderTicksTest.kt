@@ -24,7 +24,7 @@ import kotlin.test.assertTrue
  */
 class SliderTicksTest {
     /** The values the slider draws a label at, in ascending order. */
-    private fun JSlider.labelledValues(): List<Int> = labelTable
+    private fun JSlider.labeledValues(): List<Int> = labelTable
         .keys()
         .toList()
         .map { it as Int }
@@ -121,7 +121,7 @@ class SliderTicksTest {
 
         val slider = onNodeOfType<JSlider>().fetch()
         assertTrue(slider.paintLabels, "the slider should paint its labels")
-        assertEquals(listOf(0, 25, 50, 75, 100), slider.labelledValues(), "Swing should label every major tick")
+        assertEquals(listOf(0, 25, 50, 75, 100), slider.labeledValues(), "Swing should label every major tick")
     }
 
     @Test
@@ -133,7 +133,7 @@ class SliderTicksTest {
         val slider = onNodeOfType<JSlider>().fetch()
         assertEquals(
             listOf(0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100),
-            slider.labelledValues(),
+            slider.labeledValues(),
             "the slider should start with a label at every major tick",
         )
 
@@ -142,7 +142,7 @@ class SliderTicksTest {
 
         assertEquals(
             listOf(0, 25, 50, 75, 100),
-            slider.labelledValues(),
+            slider.labeledValues(),
             "the labels should sit on the grid the ticks moved to",
         )
         assertEquals("75", slider.labelTextAt(75), "a label should render the value it sits at")
@@ -162,7 +162,7 @@ class SliderTicksTest {
         }
 
         val slider = onNodeOfType<JSlider>().fetch()
-        assertEquals(listOf(0, 100), slider.labelledValues(), "only the declared values should be labelled")
+        assertEquals(listOf(0, 100), slider.labeledValues(), "only the declared values should be labeled")
         assertEquals("quiet", slider.labelTextAt(0), "the label should render the declared text")
         assertEquals("loud", slider.labelTextAt(100), "the label should render the declared text")
     }
@@ -179,7 +179,7 @@ class SliderTicksTest {
         labels = mapOf(0 to "silent", 100 to "silent")
         awaitIdle()
 
-        assertEquals(listOf(0, 100), slider.labelledValues(), "the new map decides which values are labelled")
+        assertEquals(listOf(0, 100), slider.labeledValues(), "the new map decides which values are labeled")
         assertEquals("silent", slider.labelTextAt(0), "the new text replaces the one the old map declared")
         assertEquals("silent", slider.labelTextAt(100), "at every value the new map declares it at")
         assertNotSame(
@@ -197,18 +197,18 @@ class SliderTicksTest {
             Slider(value = 30, min = 0, max = max, majorTickSpacing = 25, paintLabels = true, labels = labels)
         }
         val slider = onNodeOfType<JSlider>().fetch()
-        assertEquals(listOf(0, 25, 50, 75, 100), slider.labelledValues(), "Swing should label every major tick")
+        assertEquals(listOf(0, 25, 50, 75, 100), slider.labeledValues(), "Swing should label every major tick")
 
         labels = mapOf(0 to "quiet", 100 to "loud")
         awaitIdle()
-        assertEquals(listOf(0, 100), slider.labelledValues(), "only the declared values should be labelled")
+        assertEquals(listOf(0, 100), slider.labeledValues(), "only the declared values should be labeled")
 
         max = 200
         awaitIdle()
 
         assertEquals(
             listOf(0, 100),
-            slider.labelledValues(),
+            slider.labeledValues(),
             "the moved range should not put back the labels the declared map replaced",
         )
         assertEquals("loud", slider.labelTextAt(100), "a declared label should still render its text")
@@ -222,7 +222,7 @@ class SliderTicksTest {
             Slider(value = 50, min = min, max = 100, majorTickSpacing = majorTickSpacing, paintLabels = true)
         }
         val slider = onNodeOfType<JSlider>().fetch()
-        assertEquals(listOf(0, 25, 50, 75, 100), slider.labelledValues(), "Swing should label every major tick")
+        assertEquals(listOf(0, 25, 50, 75, 100), slider.labeledValues(), "Swing should label every major tick")
 
         majorTickSpacing = 0
         awaitIdle()
@@ -236,7 +236,7 @@ class SliderTicksTest {
         awaitIdle()
         assertEquals(
             listOf(10, 40, 70, 100),
-            slider.labelledValues(),
+            slider.labeledValues(),
             "the slider should keep taking what the composition declares after the range moved",
         )
     }
@@ -248,12 +248,12 @@ class SliderTicksTest {
             Slider(value = 30, min = 0, max = 100, majorTickSpacing = 25, paintLabels = true, labels = labels)
         }
         val slider = onNodeOfType<JSlider>().fetch()
-        assertEquals(listOf(0, 100), slider.labelledValues(), "only the declared values should be labelled")
+        assertEquals(listOf(0, 100), slider.labeledValues(), "only the declared values should be labeled")
 
         labels = null
         awaitIdle()
 
-        assertEquals(listOf(0, 25, 50, 75, 100), slider.labelledValues(), "Swing should label every major tick again")
+        assertEquals(listOf(0, 25, 50, 75, 100), slider.labeledValues(), "Swing should label every major tick again")
         assertEquals("25", slider.labelTextAt(25), "the restored labels should render the value they sit at")
     }
 
@@ -264,14 +264,14 @@ class SliderTicksTest {
             Slider(value = 30, min = 0, max = 100, majorTickSpacing = 25, paintLabels = false, labels = labels)
         }
         val slider = onNodeOfType<JSlider>().fetch()
-        assertEquals(listOf(0, 100), slider.labelledValues(), "only the declared values should be labelled")
+        assertEquals(listOf(0, 100), slider.labeledValues(), "only the declared values should be labeled")
 
         labels = null
         awaitIdle()
 
         assertEquals(
             listOf(0, 25, 50, 75, 100),
-            slider.labelledValues(),
+            slider.labeledValues(),
             "the labels a withdrawn map falls back to should not depend on whether they are painted",
         )
     }
@@ -281,7 +281,7 @@ class SliderTicksTest {
         var labels by mutableStateOf<Map<Int, String>?>(mapOf(10 to "ten"))
         setContent { Slider(value = 30, min = 0, max = 100, paintLabels = true, labels = labels) }
         val slider = onNodeOfType<JSlider>().fetch()
-        assertEquals(listOf(10), slider.labelledValues(), "the declared value should be labelled")
+        assertEquals(listOf(10), slider.labeledValues(), "the declared value should be labeled")
 
         labels = null
         awaitIdle()
@@ -298,7 +298,7 @@ class SliderTicksTest {
         }
 
         val slider = onNodeOfType<JSlider>().fetch()
-        assertEquals(listOf(0, 100), slider.labelledValues(), "only the declared values should be labelled")
+        assertEquals(listOf(0, 100), slider.labeledValues(), "only the declared values should be labeled")
         assertEquals("quiet", slider.labelTextAt(0), "the label should render the declared text")
         assertEquals("loud", slider.labelTextAt(100), "the label should render the declared text")
 

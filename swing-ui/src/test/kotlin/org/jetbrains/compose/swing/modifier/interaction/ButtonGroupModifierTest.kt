@@ -26,7 +26,7 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
- * Behavioural coverage for the button-group membership a caller declares on buttons it lays out itself.
+ * Behavioral coverage for the button-group membership a caller declares on buttons it lays out itself.
  * Each test asserts what an observer of the live Swing tree sees: which buttons are one choice, which
  * group a button's model belongs to, and that a button stops taking part in the exclusion once it no
  * longer declares the group.

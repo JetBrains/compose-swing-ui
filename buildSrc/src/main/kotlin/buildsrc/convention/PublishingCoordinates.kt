@@ -3,7 +3,7 @@
 // the derivation logic is unit-reviewable. Derives coordinates from the standard GitHub Actions
 // environment, adapted to a single JVM library: owner/repo come from GITHUB_REPOSITORY, the server host
 // from GITHUB_SERVER_URL, and credentials from GITHUB_ACTOR/GITHUB_TOKEN, each with a gradle-property
-// override. Credentials are modelled as nullable providers so the GitHubPackages repository block
+// override. Credentials are modeled as nullable providers so the GitHubPackages repository block
 // configures cleanly with no environment present; maven-publish only validates them when a remote
 // publish task actually executes.
 package buildsrc.convention

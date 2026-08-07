@@ -270,7 +270,7 @@ class TableRowSortingTest {
 
         val sorter = onNodeOfType<JTable>().fetch().rowSorter as TableRowSorter<*>
         assertFalse(sorter.isSortable(0), "a column declared unsortable should not sort")
-        assertTrue(sorter.isSortable(1), "while its neighbour still does")
+        assertTrue(sorter.isSortable(1), "while its neighbor still does")
     }
 
     @Test

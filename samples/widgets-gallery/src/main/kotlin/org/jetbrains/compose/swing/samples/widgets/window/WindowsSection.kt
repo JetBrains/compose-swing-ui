@@ -148,7 +148,7 @@ private fun SecondaryWindowControls(
         Label("Size: ${state.width} x ${state.height}")
     }
     FlowPanel {
-        Button("Centre on screen", onClick = { state.position = WindowPosition.CenteredOnScreen })
+        Button("Center on screen", onClick = { state.position = WindowPosition.CenteredOnScreen })
         Button("Widen by 40", onClick = { state.width += 40 })
         Button("Maximize", onClick = { state.extendedState = Frame.MAXIMIZED_BOTH })
         Button("Restore", onClick = { state.extendedState = Frame.NORMAL })

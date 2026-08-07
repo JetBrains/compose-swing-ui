@@ -221,7 +221,7 @@ class StateEditorTextPaneTest {
             TextPane(state = state)
         }
 
-        // A kit recognises nothing outside its own language, and what it makes of source it cannot read
+        // A kit recognizes nothing outside its own language, and what it makes of source it cannot read
         // is the same empty document as source that legitimately renders to nothing - so the seed simply
         // does not arrive, rather than being reported.
         assertEquals("", state.text.toString(), "a kit contributes nothing it cannot read")

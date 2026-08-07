@@ -325,7 +325,7 @@ private fun SpinnerNode(
 
 /**
  * A [SpinnerModel] over a list of [items], stepping from one item to the next without wrapping around at
- * either end. An empty list is legal: the model then holds no value and offers no neighbour in either
+ * either end. An empty list is legal: the model then holds no value and offers no neighbor in either
  * direction, which is what a spinner reads to render nothing and refuse to step.
  *
  * This widens [javax.swing.SpinnerListModel] on the two points that model is strict about, because a

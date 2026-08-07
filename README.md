@@ -61,7 +61,7 @@ fun main() = application {
 the regions you need.
 
 Every component family the library ships - text inputs, buttons, selection, layout containers,
-windows, dialogs and menus - is catalogued with the parameters that decide how it behaves in
+windows, dialogs and menus - is cataloged with the parameters that decide how it behaves in
 [`docs/COMPONENTS.md`](docs/COMPONENTS.md).
 
 ## Mounting into existing Swing (`setContent`)
@@ -199,14 +199,10 @@ way. See [`docs/CUSTOM-COMPONENTS.md`](docs/CUSTOM-COMPONENTS.md) for a step-by-
 
 ## Animation
 
-`swing-ui-animation` provides the familiar `animate*AsState`, `Animatable`, `updateTransition` /
-`Transition`, `rememberInfiniteTransition`, easing curves (including `CubicBezierEasing`) and the
-`spring` / `tween` / `keyframes` specs, for the `Float`, `Int` and generic (`TwoWayConverter`) value
-types - supply a `TwoWayConverter` for your own type (e.g. `java.awt.Color`).
-
-Animations run with no extra wiring: any `animate*` used inside a `setContent { ... }` composition is
-driven by the window's frame clock automatically, advancing at the display's refresh rate while an
-animation is in flight. See [`swing-ui-animation/README.md`](swing-ui-animation/README.md).
+`swing-ui-animation` provides Compose's animation-core APIs - `animate*AsState`, `Animatable`,
+`updateTransition`, easing curves, and the `spring` / `tween` / `keyframes` specs - for `Float`,
+`Int`, and any type you supply a `TwoWayConverter` for. See
+[`swing-ui-animation/README.md`](swing-ui-animation/README.md).
 
 ## Testing
 

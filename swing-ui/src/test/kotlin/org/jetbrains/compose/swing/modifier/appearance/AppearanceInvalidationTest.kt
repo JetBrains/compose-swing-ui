@@ -39,14 +39,14 @@ import kotlin.test.assertTrue
  * recomposition, and each redundant write would cost a layout and a paint.
  *
  * Every case drives the change through the real public API ([SwingNode] plus the modifier under test,
- * re-applied across a recomposition) and observes behaviour deterministically under headless.
+ * re-applied across a recomposition) and observes behavior deterministically under headless.
  */
 class AppearanceInvalidationTest {
     /**
      * A non-`JComponent` AWT [Component] that counts relayout and repaint requests made on it.
      *
      * `revalidate()`/`repaint()` are overridden public methods, so counting their invocations observes
-     * the modifier's behaviour through the component's public surface - no private state is inspected.
+     * the modifier's behavior through the component's public surface - no private state is inspected.
      */
     private class CountingComponent : Component() {
         val revalidateCount = AtomicInteger(0)

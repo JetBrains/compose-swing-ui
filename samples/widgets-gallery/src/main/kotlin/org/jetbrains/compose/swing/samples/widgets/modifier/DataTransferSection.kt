@@ -132,7 +132,7 @@ private fun ColumnScope.OnExportDoneCard() {
                             lastOutcome =
                                 when (action) {
                                     TransferHandler.MOVE -> "moved"
-                                    TransferHandler.NONE -> "cancelled"
+                                    TransferHandler.NONE -> "canceled"
                                     else -> "action $action"
                                 }
                         },

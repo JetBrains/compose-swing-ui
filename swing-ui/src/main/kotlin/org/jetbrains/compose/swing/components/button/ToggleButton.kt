@@ -4,9 +4,9 @@
 package org.jetbrains.compose.swing.components.button
 
 import androidx.compose.runtime.Composable
+import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
-import org.jetbrains.compose.swing.modifier.listener.actionListener
 import org.jetbrains.compose.swing.node.AppliedValue
 import org.jetbrains.compose.swing.node.SwingNode
 import java.awt.event.ActionListener
@@ -31,7 +31,7 @@ import javax.swing.JToggleButton
  */
 @Composable
 public fun ToggleButton(
-    text: String,
+    text: @Nls String,
     modifier: SwingModifier = SwingModifier,
     selected: Boolean = false,
     onSelectedChange: (Boolean) -> Unit = {},
@@ -58,7 +58,7 @@ public fun ToggleButton(
  */
 @Composable
 public fun ToggleButton(
-    text: String,
+    text: @Nls String,
     actionListener: ActionListener,
     modifier: SwingModifier = SwingModifier,
     selected: Boolean = false,
@@ -79,7 +79,7 @@ public fun ToggleButton(
  */
 @Composable
 private fun ToggleButtonNode(
-    text: String,
+    text: @Nls String,
     modifier: SwingModifier,
     selected: Boolean,
     applied: AppliedValue<Boolean>,

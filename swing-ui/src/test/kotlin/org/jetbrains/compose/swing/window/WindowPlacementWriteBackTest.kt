@@ -12,7 +12,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * Behavioural tests asserting which placements of a window reach the driving state.
+ * Behavioral tests asserting which placements of a window reach the driving state.
  *
  * Nobody can drag a window that is not on screen, so a move it takes there is the window system
  * placing it: it resolves a position that names no coordinates, and it leaves declared coordinates

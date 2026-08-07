@@ -43,7 +43,7 @@ internal fun ReactiveTaskList() {
     val done by remember { derivedStateOf { tasks.count { it.done } } }
 
     // A border layout splits the screen: the header keeps the height it asks for in the north region,
-    // and the scrolling list takes whatever height the window has left in the centre.
+    // and the scrolling list takes whatever height the window has left in the center.
     BorderPanel(hgap = 0, vgap = ROW_GAP) {
         north {
             Column(verticalArrangement = Arrangement.spacedBy(ROW_GAP)) {

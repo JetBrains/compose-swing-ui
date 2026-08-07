@@ -88,7 +88,7 @@ class ApplicationWindowKeepAliveTest {
             withTimeout(EXIT_TIMEOUT) { appJob.join() }
             assertTrue(appJob.isCompleted, "application did not exit after exitApplication()")
         } finally {
-            // The tray icon is a real peer in the platform's status area; cancelling the application
+            // The tray icon is a real peer in the platform's status area; canceling the application
             // on every exit path disposes its composition and removes the icon, so a failure cannot
             // leak the icon into the user's environment.
             appJob.cancel()

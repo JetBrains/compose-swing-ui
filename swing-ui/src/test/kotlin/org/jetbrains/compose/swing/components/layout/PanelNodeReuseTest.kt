@@ -20,7 +20,7 @@ import kotlin.test.assertSame
  * every later declaration lands on a component no longer in the tree.
  */
 class PanelNodeReuseTest {
-    /** Asserts the [CardPanel] shows the card labelled [shown] and keeps the one labelled [hidden] down. */
+    /** Asserts the [CardPanel] shows the card labeled [shown] and keeps the one labeled [hidden] down. */
     private fun ComposeSwingTest.assertShownCard(
         shown: String,
         hidden: String,

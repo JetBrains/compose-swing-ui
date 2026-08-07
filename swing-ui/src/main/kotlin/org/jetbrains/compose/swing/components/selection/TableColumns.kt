@@ -4,6 +4,7 @@
 package org.jetbrains.compose.swing.components.selection
 
 import androidx.compose.runtime.Composable
+import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import javax.swing.JTable
 import javax.swing.table.AbstractTableModel
@@ -27,7 +28,7 @@ public sealed interface TableScope<R> {
     @Suppress("LongParameterList")
     // The declaration this appends, parameter for parameter; see column for what each one means.
     public fun addColumn(
-        header: String,
+        header: @Nls String,
         columnClass: Class<*>,
         isEditable: Boolean,
         isCellEditable: ((row: R, rowIndex: Int) -> Boolean)?,
@@ -80,7 +81,7 @@ public sealed interface TableScope<R> {
 // One parameter per independent declarative aspect of a column, all but the header and the value extractor
 // optional and named at the call site.
 public inline fun <R, reified V : Any> TableScope<R>.column(
-    header: String,
+    header: @Nls String,
     isEditable: Boolean = false,
     noinline isCellEditable: ((row: R, rowIndex: Int) -> Boolean)? = null,
     isSortable: Boolean = true,
@@ -141,7 +142,7 @@ public inline fun <R, reified V : Any> TableScope<R>.column(
 // One parameter per independent declarative aspect of a column, all but the header, the class and the
 // value extractor optional and named at the call site.
 public fun <R> TableScope<R>.column(
-    header: String,
+    header: @Nls String,
     columnClass: Class<*>,
     isEditable: Boolean = false,
     isCellEditable: ((row: R, rowIndex: Int) -> Boolean)? = null,
@@ -175,7 +176,7 @@ public fun <R> TableScope<R>.column(
 @Suppress("LongParameterList")
 // One field per declared aspect of a column; see TableScope.addColumn, which hands them over one for one.
 internal class ColumnDeclaration<R>(
-    val header: String,
+    val header: @Nls String,
     val columnClass: Class<*>,
     val isEditable: Boolean,
     val isCellEditable: ((row: R, rowIndex: Int) -> Boolean)?,
@@ -194,7 +195,7 @@ internal class TableScopeImpl<R> : TableScope<R> {
     @Suppress("LongParameterList")
     // The declaration this fills, parameter for parameter; see TableScope.addColumn.
     override fun addColumn(
-        header: String,
+        header: @Nls String,
         columnClass: Class<*>,
         isEditable: Boolean,
         isCellEditable: ((row: R, rowIndex: Int) -> Boolean)?,
@@ -261,7 +262,7 @@ internal class ColumnsTableModel<R> : AbstractTableModel() {
 
     override fun getColumnCount(): Int = columns.size
 
-    override fun getColumnName(column: Int): String = columns[column].header
+    override fun getColumnName(column: Int): @Nls String = columns[column].header
 
     // A table asks for a column's class once per cell, for the renderer and again for the editor, so the
     // answer is the one the declaration already carries rather than anything derived per call.
@@ -340,21 +341,16 @@ internal fun <R> JTable.applyDeclaredColumnWidths(columns: List<ColumnDeclaratio
 }
 
 /**
- * The narrowest a column may be dragged or squeezed to unless its declaration says otherwise: the
- * `minWidth` a `TableColumn` gives itself.
- *
- * Marked [InternalSwingUiApi] because a public inline function's default reaches it; it may change
- * without notice in any release.
+ * The narrowest a column may be dragged or squeezed to unless its declaration says otherwise: what
+ * `TableColumn`'s own constructor leaves a column of the width it also chooses holding. The constructor
+ * writes the number as a literal, so there is no constant of Swing's own to name here instead.
  */
 @PublishedApi
 internal const val COLUMN_MIN_WIDTH: Int = 15
 
 /**
  * The widest a column may be dragged or stretched to unless its declaration says otherwise: the
- * `maxWidth` a `TableColumn` gives itself.
- *
- * Marked [InternalSwingUiApi] because a public inline function's default reaches it; it may change
- * without notice in any release.
+ * `Integer.MAX_VALUE` that `TableColumn`'s own constructor sets.
  */
 @PublishedApi
 internal const val COLUMN_MAX_WIDTH: Int = Int.MAX_VALUE

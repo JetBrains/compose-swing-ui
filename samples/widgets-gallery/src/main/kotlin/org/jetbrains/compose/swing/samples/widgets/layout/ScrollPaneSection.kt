@@ -41,7 +41,7 @@ import javax.swing.SwingConstants
 // The full ScrollPaneScope: a scrollable grid as the content, a synced row header and column header,
 // and a corner badge in the upper-leading slot. The scrollbar policies are forced always-on so every
 // slot is visible at once. Further down: the pane's hoistable ScrollState, the content slot's own
-// scrolling behaviour, its border and wheel-scrolling switch, and a raw JScrollBar driven through
+// scrolling behavior, its border and wheel-scrolling switch, and a raw JScrollBar driven through
 // adjustmentListener.
 @Composable
 internal fun ScrollPaneSection() {

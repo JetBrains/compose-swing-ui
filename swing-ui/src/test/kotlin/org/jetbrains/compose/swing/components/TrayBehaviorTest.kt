@@ -17,7 +17,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * Behavioural tests for the icon a [Tray] registers with the live system tray: what it starts out
+ * Behavioral tests for the icon a [Tray] registers with the live system tray: what it starts out
  * carrying, and that every declared property reaches it and keeps following the state that drives it.
  *
  * The icon is found among the icons the system tray holds by the image it was declared with, so the

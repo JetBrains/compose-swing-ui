@@ -15,7 +15,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * Behavioural tests asserting that the closing gesture on a realized [Window] or [Dialog] peer runs the
+ * Behavioral tests asserting that the closing gesture on a realized [Window] or [Dialog] peer runs the
  * `onCloseRequest` the latest recomposition declared, exactly once per gesture.
  *
  * The peers are composed `visible = false`: sizing to content realizes a peer, which is all a closing

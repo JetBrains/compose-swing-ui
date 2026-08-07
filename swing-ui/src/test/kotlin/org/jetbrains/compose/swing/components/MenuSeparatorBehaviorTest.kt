@@ -13,7 +13,7 @@ import kotlin.test.assertIs
  * Behavioral coverage for [MenuSeparator]: the divider a menu draws between its items.
  *
  * A menu draws its divider with a widget of its own, `JPopupMenu.Separator`, whose UI class ID is what
- * a Look and Feel keys the divider's insets, height and colour off. A declared separator is therefore
+ * a Look and Feel keys the divider's insets, height and color off. A declared separator is therefore
  * asserted against the one a hand-built menu holds, not merely against being a separator of some kind.
  */
 class MenuSeparatorBehaviorTest {

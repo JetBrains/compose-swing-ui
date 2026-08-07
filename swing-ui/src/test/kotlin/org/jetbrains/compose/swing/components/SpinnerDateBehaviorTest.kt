@@ -64,7 +64,7 @@ class SpinnerDateBehaviorTest {
     }
 
     @Test
-    fun changingTheCalendarFieldAcrossRecompositionIsHonoured() = runComposeSwingTest {
+    fun changingTheCalendarFieldAcrossRecompositionIsHonored() = runComposeSwingTest {
         val march15 = date(Calendar.MARCH, 15)
         var calendarField by mutableStateOf(Calendar.DAY_OF_MONTH)
         setContent { Spinner(value = march15, calendarField = calendarField) }
@@ -81,7 +81,7 @@ class SpinnerDateBehaviorTest {
     }
 
     @Test
-    fun changingTheDateBoundsAcrossRecompositionIsHonoured() = runComposeSwingTest {
+    fun changingTheDateBoundsAcrossRecompositionIsHonored() = runComposeSwingTest {
         val march15 = date(Calendar.MARCH, 15)
         var end: Date? by mutableStateOf(march15)
         setContent { Spinner(value = march15, end = end) }

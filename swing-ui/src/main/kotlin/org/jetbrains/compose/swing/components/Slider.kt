@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.constants.Orientation
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
@@ -73,7 +74,7 @@ public fun Slider(
     minorTickSpacing: Int = 0,
     paintTicks: Boolean = false,
     paintLabels: Boolean = false,
-    labels: Map<Int, String>? = null,
+    labels: Map<Int, @Nls String>? = null,
     snapToTicks: Boolean = false,
 ) {
     val applied = rememberAppliedValue(value)
@@ -139,7 +140,7 @@ public fun Slider(
     minorTickSpacing: Int = 0,
     paintTicks: Boolean = false,
     paintLabels: Boolean = false,
-    labels: Map<Int, String>? = null,
+    labels: Map<Int, @Nls String>? = null,
     snapToTicks: Boolean = false,
 ) {
     val applied = rememberAppliedValue(value)
@@ -229,7 +230,7 @@ public fun Slider(
     minorTickSpacing: Int = 0,
     paintTicks: Boolean = false,
     paintLabels: Boolean = false,
-    labels: Map<Int, String>? = null,
+    labels: Map<Int, @Nls String>? = null,
     snapToTicks: Boolean = false,
 ) {
     // Nothing is declared over a caller's model, so there is no mirror for the channel to settle against
@@ -284,7 +285,7 @@ public fun Slider(
     minorTickSpacing: Int = 0,
     paintTicks: Boolean = false,
     paintLabels: Boolean = false,
-    labels: Map<Int, String>? = null,
+    labels: Map<Int, @Nls String>? = null,
     snapToTicks: Boolean = false,
 ) {
     SliderNode(
@@ -325,7 +326,7 @@ private fun SliderNode(
     minorTickSpacing: Int,
     paintTicks: Boolean,
     paintLabels: Boolean,
-    labels: Map<Int, String>?,
+    labels: Map<Int, @Nls String>?,
     snapToTicks: Boolean,
     installRange: SwingNodeUpdater<JSlider>.() -> Unit,
 ) {
@@ -435,13 +436,13 @@ private fun rememberSliderValueChannel(
  * major tick spacing and the range Swing's own labels are generated over.
  */
 private data class LabelDeclaration(
-    val labels: Map<Int, String>?,
+    val labels: Map<Int, @Nls String>?,
     val majorTickSpacing: Int,
     val range: IntRange,
 )
 
 /** The `JSlider` label table this text draws as, one [JLabel] per entry. */
-private fun Map<Int, String>.toLabelTable(): Hashtable<Int, JComponent> {
+private fun Map<Int, @Nls String>.toLabelTable(): Hashtable<Int, JComponent> {
     val table = Hashtable<Int, JComponent>()
     for ((value, text) in this) table[value] = JLabel(text)
     return table

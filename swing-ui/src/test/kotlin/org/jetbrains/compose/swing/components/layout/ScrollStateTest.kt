@@ -20,7 +20,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Behavioural tests for [ScrollState], the two-way scroll position of a [ScrollPane]. The harness lays
+ * Behavioral tests for [ScrollState], the two-way scroll position of a [ScrollPane]. The harness lays
  * the tree out synchronously off-screen, so the pane's viewport has real metrics and a real position:
  * each test drives either the state or the viewport and asserts what the other one then reports.
  */

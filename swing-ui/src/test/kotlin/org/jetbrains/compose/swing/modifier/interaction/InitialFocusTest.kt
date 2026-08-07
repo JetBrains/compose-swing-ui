@@ -23,7 +23,7 @@ import kotlin.test.assertNotSame
 import kotlin.test.assertTrue
 
 /**
- * Behavioural coverage for the initial-focus declaration: the window's focus goes to the declared
+ * Behavioral coverage for the initial-focus declaration: the window's focus goes to the declared
  * component rather than to the first in traversal order, and the declaration is spent once - a
  * recomposition or a later showing of the same component leaves the keyboard wherever the user has
  * taken it.

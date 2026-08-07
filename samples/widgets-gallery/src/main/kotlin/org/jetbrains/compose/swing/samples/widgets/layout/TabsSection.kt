@@ -27,7 +27,7 @@ import javax.swing.UIManager
 
 // TabbedPane: a controlled selected index synced with external buttons, an optionally-disabled tab, a
 // dynamically added/removed tab, and a second strip whose placement and
-// overflow policy switch live while its tabs carry an icon, colours, a mnemonic and a custom header.
+// overflow policy switch live while its tabs carry an icon, colors, a mnemonic and a custom header.
 @Composable
 internal fun TabsSection() {
     SectionColumn {
@@ -117,7 +117,7 @@ private fun ColumnScope.TabPlacementCard() {
                 FlowPanel { Label("A tab carrying an icon.") }
             }
             tab("Styled", background = Color(0xFF, 0xF9, 0xC4), foreground = Color(0xE6, 0x51, 0x00)) {
-                FlowPanel { Label("A tab with its own background and title colour.") }
+                FlowPanel { Label("A tab with its own background and title color.") }
             }
             tab("Data", mnemonic = KeyEvent.VK_D, displayedMnemonicIndex = 0) {
                 FlowPanel { Label("Alt+D (or the platform's mouseless modifier) selects this tab.") }

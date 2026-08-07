@@ -22,7 +22,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
- * Behavioural coverage for the value-accepted modifier: the field's action event runs the callback, the
+ * Behavioral coverage for the value-accepted modifier: the field's action event runs the callback, the
  * callback the latest composition declared is the one that runs, applications accumulate, and the
  * registration ends with the element.
  *

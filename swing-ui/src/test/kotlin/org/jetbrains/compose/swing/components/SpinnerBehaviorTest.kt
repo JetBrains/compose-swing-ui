@@ -118,7 +118,7 @@ class SpinnerBehaviorTest {
     }
 
     @Test
-    fun theListFactoryHonoursTheInitialValue() = runComposeSwingTest {
+    fun theListFactoryHonorsTheInitialValue() = runComposeSwingTest {
         var stateValue by mutableStateOf("b")
         setContent {
             Spinner(items = listOf("a", "b", "c"), value = stateValue, onValueChange = { stateValue = it })
@@ -183,7 +183,7 @@ class SpinnerBehaviorTest {
     }
 
     @Test
-    fun raisingTheMaxAcrossRecompositionIsHonouredAndPreservesTheValue() = runComposeSwingTest {
+    fun raisingTheMaxAcrossRecompositionIsHonoredAndPreservesTheValue() = runComposeSwingTest {
         var max by mutableStateOf(10)
         var stateValue by mutableStateOf<Number>(8)
         setContent {
@@ -207,7 +207,7 @@ class SpinnerBehaviorTest {
     }
 
     @Test
-    fun changingTheItemsAcrossRecompositionIsHonoured() = runComposeSwingTest {
+    fun changingTheItemsAcrossRecompositionIsHonored() = runComposeSwingTest {
         var items by mutableStateOf(listOf("red", "green", "blue"))
         var stateValue by mutableStateOf("red")
         setContent {
@@ -271,7 +271,7 @@ class SpinnerBehaviorTest {
     }
 
     @Test
-    fun emptyingAndRefillingTheItemsAcrossRecompositionIsHonoured() = runComposeSwingTest {
+    fun emptyingAndRefillingTheItemsAcrossRecompositionIsHonored() = runComposeSwingTest {
         var items by mutableStateOf(listOf("red", "green"))
         var stateValue by mutableStateOf("red")
         setContent {
@@ -296,7 +296,7 @@ class SpinnerBehaviorTest {
     }
 
     @Test
-    fun loweringTheMinAcrossRecompositionIsHonouredAndOpensTheLowerRange() = runComposeSwingTest {
+    fun loweringTheMinAcrossRecompositionIsHonoredAndOpensTheLowerRange() = runComposeSwingTest {
         var min by mutableStateOf(4)
         var stateValue by mutableStateOf<Number>(5)
         setContent {
@@ -324,7 +324,7 @@ class SpinnerBehaviorTest {
     }
 
     @Test
-    fun changingTheStepAcrossRecompositionIsHonoured() = runComposeSwingTest {
+    fun changingTheStepAcrossRecompositionIsHonored() = runComposeSwingTest {
         var step by mutableStateOf(2)
         var stateValue by mutableStateOf<Number>(0)
         setContent {
@@ -405,7 +405,7 @@ class SpinnerBehaviorTest {
     }
 
     @Test
-    fun tighteningTheBoundsAcrossRecompositionIsHonouredAndLeavesTheValueWhereItIs() = runComposeSwingTest {
+    fun tighteningTheBoundsAcrossRecompositionIsHonoredAndLeavesTheValueWhereItIs() = runComposeSwingTest {
         var bounds by mutableStateOf<IntRange?>(null)
         var stateValue by mutableStateOf<Number>(5)
         setContent {

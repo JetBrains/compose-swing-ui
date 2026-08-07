@@ -17,7 +17,7 @@ import javax.swing.event.ChangeListener
 /**
  * Attaches a [ChangeListener] (`addChangeListener`/`removeChangeListener`) to a component that fires
  * change events (`JSlider`, `JSpinner`, `JTabbedPane`, `JProgressBar`, `AbstractButton`, `JViewport`,
- * `JColorChooser`). A colour chooser publishes its change events through the `selectionModel` it holds
+ * `JColorChooser`). A color chooser publishes its change events through the `selectionModel` it holds
  * when the listener is installed.
  *
  * @see javax.swing.event.ChangeListener

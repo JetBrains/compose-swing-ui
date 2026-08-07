@@ -26,7 +26,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * Behavioural tests for the empty-space composables. What a caller can observe of empty space is the
+ * Behavioral tests for the empty-space composables. What a caller can observe of empty space is the
  * three size requests it makes of its parent's layout and the space it ends up occupying, so each test
  * asserts those against the live component: [RigidArea], [Spacer] and [Strut] hold a size, [Glue] absorbs
  * what is left over, and none of them is a place the user's focus can land.

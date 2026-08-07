@@ -65,7 +65,7 @@ internal fun CanvasSection() {
                 paintGradientBackdrop(g, width, height)
                 paintPetalRing(g, width, height, petals)
                 paintArcGauge(g, width, height, sweep)
-                paintCentreReadout(g, width, height, sweep)
+                paintCenterReadout(g, width, height, sweep)
             }
         }
     }
@@ -86,8 +86,8 @@ private fun paintPetalRing(
     height: Int,
     count: Int,
 ) {
-    val centreX = width / 2.0
-    val centreY = height / 2.0
+    val centerX = width / 2.0
+    val centerY = height / 2.0
     val reach = minOf(width, height) / 2.0 * PETAL_REACH_FRACTION
 
     val waist = reach * PETAL_WAIST_FRACTION
@@ -105,7 +105,7 @@ private fun paintPetalRing(
     g.stroke = BasicStroke(PETAL_STROKE_WIDTH)
     repeat(count) { index ->
         val saved = g.transform
-        g.translate(centreX, centreY)
+        g.translate(centerX, centerY)
         g.rotate(FULL_TURN_RADIANS * index / count)
         g.color = fill
         g.fill(petal)
@@ -137,7 +137,7 @@ private fun paintArcGauge(
     g.draw(Arc2D.Double(x, y, size, size, GAUGE_START_ANGLE, extent, Arc2D.OPEN))
 }
 
-private fun paintCentreReadout(
+private fun paintCenterReadout(
     g: Graphics2D,
     width: Int,
     height: Int,

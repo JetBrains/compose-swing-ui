@@ -20,12 +20,12 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
- * Behavioural coverage for the focus gate: the verifier the modifier installs is the one Swing consults
+ * Behavioral coverage for the focus gate: the verifier the modifier installs is the one Swing consults
  * when focus tries to leave, it answers from the predicate the latest composition declared, it stays the
  * same object across recompositions, and it is taken back off when the modifier leaves the chain.
  *
  * The answers are read through `shouldYieldFocus(source, target)`, which is what a focus transfer asks
- * the installed verifier, so no focus needs to move for the gate's behaviour to be observable.
+ * the installed verifier, so no focus needs to move for the gate's behavior to be observable.
  */
 class InputVerifierModifierTest {
     private fun JComponent.yieldsFocusTo(target: JComponent): Boolean =

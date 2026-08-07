@@ -4,6 +4,7 @@
 package org.jetbrains.compose.swing.components
 
 import androidx.compose.runtime.Composable
+import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.annotations.SwingMenuComposable
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
@@ -20,7 +21,7 @@ import javax.swing.JMenu
  */
 @Composable
 public fun Menu(
-    text: String,
+    text: @Nls String,
     modifier: SwingModifier = SwingModifier,
     content:
         @Composable @SwingMenuComposable

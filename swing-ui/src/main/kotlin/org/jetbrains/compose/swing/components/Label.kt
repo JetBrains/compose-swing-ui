@@ -4,6 +4,7 @@
 package org.jetbrains.compose.swing.components
 
 import androidx.compose.runtime.Composable
+import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.node.SwingNode
@@ -18,7 +19,7 @@ import javax.swing.JLabel
  */
 @Composable
 public fun Label(
-    text: String,
+    text: @Nls String,
     modifier: SwingModifier = SwingModifier,
 ) {
     SwingNode(

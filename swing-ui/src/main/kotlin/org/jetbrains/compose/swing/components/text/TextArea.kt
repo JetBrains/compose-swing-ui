@@ -5,6 +5,7 @@ package org.jetbrains.compose.swing.components.text
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberUpdatedState
+import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.documentListener
@@ -41,9 +42,9 @@ import javax.swing.event.DocumentListener
  */
 @Composable
 public fun TextArea(
-    value: String,
+    value: @Nls String,
     modifier: SwingModifier = SwingModifier,
-    onValueChange: (String) -> Unit = {},
+    onValueChange: (@Nls String) -> Unit = {},
     rows: Int = 0,
     columns: Int = 0,
     editable: Boolean = true,
@@ -96,7 +97,7 @@ public fun TextArea(
  */
 @Composable
 public fun TextArea(
-    value: String,
+    value: @Nls String,
     documentListener: DocumentListener,
     modifier: SwingModifier = SwingModifier,
     rows: Int = 0,
@@ -126,7 +127,7 @@ public fun TextArea(
  */
 @Composable
 private fun TextAreaNode(
-    value: String,
+    value: @Nls String,
     applied: AppliedValue<String>,
     modifier: SwingModifier,
     rows: Int,
@@ -210,5 +211,5 @@ public fun TextArea(
     )
 }
 
-/** The number of characters `JTextArea` expands a tab to where nothing else is declared. */
+/** The tab width `JTextArea.getTabSize` reports by default, where the document names none. */
 private const val DEFAULT_TAB_SIZE = 8

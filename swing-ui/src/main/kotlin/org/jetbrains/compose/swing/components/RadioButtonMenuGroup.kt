@@ -4,6 +4,7 @@
 package org.jetbrains.compose.swing.components
 
 import androidx.compose.runtime.Composable
+import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.components.selection.ButtonGroupOption
 import org.jetbrains.compose.swing.components.selection.applyGroupSelection
 import org.jetbrains.compose.swing.components.selection.rememberButtonGroup
@@ -83,7 +84,7 @@ public sealed interface RadioButtonMenuGroupScope {
      * @see javax.swing.JRadioButtonMenuItem
      */
     public fun option(
-        text: String,
+        text: @Nls String,
         modifier: SwingModifier = SwingModifier,
         accelerator: KeyStroke? = null,
     )
@@ -91,7 +92,7 @@ public sealed interface RadioButtonMenuGroupScope {
 
 /** One declared choice: its text, accelerator and the [SwingModifier] for its menu item. */
 private class RadioButtonMenuOption(
-    val text: String,
+    val text: @Nls String,
     val modifier: SwingModifier,
     val accelerator: KeyStroke?,
 )
@@ -100,7 +101,7 @@ private class RadioButtonMenuGroupScopeImpl : RadioButtonMenuGroupScope {
     val options: MutableList<RadioButtonMenuOption> = ArrayList()
 
     override fun option(
-        text: String,
+        text: @Nls String,
         modifier: SwingModifier,
         accelerator: KeyStroke?,
     ) {

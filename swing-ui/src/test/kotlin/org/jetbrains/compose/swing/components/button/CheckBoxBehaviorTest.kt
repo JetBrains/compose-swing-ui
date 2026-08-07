@@ -21,7 +21,7 @@ import kotlin.test.assertNull
  * The checked state is controlled: the box shows whatever `checked` holds, a click reports the new
  * state through the callback, and a value pushed in from composition applies without echoing back as a
  * callback. Text, checked state and the modifier are each driven through more than one value and back,
- * so a parameter honoured only when the component is built would fail here. A click the caller does not
+ * so a parameter honored only when the component is built would fail here. A click the caller does not
  * adopt does not stand - the next settled pass writes the declared state back over it.
  */
 class CheckBoxBehaviorTest {

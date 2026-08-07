@@ -6,6 +6,7 @@ package org.jetbrains.compose.swing.components
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.listener
@@ -26,7 +27,7 @@ import javax.swing.KeyStroke
  */
 @Composable
 public fun MenuItem(
-    text: String,
+    text: @Nls String,
     modifier: SwingModifier = SwingModifier,
     accelerator: KeyStroke? = null,
     onClick: () -> Unit = {},
@@ -50,7 +51,7 @@ public fun MenuItem(
  */
 @Composable
 public fun MenuItem(
-    text: String,
+    text: @Nls String,
     actionListener: ActionListener,
     modifier: SwingModifier = SwingModifier,
     accelerator: KeyStroke? = null,

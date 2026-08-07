@@ -24,7 +24,7 @@ import kotlin.test.assertNotSame
 import kotlin.test.assertTrue
 
 /**
- * Behavioural coverage for the hoisted focus requester: a request goes to the component the modifier
+ * Behavioral coverage for the hoisted focus requester: a request goes to the component the modifier
  * bound, an unbound requester asks for nothing instead of acting on a stale component, the binding ends
  * with the modifier that declared it, and a requester declared on a second component drives that one
  * while leaving the first driving nothing.

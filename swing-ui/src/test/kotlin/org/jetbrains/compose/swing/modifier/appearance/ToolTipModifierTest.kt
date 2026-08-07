@@ -19,7 +19,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * Behavioural tests for the `toolTip` modifiers - the constant tooltip a component shows wherever the
+ * Behavioral tests for the `toolTip` modifiers - the constant tooltip a component shows wherever the
  * pointer rests on it, and the per-location one that answers for the place under the pointer.
  *
  * They assert what an observer of the live Swing component sees: the text the component reports for a

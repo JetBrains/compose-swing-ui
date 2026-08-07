@@ -185,7 +185,7 @@ SwingNode(
 that just created the component.
 
 Reaching for the constructor does not excuse you from writing the value: a parameter consumed only
-there is honoured once and then silently ignored, which reads at the call site as reactive state and
+there is honored once and then silently ignored, which reads at the call site as reactive state and
 is not. It also outlives the composition that supplied it, because a node is recyclable - when a
 component is reused for new content the constructor does not run again, and `update` does, so the
 recycled component adopts the new value rather than keeping the old one.
@@ -521,7 +521,7 @@ than the seam below:
 - the callback modifiers, when what you have is a lambda: `onHover`, `onFocus`, `onPointerEvent`,
   `onKeyEvent`, `onKeyStroke`, `onAccept` and `inputVerifier`. These read the callback **live**, so a
   fresh lambda on every recomposition costs nothing and needs no `remember`;
-- the declaration modifiers, for behaviour that is not a callback at all: `focusable`,
+- the declaration modifiers, for behavior that is not a callback at all: `focusable`,
   `focusRequester`, `initialFocus`, `verifyInputWhenFocusTarget`, `documentFilter` and `contextMenu`.
 
 **Where the seam is genuinely right:** a listener kind the library ships no builder for, or one whose
@@ -832,7 +832,7 @@ every pass.
 
 ## Building a custom shared hierarchy
 
-A composite several screens reuse - a titled card, a labelled form, a frame with a fixed header and
+A composite several screens reuse - a titled card, a labeled form, a frame with a fixed header and
 footer - is a composable that emits the containers it needs and offers its placements as a scope
 receiver. Everything the pattern needs is public: the built-in containers, the container `SwingNode`
 overload for a Swing container of your own, and `SwingConstraint` for its placements.

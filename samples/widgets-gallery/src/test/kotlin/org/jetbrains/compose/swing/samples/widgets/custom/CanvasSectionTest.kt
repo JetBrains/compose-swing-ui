@@ -33,12 +33,12 @@ class CanvasSectionTest {
             assertTrue(initial.width > 0 && initial.height > 0, "the captured surface has real size")
 
             var painted = 0
-            val colours = HashSet<Int>()
+            val colors = HashSet<Int>()
             for (y in 0 until initial.height) {
                 for (x in 0 until initial.width) {
                     val argb = initial.getRGB(x, y)
                     if ((argb ushr 24) != 0) painted++
-                    colours.add(argb)
+                    colors.add(argb)
                 }
             }
             val total = initial.width * initial.height
@@ -47,8 +47,8 @@ class CanvasSectionTest {
                 "the Canvas surface must be substantially painted, but only $painted/$total pixels were drawn",
             )
             assertTrue(
-                colours.size > 50,
-                "the hand-drawn surface must show many distinct colours, but only ${colours.size} were present",
+                colors.size > 50,
+                "the hand-drawn surface must show many distinct colors, but only ${colors.size} were present",
             )
 
             onNodeWithTag(CANVAS_TAG).assertImageMatches(expected = initial)

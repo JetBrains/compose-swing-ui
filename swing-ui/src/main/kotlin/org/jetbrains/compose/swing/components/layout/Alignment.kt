@@ -63,7 +63,7 @@ public object Alignment {
 
 /**
  * Places a child [fraction] of the way through the space it leaves free, mirroring the fraction under a
- * right-to-left orientation. The whole offset is rounded once, so the two halves of a centred child
+ * right-to-left orientation. The whole offset is rounded once, so the two halves of a centered child
  * differ by at most a pixel.
  */
 private data class FractionalHorizontal(

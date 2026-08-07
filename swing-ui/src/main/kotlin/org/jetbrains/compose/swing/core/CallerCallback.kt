@@ -13,7 +13,7 @@ import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
  *
  * This is for the places the library reaches the caller's code itself, on the pass that provoked it. Code
  * a widget calls under a gesture Swing dispatched needs none of this: Swing's own pump already reports it
- * and carries on, which is the behaviour being matched here.
+ * and carries on, which is the behavior being matched here.
  *
  * Only code the caller supplied belongs in [block]. What a component requires of a declaration is the
  * library's own to state, and those failures must reach the caller as the failures they are.

@@ -25,7 +25,7 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
- * Behavioural tests for the declarative menu bar of a [Window] and a [Dialog]: the declared menu tree
+ * Behavioral tests for the declarative menu bar of a [Window] and a [Dialog]: the declared menu tree
  * is realized as the peer's own `JMenuBar`, it keeps following the state that drives it, letting the
  * declaration leave the composition leaves the peer the bar it carried before - none of its own on a
  * window the library realizes, the caller's own on a window they provide - and a menu item reaches state

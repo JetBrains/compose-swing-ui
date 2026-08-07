@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import org.jetbrains.annotations.Nls
 import java.awt.Dimension
 import java.awt.Image
 import javax.swing.JFrame
@@ -56,7 +57,7 @@ import javax.swing.WindowConstants
 public fun Window(
     onCloseRequest: () -> Unit,
     state: WindowState = rememberWindowState(),
-    title: String = "",
+    title: @Nls String = "",
     visible: Boolean = true,
     resizable: Boolean = true,
     alwaysOnTop: Boolean = false,

@@ -151,7 +151,7 @@ internal fun ColumnScope.AlignmentCard() {
         var aligned by remember { mutableStateOf(true) }
         CheckBox(text = "Align the narrow button left", checked = aligned, onCheckedChange = { aligned = it })
         // alignmentX is the property a BoxLayout lines its children up by, so a BoxPanel is what makes
-        // it visible: a left-aligned child and a centred one sit at different offsets.
+        // it visible: a left-aligned child and a centered one sit at different offsets.
         BoxPanel(axis = BoxLayout.Y_AXIS) {
             Button(
                 "Wide row button",

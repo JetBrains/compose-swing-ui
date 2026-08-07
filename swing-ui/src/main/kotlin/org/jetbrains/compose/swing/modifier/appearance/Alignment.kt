@@ -30,7 +30,7 @@ public fun SwingModifier.horizontalAlignment(
 /**
  * Sets where a component's content sits along its height, when it is given more height than it needs.
  *
- * Applies to labels and to everything built on a button. A text field draws its single line centred
+ * Applies to labels and to everything built on a button. A text field draws its single line centered
  * and offers no vertical alignment of its own.
  *
  * @param alignment a [VerticalAlignment] `SwingConstants` value.

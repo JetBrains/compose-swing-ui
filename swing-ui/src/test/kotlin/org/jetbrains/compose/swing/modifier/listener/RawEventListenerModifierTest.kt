@@ -151,7 +151,7 @@ class RawEventListenerModifierTest {
 
         model.selectedColor = Color.RED
         awaitIdle()
-        assertTrue(fired > 0, "the registered listener must fire when the chooser's selected colour changes")
+        assertTrue(fired > 0, "the registered listener must fire when the chooser's selected color changes")
     }
 
     @Test

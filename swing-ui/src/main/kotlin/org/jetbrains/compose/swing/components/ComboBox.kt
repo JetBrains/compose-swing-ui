@@ -6,6 +6,7 @@ package org.jetbrains.compose.swing.components
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.components.selection.ListItemScope
 import org.jetbrains.compose.swing.components.selection.composableItemCells
 import org.jetbrains.compose.swing.components.selection.rememberComposingListCellRenderer
@@ -59,7 +60,7 @@ public fun <T> ComboBox(
     modifier: SwingModifier = SwingModifier,
     onSelectionChange: (T?) -> Unit = {},
     editable: Boolean = false,
-    onValueCommit: (String) -> Unit = {},
+    onValueCommit: (@Nls String) -> Unit = {},
     maximumRowCount: Int = 8,
     itemContent: (@Composable ListItemScope.(item: T) -> Unit)? = null,
 ) {
@@ -166,7 +167,7 @@ public fun <T> ComboBox(
     modifier: SwingModifier = SwingModifier,
     onSelectionChange: (Int) -> Unit = {},
     editable: Boolean = false,
-    onValueCommit: (String) -> Unit = {},
+    onValueCommit: (@Nls String) -> Unit = {},
     maximumRowCount: Int = 8,
     itemContent: (@Composable ListItemScope.(item: T) -> Unit)? = null,
 ) {
@@ -317,7 +318,7 @@ private fun <V> rememberSelectionListener(
     applied: AppliedValue<V>?,
     settled: JComboBox<*>.() -> V,
     onSelectionChange: (V) -> Unit,
-    onValueCommit: (String) -> Unit,
+    onValueCommit: (@Nls String) -> Unit,
 ): ActionListener {
     val selectionCallback = rememberUpdatedState(onSelectionChange)
     val commitCallback = rememberUpdatedState(onValueCommit)

@@ -360,7 +360,7 @@ private fun placeTrailing(
     reversed: Boolean,
 ): Unit = placeRun(first = (totalSize - sizes.sum()).toFloat(), gap = 0f, sizes, outPositions, reversed)
 
-/** Packs the children edge to edge and centres the group. */
+/** Packs the children edge to edge and centers the group. */
 private fun placeCenter(
     totalSize: Int,
     sizes: IntArray,

@@ -73,7 +73,7 @@ public fun SwingModifier.emptyBorder(insets: Insets): SwingModifier =
 
 /**
  * What a chain declared the border to be. Equality decides whether the border is built and written at
- * all, so a declaration made of values - a colour, a count of pixels - survives a recomposition without
+ * all, so a declaration made of values - a color, a count of pixels - survives a recomposition without
  * exchanging the component's border for an equal one.
  */
 private sealed interface BorderSpec {

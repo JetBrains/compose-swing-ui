@@ -12,6 +12,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.rememberUpdatedState
+import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.constants.TabLayoutPolicy
 import org.jetbrains.compose.swing.constants.TabPlacement
 import org.jetbrains.compose.swing.core.dispatchToCaller
@@ -47,7 +48,7 @@ import javax.swing.event.ChangeListener
  *
  * [selectedIndex] is `-1` for no selected tab, the value a `JTabbedPane` itself holds while none is
  * selected. Any other value has to name a tab that is there: where it names none - dropping the selected
- * tab without moving the index leaves it naming none - the pane falls back on a neighbour and reports that
+ * tab without moving the index leaves it naming none - the pane falls back on a neighbor and reports that
  * tab through [onSelectedIndexChange], since it is the tab the pane is on and not the one declared.
  *
  * ```
@@ -143,7 +144,7 @@ private fun TabbedPaneImpl(
     val headerParentContext = rememberCompositionContext()
 
     // A JTabbedPane moves its selection on its own whenever the strip changes: the first tab to arrive
-    // becomes the selection, and removing the selected tab falls back to a neighbour. Each of those moves
+    // becomes the selection, and removing the selected tab falls back to a neighbor. Each of those moves
     // fires the very change event a click fires, so the writes that add and remove tabs run as this
     // wrapper's own, and the mirror is what tells that apart from the user's own selection.
     val applied = rememberAppliedValue(selectedIndex)
@@ -395,9 +396,9 @@ private fun TabHeaderHost(
 // One field per aspect [TabbedPaneScope.tab] declares, in the same one-to-one correspondence: grouping
 // any of them here would introduce a shape the declaration itself does not have.
 private class TabMetadata(
-    val title: String,
+    val title: @Nls String,
     val icon: Icon?,
-    val tooltip: String?,
+    val tooltip: @Nls String?,
     val enabled: Boolean,
     val mnemonic: Int,
     val displayedMnemonicIndex: Int?,
@@ -419,9 +420,9 @@ private class TabbedPaneScopeImpl : TabbedPaneScope {
     val tabs: MutableList<TabDeclaration> = ArrayList()
 
     override fun tab(
-        title: String,
+        title: @Nls String,
         icon: Icon?,
-        tooltip: String?,
+        tooltip: @Nls String?,
         enabled: Boolean,
         mnemonic: Int,
         displayedMnemonicIndex: Int?,
@@ -446,7 +447,7 @@ private class TabbedPaneScopeImpl : TabbedPaneScope {
 }
 
 /**
- * Builds a [SlotAttachment] that hosts one tab's body panel in [pane] via `insertTab`.
+ * Builds a [SlotAttachment] that hosts one tab's body panel in the pane it installs on, via `insertTab`.
  *
  * Install creates the tab at the applier-supplied composition index with its initial title/icon/
  * tooltip/enabled - the slot is physically attached *after* the body node's first `update` runs, so

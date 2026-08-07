@@ -11,6 +11,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.rememberUpdatedState
+import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import org.jetbrains.compose.swing.annotations.SwingMenuComposable
 import org.jetbrains.compose.swing.core.KeepEnclosingApplicationAlive
@@ -58,7 +59,7 @@ import javax.swing.event.PopupMenuListener
 public fun Tray(
     image: Image,
     onAction: () -> Unit = {},
-    tooltip: String? = null,
+    tooltip: @Nls String? = null,
     imageAutoSize: Boolean = false,
     menu:
         @Composable @SwingMenuComposable

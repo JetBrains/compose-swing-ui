@@ -33,7 +33,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * Behavioural tests for the `popupMenu` modifier - the menu an application opens itself, as opposed to
+ * Behavioral tests for the `popupMenu` modifier - the menu an application opens itself, as opposed to
  * the one the platform's popup gesture opens. They assert what an observer of the live Swing components
  * sees: a [JPopupMenu] whose items mirror the composed menu tree, item callbacks that run, the anchor
  * the menu is presented at, and a menu composition released when the menu closes.

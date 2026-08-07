@@ -12,7 +12,7 @@ import java.awt.event.HierarchyListener
  * until then - cannot be done at the moment it is declared. This runs that work at the first moment the
  * component is showing, whether that is already the case or a hierarchy report away.
  *
- * One wait is in flight at a time: starting another, or cancelling, ends the one before it.
+ * One wait is in flight at a time: starting another, or canceling, ends the one before it.
  */
 internal class ShowingWait {
     // The component the pending listener is registered on, or null while no wait is in flight.

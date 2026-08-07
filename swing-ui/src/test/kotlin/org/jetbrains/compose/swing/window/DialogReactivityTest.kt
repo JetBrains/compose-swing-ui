@@ -28,7 +28,7 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Behavioural tests asserting that a [Dialog] declaration is reactive: mutating Compose state that
+ * Behavioral tests asserting that a [Dialog] declaration is reactive: mutating Compose state that
  * feeds a [Dialog] argument - or the [LocalWindow] the dialog is composed under - is reflected on the
  * realized [JDialog] once the change is applied.
  *

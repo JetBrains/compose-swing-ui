@@ -10,6 +10,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import org.jetbrains.annotations.Nls
 import java.awt.Component
 import javax.swing.JTree
 import javax.swing.tree.DefaultMutableTreeNode
@@ -53,7 +54,7 @@ public sealed interface TreeNodeScope {
  */
 internal class TreeNodeValue<T>(
     val value: T,
-    private val text: String,
+    private val text: @Nls String,
 ) {
     override fun toString(): String = text
 }
@@ -68,7 +69,7 @@ internal class TreeNodeValue<T>(
  * node composes.
  *
  * The [currentNodeContent] is read through a [State] so a recomposition that supplies a fresh node
- * body is honoured without rebuilding the renderer or its island.
+ * body is honored without rebuilding the renderer or its island.
  *
  * @param parentContext the enclosing composition this renderer's node island joins.
  * @param currentNodeContent the always-current composable node body, invoked with the [TreeNodeScope]
@@ -157,7 +158,7 @@ private class MutableTreeNodeScope : TreeNodeScope {
 /**
  * Remembers a single [ComposingTreeCellRenderer] for [nodeContent], captured against the enclosing
  * composition so the node body joins it. The renderer is stable across recompositions - the current
- * [nodeContent] flows in through [rememberUpdatedState], so a recomposed node body is honoured without
+ * [nodeContent] flows in through [rememberUpdatedState], so a recomposed node body is honored without
  * rebuilding the renderer - and is disposed when it leaves the composition.
  *
  * Call from a `@Composable` scope that installs the returned renderer on a `JTree`.

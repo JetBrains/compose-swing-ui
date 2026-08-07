@@ -3,6 +3,7 @@
 
 package org.jetbrains.compose.swing.modifier.accessibility
 
+import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.propertyElement
 import java.awt.Component
@@ -14,7 +15,7 @@ import java.awt.Component
  * @param description the accessible description to advertise, or `null` to clear it.
  * @see javax.accessibility.AccessibleContext.setAccessibleDescription
  */
-public fun SwingModifier.accessibleDescription(description: String?): SwingModifier =
+public fun SwingModifier.accessibleDescription(description: @Nls String?): SwingModifier =
     this then
         propertyElement<Component, String?>(
             description,

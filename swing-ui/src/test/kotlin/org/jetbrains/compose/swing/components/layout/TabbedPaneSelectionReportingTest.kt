@@ -23,7 +23,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
- * A [TabbedPane] reports the selection the user made, plus the one selection it cannot honour: where the
+ * A [TabbedPane] reports the selection the user made, plus the one selection it cannot honor: where the
  * declared index names no tab of the strip the pane is left on a tab of its own, and the caller is told
  * which. Adding and removing tabs moves a `JTabbedPane`'s selection on its own, and the declared index is
  * asserted onto the pane by the composition; neither is an interaction, so neither reaches the callback.
@@ -133,7 +133,7 @@ class TabbedPaneSelectionReportingTest {
         var firstTitle by mutableStateOf("One")
         setContent {
             // The declared selection names the third tab throughout, so dropping that tab leaves the
-            // declaration naming no tab of the strip at all: the pane falls back on a neighbour, and the
+            // declaration naming no tab of the strip at all: the pane falls back on a neighbor, and the
             // tab it is left on is one the composition never asked for.
             TabbedPane(selectedIndex = 2, onSelectedIndexChange = { reported += it }) {
                 tab(firstTitle) { Label("1") }
@@ -147,7 +147,7 @@ class TabbedPaneSelectionReportingTest {
         awaitIdle()
         val pane = onNodeOfType<JTabbedPane>().fetch()
         assertEquals(2, pane.tabCount, "the dropped tab should leave the strip")
-        assertEquals(1, pane.selectedIndex, "the pane falls back on the neighbour of the dropped tab")
+        assertEquals(1, pane.selectedIndex, "the pane falls back on the neighbor of the dropped tab")
         assertEquals(listOf(1), reported, "the tab the pane is left on has to reach the caller")
 
         // The caller is told once: the pane is on a tab the caller now knows about, so a later
@@ -279,7 +279,7 @@ class TabbedPaneSelectionReportingTest {
         assertEquals(
             1,
             onNodeOfType<JTabbedPane>().fetch().selectedIndex,
-            "the pane falls back on the neighbour of the dropped tab",
+            "the pane falls back on the neighbor of the dropped tab",
         )
         assertEquals(listOf(1), reported, "the tab the pane is left on has to reach the caller however it got there")
     }
@@ -528,7 +528,7 @@ class TabbedPaneSelectionReportingTest {
         showThird = false
         awaitIdle()
         val pane = onNodeOfType<JTabbedPane>().fetch()
-        assertEquals(1, pane.selectedIndex, "the pane falls back on the neighbour of the dropped tab")
+        assertEquals(1, pane.selectedIndex, "the pane falls back on the neighbor of the dropped tab")
 
         failing = false
         selected = 0

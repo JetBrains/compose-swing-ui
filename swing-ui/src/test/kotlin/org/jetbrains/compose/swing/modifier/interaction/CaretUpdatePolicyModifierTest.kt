@@ -15,7 +15,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * Behavioural coverage for the `SwingModifier.caretUpdatePolicy` switch. Each case puts the caret at a
+ * Behavioral coverage for the `SwingModifier.caretUpdatePolicy` switch. Each case puts the caret at a
  * known offset, has text arrive ahead of it, and asserts where the caret ends up - the difference
  * between a log view that scrolls itself along and one that stays where the reader left it.
  *
@@ -54,7 +54,7 @@ class CaretUpdatePolicyModifierTest {
         val area = areaWithPolicy(DefaultCaret.ALWAYS_UPDATE)
 
         area.caretPosition = TEXT.length
-        area.insertOffTheEventThread(PREFIX)
+        area.insertPrefixOffTheEventThread()
         awaitIdle()
 
         assertEquals(
@@ -69,7 +69,7 @@ class CaretUpdatePolicyModifierTest {
         val area = areaWithPolicy(DefaultCaret.UPDATE_WHEN_ON_EDT)
 
         area.caretPosition = TEXT.length
-        area.insertOffTheEventThread(PREFIX)
+        area.insertPrefixOffTheEventThread()
         awaitIdle()
 
         assertEquals(
@@ -149,11 +149,11 @@ class CaretUpdatePolicyModifierTest {
     }
 
     /**
-     * Inserts [text] at the head of the document from another thread and waits for it to land - the
+     * Inserts [PREFIX] at the head of the document from another thread and waits for it to land - the
      * shape of an appender writing into a log view while the event thread is elsewhere.
      */
-    private fun JTextArea.insertOffTheEventThread(text: String) {
-        val appender = Thread { document.insertString(0, text, null) }
+    private fun JTextArea.insertPrefixOffTheEventThread() {
+        val appender = Thread { document.insertString(0, PREFIX, null) }
         appender.start()
         appender.join()
     }

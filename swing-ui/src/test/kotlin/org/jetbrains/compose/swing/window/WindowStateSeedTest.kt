@@ -20,7 +20,7 @@ import kotlin.test.assertEquals
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Behavioural tests asserting that the arguments of [rememberWindowState] and [rememberDialogState] are
+ * Behavioral tests asserting that the arguments of [rememberWindowState] and [rememberDialogState] are
  * seeds rather than reactive declarations: they are read once, when the state is created, and a later
  * recomposition that supplies different ones neither re-creates the state nor moves, resizes or
  * maximizes the peer. The remembered state itself stays the one thing that drives the peer.

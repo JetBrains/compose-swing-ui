@@ -36,7 +36,7 @@ import java.awt.Window as AwtWindow
  * Pins what the harness's focus actions deliver and what its focus-ownership assertions claim.
  *
  * Focus splits into two things off-screen, and the tests below hold them apart. A focus notification
- * reaches the node itself, so behaviour a widget drives from `processFocusEvent` is observable without a
+ * reaches the node itself, so behavior a widget drives from `processFocusEvent` is observable without a
  * display. Focus ownership is held by a component of the focused window, so nothing under the harness
  * root ever holds it, and a component of a window the composition realizes holds it once the window
  * system focuses that window - the one situation in which the ownership assertion can hold.

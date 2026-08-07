@@ -12,11 +12,12 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * The behaviour a [Row] or [Column] falls back to at the edges of what an arrangement, an alignment or
+ * The behavior a [Row] or [Column] falls back to at the edges of what an arrangement, an alignment or
  * a weight normally covers: a container with less room than its children ask for, a weighted surplus
  * that does not split into whole pixels, a weight sharing the surplus with a fixed arrangement gap, a
- * gap wider than the container has room for, and a container whose weighted child is itself a [Row] or
- * [Column] with children of its own.
+ * gap wider than the container has room for, a negative gap that overlaps its children instead of
+ * spacing them, and a container whose weighted child is itself a [Row] or [Column] with children of its
+ * own.
  */
 class RowColumnEdgeCaseTest {
     @Test
@@ -129,6 +130,29 @@ class RowColumnEdgeCaseTest {
     }
 
     @Test
+    fun aNegativeSpacedByGapOverlapsTheChildrenInsteadOfSpacingThem() = runComposeSwingTest {
+        setContent {
+            Row(
+                modifier = containerModifier(WIDE_ROW_WIDTH, CROSS_EXTENT),
+                horizontalArrangement = Arrangement.spacedBy(NEGATIVE_GAP),
+            ) {
+                SizedChild(0)
+                SizedChild(1)
+            }
+        }
+
+        assertEquals(
+            listOf(
+                Rectangle(0, 0, CHILD_WIDTH, CHILD_HEIGHT),
+                Rectangle(40, 0, CHILD_WIDTH, CHILD_HEIGHT),
+            ),
+            childBounds(),
+            "a -10px gap between two 50px children must pull the second 10px under the first's trailing " +
+                "edge rather than space them apart",
+        )
+    }
+
+    @Test
     fun aRowNestedInAColumnIsMeasuredAndPlacedAsAWeightedChildAndThenLaysOutItsOwnChildren() = runComposeSwingTest {
         setContent {
             Column(modifier = containerModifier(CROSS_EXTENT, NESTED_COLUMN_HEIGHT)) {
@@ -185,6 +209,10 @@ class RowColumnEdgeCaseTest {
         const val SMALL_CHILD_HEIGHT = 40
         const val GAP_TEST_ROW_WIDTH = 44
         const val HUGE_GAP = 1000
+
+        // Wide enough that a negative gap's overlap, not a shortfall, is what the row demonstrates.
+        const val WIDE_ROW_WIDTH = 300
+        const val NEGATIVE_GAP = -10
 
         // Room for the fixture child plus a weighted nested row's leftover height.
         const val NESTED_COLUMN_HEIGHT = 200

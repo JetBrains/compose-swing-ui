@@ -20,7 +20,7 @@ import kotlin.test.assertEquals
  * `GridBagLayout` (Container.java:1913-1918). A layout that pushed its surplus into its children
  * would find no ceiling on any of them and stretch them all.
  *
- * The size is imposed from outside, as a `BorderLayout` centre or a split-pane side imposes one, so
+ * The size is imposed from outside, as a `BorderLayout` center or a split-pane side imposes one, so
  * the container is genuinely given more room than it asked for.
  */
 class RowColumnSurplusTest {
@@ -41,7 +41,7 @@ class RowColumnSurplusTest {
         assertEquals(
             Dimension(IMPOSED_CROSS, IMPOSED_MAIN),
             containerSize(),
-            "the centre region must impose its own height on the column, giving it height to spare",
+            "the center region must impose its own height on the column, giving it height to spare",
         )
         assertEquals(
             listOf(
@@ -71,7 +71,7 @@ class RowColumnSurplusTest {
         assertEquals(
             Dimension(IMPOSED_MAIN, IMPOSED_CROSS),
             containerSize(),
-            "the centre region must impose its own width on the row, giving it width to spare",
+            "the center region must impose its own width on the row, giving it width to spare",
         )
         assertEquals(
             listOf(

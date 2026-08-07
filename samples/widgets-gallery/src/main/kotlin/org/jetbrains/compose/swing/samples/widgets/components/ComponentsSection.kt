@@ -250,7 +250,7 @@ private fun ColumnScope.ChoiceCard() {
     }
 }
 
-/** A choice with a leading colour swatch, so the [ComboBox] card can render a composable cell. */
+/** A choice with a leading color swatch, so the [ComboBox] card can render a composable cell. */
 private data class Language(
     val swatch: Color,
     val name: String,
@@ -267,7 +267,7 @@ private fun ColumnScope.RangeCard() {
         var paintLabels by remember { mutableStateOf(false) }
         var snapToTicks by remember { mutableStateOf(false) }
         var customString by remember { mutableStateOf(false) }
-        // The label table a ticked, labelled slider paints at its major ticks.
+        // The label table a ticked, labeled slider paints at its major ticks.
         val labels = mapOf(0 to "Low", 50 to "Mid", 100 to "High")
         val orientation = if (vertical) SwingConstants.VERTICAL else SwingConstants.HORIZONTAL
 

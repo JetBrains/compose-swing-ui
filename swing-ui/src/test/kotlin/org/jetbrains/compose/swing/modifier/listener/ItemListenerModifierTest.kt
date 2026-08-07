@@ -26,7 +26,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * Behavioural tests for the `itemListener` builder. Each test asserts what an observer of the live
+ * Behavioral tests for the `itemListener` builder. Each test asserts what an observer of the live
  * component sees: the exact instance is registered through the widget's own `getItemListeners()`, and it
  * is notified of every state the widget reaches - including the one a grouped button reaches without
  * being touched, which is what this channel exists for.

@@ -24,11 +24,11 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Behavioural tests covering the platform decorations of a [Window] and a [Dialog]: a peer declared
+ * Behavioral tests covering the platform decorations of a [Window] and a [Dialog]: a peer declared
  * undecorated realizes without its title bar and border, a peer that leaves the argument alone keeps
  * them, and a change of the declaration reaches the realized peer.
  *
- * AWT only accepts decorations on a window that is not yet realized, so honouring a change means
+ * AWT only accepts decorations on a window that is not yet realized, so honoring a change means
  * replacing the peer. The tests assert on the peer realized after the change: that the one it replaced
  * was released, that the content, the geometry and the extended state moved across, and that the
  * replacement is wired like a peer built in the first place - the closing gesture reaches

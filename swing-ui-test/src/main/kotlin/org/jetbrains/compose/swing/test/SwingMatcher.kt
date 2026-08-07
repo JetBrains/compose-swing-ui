@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.test
 
+import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.modifier.appearance.TEST_TAG_CLIENT_PROPERTY_KEY
 import java.awt.Component
 import java.awt.Container
@@ -52,7 +53,7 @@ public class SwingMatcher internal constructor(
          * [JTextComponent.getText] depending on the component type.
          */
         public fun hasText(
-            text: String,
+            text: @Nls String,
             substring: Boolean = false,
         ): SwingMatcher {
             val desc = if (substring) "hasText(substring=\"$text\")" else "hasText(\"$text\")"
@@ -76,7 +77,7 @@ public class SwingMatcher internal constructor(
          * Matches a component whose accessible name equals [name], read from its
          * [java.awt.Component.getAccessibleContext].
          */
-        public fun hasAccessibleName(name: String): SwingMatcher =
+        public fun hasAccessibleName(name: @Nls String): SwingMatcher =
             SwingMatcher("hasAccessibleName(\"$name\")") { component ->
                 component.accessibleContext?.accessibleName == name
             }
@@ -85,7 +86,7 @@ public class SwingMatcher internal constructor(
          * Matches a component whose accessible description equals [description], read from its
          * [java.awt.Component.getAccessibleContext].
          */
-        public fun hasAccessibleDescription(description: String): SwingMatcher =
+        public fun hasAccessibleDescription(description: @Nls String): SwingMatcher =
             SwingMatcher("hasAccessibleDescription(\"$description\")") { component ->
                 component.accessibleContext?.accessibleDescription == description
             }
@@ -105,7 +106,7 @@ public class SwingMatcher internal constructor(
          * pick one window out of several, and with a node query to assert the title of a frame
          * standing on a desktop.
          */
-        public fun hasTitle(title: String): SwingMatcher =
+        public fun hasTitle(title: @Nls String): SwingMatcher =
             SwingMatcher("hasTitle(\"$title\")") { component ->
                 when (component) {
                     is Frame -> component.title == title

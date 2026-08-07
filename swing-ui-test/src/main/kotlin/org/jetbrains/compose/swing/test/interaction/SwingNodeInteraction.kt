@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.test.interaction
 
+import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.describeComponent
@@ -163,7 +164,7 @@ public class SwingNodeInteraction<out T : Component> internal constructor(
     }
 
     /** Asserts the matched node's text equals [expected]. */
-    public fun assertTextEquals(expected: String): SwingNodeInteraction<T> {
+    public fun assertTextEquals(expected: @Nls String): SwingNodeInteraction<T> {
         val actual = resolve().textOrNull()
         if (actual != expected) {
             throw AssertionError(
@@ -371,7 +372,7 @@ public class SwingNodeInteraction<out T : Component> internal constructor(
      * Appends [text] to the matched [JTextComponent]'s current content, as if typed at its end, then
      * settles the composition.
      */
-    public suspend fun performTextInput(text: String): SwingNodeInteraction<T> {
+    public suspend fun performTextInput(text: @Nls String): SwingNodeInteraction<T> {
         editText { it.text + text }
         return this
     }
@@ -380,7 +381,7 @@ public class SwingNodeInteraction<out T : Component> internal constructor(
      * Replaces the matched [JTextComponent]'s entire content with [text], then settles the
      * composition.
      */
-    public suspend fun performTextReplacement(text: String): SwingNodeInteraction<T> {
+    public suspend fun performTextReplacement(text: @Nls String): SwingNodeInteraction<T> {
         editText { text }
         return this
     }
@@ -402,14 +403,14 @@ public class SwingNodeInteraction<out T : Component> internal constructor(
      *
      * The node processes a real [FocusEvent] of id [FocusEvent.FOCUS_GAINED]: its own
      * `processFocusEvent` runs, and every registered [java.awt.event.FocusListener] is notified. That
-     * is what makes widget behaviour driven by focus observable - a formatted text field reformats its
+     * is what makes widget behavior driven by focus observable - a formatted text field reformats its
      * value from `processFocusEvent`, not from a listener, so a test that fired the listeners itself
      * would never see it.
      *
      * This does **not** transfer focus: the node does not become the focus owner, and
      * [assertIsFocusOwner] still fails afterwards. Ownership is a windowing-system fact that needs a
      * realized, focused window, which the harness root never has; the notification is delivered to the
-     * node regardless of that, which is precisely why focus-driven behaviour can be tested off-screen.
+     * node regardless of that, which is precisely why focus-driven behavior can be tested off-screen.
      *
      * A [temporary] notification is one the widget may treat as a focus change it should not act on.
      */

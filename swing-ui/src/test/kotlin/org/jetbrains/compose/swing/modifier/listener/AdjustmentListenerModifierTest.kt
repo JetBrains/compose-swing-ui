@@ -20,7 +20,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * Behavioural tests for the `adjustmentListener` builder. The library wraps no scrollbar composable, so
+ * Behavioral tests for the `adjustmentListener` builder. The library wraps no scrollbar composable, so
  * the target is a scrollbar a custom component contributes through [SwingNode] - which is the case the
  * builder exists for. Each test asserts what an observer of the live component sees: the exact instance
  * is registered through the widget's own `getAdjustmentListeners()`, and it is notified of the value

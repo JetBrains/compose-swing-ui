@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.components.text
 
+import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.text.TextRange
 import javax.swing.text.AttributeSet
 import javax.swing.text.Document
@@ -47,7 +48,7 @@ public class DocumentEditScope internal constructor(
      */
     public fun insert(
         offset: Int,
-        text: CharSequence,
+        text: @Nls CharSequence,
     ) {
         document.insertString(offset, text.toString(), null)
     }
@@ -59,7 +60,7 @@ public class DocumentEditScope internal constructor(
      */
     public fun insert(
         offset: Int,
-        text: CharSequence,
+        text: @Nls CharSequence,
         attributes: AttributeSet,
     ) {
         document.insertString(offset, text.toString(), attributes)
@@ -73,7 +74,7 @@ public class DocumentEditScope internal constructor(
     public fun replace(
         start: Int,
         end: Int,
-        text: CharSequence,
+        text: @Nls CharSequence,
     ) {
         document.replaceSpan(start, end - start, text.toString())
     }
@@ -86,7 +87,7 @@ public class DocumentEditScope internal constructor(
     public fun replace(
         start: Int,
         end: Int,
-        text: CharSequence,
+        text: @Nls CharSequence,
         attributes: AttributeSet,
     ) {
         document.replaceSpan(start, end - start, text.toString(), attributes)
@@ -109,7 +110,7 @@ public class DocumentEditScope internal constructor(
      *
      * @see javax.swing.text.Document.insertString
      */
-    public fun append(text: CharSequence) {
+    public fun append(text: @Nls CharSequence) {
         document.insertString(document.length, text.toString(), null)
     }
 
@@ -119,7 +120,7 @@ public class DocumentEditScope internal constructor(
      * @see javax.swing.text.Document.insertString
      */
     public fun append(
-        text: CharSequence,
+        text: @Nls CharSequence,
         attributes: AttributeSet,
     ) {
         document.insertString(document.length, text.toString(), attributes)
@@ -130,7 +131,7 @@ public class DocumentEditScope internal constructor(
      *
      * @see javax.swing.text.AbstractDocument.replace
      */
-    public fun setText(text: CharSequence) {
+    public fun setText(text: @Nls CharSequence) {
         document.replaceSpan(0, document.length, text.toString())
     }
 
@@ -140,7 +141,7 @@ public class DocumentEditScope internal constructor(
      * @see javax.swing.text.AbstractDocument.replace
      */
     public fun setText(
-        text: CharSequence,
+        text: @Nls CharSequence,
         attributes: AttributeSet,
     ) {
         document.replaceSpan(0, document.length, text.toString(), attributes)

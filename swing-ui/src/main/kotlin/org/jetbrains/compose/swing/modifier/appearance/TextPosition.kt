@@ -54,7 +54,7 @@ private val HorizontalTextPositionProperty =
         "horizontalTextPosition",
         propertyCase<JLabel, Int>(
             read = { it.horizontalTextPosition },
-            // A label re-lays out on every write of this one, unlike its neighbours, so skip an
+            // A label re-lays out on every write of this one, unlike its neighbors, so skip an
             // unchanged value rather than asking for a layout that changes nothing.
             write = { c, v -> if (c.horizontalTextPosition != v) c.horizontalTextPosition = v },
         ),

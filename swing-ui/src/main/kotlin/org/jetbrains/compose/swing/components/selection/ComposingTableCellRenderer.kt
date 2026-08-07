@@ -66,7 +66,7 @@ internal class ComposingTableCellRenderer<R>(
     private val scope = MutableTableCellScope()
 
     // The cell body every stamp composes, held as composition state so a pass that declares a fresh one
-    // is honoured without rebuilding this renderer or its island. It is null until the column this
+    // is honored without rebuilding this renderer or its island. It is null until the column this
     // renderer was built for hands over the body it declares, which composes the empty cell.
     private val contentState = mutableStateOf<(@Composable TableCellScope.(row: R) -> Unit)?>(null)
 

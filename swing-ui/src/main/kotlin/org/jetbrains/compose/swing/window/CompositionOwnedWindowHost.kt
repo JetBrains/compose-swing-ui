@@ -8,6 +8,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.rememberUpdatedState
+import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.core.KeepEnclosingApplicationAlive
 import org.jetbrains.compose.swing.core.setCompositionContext
 import org.jetbrains.compose.swing.setContentAsInteropHost
@@ -55,7 +56,7 @@ import javax.swing.RootPaneContainer
 internal fun CompositionOwnedWindowHost(
     peer: Window,
     onCloseRequest: () -> Unit,
-    title: String,
+    title: @Nls String,
     resizable: Boolean,
     alwaysOnTop: Boolean,
     iconImage: Image?,
@@ -172,6 +173,12 @@ internal fun CompositionOwnedWindowHost(
  * The context published here is captured under the locals this peer states, so an island nested in
  * this window reads them - the window it is really in above all - and recomposes with the rest of the
  * content it is nested in.
+ *
+ * The mount that hosts this peer's content stamps the same [contentPane] with the context it composes
+ * under, and this deliberately supersedes it: both name a valid parent, and this one is the only one
+ * carrying the locals the peer states. The stamps nest rather than race - this one is written from
+ * inside the composition that mount owns, so it lands over the mount's and is the one an island joining
+ * from under this peer reads.
  */
 @Composable
 private fun PublishIslandParent(contentPane: Container) {

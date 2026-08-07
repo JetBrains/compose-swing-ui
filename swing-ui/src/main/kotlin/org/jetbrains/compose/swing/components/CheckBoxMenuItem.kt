@@ -4,12 +4,12 @@
 package org.jetbrains.compose.swing.components
 
 import androidx.compose.runtime.Composable
+import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.components.button.declareSelected
 import org.jetbrains.compose.swing.components.button.rememberToggleMirroring
 import org.jetbrains.compose.swing.components.button.rememberToggleReporting
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
-import org.jetbrains.compose.swing.modifier.listener.actionListener
 import org.jetbrains.compose.swing.node.AppliedValue
 import org.jetbrains.compose.swing.node.MenuNode
 import java.awt.event.ActionListener
@@ -29,7 +29,7 @@ import javax.swing.KeyStroke
  */
 @Composable
 public fun CheckBoxMenuItem(
-    text: String,
+    text: @Nls String,
     modifier: SwingModifier = SwingModifier,
     checked: Boolean = false,
     accelerator: KeyStroke? = null,
@@ -60,7 +60,7 @@ public fun CheckBoxMenuItem(
  */
 @Composable
 public fun CheckBoxMenuItem(
-    text: String,
+    text: @Nls String,
     actionListener: ActionListener,
     modifier: SwingModifier = SwingModifier,
     checked: Boolean = false,
@@ -83,7 +83,7 @@ public fun CheckBoxMenuItem(
  */
 @Composable
 private fun CheckBoxMenuItemNode(
-    text: String,
+    text: @Nls String,
     modifier: SwingModifier,
     checked: Boolean,
     accelerator: KeyStroke?,

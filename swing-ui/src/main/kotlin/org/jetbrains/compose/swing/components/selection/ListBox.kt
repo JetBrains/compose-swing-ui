@@ -466,7 +466,7 @@ private fun <T> ListBoxNode(
 /**
  * Adapts an `onSelectionChange` lambda into the raw [ListSelectionListener] the model-agnostic
  * overloads delegate to, reporting one settled selection per change. The lambda is captured through
- * [rememberUpdatedState] so a recomposition with a new lambda is honoured without rebuilding the
+ * [rememberUpdatedState] so a recomposition with a new lambda is honored without rebuilding the
  * listener.
  */
 @Composable

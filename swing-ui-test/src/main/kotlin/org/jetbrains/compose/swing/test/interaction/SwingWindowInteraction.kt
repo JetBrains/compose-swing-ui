@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.test.interaction
 
+import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.dumpTree
@@ -147,7 +148,7 @@ public class SwingWindowInteraction internal constructor(
      * it when [substring] is `true`).
      */
     public fun onNodeWithText(
-        text: String,
+        text: @Nls String,
         substring: Boolean = false,
     ): SwingNodeInteraction<Component> = onNode(SwingMatcher.hasText(text, substring))
 
@@ -171,7 +172,7 @@ public class SwingWindowInteraction internal constructor(
      * when [substring] is `true`).
      */
     public fun onAllNodesWithText(
-        text: String,
+        text: @Nls String,
         substring: Boolean = false,
     ): SwingNodeInteractionCollection<Component> = onAllNodes(SwingMatcher.hasText(text, substring))
 

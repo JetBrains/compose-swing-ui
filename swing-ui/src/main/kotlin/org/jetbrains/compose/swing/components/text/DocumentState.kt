@@ -10,6 +10,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.constants.ContentType
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.binding
@@ -113,7 +114,7 @@ public class DocumentState internal constructor(
      *
      * @see javax.swing.text.Document.getText
      */
-    public var text: CharSequence
+    public var text: @Nls CharSequence
         get() {
             // Register the snapshot read of the generation before materializing, so a later document
             // change invalidates this reader without the text being mirrored eagerly.
@@ -301,7 +302,7 @@ internal fun SwingModifier.documentStateBinding(state: DocumentState): SwingModi
  */
 @Composable
 public fun rememberDocumentState(
-    initialText: CharSequence = "",
+    initialText: @Nls CharSequence = "",
     @ContentType contentType: String = "text/plain",
 ): DocumentState = remember(contentType) { documentStateOver(editorKitFor(contentType), initialText) }
 
@@ -322,7 +323,7 @@ public fun rememberDocumentState(
 @Composable
 public fun rememberDocumentState(
     kit: EditorKit,
-    initialText: CharSequence = "",
+    initialText: @Nls CharSequence = "",
 ): DocumentState = remember(kit) { documentStateOver(kit, initialText) }
 
 /**

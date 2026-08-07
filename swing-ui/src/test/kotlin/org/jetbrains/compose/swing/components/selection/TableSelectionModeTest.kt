@@ -21,7 +21,7 @@ import kotlin.test.assertEquals
 class TableSelectionModeTest {
     private val people = listOf(Person("Ada", 36), Person("Alan", 41), Person("Grace", 50))
 
-    private val colours = listOf("red", "green", "blue")
+    private val colors = listOf("red", "green", "blue")
 
     private fun tableModel(): DefaultTableModel =
         DefaultTableModel(arrayOf<Any>("Name"), 0).apply { for (person in people) addRow(arrayOf<Any>(person.name)) }
@@ -127,7 +127,7 @@ class TableSelectionModeTest {
             Table(rows = people, onSelectionChange = { fromTable += it }, selectionMode = mode) {
                 column("Name") { it.name }
             }
-            ListBox(items = colours, onSelectionChange = { fromList += it }, selectionMode = mode)
+            ListBox(items = colors, onSelectionChange = { fromList += it }, selectionMode = mode)
         }
 
         val table = onNodeOfType<JTable>().fetch()

@@ -27,7 +27,7 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Behavioural tests for the declarative glass pane of a [Window] and a [Dialog]: the declared content
+ * Behavioral tests for the declarative glass pane of a [Window] and a [Dialog]: the declared content
  * is realized on the window's own glass pane and shown there, the overlay keeps following the state
  * that drives it, and letting the declaration leave the composition hands the window back the pane it
  * carried before - the root pane's own on a window the library realizes, the caller's own on a window

@@ -19,7 +19,7 @@ import kotlin.test.assertEquals
  * left the diff state populated, a recycled slot would see the install-guard still tripped, never
  * re-attach, and the reused component would go silently dead.
  *
- * Every assertion is on *observable* behaviour - how many times a listener attaches/detaches, that a
+ * Every assertion is on *observable* behavior - how many times a listener attaches/detaches, that a
  * release/uninstall block runs exactly once across repeated calls, and that a fresh listener
  * re-installs after a reuse cycle - never on the holder's internal diff/handle fields. The
  * attach/detach counters are the observable proxy for the diff state being cleared: if the diff were

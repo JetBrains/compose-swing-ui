@@ -8,6 +8,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.componentListener
@@ -139,9 +140,9 @@ public sealed interface DesktopPaneScope {
      */
     @Suppress("LongParameterList")
     // Independent declarative aspects of one frame - title, geometry, identity, controls, close
-    // behaviour, appearance, body - each named at the call site, with no cohesive object among them.
+    // behavior, appearance, body - each named at the call site, with no cohesive object among them.
     public fun internalFrame(
-        title: String,
+        title: @Nls String,
         bounds: Rectangle,
         key: Any? = null,
         controls: InternalFrameControls = InternalFrameControls(),
@@ -170,7 +171,7 @@ public sealed interface DesktopPaneScope {
     // Independent declarative aspects of one frame with no cohesive object among them, the raw listener
     // standing in for the close callback.
     public fun internalFrame(
-        title: String,
+        title: @Nls String,
         bounds: Rectangle,
         internalFrameListener: InternalFrameListener,
         key: Any? = null,
@@ -200,7 +201,7 @@ public sealed interface DesktopPaneScope {
     // Independent declarative aspects of one frame with no cohesive object among them, the hoisted state
     // standing in for its bounds.
     public fun internalFrame(
-        title: String,
+        title: @Nls String,
         state: InternalFrameState,
         controls: InternalFrameControls = InternalFrameControls(),
         onClose: () -> Unit = {},
@@ -226,7 +227,7 @@ public sealed interface DesktopPaneScope {
     // Independent declarative aspects of one frame with no cohesive object among them, hoisted state and
     // raw listener in place of its bounds and its close callback.
     public fun internalFrame(
-        title: String,
+        title: @Nls String,
         state: InternalFrameState,
         internalFrameListener: InternalFrameListener,
         controls: InternalFrameControls = InternalFrameControls(),
@@ -296,7 +297,7 @@ private class DesktopPaneScopeImpl : DesktopPaneScope {
     val frames: MutableList<InternalFrameDeclaration> = ArrayList()
 
     override fun internalFrame(
-        title: String,
+        title: @Nls String,
         bounds: Rectangle,
         key: Any?,
         controls: InternalFrameControls,
@@ -314,7 +315,7 @@ private class DesktopPaneScopeImpl : DesktopPaneScope {
     }
 
     override fun internalFrame(
-        title: String,
+        title: @Nls String,
         bounds: Rectangle,
         internalFrameListener: InternalFrameListener,
         key: Any?,
@@ -332,7 +333,7 @@ private class DesktopPaneScopeImpl : DesktopPaneScope {
     }
 
     override fun internalFrame(
-        title: String,
+        title: @Nls String,
         state: InternalFrameState,
         controls: InternalFrameControls,
         onClose: () -> Unit,
@@ -349,7 +350,7 @@ private class DesktopPaneScopeImpl : DesktopPaneScope {
     }
 
     override fun internalFrame(
-        title: String,
+        title: @Nls String,
         state: InternalFrameState,
         internalFrameListener: InternalFrameListener,
         controls: InternalFrameControls,

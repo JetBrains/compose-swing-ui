@@ -19,7 +19,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
- * Behavioural coverage for the caret listener builder: an existing [CaretListener] object reports the
+ * Behavioral coverage for the caret listener builder: an existing [CaretListener] object reports the
  * live component's caret offset and selection anchor, two of them on one chain both fire, the
  * registration follows the component rather than a document, and the instance stops reporting once its
  * element leaves the chain.

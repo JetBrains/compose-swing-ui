@@ -43,8 +43,9 @@ dependencies {
     // types must be on consumers' compile classpath; the Swing dispatcher stays an implementation detail.
     api(libs.kotlinxCoroutinesCore)
     implementation(libs.kotlinxCoroutinesSwing)
-    // @MagicConstant typed-constant annotations. CLASS/IDE-only: compileOnly so they warn consumers
-    // in-IDE across the jar boundary without leaking org.jetbrains:annotations to the published runtime.
+    // @MagicConstant typed-constant and @Nls human-readable-string annotations. CLASS/IDE-only:
+    // compileOnly so they warn consumers in-IDE across the jar boundary without leaking
+    // org.jetbrains:annotations to the published runtime.
     compileOnly(libs.jetbrainsAnnotations)
     testImplementation(kotlin("test"))
     testImplementation(project(":swing-ui-test"))

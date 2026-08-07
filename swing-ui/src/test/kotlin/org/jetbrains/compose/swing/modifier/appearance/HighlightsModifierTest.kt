@@ -19,7 +19,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Behavioural coverage for the `SwingModifier.highlights` markup seam. Each case reads the marks back
+ * Behavioral coverage for the `SwingModifier.highlights` markup seam. Each case reads the marks back
  * off the live area's highlighter - the same place a repaint reads them from - and asserts what a
  * reader would see: the declared ranges are painted, a changed declaration replaces the marks the
  * previous one left instead of piling onto them, marks made outside the declaration survive, and

@@ -5,6 +5,7 @@ package org.jetbrains.compose.swing.components.text
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberUpdatedState
+import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.documentListener
@@ -17,12 +18,12 @@ import javax.swing.event.DocumentListener
 /**
  * A composable wrapper for JTextField.
  *
- * This field is strictly controlled: text the field settles on that [onValueChange] does not answer
- * with a matching [value] is settled back onto the declared value on the very next pass, so the field
- * never ends up holding text the caller has not adopted.
+ * This field is strictly controlled: if [onValueChange] does not answer with a matching [value], the
+ * field is settled back onto the declared value on the very next pass. It never ends up holding text
+ * the caller has not adopted.
  *
- * For incremental editing over a shared `Document`, undo/redo, or observing the text as a flow, drive the
- * field with the [DocumentState] overload ([TextField]) and a [DocumentState] from `rememberDocumentState`.
+ * For incremental editing over a shared `Document`, undo/redo, or observing the text as a flow, drive
+ * the field with the [DocumentState] overload and a [DocumentState] from `rememberDocumentState`.
  *
  * @param value the current text value
  * @param modifier the [SwingModifier] applied to the underlying component
@@ -35,9 +36,9 @@ import javax.swing.event.DocumentListener
  */
 @Composable
 public fun TextField(
-    value: String,
+    value: @Nls String,
     modifier: SwingModifier = SwingModifier,
-    onValueChange: (String) -> Unit = {},
+    onValueChange: (@Nls String) -> Unit = {},
     columns: Int = 0,
     editable: Boolean = true,
 ) {
@@ -56,15 +57,15 @@ public fun TextField(
 /**
  * A composable wrapper for JTextField driven by a raw [DocumentListener] instead of an `onValueChange`
  * lambda. The [documentListener] is attached to the field's document as-is and removed on the same
- * instance; pass a stable instance (e.g. `remember {}`) to avoid churn. Being attached as-is, it
- * observes every change to that document, including the one that applies [value].
+ * instance; pass a stable instance (e.g. `remember {}`) to avoid churn. It observes every change to
+ * that document, including the one that applies [value].
  *
- * This field is strictly controlled: text the field settles on that is not followed by [value] moving
- * to match is settled back onto the declared value on the very next pass, so the field never ends up
- * holding text the caller has not adopted.
+ * This field is strictly controlled: if text the field settles on is not followed by [value] moving to
+ * match, it is settled back onto the declared value on the very next pass. It never ends up holding
+ * text the caller has not adopted.
  *
- * For incremental editing over a shared `Document`, undo/redo, or observing the text as a flow, drive the
- * field with the [DocumentState] overload ([TextField]) and a [DocumentState] from `rememberDocumentState`.
+ * For incremental editing over a shared `Document`, undo/redo, or observing the text as a flow, drive
+ * the field with the [DocumentState] overload and a [DocumentState] from `rememberDocumentState`.
  *
  * @param value the current text value
  * @param documentListener the listener notified of document edits
@@ -76,7 +77,7 @@ public fun TextField(
  */
 @Composable
 public fun TextField(
-    value: String,
+    value: @Nls String,
     documentListener: DocumentListener,
     modifier: SwingModifier = SwingModifier,
     columns: Int = 0,
@@ -98,7 +99,7 @@ public fun TextField(
  */
 @Composable
 private fun TextFieldNode(
-    value: String,
+    value: @Nls String,
     applied: AppliedValue<String>,
     modifier: SwingModifier,
     columns: Int,

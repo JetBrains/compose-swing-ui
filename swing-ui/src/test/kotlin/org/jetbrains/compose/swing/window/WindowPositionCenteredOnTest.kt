@@ -21,7 +21,7 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Behavioural tests for [WindowPosition.CenteredOn], the position that names the window to center on:
+ * Behavioral tests for [WindowPosition.CenteredOn], the position that names the window to center on:
  * the declared window is what the placement resolves against on the first pass, a recomposition naming
  * another window re-centers on that one, the placement resolved is written back into the driving state
  * as concrete coordinates, and a window leaving the composition is released while the window it was

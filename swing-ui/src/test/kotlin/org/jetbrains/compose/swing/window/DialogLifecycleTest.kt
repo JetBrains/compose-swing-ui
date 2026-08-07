@@ -21,7 +21,7 @@ import kotlin.test.assertNotNull
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Behavioural tests asserting that a [Dialog] leaving the composition fully releases its realized
+ * Behavioral tests asserting that a [Dialog] leaving the composition fully releases its realized
  * [JDialog].
  *
  * A visibility change is applied on a fresh event-dispatch tick (a modal show blocks inside a nested

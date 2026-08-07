@@ -140,7 +140,7 @@ class ButtonStateIconModifierTest {
         decorated = false
         awaitIdle()
 
-        // Nothing sets the property now, so the button answers with the greyed icon the look and feel
+        // Nothing sets the property now, so the button answers with the grayed icon the look and feel
         // derives from the base one rather than with the icon that was declared.
         assertNotSame(declared, button.disabledIcon, "dropping the modifier hands the state back")
     }

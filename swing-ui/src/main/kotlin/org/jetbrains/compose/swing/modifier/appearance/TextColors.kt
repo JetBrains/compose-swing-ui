@@ -9,10 +9,10 @@ import java.awt.Color
 import javax.swing.text.JTextComponent
 
 /**
- * Sets the colour of the caret in a text component - fields, areas, editor and text panes.
+ * Sets the color of the caret in a text component - fields, areas, editor and text panes.
  *
- * A text component takes these colours from the look and feel, and only while they have not been set;
- * once one is set here, it holds until the modifier leaves the chain, which puts back the colour the
+ * A text component takes these colors from the look and feel, and only while they have not been set;
+ * once one is set here, it holds until the modifier leaves the chain, which puts back the color the
  * look and feel had supplied.
  *
  * @see javax.swing.text.JTextComponent.setCaretColor
@@ -24,9 +24,9 @@ public fun SwingModifier.caretColor(color: Color): SwingModifier =
             read = { it.caretColor },
             write = { c, v ->
                 c.caretColor = v
-                // A text component's colour setters only fire a property change, and the colour itself is
+                // A text component's color setters only fire a property change, and the color itself is
                 // read at paint time, so each of these writes asks for the repaint that puts the new
-                // colour on the screen.
+                // color on the screen.
                 c.repaint()
             },
         )
@@ -48,7 +48,7 @@ public fun SwingModifier.selectionColor(color: Color): SwingModifier =
         )
 
 /**
- * Sets the colour selected text is drawn in.
+ * Sets the color selected text is drawn in.
  *
  * @see javax.swing.text.JTextComponent.setSelectedTextColor
  */
@@ -64,7 +64,7 @@ public fun SwingModifier.selectedTextColor(color: Color): SwingModifier =
         )
 
 /**
- * Sets the colour text is drawn in while the component is disabled.
+ * Sets the color text is drawn in while the component is disabled.
  *
  * @see javax.swing.text.JTextComponent.setDisabledTextColor
  */

@@ -16,7 +16,7 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Behavioural tests asserting that a [Window] or [Dialog] created without an explicit size is sized to
+ * Behavioral tests asserting that a [Window] or [Dialog] created without an explicit size is sized to
  * its content rather than to an invented default, and that an explicit size is applied verbatim.
  * Skipped in headless environments where no real peer can be realized.
  */

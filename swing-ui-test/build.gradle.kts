@@ -38,7 +38,7 @@ dependencies {
     api(kotlin("test"))
     api(libs.kotlinxCoroutinesTest)
     api(libs.kotlinxCoroutinesSwing)
-    // @Nls localisation annotations. CLASS/IDE-only: compileOnly so they warn consumers in-IDE across
+    // @Nls localization annotations. CLASS/IDE-only: compileOnly so they warn consumers in-IDE across
     // the jar boundary without leaking org.jetbrains:annotations to the published runtime.
     compileOnly(libs.jetbrainsAnnotations)
     // The harness's own tests drive real animations to show what manual frame control does to one.

@@ -19,6 +19,7 @@ import kotlinx.coroutines.test.TestResult
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
+import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.core.ContainedCallerFailure
 import org.jetbrains.compose.swing.core.setLifecycleOwner
 import org.jetbrains.compose.swing.setContent
@@ -194,7 +195,7 @@ public interface ComposeSwingTest {
      * The match is resolved lazily when the returned interaction is first used.
      */
     public fun onNodeWithText(
-        text: String,
+        text: @Nls String,
         substring: Boolean = false,
     ): SwingNodeInteraction<Component>
 
@@ -218,7 +219,7 @@ public interface ComposeSwingTest {
      * Finds all nodes whose text equals [text] (or contains it when [substring] is `true`).
      */
     public fun onAllNodesWithText(
-        text: String,
+        text: @Nls String,
         substring: Boolean = false,
     ): SwingNodeInteractionCollection<Component>
 
@@ -299,7 +300,7 @@ public fun ComposeSwingTest.onWindow(): SwingWindowInteraction = onWindow(SwingM
  * Finds the single realized window titled [title]. Convenience for
  * `onWindow(SwingMatcher.hasTitle(title))`.
  */
-public fun ComposeSwingTest.onWindowWithTitle(title: String): SwingWindowInteraction =
+public fun ComposeSwingTest.onWindowWithTitle(title: @Nls String): SwingWindowInteraction =
     onWindow(SwingMatcher.hasTitle(title))
 
 /**
@@ -836,7 +837,7 @@ private class ComposeSwingTestImpl(
     }
 
     override fun onNodeWithText(
-        text: String,
+        text: @Nls String,
         substring: Boolean,
     ): SwingNodeInteraction<Component> = onNode(SwingMatcher.hasText(text, substring))
 
@@ -850,7 +851,7 @@ private class ComposeSwingTestImpl(
         }
 
     override fun onAllNodesWithText(
-        text: String,
+        text: @Nls String,
         substring: Boolean,
     ): SwingNodeInteractionCollection<Component> = onAllNodes(SwingMatcher.hasText(text, substring))
 

@@ -6,6 +6,7 @@ package org.jetbrains.compose.swing.components.button
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.actionListener
@@ -23,7 +24,7 @@ import javax.swing.JButton
  */
 @Composable
 public fun Button(
-    text: String,
+    text: @Nls String,
     modifier: SwingModifier = SwingModifier,
     onClick: () -> Unit = {},
 ) {
@@ -45,7 +46,7 @@ public fun Button(
  */
 @Composable
 public fun Button(
-    text: String,
+    text: @Nls String,
     actionListener: ActionListener,
     modifier: SwingModifier = SwingModifier,
 ) {

@@ -4,6 +4,7 @@
 package org.jetbrains.compose.swing.components
 
 import androidx.compose.runtime.Composable
+import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.constants.Orientation
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
@@ -36,7 +37,7 @@ public fun ProgressBar(
     indeterminate: Boolean = false,
     @Orientation orientation: Int = SwingConstants.HORIZONTAL,
     stringPainted: Boolean = false,
-    string: String? = null,
+    string: @Nls String? = null,
 ) {
     ProgressBarNode(
         modifier = modifier,
@@ -84,7 +85,7 @@ public fun ProgressBar(
     indeterminate: Boolean = false,
     @Orientation orientation: Int = SwingConstants.HORIZONTAL,
     stringPainted: Boolean = false,
-    string: String? = null,
+    string: @Nls String? = null,
 ) {
     ProgressBarNode(
         modifier = modifier,
@@ -108,7 +109,7 @@ private fun ProgressBarNode(
     indeterminate: Boolean,
     @Orientation orientation: Int,
     stringPainted: Boolean,
-    string: String?,
+    string: @Nls String?,
     installRange: SwingNodeUpdater<JProgressBar>.() -> Unit,
 ) {
     SwingNode(

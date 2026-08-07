@@ -27,7 +27,7 @@ class TopLevelSectionsTest {
             onNodeWithText("Widen by 40").performClick()
             onNodeWithText("Size: 360 x 200", substring = true).assertExists()
 
-            onNodeWithText("Centre on screen").performClick()
+            onNodeWithText("Center on screen").performClick()
             onNodeWithText("Position: CenteredOnScreen", substring = true).assertExists()
         }
 

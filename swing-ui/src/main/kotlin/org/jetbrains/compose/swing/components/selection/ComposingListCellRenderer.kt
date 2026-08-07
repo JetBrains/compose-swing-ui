@@ -58,7 +58,7 @@ public sealed interface ListItemScope {
  * the composable that built this renderer installed, so it is the cell body's own element type.
  *
  * The [currentItemContent] is read through a [State] so a recomposition that supplies a fresh cell
- * lambda is honoured without rebuilding the renderer or its island.
+ * lambda is honored without rebuilding the renderer or its island.
  *
  * @param parentContext the enclosing composition this renderer's cell island joins.
  * @param currentItemContent the always-current composable cell body, invoked with the [ListItemScope]
@@ -130,7 +130,7 @@ private class MutableListItemScope : ListItemScope {
 /**
  * Remembers a single [ComposingListCellRenderer] for [itemContent], captured against the enclosing
  * composition so the cell body joins it. The renderer is stable across recompositions - the current
- * [itemContent] flows in through [rememberUpdatedState], so a recomposed cell lambda is honoured
+ * [itemContent] flows in through [rememberUpdatedState], so a recomposed cell lambda is honored
  * without rebuilding the renderer - and is disposed when it leaves the composition.
  *
  * Call from a `@Composable` scope that folds the returned renderer into the modifier chain of a

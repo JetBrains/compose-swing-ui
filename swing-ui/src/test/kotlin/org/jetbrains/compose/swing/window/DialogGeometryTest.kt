@@ -15,7 +15,7 @@ import kotlin.test.assertEquals
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Behavioural tests asserting that [Dialog] geometry is two-way with the realized [JDialog]:
+ * Behavioral tests asserting that [Dialog] geometry is two-way with the realized [JDialog]:
  * [DialogState] drives the dialog's position and size, and user-driven resizes and moves are written
  * back into the state.
  *

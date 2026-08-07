@@ -3,6 +3,7 @@
 
 package org.jetbrains.compose.swing.modifier.accessibility
 
+import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.propertyElement
 import java.awt.Component
@@ -15,7 +16,7 @@ import java.awt.Component
  * @param name the accessible name to advertise, or `null` to clear it.
  * @see javax.accessibility.AccessibleContext.setAccessibleName
  */
-public fun SwingModifier.accessibleName(name: String?): SwingModifier =
+public fun SwingModifier.accessibleName(name: @Nls String?): SwingModifier =
     this then
         propertyElement<Component, String?>(
             name,

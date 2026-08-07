@@ -62,7 +62,7 @@ public fun SwingModifier.selectedIcon(icon: Icon?): SwingModifier =
 
 /**
  * Sets the icon a button displays while it is disabled; `null` hands the state back to the look and
- * feel, which greys the base icon for it. Applies to every kind of button.
+ * feel, which grays the base icon for it. Applies to every kind of button.
  *
  * @see javax.swing.AbstractButton.setDisabledIcon
  */
@@ -70,7 +70,7 @@ public fun SwingModifier.disabledIcon(icon: Icon?): SwingModifier =
     this then
         propertyElement<AbstractButton, Icon?>(
             icon,
-            // Reading the property is what makes the look and feel derive its greyed icon, so what is
+            // Reading the property is what makes the look and feel derive its grayed icon, so what is
             // captured here may be that derived one. A derived icon is a UIResource, which the button
             // discards by itself the next time its base icon changes, so the fallback resumes.
             read = { it.disabledIcon },
@@ -79,7 +79,7 @@ public fun SwingModifier.disabledIcon(icon: Icon?): SwingModifier =
 
 /**
  * Sets the icon a button displays while it is both disabled and selected; `null` hands the state back
- * to the look and feel, which greys [selectedIcon] for it. Applies to every kind of button.
+ * to the look and feel, which grays [selectedIcon] for it. Applies to every kind of button.
  *
  * @see javax.swing.AbstractButton.setDisabledSelectedIcon
  */
