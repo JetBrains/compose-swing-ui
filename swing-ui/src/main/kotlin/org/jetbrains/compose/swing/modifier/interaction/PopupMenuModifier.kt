@@ -91,9 +91,11 @@ public fun SwingModifier.popupMenu(
 }
 
 /**
- * The additive [SwingModifier.Element] backing [popupMenu]. It carries the declared open state and the
- * lambdas the node reads from its fields, refreshed by `update`, so a fresh lambda each recomposition is
- * fine and the menu that opens is the one the latest composition declared.
+ * The additive [SwingModifier.NodeElement] backing [popupMenu]. It carries the declared open state.
+ *
+ * Two elements are equal only when they declare the same open state against the same composition and
+ * hold the *same* lambdas - identity, because a lambda is what it captures, and a menu built from a
+ * fresh one is a different menu.
  */
 private class PopupMenuElement(
     private val parentContext: CompositionContext,
@@ -103,7 +105,7 @@ private class PopupMenuElement(
     private val content:
         @Composable @SwingMenuComposable
         () -> Unit,
-) : SwingModifier.Element<Component, PopupMenuElement.Node> {
+) : SwingModifier.NodeElement<Component, PopupMenuElement.Node>() {
     override val targetType: Class<Component> get() = Component::class.java
     override val additive: Boolean get() = true
 
@@ -114,6 +116,25 @@ private class PopupMenuElement(
         node.display = display
         node.content = content
         node.apply(expanded)
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is PopupMenuElement) return false
+        if (parentContext !== other.parentContext) return false
+        if (onDismiss !== other.onDismiss) return false
+        if (display !== other.display) return false
+        if (content !== other.content) return false
+        return expanded == other.expanded
+    }
+
+    override fun hashCode(): Int {
+        var result = System.identityHashCode(parentContext)
+        result = 31 * result + expanded.hashCode()
+        result = 31 * result + System.identityHashCode(onDismiss)
+        result = 31 * result + System.identityHashCode(display)
+        result = 31 * result + System.identityHashCode(content)
+        return result
     }
 
     /**
@@ -129,7 +150,6 @@ private class PopupMenuElement(
             @Composable @SwingMenuComposable
             () -> Unit = {}
 
-        // The menu currently open, or null while none is.
         private var open: MenuPopup? = null
 
         private val showing = ShowingWait()

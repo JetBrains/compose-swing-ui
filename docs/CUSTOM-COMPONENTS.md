@@ -376,10 +376,10 @@ callback), chain them **onto** the caller's `modifier` - `modifier.yourElement(.
 ## Writing a custom property element
 
 When you need a styling property the built-ins do not cover, implement the public
-`SwingModifier.Element` and `SwingModifier.Node` pair. They split immutable description from mutable
+`SwingModifier.NodeElement` and `SwingModifier.Node` pair. They split immutable description from mutable
 per-component state:
 
-- `Element<T : Component, N : Node<T>>` is the **immutable description** of one chain entry. It carries
+- `NodeElement<T : Component, N : Node<T>>` is the **immutable description** of one chain entry. It carries
   the value to write and the component type it targets; the framework holds it as data and replaces it
   with a fresh instance on each chain change.
 - `Node<T : Component>` is the **stateful counterpart**, created once per chain slot and kept across
@@ -397,15 +397,34 @@ The element declares its target type two ways that must agree:
 A node whose component is not a `T` is rejected at apply with a clear message naming the element and
 the required vs. actual type.
 
-The lifecycle, across the `Element`/`Node` pair:
+The lifecycle, across the `NodeElement`/`Node` pair:
 
-- `Element.create()` builds the `Node` once, when the element first enters the chain;
+- `NodeElement.create()` builds the `Node` once, when the element first enters the chain;
 - `Node.onAttach()` runs once, right after the component is injected - **capture the component's
   existing value here** so it can be restored;
-- `Element.update(node)` runs on attach and on every chain change - **write the new value here**, so a
+- `NodeElement.update(node)` runs on attach and on every chain change - **write the new value here**, so a
   fresh element instance (a new value on recomposition) reaches the live node without re-creating it;
 - `Node.onDetach()` runs once, when the element is dropped from the chain or the node is recycled -
   **restore the captured original here**.
+
+**`equals` and `hashCode` are abstract**, so the element has to state its own equality and the
+compiler rejects one that does not. A slot whose incoming element equals the one it already applied
+does nothing, so an element that compares by value is applied once and then skipped for as long as
+its value stands - which is what lets you build the chain inline in the composable body without a
+`remember`. An element that answers `this === other` is unequal to any other instance, so a chain that
+builds a fresh one each pass is re-applied each pass; that is the right answer for an element carrying
+nothing, and for one whose write has to be redone whatever the declaration says, but for a plain value
+it is the difference between a frame of work and none. Declare such an element as an `object` and the
+chain hands the slot the same instance every pass, so it is applied once - right where the write is
+idempotent and there is nothing to redo.
+
+Compare a value structurally and a callback by identity. Where the node writes a value, structural
+equality is what you want, and a `data class` says it in one word. Where the node **registers**
+something - installs a listener, attaches a binding, claims a slot - compare that thing with `===`
+instead, and do not use a `data class`: its `==` would call an `equals` the caller may have
+overridden (a Kotlin function reference has one), so two objects the node treats as different could
+compare equal, the element would skip, and the node would never swap the registration. The element's
+equality has to agree with what its node does on update.
 
 A property element is **keyed and last-wins**: its `key` defaults to the element's class, so two
 elements of different types never collide. Leave `additive` at its default `false` for a property
@@ -451,9 +470,11 @@ private class ToolTipNode : SwingModifier.Node<JComponent>() {
     }
 }
 
-private class ToolTipElement(
+// A data class: the element is one value, so two declaring the same text are the same declaration
+// and the slot is left as it stands.
+private data class ToolTipElement(
     private val text: String?,
-) : SwingModifier.Element<JComponent, ToolTipNode> {
+) : SwingModifier.NodeElement<JComponent, ToolTipNode>() {
     override val targetType: Class<JComponent> get() = JComponent::class.java
 
     override fun create(): ToolTipNode = ToolTipNode()
@@ -468,12 +489,11 @@ public fun SwingModifier.toolTip(text: String?): SwingModifier =
     then(ToolTipElement(text))
 ```
 
-The built-in `toolTip` builder is the same property shape - capture in attach, write in update,
-restore in detach; the code above is the public `Element`/`Node` path you write for a property the
-library does not ship.
+The built-in `toolTip` builder is the same property shape; the code above is the public `NodeElement`/`Node`
+path you write for a property the library does not ship.
 
 For a property every component has (no `JComponent`-only access), target `Component` instead -
-`Element<Component, ...>` with `targetType = Component::class.java` - and the node's `component` arrives
+`NodeElement<Component, ...>` with `targetType = Component::class.java` - and the node's `component` arrives
 typed as `java.awt.Component`.
 
 ## Attaching a listener
@@ -898,11 +918,13 @@ Four things make a composite of this shape behave:
 - **Keep the composite composable-shaped** - state in, callbacks out, and a `modifier` parameter
   chained onto the outermost container it emits, so a caller styles the composite the way they style
   any component.
-- **`remember` the value objects the chain carries** - `remember(title) { TitledBorder(title) }`, as
-  above. A `Border`, `Font` or `Icon` constructed in the composable body is a different instance on
-  every recomposition, and Swing compares by identity: `JComponent.setBorder` repaints for any instance
-  that is not the one it already holds, and relayouts when the insets differ. Handing the same instance
-  back makes the re-applied write a no-op.
+- **`remember` the value objects whose type compares by identity** - `remember(title) { TitledBorder(title) }`,
+  as above. A `Border` or `Icon` built in the composable body is a different instance on every
+  recomposition, and neither overrides `equals`, so the chain element sees a changed value on every
+  pass and re-applies: `JComponent.setBorder` repaints for any instance that is not the one it already
+  holds, and relayouts when the insets differ. Handing the same instance back makes the re-applied write
+  a no-op. A value with structural equality - a `Font`, `Color`, `Insets` - needs no `remember`: an
+  equal instance already compares equal to the chain element applied last time and the write is skipped.
 - **Let each container place its own children.** A container consumes the placement its parent gave it
   and provides its children the placements it defines, so a composite nests inside another - a
   `GridBagPanel` in the `body` slot above - with neither knowing about the other.

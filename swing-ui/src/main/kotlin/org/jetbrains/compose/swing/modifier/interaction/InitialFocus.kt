@@ -21,13 +21,18 @@ import java.awt.Component
  */
 public fun SwingModifier.initialFocus(): SwingModifier = this then InitialFocusElement
 
-private object InitialFocusElement : SwingModifier.Element<Component, InitialFocusElement.Node> {
+private object InitialFocusElement : SwingModifier.NodeElement<Component, InitialFocusElement.Node>() {
     override val targetType: Class<Component> get() = Component::class.java
     override val additive: Boolean get() = true
 
     override fun create(): Node = Node()
 
     override fun update(node: Node): Unit = Unit
+
+    // The declaration carries nothing, so the sole instance is the only element equal to it.
+    override fun equals(other: Any?): Boolean = this === other
+
+    override fun hashCode(): Int = System.identityHashCode(this)
 
     class Node : SwingModifier.Node<Component>() {
         private val showing = ShowingWait()

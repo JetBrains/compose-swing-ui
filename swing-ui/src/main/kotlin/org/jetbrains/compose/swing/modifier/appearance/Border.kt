@@ -21,9 +21,9 @@ import javax.swing.border.Border
  * [emptyBorder] alike - competes for it and the last one wins. Removing the declaration puts back the
  * border the component carried before.
  *
- * The look and feel of a standard component other than a panel or a label paints that component's own
- * border, and may draw over or ignore one declared here; put such a component in a panel and declare
- * the border on the panel instead.
+ * The look and feel of a standard component, other than a panel or a label, paints its own border and
+ * may draw over or ignore one declared here; put such a component in a panel and declare the border
+ * on the panel instead.
  *
  * @see javax.swing.JComponent.setBorder
  */
@@ -79,11 +79,18 @@ public fun SwingModifier.emptyBorder(insets: Insets): SwingModifier =
 private sealed interface BorderSpec {
     fun resolve(): Border?
 
-    /** A border the caller built. Two are the same only when they are the same object. */
-    data class Instance(
-        val border: Border?,
+    /**
+     * A border the caller built. Two are equal only when they are the same object: an `equals` the
+     * caller wrote could call two distinct borders equal and leave the component holding the wrong one.
+     */
+    class Instance(
+        private val border: Border?,
     ) : BorderSpec {
         override fun resolve(): Border? = border
+
+        override fun equals(other: Any?): Boolean = other is Instance && border === other.border
+
+        override fun hashCode(): Int = System.identityHashCode(border)
     }
 
     data class Line(
@@ -105,11 +112,14 @@ private sealed interface BorderSpec {
 
 /**
  * Backs every border declaration with one slot: each builder produces this same element, so they share
- * the key that identifies the property and the last declaration in the chain owns the border.
+ * the slot [border] describes.
+ *
+ * Two elements declaring the same [BorderSpec] are equal, so a chain rebuilt from unchanged values is
+ * the same declaration and the slot is left as it stands.
  */
-private class BorderElement(
+private data class BorderElement(
     private val spec: BorderSpec,
-) : SwingModifier.Element<JComponent, BorderElement.Node> {
+) : SwingModifier.NodeElement<JComponent, BorderElement.Node>() {
     override val targetType: Class<JComponent> get() = JComponent::class.java
 
     override fun create(): Node = Node()

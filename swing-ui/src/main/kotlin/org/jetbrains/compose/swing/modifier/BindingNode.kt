@@ -3,12 +3,8 @@ package org.jetbrains.compose.swing.modifier
 import java.awt.Component
 
 /**
- * A [SwingModifier.Node] holding the value currently bound to the node's component. Assigning a
- * different value detaches the one held before binding the new, so exactly one value drives the
- * component at a time; [onDetach] releases whatever is still bound.
- *
- * Both callbacks name this node's own component, so a value this node is giving up - but another
- * component has already taken over - is left driving that other component.
+ * A [SwingModifier.Node] holding the value currently bound to the node's component. Exactly one
+ * value drives the component at a time; [onDetach] releases whatever is still bound.
  */
 internal class BindingNode<C : Component, B : Any>(
     private val attach: (value: B, component: C) -> Unit,
@@ -29,25 +25,42 @@ internal class BindingNode<C : Component, B : Any>(
 }
 
 /**
- * A [SwingModifier.Element] that binds a value to a component for as long as the element occupies its
- * slot, backed by a [BindingNode]. Built through [binding].
+ * A [SwingModifier.NodeElement] that binds a value to a component for as long as the element occupies its
+ * slot, backed by a [BindingNode]. Built through [binding], which documents the slot contract.
  *
- * The last-wins slot is keyed by the class of the [attach] callback: each binding builder declares its
- * own `attach` - its own class - so two distinct bindings never collapse into one slot, while every
- * application of one builder shares that builder's slot.
+ * Two elements are equal when they require the same component type, take the same slot and hold the
+ * *same* value and callbacks - identity, matching what [BindingNode] rebinds on: an equal-looking
+ * replacement is still a different value to give the component over to.
  */
 internal class BindingElement<C : Component, B : Any>(
     override val targetType: Class<C>,
     private val value: B,
     private val attach: (value: B, component: C) -> Unit,
     private val detach: (value: B, component: C) -> Unit,
-) : SwingModifier.Element<C, BindingNode<C, B>> {
+) : SwingModifier.NodeElement<C, BindingNode<C, B>>() {
     override val key: Any get() = attach.javaClass
 
     override fun create(): BindingNode<C, B> = BindingNode(attach, detach)
 
     override fun update(node: BindingNode<C, B>) {
         node.value = value
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is BindingElement<*, *>) return false
+        if (targetType != other.targetType) return false
+        if (value !== other.value) return false
+        if (attach !== other.attach) return false
+        return detach === other.detach
+    }
+
+    override fun hashCode(): Int {
+        var result = targetType.hashCode()
+        result = 31 * result + System.identityHashCode(value)
+        result = 31 * result + System.identityHashCode(attach)
+        result = 31 * result + System.identityHashCode(detach)
+        return result
     }
 }
 

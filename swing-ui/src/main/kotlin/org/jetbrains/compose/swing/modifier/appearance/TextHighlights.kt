@@ -47,12 +47,20 @@ public fun SwingModifier.highlights(
  * declaration across document swaps via a one-time `document`-property listener: a highlight's tag is
  * bound to the document instance current when it was added, so a swap - a `JEditorPane` switching content
  * type, a `TextArea` rebinding to a new `DocumentState` - stops the old tags from painting anything.
+ *
+ * The [painter] is the caller's own object, handed to the highlighter as the mark's painter, so it is
+ * compared by identity - the same comparison the node makes against what it has already painted.
  */
 private class HighlightsElement(
     private val ranges: List<TextRange>,
     private val painter: Highlighter.HighlightPainter,
-) : SwingModifier.Element<JTextComponent, HighlightsElement.Node> {
+) : SwingModifier.NodeElement<JTextComponent, HighlightsElement.Node>() {
     override val targetType: Class<JTextComponent> get() = JTextComponent::class.java
+
+    override fun equals(other: Any?): Boolean =
+        other is HighlightsElement && painter === other.painter && ranges == other.ranges
+
+    override fun hashCode(): Int = 31 * System.identityHashCode(painter) + ranges.hashCode()
 
     override fun create(): Node = Node()
 
@@ -80,8 +88,8 @@ private class HighlightsElement(
 
         /**
          * Paints [ranges] with [painter], unless what is already painted came from an equal declaration
-         * against the same document and [force] is not set. The ranges are snapshotted, so a caller's
-         * list mutated in place still reads as a change.
+         * against the same document and [force] is not set. The ranges are snapshotted, so what is
+         * recorded as painted cannot be the very list a later declaration is compared against.
          */
         fun apply(force: Boolean) {
             val declaredRanges = ranges

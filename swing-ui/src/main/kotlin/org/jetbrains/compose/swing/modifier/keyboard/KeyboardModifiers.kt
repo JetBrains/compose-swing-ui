@@ -16,8 +16,10 @@ import javax.swing.SwingUtilities
 /*
  * Keyboard SwingModifiers - raw key events and key-stroke -> action bindings.
  *
- * Callbacks are read live, so passing fresh lambdas each recomposition is fine. The focus scope of a
- * key-stroke binding is expressed with [FocusCondition].
+ * Two key-stroke elements are equal when they declare the same key-stroke and scope and hold the *same*
+ * callback - identity, because a lambda is what it captures - so a declaration made of hoisted
+ * callbacks refreshes nothing, while one made of fresh lambdas refreshes the node's fields on every
+ * pass.
  */
 
 /**
@@ -75,12 +77,12 @@ public fun SwingModifier.onKeyStroke(
 }
 
 /**
- * The additive [SwingModifier.Element] backing [onKeyEvent]. Installs a [KeyListener] once and reads
+ * The additive [SwingModifier.NodeElement] backing [onKeyEvent]. Installs a [KeyListener] once and reads
  * [onKeyEvent] from the node's field, refreshed by `update`, so callbacks stay current.
  */
 private class KeyEventElement(
     private val onKeyEvent: (KeyEvent) -> Boolean,
-) : SwingModifier.Element<Component, KeyEventElement.Node> {
+) : SwingModifier.NodeElement<Component, KeyEventElement.Node>() {
     override val targetType: Class<Component> get() = Component::class.java
     override val additive: Boolean get() = true
 
@@ -89,6 +91,10 @@ private class KeyEventElement(
     override fun update(node: Node) {
         node.onKeyEvent = onKeyEvent
     }
+
+    override fun equals(other: Any?): Boolean = other is KeyEventElement && onKeyEvent === other.onKeyEvent
+
+    override fun hashCode(): Int = System.identityHashCode(onKeyEvent)
 
     class Node : SwingModifier.Node<Component>() {
         var onKeyEvent: (KeyEvent) -> Boolean = { false }
@@ -113,7 +119,7 @@ private class KeyEventElement(
 }
 
 /**
- * The additive [SwingModifier.Element] backing [onKeyStroke]. Each `update` re-keys the binding in
+ * The additive [SwingModifier.NodeElement] backing [onKeyStroke]. Each `update` re-keys the binding in
  * `getInputMap(condition)` + `actionMap` under a unique key (the node instance) for the declared
  * [keyStroke]/[condition] pair, unbinding the previous pair first when either changed, and reads
  * [onAction] from the node's field refreshed by `update`; `onDetach` removes the currently bound pair.
@@ -124,7 +130,7 @@ private class KeyStrokeElement(
     private val keyStroke: KeyStroke,
     @param:FocusCondition private val condition: Int,
     private val onAction: () -> Unit,
-) : SwingModifier.Element<JComponent, KeyStrokeElement.Node> {
+) : SwingModifier.NodeElement<JComponent, KeyStrokeElement.Node>() {
     override val targetType: Class<JComponent> get() = JComponent::class.java
     override val additive: Boolean get() = true
 
@@ -133,6 +139,21 @@ private class KeyStrokeElement(
     override fun update(node: Node) {
         node.onAction = onAction
         node.rebind(keyStroke, condition)
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is KeyStrokeElement) return false
+        if (onAction !== other.onAction) return false
+        if (condition != other.condition) return false
+        return keyStroke == other.keyStroke
+    }
+
+    override fun hashCode(): Int {
+        var result = keyStroke.hashCode()
+        result = 31 * result + condition
+        result = 31 * result + System.identityHashCode(onAction)
+        return result
     }
 
     class Node : SwingModifier.Node<JComponent>() {

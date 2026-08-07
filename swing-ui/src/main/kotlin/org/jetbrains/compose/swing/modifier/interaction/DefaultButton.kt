@@ -19,7 +19,7 @@ public fun SwingModifier.defaultButton(default: Boolean = true): SwingModifier =
 
 private class DefaultButtonElement(
     private val default: Boolean,
-) : SwingModifier.Element<JButton, DefaultButtonElement.Node> {
+) : SwingModifier.NodeElement<JButton, DefaultButtonElement.Node>() {
     override val targetType: Class<JButton> get() = JButton::class.java
 
     override fun create(): Node = Node()
@@ -28,6 +28,10 @@ private class DefaultButtonElement(
         node.default = default
         node.apply()
     }
+
+    override fun equals(other: Any?): Boolean = other is DefaultButtonElement && default == other.default
+
+    override fun hashCode(): Int = default.hashCode()
 
     class Node : SwingModifier.Node<JButton>() {
         var default: Boolean = false

@@ -10,8 +10,7 @@ import java.awt.Component
  * A scope hands this to the modifier elements its `weight` and `align` extensions build and to the
  * [LinearLayout] that reads them back, so a child's declaration reaches the layout without the child
  * knowing its container. Each entry is written by the modifier element that declared it and removed
- * again when that element leaves the child's chain, and every write is answered with whether it changed
- * anything - an unchanged redeclaration asks for no new layout pass.
+ * again when that element leaves the child's chain.
  */
 internal class ChildPlacements {
     private val weights = HashMap<Component, WeightPlacement>()
@@ -88,16 +87,29 @@ internal class WeightNode(
     }
 }
 
-/** The element a scope's `weight` extension adds to a child's modifier chain. */
+/**
+ * The element a scope's `weight` extension adds to a child's modifier chain. Two are equal when they
+ * declare the same claim to the same container's placements, so a child redeclaring what it already
+ * claims asks for nothing.
+ */
 internal class WeightElement(
     private val placements: ChildPlacements,
     private val placement: WeightPlacement,
-) : SwingModifier.Element<Component, WeightNode> {
+) : SwingModifier.NodeElement<Component, WeightNode>() {
     override val targetType: Class<Component> get() = Component::class.java
 
     override fun create(): WeightNode = WeightNode(placements)
 
     override fun update(node: WeightNode): Unit = node.apply(placement)
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is WeightElement) return false
+        if (placements !== other.placements) return false
+        return placement == other.placement
+    }
+
+    override fun hashCode(): Int = 31 * System.identityHashCode(placements) + placement.hashCode()
 }
 
 /** Holds the child's cross-axis placement in [placements] while the element stays in its chain. */
@@ -114,16 +126,29 @@ internal class AlignNode(
     }
 }
 
-/** The element a scope's `align` extension adds to a child's modifier chain. */
+/**
+ * The element a scope's `align` extension adds to a child's modifier chain. Two are equal when they
+ * name the same placement in the same container's placements, so a child redeclaring where it already
+ * sits asks for nothing.
+ */
 internal class AlignElement(
     private val placements: ChildPlacements,
     private val alignment: AxisAlignment,
-) : SwingModifier.Element<Component, AlignNode> {
+) : SwingModifier.NodeElement<Component, AlignNode>() {
     override val targetType: Class<Component> get() = Component::class.java
 
     override fun create(): AlignNode = AlignNode(placements)
 
     override fun update(node: AlignNode): Unit = node.apply(alignment)
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is AlignElement) return false
+        if (placements !== other.placements) return false
+        return alignment == other.alignment
+    }
+
+    override fun hashCode(): Int = 31 * System.identityHashCode(placements) + alignment.hashCode()
 }
 
 /** Holds the child's cross-axis fill in [placements] while the element stays in its chain. */
@@ -140,13 +165,21 @@ internal class FillNode(
     }
 }
 
-/** The element a scope's cross-axis fill extension adds to a child's modifier chain. */
+/**
+ * The element a scope's cross-axis fill extension adds to a child's modifier chain. Two are equal when
+ * they declare the fill against the same container's placements, so a child redeclaring the fill it
+ * already carries asks for nothing.
+ */
 internal class FillElement(
     private val placements: ChildPlacements,
-) : SwingModifier.Element<Component, FillNode> {
+) : SwingModifier.NodeElement<Component, FillNode>() {
     override val targetType: Class<Component> get() = Component::class.java
 
     override fun create(): FillNode = FillNode(placements)
 
     override fun update(node: FillNode): Unit = node.apply()
+
+    override fun equals(other: Any?): Boolean = other is FillElement && placements === other.placements
+
+    override fun hashCode(): Int = System.identityHashCode(placements)
 }

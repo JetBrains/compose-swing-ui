@@ -2,12 +2,14 @@ package org.jetbrains.compose.swing.window
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.RememberObserver
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshots.SnapshotStateObserver
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.core.KeepEnclosingApplicationAlive
 import org.jetbrains.compose.swing.core.setCompositionContext
@@ -22,6 +24,7 @@ import java.awt.event.WindowAdapter
 import java.awt.event.WindowEvent
 import javax.swing.JComponent
 import javax.swing.RootPaneContainer
+import javax.swing.SwingUtilities
 
 /**
  * Wires a composition-owned top-level AWT [peer] (a [javax.swing.JFrame] or [javax.swing.JDialog])
@@ -35,16 +38,23 @@ import javax.swing.RootPaneContainer
  * previous peer loses its content, its listeners and its own peer, and the replacement is wired and
  * hosted from scratch.
  *
- * The shape of the two directions matches the two-way geometry model: [position]/[width]/[height] are
- * read here in the composable body (so mutating them recomposes and re-applies), while [setPosition]
- * and [setSize] carry user-driven moves and resizes back into the hoisted state.
+ * The shape of the two directions matches the two-way geometry model: [applyDeclaredGeometry] reads the
+ * hoisted state under a snapshot observer, so a window system reporting a drag or a resize - which
+ * [setPosition] and [setSize] carry back into that same state - re-runs the apply rather than
+ * recomposing anything.
  *
  * Everything that is specific to one kind of peer is threaded in as a lambda: [installExtras] alongside
- * the wiring this function installs, [applyExtras] at the tail of the reactive [SideEffect] (after
- * geometry, so it can flip visibility once the peer is sized and positioned), and [disposePeer] at the
- * very end of teardown, so a caller can interleave its own steps (for example, hiding a modal dialog
- * before it is disposed).
+ * the wiring this function installs, [applyExtras] at the tail of the observed apply (after geometry, so
+ * it can flip visibility once the peer is sized and positioned), and [disposePeer] at the very end of
+ * teardown, so a caller can interleave its own steps (for example, hiding a modal dialog before it is
+ * disposed).
  *
+ * @param applyDeclaredGeometry pushes the geometry the hoisted state holds onto the peer, reading that
+ *   state as it runs. It runs on every recomposition and again whenever the state it read changes, so
+ *   what it reads is what drives the peer - a value read anywhere else is applied only as often as the
+ *   composable that read it recomposes.
+ * @param applyExtras applies whatever this kind of peer carries alongside its geometry, reading the
+ *   hoisted state the same way [applyDeclaredGeometry] does.
  * @param installExtras registers any additional listeners in the same [DisposableEffect] as the wiring
  *   installed here, and returns their removal. It runs once per peer, while the state a listener writes
  *   into is declared afresh on every recomposition, so a listener it installs has to reach that state
@@ -61,9 +71,7 @@ internal fun CompositionOwnedWindowHost(
     alwaysOnTop: Boolean,
     iconImage: Image?,
     minimumSize: Dimension?,
-    position: WindowPosition,
-    width: Int,
-    height: Int,
+    applyDeclaredGeometry: () -> Unit,
     setPosition: (WindowPosition) -> Unit,
     setSize: (width: Int, height: Int) -> Unit,
     appliedGeometry: AppliedGeometry,
@@ -95,6 +103,10 @@ internal fun CompositionOwnedWindowHost(
     // menu bar - reaches the window that content is in. Tied to the peer: a replacement peer hands its
     // content a scope of its own.
     val scope: WindowScope = remember(peer) { WindowScope.of(container.rootPane) }
+
+    // The apply that reads the hoisted state, and the observer that re-runs it when that state changes.
+    // Tied to the peer it writes to: a replacement peer is applied to, and observed for, afresh.
+    val observedApply = remember(peer) { ObservedPeerApply() }
 
     // Keyed on the peer: when a caller replaces it, the effect tears the old peer's wiring down (and
     // disposes it) before the new peer is listened to and hosted.
@@ -158,8 +170,80 @@ internal fun CompositionOwnedWindowHost(
         // than the peer being sized twice: AWT raises a size below the floor whichever way round these
         // two land, both when the size is set and when the floor is.
         peer.applyMinimumSize(minimumSize)
-        peer.applyGeometry(position, width, height, appliedGeometry)
-        applyExtras()
+        // What the hoisted state holds is read from here on, under the observer: the two lambdas are
+        // the ones this recomposition stated, and the reads they make are recorded against the apply
+        // rather than against any composable scope.
+        observedApply.applyAndObserve {
+            applyDeclaredGeometry()
+            applyExtras()
+        }
+    }
+}
+
+/**
+ * Applies the state a window is declared with onto its peer, under a snapshot observer that applies it
+ * again whenever that state changes.
+ *
+ * A window's geometry is two-way: a window system reports a user's drag or resize once per frame of the
+ * gesture, and every report is written back into the very state the window is declared with. Reading
+ * that state here rather than in a composable body is what keeps the gesture off the composition - the
+ * reads are recorded against this apply, so a report re-runs the apply, which finds the peer already
+ * standing as the state says and does nothing.
+ */
+private class ObservedPeerApply : RememberObserver {
+    /**
+     * Marshals a change onto the composition's Swing dispatcher. Unlike an ordinary write - guaranteed
+     * to notify on the EDT, see [org.jetbrains.compose.swing.core.GlobalSnapshotManager] - a write made
+     * through an explicit snapshot notifies on whatever thread applied it, and sizing, packing and
+     * placing a window are the event dispatch thread's alone: this marshals every notification rather
+     * than trust that the state read here was written the ordinary way.
+     */
+    private val observer = SnapshotStateObserver { notify -> SwingUtilities.invokeLater(notify) }
+
+    /**
+     * The single callback instance the observer is handed: it keeps one scope map for the apply rather
+     * than growing a further one per distinct callback.
+     */
+    private val reapplyOnChange: (ObservedPeerApply) -> Unit = { it.reapply() }
+
+    /** What to apply, as the latest recomposition stated it; null until the first apply. */
+    private var declaration: (() -> Unit)? = null
+
+    private var released = false
+
+    /** Applies [declaration] under the observer, and keeps it as what a later change re-applies. */
+    fun applyAndObserve(declaration: () -> Unit) {
+        this.declaration = declaration
+        observe(declaration)
+    }
+
+    private fun reapply() {
+        // A change notified before this peer left the composition is delivered after it, and applying
+        // to a released peer would realize a fresh one carrying no content and no listeners.
+        if (released) return
+        declaration?.let(::observe)
+    }
+
+    private fun observe(declaration: () -> Unit) {
+        observer.observeReads(scope = this, onValueChangedForScope = reapplyOnChange, block = declaration)
+    }
+
+    override fun onRemembered() {
+        observer.start()
+    }
+
+    override fun onForgotten() {
+        release()
+    }
+
+    override fun onAbandoned() {
+        release()
+    }
+
+    private fun release() {
+        released = true
+        observer.stop()
+        observer.clear()
     }
 }
 
@@ -196,7 +280,7 @@ private fun PublishIslandParent(contentPane: Container) {
  * so the write dispatches on the concrete peer type.
  */
 private fun Window.applyChrome(
-    title: String,
+    title: @Nls String,
     resizable: Boolean,
 ) {
     when (this) {

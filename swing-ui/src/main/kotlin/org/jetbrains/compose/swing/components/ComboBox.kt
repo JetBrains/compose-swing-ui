@@ -36,9 +36,6 @@ import javax.swing.JComboBox
  * It is re-applied on every pass, so a choice the caller does not adopt is undone. The selection names an
  * item rather than a position, so items that compare equal are one and the same selection.
  *
- * By default each item renders its `toString`; supply [itemContent] to render an arbitrary composable
- * cell per item against a [ListItemScope].
- *
  * @param items the list of items to display
  * @param selectedItem the selected item (controlled); `null` selects nothing, as does an item the current
  *   [items] do not contain
@@ -83,9 +80,6 @@ public fun <T> ComboBox(
  * (e.g. `remember {}`) to avoid churn. Being attached as-is, it is notified of every action event the
  * combo box fires, including the one that applies [selectedItem]. [selectedItem] is declared, applied
  * and re-asserted as on the `onSelectionChange`-driven overload.
- *
- * By default each item renders its `toString`; supply [itemContent] to render an arbitrary composable
- * cell per item against a [ListItemScope].
  *
  * @param items the list of items to display
  * @param actionListener the listener notified of every action event the combo box fires
@@ -146,9 +140,6 @@ public fun <T> ComboBox(
  * through [onSelectionChange] without ever writing the selection back into the model. Swapping the
  * [model] instance installs the new model verbatim.
  *
- * By default each item renders its `toString`; supply [itemContent] to render an arbitrary composable
- * cell per item against a [ListItemScope].
- *
  * @param model the combo box model to render; owns its items and selection
  * @param modifier the [SwingModifier] applied to the underlying component
  * @param onSelectionChange callback invoked with the settled selected index when the user chooses an item
@@ -189,9 +180,6 @@ public fun <T> ComboBox(
  * The [model] owns its items and selection and is never mutated by the library. The [actionListener] is
  * attached as-is and removed on the same instance; pass a stable instance (e.g. `remember {}`) to avoid
  * churn. Swapping the [model] instance installs the new model verbatim.
- *
- * By default each item renders its `toString`; supply [itemContent] to render an arbitrary composable
- * cell per item against a [ListItemScope].
  *
  * @param model the combo box model to render; owns its items and selection
  * @param actionListener the listener notified of every action event the combo box fires
@@ -260,13 +248,12 @@ private fun <T> SwingNodeUpdater<JComboBox<T>>.installItems(
     selectedItem: T?,
     applied: AppliedValue<T?>,
 ) {
-    val selection = items.selectionOf(selectedItem)
     set(items) { newItems ->
         // A prebuilt model already carrying the declared selection swaps in silently
         // (setModel fires no action event); mutating the live model instead would echo the
         // transient deselection and first-item auto-selection through the action listener.
         val newModel = DefaultComboBoxModel(Vector(newItems))
-        newModel.selectedItem = selection
+        newModel.selectedItem = newItems.selectionOf(selectedItem)
         this.model = newModel
     }
     declare(

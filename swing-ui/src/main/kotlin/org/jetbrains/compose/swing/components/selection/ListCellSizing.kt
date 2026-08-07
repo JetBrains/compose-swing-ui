@@ -29,10 +29,13 @@ private data class CellSizing(
     val height: Int,
 )
 
-/** The [SwingModifier.Element] behind [listCellSizing]. */
-private class CellSizingElement(
+/**
+ * The [SwingModifier.NodeElement] behind [listCellSizing]. Two declaring the same three values are equal,
+ * so a pass that sizes the list the way the last one did leaves the slot as it stands.
+ */
+private data class CellSizingElement(
     private val sizing: CellSizing,
-) : SwingModifier.Element<JList<Any?>, CellSizingNode> {
+) : SwingModifier.NodeElement<JList<Any?>, CellSizingNode>() {
     override val targetType: Class<JList<Any?>> get() = listType()
 
     override fun create(): CellSizingNode = CellSizingNode()
@@ -75,14 +78,13 @@ private class CellSizingNode : SwingModifier.Node<JList<Any?>>() {
 private fun JList<Any?>.readCellSizing(): CellSizing = CellSizing(prototypeCellValue, fixedCellWidth, fixedCellHeight)
 
 /**
- * Sizes the list's cells as [sizing] declares. A prototype fixes both dimensions from a single
- * measurement of the renderer, and a width or height stated in pixels is written over whichever that
- * measurement produced; `-1` states none, leaving the dimension at what the prototype measured - or, with
- * no prototype, at what the renderer reports for each row in turn.
- *
  * A list measures a prototype only for a value it is not already holding, so the prototype is given up
  * before it is declared again: measuring afresh is what gives a dimension its measured size back once the
  * caller withdraws the pixel size that had displaced it.
+ *
+ * With no prototype declared, `-1` has to be written through as well, so a withdrawn pixel size returns
+ * the dimension to what the renderer reports for each row. Narrowing the guard to the stated-size case
+ * alone would leave the list holding the withdrawn width.
  */
 private fun JList<Any?>.applyCellSizing(sizing: CellSizing) {
     prototypeCellValue = null

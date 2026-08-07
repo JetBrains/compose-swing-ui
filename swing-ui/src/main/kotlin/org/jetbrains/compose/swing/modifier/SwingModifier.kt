@@ -7,7 +7,7 @@ import org.jetbrains.compose.swing.node.SwingNodeUpdater
 import java.awt.Component
 
 /**
- * An ordered, immutable collection of styling/behavior [Element]s applied to a Swing component -
+ * An ordered, immutable collection of styling/behavior [NodeElement]s applied to a Swing component -
  * the Swing analogue of `androidx.compose.ui.Modifier`.
  *
  * Build a chain by calling the builder extensions off the [companion][SwingModifier.Companion]
@@ -15,10 +15,10 @@ import java.awt.Component
  * component's `modifier` parameter. The empty modifier ([SwingModifier] itself, the companion)
  * applies nothing and is the parameter default.
  *
- * Implement [Element] to wrap any Swing property or listener the library does not ship a builder
+ * Implement [NodeElement] to wrap any Swing property or listener the library does not ship a builder
  * for. See `docs/CUSTOM-COMPONENTS.md`.
  *
- * An [Element] declares the component type it targets via [Element.targetType]. A modifier targeting
+ * An [NodeElement] declares the component type it targets via [NodeElement.targetType]. A modifier targeting
  * a type the node is not (e.g. `border`, a `JComponent` property, on a bare `java.awt.Component`)
  * fails with a clear error naming the element and the required vs. actual type.
  *
@@ -26,9 +26,16 @@ import java.awt.Component
  * else it` adds the background when selected and removes it (restoring the value the component had
  * before the modifier first touched that property) when not.
  *
- * The modifier is immutable and safe to share, hoist, and reuse as a theme token. A modifier hoisted
- * into a `remember { ... }` (or otherwise referentially stable) is applied once and skipped on every
- * recomposition where it is unchanged.
+ * The modifier is immutable and safe to share, hoist, and reuse as a theme token. Building the chain
+ * inline in the composable body is the intended style and needs no `remember`: a chain equal to the
+ * one last applied to a component is skipped, and each element is compared on its own, so a property
+ * whose declared value has not changed is not written again. An element carrying a callback compares
+ * that callback by identity, so a lambda written inline differs from pass to pass and that element
+ * alone is re-applied.
+ *
+ * A modifier is applied *to* a node, and a node *holds* the modifier state that outlives one
+ * apply pass, so `modifier` and `node` are one boundary read from two sides, not two layers - a
+ * declaration belongs with the type it is an operation on.
  */
 @Stable
 public interface SwingModifier {
@@ -38,28 +45,28 @@ public interface SwingModifier {
      */
     public fun <R> foldIn(
         initial: R,
-        operation: (R, Element<*, *>) -> R,
+        operation: (R, NodeElement<*, *>) -> R,
     ): R
 
     /**
-     * Returns a modifier that applies this chain and then [other]. For two non-[additive][Element.additive]
-     * elements sharing a [Element.key], the later one wins; two [additive][Element.additive] elements
+     * Returns a modifier that applies this chain and then [other]. For two non-[additive][NodeElement.additive]
+     * elements sharing a [NodeElement.key], the later one wins; two [additive][NodeElement.additive] elements
      * each keep their own slot and both stay installed.
      */
     public infix fun then(other: SwingModifier): SwingModifier =
         if (other === SwingModifier) this else CombinedSwingModifier(this, other)
 
     /**
-     * The stateful counterpart of an [Element], created once per slot and kept across recompositions.
+     * The stateful counterpart of an [NodeElement], created once per slot and kept across recompositions.
      *
      * The applier injects the already-typed target [component], calls [onAttach] once, then calls the
-     * owning [Element]'s [update][Element.update] to push the latest data onto the node's fields. A
+     * owning [NodeElement]'s [update][NodeElement.update] to push the latest data onto the node's fields. A
      * listener installed in [onAttach] reads those fields, so refreshing them in `update` keeps
      * callbacks current with no reattach. [onDetach] runs symmetrically when the element leaves the
      * chain or the node is released/reused, to restore a captured original or remove an installed
      * listener.
      *
-     * Subclass this to back a custom [Element]: capture the property's original in a field in
+     * Subclass this to back a custom [NodeElement]: capture the property's original in a field in
      * [onAttach], write the new value in `update`, and restore it in [onDetach]. See
      * `docs/CUSTOM-COMPONENTS.md`.
      */
@@ -103,8 +110,19 @@ public interface SwingModifier {
      * - A **subscription** element ([additive] `true`) is its own slot for every application, matched
      *   across recompositions by position rather than by [key]. This is the right shape for listeners,
      *   which are inherently additive in Swing: two `onHover {}` both install and both fire.
+     *
+     * [equals] and [hashCode] are abstract, so every element states its own equality: the slot skips an
+     * incoming element equal to the one it holds, and equality is therefore the contract deciding when
+     * [update] runs at all. Compare a value structurally - a `data class` says that in one word - and
+     * compare anything the node *registers* (a listener, a callback, a binding, a slot attachment) with
+     * `===`, since such a field may carry an `equals` of its own under which two instances the node must
+     * tell apart compare equal, leaving the node holding the one the composition replaced. An element
+     * that carries nothing, and one whose write has to be redone whatever the declaration says, are
+     * equal only to themselves - `this === other`. A freshly built instance is then unequal to the one
+     * the slot holds and every pass applies it; an element declared as an `object` hands the slot the
+     * same instance each pass, so it is applied once.
      */
-    public interface Element<T : Component, N : Node<T>> : SwingModifier {
+    public abstract class NodeElement<T : Component, N : Node<T>> : SwingModifier {
         /**
          * The component type this element targets. The node's [Node.component] arrives already typed
          * [T]; a node that is not a [T] is rejected at apply with a clear error. Use the most general
@@ -112,7 +130,7 @@ public interface SwingModifier {
          * `JComponent::class.java` for a `JComponent`-only one, a concrete widget class for a
          * widget-specific listener.
          */
-        public val targetType: Class<T>
+        public abstract val targetType: Class<T>
 
         /**
          * Identifies the property this element owns. Defaults to the element's runtime class, so each
@@ -120,7 +138,7 @@ public interface SwingModifier {
          * be independent slots (e.g. a client property keyed by its property key). Ignored when
          * [additive] is `true` (additive elements are matched by position, not by key).
          */
-        public val key: Any get() = javaClass
+        public open val key: Any get() = javaClass
 
         /**
          * Whether this element accumulates rather than replaces. `false` (the default) makes it a
@@ -128,17 +146,21 @@ public interface SwingModifier {
          * makes it a positional **subscription** slot - correct for a listener, so two applications
          * of the same builder both install and both fire instead of one replacing the other.
          */
-        public val additive: Boolean get() = false
+        public open val additive: Boolean get() = false
 
         /** Creates the stateful node. Called once per slot, when the element first enters the chain. */
-        public fun create(): N
+        public abstract fun create(): N
 
         /** Pushes this element's latest data onto [node]. Called on add and on every chain change. */
-        public fun update(node: N)
+        public abstract fun update(node: N)
 
-        override fun <R> foldIn(
+        abstract override fun equals(other: Any?): Boolean
+
+        abstract override fun hashCode(): Int
+
+        final override fun <R> foldIn(
             initial: R,
-            operation: (R, Element<*, *>) -> R,
+            operation: (R, NodeElement<*, *>) -> R,
         ): R = operation(initial, this)
     }
 
@@ -146,22 +168,32 @@ public interface SwingModifier {
     public companion object : SwingModifier {
         override fun <R> foldIn(
             initial: R,
-            operation: (R, Element<*, *>) -> R,
+            operation: (R, NodeElement<*, *>) -> R,
         ): R = initial
 
         override infix fun then(other: SwingModifier): SwingModifier = other
     }
 }
 
-/** Internal cons-cell joining two modifiers. */
+/**
+ * Internal cons-cell joining two modifiers.
+ *
+ * Two cells are equal when both halves are, so a chain rebuilt from equal parts equals the chain
+ * built on the previous composition and the whole apply is skipped.
+ */
 internal class CombinedSwingModifier(
     private val outer: SwingModifier,
     private val inner: SwingModifier,
 ) : SwingModifier {
     override fun <R> foldIn(
         initial: R,
-        operation: (R, SwingModifier.Element<*, *>) -> R,
+        operation: (R, SwingModifier.NodeElement<*, *>) -> R,
     ): R = inner.foldIn(outer.foldIn(initial, operation), operation)
+
+    override fun equals(other: Any?): Boolean =
+        other is CombinedSwingModifier && outer == other.outer && inner == other.inner
+
+    override fun hashCode(): Int = outer.hashCode() + 31 * inner.hashCode()
 }
 
 /**
@@ -176,8 +208,8 @@ internal class CombinedSwingModifier(
  */
 internal class ElementRecord<T : Component, N : SwingModifier.Node<T>>(
     private val node: N,
-    private val elementType: Class<out SwingModifier.Element<T, N>>,
-    private var element: SwingModifier.Element<T, N>,
+    private val elementType: Class<out SwingModifier.NodeElement<T, N>>,
+    private var element: SwingModifier.NodeElement<T, N>,
 ) {
     /** Tears the slot's node down via [SwingModifier.Node.onDetach]. */
     fun detach() {
@@ -193,19 +225,23 @@ internal class ElementRecord<T : Component, N : SwingModifier.Node<T>>(
      * different kind when a conditional chain changes shape; the slot cannot host it, so the caller
      * [detach]es this record and attaches the element fresh instead.
      */
-    fun canRebind(element: SwingModifier.Element<*, *>): Boolean = elementType.isInstance(element)
+    fun canRebind(element: SwingModifier.NodeElement<*, *>): Boolean = elementType.isInstance(element)
 
     /**
      * Rebinds the slot to a (possibly new) [element] instance, then refreshes it against [target].
-     * A fresh element instance arrives each recomposition (its callbacks are new), so rebinding keeps
-     * a node-installed listener's callbacks current via [SwingModifier.Element.update] without
-     * reattaching. Only call when [canRebind] holds: the slot's node statically knows its own type,
-     * so a [canRebind]-checked [element] is applied through it without an unchecked cast.
+     * An element equal to the one the slot already carries declares the same data, so the slot keeps
+     * it and writes nothing. Anything else rebinds: a fresh element instance carrying new data (or
+     * new callbacks) is pushed onto the node via [SwingModifier.NodeElement.update], which keeps a
+     * node-installed listener's callbacks current without reattaching.
+     *
+     * Only call when [canRebind] holds: the slot's node statically knows its own type, so a
+     * [canRebind]-checked [element] is applied through it without an unchecked cast.
      */
     fun rebindAndRefresh(
-        element: SwingModifier.Element<*, *>,
+        element: SwingModifier.NodeElement<*, *>,
         target: Component,
     ) {
+        if (element == this.element) return
         this.element = elementType.cast(element)
         refresh(target)
     }
@@ -215,7 +251,8 @@ internal class ElementRecord<T : Component, N : SwingModifier.Node<T>>(
 }
 
 /**
- * The diff state for one node's modifier chain: the elements applied last.
+ * The diff state for one node's modifier chain: the elements applied last, and the buffers the chain
+ * being applied is partitioned into.
  *
  * Marked [InternalSwingUiApi]; it may change without notice in any release.
  */
@@ -223,6 +260,17 @@ internal class ElementRecord<T : Component, N : SwingModifier.Node<T>>(
 public class SwingModifierState internal constructor() {
     internal val records: LinkedHashMap<Any, ElementRecord<*, *>> = LinkedHashMap()
     internal val additiveRecords: ArrayList<ElementRecord<*, *>> = ArrayList()
+
+    /**
+     * The keyed (last-wins) elements of the chain being applied, by [SwingModifier.NodeElement.key]. Held on
+     * the node so a pass reuses the previous pass's storage rather than allocating its own;
+     * [applyModifierDiff] empties it before walking the chain, so it only ever holds elements the chain
+     * currently being applied declares.
+     */
+    internal val incomingKeyed: LinkedHashMap<Any, SwingModifier.NodeElement<*, *>> = LinkedHashMap()
+
+    /** The additive (subscription) elements of the chain being applied, in declaration order. */
+    internal val incomingAdditive: ArrayList<SwingModifier.NodeElement<*, *>> = ArrayList()
 }
 
 /**
@@ -232,8 +280,9 @@ public class SwingModifierState internal constructor() {
  * first touched that property).
  *
  * Call it as the last statement of a component's `update` block, after the component's own `set`s,
- * so a modifier can override component defaults. A hoisted (referentially stable) modifier is applied
- * once and skipped thereafter. Available on any node whose component is a [Component].
+ * so a modifier can override component defaults. A chain equal to the one applied last is skipped, and
+ * in a chain that did change, every element that did not is skipped with it. Available on any node
+ * whose component is a [Component].
  */
 public fun SwingNodeUpdater<out Component>.applyModifier(modifier: SwingModifier): Unit =
     updater.set(modifier) { applyModifierDiff(it) }
@@ -243,20 +292,26 @@ internal fun SwingNodeHolder<Component>.applyModifierDiff(modifier: SwingModifie
     val state = modifierState ?: SwingModifierState().also { modifierState = it }
 
     // Walk the chain once, partitioning into keyed property elements (last-wins by key) and additive
-    // subscription elements (each its own slot, matched by position).
-    val incomingKeyed = LinkedHashMap<Any, SwingModifier.Element<*, *>>()
-    val incomingAdditive = ArrayList<SwingModifier.Element<*, *>>()
-    modifier.foldIn(Unit) { _, element ->
-        if (element.additive) incomingAdditive.add(element) else incomingKeyed[element.key] = element
+    // subscription elements (each its own slot, matched by position). The state itself is the fold's
+    // accumulator, so the walk carries the destination buffers instead of capturing them.
+    state.incomingKeyed.clear()
+    state.incomingAdditive.clear()
+    modifier.foldIn(state) { chainState, element ->
+        if (element.additive) {
+            chainState.incomingAdditive.add(element)
+        } else {
+            chainState.incomingKeyed[element.key] = element
+        }
+        chainState
     }
 
-    diffKeyedElements(target, state.records, incomingKeyed)
-    diffAdditiveElements(target, state.additiveRecords, incomingAdditive)
+    diffKeyedElements(target, state.records, state.incomingKeyed)
+    diffAdditiveElements(target, state.additiveRecords, state.incomingAdditive)
 }
 
 /**
  * Creates a node for [element], injects the [checkedTarget] component, runs [SwingModifier.Node.onAttach],
- * then pushes the element's data with [SwingModifier.Element.update] - the first-install order. Returns
+ * then pushes the element's data with [SwingModifier.NodeElement.update] - the first-install order. Returns
  * an [ElementRecord] whose [ElementRecord.rebindAndRefresh] re-runs the element's `update` against the
  * same node.
  *
@@ -264,7 +319,7 @@ internal fun SwingNodeHolder<Component>.applyModifierDiff(modifier: SwingModifie
  * concrete node, so a later recomposition pushes fresh data without re-narrowing the node's type.
  */
 private fun <T : Component, N : SwingModifier.Node<T>> attachElement(
-    element: SwingModifier.Element<T, N>,
+    element: SwingModifier.NodeElement<T, N>,
     raw: Component,
 ): ElementRecord<T, N> {
     val typed = checkedTarget(element, raw)
@@ -272,17 +327,17 @@ private fun <T : Component, N : SwingModifier.Node<T>> attachElement(
     node.attachedComponent = typed
     node.onAttach()
     element.update(node)
-    // element.javaClass is typed Class<out Element<T, N>>: capturing it lets a later rebind
+    // element.javaClass is typed Class<out NodeElement<T, N>>: capturing it lets a later rebind
     // Class.cast-check a new element of the same type onto this node without an unchecked cast.
     return ElementRecord(node, element.javaClass, element)
 }
 
 /**
  * Re-checks the target type (the component is stable, but re-narrowing keeps the error path identical
- * to first apply) and pushes the element's latest data onto its node via [SwingModifier.Element.update].
+ * to first apply) and pushes the element's latest data onto its node via [SwingModifier.NodeElement.update].
  */
 private fun <T : Component, N : SwingModifier.Node<T>> refreshElement(
-    element: SwingModifier.Element<T, N>,
+    element: SwingModifier.NodeElement<T, N>,
     raw: Component,
     node: N,
 ) {
@@ -292,10 +347,10 @@ private fun <T : Component, N : SwingModifier.Node<T>> refreshElement(
 
 /**
  * Narrows the node to an element's target type. A node that is not the required type is rejected with
- * a clear message naming the element ([SwingModifier.Element.key]) and the required vs. actual type.
+ * a clear message naming the element ([SwingModifier.NodeElement.key]) and the required vs. actual type.
  */
 private fun <T : Component> checkedTarget(
-    element: SwingModifier.Element<T, *>,
+    element: SwingModifier.NodeElement<T, *>,
     raw: Component,
 ): T {
     val targetType = element.targetType
@@ -312,7 +367,7 @@ private fun <T : Component> checkedTarget(
 private fun diffKeyedElements(
     target: Component,
     records: LinkedHashMap<Any, ElementRecord<*, *>>,
-    incoming: LinkedHashMap<Any, SwingModifier.Element<*, *>>,
+    incoming: LinkedHashMap<Any, SwingModifier.NodeElement<*, *>>,
 ) {
     // Detach + drop elements whose key left the chain.
     val iterator = records.entries.iterator()
@@ -346,7 +401,7 @@ private fun diffKeyedElements(
 private fun diffAdditiveElements(
     target: Component,
     records: ArrayList<ElementRecord<*, *>>,
-    incoming: ArrayList<SwingModifier.Element<*, *>>,
+    incoming: ArrayList<SwingModifier.NodeElement<*, *>>,
 ) {
     // Detach + drop trailing positions that left the chain.
     while (records.size > incoming.size) {
@@ -391,5 +446,7 @@ internal fun SwingNodeHolder<*>.resetModifierState() {
     }
     state.records.clear()
     state.additiveRecords.clear()
+    state.incomingKeyed.clear()
+    state.incomingAdditive.clear()
     modifierState = null
 }

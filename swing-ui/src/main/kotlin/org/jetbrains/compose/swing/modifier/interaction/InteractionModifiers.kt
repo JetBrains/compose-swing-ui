@@ -12,20 +12,17 @@ import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 
 /*
- * Interaction SwingModifiers - focusability and input listeners.
+ * The listener elements (onHover/onFocus/onPointerEvent) install one Swing listener for the node's life;
+ * its body reads node fields that `update` refreshes, so passing fresh lambdas each recomposition needs
+ * no reattach. The listener is removed when the element leaves the chain or the node is released/reused.
  *
- * The listener elements (onHover/onFocus/onPointerEvent) install one Swing listener for the node's
- * life whose body reads node fields refreshed by `update`, so passing fresh lambdas each recomposition
- * is fine - no reattach. They are removed when the element leaves the chain or the node is
- * released/reused.
+ * Two such elements are equal only when they hold the *same* callbacks by identity, since a lambda is
+ * what it captures. Hoisted callbacks therefore compare equal and skip the refresh; fresh lambdas compare
+ * unequal and refresh the node's fields on every pass.
  */
 
 /**
  * Sets `isFocusable`, declaring whether this component can receive keyboard focus.
- *
- * Swing's traversal goes by the declaration rather than by what the component's type is focusable for:
- * a caption marked focusable takes its place in the Tab order, and a control marked non-focusable is
- * skipped.
  *
  * @see java.awt.Component.setFocusable
  */
@@ -38,10 +35,9 @@ public fun SwingModifier.focusable(focusable: Boolean): SwingModifier =
         )
 
 /**
- * Sets `isEnabled` - whether the component responds to user input and paints in its enabled state.
- *
- * Sets `isEnabled` on **this component only**: disabling a container does not disable the components
- * inside it, so disable each child you want disabled.
+ * Sets `isEnabled` on **this component only** - whether it responds to user input and paints in its
+ * enabled state. Disabling a container does not disable the components inside it, so disable each child
+ * you want disabled.
  *
  * @see java.awt.Component.setEnabled
  */
@@ -50,7 +46,6 @@ public fun SwingModifier.enabled(enabled: Boolean): SwingModifier =
         propertyElement<Component, Boolean>(
             enabled,
             read = { it.isEnabled },
-            // Honest Swing semantics: set on this component only; Swing does not cascade to children.
             write = { c, v -> c.isEnabled = v },
         )
 
@@ -94,7 +89,7 @@ public fun SwingModifier.onPointerEvent(
 private class HoverElement(
     private val onEnter: () -> Unit,
     private val onExit: () -> Unit,
-) : SwingModifier.Element<Component, HoverElement.Node> {
+) : SwingModifier.NodeElement<Component, HoverElement.Node>() {
     override val targetType: Class<Component> get() = Component::class.java
     override val additive: Boolean get() = true
 
@@ -104,6 +99,15 @@ private class HoverElement(
         node.onEnter = onEnter
         node.onExit = onExit
     }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is HoverElement) return false
+        if (onEnter !== other.onEnter) return false
+        return onExit === other.onExit
+    }
+
+    override fun hashCode(): Int = 31 * System.identityHashCode(onEnter) + System.identityHashCode(onExit)
 
     class Node : SwingModifier.Node<Component>() {
         var onEnter: () -> Unit = {}
@@ -125,7 +129,7 @@ private class HoverElement(
 private class FocusElement(
     private val onGained: () -> Unit,
     private val onLost: () -> Unit,
-) : SwingModifier.Element<Component, FocusElement.Node> {
+) : SwingModifier.NodeElement<Component, FocusElement.Node>() {
     override val targetType: Class<Component> get() = Component::class.java
     override val additive: Boolean get() = true
 
@@ -135,6 +139,15 @@ private class FocusElement(
         node.onGained = onGained
         node.onLost = onLost
     }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is FocusElement) return false
+        if (onGained !== other.onGained) return false
+        return onLost === other.onLost
+    }
+
+    override fun hashCode(): Int = 31 * System.identityHashCode(onGained) + System.identityHashCode(onLost)
 
     class Node : SwingModifier.Node<Component>() {
         var onGained: () -> Unit = {}
@@ -157,7 +170,7 @@ private class PointerEventElement(
     private val onPress: ((MouseEvent) -> Unit)?,
     private val onRelease: ((MouseEvent) -> Unit)?,
     private val onClick: ((MouseEvent) -> Unit)?,
-) : SwingModifier.Element<Component, PointerEventElement.Node> {
+) : SwingModifier.NodeElement<Component, PointerEventElement.Node>() {
     override val targetType: Class<Component> get() = Component::class.java
     override val additive: Boolean get() = true
 
@@ -167,6 +180,21 @@ private class PointerEventElement(
         node.onPress = onPress
         node.onRelease = onRelease
         node.onClick = onClick
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is PointerEventElement) return false
+        if (onPress !== other.onPress) return false
+        if (onRelease !== other.onRelease) return false
+        return onClick === other.onClick
+    }
+
+    override fun hashCode(): Int {
+        var result = System.identityHashCode(onPress)
+        result = 31 * result + System.identityHashCode(onRelease)
+        result = 31 * result + System.identityHashCode(onClick)
+        return result
     }
 
     class Node : SwingModifier.Node<Component>() {

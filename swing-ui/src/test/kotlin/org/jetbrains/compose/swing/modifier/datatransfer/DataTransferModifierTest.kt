@@ -37,8 +37,8 @@ import kotlin.test.assertTrue
 class DataTransferModifierTest {
     @Test
     fun transferActionMembershipAndCombination() {
-        // The @TransferAction typed Int is a TransferHandler action bit-mask; membership is a bitwise
-        // and, and combination is a bitwise or - the contract documented on the modifiers.
+        // The @TransferAction typed Int is a TransferHandler action bit-mask - membership is a bitwise
+        // and, combination a bitwise or - the contract documented on the modifiers.
         assertTrue((TransferHandler.COPY_OR_MOVE and TransferHandler.COPY) != 0, "CopyOrMove must contain Copy")
         assertTrue((TransferHandler.COPY_OR_MOVE and TransferHandler.MOVE) != 0, "CopyOrMove must contain Move")
         assertEquals(0, TransferHandler.COPY_OR_MOVE and TransferHandler.LINK, "CopyOrMove must not contain Link")
@@ -47,7 +47,6 @@ class DataTransferModifierTest {
             TransferHandler.COPY or TransferHandler.MOVE,
             "COPY or MOVE must equal COPY_OR_MOVE",
         )
-        // NONE is the empty mask: it shares no bit with any action.
         assertEquals(
             0,
             TransferHandler.COPY_OR_MOVE and TransferHandler.NONE,
@@ -81,18 +80,16 @@ class DataTransferModifierTest {
                     handler.getSourceActions(source),
                     "exported actions must be reported to Swing",
                 )
-                // Drive the public export path the drag/clipboard machinery uses to produce the
-                // Transferable, then read the value the source produced back out.
+                // TransferHandler.createTransferable is protected, so exporting to a clipboard is the
+                // only public entry that makes the source produce its Transferable.
                 handler.exportToClipboard(source, clipboard, TransferHandler.COPY)
                 clipboard.getData(DataFlavor.stringFlavor) as String
             }
         assertEquals("payload", exported, "the drag source must produce its Transferable for export")
     }
 
-    // A TransferHandler that records its drag-export entry point so a test can prove the drag
-    // gesture reached exportAsDrag, distinct from the clipboard exportToClipboard path. Its
-    // createTransferable mirrors the source's, so the recorded drag carries the same payload a real
-    // SharedTransferHandler would export.
+    // Records its drag-export entry point so a test can prove the drag gesture reached exportAsDrag,
+    // distinct from the clipboard exportToClipboard path.
     private class RecordingHandler(
         private val produce: () -> Transferable,
     ) : TransferHandler() {
@@ -110,7 +107,8 @@ class DataTransferModifierTest {
             action: Int,
         ) {
             draggedAction = action
-            // Pull the payload exactly as the real DnD machinery would the moment a drag begins.
+            // Pull the payload exactly as the real DnD machinery would the moment a drag begins, so the
+            // recorded drag carries the same instance a real SharedTransferHandler would export.
             draggedTransferable = createTransferable(comp)
         }
 
@@ -135,8 +133,7 @@ class DataTransferModifierTest {
         }
         val source = onNodeOfType<JTextField>().fetch()
 
-        // Capture the gesture the modifier installed (one instance, both a MouseListener and a
-        // MouseMotionListener), then swap in a recording handler the live gesture will call.
+        // The gesture the modifier installed is one instance, both a MouseListener and a MouseMotionListener.
         val recording = RecordingHandler { payload }
         val gesture =
             run {
@@ -148,13 +145,10 @@ class DataTransferModifierTest {
         val press = gesture as MouseListener
         val threshold = DragSource.getDragThreshold()
 
-        // A press then a tiny move under the threshold must NOT start a drag.
         press.mousePressed(mouseEvent(source, MouseEvent.MOUSE_PRESSED, 10, 10))
         gesture.mouseDragged(mouseEvent(source, MouseEvent.MOUSE_DRAGGED, 11, 11))
         assertNull(recording.draggedAction, "a sub-threshold move must not start a drag")
 
-        // A press then a move past the threshold must export the drag through exportAsDrag,
-        // carrying the source's Transferable, and must not touch the clipboard path.
         press.mousePressed(mouseEvent(source, MouseEvent.MOUSE_PRESSED, 10, 10))
         gesture.mouseDragged(mouseEvent(source, MouseEvent.MOUSE_DRAGGED, 10 + threshold + 5, 10))
         assertEquals(
@@ -271,6 +265,46 @@ class DataTransferModifierTest {
     }
 
     @Test
+    fun theChainsLastImportDeclarationOwnsTheImportAcrossRecompositions() = runComposeSwingTest {
+        var tick by mutableStateOf(0)
+        var pasted: String? = null
+        var dropped: String? = null
+        // A clipboard and a drop target both declare the component's import, and the one that comes
+        // last in the chain owns it. The two declarations are deliberately asymmetric: onDrop is one
+        // instance across passes, while onPaste captures the pass it was written on and is a new
+        // instance each time.
+        val onDrop: (Transferable) -> Boolean = { transferable ->
+            dropped = transferable.getTransferData(DataFlavor.stringFlavor) as String
+            true
+        }
+        setContent {
+            val pass = tick
+            TextField(
+                value = "",
+                onValueChange = {},
+                modifier =
+                    SwingModifier
+                        .clipboard(
+                            transferable = { StringSelection("exported") },
+                            onPaste = {
+                                pasted = "pasted on pass $pass"
+                                true
+                            },
+                        ).dropTarget(acceptedActions = TransferHandler.COPY, onDrop = onDrop),
+            )
+        }
+        val component = onNodeOfType<JTextField>().fetch()
+
+        tick++
+        awaitIdle()
+
+        val arrived = support(component, StringSelection("arrived"))
+        assertTrue(component.transferHandler.importData(arrived), "the import declared last must accept the transfer")
+        assertEquals("arrived", dropped, "the chain's last import declaration must receive the transfer")
+        assertNull(pasted, "an earlier import declaration must not take the import from a later one")
+    }
+
+    @Test
     fun aDragOnlyComponentKeepsTheImportItAlreadyHad() = runComposeSwingTest {
         var edited: String? = null
         setContent {
@@ -283,8 +317,6 @@ class DataTransferModifierTest {
         val source = onNodeOfType<JTextField>().fetch()
         val handler = assertNotNull(source.transferHandler, "draggable must install a TransferHandler")
 
-        // The component declares no drop, so its import stays its own: a text field's paste still
-        // inserts the value, exactly as it does with no data-transfer modifier applied.
         val incoming = support(source, StringSelection("pasted-in"))
         assertTrue(handler.canImport(incoming), "a component with no declared drop keeps its own import")
         assertTrue(handler.importData(incoming), "the component's own import must run the paste")
@@ -292,10 +324,10 @@ class DataTransferModifierTest {
     }
 
     @Test
-    fun aDropOnlyComponentKeepsTheActionsItOffersOnItsOwn() = runComposeSwingTest {
+    fun aDropOnlyComponentKeepsTheExportItAlreadyHad() = runComposeSwingTest {
         setContent {
             TextField(
-                value = "",
+                value = "copy me",
                 onValueChange = {},
                 modifier =
                     SwingModifier.dropTarget(TransferHandler.COPY, onDrop = { true }),
@@ -303,20 +335,23 @@ class DataTransferModifierTest {
         }
         val target = onNodeOfType<JTextField>().fetch()
         val handler = assertNotNull(target.transferHandler, "dropTarget must install a TransferHandler")
+        // A selection is what a text field exports, so give it one for the export to carry.
+        target.selectAll()
 
-        // No drag source is declared, so the offered actions stay the editable text field's own -
-        // which include the copy it offers with no data-transfer modifier applied.
         assertTrue(
             (handler.getSourceActions(target) and TransferHandler.COPY) != 0,
             "a component with no declared drag source keeps the actions it offers on its own",
         )
-        // The declared export is the only one this handler produces, so with none declared it
-        // produces nothing and a drag or clipboard export started on it carries no payload.
         val clipboard = localClipboard()
         handler.exportToClipboard(target, clipboard, TransferHandler.COPY)
-        assertFalse(
+        assertTrue(
             clipboard.isDataFlavorAvailable(DataFlavor.stringFlavor),
-            "a component with no declared drag source exports nothing",
+            "a component with no declared drag source keeps the export it performs on its own",
+        )
+        assertEquals(
+            "copy me",
+            clipboard.getData(DataFlavor.stringFlavor) as String,
+            "the export must carry the value the component exports on its own",
         )
     }
 
@@ -341,8 +376,6 @@ class DataTransferModifierTest {
         val target = onNodeOfType<JTextField>().fetch()
         val handler = assertNotNull(target.transferHandler, "dropTarget must install a TransferHandler")
 
-        // The declared drop decides the import alone: its refusal is the outcome, and the paste the
-        // text field performs on its own never runs beside it.
         assertFalse(
             handler.importData(support(target, StringSelection("dropped"))),
             "the declared drop's refusal must be the import's outcome",

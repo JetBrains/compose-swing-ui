@@ -48,12 +48,17 @@ public fun SwingModifier.orderedFocusTraversal(): SwingModifier = this then Orde
 private const val FOCUS_TRAVERSAL_INDEX_KEY: String = "org.jetbrains.compose.swing.focusTraversalIndex"
 
 private object OrderedFocusTraversalElement :
-    SwingModifier.Element<JComponent, OrderedFocusTraversalElement.Node> {
+    SwingModifier.NodeElement<JComponent, OrderedFocusTraversalElement.Node>() {
     override val targetType: Class<JComponent> get() = JComponent::class.java
 
     override fun create(): Node = Node()
 
     override fun update(node: Node): Unit = node.apply()
+
+    // The declaration carries nothing, so the sole instance is the only element equal to it.
+    override fun equals(other: Any?): Boolean = this === other
+
+    override fun hashCode(): Int = System.identityHashCode(this)
 
     class Node : SwingModifier.Node<JComponent>() {
         private var original: SavedFocusTraversal? = null

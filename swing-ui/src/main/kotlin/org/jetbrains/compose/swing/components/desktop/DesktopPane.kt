@@ -250,19 +250,36 @@ private class InternalFrameMetadata(
 /**
  * The geometry and window state one composition declares for a frame.
  *
- * [source] is the hoisted state the values were read from, and is what makes them two-way: the user's own
+ * [source] is the hoisted state the values come from, and is what makes them two-way: the user's own
  * moves, resizes, iconifications and maximizations are written back into it. A frame declared with plain
  * bounds names no source, so it is placed by its declaration and nothing observes where it ends up.
+ *
+ * The values stand for what the declaration holds rather than for a reading of it: each is read where the
+ * frame it belongs to is composed (see [InternalFrame]) and nowhere else.
  */
-private class DeclaredFrameState(
-    val bounds: Rectangle,
-    val iconified: Boolean,
-    val maximized: Boolean,
-    val source: InternalFrameState?,
-) {
-    constructor(state: InternalFrameState) : this(state.bounds, state.iconified, state.maximized, state)
+private sealed interface DeclaredFrameState {
+    val bounds: Rectangle
+    val iconified: Boolean
+    val maximized: Boolean
+    val source: InternalFrameState?
+}
 
-    constructor(bounds: Rectangle) : this(bounds, iconified = false, maximized = false, source = null)
+/** A frame driven by a hoisted [source]: every value it declares is that state's own. */
+private class HoistedFrameState(
+    override val source: InternalFrameState,
+) : DeclaredFrameState {
+    override val bounds: Rectangle get() = source.bounds
+    override val iconified: Boolean get() = source.iconified
+    override val maximized: Boolean get() = source.maximized
+}
+
+/** A frame placed on plain [bounds], in the window state a freshly constructed frame is in. */
+private class PlacedFrameState(
+    override val bounds: Rectangle,
+) : DeclaredFrameState {
+    override val iconified: Boolean get() = false
+    override val maximized: Boolean get() = false
+    override val source: InternalFrameState? get() = null
 }
 
 /**
@@ -306,7 +323,7 @@ private class DesktopPaneScopeImpl : DesktopPaneScope {
         content: @Composable () -> Unit,
     ) {
         addFrame(
-            metadata = InternalFrameMetadata(title, DeclaredFrameState(bounds), controls, modifier),
+            metadata = InternalFrameMetadata(title, PlacedFrameState(bounds), controls, modifier),
             key = key,
             content = content,
             onClose = onClose,
@@ -324,7 +341,7 @@ private class DesktopPaneScopeImpl : DesktopPaneScope {
         content: @Composable () -> Unit,
     ) {
         addFrame(
-            metadata = InternalFrameMetadata(title, DeclaredFrameState(bounds), controls, modifier),
+            metadata = InternalFrameMetadata(title, PlacedFrameState(bounds), controls, modifier),
             key = key,
             content = content,
             onClose = null,
@@ -341,7 +358,7 @@ private class DesktopPaneScopeImpl : DesktopPaneScope {
         content: @Composable () -> Unit,
     ) {
         addFrame(
-            metadata = InternalFrameMetadata(title, DeclaredFrameState(state), controls, modifier),
+            metadata = InternalFrameMetadata(title, HoistedFrameState(state), controls, modifier),
             key = null,
             content = content,
             onClose = onClose,
@@ -358,7 +375,7 @@ private class DesktopPaneScopeImpl : DesktopPaneScope {
         content: @Composable () -> Unit,
     ) {
         addFrame(
-            metadata = InternalFrameMetadata(title, DeclaredFrameState(state), controls, modifier),
+            metadata = InternalFrameMetadata(title, HoistedFrameState(state), controls, modifier),
             key = null,
             content = content,
             onClose = null,
@@ -428,6 +445,12 @@ private fun InternalFrame(frame: InternalFrameDeclaration) {
         }
     val metadata = frame.metadata
     val declared = metadata.declared
+    // Read here, in the composition of the frame these values belong to: a hoisted state receives the
+    // user's every move, resize, iconification and maximization, and reading it here is what keeps each of
+    // those recomposing this one frame instead of the desktop and every frame standing on it.
+    val declaredBounds = declared.bounds
+    val declaredIconified = declared.iconified
+    val declaredMaximized = declared.maximized
 
     val applied = remember { AppliedFrameState() }
 
@@ -451,7 +474,7 @@ private fun InternalFrame(frame: InternalFrameDeclaration) {
             ).apply {
                 // A JInternalFrame is constructed hidden and the close control closes it on its own;
                 // make it visible and leave the close control controlled by the declaration instead.
-                bounds = declared.bounds
+                bounds = declaredBounds
                 // The placement is stamped like every later one (see the update block), so the
                 // notifications it provokes cannot undo a move declared before they are delivered.
                 applied.bounds = bounds
@@ -470,15 +493,15 @@ private fun InternalFrame(frame: InternalFrameDeclaration) {
             // newer value, and the frame - which still carries the older geometry - would hand that
             // older geometry back over it. The stamp is what tells the write-back that the geometry the
             // frame is reporting is the one this apply put there, so the newer declaration stands.
-            update(declared.bounds) { value -> applyBounds(value, applied) }
+            update(declaredBounds) { value -> applyBounds(value, applied) }
             // A window-state transition takes the frame off the desktop or spreads it across the desktop,
             // either of which needs a desktop. This update block runs before the desktop takes the frame,
             // so the first application is left to [attachSync], which performs it the moment the desktop
             // does; by the time a later declaration arrives here the frame is attached and takes it
             // directly. Maximizing comes before iconifying, so a frame declared as both ends up an icon
             // that restores to the whole desktop, as both declarations ask.
-            set(declared.maximized) { value -> applyMaximized(value, applied, target.value) }
-            set(declared.iconified) { value -> applyIconified(value, applied, target.value) }
+            set(declaredMaximized) { value -> applyMaximized(value, applied, target.value) }
+            set(declaredIconified) { value -> applyIconified(value, applied, target.value) }
             val stateChannels =
                 if (declared.source == null) {
                     SwingModifier

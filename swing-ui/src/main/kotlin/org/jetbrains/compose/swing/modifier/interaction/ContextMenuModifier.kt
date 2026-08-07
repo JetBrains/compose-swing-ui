@@ -91,10 +91,11 @@ public fun SwingModifier.contextMenu(
 }
 
 /**
- * Backs every context menu declaration with one slot: a component has one popup menu, so the last
- * declaration in the chain owns it. [content], [display] and the callbacks are read from the node's
- * fields, refreshed by `update`, so a fresh lambda each recomposition is fine and the menu always
- * reflects current state.
+ * Backs every context menu declaration.
+ *
+ * Two elements are equal only when they declare the same composition and hold the *same* lambdas -
+ * identity, because a lambda is what it captures, and a menu built from a fresh one is a different
+ * menu.
  */
 private class ContextMenuElement(
     private val parentContext: CompositionContext,
@@ -104,7 +105,7 @@ private class ContextMenuElement(
     private val content:
         @Composable @SwingMenuComposable
         () -> Unit,
-) : SwingModifier.Element<JComponent, ContextMenuElement.Node> {
+) : SwingModifier.NodeElement<JComponent, ContextMenuElement.Node>() {
     override val targetType: Class<JComponent> get() = JComponent::class.java
 
     override fun create(): Node = Node(parentContext)
@@ -116,10 +117,28 @@ private class ContextMenuElement(
         node.content = content
     }
 
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is ContextMenuElement) return false
+        if (parentContext !== other.parentContext) return false
+        if (onOpen !== other.onOpen) return false
+        if (onClose !== other.onClose) return false
+        if (display !== other.display) return false
+        return content === other.content
+    }
+
+    override fun hashCode(): Int {
+        var result = System.identityHashCode(parentContext)
+        result = 31 * result + System.identityHashCode(onOpen)
+        result = 31 * result + System.identityHashCode(onClose)
+        result = 31 * result + System.identityHashCode(display)
+        result = 31 * result + System.identityHashCode(content)
+        return result
+    }
+
     /**
      * The node backing [ContextMenuElement]: makes the target's popup menu the one every gesture opens,
-     * and installs the popup-trigger mouse listener for a look and feel that leaves the pointer gesture
-     * to the component.
+     * and installs the popup-trigger mouse listener.
      */
     class Node(
         private val parentContext: CompositionContext,

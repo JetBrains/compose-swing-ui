@@ -86,14 +86,12 @@ public fun Dialog(
     // dialog that names its owner is left alone by whichever window it happens to be composed under.
     val owningWindow = owner ?: LocalWindow.current
 
-    // The owner and the decorations are both chosen at construction: a dialog takes its owner as a
-    // constructor argument, and JDialog.setUndecorated is rejected once the peer is displayable, so a
-    // change of either builds a new dialog rather than writing onto the realized one. Only an explicit
-    // undecorated declaration is written, so a dialog that decorates itself through its look and feel
-    // keeps both the decoration style and the undecorated flag that pairing needs. The modality pins
-    // nothing: AWT accepts a change on a built dialog, so the reactive apply carries it rather than
-    // rebuilding. The constructor still takes the declaration, so a peer realized before the dialog is
-    // first shown - sizing to content realizes one - is created with the modality the dialog declares.
+    // Only an explicit undecorated declaration is written, so a dialog that decorates itself through its
+    // look and feel keeps both the decoration style and the undecorated flag that pairing needs. Modality
+    // is left out of the key below: AWT accepts a modality change on a built dialog, so the reactive apply
+    // carries it instead of rebuilding. The constructor still takes the declaration, so a peer realized
+    // before the dialog is first shown - sizing to content realizes one - is created with the modality the
+    // dialog declares.
     val dialog =
         remember(owningWindow, undecorated) {
             JDialog(owningWindow, modality).also {
@@ -107,13 +105,13 @@ public fun Dialog(
     // describes: a replacement dialog starts out of sync and is given the geometry [state] holds.
     val appliedGeometry = remember(dialog) { AppliedGeometry() }
 
-    // Tracks the latest visibility requested on the dialog, or null while there is no request to
-    // honor. A modal show is deferred to a later EDT tick, so the realized `isVisible` lags the
-    // request; this guards against scheduling the same transition again on the recompositions that
-    // happen before the deferred runnable executes, and each deferred runnable applies only while it
-    // still carries this latest request. Cleared when the dialog leaves the composition, which
-    // retires any still-queued transition. Tied to the dialog it tracks: a replacement dialog starts with
-    // no request, so the declared visibility is applied to it afresh.
+    // Tracks the latest visibility requested on the dialog, or null while there is no request to honor.
+    // A modal show is deferred to a later EDT tick, so the realized isVisible lags the request: reading
+    // the peer instead would re-schedule the same show on every recomposition that lands before the
+    // deferred runnable executes.
+    // Cleared when the dialog leaves the composition, which retires any still-queued transition. Tied to
+    // the dialog it tracks: a replacement dialog starts with no request, so the declared visibility is
+    // applied to it afresh.
     val requestedVisible = remember(dialog) { arrayOfNulls<Boolean>(1) }
 
     CompositionOwnedWindowHost(
@@ -124,9 +122,7 @@ public fun Dialog(
         alwaysOnTop = alwaysOnTop,
         iconImage = iconImage,
         minimumSize = minimumSize,
-        position = state.position,
-        width = state.width,
-        height = state.height,
+        applyDeclaredGeometry = { dialog.applyGeometry(state.position, state.width, state.height, appliedGeometry) },
         setPosition = { state.position = it },
         setSize = { width, height ->
             state.width = width

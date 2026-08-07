@@ -28,10 +28,10 @@ public fun SwingModifier.toolTip(text: @Nls String?): SwingModifier =
  * pointer is over, and answers `null` where the component has none there. Requires a `JComponent`
  * target.
  *
- * [text] is called with the [MouseEvent] the toolkit is delivering, so the point it reads is in the
- * component's own coordinates - what a table cell, a tree node or a region of a canvas is looked up
- * by. It is asked as the pointer travels the component, ahead of the tooltip for that place being
- * shown, and its answer is the component's tooltip text from then on.
+ * [text] is called with the [MouseEvent] the toolkit delivers, as the pointer travels the component and
+ * ahead of the tooltip for that place being shown; its answer becomes the component's tooltip text from
+ * then on. It runs on every pointer move, not only when a tooltip is about to appear, so an expensive
+ * hit test behind it is paid continuously.
  *
  * The component is kept under `ToolTipManager` for as long as this declaration is in the chain, so a
  * component whose tooltip is declared this way alone shows one all the same.
@@ -42,15 +42,18 @@ public fun SwingModifier.toolTip(text: (event: MouseEvent) -> @Nls String?): Swi
     this then ToolTipElement(text = null, textAt = text)
 
 /**
- * Backs both tooltip forms with one slot: a component has one tooltip, so the last declaration in the
- * chain owns it. Exactly one of [text] and [textAt] is set - the constant written straight onto the
- * component, or the lambda asked for the tooltip under the pointer, which the node reads from its
- * field so that a fresh lambda each recomposition is fine.
+ * Backs both tooltip forms with one slot, so the last declaration in the chain owns it (see [toolTip]).
+ * Exactly one of [text] and [textAt] is set - the constant written straight onto the component, or the
+ * lambda asked for the tooltip under the pointer, read from the node's field so a fresh lambda each
+ * recomposition is fine.
+ *
+ * Two elements are equal when they declare the same [text] and hold the *same* [textAt] - identity,
+ * because a lambda is what it captures, and a fresh one each recomposition may answer differently.
  */
 private class ToolTipElement(
     private val text: @Nls String?,
     private val textAt: ((event: MouseEvent) -> @Nls String?)?,
-) : SwingModifier.Element<JComponent, ToolTipElement.Node> {
+) : SwingModifier.NodeElement<JComponent, ToolTipElement.Node>() {
     override val targetType: Class<JComponent> get() = JComponent::class.java
 
     override fun create(): Node = Node()
@@ -58,6 +61,15 @@ private class ToolTipElement(
     override fun update(node: Node) {
         node.apply(text, textAt)
     }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is ToolTipElement) return false
+        if (textAt !== other.textAt) return false
+        return text == other.text
+    }
+
+    override fun hashCode(): Int = 31 * (text?.hashCode() ?: 0) + System.identityHashCode(textAt)
 
     /**
      * The node backing [ToolTipElement]: it writes a constant tooltip onto the component, and for a
@@ -95,7 +107,7 @@ private class ToolTipElement(
             original = component.toolTipText
         }
 
-        /** Applies the declared form, constant or per location. Called from the element's `update`. */
+        /** Applies the declared form, constant or per location. */
         fun apply(
             text: @Nls String?,
             textAt: ((event: MouseEvent) -> @Nls String?)?,
@@ -127,8 +139,7 @@ private class ToolTipElement(
             component.addMouseMotionListener(pointer)
             // A tooltip that exists only per location leaves the text property null until the pointer
             // arrives, and a component with no tooltip text is not one ToolTipManager knows about; this
-            // is what puts it under the manager. Registering also moves the manager's own listeners
-            // behind the one installed above.
+            // is what puts it under the manager.
             ToolTipManager.sharedInstance().registerComponent(component)
         }
 

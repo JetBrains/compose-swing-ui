@@ -17,6 +17,7 @@ import java.awt.Insets
 import javax.swing.BorderFactory
 import javax.swing.JLabel
 import javax.swing.border.Border
+import javax.swing.border.EmptyBorder
 import javax.swing.border.LineBorder
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -48,7 +49,6 @@ class AppearanceMetadataModifierTest {
 
         styled = false
         awaitIdle()
-        // The element left the chain, so the font is restored to the pre-modifier default.
         assertEquals(default, styledLabel.fetch<JLabel>().font, "removing the modifier should restore the default font")
     }
 
@@ -66,13 +66,27 @@ class AppearanceMetadataModifierTest {
 
         styled = false
         awaitIdle()
-        // The element left the chain, so the border is restored to the pre-modifier default (the
-        // same one the untouched control still shows).
         assertSame(
             default,
             styledLabel.fetch<JLabel>().border,
             "removing the modifier should restore the default border",
         )
+    }
+
+    @Test
+    fun borderTakesADeclaredBorderThatComparesEqualToTheOneInPlace() = runComposeSwingTest {
+        var caption by mutableStateOf("first")
+        setContent { Label(caption, modifier = SwingModifier.border(ValueBorder(2))) }
+        val label = onNodeOfType<JLabel>()
+        val first = label.fetch<JLabel>().border
+
+        caption = "second"
+        awaitIdle()
+        val second = label.fetch<JLabel>().border
+        // The declaration carries the caller's own object, so what the caller's equals says about the
+        // two borders decides nothing: the border last declared is the one the component carries.
+        assertEquals(first, second, "the two borders have to compare equal for the case to say anything")
+        assertNotSame(first, second, "the border the latest declaration carries should reach the component")
     }
 
     @Test
@@ -235,7 +249,6 @@ class AppearanceMetadataModifierTest {
 
         styled = false
         awaitIdle()
-        // The element left the chain, so the client property is restored to its prior (null) value.
         assertNull(
             label.fetch<JLabel>().getClientProperty(key),
             "removing the modifier should clear the client property",
@@ -259,15 +272,15 @@ class AppearanceMetadataModifierTest {
             Label("untouched")
             Label("styled", modifier = if (styled) SwingModifier.focusable(false) else SwingModifier)
         }
-        // Every AWT component reports itself focusable until something says otherwise; the modifier
-        // is what says otherwise.
         val styledLabel = onNodeWithText("styled")
+        // Every AWT component reports itself focusable until something says otherwise; the modifier is
+        // what says otherwise. Were the default false, both assertions below would pass with no modifier
+        // applied at all.
         val default = onNodeWithText("untouched").fetch<JLabel>().isFocusable
         assertFalse(styledLabel.fetch<JLabel>().isFocusable, "the modifier should make the label unfocusable")
 
         styled = false
         awaitIdle()
-        // The element left the chain, so isFocusable is restored to the untouched control's default.
         assertEquals(
             default,
             styledLabel.fetch<JLabel>().isFocusable,
@@ -287,7 +300,6 @@ class AppearanceMetadataModifierTest {
 
         sized = false
         awaitIdle()
-        // The element left the chain, so the explicit preferred size is cleared again.
         assertFalse(
             onNodeOfType<JLabel>().fetch().isPreferredSizeSet,
             "removing the modifier should clear the preferred-size-set flag",
@@ -304,3 +316,11 @@ class AppearanceMetadataModifierTest {
         assertTrue(label.isPreferredSizeSet, "the overload should set the preferred-size-set flag")
     }
 }
+
+/**
+ * A border of the shape a caller writes: a value, so two built from the same [width] compare equal while
+ * being distinct objects, which is what a declaration rebuilt on every recomposition produces.
+ */
+private data class ValueBorder(
+    val width: Int,
+) : Border by EmptyBorder(width, width, width, width)

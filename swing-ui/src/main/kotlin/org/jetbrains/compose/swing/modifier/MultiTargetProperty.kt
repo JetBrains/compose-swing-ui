@@ -16,20 +16,18 @@ internal class PropertyCase<T : Component, V>(
     /** The name of the component type this case serves, for the mismatch message. */
     val typeName: String get() = type.name
 
-    /** Whether this case serves [component]. */
     fun handles(component: Component): Boolean = type.isInstance(component)
 
-    /** Reads the property from [component]; call only when [handles] is `true`. */
+    /** Call only when [handles] is `true`. */
     fun readFrom(component: Component): V = read(type.cast(component))
 
-    /** Writes the property onto [component]; call only when [handles] is `true`. */
+    /** Call only when [handles] is `true`. */
     fun writeTo(
         component: Component,
         value: V,
     ): Unit = write(type.cast(component), value)
 }
 
-/** Builds a [PropertyCase], deriving the component type from the reified [T]. */
 internal inline fun <reified T : Component, V> propertyCase(
     noinline read: (component: T) -> V,
     noinline write: (component: T, value: V) -> Unit,
@@ -51,14 +49,17 @@ internal class MultiTargetProperty<V>(
     private val name: String,
     private vararg val cases: PropertyCase<*, V>,
 ) {
-    /** Reads the property, capturing the value to restore when the element leaves the chain. */
-    fun read(component: Component): V = caseFor(component).readFrom(component)
+    /**
+     * Reads the property, capturing the value to restore when the element leaves the chain.
+     *
+     * Allocated once, with the property, so every element built from this property holds the same
+     * accessor object and elements declaring the same value compare equal.
+     */
+    val read: (component: Component) -> V = { component -> caseFor(component).readFrom(component) }
 
-    /** Writes the property. */
-    fun write(
-        component: Component,
-        value: V,
-    ): Unit = caseFor(component).writeTo(component, value)
+    /** Allocated once, with the property, as [read] is. */
+    val write: (component: Component, value: V) -> Unit =
+        { component, value -> caseFor(component).writeTo(component, value) }
 
     /** The property's name; also its slot identity, so one property occupies one last-wins slot. */
     override fun toString(): String = name
@@ -82,8 +83,8 @@ internal class MultiTargetPropertyElement<V>(
 ) : PropertyElement<Component, V>(
         Component::class.java,
         value,
-        read = property::read,
-        write = property::write,
+        read = property.read,
+        write = property.write,
     ) {
     override val key: Any get() = property
 }

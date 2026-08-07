@@ -5,10 +5,9 @@ import javax.swing.tree.TreeModel
 import javax.swing.tree.TreePath
 
 /*
- * The translation between a `Tree`'s declared index paths - each the chain of child positions from the
- * root - and the `TreePath` of nodes a `JTree` works in, together with the reads and applies of the
- * selection and the expansion that are expressed in them. Every walk goes through the model's own
- * accessors, so any `TreeModel` resolves regardless of the node type it exposes.
+ * Translates between a `Tree`'s declared index paths and the `TreePath` of nodes a `JTree` works in, and
+ * reads and applies the selection and expansion expressed in them. Every walk goes through the model's
+ * own accessors, so any `TreeModel` resolves regardless of the node type it exposes.
  */
 
 /**
@@ -106,11 +105,20 @@ internal fun applySelection(
 internal fun readExpansion(
     tree: JTree,
     model: TreeModel,
-): Set<List<Int>> {
-    val root = model.root ?: return emptySet()
-    val expanded = ArrayList<List<Int>>()
+): Set<List<Int>> = expandedNodes(tree, model).mapTo(mutableSetOf()) { it.second }
+
+/**
+ * Every expanded node of the tree, each as the [TreePath] the walk reached it by paired with the chain
+ * of child indices that names it, in document order.
+ */
+private fun expandedNodes(
+    tree: JTree,
+    model: TreeModel,
+): List<Pair<TreePath, List<Int>>> {
+    val root = model.root ?: return emptyList()
+    val expanded = ArrayList<Pair<TreePath, List<Int>>>()
     collectExpanded(tree, model, TreePath(root), emptyList(), expanded)
-    return expanded.toSet()
+    return expanded
 }
 
 /** Appends the node at [path] and each of its expanded descendants to [into], in document order. */
@@ -119,10 +127,10 @@ private fun collectExpanded(
     model: TreeModel,
     path: TreePath,
     indices: List<Int>,
-    into: MutableList<List<Int>>,
+    into: MutableList<Pair<TreePath, List<Int>>>,
 ) {
     if (!tree.isExpanded(path)) return
-    into.add(indices)
+    into.add(path to indices)
     val node = path.lastPathComponent
     for (index in 0 until model.getChildCount(node)) {
         collectExpanded(tree, model, path.pathByAddingChild(model.getChild(node, index)), indices + index, into)
@@ -144,8 +152,7 @@ internal fun applyExpansion(
     val declared = expandPaths(tree, model, expandedPaths)
     // Deepest first: a tree opens every ancestor of a path it is asked to collapse, so collapsing an
     // ancestor before its descendant would re-open the ancestor.
-    for (indices in readExpansion(tree, model).sortedByDescending { it.size }) {
-        val path = resolvePath(model, indices) ?: continue
+    for ((path, _) in expandedNodes(tree, model).sortedByDescending { it.second.size }) {
         if (declared.none { path.isDescendant(it) }) tree.collapsePath(path)
     }
 }

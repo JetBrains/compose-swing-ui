@@ -1,5 +1,8 @@
 package org.jetbrains.compose.swing.window
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.layout.FlowPanel
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
@@ -8,6 +11,8 @@ import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.Dimension
 import java.awt.GraphicsEnvironment
+import java.awt.event.ComponentAdapter
+import java.awt.event.ComponentEvent
 import javax.swing.JDialog
 import javax.swing.JFrame
 import kotlin.test.Test
@@ -31,8 +36,6 @@ class WindowPackToContentTest {
             }
         }
         val frame = onWindow().fetch<JFrame>()
-        // pack() sizes the frame to its preferred size, which is the content pane's preferred size plus
-        // the frame insets. The content pane itself realizes to exactly the content's preferred size.
         assertEquals(
             frame.preferredSize,
             frame.size,
@@ -122,6 +125,67 @@ class WindowPackToContentTest {
             "the realized packed size must flow back into the two-way state",
         )
         assertTrue(state.width > 0 && state.height > 0, "the written-back size must be non-zero")
+    }
+
+    @Test
+    fun aWindowTheUserResizedFitsItsContentAgainWhenSizedToContentAgain() = runComposeSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        val state = WindowState()
+        setContent {
+            Window(onCloseRequest = {}, state = state, title = "window-repack-test") {
+                FlowPanel(modifier = SwingModifier.preferredSize(CONTENT_WIDTH, CONTENT_HEIGHT))
+            }
+        }
+        val frame = onWindow().fetch<JFrame>()
+        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { state.size == frame.size }
+        val packed = frame.size
+
+        // The window system leaves the window at a size of the user's, which reaches the state.
+        val resizedByTheUser = Dimension(packed.width + 160, packed.height + 120)
+        frame.resizeTo(resizedByTheUser)
+        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { state.size == resizedByTheUser }
+
+        // Sizing to the content is the same declaration written 0 by 0, so declaring it over the size
+        // the user left is a change again and fits the window back to what it holds.
+        state.size = Dimension(0, 0)
+        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { frame.size == packed }
+        assertEquals(
+            packed,
+            frame.size,
+            "declaring no size over a size the user left must fit the window to its content again",
+        )
+    }
+
+    @Test
+    fun anAlreadyPackedWindowIsNotRepackedByAnUnrelatedRecomposition() = runComposeSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        val state = WindowState()
+        var windowTitle by mutableStateOf("window-repack-noop-test")
+        setContent {
+            Window(onCloseRequest = {}, state = state, title = windowTitle) {
+                FlowPanel(modifier = SwingModifier.preferredSize(CONTENT_WIDTH, CONTENT_HEIGHT))
+            }
+        }
+        val frame = onWindow().fetch<JFrame>()
+        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { state.size == frame.size }
+        val packed = frame.size
+
+        var resizeEvents = 0
+        frame.addComponentListener(
+            object : ComponentAdapter() {
+                override fun componentResized(e: ComponentEvent) {
+                    resizeEvents++
+                }
+            },
+        )
+
+        // A recomposition that leaves the declared size untouched (only the title changes) must find
+        // the window already packed and leave it alone, rather than fit it to content on every apply.
+        windowTitle = "window-repack-noop-test-renamed"
+        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { frame.title == windowTitle }
+
+        assertEquals(packed, frame.size, "an unrelated recomposition must not change an already-packed window's size")
+        assertEquals(0, resizeEvents, "an unrelated recomposition must not pack an already-packed window again")
     }
 }
 

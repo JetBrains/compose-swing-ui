@@ -16,9 +16,8 @@ import javax.swing.WindowConstants
 /**
  * Composes a Window (JFrame) with the given content.
  *
- * The window content runs as part of the enclosing application composition: state held in the
- * application scope and any [androidx.compose.runtime.CompositionLocal] provided above the window
- * flow into [content], and the content keeps recomposing while the window is shown.
+ * The window content runs as part of the enclosing application composition, and keeps recomposing while
+ * the window is shown.
  *
  * [content] receives the window as its [WindowScope]: what the window carries besides its content - its
  * [MenuBar] - is declared on that scope.
@@ -66,11 +65,8 @@ public fun Window(
     undecorated: Boolean = false,
     content: @Composable WindowScope.() -> Unit,
 ) {
-    // Decorations are chosen at construction: JFrame.setUndecorated is rejected once the peer is
-    // displayable, so a change of the declaration builds a new frame rather than writing onto the
-    // realized one. Only an explicit undecorated declaration is written, so a frame that decorates
-    // itself through its look and feel keeps both the decoration style and the undecorated flag that
-    // pairing needs.
+    // Only an explicit undecorated declaration is written, so a frame that decorates itself through its
+    // look and feel keeps both the decoration style and the undecorated flag that pairing needs.
     val frame =
         remember(undecorated) {
             JFrame().also {
@@ -85,8 +81,6 @@ public fun Window(
     // and extended state [state] holds.
     val appliedGeometry = remember(frame) { AppliedGeometry() }
 
-    val extendedState = state.extendedState
-
     // The extended-state write-back listener is installed once per frame, so it reads the state here.
     val currentState by rememberUpdatedState(state)
 
@@ -98,9 +92,7 @@ public fun Window(
         alwaysOnTop = alwaysOnTop,
         iconImage = iconImage,
         minimumSize = minimumSize,
-        position = state.position,
-        width = state.width,
-        height = state.height,
+        applyDeclaredGeometry = { frame.applyGeometry(state.position, state.width, state.height, appliedGeometry) },
         setPosition = { state.position = it },
         setSize = { width, height ->
             state.width = width
@@ -119,7 +111,7 @@ public fun Window(
         applyExtras = {
             // The extended state is applied before the visibility flip so the window appears already
             // maximized, minimized or restored.
-            frame.applyExtendedState(extendedState, appliedGeometry)
+            frame.applyExtendedState(state.extendedState, appliedGeometry)
             if (frame.isVisible != visible) frame.isVisible = visible
         },
         disposePeer = { frame.dispose() },

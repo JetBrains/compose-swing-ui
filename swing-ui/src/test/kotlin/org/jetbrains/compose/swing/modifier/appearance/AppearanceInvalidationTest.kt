@@ -34,9 +34,9 @@ import kotlin.test.assertTrue
  * A widget that does invalidate for itself sets the opposite requirement, on the two properties where
  * its setter is unusual: `JTextComponent.setMargin` marks the component invalid without asking for the
  * layout pass that would act on it, so the modifier must ask; `JLabel.setHorizontalTextPosition` asks
- * for a layout and a paint on every call, even one that changes nothing, so the modifier must not write
- * a value the label already carries - the modifier chain is rebuilt and re-applied on every
- * recomposition, and each redundant write would cost a layout and a paint.
+ * for a layout and a paint on every call, even one that changes nothing, so a declaration the label is
+ * already carrying must reach its setter no further - a recomposition rebuilds the chain, and a
+ * redundant write would cost a layout and a paint each time.
  *
  * Every case drives the change through the real public API ([SwingNode] plus the modifier under test,
  * re-applied across a recomposition) and observes behavior deterministically under headless.
@@ -108,8 +108,7 @@ class AppearanceInvalidationTest {
             SwingNode(
                 factory = { JPanel(FlowLayout(FlowLayout.LEADING, 0, 0)) },
             ) {
-                // The growing label gets a small font initially and a much larger one when `large`
-                // flips; the modifier is re-applied with the new value across the recomposition.
+                // The growing label gets a small font initially and a much larger one when `large` flips.
                 SwingNode(
                     factory = { growing },
                     update = {
@@ -213,7 +212,7 @@ class AppearanceInvalidationTest {
                 update = { applyModifier(SwingModifier.horizontalTextPosition(SwingConstants.RIGHT)) },
             )
             // Read by this composable, so a change recomposes it and the label's modifier chain is
-            // rebuilt and re-applied with the very same position.
+            // rebuilt declaring the very same position.
             Label("tick $tick")
         }
 

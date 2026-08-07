@@ -527,21 +527,25 @@ public final class org/jetbrains/compose/swing/modifier/SwingModifier$Companion 
 	public fun then (Lorg/jetbrains/compose/swing/modifier/SwingModifier;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 }
 
-public abstract interface class org/jetbrains/compose/swing/modifier/SwingModifier$Element : org/jetbrains/compose/swing/modifier/SwingModifier {
-	public abstract fun create ()Lorg/jetbrains/compose/swing/modifier/SwingModifier$Node;
-	public fun foldIn (Ljava/lang/Object;Lkotlin/jvm/functions/Function2;)Ljava/lang/Object;
-	public fun getAdditive ()Z
-	public fun getKey ()Ljava/lang/Object;
-	public abstract fun getTargetType ()Ljava/lang/Class;
-	public abstract fun update (Lorg/jetbrains/compose/swing/modifier/SwingModifier$Node;)V
-}
-
 public class org/jetbrains/compose/swing/modifier/SwingModifier$Node {
 	public static final field $stable I
 	public fun <init> ()V
 	public final fun getComponent ()Ljava/awt/Component;
 	public fun onAttach ()V
 	public fun onDetach ()V
+}
+
+public abstract class org/jetbrains/compose/swing/modifier/SwingModifier$NodeElement : org/jetbrains/compose/swing/modifier/SwingModifier {
+	public static final field $stable I
+	public fun <init> ()V
+	public abstract fun create ()Lorg/jetbrains/compose/swing/modifier/SwingModifier$Node;
+	public abstract fun equals (Ljava/lang/Object;)Z
+	public final fun foldIn (Ljava/lang/Object;Lkotlin/jvm/functions/Function2;)Ljava/lang/Object;
+	public fun getAdditive ()Z
+	public fun getKey ()Ljava/lang/Object;
+	public abstract fun getTargetType ()Ljava/lang/Class;
+	public abstract fun hashCode ()I
+	public abstract fun update (Lorg/jetbrains/compose/swing/modifier/SwingModifier$Node;)V
 }
 
 public final class org/jetbrains/compose/swing/modifier/SwingModifierKt {

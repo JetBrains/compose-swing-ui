@@ -40,13 +40,15 @@ public fun SwingModifier.documentFilter(filter: DocumentFilter?): SwingModifier 
     this then DocumentFilterElement(filter)
 
 /**
- * Re-applies a [DocumentFilter] to a text component's live document on every recomposition and carries
- * it across document swaps via a one-time `document`-property listener, restoring the pre-install
- * filter when it leaves the chain.
+ * Re-applies a [DocumentFilter] to the text component's live document, and carries it across document
+ * swaps with a one-time `document`-property listener.
+ *
+ * Two elements are equal when they hold the *same* filter - identity, because a filter is a gate whose
+ * answers are its own, so an equal-looking replacement is still a different gate.
  */
 private class DocumentFilterElement(
     private val filter: DocumentFilter?,
-) : SwingModifier.Element<JTextComponent, DocumentFilterElement.Node> {
+) : SwingModifier.NodeElement<JTextComponent, DocumentFilterElement.Node>() {
     override val targetType: Class<JTextComponent> get() = JTextComponent::class.java
 
     override fun create(): Node = Node()
@@ -55,6 +57,10 @@ private class DocumentFilterElement(
         node.filter = filter
         node.apply()
     }
+
+    override fun equals(other: Any?): Boolean = other is DocumentFilterElement && filter === other.filter
+
+    override fun hashCode(): Int = System.identityHashCode(filter)
 
     class Node : SwingModifier.Node<JTextComponent>() {
         var filter: DocumentFilter? = null
@@ -66,8 +72,8 @@ private class DocumentFilterElement(
         override fun onAttach() {
             val component = component
             val document = component.document as? AbstractDocument ?: return
-            // Capture the document's pre-install filter, then install a one-time listener that migrates
-            // whatever filter is current onto a replacement document and clears the one being left.
+            // Capture the document's pre-install filter, then install a listener that migrates whatever
+            // filter is current onto a replacement document and clears the one being left.
             restored = document.documentFilter
             val swapListener =
                 PropertyChangeListener { event ->

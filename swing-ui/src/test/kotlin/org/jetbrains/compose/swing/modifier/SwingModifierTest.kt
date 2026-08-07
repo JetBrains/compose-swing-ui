@@ -587,22 +587,26 @@ class SwingModifierTest {
     }
 
     /**
-     * An element that reads its node's component from [SwingModifier.Element.create], before the
+     * An element that reads its node's component from [SwingModifier.NodeElement.create], before the
      * applier has injected a target.
      */
     private class EarlyComponentReadElement :
-        SwingModifier.Element<JComponent, EarlyComponentReadElement.Node> {
+        SwingModifier.NodeElement<JComponent, EarlyComponentReadElement.Node>() {
         override val targetType: Class<JComponent> get() = JComponent::class.java
 
         override fun create(): Node = Node().also { it.component }
 
         override fun update(node: Node) = Unit
 
+        override fun equals(other: Any?): Boolean = this === other
+
+        override fun hashCode(): Int = System.identityHashCode(this)
+
         class Node : SwingModifier.Node<JComponent>()
     }
 
     /**
-     * A user-authored element proving the public [SwingModifier.Element] escape hatch works. It
+     * A user-authored element proving the public [SwingModifier.NodeElement] escape hatch works. It
      * targets [JComponent] via [targetType], so the node's `component` arrives already typed and the
      * body performs no cast. It captures the original tooltip in [Node.onAttach], writes the new value
      * in `update`, and restores the original in [Node.onDetach].
@@ -610,7 +614,7 @@ class SwingModifierTest {
     private class ToolTipElement(
         private val text: String,
         private val onCreate: (Node) -> Unit = {},
-    ) : SwingModifier.Element<JComponent, ToolTipElement.Node> {
+    ) : SwingModifier.NodeElement<JComponent, ToolTipElement.Node>() {
         override val targetType: Class<JComponent> get() = JComponent::class.java
 
         override fun create(): Node = Node().also(onCreate)
@@ -619,6 +623,11 @@ class SwingModifierTest {
             node.text = text
             node.apply()
         }
+
+        override fun equals(other: Any?): Boolean =
+            other is ToolTipElement && text == other.text && onCreate === other.onCreate
+
+        override fun hashCode(): Int = 31 * text.hashCode() + System.identityHashCode(onCreate)
 
         class Node : SwingModifier.Node<JComponent>() {
             var text: String? = null

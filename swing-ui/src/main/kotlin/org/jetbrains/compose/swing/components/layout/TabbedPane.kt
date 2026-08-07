@@ -286,30 +286,35 @@ private fun Tab(
         SwingNode(
             factory = { JPanel(BorderLayout()) },
             update = {
-                // Resolve the tab's whereabouts once per update pass and reuse it across all four
-                // metadata writes: the host panel (`this` inside these blocks) is the tab's component,
-                // and its index is the same for every field, so reading it once avoids four redundant
-                // lookups. `reconcile` runs first on every pass and exposes the component as `this`, so
-                // both are captured before the set blocks below read them. `pane` is non-null exactly
-                // while the body panel is an attached tab, which is the single guard the writes need.
-                // The panel's own `parent` IS the pane holding it once attached, so no separate lookup
-                // is needed to find it.
+                // Locating the tab is a linear scan of the pane's pages, so it is resolved on demand by
+                // the first metadata write of the pass that needs it and shared with the rest: a pass
+                // that changes no metadata scans not at all, and one that changes any scans once. The
+                // index is the same for every field, since none of these writes moves a tab. The locals
+                // are fresh for each pass, so a tab that has shifted meanwhile is addressed where it now
+                // is. `pane` is non-null exactly while the body panel is an attached tab, which is the
+                // single guard the writes need. The panel's own `parent` IS the pane holding it once
+                // attached, so no separate lookup is needed to find it.
                 //
                 // That guard stays INSIDE each set block rather than around the set calls: set() must
                 // visit its slot on every pass to stay positionally aligned, so the calls themselves
                 // remain unconditional and only the write is conditional.
                 var pane: JTabbedPane? = null
                 var at = -1
-                reconcile {
-                    bodyHost[0] = this
-                    val host = this.parent as? JTabbedPane
-                    at = host?.indexOfComponent(this) ?: -1
-                    pane = if (at >= 0) host else null
+                var resolved = false
+                val resolvePane = { body: Component ->
+                    if (!resolved) {
+                        resolved = true
+                        val owner = body.parent as? JTabbedPane
+                        at = owner?.indexOfComponent(body) ?: -1
+                        pane = if (at >= 0) owner else null
+                    }
+                    pane
                 }
-                set(metadata.title) { pane?.setTitleAt(at, it) }
-                set(metadata.icon) { pane?.setIconAt(at, it) }
-                set(metadata.tooltip) { pane?.setToolTipTextAt(at, it) }
-                set(metadata.enabled) { pane?.setEnabledAt(at, it) }
+                reconcile { bodyHost[0] = this }
+                set(metadata.title) { resolvePane(this)?.setTitleAt(at, it) }
+                set(metadata.icon) { resolvePane(this)?.setIconAt(at, it) }
+                set(metadata.tooltip) { resolvePane(this)?.setToolTipTextAt(at, it) }
+                set(metadata.enabled) { resolvePane(this)?.setEnabledAt(at, it) }
                 // The underline follows the title together with both mnemonic values: setTitleAt itself
                 // recomputes the underline from the title, so a title-only change must also re-run this
                 // write or the declared index would be silently lost to that recomputation. Setting the
@@ -318,11 +323,12 @@ private fun Tab(
                 // underline back.
                 val mnemonicKey = Triple(metadata.title, metadata.mnemonic, metadata.displayedMnemonicIndex)
                 set(mnemonicKey) { (_, mnemonic, index) ->
-                    pane?.setMnemonicAt(at, mnemonic)
-                    if (index != null) pane?.setDisplayedMnemonicIndexAt(at, index)
+                    val host = resolvePane(this)
+                    host?.setMnemonicAt(at, mnemonic)
+                    if (index != null) host?.setDisplayedMnemonicIndexAt(at, index)
                 }
-                set(metadata.background) { pane?.setBackgroundAt(at, it) }
-                set(metadata.foreground) { pane?.setForegroundAt(at, it) }
+                set(metadata.background) { resolvePane(this)?.setBackgroundAt(at, it) }
+                set(metadata.foreground) { resolvePane(this)?.setForegroundAt(at, it) }
             },
             content = { tab.content() },
         )

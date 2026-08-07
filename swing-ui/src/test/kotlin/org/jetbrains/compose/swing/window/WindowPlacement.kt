@@ -1,6 +1,7 @@
 package org.jetbrains.compose.swing.window
 
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import java.awt.Dimension
 import java.awt.Point
 import java.awt.Window
 import java.awt.event.ComponentEvent
@@ -21,12 +22,24 @@ internal fun Window.placeAt(location: Point) {
 }
 
 /**
+ * Sizes this window to [size] and notifies the resize, the way a window system resizing a window the
+ * user drags an edge of notifies it.
+ *
+ * Notifying it here rather than leaving it to the peer keeps the test off native timing, exactly as
+ * [placeAt] does for a move.
+ */
+internal fun Window.resizeTo(size: Dimension) {
+    setSize(size.width, size.height)
+    dispatchEvent(ComponentEvent(this, ComponentEvent.COMPONENT_RESIZED))
+}
+
+/**
  * Notifies where this window stands without moving it, the way a window system reports a placement it
  * has performed.
  *
- * The coordinates a placement is reported on are the ones the window stands on when the report is
- * delivered, so a report of the placement a window system is still performing is this over a window
- * that has not been moved to the coordinates asked of it in the meantime.
+ * The report carries the window's current coordinates, not a target it has not reached yet, so calling
+ * this alone, without moving the window, simulates a window system still performing a placement it has
+ * not yet applied.
  */
 internal fun Window.notifyPlacement() {
     dispatchEvent(ComponentEvent(this, ComponentEvent.COMPONENT_MOVED))

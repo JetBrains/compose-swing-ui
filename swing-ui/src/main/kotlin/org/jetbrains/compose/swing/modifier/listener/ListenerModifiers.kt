@@ -51,10 +51,12 @@ public inline fun <reified T : Component, L : Any> SwingModifier.listener(
 ): SwingModifier = this then InstanceListenerElement(T::class.java, instance, attach, detach)
 
 /**
- * The additive [SwingModifier.Element] backing [listener] and every typed/model builder. It owns the
- * by-identity add/remove contract through its [InstanceListenerNode]: the same instance is attached
- * once and removed on detach; supplying a different instance on recomposition detaches the old one and
- * attaches the new.
+ * The additive [SwingModifier.NodeElement] backing [listener] and every typed/model builder. It carries the
+ * by-identity add/remove contract described on [listener] into its [InstanceListenerNode].
+ *
+ * Equality follows that same by-identity contract: two elements are equal when they target the same
+ * type and hold the same [instance], [attach] and [detach] objects, which is exactly the case in which
+ * reconciling would change nothing.
  *
  * Marked [InternalSwingUiApi]; it may change without notice in any release.
  */
@@ -65,22 +67,36 @@ internal class InstanceListenerElement<T : Component, L : Any>(
     internal val instance: L,
     internal val attach: (component: T, listener: L) -> Unit,
     internal val detach: (component: T, listener: L) -> Unit,
-) : SwingModifier.Element<T, InstanceListenerNode<T, L>> {
+) : SwingModifier.NodeElement<T, InstanceListenerNode<T, L>>() {
     override val additive: Boolean get() = true
 
     override fun create(): InstanceListenerNode<T, L> = InstanceListenerNode()
 
     override fun update(node: InstanceListenerNode<T, L>): Unit = node.swapTo(this)
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is InstanceListenerElement<*, *>) return false
+        if (targetType != other.targetType) return false
+        if (instance !== other.instance) return false
+        if (attach !== other.attach) return false
+        return detach === other.detach
+    }
+
+    override fun hashCode(): Int {
+        var result = targetType.hashCode()
+        result = 31 * result + System.identityHashCode(instance)
+        result = 31 * result + System.identityHashCode(attach)
+        result = 31 * result + System.identityHashCode(detach)
+        return result
+    }
 }
 
 /**
- * The node backing [InstanceListenerElement]: it attaches the current instance on [onAttach], swaps to
- * a new instance on identity change (detach old, attach new), and removes the attached instance on
- * [onDetach].
- *
- * The node keeps the whole element as the unit of attachment, pairing each instance with the
- * attach/detach it was supplied with. An instance is thus always removed through its own detach,
- * even after a positional rebind hands the node an element carrying a different listener type.
+ * The node backing [InstanceListenerElement]. It keeps the whole element as the unit of attachment,
+ * pairing each instance with the attach/detach it was supplied with. An instance is thus always removed
+ * through its own detach, even after a positional rebind hands the node an element carrying a different
+ * listener type.
  *
  * Marked [InternalSwingUiApi]; it may change without notice in any release.
  */
@@ -117,17 +133,12 @@ internal class InstanceListenerNode<T : Component, L : Any> : SwingModifier.Node
 }
 
 /*
- * Typed instance builders - attach an EXISTING Swing/AWT listener object to a component as-is.
+ * Typed instance builders - attach an EXISTING Swing/AWT listener object to a component as-is, following
+ * the by-identity contract documented above on `listener`.
  *
- * Semantics for every builder:
- *  - the instance is added once, on install, and the SAME instance is removed on detach/reuse;
- *  - two of the same builder both install and both fire;
- *  - if a DIFFERENT instance (reference inequality) is supplied on a later recomposition, the old
- *    instance is detached and the new one attached - so pass a STABLE instance (e.g. `remember {}`) to
- *    avoid that churn;
- *  - multi-method interfaces are passed as objects; single-method (SAM) interfaces also accept a lambda
- *    via Kotlin SAM conversion, but a fresh lambda each recomposition is a new instance and triggers
- *    the detach-old/attach-new swap above - `remember {}` it to keep one stable instance.
+ * Multi-method interfaces are passed as objects; single-method (SAM) interfaces also accept a lambda via
+ * Kotlin SAM conversion, but a fresh lambda each recomposition is a new instance and triggers the
+ * detach-old/attach-new swap - `remember {}` it to keep one stable instance.
  */
 
 /**

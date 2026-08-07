@@ -233,10 +233,17 @@ internal class TableCellIslands<R>(
 internal fun SwingModifier.composableColumnCells(cellIslands: TableCellIslands<*>): SwingModifier =
     this then ColumnCellsElement(cellIslands)
 
-/** The [SwingModifier.Element] behind [composableColumnCells]. */
+/**
+ * The [SwingModifier.NodeElement] behind [composableColumnCells].
+ *
+ * Equal only to itself, so every pass builds an element the slot has to apply: the renderers live on the
+ * columns rather than on the table, and a structure change builds the columns afresh, so putting them on
+ * is the work a pass has to redo even where nothing about the declaration changed. Comparing the islands
+ * would make a pass that carries the same ones skip exactly that.
+ */
 private class ColumnCellsElement(
     private val cellIslands: TableCellIslands<*>,
-) : SwingModifier.Element<JTable, ColumnCellsNode> {
+) : SwingModifier.NodeElement<JTable, ColumnCellsNode>() {
     override val targetType: Class<JTable> get() = JTable::class.java
 
     override fun create(): ColumnCellsNode = ColumnCellsNode()
@@ -244,6 +251,10 @@ private class ColumnCellsElement(
     override fun update(node: ColumnCellsNode) {
         node.apply(cellIslands)
     }
+
+    override fun equals(other: Any?): Boolean = this === other
+
+    override fun hashCode(): Int = System.identityHashCode(this)
 }
 
 /** The [SwingModifier.Node] behind [composableColumnCells]. */

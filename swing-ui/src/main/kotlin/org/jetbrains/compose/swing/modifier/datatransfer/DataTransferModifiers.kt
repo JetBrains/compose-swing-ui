@@ -23,6 +23,15 @@ import kotlin.math.abs
  * Data-transfer SwingModifiers - drag-and-drop and system-clipboard support. Drag source, drop
  * target, and clipboard copy/cut/paste can all be declared on the same component and coexist. The set
  * of allowed operations is a [TransferAction] `TransferHandler` action bit-mask.
+ *
+ * A drag source and an export-done declaration are equal when they declare the same action mask and
+ * hold the *same* callbacks - identity, because a callback is what it captures - so one made of
+ * hoisted callbacks refreshes nothing.
+ *
+ * A drop target and a clipboard declaration both claim the handler's import slice, and the chain's
+ * last claimant owns it. Each is therefore compared by identity alone, so both re-assert that order on
+ * every pass: one of them standing still while the other moved would leave the slice with whichever
+ * moved, wherever it sits in the chain.
  */
 
 /**
@@ -206,9 +215,9 @@ public class ClipboardHandle internal constructor(
 
     private fun export(action: Int) {
         val component = component ?: return
-        val clipboard = resolveClipboard() ?: return
+        val systemClipboard = resolveClipboard() ?: return
         try {
-            component.transferHandler?.exportToClipboard(component, clipboard, action)
+            component.transferHandler?.exportToClipboard(component, systemClipboard, action)
         } catch (_: IllegalStateException) {
             // A clipboard another application holds open refuses to take the value, which
             // TransferHandler.exportToClipboard reports through exportDone as a completed export that
@@ -238,7 +247,7 @@ public fun rememberClipboardHandle(): ClipboardHandle = remember { ClipboardHand
 private class DraggableElement(
     @param:TransferAction private val exportedActions: Int,
     private val transferable: () -> Transferable?,
-) : SwingModifier.Element<JComponent, DraggableElement.Node> {
+) : SwingModifier.NodeElement<JComponent, DraggableElement.Node>() {
     override val targetType: Class<JComponent> get() = JComponent::class.java
 
     override fun create(): Node = Node()
@@ -247,6 +256,15 @@ private class DraggableElement(
         node.config = SourceConfig(exportedActions, transferable)
         node.apply()
     }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is DraggableElement) return false
+        if (transferable !== other.transferable) return false
+        return exportedActions == other.exportedActions
+    }
+
+    override fun hashCode(): Int = 31 * exportedActions + System.identityHashCode(transferable)
 
     class Node : SwingModifier.Node<JComponent>() {
         var config: SourceConfig? = null
@@ -316,11 +334,16 @@ private class DragGesture(
     }
 }
 
+/**
+ * Equal only to itself, as [ClipboardElement] is: the two declare the same import capability of the
+ * shared handler, and the one that owns it is whichever of them the chain applied last. That ordering
+ * only holds while a pass applies both, so neither may compare equal to the element it replaced.
+ */
 private class DropTargetElement(
     @param:TransferAction private val acceptedActions: Int,
     private val onDrop: (Transferable) -> Boolean,
     private val canImport: (List<DataFlavor>) -> Boolean,
-) : SwingModifier.Element<JComponent, DropTargetElement.Node> {
+) : SwingModifier.NodeElement<JComponent, DropTargetElement.Node>() {
     override val targetType: Class<JComponent> get() = JComponent::class.java
 
     override fun create(): Node = Node()
@@ -329,6 +352,10 @@ private class DropTargetElement(
         node.config = DropConfig(acceptedActions, onDrop, canImport)
         node.apply()
     }
+
+    override fun equals(other: Any?): Boolean = this === other
+
+    override fun hashCode(): Int = System.identityHashCode(this)
 
     class Node : SwingModifier.Node<JComponent>() {
         var config: DropConfig? = null
@@ -349,12 +376,13 @@ private class DropTargetElement(
     }
 }
 
+/** Equal only to itself; see [DropTargetElement] for the import capability the two contend for. */
 private class ClipboardElement(
     private val transferable: () -> Transferable?,
     private val onPaste: (Transferable) -> Boolean,
     private val canImport: (List<DataFlavor>) -> Boolean,
     private val bindKeys: Boolean,
-) : SwingModifier.Element<JComponent, ClipboardElement.Node> {
+) : SwingModifier.NodeElement<JComponent, ClipboardElement.Node>() {
     override val targetType: Class<JComponent> get() = JComponent::class.java
 
     override fun create(): Node = Node()
@@ -365,6 +393,10 @@ private class ClipboardElement(
         node.canImport = canImport
         node.apply(bindKeys)
     }
+
+    override fun equals(other: Any?): Boolean = this === other
+
+    override fun hashCode(): Int = System.identityHashCode(this)
 
     class Node : SwingModifier.Node<JComponent>() {
         var transferable: () -> Transferable? = { null }
@@ -417,7 +449,7 @@ private class ClipboardElement(
 
 private class ExportDoneElement(
     private val onExportDone: (Transferable?, Int) -> Unit,
-) : SwingModifier.Element<JComponent, ExportDoneElement.Node> {
+) : SwingModifier.NodeElement<JComponent, ExportDoneElement.Node>() {
     override val targetType: Class<JComponent> get() = JComponent::class.java
 
     override fun create(): Node = Node()
@@ -426,6 +458,10 @@ private class ExportDoneElement(
         node.onExportDone = onExportDone
         node.apply()
     }
+
+    override fun equals(other: Any?): Boolean = other is ExportDoneElement && onExportDone === other.onExportDone
+
+    override fun hashCode(): Int = System.identityHashCode(onExportDone)
 
     class Node : SwingModifier.Node<JComponent>() {
         var onExportDone: ((Transferable?, Int) -> Unit)? = null

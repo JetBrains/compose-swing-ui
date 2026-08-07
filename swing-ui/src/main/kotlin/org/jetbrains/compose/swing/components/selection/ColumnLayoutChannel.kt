@@ -59,9 +59,8 @@ internal class ColumnLayoutChannel(
      * otherwise the layout the columns were in. A column layout is owned the way a selection is; see
      * [installNarrowing] for the rule and what follows from it.
      *
-     * A column that no longer exists cannot hold the part of the layout that named it. Restoring the
-     * layout has to follow the rebuild that creates the columns, so it runs as [applied]'s own write and
-     * what the new columns were left holding is reported afterwards.
+     * A column that no longer exists cannot hold the part of the layout that named it, so restoring the
+     * layout must follow the rebuild that creates the columns and runs as [applied]'s own write.
      *
      * [install] marks its own writes through [applied] too, so the losses it has to report itself still
      * reach the caller.
@@ -87,18 +86,29 @@ internal class ColumnLayoutChannel(
 
     /**
      * Hands the layout [columns] are in to the caller's listener through [deliver], unless it is the one
-     * already agreed on.
+     * already agreed on. An event that arrives before a layout is agreed on is news.
      */
     private fun report(
         columns: TableColumnModel,
         deliver: (TableColumnModelListener) -> Unit,
     ) {
-        val layout = columns.readColumnLayout()
-        if (layout == agreed) return
-        agreed = layout
+        if (agreed?.holdsInPlace(columns) == true) return
+        agreed = columns.readColumnLayout()
         target.value?.let(deliver)
     }
 }
+
+/**
+ * Whether [columns] are already in [this] layout, walked column by column against the layout's own lists
+ * rather than through a fresh [readColumnLayout] snapshot - every column event calls this, and most report
+ * nothing new.
+ */
+private fun TableColumnLayout.holdsInPlace(columns: TableColumnModel): Boolean =
+    columns.columnCount == modelIndices.size &&
+        modelIndices.indices.all { position ->
+            val column = columns.getColumn(position)
+            column.modelIndex == modelIndices[position] && column.preferredWidth == preferredWidths[position]
+        }
 
 /** A [ColumnLayoutChannel] that keeps reporting to the latest [listener] without being rebuilt. */
 @Composable
@@ -111,8 +121,6 @@ internal fun rememberColumnLayoutChannel(listener: TableColumnModelListener?): C
  * A stable [TableColumnModelListener] that forwards the layout the columns were left in to
  * [onColumnLayoutChange], bridging a lambda-based [Table] overload to the raw-listener overload it
  * delegates to. A column event's source is the column model, so the layout is read back from it.
- *
- * Only a reorder and a resize describe the layout, and those are the only events this listener is handed.
  */
 @Composable
 internal fun rememberColumnLayoutListener(onColumnLayoutChange: (TableColumnLayout) -> Unit): TableColumnModelListener {

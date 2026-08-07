@@ -25,7 +25,7 @@ public fun SwingModifier.onAccept(onAccept: () -> Unit): SwingModifier = this th
 
 private class AcceptElement(
     private val onAccept: () -> Unit,
-) : SwingModifier.Element<JTextField, AcceptElement.Node> {
+) : SwingModifier.NodeElement<JTextField, AcceptElement.Node>() {
     override val targetType: Class<JTextField> get() = JTextField::class.java
     override val additive: Boolean get() = true
 
@@ -34,6 +34,10 @@ private class AcceptElement(
     override fun update(node: Node) {
         node.onAccept = onAccept
     }
+
+    override fun equals(other: Any?): Boolean = other is AcceptElement && onAccept === other.onAccept
+
+    override fun hashCode(): Int = System.identityHashCode(onAccept)
 
     class Node : SwingModifier.Node<JTextField>() {
         var onAccept: () -> Unit = {}
