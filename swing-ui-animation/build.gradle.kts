@@ -33,10 +33,13 @@ dependencies {
     testImplementation(libs.kotlinxCoroutinesTest)
 }
 
-// Regression ratchet: the floor sits a few points under the currently achieved ratio so ordinary noise
-// never breaks the build while a real coverage regression does.
+// Regression ratchet: this module's floor tracks the vendored engine's achieved ratio to within about
+// a point on each axis - tighter than a module with its own tests would want, because an upstream
+// re-sync moves the achieved ratio and the floor together. Re-baseline the floor alongside the
+// vendored code on every re-sync rather than chasing noise between them.
 jacocoCoverage {
-    lineMinimum.set("0.20".toBigDecimal())
+    lineMinimum.set("0.55".toBigDecimal())
+    branchMinimum.set("0.40".toBigDecimal())
 }
 
 publishing {

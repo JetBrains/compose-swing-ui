@@ -5,8 +5,8 @@ the quality gates every change must pass, and the code style.
 
 ## Prerequisites
 
-- **JDK 21.** The Kotlin toolchain and detekt are pinned to JVM 21; CI runs on JDK 21. (The Foojay
-  toolchain plugin can download a matching JDK automatically.)
+- **JDK 21 or newer.** `buildSrc` compiles to JVM 21 and the build provisions no toolchain, so the
+  JDK you run on is the one it uses. Published library binaries target Java 11 regardless.
 - Use the Gradle wrapper (`./gradlew`). Do not rely on a system Gradle.
 
 ## Build and test
@@ -34,25 +34,13 @@ sit downstream of the two. A scoped run belongs to the edit loop; the gate below
 judged by.
 
 Tests are deterministic and never sleep. Harness-driven tests never attach their root to a window,
-so they run with or without a display. A test that realizes a real top-level peer declares that
-requirement with a JUnit assumption (`Assumptions.assumeFalse(GraphicsEnvironment.isHeadless(),
-...)`), so it reports skipped without a display, and others gate the same way on a capability the
-environment may withhold. A run with no failures is therefore not necessarily a complete one: the
-ignored count in `<module>/build/reports/tests/test/index.html` says what did not run, and the
-quality gates below cover which of those CI runs for you. Write UI tests with the `:swing-ui-test`
-harness:
-
-```kotlin
-@Test
-fun clickingTheButtonUpdatesTheLabel() = runComposeSwingTest {
-    var clicks by mutableStateOf(0)
-    setContent {
-        Button(text = "Clicks: $clicks", onClick = { clicks++ })
-    }
-    onNodeWithText("Clicks: 0").performClick()
-    onNodeWithText("Clicks: 1").assertExists()
-}
-```
+so they run with or without a display. A test that realizes a real top-level peer gates itself with
+`assumeFalse(GraphicsEnvironment.isHeadless(), ...)` so it reports skipped without one, and others
+gate the same way on a capability the environment may withhold. A run with no failures is therefore
+not necessarily a complete one: the ignored count in `<module>/build/reports/tests/test/index.html`
+says what did not run, and the quality gates below cover which of those CI runs for you. Write UI
+tests with the `:swing-ui-test` harness: a `@Test` whose body is a `runComposeSwingTest { ... }`
+block, mounting the composable with `setContent { ... }` and asserting through the finders.
 
 Prefer `setContent { ... }` followed by assertions; `setContent` waits for the composition to settle
 for you. Reach for `waitUntil { ... }` only when a condition genuinely depends on external timing. See
@@ -78,8 +66,7 @@ themselves on the capability and report as skipped there.
 
 Piece by piece:
 
-- **`ktlintCheck`** - formatting + lint, including Compose-aware rules
-  (`io.nlopez.compose.rules`). Auto-fix with:
+- **`ktlintCheck`** - formatting + lint. Auto-fix with:
   ```bash
   ./gradlew ktlintFormat
   ```
@@ -97,14 +84,14 @@ Piece by piece:
   ```
   Commit the updated `swing-ui/api/swing-ui.api` (and `swing-ui-test/api/swing-ui-test.api` if the
   test module's surface changed). A public-API change should be intentional and reviewed.
-- **`:buildSrc:ktlintCheck` / `:buildSrc:detekt`** - `buildSrc` is an included build, so the
-  root-level gates do **not** reach it; these must be invoked explicitly (CI does). Run them
-  whenever you touch the convention plugins under `buildSrc/`.
-- **`jacocoTestCoverageVerification`** - `swing-ui`, `swing-ui-test` and `swing-ui-animation` each enforce line- and
-  branch-coverage floors, measured per module against that module's own tests. A change that drops
-  either ratio below its floor fails the build. Add tests for any new behavior you can reach through
-  the test harness. The floors are held, not chased: if a branch is a defensive guard with no
-  reachable behavior, leave it uncovered rather than writing a test that asserts nothing.
+- **`:buildSrc:ktlintCheck` / `:buildSrc:detekt`** - formatting, lint and static analysis for the
+  convention plugins. Run them whenever you touch anything under `buildSrc/`.
+- **`jacocoTestCoverageVerification`** - `swing-ui`, `swing-ui-test` and `swing-ui-animation` each
+  enforce a line-coverage floor and a branch-coverage floor, measured per module against that
+  module's own tests. A change that drops a ratio below its floor fails the build. Add tests for any
+  new behavior you can reach through the test harness. The floors are held, not chased: if a branch is
+  a defensive guard with no reachable behavior, leave it uncovered rather than writing a test that
+  asserts nothing.
 
 ## Code style
 
@@ -121,11 +108,9 @@ Piece by piece:
 
 ### Composable target
 
-`@SwingComposable` (or `@SwingMenuComposable` for a menu) marks Swing-target content so the compiler
-can tell it apart from `compose.ui`'s own `@UiComposable`, catching a mixed composition at compile
-time instead of at runtime. It belongs on `SwingNode`, the menu-tree primitives, `setContent`, and a
-`content`/slot lambda **parameter** forwarded to one of them by value - not on an ordinary component or
-container, whose target the compiler infers from what it calls. See
+`@SwingComposable` (or `@SwingMenuComposable` for a menu) belongs on `SwingNode`, the menu-tree
+primitives, `setContent`, and a `content`/slot lambda **parameter** forwarded to one of them by value -
+not on an ordinary component or container. See
 [`docs/CUSTOM-COMPONENTS.md`](docs/CUSTOM-COMPONENTS.md) for the full explanation.
 
 ### Typed constants
@@ -133,8 +118,8 @@ container, whose target the compiler infers from what it calls. See
 Model a closed set of named JDK/Swing integer constants (a selection mode, a placement, a message
 kind) as a `@MagicConstant`-annotated typedef - never an `enum class` and never a wrapper value class.
 Declare an annotation class whose only job is to name the accepted constants, then use it as
-`@Xxx Int` on the parameter; the value passed at runtime stays the **plain JDK constant** the wrapped
-Swing API already expects, so there is no boxing, accessor, or translation layer:
+`@Xxx Int` on the parameter (see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for what a typed
+constant set gives a caller):
 
 ```kotlin
 @Retention(AnnotationRetention.BINARY)
@@ -165,15 +150,9 @@ constants. Group a new typedef alongside the library's other typed constant sets
 
 ## Adding a new component
 
-A component is a `@Composable` function that emits a `SwingNode`: the `factory` builds the backing
-Swing component once, `update` reactively pushes state onto it via `set` blocks, and a
-`modifier: SwingModifier = SwingModifier` parameter carries caller styling. Domain callbacks
-(`onClick`, `onValueChange`) stay ordinary parameters; install reactive listeners through the
-`SwingModifier` listener builders so the runtime owns their lifecycle.
-
-[`docs/CUSTOM-COMPONENTS.md`](docs/CUSTOM-COMPONENTS.md) is the authoritative, worked guide to all of
-this - it applies equally to library components and to components you build in your own app. Follow
-it, then:
+[`docs/CUSTOM-COMPONENTS.md`](docs/CUSTOM-COMPONENTS.md) is the authoritative, worked guide to writing
+a component - it applies equally to library components and to components you build in your own app.
+Follow it, then:
 
 - Add a behavioral test under `swing-ui/src/test` exercising state -> recomposition -> visible change
   (and listener re-attach if relevant). Library tests use the `:swing-ui-test` harness, available as
