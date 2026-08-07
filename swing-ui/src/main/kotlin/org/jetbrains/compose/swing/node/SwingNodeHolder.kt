@@ -51,9 +51,10 @@ public fun interface SlotAttachment {
  *
  * Components built with [SwingNode] interact with it indirectly through [SwingNodeUpdater].
  *
- * Modifier-installed listeners (see [org.jetbrains.compose.swing.modifier.listener]) are detached
- * and the node's modifier-applied properties restored on release, reuse, and deactivation, so a
- * recycled slot starts from a clean baseline.
+ * Modifier-installed listeners (see [org.jetbrains.compose.swing.modifier.listener]) are detached,
+ * the node's modifier-applied properties restored, and the component's tracked snapshot reads dropped
+ * from the owner's observer on release, reuse, and deactivation, so a recycled slot starts from a clean
+ * baseline and a node that is not being driven reacts to nothing.
  *
  * Internal runtime type; not public API. See `docs/CUSTOM-COMPONENTS.md`.
  */
@@ -172,7 +173,9 @@ internal class SwingNodeHolder<out T : Component>
          * composition whose applier observes no snapshot state, such as a menu.
          *
          * Like [slotAttachment] this is an owner-stable structural property: set once at insert and
-         * retained across [reset], since a recycled node stays in the same composition owner.
+         * retained across [reset], since a recycled node stays in the same composition owner. What
+         * [reset] does drop is the component's tracked reads within it; a component that observes
+         * snapshot state registers its reads again once the composition drives the node again.
          */
         internal var ownerObserver: SnapshotStateObserver? = null
 
@@ -238,12 +241,19 @@ internal class SwingNodeHolder<out T : Component>
             // (ReusableComposeNode / movableContent / ReusableContent) re-installs its listeners and
             // re-applies its modifier from a clean baseline on the next `update`.
             resetModifierState()
+            // Drop this component's tracked reads from the owner's shared observer, the same discipline
+            // applied to listeners: a node that left the composition, is parked or has been recycled must
+            // not be notified for state its previous content read. A snapshot-observing component (e.g.
+            // Canvas) registers its reads afresh the next time it paints, so an observing node that comes
+            // back reacts again to exactly what it reads then. The shared observer keeps running for every
+            // other node; it is disposed with the composition.
+            ownerObserver?.clear(component)
         }
 
         override fun onRelease() {
-            // reset() already detaches modifier-installed listeners and clears the diff state; here we
-            // additionally release the host slot and run the one-shot release block, since the node is
-            // leaving the composition for good.
+            // reset() already detaches modifier-installed listeners, clears the diff state and drops the
+            // component's tracked snapshot reads; here we additionally release the host slot and run the
+            // one-shot release block, since the node is leaving the composition for good.
             reset()
             // Release the host slot if this node is still installed through a dedicated setter.
             //
@@ -270,9 +280,10 @@ internal class SwingNodeHolder<out T : Component>
             // emitted via ReusableComposeNode whose group is reused across recompositions - e.g. a
             // ReusableContentHost reactivated after being parked, or structurally-identical content
             // replacing it in the same slot). The recycled holder must behave like a freshly created one
-            // for the incoming content: detach every modifier-installed listener and clear the diff
-            // state, so the upcoming `update` re-applies the new node's modifier chain from a clean
-            // baseline instead of inheriting the previous node's.
+            // for the incoming content: detach every modifier-installed listener, clear the diff state
+            // and drop the tracked snapshot reads, so the upcoming `update` re-applies the new node's
+            // modifier chain from a clean baseline and the new content is driven by what it reads itself
+            // rather than by what the previous content read.
             //
             // The component itself keeps its attachment: recycling changes what drives a component, not
             // where it lives. The applier is the sole authority on attachment, and it is not consulted
@@ -283,8 +294,9 @@ internal class SwingNodeHolder<out T : Component>
         }
 
         override fun onDeactivate() {
-            // The node moved into a deactivated (movableContent) holder. Detach listeners so it does
-            // not keep reacting while parked; a later activation re-runs `update` and re-attaches.
+            // The node moved into a deactivated (movableContent) holder. Detach listeners and drop the
+            // tracked snapshot reads so it does not keep reacting while parked; a later activation
+            // re-runs `update` and re-attaches, and an observing component re-registers on its next paint.
             //
             // A parked node keeps its place in the Swing tree, host slot included: parking suspends the
             // composition that drives a component, and the applier - which alone attaches and detaches -

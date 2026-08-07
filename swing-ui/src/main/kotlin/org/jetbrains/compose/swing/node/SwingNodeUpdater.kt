@@ -19,10 +19,9 @@ public value class SwingNodeUpdater<T : Component>
         @PublishedApi internal val updater: Updater<SwingNodeHolder<T>>,
     ) {
         /**
-         * Reactively applies [value] to the component. [block] runs (with the typed component as
-         * `this` and [value] as its argument) on the first composition and again only when [value]
-         * changes between recompositions, so it is the idiomatic way to push a single piece of
-         * composition state onto a Swing property.
+         * Reactively applies [value] to the component. [block] runs, with the typed component as
+         * `this` and [value] as its argument, on the first composition and again only when [value]
+         * changes between recompositions.
          *
          * Same semantics as [Updater.set].
          */
@@ -37,8 +36,7 @@ public value class SwingNodeUpdater<T : Component>
         /**
          * Reactively applies [value] to the component, but - unlike [set] - skips the very first
          * composition. Use it when the [factory][SwingNode] already initialized the component with
-         * [value] (e.g. a constructor argument), so the block only needs to run on subsequent
-         * changes.
+         * [value] (e.g. a constructor argument).
          *
          * Same semantics as [Updater.update].
          */
@@ -65,8 +63,18 @@ public value class SwingNodeUpdater<T : Component>
         /**
          * Hands the composition owner's shared [SnapshotStateObserver] - stamped onto this node's
          * holder by the applier at insert - to [block] with the typed component as `this`, so a
-         * snapshot-observing component (e.g. `Canvas`) can adopt it. Runs on every composition like
-         * [reconcile]; the observer is owner-stable, so re-running is idempotent.
+         * snapshot-observing component (e.g. `Canvas`) can adopt it.
+         *
+         * The observer is the same for the node's whole life, and is handed over before the applier
+         * attaches the component. [block] receives `null` only under an applier that owns no observer,
+         * such as a menu.
+         *
+         * A component that registers reads with the observer must do so with the component instance
+         * itself as the observation scope: the holder drops tracked reads by clearing that same scope
+         * when the node resets, so a different scope object - a model, a lambda holder - would leave
+         * the reads in place and the component still driven by an observer no longer meant to reach it.
+         *
+         * Runs on every composition like [reconcile].
          */
         internal fun ownerObserver(block: T.(SnapshotStateObserver?) -> Unit): Unit =
             updater.reconcile {
