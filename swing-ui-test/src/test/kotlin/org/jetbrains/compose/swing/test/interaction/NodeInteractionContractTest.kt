@@ -23,11 +23,10 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
- * Pins the resolution and assertion contracts of [SwingNodeInteraction] - including the failures.
- *
- * A harness assertion is only worth as much as its failure: it must fail when the tree does not match
- * the claim, and its message must name the query and describe the tree. These cases drive each
- * assertion into its failing state and check both, alongside the text-editing actions.
+ * Pins the resolution and assertion contracts of [SwingNodeInteraction], including the failures: an
+ * assertion must fail when the tree does not match its claim, and its message must name the query and
+ * describe the tree. These cases drive each assertion into its failing state and check both, alongside
+ * the text-editing actions.
  */
 class NodeInteractionContractTest {
     @Test
@@ -139,8 +138,8 @@ class NodeInteractionContractTest {
     fun aHiddenCardIsStillDisplayedAndOnlyTheVisibilityAssertionTellsThemApart() = runComposeSwingTest {
         setContent {
             CardPanel(selectedCard = "front") {
-                card("front") { Label(text = "front") }
-                card("back") { Label(text = "back") }
+                Label(text = "front", modifier = SwingModifier.card("front"))
+                Label(text = "back", modifier = SwingModifier.card("back"))
             }
         }
 

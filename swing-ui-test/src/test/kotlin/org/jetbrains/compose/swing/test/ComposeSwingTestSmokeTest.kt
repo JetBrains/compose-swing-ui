@@ -6,6 +6,7 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.BorderPanel
 import org.jetbrains.compose.swing.components.text.TextField
+import org.jetbrains.compose.swing.modifier.SwingModifier
 import java.awt.BorderLayout
 import javax.swing.JTextField
 import kotlin.test.Test
@@ -49,8 +50,8 @@ class ComposeSwingTestSmokeTest {
     fun bordersExposeConstraints() = runComposeSwingTest {
         setContent {
             BorderPanel {
-                north { Label(text = "N") }
-                center { Label(text = "C") }
+                Label(text = "N", modifier = SwingModifier.north())
+                Label(text = "C", modifier = SwingModifier.center())
             }
         }
 

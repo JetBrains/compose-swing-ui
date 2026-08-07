@@ -17,6 +17,7 @@ import javax.swing.event.InternalFrameAdapter
 import javax.swing.event.InternalFrameEvent
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -25,9 +26,10 @@ import kotlin.test.assertTrue
  * Behavioral tests for [DesktopPane] over a real
  * [SwingApplier][org.jetbrains.compose.swing.node.SwingApplier]. Each assertion reads the rendered
  * [JDesktopPane] and its [JInternalFrame] children: a declared frame is hosted with its title, bounds,
- * controls, and modifier; frames are added and removed dynamically; metadata updates on recomposition;
- * and the close control routes through `onClose` while leaving the frame in place until the composition
- * drops it.
+ * controls, and modifier; a frame is the only child the desktop takes and it takes as many of them as
+ * the composition declares; frames are added and removed dynamically and the frame standing on the
+ * desktop follows the declaration driving it; metadata updates on recomposition; and the close control
+ * routes through `onClose` while leaving the frame in place until the composition drops it.
  */
 class DesktopPaneBehaviorTest {
     /**
@@ -46,7 +48,7 @@ class DesktopPaneBehaviorTest {
     fun eachDeclaredFrameIsHostedWithItsTitleBoundsAndControls() = runComposeSwingTest {
         setContent {
             DesktopPane {
-                internalFrame(
+                InternalFrame(
                     title = "Editor",
                     bounds = Rectangle(10, 20, 300, 200),
                     controls = InternalFrameControls(closable = true, iconifiable = true),
@@ -72,13 +74,95 @@ class DesktopPaneBehaviorTest {
     }
 
     @Test
+    fun aChildThatIsNoFrameIsRefused() = runComposeSwingTest {
+        // A desktop holds frames, each of them placed by the bounds it was declared with; a component
+        // merely added to the desktop is placed by nothing at all and painted by nobody. It is refused
+        // as it arrives instead, rather than left for the first frame declared after it to be blamed for.
+        val failure =
+            assertFailsWith<IllegalStateException> {
+                setContent {
+                    DesktopPane {
+                        Label(text = "loose")
+                    }
+                }
+            }
+
+        val message = failure.message.orEmpty()
+        assertTrue(
+            "holds each child in one of its own regions" in message,
+            "the refusal should say the desktop places its children itself: $message",
+        )
+        assertTrue("JDesktopPane" in message, "the refusal should name the host: $message")
+        assertTrue("JLabel" in message, "the refusal should name the child that named no place: $message")
+        assertTrue(
+            "InternalFrame" in message,
+            "the refusal should name the call that would place the child: $message",
+        )
+    }
+
+    @Test
+    fun aDesktopHoldsEveryFrameDeclaredOnIt() = runComposeSwingTest {
+        // The frames of a desktop share one region of it rather than each claiming one of its own, so
+        // two frames declared alike are two frames rather than one taking the other's place.
+        setContent {
+            DesktopPane {
+                InternalFrame(title = "Notes", bounds = Rectangle(0, 0, 120, 90)) { Label(text = "first") }
+                InternalFrame(title = "Notes", bounds = Rectangle(20, 20, 120, 90)) { Label(text = "second") }
+            }
+        }
+
+        onAllNodesOfType<JInternalFrame>().assertCountEquals(2)
+        onNodeWithText("first").assertExists()
+        onNodeWithText("second").assertExists()
+    }
+
+    @Test
+    fun theFrameStandingOnTheDesktopFollowsTheDeclarationDrivingIt() = runComposeSwingTest {
+        var editing by mutableStateOf(false)
+        setContent {
+            // Which frame the desktop carries is decided at composition time, so every pass hands the
+            // desktop a different declaration: the frame that leaves is taken off the desktop and the
+            // one that arrives stands in its place, both within the one pass.
+            val editorShown = editing
+            DesktopPane {
+                if (editorShown) {
+                    InternalFrame(title = "Editor", bounds = Rectangle(0, 0, 200, 150)) {
+                        Label(text = "editor-body")
+                    }
+                } else {
+                    InternalFrame(title = "Viewer", bounds = Rectangle(0, 0, 200, 150)) {
+                        Label(text = "viewer-body")
+                    }
+                }
+            }
+        }
+
+        onAllNodesOfType<JInternalFrame>().assertCountEquals(1)
+        onNodeOfType<JInternalFrame>().assert(SwingMatcher.hasTitle("Viewer"))
+        onNodeWithText("viewer-body").assertExists()
+
+        editing = true
+        awaitIdle()
+        onAllNodesOfType<JInternalFrame>().assertCountEquals(1)
+        onNodeOfType<JInternalFrame>().assert(SwingMatcher.hasTitle("Editor"))
+        onNodeWithText("editor-body").assertExists()
+        onNodeWithText("viewer-body").assertDoesNotExist()
+
+        editing = false
+        awaitIdle()
+        onAllNodesOfType<JInternalFrame>().assertCountEquals(1)
+        onNodeOfType<JInternalFrame>().assert(SwingMatcher.hasTitle("Viewer"))
+        onNodeWithText("editor-body").assertDoesNotExist()
+    }
+
+    @Test
     fun framesAreAddedAndRemovedDynamically() = runComposeSwingTest {
         var showSecond by mutableStateOf(true)
         setContent {
             DesktopPane {
-                internalFrame(title = "One", bounds = Rectangle(0, 0, 100, 100)) { Label(text = "1") }
+                InternalFrame(title = "One", bounds = Rectangle(0, 0, 100, 100)) { Label(text = "1") }
                 if (showSecond) {
-                    internalFrame(title = "Two", bounds = Rectangle(0, 0, 100, 100)) { Label(text = "2") }
+                    InternalFrame(title = "Two", bounds = Rectangle(0, 0, 100, 100)) { Label(text = "2") }
                 }
             }
         }
@@ -102,7 +186,7 @@ class DesktopPaneBehaviorTest {
         var bounds by mutableStateOf(Rectangle(0, 0, 100, 100))
         setContent {
             DesktopPane {
-                internalFrame(
+                InternalFrame(
                     title = title,
                     bounds = bounds,
                     controls = InternalFrameControls(resizable = resizable),
@@ -140,7 +224,7 @@ class DesktopPaneBehaviorTest {
         setContent {
             DesktopPane {
                 if (show) {
-                    internalFrame(
+                    InternalFrame(
                         title = "Closable",
                         bounds = Rectangle(0, 0, 100, 100),
                         onClose = { closes++ },
@@ -175,7 +259,7 @@ class DesktopPaneBehaviorTest {
             }
         setContent {
             DesktopPane {
-                internalFrame(
+                InternalFrame(
                     title = "Listened",
                     bounds = Rectangle(0, 0, 100, 100),
                     internalFrameListener = listener,
@@ -197,7 +281,7 @@ class DesktopPaneBehaviorTest {
         var controls by mutableStateOf(InternalFrameControls())
         setContent {
             DesktopPane {
-                internalFrame(
+                InternalFrame(
                     title = "Editor",
                     bounds = Rectangle(0, 0, 100, 100),
                     controls = controls,
@@ -232,7 +316,7 @@ class DesktopPaneBehaviorTest {
         var tip by mutableStateOf<String?>("Edits the document")
         setContent {
             DesktopPane {
-                internalFrame(
+                InternalFrame(
                     title = "Editor",
                     bounds = Rectangle(0, 0, 100, 100),
                     modifier = tip?.let { SwingModifier.toolTip(it) } ?: SwingModifier,
@@ -264,7 +348,7 @@ class DesktopPaneBehaviorTest {
             }
         setContent {
             DesktopPane {
-                internalFrame(
+                InternalFrame(
                     title = "Listened",
                     bounds = Rectangle(0, 0, 100, 100),
                     internalFrameListener = listener,
@@ -296,7 +380,7 @@ class DesktopPaneBehaviorTest {
             // reporting the round it was born in, however often the declaration changes.
             val current = round
             DesktopPane {
-                internalFrame(
+                InternalFrame(
                     title = "Closable",
                     bounds = Rectangle(0, 0, 100, 100),
                     controls = InternalFrameControls(closable = true),
@@ -337,7 +421,7 @@ class DesktopPaneBehaviorTest {
             }
         setContent {
             DesktopPane {
-                internalFrame(
+                InternalFrame(
                     title = "Listened",
                     bounds = Rectangle(0, 0, 100, 100),
                     internalFrameListener = if (second) secondListener else firstListener,
@@ -369,7 +453,7 @@ class DesktopPaneBehaviorTest {
             // go on showing the children it started with.
             val bothChildren = second
             DesktopPane {
-                internalFrame(title = "Editor", bounds = Rectangle(0, 0, 200, 200)) {
+                InternalFrame(title = "Editor", bounds = Rectangle(0, 0, 200, 200)) {
                     Label(text = "first")
                     if (bothChildren) Label(text = "second")
                 }
@@ -403,7 +487,7 @@ class DesktopPaneBehaviorTest {
             // a different declaration each pass rather than one lambda that re-reads the state.
             val hasChild = show
             DesktopPane {
-                internalFrame(title = "Editor", bounds = Rectangle(0, 0, 200, 200)) {
+                InternalFrame(title = "Editor", bounds = Rectangle(0, 0, 200, 200)) {
                     if (hasChild) Label(text = "body")
                 }
             }
@@ -429,7 +513,7 @@ class DesktopPaneBehaviorTest {
         var tip by mutableStateOf<String?>("Workspace")
         setContent {
             DesktopPane(modifier = tip?.let { SwingModifier.toolTip(it) } ?: SwingModifier) {
-                internalFrame(title = "Frame", bounds = Rectangle(0, 0, 100, 100)) { Label(text = "body") }
+                InternalFrame(title = "Frame", bounds = Rectangle(0, 0, 100, 100)) { Label(text = "body") }
             }
         }
 
@@ -451,7 +535,7 @@ class DesktopPaneBehaviorTest {
         setContent {
             if (show) {
                 DesktopPane {
-                    internalFrame(title = "Frame", bounds = Rectangle(0, 0, 100, 100)) { Label(text = "body") }
+                    InternalFrame(title = "Frame", bounds = Rectangle(0, 0, 100, 100)) { Label(text = "body") }
                 }
             }
         }

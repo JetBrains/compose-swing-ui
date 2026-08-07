@@ -1,6 +1,7 @@
 package org.jetbrains.compose.swing.components.desktop
 
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
@@ -18,12 +19,14 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotSame
 import kotlin.test.assertSame
+import kotlin.test.assertTrue
 
 /**
  * What identifies a declared frame decides which realized `JInternalFrame` a later composition lands on,
- * and so whether a frame survives the removal of a frame declared before it. A frame is identified by the
- * [InternalFrameState] it was declared with, by the key it was given, and failing both by its position
- * among the declared frames.
+ * and so whether a frame survives the removal of a frame declared before it. A frame declared at a place
+ * of its own keeps its window whatever happens to the frames around it; frames declared from one place, as
+ * a loop over a list declares them, are told apart by the position they are declared in unless each is
+ * wrapped in a [key].
  *
  * The position a user drags a frame to is the frame's own and nothing declares it, so it is the sharpest
  * witness of whether a survivor is still the frame the user left behind: a survivor that lost its identity
@@ -32,16 +35,15 @@ import kotlin.test.assertSame
 class DesktopPaneFrameIdentityTest {
     @Test
     fun removingAKeyedFrameLeavesTheFramesDeclaredAfterItAsTheUserLeftThem() = runComposeSwingTest {
-        var showEditor by mutableStateOf(true)
+        var titles by mutableStateOf(listOf("Editor", "Console"))
         setContent {
             DesktopPane {
-                if (showEditor) {
-                    internalFrame(title = "Editor", bounds = Rectangle(0, 0, 100, 100), key = "editor") {
-                        Label(text = "editor")
+                titles.forEach { title ->
+                    key(title) {
+                        InternalFrame(title = title, bounds = Rectangle(10, 10, 120, 90)) {
+                            Label(text = title.lowercase())
+                        }
                     }
-                }
-                internalFrame(title = "Console", bounds = Rectangle(10, 10, 120, 90), key = "console") {
-                    Label(text = "console")
                 }
             }
         }
@@ -50,7 +52,7 @@ class DesktopPaneFrameIdentityTest {
             onNode(isOfType<JInternalFrame>() and hasAnyDescendant(hasText("console"))).fetch<JInternalFrame>()
         onNodeOfType<JDesktopPane>().fetch().dragFrameTo(console, DRAGGED_X, DRAGGED_Y)
 
-        showEditor = false
+        titles = listOf("Console")
         awaitIdle()
 
         onAllNodesOfType<JInternalFrame>().assertCountEquals(1)
@@ -66,15 +68,16 @@ class DesktopPaneFrameIdentityTest {
 
     @Test
     fun removingAStateDeclaredFrameLeavesTheFramesDeclaredAfterItAsTheUserLeftThem() = runComposeSwingTest {
-        var showEditor by mutableStateOf(true)
         val editor = InternalFrameState(Rectangle(0, 0, 100, 100))
         val console = InternalFrameState(Rectangle(10, 10, 120, 90))
+        var frames by mutableStateOf(listOf("Editor" to editor, "Console" to console))
         setContent {
             DesktopPane {
-                if (showEditor) {
-                    internalFrame(title = "Editor", state = editor) { Label(text = "editor") }
+                frames.forEach { (title, state) ->
+                    key(state) {
+                        InternalFrame(title = title, state = state) { Label(text = title.lowercase()) }
+                    }
                 }
-                internalFrame(title = "Console", state = console) { Label(text = "console") }
             }
         }
 
@@ -83,7 +86,7 @@ class DesktopPaneFrameIdentityTest {
         onNodeOfType<JDesktopPane>().fetch().dragFrameTo(consoleFrame, DRAGGED_X, DRAGGED_Y)
         awaitIdle()
 
-        showEditor = false
+        frames = listOf("Console" to console)
         awaitIdle()
 
         onAllNodesOfType<JInternalFrame>().assertCountEquals(1)
@@ -98,18 +101,16 @@ class DesktopPaneFrameIdentityTest {
     }
 
     @Test
-    fun aCallerKeyIsNeverTakenForThePositionOfAnUnkeyedFrame() = runComposeSwingTest {
-        // The unkeyed frame stands at position 0 and the keyed one names 0, so a shared key space would
-        // hand the survivor its predecessor's window.
+    fun aFrameDeclaredAtItsOwnPlaceKeepsItsWindowThroughTheRemovalOfAnother() = runComposeSwingTest {
+        // Each frame is declared at a place of its own, so neither needs a key of its own to be told
+        // apart: the composition holds the two declarations apart by where they stand.
         var showEditor by mutableStateOf(true)
         setContent {
             DesktopPane {
                 if (showEditor) {
-                    internalFrame(title = "Editor", bounds = Rectangle(0, 0, 100, 100)) { Label(text = "editor") }
+                    InternalFrame(title = "Editor", bounds = Rectangle(0, 0, 100, 100)) { Label(text = "editor") }
                 }
-                internalFrame(title = "Console", bounds = Rectangle(10, 10, 120, 90), key = 0) {
-                    Label(text = "console")
-                }
+                InternalFrame(title = "Console", bounds = Rectangle(10, 10, 120, 90)) { Label(text = "console") }
             }
         }
 
@@ -120,29 +121,73 @@ class DesktopPaneFrameIdentityTest {
         showEditor = false
         awaitIdle()
 
+        onAllNodesOfType<JInternalFrame>().assertCountEquals(1)
         assertSame(
             console,
-            onNode(isOfType<JInternalFrame>() and hasAnyDescendant(hasText("console"))).fetch<JInternalFrame>(),
-            "the keyed frame should keep its own window",
+            onNodeOfType<JInternalFrame>().fetch(),
+            "the frame declared on its own should keep its window",
         )
         assertEquals(
             Rectangle(DRAGGED_X, DRAGGED_Y, 120, 90),
             console.bounds,
-            "the keyed frame should stay where the user dragged it",
+            "the surviving frame should stay where the user dragged it",
         )
     }
 
     @Test
-    fun anUnkeyedPlainBoundsFrameIsIdentifiedByItsPosition() = runComposeSwingTest {
-        // The documented fallback: with nothing to identify them by, the frames declared after a removed
-        // one take over the windows of the frames they shift into.
-        var showEditor by mutableStateOf(true)
+    fun reorderingKeyedFramesReordersTheirStackingOrder() = runComposeSwingTest {
+        // Every frame is keyed, so a reordered declaration moves the frames that stand instead of
+        // rebuilding them, and the desktop's stacking order is what carries their order: the frame
+        // declared earlier paints above the ones declared after it, the same rule LayeredPane holds to.
+        var titles by mutableStateOf(listOf("Editor", "Console"))
         setContent {
             DesktopPane {
-                if (showEditor) {
-                    internalFrame(title = "Editor", bounds = Rectangle(0, 0, 100, 100)) { Label(text = "editor") }
+                titles.forEach { title ->
+                    key(title) {
+                        InternalFrame(title = title, bounds = Rectangle(10, 10, 120, 90)) {
+                            Label(text = title.lowercase())
+                        }
+                    }
                 }
-                internalFrame(title = "Console", bounds = Rectangle(10, 10, 120, 90)) { Label(text = "console") }
+            }
+        }
+
+        val desktop = onNodeOfType<JDesktopPane>().fetch()
+        val editor =
+            onNode(isOfType<JInternalFrame>() and hasAnyDescendant(hasText("editor"))).fetch<JInternalFrame>()
+        val console =
+            onNode(isOfType<JInternalFrame>() and hasAnyDescendant(hasText("console"))).fetch<JInternalFrame>()
+        assertTrue(
+            desktop.getIndexOf(editor) < desktop.getIndexOf(console),
+            "the frame declared first should stand ahead of the one declared after it",
+        )
+
+        titles = listOf("Console", "Editor")
+        awaitIdle()
+
+        assertSame(
+            editor,
+            onNode(isOfType<JInternalFrame>() and hasAnyDescendant(hasText("editor"))).fetch(),
+            "reordering the declaration should move a keyed frame, not rebuild it",
+        )
+        assertTrue(
+            desktop.getIndexOf(console) < desktop.getIndexOf(editor),
+            "reordering the declaration should reorder the frames' stacking position on the desktop",
+        )
+    }
+
+    @Test
+    fun unkeyedFramesDeclaredInOneLoopAreIdentifiedByTheirPosition() = runComposeSwingTest {
+        // The documented fallback: with nothing to identify them by, the frames declared after a removed
+        // one take over the windows of the frames they shift into.
+        var titles by mutableStateOf(listOf("Editor", "Console"))
+        setContent {
+            DesktopPane {
+                titles.forEach { title ->
+                    InternalFrame(title = title, bounds = Rectangle(10, 10, 120, 90)) {
+                        Label(text = title.lowercase())
+                    }
+                }
             }
         }
 
@@ -151,7 +196,7 @@ class DesktopPaneFrameIdentityTest {
         val console =
             onNode(isOfType<JInternalFrame>() and hasAnyDescendant(hasText("console"))).fetch<JInternalFrame>()
 
-        showEditor = false
+        titles = listOf("Console")
         awaitIdle()
 
         val survivor =

@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.BorderPanel
+import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.interaction.onChildAt
 import org.jetbrains.compose.swing.test.interaction.onChildren
 import org.jetbrains.compose.swing.test.interaction.onParent
@@ -14,10 +15,10 @@ import kotlin.test.Test
 import kotlin.test.assertSame
 
 /**
- * A [BorderPanel] whose NORTH slot is conditional, alongside stable CENTER and SOUTH slots. A slot
+ * A [BorderPanel] whose NORTH child is conditional, alongside stable CENTER and SOUTH children. A child
  * appearing or disappearing shifts the composition indices of its siblings, and the applier addresses
  * the AWT component array by that index, so a stable sibling has to come through the toggle as the
- * same component in the same region - both when the conditional slot arrives and when it leaves.
+ * same component in the same region - both when the conditional child arrives and when it leaves.
  */
 class ConditionalSlotToggleTest {
     private companion object {
@@ -32,10 +33,10 @@ class ConditionalSlotToggleTest {
         setContent {
             BorderPanel {
                 if (showNorth) {
-                    north { Label(text = NORTH_TEXT) }
+                    Label(text = NORTH_TEXT, modifier = SwingModifier.north())
                 }
-                center { Label(text = CENTER_TEXT) }
-                south { Label(text = SOUTH_TEXT) }
+                Label(text = CENTER_TEXT, modifier = SwingModifier.center())
+                Label(text = SOUTH_TEXT, modifier = SwingModifier.south())
             }
         }
 
@@ -73,10 +74,10 @@ class ConditionalSlotToggleTest {
         setContent {
             BorderPanel {
                 if (showNorth) {
-                    north { Label(text = NORTH_TEXT) }
+                    Label(text = NORTH_TEXT, modifier = SwingModifier.north())
                 }
-                center { Label(text = CENTER_TEXT) }
-                south { Label(text = SOUTH_TEXT) }
+                Label(text = CENTER_TEXT, modifier = SwingModifier.center())
+                Label(text = SOUTH_TEXT, modifier = SwingModifier.south())
             }
         }
 
@@ -94,7 +95,7 @@ class ConditionalSlotToggleTest {
         center.assertLayoutConstraint(BorderLayout.CENTER)
         south.assertLayoutConstraint(BorderLayout.SOUTH)
 
-        // The arriving slot takes its composition index in the panel's children, ahead of the
+        // The arriving child takes its composition index in the panel's children, ahead of the
         // siblings it was declared before, rather than being appended past them.
         val panel = north.onParent()
         panel.onChildren().assertCountEquals(3)

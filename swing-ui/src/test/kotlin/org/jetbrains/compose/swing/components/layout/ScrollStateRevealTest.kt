@@ -41,7 +41,7 @@ class ScrollStateRevealTest {
             val state = rememberScrollState()
             declared = state
             ScrollPane(modifier = SwingModifier.preferredSize(100, 50), state = state) {
-                content { Label("body", modifier = SwingModifier.preferredSize(300, 400)) }
+                Label("body", modifier = SwingModifier.preferredSize(300, 400).viewport())
             }
         }
         return declared ?: error("the scroll pane did not compose")
@@ -84,7 +84,7 @@ class ScrollStateRevealTest {
             val state = rememberScrollState(y = 200)
             declared = state
             ScrollPane(modifier = SwingModifier.preferredSize(100, 50), state = state) {
-                if (filled) content { Label("body", modifier = SwingModifier.preferredSize(300, 400)) }
+                if (filled) Label("body", modifier = SwingModifier.preferredSize(300, 400).viewport())
             }
         }
         val state = declared ?: error("the scroll pane did not compose")
@@ -109,7 +109,7 @@ class ScrollStateRevealTest {
                 onDispose {}
             }
             ScrollPane(modifier = SwingModifier.preferredSize(100, 50), state = state) {
-                content { Label("body", modifier = SwingModifier.preferredSize(300, 400)) }
+                Label("body", modifier = SwingModifier.preferredSize(300, 400).viewport())
             }
         }
         val state = declared ?: error("the scroll pane did not compose")

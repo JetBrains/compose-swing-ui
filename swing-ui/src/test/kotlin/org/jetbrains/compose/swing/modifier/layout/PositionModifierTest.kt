@@ -27,9 +27,7 @@ class PositionModifierTest {
     private fun ComposeSwingTest.positionedChild(modifier: SwingModifier): JLabel {
         setContent {
             LayeredPane {
-                layer(JLayeredPane.DEFAULT_LAYER) {
-                    Label(text = "child", modifier = modifier)
-                }
+                Label(text = "child", modifier = modifier.layer(JLayeredPane.DEFAULT_LAYER))
             }
         }
         return onNodeOfType<JLabel>().fetch()
@@ -94,13 +92,11 @@ class PositionModifierTest {
         var positioned by mutableStateOf(true)
         setContent {
             LayeredPane {
-                layer(JLayeredPane.DEFAULT_LAYER) {
-                    Label(
-                        text = "child",
-                        modifier =
-                            if (positioned) SwingModifier.location(120, 40) else SwingModifier,
-                    )
-                }
+                val onDefaultLayer = SwingModifier.layer(JLayeredPane.DEFAULT_LAYER)
+                Label(
+                    text = "child",
+                    modifier = if (positioned) onDefaultLayer.location(120, 40) else onDefaultLayer,
+                )
             }
         }
         val positionedComponent = onNodeOfType<JLabel>().fetch()
@@ -126,12 +122,10 @@ class PositionModifierTest {
         var shifted by mutableStateOf(true)
         setContent {
             LayeredPane {
-                layer(JLayeredPane.DEFAULT_LAYER) {
-                    Label(
-                        text = "child",
-                        modifier = SwingModifier.location(if (shifted) 120 else 60, 40),
-                    )
-                }
+                Label(
+                    text = "child",
+                    modifier = SwingModifier.layer(JLayeredPane.DEFAULT_LAYER).location(if (shifted) 120 else 60, 40),
+                )
             }
         }
         val label = onNodeOfType<JLabel>()

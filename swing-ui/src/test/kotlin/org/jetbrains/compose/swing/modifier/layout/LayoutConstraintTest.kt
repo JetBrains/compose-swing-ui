@@ -1,4 +1,4 @@
-package org.jetbrains.compose.swing
+package org.jetbrains.compose.swing.modifier.layout
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -7,12 +7,10 @@ import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.annotations.SwingComposable
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.BorderPanel
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
-import org.jetbrains.compose.swing.node.SwingConstraint
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.onChildAt
@@ -37,22 +35,19 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * Behavioral tests for [SwingConstraint], the placement a container declares for the children it
- * composes.
+ * Behavioral tests for [layoutConstraint], the placement a child declares for itself in its parent
+ * container.
  *
  * Every container here is built the way an application would build one - its own panel, its own
  * layout manager, nothing but the published API - and every assertion reads the live AWT tree: the
  * parent's layout manager and its component array, exactly what such an application sees.
  */
-class SwingConstraintTest {
+class LayoutConstraintTest {
     /** A container over a layout manager the library wraps, hosting free-form children. */
     @Composable
-    @SwingComposable
     private fun BorderContainer(
         modifier: SwingModifier = SwingModifier,
-        content:
-            @Composable @SwingComposable
-            () -> Unit,
+        content: @Composable () -> Unit,
     ) {
         SwingNode(
             factory = { JPanel(BorderLayout()) },
@@ -63,12 +58,9 @@ class SwingConstraintTest {
 
     /** A container whose manager takes no constraints at all. */
     @Composable
-    @SwingComposable
     private fun FlowContainer(
         modifier: SwingModifier = SwingModifier,
-        content:
-            @Composable @SwingComposable
-            () -> Unit,
+        content: @Composable () -> Unit,
     ) {
         SwingNode(
             factory = { JPanel(FlowLayout()) },
@@ -79,12 +71,9 @@ class SwingConstraintTest {
 
     /** A container whose manager accepts only its own constraint type. */
     @Composable
-    @SwingComposable
     private fun GridBagContainer(
         modifier: SwingModifier = SwingModifier,
-        content:
-            @Composable @SwingComposable
-            () -> Unit,
+        content: @Composable () -> Unit,
     ) {
         SwingNode(
             factory = { JPanel(GridBagLayout()) },
@@ -95,38 +84,27 @@ class SwingConstraintTest {
 
     /** A container whose manager reports every placement it is handed; see [RecordingLayout]. */
     @Composable
-    @SwingComposable
     private fun RecordingContainer(
         layout: RecordingLayout,
-        content:
-            @Composable @SwingComposable
-            () -> Unit,
+        content: @Composable () -> Unit,
     ) {
         SwingNode(factory = { JPanel(layout) }, content = content)
     }
 
     /**
      * A container over a constraint type and a layout manager of the caller's own, offering its
-     * placements as a receiver DSL. [MosaicScope.cell] is the whole of the placement API its callers
-     * see: the panel itself places every child it composes.
+     * placements through a scope. [MosaicScope.cell] is the whole of the placement API its callers
+     * see: a child names the cell it occupies on its own modifier.
      */
     @Composable
-    @SwingComposable
     private fun MosaicPanel(
         modifier: SwingModifier = SwingModifier,
-        block: MosaicScope.() -> Unit,
+        content: @Composable MosaicScope.() -> Unit,
     ) {
-        val scope = MosaicScopeImpl().apply(block)
         SwingNode(
             factory = { JPanel(MosaicLayout()) },
             update = { applyModifier(modifier) },
-            content = {
-                scope.cells.forEach { (cell, content) ->
-                    key(cell) {
-                        SwingConstraint(cell) { content() }
-                    }
-                }
-            },
+            content = { MosaicScopeImpl.content() },
         )
     }
 
@@ -134,8 +112,8 @@ class SwingConstraintTest {
     fun aContainerPlacesTheChildrenItComposesThroughItsOwnScope() = runComposeSwingTest {
         setContent {
             MosaicPanel {
-                cell(row = 0, column = 0) { Label("title") }
-                cell(row = 1, column = 0) { Label("body") }
+                Label("title", SwingModifier.cell(row = 0, column = 0))
+                Label("body", SwingModifier.cell(row = 1, column = 0))
             }
         }
 
@@ -151,7 +129,7 @@ class SwingConstraintTest {
         var row by mutableStateOf(0)
         setContent {
             MosaicPanel {
-                cell(row = row, column = 2) { Label("mover") }
+                Label("mover", SwingModifier.cell(row = row, column = 2))
             }
         }
         val mover = onNodeWithText("mover")
@@ -180,9 +158,9 @@ class SwingConstraintTest {
         var withSubtitle by mutableStateOf(false)
         setContent {
             MosaicPanel {
-                cell(row = 0, column = 0) { Label("title") }
-                if (withSubtitle) cell(row = 1, column = 0) { Label("subtitle") }
-                cell(row = 2, column = 0) { Label("body") }
+                Label("title", SwingModifier.cell(row = 0, column = 0))
+                if (withSubtitle) Label("subtitle", SwingModifier.cell(row = 1, column = 0))
+                Label("body", SwingModifier.cell(row = 2, column = 0))
             }
         }
         val panel = onNodeWithText("title").onParent()
@@ -202,30 +180,11 @@ class SwingConstraintTest {
     }
 
     @Test
-    fun onePlacementCoversEveryChildDeclaredUnderIt() = runComposeSwingTest {
-        setContent {
-            MosaicPanel {
-                cell(row = 0, column = 0) {
-                    Label("name")
-                    Label("value")
-                }
-            }
-        }
-
-        // A placement reaches every component its content emits, not just a first one, so a container
-        // is free to offer a declaration that covers a whole run of children.
-        val cell = MosaicCell(row = 0, column = 0)
-        val mosaic = managerPlacing<MosaicLayout>("name")
-        assertEquals(cell, mosaic.cellOf(onNodeWithText("name").fetch()), "name")
-        assertEquals(cell, mosaic.cellOf(onNodeWithText("value").fetch()), "value")
-    }
-
-    @Test
     fun aConstraintPlacesTheChildInItsRegion() = runComposeSwingTest {
         setContent {
             BorderContainer {
-                SwingConstraint(BorderLayout.NORTH) { Label("header") }
-                SwingConstraint(BorderLayout.CENTER) { Label("body") }
+                Label("header", SwingModifier.layoutConstraint(BorderLayout.NORTH))
+                Label("body", SwingModifier.layoutConstraint(BorderLayout.CENTER))
             }
         }
 
@@ -238,7 +197,7 @@ class SwingConstraintTest {
         var region by mutableStateOf(BorderLayout.NORTH)
         setContent {
             BorderContainer {
-                SwingConstraint(region) { Label("mover") }
+                Label("mover", SwingModifier.layoutConstraint(region))
             }
         }
         val mover = onNodeWithText("mover")
@@ -264,7 +223,7 @@ class SwingConstraintTest {
         var text by mutableStateOf("one")
         setContent {
             RecordingContainer(layout) {
-                SwingConstraint(region) { Label(text) }
+                Label(text, SwingModifier.layoutConstraint(region))
             }
         }
         assertEquals(listOf<Any?>(BorderLayout.NORTH), layout.registered, "attaching registers the child once")
@@ -290,15 +249,17 @@ class SwingConstraintTest {
     fun aChildMovingBetweenContainersIsPlacedByItsNewOne() = runComposeSwingTest {
         var inRegion by mutableStateOf(false)
         setContent {
-            // One child, composed either under a region of the enclosing BorderPanel or under a
-            // constraint an inner container declares. Movable content carries the same node between
-            // the two, so the child changes which container places it without being recreated.
-            val child = remember { movableContentOf { Label("mover") } }
+            // One child, composed either as a region of the enclosing BorderPanel or under a constraint
+            // it declares inside an inner container. Movable content carries the same node between the
+            // two, so the child changes which container places it without being recreated.
+            val child = remember { movableContentOf<SwingModifier> { modifier -> Label("mover", modifier) } }
             BorderPanel {
                 if (inRegion) {
-                    north { child() }
+                    child(SwingModifier.north())
                 } else {
-                    center { BorderContainer { SwingConstraint(BorderLayout.EAST) { child() } } }
+                    BorderContainer(modifier = SwingModifier.center()) {
+                        child(SwingModifier.layoutConstraint(BorderLayout.EAST))
+                    }
                 }
             }
         }
@@ -312,25 +273,39 @@ class SwingConstraintTest {
     }
 
     @Test
-    fun aChildOutsideAnyConstraintKeepsTheOneItsParentSlotProvides() = runComposeSwingTest {
+    fun aChainThatDeclaresNoConstraintLeavesTheChildPlacedByIndex() = runComposeSwingTest {
+        val layout = RecordingLayout()
+        var placed by mutableStateOf(true)
         setContent {
-            BorderPanel {
-                north { Label("top") }
-                center { Label("middle") }
+            RecordingContainer(layout) {
+                Label("free", if (placed) SwingModifier.layoutConstraint(BorderLayout.NORTH) else SwingModifier)
             }
         }
+        assertEquals(listOf<Any?>(BorderLayout.NORTH), layout.registered, "the declared placement is registered")
 
-        onNodeWithText("top").assertLayoutConstraint(BorderLayout.NORTH)
-        onNodeWithText("middle").assertLayoutConstraint(BorderLayout.CENTER)
+        placed = false
+        awaitIdle()
+
+        // A child that gives its constraint up is registered under none, which is what places it by
+        // index alone.
+        assertEquals(
+            listOf<Any?>(BorderLayout.NORTH, null),
+            layout.registered,
+            "giving up the constraint re-registers the child under none",
+        )
+        assertEquals(1, layout.unregistered, "the placement it gave up is cleared once")
     }
 
     @Test
-    fun theInnermostConstraintPlacesTheChild() = runComposeSwingTest {
+    fun theLastConstraintDeclaredInAChainPlacesTheChild() = runComposeSwingTest {
         setContent {
-            BorderPanel {
-                center {
-                    SwingConstraint(BorderLayout.SOUTH) { Label("moved") }
-                }
+            BorderContainer {
+                Label(
+                    "moved",
+                    SwingModifier
+                        .layoutConstraint(BorderLayout.CENTER)
+                        .layoutConstraint(BorderLayout.SOUTH),
+                )
             }
         }
 
@@ -345,12 +320,10 @@ class SwingConstraintTest {
     fun aNestedContainerKeepsTheConstraintForItselfAndNotItsChildren() = runComposeSwingTest {
         setContent {
             BorderContainer {
-                SwingConstraint(BorderLayout.WEST) {
-                    // A GridBagLayout rejects a BorderLayout region string, so this composes at all
-                    // only because the inner container consumes the constraint for its own placement.
-                    GridBagContainer {
-                        Label("inner")
-                    }
+                // A GridBagLayout rejects a BorderLayout region string, so this composes at all only
+                // because the region string places the inner container itself and reaches no child of it.
+                GridBagContainer(modifier = SwingModifier.layoutConstraint(BorderLayout.WEST)) {
+                    Label("inner")
                 }
             }
         }
@@ -368,8 +341,8 @@ class SwingConstraintTest {
         var present by mutableStateOf(true)
         setContent {
             BorderContainer {
-                SwingConstraint(BorderLayout.NORTH) { Label("stays") }
-                if (present) SwingConstraint(BorderLayout.SOUTH) { Label("goes") }
+                Label("stays", SwingModifier.layoutConstraint(BorderLayout.NORTH))
+                if (present) Label("goes", SwingModifier.layoutConstraint(BorderLayout.SOUTH))
             }
         }
         val stays = onNodeWithText("stays")
@@ -395,7 +368,7 @@ class SwingConstraintTest {
                 order.forEach { text ->
                     key(text) {
                         val region = if (text == "first") BorderLayout.WEST else BorderLayout.EAST
-                        SwingConstraint(region) { Label(text) }
+                        Label(text, SwingModifier.layoutConstraint(region))
                     }
                 }
             }
@@ -419,7 +392,7 @@ class SwingConstraintTest {
         // `flowPanel.add(child, MosaicCell(...))` does in plain Swing.
         setContent {
             FlowContainer {
-                SwingConstraint(MosaicCell(row = 1, column = 1)) { Label("free") }
+                Label("free", SwingModifier.layoutConstraint(MosaicCell(row = 1, column = 1)))
             }
         }
 
@@ -434,7 +407,7 @@ class SwingConstraintTest {
             assertFailsWith<IllegalArgumentException> {
                 setContent {
                     GridBagContainer {
-                        SwingConstraint(BorderLayout.CENTER) { Label("wrong") }
+                        Label("wrong", SwingModifier.layoutConstraint(BorderLayout.CENTER))
                     }
                 }
             }
@@ -453,26 +426,21 @@ class SwingConstraintTest {
     private inline fun <reified L : LayoutManager> ComposeSwingTest.managerPlacing(text: String): L =
         onNodeWithText(text).onParent().fetch<Container>().layout as L
 
-    /** The placements [MosaicPanel] offers its callers. */
+    /** The placements [MosaicPanel] offers the children it composes. */
     private interface MosaicScope {
-        fun cell(
+        /** Places the child in the mosaic cell at [row] and [column]. */
+        fun SwingModifier.cell(
             row: Int,
             column: Int,
-            content: @Composable () -> Unit,
-        )
+        ): SwingModifier
     }
 
-    /** Collects one composition's cell declarations, in declaration order. */
-    private class MosaicScopeImpl : MosaicScope {
-        val cells: MutableMap<MosaicCell, @Composable () -> Unit> = LinkedHashMap()
-
-        override fun cell(
+    /** The [MosaicScope] every [MosaicPanel] hands its content. It holds nothing of its own. */
+    private object MosaicScopeImpl : MosaicScope {
+        override fun SwingModifier.cell(
             row: Int,
             column: Int,
-            content: @Composable () -> Unit,
-        ) {
-            cells[MosaicCell(row, column)] = content
-        }
+        ): SwingModifier = layoutConstraint(MosaicCell(row, column))
     }
 
     /** A constraint type only a caller's own layout manager would understand. */

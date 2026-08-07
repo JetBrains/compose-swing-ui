@@ -24,7 +24,7 @@ import kotlin.test.assertTrue
 /**
  * How a [ScrollPane] scrolls its content - the pixels an arrow button and a page move it by, and whether
  * the content takes the viewport's width or height in place of its preferred one - is the content's to
- * declare through [ScrollPaneScope.content].
+ * declare through [ScrollPaneScope.viewport].
  *
  * A declared answer is what the viewport is told, and an undeclared one is the answer a scroll pane
  * gives a view that answers nothing itself. Content that declares none of them is the viewport's view
@@ -39,14 +39,16 @@ class ScrollPaneScrollBehaviorTest {
         var unitIncrement by mutableStateOf(FIRST_UNIT_INCREMENT)
         setContent {
             ScrollPane(modifier = SwingModifier.preferredSize(PANE_WIDTH, PANE_HEIGHT)) {
-                content(
-                    unitIncrement = unitIncrement,
-                    blockIncrement = BLOCK_INCREMENT,
-                    tracksViewportWidth = true,
-                    tracksViewportHeight = true,
-                ) {
-                    Label(text = "Body", modifier = SwingModifier.preferredSize(CONTENT_SHORT_SIDE, CONTENT_LONG_SIDE))
-                }
+                Label(
+                    text = "Body",
+                    modifier =
+                        SwingModifier.preferredSize(CONTENT_SHORT_SIDE, CONTENT_LONG_SIDE).viewport(
+                            unitIncrement = unitIncrement,
+                            blockIncrement = BLOCK_INCREMENT,
+                            tracksViewportWidth = true,
+                            tracksViewportHeight = true,
+                        ),
+                )
             }
         }
 
@@ -84,9 +86,13 @@ class ScrollPaneScrollBehaviorTest {
     fun anUndeclaredAnswerIsTheOneTheScrollPaneGivesOfItsOwn() = runComposeSwingTest {
         setContent {
             ScrollPane(modifier = SwingModifier.preferredSize(PANE_WIDTH, PANE_HEIGHT)) {
-                content(unitIncrement = FIRST_UNIT_INCREMENT) {
-                    Label(text = "Body", modifier = SwingModifier.preferredSize(CONTENT_SHORT_SIDE, CONTENT_LONG_SIDE))
-                }
+                Label(
+                    text = "Body",
+                    modifier =
+                        SwingModifier
+                            .preferredSize(CONTENT_SHORT_SIDE, CONTENT_LONG_SIDE)
+                            .viewport(unitIncrement = FIRST_UNIT_INCREMENT),
+                )
             }
         }
 
@@ -115,7 +121,7 @@ class ScrollPaneScrollBehaviorTest {
     fun contentThatDeclaresNoAnswerIsTheViewportsViewItself() = runComposeSwingTest {
         setContent {
             ScrollPane(modifier = SwingModifier.preferredSize(PANE_WIDTH, PANE_HEIGHT)) {
-                content { TextArea(value = "line\n".repeat(LINE_COUNT)) }
+                TextArea(value = "line\n".repeat(LINE_COUNT), modifier = SwingModifier.viewport())
             }
         }
 
@@ -130,12 +136,55 @@ class ScrollPaneScrollBehaviorTest {
     }
 
     @Test
+    fun contentThatStartsOrStopsDeclaringAnAnswerIsRehostedWithoutLosingItsPlaceInTheViewport() = runComposeSwingTest {
+        var unitIncrement by mutableStateOf<Int?>(null)
+        setContent {
+            ScrollPane(modifier = SwingModifier.preferredSize(PANE_WIDTH, PANE_HEIGHT)) {
+                TextArea(
+                    value = "line\n".repeat(LINE_COUNT),
+                    modifier = SwingModifier.viewport(unitIncrement = unitIncrement),
+                )
+            }
+        }
+
+        val pane = onNodeOfType<JScrollPane>().fetch()
+        val area = onNodeOfType<JTextArea>().fetch()
+        assertSame(area, pane.viewport.view, "content declaring no answer starts as the viewport's own view")
+
+        unitIncrement = FIRST_UNIT_INCREMENT
+        awaitIdle()
+
+        assertSame(
+            area,
+            onNodeOfType<JTextArea>().fetch(),
+            "the content is rehosted, not rebuilt, when it starts declaring an answer",
+        )
+        val body = assertIs<ScrollableBody>(pane.viewport.view, "declaring an answer hosts the content in a body")
+        assertSame(body, area.parent, "the content sits under the body that now answers the viewport for it")
+
+        unitIncrement = null
+        awaitIdle()
+
+        assertSame(
+            area,
+            pane.viewport.view,
+            "dropping the last declared answer returns the content to being the viewport's own view",
+        )
+        assertSame(
+            area,
+            onNodeOfType<JTextArea>().fetch(),
+            "the content survives dropping its last declared answer too",
+        )
+    }
+
+    @Test
     fun declaringNoTrackingIsTheSameAsDeclaringNothing() = runComposeSwingTest {
         setContent {
             ScrollPane(modifier = SwingModifier.preferredSize(PANE_WIDTH, PANE_HEIGHT)) {
-                content(tracksViewportWidth = false, tracksViewportHeight = false) {
-                    TextArea(value = "line\n".repeat(LINE_COUNT))
-                }
+                TextArea(
+                    value = "line\n".repeat(LINE_COUNT),
+                    modifier = SwingModifier.viewport(tracksViewportWidth = false, tracksViewportHeight = false),
+                )
             }
         }
 
@@ -154,9 +203,13 @@ class ScrollPaneScrollBehaviorTest {
         var tracks by mutableStateOf<Boolean?>(null)
         setContent {
             ScrollPane(modifier = SwingModifier.preferredSize(PANE_WIDTH, PANE_HEIGHT)) {
-                content(unitIncrement = FIRST_UNIT_INCREMENT, tracksViewportWidth = tracks) {
-                    Label(text = "Body", modifier = SwingModifier.preferredSize(CONTENT_SHORT_SIDE, CONTENT_LONG_SIDE))
-                }
+                Label(
+                    text = "Body",
+                    modifier =
+                        SwingModifier
+                            .preferredSize(CONTENT_SHORT_SIDE, CONTENT_LONG_SIDE)
+                            .viewport(unitIncrement = FIRST_UNIT_INCREMENT, tracksViewportWidth = tracks),
+                )
             }
         }
 
@@ -186,9 +239,13 @@ class ScrollPaneScrollBehaviorTest {
         var tracks by mutableStateOf<Boolean?>(null)
         setContent {
             ScrollPane(modifier = SwingModifier.preferredSize(PANE_WIDTH, PANE_HEIGHT)) {
-                content(unitIncrement = FIRST_UNIT_INCREMENT, tracksViewportHeight = tracks) {
-                    Label(text = "Body", modifier = SwingModifier.preferredSize(CONTENT_LONG_SIDE, CONTENT_SHORT_SIDE))
-                }
+                Label(
+                    text = "Body",
+                    modifier =
+                        SwingModifier
+                            .preferredSize(CONTENT_LONG_SIDE, CONTENT_SHORT_SIDE)
+                            .viewport(unitIncrement = FIRST_UNIT_INCREMENT, tracksViewportHeight = tracks),
+                )
             }
         }
 

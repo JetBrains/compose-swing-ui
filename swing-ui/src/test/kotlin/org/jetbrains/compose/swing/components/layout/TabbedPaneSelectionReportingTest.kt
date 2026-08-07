@@ -8,6 +8,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.listener.changeListener
 import org.jetbrains.compose.swing.node.SwingNode
@@ -45,9 +46,9 @@ class TabbedPaneSelectionReportingTest {
         val reported = mutableListOf<Int>()
         setContent {
             TabbedPane(selectedIndex = 2, onSelectedIndexChange = { reported += it }) {
-                tab("One") { Label("1") }
-                tab("Two") { Label("2") }
-                tab("Three") { Label("3") }
+                Label("1", SwingModifier.tab("One"))
+                Label("2", SwingModifier.tab("Two"))
+                Label("3", SwingModifier.tab("Three"))
             }
         }
 
@@ -61,9 +62,9 @@ class TabbedPaneSelectionReportingTest {
         var selected by mutableIntStateOf(0)
         setContent {
             TabbedPane(selectedIndex = selected, onSelectedIndexChange = { reported += it }) {
-                tab("One") { Label("1") }
-                tab("Two") { Label("2") }
-                tab("Three") { Label("3") }
+                Label("1", SwingModifier.tab("One"))
+                Label("2", SwingModifier.tab("Two"))
+                Label("3", SwingModifier.tab("Three"))
             }
         }
 
@@ -81,9 +82,9 @@ class TabbedPaneSelectionReportingTest {
     fun aSelectionTheCallerDoesNotAdoptDoesNotStand() = runComposeSwingTest {
         setContent {
             TabbedPane(selectedIndex = 0, modifier = roomForTheStrip, onSelectedIndexChange = {}) {
-                tab("One") { Label("1") }
-                tab("Two") { Label("2") }
-                tab("Three") { Label("3") }
+                Label("1", SwingModifier.tab("One"))
+                Label("2", SwingModifier.tab("Two"))
+                Label("3", SwingModifier.tab("Three"))
             }
         }
 
@@ -107,9 +108,9 @@ class TabbedPaneSelectionReportingTest {
             // pass that grows the strip: the pane both takes on a tab and is written to on its own
             // account, and neither is something the user did.
             TabbedPane(selectedIndex = if (leading) 2 else 1, onSelectedIndexChange = { reported += it }) {
-                if (leading) tab("Added") { Label("added") }
-                tab("One") { Label("1") }
-                tab("Two") { Label("2") }
+                if (leading) Label("added", SwingModifier.tab("Added"))
+                Label("1", SwingModifier.tab("One"))
+                Label("2", SwingModifier.tab("Two"))
             }
         }
 
@@ -127,6 +128,39 @@ class TabbedPaneSelectionReportingTest {
     }
 
     @Test
+    fun aTabArrivingFromContentOnlyStateIsSelectedByTheStandingDeclarationAndReportsNothing() = runComposeSwingTest {
+        val reported = mutableListOf<Int>()
+        var showThird by mutableStateOf(false)
+        setContent {
+            // The declared selection names the third tab throughout - only the content lambda reads
+            // showThird - so nothing about the declaration itself moves when that tab arrives. Settling
+            // on it has to be driven by the strip growing alone, with no change in selectedIndex or the
+            // mirror to also trigger it.
+            TabbedPane(selectedIndex = 2, onSelectedIndexChange = { reported += it }) {
+                Label("1", SwingModifier.tab("One"))
+                Label("2", SwingModifier.tab("Two"))
+                if (showThird) Label("3", SwingModifier.tab("Three"))
+            }
+        }
+
+        reported.clear()
+        showThird = true
+        awaitIdle()
+        val pane = onNodeOfType<JTabbedPane>().fetch()
+        assertEquals(3, pane.tabCount, "the added tab should join the strip")
+        assertEquals(
+            2,
+            pane.selectedIndex,
+            "the pane should land on the tab the standing declaration names, once that tab exists",
+        )
+        assertEquals(
+            emptyList(),
+            reported,
+            "the declaration taking effect as soon as its tab arrives is not an interaction",
+        )
+    }
+
+    @Test
     fun droppingTheDeclaredSelectedTabReportsTheTabTheStripIsLeftOn() = runComposeSwingTest {
         val reported = mutableListOf<Int>()
         var showThird by mutableStateOf(true)
@@ -136,9 +170,9 @@ class TabbedPaneSelectionReportingTest {
             // declaration naming no tab of the strip at all: the pane falls back on a neighbor, and the
             // tab it is left on is one the composition never asked for.
             TabbedPane(selectedIndex = 2, onSelectedIndexChange = { reported += it }) {
-                tab(firstTitle) { Label("1") }
-                tab("Two") { Label("2") }
-                if (showThird) tab("Three") { Label("3") }
+                Label("1", SwingModifier.tab(firstTitle))
+                Label("2", SwingModifier.tab("Two"))
+                if (showThird) Label("3", SwingModifier.tab("Three"))
             }
         }
 
@@ -167,8 +201,8 @@ class TabbedPaneSelectionReportingTest {
             // behind: it names no tab, so the pane keeps the one it selected for itself and the caller is
             // told which.
             TabbedPane(selectedIndex = 5, onSelectedIndexChange = { reported += it }) {
-                tab("One") { Label("1") }
-                tab("Two") { Label("2") }
+                Label("1", SwingModifier.tab("One"))
+                Label("2", SwingModifier.tab("Two"))
             }
         }
 
@@ -186,8 +220,8 @@ class TabbedPaneSelectionReportingTest {
             assertFailsWith<IllegalArgumentException> {
                 setContent {
                     TabbedPane(selectedIndex = -2) {
-                        tab("One") { Label("1") }
-                        tab("Two") { Label("2") }
+                        Label("1", SwingModifier.tab("One"))
+                        Label("2", SwingModifier.tab("Two"))
                     }
                 }
                 awaitIdle()
@@ -203,14 +237,25 @@ class TabbedPaneSelectionReportingTest {
     }
 
     @Test
+    fun anIndexBelowNoSelectionIsRejectedEvenOnAPaneWhoseStripNeverChanges() = runComposeSwingTest {
+        // No tab ever joins this strip, so nothing here ever moves the declaration, the mirror or the
+        // page count - the rejection has to come from the declaration itself, not from a settle it would
+        // otherwise never trigger.
+        assertFailsWith<IllegalArgumentException> {
+            setContent { TabbedPane(selectedIndex = -2) {} }
+            awaitIdle()
+        }
+    }
+
+    @Test
     fun removingTheSelectedTabReportsNothing() = runComposeSwingTest {
         val reported = mutableListOf<Int>()
         var showThird by mutableStateOf(true)
         setContent {
             TabbedPane(selectedIndex = if (showThird) 2 else 1, onSelectedIndexChange = { reported += it }) {
-                tab("One") { Label("1") }
-                tab("Two") { Label("2") }
-                if (showThird) tab("Three") { Label("3") }
+                Label("1", SwingModifier.tab("One"))
+                Label("2", SwingModifier.tab("Two"))
+                if (showThird) Label("3", SwingModifier.tab("Three"))
             }
         }
 
@@ -228,9 +273,9 @@ class TabbedPaneSelectionReportingTest {
         var firstTitle by mutableStateOf("One")
         setContent {
             TabbedPane(selectedIndex = 2, modifier = roomForTheStrip, onSelectedIndexChange = { reported += it }) {
-                tab(firstTitle) { Label("1") }
-                tab("Two") { Label("2") }
-                if (showThird) tab("Three") { Label("3") }
+                Label("1", SwingModifier.tab(firstTitle))
+                Label("2", SwingModifier.tab("Two"))
+                if (showThird) Label("3", SwingModifier.tab("Three"))
             }
         }
 
@@ -260,9 +305,9 @@ class TabbedPaneSelectionReportingTest {
                 modifier = roomForTheStrip,
                 onSelectedIndexChange = { reported += it },
             ) {
-                tab("One") { Label("1") }
-                tab("Two") { Label("2") }
-                if (showThird) tab("Three") { Label("3") }
+                Label("1", SwingModifier.tab("One"))
+                Label("2", SwingModifier.tab("Two"))
+                if (showThird) Label("3", SwingModifier.tab("Three"))
             }
         }
 
@@ -289,8 +334,8 @@ class TabbedPaneSelectionReportingTest {
         val reported = mutableListOf<Int>()
         setContent {
             TabbedPane(selectedIndex = -1, onSelectedIndexChange = { reported += it }) {
-                tab("One") { Label("1") }
-                tab("Two") { Label("2") }
+                Label("1", SwingModifier.tab("One"))
+                Label("2", SwingModifier.tab("Two"))
             }
         }
 
@@ -308,8 +353,8 @@ class TabbedPaneSelectionReportingTest {
         var selected by mutableIntStateOf(1)
         setContent {
             TabbedPane(selectedIndex = selected, onSelectedIndexChange = { reported += it }) {
-                tab("One") { Label("1") }
-                tab("Two") { Label("2") }
+                Label("1", SwingModifier.tab("One"))
+                Label("2", SwingModifier.tab("Two"))
             }
         }
 
@@ -329,8 +374,8 @@ class TabbedPaneSelectionReportingTest {
         val reported = mutableListOf<Int>()
         setContent {
             TabbedPane(selectedIndex = -1, modifier = roomForTheStrip, onSelectedIndexChange = { reported += it }) {
-                tab("One") { Label("1") }
-                tab("Two") { Label("2") }
+                Label("1", SwingModifier.tab("One"))
+                Label("2", SwingModifier.tab("Two"))
             }
         }
 
@@ -355,8 +400,8 @@ class TabbedPaneSelectionReportingTest {
         var enabled by mutableStateOf(true)
         setContent {
             TabbedPane(selectedIndex = 1, onSelectedIndexChange = { reported += it }) {
-                tab("One") { Label("1") }
-                tab("Two", enabled = enabled) { Label("2") }
+                Label("1", SwingModifier.tab("One"))
+                Label("2", SwingModifier.tab("Two", enabled = enabled))
             }
         }
 
@@ -376,9 +421,9 @@ class TabbedPaneSelectionReportingTest {
         val reported = mutableListOf<Int>()
         setContent {
             TabbedPane(selectedIndex = 0, modifier = roomForTheStrip, onSelectedIndexChange = { reported += it }) {
-                tab("One") { Label("1") }
-                tab("Two") { Label("2") }
-                tab("Three") { Label("3") }
+                Label("1", SwingModifier.tab("One"))
+                Label("2", SwingModifier.tab("Two"))
+                Label("3", SwingModifier.tab("Three"))
             }
         }
 
@@ -399,9 +444,9 @@ class TabbedPaneSelectionReportingTest {
                 modifier = roomForTheStrip,
                 onSelectedIndexChange = { reported += it },
             ) {
-                tab("One") { Label("1") }
-                tab("Two") { Label("2") }
-                tab("Three") { Label("3") }
+                Label("1", SwingModifier.tab("One"))
+                Label("2", SwingModifier.tab("Two"))
+                Label("3", SwingModifier.tab("Three"))
             }
         }
 
@@ -426,9 +471,9 @@ class TabbedPaneSelectionReportingTest {
             TabbedPane(selectedIndex = 0, onSelectedIndexChange = { reported += it }) {
                 // The title carries the revision, so the pane itself recomposes in the same pass as the
                 // side effect above.
-                tab("One $declaredRevision") { Label("1") }
-                tab("Two") { Label("2") }
-                tab("Three") { Label("3") }
+                Label("1", SwingModifier.tab("One $declaredRevision"))
+                Label("2", SwingModifier.tab("Two"))
+                Label("3", SwingModifier.tab("Three"))
             }
         }
 
@@ -451,13 +496,14 @@ class TabbedPaneSelectionReportingTest {
             // the pass that re-settles the selection.
             val failing = failApply
             TabbedPane(selectedIndex = 0, modifier = roomForTheStrip, onSelectedIndexChange = { reported += it }) {
-                tab("One") {
-                    SwingNode(
-                        factory = { JPanel() },
-                        update = { set(failing) { if (it) error("the apply of this node fails") } },
-                    )
-                }
-                tab("Two") { Label("2") }
+                SwingNode(
+                    factory = { JPanel() },
+                    update = {
+                        set(failing) { if (it) error("the apply of this node fails") }
+                        applyModifier(SwingModifier.tab("One"))
+                    },
+                )
+                Label("2", SwingModifier.tab("Two"))
             }
         }
 
@@ -487,8 +533,8 @@ class TabbedPaneSelectionReportingTest {
                 modifier = roomForTheStrip.changeListener(failing),
                 onSelectedIndexChange = { reported += it },
             ) {
-                tab("One") { Label("1") }
-                tab("Two") { Label("2") }
+                Label("1", SwingModifier.tab("One"))
+                Label("2", SwingModifier.tab("Two"))
             }
         }
 
@@ -516,9 +562,9 @@ class TabbedPaneSelectionReportingTest {
                     ChangeListener { if (failing) error("the fallback report fails") }
                 }
             TabbedPane(selectedIndex = selected, changeListener = listener) {
-                tab("One") { Label("1") }
-                tab("Two") { Label("2") }
-                if (showThird) tab("Three") { Label("3") }
+                Label("1", SwingModifier.tab("One"))
+                Label("2", SwingModifier.tab("Two"))
+                if (showThird) Label("3", SwingModifier.tab("Three"))
             }
         }
 
@@ -551,9 +597,9 @@ class TabbedPaneSelectionReportingTest {
             val listener =
                 remember { ChangeListener { event -> reported += (event.source as JTabbedPane).selectedIndex } }
             TabbedPane(selectedIndex = selected, modifier = roomForTheStrip, changeListener = listener) {
-                tab("One") { Label("1") }
-                tab("Two") { Label("2") }
-                tab("Three") { Label("3") }
+                Label("1", SwingModifier.tab("One"))
+                Label("2", SwingModifier.tab("Two"))
+                Label("3", SwingModifier.tab("Three"))
             }
         }
 

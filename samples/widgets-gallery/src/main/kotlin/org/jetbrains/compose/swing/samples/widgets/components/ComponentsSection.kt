@@ -41,9 +41,8 @@ import javax.swing.SwingConstants
 // The slot a cell keeps for its leading glyph, so a name starts in the same place in every row.
 private const val GLYPH_SLOT = 28
 
-// The leaf input/display components, each wired to remember { mutableStateOf(...) } so the rendered
-// value and the live state stay in lock-step. PasswordField exposes its value as a CharArray, so the
-// strength echo is derived from the array length without ever interning the cleartext into a String.
+// PasswordField exposes its value as a CharArray, so the strength echo below is derived from the
+// array length without ever interning the cleartext into a String.
 @Composable
 internal fun ComponentsSection() {
     SectionColumn {
@@ -123,18 +122,17 @@ private fun ColumnScope.TextAreaOptionsCard() {
             Spinner(tabSize, onValueChange = { tabSize = it.toInt() }, min = 1, max = 16, step = 1)
         }
         ScrollPane(modifier = SwingModifier.preferredSize(Dimension(360, 100))) {
-            content {
-                TextArea(
-                    value = notes,
-                    onValueChange = { notes = it },
-                    rows = 4,
-                    columns = 40,
-                    editable = editable,
-                    lineWrap = lineWrap,
-                    wrapStyleWord = wrapStyleWord,
-                    tabSize = tabSize,
-                )
-            }
+            TextArea(
+                value = notes,
+                onValueChange = { notes = it },
+                modifier = SwingModifier.viewport(),
+                rows = 4,
+                columns = 40,
+                editable = editable,
+                lineWrap = lineWrap,
+                wrapStyleWord = wrapStyleWord,
+                tabSize = tabSize,
+            )
         }
     }
 }
@@ -182,11 +180,13 @@ private fun ColumnScope.ToggleCard() {
         )
         Label("Feature is ${if (checked) "on" else "off"}")
 
+        // Not in a ButtonGroup, so clicking the selected option clears it: onSelectedChange must read
+        // the Boolean it reports, or the click that clears the button re-selects it instead.
         var choice by remember { mutableIntStateOf(0) }
         FlowPanel {
-            RadioButton(text = "Low", selected = choice == 0, onSelectedChange = { choice = 0 })
-            RadioButton(text = "Medium", selected = choice == 1, onSelectedChange = { choice = 1 })
-            RadioButton(text = "High", selected = choice == 2, onSelectedChange = { choice = 2 })
+            RadioButton(text = "Low", selected = choice == 0, onSelectedChange = { if (it) choice = 0 })
+            RadioButton(text = "Medium", selected = choice == 1, onSelectedChange = { if (it) choice = 1 })
+            RadioButton(text = "High", selected = choice == 2, onSelectedChange = { if (it) choice = 2 })
         }
         Label("Priority index: $choice")
     }
@@ -195,8 +195,7 @@ private fun ColumnScope.ToggleCard() {
 @Composable
 private fun ColumnScope.ChoiceCard() {
     ExampleCard("ComboBox") {
-        // Each option carries a glyph and a name; itemContent renders an arbitrary composable cell
-        // (a glyph label plus a name label) rather than the item's toString.
+        // Each option carries a glyph and a name, rendered here as a glyph label plus a name label.
         val options =
             listOf(
                 Language(Color(0x7F, 0x52, 0xFF), "Kotlin"),
@@ -229,23 +228,20 @@ private fun ColumnScope.ChoiceCard() {
                 // whatever glyph precedes it, and the name takes the room that is left.
                 val swatch = rememberDotIcon(language.swatch)
                 BorderPanel(modifier = SwingModifier.opaque(false)) {
-                    west {
-                        Label(
-                            "",
-                            modifier =
-                                SwingModifier
-                                    .icon(swatch)
-                                    .preferredSize(GLYPH_SLOT, GLYPH_SLOT)
-                                    .horizontalAlignment(SwingConstants.CENTER),
-                        )
-                    }
-                    center { Label(language.name) }
+                    Label(
+                        "",
+                        modifier =
+                            SwingModifier
+                                .west()
+                                .icon(swatch)
+                                .preferredSize(GLYPH_SLOT, GLYPH_SLOT)
+                                .horizontalAlignment(SwingConstants.CENTER),
+                    )
+                    Label(language.name, SwingModifier.center())
                 }
             }
         }
         Label("Selected: ${selected?.name ?: "none"}")
-        // onValueCommit fires only for editable text the items don't name - selecting an option never
-        // touches it, which is why it stays blank until something is typed and committed.
         if (editable) Label("Typed (unmatched by an item): ${typed.ifEmpty { "(nothing yet)" }}")
     }
 }
@@ -267,7 +263,6 @@ private fun ColumnScope.RangeCard() {
         var paintLabels by remember { mutableStateOf(false) }
         var snapToTicks by remember { mutableStateOf(false) }
         var customString by remember { mutableStateOf(false) }
-        // The label table a ticked, labeled slider paints at its major ticks.
         val labels = mapOf(0 to "Low", 50 to "Mid", 100 to "High")
         val orientation = if (vertical) SwingConstants.VERTICAL else SwingConstants.HORIZONTAL
 
@@ -296,8 +291,6 @@ private fun ColumnScope.RangeCard() {
             labels = labels,
             snapToTicks = snapToTicks,
         )
-        // onValueChange hears every value a drag passes through; onValueSettled hears only the one it is
-        // released on, which is why the two echoes move at different rates while the slider is dragged.
         Label("Settled on: $settledAmount")
 
         CheckBox(text = "Custom string", checked = customString, onCheckedChange = { customString = it })

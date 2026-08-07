@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JSplitPane
@@ -23,8 +24,8 @@ class SplitPaneContinuousLayoutTest {
         var continuous by mutableStateOf<Boolean?>(null)
         setContent {
             SplitPane(continuousLayout = continuous) {
-                first { Label(text = "A") }
-                second { Label(text = "B") }
+                Label(text = "A", modifier = SwingModifier.first())
+                Label(text = "B", modifier = SwingModifier.second())
             }
         }
 
@@ -49,8 +50,8 @@ class SplitPaneContinuousLayoutTest {
         var continuous by mutableStateOf<Boolean?>(true)
         setContent {
             SplitPane(continuousLayout = continuous) {
-                first { Label(text = "A") }
-                second { Label(text = "B") }
+                Label(text = "A", modifier = SwingModifier.first())
+                Label(text = "B", modifier = SwingModifier.second())
             }
         }
 

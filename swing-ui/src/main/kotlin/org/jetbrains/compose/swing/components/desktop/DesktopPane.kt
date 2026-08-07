@@ -4,20 +4,22 @@
 package org.jetbrains.compose.swing.components.desktop
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.State
-import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
+import org.jetbrains.compose.swing.modifier.layout.slot
 import org.jetbrains.compose.swing.modifier.listener.componentListener
 import org.jetbrains.compose.swing.modifier.listener.hierarchyListener
 import org.jetbrains.compose.swing.modifier.listener.internalFrameListener
 import org.jetbrains.compose.swing.modifier.listener.propertyChangeListener
+import org.jetbrains.compose.swing.node.ChildPlacement
 import org.jetbrains.compose.swing.node.SlotAttachment
-import org.jetbrains.compose.swing.node.SlotNode
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.node.wrongSlotHost
 import java.awt.Rectangle
 import java.awt.event.ComponentAdapter
 import java.awt.event.ComponentEvent
@@ -32,62 +34,61 @@ import javax.swing.event.InternalFrameEvent
 import javax.swing.event.InternalFrameListener
 
 /**
- * A composable wrapper for `JDesktopPane` hosting internal-frame children declared in [block].
+ * A composable wrapper for `JDesktopPane` hosting internal-frame children declared in [content].
  *
- * Declare the frames you need; each `internalFrame(...)` becomes a `JInternalFrame` floating on the
+ * Declare the frames you need; each `InternalFrame(...)` becomes a `JInternalFrame` floating on the
  * desktop with its own title, position, size, and window controls. Frames are **dynamic**: adding or
- * removing an `internalFrame(...)` adds or removes the frame it identifies (see [DesktopPaneScope]), and
+ * removing an `InternalFrame(...)` adds or removes the frame it identifies (see [DesktopPaneScope]), and
  * a frame's title, controls, and bounds update on recomposition.
+ *
+ * A frame is the one thing a desktop holds, and it holds as many of them as [content] declares: every
+ * child of the pane is an `InternalFrame(...)`, and anything else composed here is refused. Compose it
+ * inside a frame's body instead.
  *
  * The close control is **controlled**: activating it invokes the frame's `onClose` rather than closing
  * the frame on its own. Remove the frame from the composition in response to actually close it.
  *
- * A frame declared with plain `bounds` sits where the declaration puts it and, for as long as its
- * declarations go on naming one identity (see [DesktopPaneScope]), stays wherever the user leaves it.
- * Declare it with an [InternalFrameState] instead to make its geometry and its window state two-way:
- * assigning to the state moves, resizes, iconifies or maximizes the frame, and the user dragging the
- * frame, pulling its border or activating its iconify, maximize or restore control writes the new value
- * back into the state.
+ * A frame declared with plain `bounds` sits where the declaration puts it and, for as long as the
+ * composition goes on declaring it in the same place (see [DesktopPaneScope]), stays wherever the user
+ * leaves it. Declare it with an [InternalFrameState] instead to make its geometry and its window state
+ * two-way: assigning to the state moves, resizes, iconifies or maximizes the frame, and the user dragging
+ * the frame, pulling its border or activating its iconify, maximize or restore control writes the new
+ * value back into the state.
  *
  * A frame's window transitions (opened, closing, closed, activated, deactivated, and iconified and
- * deiconified again) are among the events the `internalFrame` overloads taking an [InternalFrameListener]
+ * deiconified again) are among the events the `InternalFrame` overloads taking an [InternalFrameListener]
  * deliver.
  *
  * ```
  * val editor = rememberInternalFrameState(bounds = Rectangle(0, 0, 300, 200))
  * DesktopPane {
- *     internalFrame(title = "Editor", state = editor) { Editor() }
- *     internalFrame(title = "Console", bounds = Rectangle(40, 40, 300, 200)) { Console() }
+ *     InternalFrame(title = "Editor", state = editor) { Editor() }
+ *     InternalFrame(title = "Console", bounds = Rectangle(40, 40, 300, 200)) { Console() }
  * }
  * ```
  *
  * @param modifier the [SwingModifier] applied to the underlying `JDesktopPane`
- * @param block declares the internal frames; see [DesktopPaneScope]
+ * @param content declares the internal frames; see [DesktopPaneScope]
  * @see javax.swing.JDesktopPane
  */
 @Composable
 public fun DesktopPane(
     modifier: SwingModifier = SwingModifier,
-    block: DesktopPaneScope.() -> Unit,
+    content: @Composable DesktopPaneScope.() -> Unit,
 ) {
-    // Collected fresh on every pass, so a frame the caller stops declaring is uninstalled (see SwingNode).
-    val scope = DesktopPaneScopeImpl().apply(block)
+    // Remembered with the pane: it holds the hoisted states the pane's frames currently drive.
+    val scope = remember { DesktopPaneScopeImpl() }
 
     SwingNode(
         factory = { JDesktopPane() },
         update = {
             applyModifier(modifier)
         },
-        content = {
-            scope.frames.forEach { frame ->
-                key(frame.identity) {
-                    val attachment = remember { internalFrameAttachment() }
-                    SlotNode(attachment) {
-                        InternalFrame(frame)
-                    }
-                }
-            }
-        },
+        // A desktop holds frames and nothing else, as many of them as the composition declares, in the
+        // order it declares them - so anything else composed here is refused rather than left standing
+        // on the desktop unseen.
+        childPlacement = ChildPlacement.OrderedSlots(FRAME_REGION),
+        content = { scope.content() },
     )
 }
 
@@ -112,15 +113,20 @@ public class InternalFrameControls(
 )
 
 /**
- * Declarative internal frames of a [DesktopPane]. Each [internalFrame] call appends one frame, in call
- * order.
+ * The receiver of a [DesktopPane]'s content, through which a frame floating on that desktop is declared.
+ * Each [InternalFrame] call declares one frame, in call order, and a frame is the only child a desktop
+ * takes: anything else composed in the content names no place on the desktop and is refused.
  *
- * A frame keeps the `JInternalFrame` it was realized as - and with it everything the user has done to
- * that frame - for as long as the declarations it appears in name one identity. A frame declared with an
- * [InternalFrameState] is identified by that state instance. A frame declared with plain `bounds` is
- * identified by the `key` it is given, and by its position among the declared frames when it is given
- * none; so in a list frames are added to and removed from, give each frame a key of its own, and the
- * frames declared after a removed one stay the frames the user left behind.
+ * A frame keeps the `JInternalFrame` it was realized as - and with it everything the user has done to that
+ * frame - for as long as the composition goes on declaring it in the same place: a frame declared at a
+ * place of its own keeps its window however the frames declared around it come and go. Frames declared
+ * from one place, as a loop over a list declares them, are told apart by the position they are declared
+ * in, so wrap each in [androidx.compose.runtime.key] to give it an identity of its own; the frames
+ * declared after a removed one then stay the frames the user left behind.
+ *
+ * One [InternalFrameState] drives one frame: a state driving two frames at once would receive both
+ * frames' write-backs, each undoing what the other's user interaction just wrote, so the second frame to
+ * take a state stops the composition instead.
  *
  * @see javax.swing.JInternalFrame
  */
@@ -130,24 +136,20 @@ public sealed interface DesktopPaneScope {
      *
      * @param title the text shown in the frame's title bar
      * @param bounds the frame's position and size within the desktop
-     * @param key what identifies this frame among the declared frames; see [DesktopPaneScope]
+     * @param modifier the [SwingModifier] applied to the frame
      * @param controls which window controls the frame shows
      * @param onClose callback invoked when the user activates the frame's close control; remove the
      *   frame from the composition in response to actually close it
-     * @param modifier the [SwingModifier] applied to the frame
      * @param content the composable shown in the frame's body
      * @see javax.swing.JInternalFrame
      */
-    @Suppress("LongParameterList")
-    // Independent declarative aspects of one frame - title, geometry, identity, controls, close
-    // behavior, appearance, body - each named at the call site, with no cohesive object among them.
-    public fun internalFrame(
+    @Composable
+    public fun InternalFrame(
         title: @Nls String,
         bounds: Rectangle,
-        key: Any? = null,
+        modifier: SwingModifier = SwingModifier,
         controls: InternalFrameControls = InternalFrameControls(),
         onClose: () -> Unit = {},
-        modifier: SwingModifier = SwingModifier,
         content: @Composable () -> Unit,
     )
 
@@ -161,22 +163,18 @@ public sealed interface DesktopPaneScope {
      * @param title the text shown in the frame's title bar
      * @param bounds the frame's position and size within the desktop
      * @param internalFrameListener the listener notified of the frame's window events
-     * @param key what identifies this frame among the declared frames; see [DesktopPaneScope]
-     * @param controls which window controls the frame shows
      * @param modifier the [SwingModifier] applied to the frame
+     * @param controls which window controls the frame shows
      * @param content the composable shown in the frame's body
      * @see javax.swing.JInternalFrame
      */
-    @Suppress("LongParameterList")
-    // Independent declarative aspects of one frame with no cohesive object among them, the raw listener
-    // standing in for the close callback.
-    public fun internalFrame(
+    @Composable
+    public fun InternalFrame(
         title: @Nls String,
         bounds: Rectangle,
         internalFrameListener: InternalFrameListener,
-        key: Any? = null,
-        controls: InternalFrameControls = InternalFrameControls(),
         modifier: SwingModifier = SwingModifier,
+        controls: InternalFrameControls = InternalFrameControls(),
         content: @Composable () -> Unit,
     )
 
@@ -189,23 +187,22 @@ public sealed interface DesktopPaneScope {
      * [state].
      *
      * @param title the text shown in the frame's title bar
-     * @param state the hoistable, observable geometry and window state of the frame
+     * @param state the hoistable, observable geometry and window state of the frame, driving this frame
+     *   alone
+     * @param modifier the [SwingModifier] applied to the frame
      * @param controls which window controls the frame shows
      * @param onClose callback invoked when the user activates the frame's close control; remove the
      *   frame from the composition in response to actually close it
-     * @param modifier the [SwingModifier] applied to the frame
      * @param content the composable shown in the frame's body
      * @see javax.swing.JInternalFrame
      */
-    @Suppress("LongParameterList")
-    // Independent declarative aspects of one frame with no cohesive object among them, the hoisted state
-    // standing in for its bounds.
-    public fun internalFrame(
+    @Composable
+    public fun InternalFrame(
         title: @Nls String,
         state: InternalFrameState,
+        modifier: SwingModifier = SwingModifier,
         controls: InternalFrameControls = InternalFrameControls(),
         onClose: () -> Unit = {},
-        modifier: SwingModifier = SwingModifier,
         content: @Composable () -> Unit,
     )
 
@@ -216,36 +213,133 @@ public sealed interface DesktopPaneScope {
      * instance (e.g. `remember {}`) to avoid churn.
      *
      * @param title the text shown in the frame's title bar
-     * @param state the hoistable, observable geometry and window state of the frame
+     * @param state the hoistable, observable geometry and window state of the frame, driving this frame
+     *   alone
      * @param internalFrameListener the listener notified of the frame's window events
-     * @param controls which window controls the frame shows
      * @param modifier the [SwingModifier] applied to the frame
+     * @param controls which window controls the frame shows
      * @param content the composable shown in the frame's body
      * @see javax.swing.JInternalFrame
      */
-    @Suppress("LongParameterList")
-    // Independent declarative aspects of one frame with no cohesive object among them, hoisted state and
-    // raw listener in place of its bounds and its close callback.
-    public fun internalFrame(
+    @Composable
+    public fun InternalFrame(
         title: @Nls String,
         state: InternalFrameState,
         internalFrameListener: InternalFrameListener,
-        controls: InternalFrameControls = InternalFrameControls(),
         modifier: SwingModifier = SwingModifier,
+        controls: InternalFrameControls = InternalFrameControls(),
         content: @Composable () -> Unit,
     )
 }
 
 /**
- * A frame's per-composition appearance snapshot: its title, the geometry it declares, which window
- * controls it shows, and the modifier applied to it.
+ * The [DesktopPaneScope] one [DesktopPane] hands its content. It is remembered alongside the pane, and
+ * holds the hoisted states that pane's frames currently drive: a frame takes its state while it stands
+ * and gives it back when it leaves, so a state a frame drops is free for the next frame to take.
  */
-private class InternalFrameMetadata(
-    val title: String,
-    val declared: DeclaredFrameState,
-    val controls: InternalFrameControls,
-    val modifier: SwingModifier,
-)
+private class DesktopPaneScopeImpl : DesktopPaneScope {
+    private val states: MutableSet<InternalFrameState> = HashSet()
+
+    @Composable
+    override fun InternalFrame(
+        title: @Nls String,
+        bounds: Rectangle,
+        modifier: SwingModifier,
+        controls: InternalFrameControls,
+        onClose: () -> Unit,
+        content: @Composable () -> Unit,
+    ) {
+        FrameNode(
+            title = title,
+            declared = PlacedFrameState(bounds),
+            controls = controls,
+            onClose = onClose,
+            rawListener = null,
+            modifier = modifier,
+            content = content,
+        )
+    }
+
+    @Composable
+    override fun InternalFrame(
+        title: @Nls String,
+        bounds: Rectangle,
+        internalFrameListener: InternalFrameListener,
+        modifier: SwingModifier,
+        controls: InternalFrameControls,
+        content: @Composable () -> Unit,
+    ) {
+        FrameNode(
+            title = title,
+            declared = PlacedFrameState(bounds),
+            controls = controls,
+            onClose = null,
+            rawListener = internalFrameListener,
+            modifier = modifier,
+            content = content,
+        )
+    }
+
+    @Composable
+    override fun InternalFrame(
+        title: @Nls String,
+        state: InternalFrameState,
+        modifier: SwingModifier,
+        controls: InternalFrameControls,
+        onClose: () -> Unit,
+        content: @Composable () -> Unit,
+    ) {
+        StateClaim(state)
+        FrameNode(
+            title = title,
+            declared = HoistedFrameState(state),
+            controls = controls,
+            onClose = onClose,
+            rawListener = null,
+            modifier = modifier,
+            content = content,
+        )
+    }
+
+    @Composable
+    override fun InternalFrame(
+        title: @Nls String,
+        state: InternalFrameState,
+        internalFrameListener: InternalFrameListener,
+        modifier: SwingModifier,
+        controls: InternalFrameControls,
+        content: @Composable () -> Unit,
+    ) {
+        StateClaim(state)
+        FrameNode(
+            title = title,
+            declared = HoistedFrameState(state),
+            controls = controls,
+            onClose = null,
+            rawListener = internalFrameListener,
+            modifier = modifier,
+            content = content,
+        )
+    }
+
+    /**
+     * The claim the frame being declared here has on [state]: it stands while that frame does, and is
+     * given up when the frame leaves or declares a different state. The frames of one pane arrive one by
+     * one rather than as a set, so this is where a state handed to a second frame is caught - see
+     * [DesktopPaneScope] for what it would cost.
+     *
+     * A frame gives its state back before the next frame takes one, so a state passing from one frame to
+     * another in a single pass passes freely.
+     */
+    @Composable
+    private fun StateClaim(state: InternalFrameState) {
+        DisposableEffect(state) {
+            val taken = states.add(state)
+            require(taken) { "DesktopPane frame state $state is declared by more than one frame" }
+            onDispose { states.remove(state) }
+        }
+    }
+}
 
 /**
  * The geometry and window state one composition declares for a frame.
@@ -255,7 +349,7 @@ private class InternalFrameMetadata(
  * bounds names no source, so it is placed by its declaration and nothing observes where it ends up.
  *
  * The values stand for what the declaration holds rather than for a reading of it: each is read where the
- * frame it belongs to is composed (see [InternalFrame]) and nowhere else.
+ * frame it belongs to is composed (see [FrameNode]) and nowhere else.
  */
 private sealed interface DeclaredFrameState {
     val bounds: Rectangle
@@ -283,168 +377,38 @@ private class PlacedFrameState(
 }
 
 /**
- * One declared internal frame: its [metadata] snapshot for this composition, the [identity] deciding which
- * realized `JInternalFrame` a later composition's declaration lands on - see [DesktopPaneScope] for the
- * rule it expresses - plus its body composable. Exactly one of [onClose]/[rawListener] is set: the
- * `onClose` overload supplies the controlled close callback (a stable adapter is built in
- * [InternalFrame]), the raw overload supplies the listener instance directly.
- */
-private class InternalFrameDeclaration(
-    val metadata: InternalFrameMetadata,
-    val identity: Any,
-    val onClose: (() -> Unit)?,
-    val rawListener: InternalFrameListener?,
-    val content: @Composable () -> Unit,
-)
-
-/**
- * The identity of a frame declared with neither a hoisted state nor a key: the position it was declared
- * at. It is a type of its own so that a caller's key can never be taken for a position, whatever the
- * caller keys frames by.
- */
-private class PositionalFrameIdentity(
-    private val index: Int,
-) {
-    override fun equals(other: Any?): Boolean = other is PositionalFrameIdentity && other.index == index
-
-    override fun hashCode(): Int = index
-}
-
-private class DesktopPaneScopeImpl : DesktopPaneScope {
-    val frames: MutableList<InternalFrameDeclaration> = ArrayList()
-
-    override fun internalFrame(
-        title: @Nls String,
-        bounds: Rectangle,
-        key: Any?,
-        controls: InternalFrameControls,
-        onClose: () -> Unit,
-        modifier: SwingModifier,
-        content: @Composable () -> Unit,
-    ) {
-        addFrame(
-            metadata = InternalFrameMetadata(title, PlacedFrameState(bounds), controls, modifier),
-            key = key,
-            content = content,
-            onClose = onClose,
-            rawListener = null,
-        )
-    }
-
-    override fun internalFrame(
-        title: @Nls String,
-        bounds: Rectangle,
-        internalFrameListener: InternalFrameListener,
-        key: Any?,
-        controls: InternalFrameControls,
-        modifier: SwingModifier,
-        content: @Composable () -> Unit,
-    ) {
-        addFrame(
-            metadata = InternalFrameMetadata(title, PlacedFrameState(bounds), controls, modifier),
-            key = key,
-            content = content,
-            onClose = null,
-            rawListener = internalFrameListener,
-        )
-    }
-
-    override fun internalFrame(
-        title: @Nls String,
-        state: InternalFrameState,
-        controls: InternalFrameControls,
-        onClose: () -> Unit,
-        modifier: SwingModifier,
-        content: @Composable () -> Unit,
-    ) {
-        addFrame(
-            metadata = InternalFrameMetadata(title, HoistedFrameState(state), controls, modifier),
-            key = null,
-            content = content,
-            onClose = onClose,
-            rawListener = null,
-        )
-    }
-
-    override fun internalFrame(
-        title: @Nls String,
-        state: InternalFrameState,
-        internalFrameListener: InternalFrameListener,
-        controls: InternalFrameControls,
-        modifier: SwingModifier,
-        content: @Composable () -> Unit,
-    ) {
-        addFrame(
-            metadata = InternalFrameMetadata(title, HoistedFrameState(state), controls, modifier),
-            key = null,
-            content = content,
-            onClose = null,
-            rawListener = internalFrameListener,
-        )
-    }
-
-    private fun addFrame(
-        metadata: InternalFrameMetadata,
-        key: Any?,
-        content: @Composable () -> Unit,
-        onClose: (() -> Unit)?,
-        rawListener: InternalFrameListener?,
-    ) {
-        frames.add(
-            InternalFrameDeclaration(
-                metadata = metadata,
-                identity = metadata.declared.source ?: key ?: PositionalFrameIdentity(frames.size),
-                onClose = onClose,
-                rawListener = rawListener,
-                content = content,
-            ),
-        )
-    }
-}
-
-/**
- * Hosts one [JInternalFrame] on the host [JDesktopPane]: adds it on install and detaches it by identity
- * on uninstall so removing an earlier frame never invalidates a later frame's uninstall.
- *
- * An iconified frame stands on the desktop as its desktop icon, and the icon is placed wherever the look
- * and feel keeps it rather than beside the frame, so the uninstall takes the icon off whatever holds it
- * as well as the frame off the desktop. Otherwise a frame that leaves the composition while iconified
- * leaves its icon behind.
- */
-private fun internalFrameAttachment(): SlotAttachment =
-    SlotAttachment { host, component, _ ->
-        host as JDesktopPane
-        host.add(component)
-        return@SlotAttachment {
-            host.remove(component)
-            val icon = (component as JInternalFrame).desktopIcon
-            icon.parent?.remove(icon)
-        }
-    }
-
-/**
  * One `JInternalFrame` node: builds the frame visible, installs the declaration's window-event handling,
  * applies its title, controls, geometry and window state reactively, and writes the user's own moves,
  * resizes, iconifications and maximizations back into the declared state. Hosts the declared body as
  * composable content.
+ *
+ * Exactly one of [onClose]/[rawListener] is set: the `onClose` overloads supply the controlled close
+ * callback, which a stable adapter built here delivers, and the raw overloads supply the listener
+ * instance directly.
  */
 @Composable
-private fun InternalFrame(frame: InternalFrameDeclaration) {
+private fun FrameNode(
+    title: @Nls String,
+    declared: DeclaredFrameState,
+    controls: InternalFrameControls,
+    onClose: (() -> Unit)?,
+    rawListener: InternalFrameListener?,
+    modifier: SwingModifier,
+    content: @Composable () -> Unit,
+) {
     // The onClose overload routes the close control through a stable adapter that fires the latest
     // callback on internalFrameClosing (the close operation stays do-nothing, so the frame is only
     // closed by being removed from the composition). The raw overload uses the supplied listener
     // instance directly.
-    val onClose = rememberUpdatedState(frame.onClose)
+    val latestOnClose = rememberUpdatedState(onClose)
     val listener =
-        remember(frame.rawListener) {
-            frame.rawListener ?: object : InternalFrameAdapter() {
+        remember(rawListener) {
+            rawListener ?: object : InternalFrameAdapter() {
                 override fun internalFrameClosing(event: InternalFrameEvent) {
-                    onClose.value?.invoke()
+                    latestOnClose.value?.invoke()
                 }
             }
         }
-    val metadata = frame.metadata
-    val declared = metadata.declared
     // Read here, in the composition of the frame these values belong to: a hoisted state receives the
     // user's every move, resize, iconification and maximization, and reading it here is what keeps each of
     // those recomposing this one frame instead of the desktop and every frame standing on it.
@@ -466,11 +430,11 @@ private fun InternalFrame(frame: InternalFrameDeclaration) {
     SwingNode(
         factory = {
             JInternalFrame(
-                metadata.title,
-                metadata.controls.resizable,
-                metadata.controls.closable,
-                metadata.controls.maximizable,
-                metadata.controls.iconifiable,
+                title,
+                controls.resizable,
+                controls.closable,
+                controls.maximizable,
+                controls.iconifiable,
             ).apply {
                 // A JInternalFrame is constructed hidden and the close control closes it on its own;
                 // make it visible and leave the close control controlled by the declaration instead.
@@ -483,11 +447,11 @@ private fun InternalFrame(frame: InternalFrameDeclaration) {
             }
         },
         update = {
-            set(metadata.title) { this.title = it }
-            set(metadata.controls.closable) { this.isClosable = it }
-            set(metadata.controls.resizable) { this.isResizable = it }
-            set(metadata.controls.maximizable) { this.isMaximizable = it }
-            set(metadata.controls.iconifiable) { this.isIconifiable = it }
+            set(title) { this.title = it }
+            set(controls.closable) { this.isClosable = it }
+            set(controls.resizable) { this.isResizable = it }
+            set(controls.maximizable) { this.isMaximizable = it }
+            set(controls.iconifiable) { this.isIconifiable = it }
             // The geometry is stamped before it is pushed, because a frame reports its moves and resizes
             // asynchronously: by the time such a notification is delivered the state may already hold a
             // newer value, and the frame - which still carries the older geometry - would hand that
@@ -512,11 +476,51 @@ private fun InternalFrame(frame: InternalFrameDeclaration) {
                         .propertyChangeListener(JInternalFrame.IS_MAXIMUM_PROPERTY, maximumWriteBack)
                         .hierarchyListener(attachSync)
                 }
-            applyModifier(metadata.modifier.then(stateChannels).internalFrameListener(listener))
+            // The desktop attachment is declared last, so a frame stands on its desktop whatever placement
+            // the caller's own modifier names.
+            applyModifier(
+                modifier
+                    .then(stateChannels)
+                    .internalFrameListener(listener)
+                    .slot(FRAME_REGION, InternalFrameAttachment),
+            )
         },
-        content = { frame.content() },
+        content = { content() },
     )
 }
+
+/**
+ * The region of a `JDesktopPane` a frame fills, written as the call that declares one - see
+ * [DesktopPaneScope.InternalFrame].
+ */
+private const val FRAME_REGION: String = "InternalFrame(...)"
+
+/**
+ * Hosts one [JInternalFrame] on the host [JDesktopPane]: adds it on install, at the position among the
+ * desktop's frames its declaration order names, and detaches it by identity on uninstall so removing an
+ * earlier frame never invalidates a later frame's uninstall.
+ *
+ * An iconified frame is added as the frame all the same: `DesktopManager` is what stands its icon on the
+ * desktop in its place, and installing the icon here instead would leave the desktop holding no frame.
+ *
+ * An iconified frame stands on the desktop as its desktop icon, and the icon is placed wherever the look
+ * and feel keeps it rather than beside the frame, so the uninstall takes the icon off whatever holds it
+ * as well as the frame off the desktop. Otherwise a frame that leaves the composition while iconified
+ * leaves its icon behind.
+ */
+private val InternalFrameAttachment =
+    SlotAttachment { host, component, index ->
+        val desktop =
+            host as? JDesktopPane ?: error(wrongSlotHost(host, JDesktopPane::class.java, FRAME_REGION))
+        val frame = component as JInternalFrame
+        desktop.add(frame)
+        desktop.setPosition(frame, index.coerceAtMost(desktop.getIndexOf(frame)))
+        return@SlotAttachment {
+            desktop.remove(component)
+            val icon = frame.desktopIcon
+            icon.parent?.remove(icon)
+        }
+    }
 
 /**
  * The values that are currently in sync between an [InternalFrameState] and its realized

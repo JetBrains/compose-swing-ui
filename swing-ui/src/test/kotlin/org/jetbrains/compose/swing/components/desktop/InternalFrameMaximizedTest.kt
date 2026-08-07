@@ -45,7 +45,7 @@ class InternalFrameMaximizedTest {
         toolTip: String = "Edits the document",
     ) = setContent {
         DesktopPane(modifier = SwingModifier.preferredSize(desktopSize)) {
-            internalFrame(
+            InternalFrame(
                 title = "Editor",
                 state = state,
                 controls = InternalFrameControls(maximizable = true, iconifiable = true),
@@ -178,7 +178,7 @@ class InternalFrameMaximizedTest {
         var tip by mutableStateOf("Edits the document")
         setContent {
             DesktopPane(modifier = SwingModifier.preferredSize(desktopSize)) {
-                internalFrame(
+                InternalFrame(
                     title = "Editor",
                     state = state,
                     controls = InternalFrameControls(maximizable = true),
@@ -345,7 +345,7 @@ class InternalFrameMaximizedTest {
         var useSecond by mutableStateOf(false)
         setContent {
             DesktopPane(modifier = SwingModifier.preferredSize(desktopSize)) {
-                internalFrame(
+                InternalFrame(
                     title = "Editor",
                     state = if (useSecond) second else first,
                     controls = InternalFrameControls(maximizable = true),
@@ -367,7 +367,7 @@ class InternalFrameMaximizedTest {
         var tip by mutableStateOf("Edits the document")
         setContent {
             DesktopPane(modifier = SwingModifier.preferredSize(desktopSize)) {
-                internalFrame(
+                InternalFrame(
                     title = "Editor",
                     bounds = Rectangle(10, 20, 100, 80),
                     controls = InternalFrameControls(maximizable = true),

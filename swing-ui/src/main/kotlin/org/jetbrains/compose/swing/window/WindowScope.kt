@@ -28,7 +28,7 @@ public class WindowScope private constructor(
     internal val rootPane: JRootPane,
 ) {
     /**
-     * The [DeclaredMenuBar] currently serving this window, or `null` while none does.
+     * The [WindowDecoration] currently serving this window as its menu bar, or `null` while none does.
      *
      * A window carries one menu bar, so whether one is already declared is read directly off this field:
      * this scope is one instance for as long as the window exists, so the [MenuBar] composable finds its
@@ -38,15 +38,15 @@ public class WindowScope private constructor(
      */
     @get:JvmSynthetic
     @set:JvmSynthetic
-    internal var declaredMenuBar: DeclaredMenuBar? = null
+    internal var declaredMenuBar: WindowDecoration<*>? = null
 
     /**
-     * The [DeclaredGlassPane] currently serving this window, or `null` while none does, the same way
-     * [declaredMenuBar] answers for the menu bar.
+     * The [WindowDecoration] currently serving this window as its glass pane, or `null` while none
+     * does, the same way [declaredMenuBar] answers for the menu bar.
      */
     @get:JvmSynthetic
     @set:JvmSynthetic
-    internal var declaredGlassPane: DeclaredGlassPane? = null
+    internal var declaredGlassPane: WindowDecoration<*>? = null
 
     internal companion object {
         /**

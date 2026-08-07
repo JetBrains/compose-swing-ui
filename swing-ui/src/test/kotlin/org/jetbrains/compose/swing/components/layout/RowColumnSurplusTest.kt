@@ -13,12 +13,9 @@ import kotlin.test.assertEquals
  * A row or column offered more space along its axis than its children ask for keeps every child at
  * the extent that child prefers and leaves the rest of the space empty, for its arrangement to place.
  *
- * The children that make the point are panels: a component that declares no maximum of its own
- * reports `Short.MAX_VALUE` on both axes (`java.awt.Component.getMaximumSize`, JetBrainsRuntime
- * src/java.desktop/share/classes/java/awt/Component.java:2839), and a container laid out by a
- * `LayoutManager2` reports whatever that manager answers - `Integer.MAX_VALUE` for `BorderLayout` and
- * `GridBagLayout` (Container.java:1913-1918). A layout that pushed its surplus into its children
- * would find no ceiling on any of them and stretch them all.
+ * The children are panels, each laid out by its own `LayoutManager2`, and none imposes a maximum size
+ * on that axis. A layout that pushed its surplus into its children would find no ceiling on any of
+ * them and stretch them all.
  *
  * The size is imposed from outside, as a `BorderLayout` center or a split-pane side imposes one, so
  * the container is genuinely given more room than it asked for.
@@ -28,12 +25,10 @@ class RowColumnSurplusTest {
     fun aTallColumnLeavesTheHeightItsChildrenDidNotAskForEmpty() = runComposeSwingTest {
         setContent {
             BorderPanel(modifier = SwingModifier.preferredSize(IMPOSED_CROSS, IMPOSED_MAIN)) {
-                center {
-                    Column(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
-                        FlowPanel(modifier = SwingModifier.preferredSize(CROSS_EXTENT, FIRST_EXTENT))
-                        GridBagPanel(modifier = SwingModifier.preferredSize(CROSS_EXTENT, SECOND_EXTENT)) {}
-                        BorderPanel(modifier = SwingModifier.preferredSize(CROSS_EXTENT, THIRD_EXTENT)) {}
-                    }
+                Column(modifier = SwingModifier.center().testTag(CONTAINER_TAG)) {
+                    FlowPanel(modifier = SwingModifier.preferredSize(CROSS_EXTENT, FIRST_EXTENT))
+                    GridBagPanel(modifier = SwingModifier.preferredSize(CROSS_EXTENT, SECOND_EXTENT)) {}
+                    BorderPanel(modifier = SwingModifier.preferredSize(CROSS_EXTENT, THIRD_EXTENT)) {}
                 }
             }
         }
@@ -58,12 +53,10 @@ class RowColumnSurplusTest {
     fun aWideRowLeavesTheWidthItsChildrenDidNotAskForEmpty() = runComposeSwingTest {
         setContent {
             BorderPanel(modifier = SwingModifier.preferredSize(IMPOSED_MAIN, IMPOSED_CROSS)) {
-                center {
-                    Row(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
-                        FlowPanel(modifier = SwingModifier.preferredSize(FIRST_EXTENT, CROSS_EXTENT))
-                        GridBagPanel(modifier = SwingModifier.preferredSize(SECOND_EXTENT, CROSS_EXTENT)) {}
-                        BorderPanel(modifier = SwingModifier.preferredSize(THIRD_EXTENT, CROSS_EXTENT)) {}
-                    }
+                Row(modifier = SwingModifier.center().testTag(CONTAINER_TAG)) {
+                    FlowPanel(modifier = SwingModifier.preferredSize(FIRST_EXTENT, CROSS_EXTENT))
+                    GridBagPanel(modifier = SwingModifier.preferredSize(SECOND_EXTENT, CROSS_EXTENT)) {}
+                    BorderPanel(modifier = SwingModifier.preferredSize(THIRD_EXTENT, CROSS_EXTENT)) {}
                 }
             }
         }

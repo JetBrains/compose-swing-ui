@@ -77,7 +77,7 @@ windows is independent.
 
 As a composition changes, the runtime emits structural operations - insert, remove, move, clear -
 that are applied to the backing container. Child order in the AWT tree is kept aligned with
-composition order so index-based operations always address the intended component.
+composition order, so index-based operations always address the intended component.
 
 Swing does not lay out or repaint added, removed, or moved children on its own: a mutated container
 needs an explicit layout-and-repaint pass to make the change visible. Every container touched
@@ -85,44 +85,67 @@ during a change pass therefore gets one such pass once the pass completes, so a 
 a container many times still costs a single layout. The menu tree follows the same model through
 its own applier.
 
+Changing a *property* of a component that is already attached takes a different route: a component's
+`update` block declares one value per property it drives, and a declaration reaches the widget on the
+first composition, on any later pass where it differs from the one applied last, and again when the
+runtime recycles the node for new content, since a recycled component keeps whatever the previous
+content wrote and its factory does not run a second time. Recomposition with unchanged state therefore
+writes nothing to any widget, and the frame costs neither a Swing property write nor the layout or
+repaint one would trigger. See [`CUSTOM-COMPONENTS.md`](CUSTOM-COMPONENTS.md) for writing such a block.
+
 ---
 
 ## Placing children with explicit constraints
 
 Some layouts need to know *where* a child belongs - a `BorderLayout` needs a region (`NORTH`,
 `CENTER`, ...), and other constraint-based layouts need their own constraint objects. Composition
-order does not express that intent: conditionals, movable content, and reordering all change a
-child's index without changing where the author meant to place it. Placement is therefore explicit
-and parent-driven rather than inferred from index.
+order does not express that intent: conditionals and reordering change a child's index without
+changing where the author meant to place it. Placement is therefore explicit rather than inferred
+from index.
 
-The node carries the constraint its container provided until the applier places the component. The
-default, when no container declares one, is "add by position."
+A child declares its own placement, on its own modifier chain. `layoutConstraint` puts the value on
+the chain, applying the chain writes it onto the node, and the applier registers the component under
+it as the component is attached. The default, for a chain that declares none, is "add by position."
+The last placement declared in a chain wins, and a chain that stops declaring one returns the
+component to placement by index.
 
-A `CompositionLocal` carries the intended constraint from a container down to the children it
-composes. `BorderPanel` is the canonical slot-based container. Its regions are declared through a
-receiver DSL, each region a single-child slot that provides its constraint to the child it composes.
-Declaring a region adds its child in the right place, redeclaring it replaces the child, and dropping
-a region removes the child. The same mechanism extends to other constraint-based layouts, and to
-hosts whose children are installed through dedicated setters (such as a scroll pane's viewport,
-headers, and corners) rather than a generic add.
+The ordering that makes this work is the applier's own. An inserted node is visited twice, top-down and
+then bottom-up, and its `update` changes run between the two passes, while the bottom-up pass is the one
+that performs the Swing attachment. A placement written by that node's own `update` is therefore already
+on the node by the time the child is added to its parent, so the child arrives in its region rather than
+being added and then moved there.
 
-The provision is public, which is what makes a container over a layout manager the library does not
-wrap possible at all: the container supplies the manager, hosts arbitrary content, and wraps each
-child it composes in the placement that child is added under. The value is untyped, matching what a
-container takes; a manager's author wraps it in a typed DSL for their own callers.
+A container supplies the layout manager and a scope naming the placements that manager understands.
+`BorderPanel` is the canonical one: its regions are modifier builders declared on its scope, callable
+only inside a `BorderPanel`'s content, each appending the `BorderLayout` constraint it names. Emitting
+a child adds it in the region it declares, dropping the child removes it, and declaring a different
+region moves it. A child that declares no region is a center child, the region that takes the space
+the other four leave. The same mechanism extends to other constraint-based layouts, and to hosts whose
+children are installed through dedicated setters (such as a scroll pane's viewport, headers, and
+corners) rather than a generic add.
 
-Because the constraint is provided at the position the child is composed at, and not carried by the
-child, it describes the parent-child relationship exactly as long as that relationship lasts: content
-moved to another container by movable content is placed by the container it arrives in, and the
-placement it was composed under before stays behind with the container that declared it.
+`layoutConstraint` is public, which is what makes a container over a layout manager the library does
+not wrap possible at all: the container supplies the manager and hosts arbitrary content, and each
+child it holds names its own place in it. The value is untyped, matching what a container takes; a
+manager's author names it in a scope of typed builders for their own callers.
+
+A placement reaches the node whose chain declares it and travels no further, so it says nothing about
+that node's own children: a container placed in a region of its parent lays its own children out under
+the placements they declare, and neither knows about the other.
 
 A constraint that changes while its component is already attached re-registers the component with its
 parent's manager rather than re-adding it, so placement follows state without the component losing
 its position in the container, its focus, or its native resources.
 
-A custom container that consumes an incoming constraint for its own placement starts its children
-from the default baseline, so a nested constraint-based layout is free to provide its own
-constraints to its own children.
+The two kinds of placement differ in when a change takes hold, because they are held by different
+parties. A layout constraint is the parent's layout manager's, and the manager can be told about it at
+any time, so a new value takes effect as it changes. A host-slot attachment is the applier's - attaching
+and detaching is what an applier alone does - and the applier tells one placement change from another by
+the region's name alone: a chain naming a different region moves the child there within the same change
+pass, once every chain the pass touches has run. Declaring a different attachment under a name that stays
+the same is not what moves or reinstalls anything - the applier compares names, not attachments, so a
+container that wants to change what an already-filled region shows for its child writes that as an
+ordinary property on the node, the way a tab's title is, rather than through a new attachment.
 
 ---
 
@@ -155,6 +178,14 @@ component's own elements chain onto it, following the Compose convention. Elemen
 are last-wins, so where a component declares a property itself, its own value stands - what a
 component means you to decide is a parameter, not a modifier element.
 
+A chain is immutable and diffed against the chain applied last. One equal to it is skipped whole, and
+within a chain that did change every element is compared on its own, so a property whose declared value
+has not changed is not written again. A value compares structurally and a callback compares by identity,
+so an element the composition rebuilt around a fresh callback is re-applied on its own - which refreshes
+the fields the node's already-installed listener reads, rather than re-attaching anything. Building the
+chain inline in the composable body is therefore the intended style and needs no `remember`; hoisting a
+chain is for sharing it as a theme token, not for making it cheap.
+
 Closed sets of Swing integer (and a few string) constants - scrollbar policies, orientations,
 selection modes, and the like - are exposed as typed constant sets. A parameter that takes one of
 these accepts exactly the values the wrapped Swing API expects, so an unintended value is flagged
@@ -174,19 +205,40 @@ back.
 
 ## Effects and snapshot state
 
-Because this is a Compose-runtime binding, the effect and state APIs behave to their usual Compose
-contracts, with a few target-specific guarantees worth relying on:
+Prefer the snapshot APIs over hand-wiring Swing listeners to state when you want derived or
+asynchronously produced values to stay in sync.
 
-- **Effects run on the EDT.** `LaunchedEffect`, `DisposableEffect`, and `SideEffect` execute on the
-  Event Dispatch Thread, so inside them you can touch Swing components and Compose state directly. A
-  `DisposableEffect`'s `onDispose` runs when its node leaves the composition or before the effect
-  re-runs for changed keys, giving a precise place to set up and tear down resources tied to a piece
-  of UI.
+---
 
-- **Snapshot state works out of the box.** State written from a listener callback, a coroutine, or a
-  background thread is observed and recomposes the scopes that read it. Prefer the snapshot APIs over
-  hand-wiring Swing listeners to state when you want derived or asynchronously produced values to
-  stay in sync.
+## Reading state outside a composable
+
+Not everything that follows snapshot state is a composable scope. Painting is not, and neither is
+pushing a window's geometry onto a real window: both are work that has to happen after the composition
+has already decided what to emit, and re-running the whole scope to redo them would be the wrong unit.
+For those the binding records the reads against the block itself, with a Compose `SnapshotStateObserver`.
+A change to state the block read re-runs that block - a repaint, a re-apply - and recomposes nothing.
+
+A composition owner holds one such observer, shared by every component in that composition that paints
+from state rather than one per component or one per component type. `Canvas` is the component in the
+library that uses it: the drawing lambda runs under the observer, so state it reads at paint time is
+tracked, and a later change repaints that one surface and re-invokes the same lambda with the new values.
+The applier stamps the observer onto each node on the top-down pass of the insert, which under the
+ordering *Placing children with explicit constraints* describes is ahead of that node's own `update`
+changes, so a component adopts it from there. On the same terms as a listener, a component's tracked
+reads are dropped when its node is released, reused or deactivated, so a parked or recycled node reacts
+to nothing and registers afresh the next time it paints; the observer itself lives as long as the
+composition that owns it. A composition holding nothing that paints from state - a menu - owns none at
+all.
+
+A window's geometry is observed separately, by an observer of its own belonging to that window rather
+than to the composition around it, because the two differ in what they must marshal. The owner's
+observer notifies directly: a component reacts by asking for a repaint, which is safe to request from
+any thread. A window's does not - a snapshot's apply notification arrives on whichever thread applied
+the snapshot, while sizing, packing and placing a window is the EDT's alone - so it hands the
+notification to the EDT before re-applying. Reading the declared geometry there rather than in a
+composable body is what keeps a drag or a resize off the composition entirely: the window system reports
+the gesture once per frame, each report is written back into the very state the window is declared with,
+and each write re-runs an apply that finds the window already standing as the state says.
 
 ---
 
@@ -259,9 +311,9 @@ Button(text = "Clicks: $count", onClick = { count++ })
 5. Once the change pass completes, that container is laid out and repainted once, and the new label
    is on screen.
 
-If a slot had appeared or disappeared instead - a conditional inside `BorderPanel` - the applied
-change would be an insert or remove in the correct region, and the layout-and-repaint pass is what
-makes the structural change visible.
+If a child had appeared or disappeared instead - a conditional inside `BorderPanel` - the applied
+change would be an insert or remove in the region that child declares, and the layout-and-repaint pass
+is what makes the structural change visible.
 
 ---
 
@@ -270,18 +322,16 @@ makes the structural change visible.
 The same Compose runtime drives very different targets, and the differences concentrate in how
 changes reach the screen:
 
-| Concern | Swing (this library) | Compose Multiplatform | DOM (Compose HTML) | Terminal (Mosaic) |
-| --- | --- | --- | --- | --- |
-| Backing tree | `java.awt.Container` widgets | `LayoutNode`s, a tree the toolkit owns outright | live DOM nodes | an in-memory node tree |
-| Who lays out | Swing `LayoutManager`s | Compose UI's own measure-and-layout pass | the browser's reflow engine | the target's own layout pass |
-| Making changes visible | an explicit layout-and-repaint pass per touched container | the owner is told changes ended, and the next frame draws the scene onto a canvas | mutating the DOM reflows and repaints automatically | the target re-runs layout and renders a frame |
-| Placement | explicit constraints, because layout managers need region/constraint information | `Modifier` and layout composables | CSS and element order | the target's own modifier/layout system |
-| Threading | the EDT | a frame-driven render loop, on the EDT where the desktop target hosts it | the single-threaded JS event loop | the target's render loop |
+| Concern                | Swing (this library)                                                             | Compose Multiplatform                                                             | DOM (Compose HTML)                                  | Terminal (Mosaic)                             |
+|------------------------|----------------------------------------------------------------------------------|-----------------------------------------------------------------------------------|-----------------------------------------------------|-----------------------------------------------|
+| Backing tree           | `java.awt.Container` widgets                                                     | `LayoutNode`s, a tree the toolkit owns outright                                   | live DOM nodes                                      | an in-memory node tree                        |
+| Who lays out           | Swing `LayoutManager`s                                                           | Compose UI's own measure-and-layout pass                                          | the browser's reflow engine                         | the target's own layout pass                  |
+| Making changes visible | an explicit layout-and-repaint pass per touched container                        | the owner is told changes ended, and the next frame draws the scene onto a canvas | mutating the DOM reflows and repaints automatically | the target re-runs layout and renders a frame |
+| Placement              | explicit constraints, because layout managers need region/constraint information | `Modifier` and layout composables                                                 | CSS and element order                               | the target's own modifier/layout system       |
+| Threading              | the EDT                                                                          | a frame-driven render loop, on the EDT where the desktop target hosts it          | the single-threaded JS event loop                   | the target's render loop                      |
 
 Swing reflows neither on mutation, the way the DOM does, nor on its own schedule, the way a target
-that owns its render loop does. That is the fact the binding is built around: changes to the tree
-are paired with an explicit layout-and-repaint pass, and placement is carried explicitly because the
-layout managers that do the work need real constraint information.
+that owns its render loop does. That is the fact the binding is built around.
 
 Compose Multiplatform is the closest comparison and the sharpest contrast. On the desktop it runs on
 the very same thread this library does, and it still needs an applier of its own, because what a

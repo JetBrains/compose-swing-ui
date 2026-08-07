@@ -2,6 +2,9 @@ package org.jetbrains.compose.swing.modifier
 
 import androidx.compose.runtime.Stable
 import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
+import org.jetbrains.compose.swing.modifier.layout.checkOnePlacement
+import org.jetbrains.compose.swing.modifier.layout.removeLayoutConstraint
+import org.jetbrains.compose.swing.modifier.layout.removeSlot
 import org.jetbrains.compose.swing.node.SwingNodeHolder
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
 import java.awt.Component
@@ -29,9 +32,9 @@ import java.awt.Component
  * The modifier is immutable and safe to share, hoist, and reuse as a theme token. Building the chain
  * inline in the composable body is the intended style and needs no `remember`: a chain equal to the
  * one last applied to a component is skipped, and each element is compared on its own, so a property
- * whose declared value has not changed is not written again. An element carrying a callback compares
- * that callback by identity, so a lambda written inline differs from pass to pass and that element
- * alone is re-applied.
+ * whose declared value has not changed is not written again. An element carrying a callback is compared
+ * the same way: one the composition rebuilt around the callback it already carries writes nothing, and
+ * one rebuilt around another callback is re-applied on its own.
  *
  * A modifier is applied *to* a node, and a node *holds* the modifier state that outlives one
  * apply pass, so `modifier` and `node` are one boundary read from two sides, not two layers - a
@@ -92,24 +95,17 @@ public interface SwingModifier {
      * a component of type [T] and backed by a stateful [Node] of type [N].
      *
      * Implement this to expose an arbitrary Swing property or listener the library does not ship a
-     * builder for (see `docs/CUSTOM-COMPONENTS.md`). Declare [targetType] as the [Class] of the most
-     * general component the element needs (`Component::class.java` for a property every component has,
-     * `JComponent::class.java` for a `JComponent`-only property like `border`, a concrete widget class
-     * for a widget-specific listener); the node's [Node.component] arrives already typed [T].
+     * builder for (see `docs/CUSTOM-COMPONENTS.md`). See [targetType] for how to declare the component
+     * type the element targets; the node's [Node.component] arrives already typed [T].
      *
      * The element is immutable data; it [create]s a [Node] once per slot and [update]s it with the
      * latest data on every chain change. The node owns the mutable state (the captured original, the
      * installed listener) and its setup/teardown via [Node.onAttach]/[Node.onDetach].
      *
-     * An element is one of two kinds, selected by [additive]:
-     * - A **property** element ([additive] `false`, the default) owns a single value identified by
-     *   [key]: two elements with equal keys target the same property (last wins, and a key vanishing
-     *   from the chain triggers [Node.onDetach]); two elements with different keys are independent.
-     *   This is the right shape for appearance/layout writes (`background`, `border`, ...) where one
-     *   value wins.
-     * - A **subscription** element ([additive] `true`) is its own slot for every application, matched
-     *   across recompositions by position rather than by [key]. This is the right shape for listeners,
-     *   which are inherently additive in Swing: two `onHover {}` both install and both fire.
+     * An element is one of two kinds, selected by [additive]: a **property** element (the default),
+     * right for a value like `background` or `border`, or a **subscription** element, right for a
+     * listener like `onHover`. See [additive] and [key] for how each kind is matched across
+     * recompositions.
      *
      * [equals] and [hashCode] are abstract, so every element states its own equality: the slot skips an
      * incoming element equal to the one it holds, and equality is therefore the contract deciding when
@@ -283,6 +279,13 @@ public class SwingModifierState internal constructor() {
  * so a modifier can override component defaults. A chain equal to the one applied last is skipped, and
  * in a chain that did change, every element that did not is skipped with it. Available on any node
  * whose component is a [Component].
+ *
+ * A chain carrying a placement - [org.jetbrains.compose.swing.modifier.layout.layoutConstraint] or a host
+ * slot - declares where the node is attached in its parent, and this call is the channel through which
+ * that placement reaches the node: it is written onto the node here, before the applier attaches the
+ * component. A component whose `update` never applies its modifier therefore cannot be placed at all,
+ * and one whose chain declares both kinds of placement is refused here, since a parent holds a child by
+ * one of the two.
  */
 public fun SwingNodeUpdater<out Component>.applyModifier(modifier: SwingModifier): Unit =
     updater.set(modifier) { applyModifierDiff(it) }
@@ -304,6 +307,25 @@ internal fun SwingNodeHolder<Component>.applyModifierDiff(modifier: SwingModifie
         }
         chainState
     }
+
+    // A placement says where the node is attached rather than what its component looks like, so it is
+    // taken off the partitioned chain instead of being diffed into a slot - and taking it off is what
+    // keeps it away from the element diff, whose nodes it has none of. It is keyed like any other
+    // property element, so the walk above has already resolved last-wins for each of the two kinds, and
+    // a chain declaring one of each is refused before either is written.
+    //
+    // Writing it here puts it on the node before the applier reads it: an inserted node runs its update
+    // changes between the applier's top-down and bottom-up passes, and the bottom-up pass is the one
+    // that attaches the component. A chain declaring no placement leaves nothing to take off and resets
+    // the node to none; applyConstraint gates on equality, so an unchanged constraint writes nothing.
+    // The declared host region is recorded rather than filled: the applier alone installs a component
+    // into a region, and it moves one whose chain declares a region other than the one it is in.
+    val slot = state.incomingKeyed.removeSlot()
+    val constraint = state.incomingKeyed.removeLayoutConstraint()
+    checkOnePlacement(slot, constraint)
+    declaredSlotAttachment = slot?.attachment
+    declaredSlotName = slot?.name
+    applyConstraint(constraint)
 
     diffKeyedElements(target, state.records, state.incomingKeyed)
     diffAdditiveElements(target, state.additiveRecords, state.incomingAdditive)

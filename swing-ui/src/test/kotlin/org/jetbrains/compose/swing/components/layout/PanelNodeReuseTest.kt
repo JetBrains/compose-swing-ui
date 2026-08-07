@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -36,8 +37,8 @@ class PanelNodeReuseTest {
         setContent {
             ReusableContentHost(active = active) {
                 CardPanel(selectedCard = selected) {
-                    card("first") { Label("first") }
-                    card("second") { Label("second") }
+                    Label("first", SwingModifier.card("first"))
+                    Label("second", SwingModifier.card("second"))
                 }
             }
         }
@@ -63,8 +64,8 @@ class PanelNodeReuseTest {
         setContent {
             ReusableContentHost(active = active) {
                 SplitPane {
-                    first { Label(text = "first") }
-                    second { Label(text = trailing) }
+                    Label(text = "first", modifier = SwingModifier.first())
+                    Label(text = trailing, modifier = SwingModifier.second())
                 }
             }
         }

@@ -15,26 +15,27 @@ import javax.swing.LookAndFeel
 import javax.swing.SwingUtilities
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
-import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
- * Behavioral tests for [SplitPane]. They assert what an observer of the live [JSplitPane] sees: each
- * declared side becomes the matching left/right (top/bottom) component, dropping a side clears it,
- * orientation and resize weight map through, the divider position is controlled while a user drag
- * fires the callback, and the divider size and one-touch flag follow the look and feel until the
- * caller declares them.
+ * Behavioral tests for [SplitPane]. They assert what an observer of the live [JSplitPane] sees: the
+ * side a child names becomes the matching left/right (top/bottom) component, dropping a child empties
+ * the side it occupied, a child naming no side and a second child naming one side are both refused
+ * while replacing the child on a side is not, orientation and resize weight map through, the divider
+ * position is controlled while a user drag fires the callback, and the divider size and one-touch flag
+ * follow the look and feel until the caller declares them.
  */
 class SplitPaneBehaviorTest {
     @Test
-    fun declaredSidesBecomeTheLeftAndRightComponents() = runComposeSwingTest {
+    fun theSidesChildrenNameBecomeTheLeftAndRightComponents() = runComposeSwingTest {
         setContent {
             SplitPane(orientation = JSplitPane.HORIZONTAL_SPLIT) {
-                first { Label(text = "Leading") }
-                second { Label(text = "Trailing") }
+                Label(text = "Leading", modifier = SwingModifier.first())
+                Label(text = "Trailing", modifier = SwingModifier.second())
             }
         }
 
@@ -51,13 +52,13 @@ class SplitPaneBehaviorTest {
     }
 
     @Test
-    fun droppingASideClearsThatSplitPaneComponent() = runComposeSwingTest {
+    fun droppingAChildEmptiesTheSideItOccupied() = runComposeSwingTest {
         var showSecond by mutableStateOf(true)
         setContent {
             SplitPane {
-                first { Label(text = "Leading") }
+                Label(text = "Leading", modifier = SwingModifier.first())
                 if (showSecond) {
-                    second { Label(text = "Trailing") }
+                    Label(text = "Trailing", modifier = SwingModifier.second())
                 }
             }
         }
@@ -79,12 +80,40 @@ class SplitPaneBehaviorTest {
     }
 
     @Test
-    fun swappingASideUpdatesThatComponentInPlace() = runComposeSwingTest {
+    fun aChildThatNamesNoSideIsRefused() = runComposeSwingTest {
+        // A side a child names is the only place a split pane can hold it: a child added among indexed
+        // children would be held by the pane and laid out by nobody, showing nothing at all.
+        val failure =
+            assertFailsWith<IllegalStateException> {
+                setContent {
+                    SplitPane {
+                        Label(text = "Unplaced")
+                    }
+                }
+            }
+
+        val message = failure.message.orEmpty()
+        assertTrue(
+            message.contains("A JSplitPane holds each child in one of its own regions"),
+            "the failure should name the pane that refused the child: $message",
+        )
+        assertTrue(
+            message.contains("SwingModifier.first()") && message.contains("SwingModifier.second()"),
+            "the failure should name the side builders that would place the child: $message",
+        )
+    }
+
+    @Test
+    fun swappingTheChildOnASideUpdatesThatComponentInPlace() = runComposeSwingTest {
         var flag by mutableStateOf(true)
         setContent {
             SplitPane {
-                first { if (flag) Label(text = "First") else Label(text = "Second") }
-                second { Label(text = "Fixed") }
+                if (flag) {
+                    Label(text = "First", modifier = SwingModifier.first())
+                } else {
+                    Label(text = "Second", modifier = SwingModifier.first())
+                }
+                Label(text = "Fixed", modifier = SwingModifier.second())
             }
         }
 
@@ -106,12 +135,113 @@ class SplitPaneBehaviorTest {
     }
 
     @Test
+    fun aChildThatNamesTheOtherSideReleasesTheOneItOccupied() = runComposeSwingTest {
+        var onFirstSide by mutableStateOf(true)
+        setContent {
+            SplitPane {
+                if (onFirstSide) {
+                    Label(text = "Movable", modifier = SwingModifier.first())
+                } else {
+                    Label(text = "Movable", modifier = SwingModifier.second())
+                }
+            }
+        }
+
+        val pane = onNodeOfType<JSplitPane>().fetch()
+        assertSame(onNodeWithText("Movable").fetch(), pane.leftComponent, "the child should start on the first side")
+        assertNull(pane.rightComponent, "the side no child named should be empty")
+
+        onFirstSide = false
+        awaitIdle()
+
+        // The side a child occupies is the one its own chain names, so naming the other one moves it and
+        // hands the side it held back to the pane.
+        assertSame(onNodeWithText("Movable").fetch(), pane.rightComponent, "the child should move to the second side")
+        assertNull(pane.leftComponent, "the first side still holds a child that has moved to the second")
+    }
+
+    @Test
+    fun aSecondChildNamingAnOccupiedSideIsRefused() = runComposeSwingTest {
+        // A side shows one child, and the pane would otherwise drop the child in place while the
+        // composition still holds it as placed there.
+        val failure =
+            assertFailsWith<IllegalStateException> {
+                setContent {
+                    SplitPane {
+                        Label(text = "Leading", modifier = SwingModifier.first())
+                        Label(text = "Also leading", modifier = SwingModifier.first())
+                    }
+                }
+            }
+
+        val message = failure.message.orEmpty()
+        assertTrue(
+            message.contains("A JSplitPane holds one component per region"),
+            "the failure should say a side shows a single child: $message",
+        )
+        assertTrue(
+            message.contains("two children declare SwingModifier.first()"),
+            "the failure should name the builder both children wrote: $message",
+        )
+    }
+
+    @Test
+    fun replacingTheChildOnBothSidesInOnePassKeepsOneChildPerSide() = runComposeSwingTest {
+        // Replacing the occupant of a side is a single declaration for that side across the pass, even
+        // where the arriving child reaches the pane before the outgoing one has left it, and even where
+        // both sides are replaced at once.
+        var replaced by mutableStateOf(false)
+        setContent {
+            SplitPane {
+                if (replaced) {
+                    Label(text = "Leading B", modifier = SwingModifier.first())
+                } else {
+                    Label(text = "Leading A", modifier = SwingModifier.first())
+                }
+                if (replaced) {
+                    Label(text = "Trailing B", modifier = SwingModifier.second())
+                } else {
+                    Label(text = "Trailing A", modifier = SwingModifier.second())
+                }
+            }
+        }
+
+        val pane = onNodeOfType<JSplitPane>().fetch()
+        assertSame(
+            onNodeWithText("Leading A").fetch(),
+            pane.leftComponent,
+            "the first side should hold the first child",
+        )
+        assertSame(
+            onNodeWithText("Trailing A").fetch(),
+            pane.rightComponent,
+            "the second side should hold the first child",
+        )
+
+        replaced = true
+        awaitIdle()
+
+        onNodeWithText("Leading A").assertDoesNotExist()
+        onNodeWithText("Trailing A").assertDoesNotExist()
+        assertSame(
+            onNodeWithText("Leading B").fetch(),
+            pane.leftComponent,
+            "the first side should hold the replacement",
+        )
+        assertSame(
+            onNodeWithText("Trailing B").fetch(),
+            pane.rightComponent,
+            "the second side should hold the replacement",
+        )
+    }
+
+    @Test
     fun orientationMapsThrough() = runComposeSwingTest {
         var orientation by mutableStateOf(JSplitPane.HORIZONTAL_SPLIT)
         setContent {
             SplitPane(orientation = orientation) {
-                first { Label(text = "A") }
-                second { Label(text = "B") }
+                Label(text = "A", modifier = SwingModifier.first())
+                Label(text = "B", modifier = SwingModifier.second())
             }
         }
 
@@ -131,8 +261,8 @@ class SplitPaneBehaviorTest {
     fun resizeWeightMapsThrough() = runComposeSwingTest {
         setContent {
             SplitPane(resizeWeight = 0.25) {
-                first { Label(text = "A") }
-                second { Label(text = "B") }
+                Label(text = "A", modifier = SwingModifier.first())
+                Label(text = "B", modifier = SwingModifier.second())
             }
         }
 
@@ -144,8 +274,8 @@ class SplitPaneBehaviorTest {
         var location by mutableIntStateOf(120)
         setContent {
             SplitPane(dividerLocation = location) {
-                first { Label(text = "A") }
-                second { Label(text = "B") }
+                Label(text = "A", modifier = SwingModifier.first())
+                Label(text = "B", modifier = SwingModifier.second())
             }
         }
 
@@ -166,8 +296,8 @@ class SplitPaneBehaviorTest {
                 modifier = SwingModifier.preferredSize(400, 300),
                 onDividerLocationChange = { reported += it },
             ) {
-                first { Label(text = firstLabel) }
-                second { Label(text = "B") }
+                Label(text = firstLabel, modifier = SwingModifier.first())
+                Label(text = "B", modifier = SwingModifier.second())
             }
         }
 
@@ -198,8 +328,8 @@ class SplitPaneBehaviorTest {
         var location by mutableIntStateOf(200)
         setContent {
             SplitPane(dividerLocation = location, onDividerLocationChange = { reported += it }) {
-                first { Label(text = "A") }
-                second { Label(text = "B") }
+                Label(text = "A", modifier = SwingModifier.first())
+                Label(text = "B", modifier = SwingModifier.second())
             }
         }
 
@@ -226,8 +356,8 @@ class SplitPaneBehaviorTest {
                 modifier = SwingModifier.preferredSize(400, 300),
                 onDividerLocationChange = { reported += it },
             ) {
-                first { Label(text = "A") }
-                second { Label(text = "B") }
+                Label(text = "A", modifier = SwingModifier.first())
+                Label(text = "B", modifier = SwingModifier.second())
             }
         }
 
@@ -259,8 +389,8 @@ class SplitPaneBehaviorTest {
         var location by mutableIntStateOf(120)
         setContent {
             SplitPane(dividerLocation = location, onDividerLocationChange = { reported += it }) {
-                first { Label(text = "A") }
-                second { Label(text = "B") }
+                Label(text = "A", modifier = SwingModifier.first())
+                Label(text = "B", modifier = SwingModifier.second())
             }
         }
 
@@ -288,8 +418,8 @@ class SplitPaneBehaviorTest {
                     location = it
                 },
             ) {
-                first { Label(text = "A") }
-                second { Label(text = "B") }
+                Label(text = "A", modifier = SwingModifier.first())
+                Label(text = "B", modifier = SwingModifier.second())
             }
         }
 
@@ -308,8 +438,8 @@ class SplitPaneBehaviorTest {
     fun undeclaredDividerSizeAndOneTouchFlagFollowTheLookAndFeel() = runComposeSwingTest {
         setContent {
             SplitPane {
-                first { Label(text = "A") }
-                second { Label(text = "B") }
+                Label(text = "A", modifier = SwingModifier.first())
+                Label(text = "B", modifier = SwingModifier.second())
             }
         }
 
@@ -352,8 +482,8 @@ class SplitPaneBehaviorTest {
         var size by mutableIntStateOf(12)
         setContent {
             SplitPane(dividerSize = size) {
-                first { Label(text = "A") }
-                second { Label(text = "B") }
+                Label(text = "A", modifier = SwingModifier.first())
+                Label(text = "B", modifier = SwingModifier.second())
             }
         }
 
@@ -373,8 +503,8 @@ class SplitPaneBehaviorTest {
         var expandable by mutableStateOf(true)
         setContent {
             SplitPane(oneTouchExpandable = expandable) {
-                first { Label(text = "A") }
-                second { Label(text = "B") }
+                Label(text = "A", modifier = SwingModifier.first())
+                Label(text = "B", modifier = SwingModifier.second())
             }
         }
 

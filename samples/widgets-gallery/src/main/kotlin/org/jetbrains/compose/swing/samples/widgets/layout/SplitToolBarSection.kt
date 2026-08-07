@@ -69,8 +69,8 @@ private fun ColumnScope.ControlledSplitCard() {
             dividerSize = dividerSize,
             continuousLayout = continuous,
         ) {
-            first { SplitPaneSide("Left side", Color(0xBB, 0xDE, 0xFB)) }
-            second { SplitPaneSide("Right side", Color(0xC8, 0xE6, 0xC9)) }
+            SplitPaneSide("Left side", Color(0xBB, 0xDE, 0xFB), SwingModifier.first())
+            SplitPaneSide("Right side", Color(0xC8, 0xE6, 0xC9), SwingModifier.second())
         }
     }
 }
@@ -81,11 +81,12 @@ private fun ColumnScope.ControlledSplitCard() {
 private fun SplitPaneSide(
     text: String,
     color: Color,
+    modifier: SwingModifier = SwingModifier,
 ) {
     Label(
         text = text,
         modifier =
-            SwingModifier
+            modifier
                 .opaque(true)
                 .background(color)
                 .lineBorder(Color(0x90, 0xA4, 0xAE))
@@ -101,8 +102,8 @@ private fun ColumnScope.WeightedSplitCard() {
             orientation = JSplitPane.VERTICAL_SPLIT,
             resizeWeight = 0.75,
         ) {
-            first { SplitPaneSide("Top side (keeps 75% of extra space)", Color(0xBB, 0xDE, 0xFB)) }
-            second { SplitPaneSide("Bottom side", Color(0xC8, 0xE6, 0xC9)) }
+            SplitPaneSide("Top side (keeps 75% of extra space)", Color(0xBB, 0xDE, 0xFB), SwingModifier.first())
+            SplitPaneSide("Bottom side", Color(0xC8, 0xE6, 0xC9), SwingModifier.second())
         }
     }
 }
@@ -112,6 +113,7 @@ private fun ColumnScope.ToolBarCard() {
     ExampleCard("ToolBar") {
         var vertical by remember { mutableStateOf(false) }
         var floatable by remember { mutableStateOf(true) }
+        var floating by remember { mutableStateOf(false) }
         var rollover by remember { mutableStateOf(true) }
         var bold by remember { mutableStateOf(false) }
         var clicks by remember { mutableIntStateOf(0) }
@@ -119,12 +121,15 @@ private fun ColumnScope.ToolBarCard() {
         FlowPanel {
             CheckBox(text = "Vertical", checked = vertical, onCheckedChange = { vertical = it })
             CheckBox(text = "Floatable", checked = floatable, onCheckedChange = { floatable = it })
+            CheckBox(text = "Floating", checked = floating, onCheckedChange = { floating = it })
             CheckBox(text = "Rollover", checked = rollover, onCheckedChange = { rollover = it })
         }
-        Label("New clicks: $clicks   Bold: ${if (bold) "on" else "off"}")
+        Label("New clicks: $clicks   Bold: ${if (bold) "on" else "off"}   Floating: $floating")
         ToolBar(
             orientation = if (vertical) SwingConstants.VERTICAL else SwingConstants.HORIZONTAL,
             floatable = floatable,
+            floating = floating,
+            onFloatingChange = { floating = it },
             rollover = rollover,
         ) {
             Button("New", onClick = { clicks++ })

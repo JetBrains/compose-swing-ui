@@ -33,7 +33,6 @@ import org.jetbrains.compose.swing.window.MenuBar
 import org.jetbrains.compose.swing.window.Window
 import org.jetbrains.compose.swing.window.WindowPosition
 import org.jetbrains.compose.swing.window.WindowScope
-import org.jetbrains.compose.swing.window.WindowState
 import org.jetbrains.compose.swing.window.launchApplication
 import org.jetbrains.compose.swing.window.rememberDialogState
 import org.jetbrains.compose.swing.window.rememberWindowState
@@ -46,13 +45,10 @@ import javax.swing.SwingConstants
 
 // The declarative top-level window peers: a secondary Window and a modal Dialog. Each is conditionally
 // composed behind a boolean, so opening is "compose it" and closing is "stop composing it" -
-// onCloseRequest simply flips the state back. The dialog's modality is switched live between the three
-// AWT modality types. Each peer's geometry is a hoisted state object read in both directions: a label
-// shows what the user's own drag or resize wrote into it, and a button writes back. Every other
-// reactive Window/Dialog argument - resizable, alwaysOnTop, undecorated, iconImage, minimumSize,
-// visible - is driven by a check box beside it. The secondary window is also where MenuBar and
-// GlassPane are shown, since both are declared on a window's own content and the gallery's own frame
-// carries its own menu bar already.
+// onCloseRequest flips the state back. The dialog's modality is switched live between the three AWT
+// modality types. Every reactive Window/Dialog argument - resizable, alwaysOnTop, undecorated,
+// iconImage, minimumSize, visible - is driven by a check box beside it, and each peer's geometry is
+// demonstrated as two-way state. The secondary window also demonstrates MenuBar and GlassPane.
 @Composable
 internal fun WindowsSection() {
     SectionColumn {
@@ -69,47 +65,44 @@ private fun ColumnScope.SecondaryWindowCard() {
         var open by remember { mutableStateOf(false) }
         // Hoisted above the `if (open)` so the readout survives closing and reopening the window.
         val state = rememberWindowState(size = Dimension(320, 200))
-        var resizable by remember { mutableStateOf(true) }
-        var alwaysOnTop by remember { mutableStateOf(false) }
-        var undecorated by remember { mutableStateOf(false) }
-        var customIcon by remember { mutableStateOf(false) }
-        var enforceMinimumSize by remember { mutableStateOf(false) }
-        var visible by remember { mutableStateOf(true) }
+        val chrome = remember { WindowChromeState() }
         var busy by remember { mutableStateOf(false) }
         val icon = remember { windowIconImage() }
 
-        SecondaryWindowControls(
-            open = open,
-            onToggleOpen = { open = !open },
-            state = state,
-            resizable = resizable,
-            onResizableChange = { resizable = it },
-            alwaysOnTop = alwaysOnTop,
-            onAlwaysOnTopChange = { alwaysOnTop = it },
-            undecorated = undecorated,
-            onUndecoratedChange = { undecorated = it },
-            customIcon = customIcon,
-            onCustomIconChange = { customIcon = it },
-            enforceMinimumSize = enforceMinimumSize,
-            onEnforceMinimumSizeChange = { enforceMinimumSize = it },
-            visible = visible,
-            onVisibleChange = { visible = it },
-        )
+        FlowPanel {
+            Button(if (open) "Close window" else "Open window", onClick = { open = !open })
+            Label("Window is ${if (open) "open" else "closed"}")
+        }
+        // Geometry is two-way: these labels show what the window writes back as the user drags or
+        // resizes it, and the buttons below drive the very same properties in the other direction.
+        FlowPanel {
+            Label("Position: ${state.position}")
+            Label("Size: ${state.width} x ${state.height}")
+        }
+        FlowPanel {
+            Button("Center on screen", onClick = { state.position = WindowPosition.CenteredOnScreen })
+            Button("Widen by 40", onClick = { state.width += 40 })
+            Button("Maximize", onClick = { state.extendedState = Frame.MAXIMIZED_BOTH })
+            Button("Restore", onClick = { state.extendedState = Frame.NORMAL })
+        }
+        // The remaining Window(...) arguments are reactive too: each check box writes straight into
+        // the parameter it names.
+        WindowChromeControls(chrome)
         if (open) {
             Window(
                 onCloseRequest = { open = false },
                 state = state,
                 title = "Secondary Window",
-                visible = visible,
-                resizable = resizable,
-                alwaysOnTop = alwaysOnTop,
-                iconImage = if (customIcon) icon else null,
-                minimumSize = if (enforceMinimumSize) Dimension(240, 160) else null,
-                undecorated = undecorated,
+                visible = chrome.visible,
+                resizable = chrome.resizable,
+                alwaysOnTop = chrome.alwaysOnTop,
+                iconImage = if (chrome.customIcon) icon else null,
+                minimumSize = if (chrome.enforceMinimumSize) Dimension(240, 160) else null,
+                undecorated = chrome.undecorated,
             ) {
                 SecondaryWindowContent(
-                    alwaysOnTop = alwaysOnTop,
-                    onAlwaysOnTopChange = { alwaysOnTop = it },
+                    alwaysOnTop = chrome.alwaysOnTop,
+                    onAlwaysOnTopChange = { chrome.alwaysOnTop = it },
                     busy = busy,
                     onBusyChange = { busy = it },
                     onClose = { open = false },
@@ -119,55 +112,33 @@ private fun ColumnScope.SecondaryWindowCard() {
     }
 }
 
+// Resizable, always-on-top, undecorated, custom icon and minimum size are grouped in one state
+// holder because SecondaryWindowCard only ever reads or offers them together, as the window's
+// chrome controls.
+private class WindowChromeState {
+    var resizable by mutableStateOf(true)
+    var alwaysOnTop by mutableStateOf(false)
+    var undecorated by mutableStateOf(false)
+    var customIcon by mutableStateOf(false)
+    var enforceMinimumSize by mutableStateOf(false)
+    var visible by mutableStateOf(true)
+}
+
 @Composable
-private fun SecondaryWindowControls(
-    open: Boolean,
-    onToggleOpen: () -> Unit,
-    state: WindowState,
-    resizable: Boolean,
-    onResizableChange: (Boolean) -> Unit,
-    alwaysOnTop: Boolean,
-    onAlwaysOnTopChange: (Boolean) -> Unit,
-    undecorated: Boolean,
-    onUndecoratedChange: (Boolean) -> Unit,
-    customIcon: Boolean,
-    onCustomIconChange: (Boolean) -> Unit,
-    enforceMinimumSize: Boolean,
-    onEnforceMinimumSizeChange: (Boolean) -> Unit,
-    visible: Boolean,
-    onVisibleChange: (Boolean) -> Unit,
-) {
+private fun WindowChromeControls(state: WindowChromeState) {
     FlowPanel {
-        Button(if (open) "Close window" else "Open window", onClick = onToggleOpen)
-        Label("Window is ${if (open) "open" else "closed"}")
-    }
-    // Geometry is two-way: these labels show what the window writes back as the user drags or
-    // resizes it, and the buttons below drive the very same properties in the other direction.
-    FlowPanel {
-        Label("Position: ${state.position}")
-        Label("Size: ${state.width} x ${state.height}")
+        CheckBox("Resizable", checked = state.resizable, onCheckedChange = { state.resizable = it })
+        CheckBox("Always on top", checked = state.alwaysOnTop, onCheckedChange = { state.alwaysOnTop = it })
+        CheckBox("Undecorated", checked = state.undecorated, onCheckedChange = { state.undecorated = it })
     }
     FlowPanel {
-        Button("Center on screen", onClick = { state.position = WindowPosition.CenteredOnScreen })
-        Button("Widen by 40", onClick = { state.width += 40 })
-        Button("Maximize", onClick = { state.extendedState = Frame.MAXIMIZED_BOTH })
-        Button("Restore", onClick = { state.extendedState = Frame.NORMAL })
-    }
-    // The remaining Window(...) arguments are reactive too: each check box below writes straight
-    // into the parameter it names.
-    FlowPanel {
-        CheckBox("Resizable", checked = resizable, onCheckedChange = onResizableChange)
-        CheckBox("Always on top", checked = alwaysOnTop, onCheckedChange = onAlwaysOnTopChange)
-        CheckBox("Undecorated", checked = undecorated, onCheckedChange = onUndecoratedChange)
-    }
-    FlowPanel {
-        CheckBox("Custom icon", checked = customIcon, onCheckedChange = onCustomIconChange)
+        CheckBox("Custom icon", checked = state.customIcon, onCheckedChange = { state.customIcon = it })
         CheckBox(
             "Minimum size 240x160",
-            checked = enforceMinimumSize,
-            onCheckedChange = onEnforceMinimumSizeChange,
+            checked = state.enforceMinimumSize,
+            onCheckedChange = { state.enforceMinimumSize = it },
         )
-        CheckBox("Visible", checked = visible, onCheckedChange = onVisibleChange)
+        CheckBox("Visible", checked = state.visible, onCheckedChange = { state.visible = it })
     }
 }
 
@@ -193,17 +164,13 @@ private fun WindowScope.SecondaryWindowContent(
         }
     }
     BorderPanel {
-        center {
-            Label(
-                "A second top-level window, composed declaratively.",
-                modifier = SwingModifier.horizontalAlignment(SwingConstants.CENTER),
-            )
-        }
-        south {
-            FlowPanel {
-                Button("Dismiss", onClick = onClose)
-                Button("Show busy overlay", onClick = { onBusyChange(true) })
-            }
+        Label(
+            "A second top-level window, composed declaratively.",
+            modifier = SwingModifier.center().horizontalAlignment(SwingConstants.CENTER),
+        )
+        FlowPanel(SwingModifier.south()) {
+            Button("Dismiss", onClick = onClose)
+            Button("Show busy overlay", onClick = { onBusyChange(true) })
         }
     }
     // A glass pane covers the whole window for as long as it is composed, and the window's mouse
@@ -212,11 +179,9 @@ private fun WindowScope.SecondaryWindowContent(
     if (busy) {
         GlassPane {
             BorderPanel(modifier = SwingModifier.opaque(true).background(Color(0xE8EAF6))) {
-                center {
-                    FlowPanel {
-                        Label("Busy...")
-                        Button("Dismiss overlay", onClick = { onBusyChange(false) })
-                    }
+                FlowPanel(SwingModifier.center()) {
+                    Label("Busy...")
+                    Button("Dismiss overlay", onClick = { onBusyChange(false) })
                 }
             }
         }
@@ -231,42 +196,42 @@ private fun ColumnScope.ModalDialogCard() {
         // Hoisted above the `if (open)` so the dialog reopens at whatever size it was last left.
         val state = rememberDialogState(size = Dimension(360, 200))
         var modality by remember { mutableStateOf(java.awt.Dialog.ModalityType.APPLICATION_MODAL) }
-        var resizable by remember { mutableStateOf(true) }
-        var alwaysOnTop by remember { mutableStateOf(false) }
-        var undecorated by remember { mutableStateOf(false) }
-        var customIcon by remember { mutableStateOf(false) }
-        var enforceMinimumSize by remember { mutableStateOf(false) }
+        val chrome = remember { DialogChromeState() }
         val icon = remember { windowIconImage() }
 
         FlowPanel {
             Button("Open modal dialog", onClick = { open = true })
             Label(if (acknowledged) "Last dialog: acknowledged" else "No dialog acknowledged yet")
         }
-        ModalDialogControls(
-            modality = modality,
-            onModalityChange = { modality = it },
-            resizable = resizable,
-            onResizableChange = { resizable = it },
-            alwaysOnTop = alwaysOnTop,
-            onAlwaysOnTopChange = { alwaysOnTop = it },
-            undecorated = undecorated,
-            onUndecoratedChange = { undecorated = it },
-            customIcon = customIcon,
-            onCustomIconChange = { customIcon = it },
-            enforceMinimumSize = enforceMinimumSize,
-            onEnforceMinimumSizeChange = { enforceMinimumSize = it },
-        )
+        FlowPanel {
+            RadioButton(
+                "Modeless",
+                selected = modality == java.awt.Dialog.ModalityType.MODELESS,
+                onSelectedChange = { modality = java.awt.Dialog.ModalityType.MODELESS },
+            )
+            RadioButton(
+                "Document modal",
+                selected = modality == java.awt.Dialog.ModalityType.DOCUMENT_MODAL,
+                onSelectedChange = { modality = java.awt.Dialog.ModalityType.DOCUMENT_MODAL },
+            )
+            RadioButton(
+                "Application modal",
+                selected = modality == java.awt.Dialog.ModalityType.APPLICATION_MODAL,
+                onSelectedChange = { modality = java.awt.Dialog.ModalityType.APPLICATION_MODAL },
+            )
+        }
+        DialogChromeControls(chrome)
         if (open) {
             Dialog(
                 onCloseRequest = { open = false },
                 state = state,
                 title = "Confirm",
                 modality = modality,
-                resizable = resizable,
-                alwaysOnTop = alwaysOnTop,
-                iconImage = if (customIcon) icon else null,
-                minimumSize = if (enforceMinimumSize) Dimension(240, 160) else null,
-                undecorated = undecorated,
+                resizable = chrome.resizable,
+                alwaysOnTop = chrome.alwaysOnTop,
+                iconImage = if (chrome.customIcon) icon else null,
+                minimumSize = if (chrome.enforceMinimumSize) Dimension(240, 160) else null,
+                undecorated = chrome.undecorated,
             ) {
                 ModalDialogContent(
                     state = state,
@@ -281,47 +246,28 @@ private fun ColumnScope.ModalDialogCard() {
     }
 }
 
+// Resizable, always-on-top, undecorated, custom icon and minimum size are grouped in one state
+// holder because ModalDialogCard only ever reads or offers them together, as the dialog's chrome
+// controls.
+private class DialogChromeState {
+    var resizable by mutableStateOf(true)
+    var alwaysOnTop by mutableStateOf(false)
+    var undecorated by mutableStateOf(false)
+    var customIcon by mutableStateOf(false)
+    var enforceMinimumSize by mutableStateOf(false)
+}
+
 @Composable
-private fun ModalDialogControls(
-    modality: java.awt.Dialog.ModalityType,
-    onModalityChange: (java.awt.Dialog.ModalityType) -> Unit,
-    resizable: Boolean,
-    onResizableChange: (Boolean) -> Unit,
-    alwaysOnTop: Boolean,
-    onAlwaysOnTopChange: (Boolean) -> Unit,
-    undecorated: Boolean,
-    onUndecoratedChange: (Boolean) -> Unit,
-    customIcon: Boolean,
-    onCustomIconChange: (Boolean) -> Unit,
-    enforceMinimumSize: Boolean,
-    onEnforceMinimumSizeChange: (Boolean) -> Unit,
-) {
+private fun DialogChromeControls(state: DialogChromeState) {
     FlowPanel {
-        RadioButton(
-            "Modeless",
-            selected = modality == java.awt.Dialog.ModalityType.MODELESS,
-            onSelectedChange = { onModalityChange(java.awt.Dialog.ModalityType.MODELESS) },
-        )
-        RadioButton(
-            "Document modal",
-            selected = modality == java.awt.Dialog.ModalityType.DOCUMENT_MODAL,
-            onSelectedChange = { onModalityChange(java.awt.Dialog.ModalityType.DOCUMENT_MODAL) },
-        )
-        RadioButton(
-            "Application modal",
-            selected = modality == java.awt.Dialog.ModalityType.APPLICATION_MODAL,
-            onSelectedChange = { onModalityChange(java.awt.Dialog.ModalityType.APPLICATION_MODAL) },
-        )
-    }
-    FlowPanel {
-        CheckBox("Resizable", checked = resizable, onCheckedChange = onResizableChange)
-        CheckBox("Always on top", checked = alwaysOnTop, onCheckedChange = onAlwaysOnTopChange)
-        CheckBox("Undecorated", checked = undecorated, onCheckedChange = onUndecoratedChange)
-        CheckBox("Custom icon", checked = customIcon, onCheckedChange = onCustomIconChange)
+        CheckBox("Resizable", checked = state.resizable, onCheckedChange = { state.resizable = it })
+        CheckBox("Always on top", checked = state.alwaysOnTop, onCheckedChange = { state.alwaysOnTop = it })
+        CheckBox("Undecorated", checked = state.undecorated, onCheckedChange = { state.undecorated = it })
+        CheckBox("Custom icon", checked = state.customIcon, onCheckedChange = { state.customIcon = it })
         CheckBox(
             "Minimum size 240x160",
-            checked = enforceMinimumSize,
-            onCheckedChange = onEnforceMinimumSizeChange,
+            checked = state.enforceMinimumSize,
+            onCheckedChange = { state.enforceMinimumSize = it },
         )
     }
 }
@@ -333,21 +279,17 @@ private fun ModalDialogContent(
     onClose: () -> Unit,
 ) {
     BorderPanel {
-        center {
-            Label(
-                "The modality selected above decides whether this dialog blocks its owner.",
-                modifier = SwingModifier.horizontalAlignment(SwingConstants.CENTER),
-            )
-        }
+        Label(
+            "The modality selected above decides whether this dialog blocks its owner.",
+            modifier = SwingModifier.center().horizontalAlignment(SwingConstants.CENTER),
+        )
         // The readout and the grow button live inside the dialog because a modal dialog blocks its
         // owner, so its own content is the only place a control can reach it.
-        south {
-            FlowPanel {
-                Label("Dialog is ${state.width} x ${state.height}")
-                Button("Grow", onClick = { state.size = Dimension(state.width + 40, state.height + 20) })
-                Button("OK", onClick = onAcknowledge)
-                Button("Cancel", onClick = onClose)
-            }
+        FlowPanel(SwingModifier.south()) {
+            Label("Dialog is ${state.width} x ${state.height}")
+            Button("Grow", onClick = { state.size = Dimension(state.width + 40, state.height + 20) })
+            Button("OK", onClick = onAcknowledge)
+            Button("Cancel", onClick = onClose)
         }
     }
 }
@@ -371,18 +313,14 @@ private fun ColumnScope.ApplicationEntryPointCard() {
                         var clicks by remember { mutableIntStateOf(0) }
                         Window(onCloseRequest = ::exitApplication, title = "application { } demo") {
                             BorderPanel {
-                                center {
-                                    Label(
-                                        "Its own composition, closed by its own exitApplication().",
-                                        modifier = SwingModifier.horizontalAlignment(SwingConstants.CENTER),
-                                    )
-                                }
-                                south {
-                                    FlowPanel {
-                                        Label("Clicks: $clicks")
-                                        Button("Click", onClick = { clicks++ })
-                                        Button("exitApplication()", onClick = ::exitApplication)
-                                    }
+                                Label(
+                                    "Its own composition, closed by its own exitApplication().",
+                                    modifier = SwingModifier.center().horizontalAlignment(SwingConstants.CENTER),
+                                )
+                                FlowPanel(SwingModifier.south()) {
+                                    Label("Clicks: $clicks")
+                                    Button("Click", onClick = { clicks++ })
+                                    Button("exitApplication()", onClick = ::exitApplication)
                                 }
                             }
                         }

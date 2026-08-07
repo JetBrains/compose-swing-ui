@@ -60,9 +60,10 @@ class RawEventListenerModifierTest {
         val listener = ListSelectionListener { fired++ }
         setContent {
             ScrollPane {
-                content {
-                    ListBox(items = listOf("a", "b", "c"), modifier = SwingModifier.listSelectionListener(listener))
-                }
+                ListBox(
+                    items = listOf("a", "b", "c"),
+                    modifier = SwingModifier.listSelectionListener(listener).viewport(),
+                )
             }
         }
         val list = onNodeOfType<JList<*>>().fetch<JList<*>>()
@@ -82,13 +83,11 @@ class RawEventListenerModifierTest {
         val listener = TreeSelectionListener { fired++ }
         setContent {
             ScrollPane {
-                content {
-                    Tree(
-                        root = "root",
-                        children = { if (it == "root") listOf("child") else emptyList() },
-                        modifier = SwingModifier.treeSelectionListener(listener),
-                    )
-                }
+                Tree(
+                    root = "root",
+                    children = { if (it == "root") listOf("child") else emptyList() },
+                    modifier = SwingModifier.treeSelectionListener(listener).viewport(),
+                )
             }
         }
         val tree = onNodeOfType<JTree>().fetch()

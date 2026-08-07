@@ -46,9 +46,9 @@ class NodeTabInteractionTest {
                     selected = it
                 },
             ) {
-                tab("One") { Label("1") }
-                tab("Two") { Label("2") }
-                tab("Three") { Label("3") }
+                Label("1", SwingModifier.tab("One"))
+                Label("2", SwingModifier.tab("Two"))
+                Label("3", SwingModifier.tab("Three"))
             }
         }
 
@@ -69,8 +69,8 @@ class NodeTabInteractionTest {
                 modifier = roomForTheStrip,
                 onSelectedIndexChange = { selected = it },
             ) {
-                tab("One") { Label("first") }
-                tab("Two") { Label("second") }
+                Label("first", SwingModifier.tab("One"))
+                Label("second", SwingModifier.tab("Two"))
             }
         }
 
@@ -87,8 +87,8 @@ class NodeTabInteractionTest {
         val reported = mutableListOf<Int>()
         setContent {
             TabbedPane(selectedIndex = 1, modifier = roomForTheStrip, onSelectedIndexChange = { reported += it }) {
-                tab("One") { Label("1") }
-                tab("Two") { Label("2") }
+                Label("1", SwingModifier.tab("One"))
+                Label("2", SwingModifier.tab("Two"))
             }
         }
 
@@ -103,8 +103,8 @@ class NodeTabInteractionTest {
         val reported = mutableListOf<Int>()
         setContent {
             TabbedPane(selectedIndex = 0, modifier = roomForTheStrip, onSelectedIndexChange = { reported += it }) {
-                tab("One") { Label("1") }
-                tab("Two", enabled = false) { Label("2") }
+                Label("1", SwingModifier.tab("One"))
+                Label("2", SwingModifier.tab("Two", enabled = false))
             }
         }
 
@@ -123,8 +123,8 @@ class NodeTabInteractionTest {
                 modifier = roomForTheStrip.enabled(false),
                 onSelectedIndexChange = { reported += it },
             ) {
-                tab("One") { Label("1") }
-                tab("Two") { Label("2") }
+                Label("1", SwingModifier.tab("One"))
+                Label("2", SwingModifier.tab("Two"))
             }
         }
 
@@ -147,8 +147,8 @@ class NodeTabInteractionTest {
                     modifier = roomForTheStrip,
                     onSelectedIndexChange = { selected = it },
                 ) {
-                    tab("One") { Label("first") }
-                    tab("Two") { Label("second") }
+                    Label("first", SwingModifier.tab("One"))
+                    Label("second", SwingModifier.tab("Two"))
                 }
             }
         }
@@ -175,9 +175,9 @@ class NodeTabInteractionTest {
                     selected = 2
                 },
             ) {
-                tab("One") { Label("1") }
-                tab("Two") { Label("2") }
-                tab("Three") { Label("3") }
+                Label("1", SwingModifier.tab("One"))
+                Label("2", SwingModifier.tab("Two"))
+                Label("3", SwingModifier.tab("Three"))
             }
         }
 
@@ -219,8 +219,8 @@ class NodeTabInteractionTest {
             }
         setContent {
             TabbedPane(selectedIndex = 0, modifier = roomForTheStrip.mouseListener(recorder)) {
-                tab("One") { Label("1") }
-                tab("Two") { Label("2") }
+                Label("1", SwingModifier.tab("One"))
+                Label("2", SwingModifier.tab("Two"))
             }
         }
 
@@ -245,8 +245,8 @@ class NodeTabInteractionTest {
     fun clickingAnIndexOutsideTheStripFailsReadably() = runComposeSwingTest {
         setContent {
             TabbedPane(selectedIndex = 0, modifier = roomForTheStrip) {
-                tab("One") { Label("1") }
-                tab("Two") { Label("2") }
+                Label("1", SwingModifier.tab("One"))
+                Label("2", SwingModifier.tab("Two"))
             }
         }
 
@@ -276,7 +276,7 @@ class NodeTabInteractionTest {
                 modifier = roomForTheStrip,
                 tabLayoutPolicy = JTabbedPane.SCROLL_TAB_LAYOUT,
             ) {
-                repeat(TABS_BEYOND_ONE_RUN) { index -> tab("Tab number $index") { Label("$index") } }
+                repeat(TABS_BEYOND_ONE_RUN) { index -> Label("$index", SwingModifier.tab("Tab number $index")) }
             }
         }
 

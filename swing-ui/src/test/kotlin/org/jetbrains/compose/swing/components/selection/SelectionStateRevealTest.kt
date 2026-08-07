@@ -36,7 +36,7 @@ class SelectionStateRevealTest {
         val state = ListState()
         setContent {
             ScrollPane(modifier = SwingModifier.preferredSize(160, 80)) {
-                content { ListBox(items = rows, state = state) }
+                ListBox(items = rows, state = state, modifier = SwingModifier.viewport())
             }
         }
 
@@ -54,13 +54,12 @@ class SelectionStateRevealTest {
         val state = TreeState(initialExpandedPaths = setOf(emptyList()))
         setContent {
             ScrollPane(modifier = SwingModifier.preferredSize(160, 80)) {
-                content {
-                    Tree(
-                        root = "root",
-                        children = { value -> if (value == "root") rows else emptyList() },
-                        state = state,
-                    )
-                }
+                Tree(
+                    root = "root",
+                    children = { value -> if (value == "root") rows else emptyList() },
+                    state = state,
+                    modifier = SwingModifier.viewport(),
+                )
             }
         }
 
@@ -107,7 +106,7 @@ class SelectionStateRevealTest {
         setContent {
             LaunchedEffect(items) { reachedFromEffect += state.revealIndex(items.lastIndex) }
             ScrollPane(modifier = SwingModifier.preferredSize(160, 80)) {
-                content { ListBox(items = items, state = state) }
+                ListBox(items = items, state = state, modifier = SwingModifier.viewport())
             }
         }
         reachedFromEffect.clear()

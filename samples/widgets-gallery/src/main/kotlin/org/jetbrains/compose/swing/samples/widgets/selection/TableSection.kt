@@ -115,29 +115,27 @@ private fun ColumnScope.SelectableTableCard() {
         )
 
         ScrollPane(modifier = SwingModifier.preferredSize(Dimension(360, 140))) {
-            content {
-                Table(
-                    rows = people,
-                    selectedRowIndices = selection,
-                    onSelectionChange = { selection = it },
-                    selectionMode = tableSelectionModes[selectionModeIndex].second,
-                    modifier = SwingModifier.testTag(PRIMARY_TABLE_TAG),
-                ) {
-                    column("Name") { it.name }
-                    column("Role") { it.role }
-                    column(
-                        header = "Age",
-                        isEditable = true,
-                        onCellEdit = { _, rowIndex, age ->
-                            if (age != null) {
-                                people =
-                                    people.mapIndexed { index, person ->
-                                        if (index == rowIndex) person.copy(age = age) else person
-                                    }
-                            }
-                        },
-                    ) { it.age }
-                }
+            Table(
+                rows = people,
+                selectedRowIndices = selection,
+                onSelectionChange = { selection = it },
+                selectionMode = tableSelectionModes[selectionModeIndex].second,
+                modifier = SwingModifier.viewport().testTag(PRIMARY_TABLE_TAG),
+            ) {
+                column("Name") { it.name }
+                column("Role") { it.role }
+                column(
+                    header = "Age",
+                    isEditable = true,
+                    onCellEdit = { _, rowIndex, age ->
+                        if (age != null) {
+                            people =
+                                people.mapIndexed { index, person ->
+                                    if (index == rowIndex) person.copy(age = age) else person
+                                }
+                        }
+                    },
+                ) { it.age }
             }
         }
 
@@ -183,9 +181,7 @@ private fun ColumnScope.SortingFilteringTableCard() {
                 }
             }
 
-        var resizeModeIndex by remember { mutableIntStateOf(2) }
-        var rowHeight by remember { mutableIntStateOf(22) }
-        var fillsViewportHeight by remember { mutableStateOf(false) }
+        val layout = remember { TableLayoutState() }
         var columnLayout by remember { mutableStateOf<TableColumnLayout?>(null) }
 
         SortFilterControls(
@@ -194,26 +190,34 @@ private fun ColumnScope.SortingFilteringTableCard() {
             filterText = filterText,
             onFilterTextChange = { filterText = it },
         )
-        TableLayoutControls(
-            resizeModeIndex = resizeModeIndex,
-            onResizeModeChange = { resizeModeIndex = it },
-            rowHeight = rowHeight,
-            onRowHeightChange = { rowHeight = it },
-            fillsViewportHeight = fillsViewportHeight,
-            onFillsViewportHeightChange = { fillsViewportHeight = it },
-        )
+        TableLayoutControls(layout)
 
-        BooksTable(
-            sortableEnabled = sortableEnabled,
-            sortKeys = sortKeys,
-            onSortChange = { sortKeys = it },
-            rowFilter = rowFilter,
-            autoResizeMode = tableResizeModes[resizeModeIndex].second,
-            rowHeight = rowHeight,
-            fillsViewportHeight = fillsViewportHeight,
-            columnLayout = columnLayout,
-            onColumnLayoutChange = { columnLayout = it },
-        )
+        ScrollPane(modifier = SwingModifier.preferredSize(Dimension(440, 160))) {
+            Table(
+                rows = sampleBooks,
+                sortable = sortableEnabled,
+                sortKeys = sortKeys,
+                onSortChange = { sortKeys = it },
+                rowFilter = rowFilter,
+                autoResizeMode = tableResizeModes[layout.resizeModeIndex].second,
+                rowHeight = layout.rowHeight,
+                fillsViewportHeight = layout.fillsViewportHeight,
+                columnLayout = columnLayout,
+                onColumnLayoutChange = { columnLayout = it },
+                modifier = SwingModifier.viewport().testTag(SORT_FILTER_TABLE_TAG),
+            ) {
+                column("Title") { it.title }
+                // A comparator sees whatever the column's value lambda produced, typed as the cell values
+                // a table model holds; the cast is safe because this column yields the author's name.
+                val titleCaseInsensitive =
+                    Comparator<Any?> { a, b -> (a as String).compareTo(b as String, ignoreCase = true) }
+                column(header = "Author", comparator = titleCaseInsensitive) { it.author }
+                column("Year", minWidth = 60, maxWidth = 100) { it.year }
+                column(header = "Rating", isSortable = false, cellContent = { book -> RatingLabel(book) }) {
+                    it.rating
+                }
+            }
+        }
 
         val sortDescription =
             sortKeys.firstOrNull()?.let { key -> "${bookColumns.getOrElse(key.column) { "?" }} ${key.sortOrder}" }
@@ -245,73 +249,32 @@ private fun SortFilterControls(
     }
 }
 
+// Auto-resize mode, row height and fills-viewport-height are grouped in one state holder because
+// SortingFilteringTableCard only ever reads or offers them together, as the table's layout controls.
+private class TableLayoutState {
+    var resizeModeIndex by mutableIntStateOf(2)
+    var rowHeight by mutableIntStateOf(22)
+    var fillsViewportHeight by mutableStateOf(false)
+}
+
 @Composable
-private fun TableLayoutControls(
-    resizeModeIndex: Int,
-    onResizeModeChange: (Int) -> Unit,
-    rowHeight: Int,
-    onRowHeightChange: (Int) -> Unit,
-    fillsViewportHeight: Boolean,
-    onFillsViewportHeightChange: (Boolean) -> Unit,
-) {
+private fun TableLayoutControls(state: TableLayoutState) {
     FlowPanel {
         Label("Auto-resize:")
         ComboBox(
             items = tableResizeModes.map { it.first },
-            selectedItem = tableResizeModes[resizeModeIndex].first,
+            selectedItem = tableResizeModes[state.resizeModeIndex].first,
             onSelectionChange = { label ->
-                label?.let { onResizeModeChange(tableResizeModes.indexOfFirst { mode -> mode.first == it }) }
+                label?.let { state.resizeModeIndex = tableResizeModes.indexOfFirst { mode -> mode.first == it } }
             },
         )
         Label("Row height:")
-        Spinner(rowHeight, onValueChange = { onRowHeightChange(it.toInt()) }, min = 16, max = 48, step = 2)
+        Spinner(state.rowHeight, onValueChange = { state.rowHeight = it.toInt() }, min = 16, max = 48, step = 2)
         CheckBox(
             text = "Fills viewport height",
-            checked = fillsViewportHeight,
-            onCheckedChange = onFillsViewportHeightChange,
+            checked = state.fillsViewportHeight,
+            onCheckedChange = { state.fillsViewportHeight = it },
         )
-    }
-}
-
-@Composable
-private fun BooksTable(
-    sortableEnabled: Boolean,
-    sortKeys: List<SortKey>,
-    onSortChange: (List<SortKey>) -> Unit,
-    rowFilter: RowFilter<in TableModel, in Int>?,
-    autoResizeMode: Int,
-    rowHeight: Int?,
-    fillsViewportHeight: Boolean,
-    columnLayout: TableColumnLayout?,
-    onColumnLayoutChange: (TableColumnLayout) -> Unit,
-) {
-    ScrollPane(modifier = SwingModifier.preferredSize(Dimension(440, 160))) {
-        content {
-            Table(
-                rows = sampleBooks,
-                sortable = sortableEnabled,
-                sortKeys = sortKeys,
-                onSortChange = onSortChange,
-                rowFilter = rowFilter,
-                autoResizeMode = autoResizeMode,
-                rowHeight = rowHeight,
-                fillsViewportHeight = fillsViewportHeight,
-                columnLayout = columnLayout,
-                onColumnLayoutChange = onColumnLayoutChange,
-                modifier = SwingModifier.testTag(SORT_FILTER_TABLE_TAG),
-            ) {
-                column("Title") { it.title }
-                // A comparator sees whatever the column's value lambda produced, typed as the cell values
-                // a table model holds; the cast is safe because this column yields the author's name.
-                val titleCaseInsensitive =
-                    Comparator<Any?> { a, b -> (a as String).compareTo(b as String, ignoreCase = true) }
-                column(header = "Author", comparator = titleCaseInsensitive) { it.author }
-                column("Year", minWidth = 60, maxWidth = 100) { it.year }
-                column(header = "Rating", isSortable = false, cellContent = { book -> RatingLabel(book) }) {
-                    it.rating
-                }
-            }
-        }
     }
 }
 
@@ -349,13 +312,12 @@ private fun ColumnScope.ModelBackedTableCard() {
             )
         }
         ScrollPane(modifier = SwingModifier.preferredSize(Dimension(280, 140))) {
-            content {
-                Table(
-                    model = model,
-                    selectedRowIndices = selection,
-                    onSelectionChange = { selection = it },
-                )
-            }
+            Table(
+                model = model,
+                modifier = SwingModifier.viewport(),
+                selectedRowIndices = selection,
+                onSelectionChange = { selection = it },
+            )
         }
         Label("Rows in the model: $rowCount")
         WrappedCaption("The table renders this DefaultTableModel as-is; the library never mutates it.")

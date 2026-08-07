@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.interaction.onChildAt
 import org.jetbrains.compose.swing.test.interaction.onChildren
@@ -33,7 +34,7 @@ class PanelLayoutTest {
     fun borderPanelUsesBorderLayoutAndHostsChildren() = runComposeSwingTest {
         setContent {
             BorderPanel {
-                center { Label("only") }
+                Label("only", SwingModifier.center())
             }
         }
         // A child reported to sit in a BorderLayout region is a child of a panel laid out by one.
@@ -150,7 +151,7 @@ class PanelLayoutTest {
     fun gridBagPanelUsesGridBagLayout() = runComposeSwingTest {
         setContent {
             GridBagPanel {
-                item(gridx = 0, gridy = 0) { Label("a") }
+                Label("a", SwingModifier.item(gridx = 0, gridy = 0))
             }
         }
         // A child reported to sit in a grid-bag cell is a child of a panel laid out by one.
@@ -172,7 +173,7 @@ class PanelLayoutTest {
     fun cardPanelUsesCardLayout() = runComposeSwingTest {
         setContent {
             CardPanel(selectedCard = "only") {
-                card("only") { Label("a") }
+                Label("a", SwingModifier.card("only"))
             }
         }
         assertTrue(

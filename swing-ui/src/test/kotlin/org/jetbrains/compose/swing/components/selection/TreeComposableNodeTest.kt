@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.FlowPanel
 import org.jetbrains.compose.swing.components.layout.ScrollPane
+import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
@@ -37,10 +38,7 @@ private data class Branch(
  * these drive the renderer directly (as `JTree` does when it paints a row) and inspect what it returns.
  */
 class TreeComposableNodeTest {
-    /**
-     * Renders the node at [row] through the renderer this tree carries, with the inputs the tree itself
-     * reports for that row - as a `JTree` does when it paints it.
-     */
+    /** Renders the node at [row] through the renderer this tree carries, with the inputs the tree reports for it. */
     private fun JTree.stampRow(row: Int): Component {
         val node = getPathForRow(row).lastPathComponent
         return cellRenderer.getTreeCellRendererComponent(
@@ -189,20 +187,19 @@ class TreeComposableNodeTest {
 
     @Test
     fun composableNodesWorkInsideAScrollPane() = runComposeSwingTest {
-        // A composable node island joins the enclosing composition, so it must not inherit the slot
-        // attachment of the ScrollPane viewport that hosts the Tree - otherwise the node's own nodes
-        // would try to install into that viewport as if the node were its view.
+        // A composable node island joins the enclosing composition, and the node's own nodes belong to the
+        // renderer rather than to the pane the tree is installed in: they render the row, they do not
+        // install themselves as the viewport's view.
         setContent {
             ScrollPane {
-                content {
-                    Tree(
-                        root = sample,
-                        children = { it.children },
-                        label = { it.name },
-                        selectedPaths = setOf(emptyList()),
-                    ) { value ->
-                        FlowPanel { Label(value.name) }
-                    }
+                Tree(
+                    root = sample,
+                    children = { it.children },
+                    label = { it.name },
+                    selectedPaths = setOf(emptyList()),
+                    modifier = SwingModifier.viewport(),
+                ) { value ->
+                    FlowPanel { Label(value.name) }
                 }
             }
         }

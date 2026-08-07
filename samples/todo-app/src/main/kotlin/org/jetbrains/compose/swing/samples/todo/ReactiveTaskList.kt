@@ -29,41 +29,33 @@ import org.jetbrains.compose.swing.modifier.interaction.enabled
 import org.jetbrains.compose.swing.modifier.interaction.onAccept
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 
-// A reactive to-do list on one screen. A single SnapshotStateList of tasks is the source of truth:
-// every view that reads it - the "N of M done" summary, the progress bar, the rows - recomposes when
-// it changes. Each row is keyed by a stable task id, so adding or completing one task never disturbs
-// another row's identity or its in-progress edit.
+// A single SnapshotStateList of tasks drives the whole screen: the summary, the progress bar, and
+// the rows.
 @Composable
-internal fun ReactiveTaskList() {
+internal fun ReactiveTaskList(modifier: SwingModifier = SwingModifier) {
     val tasks = remember { initialTasks().toMutableStateList() }
     var nextId by remember { mutableIntStateOf(tasks.size + 1) }
 
-    // Derived, not recomputed by hand: these refresh only when the list itself changes.
     val total by remember { derivedStateOf { tasks.size } }
     val done by remember { derivedStateOf { tasks.count { it.done } } }
 
-    // A border layout splits the screen: the header keeps the height it asks for in the north region,
-    // and the scrolling list takes whatever height the window has left in the center.
-    BorderPanel(hgap = 0, vgap = ROW_GAP) {
-        north {
-            Column(verticalArrangement = Arrangement.spacedBy(ROW_GAP)) {
-                SampleTitle("Reactive task list")
-                Caption(
-                    "One state list drives the summary, the progress bar, and the rows. " +
-                        "Edit, add, complete, or remove a task and watch the whole screen follow.",
-                )
-                SummaryRow(done = done, total = total)
-                AddTaskRow(onAdd = { title -> tasks += Task(id = nextId++, title = title) })
-            }
-        }
-        center {
-            TaskRows(
-                tasks = tasks,
-                onToggle = { id, checked -> tasks.replaceById(id) { it.copy(done = checked) } },
-                onRename = { id, title -> tasks.replaceById(id) { it.copy(title = title) } },
-                onRemove = { id -> tasks.removeAll { it.id == id } },
+    BorderPanel(modifier = modifier, hgap = 0, vgap = ROW_GAP) {
+        Column(SwingModifier.north(), verticalArrangement = Arrangement.spacedBy(ROW_GAP)) {
+            SampleTitle("Reactive task list")
+            Caption(
+                "One state list drives the summary, the progress bar, and the rows. " +
+                    "Edit, add, complete, or remove a task and watch the whole screen follow.",
             )
+            SummaryRow(done = done, total = total)
+            AddTaskRow(onAdd = { title -> tasks += Task(id = nextId++, title = title) })
         }
+        TaskRows(
+            tasks = tasks,
+            modifier = SwingModifier.center(),
+            onToggle = { id, checked -> tasks.replaceById(id) { it.copy(done = checked) } },
+            onRename = { id, title -> tasks.replaceById(id) { it.copy(title = title) } },
+            onRemove = { id -> tasks.removeAll { it.id == id } },
+        )
     }
 }
 
@@ -119,29 +111,27 @@ private fun TaskRows(
     tasks: List<Task>,
     onToggle: (Int, Boolean) -> Unit,
     onRename: (Int, String) -> Unit,
+    modifier: SwingModifier = SwingModifier,
     onRemove: (Int) -> Unit,
 ) {
-    // The dynamic list: rows are inserted into and removed from the live Swing tree as the list grows
-    // and shrinks (structural recomposition), not merely shown and hidden.
-    ScrollPane(modifier = SwingModifier.preferredSize(0, 320)) {
-        content {
-            Column(verticalArrangement = Arrangement.spacedBy(ROW_GAP)) {
-                if (tasks.isEmpty()) {
-                    Card("Tasks") {
-                        Label("No tasks yet - add one above.")
-                    }
-                } else {
-                    tasks.forEach { task ->
-                        // Keyed by the stable task id so a row keeps its identity (and any in-progress
-                        // edit) when other rows are added, removed, or reordered around it.
-                        key(task.id) {
-                            TaskRow(
-                                task = task,
-                                onToggle = { checked -> onToggle(task.id, checked) },
-                                onRename = { title -> onRename(task.id, title) },
-                                onRemove = { onRemove(task.id) },
-                            )
-                        }
+    // Rows are added to and removed from the Swing tree as the list changes, not merely shown or hidden.
+    ScrollPane(modifier = modifier.preferredSize(0, 320)) {
+        Column(SwingModifier.viewport(), verticalArrangement = Arrangement.spacedBy(ROW_GAP)) {
+            if (tasks.isEmpty()) {
+                Card("Tasks") {
+                    Label("No tasks yet - add one above.")
+                }
+            } else {
+                tasks.forEach { task ->
+                    // Keyed by the stable task id so a row keeps its identity (and any in-progress
+                    // edit) when other rows are added, removed, or reordered around it.
+                    key(task.id) {
+                        TaskRow(
+                            task = task,
+                            onToggle = { checked -> onToggle(task.id, checked) },
+                            onRename = { title -> onRename(task.id, title) },
+                            onRemove = { onRemove(task.id) },
+                        )
                     }
                 }
             }
@@ -156,9 +146,8 @@ private fun ColumnScope.TaskRow(
     onRename: (String) -> Unit,
     onRemove: () -> Unit,
 ) {
-    // The row spans the width of the list and the title takes whatever that leaves, so the toggle stays
-    // at the leading edge and Remove at the trailing one however wide the window is. Every control keeps
-    // the height it asks for, so toggling completion or editing the title never changes the row's height.
+    // The title takes the weight, so the toggle stays at the leading edge and Remove at the trailing
+    // edge no matter how wide the window is.
     Row(
         modifier = SwingModifier.testTag(taskRowTag(task.id)).fillWidth(),
         horizontalArrangement = Arrangement.spacedBy(ROW_GAP),

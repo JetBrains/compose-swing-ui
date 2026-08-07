@@ -9,6 +9,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.BorderPanel
+import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
 import kotlin.test.Test
@@ -24,7 +25,7 @@ import kotlin.test.assertSame
  *
  * Two genuine reuse paths are pinned to the *same instance*:
  *  - a [ReusableContentHost] child parked (`active = false`) and reactivated, and
- *  - a [movableContentOf] node moved between two slots.
+ *  - a [movableContentOf] node moved between two regions.
  *
  * Note on `key()`: changing a `key()` argument is an explicit identity change, so the runtime
  * disposes the old keyed group and builds a fresh node with a new component instance - that is NOT a
@@ -34,7 +35,7 @@ import kotlin.test.assertSame
 class NodeReuseRecyclesComponentTest {
     /**
      * A [movableContentOf] [Button] moved from NORTH to SOUTH keeps the same `JButton` instance: the
-     * runtime relocates the existing node (deactivate in the old slot, reactivate in the new) rather
+     * runtime relocates the existing node (deactivate in the old region, reactivate in the new) rather
      * than building a fresh one, and the moved instance still fires its onClick.
      */
     @Test
@@ -45,13 +46,13 @@ class NodeReuseRecyclesComponentTest {
         setContent {
             val button =
                 remember {
-                    movableContentOf {
-                        Button(text = "Movable", onClick = { counter++ })
+                    movableContentOf<SwingModifier> { modifier ->
+                        Button(text = "Movable", onClick = { counter++ }, modifier = modifier)
                     }
                 }
             BorderPanel {
-                if (inNorth) north { button() } else south { button() }
-                center { Button(text = "anchor", onClick = {}) }
+                if (inNorth) button(SwingModifier.north()) else button(SwingModifier.south())
+                Button(text = "anchor", onClick = {}, modifier = SwingModifier.center())
             }
         }
 
@@ -86,10 +87,8 @@ class NodeReuseRecyclesComponentTest {
 
         setContent {
             BorderPanel {
-                center {
-                    ReusableContentHost(active = active) {
-                        Button(text = "Recyclable", onClick = { counter++ })
-                    }
+                ReusableContentHost(active = active) {
+                    Button(text = "Recyclable", onClick = { counter++ }, modifier = SwingModifier.center())
                 }
             }
         }

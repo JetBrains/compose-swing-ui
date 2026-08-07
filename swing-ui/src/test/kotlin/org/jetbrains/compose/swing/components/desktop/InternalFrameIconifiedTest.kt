@@ -34,7 +34,7 @@ class InternalFrameIconifiedTest {
         val state = InternalFrameState(Rectangle(10, 20, 300, 200), iconified = true)
         setContent {
             DesktopPane {
-                internalFrame(
+                InternalFrame(
                     title = "Editor",
                     state = state,
                     controls = InternalFrameControls(iconifiable = true),
@@ -54,7 +54,7 @@ class InternalFrameIconifiedTest {
         val state = InternalFrameState(Rectangle(10, 20, 300, 200))
         setContent {
             DesktopPane {
-                internalFrame(
+                InternalFrame(
                     title = "Editor",
                     state = state,
                     controls = InternalFrameControls(iconifiable = true),
@@ -84,7 +84,7 @@ class InternalFrameIconifiedTest {
         val state = InternalFrameState(Rectangle(10, 20, 300, 200))
         setContent {
             DesktopPane {
-                internalFrame(
+                InternalFrame(
                     title = "Editor",
                     state = state,
                     controls = InternalFrameControls(iconifiable = true),
@@ -110,7 +110,7 @@ class InternalFrameIconifiedTest {
         var tip by mutableStateOf("Edits the document")
         setContent {
             DesktopPane {
-                internalFrame(
+                InternalFrame(
                     title = "Editor",
                     state = state,
                     controls = InternalFrameControls(iconifiable = true),
@@ -133,7 +133,7 @@ class InternalFrameIconifiedTest {
         var tip by mutableStateOf("Edits the document")
         setContent {
             DesktopPane {
-                internalFrame(
+                InternalFrame(
                     title = "Editor",
                     bounds = Rectangle(10, 20, 300, 200),
                     controls = InternalFrameControls(iconifiable = true),
@@ -164,7 +164,7 @@ class InternalFrameIconifiedTest {
         var useSecond by mutableStateOf(false)
         setContent {
             DesktopPane {
-                internalFrame(
+                InternalFrame(
                     title = "Editor",
                     state = if (useSecond) second else first,
                     controls = InternalFrameControls(iconifiable = true),
@@ -186,7 +186,7 @@ class InternalFrameIconifiedTest {
         val state = InternalFrameState(Rectangle(10, 20, 300, 200))
         setContent {
             DesktopPane {
-                internalFrame(
+                InternalFrame(
                     title = "Editor",
                     state = state,
                     controls = InternalFrameControls(iconifiable = true),
@@ -216,7 +216,7 @@ class InternalFrameIconifiedTest {
         setContent {
             DesktopPane {
                 if (show) {
-                    internalFrame(
+                    InternalFrame(
                         title = "Editor",
                         state = state,
                         controls = InternalFrameControls(iconifiable = true),

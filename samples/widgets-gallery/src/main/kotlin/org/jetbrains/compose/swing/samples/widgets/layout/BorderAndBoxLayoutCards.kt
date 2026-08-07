@@ -45,11 +45,11 @@ internal fun ColumnScope.FlowPanelCard() {
 internal fun ColumnScope.BorderCompassCard() {
     ExampleCard("BorderPanel (compass regions)") {
         BorderPanel(modifier = SwingModifier.preferredSize(Dimension(360, 140)), hgap = 4, vgap = 4) {
-            north { RegionLabel("north", Color(0xBB, 0xDE, 0xFB)) }
-            south { RegionLabel("south", Color(0xC8, 0xE6, 0xC9)) }
-            west { RegionLabel("west", Color(0xFF, 0xE0, 0xB2), width = EDGE_WIDTH) }
-            east { RegionLabel("east", Color(0xF8, 0xBB, 0xD0), width = EDGE_WIDTH) }
-            center { RegionLabel("center", Color(0xE0, 0xE0, 0xE0)) }
+            RegionLabel("north", Color(0xBB, 0xDE, 0xFB), SwingModifier.north())
+            RegionLabel("south", Color(0xC8, 0xE6, 0xC9), SwingModifier.south())
+            RegionLabel("west", Color(0xFF, 0xE0, 0xB2), SwingModifier.west(), width = EDGE_WIDTH)
+            RegionLabel("east", Color(0xF8, 0xBB, 0xD0), SwingModifier.east(), width = EDGE_WIDTH)
+            RegionLabel("center", Color(0xE0, 0xE0, 0xE0), SwingModifier.center())
         }
     }
 }
@@ -75,11 +75,11 @@ internal fun ColumnScope.BorderOrientationCard() {
             hgap = 4,
             vgap = 4,
         ) {
-            pageStart { RegionLabel("pageStart", Color(0xBB, 0xDE, 0xFB)) }
-            pageEnd { RegionLabel("pageEnd", Color(0xC8, 0xE6, 0xC9)) }
-            lineStart { RegionLabel("lineStart (leading)", Color(0xFF, 0xE0, 0xB2), width = EDGE_WIDTH) }
-            lineEnd { RegionLabel("lineEnd (trailing)", Color(0xF8, 0xBB, 0xD0), width = EDGE_WIDTH) }
-            center { RegionLabel("center", Color(0xE0, 0xE0, 0xE0)) }
+            RegionLabel("pageStart", Color(0xBB, 0xDE, 0xFB), SwingModifier.pageStart())
+            RegionLabel("pageEnd", Color(0xC8, 0xE6, 0xC9), SwingModifier.pageEnd())
+            RegionLabel("lineStart (leading)", Color(0xFF, 0xE0, 0xB2), SwingModifier.lineStart(), width = EDGE_WIDTH)
+            RegionLabel("lineEnd (trailing)", Color(0xF8, 0xBB, 0xD0), SwingModifier.lineEnd(), width = EDGE_WIDTH)
+            RegionLabel("center", Color(0xE0, 0xE0, 0xE0), SwingModifier.center())
         }
     }
 }
@@ -121,12 +121,13 @@ internal fun ColumnScope.BoxFillersCard() {
 internal fun RegionLabel(
     text: String,
     color: Color,
+    modifier: SwingModifier = SwingModifier,
     width: Int = 0,
 ) {
     Label(
         text = text,
         modifier =
-            SwingModifier
+            modifier
                 .opaque(true)
                 .background(color)
                 .preferredSize(Dimension(width, 28))

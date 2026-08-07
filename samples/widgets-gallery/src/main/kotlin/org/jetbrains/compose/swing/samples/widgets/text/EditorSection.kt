@@ -39,17 +39,16 @@ import javax.swing.text.DefaultHighlighter
 import javax.swing.text.PlainDocument
 
 // The document the editor section edits and the File menu loads into. The menu bar and the shell are
-// separate compositions, so they cannot share a remembered DocumentState; they share this one plain
-// document instead - constructed outside any composition, both sides reference it by name. File > Open
-// replaces its content; the section's DocumentState wraps it and re-renders the loaded text.
+// separate compositions, so they cannot share a remembered DocumentState; they share this plain document
+// instead. File > Open replaces its content, and the section's DocumentState wraps it, so the loaded
+// text re-renders automatically.
 internal val galleryEditorDocument =
     PlainDocument().apply {
         insertString(0, "Type here, then use File > Open to load a file into this editor.", null)
     }
 
-// Replaces the whole content of the shared editor document. The Editor section's DocumentState observes
-// this document, so the new text appears in the area - and its live counts update - without any wiring
-// between the two compositions.
+// Replaces the whole content of the shared editor document; the section's DocumentState observes it and
+// re-renders automatically, so no wiring connects the two compositions.
 internal fun setEditorText(text: String) {
     galleryEditorDocument.replace(0, galleryEditorDocument.length, text, null)
 }
@@ -90,9 +89,7 @@ private fun ColumnScope.DocumentEditorCard() {
             Button(text = "Redo", onClick = state::redo, modifier = SwingModifier.enabled(state.canRedo))
         }
         ScrollPane(modifier = SwingModifier.preferredSize(Dimension(440, 200))) {
-            content {
-                TextArea(state = state, rows = 12, columns = 60)
-            }
+            TextArea(state = state, modifier = SwingModifier.viewport(), rows = 12, columns = 60)
         }
         Label("$lines lines · $words words · $characters characters")
     }
@@ -184,7 +181,7 @@ private fun ColumnScope.CaretCard() {
         var edits by remember { mutableIntStateOf(0) }
         var policyIndex by remember { mutableIntStateOf(0) }
         // remember each listener instance: it is attached as-is, so a fresh one each recomposition would
-        // detach the old and attach the new instead of simply reporting through the same instance.
+        // detach the old and attach the new instead of reporting through the same instance.
         val caretMoveListener =
             remember { CaretListener { event -> caretInfo = "dot ${event.dot}, mark ${event.mark}" } }
         val documentEditListener =
@@ -212,19 +209,18 @@ private fun ColumnScope.CaretCard() {
             CARET_UPDATE_POLICIES.forEach { (name, _) -> option(name) }
         }
         ScrollPane(modifier = SwingModifier.preferredSize(Dimension(360, 90))) {
-            content {
-                TextArea(
-                    value = text,
-                    onValueChange = { text = it },
-                    rows = 6,
-                    columns = 40,
-                    modifier =
-                        SwingModifier
-                            .caretListener(caretMoveListener)
-                            .documentListener(documentEditListener)
-                            .caretUpdatePolicy(CARET_UPDATE_POLICIES[policyIndex].second),
-                )
-            }
+            TextArea(
+                value = text,
+                onValueChange = { text = it },
+                rows = 6,
+                columns = 40,
+                modifier =
+                    SwingModifier
+                        .viewport()
+                        .caretListener(caretMoveListener)
+                        .documentListener(documentEditListener)
+                        .caretUpdatePolicy(CARET_UPDATE_POLICIES[policyIndex].second),
+            )
         }
         Button("Append a line at the end", onClick = { text += "Appended line.\n" })
         Label("Caret: $caretInfo")

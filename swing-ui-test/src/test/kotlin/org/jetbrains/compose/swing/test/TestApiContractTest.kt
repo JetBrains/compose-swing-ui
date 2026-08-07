@@ -39,10 +39,8 @@ class TestApiContractTest {
 
         // onNodeWithText requires exactly one match; "dup" has two -> it must throw.
         assertFailsWith<AssertionError> { onNodeWithText("dup").assertExists() }
-        // onAllNodesWithText counts them.
         onAllNodesWithText("dup").assertCountEquals(2)
         assertEquals(2, onAllNodesWithText("dup").fetchSize())
-        // The unique one resolves fine.
         onNodeWithText("solo").assertExists()
         onAllNodesWithText("solo").assertCountEquals(1)
     }
@@ -51,11 +49,11 @@ class TestApiContractTest {
     fun layoutConstraintAcrossAllRegions() = runComposeSwingTest {
         setContent {
             BorderPanel {
-                north { Label(text = "N") }
-                center { Label(text = "C") }
-                south { Label(text = "S") }
-                west { Label(text = "W") }
-                east { Label(text = "E") }
+                Label(text = "N", modifier = SwingModifier.north())
+                Label(text = "C", modifier = SwingModifier.center())
+                Label(text = "S", modifier = SwingModifier.south())
+                Label(text = "W", modifier = SwingModifier.west())
+                Label(text = "E", modifier = SwingModifier.east())
             }
         }
 
@@ -65,7 +63,6 @@ class TestApiContractTest {
         onNodeWithText("W").assertLayoutConstraint(BorderLayout.WEST)
         onNodeWithText("E").assertLayoutConstraint(BorderLayout.EAST)
 
-        // A wrong expectation must fail.
         assertFailsWith<AssertionError> {
             onNodeWithText("N").assertLayoutConstraint(BorderLayout.SOUTH)
         }
@@ -96,7 +93,6 @@ class TestApiContractTest {
         assertFailsWith<AssertionError> {
             onNodeWithText("exact value").assertTextEquals("wrong")
         }
-        // Substring finder still locates it.
         onNodeWithText("value", substring = true).assertExists()
     }
 
@@ -169,13 +165,9 @@ class TestApiContractTest {
             }
         }
 
-        // onNode over a raw matcher resolves the unique match.
         onNode(SwingMatcher.isOfType<JLabel>()).assertExists().assertTextEquals("a")
-        // onAllNodes counts every match of the matcher.
         onAllNodes(SwingMatcher.isOfType<JButton>()).assertCountEquals(2)
-        // A non-unique onNode must fail.
         assertFailsWith<AssertionError> { onNode(SwingMatcher.isOfType<JButton>()).assertExists() }
-        // Combined matchers narrow to a single node.
         onNode(SwingMatcher.isOfType<JButton>() and SwingMatcher.hasText("b")).assertExists()
     }
 
@@ -196,11 +188,9 @@ class TestApiContractTest {
     fun fetchReturnsTheTypedComponentForDirectDriving() = runComposeSwingTest {
         setContent { TextField(value = "typed") }
 
-        // fetch resolves the match and returns it typed, so the component's own API is reachable
-        // without a cast.
+        // fetch returns the match typed, so the component's own API is reachable without a cast.
         val field: JTextField = onNodeOfType<JTextField>().fetch()
         assertEquals("typed", field.text, "fetch should return the field carrying its rendered text")
-        // The same live instance is returned on each resolution.
         assertSame(
             field,
             onNodeOfType<JTextField>().fetch<JTextField>(),
@@ -212,7 +202,6 @@ class TestApiContractTest {
     fun fetchFailsWhenTheMatchedTypeMismatches() = runComposeSwingTest {
         setContent { Label(text = "just a label") }
 
-        // The node matches by text but is not a JTextField, so the typed fetch must fail clearly.
         assertFailsWith<AssertionError> { onNodeWithText("just a label").fetch<JTextField>() }
     }
 }

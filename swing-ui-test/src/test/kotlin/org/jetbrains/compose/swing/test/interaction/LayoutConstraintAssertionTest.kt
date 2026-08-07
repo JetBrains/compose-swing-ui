@@ -8,6 +8,7 @@ import org.jetbrains.compose.swing.components.layout.BorderPanel
 import org.jetbrains.compose.swing.components.layout.BoxPanel
 import org.jetbrains.compose.swing.components.layout.CardPanel
 import org.jetbrains.compose.swing.components.layout.GridBagPanel
+import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.BorderLayout
@@ -20,21 +21,20 @@ import kotlin.test.assertTrue
 
 /**
  * Pins what `assertLayoutConstraint` answers for, one layout manager at a time: the region a
- * `BorderLayout` places a child in, and the cell constraints a `GridBagLayout` places it under. Each
- * is driven into both the matching and the mismatching state, and a manager that reports no per-child
- * constraint has to say which manager it is, so a reader can tell that limit from an assertion that is
- * merely missing - and, for a card deck, reach for the visibility assertions that answer better.
+ * `BorderLayout` places a child in, and the cell constraints a `GridBagLayout` places it under. A
+ * manager that reports no per-child constraint names itself, so that limit reads as documented rather
+ * than a missing assertion; a card deck is asserted through visibility instead.
  */
 class LayoutConstraintAssertionTest {
     @Test
     fun borderRegionsMatchAndAWrongRegionNamesBoth() = runComposeSwingTest {
         setContent {
             BorderPanel {
-                north { Label(text = "N") }
-                center { Label(text = "C") }
-                south { Label(text = "S") }
-                west { Label(text = "W") }
-                east { Label(text = "E") }
+                Label(text = "N", modifier = SwingModifier.north())
+                Label(text = "C", modifier = SwingModifier.center())
+                Label(text = "S", modifier = SwingModifier.south())
+                Label(text = "W", modifier = SwingModifier.west())
+                Label(text = "E", modifier = SwingModifier.east())
             }
         }
 
@@ -54,10 +54,18 @@ class LayoutConstraintAssertionTest {
     fun gridBagCellsMatchFieldByFieldAndAWrongCellRendersBoth() = runComposeSwingTest {
         setContent {
             GridBagPanel {
-                item(gridx = 0, gridy = 0) { Label(text = "origin") }
-                item(gridx = 1, gridy = 2, gridwidth = 2, weightx = 1.0, insets = Insets(1, 2, 3, 4)) {
-                    Label(text = "spanning")
-                }
+                Label(text = "origin", modifier = SwingModifier.item(gridx = 0, gridy = 0))
+                Label(
+                    text = "spanning",
+                    modifier =
+                        SwingModifier.item(
+                            gridx = 1,
+                            gridy = 2,
+                            gridwidth = 2,
+                            weightx = 1.0,
+                            insets = Insets(1, 2, 3, 4),
+                        ),
+                )
             }
         }
 
@@ -97,7 +105,7 @@ class LayoutConstraintAssertionTest {
     fun gridBagRejectsAnExpectationThatIsNotCellConstraints() = runComposeSwingTest {
         setContent {
             GridBagPanel {
-                item(gridx = 0, gridy = 0) { Label(text = "origin") }
+                Label(text = "origin", modifier = SwingModifier.item(gridx = 0, gridy = 0))
             }
         }
 
@@ -114,24 +122,22 @@ class LayoutConstraintAssertionTest {
         var selected by mutableStateOf("second")
         setContent {
             CardPanel(selectedCard = selected) {
-                card("first") { Label(text = "one") }
-                card("second") { Label(text = "two") }
+                Label(text = "one", modifier = SwingModifier.card("first"))
+                Label(text = "two", modifier = SwingModifier.card("second"))
             }
         }
 
-        // A CardLayout keeps the name each card is registered under to itself, so the assertion says
-        // so instead of guessing - reading it back would mean driving the deck and perturbing the
-        // very component tree under test.
+        // A CardLayout keeps each card's name to itself, so the assertion states that instead of
+        // guessing - reading it back would mean driving the deck and disturbing the tree under test.
         val failure = assertFailsWith<AssertionError> { onNodeWithText("one").assertLayoutConstraint("first") }
         val message = failure.message.orEmpty()
-        assertTrue(message.contains("CardLayout"), "the failure should name the parent's manager: $message")
+        assertTrue(message.contains("CardDeckLayout"), "the failure should name the parent's manager: $message")
         assertTrue(
             message.contains("reports no per-child layout constraint"),
             "the failure should say the manager keeps none: $message",
         )
 
-        // What a deck is asserted on instead, and what actually matters about it: the declared card
-        // is the one on show, and every other card is hidden with it.
+        // What matters about a deck: the declared card is the one on show, and every other card is hidden.
         onNodeWithText("two").assertIsVisible()
         onNodeWithText("one").assertIsNotVisible()
 

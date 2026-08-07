@@ -4,7 +4,6 @@
 package org.jetbrains.compose.swing.node
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisallowComposableCalls
 import androidx.compose.runtime.ReusableComposeNode
 import androidx.compose.runtime.rememberCompositionContext
@@ -19,10 +18,11 @@ import java.awt.Component
  * Every built-in wrapper (`Button`, `TextField`, `Slider`, ...) is built on top of this function - see
  * `docs/CUSTOM-COMPONENTS.md`.
  *
- * A slot-based parent can dictate this node's placement (e.g. a `BorderLayout` region declared
- * through a `BorderPanel` slot) or install it into a host that reaches children through dedicated
- * setters (e.g. a `JScrollPane` region), without the child knowing its container. A container of your
- * own declares the placement of the children it composes with [SwingConstraint].
+ * Where this node sits in its parent is declared on the node's own modifier chain: a layout constraint
+ * the parent's layout manager understands (e.g. a `BorderLayout` region), or a slot of a host that
+ * reaches its children through dedicated setters (e.g. a `JScrollPane` region). That placement reaches
+ * the node through [org.jetbrains.compose.swing.modifier.applyModifier], so a component whose [update]
+ * never applies a modifier cannot be placed at all.
  *
  * The node is recyclable: when it is conditionally shown/hidden across recompositions (e.g. a
  * [androidx.compose.runtime.ReusableContentHost] parked and reactivated, or structurally-identical
@@ -42,6 +42,8 @@ import java.awt.Component
  * @param onRelease optional teardown run when the node leaves the composition for good.
  * @param hostsSubcompositions when `true`, a descendant component's `setContent` joins this
  *   composition. Defaults to `false`.
+ * @param childPlacement how children composed under this node are held; see [ChildPlacement]. Defaults
+ *   to [ChildPlacement.Indexed].
  */
 @Composable
 @SwingComposable
@@ -50,16 +52,13 @@ public inline fun <reified T : Component> SwingNode(
     crossinline update: @DisallowComposableCalls SwingNodeUpdater<T>.() -> Unit = {},
     noinline onRelease: (T.() -> Unit)? = null,
     hostsSubcompositions: Boolean = false,
+    childPlacement: ChildPlacement = ChildPlacement.Indexed,
 ) {
-    val constraint = LocalSwingConstraint.current
-    val slotAttachment = LocalSlotAttachment.current
     val parentContext = if (hostsSubcompositions) rememberCompositionContext() else null
     ReusableComposeNode<SwingNodeHolder<T>, SwingApplier>(
-        // The slot attachment is read in the factory, not the update block, because the applier needs
-        // it at insert time (insertBottomUp installs the component through it) - before the node's
-        // update changes run.
-        factory = { SwingNodeHolder(factory()).also { it.slotAttachment = slotAttachment } },
+        factory = { SwingNodeHolder(factory()) },
         update = {
+            set(childPlacement) { this.childPlacement = it }
             set(parentContext) { hostSubcompositions(it) }
             SwingNodeUpdater(this).update()
             set(onRelease) { release ->
@@ -70,10 +69,6 @@ public inline fun <reified T : Component> SwingNode(
                         null
                     }
             }
-            // The placement the parent provides, applied on change: the component is re-registered
-            // with its parent's layout manager only when the constraint this composition asks for
-            // differs from the one the manager holds.
-            set(constraint) { applyConstraint(it) }
         },
     )
 }
@@ -93,9 +88,17 @@ public inline fun <reified T : Component> SwingNode(
  * emitted at rather than to the declaration made there, so reordering declarations leaves that state
  * where it was unless [androidx.compose.runtime.key] gives each child an identity of its own.
  *
- * The component's own child array holds the children in the order [content] emits them, whatever
- * placement each was emitted under, so a layout manager of your own can read `getComponents` as the
- * structure this composition declared and derive from all of it at measure or layout time.
+ * [childPlacement] states how the component holds those children: added to it by index, which is what a
+ * container with a layout manager does and what this defaults to, or each in a named region the component
+ * reaches through a setter of its own, the way a `JScrollPane` shows one component per region. Under a
+ * region-holding placement every child names the region it fills, on its own modifier chain and usually
+ * through a builder the container's scope offers; under the indexed placement no child may name one. A
+ * child that does not match the placement is refused as it arrives, naming this component and the
+ * builders that would place it.
+ *
+ * The component's own child array holds the indexed children in the order [content] emits them, whatever
+ * layout constraint each of them declares, so a layout manager of your own can read `getComponents` as
+ * the structure this composition declared and derive from all of it at measure or layout time.
  *
  * [hostsSubcompositions] behaves as in the leaf overload. Defaults to `false`.
  */
@@ -106,19 +109,16 @@ public inline fun <reified T : Component> SwingNode(
     crossinline update: @DisallowComposableCalls SwingNodeUpdater<T>.() -> Unit = {},
     noinline onRelease: (T.() -> Unit)? = null,
     hostsSubcompositions: Boolean = false,
+    childPlacement: ChildPlacement = ChildPlacement.Indexed,
     crossinline content:
         @Composable @SwingComposable
         () -> Unit,
 ) {
-    val constraint = LocalSwingConstraint.current
-    val slotAttachment = LocalSlotAttachment.current
     val parentContext = if (hostsSubcompositions) rememberCompositionContext() else null
     ReusableComposeNode<SwingNodeHolder<T>, SwingApplier>(
-        // The slot attachment is read in the factory, not the update block, because the applier needs
-        // it at insert time (insertBottomUp installs the component through it) - before the node's
-        // update changes run.
-        factory = { SwingNodeHolder(factory()).also { it.slotAttachment = slotAttachment } },
+        factory = { SwingNodeHolder(factory()) },
         update = {
+            set(childPlacement) { this.childPlacement = it }
             set(parentContext) { hostSubcompositions(it) }
             SwingNodeUpdater(this).update()
             set(onRelease) { release ->
@@ -129,26 +129,7 @@ public inline fun <reified T : Component> SwingNode(
                         null
                     }
             }
-            // The placement the parent provides, applied on change: the component is re-registered
-            // with its parent's layout manager only when the constraint this composition asks for
-            // differs from the one the manager holds.
-            set(constraint) { applyConstraint(it) }
         },
-        // This node has consumed any incoming layout constraint and slot attachment for its OWN
-        // placement; its children must not re-consume them (they belong inside this component, placed
-        // by its own layout manager and attached the ordinary way). Reset both locals to their default
-        // for the subtree, so a child gets the default (null) constraint unless this container itself
-        // re-provides one per region (as BorderPanel does under this null baseline). Without resetting
-        // the constraint, a constrained-layout child (e.g. a GridBagLayout panel placed in a
-        // BorderPanel region) would inherit the parent region's BorderLayout constraint string and the
-        // applier would reject it (GridBagLayout.addLayoutComponent demands a GridBagConstraints).
-        content = {
-            CompositionLocalProvider(
-                LocalSwingConstraint provides null,
-                LocalSlotAttachment provides null,
-            ) {
-                content()
-            }
-        },
+        content = { content() },
     )
 }

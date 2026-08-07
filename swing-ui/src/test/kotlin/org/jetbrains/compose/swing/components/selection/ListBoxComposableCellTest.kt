@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.FlowPanel
 import org.jetbrains.compose.swing.components.layout.ScrollPane
+import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -133,17 +134,18 @@ class ListBoxComposableCellTest {
 
     @Test
     fun composableCellsWorkInsideAScrollPane() = runComposeSwingTest {
-        // A composable cell island joins the enclosing composition, so it must not inherit the slot
-        // attachment of the ScrollPane viewport that hosts the ListBox - otherwise the cell's own nodes
-        // would try to install into that viewport as if the cell were its view. Selecting a
-        // row synchronously stamps a cell during the enclosing composition's apply pass, which is exactly
-        // when such leakage surfaces.
+        // A composable cell island joins the enclosing composition, and the cell's own nodes belong to the
+        // renderer rather than to the pane the list is installed in: they render the row, they do not
+        // install themselves as the viewport's view. Selecting a row synchronously stamps a cell during
+        // the enclosing composition's apply pass, which is exactly when such leakage surfaces.
         setContent {
             ScrollPane {
-                content {
-                    ListBox(items = listOf("first", "second"), selectedIndices = setOf(0)) { item ->
-                        FlowPanel { Label(item) }
-                    }
+                ListBox(
+                    items = listOf("first", "second"),
+                    selectedIndices = setOf(0),
+                    modifier = SwingModifier.viewport(),
+                ) { item ->
+                    FlowPanel { Label(item) }
                 }
             }
         }

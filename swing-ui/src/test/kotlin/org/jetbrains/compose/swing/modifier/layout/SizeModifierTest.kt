@@ -27,9 +27,7 @@ class SizeModifierTest {
     private fun ComposeSwingTest.sizedChild(modifier: SwingModifier): JLabel {
         setContent {
             LayeredPane {
-                layer(JLayeredPane.DEFAULT_LAYER) {
-                    Label(text = "child", modifier = modifier)
-                }
+                Label(text = "child", modifier = modifier.layer(JLayeredPane.DEFAULT_LAYER))
             }
         }
         return onNodeOfType<JLabel>().fetch()
@@ -94,13 +92,11 @@ class SizeModifierTest {
         var sized by mutableStateOf(true)
         setContent {
             LayeredPane {
-                layer(JLayeredPane.DEFAULT_LAYER) {
-                    Label(
-                        text = "child",
-                        modifier =
-                            if (sized) SwingModifier.size(120, 40) else SwingModifier,
-                    )
-                }
+                val onDefaultLayer = SwingModifier.layer(JLayeredPane.DEFAULT_LAYER)
+                Label(
+                    text = "child",
+                    modifier = if (sized) onDefaultLayer.size(120, 40) else onDefaultLayer,
+                )
             }
         }
         val sizedComponent = onNodeOfType<JLabel>().fetch()
@@ -123,12 +119,10 @@ class SizeModifierTest {
         var wide by mutableStateOf(true)
         setContent {
             LayeredPane {
-                layer(JLayeredPane.DEFAULT_LAYER) {
-                    Label(
-                        text = "child",
-                        modifier = SwingModifier.size(if (wide) 120 else 60, 40),
-                    )
-                }
+                Label(
+                    text = "child",
+                    modifier = SwingModifier.layer(JLayeredPane.DEFAULT_LAYER).size(if (wide) 120 else 60, 40),
+                )
             }
         }
         val label = onNodeOfType<JLabel>()

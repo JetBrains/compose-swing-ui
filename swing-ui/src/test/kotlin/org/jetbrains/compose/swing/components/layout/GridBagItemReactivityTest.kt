@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.interaction.onParent
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
@@ -15,7 +16,7 @@ import kotlin.test.assertSame
 
 /**
  * Every field of a [GridBagPanelScope] item is composition state: the constraints the panel holds for
- * an already-attached child are re-derived from the declaration on each pass, so an edited field
+ * an already-attached child are re-derived from that child's chain on each pass, so an edited field
  * reaches the layout and an edit back to the first value reaches it again - with the child itself
  * staying attached throughout.
  */
@@ -25,19 +26,23 @@ class GridBagItemReactivityTest {
         var stretched by mutableStateOf(false)
         setContent {
             GridBagPanel {
-                item(
-                    gridx = if (stretched) 2 else 0,
-                    gridy = if (stretched) 3 else 0,
-                    gridwidth = if (stretched) GridBagConstraints.REMAINDER else 1,
-                    gridheight = if (stretched) 2 else 1,
-                    weightx = if (stretched) 1.0 else 0.0,
-                    weighty = if (stretched) 0.5 else 0.0,
-                    anchor = if (stretched) GridBagConstraints.LINE_END else GridBagConstraints.CENTER,
-                    fill = if (stretched) GridBagConstraints.BOTH else GridBagConstraints.NONE,
-                    insets = if (stretched) Insets(4, 5, 6, 7) else Insets(0, 0, 0, 0),
-                    ipadx = if (stretched) 8 else 0,
-                    ipady = if (stretched) 9 else 0,
-                ) { Label(text = "cell") }
+                Label(
+                    text = "cell",
+                    modifier =
+                        SwingModifier.item(
+                            gridx = if (stretched) 2 else 0,
+                            gridy = if (stretched) 3 else 0,
+                            gridwidth = if (stretched) GridBagConstraints.REMAINDER else 1,
+                            gridheight = if (stretched) 2 else 1,
+                            weightx = if (stretched) 1.0 else 0.0,
+                            weighty = if (stretched) 0.5 else 0.0,
+                            anchor = if (stretched) GridBagConstraints.LINE_END else GridBagConstraints.CENTER,
+                            fill = if (stretched) GridBagConstraints.BOTH else GridBagConstraints.NONE,
+                            insets = if (stretched) Insets(4, 5, 6, 7) else Insets(0, 0, 0, 0),
+                            ipadx = if (stretched) 8 else 0,
+                            ipady = if (stretched) 9 else 0,
+                        ),
+                )
             }
         }
 
@@ -81,11 +86,11 @@ class GridBagItemReactivityTest {
     }
 
     @Test
-    fun anItemsChildFollowsItsDeclarationWhileTheConstraintsStay() = runComposeSwingTest {
+    fun aChildFollowsItsDeclarationWhileItsConstraintsStay() = runComposeSwingTest {
         var caption by mutableStateOf("first")
         setContent {
             GridBagPanel {
-                item(gridx = 1, gridy = 1, ipadx = 12) { Label(text = caption) }
+                Label(text = caption, modifier = SwingModifier.item(gridx = 1, gridy = 1, ipadx = 12))
             }
         }
 
@@ -105,19 +110,21 @@ class GridBagItemReactivityTest {
     }
 
     @Test
-    fun anItemThatEmitsNothingDoesNotShiftItsSiblingsPlacement() = runComposeSwingTest {
+    fun aChildDeclaringNoPlacementDoesNotShiftItsSiblings() = runComposeSwingTest {
         var column by mutableStateOf(4)
         setContent {
             GridBagPanel {
-                item(gridx = 0) { Label(text = "head") }
-                // An item is free to emit nothing, so an item's position among the declarations is not
-                // its child's position among the panel's children.
-                item(gridx = 1) { }
-                item(gridx = column) { Label(text = "tail") }
+                Label(text = "head", modifier = SwingModifier.item(gridx = 0))
+                // A child is free to declare no placement of its own, so it takes the cell the layout
+                // manager gives a component it holds no constraints for, and the children around it
+                // keep the cells they name.
+                Label(text = "loose")
+                Label(text = "tail", modifier = SwingModifier.item(gridx = column))
             }
         }
 
         onNodeWithText("head").assertLayoutConstraint(columnOf(0))
+        onNodeWithText("loose").assertLayoutConstraint(GridBagConstraints())
         onNodeWithText("tail").assertLayoutConstraint(columnOf(4))
 
         column = 6
@@ -128,5 +135,5 @@ class GridBagItemReactivityTest {
     }
 }
 
-/** The constraints of an item that declares nothing but its column. */
+/** The constraints of a child that declares nothing but its column. */
 private fun columnOf(column: Int): GridBagConstraints = GridBagConstraints().apply { gridx = column }

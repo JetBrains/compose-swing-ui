@@ -107,25 +107,24 @@ internal fun ColumnScope.GeometryCard() {
             GeometrySpinner("height:", frameHeight, { frameHeight = it }, min = 30, max = 100)
         }
         LayeredPane(modifier = SwingModifier.preferredSize(Dimension(280, 180))) {
-            layer(JLayeredPane.DEFAULT_LAYER) {
-                Label(
-                    "Adjust the spinners",
-                    modifier =
-                        SwingModifier
-                            .opaque(true)
-                            .background(Color(0xC8, 0xE6, 0xC9))
-                            .horizontalAlignment(SwingConstants.CENTER)
-                            .x(frameX)
-                            .y(frameY)
-                            .width(frameWidth)
-                            .height(frameHeight),
-                )
-            }
+            Label(
+                "Adjust the spinners",
+                modifier =
+                    SwingModifier
+                        .layer(JLayeredPane.DEFAULT_LAYER)
+                        .opaque(true)
+                        .background(Color(0xC8, 0xE6, 0xC9))
+                        .horizontalAlignment(SwingConstants.CENTER)
+                        .x(frameX)
+                        .y(frameY)
+                        .width(frameWidth)
+                        .height(frameHeight),
+            )
         }
     }
 }
 
-/** One labelled bound of the geometry card, all four of which are spun the same way. */
+/** One labeled bound of the geometry card, all four of which are spun the same way. */
 @Composable
 private fun GeometrySpinner(
     label: String,
@@ -225,8 +224,8 @@ internal fun ColumnScope.MarginCard() {
     }
 }
 
-/** The pixels one click moves any of the geometry bounds by. */
-private const val GEOMETRY_STEP = 10
-
 private const val WIDE_BUTTON = 200
 private const val BUTTON_HEIGHT = 30
+
+/** The step every [GeometrySpinner] in the geometry card advances by. */
+private const val GEOMETRY_STEP = 10

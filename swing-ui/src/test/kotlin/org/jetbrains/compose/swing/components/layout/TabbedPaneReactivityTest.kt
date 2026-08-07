@@ -30,10 +30,7 @@ import kotlin.test.assertTrue
  * declaration returns to its default or drops to `null`.
  */
 class TabbedPaneReactivityTest {
-    /**
-     * A pane wide enough for its whole tab strip. A click is aimed at a tab's position on the strip, so
-     * a pane laid out too narrow for a tab leaves that click nothing to land on.
-     */
+    /** A pane wide enough for its whole tab strip, so a click aimed at a tab has something to land on. */
     private val roomForTheStrip: SwingModifier = SwingModifier.preferredSize(600, 400)
 
     private fun icon(): Icon = ImageIcon(BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB))
@@ -47,7 +44,7 @@ class TabbedPaneReactivityTest {
         var placement by mutableIntStateOf(JTabbedPane.TOP)
         setContent {
             TabbedPane(selectedIndex = 0, tabPlacement = placement) {
-                tab("General") { Label("g") }
+                Label("g", SwingModifier.tab("General"))
             }
         }
 
@@ -68,7 +65,7 @@ class TabbedPaneReactivityTest {
         var policy by mutableIntStateOf(JTabbedPane.WRAP_TAB_LAYOUT)
         setContent {
             TabbedPane(selectedIndex = 0, tabLayoutPolicy = policy) {
-                tab("General") { Label("g") }
+                Label("g", SwingModifier.tab("General"))
             }
         }
 
@@ -91,7 +88,7 @@ class TabbedPaneReactivityTest {
         var declared by mutableStateOf<Icon?>(null)
         setContent {
             TabbedPane(selectedIndex = 0) {
-                tab("General", icon = declared) { Label("g") }
+                Label("g", SwingModifier.tab("General", icon = declared))
             }
         }
 
@@ -116,7 +113,7 @@ class TabbedPaneReactivityTest {
         var tooltip by mutableStateOf<String?>(null)
         setContent {
             TabbedPane(selectedIndex = 0) {
-                tab("General", tooltip = tooltip) { Label("g") }
+                Label("g", SwingModifier.tab("General", tooltip = tooltip))
             }
         }
 
@@ -142,7 +139,7 @@ class TabbedPaneReactivityTest {
         var enabled by mutableStateOf(true)
         setContent {
             TabbedPane(selectedIndex = 0) {
-                tab(title, enabled = enabled) { Label("g") }
+                Label("g", SwingModifier.tab(title, enabled = enabled))
             }
         }
 
@@ -169,7 +166,7 @@ class TabbedPaneReactivityTest {
             TabbedPane(selectedIndex = 0) {
                 // "Settings" underlines its first 't' (index 2) on its own; the explicit index names the
                 // second one instead, so which of the two the tab shows is what the assertion tells apart.
-                tab("Settings", mnemonic = KeyEvent.VK_T, displayedMnemonicIndex = 3) { Label("g") }
+                Label("g", SwingModifier.tab("Settings", mnemonic = KeyEvent.VK_T, displayedMnemonicIndex = 3))
             }
         }
 
@@ -187,9 +184,14 @@ class TabbedPaneReactivityTest {
         var displayedMnemonicIndex by mutableStateOf<Int?>(3)
         setContent {
             TabbedPane(selectedIndex = 0) {
-                tab("Settings", mnemonic = KeyEvent.VK_T, displayedMnemonicIndex = displayedMnemonicIndex) {
-                    Label("g")
-                }
+                Label(
+                    "g",
+                    SwingModifier.tab(
+                        "Settings",
+                        mnemonic = KeyEvent.VK_T,
+                        displayedMnemonicIndex = displayedMnemonicIndex,
+                    ),
+                )
             }
         }
         val pane = onNodeOfType<JTabbedPane>().fetch()
@@ -211,7 +213,7 @@ class TabbedPaneReactivityTest {
         var mnemonic by mutableIntStateOf(-1)
         setContent {
             TabbedPane(selectedIndex = 0) {
-                tab("Settings", mnemonic = mnemonic, displayedMnemonicIndex = 3) { Label("g") }
+                Label("g", SwingModifier.tab("Settings", mnemonic = mnemonic, displayedMnemonicIndex = 3))
             }
         }
         val pane = onNodeOfType<JTabbedPane>().fetch()
@@ -234,7 +236,14 @@ class TabbedPaneReactivityTest {
         var displayedMnemonicIndex by mutableStateOf<Int?>(1)
         setContent {
             TabbedPane(selectedIndex = 0) {
-                tab(title, mnemonic = KeyEvent.VK_S, displayedMnemonicIndex = displayedMnemonicIndex) { Label("g") }
+                Label(
+                    "g",
+                    SwingModifier.tab(
+                        title,
+                        mnemonic = KeyEvent.VK_S,
+                        displayedMnemonicIndex = displayedMnemonicIndex,
+                    ),
+                )
             }
         }
         val pane = onNodeOfType<JTabbedPane>().fetch()
@@ -261,15 +270,36 @@ class TabbedPaneReactivityTest {
     }
 
     @Test
+    fun aTitleShrinkingBelowAStandingExplicitIndexUnderlinesNoneInsteadOfThrowing() = runComposeSwingTest {
+        var title by mutableStateOf("Save As")
+        setContent {
+            TabbedPane(selectedIndex = 0) {
+                Label("g", SwingModifier.tab(title, mnemonic = KeyEvent.VK_S, displayedMnemonicIndex = 5))
+            }
+        }
+        val pane = onNodeOfType<JTabbedPane>().fetch()
+        assertEquals(5, pane.getDisplayedMnemonicIndexAt(0), "the tab should start on the declared explicit index")
+
+        title = "Save"
+        awaitIdle()
+
+        assertEquals("Save", pane.getTitleAt(0), "the tab should adopt the new, shorter title")
+        assertEquals(
+            -1,
+            pane.getDisplayedMnemonicIndexAt(0),
+            "an explicit index the shrunk title no longer has should underline none rather than throw",
+        )
+    }
+
+    @Test
     fun aTabsBackgroundAndForegroundReachTheTabOnTheFirstPassAndFollowAChangedDeclaration() = runComposeSwingTest {
-        // Declared with actual colors from the very first composition, so the assertion below tells apart
-        // a background/foreground genuinely applied at insertTab time from one merely left at the pane's
-        // own default, which a tab declared without either would also read back as.
+        // Declared with real colors from the first composition, so the assertions tell a genuine insertTab-time
+        // background/foreground apart from the pane's own default, which an undeclared tab reads back as too.
         var background by mutableStateOf<Color?>(Color.RED)
         var foreground by mutableStateOf<Color?>(Color.WHITE)
         setContent {
             TabbedPane(selectedIndex = 0) {
-                tab("General", background = background, foreground = foreground) { Label("g") }
+                Label("g", SwingModifier.tab("General", background = background, foreground = foreground))
             }
         }
 
@@ -306,9 +336,8 @@ class TabbedPaneReactivityTest {
         var origin by mutableStateOf("first")
         var selected by mutableIntStateOf(0)
         setContent {
-            // The marker is read while composing, so declaring a new one recomposes the pane with a
-            // callback built around it. A callback captured at the first composition keeps reporting
-            // the marker that composition saw.
+            // The marker is read while composing, so a new one recomposes the pane with a callback built
+            // around it; a callback from an earlier composition keeps reporting the marker it saw.
             val declaredBy = origin
             TabbedPane(
                 selectedIndex = selected,
@@ -318,9 +347,9 @@ class TabbedPaneReactivityTest {
                     selected = it
                 },
             ) {
-                tab("One") { Label("1") }
-                tab("Two") { Label("2") }
-                tab("Three") { Label("3") }
+                Label("1", SwingModifier.tab("One"))
+                Label("2", SwingModifier.tab("Two"))
+                Label("3", SwingModifier.tab("Three"))
             }
         }
 
@@ -347,9 +376,9 @@ class TabbedPaneReactivityTest {
                 modifier = roomForTheStrip,
                 changeListener = if (useSecond) second else first,
             ) {
-                tab("One") { Label("1") }
-                tab("Two") { Label("2") }
-                tab("Three") { Label("3") }
+                Label("1", SwingModifier.tab("One"))
+                Label("2", SwingModifier.tab("Two"))
+                Label("3", SwingModifier.tab("Three"))
             }
         }
 
@@ -376,8 +405,8 @@ class TabbedPaneReactivityTest {
                 tabPlacement = placement,
                 tabLayoutPolicy = policy,
             ) {
-                tab("One") { Label("1") }
-                tab("Two") { Label("2") }
+                Label("1", SwingModifier.tab("One"))
+                Label("2", SwingModifier.tab("Two"))
             }
         }
 
@@ -401,7 +430,7 @@ class TabbedPaneReactivityTest {
         var caption by mutableStateOf("first")
         setContent {
             TabbedPane(selectedIndex = 0) {
-                tab("General") { Label(caption) }
+                Label(caption, SwingModifier.tab("General"))
             }
         }
 
@@ -419,7 +448,7 @@ class TabbedPaneReactivityTest {
         var withHeader by mutableStateOf(true)
         setContent {
             TabbedPane(selectedIndex = 0) {
-                tab("General", header = if (withHeader) ({ Label("custom") }) else null) { Label("g") }
+                Label("g", SwingModifier.tab("General", header = if (withHeader) ({ Label("custom") }) else null))
             }
         }
 

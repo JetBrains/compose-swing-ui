@@ -1,10 +1,12 @@
 package org.jetbrains.compose.swing.components.layout
 
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
@@ -15,7 +17,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 /**
- * A [ScrollPane]'s scrollbar policies and the slots declared in its block are composition state: a
+ * A [ScrollPane]'s scrollbar policies and the regions its children declare are composition state: a
  * value changed after the first composition reaches the live [JScrollPane], and changing it back
  * reaches it again.
  */
@@ -27,7 +29,7 @@ class ScrollPaneReactivityTest {
         var policy by mutableIntStateOf(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED)
         setContent {
             ScrollPane(verticalScrollbar = policy) {
-                content { Label(text = "body") }
+                Label(text = "body", modifier = SwingModifier.viewport())
             }
         }
 
@@ -68,7 +70,7 @@ class ScrollPaneReactivityTest {
         var policy by mutableIntStateOf(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED)
         setContent {
             ScrollPane(horizontalScrollbar = policy) {
-                content { Label(text = "body") }
+                Label(text = "body", modifier = SwingModifier.viewport())
             }
         }
 
@@ -109,8 +111,9 @@ class ScrollPaneReactivityTest {
         var cornerKey by mutableStateOf(JScrollPane.UPPER_LEFT_CORNER)
         setContent {
             ScrollPane {
-                content { Label(text = "body") }
-                corner(cornerKey) { Label(text = "badge") }
+                Label(text = "body", modifier = SwingModifier.viewport())
+                // A fresh node per corner, since a slot is read when the child arrives in the pane.
+                key(cornerKey) { Label(text = "badge", modifier = SwingModifier.corner(cornerKey)) }
             }
         }
 
@@ -141,10 +144,13 @@ class ScrollPaneReactivityTest {
         var caption by mutableStateOf("first")
         setContent {
             ScrollPane {
-                content { Label(text = "body $caption") }
-                rowHeader { Label(text = "rows $caption") }
-                columnHeader { Label(text = "cols $caption") }
-                corner(JScrollPane.UPPER_TRAILING_CORNER) { Label(text = "corner $caption") }
+                Label(text = "body $caption", modifier = SwingModifier.viewport())
+                Label(text = "rows $caption", modifier = SwingModifier.rowHeader())
+                Label(text = "cols $caption", modifier = SwingModifier.columnHeader())
+                Label(
+                    text = "corner $caption",
+                    modifier = SwingModifier.corner(JScrollPane.UPPER_TRAILING_CORNER),
+                )
             }
         }
 

@@ -146,7 +146,7 @@ internal fun ColumnScope.InternalFrameListenerCard() {
             }
         WrappedCaption("Click inside then outside the frame to activate and deactivate it.")
         DesktopPane(modifier = SwingModifier.preferredSize(Dimension(260, 140))) {
-            internalFrame(
+            InternalFrame(
                 title = "Notes",
                 bounds = Rectangle(10, 10, 200, 100),
                 modifier = SwingModifier.internalFrameListener(listener),

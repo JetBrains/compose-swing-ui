@@ -11,6 +11,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.BorderPanel
+import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -41,13 +42,13 @@ class ListenerReattachAfterReuseTest {
         setContent {
             val button =
                 remember {
-                    movableContentOf {
-                        Button(text = "Move me", onClick = { counter++ })
+                    movableContentOf<SwingModifier> { modifier ->
+                        Button(text = "Move me", onClick = { counter++ }, modifier = modifier)
                     }
                 }
             BorderPanel {
-                if (inNorth) north { button() } else south { button() }
-                center { Label(text = "anchor") }
+                if (inNorth) button(SwingModifier.north()) else button(SwingModifier.south())
+                Label(text = "anchor", modifier = SwingModifier.center())
             }
         }
 
@@ -55,7 +56,7 @@ class ListenerReattachAfterReuseTest {
         button.performClick()
         assertEquals(1, counter, "precondition: the button must dispatch clicks before the move")
 
-        // Force the move (NORTH -> SOUTH). The same component instance is reused in the new slot.
+        // Force the move (NORTH -> SOUTH). The same component instance is reused in the new region.
         inNorth = false
         awaitIdle()
 
@@ -75,10 +76,8 @@ class ListenerReattachAfterReuseTest {
 
         setContent {
             BorderPanel {
-                center {
-                    ReusableContentHost(active = active) {
-                        Button(text = "Reusable", onClick = { counter++ })
-                    }
+                ReusableContentHost(active = active) {
+                    Button(text = "Reusable", onClick = { counter++ }, modifier = SwingModifier.center())
                 }
             }
         }
@@ -110,12 +109,11 @@ class ListenerReattachAfterReuseTest {
 
         setContent {
             BorderPanel {
-                center {
-                    KeyedButton(
-                        key = if (useA) "A" else "B",
-                        onClick = { if (useA) counterA++ else counterB++ },
-                    )
-                }
+                KeyedButton(
+                    key = if (useA) "A" else "B",
+                    onClick = { if (useA) counterA++ else counterB++ },
+                    modifier = SwingModifier.center(),
+                )
             }
         }
 
@@ -145,8 +143,9 @@ class ListenerReattachAfterReuseTest {
 private fun KeyedButton(
     key: String,
     onClick: () -> Unit,
+    modifier: SwingModifier,
 ) {
     androidx.compose.runtime.key(key) {
-        Button(text = "Keyed", onClick = onClick)
+        Button(text = "Keyed", onClick = onClick, modifier = modifier)
     }
 }

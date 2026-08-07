@@ -4,13 +4,10 @@
 package org.jetbrains.compose.swing.window
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.rememberUpdatedState
-import org.jetbrains.compose.swing.node.LocalSlotAttachment
-import org.jetbrains.compose.swing.node.LocalSwingConstraint
 import org.jetbrains.compose.swing.setContentAsInteropHost
 import java.awt.BorderLayout
 import java.awt.Component
@@ -75,6 +72,7 @@ public fun WindowScope.GlassPane(
             // window - which a caller may own and keep - is handed back the pane it carried before, and
             // carries no record to refuse the next declaration reaching it.
             serving.withdraw()
+            scope.declaredGlassPane = null
             error(
                 "Two GlassPane { } declarations are composed in this window at once, and a window " +
                     "carries one glass pane: the second would take the window from the first, leaving " +
@@ -84,70 +82,36 @@ public fun WindowScope.GlassPane(
             )
         }
 
-        val declaration = DeclaredGlassPane(scope)
+        // Transparent, the way a root pane's own glass pane is, so the window shows through wherever the
+        // content paints nothing.
+        val pane = JPanel(BorderLayout()).apply { isOpaque = false }
+        val displaced = scope.rootPane.glassPane
+        val declaration =
+            WindowDecoration(
+                payload = PaneVisibility(pane, visible = true),
+                displaced = PaneVisibility(displaced, visible = displaced.isVisible),
+                install = { (component, visible) -> scope.rootPane.installGlassPane(component, visible) },
+            )
         val handle =
-            declaration.pane.setContentAsInteropHost(parentContext) {
-                // The overlay joins the composition enclosing this call, so it would otherwise inherit
-                // the slot attachment/constraint of whatever hosts that call site. Reset both: the
-                // overlay's nodes are ordinary children of the glass pane itself.
-                CompositionLocalProvider(
-                    LocalSlotAttachment provides null,
-                    LocalSwingConstraint provides null,
-                ) {
-                    currentContent()
-                }
+            pane.setContentAsInteropHost(parentContext) {
+                currentContent()
             }
+        scope.declaredGlassPane = declaration
         declaration.serve()
 
         onDispose {
             declaration.withdraw()
+            scope.declaredGlassPane = null
             handle.dispose()
         }
     }
 }
 
-/**
- * The glass pane one [GlassPane] declaration puts on [WindowScope.rootPane], together with the pane that
- * root pane carried before and the visibility it carried it at.
- *
- * A window carries one glass pane, so whether one already serves it is read off [scope]'s own
- * [WindowScope.declaredGlassPane] rather than off the Swing side: that field is this declaration's sole
- * bookkeeping, so a pane already in place answers for itself.
- */
-internal class DeclaredGlassPane(
-    private val scope: WindowScope,
-) {
-    /**
-     * The pane this declaration puts on the window; the declared content fills it.
-     *
-     * Transparent, the way a root pane's own glass pane is, so the window shows through wherever the
-     * content paints nothing.
-     */
-    val pane: JPanel = JPanel(BorderLayout()).apply { isOpaque = false }
-
-    private val displaced: Component = scope.rootPane.glassPane
-    private val displacedVisible: Boolean = displaced.isVisible
-    private var serving: Boolean = false
-
-    /** Puts [pane] over the window, shown, and records this declaration as the one serving it. */
-    fun serve() {
-        serving = true
-        scope.declaredGlassPane = this
-        scope.rootPane.installGlassPane(pane, visible = true)
-    }
-
-    /**
-     * Hands the window back the pane it carried before [serve], shown as it was shown then. Does nothing
-     * unless this declaration is the one serving, so withdrawing what has already been withdrawn leaves
-     * the window alone.
-     */
-    fun withdraw() {
-        if (!serving) return
-        serving = false
-        scope.declaredGlassPane = null
-        scope.rootPane.installGlassPane(displaced, visible = displacedVisible)
-    }
-}
+/** A glass pane [WindowDecoration] installs, and whether it is to be shown once installed. */
+private data class PaneVisibility(
+    val component: Component,
+    val visible: Boolean,
+)
 
 /**
  * Puts [glassPane] over this root pane at the given [visible], and asks for the layout pass the change

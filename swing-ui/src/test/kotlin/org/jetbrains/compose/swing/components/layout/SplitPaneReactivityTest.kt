@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.beans.PropertyChangeListener
@@ -34,8 +35,8 @@ class SplitPaneReactivityTest {
         var weight by mutableStateOf(0.0)
         setContent {
             SplitPane(resizeWeight = weight) {
-                first { Label(text = "A") }
-                second { Label(text = "B") }
+                Label(text = "A", modifier = SwingModifier.first())
+                Label(text = "B", modifier = SwingModifier.second())
             }
         }
 
@@ -56,8 +57,8 @@ class SplitPaneReactivityTest {
         var orientation by mutableIntStateOf(JSplitPane.HORIZONTAL_SPLIT)
         setContent {
             SplitPane(orientation = orientation) {
-                first { Label(text = "A") }
-                second { Label(text = "B") }
+                Label(text = "A", modifier = SwingModifier.first())
+                Label(text = "B", modifier = SwingModifier.second())
             }
         }
 
@@ -78,8 +79,8 @@ class SplitPaneReactivityTest {
         var size by mutableStateOf<Int?>(null)
         setContent {
             SplitPane(dividerSize = size) {
-                first { Label(text = "A") }
-                second { Label(text = "B") }
+                Label(text = "A", modifier = SwingModifier.first())
+                Label(text = "B", modifier = SwingModifier.second())
             }
         }
 
@@ -100,8 +101,8 @@ class SplitPaneReactivityTest {
         var expandable by mutableStateOf<Boolean?>(null)
         setContent {
             SplitPane(oneTouchExpandable = expandable) {
-                first { Label(text = "A") }
-                second { Label(text = "B") }
+                Label(text = "A", modifier = SwingModifier.first())
+                Label(text = "B", modifier = SwingModifier.second())
             }
         }
 
@@ -131,8 +132,8 @@ class SplitPaneReactivityTest {
         var size by mutableStateOf<Int?>(handWrittenSize + 13)
         setContent {
             SplitPane(dividerSize = size) {
-                first { Label(text = "A") }
-                second { Label(text = "B") }
+                Label(text = "A", modifier = SwingModifier.first())
+                Label(text = "B", modifier = SwingModifier.second())
             }
         }
 
@@ -154,8 +155,8 @@ class SplitPaneReactivityTest {
         var expandable by mutableStateOf<Boolean?>(true)
         setContent {
             SplitPane(oneTouchExpandable = expandable) {
-                first { Label(text = "A") }
-                second { Label(text = "B") }
+                Label(text = "A", modifier = SwingModifier.first())
+                Label(text = "B", modifier = SwingModifier.second())
             }
         }
 
@@ -187,8 +188,8 @@ class SplitPaneReactivityTest {
         var size by mutableStateOf<Int?>(handWrittenSize + 13)
         setContent {
             SplitPane(dividerSize = size) {
-                first { Label(text = "A") }
-                second { Label(text = "B") }
+                Label(text = "A", modifier = SwingModifier.first())
+                Label(text = "B", modifier = SwingModifier.second())
             }
         }
 
@@ -228,8 +229,8 @@ class SplitPaneReactivityTest {
         var expandable by mutableStateOf<Boolean?>(true)
         setContent {
             SplitPane(oneTouchExpandable = expandable) {
-                first { Label(text = "A") }
-                second { Label(text = "B") }
+                Label(text = "A", modifier = SwingModifier.first())
+                Label(text = "B", modifier = SwingModifier.second())
             }
         }
 
@@ -268,8 +269,8 @@ class SplitPaneReactivityTest {
     fun anUndeclaredDividerSizeIsLeftForTheLookAndFeelToInstall() = runComposeSwingTest {
         setContent {
             SplitPane {
-                first { Label(text = "A") }
-                second { Label(text = "B") }
+                Label(text = "A", modifier = SwingModifier.first())
+                Label(text = "B", modifier = SwingModifier.second())
             }
         }
 
@@ -290,8 +291,8 @@ class SplitPaneReactivityTest {
     fun anUndeclaredOneTouchFlagIsLeftForTheLookAndFeelToInstall() = runComposeSwingTest {
         setContent {
             SplitPane {
-                first { Label(text = "A") }
-                second { Label(text = "B") }
+                Label(text = "A", modifier = SwingModifier.first())
+                Label(text = "B", modifier = SwingModifier.second())
             }
         }
 
@@ -323,8 +324,8 @@ class SplitPaneReactivityTest {
                 onDividerLocationChange = { reported += "$declaredBy:$it" },
                 resizeWeight = weight,
             ) {
-                first { Label(text = "A") }
-                second { Label(text = "B") }
+                Label(text = "A", modifier = SwingModifier.first())
+                Label(text = "B", modifier = SwingModifier.second())
             }
         }
 
@@ -353,8 +354,8 @@ class SplitPaneReactivityTest {
             val firstListener = remember { recordingListener(firstMoves) }
             val secondListener = remember { recordingListener(secondMoves) }
             SplitPane(dividerLocationListener = if (useSecond) secondListener else firstListener) {
-                first { Label(text = "A") }
-                second { Label(text = "B") }
+                Label(text = "A", modifier = SwingModifier.first())
+                Label(text = "B", modifier = SwingModifier.second())
             }
         }
 
@@ -392,9 +393,9 @@ class SplitPaneReactivityTest {
                 oneTouchExpandable = expandable,
                 dividerSize = size,
             ) {
-                first { Label(text = "Leading") }
+                Label(text = "Leading", modifier = SwingModifier.first())
                 if (showSecond) {
-                    second { Label(text = "Trailing") }
+                    Label(text = "Trailing", modifier = SwingModifier.second())
                 }
             }
         }
@@ -444,8 +445,8 @@ class SplitPaneReactivityTest {
         var location by mutableIntStateOf(100)
         setContent {
             SplitPane(dividerLocation = location) {
-                first { Label(text = "A") }
-                second { Label(text = "B") }
+                Label(text = "A", modifier = SwingModifier.first())
+                Label(text = "B", modifier = SwingModifier.second())
             }
         }
 

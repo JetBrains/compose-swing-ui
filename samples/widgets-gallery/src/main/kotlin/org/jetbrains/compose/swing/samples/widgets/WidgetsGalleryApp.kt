@@ -35,11 +35,8 @@ import javax.swing.KeyStroke
 import javax.swing.ListSelectionModel
 import javax.swing.SwingConstants
 
-// The composable menu bar: File, Edit, a View menu exercising CheckBoxMenuItem and a
-// RadioButtonMenuGroup, and a Help menu folding one item straight from MenuNode, the primitive
-// every menu component above is itself built on. File > New and File > Open drive the gallery's
-// shared editor document, which the Editor section renders. The menu bar is its own composition,
-// mounted on the frame's own menu bar, and reads that frame as its LocalWindow.
+// The menu bar is its own composition, mounted on the frame's menu bar, and reads that frame as its
+// LocalWindow.
 @Composable
 internal fun ShowcaseMenuBar(onExit: () -> Unit) {
     val owner = LocalWindow.current
@@ -54,9 +51,8 @@ internal fun ShowcaseMenuBar(onExit: () -> Unit) {
             onClick = { setEditorText("") },
         )
         MenuItem("Open", accelerator = KeyStroke.getKeyStroke(KeyEvent.VK_O, shortcut)) {
-            // Loads a canned document into the shared editor and surfaces the window that renders it,
-            // showing one composition (the menu bar) drive another (the Editor section) through the
-            // document they share.
+            // Loads a canned document into the shared editor. The Editor section - a separate
+            // composition - renders it through that shared document.
             setEditorText(SAMPLE_DOCUMENT)
             owner?.toFront()
         }
@@ -82,9 +78,8 @@ internal fun ShowcaseMenuBar(onExit: () -> Unit) {
         }
     }
     Menu("Help") {
-        // MenuNode is the primitive every menu composable above is folded from; this item is built
-        // straight from a plain JMenuItem, with no library wrapper of its own between it and the item
-        // MenuNode installs.
+        // MenuNode is the primitive every menu composable above is built on. This item is built
+        // straight from a plain JMenuItem, with no wrapper between it and the item MenuNode installs.
         val callback = rememberUpdatedState<() -> Unit> { pings++ }
         val listener = remember { ActionListener { callback.value() } }
         MenuNode(
@@ -104,29 +99,22 @@ internal fun ShowcaseShell() {
     BorderPanel(
         modifier = SwingModifier.emptyBorder(12),
     ) {
-        west {
-            ScrollPane(modifier = SwingModifier.preferredSize(Dimension(180, 0))) {
-                content {
-                    ListBox(
-                        items = showcaseSections.map { it.title },
-                        selectedIndices = setOf(selected),
-                        onSelectionChange = { indices -> indices.firstOrNull()?.let { selected = it } },
-                        selectionMode = ListSelectionModel.SINGLE_SELECTION,
-                        visibleRowCount = showcaseSections.size,
-                        modifier = SwingModifier.accessibleName("Sections"),
-                    )
-                }
-            }
-        }
-        center {
-            showcaseSections.getOrNull(selected)?.body?.invoke()
-        }
-        south {
-            Label(
-                "Section: ${showcaseSections.getOrNull(selected)?.title ?: "-"}",
-                modifier = SwingModifier.horizontalAlignment(SwingConstants.LEADING),
+        ScrollPane(modifier = SwingModifier.west().preferredSize(Dimension(180, 0))) {
+            ListBox(
+                items = showcaseSections.map { it.title },
+                selectedIndices = setOf(selected),
+                onSelectionChange = { indices -> indices.firstOrNull()?.let { selected = it } },
+                selectionMode = ListSelectionModel.SINGLE_SELECTION,
+                visibleRowCount = showcaseSections.size,
+                modifier = SwingModifier.viewport().accessibleName("Sections"),
             )
         }
+        // A section body names no region, so BorderLayout gives it the center by default.
+        showcaseSections.getOrNull(selected)?.body?.invoke()
+        Label(
+            "Section: ${showcaseSections.getOrNull(selected)?.title ?: "-"}",
+            modifier = SwingModifier.south().horizontalAlignment(SwingConstants.LEADING),
+        )
     }
 }
 

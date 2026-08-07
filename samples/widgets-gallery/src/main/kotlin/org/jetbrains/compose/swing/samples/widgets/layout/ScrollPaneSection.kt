@@ -38,49 +38,39 @@ import javax.swing.JScrollBar
 import javax.swing.JScrollPane
 import javax.swing.SwingConstants
 
-// The full ScrollPaneScope: a scrollable grid as the content, a synced row header and column header,
-// and a corner badge in the upper-leading slot. The scrollbar policies are forced always-on so every
-// slot is visible at once. Further down: the pane's hoistable ScrollState, the content slot's own
-// scrolling behavior, its border and wheel-scrolling switch, and a raw JScrollBar driven through
-// adjustmentListener.
+// The full ScrollPaneScope: a scrollable grid as the viewport content, a synced row header and column
+// header, and a corner badge in the upper-leading slot, each child naming its own region. The scrollbar
+// policies are forced always-on so every slot is visible at once. Further down: the pane's hoistable
+// ScrollState, the viewport content's own scrolling behavior, its border and wheel-scrolling switch, and
+// a raw JScrollBar driven through adjustmentListener.
 @Composable
 internal fun ScrollPaneSection() {
     SectionColumn {
         SectionHeading("ScrollPane")
-        ExampleCard("content + rowHeader + columnHeader + corner") {
+        ExampleCard("viewport + rowHeader + columnHeader + corner") {
             ScrollPane(
                 modifier = SwingModifier.preferredSize(Dimension(420, 240)),
                 verticalScrollbar = JScrollPane.VERTICAL_SCROLLBAR_ALWAYS,
                 horizontalScrollbar = JScrollPane.HORIZONTAL_SCROLLBAR_ALWAYS,
             ) {
-                content {
-                    GridPanel(rows = ROWS, cols = COLS, hgap = 1, vgap = 1) {
-                        repeat(ROWS * COLS) { index ->
-                            Cell("R${index / COLS},C${index % COLS}", Color(0xEC, 0xEF, 0xF1))
-                        }
+                GridPanel(SwingModifier.viewport(), rows = ROWS, cols = COLS, hgap = 1, vgap = 1) {
+                    repeat(ROWS * COLS) { index ->
+                        Cell("R${index / COLS},C${index % COLS}", Color(0xEC, 0xEF, 0xF1))
                     }
                 }
-                columnHeader {
-                    GridPanel(rows = 1, cols = COLS) {
-                        repeat(COLS) { col -> Cell("Col $col", Color(0xCF, 0xD8, 0xDC)) }
-                    }
+                GridPanel(SwingModifier.columnHeader(), rows = 1, cols = COLS) {
+                    repeat(COLS) { col -> Cell("Col $col", Color(0xCF, 0xD8, 0xDC)) }
                 }
-                rowHeader {
-                    GridPanel(rows = ROWS, cols = 1) {
-                        repeat(ROWS) { row -> Cell("Row $row", Color(0xCF, 0xD8, 0xDC)) }
-                    }
+                GridPanel(SwingModifier.rowHeader(), rows = ROWS, cols = 1) {
+                    repeat(ROWS) { row -> Cell("Row $row", Color(0xCF, 0xD8, 0xDC)) }
                 }
-                corner(JScrollPane.UPPER_LEADING_CORNER) {
-                    Cell("⌗", Color(0x90, 0xA4, 0xAE))
-                }
+                Cell("⌗", Color(0x90, 0xA4, 0xAE), SwingModifier.corner(JScrollPane.UPPER_LEADING_CORNER))
             }
         }
-        ExampleCard("Plain content-only ScrollPane") {
+        ExampleCard("Plain viewport-only ScrollPane") {
             ScrollPane(modifier = SwingModifier.preferredSize(Dimension(420, 100))) {
-                content {
-                    Column {
-                        repeat(20) { Label("Scrollable line ${it + 1}") }
-                    }
+                Column(SwingModifier.viewport()) {
+                    repeat(20) { Label("Scrollable line ${it + 1}") }
                 }
             }
         }
@@ -118,11 +108,9 @@ private fun ColumnScope.ScrollStateCard() {
         Slider(value = scroll.y, onValueChange = { scroll.y = it }, min = 0, max = scroll.maxY)
         Label("Viewport ${scroll.extentWidth}x${scroll.extentHeight}, content ${scroll.viewWidth}x${scroll.viewHeight}")
         ScrollPane(state = scroll, modifier = SwingModifier.preferredSize(Dimension(220, 120))) {
-            content {
-                GridPanel(rows = ROWS, cols = COLS, hgap = 1, vgap = 1) {
-                    repeat(ROWS * COLS) { index ->
-                        Cell("R${index / COLS},C${index % COLS}", Color(0xE1, 0xF5, 0xFE))
-                    }
+            GridPanel(SwingModifier.viewport(), rows = ROWS, cols = COLS, hgap = 1, vgap = 1) {
+                repeat(ROWS * COLS) { index ->
+                    Cell("R${index / COLS},C${index % COLS}", Color(0xE1, 0xF5, 0xFE))
                 }
             }
         }
@@ -131,7 +119,7 @@ private fun ColumnScope.ScrollStateCard() {
 
 @Composable
 private fun ColumnScope.ContentBehaviorCard() {
-    ExampleCard("ScrollPaneScope.content (increments + tracksViewport)") {
+    ExampleCard("SwingModifier.viewport (increments + tracksViewport)") {
         var unitIncrement by remember { mutableIntStateOf(16) }
         var blockIncrement by remember { mutableIntStateOf(80) }
         var tracksWidth by remember { mutableStateOf(false) }
@@ -153,15 +141,19 @@ private fun ColumnScope.ContentBehaviorCard() {
                 "arrow-button click or a page click scrolls.",
         )
         ScrollPane(modifier = SwingModifier.preferredSize(Dimension(180, 70))) {
-            content(
-                unitIncrement = unitIncrement,
-                blockIncrement = blockIncrement,
-                tracksViewportWidth = tracksWidth,
-                tracksViewportHeight = tracksHeight,
+            GridPanel(
+                SwingModifier.viewport(
+                    unitIncrement = unitIncrement,
+                    blockIncrement = blockIncrement,
+                    tracksViewportWidth = tracksWidth,
+                    tracksViewportHeight = tracksHeight,
+                ),
+                rows = 4,
+                cols = 6,
+                hgap = 1,
+                vgap = 1,
             ) {
-                GridPanel(rows = 4, cols = 6, hgap = 1, vgap = 1) {
-                    repeat(4 * 6) { index -> Cell("${index / 6},${index % 6}", Color(0xFF, 0xF3, 0xE0)) }
-                }
+                repeat(4 * 6) { index -> Cell("${index / 6},${index % 6}", Color(0xFF, 0xF3, 0xE0)) }
             }
         }
     }
@@ -188,11 +180,9 @@ private fun ColumnScope.BorderAndWheelCard() {
             viewportBorder = if (showBorder) redOutline else null,
             wheelScrollingEnabled = wheelEnabled,
         ) {
-            content {
-                GridPanel(rows = ROWS, cols = COLS, hgap = 1, vgap = 1) {
-                    repeat(ROWS * COLS) { index ->
-                        Cell("R${index / COLS},C${index % COLS}", Color(0xEC, 0xEF, 0xF1))
-                    }
+            GridPanel(SwingModifier.viewport(), rows = ROWS, cols = COLS, hgap = 1, vgap = 1) {
+                repeat(ROWS * COLS) { index ->
+                    Cell("R${index / COLS},C${index % COLS}", Color(0xEC, 0xEF, 0xF1))
                 }
             }
         }
@@ -226,11 +216,12 @@ private const val COLS = 8
 private fun Cell(
     text: String,
     color: Color,
+    modifier: SwingModifier = SwingModifier,
 ) {
     Label(
         text = text,
         modifier =
-            SwingModifier
+            modifier
                 .opaque(true)
                 .background(color)
                 .preferredSize(Dimension(60, 24))

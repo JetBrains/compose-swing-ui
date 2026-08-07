@@ -30,7 +30,7 @@ internal fun ReactiveTaskListScreen() {
     BorderPanel(
         modifier = SwingModifier.emptyBorder(16),
     ) {
-        center { ReactiveTaskList() }
+        ReactiveTaskList(SwingModifier.center())
     }
 }
 

@@ -52,7 +52,7 @@ class LayoutModifierReactivityTest {
     @Test
     fun aBorderPanelFollowsItsModifier() = runComposeSwingTest {
         assertTheModifierIsFollowed("BorderPanel") { modifier ->
-            BorderPanel(modifier = modifier) { center { Label("child") } }
+            BorderPanel(modifier = modifier) { Label("child", SwingModifier.center()) }
         }
     }
 
@@ -80,7 +80,7 @@ class LayoutModifierReactivityTest {
     @Test
     fun aCardPanelFollowsItsModifier() = runComposeSwingTest {
         assertTheModifierIsFollowed("CardPanel") { modifier ->
-            CardPanel(selectedCard = "only", modifier = modifier) { card("only") { Label("child") } }
+            CardPanel(selectedCard = "only", modifier = modifier) { Label("child", SwingModifier.card("only")) }
         }
     }
 
@@ -94,7 +94,7 @@ class LayoutModifierReactivityTest {
     @Test
     fun aGridBagPanelFollowsItsModifier() = runComposeSwingTest {
         assertTheModifierIsFollowed("GridBagPanel") { modifier ->
-            GridBagPanel(modifier = modifier) { item { Label("child") } }
+            GridBagPanel(modifier = modifier) { Label("child", SwingModifier.item()) }
         }
     }
 
@@ -108,7 +108,7 @@ class LayoutModifierReactivityTest {
     @Test
     fun aScrollPaneFollowsItsModifier() = runComposeSwingTest {
         assertTheModifierIsFollowed("ScrollPane") { modifier ->
-            ScrollPane(modifier = modifier) { content { Label("child") } }
+            ScrollPane(modifier = modifier) { Label("child", SwingModifier.viewport()) }
         }
     }
 
@@ -116,8 +116,8 @@ class LayoutModifierReactivityTest {
     fun aSplitPaneFollowsItsModifier() = runComposeSwingTest {
         assertTheModifierIsFollowed("SplitPane") { modifier ->
             SplitPane(modifier = modifier) {
-                first { Label("A") }
-                second { Label("B") }
+                Label("A", SwingModifier.first())
+                Label("B", SwingModifier.second())
             }
         }
     }
@@ -125,7 +125,7 @@ class LayoutModifierReactivityTest {
     @Test
     fun aTabbedPaneFollowsItsModifier() = runComposeSwingTest {
         assertTheModifierIsFollowed("TabbedPane") { modifier ->
-            TabbedPane(selectedIndex = 0, modifier = modifier) { tab("General") { Label("child") } }
+            TabbedPane(selectedIndex = 0, modifier = modifier) { Label("child", SwingModifier.tab("General")) }
         }
     }
 

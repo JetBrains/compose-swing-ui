@@ -33,21 +33,29 @@ internal fun ColumnScope.GridPanelCard() {
 internal fun ColumnScope.GridBagPanelCard() {
     ExampleCard("GridBagPanel") {
         GridBagPanel {
-            item(gridx = 0, gridy = 0, anchor = GridBagConstraints.LINE_END, insets = Insets(4, 4, 4, 4)) {
-                Label("Name")
-            }
-            item(
-                gridx = 1,
-                gridy = 0,
-                weightx = 1.0,
-                fill = GridBagConstraints.HORIZONTAL,
-                insets = Insets(4, 4, 4, 4),
-            ) {
-                Button("Pick a name")
-            }
-            item(gridx = 0, gridy = 1, gridwidth = 2, fill = GridBagConstraints.HORIZONTAL) {
-                Label("A row spanning both columns")
-            }
+            Label(
+                "Name",
+                SwingModifier.item(
+                    gridx = 0,
+                    gridy = 0,
+                    anchor = GridBagConstraints.LINE_END,
+                    insets = Insets(4, 4, 4, 4),
+                ),
+            )
+            Button(
+                "Pick a name",
+                SwingModifier.item(
+                    gridx = 1,
+                    gridy = 0,
+                    weightx = 1.0,
+                    fill = GridBagConstraints.HORIZONTAL,
+                    insets = Insets(4, 4, 4, 4),
+                ),
+            )
+            Label(
+                "A row spanning both columns",
+                SwingModifier.item(gridx = 0, gridy = 1, gridwidth = 2, fill = GridBagConstraints.HORIZONTAL),
+            )
         }
     }
 }
@@ -62,9 +70,9 @@ internal fun ColumnScope.CardPanelCard() {
             Button("Show C", onClick = { shown = "C" })
         }
         CardPanel(selectedCard = shown, modifier = SwingModifier.preferredSize(Dimension(320, 60))) {
-            card("A") { RegionLabel("Card A", Color(0xBB, 0xDE, 0xFB)) }
-            card("B") { RegionLabel("Card B", Color(0xC8, 0xE6, 0xC9)) }
-            card("C") { RegionLabel("Card C", Color(0xFF, 0xE0, 0xB2)) }
+            RegionLabel("Card A", Color(0xBB, 0xDE, 0xFB), SwingModifier.card("A"))
+            RegionLabel("Card B", Color(0xC8, 0xE6, 0xC9), SwingModifier.card("B"))
+            RegionLabel("Card C", Color(0xFF, 0xE0, 0xB2), SwingModifier.card("C"))
         }
     }
 }

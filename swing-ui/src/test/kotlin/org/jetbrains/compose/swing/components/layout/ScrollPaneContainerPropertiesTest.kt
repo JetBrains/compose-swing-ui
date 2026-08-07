@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.BorderFactory
@@ -28,7 +29,7 @@ class ScrollPaneContainerPropertiesTest {
         var border by mutableStateOf<Border?>(first)
         setContent {
             ScrollPane(viewportBorder = border) {
-                content { Label(text = "Body") }
+                Label(text = "Body", modifier = SwingModifier.viewport())
             }
         }
 
@@ -45,7 +46,7 @@ class ScrollPaneContainerPropertiesTest {
         var border by mutableStateOf<Border?>(BorderFactory.createEmptyBorder(2, 2, 2, 2))
         setContent {
             ScrollPane(viewportBorder = border) {
-                content { Label(text = "Body") }
+                Label(text = "Body", modifier = SwingModifier.viewport())
             }
         }
 
@@ -65,7 +66,7 @@ class ScrollPaneContainerPropertiesTest {
     fun anUndeclaredViewportBorderIsTheOneTheLookAndFeelGave() = runComposeSwingTest {
         setContent {
             ScrollPane {
-                content { Label(text = "Body") }
+                Label(text = "Body", modifier = SwingModifier.viewport())
             }
         }
 
@@ -81,7 +82,7 @@ class ScrollPaneContainerPropertiesTest {
         var wheel by mutableStateOf(true)
         setContent {
             ScrollPane(wheelScrollingEnabled = wheel) {
-                content { Label(text = "Body") }
+                Label(text = "Body", modifier = SwingModifier.viewport())
             }
         }
 

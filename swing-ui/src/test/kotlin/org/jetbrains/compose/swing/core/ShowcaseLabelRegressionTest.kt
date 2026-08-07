@@ -7,6 +7,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.BorderPanel
+import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.BorderLayout
 import kotlin.test.Test
@@ -14,7 +15,7 @@ import kotlin.test.assertSame
 
 /**
  * A [BorderPanel] with a stable NORTH title and a stable SOUTH status bar, and a CENTER body that
- * comes and goes. The panel composes its slots NORTH, CENTER, SOUTH, so the body occupies composition
+ * comes and goes. The panel composes its children NORTH, CENTER, SOUTH, so the body occupies composition
  * index 1 - *between* its two stable siblings - and each toggle shifts the index the status bar sits
  * at. The applier addresses the AWT component array by that index, so this is the arrangement in
  * which an index the applier gets wrong takes out a sibling instead of the body.
@@ -36,11 +37,11 @@ class ShowcaseLabelRegressionTest {
         var clicks by mutableIntStateOf(0)
         setContent {
             BorderPanel {
-                north { Label(text = TITLE) }
+                Label(text = TITLE, modifier = SwingModifier.north())
                 if (showBody) {
-                    center { Button(text = BODY, onClick = { clicks++ }) }
+                    Button(text = BODY, onClick = { clicks++ }, modifier = SwingModifier.center())
                 }
-                south { Label(text = STATUS) }
+                Label(text = STATUS, modifier = SwingModifier.south())
             }
         }
 
@@ -78,11 +79,11 @@ class ShowcaseLabelRegressionTest {
         var showBody by mutableStateOf(false)
         setContent {
             BorderPanel {
-                north { Label(text = TITLE) }
+                Label(text = TITLE, modifier = SwingModifier.north())
                 if (showBody) {
-                    center { Label(text = BODY) }
+                    Label(text = BODY, modifier = SwingModifier.center())
                 }
-                south { Label(text = STATUS) }
+                Label(text = STATUS, modifier = SwingModifier.south())
             }
         }
 

@@ -14,8 +14,6 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.propertyChangeListener
 import org.jetbrains.compose.swing.node.AppliedValue
-import org.jetbrains.compose.swing.node.SlotAttachment
-import org.jetbrains.compose.swing.node.SlotNode
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.rememberAppliedValue
 import java.beans.PropertyChangeListener
@@ -25,15 +23,16 @@ import javax.swing.UIManager
 /**
  * A composable wrapper for `JSplitPane`, hosting two resizable sides separated by a draggable divider.
  *
- * Declare the two sides in [block]:
+ * The pane holds its children on two sides of its own, `first` and `second`, rather than among indexed
+ * children, so every child names the side it occupies on its own modifier, through [SplitPaneScope]:
  * ```
  * SplitPane(orientation = JSplitPane.HORIZONTAL_SPLIT) {
- *     first { Navigator() }
- *     second { Editor() }
+ *     Navigator(modifier = SwingModifier.first())
+ *     Editor(modifier = SwingModifier.second())
  * }
  * ```
- * Each side hosts exactly one child; redeclaring a side replaces its child, and dropping a side (e.g.
- * behind an `if`) clears it.
+ * A side hosts one child: dropping a child (e.g. behind an `if`) empties the side it occupied, a side no
+ * child names stays empty, and a child that names no side at all is refused.
  *
  * Pass a pixel offset as [dividerLocation] to place the divider; [onDividerLocationChange] fires with
  * the new offset when the user moves it. An offset is applied when it changes and is not asserted
@@ -62,7 +61,7 @@ import javax.swing.UIManager
  *   rather than once it is released, where the drag draws an outline of where the divider is heading;
  *   `null` leaves the choice to the installed look and feel, and a choice withdrawn after being declared
  *   settles at its answer for good
- * @param block declares the two sides; see [SplitPaneScope]
+ * @param content the composable content of the pane; see [SplitPaneScope]
  * @see javax.swing.JSplitPane
  */
 @Composable
@@ -75,7 +74,7 @@ public fun SplitPane(
     oneTouchExpandable: Boolean? = null,
     dividerSize: Int? = null,
     continuousLayout: Boolean? = null,
-    block: SplitPaneScope.() -> Unit,
+    content: @Composable SplitPaneScope.() -> Unit,
 ) {
     val callback = rememberUpdatedState(onDividerLocationChange)
     val declaredOffset = rememberUpdatedState(dividerLocation)
@@ -107,7 +106,7 @@ public fun SplitPane(
         oneTouchExpandable = oneTouchExpandable,
         dividerSize = dividerSize,
         continuousLayout = continuousLayout,
-        block = block,
+        content = content,
     )
 }
 
@@ -136,7 +135,7 @@ public fun SplitPane(
  *   rather than once it is released, where the drag draws an outline of where the divider is heading;
  *   `null` leaves the choice to the installed look and feel, and a choice withdrawn after being declared
  *   settles at its answer for good
- * @param block declares the two sides; see [SplitPaneScope]
+ * @param content the composable content of the pane; see [SplitPaneScope]
  * @see javax.swing.JSplitPane
  */
 @Composable
@@ -149,7 +148,7 @@ public fun SplitPane(
     oneTouchExpandable: Boolean? = null,
     dividerSize: Int? = null,
     continuousLayout: Boolean? = null,
-    block: SplitPaneScope.() -> Unit,
+    content: @Composable SplitPaneScope.() -> Unit,
 ) {
     val applied = rememberAppliedValue(dividerLocation)
     SplitPaneImpl(
@@ -161,15 +160,11 @@ public fun SplitPane(
         oneTouchExpandable = oneTouchExpandable,
         dividerSize = dividerSize,
         continuousLayout = continuousLayout,
-        block = block,
+        content = content,
     )
 }
 
-/**
- * The `JSplitPane` node both public [SplitPane] overloads render. [dividerLocation] is applied on change
- * and marked through [applied], so the offset the pane publishes for the wrapper's own write is
- * recognizable as such and only the user's moves are reported.
- */
+/** The `JSplitPane` node both public [SplitPane] overloads render. */
 @Composable
 private fun SplitPaneImpl(
     modifier: SwingModifier,
@@ -180,10 +175,8 @@ private fun SplitPaneImpl(
     oneTouchExpandable: Boolean?,
     dividerSize: Int?,
     continuousLayout: Boolean?,
-    block: SplitPaneScope.() -> Unit,
+    content: @Composable SplitPaneScope.() -> Unit,
 ) {
-    // Collected fresh on every pass, so a side the caller stops declaring is cleared (see SwingNode).
-    val scope = SplitPaneScopeImpl().apply(block)
     // No UIManager default names oneTouchExpandable or continuousLayout - a look and feel that wants
     // either sets it directly in its own installUI - so both answers are read straight off the pane's
     // own construction, before any declared choice overrides them, rather than off a widget built
@@ -193,7 +186,10 @@ private fun SplitPaneImpl(
 
     SwingNode(
         factory = {
-            JSplitPane().also { pane ->
+            // Built with both sides empty. `JSplitPane()` fills them with two placeholder buttons of the
+            // look and feel's own, and a pane's sides hold what the composition declares there: a side no
+            // child names stays empty rather than showing a widget nobody declared.
+            JSplitPane(JSplitPane.HORIZONTAL_SPLIT, null, null).also { pane ->
                 lookAndFeelOneTouchExpandable = pane.isOneTouchExpandable
                 lookAndFeelContinuousLayout = pane.isContinuousLayout
                 oneTouchExpandable?.let { pane.isOneTouchExpandable = it }
@@ -232,32 +228,9 @@ private fun SplitPaneImpl(
             }
             applyModifier(modifier)
         },
-        content = {
-            scope.first?.let { first ->
-                val attachment = remember { splitSideAttachment(SplitSide.First) }
-                SlotNode(attachment) { first() }
-            }
-            scope.second?.let { second ->
-                val attachment = remember { splitSideAttachment(SplitSide.Second) }
-                SlotNode(attachment) { second() }
-            }
-        },
+        childPlacement = SplitPaneSides,
+        content = { SplitPaneScopeImpl.content() },
     )
-}
-
-private class SplitPaneScopeImpl : SplitPaneScope {
-    var first: (@Composable () -> Unit)? = null
-        private set
-    var second: (@Composable () -> Unit)? = null
-        private set
-
-    override fun first(block: @Composable () -> Unit) {
-        first = block
-    }
-
-    override fun second(block: @Composable () -> Unit) {
-        second = block
-    }
 }
 
 /**
@@ -280,24 +253,3 @@ internal inline fun <V> settleOn(
 
 /** The look-and-feel default a split pane's UI reads while the pane records no divider size of its own. */
 private const val DIVIDER_SIZE_DEFAULT: String = "SplitPane.dividerSize"
-
-/** Whether a side is the leading (`setLeftComponent`) or trailing (`setRightComponent`) one. */
-private enum class SplitSide { First, Second }
-
-/**
- * Installs a side's view into [side] of the host `JSplitPane`; uninstall clears that side.
- */
-private fun splitSideAttachment(side: SplitSide): SlotAttachment =
-    SlotAttachment { host, component, _ ->
-        val pane = host as JSplitPane
-        when (side) {
-            SplitSide.First -> pane.leftComponent = component
-            SplitSide.Second -> pane.rightComponent = component
-        }
-        return@SlotAttachment {
-            when (side) {
-                SplitSide.First -> pane.leftComponent = null
-                SplitSide.Second -> pane.rightComponent = null
-            }
-        }
-    }

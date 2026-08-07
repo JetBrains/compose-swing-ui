@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -20,21 +21,19 @@ import kotlin.test.assertTrue
 /**
  * Behavioral tests for [ScrollPane].
  *
- * The central guarantee: content and headers/corners are hosted in the JScrollPane's pre-wired
- * viewport / installed header viewports / corner hosts - never added directly to the JScrollPane by
- * the applier. These tests assert against the real AWT tree (viewport view, header viewports, corner
- * components) on the EDT.
+ * The central guarantee: content, headers, and corners are hosted in the JScrollPane's pre-wired
+ * viewport, header viewports, and corner hosts, never added directly to the JScrollPane by the
+ * applier. These tests assert against the real AWT tree, on the EDT.
  */
 class ScrollPaneBehaviorTest {
     @Test
     fun contentIsHostedInTheViewportViewNotAddedToTheScrollPane() = runComposeSwingTest {
         setContent {
             ScrollPane {
-                content { Label(text = "Body") }
+                Label(text = "Body", modifier = SwingModifier.viewport())
             }
         }
 
-        // The content is reached through the viewport rather than as a child of the pane itself.
         val body = onNodeWithText("Body")
         body.assert(SwingMatcher.hasAnyAncestor(SwingMatcher.isOfType<JViewport>()))
         body.assert(!SwingMatcher.hasParent(SwingMatcher.isOfType<JScrollPane>()))
@@ -60,8 +59,10 @@ class ScrollPaneBehaviorTest {
         var flag by mutableStateOf(true)
         setContent {
             ScrollPane {
-                content {
-                    if (flag) Label(text = "First") else Label(text = "Second")
+                if (flag) {
+                    Label(text = "First", modifier = SwingModifier.viewport())
+                } else {
+                    Label(text = "Second", modifier = SwingModifier.viewport())
                 }
             }
         }
@@ -83,8 +84,8 @@ class ScrollPaneBehaviorTest {
     fun rowHeaderPresentInstallsTheHeaderViewportAndItsView() = runComposeSwingTest {
         setContent {
             ScrollPane {
-                content { Label(text = "Body") }
-                rowHeader { Label(text = "RowHead") }
+                Label(text = "Body", modifier = SwingModifier.viewport())
+                Label(text = "RowHead", modifier = SwingModifier.rowHeader())
             }
         }
 
@@ -104,8 +105,8 @@ class ScrollPaneBehaviorTest {
     fun columnHeaderPresentInstallsTheHeaderViewportAndItsView() = runComposeSwingTest {
         setContent {
             ScrollPane {
-                content { Label(text = "Body") }
-                columnHeader { Label(text = "ColHead") }
+                Label(text = "Body", modifier = SwingModifier.viewport())
+                Label(text = "ColHead", modifier = SwingModifier.columnHeader())
             }
         }
 
@@ -125,7 +126,7 @@ class ScrollPaneBehaviorTest {
     fun anAbsentHeaderInstallsNothing() = runComposeSwingTest {
         setContent {
             ScrollPane {
-                content { Label(text = "Body") }
+                Label(text = "Body", modifier = SwingModifier.viewport())
             }
         }
 
@@ -141,15 +142,14 @@ class ScrollPaneBehaviorTest {
 
     @Test
     fun componentOrientationResolvesLeadingCornerUnderRightToLeft() = runComposeSwingTest {
-        // Declare the corner only after the pane is flipped to right-to-left, so it is installed
-        // (setCorner resolves the leading/trailing key against the orientation at install time)
-        // while the pane is RTL: the leading corner must then resolve to the right edge.
+        // The corner is declared only after the pane flips right-to-left: setCorner resolves the
+        // leading/trailing key against orientation at install time, so it must resolve to the right edge.
         var declareCorner by mutableStateOf(false)
         setContent {
             ScrollPane {
-                content { Label(text = "Body") }
+                Label(text = "Body", modifier = SwingModifier.viewport())
                 if (declareCorner) {
-                    corner(JScrollPane.UPPER_LEADING_CORNER) { Label(text = "CornerView") }
+                    Label(text = "CornerView", modifier = SwingModifier.corner(JScrollPane.UPPER_LEADING_CORNER))
                 }
             }
         }
@@ -174,7 +174,7 @@ class ScrollPaneBehaviorTest {
     fun scrollbarPolicyMapsThrough() = runComposeSwingTest {
         setContent {
             ScrollPane(verticalScrollbar = JScrollPane.VERTICAL_SCROLLBAR_ALWAYS) {
-                content { Label(text = "Body") }
+                Label(text = "Body", modifier = SwingModifier.viewport())
             }
         }
 
@@ -191,7 +191,7 @@ class ScrollPaneBehaviorTest {
         setContent {
             if (show) {
                 ScrollPane {
-                    content { Label(text = "Body") }
+                    Label(text = "Body", modifier = SwingModifier.viewport())
                 }
             }
         }

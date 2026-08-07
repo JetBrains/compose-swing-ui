@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.interaction.onChild
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -89,7 +90,7 @@ class PanelLayoutReactivityTest {
         var vgap by mutableIntStateOf(FIRST_GAP)
         setContent {
             BorderPanel(hgap = hgap, vgap = vgap) {
-                center { Label("child") }
+                Label("child", SwingModifier.center())
             }
         }
 
@@ -212,7 +213,7 @@ class PanelLayoutReactivityTest {
         var vgap by mutableIntStateOf(FIRST_GAP)
         setContent {
             CardPanel(selectedCard = "only", hgap = hgap, vgap = vgap) {
-                card("only") { Label("child") }
+                Label("child", SwingModifier.card("only"))
             }
         }
 

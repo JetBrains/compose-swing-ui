@@ -48,20 +48,14 @@ private fun ColumnScope.StructuralToggleCard() {
             var name by remember { mutableStateOf("Ada") }
             var level by remember { mutableIntStateOf(3) }
             BorderPanel(hgap = 8, vgap = 8) {
-                north {
-                    Label("Details (this entire subtree was just inserted)")
+                Label("Details (this entire subtree was just inserted)", SwingModifier.north())
+                FlowPanel(SwingModifier.center()) {
+                    Label("Name:")
+                    TextField(value = name, onValueChange = { name = it }, columns = 16)
                 }
-                center {
-                    FlowPanel {
-                        Label("Name:")
-                        TextField(value = name, onValueChange = { name = it }, columns = 16)
-                    }
-                }
-                south {
-                    FlowPanel {
-                        Label("Level: $level")
-                        Slider(value = level, onValueChange = { level = it }, min = 0, max = 10)
-                    }
+                FlowPanel(SwingModifier.south()) {
+                    Label("Level: $level")
+                    Slider(value = level, onValueChange = { level = it }, min = 0, max = 10)
                 }
             }
         }
@@ -84,13 +78,9 @@ private fun ColumnScope.VisibleContrastCard() {
 
         var clicks by remember { mutableIntStateOf(0) }
         BorderPanel(modifier = SwingModifier.visible(shown), hgap = 8, vgap = 8) {
-            north {
-                Label("This panel is always composed; only its visibility changes.")
-            }
-            center {
-                FlowPanel {
-                    Button("Clicked $clicks time(s)", onClick = { clicks++ })
-                }
+            Label("This panel is always composed; only its visibility changes.", SwingModifier.north())
+            FlowPanel(SwingModifier.center()) {
+                Button("Clicked $clicks time(s)", onClick = { clicks++ })
             }
         }
     }

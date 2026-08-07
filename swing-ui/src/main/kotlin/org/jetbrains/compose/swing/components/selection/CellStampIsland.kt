@@ -2,13 +2,10 @@ package org.jetbrains.compose.swing.components.selection
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionContext
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import org.jetbrains.compose.swing.core.SwingCompositionMount
-import org.jetbrains.compose.swing.node.LocalSwingConstraint
 import org.jetbrains.compose.swing.node.SlotAttachment
-import org.jetbrains.compose.swing.node.SlotNode
 import org.jetbrains.compose.swing.node.SwingApplier
 import java.awt.Component
 import java.awt.Container
@@ -44,8 +41,9 @@ internal class CellStampIsland(
     // the widget's to bound and lay out, so it is handed over exactly as the cell composed it.
     private var cell: Component? = null
 
-    // The cell's single-view slot. A cell renders one component, the way a JScrollPane region hosts one
-    // view, so what fills the slot is what the widget is handed for the cell.
+    // The cell's single-view slot, through which the island's composition attaches its one top-level
+    // node. A cell renders one component, the way a JScrollPane region hosts one view, so what fills
+    // the slot is what the widget is handed for the cell.
     private val slot =
         SlotAttachment { _, component, index ->
             check(index == 0) { singleComponentMessage }
@@ -68,9 +66,12 @@ internal class CellStampIsland(
     // The island's own composition, mounted as this island is created and disposed by [dispose]. It joins
     // parentContext but is a separate ControlledComposition, driven synchronously by [stamp].
     private val mount: SwingCompositionMount =
-        SwingCompositionMount.nested(parentContext) { observer -> SwingApplier(EMPTY_CELL, observer) }.apply {
-            setContent { Stamp(hasCellState, slot, body) }
-        }
+        SwingCompositionMount
+            .nested(parentContext) { observer ->
+                SwingApplier(EMPTY_CELL, observer, rootSlot = slot)
+            }.apply {
+                setContent { Stamp(hasCellState, body) }
+            }
 
     // Re-entrancy guard: the synchronous recompose+apply below runs the applier, which revalidates the
     // components it touched; that must not recursively drive another stamp mid-flush. What such a stamp
@@ -120,10 +121,9 @@ internal class CellStampIsland(
  * root of `setContent`, so the composition state a stamp writes invalidates this scope alone and the
  * synchronous recompose re-runs exactly it.
  *
- * An island joins the enclosing composition, so [body] would otherwise inherit the layout constraint of
- * whatever hosts the widget (e.g. a `GridBagPanel` cell). It is reset here: what a cell composes is
- * placed by the widget that renders it, not by the enclosing container. [slot] replaces the enclosing
- * slot attachment for the same reason, and is what takes the component the cell composes.
+ * What [body] composes is the composition's own top-level node, so it fills the island's slot and is
+ * handed to the widget as it was composed - placed by the widget that renders it rather than by any
+ * container of the library's.
  *
  * [body] composes only where [hasCell] is `true`; a stamp that names no cell leaves the slot untaken,
  * which is what leaves the widget the empty cell.
@@ -131,14 +131,9 @@ internal class CellStampIsland(
 @Composable
 private fun Stamp(
     hasCell: State<Boolean>,
-    slot: SlotAttachment,
     body: @Composable () -> Unit,
 ) {
-    CompositionLocalProvider(LocalSwingConstraint provides null) {
-        SlotNode(slot) {
-            if (hasCell.value) body()
-        }
-    }
+    if (hasCell.value) body()
 }
 
 /**

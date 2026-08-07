@@ -31,58 +31,55 @@ import javax.swing.ListSelectionModel
 private const val FIXED_CELL_WIDTH = 160
 private const val FIXED_CELL_HEIGHT = 32
 
+private val listBoxSelectionModes =
+    listOf(
+        "Single" to ListSelectionModel.SINGLE_SELECTION,
+        "Single interval" to ListSelectionModel.SINGLE_INTERVAL_SELECTION,
+        "Multiple interval" to ListSelectionModel.MULTIPLE_INTERVAL_SELECTION,
+    )
+
+private val listBoxOrientations =
+    listOf(
+        "Vertical" to JList.VERTICAL,
+        "Vertical wrap" to JList.VERTICAL_WRAP,
+        "Horizontal wrap" to JList.HORIZONTAL_WRAP,
+    )
+
 @Composable
 internal fun ColumnScope.ListBoxCard() {
     ExampleCard("ListBox in a ScrollPane") {
         val rows = (1..30).map { "Row $it" }
         var selection by remember { mutableStateOf(setOf(0)) }
-
-        val selectionModes =
-            listOf(
-                "Single" to ListSelectionModel.SINGLE_SELECTION,
-                "Single interval" to ListSelectionModel.SINGLE_INTERVAL_SELECTION,
-                "Multiple interval" to ListSelectionModel.MULTIPLE_INTERVAL_SELECTION,
-            )
         var selectionModeIndex by remember { mutableIntStateOf(2) }
-        val orientations =
-            listOf(
-                "Vertical" to JList.VERTICAL,
-                "Vertical wrap" to JList.VERTICAL_WRAP,
-                "Horizontal wrap" to JList.HORIZONTAL_WRAP,
-            )
         var orientationIndex by remember { mutableIntStateOf(0) }
         var visibleRows by remember { mutableIntStateOf(8) }
 
+        ListBoxSelectionModeControl(selectionModeIndex) { selectionModeIndex = it }
         ListBoxLayoutControls(
-            selectionModes = selectionModes,
-            selectionModeIndex = selectionModeIndex,
-            onSelectionModeChange = { selectionModeIndex = it },
-            orientations = orientations,
             orientationIndex = orientationIndex,
-            onOrientationChange = { orientationIndex = it },
+            onOrientationIndexChange = { orientationIndex = it },
             visibleRows = visibleRows,
             onVisibleRowsChange = { visibleRows = it },
         )
         ScrollPane(modifier = SwingModifier.preferredSize(Dimension(220, 120))) {
-            content {
-                // itemContent renders each row as a composable cell: a bullet glyph plus the row text,
-                // with the glyph reflecting whether that row is selected.
-                ListBox(
-                    items = rows,
-                    selectedIndices = selection,
-                    onSelectionChange = { selection = it },
-                    selectionMode = selectionModes[selectionModeIndex].second,
-                    layoutOrientation = orientations[orientationIndex].second,
-                    visibleRowCount = visibleRows,
-                ) { row ->
-                    FlowPanel(
-                        modifier = SwingModifier.opaque(false),
-                        alignment = FlowLayout.LEADING,
-                        vgap = 0,
-                    ) {
-                        Label(if (isSelected) "●" else "○")
-                        Label(row)
-                    }
+            // itemContent renders each row as a composable cell: a bullet glyph plus the row text,
+            // with the glyph reflecting whether that row is selected.
+            ListBox(
+                items = rows,
+                modifier = SwingModifier.viewport(),
+                selectedIndices = selection,
+                onSelectionChange = { selection = it },
+                selectionMode = listBoxSelectionModes[selectionModeIndex].second,
+                layoutOrientation = listBoxOrientations[orientationIndex].second,
+                visibleRowCount = visibleRows,
+            ) { row ->
+                FlowPanel(
+                    modifier = SwingModifier.opaque(false),
+                    alignment = FlowLayout.LEADING,
+                    vgap = 0,
+                ) {
+                    Label(if (isSelected) "●" else "○")
+                    Label(row)
                 }
             }
         }
@@ -90,40 +87,38 @@ internal fun ColumnScope.ListBoxCard() {
     }
 }
 
-/**
- * The selection-mode and layout pickers a [ListBoxCard] renders above its list: which of
- * [selectionModes] applies, and which of [orientations] the list wraps by, alongside the spinner
- * driving how many rows the list keeps visible.
- */
 @Composable
-private fun ListBoxLayoutControls(
-    selectionModes: List<Pair<String, Int>>,
-    selectionModeIndex: Int,
-    onSelectionModeChange: (Int) -> Unit,
-    orientations: List<Pair<String, Int>>,
-    orientationIndex: Int,
-    onOrientationChange: (Int) -> Unit,
-    visibleRows: Int,
-    onVisibleRowsChange: (Int) -> Unit,
+private fun ListBoxSelectionModeControl(
+    selectedIndex: Int,
+    onSelectedIndexChange: (Int) -> Unit,
 ) {
     FlowPanel {
         Label("Selection mode:")
         RadioGroup(
-            selectedIndex = selectionModeIndex,
-            onSelectionChange = onSelectionModeChange,
+            selectedIndex = selectedIndex,
+            onSelectionChange = onSelectedIndexChange,
             axis = BoxLayout.X_AXIS,
         ) {
-            selectionModes.forEach { (label, _) -> option(label) }
+            listBoxSelectionModes.forEach { (label, _) -> option(label) }
         }
     }
+}
+
+@Composable
+private fun ListBoxLayoutControls(
+    orientationIndex: Int,
+    onOrientationIndexChange: (Int) -> Unit,
+    visibleRows: Int,
+    onVisibleRowsChange: (Int) -> Unit,
+) {
     FlowPanel {
         Label("Layout:")
         RadioGroup(
             selectedIndex = orientationIndex,
-            onSelectionChange = onOrientationChange,
+            onSelectionChange = onOrientationIndexChange,
             axis = BoxLayout.X_AXIS,
         ) {
-            orientations.forEach { (label, _) -> option(label) }
+            listBoxOrientations.forEach { (label, _) -> option(label) }
         }
         Label("Visible rows:")
         Spinner(visibleRows, onValueChange = { onVisibleRowsChange(it.toInt()) }, min = 3, max = 20, step = 1)
@@ -150,14 +145,13 @@ internal fun ColumnScope.ListBoxSizingCard() {
             sizingModes.forEach { option(it) }
         }
         ScrollPane(modifier = SwingModifier.preferredSize(Dimension(220, 120))) {
-            content {
-                ListBox(
-                    items = rows,
-                    prototypeCellValue = if (sizingIndex == 1) "Item 88" else null,
-                    fixedCellWidth = if (sizingIndex == 2) FIXED_CELL_WIDTH else -1,
-                    fixedCellHeight = if (sizingIndex == 2) FIXED_CELL_HEIGHT else -1,
-                )
-            }
+            ListBox(
+                items = rows,
+                modifier = SwingModifier.viewport(),
+                prototypeCellValue = if (sizingIndex == 1) "Item 88" else null,
+                fixedCellWidth = if (sizingIndex == 2) FIXED_CELL_WIDTH else -1,
+                fixedCellHeight = if (sizingIndex == 2) FIXED_CELL_HEIGHT else -1,
+            )
         }
         Label("Sizing: ${sizingModes[sizingIndex]}")
     }
@@ -181,7 +175,7 @@ internal fun ColumnScope.ListBoxModelCard() {
             )
         }
         ScrollPane(modifier = SwingModifier.preferredSize(Dimension(220, 120))) {
-            content { ListBox(model = model, state = state) }
+            ListBox(model = model, state = state, modifier = SwingModifier.viewport())
         }
         Label("Entries: $entryCount, selected: ${state.selectedIndices.size}")
         WrappedCaption("The list renders this DefaultListModel as-is; adding an entry reveals it.")

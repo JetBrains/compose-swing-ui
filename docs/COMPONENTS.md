@@ -47,7 +47,7 @@ menu items, `ComboBox`), `ChangeListener` (`Slider`, `Spinner`, `TabbedPane`), `
 `ListSelectionListener` (`ListBox`, `Table`), `TableColumnModelListener` (a `Table`'s column layout),
 `RowSorterListener` (a `Table`'s sort order), `TreeSelectionListener`, `TreeExpansionListener` and
 `TreeWillExpandListener` (`Tree`), `PropertyChangeListener` (`FormattedTextField`, `SplitPane`) and
-`InternalFrameListener` (`internalFrame`). The KDoc on each overload says which events it carries.
+`InternalFrameListener` (`InternalFrame`). The KDoc on each overload says which events it carries.
 
 `javax.swing.Action` extends `ActionListener`, so an `Action` you already own is one of those listeners
 and the raw-listener overloads take it as it is: `Button("Save", actionListener = save)`,
@@ -85,15 +85,15 @@ compare equal are one and the same selection.
 
 ## Text
 
-| Component | What it is |
-| --- | --- |
-| `Label` | A text label over `JLabel`. Alignment, icon and text position come from the modifier chain. |
-| `TextField` | One line of editable text over `JTextField`. |
-| `PasswordField` | A field over `JPasswordField` whose value is a `CharArray` rather than a `String`. |
+| Component            | What it is                                                                                                      |
+|----------------------|-----------------------------------------------------------------------------------------------------------------|
+| `Label`              | A text label over `JLabel`. Alignment, icon and text position come from the modifier chain.                     |
+| `TextField`          | One line of editable text over `JTextField`.                                                                    |
+| `PasswordField`      | A field over `JPasswordField` whose value is a `CharArray` rather than a `String`.                              |
 | `FormattedTextField` | A field over `JFormattedTextField` that parses and formats a typed value through an `AbstractFormatterFactory`. |
-| `TextArea` | Multi-line plain text over `JTextArea`. |
-| `TextPane` | Styled multi-line text over `JTextPane`. |
-| `EditorPane` | Markup over `JEditorPane`, rendered through the editor kit its `contentType` names. |
+| `TextArea`           | Multi-line plain text over `JTextArea`.                                                                         |
+| `TextPane`           | Styled multi-line text over `JTextPane`.                                                                        |
+| `EditorPane`         | Markup over `JEditorPane`, rendered through the editor kit its `contentType` names.                             |
 
 `TextField`, `TextArea`, `TextPane` and `PasswordField` each come in three forms: a `value` plus
 `onValueChange`, a `value` plus a `DocumentListener`, and a [`DocumentState`](#documentstate) that
@@ -101,7 +101,10 @@ owns the document outright.
 
 The `value` forms are strictly controlled, settled like every other
 [declared value](ARCHITECTURE.md#shapes-for-state-the-user-can-change). `FormattedTextField` holds its
-committed value the same way.
+committed value the same way. For `TextField`, `TextArea` and `TextPane`, settling back rewrites the
+whole document, which leaves the caret at its end - a callback that filters a keystroke rather than
+adopting it sees the caret jump there on every rejected edit; a `DocumentState` has no un-adopted edit
+to settle and so no jump.
 
 Reach for the hoisted `DocumentState` form where you do not need the text on every keystroke: the
 state owns the document, so there is no un-adopted edit to settle at all, and it is also what gives
@@ -116,8 +119,8 @@ anything; pass a `baseUrl` for relative `href`s and `<img src>`s to resolve agai
 `HyperlinkListener` in place of the lambda to hear hover events and reach the resolved `URL`.
 
 `columns` and `rows` default to `0`, which sizes the field from its content rather than a column
-count. `editable` defaults to `true`, and `FormattedTextField`'s `focusLostBehavior` to
-`JFormattedTextField.COMMIT_OR_REVERT`.
+count. `editable` defaults to `true`, `TextArea`'s `tabSize` defaults to `8`, and
+`FormattedTextField`'s `focusLostBehavior` to `JFormattedTextField.COMMIT_OR_REVERT`.
 
 `FormattedTextField` also takes an `onEditValidChange` callback, reporting whether the in-progress
 edit currently parses. Its hoisted form, a [`FormattedValueState`](#formattedvaluestate) from
@@ -152,18 +155,18 @@ EditorPane(
 
 ## Buttons and choices
 
-| Component | What it is |
-| --- | --- |
-| `Button` | A push button over `JButton`, with `onClick`. |
-| `ToggleButton` | A button over `JToggleButton` that stays in, with `selected`/`onSelectedChange`. |
-| `CheckBox` | A checkbox over `JCheckBox`, with `checked`/`onCheckedChange`. |
-| `RadioButton` | One radio button over `JRadioButton`, with `selected`/`onSelectedChange`. |
-| `RadioGroup` | A set of mutually exclusive radio buttons declared as `option(...)` calls, selected by index. |
-| `ComboBox` | A drop-down over `JComboBox`, optionally editable, optionally rendering each item as a composable cell. |
-| `Slider` | A slider over `JSlider`, with ticks and a label table. |
-| `Spinner` | A stepper over `JSpinner` over a number, a date or a list of items, or a raw `SpinnerModel`. |
-| `ProgressBar` | A determinate or indeterminate bar over `JProgressBar`. |
-| `Separator` | A divider over `JSeparator` between the items of any container. |
+| Component      | What it is                                                                                              |
+|----------------|---------------------------------------------------------------------------------------------------------|
+| `Button`       | A push button over `JButton`, with `onClick`.                                                           |
+| `ToggleButton` | A button over `JToggleButton` that stays in, with `selected`/`onSelectedChange`.                        |
+| `CheckBox`     | A checkbox over `JCheckBox`, with `checked`/`onCheckedChange`.                                          |
+| `RadioButton`  | One radio button over `JRadioButton`, with `selected`/`onSelectedChange`.                               |
+| `RadioGroup`   | A set of mutually exclusive radio buttons declared as `option(...)` calls, selected by index.           |
+| `ComboBox`     | A drop-down over `JComboBox`, optionally editable, optionally rendering each item as a composable cell. |
+| `Slider`       | A slider over `JSlider`, with ticks and a label table.                                                  |
+| `Spinner`      | A stepper over `JSpinner` over a number, a date or a list of items, or a raw `SpinnerModel`.            |
+| `ProgressBar`  | A determinate or indeterminate bar over `JProgressBar`.                                                 |
+| `Separator`    | A divider over `JSeparator` between the items of any container.                                         |
 
 `Button` reports a click; the two-state controls - `CheckBox`, `ToggleButton` and a standalone
 `RadioButton` - take the state in and report the state the user asked for, in both directions, so a
@@ -270,11 +273,11 @@ Spinner(hour, onValueChange = { hour = it.toInt() }, min = 0, max = 23) { Label(
 
 ## Lists and tables
 
-| Component | What it is |
-| --- | --- |
-| `ListBox` | A list over `JList`: items in, selected indices out, optionally with a composable cell per row. |
-| `Table` | A grid over `JTable` whose rows are data and whose columns are declarations. |
-| `Tree` | A tree over `JTree` built from a root and a children function, addressed by index paths, optionally with a composable node per row. |
+| Component | What it is                                                                                                                          |
+|-----------|-------------------------------------------------------------------------------------------------------------------------------------|
+| `ListBox` | A list over `JList`: items in, selected indices out, optionally with a composable cell per row.                                     |
+| `Table`   | A grid over `JTable` whose rows are data and whose columns are declarations.                                                        |
+| `Tree`    | A tree over `JTree` built from a root and a children function, addressed by index paths, optionally with a composable node per row. |
 
 All three take a `selectionMode` from `ListSelectionModel`/`TreeSelectionModel` and report selection
 as the general multi-select shape, so one component covers every mode. `ListBox` and `Table` default
@@ -311,8 +314,8 @@ the row's unless `opaque(false)` says otherwise.
 ```kotlin
 ComboBox(items = languages, selectedItem = selected, onSelectionChange = { selected = it }) { language ->
     BorderPanel(modifier = SwingModifier.opaque(false)) {
-        west { Label(language.glyph, modifier = SwingModifier.preferredSize(24, 24)) }
-        center { Label(language.name) }
+        Label(language.glyph, modifier = SwingModifier.west().preferredSize(24, 24))
+        Label(language.name)
     }
 }
 ```
@@ -359,20 +362,19 @@ var selection by remember { mutableStateOf(emptySet<Int>()) }
 var order by remember { mutableStateOf(listOf(SortKey(1, SortOrder.ASCENDING))) }
 
 ScrollPane {
-    content {
-        Table(
-            rows = people,
-            selectedRowIndices = selection,
-            onSelectionChange = { selection = it },
-            sortable = true,
-            sortKeys = order,
-            onSortChange = { order = it },
-            rowHeight = 28,
-        ) {
-            column("Name", isEditable = true, onCellEdit = { row, _, value -> rename(row, value) }) { it.name }
-            column("Age", isCellEditable = { row, _ -> row.isDraft }) { it.age }
-            column("Owner", cellContent = { row -> FlowPanel { Label(row.avatar); Label(row.owner) } }) { it.owner }
-        }
+    Table(
+        rows = people,
+        modifier = SwingModifier.viewport(),
+        selectedRowIndices = selection,
+        onSelectionChange = { selection = it },
+        sortable = true,
+        sortKeys = order,
+        onSortChange = { order = it },
+        rowHeight = 28,
+    ) {
+        column("Name", isEditable = true, onCellEdit = { row, _, value -> rename(row, value) }) { it.name }
+        column("Age", isCellEditable = { row, _ -> row.isDraft }) { it.age }
+        column("Owner", cellContent = { row -> FlowPanel { Label(row.avatar); Label(row.owner) } }) { it.owner }
     }
 }
 ```
@@ -440,7 +442,7 @@ val state = rememberListState()
 Button("Add", onClick = { items = items + Item() })
 LaunchedEffect(items) { state.revealIndex(items.lastIndex) }
 ScrollPane {
-    content { ListBox(items = items, state = state) }
+    ListBox(items = items, state = state, modifier = SwingModifier.viewport())
 }
 ```
 
@@ -452,28 +454,39 @@ To reveal a region of a scroll pane's content rather than a row of a widget, use
 ## Containers and layout
 
 Swing lays everything out, so a container is a layout manager plus the children you declare into it.
-Two kinds appear here: containers whose children are a plain content lambda, and containers whose
-children go into named slots declared through a receiver DSL.
+Children are written plainly in a container's content, and where a child sits inside its container is
+part of what that child declares: a container gives its content a scope, and the scope's modifier
+builders - `north()`, `item(...)`, `tab(...)` - append the placement to that child's own `modifier`.
+A builder is only callable where its scope is the receiver, so a region belongs to the container that
+offers it and cannot be named anywhere else.
 
-| Component | What it is |
-| --- | --- |
-| `BoxPanel` | A single-axis stack over `BoxLayout`. |
+| Component       | What it is                                                                                                         |
+|-----------------|--------------------------------------------------------------------------------------------------------------------|
+| `BoxPanel`      | A single-axis stack over `BoxLayout`.                                                                              |
 | `Row`, `Column` | A single-axis stack holding each child at the size it prefers, with its leftover space placed by an `Arrangement`. |
-| `FlowPanel` | A wrapping strip over `FlowLayout`. |
-| `GridPanel` | Equal-sized cells over `GridLayout`. |
-| `BorderPanel` | Four edges and a filling center over `BorderLayout`, as named slots. |
-| `GridBagPanel` | Cell-by-cell placement over `GridBagLayout`, one `item(...)` per child. |
-| `CardPanel` | A deck over `CardLayout`, one card visible at a time, addressed by key. |
-| `TabbedPane` | Tabs over `JTabbedPane`, each declared with `tab(...)`. |
-| `SplitPane` | Two sides and a draggable divider over `JSplitPane`. |
-| `ScrollPane` | Scrollable content plus header and corner slots over `JScrollPane`. |
-| `ToolBar` | A bar of controls over `JToolBar`; `ToolBarSeparator` divides its groups. |
-| `LayeredPane` | Children stacked on integer depth layers over `JLayeredPane`. |
-| `DesktopPane` | Floating internal frames over `JDesktopPane`. |
+| `FlowPanel`     | A wrapping strip over `FlowLayout`.                                                                                |
+| `GridPanel`     | Equal-sized cells over `GridLayout`.                                                                               |
+| `BorderPanel`   | Four edges and a filling center over `BorderLayout`, each named by the child in it.                                |
+| `GridBagPanel`  | Cell-by-cell placement over `GridBagLayout`, each child naming its cell with `item(...)`.                          |
+| `CardPanel`     | A deck over `CardLayout`, one card visible at a time, addressed by key.                                            |
+| `TabbedPane`    | Tabs over `JTabbedPane`, each child the body of the tab it declares with `tab(...)`.                               |
+| `SplitPane`     | Two sides and a draggable divider over `JSplitPane`.                                                               |
+| `ScrollPane`    | A scrolled viewport plus header and corner regions over `JScrollPane`.                                             |
+| `ToolBar`       | A bar of controls over `JToolBar`; `ToolBarSeparator` divides its groups.                                          |
+| `LayeredPane`   | Children stacked on integer depth layers over `JLayeredPane`.                                                      |
+| `DesktopPane`   | Floating internal frames over `JDesktopPane`.                                                                      |
 
-A slot hosts exactly one child. Declaring a slot adds its child, redeclaring it replaces the child,
-and dropping the declaration removes it - so showing and hiding part of a layout is composing and
-not composing it.
+Showing and hiding part of a layout is composing and not composing it: emitting a child adds it where
+it declares it belongs, dropping the child takes it out, and declaring a different placement moves it
+without costing the component it already has.
+
+Where a region holds a single child, what a second child naming it costs is the region's own: a
+`BorderPanel` region is taken by the last child registered in it and the panel lays nothing out for the
+first, while a `SplitPane` side and a `CardPanel` card are refused to a second child, naming the side
+or the card. That refusal is over what the composition declares once its changes have reached the
+components, so a child replacing another on a side or a card is a single occupant throughout, whichever
+order the two changes reach the container in. A `BorderPanel` child that names no region occupies
+`center`, the region a `BorderLayout` registers a constraintless child under.
 
 `BorderPanel` offers two families of edge: the absolute compass (`north`, `south`, `east`, `west`)
 and the orientation-aware one (`pageStart`, `pageEnd`, `lineStart`, `lineEnd`), which resolve
@@ -482,9 +495,9 @@ against the panel's `ComponentOrientation`. `center` is shared. Use one family p
 
 ```kotlin
 BorderPanel {
-    pageStart { Label("Title") }
-    center { Body() }
-    pageEnd { Label("Status") }
+    Label("Title", modifier = SwingModifier.pageStart())
+    Body()
+    Label("Status", modifier = SwingModifier.pageEnd())
 }
 ```
 
@@ -529,42 +542,70 @@ field.
 ```kotlin
 var name by remember { mutableStateOf("") }
 GridBagPanel {
-    item(gridx = 0, gridy = 0, anchor = GridBagConstraints.LINE_END, insets = Insets(4, 4, 4, 4)) {
-        Label("Name:")
-    }
-    item(gridx = 1, gridy = 0, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL) {
-        TextField(name, onValueChange = { name = it })
-    }
+    Label(
+        "Name:",
+        modifier =
+            SwingModifier.item(
+                gridx = 0,
+                gridy = 0,
+                anchor = GridBagConstraints.LINE_END,
+                insets = Insets(4, 4, 4, 4),
+            ),
+    )
+    TextField(
+        name,
+        modifier =
+            SwingModifier.item(gridx = 1, gridy = 0, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL),
+        onValueChange = { name = it },
+    )
 }
 ```
 
+A child that declares no `item` is laid out under `GridBagConstraints`' own defaults, which place it
+relative to the child before it.
+
 `CardPanel` shows the card whose key equals its `selectedCard`, so switching pages is a state write. A
-card's key is also its composition identity: the card keeps what its content remembers however the
-cards declared around it change.
+card holds one child, and two children naming the same card are refused. A child that declares no
+card is the card keyed by the empty string, shown by `selectedCard = ""`. The key names the card, not
+the child: a child that declares a new key moves to that card keeping its position among its siblings,
+and its composition identity is the place it is written at, as any child's is.
 
 ```kotlin
 var step by remember { mutableStateOf("details") }
 CardPanel(selectedCard = step) {
-    card("details") { Body() }
-    card("payment") { Body() }
+    Details(modifier = SwingModifier.card("details"))
+    Payment(modifier = SwingModifier.card("payment"))
 }
 Button("Next", onClick = { step = "payment" })
 ```
 
-A `TabbedPane` tab carries a title, icon, tooltip and enabled flag, and can take over what the tab
-strip renders for it with a `header` composable - the title and icon still name it, for accessibility
-and as the values recomposition writes. A tab's identity is positional: state its body remembers belongs
-to the position rather than to the declaration, so hoist anything that must outlive an insertion above
-the pane. A tab can also carry a `mnemonic` that selects it from the keyboard, a
-`displayedMnemonicIndex` naming which character the strip underlines, and a `background` and
-`foreground` of its own. `tabPlacement` defaults to `JTabbedPane.TOP` and `tabLayoutPolicy` to
+Every child of a `TabbedPane` is one tab's body and declares that tab with `tab(...)`, which carries the
+tab's title, icon, tooltip, enabled flag, mnemonic and colors, and can take over what the tab strip
+renders with a `header` composable - the title and icon still name the tab, for accessibility and as
+the values recomposition writes. A tab keeps what its body remembers, and the components that body was
+realized as, for as long as the child holding the declaration keeps its composition identity: a body
+written at a place of its own keeps its tab however the tabs around it come and go, and bodies written
+at one place - a loop over the open documents - are told apart by the position they arrive in until
+`key` gives each one of its own, so an unkeyed body is handed the tab that used to stand in its
+position. `tabPlacement` defaults to `JTabbedPane.TOP` and `tabLayoutPolicy` to
 `JTabbedPane.WRAP_TAB_LAYOUT`.
 
 ```kotlin
 var tab by remember { mutableStateOf(0) }
 TabbedPane(selectedIndex = tab, onSelectedIndexChange = { tab = it }) {
-    tab(title = "Source", mnemonic = KeyEvent.VK_S) { Body() }
-    tab(title = "Console", header = { Label("Console", modifier = SwingModifier.icon(saveIcon)) }) { Body() }
+    Source(modifier = SwingModifier.tab("Source"))
+    Console(
+        modifier =
+            SwingModifier.tab(
+                title = "Console",
+                header = { Label("Console", modifier = SwingModifier.icon(saveIcon)) },
+            ),
+    )
+    documents.forEach { document ->
+        key(document.id) {
+            Editor(document, modifier = SwingModifier.tab(document.name))
+        }
+    }
 }
 ```
 
@@ -585,38 +626,31 @@ SplitPane(
     resizeWeight = 0.3,
     oneTouchExpandable = true,
 ) {
-    first { Body() }
-    second { Body() }
+    Navigator(modifier = SwingModifier.first())
+    Editor(modifier = SwingModifier.second())
 }
 ```
 
-A `ScrollPane` has four slots: `content`, `rowHeader`, `columnHeader` and `corner(key)`. Both
-scrollbar policies default to as-needed. `viewportBorder` draws a border around the viewport, inside the
-pane's own and outside the scrolled content, and leaves it to the look and feel while it is `null`;
-`wheelScrollingEnabled` decides whether the mouse wheel scrolls the pane at all.
-Its scroll position is hoisted into a [`ScrollState`](#scrollstate).
+A `ScrollPane` holds nothing but its regions, so every child declares one: `viewport()`, `rowHeader()`,
+`columnHeader()` or `corner(...)`. `viewport()` also carries how far the pane scrolls per arrow button
+and per page, and whether the content is laid out at the viewport's own width or height - each `null`
+by default, which leaves the answer to content that gives one of its own, as a table, list, tree or
+text area does. Both scrollbar policies default to as-needed. `viewportBorder` draws a border around the
+viewport, inside the pane's own border and outside the scrolled content, and leaves it to the look and
+feel while it is `null`; `wheelScrollingEnabled` decides whether the mouse wheel scrolls the pane at all.
+The scroll position is hoisted into a [`ScrollState`](#scrollstate).
 
 ```kotlin
 ScrollPane(horizontalScrollbar = JScrollPane.HORIZONTAL_SCROLLBAR_NEVER) {
-    columnHeader { Label("Rows") }
-    content { Body() }
-    corner(JScrollPane.UPPER_TRAILING_CORNER) { Label("#") }
+    Label("Rows", modifier = SwingModifier.columnHeader())
+    Body(modifier = SwingModifier.viewport())
+    Label("#", modifier = SwingModifier.corner(JScrollPane.UPPER_TRAILING_CORNER))
 }
 ```
 
-A `JScrollPane` asks the view it holds how far an arrow button and a page scroll it, and whether it
-takes the viewport's width or height instead of its preferred one. Content that answers none of those is
-scrolled by the pane's defaults; `content` takes those four answers, and declaring any of them hosts the
-content in a body that answers the viewport on its behalf. A widget that already answers for itself - a
-table, a list, a tree, a text area - is declared without them.
-
-```kotlin
-ScrollPane {
-    content(unitIncrement = 16, blockIncrement = 160, tracksViewportWidth = true) { WrappingBody() }
-}
-```
-
-A `ToolBar` is horizontal and floatable by default.
+A `ToolBar` is horizontal and floatable by default. `floating` declares whether the bar stands in a
+window of its own, and `onFloatingChange` reports where the user dragged it - or hands back the docked
+state a bar that cannot float settles for.
 
 ```kotlin
 ToolBar(floatable = false, rollover = true) {
@@ -628,15 +662,14 @@ ToolBar(floatable = false, rollover = true) {
 ```
 
 A `LayeredPane` stacks children on integer depths - higher layers paint above lower ones, and within
-one layer later declarations paint above earlier ones. It lays nothing out, so each child carries
-its own bounds.
+one layer the children stack in the order the composition declares them, the first of them on top. A
+child that declares no layer stands on `JLayeredPane.DEFAULT_LAYER`. It lays nothing out, so each
+child carries its own bounds.
 
 ```kotlin
 LayeredPane {
-    layer(JLayeredPane.DEFAULT_LAYER) { Body() }
-    layer(JLayeredPane.PALETTE_LAYER) {
-        Label("Floating", modifier = SwingModifier.bounds(16, 16, 120, 24))
-    }
+    Body(modifier = SwingModifier.bounds(0, 0, 400, 300))
+    Label("Floating", modifier = SwingModifier.layer(JLayeredPane.PALETTE_LAYER).bounds(16, 16, 120, 24))
 }
 ```
 
@@ -646,44 +679,49 @@ plain `bounds` - where it starts, and wherever the user then leaves it - or an
 The close control is controlled: activating it calls `onClose`, and the frame closes when you stop
 declaring it. Every control is off by default, matching a fresh `JInternalFrame`.
 
-A frame keeps the window it was realized as - and the position the user dragged it to - as long as its
-declarations name one identity: the `InternalFrameState` it was declared with, or the `key` you give a
-plain-`bounds` frame. Give a key to every frame in a list you add to and remove from, so that removing
-one leaves the frames declared after it where the user put them.
+A frame keeps the window it was realized as, and the position the user dragged it to, for as long as
+the composition declares it in the same place - the same identity rule a `TabbedPane` tab keeps its
+body by, earlier in this section. Frames declared from one place, as a loop over a list declares
+them, are told apart by the position they arrive in, so wrap each one in `key`; a frame's
+`InternalFrameState` serves as the key. Without it, removing a frame hands every frame after it its
+predecessor's window, and the positions the user chose are lost. One state drives one frame: a second
+frame taking a state another frame already holds is refused.
 
 ```kotlin
 val palette = rememberInternalFrameState(Rectangle(24, 24, 320, 200))
-var frames by remember { mutableStateOf(1) }
+var open by remember { mutableStateOf(true) }
 
 Label("Palette at ${palette.x}, ${palette.y}, ${palette.width} x ${palette.height}")
 Button("Send home", onClick = { palette.bounds = Rectangle(24, 24, 320, 200) })
 DesktopPane {
-    internalFrame(
-        title = "Palette",
-        state = palette,
-        controls = InternalFrameControls(closable = true, resizable = true),
-        onClose = { frames = 0 },
-    ) {
-        Body()
+    if (open) {
+        InternalFrame(
+            title = "Palette",
+            state = palette,
+            controls = InternalFrameControls(closable = true, resizable = true),
+            onClose = { open = false },
+        ) {
+            Body()
+        }
     }
 }
 ```
 
-To place children under a layout manager of your own, `SwingConstraint` carries the placement for a
-container you write yourself - see
+To place children under a layout manager of your own, `layoutConstraint` is the builder a container you
+write yourself names its own placements over - see
 [`CUSTOM-COMPONENTS.md`](CUSTOM-COMPONENTS.md#placing-children-under-constraints).
 
 ---
 
 ## Windows and dialogs
 
-| Entry point | What it is |
-| --- | --- |
-| `application { }` | Runs a Compose application until its last composition ends, blocking the caller. |
-| `awaitApplication { }` | The suspending form, for an application started from a coroutine. |
-| `CoroutineScope.launchApplication { }` | The same, launched as a `Job` in a scope you own. |
-| `Window` | A top-level frame over `JFrame`, geometry hoisted into a [`WindowState`](#windowstate). |
-| `Dialog` | A dialog over `JDialog`, geometry hoisted into a [`DialogState`](#dialogstate). |
+| Entry point                            | What it is                                                                              |
+|----------------------------------------|-----------------------------------------------------------------------------------------|
+| `application { }`                      | Runs a Compose application until its last composition ends, blocking the caller.        |
+| `awaitApplication { }`                 | The suspending form, for an application started from a coroutine.                       |
+| `CoroutineScope.launchApplication { }` | The same, launched as a `Job` in a scope you own.                                       |
+| `Window`                               | A top-level frame over `JFrame`, geometry hoisted into a [`WindowState`](#windowstate). |
+| `Dialog`                               | A dialog over `JDialog`, geometry hoisted into a [`DialogState`](#dialogstate).         |
 
 All three entry points take the same `ApplicationScope` content and give it `exitApplication()`.
 Windows and dialogs composed inside one run as part of that application's composition, so
@@ -708,7 +746,7 @@ Window(onCloseRequest = ::exitApplication) {
     if (loading) {
         GlassPane {
             GridBagPanel {
-                item { ProgressBar(value = 0, indeterminate = true) }
+                ProgressBar(value = 0, indeterminate = true)
             }
         }
     }
@@ -749,8 +787,8 @@ if (asking) {
         modality = java.awt.Dialog.ModalityType.APPLICATION_MODAL,
     ) {
         BorderPanel {
-            center { Label("Delete the selection?") }
-            pageEnd { Button("OK", onClick = { asking = false }) }
+            Label("Delete the selection?")
+            Button("OK", modifier = SwingModifier.pageEnd(), onClick = { asking = false })
         }
     }
 }
@@ -809,15 +847,15 @@ Row {
 
 ## Menus
 
-| Component | What it is |
-| --- | --- |
-| `Menu` | A menu over `JMenu` holding further menu content; nest it for a submenu. |
-| `MenuItem` | A command over `JMenuItem`, with an `accelerator` and `onClick`. |
-| `CheckBoxMenuItem` | A checkable item over `JCheckBoxMenuItem`, with `checked`/`onCheckedChange`. |
-| `RadioButtonMenuItem` | One exclusive item over `JRadioButtonMenuItem`, with `selected`/`onSelectedChange`. |
-| `RadioButtonMenuGroup` | A set of mutually exclusive menu items, selected by index. |
-| `MenuSeparator` | A divider between menu items, over `JPopupMenu.Separator`. |
-| `MenuBar` | The menu bar of a window, declared in that window's content. |
+| Component              | What it is                                                                          |
+|------------------------|-------------------------------------------------------------------------------------|
+| `Menu`                 | A menu over `JMenu` holding further menu content; nest it for a submenu.            |
+| `MenuItem`             | A command over `JMenuItem`, with an `accelerator` and `onClick`.                    |
+| `CheckBoxMenuItem`     | A checkable item over `JCheckBoxMenuItem`, with `checked`/`onCheckedChange`.        |
+| `RadioButtonMenuItem`  | One exclusive item over `JRadioButtonMenuItem`, with `selected`/`onSelectedChange`. |
+| `RadioButtonMenuGroup` | A set of mutually exclusive menu items, selected by index.                          |
+| `MenuSeparator`        | A divider between menu items, over `JPopupMenu.Separator`.                          |
+| `MenuBar`              | The menu bar of a window, declared in that window's content.                        |
 
 Menu content is composed like any other content: `MenuBar { }` in the content of a `Window` or a
 `Dialog` declares that window's menu bar, `JMenuBar.setContent { }` composes a bar you own yourself,
@@ -923,17 +961,9 @@ application {
 
 Some values are awkward to pass down and report back one at a time: the whole content of an editor,
 where the user dragged a window. For those, the library hands you a state holder to hoist next to
-your own state.
-
-A state holder is:
-
-- **the owner of the value.** It holds the document, the spinner's model, the geometry. There is no
-  second copy to keep in sync and no round-trip per keystroke or per pixel.
-- **snapshot-observable.** Reading a property inside a composable - or in a `snapshotFlow` collector -
-  subscribes to later changes, so the reader recomposes when the value changes for any reason.
-- **two-way.** Assigning to a property drives the widget; the user's own gesture writes the new value
-  back into the same property. Both directions go through one place, which is what makes a live
-  readout as easy as a control.
+your own state - the owner of the value (the document, the geometry), read as
+snapshot state and two-way like every
+[hoistable state holder](ARCHITECTURE.md#shapes-for-state-the-user-can-change).
 
 Create one with its `remember*` factory. The initial values seed the holder on first composition and
 are not re-read afterwards: to change the value later, assign to the property.
@@ -1058,7 +1088,7 @@ viewport shows whole can be scrolled forward nowhere; the backward pair is `fals
 stands at `0`. A reader of one of them stands still until the answer itself changes, rather than
 following every scrolled pixel.
 
-The position outlives the content it was reached in, so a pane that leaves the composition and comes back
+The position outlives the content it was reached in, so a pane that leaves the composition and returns
 comes back where the user left it.
 
 `revealRect(rect)` scrolls to a region of the content instead of to a coordinate, for a caller that knows

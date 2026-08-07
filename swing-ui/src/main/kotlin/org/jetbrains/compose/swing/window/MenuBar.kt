@@ -69,6 +69,7 @@ public fun WindowScope.MenuBar(
             // window - which a caller may own and keep - carries no record to refuse the next
             // declaration reaching it.
             serving.withdraw()
+            scope.declaredMenuBar = null
             error(
                 "Two MenuBar { } declarations are composed in this window at once, and a window " +
                     "carries one menu bar: the second would take the window from the first, leaving " +
@@ -78,50 +79,22 @@ public fun WindowScope.MenuBar(
             )
         }
 
-        val declaration = DeclaredMenuBar(scope)
-        val handle = declaration.bar.setContentAsMenuInteropHost(parentContext) { currentContent() }
+        val bar = JMenuBar()
+        val declaration =
+            WindowDecoration(
+                payload = bar,
+                displaced = scope.rootPane.jMenuBar,
+                install = { menuBar: JMenuBar? -> scope.rootPane.installMenuBar(menuBar) },
+            )
+        val handle = bar.setContentAsMenuInteropHost(parentContext) { currentContent() }
+        scope.declaredMenuBar = declaration
         declaration.serve()
 
         onDispose {
             declaration.withdraw()
+            scope.declaredMenuBar = null
             handle.dispose()
         }
-    }
-}
-
-/**
- * The menu bar one [MenuBar] declaration puts on [WindowScope.rootPane], together with the bar that pane
- * carried before.
- *
- * A window carries one menu bar, so whether one already serves it is read off [scope]'s own
- * [WindowScope.declaredMenuBar] rather than off the Swing side: that field is this declaration's sole
- * bookkeeping, so a bar already in place answers for itself.
- */
-internal class DeclaredMenuBar(
-    private val scope: WindowScope,
-) {
-    /** The bar this declaration puts on the window; its menus are the declared menu tree. */
-    val bar: JMenuBar = JMenuBar()
-
-    private val displaced: JMenuBar? = scope.rootPane.jMenuBar
-    private var serving: Boolean = false
-
-    /** Puts [bar] on the window and records this declaration as the one serving it. */
-    fun serve() {
-        serving = true
-        scope.declaredMenuBar = this
-        scope.rootPane.installMenuBar(bar)
-    }
-
-    /**
-     * Hands the window back the bar it carried before [serve]. Does nothing unless this declaration is
-     * the one serving, so withdrawing what has already been withdrawn leaves the window alone.
-     */
-    fun withdraw() {
-        if (!serving) return
-        serving = false
-        scope.declaredMenuBar = null
-        scope.rootPane.installMenuBar(displaced)
     }
 }
 

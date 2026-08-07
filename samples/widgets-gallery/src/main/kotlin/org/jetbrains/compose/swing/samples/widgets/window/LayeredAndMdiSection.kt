@@ -48,38 +48,35 @@ internal fun LayeredAndMdiSection() {
 private fun ColumnScope.LayeredPaneCard() {
     ExampleCard("LayeredPane (depth layers)") {
         LayeredPane(modifier = SwingModifier.preferredSize(Dimension(240, 160))) {
-            layer(JLayeredPane.DEFAULT_LAYER) {
-                BorderPanel(
-                    modifier =
-                        SwingModifier
-                            .bounds(10, 10, 160, 110)
-                            .opaque(true)
-                            .background(Color(0xBBDEFB)),
-                ) {
-                    north { Label("Default layer") }
-                }
+            BorderPanel(
+                modifier =
+                    SwingModifier
+                        .layer(JLayeredPane.DEFAULT_LAYER)
+                        .bounds(10, 10, 160, 110)
+                        .opaque(true)
+                        .background(Color(0xBBDEFB)),
+            ) {
+                Label("Default layer", SwingModifier.north())
             }
-            layer(JLayeredPane.PALETTE_LAYER) {
-                BorderPanel(
-                    modifier =
-                        SwingModifier
-                            .bounds(60, 40, 140, 90)
-                            .opaque(true)
-                            .background(Color(0xFFE0B2)),
-                ) {
-                    north { Label("Palette layer") }
-                }
+            BorderPanel(
+                modifier =
+                    SwingModifier
+                        .layer(JLayeredPane.PALETTE_LAYER)
+                        .bounds(60, 40, 140, 90)
+                        .opaque(true)
+                        .background(Color(0xFFE0B2)),
+            ) {
+                Label("Palette layer", SwingModifier.north())
             }
-            layer(JLayeredPane.DRAG_LAYER) {
-                BorderPanel(
-                    modifier =
-                        SwingModifier
-                            .bounds(110, 70, 110, 70)
-                            .opaque(true)
-                            .background(Color(0xC8E6C9)),
-                ) {
-                    north { Label("Drag layer (top)") }
-                }
+            BorderPanel(
+                modifier =
+                    SwingModifier
+                        .layer(JLayeredPane.DRAG_LAYER)
+                        .bounds(110, 70, 110, 70)
+                        .opaque(true)
+                        .background(Color(0xC8E6C9)),
+            ) {
+                Label("Drag layer (top)", SwingModifier.north())
             }
         }
     }
@@ -100,14 +97,14 @@ private fun ColumnScope.DesktopPaneCard() {
         }
 
         DesktopPane(modifier = SwingModifier.preferredSize(Dimension(320, 220))) {
-            internalFrame(title = "Editor", bounds = Rectangle(0, 0, 180, 120)) {
+            InternalFrame(title = "Editor", bounds = Rectangle(0, 0, 180, 120)) {
                 Label("Editor frame")
             }
-            internalFrame(title = "Console", bounds = Rectangle(60, 50, 180, 120)) {
+            InternalFrame(title = "Console", bounds = Rectangle(60, 50, 180, 120)) {
                 Label("Console frame")
             }
             if (extraOpen) {
-                internalFrame(
+                InternalFrame(
                     title = "Inspector",
                     bounds = Rectangle(120, 90, 180, 110),
                     controls = InternalFrameControls(closable = true),
@@ -184,7 +181,7 @@ private fun ColumnScope.HoistedInternalFrameCard() {
 
         DesktopPane(modifier = SwingModifier.preferredSize(Dimension(320, 220))) {
             if (open) {
-                internalFrame(
+                InternalFrame(
                     title = "Hoisted",
                     state = frame,
                     internalFrameListener = listener,

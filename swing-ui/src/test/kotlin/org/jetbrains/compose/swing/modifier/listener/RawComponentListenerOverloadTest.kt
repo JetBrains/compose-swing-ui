@@ -1,6 +1,7 @@
 package org.jetbrains.compose.swing.modifier.listener
 
 import org.jetbrains.compose.swing.components.ComboBox
+import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.Slider
 import org.jetbrains.compose.swing.components.Spinner
 import org.jetbrains.compose.swing.components.button.Button
@@ -20,6 +21,7 @@ import org.jetbrains.compose.swing.components.text.PasswordField
 import org.jetbrains.compose.swing.components.text.TextArea
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.components.text.TextPane
+import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.event.ActionListener
@@ -156,8 +158,8 @@ class RawComponentListenerOverloadTest {
         val listener = ChangeListener { notified++ }
         setContent {
             TabbedPane(selectedIndex = 0, changeListener = listener) {
-                tab("One") { }
-                tab("Two") { }
+                Label("one", SwingModifier.tab("One"))
+                Label("two", SwingModifier.tab("Two"))
             }
         }
         onNodeOfType<JTabbedPane>().fetch().selectedIndex = 1
@@ -170,8 +172,8 @@ class RawComponentListenerOverloadTest {
         val listener = PropertyChangeListener { }
         setContent {
             SplitPane(dividerLocationListener = listener) {
-                first { }
-                second { }
+                Label("leading", SwingModifier.first())
+                Label("trailing", SwingModifier.second())
             }
         }
         val pane = onNodeOfType<JSplitPane>().fetch()
@@ -187,10 +189,12 @@ class RawComponentListenerOverloadTest {
         val listener = ListSelectionListener { notified = true }
         setContent {
             ScrollPane {
-                content {
-                    Table(rows = listOf("a", "b"), listSelectionListener = listener) {
-                        column("C") { it }
-                    }
+                Table(
+                    rows = listOf("a", "b"),
+                    listSelectionListener = listener,
+                    modifier = SwingModifier.viewport(),
+                ) {
+                    column("C") { it }
                 }
             }
         }
@@ -204,9 +208,12 @@ class RawComponentListenerOverloadTest {
         val listener = TreeSelectionListener { notified = true }
         setContent {
             ScrollPane {
-                content {
-                    Tree(root = "root", children = { emptyList() }, treeSelectionListener = listener)
-                }
+                Tree(
+                    root = "root",
+                    children = { emptyList() },
+                    treeSelectionListener = listener,
+                    modifier = SwingModifier.viewport(),
+                )
             }
         }
         onNodeOfType<JTree>().fetch().setSelectionRow(0)
@@ -219,9 +226,7 @@ class RawComponentListenerOverloadTest {
         val listener = ListSelectionListener { notified = true }
         setContent {
             ScrollPane {
-                content {
-                    ListBox(items = listOf("a", "b"), listSelectionListener = listener)
-                }
+                ListBox(items = listOf("a", "b"), listSelectionListener = listener, modifier = SwingModifier.viewport())
             }
         }
         onNodeOfType<JList<*>>().fetch<JList<*>>().selectedIndex = 1
@@ -241,14 +246,13 @@ class RawComponentListenerOverloadTest {
             }
         setContent {
             ScrollPane {
-                content {
-                    Tree(
-                        root = "root",
-                        children = { if (it == "root") listOf("leaf") else emptyList() },
-                        treeSelectionListener = TreeSelectionListener { },
-                        treeExpansionListener = listener,
-                    )
-                }
+                Tree(
+                    root = "root",
+                    children = { if (it == "root") listOf("leaf") else emptyList() },
+                    treeSelectionListener = TreeSelectionListener { },
+                    treeExpansionListener = listener,
+                    modifier = SwingModifier.viewport(),
+                )
             }
         }
         val tree = onNodeOfType<JTree>().fetch()
