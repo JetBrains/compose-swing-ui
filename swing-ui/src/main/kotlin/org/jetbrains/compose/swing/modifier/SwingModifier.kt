@@ -1,6 +1,7 @@
 package org.jetbrains.compose.swing.modifier
 
 import androidx.compose.runtime.Stable
+import org.jetbrains.annotations.VisibleForTesting
 import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import org.jetbrains.compose.swing.modifier.layout.checkOnePlacement
 import org.jetbrains.compose.swing.modifier.layout.removeLayoutConstraint
@@ -290,6 +291,7 @@ public class SwingModifierState internal constructor() {
 public fun SwingNodeUpdater<out Component>.applyModifier(modifier: SwingModifier): Unit =
     updater.set(modifier) { applyModifierDiff(it) }
 
+@VisibleForTesting
 internal fun SwingNodeHolder<Component>.applyModifierDiff(modifier: SwingModifier) {
     val target = component
     val state = modifierState ?: SwingModifierState().also { modifierState = it }

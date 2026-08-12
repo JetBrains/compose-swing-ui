@@ -27,6 +27,15 @@ the quality gates every change must pass, and the code style.
 ./gradlew :samples:widgets-gallery:run
 ```
 
+Compiling a module also writes the Compose compiler's reports - which composables are skippable, and
+which parameters are unstable - to `<module>/build/compose-reports`, alongside summary counts in
+`<module>/build/compose-metrics`. A build that is up to date or served from the cache does not
+compile and leaves the reports it finds, so force compilation when you need to trust them. Kotlin's
+incremental compiler recompiles only the sources a change touches, and the report reflects only that
+increment - a short or empty report means little was recompiled, not that the module has nothing
+unstable. Only a non-incremental compile produces a report covering the whole module:
+`./gradlew --rerun-tasks :swing-ui:compileKotlin`, or clean the module first.
+
 Scope a run while iterating; `./gradlew test` runs every module's suite. The modules test each other:
 `:swing-ui-test` publishes the harness that `:swing-ui`'s own tests are written against, so a harness
 change is exercised far more by the library's suite than by the harness's own, and both samples' tests
@@ -38,13 +47,11 @@ so they run with or without a display. A test that realizes a real top-level pee
 `assumeFalse(GraphicsEnvironment.isHeadless(), ...)` so it reports skipped without one, and others
 gate the same way on a capability the environment may withhold. A run with no failures is therefore
 not necessarily a complete one: the ignored count in `<module>/build/reports/tests/test/index.html`
-says what did not run, and the quality gates below cover which of those CI runs for you. Write UI
-tests with the `:swing-ui-test` harness: a `@Test` whose body is a `runComposeSwingTest { ... }`
-block, mounting the composable with `setContent { ... }` and asserting through the finders.
+says what did not run. CI runs under a virtual framebuffer, so the display-gated tests skipped here
+run and are judged there too; only the ones gated on a capability the framebuffer itself lacks (see
+Quality gates below) still report skipped in CI.
 
-Prefer `setContent { ... }` followed by assertions; `setContent` waits for the composition to settle
-for you. Reach for `waitUntil { ... }` only when a condition genuinely depends on external timing. See
-[`docs/TESTING-COMPONENTS.md`](docs/TESTING-COMPONENTS.md) for the full harness guide.
+See [`docs/TESTING-COMPONENTS.md`](docs/TESTING-COMPONENTS.md) for the harness guide.
 
 ## Quality gates (all must pass)
 
@@ -140,7 +147,7 @@ public fun ScrollPane(
 )
 ```
 
-Retention is **`BINARY`** so the annotation survives into the compiled class files and the IDE's
+Retention is **`BINARY`** so the annotation survives into the compiled class files, and the IDE's
 MagicConstant inspection can read it across the published-jar boundary - warning consumers in their
 own IDE - while `org.jetbrains:annotations` stays a `compileOnly` dependency that never reaches the
 runtime classpath. A constant string set (e.g. a MIME content type) uses `stringValues` instead of

@@ -4,6 +4,8 @@
 package org.jetbrains.compose.swing.components.desktop
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.annotation.RememberInComposition
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -41,79 +43,82 @@ public fun rememberInternalFrameState(
  * @param maximized the initial value for [maximized]
  * @see javax.swing.JInternalFrame
  */
-public class InternalFrameState(
-    bounds: Rectangle,
-    iconified: Boolean = false,
-    maximized: Boolean = false,
-) {
-    /**
-     * The x coordinate of the frame's top-left corner within the desktop, in pixels.
-     *
-     * @see java.awt.Component.setLocation
-     */
-    public var x: Int by mutableIntStateOf(bounds.x)
+@Stable
+public class InternalFrameState
+    @RememberInComposition
+    constructor(
+        bounds: Rectangle,
+        iconified: Boolean = false,
+        maximized: Boolean = false,
+    ) {
+        /**
+         * The x coordinate of the frame's top-left corner within the desktop, in pixels.
+         *
+         * @see java.awt.Component.setLocation
+         */
+        public var x: Int by mutableIntStateOf(bounds.x)
 
-    /**
-     * The y coordinate of the frame's top-left corner within the desktop, in pixels.
-     *
-     * @see java.awt.Component.setLocation
-     */
-    public var y: Int by mutableIntStateOf(bounds.y)
+        /**
+         * The y coordinate of the frame's top-left corner within the desktop, in pixels.
+         *
+         * @see java.awt.Component.setLocation
+         */
+        public var y: Int by mutableIntStateOf(bounds.y)
 
-    /**
-     * The current width of the frame, in pixels.
-     *
-     * @see java.awt.Component.setSize
-     */
-    public var width: Int by mutableIntStateOf(bounds.width)
+        /**
+         * The current width of the frame, in pixels.
+         *
+         * @see java.awt.Component.setSize
+         */
+        public var width: Int by mutableIntStateOf(bounds.width)
 
-    /**
-     * The current height of the frame, in pixels.
-     *
-     * @see java.awt.Component.setSize
-     */
-    public var height: Int by mutableIntStateOf(bounds.height)
+        /**
+         * The current height of the frame, in pixels.
+         *
+         * @see java.awt.Component.setSize
+         */
+        public var height: Int by mutableIntStateOf(bounds.height)
 
-    /**
-     * Whether the frame stands on the desktop as its icon rather than as a window.
-     *
-     * An iconified frame leaves the desktop and its icon takes its place, wherever the look and feel keeps
-     * icons; deiconifying puts the frame back at the position and size this state holds. `false` by
-     * default, matching a freshly constructed frame.
-     *
-     * @see javax.swing.JInternalFrame.setIcon
-     */
-    public var iconified: Boolean by mutableStateOf(iconified)
+        /**
+         * Whether the frame stands on the desktop as its icon rather than as a window.
+         *
+         * An iconified frame leaves the desktop and its icon takes its place, wherever the look and feel keeps
+         * icons; deiconifying puts the frame back at the position and size this state holds. `false` by
+         * default, matching a freshly constructed frame.
+         *
+         * @see javax.swing.JInternalFrame.setIcon
+         */
+        public var iconified: Boolean by mutableStateOf(iconified)
 
-    /**
-     * Whether the frame fills the desktop rather than standing on the geometry this state holds.
-     *
-     * Restoring a maximized frame returns it to [bounds], and a frame can be maximized and iconified at
-     * once - its icon then restores to a frame that fills the desktop. `false` by default, matching a
-     * freshly constructed frame.
-     *
-     * @see javax.swing.JInternalFrame.setMaximum
-     */
-    public var maximized: Boolean by mutableStateOf(maximized)
+        /**
+         * Whether the frame fills the desktop rather than standing on the geometry this state holds.
+         *
+         * Restoring a maximized frame returns it to [bounds], and a frame can be maximized and iconified at
+         * once - its icon then restores to a frame that fills the desktop. `false` by default, matching a
+         * freshly constructed frame.
+         *
+         * @see javax.swing.JInternalFrame.setMaximum
+         */
+        public var maximized: Boolean by mutableStateOf(maximized)
 
-    /**
-     * The frame's position and size within the desktop, in pixels.
-     *
-     * Reading returns a detached copy, matching [java.awt.Component.getBounds] semantics; move or
-     * resize the frame by assigning a new value here or by setting [x], [y], [width] and [height]
-     * individually.
-     *
-     * A maximized frame stands on the whole desktop instead, and the geometry here is the one restoring
-     * it returns it to, so assigning while it is maximized moves and resizes where it lands.
-     *
-     * @see java.awt.Component.setBounds
-     */
-    public var bounds: Rectangle
-        get() = Rectangle(x, y, width, height)
-        set(value) {
-            x = value.x
-            y = value.y
-            width = value.width
-            height = value.height
-        }
-}
+        /**
+         * The frame's position and size within the desktop, in pixels.
+         *
+         * Reading returns a detached copy, matching [java.awt.Component.getBounds] semantics; move or
+         * resize the frame by assigning a new value here or by setting [x], [y], [width] and [height]
+         * individually.
+         *
+         * A maximized frame stands on the whole desktop instead, and the geometry here is the one restoring
+         * it returns it to, so assigning while it is maximized moves and resizes where it lands.
+         *
+         * @see java.awt.Component.setBounds
+         */
+        public var bounds: Rectangle
+            get() = Rectangle(x, y, width, height)
+            set(value) {
+                x = value.x
+                y = value.y
+                width = value.width
+                height = value.height
+            }
+    }

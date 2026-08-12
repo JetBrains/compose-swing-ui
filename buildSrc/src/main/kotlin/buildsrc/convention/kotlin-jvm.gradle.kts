@@ -27,6 +27,12 @@ kotlin {
     }
 }
 
+// The reports name which composables are skippable and which parameters are unstable.
+composeCompiler {
+    reportsDestination.set(layout.buildDirectory.dir("compose-reports"))
+    metricsDestination.set(layout.buildDirectory.dir("compose-metrics"))
+}
+
 tasks.withType<KotlinCompile>().configureEach {
     compilerOptions.jvmTarget.set(JvmTarget.JVM_11)
 }

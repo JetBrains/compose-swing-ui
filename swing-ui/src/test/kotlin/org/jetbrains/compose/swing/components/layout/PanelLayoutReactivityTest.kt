@@ -249,11 +249,12 @@ class PanelLayoutReactivityTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         var rows by mutableIntStateOf(1)
         var cols by mutableIntStateOf(2)
+        val state = WindowState(size = Dimension(320, 240))
         setContent {
             // On a realized window, nothing lays a panel out again on its own: editing the manager
             // settles the geometry it would produce, and only the relayout the write asks for turns
             // that into the bounds the children actually get.
-            Window(onCloseRequest = {}, state = WindowState(size = Dimension(320, 240)), title = "grid-relayout") {
+            Window(onCloseRequest = {}, state = state, title = "grid-relayout") {
                 GridPanel(rows = rows, cols = cols) {
                     Label("left")
                     Label("right")

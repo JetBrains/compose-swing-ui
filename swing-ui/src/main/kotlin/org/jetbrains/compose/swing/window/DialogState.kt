@@ -4,6 +4,8 @@
 package org.jetbrains.compose.swing.window
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.annotation.RememberInComposition
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -38,43 +40,46 @@ public fun rememberDialogState(
  *   non-null size is applied verbatim
  * @see javax.swing.JDialog
  */
-public class DialogState(
-    position: WindowPosition = WindowPosition.PlatformDefault,
-    size: Dimension? = null,
-) {
-    /**
-     * The current top-left position of the dialog on screen.
-     *
-     * @see java.awt.Component.setLocation
-     */
-    public var position: WindowPosition by mutableStateOf(position)
+@Stable
+public class DialogState
+    @RememberInComposition
+    constructor(
+        position: WindowPosition = WindowPosition.PlatformDefault,
+        size: Dimension? = null,
+    ) {
+        /**
+         * The current top-left position of the dialog on screen.
+         *
+         * @see java.awt.Component.setLocation
+         */
+        public var position: WindowPosition by mutableStateOf(position)
 
-    /**
-     * The current width of the dialog, in pixels.
-     *
-     * @see java.awt.Component.setSize
-     */
-    public var width: Int by mutableIntStateOf(size?.width ?: 0)
+        /**
+         * The current width of the dialog, in pixels.
+         *
+         * @see java.awt.Component.setSize
+         */
+        public var width: Int by mutableIntStateOf(size?.width ?: 0)
 
-    /**
-     * The current height of the dialog, in pixels.
-     *
-     * @see java.awt.Component.setSize
-     */
-    public var height: Int by mutableIntStateOf(size?.height ?: 0)
+        /**
+         * The current height of the dialog, in pixels.
+         *
+         * @see java.awt.Component.setSize
+         */
+        public var height: Int by mutableIntStateOf(size?.height ?: 0)
 
-    /**
-     * The current size of the dialog, a [width]/[height] pair in pixels.
-     *
-     * Reading returns a detached copy, matching [java.awt.Component.getSize] semantics; resize the
-     * dialog by assigning a new value here or by setting [width] and [height] individually.
-     *
-     * @see java.awt.Component.setSize
-     */
-    public var size: Dimension
-        get() = Dimension(width, height)
-        set(value) {
-            width = value.width
-            height = value.height
-        }
-}
+        /**
+         * The current size of the dialog, a [width]/[height] pair in pixels.
+         *
+         * Reading returns a detached copy, matching [java.awt.Component.getSize] semantics; resize the
+         * dialog by assigning a new value here or by setting [width] and [height] individually.
+         *
+         * @see java.awt.Component.setSize
+         */
+        public var size: Dimension
+            get() = Dimension(width, height)
+            set(value) {
+                width = value.width
+                height = value.height
+            }
+    }

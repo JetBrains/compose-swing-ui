@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.modifier.datatransfer
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
+import org.jetbrains.annotations.VisibleForTesting
 import org.jetbrains.compose.swing.constants.TransferAction
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.binding
@@ -614,6 +615,7 @@ internal class SharedTransferHandler : TransferHandler() {
  * [dropAction] is asked for only once [isDrop] says there is one: a `TransferSupport` that is not a
  * drop throws rather than answer what action it carries.
  */
+@VisibleForTesting
 internal fun acceptsDropAction(
     isDrop: Boolean,
     acceptedActions: Int,

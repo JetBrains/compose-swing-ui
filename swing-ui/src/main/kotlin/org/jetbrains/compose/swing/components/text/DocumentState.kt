@@ -5,6 +5,7 @@ package org.jetbrains.compose.swing.components.text
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.RememberObserver
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -42,29 +43,27 @@ import javax.swing.undo.UndoManager
  *
  * @see javax.swing.text.Document
  */
+@Stable
 public class DocumentState internal constructor(
     // The document this state owns and the bound component renders.
     internal val document: Document,
-    // The kit that reads and renders the language [document] is written in, or null when no kit was
-    // named for it and the bound component's own kit renders it.
+    // The kit that reads and renders [document]'s language, or null when the bound component renders it
+    // with its own kit.
     internal val editorKit: EditorKit? = null,
 ) : RememberObserver {
-    // A generation counter bumped by [documentListener] on every insert/remove/attribute change. The
-    // values derived from the document ([text], [canUndo], [canRedo]) are not mirrored into snapshot state
-    // and recomputed on write; each is read straight from the document on demand, and its getter first
-    // reads this counter to register the snapshot subscription. A document change bumps the counter and so
-    // invalidates every lazy reader, which then recomputes. Mirroring [text] instead would materialize the
-    // whole document string on every edit even when nothing reads it - the counter keeps reads lazy so a
-    // large document is walked only when a caller actually asks for its content. Selection stays a small
-    // fixed-size value, so it is mirrored directly in [selectionState] rather than read through the counter.
+    // Bumped by [documentListener] on every insert/remove/attribute change. [text], [canUndo] and
+    // [canRedo] are not mirrored into snapshot state: each reads the document on demand, and its getter
+    // first reads this counter to register the snapshot subscription. Mirroring [text] instead would
+    // materialize the whole document string on every edit even when nothing reads it, so the counter
+    // keeps reads lazy. Selection stays a small fixed-size value, so it is mirrored directly in
+    // [selectionState] instead.
     private var generation by mutableIntStateOf(0)
 
     // The state's own selection value, snapshot-observable and synced two-way with the bound caret.
     private var selectionState by mutableStateOf(TextRange(document.length, document.length))
 
-    // While a [recordAsOneEdit] block runs, the primitive document edits it makes are collected here
-    // instead of being recorded individually, so the whole block is undone and redone as one step. It is
-    // null outside a block.
+    // Collects the primitive edits a running [recordAsOneEdit] block makes, so the whole block is undone
+    // and redone as one step. Null outside a block.
     private var pendingCompoundEdit: CompoundEdit? = null
 
     // The component currently rendering this state's document, or null while unmounted. Selection
@@ -86,10 +85,9 @@ public class DocumentState internal constructor(
             selectionState = range
         }
 
-    // The UndoManager records an edit in undoableEditHappened, which fires after the document's
-    // insert/remove listeners. During a [recordAsOneEdit] block the edit is diverted into the pending
-    // compound edit so a single logical change - a [Document.replace] is a remove plus an insert, and an
-    // `edit { }` block may make many primitives - is undone and redone as one step.
+    // undoableEditHappened fires after the document's own insert/remove listeners. During a
+    // [recordAsOneEdit] block, the edit is diverted into the pending compound edit instead of being
+    // recorded here directly.
     private val undoManager =
         object : UndoManager() {
             override fun undoableEditHappened(event: UndoableEditEvent) {
@@ -116,8 +114,6 @@ public class DocumentState internal constructor(
      */
     public var text: @Nls CharSequence
         get() {
-            // Register the snapshot read of the generation before materializing, so a later document
-            // change invalidates this reader without the text being mirrored eagerly.
             generation
             return document.readText()
         }
@@ -153,8 +149,6 @@ public class DocumentState internal constructor(
      */
     public val canUndo: Boolean
         get() {
-            // Register the snapshot read of [generation]; an undo or redo edits the document and bumps
-            // [generation] through [documentListener], so a snapshot reader of availability recomposes.
             generation
             return undoManager.canUndo()
         }
@@ -252,8 +246,7 @@ public class DocumentState internal constructor(
     }
 
     override fun onRemembered() {
-        // The document, undo and caret listeners are attached at construction or on bind; entering the
-        // composition adds nothing further.
+        // Listeners are attached at construction or on bind; entering the composition needs nothing further.
     }
 
     // Detaches this state from its document. A caller-supplied document can outlive the state (it is
@@ -351,9 +344,8 @@ public fun rememberDocumentState(
 ): DocumentState = remember(document, kit) { DocumentState(document, kit) }
 
 /**
- * The kit registered for [contentType]. The registry answers null for a type nothing is registered
- * for, which is a caller naming a language the runtime cannot read - reported rather than quietly
- * answered with plain text, which would render markup as characters.
+ * The kit registered for [contentType]. The registry answers null for a type nothing is registered for;
+ * report that rather than falling back to plain text, which would render markup as characters.
  *
  * A media type carries its parameters after a `;` - `text/html; charset=UTF-8` - which the registry is
  * not keyed by, so they are dropped before the lookup. Nothing here reads a document out of a stream, so

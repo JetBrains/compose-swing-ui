@@ -1,5 +1,7 @@
 package org.jetbrains.compose.swing.platform
 
+import org.jetbrains.annotations.VisibleForTesting
+
 /**
  * An operating system family whose Swing behavior differs from the others'.
  *
@@ -21,6 +23,7 @@ internal enum class HostOs {
  *
  * Resolves to [HostOs.Unknown] for a name outside the three families, and for an empty name.
  */
+@VisibleForTesting
 internal fun hostOsOf(osName: String): HostOs =
     when {
         osName.startsWith("Mac", ignoreCase = true) -> HostOs.MacOs

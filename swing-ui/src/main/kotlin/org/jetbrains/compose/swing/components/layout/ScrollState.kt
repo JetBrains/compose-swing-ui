@@ -4,6 +4,7 @@
 package org.jetbrains.compose.swing.components.layout
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -48,6 +49,7 @@ import javax.swing.event.ChangeListener
  *
  * @see javax.swing.JViewport
  */
+@Stable
 public class ScrollState internal constructor(
     x: Int,
     y: Int,
