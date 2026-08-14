@@ -47,8 +47,8 @@ import javax.swing.undo.UndoManager
 public class DocumentState internal constructor(
     // The document this state owns and the bound component renders.
     internal val document: Document,
-    // The kit that reads and renders [document]'s language, or null when the bound component renders it
-    // with its own kit.
+    // The kit that reads and renders the language [document] is written in, or null when no kit was
+    // named for it and the bound component's own kit renders it.
     internal val editorKit: EditorKit? = null,
 ) : RememberObserver {
     // Bumped by [documentListener] on every insert/remove/attribute change. [text], [canUndo] and

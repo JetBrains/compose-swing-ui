@@ -87,11 +87,12 @@ its own applier.
 
 Changing a *property* of a component that is already attached takes a different route: a component's
 `update` block declares one value per property it drives, and a declaration reaches the widget on the
-first composition, on any later pass where it differs from the one applied last, and again when the
-runtime recycles the node for new content, since a recycled component keeps whatever the previous
-content wrote and its factory does not run a second time. Recomposition with unchanged state therefore
-writes nothing to any widget, and the frame costs neither a Swing property write nor the layout or
-repaint one would trigger. See [`CUSTOM-COMPONENTS.md`](CUSTOM-COMPONENTS.md) for writing such a block.
+first composition, on any later pass where it differs from the one applied last, and in full again on
+the fresh component a reactivated node's factory builds, since that component starts from nothing and
+needs every declared property regardless of which of them changed. Recomposition with unchanged state
+therefore writes nothing to an already-attached widget, and the frame costs neither a Swing property
+write nor the layout or repaint one would trigger. See [`CUSTOM-COMPONENTS.md`](CUSTOM-COMPONENTS.md)
+for writing such a block.
 
 ---
 
@@ -152,13 +153,14 @@ ordinary property on the node, the way a tab's title is, rather than through a n
 ## The node lifecycle and listeners
 
 Each node in a composition wraps a Swing component and carries the per-node state the runtime needs
-to place, update, and tear it down. A node is recyclable: when content is conditionally shown and
-hidden, or replaced by structurally identical content in the same slot, the runtime can reuse the
-existing backing component from a clean baseline instead of allocating a new one.
+to place, update, and tear it down. When content is conditionally shown and hidden - a
+`ReusableContentHost` deactivated and reactivated, say - the node parks: its component detaches from
+the Swing tree, and reactivation builds a fresh component from the node's own factory rather than
+reusing the parked one.
 
-Reuse is why listener lifecycle matters. A listener that calls back into composition state must be
-attached for exactly the node's current lifetime: it is detached when the node is released, reused,
-or deactivated, so it never fires into a composition that has moved on. Listeners the host
+This node lifecycle is why listener lifecycle matters. A listener that calls back into composition
+state must be attached for exactly the node's current lifetime: it is detached when the node is
+released or deactivated, so it never fires into a composition that has moved on. Listeners the host
 application attaches directly to a component are never touched. A node installs a single stable
 listener that always sees current composition state, rather than re-attaching one on every
 recomposition.
@@ -225,10 +227,10 @@ tracked, and a later change repaints that one surface and re-invokes the same la
 The applier stamps the observer onto each node on the top-down pass of the insert, which under the
 ordering *Placing children with explicit constraints* describes is ahead of that node's own `update`
 changes, so a component adopts it from there. On the same terms as a listener, a component's tracked
-reads are dropped when its node is released, reused or deactivated, so a parked or recycled node reacts
-to nothing and registers afresh the next time it paints; the observer itself lives as long as the
-composition that owns it. A composition holding nothing that paints from state - a menu - owns none at
-all.
+reads are dropped when its node is released or deactivated, so a parked node reacts to nothing once it
+is deactivated; the fresh component a reactivated node's factory builds registers its own reads the
+next time it paints. The observer itself lives as long as the composition that owns it. A composition
+holding nothing that paints from state - a menu - owns none at all.
 
 A window's geometry is observed separately, by an observer of its own belonging to that window rather
 than to the composition around it, because the two differ in what they must marshal. The owner's

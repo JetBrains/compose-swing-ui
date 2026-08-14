@@ -18,8 +18,10 @@ import javax.imageio.ImageIO
  * images are written to the build results directory for inspection, and an [AssertionError] is
  * thrown describing the difference and the file locations.
  *
- * When record mode is enabled the captured image is written as the new golden into the test
- * resources and the assertion passes; this lets you record or refresh goldens on demand.
+ * When record mode is enabled, the captured image is written as the golden whenever no golden
+ * exists yet or the captured image already matches the stored one, and the assertion passes. On a
+ * mismatch record mode does not overwrite the golden; the diff is dumped and the assertion still
+ * fails, so a regression is never silently accepted as the new baseline.
  *
  * @param goldenIdentifier identifies the golden image; allowed characters are letters, digits, '_'
  *   and '-'.

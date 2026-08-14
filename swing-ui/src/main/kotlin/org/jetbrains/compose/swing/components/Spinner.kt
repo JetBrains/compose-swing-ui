@@ -296,16 +296,13 @@ private fun SpinnerNode(
             "${model.javaClass.name}; declare an editor of your own to render it"
     }
     val parentContext = rememberCompositionContext()
-    // The spinner the editor island installs itself on. The island is composed beside the node rather
-    // than inside its update, so it reaches the component the same way a tab header reaches its pane.
-    val spinner = remember { arrayOfNulls<SpinnerComponent>(1) }
+    // The panel a composed editor renders into, remembered here so the same instance is handed both to
+    // the modifier below, which installs it as the spinner's editor, and to the island composed beside
+    // the node, which fills it.
+    val editorPanel = if (editor != null) remember { JPanel(BorderLayout()).apply { isOpaque = false } } else null
     SwingNode<JSpinner>(
         factory = { SpinnerComponent(model) },
         update = {
-            // The island reaches the spinner through the remembered cell, so the cell is filled from the
-            // update block rather than the factory: a recycled component is not built again, while the
-            // cell beside it is a fresh one every time the content is composed or reused.
-            set(spinner) { it[0] = this as SpinnerComponent }
             set(model) { this.model = it }
             // A `JSpinner` editor is built for the model it edits, so the model is part of what the
             // editor is derived from: swapping the model rebuilds the editor around the new one even
@@ -314,12 +311,12 @@ private fun SpinnerNode(
             set(EditorDeclaration(model, format, editor != null)) { declaration ->
                 if (!declaration.composed) this.editor = (this as SpinnerComponent).declaredEditor(declaration)
             }
-            applyModifier(modifier)
+            applyModifier(if (editorPanel != null) modifier.spinnerEditor(editorPanel) else modifier)
             this.updateBlock()
         },
     )
-    if (editor != null) {
-        SpinnerEditorIsland(spinner, parentContext, editor)
+    if (editor != null && editorPanel != null) {
+        SpinnerEditorIsland(editorPanel, parentContext, editor)
     }
 }
 
@@ -366,40 +363,30 @@ private class ListSpinnerModel<T>(
 }
 
 /**
- * Composes [content] into a panel the spinner shows as its editor, for as long as an editor is declared.
+ * Composes [content] into [panel], which the modifier chain installs as the spinner's editor for as long
+ * as an editor is declared.
  *
  * The island joins [parentContext], so the editing surface reads the state and the
  * [androidx.compose.runtime.CompositionLocal]s the spinner's own caller does. [content] flows in through
  * [rememberUpdatedState]: a fresh lambda each recomposition recomposes the island rather than rebuilding
- * it, so an edit in progress is not thrown away. Withdrawing the declaration gives the spinner back
- * whichever editor the pass that withdrew it names - its own built around a declared format, or the one
- * it builds for its model unaided.
+ * it, so an edit in progress is not thrown away.
  */
 @Composable
 private fun SpinnerEditorIsland(
-    spinner: Array<SpinnerComponent?>,
+    panel: JPanel,
     parentContext: CompositionContext,
     content:
         @Composable
         () -> Unit,
 ) {
     val current = rememberUpdatedState(content)
-    // A `JSpinner` lays its editor out across the whole area beside the arrows, which is what the center
-    // region gives whatever the caller composes.
-    val host = remember { JPanel(BorderLayout()).apply { isOpaque = false } }
-    DisposableEffect(host) {
-        val component = spinner[0]
-        component?.editor = host
+    DisposableEffect(panel) {
         val handle =
-            host.setContentAsInteropHost(parentContext) {
+            panel.setContentAsInteropHost(parentContext) {
                 current.value()
             }
         onDispose {
             handle.dispose()
-            // Only where this panel is still what the spinner shows: the same pass that withdrew the
-            // declaration may have named a format instead, and the editor built around it is installed
-            // while the node's values are applied - before the island is torn down here.
-            component?.let { if (it.editor === host) it.editor = it.defaultEditor() }
         }
     }
 }
@@ -427,6 +414,51 @@ private fun SpinnerComponent.declaredEditor(declaration: EditorDeclaration): JCo
         format == null -> defaultEditor()
         declaration.model is SpinnerDateModel -> JSpinner.DateEditor(this, format)
         else -> JSpinner.NumberEditor(this, format)
+    }
+}
+
+/**
+ * Installs [panel] as the spinner's editor while this chain applies it, restoring the spinner's own
+ * editor when it leaves.
+ */
+private fun SwingModifier.spinnerEditor(panel: JPanel): SwingModifier = this then SpinnerEditorElement(panel)
+
+/**
+ * The [SwingModifier.NodeElement] backing [spinnerEditor].
+ *
+ * [panel] is compared by identity, so this is not a data class: it is the editor the node installs on
+ * the component, not a value read back from it, and a panel that looks equal to another is still a
+ * different one to hand the spinner over to.
+ */
+private class SpinnerEditorElement(
+    private val panel: JPanel,
+) : SwingModifier.NodeElement<SpinnerComponent, SpinnerEditorElement.Node>() {
+    override fun equals(other: Any?): Boolean = other is SpinnerEditorElement && panel === other.panel
+
+    override fun hashCode(): Int = System.identityHashCode(panel)
+
+    override val targetType: Class<SpinnerComponent> get() = SpinnerComponent::class.java
+
+    override fun create(): Node = Node(panel)
+
+    // The panel comes from a `remember` with no keys, so it is the same instance for as long as this
+    // element occupies its slot; an update call would have nothing new to push.
+    override fun update(node: Node): Unit = Unit
+
+    /**
+     * Installs [panel] as the spinner's editor on attach, and gives the spinner back its own editor on
+     * detach - unless a later editor has since taken [panel]'s place.
+     */
+    class Node(
+        private val panel: JPanel,
+    ) : SwingModifier.Node<SpinnerComponent>() {
+        override fun onAttach() {
+            component.editor = panel
+        }
+
+        override fun onDetach() {
+            if (component.editor === panel) component.editor = component.defaultEditor()
+        }
     }
 }
 

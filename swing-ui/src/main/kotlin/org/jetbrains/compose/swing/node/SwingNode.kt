@@ -4,8 +4,8 @@
 package org.jetbrains.compose.swing.node
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ComposeNode
 import androidx.compose.runtime.DisallowComposableCalls
-import androidx.compose.runtime.ReusableComposeNode
 import androidx.compose.runtime.rememberCompositionContext
 import org.jetbrains.compose.swing.annotations.SwingComposable
 import java.awt.Component
@@ -24,12 +24,12 @@ import java.awt.Component
  * the node through [org.jetbrains.compose.swing.modifier.applyModifier], so a component whose [update]
  * never applies a modifier cannot be placed at all.
  *
- * The node is recyclable: when it is conditionally shown/hidden across recompositions (e.g. a
- * [androidx.compose.runtime.ReusableContentHost] parked and reactivated, or structurally-identical
- * content replacing it in the same slot) the runtime reuses the existing backing [Component] for the
- * new content from a clean baseline rather than allocating a fresh one. Code outside the node that has
- * to reach the backing component therefore takes it from the node on every pass instead of holding on
- * to the instance it once saw: only the component the node currently holds is the one the composition
+ * A node that parks - because the reusable content around it went inactive (see
+ * [androidx.compose.runtime.ReusableContentHost]), or because it moved into a parked `movableContent`
+ * holder - is released for good, and the content that reactivates it gets a fresh node built by a fresh
+ * call to [factory] rather than the [Component] the parked node was driving. Code outside the node that
+ * has to reach the backing component therefore takes it from the node on every pass instead of holding
+ * on to the instance it once saw: only the component the node currently holds is the one the composition
  * is driving.
  *
  * When [hostsSubcompositions] is `true`, a `setContent` call on a descendant Swing component joins
@@ -55,7 +55,7 @@ public inline fun <reified T : Component> SwingNode(
     childPlacement: ChildPlacement = ChildPlacement.Indexed,
 ) {
     val parentContext = if (hostsSubcompositions) rememberCompositionContext() else null
-    ReusableComposeNode<SwingNodeHolder<T>, SwingApplier>(
+    ComposeNode<SwingNodeHolder<T>, SwingApplier>(
         factory = { SwingNodeHolder(factory()) },
         update = {
             set(childPlacement) { this.childPlacement = it }
@@ -115,7 +115,7 @@ public inline fun <reified T : Component> SwingNode(
         () -> Unit,
 ) {
     val parentContext = if (hostsSubcompositions) rememberCompositionContext() else null
-    ReusableComposeNode<SwingNodeHolder<T>, SwingApplier>(
+    ComposeNode<SwingNodeHolder<T>, SwingApplier>(
         factory = { SwingNodeHolder(factory()) },
         update = {
             set(childPlacement) { this.childPlacement = it }
@@ -130,6 +130,6 @@ public inline fun <reified T : Component> SwingNode(
                     }
             }
         },
-        content = { content() },
+        content = content,
     )
 }

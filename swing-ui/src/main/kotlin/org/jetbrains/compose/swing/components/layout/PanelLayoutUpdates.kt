@@ -13,8 +13,7 @@ import javax.swing.JPanel
  * record of where each child was added, which replacing it would discard.
  *
  * The first composition is skipped, because the panel's factory already built the manager from the same
- * values. A recycled node re-runs this block without re-running that factory, so the manager it kept is
- * brought up to the values the new content declares.
+ * values.
  */
 internal inline fun <reified L : LayoutManager, V> SwingNodeUpdater<JPanel>.updateLayout(
     value: V,

@@ -13,10 +13,12 @@ import java.awt.BorderLayout
 import java.awt.Component
 import java.awt.Container
 import java.awt.EventQueue
+import java.awt.Toolkit
 import javax.swing.JButton
 import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.JSplitPane
+import javax.swing.SwingUtilities
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -52,6 +54,30 @@ class SwingApplierTest {
         }
         var failure: Throwable? = null
         EventQueue.invokeAndWait { runCatching(block).onFailure { failure = it } }
+        failure?.let { throw it }
+    }
+
+    /**
+     * Lets a check the applier deferred to a later turn of the event queue - see
+     * [SwingApplier][org.jetbrains.compose.swing.node.SwingApplier]'s hold-to-regions pass - run before
+     * this returns, and rethrows here whatever it raises rather than leaving it to the event dispatch
+     * thread's own uncaught-exception handling, which would otherwise only print it.
+     *
+     * Must be called on the EDT, which is where every mutation in this file already runs; entering a
+     * [java.awt.SecondaryLoop] pumps the queue for one further turn without leaving the thread.
+     */
+    private fun pumpScheduledWork() {
+        val thread = Thread.currentThread()
+        val enclosingHandler = thread.uncaughtExceptionHandler
+        var failure: Throwable? = null
+        thread.setUncaughtExceptionHandler { _, raised -> failure = raised }
+        try {
+            val loop = Toolkit.getDefaultToolkit().systemEventQueue.createSecondaryLoop()
+            SwingUtilities.invokeLater { loop.exit() }
+            loop.enter()
+        } finally {
+            thread.setUncaughtExceptionHandler(enclosingHandler)
+        }
         failure?.let { throw it }
     }
 
@@ -619,7 +645,11 @@ class SwingApplierTest {
         applier.onContainer(host) {
             onNode(leading) { leading.applyModifierDiff(SwingModifier.slot(SECOND_SIDE_CALL, SecondSideAttachment)) }
         }
-        val failure = assertFailsWith<IllegalStateException> { applier.onEndChanges() }
+        val failure =
+            assertFailsWith<IllegalStateException> {
+                applier.onEndChanges()
+                pumpScheduledWork()
+            }
 
         val message = failure.message.orEmpty()
         assertTrue(

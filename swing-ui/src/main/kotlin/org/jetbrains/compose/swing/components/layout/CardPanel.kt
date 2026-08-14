@@ -10,6 +10,7 @@ import org.jetbrains.compose.swing.node.SwingNode
 import java.awt.CardLayout
 import java.awt.Component
 import javax.swing.JPanel
+import javax.swing.SwingUtilities
 
 /**
  * A composable wrapper for JPanel with CardLayout: a deck of cards of which exactly one is shown.
@@ -22,11 +23,12 @@ import javax.swing.JPanel
  *     Label(text = "Details", modifier = SwingModifier.card("details"))
  * }
  * ```
- * A card holds a single child, and two children naming the same card are refused. Dropping a child (e.g.
- * behind an `if`) takes its card with it, and a [selectedCard] matching no card leaves the card currently
- * on top showing. A child that names no card is placed on the deck's empty-named card, which an empty
- * [selectedCard] shows; that card holds a single child like any other, so two children naming none are
- * refused the way a card named twice is.
+ * A card holds a single child, and two children naming the same card are refused - checked once the
+ * change pass has settled, so a pass that replaces a card's occupant need not take the outgoing child out
+ * before the incoming one arrives. Dropping a child (e.g. behind an `if`) takes its card with it, and a
+ * [selectedCard] matching no card leaves the card currently on top showing. A child that names no card is
+ * placed on the deck's empty-named card, which an empty [selectedCard] shows; that card holds a single
+ * child like any other, so two children naming none are refused the way a card named twice is.
  *
  * @param selectedCard the key of the card to show
  * @param modifier the [SwingModifier] applied to the panel
@@ -65,16 +67,36 @@ private class StateCardPanel(
             applyTargetCard()
         }
 
+    /** Whether the one-child-per-card check is already queued for the next turn of the event queue. */
+    private var cardCheckScheduled = false
+
     private fun applyTargetCard() {
         val target = targetCard ?: return
         (layout as CardDeckLayout).show(this, target)
     }
 
     fun onLayoutComponentAdded(constraints: Any?) {
-        val repeated = (layout as CardDeckLayout).repeatedCardName()
-        if (repeated != null) cardHeldByMoreThanOneChild(repeated)
+        scheduleCardCheck()
         if (constraints == targetCard) {
             applyTargetCard()
+        }
+    }
+
+    /**
+     * Asks for the one-child-per-card check a turn after the event queue processes the change pass in
+     * flight, mirroring `SwingApplier`'s deferred region check (see `DeferredRegionCheck`): a parked node
+     * gives up its card only once the applier has dispatched the whole pass, so reading the deck's cards
+     * while the pass is still running would count a card's outgoing occupant against the child taking its
+     * place, and refuse a legal replacement. Deferring also keeps the refusal off the apply phase, where a
+     * throw would kill the composition for good instead of reaching the caller.
+     */
+    private fun scheduleCardCheck() {
+        if (cardCheckScheduled) return
+        cardCheckScheduled = true
+        SwingUtilities.invokeLater {
+            cardCheckScheduled = false
+            val repeated = (layout as CardDeckLayout).repeatedCardName()
+            if (repeated != null) cardHeldByMoreThanOneChild(repeated)
         }
     }
 

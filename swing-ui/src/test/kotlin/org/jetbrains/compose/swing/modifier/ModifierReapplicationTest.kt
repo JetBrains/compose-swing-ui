@@ -19,7 +19,7 @@ import javax.swing.JButton
 import javax.swing.JComponent
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertSame
+import kotlin.test.assertNotSame
 
 /**
  * Every count here is taken through the public [SwingModifier.NodeElement] seam - an element counts its own
@@ -111,13 +111,13 @@ class ModifierReapplicationTest {
     }
 
     @Test
-    fun aReusedNodeHasItsWholeChainAppliedAgain() = runComposeSwingTest {
+    fun aReactivatedNodeHasItsWholeChainAppliedToTheFreshComponent() = runComposeSwingTest {
         var active by mutableStateOf(true)
         var tick by mutableStateOf(0)
         val writes = AtomicInteger()
         var enterCount = 0
         val hover = mouseEnterListener { enterCount++ }
-        // One chain instance for every pass: what a recycled component gets back cannot depend on the
+        // One chain instance for every pass: what the fresh component gets cannot depend on the
         // declaration having changed, because this declaration provably never does.
         val chain =
             SwingModifier
@@ -130,34 +130,42 @@ class ModifierReapplicationTest {
                 Button("X", modifier = chain)
             }
         }
-        val beforeReuse = onNodeOfType<JButton>().fetch()
-        assertEquals(Color.GREEN, beforeReuse.background, "the property elements should apply before reuse")
-        assertEquals("hello", beforeReuse.toolTipText, "the custom element should apply before reuse")
-        beforeReuse.dispatchEvent(mouseEntered(beforeReuse))
-        assertEquals(1, enterCount, "the listener should fire once before reuse")
+        val beforePark = onNodeOfType<JButton>().fetch()
+        assertEquals(Color.GREEN, beforePark.background, "the property elements should apply before parking")
+        assertEquals("hello", beforePark.toolTipText, "the custom element should apply before parking")
+        beforePark.dispatchEvent(mouseEntered(beforePark))
+        assertEquals(1, enterCount, "the listener should fire once before parking")
         assertEquals(1, writes.get(), "the first composition should write once")
 
         // A plain recomposition of this very chain writes nothing further, which is what makes the
-        // reuse below the only thing the next assertions can be measuring.
+        // reactivation below the only thing the next assertions can be measuring.
         tick++
         awaitIdle()
         assertEquals(1, writes.get(), "recomposing an unchanged chain must not write again")
 
-        // Park the content and bring it back. Parking detaches every element - restoring the property
-        // originals and removing the listener - so the recycled component only carries the chain again
-        // if reactivation applies all of it.
+        // Park the content and bring it back. Reactivation builds a fresh component from the node's
+        // factory and drives it as a node's first composition would, so the fresh component only
+        // carries the chain if that first apply writes all of it.
         active = false
         awaitIdle()
         active = true
         awaitIdle()
 
-        val afterReuse = onNodeOfType<JButton>().fetch<JButton>()
-        assertSame(beforeReuse, afterReuse, "the component should be recycled rather than rebuilt")
-        assertEquals(2, writes.get(), "a recycled component must be written again even by an unchanged chain")
-        assertEquals("hello", afterReuse.toolTipText, "the custom element must be re-applied after reuse")
-        assertEquals(Color.GREEN, afterReuse.background, "the property element must be re-applied after reuse")
-        afterReuse.dispatchEvent(mouseEntered(afterReuse))
-        assertEquals(2, enterCount, "the listener must be re-installed after reuse")
+        val afterReactivation = onNodeOfType<JButton>().fetch<JButton>()
+        assertNotSame(beforePark, afterReactivation, "reactivation builds a fresh component, not the parked one")
+        assertEquals(
+            2,
+            writes.get(),
+            "the fresh component's first apply writes the chain even though it is unchanged",
+        )
+        assertEquals("hello", afterReactivation.toolTipText, "the custom element must apply to the fresh component")
+        assertEquals(
+            Color.GREEN,
+            afterReactivation.background,
+            "the property element must apply to the fresh component",
+        )
+        afterReactivation.dispatchEvent(mouseEntered(afterReactivation))
+        assertEquals(2, enterCount, "the listener must be installed on the fresh component")
     }
 
     @Test

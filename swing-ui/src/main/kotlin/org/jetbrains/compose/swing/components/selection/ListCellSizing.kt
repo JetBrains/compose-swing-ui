@@ -9,8 +9,8 @@ import javax.swing.JList
  *
  * It goes into the chain behind the renderer a prototype is measured through, since the chain applies its
  * elements in the order they are declared. Removing the element puts the list back on the sizing it had
- * before one was declared - captured as the element attaches, written back as it detaches - so a released,
- * recycled or parked list measures its rows the way a list that was never given a prototype does.
+ * before one was declared - captured as the element attaches, written back as it detaches - so a released
+ * or parked list measures its rows the way a list that was never given a prototype does.
  */
 internal fun SwingModifier.listCellSizing(
     prototype: Any?,

@@ -93,23 +93,26 @@ class SwingNodeHolderLifecycleTest {
     }
 
     @Test
-    fun reuseAndDeactivationKeepTheComponentInItsHostSlot() {
+    fun reuseKeepsTheComponentInItsHostSlotAndParkingGivesItUp() {
         val holder = SwingNodeHolder(JButton("b"))
         val released = IntArray(1)
         // A node installed in a host slot: the applier captured an uninstall handle when it installed
         // the component through the slot's dedicated setter.
         holder.slotUninstall = { released[0]++ }
 
-        // Recycling and parking change what drives the component, never where it lives - the applier
-        // records no attachment change for either, so a holder that released the slot here would empty
-        // a slot nothing ever refills.
+        // Recycling changes what drives the component, never where it lives: the new content takes over
+        // the slot the old one filled, with no pass in between at which the slot stands empty.
         holder.onReuse()
-        holder.onDeactivate()
-        assertEquals(0, released[0], "reuse and deactivation must leave the component in its host slot")
+        assertEquals(0, released[0], "reuse must leave the component in its host slot")
 
-        // The slot is released once the node leaves the composition for good.
+        // Parking gives the slot up: a slot holds one child, and one held by content nothing drives could
+        // not be given to a replacement. A parked node is never driven again, so nothing here restores it.
+        holder.onDeactivate()
+        assertEquals(1, released[0], "parking must release the host slot")
+
+        // The slot is released once per install: a parked node has already given it up.
         holder.onRelease()
-        assertEquals(1, released[0], "release must release the still-installed host slot")
+        assertEquals(1, released[0], "release must not release a slot parking already released")
     }
 
     @Test
@@ -139,9 +142,10 @@ class SwingNodeHolderLifecycleTest {
         holder.onDeactivate()
         assertEquals(1, detach[0], "deactivate must run the detacher")
 
-        // Re-activation re-runs update -> applyModifier re-attaches.
+        // A later apply on the same holder must find its diff state clean, whatever calls it: the
+        // observable proof that onDeactivate cleared it rather than leaving the install-guard tripped.
         holder.applyModifierDiff(listenerModifier(attach, detach))
-        assertEquals(2, attach[0], "a reactivated holder must re-attach exactly one fresh listener")
+        assertEquals(2, attach[0], "a later apply on a deactivated holder must re-attach exactly one fresh listener")
     }
 
     @Test

@@ -33,9 +33,8 @@ import java.awt.Component
  * The modifier is immutable and safe to share, hoist, and reuse as a theme token. Building the chain
  * inline in the composable body is the intended style and needs no `remember`: a chain equal to the
  * one last applied to a component is skipped, and each element is compared on its own, so a property
- * whose declared value has not changed is not written again. An element carrying a callback is compared
- * the same way: one the composition rebuilt around the callback it already carries writes nothing, and
- * one rebuilt around another callback is re-applied on its own.
+ * whose declared value has not changed is not written again. See [Element] for what an element that
+ * did change costs.
  *
  * A modifier is applied *to* a node, and a node *holds* the modifier state that outlives one
  * apply pass, so `modifier` and `node` are one boundary read from two sides, not two layers - a
@@ -64,10 +63,10 @@ public interface SwingModifier {
      * The stateful counterpart of an [NodeElement], created once per slot and kept across recompositions.
      *
      * The applier injects the already-typed target [component], calls [onAttach] once, then calls the
-     * owning [NodeElement]'s [update][NodeElement.update] to push the latest data onto the node's fields. A
-     * listener installed in [onAttach] reads those fields, so refreshing them in `update` keeps
-     * callbacks current with no reattach. [onDetach] runs symmetrically when the element leaves the
-     * chain or the node is released/reused, to restore a captured original or remove an installed
+     * owning [NodeElement]'s [update][NodeElement.update] to push the latest data onto the node's fields - so a
+     * listener installed in [onAttach] is live before the first `update` lands, and every field it reads
+     * needs an initial value that stands until then. [onDetach] runs symmetrically when the element leaves
+     * the chain or the node is released/reused, to restore a captured original or remove an installed
      * listener.
      *
      * Subclass this to back a custom [NodeElement]: capture the property's original in a field in
@@ -99,9 +98,13 @@ public interface SwingModifier {
      * builder for (see `docs/CUSTOM-COMPONENTS.md`). See [targetType] for how to declare the component
      * type the element targets; the node's [Node.component] arrives already typed [T].
      *
-     * The element is immutable data; it [create]s a [Node] once per slot and [update]s it with the
-     * latest data on every chain change. The node owns the mutable state (the captured original, the
-     * installed listener) and its setup/teardown via [Node.onAttach]/[Node.onDetach].
+     * The element is immutable and throwaway: every pass builds a fresh one carrying the values declared
+     * then. The [Node] is the long-lived side - [create]d once per slot, kept for as long as an element of
+     * this type occupies it, and owning the mutable state (the captured original, the installed listener)
+     * with its setup and teardown in [Node.onAttach]/[Node.onDetach]. An element unequal to the one its
+     * slot holds costs one [update] call and nothing else: the node is not recreated and a listener it
+     * installed is not reattached. So a callback written inline as a lambda is the intended style and needs
+     * no `remember` - push it onto the node in [update] and have the node read it when the event fires.
      *
      * An element is one of two kinds, selected by [additive]: a **property** element (the default),
      * right for a value like `background` or `border`, or a **subscription** element, right for a
@@ -457,8 +460,8 @@ private fun diffAdditiveElements(
 
 /**
  * Detaches every modifier-installed node and restores every modified property to the value captured
- * before the modifier touched it. Invoked by [SwingNodeHolder] on release/reuse/deactivate so a
- * recycled node starts clean.
+ * before the modifier touched it. Invoked by [SwingNodeHolder] on release, reuse and deactivate, so a
+ * node's modifier state never carries over to content it no longer drives.
  */
 internal fun SwingNodeHolder<*>.resetModifierState() {
     val state = modifierState ?: return

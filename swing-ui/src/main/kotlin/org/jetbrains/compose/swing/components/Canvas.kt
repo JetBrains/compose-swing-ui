@@ -68,8 +68,9 @@ private class CanvasComponent : JComponent() {
 
     /**
      * The observer this surface registers its paint reads with, adopted from the holder's
-     * `ownerObserver` in [Canvas]'s update block. It survives parking, recycling and release: the
-     * composition hands it over once, before the surface is attached, and never withdraws it.
+     * `ownerObserver` in [Canvas]'s update block. The composition hands it over once, before the
+     * surface is attached, and never withdraws it: parking and release leave it as it stands, since
+     * neither reads through it again.
      *
      * It is `null` only before the node's first update, which no paint of a composed surface can
      * observe - [paintComponent] fails on it.

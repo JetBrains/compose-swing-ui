@@ -172,6 +172,7 @@ class SplitPaneBehaviorTest {
                         Label(text = "Also leading", modifier = SwingModifier.first())
                     }
                 }
+                awaitIdle()
             }
 
         val message = failure.message.orEmpty()

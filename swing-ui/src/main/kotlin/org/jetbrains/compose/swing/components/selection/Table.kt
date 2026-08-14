@@ -205,9 +205,9 @@ public fun <R> Table(
     block: TableScope<R>.() -> Unit,
 ) {
     val columns = TableScopeImpl<R>().apply(block).columns
-    // The model this composition fills. It is adopted in the update block as well as handed to the
-    // factory, because the node is recyclable: the table it hands to a later composition came with the
-    // model of the content that built it, and rows refreshed into any other model reach no table.
+    // The model this composition fills. It is handed to the factory so the table is built already
+    // showing it, rather than a default model briefly standing in before the update block's own
+    // set(model) call installs this one.
     val model = remember { ColumnsTableModel<R>() }
     // One cell island per column that declares a composable cell, following the declarations pass by
     // pass. Each island resolves the row a stamp names against the rows the model holds then.
@@ -274,35 +274,74 @@ public fun <R> Table(
 }
 
 /**
- * A [ListSelectionListener] that mirrors every settled selection into [applied] and forwards to [target]
- * whatever arrives outside one of [applied]'s own writes - the adjusting events of a drag as well as the
- * settled one, exactly as a caller's raw listener expects. Only the settled value is worth mirroring: an
- * adjusting one would invalidate this composition, and re-assert the declaration, before the user has let
- * go.
+ * Installs a [ListSelectionListener] on a `JTable`'s `selectionModel` that mirrors every settled selection
+ * into [applied] and forwards to [target] whatever arrives outside one of that mirror's own writes - the
+ * adjusting events of a drag as well as the settled one, exactly as a caller's raw listener expects. Only
+ * the settled value is worth mirroring: an adjusting one would invalidate this composition, and re-assert
+ * the declaration, before the user has let go.
  *
  * A table publishes its selection through its selection model, which knows only the rows on screen; the
- * event is handed on sourced at the table in [liveTable], so the selection it carries is the one the caller
- * declared it in and a listener can read that selection back off the event.
+ * node this installs reads the table straight off the modifier chain it is attached to, so the event handed
+ * on to the target is sourced at the table and the selection it carries can be read back off it the way a
+ * list's is read back from the list.
  */
-@Composable
-private fun rememberUserSelectionListener(
-    liveTable: Array<JTable?>,
+private fun SwingModifier.userSelectionListener(
     applied: AppliedValue<Set<Int>?>,
     target: ListSelectionListener,
-): ListSelectionListener =
-    remember(liveTable, applied, target) {
-        ListSelectionListener { event ->
-            // The listener is installed on the table's own selection model, by the same pass that hands the
-            // table over, so nothing can publish a selection before it is there.
-            val table = liveTable[0] ?: return@ListSelectionListener
-            if (!event.valueIsAdjusting) applied.observed(table.selectedModelRows())
-            if (!applied.isWriting) {
-                target.valueChanged(
-                    ListSelectionEvent(table, event.firstIndex, event.lastIndex, event.valueIsAdjusting),
-                )
-            }
-        }
+): SwingModifier = this then UserSelectionListenerElement(applied, target)
+
+/**
+ * The additive [SwingModifier.NodeElement] backing [userSelectionListener].
+ *
+ * Both halves are compared by identity, so this is not a data class: the node forwards to [target]
+ * itself, and a caller's listener may carry an `equals` of its own - a function reference does - under
+ * which two listeners the node must tell apart compare equal. The element would skip, and the node
+ * would keep forwarding to the listener the caller replaced.
+ */
+private class UserSelectionListenerElement(
+    val applied: AppliedValue<Set<Int>?>,
+    val target: ListSelectionListener,
+) : SwingModifier.NodeElement<JTable, UserSelectionListenerElement.Node>() {
+    override fun equals(other: Any?): Boolean =
+        other is UserSelectionListenerElement && applied === other.applied && target === other.target
+
+    override fun hashCode(): Int = 31 * System.identityHashCode(applied) + System.identityHashCode(target)
+
+    override val targetType: Class<JTable> get() = JTable::class.java
+    override val additive: Boolean get() = true
+
+    override fun create(): Node = Node(applied)
+
+    override fun update(node: Node) {
+        node.target = target
     }
+
+    /**
+     * The mirror is the table's own for as long as this node drives it, so the node takes it at creation;
+     * the caller's listener is pushed on every pass and read when an event fires, so a table always
+     * forwards to the listener the current composition declares.
+     */
+    class Node(
+        private val applied: AppliedValue<Set<Int>?>,
+    ) : SwingModifier.Node<JTable>() {
+        var target: ListSelectionListener = ListSelectionListener {}
+
+        private val listener =
+            ListSelectionListener { event ->
+                val table = component
+                if (!event.valueIsAdjusting) applied.observed(table.selectedModelRows())
+                if (!applied.isWriting) {
+                    target.valueChanged(
+                        ListSelectionEvent(table, event.firstIndex, event.lastIndex, event.valueIsAdjusting),
+                    )
+                }
+            }
+
+        override fun onAttach(): Unit = component.selectionModel.addListSelectionListener(listener)
+
+        override fun onDetach(): Unit = component.selectionModel.removeListSelectionListener(listener)
+    }
+}
 
 /**
  * A composable wrapper for `JTable` driven by a caller-owned [TableModel].
@@ -532,15 +571,11 @@ private fun TableNode(
         ColumnLayoutChannel,
     ) -> Unit,
 ) {
-    // The table the node holds, taken from the node on every pass (see SwingNode): a selection listener
-    // names a screen row as the model row the caller declares, and only the table tells one from the other.
-    val liveTable = remember { arrayOfNulls<JTable>(1) }
     // The column layout keeps marking its own writes through a bare reentrancy counter - it is not the
     // mirrored property here - while the row selection and the sort order each get a real mirror of their own.
     val appliedColumn = rememberAppliedWrite()
     val appliedSelection = rememberAppliedValue(selectedRowIndices)
     val appliedSort = rememberAppliedValue(sortKeys)
-    val userSelectionListener = rememberUserSelectionListener(liveTable, appliedSelection, listSelectionListener)
     val columnChannel = rememberColumnLayoutChannel(tableColumnModelListener)
     val sortChannel = rememberRowSortChannel(appliedSort, rowSorterListener)
     val userColumnListener =
@@ -549,7 +584,6 @@ private fun TableNode(
     SwingNode(
         factory = { JTable(model) },
         update = {
-            reconcile { liveTable[0] = this }
             set(selectionMode) { mode ->
                 narrowSelection(appliedSelection, selectedRowIndices, listSelectionListener) {
                     applySelectionMode(mode)
@@ -573,7 +607,7 @@ private fun TableNode(
             )
             val tableModifier =
                 modifier
-                    .tableSelectionListener(userSelectionListener)
+                    .userSelectionListener(appliedSelection, listSelectionListener)
                     .tableColumnModelListener(userColumnListener)
                     .tableRowHeight(rowHeight)
             applyModifier(
@@ -592,7 +626,7 @@ private fun TableNode(
  * chain; removing the element restores the height the table carried before it was folded in - the one
  * its look and feel chose - through the same capture-on-attach, restore-on-detach every modifier
  * property follows. Detaching on release, reuse and deactivate as well as on withdrawal is what gives a
- * recycled table its look and feel's height back too.
+ * parked table its look and feel's height back too.
  *
  * One element carries the height for every [Table] overload, since a modifier element's slot is the
  * class of the accessor written here and two accessors would be two slots writing one property.

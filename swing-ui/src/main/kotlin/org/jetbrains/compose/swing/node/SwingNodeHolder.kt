@@ -147,10 +147,8 @@ internal class SwingNodeHolder<out T : Component>
 
         /**
          * The action that [installedSlotAttachment] returned. It runs when the applier removes or
-         * moves the node, and when the node is released. It is `null` when the node fills no region.
-         *
-         * It survives reuse and deactivation. A parked node stays attached to its host like every
-         * other child, so the region it fills is still filled.
+         * moves the node, when the node is parked, and when it is released. It is `null` when the node
+         * fills no region.
          */
         internal var slotUninstall: (() -> Unit)? = null
 
@@ -201,6 +199,19 @@ internal class SwingNodeHolder<out T : Component>
          * Only the applier writes it.
          */
         internal var awaitingAttachment: Boolean = false
+
+        /**
+         * Whether [onDeactivate] has run on this node.
+         *
+         * A parked node stays in the host's [children] until the composition removes it for good - the
+         * runtime keeps a deactivated group's place rather than dropping it, since it is what a later
+         * reactivation would resume were this node type reusable - so it goes on standing there with its
+         * component already detached and its region, if it filled one, already released. Only the
+         * applier's own `remove`/`move` calls ever take such a holder out of a host's children.
+         *
+         * Only [onDeactivate] writes it.
+         */
+        internal var deactivated: Boolean = false
 
         /**
          * How this node holds its children, as declared on [SwingNode]. It is
@@ -274,25 +285,18 @@ internal class SwingNodeHolder<out T : Component>
         }
 
         /**
-         * Puts the node back to the state a new node starts from. Recycled or parked content then
-         * reacts only to what it reads itself, never to what the previous content read.
+         * Puts the node back to the state a new node starts from.
          *
          * It removes the subcomposition stamp, detaches the listeners the modifier chain installed,
          * restores the properties the chain changed, and drops the component's tracked reads from the
          * owner's observer. The detach covers every modifier-installed listener, including the
          * built-in domain listener of the component. A stamp left behind would be found by a
          * `setContent` call on a component below. That call would then nest into a composition that no
-         * longer runs. A component that observes snapshot state registers its reads again once the
-         * composition drives the node again. The shared observer itself keeps running for every other
-         * node. It is disposed with the composition.
+         * longer runs. The shared observer itself keeps running for every other node. It is disposed
+         * with the composition.
          *
-         * It does not change where the component lives. [constraint], [declaredSlotAttachment],
-         * [declaredSlotName], [childPlacement] and [ownerObserver] all survive, because recycling
-         * changes what drives a component, not its place in the Swing tree. Clearing [constraint]
-         * would be wrong in particular: this method changes no layout manager, so the value would stop
-         * matching what the manager holds. [applyConstraint] returns early when the value is
-         * unchanged, so a recycled node that declares no constraint would skip re-registration, and
-         * its component would stay in its old region.
+         * It does not change where the component lives: [constraint], [declaredSlotAttachment],
+         * [declaredSlotName] and [childPlacement] all survive.
          */
         private fun reset() {
             clearSubcompositionStamp()
@@ -315,16 +319,13 @@ internal class SwingNodeHolder<out T : Component>
         }
 
         /**
-         * The runtime is reusing this holder for new content in the same slot. An `update` follows,
-         * and re-applies the whole modifier chain from the clean baseline this leaves.
+         * The runtime is reusing this holder in place, for content that stayed in the same slot without
+         * ever being parked. An `update` follows, and re-applies the whole modifier chain from the clean
+         * baseline this leaves.
          *
-         * The component keeps its attachment. Only the applier attaches and detaches components, and
-         * it is not called for a reuse, so a holder that freed its region here would empty a region
-         * that nothing fills again.
-         *
-         * It keeps its visibility too: the new content drives it from here on with no pass in between,
-         * so there is no moment at which nothing shows it. A holder recycled while parked stays hidden
-         * until the chain that `update` applies shows it, like any other parked node.
+         * The node type this holder backs is not reusable, so the runtime never reactivates a parked
+         * node through this callback: a parked node is released for good, and the content that reactivates
+         * it gets a fresh node built by a fresh call to `factory`.
          */
         override fun onReuse() {
             reset()
@@ -332,13 +333,20 @@ internal class SwingNodeHolder<out T : Component>
 
         /**
          * The node was parked: it moved into a parked `movableContent` holder, or the reusable content
-         * around it went inactive. Driving it again runs `update` again.
+         * around it went inactive.
          *
-         * A parked node keeps its place in the Swing tree, host region included: parking suspends the
-         * composition that drives a component, and the applier - which alone attaches and detaches -
-         * records no change for it.
+         * A parked node is never driven again - the runtime releases it and the content that reactivates
+         * inserts a fresh node in its place - so nothing here is kept for a later pass to restore. The
+         * component is removed from its Swing parent, and the region it filled, if any, is released.
          */
         override fun onDeactivate() {
+            deactivated = true
             reset()
+            releaseInstalledSlot()
+            component.parent?.let {
+                it.remove(component)
+                it.revalidate()
+                it.repaint()
+            }
         }
     }

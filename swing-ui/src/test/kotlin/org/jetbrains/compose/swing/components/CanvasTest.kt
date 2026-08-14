@@ -20,9 +20,8 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertIs
-import kotlin.test.assertSame
+import kotlin.test.assertNotSame
 import kotlin.test.assertTrue
 
 /**
@@ -267,8 +266,9 @@ class CanvasTest {
     @Test
     fun parkedCanvasStopsObservingItsReads() = runComposeSwingTest {
         // `value` is read ONLY inside onDraw, so the observer is the only thing that can repaint the
-        // surface. Parking the canvas deactivates its node, which drops its tracked reads: while parked
-        // it is driven by nothing, exactly like every other parked node whose listeners are detached.
+        // surface. Parking the canvas deactivates its node and detaches its component from the tree,
+        // which drops its tracked reads: while parked it is driven by nothing, exactly like a removed
+        // canvas.
         val value = mutableIntStateOf(7)
         var active by mutableStateOf(true)
         var drawCount = 0
@@ -285,8 +285,6 @@ class CanvasTest {
             }
         }
 
-        // Fetch while the canvas is still active: parking restores the modifier-applied properties, the
-        // test tag among them, so the parked surface is no longer addressable by tag.
         val canvas = onNodeWithTag(CANVAS).fetch<JComponent>()
         var repaintRequests = 0
         installRepaintRecorder(canvas) { repaintRequests++ }
@@ -303,8 +301,10 @@ class CanvasTest {
         active = false
         awaitIdle()
 
-        // Count only what the write below causes: deactivation itself restores modifier-applied
-        // properties, and those restores may request repaints of their own.
+        onNodeWithTag(CANVAS).assertDoesNotExist()
+        assertTrue(canvas.parent == null, "A parked canvas is detached from the tree.")
+
+        val drawsBeforeParkedPaint = drawCount
         repaintRequests = 0
         value.intValue = 43
         awaitIdle()
@@ -315,12 +315,54 @@ class CanvasTest {
             "A change to state a parked canvas last read must request no repaint of it: its node was " +
                 "deactivated, so the shared observer no longer tracks its reads.",
         )
+        assertEquals(drawsBeforeParkedPaint, drawCount, "No further onDraw should occur while parked.")
+    }
+
+    @Test
+    fun parkingDetachesTheCanvasAndReactivatingBuildsAFreshOneThatPaints() = runComposeSwingTest {
+        // The control for the silence asserted while parked: the same paint pass over the parent that
+        // draws an active canvas must draw nothing while the canvas is detached, and the fresh canvas
+        // reactivation builds is drawn by that same paint pass once the composition drives it again.
+        var active by mutableStateOf(true)
+        var drawCount = 0
+        setContent {
+            BoxPanel {
+                Label(text = "anchor")
+                ReusableContentHost(active = active) {
+                    Canvas(modifier = SwingModifier.testTag(CANVAS).preferredSize(SIZE)) { _, _, _ ->
+                        drawCount++
+                    }
+                }
+            }
+        }
+
+        val canvas = onNodeWithTag(CANVAS).fetch<JComponent>()
+        val parent = assertIs<JComponent>(canvas.parent, "The canvas is held by the panel it was composed in.")
+
+        forcePaintTree(parent)
+        assertEquals(1, drawCount, "A paint pass over the parent must draw the active canvas.")
+
+        active = false
+        awaitIdle()
+        assertTrue(canvas.parent == null, "A parked canvas is detached from the tree.")
+
+        forcePaintTree(parent)
+        assertEquals(1, drawCount, "The same paint pass must not draw the detached canvas while it is parked.")
+
+        active = true
+        awaitIdle()
+        val reactivated = onNodeWithTag(CANVAS).fetch<JComponent>()
+        assertNotSame(canvas, reactivated, "reactivation builds a fresh canvas rather than reusing the parked one")
+
+        forcePaintTree(parent)
+        assertEquals(2, drawCount, "The fresh canvas is drawn by the paint pass over its parent.")
     }
 
     @Test
     fun reactivatedCanvasObservesItsReadsAgain() = runComposeSwingTest {
-        // Dropping the tracked reads when a canvas is parked must not silence it for good: reactivation
-        // repaints the surface, and that paint registers its reads with the shared observer again.
+        // Reactivation builds a fresh canvas from the node's factory: that fresh canvas's own paint pass
+        // registers its reads with the shared observer, wholly apart from the parked canvas's now-dropped
+        // reads.
         val value = mutableIntStateOf(7)
         var active by mutableStateOf(true)
         var lastDrawn = Int.MIN_VALUE
@@ -343,11 +385,13 @@ class CanvasTest {
         active = true
         awaitIdle()
 
+        val reactivated = onNodeWithTag(CANVAS).fetch<JComponent>()
+        assertNotSame(canvas, reactivated, "reactivation builds a fresh canvas rather than reusing the parked one")
+
         var repaintRequests = 0
-        installRepaintRecorder(canvas) { repaintRequests++ }
-        // Reads are registered at paint time, so flush the repaint reactivation requested.
-        forcePaint(canvas)
-        assertEquals(7, lastDrawn, "The reactivated surface should draw the current value.")
+        installRepaintRecorder(reactivated) { repaintRequests++ }
+        forcePaint(reactivated)
+        assertEquals(7, lastDrawn, "The fresh canvas should draw the current value.")
         repaintRequests = 0
 
         value.intValue = 42
@@ -355,20 +399,19 @@ class CanvasTest {
 
         assertTrue(
             repaintRequests > 0,
-            "A reactivated canvas must observe its reads again: a change to state read only inside its " +
-                "onDraw must request a repaint. Observed $repaintRequests repaint requests.",
+            "The fresh canvas must observe its reads: a change to state read only inside its onDraw must " +
+                "request a repaint. Observed $repaintRequests repaint requests.",
         )
 
-        forcePaint(canvas)
-        assertEquals(42, lastDrawn, "The serviced repaint must redraw the reactivated surface with the new value.")
+        forcePaint(reactivated)
+        assertEquals(42, lastDrawn, "The serviced repaint must redraw the fresh canvas with the new value.")
     }
 
     @Test
-    fun reusedNodeDoesNotRepaintNewContentForTheReadsOfTheOld() = runComposeSwingTest {
-        // The same node is recycled for new content: `ReusableContent` keeps the surface and hands it a
-        // fresh onDraw reading a different state. Each state is read ONLY inside its own onDraw, so the
-        // observer is the only thing that can repaint the surface. The recycled node must be driven by
-        // what the new content reads, never by what the old one read.
+    fun aKeyChangeStopsRepaintingTheDiscardedCanvasForTheReadsOfTheReplacement() = runComposeSwingTest {
+        // A key change discards the old node and builds a fresh one for the new content: the fresh
+        // canvas must be driven by what the new content reads, and the discarded one must be driven by
+        // nothing, however each state is read ONLY inside its own onDraw.
         val readByOldContent = mutableIntStateOf(1)
         val readByNewContent = mutableIntStateOf(1)
         var reuseKey by mutableStateOf(0)
@@ -384,43 +427,39 @@ class CanvasTest {
             }
         }
 
-        val canvas = onNodeWithTag(CANVAS).fetch<JComponent>()
-        var repaintRequests = 0
-        installRepaintRecorder(canvas) { repaintRequests++ }
-        // Paint the old content so the observer tracks its read.
-        forcePaint(canvas)
+        val original = onNodeWithTag(CANVAS).fetch<JComponent>()
+        var repaintRequestsForOriginal = 0
+        installRepaintRecorder(original) { repaintRequestsForOriginal++ }
+        forcePaint(original)
 
         reuseKey = 1
         awaitIdle()
 
-        assertSame(
-            canvas,
-            onNodeWithTag(CANVAS).fetch<JComponent>(),
-            "ReusableContent should have recycled the surface rather than built a new one; a new surface " +
-                "would leave this test measuring the wrong component.",
-        )
+        val replacement = onNodeWithTag(CANVAS).fetch<JComponent>()
+        assertNotSame(original, replacement, "a key change builds a fresh canvas rather than reusing the old one")
+        assertTrue(original.parent == null, "the discarded canvas is detached from the tree")
 
-        // Count only what the writes below cause: recycling installs the new onDraw, which repaints.
-        repaintRequests = 0
+        repaintRequestsForOriginal = 0
         readByOldContent.intValue = 2
         awaitIdle()
 
         assertEquals(
             0,
-            repaintRequests,
-            "A change to state only the previous content read must request no repaint of the recycled " +
-                "surface, including before the new content has painted for the first time.",
+            repaintRequestsForOriginal,
+            "A change to state only the discarded content read must request no repaint of it: its node " +
+                "was released, so the shared observer no longer tracks its reads.",
         )
 
-        // The new content is live: once it paints, its own read drives the surface.
-        forcePaint(canvas)
-        repaintRequests = 0
+        var repaintRequestsForReplacement = 0
+        installRepaintRecorder(replacement) { repaintRequestsForReplacement++ }
+        forcePaint(replacement)
+        repaintRequestsForReplacement = 0
         readByNewContent.intValue = 2
         awaitIdle()
 
         assertTrue(
-            repaintRequests > 0,
-            "The recycled surface must observe what the new content reads. Observed $repaintRequests " +
+            repaintRequestsForReplacement > 0,
+            "The fresh canvas must observe what the new content reads. Observed $repaintRequestsForReplacement " +
                 "repaint requests.",
         )
     }
@@ -472,6 +511,31 @@ class CanvasTest {
                 "repaint of the surviving canvas: the owner observer must outlive a single detach. " +
                 "Observed $secondRepaints repaint requests.",
         )
+    }
+
+    /**
+     * Lays [container] out at its preferred size and rasterizes it off-screen, so each of its children is
+     * painted the way a parent paints them on screen - a hidden child among them being one the pass skips.
+     * Off-screen there is no peer, so the layout is driven directly instead of through `validate`.
+     */
+    private fun forcePaintTree(container: JComponent) {
+        container.size = container.preferredSize
+        layOutTree(container)
+        val image = BufferedImage(container.width.coerceAtLeast(1), container.height.coerceAtLeast(1), TYPE)
+        val graphics = image.createGraphics()
+        try {
+            container.paint(graphics)
+        } finally {
+            graphics.dispose()
+        }
+    }
+
+    /** Runs each container's layout manager, top down, giving every child the bounds a paint pass reads. */
+    private fun layOutTree(container: Container) {
+        container.doLayout()
+        for (child in container.components) {
+            if (child is Container) layOutTree(child)
+        }
     }
 
     /** Rasterizes [component] off-screen, which is what drives its `onDraw` deterministically headless. */

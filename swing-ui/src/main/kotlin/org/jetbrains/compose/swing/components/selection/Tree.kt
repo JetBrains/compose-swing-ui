@@ -655,7 +655,7 @@ private fun TreeNode(
  * while it stays in the chain; removing the element restores the value the tree carried before it was
  * folded in - the one its look and feel chose - through the same capture-on-attach, restore-on-detach
  * every modifier property follows. Detaching on release, reuse and deactivate as well as on withdrawal
- * is what gives a recycled tree its look and feel's values back too.
+ * is what gives a parked tree its look and feel's values back too.
  *
  * The renderer is handed back the other way round, because a tree's is not a value it carries but one
  * its UI delegate builds on demand and takes back on a look-and-feel change. The property folded in here

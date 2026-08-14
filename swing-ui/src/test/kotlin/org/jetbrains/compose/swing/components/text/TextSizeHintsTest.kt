@@ -13,7 +13,7 @@ import javax.swing.JTextArea
 import javax.swing.JTextField
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertSame
+import kotlin.test.assertNotSame
 import kotlin.test.assertTrue
 
 /**
@@ -174,8 +174,8 @@ class TextSizeHintsTest {
         awaitIdle()
 
         val reactivated = onNodeOfType<JTextField>().fetch()
-        assertSame(parked, reactivated, "the component should be reused")
-        assertEquals(WIDE_COLUMNS, reactivated.columns, "a reused component adopts the new hint")
+        assertNotSame(parked, reactivated, "reactivation builds a fresh component rather than reusing the parked one")
+        assertEquals(WIDE_COLUMNS, reactivated.columns, "the fresh component carries the hint the composition holds")
     }
 
     private companion object {

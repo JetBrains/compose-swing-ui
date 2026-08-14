@@ -20,6 +20,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
+import kotlin.test.assertNotSame
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
@@ -219,11 +220,11 @@ class SpinnerEditorBehaviorTest {
         awaitIdle()
 
         val spinner = onNodeOfType<JSpinner>().fetch()
-        assertSame(parked, spinner, "reactivation recycles the spinner rather than building another")
+        assertNotSame(parked, spinner, "reactivation builds a fresh spinner rather than reusing the parked one")
         assertEquals(
             "value 3",
             spinner.editor.firstLabelText(),
-            "a reactivated spinner shows the editor its declaration composes, not the one it builds itself",
+            "the fresh spinner shows the editor its declaration composes, not the one it builds itself",
         )
     }
 

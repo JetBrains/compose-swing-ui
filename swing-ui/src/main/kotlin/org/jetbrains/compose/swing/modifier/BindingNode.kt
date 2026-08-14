@@ -70,8 +70,8 @@ internal class BindingElement<C : Component, B : Any>(
  *
  * The binding follows the modifier node's lifecycle. A different [value] on a later recomposition
  * detaches the previous one before attaching the new, and the node detaching - the component leaving
- * the composition, being recycled for reuse, or parking while deactivated - detaches outright, so a
- * value never keeps driving a component it no longer belongs to. Both callbacks are handed the
+ * the composition, or parking while deactivated - detaches outright, so a value never keeps driving a
+ * component it no longer belongs to. Both callbacks are handed the
  * component the node is attached to, so a value that has since been bound to another component is
  * left driving that one. A `null` [value] declares no binding at all.
  *
@@ -81,6 +81,10 @@ internal class BindingElement<C : Component, B : Any>(
  *
  * [target] is the component type the binding requires; [attach] and [detach] receive it already typed,
  * and a component that is not a [target] is rejected at apply with a clear error.
+ *
+ * Publish the component through `binding` when a caller must reach it - the holder is a handle the
+ * caller owns and drives. When the only reader is the component's own composable, have the node act
+ * on the component itself instead of publishing it.
  */
 internal fun <C : Component, B : Any> SwingModifier.binding(
     target: Class<C>,

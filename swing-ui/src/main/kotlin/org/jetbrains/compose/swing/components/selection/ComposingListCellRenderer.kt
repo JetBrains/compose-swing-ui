@@ -159,8 +159,8 @@ internal fun <T> rememberComposingListCellRenderer(
  * widget carried before a composable cell displaced it is captured as the element attaches, and written
  * back as it detaches. Detaching on release, reuse and deactivate as well as on withdrawal is what gives
  * the widget its own renderer back at the very moment the island behind the composable cell is disposed
- * - a parked widget keeps its place in the Swing tree and goes on painting, and a renderer over a
- * disposed island paints nothing.
+ * - the widget may still be asked to size or render a row directly even once parking has detached it
+ * from the Swing tree, and a renderer over a disposed island paints nothing.
  *
  * A `JList` and a `JComboBox` each declare this property for themselves, with no supertype declaring it
  * between them, which is what makes it a [MultiTargetProperty] rather than a property element of one

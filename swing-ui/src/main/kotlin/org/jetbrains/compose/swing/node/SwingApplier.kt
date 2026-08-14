@@ -7,6 +7,7 @@ import java.awt.Container
 import java.util.Collections
 import java.util.IdentityHashMap
 import javax.swing.RootPaneContainer
+import javax.swing.SwingUtilities
 
 /**
  * The [androidx.compose.runtime.Applier] that [org.jetbrains.compose.swing.node.SwingNode] emits into, mutating
@@ -82,6 +83,12 @@ internal class SwingApplier internal constructor(
      */
     private val restatedRegionHosts: MutableSet<SwingNodeHolder<*>> =
         Collections.newSetFromMap(IdentityHashMap())
+
+    /** The hosts still to be held to one child per region. */
+    private val regionCheck =
+        DeferredRegionCheck { host ->
+            if (host === this.root) this.root.checkRootShowsOneChild() else host.checkOneChildPerRegion()
+        }
 
     /** What the current change pass has said about the nodes it inserts and the ones it relocates. */
     private val arrivals = ArrivingChildren()
@@ -271,7 +278,7 @@ internal class SwingApplier internal constructor(
         // constraint changed since keeps the current one.
         children.addAll(targetBase, moved)
         moved.forEachIndexed { offset, holder ->
-            if (holder.awaitingAttachment) return@forEachIndexed
+            if (!holder.attachedToHost) return@forEachIndexed
             val constraint = holder.constraint
             val targetIndex = parent.attachedSiblingsBefore(targetBase + offset)
             if (constraint != null) {
@@ -312,11 +319,9 @@ internal class SwingApplier internal constructor(
             // region each child is really in, and a component that arrives in a region as this runs is
             // one more child of a host the check has to answer for.
             for (host in restatedRegionHosts) host.moveRestatedChildren()
-            // Every region of these hosts now holds what the composition declares for it, and a region
-            // holding two children is one the composition declared twice.
-            for (host in filledSlotHosts) {
-                if (host === root) root.checkRootShowsOneChild() else host.checkOneChildPerRegion()
-            }
+            // Every region of these hosts now holds what the composition declares for it. Which children
+            // still count is settled once this pass has been dispatched whole - see DeferredRegionCheck.
+            for (host in filledSlotHosts) regionCheck.hold(host)
         } finally {
             arrivals.forget()
             restatedRegionHosts.clear()
@@ -330,6 +335,7 @@ internal class SwingApplier internal constructor(
             container.repaint()
         }
         dirtyContainers.clear()
+        regionCheck.schedule()
     }
 
     /**
@@ -434,7 +440,7 @@ internal class SwingApplier internal constructor(
         moved.forEachIndexed { offset, child ->
             // A child the pass has yet to attach fills no region to be released from and names its
             // region here only once the pass has settled, which is when it is installed.
-            if (child.awaitingAttachment) return@forEachIndexed
+            if (!child.attachedToHost) return@forEachIndexed
             val attachment = attachmentOf(this, child)
             checkChildKind(container, child, fillsRegion = attachment != null)
             if (attachment != null) {
@@ -448,6 +454,41 @@ internal class SwingApplier internal constructor(
 
 /** The region of the mount that the composition's own top-level children fill. */
 private const val ROOT_SLOT_NAME: String = "content"
+
+/**
+ * The hosts to hold to one child per region, checked by [check] on the turn of the event queue after
+ * the one the change pass was applied in.
+ *
+ * A change pass parks a node after the applier has seen the whole of it: the runtime dispatches
+ * deactivation once the changes are applied, and a parked node gives up the region it filled only then.
+ * Reading a host's regions while the pass runs would therefore count content the composition has stopped
+ * driving against the child that takes its place, and refuse a composition declaring one child per region.
+ * Waiting a turn reads every node the pass touched in the state it ends in. It also keeps the refusal off
+ * the apply phase, where a throw would kill the composition for good rather than reach the caller.
+ */
+private class DeferredRegionCheck(
+    private val check: (SwingNodeHolder<*>) -> Unit,
+) {
+    private val hosts: MutableSet<SwingNodeHolder<*>> = Collections.newSetFromMap(IdentityHashMap())
+    private var scheduled: Boolean = false
+
+    /** Records [host] as one to hold to its regions once the pass in flight has settled. */
+    fun hold(host: SwingNodeHolder<*>) {
+        hosts += host
+    }
+
+    /** Asks for the check on the next turn of the event queue, once for however many passes are applied in this one. */
+    fun schedule() {
+        if (scheduled || hosts.isEmpty()) return
+        scheduled = true
+        SwingUtilities.invokeLater {
+            scheduled = false
+            val pending = hosts.toList()
+            hosts.clear()
+            for (host in pending) check(host)
+        }
+    }
+}
 
 /**
  * The children a single change pass brings to their hosts: which of them the composition is inserting
@@ -537,19 +578,29 @@ private fun SwingNodeHolder<*>.checkPlacementOf(
     // disagree with the arriving child only where the host declared one placement, took children under it,
     // and then declared another. A child still awaiting attachment carries no such answer yet and speaks
     // for none of them; a host holding nothing else has no child to compare against.
-    val held = children.firstOrNull { !it.awaitingAttachment } ?: return
+    val held = children.firstOrNull { it.attachedToHost } ?: return
     check((held.installedSlotAttachment != null) == fillsRegion) {
         mixedChildKinds(host, child, fillsRegion)
     }
 }
 
 /**
+ * Whether this child's component really stands in its host's container, which is what a position among
+ * a host's children is counted over. A child the pass has taken in but not attached yet is not there
+ * yet, and a parked one is not there any more - the runtime keeps its place in the composition, so it
+ * goes on standing in [SwingNodeHolder.children] with its component already detached.
+ */
+private val SwingNodeHolder<*>.attachedToHost: Boolean
+    get() = !awaitingAttachment && !deactivated
+
+/**
  * The place among this host's attached children that the child composed at [index] takes: the siblings
  * ahead of it that are attached already. A host mid-pass holds every child the composition put here,
- * including any it has yet to attach, so the position handed to a host is counted rather than composed.
+ * including any it has yet to attach or has parked, so the position handed to a host is counted rather
+ * than composed.
  */
 private fun SwingNodeHolder<*>.attachedSiblingsBefore(index: Int): Int =
-    (0 until index).count { !children[it].awaitingAttachment }
+    (0 until index).count { children[it].attachedToHost }
 
 /**
  * Holds a child to the placement this host declares: a host that holds its children in regions of its own
@@ -578,20 +629,25 @@ private fun SwingNodeHolder<*>.checkChildKind(
 }
 
 /**
- * Holds the composition root to the single top-level child its mount's slot shows. Called once the
- * change pass has settled, for the same reason [checkOneChildPerRegion] is: the pass may hold two
- * children in the slot while it runs, since a replacement is inserted before the child it replaces is
- * removed, and only what remains at the end of the pass is what the composition declares.
+ * Holds the composition root to the single top-level child its mount's slot shows, counting the children
+ * the composition drives. Called once the pass that filled the slot has been dispatched whole, for the
+ * same reason [checkOneChildPerRegion] is.
+ *
+ * A parked child is not one of them: it gave its slot up in [onDeactivate][SwingNodeHolder] and stands in
+ * [SwingNodeHolder.children] only until the composition removes it for good, so counting it would refuse
+ * a root that shows exactly one child - see [SwingNodeHolder.deactivated]. [checkOneChildPerRegion] needs
+ * no such term, because releasing the slot is what clears the name it counts by.
  */
 private fun SwingNodeHolder<*>.checkRootShowsOneChild() {
-    if (children.size < 2) return
-    error(rootSlotFilledTwice(component, children[0].component, children[1].component))
+    val shown = children.filter { !it.deactivated }
+    if (shown.size < 2) return
+    error(rootSlotFilledTwice(component, shown[0].component, shown[1].component))
 }
 
 /**
  * Holds this host to one child per region. Called on a [ChildPlacement.Slots] host once the change pass
- * that filled its regions has settled and every child it holds is installed in the region its own chain
- * names, so each child is counted against the region its component is really in.
+ * that filled its regions has been dispatched whole and every child it holds is installed in the region
+ * its own chain names, so each child is counted against the region its component is really in.
  */
 private fun SwingNodeHolder<*>.checkOneChildPerRegion() {
     val occupants = HashMap<String, SwingNodeHolder<*>>(children.size)

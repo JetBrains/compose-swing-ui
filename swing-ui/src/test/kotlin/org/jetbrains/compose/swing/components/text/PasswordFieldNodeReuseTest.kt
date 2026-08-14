@@ -11,11 +11,10 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * A password-field node is recyclable: a parked [ReusableContentHost] child is reactivated onto the
- * `JPasswordField` the node already holds, and the node's factory does not run a second time. The
- * look-and-feel echo character a `null` declaration restores is captured from that field, so it has to
- * travel with the component rather than with the composition - a reactivated field that lost it would
- * unmask the password.
+ * A parked [ReusableContentHost] child detaches its `JPasswordField`, and reactivation builds a fresh
+ * one from the node's own factory. The look-and-feel echo character a `null` declaration restores is
+ * captured from that field as its modifier chain attaches, so it has to travel with whichever component
+ * is live rather than with the composition - a reactivated field that lost it would unmask the password.
  */
 class PasswordFieldNodeReuseTest {
     @Test

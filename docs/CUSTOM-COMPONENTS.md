@@ -195,9 +195,8 @@ that just created the component.
 
 Reaching for the constructor does not excuse you from writing the value: a parameter consumed only
 there is honored once and then silently ignored, which reads at the call site as reactive state and
-is not. It also outlives the composition that supplied it, because a node is recyclable - when a
-component is reused for new content, the constructor does not run again, and `update` does, so the
-recycled component adopts the new value rather than keeping the old one.
+is not. `update` reaches it on every pass that declares a different value; the constructor runs
+exactly once, when the node is built, and not again for as long as that same node lives.
 
 A property that changes the size a component asks for needs a layout pass to go with it. Several
 Swing setters only invalidate - `JTextField.setColumns` and `JTextArea.setRows` among them - and
@@ -479,8 +478,8 @@ there, since the model is free to move between the holder being constructed and 
 
 Reaching the component that renders the holder is a separate binding, and `set` is the wrong channel
 for it: the binding has to end exactly when the component stops rendering the holder - the node
-released, recycled for other content, or parked while deactivated - and that is a modifier node's
-lifecycle. Bind through an element of your own, in the registering shape of *Writing a custom property
+released or deactivated - and that is a modifier node's lifecycle. Bind through an element of your own,
+in the registering shape of *Writing a custom property
 element* below: attach the holder in `update`, release it in `onDetach`, and compare the element by
 identity so a holder that only looks like the bound one is still a different holder to give the
 component over to.
@@ -598,8 +597,8 @@ The lifecycle, across the `NodeElement`/`Node` pair:
   existing value here** so it can be restored;
 - `NodeElement.update(node)` runs on attach and on every chain change - **write the new value here**, so a
   fresh element instance (a new value on recomposition) reaches the live node without re-creating it;
-- `Node.onDetach()` runs once, when the element is dropped from the chain or the node is recycled -
-  **restore the captured original here**.
+- `Node.onDetach()` runs once, when the element is dropped from the chain or the node is released or
+  deactivated - **restore the captured original here**.
 
 **`equals` and `hashCode` are abstract**, so the element has to state its own equality and the
 compiler rejects one that does not. A slot whose incoming element equals the one it already applied

@@ -27,16 +27,17 @@ import javax.swing.JTabbedPane
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertNotSame
 import kotlin.test.assertSame
 
 /**
  * A container that hosts its children through a [SlotAttachment] - a dedicated Swing setter rather
- * than the generic `Container.add` - keeps them across parking. Content inside a deactivated
- * [ReusableContentHost] (equally: content parked by `movableContent`) leaves the composition but stays
- * in the Swing tree, and reactivation drives the very same components again: the applier, the sole
- * authority on attachment, records no change for either step.
+ * than the generic `Container.add` - fills its regions again once content parked in a deactivated
+ * [ReusableContentHost] reactivates. Reactivation builds a fresh component from the node's own factory
+ * for the host and for every child it declares, and the applier installs each fresh child into the
+ * region its chain names, the same way it installs any child arriving for the first time.
  *
- * Each test parks and reactivates one such host and reads its children back off the live component.
+ * Each test parks and reactivates one such host and reads its children back off the fresh component.
  */
 class SlotHostReactivationTest {
     /**
@@ -104,10 +105,11 @@ class SlotHostReactivationTest {
         assertNotNull(pane.rowHeader?.view, "the row header should still hold the declared view")
         assertNotNull(pane.columnHeader?.view, "the column header should still hold the declared view")
 
-        // Parking leaves a component where it is, so reactivation drives the very ones composed before it.
-        assertSame(paneBefore, pane, "reactivation should drive the same pane")
-        assertSame(bodyBefore, onNodeWithText("body").fetch(), "reactivation should drive the same content")
-        assertSame(bodyBefore, pane.viewport.view, "the viewport should still hold the component it was given")
+        // Reactivation builds a fresh pane and fresh content from the node's own factory.
+        assertNotSame(paneBefore, pane, "reactivation builds a fresh pane rather than reusing the parked one")
+        val body = onNodeWithText("body").fetch<Component>()
+        assertNotSame(bodyBefore, body, "reactivation builds fresh content rather than reusing the parked one")
+        assertSame(body, pane.viewport.view, "the viewport holds the fresh component the fresh content declares")
     }
 
     @Test

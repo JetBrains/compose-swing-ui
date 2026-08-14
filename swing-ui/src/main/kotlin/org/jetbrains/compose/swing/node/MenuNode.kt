@@ -4,8 +4,8 @@
 package org.jetbrains.compose.swing.node
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ComposeNode
 import androidx.compose.runtime.DisallowComposableCalls
-import androidx.compose.runtime.ReusableComposeNode
 import org.jetbrains.compose.swing.annotations.SwingMenuComposable
 import java.awt.Component
 
@@ -23,7 +23,7 @@ public inline fun <reified T : Component> MenuNode(
         @Composable @SwingMenuComposable
         () -> Unit = {},
 ) {
-    ReusableComposeNode<SwingNodeHolder<T>, MenuApplier>(
+    ComposeNode<SwingNodeHolder<T>, MenuApplier>(
         factory = { SwingNodeHolder(factory()) },
         update = { SwingNodeUpdater(this).update() },
         content = content,

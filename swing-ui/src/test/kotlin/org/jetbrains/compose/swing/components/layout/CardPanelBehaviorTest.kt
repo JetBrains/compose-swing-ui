@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.components.layout
 
+import androidx.compose.runtime.ReusableContentHost
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -233,6 +234,8 @@ class CardPanelBehaviorTest {
                         Label("second", SwingModifier.card("shared"))
                     }
                 }
+                // The check runs a turn after the pass that added these children, once it has settled.
+                awaitIdle()
             }
 
         assertTrue(
@@ -251,12 +254,37 @@ class CardPanelBehaviorTest {
                         Label("second")
                     }
                 }
+                awaitIdle()
             }
 
         assertTrue(
             "SwingModifier.card(key)" in failure.message.orEmpty(),
             "the failure should tell the caller to name the cards: ${failure.message}",
         )
+    }
+
+    @Test
+    fun aParkedChildYieldsItsCardToTheOneReplacingIt() = runComposeSwingTest {
+        var parked by mutableStateOf(false)
+        setContent {
+            CardPanel(selectedCard = "shared") {
+                // A parked child gives up its card as the applier releases it, which is part of the same
+                // pass that puts the incoming child on the deck. The card is held twice while that pass
+                // runs, and by one child once it has been dispatched whole - which is when it is counted.
+                ReusableContentHost(active = !parked) {
+                    Label("first", SwingModifier.card("shared"))
+                }
+                if (parked) Label("second", SwingModifier.card("shared"))
+            }
+        }
+
+        assertDeckHolds("first")
+
+        parked = true
+        awaitIdle()
+
+        assertDeckHolds("second")
+        assertShownCard(shown = "second", hidden = emptyList())
     }
 
     @Test

@@ -20,14 +20,14 @@ import kotlin.test.assertNotSame
 /**
  * Pins listener liveness across every path that swaps out the composable behind a Swing component.
  *
- * The contract under test: whichever way the runtime re-homes a node - recycling the existing
- * component or building a new one - the resulting live component ends up with exactly one framework
- * listener attached, so clicks keep dispatching to the currently composed `onClick`.
+ * The contract under test: whichever way the runtime re-homes a node, the resulting live component ends
+ * up with exactly one framework listener attached, so clicks keep dispatching to the currently composed
+ * `onClick`.
  *
  * Three paths are asserted live: a **movableContent** move, a **ReusableContentHost**
- * deactivate/reactivate cycle, and a **`key()`** change. The first two recycle the component
- * instance; a `key()` change is an explicit identity change, so the runtime discards the old node and
- * builds a fresh component. All three must dispatch clicks afterwards.
+ * deactivate/reactivate cycle, and a **`key()`** change. A move keeps the same component instance; a
+ * deactivate/reactivate cycle and a `key()` change both discard the old node and build a fresh
+ * component. All three must dispatch clicks afterwards.
  */
 class ListenerReattachAfterReuseTest {
     /**
@@ -65,9 +65,10 @@ class ListenerReattachAfterReuseTest {
     }
 
     /**
-     * A button deactivated and reactivated via [ReusableContentHost] keeps a live listener: the
-     * reactivating recomposition re-applies the modifier chain onto the recycled component. Asserts
-     * the click still fires after a deactivate/reactivate cycle.
+     * A button deactivated and reactivated via [ReusableContentHost] has a live listener: reactivation
+     * builds a fresh component from the node's own factory and applies the modifier chain to it, wiring
+     * its listener the same way a freshly composed button's is wired. Asserts the click fires on the
+     * fresh button after a deactivate/reactivate cycle.
      */
     @Test
     fun deactivatedButtonReattachesListenerOnReactivation() = runComposeSwingTest {
@@ -93,7 +94,7 @@ class ListenerReattachAfterReuseTest {
         awaitIdle()
 
         button.assertExists().performClick()
-        assertEquals(2, counter, "the reactivated button must still dispatch its onClick")
+        assertEquals(2, counter, "the fresh button reactivation built must dispatch its onClick")
     }
 
     /**

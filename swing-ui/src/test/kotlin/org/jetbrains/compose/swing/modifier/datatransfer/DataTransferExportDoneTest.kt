@@ -7,7 +7,6 @@ import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
-import java.awt.datatransfer.Clipboard
 import java.awt.datatransfer.DataFlavor
 import java.awt.datatransfer.StringSelection
 import java.awt.datatransfer.Transferable
@@ -26,8 +25,6 @@ import kotlin.test.assertNull
  * and observe outcomes through its public export surface. No native peer is required.
  */
 class DataTransferExportDoneTest {
-    private fun localClipboard(): Clipboard = Clipboard("data-transfer-export-done-test")
-
     @Test
     fun cutAndCopyExportTheSameValueDifferingOnlyInTheReportedAction() = runComposeSwingTest {
         var exports = 0

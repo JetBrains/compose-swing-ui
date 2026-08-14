@@ -428,6 +428,25 @@ class SelectionFeedbackTest {
     }
 
     @Test
+    fun aModelTooSmallForTheTableSelectionReportsTheNarrowing() = runComposeSwingTest {
+        var model by mutableStateOf(tableModel("Ada", "Alan", "Grace"))
+        val received = mutableListOf<Set<Int>>()
+        setContent {
+            Table(model = model, onSelectionChange = { received += it })
+        }
+
+        val table = onNodeOfType<JTable>().fetch()
+        table.selectionModel.setSelectionInterval(0, 2)
+        received.clear()
+
+        model = tableModel("Ada", "Alan")
+        awaitIdle()
+
+        assertEquals(listOf(0, 1), table.selectedRows.toList(), "the rows the new model still holds stay selected")
+        assertEquals(listOf(setOf(0, 1)), received, "the rows the user loses are reported once, as the new selection")
+    }
+
+    @Test
     fun aRowsChangeThatDropsADeclaredTableRowReportsNothing() = runComposeSwingTest {
         var rows by mutableStateOf(listOf(Person("Ada", 36), Person("Alan", 41), Person("Grace", 50)))
         var selection by mutableStateOf(setOf(2))
@@ -537,6 +556,25 @@ class SelectionFeedbackTest {
 
         assertEquals(emptyList(), tree.selectedLabels(), "no node of the old selection is left to select")
         assertEquals(listOf(emptySet()), received, "losing the whole selection is reported once")
+    }
+
+    @Test
+    fun aTreeModelThatDropsTheSelectionReportsTheNarrowing() = runComposeSwingTest {
+        var model by mutableStateOf(treeModel("root"))
+        val received = mutableListOf<Set<List<Int>>>()
+        setContent {
+            Tree(model = model, onSelectionChange = { received += it })
+        }
+
+        val tree = onNodeOfType<JTree>().fetch()
+        tree.selectionPaths = arrayOf(tree.pathTo(0), tree.pathTo(1))
+        received.clear()
+
+        model = treeModel("root", leafCount = 1)
+        awaitIdle()
+
+        assertEquals(listOf("apple"), tree.selectedLabels(), "the node the new model still holds stays selected")
+        assertEquals(listOf(setOf(listOf(0))), received, "the node the user loses is reported once")
     }
 
     @Test

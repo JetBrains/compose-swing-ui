@@ -14,11 +14,11 @@ import kotlin.test.Test
 import kotlin.test.assertSame
 
 /**
- * A panel node is recyclable: a parked [ReusableContentHost] child is reactivated onto the component the
- * node already holds, and the node's factory does not run a second time. What a container writes to its
- * component from *outside* that node - a [CardPanel]'s card flip, for one - therefore has to address the
- * component the node holds rather than one the composable made for itself, or the two drift apart and
- * every later declaration lands on a component no longer in the tree.
+ * A parked [ReusableContentHost] child detaches its panel, and reactivation builds a fresh one from the
+ * node's own factory. What a container writes to its component from *outside* that node - a
+ * [CardPanel]'s card flip, for one - therefore has to address the component the node currently holds
+ * rather than one the composable made for itself once, or the two drift apart and every later
+ * declaration lands on a component no longer in the tree.
  */
 class PanelNodeReuseTest {
     /** Asserts the [CardPanel] shows the card labeled [shown] and keeps the one labeled [hidden] down. */

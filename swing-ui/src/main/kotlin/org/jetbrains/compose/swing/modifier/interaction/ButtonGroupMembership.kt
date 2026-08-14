@@ -27,8 +27,8 @@ import javax.swing.ButtonGroup
  * The caller owns the group, and holding it stable - `remember { ButtonGroup() }` - is what keeps the
  * buttons declared with it one choice across recompositions. Membership follows the modifier: declaring
  * a different group moves the button to it, and the button leaves the group when the modifier leaves
- * the chain or the component leaves the composition, is recycled, or parks, so a departed button stops
- * taking part in the exclusion instead of lingering as a hidden member. One button belongs to one
+ * the chain or the component leaves the composition or parks, so a departed button stops taking part
+ * in the exclusion instead of lingering as a hidden member. One button belongs to one
  * group: declaring two on the same chain enrolls it in the last one.
  *
  * A group owns which of its members is selected and only ever moves that selection: a member holds it

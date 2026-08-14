@@ -1,6 +1,5 @@
 package org.jetbrains.compose.swing.components.text
 
-import androidx.compose.runtime.ReusableContentHost
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,8 +38,7 @@ import kotlin.test.assertTrue
  * `DocumentListener` the application supplies stays attached to the document as-is and keeps observing
  * every change, the applied value included.
  *
- * Applying a value the component already holds is skipped, so a re-application does not move the caret.
- * A declared write that throws still leaves the callback reporting the user's later edits.
+ * A declared write that throws leaves the callback reporting the user's later edits.
  *
  * The declaration is the source of truth in both directions: an edit the caller does not answer with a
  * matching value settles back onto the declared one on the pass that carries their answer, so a
@@ -189,30 +187,6 @@ class DeclaredTextPushTest {
             listOf("remove@0", "insert@5"),
             seen,
             "a listener attached as-is observes the applied value as a removal of the document then an insertion",
-        )
-    }
-
-    @Test
-    fun aReactivatedFieldKeepsItsCaretWhereTheUserLeftIt() = runComposeSwingTest {
-        var active by mutableStateOf(true)
-        setContent {
-            ReusableContentHost(active = active) {
-                TextField(value = "hello")
-            }
-        }
-        val field = onNodeOfType<JTextField>()
-        field.fetch().caretPosition = 2
-
-        active = false
-        awaitIdle()
-        active = true
-        awaitIdle()
-
-        field.assertTextEquals("hello")
-        assertEquals(
-            2,
-            field.fetch().caretPosition,
-            "re-applying the text the field already holds must not move the caret",
         )
     }
 

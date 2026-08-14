@@ -227,8 +227,8 @@ internal class TableCellIslands<R>(
  * columns afresh, so the renderers are put on from the element's own update - which every pass runs -
  * rather than once as it attaches. Detaching on release, reuse and deactivate as well as on withdrawal is
  * what gives the columns their own renderers back at the very moment the islands behind their composable
- * cells are disposed: a parked table keeps its place in the Swing tree and goes on painting, and a
- * renderer over a disposed island paints nothing.
+ * cells are disposed: the table may still be asked to size or render a cell directly even once parking
+ * has detached it from the Swing tree, and a renderer over a disposed island paints nothing.
  */
 internal fun SwingModifier.composableColumnCells(cellIslands: TableCellIslands<*>): SwingModifier =
     this then ColumnCellsElement(cellIslands)

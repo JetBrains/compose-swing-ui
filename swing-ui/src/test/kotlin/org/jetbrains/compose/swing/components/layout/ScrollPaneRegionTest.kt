@@ -225,6 +225,7 @@ class ScrollPaneRegionTest {
                         Label(text = "more rows", modifier = SwingModifier.rowHeader())
                     }
                 }
+                awaitIdle()
             }
 
         assertTrue(
@@ -326,6 +327,7 @@ class ScrollPaneRegionTest {
                         Label(text = "second", modifier = SwingModifier.corner(JScrollPane.UPPER_RIGHT_CORNER))
                     }
                 }
+                awaitIdle()
             }
 
         val message = failure.message.orEmpty()

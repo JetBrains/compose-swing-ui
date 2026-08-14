@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.text.EditorPane
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.interaction.documentFilter
+import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JEditorPane
@@ -168,6 +169,40 @@ class DocumentFilterModifierTest {
         field.document.insertString(0, "ab", null)
         awaitIdle()
         assertEquals("AB", field.text, "the restored filter should gate edits again")
+    }
+
+    @Test
+    fun theModifierTakesOverAFilterAlreadyOnTheDocumentFromTheFirstComposition() = runComposeSwingTest {
+        var filtering by mutableStateOf(true)
+        setContent {
+            SwingNode(
+                factory = { JTextField().apply { (document as AbstractDocument).documentFilter = UppercaseFilter } },
+                update = {
+                    applyModifier(if (filtering) SwingModifier.documentFilter(DigitsOnlyFilter) else SwingModifier)
+                },
+            )
+        }
+        val field = onNodeOfType<JTextField>().fetch()
+
+        // The modifier is present on the very first composition, so it gates the first edit too - the
+        // filter the document already carried never gets to run.
+        field.document.insertString(0, "a1b2c3", null)
+        awaitIdle()
+        assertEquals("123", field.text, "the modifier's filter should already be active on the first composition")
+
+        filtering = false
+        awaitIdle()
+
+        // Leaving the chain hands the document back the filter it carried before the modifier ever
+        // attached.
+        val position = field.text.length
+        field.document.insertString(position, "ab", null)
+        awaitIdle()
+        assertEquals(
+            "123AB",
+            field.text,
+            "removing the modifier should restore the filter the document carried before it attached",
+        )
     }
 
     @Test

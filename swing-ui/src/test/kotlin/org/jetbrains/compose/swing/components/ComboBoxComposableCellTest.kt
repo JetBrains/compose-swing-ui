@@ -332,7 +332,7 @@ class ComboBoxComposableCellTest {
     }
 
     @Test
-    fun aParkedComboRendersItsOwnCellsAndStampsTheComposableOneAgainOnReactivation() = runComposeSwingTest {
+    fun aParkedComboRendersItsOwnCellsAndTheFreshOneStampsTheComposableCellAgain() = runComposeSwingTest {
         var active by mutableStateOf(true)
         setContent {
             ReusableContentHost(active = active) {
@@ -345,9 +345,9 @@ class ComboBoxComposableCellTest {
         active = false
         awaitIdle()
 
-        // A parked combo box keeps its place in the Swing tree and goes on painting, while the cell island
-        // behind its composable cell is gone; the renderer it rendered through before that cell is what has
-        // to be back on it by then.
+        // A parked combo box keeps painting through whatever renderer it carries once the cell island
+        // behind its composable cell is gone: the renderer it rendered through before that cell is what
+        // has to be back on it by then.
         val parked = combo.stampCell(index = 0)
         assertTrue(parked is JLabel, "a parked combo box should render items through the renderer of its own")
         assertEquals("red", (parked as JLabel).text, "the combo box's own renderer renders the item's toString")
@@ -358,7 +358,7 @@ class ComboBoxComposableCellTest {
         assertEquals(
             "green",
             onNodeOfType<JComboBox<*>>().fetch<JComboBox<String>>().stampCell(index = 1).firstLabelText(),
-            "a reactivated combo box should stamp the composable cell again",
+            "the fresh combo box should stamp the composable cell",
         )
     }
 }

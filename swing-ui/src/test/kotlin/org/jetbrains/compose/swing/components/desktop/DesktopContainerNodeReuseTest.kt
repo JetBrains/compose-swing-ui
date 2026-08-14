@@ -19,10 +19,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * A desktop container node is recyclable: a parked [ReusableContentHost] child is reactivated onto the
- * component the node already holds, and the node's factory does not run a second time. Every child a
- * later composition declares therefore has to reach that component - the frames of a [DesktopPane] and
- * the layered children of a [LayeredPane] alike, each of them at the depth it stands on.
+ * A parked [ReusableContentHost] child detaches its container, and reactivation builds a fresh one from
+ * the node's own factory. Every child a later composition declares therefore has to reach the component
+ * the node currently holds - the frames of a [DesktopPane] and the layered children of a [LayeredPane]
+ * alike, each of them at the depth it stands on.
  */
 class DesktopContainerNodeReuseTest {
     @Test
