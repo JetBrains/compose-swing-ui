@@ -99,7 +99,7 @@ public class SwingNodeInteraction<out T : Component> internal constructor(
 
     /**
      * Resolves the matched component and returns it typed as [R], for a query that named no type of
-     * its own - or that named a wider one than the component to be driven:
+     * its own, or that named a wider one than the component to be driven.
      *
      * ```
      * onNodeWithText("Save").fetch<JButton>().isDefaultCapable

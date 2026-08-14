@@ -43,4 +43,17 @@ tasks.withType<JavaCompile>().configureEach {
 
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
+    // A test driving Swing can wait on the event dispatch thread for a state the thread it is waiting on
+    // will never reach. Failing such a test on a deadline reports the hang where it happened, instead of
+    // leaving the build to be killed with no result at all. This deadline sits above
+    // runComposeSwingTest's own 60s timeout so that gate's uncompleted-coroutine dump - the more
+    // informative failure - is what a test written against the harness actually sees; this one is the
+    // backstop for a real EDT deadlock, which blocks the thread rather than leaving a coroutine to dump.
+    // A case that legitimately needs longer carries its own `Timeout` annotation; the slowest case in
+    // the suite today takes about five seconds.
+    systemProperty("junit.jupiter.execution.timeout.testable.method.default", "90s")
+    // The deadline is only measured after a test method returns unless the method runs on a thread of its
+    // own, and a deadlocked method never returns. Running each on its own thread is what lets the deadline
+    // interrupt one.
+    systemProperty("junit.jupiter.execution.timeout.thread.mode.default", "SEPARATE_THREAD")
 }

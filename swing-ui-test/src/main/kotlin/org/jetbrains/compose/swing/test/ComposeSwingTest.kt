@@ -334,6 +334,7 @@ public fun ComposeSwingTest.onAllWindows(): SwingWindowInteractionCollection = o
  * @param timeout the wall-clock deadline after which an unfinished [block] fails the test
  * instead of hanging it. The frame caps inside [ComposeSwingTest.awaitIdle] and [ComposeSwingTest.waitUntil]
  * only bound the work those gates drive themselves; this bounds the test as a whole.
+ * @param block the test body, run on the Event Dispatch Thread against a fresh [ComposeSwingTest].
  */
 public fun runComposeSwingTest(
     rootSize: Dimension = Dimension(800, 600),

@@ -54,6 +54,7 @@ public class SwingRecomposer private constructor(
         scope.cancel()
     }
 
+    /** Creates the runtime a component's composition is driven by. */
     @InternalSwingUiApi
     public companion object {
         /**

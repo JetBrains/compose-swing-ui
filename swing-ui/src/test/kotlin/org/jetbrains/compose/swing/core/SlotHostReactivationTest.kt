@@ -44,6 +44,7 @@ class SlotHostReactivationTest {
      *
      * @param beforePark runs once the first composition has settled and before the host is parked, so a
      *   test can hold on to the components composed then and compare them with what it finds afterwards.
+     * @param content the content composed inside the host, and composed again when it comes back.
      */
     private suspend fun ComposeSwingTest.parkAndReactivate(
         beforePark: () -> Unit = {},

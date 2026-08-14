@@ -16,19 +16,25 @@ import java.net.URI
 // Used twice (resolution + the failure message), so kept as a named constant.
 private const val REPOSITORY_SLUG_PROPERTY: String = "repositorySlug"
 
-/** Resolved GitHub repository coordinates used to build the Maven repository URL and POM metadata. */
+/**
+ * Resolved GitHub repository coordinates used to build the Maven repository URL and POM metadata.
+ *
+ * @property owner the account the repository belongs to.
+ * @property name the repository name.
+ * @property webUrl the repository's page, used for POM metadata.
+ * @property host the server host the repository is on.
+ * @property isExplicit whether owner/name came from an explicitly configured slug (gradle property or
+ *   environment) rather than the local-only `<name>/<name>` fallback. Remote publishing requires an
+ *   explicit slug so a fallback-derived POM never leaves the machine.
+ */
 public data class GitHubRepositoryCoordinates(
     val owner: String,
     val name: String,
     val webUrl: String,
     val host: String,
-    /**
-     * Whether owner/name came from an explicitly configured slug (gradle property or environment)
-     * rather than the local-only `<name>/<name>` fallback. Remote publishing requires an explicit
-     * slug so a fallback-derived POM never leaves the machine.
-     */
     val isExplicit: Boolean,
 ) {
+    /** The Maven repository these coordinates publish to. */
     val packagesUrl: String
         get() = "https://maven.pkg.github.com/$owner/$name"
 }

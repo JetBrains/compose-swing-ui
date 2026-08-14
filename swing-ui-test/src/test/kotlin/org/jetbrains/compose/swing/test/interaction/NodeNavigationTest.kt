@@ -30,10 +30,14 @@ import kotlin.test.assertTrue
  */
 class NodeNavigationTest {
     /**
+     * Composes the tree these tests navigate.
+     *
+     * ```
      * root
      *   box
      *     left  -> alpha, beta
      *     solo
+     * ```
      */
     private fun ComposeSwingTest.setNestedContent() {
         setContent {

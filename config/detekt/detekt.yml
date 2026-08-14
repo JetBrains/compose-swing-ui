@@ -1,6 +1,31 @@
 config:
   warningsAsErrors: true
 
+comments:
+  DeprecatedBlockTag:
+    active: true
+  EndOfSentenceFormat:
+    active: true
+  KDocReferencesNonPublicProperty:
+    active: true
+  OutdatedDocumentation:
+    active: true
+    # A type parameter is named by the signature it appears in - `ListBox<T>(items: List<T>)` already
+    # says what T is - so only value parameters have to be documented.
+    matchTypeParameters: false
+  # detekt's default excludes match any path with a `test` directory segment, which would exempt
+  # swing-ui-test's `org.jetbrains.compose.swing.test` production package by accident; scope the
+  # exclude to the test source set instead so a published module named "test" stays covered.
+  UndocumentedPublicClass:
+    active: true
+    excludes: ["**/src/test/**"]
+  UndocumentedPublicFunction:
+    active: true
+    excludes: ["**/src/test/**"]
+  UndocumentedPublicProperty:
+    active: true
+    excludes: ["**/src/test/**"]
+
 complexity:
   LongParameterList:
     # Many-parameter @Composable component wrappers are the idiomatic Compose pattern (CMP's own

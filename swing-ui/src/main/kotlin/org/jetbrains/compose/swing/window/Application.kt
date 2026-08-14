@@ -70,6 +70,7 @@ import kotlin.system.exitProcess
  * The explicit exit ends the process immediately instead of waiting for background threads to wind
  * down. If `false`, the execution of the function is unblocked after the application exits
  * (when the last window is closed, and all [androidx.compose.runtime.LaunchedEffect]s are complete).
+ * @param content the application's content, composed against an [ApplicationScope].
  * @see [awaitApplication]
  */
 public fun application(
@@ -190,7 +191,7 @@ public suspend fun awaitApplication(content: @Composable ApplicationScope.() -> 
 }
 
 /**
- * Scope used by [application], [awaitApplication], [launchApplication]
+ * Scope used by [application], [awaitApplication] and [launchApplication].
  */
 @Stable
 public sealed interface ApplicationScope {

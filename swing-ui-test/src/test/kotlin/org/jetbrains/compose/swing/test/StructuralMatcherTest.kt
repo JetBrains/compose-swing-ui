@@ -17,10 +17,14 @@ import kotlin.test.assertEquals
  */
 class StructuralMatcherTest {
     /**
+     * Composes the tree these tests match against.
+     *
+     * ```
      * root
      *   box
      *     left  -> alpha, beta
      *     right -> gamma
+     * ```
      */
     private fun ComposeSwingTest.setNestedContent() {
         setContent {

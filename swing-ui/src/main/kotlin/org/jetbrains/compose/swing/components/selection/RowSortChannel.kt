@@ -17,7 +17,7 @@ import javax.swing.table.TableRowSorter
 
 /**
  * One table's row-sorting channel: the sorter that orders and filters the table's rows while sorting is on,
- * and the [listener] through which the user's own header clicks reach the caller's [target] listener.
+ * and the listener through which the user's own header clicks reach the caller's [target] listener.
  *
  * A sorter is welded to the model it was built for - it holds that model's row count and answers that
  * model's events - so it comes off before the table takes another model and is built again over the model

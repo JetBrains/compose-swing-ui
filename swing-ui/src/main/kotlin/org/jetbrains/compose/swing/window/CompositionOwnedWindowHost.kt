@@ -49,18 +49,31 @@ import javax.swing.SwingUtilities
  * teardown, so a caller can interleave its own steps (for example, hiding a modal dialog before it is
  * disposed).
  *
+ * @param peer the top-level window this composition owns.
+ * @param onCloseRequest called when the window system reports a closing gesture.
+ * @param title the window title.
+ * @param resizable whether the user may resize the window.
+ * @param alwaysOnTop whether the window stays above the windows of other applications.
+ * @param iconImage the window icon, or `null` to leave whatever the platform shows.
+ * @param minimumSize the smallest size the user may resize the window to, or `null` for none.
  * @param applyDeclaredGeometry pushes the geometry the hoisted state holds onto the peer, reading that
  *   state as it runs. It runs on every recomposition and again whenever the state it read changes, so
  *   what it reads is what drives the peer - a value read anywhere else is applied only as often as the
  *   composable that read it recomposes.
- * @param applyExtras applies whatever this kind of peer carries alongside its geometry, reading the
- *   hoisted state the same way [applyDeclaredGeometry] does.
+ * @param setPosition carries a position the window system reports back into the hoisted state.
+ * @param setSize carries a size the window system reports back into the hoisted state.
+ * @param appliedGeometry the mirror that tells the peer's own moves and resizes from the ones applied
+ *   to it, so only the former are carried back.
  * @param installExtras registers any additional listeners in the same [DisposableEffect] as the wiring
  *   installed here, and returns their removal. It runs once per peer, while the state a listener writes
  *   into is declared afresh on every recomposition, so a listener it installs has to reach that state
  *   through a handle the recomposition refreshes - `rememberUpdatedState`. A listener that captures the
  *   state declared when the peer was wired keeps writing into the one the caller has moved on from,
  *   instead of the one a caller that hoists its state somewhere else has moved to.
+ * @param applyExtras applies whatever this kind of peer carries alongside its geometry, reading the
+ *   hoisted state the same way [applyDeclaredGeometry] does.
+ * @param disposePeer disposes the peer, at the very end of teardown.
+ * @param content the window's content, composed against a [WindowScope] standing for [peer].
  */
 @Composable
 internal fun CompositionOwnedWindowHost(

@@ -11,12 +11,13 @@ import kotlin.math.pow
  * @property statistics a one-line, human-readable summary of the comparison.
  * @property diff an image highlighting differing pixels in magenta over a transparent background,
  *   or `null` when the images match.
+ * @property differentPixelCount the number of differing pixels when known (the pixel-exact matcher),
+ *   or `-1` when not computed.
  */
 internal data class MatchResult(
     val matches: Boolean,
     val statistics: String,
     val diff: BufferedImage?,
-    /** Number of differing pixels when known (the pixel-exact matcher), or `-1` when not computed. */
     val differentPixelCount: Int = -1,
 )
 
