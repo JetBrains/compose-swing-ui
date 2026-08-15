@@ -28,3 +28,16 @@ internal fun parentChangeListener(onParentChanged: (Component) -> Unit): Hierarc
             onParentChanged(event.component)
         }
     }
+
+/**
+ * Reports [onShowingChanged] whenever the component starts or stops being on screen - with the component
+ * itself, since a listener outlives no particular one.
+ *
+ * Both directions are reported, so a caller after one of them reads `isShowing` to tell which this is.
+ */
+internal fun showingChangeListener(onShowingChanged: (Component) -> Unit): HierarchyListener =
+    HierarchyListener { event ->
+        if (event.changeFlags and HierarchyEvent.SHOWING_CHANGED.toLong() != 0L) {
+            onShowingChanged(event.component)
+        }
+    }

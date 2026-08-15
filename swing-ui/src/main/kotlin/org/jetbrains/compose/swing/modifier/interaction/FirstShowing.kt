@@ -1,11 +1,10 @@
 package org.jetbrains.compose.swing.modifier.interaction
 
 import java.awt.Component
-import java.awt.event.HierarchyEvent
 import java.awt.event.HierarchyListener
 
 /**
- * A single-shot wait for a component to be on screen.
+ * The first moment a component is on screen, as something to hand work to.
  *
  * A component is declared long before its window is realized, so anything that needs the component to
  * be showing - focus, which has no peer to grant it until then, a popup, which has nowhere to anchor
@@ -14,7 +13,7 @@ import java.awt.event.HierarchyListener
  *
  * One wait is in flight at a time: starting another, or canceling, ends the one before it.
  */
-internal class ShowingWait {
+internal class FirstShowing {
     // The component the pending listener is registered on, or null while no wait is in flight.
     private var target: Component? = null
 
@@ -28,7 +27,7 @@ internal class ShowingWait {
      * [org.jetbrains.compose.swing.modifier.SwingModifier.Node]'s component is only its own between
      * attach and detach, and a reused node meets a different one.
      */
-    fun awaitShowing(
+    fun await(
         component: Component,
         action: () -> Unit,
     ) {
@@ -38,10 +37,10 @@ internal class ShowingWait {
             return
         }
         val listener =
-            HierarchyListener { event ->
+            showingChangeListener {
                 // A showing change also reports a hide, so the component itself decides which report this
                 // wait was after.
-                if (event.changeFlags and HierarchyEvent.SHOWING_CHANGED.toLong() != 0L && component.isShowing) {
+                if (component.isShowing) {
                     cancel()
                     action()
                 }

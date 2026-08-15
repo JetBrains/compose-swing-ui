@@ -152,7 +152,7 @@ private class PopupMenuElement(
 
         private var open: MenuPopup? = null
 
-        private val showing = ShowingWait()
+        private val showing = FirstShowing()
 
         // The declaration this node has applied, so only a change of it opens or closes the menu: a menu
         // the user dismissed is not reopened by an unrelated recomposition, and a declaration that has
@@ -174,7 +174,7 @@ private class PopupMenuElement(
         // A menu declared open from the start is declared against a component that is not showing yet, and
         // waits: a popup is anchored to its invoker, and a component that is not showing has no place on
         // screen to anchor to.
-        private fun show(): Unit = showing.awaitShowing(component) { present() }
+        private fun show(): Unit = showing.await(component) { present() }
 
         private fun present() {
             val menu = MenuPopup(parentContext, content, onClosed = ::onMenuClosed)
