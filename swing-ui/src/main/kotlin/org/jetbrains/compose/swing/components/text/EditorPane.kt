@@ -5,12 +5,12 @@ package org.jetbrains.compose.swing.components.text
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.constants.ContentType
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.hyperlinkListener
+import org.jetbrains.compose.swing.modifier.listener.liveCallbackListener
 import org.jetbrains.compose.swing.node.AppliedValue
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.rememberAppliedValue
@@ -57,17 +57,9 @@ public fun EditorPane(
     baseUrl: URL? = null,
     onLinkActivate: (String) -> Unit = {},
 ) {
-    val callback = rememberUpdatedState(onLinkActivate)
-    val listener =
-        remember {
-            HyperlinkListener { event ->
-                if (event.eventType == HyperlinkEvent.EventType.ACTIVATED) callback.value(event.description)
-            }
-        }
-    EditorPane(
+    RenderedPaneNode(
         markup = markup,
-        hyperlinkListener = listener,
-        modifier = modifier,
+        modifier = modifier.onLinkActivate(onLinkActivate),
         contentType = contentType,
         baseUrl = baseUrl,
     )
@@ -97,6 +89,25 @@ public fun EditorPane(
     @ContentType contentType: String = "text/plain",
     baseUrl: URL? = null,
 ) {
+    RenderedPaneNode(
+        markup = markup,
+        modifier = modifier.hyperlinkListener(hyperlinkListener),
+        contentType = contentType,
+        baseUrl = baseUrl,
+    )
+}
+
+/**
+ * The `JEditorPane` node both rendering [EditorPane] overloads render; [modifier] already carries the
+ * pane's link wiring.
+ */
+@Composable
+private fun RenderedPaneNode(
+    markup: @Nls String,
+    modifier: SwingModifier,
+    @ContentType contentType: String,
+    baseUrl: URL?,
+) {
     // The kit is held across recompositions so the pane can tell the one it already has from a new one:
     // the registry clones per call, and a pane asked for its content type answers with what its kit calls
     // itself, which need not be the type it was registered under - `application/rtf` reports `text/rtf`.
@@ -115,10 +126,26 @@ public fun EditorPane(
                 (document as? HTMLDocument)?.base = source.baseUrl
                 this.text = source.markup
             }
-            applyModifier(modifier.hyperlinkListener(hyperlinkListener))
+            applyModifier(modifier)
         },
     )
 }
+
+/**
+ * Installs one [HyperlinkListener] reporting the raw `href` of an activated link to the
+ * [onLinkActivate] the current composition declares.
+ */
+private fun SwingModifier.onLinkActivate(onLinkActivate: (String) -> Unit): SwingModifier =
+    liveCallbackListener<JEditorPane, (String) -> Unit, HyperlinkListener>(
+        callback = onLinkActivate,
+        adapter = { current ->
+            HyperlinkListener { event ->
+                if (event.eventType == HyperlinkEvent.EventType.ACTIVATED) current()(event.description)
+            }
+        },
+        attach = { pane, listener -> pane.addHyperlinkListener(listener) },
+        detach = { pane, listener -> pane.removeHyperlinkListener(listener) },
+    )
 
 /**
  * The source a rendered [EditorPane] shows: the kit reading its language, base location, and markup.
@@ -194,7 +221,9 @@ public fun EditorPane(
  *
  * This pane is strictly controlled: text the pane settles on that [onValueChange] does not answer with
  * a matching [value] is settled back onto the declared value on the very next pass, so the pane never
- * ends up holding text the caller has not adopted.
+ * ends up holding text the caller has not adopted. Settling back rewrites the whole document, which
+ * leaves the caret at its end - a callback that filters a keystroke rather than adopting it sees the
+ * caret jump there on every rejected edit.
  *
  * For incremental editing over a shared `Document`, undo/redo, or observing the text as a flow, drive the
  * pane with the [DocumentState] overload ([TextPane]) and a [DocumentState] from `rememberDocumentState`.
@@ -214,13 +243,11 @@ public fun TextPane(
     onValueChange: (@Nls String) -> Unit = {},
     editable: Boolean = true,
 ) {
-    val callback = rememberUpdatedState(onValueChange)
     val applied = rememberAppliedValue(value)
-    val listener = rememberUserEditListener(applied, callback)
     TextPaneNode(
         value = value,
         applied = applied,
-        modifier = modifier.swappableDocumentListener(listener),
+        modifier = modifier.onTextEdit(applied, onValueChange),
         editable = editable,
     )
 }
@@ -253,11 +280,10 @@ public fun TextPane(
     editable: Boolean = true,
 ) {
     val applied = rememberAppliedValue(value)
-    val mirror = rememberTextMirrorListener(applied)
     TextPaneNode(
         value = value,
         applied = applied,
-        modifier = modifier.swappableDocumentListener(documentListener).textMirrorBinding(mirror),
+        modifier = modifier.swappableDocumentListener(documentListener).textMirror(applied),
         editable = editable,
     )
 }

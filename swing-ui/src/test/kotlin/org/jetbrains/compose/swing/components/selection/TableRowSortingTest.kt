@@ -195,6 +195,28 @@ class TableRowSortingTest {
     }
 
     @Test
+    fun aFilterDeclaredInTheSamePassAsASelectionChangeStillReachesTheSorter() = runComposeSwingTest {
+        var filter by mutableStateOf<RowFilter<in TableModel, in Int>?>(null)
+        var selection by mutableStateOf(setOf(0))
+        setContent {
+            Table(rows = people, selectedRowIndices = selection, sortable = true, rowFilter = filter) {
+                column("Name") { it.name }
+            }
+        }
+
+        val table = onNodeOfType<JTable>().fetch()
+        assertEquals(people.map { it.name }, table.shownNames(), "every row is shown before a filter is declared")
+
+        filter = RowFilter.regexFilter<TableModel, Int>("Ada", 0)
+        selection = setOf(1)
+        awaitIdle()
+
+        val installed: Any? = (table.rowSorter as TableRowSorter<*>).rowFilter
+        assertSame(filter, installed, "a filter declared alongside a selection change should still reach the sorter")
+        assertEquals(listOf("Ada"), table.shownNames(), "and be applied to the rows the table shows")
+    }
+
+    @Test
     fun sortingByAColumnHeaderReachesOnSortChange() = runComposeSwingTest {
         val received = mutableListOf<List<SortKey>>()
         setContent {

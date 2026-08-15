@@ -4,15 +4,13 @@
 package org.jetbrains.compose.swing.components
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.State
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.constants.Orientation
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.changeListener
-import org.jetbrains.compose.swing.modifier.listener.listener
+import org.jetbrains.compose.swing.modifier.listener.liveCallbackListener
 import org.jetbrains.compose.swing.node.AppliedValue
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
@@ -78,9 +76,9 @@ public fun Slider(
     snapToTicks: Boolean = false,
 ) {
     val applied = rememberAppliedValue(value)
-    val channel = rememberSliderValueChannel(applied, applied, value, onValueChange, onValueSettled)
+    val channel = rememberSliderValueChannel(applied, applied, value)
     SliderNode(
-        modifier = modifier.changeListener(channel.listener),
+        modifier = modifier.onSliderValue { slider -> channel.publish(slider, onValueChange, onValueSettled) },
         labelRange = min..max,
         orientation = orientation,
         inverted = inverted,
@@ -98,9 +96,20 @@ public fun Slider(
         set(max) { applied.write { this.maximum = it } }
         // A slider left on a value of its own is where the composition's declaration ended up, and the
         // callbacks are the only way the caller learns of it.
-        declare(value, applied, JSlider::getValue, JSlider::setValue) { settled -> channel.settledOn(settled) }
+        declare(value, applied, JSlider::getValue, JSlider::setValue) { settled ->
+            channel.settledOn(settled, onValueChange, onValueSettled)
+        }
     }
 }
+
+/** Runs [report] with the slider each time it publishes a value. */
+private fun SwingModifier.onSliderValue(report: (JSlider) -> Unit): SwingModifier =
+    liveCallbackListener<JSlider, (JSlider) -> Unit, ChangeListener>(
+        report,
+        { current -> ChangeListener { event -> current()(event.source as JSlider) } },
+        { slider, listener -> slider.addChangeListener(listener) },
+        { slider, listener -> slider.removeChangeListener(listener) },
+    )
 
 /**
  * A composable wrapper for JSlider driven by a raw [ChangeListener] instead of the `onValueChange` and
@@ -144,26 +153,8 @@ public fun Slider(
     snapToTicks: Boolean = false,
 ) {
     val applied = rememberAppliedValue(value)
-    // The caller's listener is attached as-is, and is the only change listener on the slider. The mirror
-    // rides the model's own channel instead, so the slider's listener list is the caller's alone.
-    val mirror =
-        remember(applied) {
-            ChangeListener { event ->
-                // Only the value a drag settles on is mirrored: mirroring one it passes through would
-                // invalidate this composition, and re-assert the declaration, before the user has let go.
-                val model = event.source as BoundedRangeModel
-                if (!model.valueIsAdjusting) applied.observed(model.value)
-            }
-        }
     SliderNode(
-        modifier =
-            modifier
-                .changeListener(changeListener)
-                .listener<JSlider, ChangeListener>(
-                    mirror,
-                    { slider, listener -> slider.model.addChangeListener(listener) },
-                    { slider, listener -> slider.model.removeChangeListener(listener) },
-                ),
+        modifier = modifier.changeListener(changeListener).sliderValueMirror(applied),
         labelRange = min..max,
         orientation = orientation,
         inverted = inverted,
@@ -180,6 +171,26 @@ public fun Slider(
         declare(value, applied, JSlider::getValue, JSlider::setValue)
     }
 }
+
+/**
+ * Feeds [applied]'s mirror the value the slider settles on. It rides the slider's `BoundedRangeModel`
+ * rather than the slider itself, so the slider's own listener list stays the caller's alone.
+ *
+ * A value a drag passes through is not mirrored: it would invalidate the composition, and re-assert the
+ * declaration, before the user has let go.
+ */
+private fun SwingModifier.sliderValueMirror(applied: AppliedValue<Int>): SwingModifier =
+    liveCallbackListener<JSlider, AppliedValue<Int>, ChangeListener>(
+        applied,
+        { current ->
+            ChangeListener { event ->
+                val model = event.source as BoundedRangeModel
+                if (!model.valueIsAdjusting) current().observed(model.value)
+            }
+        },
+        { slider, listener -> slider.model.addChangeListener(listener) },
+        { slider, listener -> slider.model.removeChangeListener(listener) },
+    )
 
 /**
  * A composable wrapper for JSlider driven by a caller-owned [BoundedRangeModel]. The model owns the value
@@ -235,11 +246,10 @@ public fun Slider(
 ) {
     // Nothing is declared over a caller's model, so there is no mirror for the channel to settle against
     // and every value the slider publishes is the model's own.
-    val channel = rememberSliderValueChannel(null, model, model.value, onValueChange, onValueSettled)
-    Slider(
+    val channel = rememberSliderValueChannel(null, model, model.value)
+    ModelSliderNode(
         model = model,
-        changeListener = channel.listener,
-        modifier = modifier,
+        modifier = modifier.onSliderValue { slider -> channel.publish(slider, onValueChange, onValueSettled) },
         orientation = orientation,
         inverted = inverted,
         majorTickSpacing = majorTickSpacing,
@@ -288,8 +298,39 @@ public fun Slider(
     labels: Map<Int, @Nls String>? = null,
     snapToTicks: Boolean = false,
 ) {
-    SliderNode(
+    ModelSliderNode(
+        model = model,
         modifier = modifier.changeListener(changeListener),
+        orientation = orientation,
+        inverted = inverted,
+        majorTickSpacing = majorTickSpacing,
+        minorTickSpacing = minorTickSpacing,
+        paintTicks = paintTicks,
+        paintLabels = paintLabels,
+        labels = labels,
+        snapToTicks = snapToTicks,
+    )
+}
+
+/**
+ * The `JSlider` node the model-driven [Slider] overloads render, with [modifier] already carrying every
+ * listener the slider needs.
+ */
+@Composable
+private fun ModelSliderNode(
+    model: BoundedRangeModel,
+    modifier: SwingModifier,
+    @Orientation orientation: Int,
+    inverted: Boolean,
+    majorTickSpacing: Int,
+    minorTickSpacing: Int,
+    paintTicks: Boolean,
+    paintLabels: Boolean,
+    labels: Map<Int, @Nls String>?,
+    snapToTicks: Boolean,
+) {
+    SliderNode(
+        modifier = modifier,
         // The range Swing's own labels are generated over is the model's, read as it stands: a range the
         // caller moves inside the model reaches the labels through the slider's own regeneration.
         labelRange = model.minimum..model.maximum,
@@ -361,13 +402,14 @@ private fun SliderNode(
 }
 
 /**
- * One slider's value channel: the value the caller and the slider currently agree on, whether a drag is
- * underway, and the [listener] the slider's own values reach the caller through.
+ * One slider's value channel: the value the caller and the slider currently agree on, and whether a drag
+ * is underway. The callbacks the values reach the caller through are passed in per event, so the channel
+ * outlives a recomposition that declares new ones.
  *
  * A drag publishes a value per step before it settles, and only the value it settles on is mirrored into
  * [applied] - mirroring one it passes through would invalidate the composition, and re-assert the
- * declaration, before the user has let go. Every step still reaches [onValueChange], since following the
- * drag is what that channel is for, while [onValueSettled] hears the value the drag ends on - which is news
+ * declaration, before the user has let go. Every step still reaches `onValueChange`, since following the
+ * drag is what that channel is for, while `onValueSettled` hears the value the drag ends on - which is news
  * even where the caller already adopted it, because the release is what it reports.
  *
  * A `null` [applied] is a caller-owned model: nothing is declared over it, so nothing tells the wrapper's
@@ -376,26 +418,30 @@ private fun SliderNode(
 private class SliderValueChannel(
     private val applied: AppliedValue<Int>?,
     agreed: Int,
-    private val onValueChange: State<(Int) -> Unit>,
-    private val onValueSettled: State<(Int) -> Unit>,
 ) {
     private var agreed: Int = agreed
     private var adjusting: Boolean = false
-
-    /** Reports the values the slider publishes. Install it on the slider. */
-    val listener: ChangeListener = ChangeListener { event -> publish(event.source as JSlider) }
 
     /**
      * Reports [value] as the value the slider answered a declaration with, on both channels: it is where
      * the declaration ended up, and the caller hears of it here or not at all.
      */
-    fun settledOn(value: Int) {
+    fun settledOn(
+        value: Int,
+        onValueChange: (Int) -> Unit,
+        onValueSettled: (Int) -> Unit,
+    ) {
         agreed = value
-        onValueChange.value(value)
-        onValueSettled.value(value)
+        onValueChange(value)
+        onValueSettled(value)
     }
 
-    private fun publish(slider: JSlider) {
+    /** Reports a value the slider published, on the channels it is news on. */
+    fun publish(
+        slider: JSlider,
+        onValueChange: (Int) -> Unit,
+        onValueSettled: (Int) -> Unit,
+    ) {
         val value = slider.value
         val isAdjusting = slider.valueIsAdjusting
         val released = adjusting && !isAdjusting
@@ -403,15 +449,14 @@ private class SliderValueChannel(
         if (!isAdjusting) applied?.observed(value)
         val isNews = value != agreed && applied?.isWriting != true
         agreed = value
-        if (isNews) onValueChange.value(value)
-        if (!isAdjusting && (isNews || released)) onValueSettled.value(value)
+        if (isNews) onValueChange(value)
+        if (!isAdjusting && (isNews || released)) onValueSettled(value)
     }
 }
 
 /**
  * Remembers the [SliderValueChannel] the lambda-driven overloads report through, seeded with [value] so
- * the first value the slider publishes is measured against what the composition declares. The callbacks are
- * tracked through [rememberUpdatedState], so the latest ones are invoked without the channel being rebuilt.
+ * the first value the slider publishes is measured against what the composition declares.
  *
  * [range] is what the channel measures values against - the [AppliedValue] a declared value settles
  * through, or a caller's own model. A slider given a different model is measuring against a different
@@ -423,13 +468,7 @@ private fun rememberSliderValueChannel(
     applied: AppliedValue<Int>?,
     range: Any?,
     value: Int,
-    onValueChange: (Int) -> Unit,
-    onValueSettled: (Int) -> Unit,
-): SliderValueChannel {
-    val change = rememberUpdatedState(onValueChange)
-    val settled = rememberUpdatedState(onValueSettled)
-    return remember(range) { SliderValueChannel(applied, value, change, settled) }
-}
+): SliderValueChannel = remember(range) { SliderValueChannel(applied, value) }
 
 /**
  * What the labels a slider paints are derived from: the declared map, or - where none is declared - the

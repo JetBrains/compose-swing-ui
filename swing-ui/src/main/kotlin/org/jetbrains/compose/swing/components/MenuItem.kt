@@ -4,12 +4,11 @@
 package org.jetbrains.compose.swing.components
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.listener
+import org.jetbrains.compose.swing.modifier.listener.liveCallbackListener
 import org.jetbrains.compose.swing.node.MenuNode
 import java.awt.event.ActionListener
 import javax.swing.JMenuItem
@@ -32,9 +31,7 @@ public fun MenuItem(
     accelerator: KeyStroke? = null,
     onClick: () -> Unit = {},
 ) {
-    val callback = rememberUpdatedState(onClick)
-    val listener = remember { ActionListener { callback.value() } }
-    MenuItem(text = text, actionListener = listener, modifier = modifier, accelerator = accelerator)
+    MenuItemNode(text = text, accelerator = accelerator, modifier = modifier.onMenuAction(onClick))
 }
 
 /**
@@ -56,18 +53,46 @@ public fun MenuItem(
     modifier: SwingModifier = SwingModifier,
     accelerator: KeyStroke? = null,
 ) {
+    MenuItemNode(
+        text = text,
+        accelerator = accelerator,
+        modifier =
+            modifier.listener<JMenuItem, ActionListener>(
+                actionListener,
+                { c, l -> c.addActionListener(l) },
+                { c, l -> c.removeActionListener(l) },
+            ),
+    )
+}
+
+/**
+ * The `JMenuItem` node both [MenuItem] overloads render. [modifier] already carries the item's
+ * activation channel, whichever of the two the overload driving it uses.
+ */
+@Composable
+private fun MenuItemNode(
+    text: @Nls String,
+    accelerator: KeyStroke?,
+    modifier: SwingModifier,
+) {
     MenuNode(
         factory = { JMenuItem() },
         update = {
             set(text) { this.text = it }
             set(accelerator) { this.accelerator = it }
-            applyModifier(
-                modifier.listener<JMenuItem, ActionListener>(
-                    actionListener,
-                    { c, l -> c.addActionListener(l) },
-                    { c, l -> c.removeActionListener(l) },
-                ),
-            )
+            applyModifier(modifier)
         },
     )
 }
+
+/**
+ * Runs [onClick] when the menu item is activated, reading the callback the current composition
+ * declares, so a lambda written inline needs no `remember`.
+ */
+private fun SwingModifier.onMenuAction(onClick: () -> Unit): SwingModifier =
+    liveCallbackListener<JMenuItem, () -> Unit, ActionListener>(
+        onClick,
+        { current -> ActionListener { current().invoke() } },
+        { c, l -> c.addActionListener(l) },
+        { c, l -> c.removeActionListener(l) },
+    )

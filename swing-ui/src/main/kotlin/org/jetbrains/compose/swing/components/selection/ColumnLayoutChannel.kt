@@ -118,26 +118,24 @@ internal fun rememberColumnLayoutChannel(listener: TableColumnModelListener?): C
 }
 
 /**
- * A stable [TableColumnModelListener] that forwards the layout the columns were left in to
+ * The [TableColumnModelListener] forwarding the layout the columns were left in to
  * [onColumnLayoutChange], bridging a lambda-based [Table] overload to the raw-listener overload it
  * delegates to. A column event's source is the column model, so the layout is read back from it.
+ *
+ * Rebuilt per pass rather than remembered: it is never registered on a component, and a
+ * [ColumnLayoutChannel] reads its target listener live.
  */
-@Composable
-internal fun rememberColumnLayoutListener(onColumnLayoutChange: (TableColumnLayout) -> Unit): TableColumnModelListener {
-    val callback = rememberUpdatedState(onColumnLayoutChange)
-    return remember {
-        object : TableColumnModelListener {
-            override fun columnAdded(event: TableColumnModelEvent) = Unit
+internal fun columnLayoutListener(onColumnLayoutChange: (TableColumnLayout) -> Unit): TableColumnModelListener =
+    object : TableColumnModelListener {
+        override fun columnAdded(event: TableColumnModelEvent) = Unit
 
-            override fun columnRemoved(event: TableColumnModelEvent) = Unit
+        override fun columnRemoved(event: TableColumnModelEvent) = Unit
 
-            override fun columnMoved(event: TableColumnModelEvent) = report(event.source)
+        override fun columnMoved(event: TableColumnModelEvent) = report(event.source)
 
-            override fun columnMarginChanged(event: ChangeEvent) = report(event.source)
+        override fun columnMarginChanged(event: ChangeEvent) = report(event.source)
 
-            override fun columnSelectionChanged(event: ListSelectionEvent) = Unit
+        override fun columnSelectionChanged(event: ListSelectionEvent) = Unit
 
-            private fun report(source: Any) = callback.value((source as TableColumnModel).readColumnLayout())
-        }
+        private fun report(source: Any) = onColumnLayoutChange((source as TableColumnModel).readColumnLayout())
     }
-}

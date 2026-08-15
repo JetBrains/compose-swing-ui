@@ -5,7 +5,6 @@ package org.jetbrains.compose.swing.components.selection
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.compose.swing.constants.AutoResizeMode
 import org.jetbrains.compose.swing.constants.SelectionMode
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -101,7 +100,8 @@ import javax.swing.table.TableModel
  *   order [rows] declares and its column headers inert
  * @param sortKeys the sort order the caller declares; `null` - the default - leaves the order to the user
  * @param onSortChange callback invoked with the order the user's header click leaves the rows in
- * @param rowFilter which of the rows the table shows, or `null` - the default - to show all of them
+ * @param rowFilter which of the rows the table shows, or `null` - the default - to show all of them; a
+ *   filter is adopted by identity, so pass a stable one (e.g. `remember {}`) to avoid churn
  * @param rowHeight the height in pixels of every row; `null` - the default - leaves it to the look and feel
  * @param autoResizeMode how the columns share out a change to the table's width
  * @param fillsViewportHeight whether the table stretches to the full height of the viewport showing it,
@@ -132,7 +132,7 @@ public fun <R> Table(
 ) {
     Table(
         rows = rows,
-        listSelectionListener = rememberSettledSelectionListener(onSelectionChange),
+        listSelectionListener = settledSelectionListener(onSelectionChange),
         modifier = modifier,
         selectedRowIndices = selectedRowIndices,
         selectionMode = selectionMode,
@@ -144,7 +144,7 @@ public fun <R> Table(
         autoResizeMode = autoResizeMode,
         fillsViewportHeight = fillsViewportHeight,
         columnLayout = columnLayout,
-        tableColumnModelListener = rememberColumnLayoutListener(onColumnLayoutChange),
+        tableColumnModelListener = columnLayoutListener(onColumnLayoutChange),
         block = block,
     )
 }
@@ -174,7 +174,8 @@ public fun <R> Table(
  * @param sortKeys the sort order the caller declares; `null` - the default - leaves the order to the user
  * @param rowSorterListener the listener notified of the user's sort-order changes; `null` - the default -
  *   reports none of them
- * @param rowFilter which of the rows the table shows, or `null` - the default - to show all of them
+ * @param rowFilter which of the rows the table shows, or `null` - the default - to show all of them; a
+ *   filter is adopted by identity, so pass a stable one (e.g. `remember {}`) to avoid churn
  * @param rowHeight the height in pixels of every row; `null` - the default - leaves it to the look and feel
  * @param autoResizeMode how the columns share out a change to the table's width
  * @param fillsViewportHeight whether the table stretches to the full height of the viewport showing it,
@@ -400,7 +401,8 @@ private class UserSelectionListenerElement(
  *   order [model] holds them in and its column headers inert
  * @param sortKeys the sort order the caller declares; `null` - the default - leaves the order to the user
  * @param onSortChange callback invoked with the order the user's header click leaves the rows in
- * @param rowFilter which of the rows the table shows, or `null` - the default - to show all of them
+ * @param rowFilter which of the rows the table shows, or `null` - the default - to show all of them; a
+ *   filter is adopted by identity, so pass a stable one (e.g. `remember {}`) to avoid churn
  * @param rowHeight the height in pixels of every row; `null` - the default - leaves it to the look and feel
  * @param autoResizeMode how the columns share out a change to the table's width
  * @param fillsViewportHeight whether the table stretches to the full height of the viewport showing it,
@@ -429,7 +431,7 @@ public fun Table(
 ) {
     Table(
         model = model,
-        listSelectionListener = rememberSettledSelectionListener(onSelectionChange),
+        listSelectionListener = settledSelectionListener(onSelectionChange),
         modifier = modifier,
         selectedRowIndices = selectedRowIndices,
         selectionMode = selectionMode,
@@ -441,7 +443,7 @@ public fun Table(
         autoResizeMode = autoResizeMode,
         fillsViewportHeight = fillsViewportHeight,
         columnLayout = columnLayout,
-        tableColumnModelListener = rememberColumnLayoutListener(onColumnLayoutChange),
+        tableColumnModelListener = columnLayoutListener(onColumnLayoutChange),
     )
 }
 
@@ -469,7 +471,8 @@ public fun Table(
  * @param sortKeys the sort order the caller declares; `null` - the default - leaves the order to the user
  * @param rowSorterListener the listener notified of the user's sort-order changes; `null` - the default -
  *   reports none of them
- * @param rowFilter which of the rows the table shows, or `null` - the default - to show all of them
+ * @param rowFilter which of the rows the table shows, or `null` - the default - to show all of them; a
+ *   filter is adopted by identity, so pass a stable one (e.g. `remember {}`) to avoid churn
  * @param rowHeight the height in pixels of every row; `null` - the default - leaves it to the look and feel
  * @param autoResizeMode how the columns share out a change to the table's width
  * @param fillsViewportHeight whether the table stretches to the full height of the viewport showing it,
@@ -592,6 +595,10 @@ private fun TableNode(
             set(autoResizeMode) { mode -> this.autoResizeMode = mode }
             set(fillsViewportHeight) { fills -> this.fillsViewportHeight = fills }
             installContent(appliedSelection, appliedColumn, sortChannel, columnChannel)
+            // declareRowFilter and the plain-selection declare() below share appliedSelection's pass claim
+            // (see RowSortChannel.declareRowFilter), so whichever runs first on a pass wins it and the other
+            // is a no-op. That is only correct because declareRowFilter's install() already does everything
+            // the selection declare() would - this call must stay ahead of it in this block.
             declareRowFilter(sortChannel, rowFilter, appliedSelection, selectedRowIndices, listSelectionListener)
             // Run on every pass regardless of whether a sort order or a selection is declared, so the set
             // calls these make always number the same and no later slot in this block shifts when one flips
@@ -644,20 +651,19 @@ private fun SwingModifier.tableRowHeight(rowHeight: Int?): SwingModifier =
     }
 
 /**
- * A stable [ListSelectionListener] that forwards each settled row selection to [onSelectionChange],
- * bridging a lambda-based [Table] overload to the raw-listener overload it delegates to.
+ * The [ListSelectionListener] forwarding each settled row selection to [onSelectionChange], bridging a
+ * lambda-based [Table] overload to the raw-listener overload it delegates to. A selection event is handed
+ * on with the table as its source, so the settled selection is read back from the table - in the model's
+ * row space - once the value stops adjusting.
+ *
+ * Rebuilt per pass rather than remembered: every place a [Table] takes it reads it live -
+ * [UserSelectionListenerElement] holds it in a node field, and the rest call it while the pass that built
+ * it runs.
  */
-@Composable
-private fun rememberSettledSelectionListener(onSelectionChange: (Set<Int>) -> Unit): ListSelectionListener {
-    // A table's selection event is handed on with the table as its source, so read the settled selection
-    // back from the table - in the model's row space - once the value stops adjusting.
-    val callback = rememberUpdatedState(onSelectionChange)
-    return remember {
-        ListSelectionListener { event ->
-            if (!event.valueIsAdjusting) callback.value((event.source as JTable).selectedModelRows())
-        }
+private fun settledSelectionListener(onSelectionChange: (Set<Int>) -> Unit): ListSelectionListener =
+    ListSelectionListener { event ->
+        if (!event.valueIsAdjusting) onSelectionChange((event.source as JTable).selectedModelRows())
     }
-}
 
 /**
  * Gives the table new content through [install], keeping the rows [declared] names selected - or, where the

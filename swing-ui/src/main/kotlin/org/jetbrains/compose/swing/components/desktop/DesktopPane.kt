@@ -15,6 +15,7 @@ import org.jetbrains.compose.swing.modifier.layout.slot
 import org.jetbrains.compose.swing.modifier.listener.componentListener
 import org.jetbrains.compose.swing.modifier.listener.hierarchyListener
 import org.jetbrains.compose.swing.modifier.listener.internalFrameListener
+import org.jetbrains.compose.swing.modifier.listener.liveCallbackListener
 import org.jetbrains.compose.swing.modifier.listener.propertyChangeListener
 import org.jetbrains.compose.swing.node.ChildPlacement
 import org.jetbrains.compose.swing.node.SlotAttachment
@@ -383,8 +384,8 @@ private class PlacedFrameState(
  * composable content.
  *
  * Exactly one of [onClose]/[rawListener] is set: the `onClose` overloads supply the controlled close
- * callback, which a stable adapter built here delivers, and the raw overloads supply the listener
- * instance directly.
+ * callback, which a listener installed here delivers, and the raw overloads supply the listener instance
+ * directly.
  */
 @Composable
 private fun FrameNode(
@@ -396,19 +397,12 @@ private fun FrameNode(
     modifier: SwingModifier,
     content: @Composable () -> Unit,
 ) {
-    // The onClose overload routes the close control through a stable adapter that fires the latest
-    // callback on internalFrameClosing (the close operation stays do-nothing, so the frame is only
-    // closed by being removed from the composition). The raw overload uses the supplied listener
-    // instance directly.
-    val latestOnClose = rememberUpdatedState(onClose)
-    val listener =
-        remember(rawListener) {
-            rawListener ?: object : InternalFrameAdapter() {
-                override fun internalFrameClosing(event: InternalFrameEvent) {
-                    latestOnClose.value?.invoke()
-                }
-            }
-        }
+    // The onClose overload routes the close control through a listener that reads the declared callback
+    // when the frame reports closing (the close operation stays do-nothing, so the frame is only closed
+    // by being removed from the composition). The raw overload installs the supplied listener instance.
+    val closeChannel =
+        rawListener?.let { SwingModifier.internalFrameListener(it) }
+            ?: SwingModifier.onFrameClosing { onClose?.invoke() }
     // Read here, in the composition of the frame these values belong to: a hoisted state receives the
     // user's every move, resize, iconification and maximization, and reading it here is what keeps each of
     // those recomposing this one frame instead of the desktop and every frame standing on it.
@@ -481,13 +475,31 @@ private fun FrameNode(
             applyModifier(
                 modifier
                     .then(stateChannels)
-                    .internalFrameListener(listener)
+                    .then(closeChannel)
                     .slot(FRAME_REGION, InternalFrameAttachment),
             )
         },
         content = { content() },
     )
 }
+
+/**
+ * Runs [onClosing] when the frame's close control is used, reading the callback the current composition
+ * declares, so a lambda written inline needs no `remember`.
+ */
+private fun SwingModifier.onFrameClosing(onClosing: () -> Unit): SwingModifier =
+    liveCallbackListener<JInternalFrame, () -> Unit, InternalFrameListener>(
+        onClosing,
+        { current ->
+            object : InternalFrameAdapter() {
+                override fun internalFrameClosing(event: InternalFrameEvent) {
+                    current().invoke()
+                }
+            }
+        },
+        { c, l -> c.addInternalFrameListener(l) },
+        { c, l -> c.removeInternalFrameListener(l) },
+    )
 
 /**
  * The region of a `JDesktopPane` a frame fills, written as the call that declares one - see

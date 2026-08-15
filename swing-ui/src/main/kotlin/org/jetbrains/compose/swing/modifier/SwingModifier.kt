@@ -33,7 +33,7 @@ import java.awt.Component
  * The modifier is immutable and safe to share, hoist, and reuse as a theme token. Building the chain
  * inline in the composable body is the intended style and needs no `remember`: a chain equal to the
  * one last applied to a component is skipped, and each element is compared on its own, so a property
- * whose declared value has not changed is not written again. See [Element] for what an element that
+ * whose declared value has not changed is not written again. See [NodeElement] for what an element that
  * did change costs.
  *
  * A modifier is applied *to* a node, and a node *holds* the modifier state that outlives one

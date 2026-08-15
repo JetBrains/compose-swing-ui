@@ -4,11 +4,10 @@
 package org.jetbrains.compose.swing.components.text
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.documentListener
+import org.jetbrains.compose.swing.modifier.listener.liveCallbackListener
 import org.jetbrains.compose.swing.node.AppliedValue
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
@@ -17,6 +16,7 @@ import org.jetbrains.compose.swing.node.rememberAppliedValue
 import javax.swing.JPasswordField
 import javax.swing.event.DocumentListener
 import javax.swing.text.Document
+import javax.swing.text.JTextComponent
 import javax.swing.text.Segment
 
 /**
@@ -60,22 +60,18 @@ public fun PasswordField(
     columns: Int = 0,
     editable: Boolean = true,
 ) {
-    val callback = rememberUpdatedState(onValueChange)
     val applied = rememberAppliedValue(PasswordChars(value))
-    // Deliver the raw characters by reading the document into a char array via a Segment, keeping
-    // the password out of an unzeroable String. The array applied mirrors is retained as-is; the
-    // callback is handed a distinct copy of its own, free to zero without corrupting that mirror.
-    val listener =
-        remember(applied) {
-            documentChangeListener { event ->
-                val current = event.document.fullPassword()
-                if (applied.observed(PasswordChars(current))) callback.value(current.copyOf())
-            }
-        }
     PasswordFieldNode(
         value = value,
         applied = applied,
-        modifier = modifier.documentListener(listener),
+        // Deliver the raw characters by reading the document into a char array via a Segment, keeping
+        // the password out of an unzeroable String. The array applied mirrors is retained as-is; the
+        // callback is handed a distinct copy of its own, free to zero without corrupting that mirror.
+        modifier =
+            modifier.onDocumentChange { event ->
+                val current = event.document.fullPassword()
+                if (applied.observed(PasswordChars(current))) onValueChange(current.copyOf())
+            },
         echoChar = echoChar,
         columns = columns,
         editable = editable,
@@ -118,17 +114,10 @@ public fun PasswordField(
     editable: Boolean = true,
 ) {
     val applied = rememberAppliedValue(PasswordChars(value))
-    // Feeds applied's mirror on every edit, alongside the caller's own raw listener, so the settlement
-    // declarePassword makes keeps comparing against what the field currently holds rather than stale
-    // characters from an edit nothing else observed.
-    val mirror =
-        remember(applied) {
-            documentChangeListener { event -> applied.observed(PasswordChars(event.document.fullPassword())) }
-        }
     PasswordFieldNode(
         value = value,
         applied = applied,
-        modifier = modifier.documentListener(documentListener).textMirrorBinding(mirror),
+        modifier = modifier.documentListener(documentListener).passwordMirror(applied),
         echoChar = echoChar,
         columns = columns,
         editable = editable,
@@ -158,6 +147,24 @@ private fun PasswordFieldNode(
         },
     )
 }
+
+/**
+ * Mirrors into [applied] the characters the field holds after every edit, so the settlement
+ * [declarePassword] makes compares against what the field currently holds rather than characters an edit
+ * nothing else observed left behind.
+ *
+ * The listener rides the document the field currently holds, following a `document` property swap as the
+ * text mirror does.
+ */
+private fun SwingModifier.passwordMirror(applied: AppliedValue<PasswordChars>): SwingModifier =
+    liveCallbackListener<JTextComponent, AppliedValue<PasswordChars>, DocumentListener>(
+        applied,
+        { current ->
+            documentChangeListener { event -> current().observed(PasswordChars(event.document.fullPassword())) }
+        },
+        JTextComponent::attachSwappableDocumentListener,
+        JTextComponent::detachSwappableDocumentListener,
+    )
 
 /**
  * The characters a password field declares or holds, compared by content rather than the reference

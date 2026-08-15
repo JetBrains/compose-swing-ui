@@ -4,13 +4,11 @@
 package org.jetbrains.compose.swing.components.selection
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.compose.swing.constants.ListLayoutOrientation
 import org.jetbrains.compose.swing.constants.SelectionMode
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
-import org.jetbrains.compose.swing.modifier.listener.listSelectionListener
+import org.jetbrains.compose.swing.modifier.listener.liveCallbackListener
 import org.jetbrains.compose.swing.node.AppliedValue
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
@@ -20,6 +18,7 @@ import java.util.Vector
 import javax.swing.JList
 import javax.swing.ListModel
 import javax.swing.ListSelectionModel
+import javax.swing.event.ListSelectionEvent
 import javax.swing.event.ListSelectionListener
 
 /**
@@ -90,7 +89,7 @@ public fun <T> ListBox(
 ) {
     ListBox(
         items = items,
-        listSelectionListener = rememberSettledSelectionListener(onSelectionChange),
+        listSelectionListener = settledSelectionListener(onSelectionChange),
         modifier = modifier,
         selectedIndices = selectedIndices,
         selectionMode = selectionMode,
@@ -106,8 +105,8 @@ public fun <T> ListBox(
 /**
  * A [ListBox] driven by a raw [ListSelectionListener] instead of an `onSelectionChange` lambda. The
  * listener sees the adjusting events of a drag as well as the settled one, and is notified of the
- * user's selection changes only. It is removed on the same instance, so pass a stable one (e.g.
- * `remember {}`) to avoid churn.
+ * user's selection changes only; the latest declared instance is the one notified, so the listener may
+ * be declared inline.
  *
  * @param items the items to display
  * @param listSelectionListener the listener notified of the user's selection changes
@@ -214,7 +213,7 @@ public fun <T> ListBox(
 ) {
     ListBox(
         model = model,
-        listSelectionListener = rememberSettledSelectionListener(onSelectionChange),
+        listSelectionListener = settledSelectionListener(onSelectionChange),
         modifier = modifier,
         selectedIndices = selectedIndices,
         selectionMode = selectionMode,
@@ -230,8 +229,8 @@ public fun <T> ListBox(
 /**
  * A model-driven [ListBox] driven by a raw [ListSelectionListener] instead of an `onSelectionChange`
  * lambda. The listener sees the adjusting events of a drag as well as the settled one, and is notified
- * of the user's selection changes only. It is removed on the same instance, so pass a stable one (e.g.
- * `remember {}`) to avoid churn.
+ * of the user's selection changes only; the latest declared instance is the one notified, so the
+ * listener may be declared inline.
  *
  * The [model] is installed as-is and observed only: the library never mutates it, and the selection
  * survives a model swap whether declared or not.
@@ -424,13 +423,10 @@ private fun <T> ListBoxNode(
     // mirroring - mirroring an adjusting one would invalidate this composition, and re-assert the
     // declaration, before the user has let go. Forwarding to the caller's own listener follows the write
     // depth alone, exactly as it did without a mirror, so every adjusting event still reaches it.
-    val userSelectionListener =
-        remember(applied, listSelectionListener) {
-            ListSelectionListener { event ->
-                if (!event.valueIsAdjusting) applied.observed((event.source as JList<*>).selectedIndices.toSet())
-                if (!applied.isWriting) listSelectionListener.valueChanged(event)
-            }
-        }
+    val onUserSelection: (ListSelectionEvent) -> Unit = { event ->
+        if (!event.valueIsAdjusting) applied.observed((event.source as JList<*>).selectedIndices.toSet())
+        if (!applied.isWriting) listSelectionListener.valueChanged(event)
+    }
     SwingNode(
         factory = { JList<T>() },
         update = {
@@ -455,7 +451,7 @@ private fun <T> ListBoxNode(
             // and the composable cell is the one whose per-row measurement the caller is buying out.
             applyModifier(
                 modifier
-                    .listSelectionListener(userSelectionListener)
+                    .onListSelection(onUserSelection)
                     .composableItemCells(itemRenderer)
                     .listCellSizing(prototypeCellValue, fixedCellWidth, fixedCellHeight),
             )
@@ -465,21 +461,25 @@ private fun <T> ListBoxNode(
 
 /**
  * Adapts an `onSelectionChange` lambda into the raw [ListSelectionListener] the model-agnostic
- * overloads delegate to, reporting one settled selection per change. The lambda is captured through
- * [rememberUpdatedState] so a recomposition with a new lambda is honored without rebuilding the
- * listener.
+ * overloads delegate to, reporting one settled selection per change. A JList re-fires its selection
+ * event with the list itself as the source, so the settled selection is read back from that list.
  */
-@Composable
-private fun rememberSettledSelectionListener(onSelectionChange: (Set<Int>) -> Unit): ListSelectionListener {
-    val callback = rememberUpdatedState(onSelectionChange)
-    // A JList re-fires its selection event with the list itself as the source, so read the settled
-    // selection back from the list once the value stops adjusting.
-    return remember {
-        ListSelectionListener { event ->
-            if (!event.valueIsAdjusting) callback.value((event.source as JList<*>).selectedIndices.toSet())
-        }
+private fun settledSelectionListener(onSelectionChange: (Set<Int>) -> Unit): ListSelectionListener =
+    ListSelectionListener { event ->
+        if (!event.valueIsAdjusting) onSelectionChange((event.source as JList<*>).selectedIndices.toSet())
     }
-}
+
+/**
+ * Hands the list's own selection events to [onChange], which is read live: the registration is made once
+ * per list, so a pass declaring another listener to forward to costs a field write and no re-attach.
+ */
+private fun SwingModifier.onListSelection(onChange: (ListSelectionEvent) -> Unit): SwingModifier =
+    liveCallbackListener<JList<*>, (ListSelectionEvent) -> Unit, ListSelectionListener>(
+        onChange,
+        { current -> ListSelectionListener { event -> current()(event) } },
+        { list, listener -> list.addListSelectionListener(listener) },
+        { list, listener -> list.removeListSelectionListener(listener) },
+    )
 
 /**
  * Gives the list new content through [install], keeping the rows [declared] names selected - or, where the

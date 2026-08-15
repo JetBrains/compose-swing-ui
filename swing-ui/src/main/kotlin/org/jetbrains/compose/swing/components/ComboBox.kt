@@ -14,11 +14,13 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.actionListener
 import org.jetbrains.compose.swing.modifier.listener.listener
+import org.jetbrains.compose.swing.modifier.listener.liveCallbackListener
 import org.jetbrains.compose.swing.node.AppliedValue
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
 import org.jetbrains.compose.swing.node.declare
 import org.jetbrains.compose.swing.node.rememberAppliedValue
+import java.awt.event.ActionEvent
 import java.awt.event.ActionListener
 import java.awt.event.ItemEvent
 import java.awt.event.ItemListener
@@ -63,9 +65,8 @@ public fun <T> ComboBox(
 ) {
     val applied = rememberAppliedValue(selectedItem)
     val settled = rememberSelectionReader(items)
-    val listener = rememberSelectionListener(applied, settled, onSelectionChange, onValueCommit)
     ComboBoxNode(
-        modifier = modifier.actionListener(listener),
+        modifier = modifier.onSelectionAction(applied, settled, onSelectionChange, onValueCommit),
         editable = editable,
         maximumRowCount = maximumRowCount,
         itemContent = itemContent,
@@ -163,16 +164,17 @@ public fun <T> ComboBox(
     itemContent: (@Composable ListItemScope.(item: T) -> Unit)? = null,
 ) {
     // The model owns its selection, and its index is what this overload reports; nothing is declared, so
-    // there is no mirror for the listener to settle against.
-    val settled: JComboBox<*>.() -> Int = remember { { this.selectedIndex } }
-    ComboBox(
-        model = model,
-        actionListener = rememberSelectionListener(null, settled, onSelectionChange, onValueCommit),
-        modifier = modifier,
+    // there is no mirror for the listener to settle against, and settled is read only inside the live
+    // callback below, which is rebuilt every pass regardless - it needs no stable identity of its own.
+    val settled: JComboBox<*>.() -> Int = { this.selectedIndex }
+    ComboBoxNode(
+        modifier = modifier.onSelectionAction(null, settled, onSelectionChange, onValueCommit),
         editable = editable,
         maximumRowCount = maximumRowCount,
         itemContent = itemContent,
-    )
+    ) {
+        set(model) { this.model = it }
+    }
 }
 
 /**
@@ -286,43 +288,41 @@ private fun <T> rememberSelectionReader(items: List<T>): JComboBox<*>.() -> T? {
 private fun <T> List<T>.selectionOf(value: Any?): T? = firstOrNull { it == value }
 
 /**
- * Remembers the stable [ActionListener] the `onSelectionChange`-driven overloads attach: it splits a
- * combo box's action events into the two things a caller can act on - committing the editor reports the
- * text that was typed to [onValueCommit], and any other change reports what [settled] reads off the combo
- * box to [onSelectionChange]. A commit is reported regardless of [applied], since its text carries a value
- * the items do not contain.
+ * Installs the action channel the `onSelectionChange`-driven overloads listen on: it splits a combo box's
+ * action events into the two things a caller can act on - committing the editor reports the text that was
+ * typed to [onValueCommit], and any other change reports what [settled] reads off the combo box to
+ * [onSelectionChange]. A commit is reported regardless of [applied], since its text carries a value the
+ * items do not contain.
  *
  * Where [applied] tracks a declared selection, a plain selection change is narrowed to the user's own
  * choices: the declaration is the composition's own state, so applying it - and the combo box publishing
  * an action event for that write - is not itself a choice. A `null` [applied] means the caller's model
  * owns the selection, so nothing is declared and every change is the user's.
  *
- * The listener instance is stable across recompositions so it attaches and detaches on the same object,
- * while the current callbacks are tracked through [rememberUpdatedState] so the latest ones are invoked.
+ * The callbacks are read live, so the ones the current composition declares are the ones invoked.
  */
-@Composable
-private fun <V> rememberSelectionListener(
+private fun <V> SwingModifier.onSelectionAction(
     applied: AppliedValue<V>?,
     settled: JComboBox<*>.() -> V,
     onSelectionChange: (V) -> Unit,
     onValueCommit: (@Nls String) -> Unit,
-): ActionListener {
-    val selectionCallback = rememberUpdatedState(onSelectionChange)
-    val commitCallback = rememberUpdatedState(onValueCommit)
-    return remember(applied, settled) {
-        ActionListener { event ->
+): SwingModifier =
+    liveCallbackListener<JComboBox<*>, (ActionEvent) -> Unit, ActionListener>(
+        { event ->
             val comboBox = event.source as JComboBox<*>
             val selection = comboBox.settled()
             val isCommit = event.actionCommand == EDITOR_COMMITTED
             val isNews = applied == null || applied.observed(selection)
             if (isCommit) {
-                commitCallback.value(comboBox.selectedItem?.toString().orEmpty())
+                onValueCommit(comboBox.selectedItem?.toString().orEmpty())
             } else if (isNews) {
-                selectionCallback.value(selection)
+                onSelectionChange(selection)
             }
-        }
-    }
-}
+        },
+        { current -> ActionListener { current().invoke(it) } },
+        { c, l -> c.addActionListener(l) },
+        { c, l -> c.removeActionListener(l) },
+    )
 
 /** The action command a `JComboBox` fires an editor commit under. */
 private const val EDITOR_COMMITTED = "comboBoxEdited"

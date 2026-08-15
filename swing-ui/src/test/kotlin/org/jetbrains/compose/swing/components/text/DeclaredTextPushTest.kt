@@ -88,6 +88,25 @@ class DeclaredTextPushTest {
     }
 
     @Test
+    fun aTextAreaCallbackFollowsItsDocumentAcrossASwap() = runComposeSwingTest {
+        val reported = mutableListOf<String>()
+        setContent { TextArea(value = "hello", onValueChange = { reported += it }) }
+
+        val area = onNodeOfType<JTextArea>().fetch()
+        val swapped = PlainDocument().apply { insertString(0, "swapped", null) }
+        area.document = swapped
+
+        swapped.insertString(swapped.length, "!", null)
+        awaitIdle()
+
+        assertEquals(
+            listOf("swapped!"),
+            reported,
+            "the callback stays on the document the area currently holds after a swap, not the outgoing one",
+        )
+    }
+
+    @Test
     fun passwordFieldReportsNoEditForAnAppliedValue() = runComposeSwingTest {
         var value by mutableStateOf("hunter2".toCharArray())
         val reported = mutableListOf<String>()

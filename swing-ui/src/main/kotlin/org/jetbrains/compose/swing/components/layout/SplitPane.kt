@@ -7,11 +7,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.constants.SplitOrientation
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
+import org.jetbrains.compose.swing.modifier.listener.liveCallbackListener
 import org.jetbrains.compose.swing.modifier.listener.propertyChangeListener
 import org.jetbrains.compose.swing.node.AppliedValue
 import org.jetbrains.compose.swing.node.SwingNode
@@ -76,8 +76,6 @@ public fun SplitPane(
     continuousLayout: Boolean? = null,
     content: @Composable SplitPaneScope.() -> Unit,
 ) {
-    val callback = rememberUpdatedState(onDividerLocationChange)
-    val declaredOffset = rememberUpdatedState(dividerLocation)
     val applied = rememberAppliedValue(dividerLocation)
     // The pane publishes its new offset for every move, its own and the user's alike, including the
     // position a negative request resolves to once realized on screen. The binding answers which is
@@ -85,20 +83,15 @@ public fun SplitPane(
     // answering a negative request the mirror still holds is that same resolution, settled into the
     // mirror without being reported. A move away from either is the user's, reported once, and every
     // later move is then measured against the resolved position.
-    val listener =
-        remember(applied) {
-            PropertyChangeListener { event ->
-                val moved = (event.source as JSplitPane).dividerLocation
-                val declared = declaredOffset.value
-                if (declared < 0 && applied.current == declared) {
-                    applied.observed(moved)
-                } else if (applied.observed(moved)) {
-                    callback.value(moved)
-                }
-            }
+    val onMoved: (Int) -> Unit = { moved ->
+        if (dividerLocation < 0 && applied.current == dividerLocation) {
+            applied.observed(moved)
+        } else if (applied.observed(moved)) {
+            onDividerLocationChange(moved)
         }
+    }
     SplitPaneImpl(
-        modifier = modifier.propertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY, listener),
+        modifier = modifier.onDividerMoved(onMoved),
         orientation = orientation,
         dividerLocation = dividerLocation,
         applied = applied,
@@ -163,6 +156,24 @@ public fun SplitPane(
         content = content,
     )
 }
+
+/**
+ * Installs one `dividerLocation` [PropertyChangeListener] reporting the offset it left the divider at to
+ * the [onMoved] the current composition declares.
+ */
+private fun SwingModifier.onDividerMoved(onMoved: (Int) -> Unit): SwingModifier =
+    liveCallbackListener<JSplitPane, (Int) -> Unit, PropertyChangeListener>(
+        callback = onMoved,
+        adapter = { current ->
+            PropertyChangeListener { event -> current()((event.source as JSplitPane).dividerLocation) }
+        },
+        attach = { pane, listener ->
+            pane.addPropertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY, listener)
+        },
+        detach = { pane, listener ->
+            pane.removePropertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY, listener)
+        },
+    )
 
 /** The `JSplitPane` node both public [SplitPane] overloads render. */
 @Composable

@@ -4,11 +4,10 @@
 package org.jetbrains.compose.swing.components.text
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.compose.swing.constants.FocusLostBehavior
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
+import org.jetbrains.compose.swing.modifier.listener.liveCallbackListener
 import org.jetbrains.compose.swing.modifier.listener.propertyChangeListener
 import org.jetbrains.compose.swing.node.AppliedValue
 import org.jetbrains.compose.swing.node.SwingNode
@@ -85,18 +84,13 @@ public fun FormattedTextField(
     editable: Boolean = true,
 ) {
     val applied = rememberAppliedValue(value)
-    val callback = rememberUpdatedState(onValueChange)
-    val commitListener =
-        remember(applied) {
-            valueCommitListener { committed -> if (applied.observed(committed)) callback.value(committed) }
-        }
     FormattedTextFieldNode(
         value = value,
         applied = applied,
         modifier =
             modifier
-                .propertyChangeListener("value", commitListener)
-                .propertyChangeListener("editValid", rememberEditValidityListener(onEditValidChange)),
+                .onValueCommit { committed -> if (applied.observed(committed)) onValueChange(committed) }
+                .onEditValidity(onEditValidChange),
         formatterFactory = formatterFactory,
         focusLostBehavior = focusLostBehavior,
         columns = columns,
@@ -143,21 +137,14 @@ public fun FormattedTextField(
     editable: Boolean = true,
 ) {
     val applied = rememberAppliedValue(value)
-    // Feeds applied's mirror on every commit, alongside the caller's own raw listener, so the
-    // settlement the node makes keeps comparing against the value the field holds now rather than a
-    // stale one from a commit nothing else observed.
-    val mirror =
-        remember(applied) {
-            PropertyChangeListener { event -> applied.observed((event.source as JFormattedTextField).value) }
-        }
     FormattedTextFieldNode(
         value = value,
         applied = applied,
         modifier =
             modifier
                 .propertyChangeListener("value", valuePropertyChangeListener)
-                .propertyChangeListener("value", mirror)
-                .propertyChangeListener("editValid", rememberEditValidityListener(onEditValidChange)),
+                .valueMirror(applied)
+                .onEditValidity(onEditValidChange),
         formatterFactory = formatterFactory,
         focusLostBehavior = focusLostBehavior,
         columns = columns,
@@ -200,16 +187,12 @@ public fun FormattedTextField(
     editable: Boolean = true,
 ) {
     val applied = rememberAppliedValue(state.value)
-    val commitListener =
-        remember(applied, state) {
-            valueCommitListener { committed -> if (applied.observed(committed)) state.value = committed }
-        }
     FormattedTextFieldNode(
         value = state.value,
         applied = applied,
         modifier =
             modifier
-                .propertyChangeListener("value", commitListener)
+                .onValueCommit { committed -> if (applied.observed(committed)) state.value = committed }
                 .formattedValueStateBinding(state),
         formatterFactory = formatterFactory,
         focusLostBehavior = focusLostBehavior,
@@ -252,23 +235,45 @@ private fun FormattedTextFieldNode(
 }
 
 /**
- * A listener running [onCommit] with the value the field holds each time it commits a different one.
+ * Runs [onCommit] with the value the field holds each time it commits a different one.
  *
  * An event carrying equal values commits nothing: the field regenerates its characters from the value and
  * fires the property whether or not the value moved, and `PropertyChangeSupport` filters only the equal
  * pairs that are both non-null.
  */
-private fun valueCommitListener(onCommit: (Any?) -> Unit): PropertyChangeListener =
-    PropertyChangeListener { event ->
-        if (event.oldValue == event.newValue) return@PropertyChangeListener
-        onCommit((event.source as JFormattedTextField).value)
-    }
+private fun SwingModifier.onValueCommit(onCommit: (Any?) -> Unit): SwingModifier =
+    liveCallbackListener<JFormattedTextField, (Any?) -> Unit, PropertyChangeListener>(
+        onCommit,
+        { current ->
+            PropertyChangeListener { event ->
+                if (event.oldValue == event.newValue) return@PropertyChangeListener
+                current()((event.source as JFormattedTextField).value)
+            }
+        },
+        { field, listener -> field.addPropertyChangeListener("value", listener) },
+        { field, listener -> field.removePropertyChangeListener("value", listener) },
+    )
 
-/** A listener reporting the field's edit validity to [onChange], read live so an inline lambda is stable. */
-@Composable
-private fun rememberEditValidityListener(onChange: (Boolean) -> Unit): PropertyChangeListener {
-    val callback = rememberUpdatedState(onChange)
-    return remember {
-        PropertyChangeListener { event -> callback.value((event.source as JFormattedTextField).isEditValid) }
-    }
-}
+/**
+ * Feeds [applied]'s mirror on every commit, alongside a caller's own raw listener, so the settlement the
+ * node makes keeps comparing against the value the field holds now rather than a stale one from a commit
+ * nothing else observed.
+ */
+private fun SwingModifier.valueMirror(applied: AppliedValue<Any?>): SwingModifier =
+    liveCallbackListener<JFormattedTextField, AppliedValue<Any?>, PropertyChangeListener>(
+        applied,
+        { current ->
+            PropertyChangeListener { event -> current().observed((event.source as JFormattedTextField).value) }
+        },
+        { field, listener -> field.addPropertyChangeListener("value", listener) },
+        { field, listener -> field.removePropertyChangeListener("value", listener) },
+    )
+
+/** Runs [onChange] with the field's edit validity each time the field reports it moved. */
+private fun SwingModifier.onEditValidity(onChange: (Boolean) -> Unit): SwingModifier =
+    liveCallbackListener<JFormattedTextField, (Boolean) -> Unit, PropertyChangeListener>(
+        onChange,
+        { current -> PropertyChangeListener { event -> current()((event.source as JFormattedTextField).isEditValid) } },
+        { field, listener -> field.addPropertyChangeListener("editValid", listener) },
+        { field, listener -> field.removePropertyChangeListener("editValid", listener) },
+    )

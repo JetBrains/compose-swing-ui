@@ -7,16 +7,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.constants.Orientation
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.interaction.parentChangeListener
-import org.jetbrains.compose.swing.modifier.listener.hierarchyListener
+import org.jetbrains.compose.swing.modifier.listener.liveCallbackListener
 import org.jetbrains.compose.swing.node.AppliedValue
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.rememberAppliedValue
+import java.awt.Component
+import java.awt.event.HierarchyListener
 import javax.swing.JToolBar
 import javax.swing.SwingConstants
 import javax.swing.SwingUtilities
@@ -73,7 +74,6 @@ public fun ToolBar(
     rollover: Boolean? = null,
     content: @Composable () -> Unit = {},
 ) {
-    val callback = rememberUpdatedState(onFloatingChange)
     // Seeded with what a bar holds when it is built rather than with the declaration: a bar cannot float
     // before it stands in a window, so seeding this `true` would make the bar's first docked reading look
     // like the user having docked it.
@@ -85,19 +85,6 @@ public fun ToolBar(
     // moves once the bar lands somewhere, and the settle below runs then. Floating and docking are
     // themselves such moves, since both hand the bar between its container and the look and feel's window.
     var attachments by remember { mutableIntStateOf(0) }
-    // Only the mirror is written here. Settling belongs to a composition pass, which is the one place the
-    // declaration to settle against exists - and writing to the hierarchy from inside a hierarchy event
-    // deadlocks, since the event arrives holding the AWT tree lock that the write needs the toolkit to
-    // take. A move made inside a write of this wrapper's own is the declaration taking effect, and the
-    // mirror keeps it from being reported as the user's.
-    val onParentChange =
-        remember(applied) {
-            parentChangeListener { component ->
-                attachments++
-                val standing = (component as JToolBar).isFloating
-                if (applied.observed(standing)) callback.value(standing)
-            }
-        }
 
     SwingNode(
         factory = { JToolBar(orientation).also { bar -> rollover?.let { bar.isRollover = it } } },
@@ -107,7 +94,19 @@ public fun ToolBar(
             update(rollover) { declared ->
                 isRollover = declared ?: UIManager.getBoolean(ROLLOVER_DEFAULT)
             }
-            applyModifier(modifier.hierarchyListener(onParentChange))
+            // Only the mirror is written from the hierarchy event. Settling belongs to a composition pass,
+            // which is the one place the declaration to settle against exists - and writing to the
+            // hierarchy from inside a hierarchy event deadlocks, since the event arrives holding the AWT
+            // tree lock that the write needs the toolkit to take. A move made inside a write of this
+            // wrapper's own is the declaration taking effect, and the mirror keeps it from being reported
+            // as the user's.
+            applyModifier(
+                modifier.onParentChange { component ->
+                    attachments++
+                    val standing = (component as JToolBar).isFloating
+                    if (applied.observed(standing)) onFloatingChange(standing)
+                },
+            )
             // The declaration, the state the bar is really in, and the bar's arrival in a container move
             // independently - the user drags the bar out without the declaration changing - so each gets
             // its own update() call and whichever moved settles the rest, the way declare() does it for
@@ -119,7 +118,7 @@ public fun ToolBar(
                     held,
                     { bar.isFloating },
                     { bar.applyFloating(it) },
-                    { callback.value(it) },
+                    onFloatingChange,
                 )
             }
             update(floating) { settle(this) }
@@ -134,6 +133,19 @@ public fun ToolBar(
         content = content,
     )
 }
+
+/**
+ * Reports [onParentChanged] with the component whenever it is handed to a parent, loses one, or is handed
+ * from one to another, reading the callback the current composition declares - so a lambda written inline
+ * needs no `remember`.
+ */
+private fun SwingModifier.onParentChange(onParentChanged: (Component) -> Unit): SwingModifier =
+    liveCallbackListener<Component, (Component) -> Unit, HierarchyListener>(
+        onParentChanged,
+        { current -> parentChangeListener { current().invoke(it) } },
+        { c, l -> c.addHierarchyListener(l) },
+        { c, l -> c.removeHierarchyListener(l) },
+    )
 
 /** The look-and-feel default a tool bar's UI reads while the bar records no rollover choice of its own. */
 private const val ROLLOVER_DEFAULT: String = "ToolBar.isRollover"

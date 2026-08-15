@@ -411,22 +411,22 @@ private fun Document.replaceChangedSpan(
 }
 
 private fun commonPrefixLength(
-    a: CharSequence,
-    b: CharSequence,
+    current: CharSequence,
+    next: CharSequence,
 ): Int {
-    val max = minOf(a.length, b.length)
+    val max = minOf(current.length, next.length)
     var i = 0
-    while (i < max && a[i] == b[i]) i++
+    while (i < max && current[i] == next[i]) i++
     return i
 }
 
 private fun commonSuffixLength(
-    a: CharSequence,
-    b: CharSequence,
+    current: CharSequence,
+    next: CharSequence,
     prefix: Int,
 ): Int {
-    val max = minOf(a.length, b.length) - prefix
+    val max = minOf(current.length, next.length) - prefix
     var i = 0
-    while (i < max && a[a.length - 1 - i] == b[b.length - 1 - i]) i++
+    while (i < max && current[current.length - 1 - i] == next[next.length - 1 - i]) i++
     return i
 }

@@ -3,11 +3,9 @@ package org.jetbrains.compose.swing.components.selection
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.interaction.buttonGroup
-import org.jetbrains.compose.swing.modifier.listener.actionListener
-import org.jetbrains.compose.swing.modifier.listener.itemListener
+import org.jetbrains.compose.swing.modifier.listener.liveCallbackListener
 import org.jetbrains.compose.swing.node.AppliedValue
 import org.jetbrains.compose.swing.node.rememberAppliedValue
 import java.awt.event.ActionListener
@@ -27,8 +25,8 @@ internal fun rememberButtonGroup(): ButtonGroup = remember { ButtonGroup() }
  * Wires one option of a controlled group selection and emits it through [content].
  *
  * The option's composition identity is its position, so the applier installs and uninstalls nodes to
- * match the declarations while each joins and leaves [group] with its membership element. The listeners
- * are stable for the option's slot and read the latest [onSelectionChange].
+ * match the declarations while each joins and leaves [group] with its membership element. Each listener
+ * is installed once for the option's slot and reads the latest [onSelectionChange].
  *
  * The selection moves through the group, so an option can lose it without being touched: the member the
  * group clears raises no action event at all. The mirror therefore follows the button's own item
@@ -58,26 +56,37 @@ internal fun ButtonGroupOption(
 ) {
     key(index) {
         val applied = rememberAppliedValue(selected)
-        val onSelectionChangeState = rememberUpdatedState(onSelectionChange)
-        val listener =
-            remember {
-                ActionListener { event ->
-                    if ((event.source as AbstractButton).isSelected) onSelectionChangeState.value(index)
-                }
-            }
-        val observing =
-            remember(applied) {
-                ItemListener { event -> applied.observed((event.source as AbstractButton).isSelected) }
-            }
         content(
             modifier
-                .actionListener(listener)
-                .itemListener(observing)
+                .onPick { onSelectionChange(index) }
+                .onSelectedStateChange { state -> applied.observed(state) }
                 .buttonGroup(group),
             applied,
         )
     }
 }
+
+/** Calls [onPick] when the option raises an action event while it is the selected member. */
+private fun SwingModifier.onPick(onPick: () -> Unit): SwingModifier =
+    liveCallbackListener<AbstractButton, () -> Unit, ActionListener>(
+        callback = onPick,
+        adapter = { current ->
+            ActionListener { event -> if ((event.source as AbstractButton).isSelected) current().invoke() }
+        },
+        attach = { button, listener -> button.addActionListener(listener) },
+        detach = { button, listener -> button.removeActionListener(listener) },
+    )
+
+/** Calls [onSelectedStateChange] with the state the option ends up in, each time it publishes one. */
+private fun SwingModifier.onSelectedStateChange(onSelectedStateChange: (Boolean) -> Unit): SwingModifier =
+    liveCallbackListener<AbstractButton, (Boolean) -> Unit, ItemListener>(
+        callback = onSelectedStateChange,
+        adapter = { current ->
+            ItemListener { event -> current()((event.source as AbstractButton).isSelected) }
+        },
+        attach = { button, listener -> button.addItemListener(listener) },
+        detach = { button, listener -> button.removeItemListener(listener) },
+    )
 
 /**
  * Moves this button to [selected] within [group], leaving it alone when it already is.

@@ -4,7 +4,6 @@
 package org.jetbrains.compose.swing.components.text
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
@@ -20,7 +19,9 @@ import javax.swing.event.DocumentListener
  *
  * This field is strictly controlled: if [onValueChange] does not answer with a matching [value], the
  * field is settled back onto the declared value on the very next pass. It never ends up holding text
- * the caller has not adopted.
+ * the caller has not adopted. Settling back rewrites the whole document, which leaves the caret at its
+ * end - a callback that filters a keystroke rather than adopting it sees the caret jump there on every
+ * rejected edit.
  *
  * For incremental editing over a shared `Document`, undo/redo, or observing the text as a flow, drive
  * the field with the [DocumentState] overload and a [DocumentState] from `rememberDocumentState`.
@@ -42,13 +43,11 @@ public fun TextField(
     columns: Int = 0,
     editable: Boolean = true,
 ) {
-    val callback = rememberUpdatedState(onValueChange)
     val applied = rememberAppliedValue(value)
-    val listener = rememberUserEditListener(applied, callback)
     TextFieldNode(
         value = value,
         applied = applied,
-        modifier = modifier.documentListener(listener),
+        modifier = modifier.onTextEdit(applied, onValueChange),
         columns = columns,
         editable = editable,
     )
@@ -84,11 +83,10 @@ public fun TextField(
     editable: Boolean = true,
 ) {
     val applied = rememberAppliedValue(value)
-    val mirror = rememberTextMirrorListener(applied)
     TextFieldNode(
         value = value,
         applied = applied,
-        modifier = modifier.documentListener(documentListener).textMirrorBinding(mirror),
+        modifier = modifier.documentListener(documentListener).textMirror(applied),
         columns = columns,
         editable = editable,
     )

@@ -8,15 +8,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.constants.TabLayoutPolicy
 import org.jetbrains.compose.swing.constants.TabPlacement
 import org.jetbrains.compose.swing.core.dispatchToCaller
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
-import org.jetbrains.compose.swing.modifier.listener.changeListener
 import org.jetbrains.compose.swing.modifier.listener.containerListener
+import org.jetbrains.compose.swing.modifier.listener.liveCallbackListener
 import org.jetbrains.compose.swing.node.AppliedValue
 import org.jetbrains.compose.swing.node.ChildPlacement
 import org.jetbrains.compose.swing.node.SwingNode
@@ -72,11 +71,9 @@ public fun TabbedPane(
     @TabLayoutPolicy tabLayoutPolicy: Int = JTabbedPane.WRAP_TAB_LAYOUT,
     content: @Composable TabbedPaneScope.() -> Unit,
 ) {
-    val callback = rememberUpdatedState(onSelectedIndexChange)
-    val listener = remember { ChangeListener { event -> callback.value((event.source as JTabbedPane).selectedIndex) } }
     TabbedPane(
         selectedIndex = selectedIndex,
-        changeListener = listener,
+        changeListener = { event -> onSelectedIndexChange((event.source as JTabbedPane).selectedIndex) },
         modifier = modifier,
         tabPlacement = tabPlacement,
         tabLayoutPolicy = tabLayoutPolicy,
@@ -150,26 +147,20 @@ private fun TabbedPaneImpl(
     // built, so both outlive the pass that declared it.
     val scope = remember(applied, headerParentContext) { TabbedPaneScopeImpl(applied, headerParentContext) }
 
-    // The listener is attached once per pane and reaches the declared one through a handle each
-    // composition refreshes, so a newly declared listener takes over without detaching and reattaching.
-    val declaredListener = rememberUpdatedState(changeListener)
     // The tab the caller has been told the pane is on: the one it declared and the pane took, or the one
     // the pane was left on and the callback was handed. Every selection that reaches the caller is
     // recorded here, so a pane holding anything else is holding a selection the caller has not heard of.
     val reportedSelection = remember { intArrayOf(NO_TAB) }
-    val listener =
-        remember {
-            ChangeListener { event ->
-                val current = (event.source as JTabbedPane).selectedIndex
-                // Only a move of the user's is theirs to be told about, and only one they were told about
-                // belongs in the record - a move the pane made under one of this wrapper's own writes is
-                // settled below, which is where the record catches up with it.
-                if (applied.observed(current)) {
-                    reportedSelection[0] = current
-                    declaredListener.value.stateChanged(event)
-                }
-            }
+    val onUserSelection: (ChangeEvent) -> Unit = { event ->
+        val current = (event.source as JTabbedPane).selectedIndex
+        // Only a move of the user's is theirs to be told about, and only one they were told about
+        // belongs in the record - a move the pane made under one of this wrapper's own writes is
+        // settled below, which is where the record catches up with it.
+        if (applied.observed(current)) {
+            reportedSelection[0] = current
+            changeListener.stateChanged(event)
         }
+    }
 
     // A tab becomes a page of the pane after this node's update block has run: the runtime applies the
     // content that block declared once it returns. A pass declaring both a tab and the selection naming it
@@ -202,13 +193,13 @@ private fun TabbedPaneImpl(
         update = {
             set(tabPlacement) { this.tabPlacement = it }
             set(tabLayoutPolicy) { this.tabLayoutPolicy = it }
-            applyModifier(modifier.changeListener(listener).containerListener(pageListener))
+            applyModifier(modifier.onPaneChange(onUserSelection).containerListener(pageListener))
             // The declaration, the selection the pane is really on, and the strip itself move
             // independently, so each gets its own update() call and whichever moved settles the rest. All
             // three skip the pass that declares the pane, whose strip is still empty: settling there would
             // hand the caller the empty pane's own answer as though its declaration had been refused.
             val settle: (JTabbedPane) -> Unit = { pane ->
-                settleSelection(pane, selectedIndex, applied, reportedSelection, declaredListener.value)
+                settleSelection(pane, selectedIndex, applied, reportedSelection, changeListener)
             }
             update(selectedIndex) { settle(this) }
             update(held) { settle(this) }
@@ -220,6 +211,18 @@ private fun TabbedPaneImpl(
         content = { scope.content() },
     )
 }
+
+/**
+ * Hands the pane's own change events to [onChange], which is read live: the registration is made once
+ * per pane, so a pass declaring another listener to forward to costs a field write and no re-attach.
+ */
+private fun SwingModifier.onPaneChange(onChange: (ChangeEvent) -> Unit): SwingModifier =
+    liveCallbackListener<JTabbedPane, (ChangeEvent) -> Unit, ChangeListener>(
+        onChange,
+        { current -> ChangeListener { event -> current()(event) } },
+        { pane, listener -> pane.addChangeListener(listener) },
+        { pane, listener -> pane.removeChangeListener(listener) },
+    )
 
 /** The index a `JTabbedPane` reports when no tab of it is selected. */
 private const val NO_TAB = -1

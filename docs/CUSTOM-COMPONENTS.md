@@ -133,6 +133,59 @@ through `SwingModifier.slot(name, attachment)` - and a child that names none, or
 region of a container that has none, is refused as it arrives, naming the component and the calls that
 would place it.
 
+### Writing a `SlotAttachment`
+
+A `SlotAttachment` installs one child into one region and returns the action that removes it again. It
+takes the host container, the child, and the child's position among the host's slot children - `0` for
+a region holding a single child. Give the caller a modifier builder per region rather than the region's
+name, so the name stays yours to change:
+
+```kotlin
+private const val HEADER_REGION: String = "SwingModifier.header()"
+private const val BODY_REGION: String = "SwingModifier.body()"
+
+private fun edgeAttachment(
+    edge: String,
+    region: String,
+) = SlotAttachment { host, component, _ ->
+    val panel = host as? BannerPanel ?: error("$region fills a BannerPanel, but it is held by a $host.")
+    panel.add(component, edge)
+    return@SlotAttachment { panel.remove(component) }
+}
+
+public object BannerScope {
+    public fun SwingModifier.header(): SwingModifier =
+        slot(HEADER_REGION, edgeAttachment(BorderLayout.NORTH, HEADER_REGION))
+
+    public fun SwingModifier.body(): SwingModifier =
+        slot(BODY_REGION, edgeAttachment(BorderLayout.CENTER, BODY_REGION))
+}
+
+@Composable
+public fun Banner(
+    modifier: SwingModifier = SwingModifier,
+    content: @Composable @SwingComposable BannerScope.() -> Unit,
+) {
+    SwingNode(
+        factory = { BannerPanel() },
+        update = { applyModifier(modifier) },
+        childPlacement = ChildPlacement.Slots(HEADER_REGION, BODY_REGION),
+        content = { BannerScope.content() },
+    )
+}
+```
+
+Two rules the framework holds you to. The uninstall action must remove the child **by identity** - the
+positions of a host's children shift as siblings come and go, so an index captured at install time can
+name another child by the time uninstall runs. And a component that declares your region while sitting
+in someone else's container reaches your attachment with that container as `host`, so check the type
+and refuse by naming the region's own call, which is the text the caller acts on.
+
+Uninstall is also where a region gives back the space it took. `setRowHeaderView(null)` on a scroll
+pane leaves an empty header viewport still claiming layout space, so the library's own row-header
+attachment clears the whole header instead - `if (pane.rowHeader?.view === component) pane.setRowHeader(null)`,
+identity-checked so a child already replaced by another does not clear the new one.
+
 `hostsSubcompositions` defaults to `false`; you only set it for a custom container whose internal
 children run their own `setContent` - see *Hosting nested compositions* below.
 
@@ -536,7 +589,8 @@ can move it.
 Built-in modifier builders are extension functions on `SwingModifier`, grouped by concern:
 
 - **Appearance** - `foreground`, `background`, `font`, `border` and the `lineBorder` / `emptyBorder`
-  pair that declares one by its values, `opaque`, `cursor`.
+  pair that declares one by its values, `opaque`, `cursor`, `highlights` (marks up ranges of a text
+  component, requires a `JTextComponent` target).
 - **Content placement** - `icon`, `iconTextGap`, `horizontalAlignment`, `verticalAlignment`,
   `horizontalTextPosition`, `verticalTextPosition`, `margin`: where a component's icon, text and
   content sit inside it. Each reaches every kind of component that declares the property - `icon`,
@@ -551,7 +605,8 @@ Built-in modifier builders are extension functions on `SwingModifier`, grouped b
 - **Metadata** - `name`, `toolTip`, `clientProperty`, `testTag`.
 - **Interaction** - `enabled`, `focusable`, `focusTraversalIndex`, `orderedFocusTraversal`,
   `defaultButton`, `onHover`, `onFocus`, `onPointerEvent`, `onAccept`, `focusRequester`, `initialFocus`,
-  `inputVerifier`, `verifyInputWhenFocusTarget`, `documentFilter`, and `contextMenu` and `popupMenu`
+  `inputVerifier`, `verifyInputWhenFocusTarget`, `documentFilter`, `caretUpdatePolicy` (requires a
+  `JTextComponent` whose caret is a `DefaultCaret`), and `contextMenu` and `popupMenu`
   (a composed menu opened by the platform popup gesture and by state respectively), plus the typed
   instance listener builders (`mouseListener`, `keyListener`, ...; see *Attaching a listener* below).
 - **Keyboard** - `onKeyEvent`, `onKeyStroke`.
@@ -717,8 +772,9 @@ The same instance-builder contract also covers widget- and model-specific listen
 `changeListener` (for a component that fires change events, such as `JSlider`, `JSpinner`,
 `JTabbedPane`, `JProgressBar`, `AbstractButton`, or `JViewport`), `listSelectionListener` (requires a
 `JList` target), `treeSelectionListener` and `treeExpansionListener` (both require a `JTree` target),
-`adjustmentListener` (requires a scrollbar target - `JScrollBar` or `java.awt.Scrollbar`), and
-`internalFrameListener` (requires a `JInternalFrame` target).
+`adjustmentListener` (requires a scrollbar target - `JScrollBar` or `java.awt.Scrollbar`),
+`internalFrameListener` (requires a `JInternalFrame` target), and `hyperlinkListener` (requires a
+`JEditorPane` target).
 
 Each builder is **additive** (no key): two of the same builder both install and both fire, mirroring
 Swing's `addXxxListener`. Pass a **stable** instance - `remember { ... }` it. A fresh lambda or object

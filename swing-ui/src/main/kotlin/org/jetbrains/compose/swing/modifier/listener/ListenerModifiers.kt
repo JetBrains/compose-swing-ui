@@ -17,11 +17,11 @@ import java.awt.event.MouseMotionListener
 import java.awt.event.MouseWheelListener
 
 /**
- * Installs a listener instance on the target component via the modifier mechanism - the single
- * listener seam in the library, the one every reactive listener is built on (the typed instance
- * builders like [mouseListener]/[actionListener], the model builders like [changeListener], the
- * multi-method interaction builders like `onHover`, and the built-in domain callbacks of every
- * reactive component).
+ * Installs a listener instance on the target component via the modifier mechanism - the by-identity
+ * listener seam, the one every builder taking a listener object is built on (the typed instance
+ * builders like [mouseListener]/[actionListener] and the model builders like [changeListener]). A
+ * builder taking a callback instead of a listener object registers a listener the library builds; that
+ * is the internal `liveCallbackListener` seam, which documents the choice between the two.
  *
  * The [instance] is added once via [attach] when the element enters the chain and removed via [detach]
  * when it leaves or the node is released/reused. Supplying a *different* instance (reference

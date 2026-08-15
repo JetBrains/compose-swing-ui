@@ -1,11 +1,9 @@
 package org.jetbrains.compose.swing.components.button
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.actionListener
-import org.jetbrains.compose.swing.modifier.listener.itemListener
+import org.jetbrains.compose.swing.modifier.listener.liveCallbackListener
 import org.jetbrains.compose.swing.node.AppliedValue
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
 import org.jetbrains.compose.swing.node.declare
@@ -27,17 +25,23 @@ internal fun rememberToggleReporting(
     selected: Boolean,
     onSelectedChange: (Boolean) -> Unit,
 ): Pair<SwingModifier, AppliedValue<Boolean>> {
-    val callback = rememberUpdatedState(onSelectedChange)
     val applied = rememberAppliedValue(selected)
-    val listener =
-        remember(applied) {
-            ActionListener { event ->
-                val isSelected = (event.source as AbstractButton).isSelected
-                if (applied.observed(isSelected)) callback.value(isSelected)
-            }
-        }
-    return SwingModifier.actionListener(listener) to applied
+    val reporting =
+        SwingModifier.onToggle { isSelected -> if (applied.observed(isSelected)) onSelectedChange(isSelected) }
+    return reporting to applied
 }
+
+/**
+ * Runs [onToggle] with the button's selected state on every toggle the button publishes on its action
+ * channel, its own and the user's alike.
+ */
+private fun SwingModifier.onToggle(onToggle: (Boolean) -> Unit): SwingModifier =
+    liveCallbackListener<AbstractButton, (Boolean) -> Unit, ActionListener>(
+        onToggle,
+        { current -> ActionListener { event -> current()((event.source as AbstractButton).isSelected) } },
+        { button, listener -> button.addActionListener(listener) },
+        { button, listener -> button.removeActionListener(listener) },
+    )
 
 /**
  * Wires the mirroring half of a two-state `AbstractButton` for a caller that supplies its own
@@ -54,12 +58,20 @@ internal fun rememberToggleMirroring(
     actionListener: ActionListener,
 ): Pair<SwingModifier, AppliedValue<Boolean>> {
     val applied = rememberAppliedValue(selected)
-    val observing =
-        remember(applied) {
-            ItemListener { event -> applied.observed((event.source as AbstractButton).isSelected) }
-        }
-    return SwingModifier.actionListener(actionListener).itemListener(observing) to applied
+    return SwingModifier.actionListener(actionListener).toggleMirror(applied) to applied
 }
+
+/**
+ * Feeds [applied]'s mirror the button's selected state on every toggle, riding the item channel so the
+ * action channel stays the caller's alone.
+ */
+private fun SwingModifier.toggleMirror(applied: AppliedValue<Boolean>): SwingModifier =
+    liveCallbackListener<AbstractButton, AppliedValue<Boolean>, ItemListener>(
+        applied,
+        { current -> ItemListener { event -> current().observed((event.source as AbstractButton).isSelected) } },
+        { button, listener -> button.addItemListener(listener) },
+        { button, listener -> button.removeItemListener(listener) },
+    )
 
 /**
  * Settles the selected declaration a two-state `AbstractButton` node renders against the widget's own
