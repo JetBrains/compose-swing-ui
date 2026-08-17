@@ -10,6 +10,7 @@ import java.io.ByteArrayOutputStream
 import java.io.PrintStream
 import kotlin.test.Test
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Behavioral coverage for [Tray] on a platform without a system tray.
@@ -28,7 +29,7 @@ class TrayUnsupportedPlatformTest {
 
         // The bounded await is the assertion: it completes only because an unsupported Tray keeps
         // no reason for the application to stay open.
-        withTimeout(EXIT_TIMEOUT_MILLIS) {
+        withTimeout(EXIT_TIMEOUT) {
             awaitApplication { Tray(image = icon()) }
         }
     }
@@ -41,7 +42,7 @@ class TrayUnsupportedPlatformTest {
         val originalErr = System.err
         System.setErr(PrintStream(captured, true))
         try {
-            withTimeout(EXIT_TIMEOUT_MILLIS) {
+            withTimeout(EXIT_TIMEOUT) {
                 awaitApplication { Tray(image = icon()) }
             }
         } finally {
@@ -62,6 +63,6 @@ class TrayUnsupportedPlatformTest {
     private fun icon(): BufferedImage = BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB)
 
     private companion object {
-        const val EXIT_TIMEOUT_MILLIS: Long = 5_000
+        val EXIT_TIMEOUT = 5.seconds
     }
 }

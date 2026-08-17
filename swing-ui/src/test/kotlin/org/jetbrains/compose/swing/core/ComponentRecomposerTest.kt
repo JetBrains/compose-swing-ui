@@ -20,6 +20,7 @@ import org.jetbrains.compose.swing.core.SwingRecomposer
 import org.jetbrains.compose.swing.core.compositionContext
 import org.jetbrains.compose.swing.core.findParentCompositionContext
 import org.jetbrains.compose.swing.core.recomposerOrNull
+import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.Container
@@ -53,7 +54,7 @@ import kotlin.time.Duration.Companion.seconds
  */
 class ComponentRecomposerTest {
     @Test
-    fun aComponentOutsideAnyWindowComposesAndRecomposesOnItsOwnRuntime() = runBlocking(Dispatchers.Swing) {
+    fun aComponentOutsideAnyWindowComposesAndRecomposesOnItsOwnRuntime() = runSwingTest {
         val island = JPanel()
         assertNull(
             SwingUtilities.getWindowAncestor(island),
@@ -76,7 +77,7 @@ class ComponentRecomposerTest {
     }
 
     @Test
-    fun disposingTheRuntimeEndsItsScopeIdempotentlyAndLeavesNoListenerBehind() = runBlocking(Dispatchers.Swing) {
+    fun disposingTheRuntimeEndsItsScopeIdempotentlyAndLeavesNoListenerBehind() = runSwingTest {
         val island = JPanel()
         val listenersBefore = island.getPropertyChangeListeners(GRAPHICS_CONFIGURATION_PROPERTY).size
 
@@ -131,7 +132,7 @@ class ComponentRecomposerTest {
     }
 
     @Test
-    fun aComponentHostedRuntimeIsReachedOnlyByHoldingIt() = runBlocking(Dispatchers.Swing) {
+    fun aComponentHostedRuntimeIsReachedOnlyByHoldingIt() = runSwingTest {
         // The runtime is published nowhere on the component, so the self-first tree walk every
         // parentless setContent resolves through cannot find it.
         val host = JPanel()
@@ -153,7 +154,7 @@ class ComponentRecomposerTest {
     }
 
     @Test
-    fun oneWindowHandsOutOneContextAndTearsItDownWhenItCloses() = runBlocking(Dispatchers.Swing) {
+    fun oneWindowHandsOutOneContextAndTearsItDownWhenItCloses() = runSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display to realize a window")
         val frame = realizedFrame()
         try {
@@ -182,7 +183,7 @@ class ComponentRecomposerTest {
     }
 
     @Test
-    fun aContainerInsideAWindowJoinsThatWindowRatherThanMintingItsOwnRuntime() = runBlocking(Dispatchers.Swing) {
+    fun aContainerInsideAWindowJoinsThatWindowRatherThanMintingItsOwnRuntime() = runSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display to realize a window")
         val frame = realizedFrame()
         try {
@@ -211,7 +212,7 @@ class ComponentRecomposerTest {
     }
 
     @Test
-    fun aComponentHostedRuntimeIsCadencedToTheRateItsComponentReports() = runBlocking(Dispatchers.Swing) {
+    fun aComponentHostedRuntimeIsCadencedToTheRateItsComponentReports() = runSwingTest {
         // A test cannot move a component onto a display of a chosen refresh rate, so the component
         // reports one directly: the runtime reads the rate through the component's
         // GraphicsConfiguration. The expectation is the cadence of a clock built for that reported

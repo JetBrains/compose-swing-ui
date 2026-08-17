@@ -23,6 +23,7 @@ import kotlinx.coroutines.yield
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.core.compositionContext
 import org.jetbrains.compose.swing.core.recomposerOrNull
+import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.window.LocalWindow
 import org.junit.jupiter.api.Assumptions.assumeFalse
@@ -63,7 +64,7 @@ private val LocalGreeting = compositionLocalOf { "none" }
  */
 class SetContentParentWindowTest {
     @Test
-    fun withNoParentNamedAContainerWaitsForTheWindowItIsAddedTo() = runBlocking(Dispatchers.Swing) {
+    fun withNoParentNamedAContainerWaitsForTheWindowItIsAddedTo() = runSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val frame = realizedFrame()
         try {
@@ -114,7 +115,7 @@ class SetContentParentWindowTest {
     }
 
     @Test
-    fun aWindowsOwnContextStatesThatWindowFromTheFirstPass() = runBlocking(Dispatchers.Swing) {
+    fun aWindowsOwnContextStatesThatWindowFromTheFirstPass() = runSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val frame = realizedFrame()
         try {
@@ -141,7 +142,7 @@ class SetContentParentWindowTest {
     }
 
     @Test
-    fun aHostContextHandsDownItsLocalsAndTheWindowItIsUnder() = runBlocking(Dispatchers.Swing) {
+    fun aHostContextHandsDownItsLocalsAndTheWindowItIsUnder() = runSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val frame = realizedFrame()
         try {
@@ -179,7 +180,7 @@ class SetContentParentWindowTest {
     }
 
     @Test
-    fun anIslandUnderAHostContextIsNotComposedAgainWhenItsContainerJoinsThatWindow() = runBlocking(Dispatchers.Swing) {
+    fun anIslandUnderAHostContextIsNotComposedAgainWhenItsContainerJoinsThatWindow() = runSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val frame = realizedFrame()
         try {
@@ -238,7 +239,7 @@ class SetContentParentWindowTest {
     }
 
     @Test
-    fun anIslandUnderAHostContextJoinsTheOtherWindowItsContainerIsMovedTo() = runBlocking(Dispatchers.Swing) {
+    fun anIslandUnderAHostContextJoinsTheOtherWindowItsContainerIsMovedTo() = runSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val first = realizedFrame()
         val second = realizedFrame()
@@ -284,7 +285,7 @@ class SetContentParentWindowTest {
     }
 
     @Test
-    fun aContainerAddedToAnotherWindowComposesUnderTheWindowItIsThenIn() = runBlocking(Dispatchers.Swing) {
+    fun aContainerAddedToAnotherWindowComposesUnderTheWindowItIsThenIn() = runSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val first = realizedFrame()
         val second = realizedFrame()
@@ -327,66 +328,65 @@ class SetContentParentWindowTest {
     }
 
     @Test
-    fun anIslandWithNoParentNamedFollowsItsContainerToAnotherWindowAndOutlivesTheOneItLeft() =
-        runBlocking(Dispatchers.Swing) {
-            assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
-            val first = realizedFrame()
-            val second = realizedFrame()
-            try {
-                // A container with no parent named composes under the window it is in, and every island of
-                // one window recomposes with the rest of it - which has to hold after a move, or the
-                // content left behind on the first window's recomposer goes quiet the moment that window
-                // is disposed.
-                val panel = JPanel().also { first.contentPane.add(it) }
-                val recorder = IslandRecorder()
-                var text by mutableStateOf("v0")
-                val handle =
-                    panel.setContent {
-                        recorder.Read()
-                        Label(text = text)
-                    }
-                awaitUntil("the island composes under the window it was mounted in") { recorder.windows.isNotEmpty() }
-                assertSame(first, recorder.windows.last(), "the island must start out under the window it is in")
-
-                // Out of the first window and in no window at all: nothing to join yet, so the island
-                // keeps composing where it is rather than being torn down on the way.
-                first.contentPane.remove(panel)
-                text = "in-transit"
-                awaitUntil("the island in no window goes on recomposing") { labelTexts(panel) == listOf("in-transit") }
-                assertSame(
-                    first,
-                    recorder.windows.last(),
-                    "a container in no window must keep composing under the window it came from",
-                )
-
-                second.contentPane.add(panel)
-                second.pack()
-
-                awaitUntil("the island composes under the window it arrived in") { recorder.windows.last() === second }
-                text = "arrived"
-                awaitUntil("the island recomposes with the window it arrived in") {
-                    labelTexts(panel) == listOf("arrived")
+    fun anIslandWithNoParentNamedFollowsItsContainerToAnotherWindowAndOutlivesTheOneItLeft() = runSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        val first = realizedFrame()
+        val second = realizedFrame()
+        try {
+            // A container with no parent named composes under the window it is in, and every island of
+            // one window recomposes with the rest of it - which has to hold after a move, or the
+            // content left behind on the first window's recomposer goes quiet the moment that window
+            // is disposed.
+            val panel = JPanel().also { first.contentPane.add(it) }
+            val recorder = IslandRecorder()
+            var text by mutableStateOf("v0")
+            val handle =
+                panel.setContent {
+                    recorder.Read()
+                    Label(text = text)
                 }
+            awaitUntil("the island composes under the window it was mounted in") { recorder.windows.isNotEmpty() }
+            assertSame(first, recorder.windows.last(), "the island must start out under the window it is in")
 
-                // The window it left owns the recomposer it was mounted on; disposing that window cancels
-                // it. Content that had joined the second window is driven by that one and carries on.
-                first.dispose()
-                awaitUntil("the window it left releases its runtime") { first.recomposerOrNull() == null }
+            // Out of the first window and in no window at all: nothing to join yet, so the island
+            // keeps composing where it is rather than being torn down on the way.
+            first.contentPane.remove(panel)
+            text = "in-transit"
+            awaitUntil("the island in no window goes on recomposing") { labelTexts(panel) == listOf("in-transit") }
+            assertSame(
+                first,
+                recorder.windows.last(),
+                "a container in no window must keep composing under the window it came from",
+            )
 
-                text = "outlived"
-                awaitUntil("the island keeps recomposing once the window it left is disposed") {
-                    labelTexts(panel) == listOf("outlived")
-                }
+            second.contentPane.add(panel)
+            second.pack()
 
-                handle.dispose()
-            } finally {
-                second.dispose()
-                first.dispose()
+            awaitUntil("the island composes under the window it arrived in") { recorder.windows.last() === second }
+            text = "arrived"
+            awaitUntil("the island recomposes with the window it arrived in") {
+                labelTexts(panel) == listOf("arrived")
             }
+
+            // The window it left owns the recomposer it was mounted on; disposing that window cancels
+            // it. Content that had joined the second window is driven by that one and carries on.
+            first.dispose()
+            awaitUntil("the window it left releases its runtime") { first.recomposerOrNull() == null }
+
+            text = "outlived"
+            awaitUntil("the island keeps recomposing once the window it left is disposed") {
+                labelTexts(panel) == listOf("outlived")
+            }
+
+            handle.dispose()
+        } finally {
+            second.dispose()
+            first.dispose()
         }
+    }
 
     @Test
-    fun anIslandTakenOutOfItsWindowKeepsComposingAndJoinsNothingWhenItGoesBack() = runBlocking(Dispatchers.Swing) {
+    fun anIslandTakenOutOfItsWindowKeepsComposingAndJoinsNothingWhenItGoesBack() = runSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val frame = realizedFrame()
         try {
@@ -441,7 +441,7 @@ class SetContentParentWindowTest {
     }
 
     @Test
-    fun aCellIslandIsNotComposedAgainWhenTheRendererPaneAdoptsItForPainting() = runBlocking(Dispatchers.Swing) {
+    fun aCellIslandIsNotComposedAgainWhenTheRendererPaneAdoptsItForPainting() = runSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val frame = realizedFrame()
         try {
@@ -488,7 +488,7 @@ class SetContentParentWindowTest {
      * for as long as one composition lives and another object once the content is composed again.
      */
     @Test
-    fun anIslandUnderAHostInAnotherWindowReadsItsHostsWindow() = runBlocking(Dispatchers.Swing) {
+    fun anIslandUnderAHostInAnotherWindowReadsItsHostsWindow() = runSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val hostWindow = realizedFrame()
         val islandWindow = realizedFrame()
@@ -524,7 +524,7 @@ class SetContentParentWindowTest {
     }
 
     @Test
-    fun anIslandUnderAWindowlessParentReadsTheWindowItsContainerIsAddedTo() = runBlocking(Dispatchers.Swing) {
+    fun anIslandUnderAWindowlessParentReadsTheWindowItsContainerIsAddedTo() = runSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         // A runtime of its own belongs to no window, so a caller naming it as the parent composes content
         // that stands under none - the shape a page built before it is shown anywhere takes.
@@ -561,7 +561,7 @@ class SetContentParentWindowTest {
     }
 
     @Test
-    fun anIslandReadsALifecycleOwnerProvidedOverTheCompositionItJoins() = runBlocking(Dispatchers.Swing) {
+    fun anIslandReadsALifecycleOwnerProvidedOverTheCompositionItJoins() = runSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val frame = realizedFrame()
         try {
@@ -599,7 +599,7 @@ class SetContentParentWindowTest {
     }
 
     @Test
-    fun anIslandUnderAHostGoesOnReadingItsHostsWindowWhenItsContainerJoinsAnother() = runBlocking(Dispatchers.Swing) {
+    fun anIslandUnderAHostGoesOnReadingItsHostsWindowWhenItsContainerJoinsAnother() = runSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val hostWindow = realizedFrame()
         val otherWindow = realizedFrame()
@@ -637,7 +637,7 @@ class SetContentParentWindowTest {
     }
 
     @Test
-    fun anIslandUnderAWindowlessParentReadsTheWindowItsContainerAlreadyStandsIn() = runBlocking(Dispatchers.Swing) {
+    fun anIslandUnderAWindowlessParentReadsTheWindowItsContainerAlreadyStandsIn() = runSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         // The container already hangs in a window as the mount composes, and the parent it was given
         // belongs to none. Nothing is inherited and no move follows, so the window the container stands

@@ -10,6 +10,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.swing.Swing
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
+import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.GraphicsEnvironment
@@ -42,7 +43,7 @@ class DialogLifecycleTest {
     @Test
     fun pendingShowDoesNotRealizeADialogThatLeftTheComposition() {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
-        runBlocking(Dispatchers.Swing) {
+        runSwingTest {
             val clock = BroadcastFrameClock()
             val recomposer = Recomposer(coroutineContext + clock)
             // The immediate dispatcher resumes the recomposer inline, so a snapshot flush moves it to

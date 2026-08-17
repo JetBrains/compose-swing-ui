@@ -6,10 +6,14 @@ import java.awt.Frame
 import java.awt.event.WindowAdapter
 import java.awt.event.WindowEvent
 import java.awt.event.WindowListener
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TimeSource
 
 /**
  * Asks the window system to minimize [frame] and suspends until it has, skipping the test as a failed
- * assumption rather than failing it if the window system has not acted within [timeoutMillis].
+ * assumption rather than failing it if the window system has not acted within [timeout].
  *
  * Minimizing is a request, not a state a process assigns. `Frame.setExtendedState` records what was
  * asked for and hands it to the window system, which posts [WindowEvent.WINDOW_ICONIFIED] once it has
@@ -25,43 +29,43 @@ import java.awt.event.WindowListener
  */
 internal suspend fun assumeFrameIconifies(
     frame: Frame,
-    timeoutMillis: Long = ICONIFY_TIMEOUT_MILLIS,
+    timeout: Duration = ICONIFY_TIMEOUT,
 ) {
     assumeTrue(
-        frame.awaitStateChange(WindowEvent.WINDOW_ICONIFIED, timeoutMillis) {
+        frame.awaitStateChange(WindowEvent.WINDOW_ICONIFIED, timeout) {
             frame.extendedState = Frame.ICONIFIED
         },
         "requires a window system that minimizes this process's windows: '${frame.title}' was still " +
-            "not iconified after ${timeoutMillis}ms",
+            "not iconified after $timeout",
     )
 }
 
 /**
  * Asks the window system to restore [frame] from minimization and suspends until it has, skipping the
- * test as a failed assumption if it has not within [timeoutMillis]. The counterpart of
- * [assumeFrameIconifies], and withheld by a host on the same terms.
+ * test as a failed assumption if it has not within [timeout]. The counterpart of [assumeFrameIconifies],
+ * and withheld by a host on the same terms.
  */
 internal suspend fun assumeFrameDeiconifies(
     frame: Frame,
-    timeoutMillis: Long = ICONIFY_TIMEOUT_MILLIS,
+    timeout: Duration = ICONIFY_TIMEOUT,
 ) {
     assumeTrue(
-        frame.awaitStateChange(WindowEvent.WINDOW_DEICONIFIED, timeoutMillis) {
+        frame.awaitStateChange(WindowEvent.WINDOW_DEICONIFIED, timeout) {
             frame.extendedState = Frame.NORMAL
         },
         "requires a window system that restores this process's minimized windows: '${frame.title}' was " +
-            "still not restored after ${timeoutMillis}ms",
+            "still not restored after $timeout",
     )
 }
 
 /**
  * Runs [request] with a listener already installed for [eventId] and reports whether the window system
- * posted it before [timeoutMillis] ran out. The listener goes on first so a window system that acts
+ * posted it before [timeout] ran out. The listener goes on first so a window system that acts
  * immediately cannot post the notification into the gap before anything was listening.
  */
 private suspend fun Frame.awaitStateChange(
     eventId: Int,
-    timeoutMillis: Long,
+    timeout: Duration,
     request: () -> Unit,
 ): Boolean {
     val arrived = BooleanArray(1)
@@ -78,10 +82,10 @@ private suspend fun Frame.awaitStateChange(
     addWindowListener(listener)
     return try {
         request()
-        val deadline = System.nanoTime() + timeoutMillis * NANOS_PER_MILLI
+        val deadline = TimeSource.Monotonic.markNow() + timeout
         while (!arrived[0]) {
-            if (System.nanoTime() >= deadline) return false
-            delay(POLL_MILLIS)
+            if (deadline.hasPassedNow()) return false
+            delay(POLL_INTERVAL)
         }
         true
     } finally {
@@ -93,6 +97,5 @@ private suspend fun Frame.awaitStateChange(
  * Generous for the same reason the keyboard-focus gate's deadline is, with minimization standing in for
  * activation as the capability being waited on.
  */
-private const val ICONIFY_TIMEOUT_MILLIS = 5_000L
-private const val POLL_MILLIS = 25L
-private const val NANOS_PER_MILLI = 1_000_000L
+private val ICONIFY_TIMEOUT = 5.seconds
+private val POLL_INTERVAL = 25.milliseconds

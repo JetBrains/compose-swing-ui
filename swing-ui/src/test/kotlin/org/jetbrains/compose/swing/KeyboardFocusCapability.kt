@@ -8,6 +8,10 @@ import java.awt.GraphicsEnvironment
 import java.awt.Window
 import javax.swing.JFrame
 import javax.swing.SwingUtilities
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TimeSource
 
 /**
  * Declares that a test needs the window system to grant keyboard focus: a window this process realizes
@@ -33,8 +37,8 @@ internal fun assumeKeyboardFocusIsPossible() {
 }
 
 /**
- * Suspends until [window] is the focused window and, if it has not become focused within
- * [timeoutMillis], skips the test as a failed assumption rather than failing it.
+ * Suspends until [window] is the focused window and, if it has not become focused within [timeout],
+ * skips the test as a failed assumption rather than failing it.
  *
  * This is the authoritative half of the gate, and it observes one thing only: whether the window system
  * made *this* window the focused one. That is the capability a host may withhold, and its absence is
@@ -55,12 +59,12 @@ internal fun assumeKeyboardFocusIsPossible() {
  */
 internal suspend fun assumeWindowBecomesFocused(
     window: Window,
-    timeoutMillis: Long = FOCUS_TIMEOUT_MILLIS,
+    timeout: Duration = FOCUS_TIMEOUT,
 ) {
     assumeTrue(
-        awaitFocused(window, timeoutMillis),
+        awaitFocused(window, timeout),
         "requires a window system that focuses this process's windows: ${window.describe()} was still " +
-            "not the focused window after ${timeoutMillis}ms",
+            "not the focused window after $timeout",
     )
 }
 
@@ -94,12 +98,12 @@ private fun probeKeyboardFocus(): Boolean {
 
 private suspend fun awaitFocused(
     window: Window,
-    timeoutMillis: Long,
+    timeout: Duration,
 ): Boolean {
-    val deadline = System.nanoTime() + timeoutMillis * NANOS_PER_MILLI
+    val deadline = TimeSource.Monotonic.markNow() + timeout
     while (!window.isFocused) {
-        if (System.nanoTime() >= deadline) return false
-        delay(POLL_MILLIS)
+        if (deadline.hasPassedNow()) return false
+        delay(POLL_INTERVAL)
     }
     return true
 }
@@ -109,10 +113,10 @@ private suspend fun awaitFocused(
  * event dispatch thread free to deliver the activation.
  */
 private fun awaitFocusedBlocking(probe: JFrame): Boolean {
-    val deadline = System.currentTimeMillis() + FOCUS_TIMEOUT_MILLIS
-    while (System.currentTimeMillis() < deadline) {
+    val deadline = TimeSource.Monotonic.markNow() + FOCUS_TIMEOUT
+    while (!deadline.hasPassedNow()) {
         if (readOnEventDispatchThread { probe.isFocused }) return true
-        Thread.sleep(POLL_MILLIS)
+        Thread.sleep(POLL_INTERVAL.inWholeMilliseconds)
     }
     return false
 }
@@ -143,7 +147,6 @@ private fun readOnEventDispatchThread(read: () -> Boolean): Boolean {
  * the host's own affair and varies from run to run, so the deadline is set for the slowest of them; a
  * wait ends on its next check once the window is focused, so its length costs a quicker run nothing.
  */
-private const val FOCUS_TIMEOUT_MILLIS = 5_000L
-private const val POLL_MILLIS = 25L
+private val FOCUS_TIMEOUT = 5.seconds
+private val POLL_INTERVAL = 25.milliseconds
 private const val PROBE_SIDE = 64
-private const val NANOS_PER_MILLI = 1_000_000L

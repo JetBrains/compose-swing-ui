@@ -10,6 +10,7 @@ import kotlinx.coroutines.swing.Swing
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
 import org.jetbrains.compose.swing.components.button.Button
+import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -25,6 +26,7 @@ import javax.swing.plaf.basic.BasicToolBarUI
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * [ToolBar]'s `floating` is two-way: it puts the bar into a window of its own or brings it back, and
@@ -166,7 +168,7 @@ class ToolBarFloatingTest {
     private fun onARealizedFrame(body: suspend (JFrame, Container) -> Unit) {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         underMetal {
-            runBlocking(Dispatchers.Swing) {
+            runSwingTest {
                 val frame =
                     JFrame().apply {
                         defaultCloseOperation = JFrame.DISPOSE_ON_CLOSE
@@ -219,18 +221,18 @@ class ToolBarFloatingTest {
         condition: () -> Boolean,
     ) {
         try {
-            withTimeout(SETTLE_TIMEOUT_MILLIS) {
+            withTimeout(SETTLE_TIMEOUT) {
                 while (!condition()) {
                     yield()
                 }
             }
         } catch (timedOut: TimeoutCancellationException) {
-            throw AssertionError("Timed out after ${SETTLE_TIMEOUT_MILLIS}ms waiting until $description", timedOut)
+            throw AssertionError("Timed out after $SETTLE_TIMEOUT waiting until $description", timedOut)
         }
     }
 
     private companion object {
         const val FRAME_SIZE: Int = 200
-        const val SETTLE_TIMEOUT_MILLIS: Long = 10_000
+        val SETTLE_TIMEOUT = 10.seconds
     }
 }

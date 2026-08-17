@@ -30,6 +30,9 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TimeSource
 import java.awt.Window as AwtWindow
 
 /**
@@ -203,15 +206,15 @@ class NodeFocusInteractionTest {
 
     /**
      * True once [window] is the focused window, false if the window system has not focused it within
-     * [FOCUS_TIMEOUT_MILLIS]. Activation arrives as a window-system notification with real latency, so
-     * it is awaited rather than read once, from the test body - which runs on the event dispatch thread
-     * that notification is delivered on.
+     * [FOCUS_TIMEOUT]. Activation arrives as a window-system notification with real latency, so it is
+     * awaited rather than read once, from the test body - which runs on the event dispatch thread that
+     * notification is delivered on.
      */
     private suspend fun awaitFocused(window: AwtWindow): Boolean {
-        val deadline = System.currentTimeMillis() + FOCUS_TIMEOUT_MILLIS
-        while (System.currentTimeMillis() < deadline) {
+        val deadline = TimeSource.Monotonic.markNow() + FOCUS_TIMEOUT
+        while (!deadline.hasPassedNow()) {
             if (window.isFocused) return true
-            delay(FOCUS_POLL_MILLIS)
+            delay(FOCUS_POLL_INTERVAL)
         }
         return false
     }
@@ -227,21 +230,21 @@ class NodeFocusInteractionTest {
         window: AwtWindow,
         target: () -> Component,
     ) {
-        val deadline = System.currentTimeMillis() + FOCUS_TIMEOUT_MILLIS
+        val deadline = TimeSource.Monotonic.markNow() + FOCUS_TIMEOUT
         while (!target().isFocusOwner) {
-            if (System.currentTimeMillis() >= deadline) {
+            if (deadline.hasPassedNow()) {
                 assumeTrue(
                     window.isFocused,
                     "requires a window system that focuses this process's windows: the window was no " +
-                        "longer the focused one after ${FOCUS_TIMEOUT_MILLIS}ms",
+                        "longer the focused one after $FOCUS_TIMEOUT",
                 )
                 val holder = KeyboardFocusManager.getCurrentKeyboardFocusManager().focusOwner
                 throw AssertionError(
                     "The window is focused but the keyboard did not reach the component that requested " +
-                        "it within ${FOCUS_TIMEOUT_MILLIS}ms; it is held by ${holder ?: "nothing"}.",
+                        "it within $FOCUS_TIMEOUT; it is held by ${holder ?: "nothing"}.",
                 )
             }
-            delay(FOCUS_POLL_MILLIS)
+            delay(FOCUS_POLL_INTERVAL)
         }
     }
 
@@ -249,7 +252,7 @@ class NodeFocusInteractionTest {
         // Both waits sit on an asynchronous focus notification, and neither is a rate: measured against
         // this host, activation lands within a millisecond and the in-window grant within tens of them,
         // so the bound is what separates a slow delivery from a host that will never deliver one.
-        const val FOCUS_TIMEOUT_MILLIS: Long = 5_000
-        const val FOCUS_POLL_MILLIS: Long = 25
+        val FOCUS_TIMEOUT = 5.seconds
+        val FOCUS_POLL_INTERVAL = 25.milliseconds
     }
 }

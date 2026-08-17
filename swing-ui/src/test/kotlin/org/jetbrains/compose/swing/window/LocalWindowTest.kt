@@ -12,6 +12,7 @@ import org.jetbrains.compose.swing.components.Menu
 import org.jetbrains.compose.swing.components.MenuItem
 import org.jetbrains.compose.swing.components.selection.ListBox
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -47,7 +48,7 @@ import kotlin.time.Duration.Companion.seconds
  */
 class LocalWindowTest {
     @Test
-    fun contentSetOnAWindowReadsThatWindow() = runBlocking(Dispatchers.Swing) {
+    fun contentSetOnAWindowReadsThatWindow() = runSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val frame = realizedFrame()
         try {
@@ -62,7 +63,7 @@ class LocalWindowTest {
     }
 
     @Test
-    fun contentSetOnADetachedContainerReadsTheWindowItIsLaterAttachedTo() = runBlocking(Dispatchers.Swing) {
+    fun contentSetOnADetachedContainerReadsTheWindowItIsLaterAttachedTo() = runSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val frame = realizedFrame()
         try {
@@ -83,7 +84,7 @@ class LocalWindowTest {
     }
 
     @Test
-    fun aMenuTreeReadsTheWindowItsBarIsInstalledOn() = runBlocking(Dispatchers.Swing) {
+    fun aMenuTreeReadsTheWindowItsBarIsInstalledOn() = runSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val frame = realizedFrame()
         try {
@@ -107,7 +108,7 @@ class LocalWindowTest {
     }
 
     @Test
-    fun everyIslandOfAWindowReadsIt() = runBlocking(Dispatchers.Swing) {
+    fun everyIslandOfAWindowReadsIt() = runSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val frame = realizedFrame()
         try {
@@ -152,7 +153,7 @@ class LocalWindowTest {
     }
 
     @Test
-    fun aComposedCellReadsTheWindowItsListIsComposedIn() = runBlocking(Dispatchers.Swing) {
+    fun aComposedCellReadsTheWindowItsListIsComposedIn() = runSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val frame = realizedFrame()
         try {
@@ -179,7 +180,7 @@ class LocalWindowTest {
     }
 
     @Test
-    fun contentSetOnAnOwnedDialogReadsTheDialogAndNotItsOwner() = runBlocking(Dispatchers.Swing) {
+    fun contentSetOnAnOwnedDialogReadsTheDialogAndNotItsOwner() = runSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val owner = realizedFrame()
         val dialog = JDialog(owner).apply { pack() }

@@ -12,6 +12,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Pins how the keyboard-focus gate answers the one question it exists to answer: a window the window
@@ -89,7 +90,7 @@ class KeyboardFocusGateTest {
                 runComposeSwingTest {
                     val unfocusable = createWindow()
                     try {
-                        assumeWindowBecomesFocused(unfocusable, timeoutMillis = SHORT_DEADLINE_MILLIS)
+                        assumeWindowBecomesFocused(unfocusable, timeout = SHORT_DEADLINE)
                     } finally {
                         unfocusable.dispose()
                     }
@@ -126,6 +127,6 @@ class KeyboardFocusGateTest {
          * Long enough to be a real deadline the gate polls against, short enough that pinning its
          * expiry costs the suite nothing.
          */
-        const val SHORT_DEADLINE_MILLIS = 200L
+        val SHORT_DEADLINE = 200.milliseconds
     }
 }

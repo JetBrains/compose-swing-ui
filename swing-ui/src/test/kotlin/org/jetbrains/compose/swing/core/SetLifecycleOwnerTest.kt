@@ -8,6 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.swing.Swing
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
+import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
 import javax.swing.JPanel
 import kotlin.test.Test
@@ -24,60 +25,56 @@ import kotlin.test.assertSame
  */
 class SetLifecycleOwnerTest {
     @Test
-    fun aRootUnderAPublishedOwnerReadsItRatherThanMintingOne() = runTest {
-        withContext(Dispatchers.Swing) {
-            val runtime = SwingRecomposer.create(JPanel())
-            try {
-                val host = JPanel()
-                val published = HostOwner()
-                host.setLifecycleOwner(published)
-                val island = JPanel().also { host.add(it) }
+    fun aRootUnderAPublishedOwnerReadsItRatherThanMintingOne() = runSwingTest {
+        val runtime = SwingRecomposer.create(JPanel())
+        try {
+            val host = JPanel()
+            val published = HostOwner()
+            host.setLifecycleOwner(published)
+            val island = JPanel().also { host.add(it) }
 
-                var read: LifecycleOwner? = null
-                val handle =
-                    island.setContent(
-                        parent = runtime.compositionContext,
-                    ) { read = LocalLifecycleOwner.current }
+            var read: LifecycleOwner? = null
+            val handle =
+                island.setContent(
+                    parent = runtime.compositionContext,
+                ) { read = LocalLifecycleOwner.current }
 
-                assertSame(
-                    published,
-                    read,
-                    "a root standing under an owner a host set must read it rather than minting one of its own",
-                )
-                handle.dispose()
-            } finally {
-                runtime.dispose()
-            }
+            assertSame(
+                published,
+                read,
+                "a root standing under an owner a host set must read it rather than minting one of its own",
+            )
+            handle.dispose()
+        } finally {
+            runtime.dispose()
         }
     }
 
     @Test
-    fun aRootUnderNoPublishedOwnerMintsOne() = runTest {
-        withContext(Dispatchers.Swing) {
-            val runtime = SwingRecomposer.create(JPanel())
-            try {
-                val host = JPanel()
-                val published = HostOwner()
-                host.setLifecycleOwner(published)
-                host.setLifecycleOwner(null)
-                val island = JPanel().also { host.add(it) }
+    fun aRootUnderNoPublishedOwnerMintsOne() = runSwingTest {
+        val runtime = SwingRecomposer.create(JPanel())
+        try {
+            val host = JPanel()
+            val published = HostOwner()
+            host.setLifecycleOwner(published)
+            host.setLifecycleOwner(null)
+            val island = JPanel().also { host.add(it) }
 
-                var read: LifecycleOwner? = null
-                val handle =
-                    island.setContent(
-                        parent = runtime.compositionContext,
-                    ) { read = LocalLifecycleOwner.current }
+            var read: LifecycleOwner? = null
+            val handle =
+                island.setContent(
+                    parent = runtime.compositionContext,
+                ) { read = LocalLifecycleOwner.current }
 
-                assertNotSame(
-                    published,
-                    read,
-                    "a cleared owner must leave a root minting one of its own, so a host's teardown gives the " +
-                        "tree back the way it found it",
-                )
-                handle.dispose()
-            } finally {
-                runtime.dispose()
-            }
+            assertNotSame(
+                published,
+                read,
+                "a cleared owner must leave a root minting one of its own, so a host's teardown gives the " +
+                    "tree back the way it found it",
+            )
+            handle.dispose()
+        } finally {
+            runtime.dispose()
         }
     }
 

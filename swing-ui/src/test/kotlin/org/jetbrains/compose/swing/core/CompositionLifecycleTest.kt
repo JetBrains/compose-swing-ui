@@ -23,6 +23,7 @@ import org.jetbrains.compose.swing.assumeFrameDeiconifies
 import org.jetbrains.compose.swing.assumeFrameIconifies
 import org.jetbrains.compose.swing.assumeKeyboardFocusIsPossible
 import org.jetbrains.compose.swing.assumeWindowBecomesFocused
+import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.window.Dialog
@@ -74,26 +75,24 @@ import kotlin.time.TimeSource
  */
 class CompositionLifecycleTest {
     @Test
-    fun contentThatHangsOffNoWindowReportsCreated() = runTest {
-        withContext(Dispatchers.Swing) {
-            // A container of its own, in no window at all - the state a composition mounted into a container
-            // built before it is shown opens in. It composes under a runtime of its own, so nothing above
-            // states an owner and the root mints one following where its own container hangs.
-            val runtime = SwingRecomposer.create(JPanel())
-            try {
-                val reader = LifecycleReader()
-                val panel = JPanel()
-                val handle = panel.setContent(parent = runtime.compositionContext) { reader.Observe() }
+    fun contentThatHangsOffNoWindowReportsCreated() = runSwingTest {
+        // A container of its own, in no window at all - the state a composition mounted into a container
+        // built before it is shown opens in. It composes under a runtime of its own, so nothing above
+        // states an owner and the root mints one following where its own container hangs.
+        val runtime = SwingRecomposer.create(JPanel())
+        try {
+            val reader = LifecycleReader()
+            val panel = JPanel()
+            val handle = panel.setContent(parent = runtime.compositionContext) { reader.Observe() }
 
-                assertEquals(
-                    Lifecycle.State.CREATED,
-                    reader.state,
-                    "content composed into a container that hangs off no window must report CREATED",
-                )
-                handle.dispose()
-            } finally {
-                runtime.dispose()
-            }
+            assertEquals(
+                Lifecycle.State.CREATED,
+                reader.state,
+                "content composed into a container that hangs off no window must report CREATED",
+            )
+            handle.dispose()
+        } finally {
+            runtime.dispose()
         }
     }
 

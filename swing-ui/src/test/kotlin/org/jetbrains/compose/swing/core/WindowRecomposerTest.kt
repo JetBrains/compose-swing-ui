@@ -13,6 +13,7 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.core.findParentCompositionContext
 import org.jetbrains.compose.swing.core.getOrCreateRecomposer
 import org.jetbrains.compose.swing.core.recomposerOrNull
+import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.Container
@@ -39,7 +40,7 @@ import kotlin.time.Duration.Companion.seconds
  */
 class WindowRecomposerTest {
     @Test
-    fun twoIslandsUnderOneRealWindowShareOneRecomposer() = runBlocking(Dispatchers.Swing) {
+    fun twoIslandsUnderOneRealWindowShareOneRecomposer() = runSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val frame = realizedFrame()
         try {
@@ -79,7 +80,7 @@ class WindowRecomposerTest {
     }
 
     @Test
-    fun theRecomposerIsCreatedLazilyAndMemoizedPerWindow() = runBlocking(Dispatchers.Swing) {
+    fun theRecomposerIsCreatedLazilyAndMemoizedPerWindow() = runSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val frame = realizedFrame()
         try {
@@ -106,7 +107,7 @@ class WindowRecomposerTest {
     }
 
     @Test
-    fun closingTheWindowTearsTheRecomposerDown() = runBlocking(Dispatchers.Swing) {
+    fun closingTheWindowTearsTheRecomposerDown() = runSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val frame = realizedFrame()
         try {
