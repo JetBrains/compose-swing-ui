@@ -22,6 +22,7 @@ import kotlinx.coroutines.yield
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.core.ContainedCallerFailure
 import org.jetbrains.compose.swing.core.setLifecycleOwner
+import org.jetbrains.compose.swing.node.debugValidateChildIndexSpace
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.interaction.NodePick
 import org.jetbrains.compose.swing.test.interaction.SwingNodeInteraction
@@ -449,10 +450,18 @@ private class ComposeSwingTestImpl(
      */
     private var libraryFailure: Throwable? = null
 
+    /**
+     * [debugValidateChildIndexSpace] as this test found it, restored in [close]. The applier's own check
+     * costs nothing this test does not ask for, and a violation surfaces through [dispatchThread]'s
+     * uncaught-exception handler exactly like [libraryFailure] does.
+     */
+    private val enclosingDebugValidateChildIndexSpace = debugValidateChildIndexSpace
+
     init {
         // Published before anything composes, so a root mounted into this container resolves this owner
         // rather than minting one that follows a container standing in no window.
         root.setLifecycleOwner(lifecycleOwner)
+        debugValidateChildIndexSpace = true
         dispatchThread.setUncaughtExceptionHandler { _, failure ->
             // A ContainedCallerFailure names a caller callback the library deliberately contained; every
             // other throwable reaching this handler is the library's own failure - see libraryFailure.
@@ -890,6 +899,7 @@ private class ComposeSwingTestImpl(
             scope.cancel()
         } finally {
             dispatchThread.setUncaughtExceptionHandler(enclosingHandler)
+            debugValidateChildIndexSpace = enclosingDebugValidateChildIndexSpace
             root.setLifecycleOwner(null)
         }
         val contained = callerFailures.toList()

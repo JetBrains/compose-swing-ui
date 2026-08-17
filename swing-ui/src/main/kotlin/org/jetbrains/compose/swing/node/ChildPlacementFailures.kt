@@ -36,7 +36,7 @@ internal fun hostHasNoRegions(
     host: Container,
     child: SwingNodeHolder<*>,
 ): String {
-    val named = child.declaredSlotName ?: "the region it names"
+    val named = child.declaredSlot?.name ?: "the region it names"
     return "A ${host.declaredName} adds its children by index and offers no regions of its own, " +
         "but the ${child.component.declaredName} declared here fills ${child.namedRegion()}. " +
         "Declare the child without $named to have it added by index, or declare it under the container " +
@@ -105,4 +105,4 @@ private fun ChildPlacement.regionCalls(): List<String> =
 
 /** The region this node's chain names, as an error refers to it. */
 private fun SwingNodeHolder<*>.namedRegion(): String =
-    declaredSlotName?.let { "the region $it" } ?: "a region of its own"
+    declaredSlot?.name?.let { "the region $it" } ?: "a region of its own"

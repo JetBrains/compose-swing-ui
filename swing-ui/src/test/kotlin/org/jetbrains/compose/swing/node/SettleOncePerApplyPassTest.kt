@@ -1,4 +1,4 @@
-package org.jetbrains.compose.swing.core
+package org.jetbrains.compose.swing.node
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf

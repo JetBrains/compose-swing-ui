@@ -12,6 +12,7 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.BoxPanel
 import org.jetbrains.compose.swing.components.layout.FlowPanel
 import org.jetbrains.compose.swing.components.layout.ScrollPane
+import org.jetbrains.compose.swing.components.selection.firstLabelText
 import org.jetbrains.compose.swing.components.selection.stampCell
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
@@ -275,6 +276,48 @@ class ParkedContentTest {
     }
 
     @Test
+    fun aRelocatedRegionChildFillsTheRegionAParkedSiblingGaveUp() = runComposeSwingTest {
+        // A Slots host (a ScrollPane's viewport) holding a parked sibling that named the same region: the
+        // parked holder's declared region survives deactivation while its installed one does not (see
+        // SwingNodeHolder.onDeactivate), so a permanent mismatch must not be read as one to restore.
+        var parked by mutableStateOf(false)
+        var inTarget by mutableStateOf(false)
+        setContent {
+            val moved = remember { movableContentOf<SwingModifier> { modifier -> Label("moved", modifier) } }
+            FlowPanel {
+                ScrollPane(modifier = SwingModifier.testTag(TARGET)) {
+                    ReusableContentHost(active = !parked) { Label("parked", SwingModifier.viewport()) }
+                    if (inTarget) moved(SwingModifier.viewport())
+                }
+                ScrollPane {
+                    if (!inTarget) moved(SwingModifier.viewport())
+                }
+            }
+        }
+
+        val target = onNodeWithTag(TARGET).fetch<JScrollPane>()
+        assertSame(
+            onNodeWithText("parked").fetch(),
+            target.viewport.view,
+            "the driven child fills the region",
+        )
+
+        parked = true
+        inTarget = true
+        awaitIdle()
+        // The one-child-per-region refusal, if the parked holder were wrongly reinstalled, is raised a
+        // turn after the pass that filled the region.
+        awaitIdle()
+
+        assertSame(
+            onNodeWithText("moved").fetch(),
+            target.viewport.view,
+            "the relocated child fills the region the parked sibling gave up, undisturbed by the parked " +
+                "holder's stale mismatch",
+        )
+    }
+
+    @Test
     fun aParkedTopLevelChildIsNotCountedAgainstACellsOneRootSlot() = runComposeSwingTest {
         // A composable cell mounts its own composition through a single root slot, so its content is held
         // to one top-level child. A parked one gave that slot up as it deactivated and stands in the
@@ -284,20 +327,31 @@ class ParkedContentTest {
         val model = DefaultComboBoxModel(arrayOf("Red"))
         setContent {
             ComboBox(model = model) { item ->
-                ReusableContentHost(active = !parked) { Label("parked-\$item") }
+                ReusableContentHost(active = !parked) { Label("parked-$item") }
                 if (parked) Label(item)
             }
         }
 
         val combo = onNodeOfType<JComboBox<*>>().fetch<JComboBox<String>>()
-        combo.stampCell(index = 0)
+        assertEquals(
+            "parked-Red",
+            combo.stampCell(index = 0).firstLabelText(),
+            "the cell shows what the island's active content composes",
+        )
         awaitIdle()
 
         parked = true
         awaitIdle()
-        combo.stampCell(index = 0)
-        // The refusal is raised a turn after the pass that filled the slot, so it needs one more.
+        val restamped = combo.stampCell(index = 0)
+        // The refusal, if the parked content still counted against the slot, is raised a turn after the
+        // pass that filled it.
         awaitIdle()
+
+        assertEquals(
+            "Red",
+            restamped.firstLabelText(),
+            "the cell shows the fresh content once the parked one has given the slot up",
+        )
     }
 
     private companion object {
@@ -305,5 +359,6 @@ class ParkedContentTest {
         const val FIRST = "first-host"
         const val SECOND = "second-host"
         const val HOST = "host-under-test"
+        const val TARGET = "target-host"
     }
 }

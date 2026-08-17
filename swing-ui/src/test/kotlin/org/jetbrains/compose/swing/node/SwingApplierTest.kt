@@ -1,14 +1,10 @@
-package org.jetbrains.compose.swing.core
+package org.jetbrains.compose.swing.node
 
 import androidx.compose.runtime.snapshots.SnapshotStateObserver
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifierDiff
 import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
 import org.jetbrains.compose.swing.modifier.layout.slot
-import org.jetbrains.compose.swing.node.ChildPlacement
-import org.jetbrains.compose.swing.node.SlotAttachment
-import org.jetbrains.compose.swing.node.SwingApplier
-import org.jetbrains.compose.swing.node.SwingNodeHolder
 import java.awt.BorderLayout
 import java.awt.Component
 import java.awt.Container
@@ -806,7 +802,7 @@ class SwingApplierTest {
             message.contains("layoutConstraint(${BorderLayout.CENTER}) and $VIEWPORT_CALL"),
             "the failure should name the two placements the chain declares: $message",
         )
-        assertNull(child.declaredSlotName, "a refused chain should leave no region recorded on the node")
+        assertNull(child.declaredSlot, "a refused chain should leave no region recorded on the node")
         assertNull(child.constraint, "a refused chain should leave no layout constraint recorded on the node")
     }
 }

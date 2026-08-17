@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.node
 import androidx.compose.runtime.ComposeNodeLifecycleCallback
 import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.snapshots.SnapshotStateObserver
+import org.jetbrains.annotations.VisibleForTesting
 import org.jetbrains.compose.swing.core.COMPOSITION_KEY
 import org.jetbrains.compose.swing.modifier.SwingModifierState
 import org.jetbrains.compose.swing.modifier.resetModifierState
@@ -46,6 +47,39 @@ public fun interface SlotAttachment {
         index: Int,
     ): () -> Unit
 }
+
+/**
+ * The region a node's modifier chain declares. It says where the composition wants the component,
+ * before the applier has attached it there.
+ *
+ * @property attachment the host's method for installing a component into the region
+ * @property name the region's name, such as `viewport` or `corner(UPPER_LEFT)`
+ */
+internal class DeclaredSlot(
+    val attachment: SlotAttachment,
+    val name: String,
+)
+
+/**
+ * The region a node is actually installed in, recorded by the applier once it has attached the
+ * component there.
+ *
+ * [name] is nullable where [DeclaredSlot.name] is not: a component the applier installs through the
+ * mount's own root slot fills no region any chain declared, so it carries an attachment and an
+ * uninstall action but no name. A component installed through a region its chain named takes that
+ * region's name instead.
+ *
+ * @property attachment the attachment that installed the component
+ * @property name the name of the region filled, or `null` for the mount's root slot
+ * @property uninstall detaches the component and frees the region; runs on removal, move, parking and
+ *   release
+ */
+@VisibleForTesting
+internal class InstalledSlot(
+    val attachment: SlotAttachment,
+    val name: String?,
+    val uninstall: () -> Unit,
+)
 
 /**
  * The node type of [SwingApplier]. It holds a Swing [Component] and the bookkeeping that the applier
@@ -112,62 +146,39 @@ internal class SwingNodeHolder<out T : Component>
         internal var modifierState: SwingModifierState? = null
 
         /**
-         * The attachment this node's modifier chain declares. It is non-`null` when the chain installs
-         * the component through a host's own method instead of `Container.add`.
+         * The region this node's modifier chain declares, or `null` when the chain installs the
+         * component through `Container.add` instead of a host's own method.
          *
          * The chain sets it before the applier attaches the component. It says where the composition
-         * wants the component. [installedSlotAttachment] says where the applier put it.
+         * wants the component. [installedSlot] says where the applier put it.
          */
-        internal var declaredSlotAttachment: SlotAttachment? = null
+        internal var declaredSlot: DeclaredSlot? = null
 
         /**
-         * The name of the region the chain declares the component fills, such as `viewport` or
-         * `corner(UPPER_LEFT)`. It is non-`null` exactly when [declaredSlotAttachment] is.
-         *
-         * The name tells one region of a host from another. The applier uses it to decide when a
-         * component must move, and to keep a host to one child per region.
-         */
-        internal var declaredSlotName: String? = null
-
-        /**
-         * The attachment that installed the component where it is now. It is `null` when the node
-         * fills no region, which is every node its parent adds by index.
+         * The region the component is actually installed in, or `null` when the node fills no region,
+         * which is every node its parent adds by index.
          *
          * Only the applier writes it.
          */
-        internal var installedSlotAttachment: SlotAttachment? = null
-
-        /** The name of the region the component is installed in. See [installedSlotAttachment]. */
-        internal var installedSlotName: String? = null
-
-        /**
-         * The action that [installedSlotAttachment] returned. It runs when the applier removes or
-         * moves the node, when the node is parked, and when it is released. It is `null` when the node
-         * fills no region.
-         */
-        internal var slotUninstall: (() -> Unit)? = null
+        internal var installedSlot: InstalledSlot? = null
 
         /**
          * Records [attachment] and [uninstall] as what installed the component where it is now.
          *
          * The region recorded is the declared one, because an install always fills the region that was
-         * declared. It is `null` for a top-level child, which fills no named region.
+         * declared.
          */
         internal fun installedThrough(
             attachment: SlotAttachment,
             uninstall: () -> Unit,
         ) {
-            installedSlotAttachment = attachment
-            installedSlotName = declaredSlotName
-            slotUninstall = uninstall
+            installedSlot = InstalledSlot(attachment, declaredSlot?.name, uninstall)
         }
 
         /** Frees the region the component fills, if it fills one. Safe to call twice. */
         internal fun releaseInstalledSlot() {
-            slotUninstall?.invoke()
-            slotUninstall = null
-            installedSlotAttachment = null
-            installedSlotName = null
+            installedSlot?.uninstall?.invoke()
+            installedSlot = null
         }
 
         /**
@@ -175,7 +186,8 @@ internal class SwingNodeHolder<out T : Component>
          *
          * A move reads each moved child's [constraint] from here, because Swing does not give a
          * constraint back after `remove`. A removal from a host that holds its children in regions of
-         * its own also reads them from here, and runs each one's [slotUninstall] to release the region.
+         * its own also reads them from here, and runs each one's [InstalledSlot.uninstall] to release
+         * the region.
          * The list lives on the node, so it goes away with the node.
          *
          * A child stands here from the moment the applier takes it in, which for a relocated child is
@@ -290,8 +302,8 @@ internal class SwingNodeHolder<out T : Component>
          * longer runs. The shared observer itself keeps running for every other node. It is disposed
          * with the composition.
          *
-         * It does not change where the component lives: [constraint], [declaredSlotAttachment],
-         * [declaredSlotName] and [childPlacement] all survive.
+         * It does not change where the component lives: [constraint], [declaredSlot] and
+         * [childPlacement] all survive.
          */
         private fun reset() {
             clearSubcompositionStamp()

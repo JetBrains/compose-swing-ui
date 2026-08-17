@@ -6,6 +6,7 @@ import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import org.jetbrains.compose.swing.modifier.layout.checkOnePlacement
 import org.jetbrains.compose.swing.modifier.layout.removeLayoutConstraint
 import org.jetbrains.compose.swing.modifier.layout.removeSlot
+import org.jetbrains.compose.swing.node.DeclaredSlot
 import org.jetbrains.compose.swing.node.SwingNodeHolder
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
 import java.awt.Component
@@ -328,8 +329,7 @@ internal fun SwingNodeHolder<Component>.applyModifierDiff(modifier: SwingModifie
     val slot = state.incomingKeyed.removeSlot()
     val constraint = state.incomingKeyed.removeLayoutConstraint()
     checkOnePlacement(slot, constraint)
-    declaredSlotAttachment = slot?.attachment
-    declaredSlotName = slot?.name
+    declaredSlot = slot?.let { DeclaredSlot(it.attachment, it.name) }
     applyConstraint(constraint)
 
     diffKeyedElements(target, state.records, state.incomingKeyed)

@@ -1,9 +1,10 @@
-package org.jetbrains.compose.swing
+package org.jetbrains.compose.swing.node
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.node.MenuNode
+import org.jetbrains.compose.swing.composeMenu
+import org.jetbrains.compose.swing.menuItemTexts
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JMenu
 import javax.swing.JMenuItem

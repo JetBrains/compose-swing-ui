@@ -1,7 +1,5 @@
-package org.jetbrains.compose.swing.core
+package org.jetbrains.compose.swing.node
 
-import org.jetbrains.compose.swing.node.MenuApplier
-import org.jetbrains.compose.swing.node.SwingNodeHolder
 import java.awt.Component
 import javax.swing.JMenu
 import javax.swing.JMenuBar

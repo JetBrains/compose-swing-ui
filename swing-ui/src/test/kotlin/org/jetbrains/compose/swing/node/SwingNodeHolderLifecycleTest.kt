@@ -1,9 +1,8 @@
-package org.jetbrains.compose.swing.core
+package org.jetbrains.compose.swing.node
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifierDiff
 import org.jetbrains.compose.swing.modifier.listener.listener
-import org.jetbrains.compose.swing.node.SwingNodeHolder
 import javax.swing.JButton
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -98,7 +97,7 @@ class SwingNodeHolderLifecycleTest {
         val released = IntArray(1)
         // A node installed in a host slot: the applier captured an uninstall handle when it installed
         // the component through the slot's dedicated setter.
-        holder.slotUninstall = { released[0]++ }
+        holder.installedSlot = InstalledSlot(SlotAttachment { _, _, _ -> {} }, "region") { released[0]++ }
 
         // Recycling changes what drives the component, never where it lives: the new content takes over
         // the slot the old one filled, with no pass in between at which the slot stands empty.
@@ -119,7 +118,7 @@ class SwingNodeHolderLifecycleTest {
     fun onRelease_releasesAStillInstalledHostSlotOnce() {
         val holder = SwingNodeHolder(JButton("b"))
         val released = IntArray(1)
-        holder.slotUninstall = { released[0]++ }
+        holder.installedSlot = InstalledSlot(SlotAttachment { _, _, _ -> {} }, "region") { released[0]++ }
 
         holder.onRelease()
         assertEquals(1, released[0], "release must release a still-installed host slot")
