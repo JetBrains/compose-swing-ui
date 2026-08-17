@@ -194,16 +194,14 @@ private fun TabbedPaneImpl(
             set(tabPlacement) { this.tabPlacement = it }
             set(tabLayoutPolicy) { this.tabLayoutPolicy = it }
             applyModifier(modifier.onPaneChange(onUserSelection).containerListener(pageListener))
+
             // The declaration, the selection the pane is really on, and the strip itself move
-            // independently, so each gets its own update() call and whichever moved settles the rest. All
-            // three skip the pass that declares the pane, whose strip is still empty: settling there would
-            // hand the caller the empty pane's own answer as though its declaration had been refused.
-            val settle: (JTabbedPane) -> Unit = { pane ->
-                settleSelection(pane, selectedIndex, applied, reportedSelection, changeListener)
+            // independently, and one settle answers for all three: they are one key. The key skips the first
+            // pass, which declares the pane while its strip is still empty: settling there would hand the
+            // caller the empty pane's own answer as though its declaration had been refused.
+            update(Triple(selectedIndex, held, pages)) {
+                settleSelection(this, selectedIndex, applied, reportedSelection, changeListener)
             }
-            update(selectedIndex) { settle(this) }
-            update(held) { settle(this) }
-            update(pages) { settle(this) }
         },
         // A pane holds every child as the page of a tab, through `insertTab` rather than by index, and
         // holds as many of them as the content declares.

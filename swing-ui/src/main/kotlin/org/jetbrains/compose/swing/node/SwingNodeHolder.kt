@@ -3,7 +3,6 @@ package org.jetbrains.compose.swing.node
 import androidx.compose.runtime.ComposeNodeLifecycleCallback
 import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.snapshots.SnapshotStateObserver
-import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import org.jetbrains.compose.swing.core.COMPOSITION_KEY
 import org.jetbrains.compose.swing.modifier.SwingModifierState
 import org.jetbrains.compose.swing.modifier.resetModifierState
@@ -109,11 +108,7 @@ internal class SwingNodeHolder<out T : Component>
         /**
          * Diff state for this node's modifier chain, written by
          * [org.jetbrains.compose.swing.modifier.applyModifier].
-         *
-         * Marked [InternalSwingUiApi]. It may change without notice in any release.
          */
-        @InternalSwingUiApi
-        @PublishedApi
         internal var modifierState: SwingModifierState? = null
 
         /**

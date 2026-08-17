@@ -619,22 +619,20 @@ private fun TreeNode(
             installContent(appliedSelection, appliedExpansion)
             // Reading both mirrors is what subscribes this composition to the user moving the tree's own
             // selection or expansion, so the pass that follows settles each against its declaration: a
-            // change the caller adopts stands, and one it does not is written back over. Both reads have to
-            // run every pass regardless of the other's outcome, so neither is short-circuited away.
+            // change the caller adopts stands, and one it does not is written back over.
+            val heldSelection = appliedSelection.current
+            val heldExpansion = appliedExpansion.current
+
+            // The declaration and the held value of each of selection and expansion move independently, and
+            // one write answers for all four: they are one key.
             //
             // The two are applied together rather than each through its own declare: what a tree shows is
             // the two combined - a node is only selectable where its ancestors are open - so applying one
             // without the other would leave the tree standing on a pairing neither declaration asked for.
             // Each mirror still sees the write as its own, which is what the nesting is for.
-            val heldSelection = appliedSelection.current
-            val heldExpansion = appliedExpansion.current
-            val selectionSettled = appliedSelection.isSettled(selectedPaths, heldSelection)
-            val expansionSettled = appliedExpansion.isSettled(expandedPaths, heldExpansion)
-            if (!selectionSettled || !expansionSettled) {
-                reconcile {
-                    appliedSelection.write {
-                        appliedExpansion.write { applyDeclarations(selectedPaths, expandedPaths) }
-                    }
+            set(SelectionAndExpansion(selectedPaths, heldSelection, expandedPaths, heldExpansion)) {
+                appliedSelection.write {
+                    appliedExpansion.write { applyDeclarations(selectedPaths, expandedPaths) }
                 }
             }
             val treeModifier =
@@ -643,6 +641,18 @@ private fun TreeNode(
         },
     )
 }
+
+/**
+ * What a tree's selection and expansion settle from: the paths the composition declares for each, and the
+ * paths the tree itself holds. The four move independently and are applied together, so they are compared
+ * together.
+ */
+private data class SelectionAndExpansion(
+    val declaredSelection: Set<List<Int>>?,
+    val heldSelection: Set<List<Int>>?,
+    val declaredExpansion: Set<List<Int>>?,
+    val heldExpansion: Set<List<Int>>?,
+)
 
 /**
  * Folds in the tree properties a `JTree` leaves to the UI delegate of its look and feel - the

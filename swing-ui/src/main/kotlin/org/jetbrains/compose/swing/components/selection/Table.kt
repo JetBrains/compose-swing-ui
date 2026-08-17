@@ -595,10 +595,6 @@ private fun TableNode(
             set(autoResizeMode) { mode -> this.autoResizeMode = mode }
             set(fillsViewportHeight) { fills -> this.fillsViewportHeight = fills }
             installContent(appliedSelection, appliedColumn, sortChannel, columnChannel)
-            // declareRowFilter and the plain-selection declare() below share appliedSelection's pass claim
-            // (see RowSortChannel.declareRowFilter), so whichever runs first on a pass wins it and the other
-            // is a no-op. That is only correct because declareRowFilter's install() already does everything
-            // the selection declare() would - this call must stay ahead of it in this block.
             declareRowFilter(sortChannel, rowFilter, appliedSelection, selectedRowIndices, listSelectionListener)
             // Run on every pass regardless of whether a sort order or a selection is declared, so the set
             // calls these make always number the same and no later slot in this block shifts when one flips
@@ -606,12 +602,6 @@ private fun TableNode(
             // leave the table alone for a null declaration, so neither is imposed, overwritten, or
             // re-asserted for it.
             declare(sortKeys, appliedSort, { sortChannel.sortKeys() }, { keys -> sortChannel.applySortKeys(keys) })
-            declare(
-                selectedRowIndices,
-                appliedSelection,
-                { selectedModelRows() },
-                { indices -> applySelection(this, indices) },
-            )
             val tableModifier =
                 modifier
                     .userSelectionListener(appliedSelection, listSelectionListener)

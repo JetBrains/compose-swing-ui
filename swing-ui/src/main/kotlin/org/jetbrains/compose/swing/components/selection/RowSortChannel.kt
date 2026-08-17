@@ -141,6 +141,9 @@ internal class RowSortChannel(
  * back: a filter takes the rows it hides out of the selection, so what a selection [declared] by the caller
  * loses to it is re-asserted the moment the filter admits the row again, and what an undeclared one loses is
  * gone for good and is handed to [target] once.
+ *
+ * This settles the table's row selection as well - putting the selection back is the whole of what
+ * [declare] would do for it - so a table declares its selection through this call and not a second time.
  */
 internal fun SwingNodeUpdater<JTable>.declareRowFilter(
     sortChannel: RowSortChannel,
@@ -149,7 +152,11 @@ internal fun SwingNodeUpdater<JTable>.declareRowFilter(
     declared: Set<Int>?,
     target: ListSelectionListener,
 ) {
-    reconcile {
+    // The filter, the declared selection put back around it, and the selection the table itself holds move
+    // independently, and one install answers for all three: they are one key. A filter the sorter already
+    // has is not written again, so a pass that only the selection moved puts the selection back and does
+    // nothing else.
+    set(Triple(rowFilter, declared, applied.current)) {
         installContent(applied, declared, target) { sortChannel.applyRowFilter(rowFilter) }
     }
 }

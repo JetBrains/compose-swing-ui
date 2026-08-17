@@ -57,7 +57,8 @@ import javax.swing.plaf.basic.BasicToolBarUI
  * @param floating whether the tool bar stands in a window of its own rather than in the container it was
  *   declared in (controlled)
  * @param onFloatingChange callback invoked with the state the user drags the bar into, or with the docked
- *   state the bar settles for when it cannot take [floating]
+ *   state the bar settles for when it cannot take [floating] - the settled state may be reported more
+ *   than once, since a bar still finding its place in the hierarchy resettles on every attachment
  * @param rollover whether the look and feel draws an item's border only while the pointer is over it,
  *   or `null` to leave that choice to the look and feel; a choice withdrawn after being declared
  *   settles at its answer for good
@@ -107,23 +108,15 @@ public fun ToolBar(
                     if (applied.observed(standing)) onFloatingChange(standing)
                 },
             )
+
             // The declaration, the state the bar is really in, and the bar's arrival in a container move
-            // independently - the user drags the bar out without the declaration changing - so each gets
-            // its own update() call and whichever moved settles the rest, the way declare() does it for
-            // the first two. All three skip the pass that declares the bar, where it stands nowhere and
-            // has no window to float out of.
-            val settle: (JToolBar) -> Unit = { bar ->
-                applied.settleUnlessSettled(
-                    floating,
-                    held,
-                    { bar.isFloating },
-                    { bar.applyFloating(it) },
-                    onFloatingChange,
-                )
+            // independently - the user drags the bar out without the declaration changing - and one settle
+            // answers for all three: they are one key, the way declare() makes one of the first two. The key
+            // skips the first pass, which declares the bar where it stands nowhere and has no window to
+            // float out of.
+            update(Triple(floating, held, attachments)) {
+                applied.settle(floating, { isFloating }, { standing -> applyFloating(standing) }, onFloatingChange)
             }
-            update(floating) { settle(this) }
-            update(held) { settle(this) }
-            update(attachments) { settle(this) }
         },
         onRelease = {
             // The floating window is the look and feel's own and outlives the bar unless closed here: the

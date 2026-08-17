@@ -106,6 +106,26 @@ class RadioButtonMenuGroupTest {
     }
 
     @Test
+    fun anUnadoptedSelectionSettlesOnEveryPass() = runComposeSwingTest {
+        val popup =
+            composeMenu {
+                RadioButtonMenuGroup(selectedIndex = 0, onSelectionChange = {}) { threeOptions() }
+            }
+
+        // Each pick moves the group's selection without the caller adopting it, so the pass the pick
+        // provokes must put the declared option back every time - not just the first. A menu applier
+        // that stamps its pass counter once but never bumps it would settle the first pick and then go
+        // silently dead for every pick after.
+        options(popup)[2].doClick()
+        awaitIdle()
+        assertEquals(listOf("Small"), selectedTexts(popup), "the first unadopted pick should settle back")
+
+        options(popup)[1].doClick()
+        awaitIdle()
+        assertEquals(listOf("Small"), selectedTexts(popup), "the second unadopted pick should settle back too")
+    }
+
+    @Test
     fun aSelectionTheCallerAdoptsStands() = runComposeSwingTest {
         var selectedIndex by mutableIntStateOf(0)
         var label by mutableStateOf("first")

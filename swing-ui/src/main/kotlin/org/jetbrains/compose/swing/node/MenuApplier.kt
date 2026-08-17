@@ -26,10 +26,7 @@ internal class MenuApplier(
     private val dirtyContainers: MutableSet<Container> =
         Collections.newSetFromMap(IdentityHashMap())
 
-    /**
-     * Menu nodes attach to their container on the bottom-up pass (see [insertBottomUp]); this pass
-     * has nothing to do.
-     */
+    /** Menu nodes attach to their container on the bottom-up pass, so this pass has nothing to do. */
     override fun insertTopDown(
         index: Int,
         instance: SwingNodeHolder<*>,

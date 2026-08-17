@@ -174,6 +174,27 @@ class TableRowSortingTest {
     }
 
     @Test
+    fun aDeclaredSelectionChangeAloneStillNarrowsAgainstAnUnchangedFilter() = runComposeSwingTest {
+        // Held across the whole test so it is the same instance every pass; the filter itself never moves.
+        val filter = RowFilter.regexFilter<TableModel, Int>("A", 0)
+        var selection by mutableStateOf(setOf(0))
+        setContent {
+            Table(rows = people, selectedRowIndices = selection, sortable = true, rowFilter = filter) {
+                column("Name") { it.name }
+            }
+        }
+
+        val table = onNodeOfType<JTable>().fetch()
+        assertEquals(setOf(0), table.selectedModelRows(), "the first declared selection should be applied")
+
+        // Grace never matches the filter, whether or not the caller declares her selected.
+        selection = setOf(0, 1, 2)
+        awaitIdle()
+
+        assertEquals(setOf(0, 1), table.selectedModelRows(), "the row the filter hides should be left out")
+    }
+
+    @Test
     fun aFilterIsWrittenOnlyWhereTheCallerDeclaresAnotherOne() = runComposeSwingTest {
         var rows by mutableStateOf(people)
         val filter = RowFilter.regexFilter<TableModel, Int>("A", 0)

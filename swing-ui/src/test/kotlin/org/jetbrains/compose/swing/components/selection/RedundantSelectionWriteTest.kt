@@ -9,8 +9,10 @@ import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JList
 import javax.swing.JTable
+import javax.swing.RowFilter
 import javax.swing.RowSorter.SortKey
 import javax.swing.SortOrder
+import javax.swing.table.TableModel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -96,6 +98,36 @@ class RedundantSelectionWriteTest {
         val table = onNodeOfType<JTable>().fetch()
         assertEquals(listOf("Grace", "Alan", "Ada"), (0..2).map { table.getValueAt(it, 0) }, "sorted top to bottom")
 
+        // A drag downwards from the first row: it ends - and so leaves the lead - on the last one.
+        table.selectionModel.setSelectionInterval(0, 2)
+        assertEquals(2, table.selectionModel.leadSelectionIndex, "the drag left the lead on the row it ended on")
+
+        label = "second"
+        awaitIdle()
+
+        assertEquals(listOf(0, 1, 2), table.selectedRows.toList(), "the selection is the one already applied")
+        assertEquals(2, table.selectionModel.leadSelectionIndex, "the lead the user left is where it was")
+    }
+
+    @Test
+    fun aRecompositionThatChangesNothingKeepsTheLeadOfAFilteredTable() = runComposeSwingTest {
+        var label by mutableStateOf("first")
+        // Held across the whole test so it is the same instance every pass - a fresh one every pass would
+        // read as a moved rowFilter and defeat what this test is checking.
+        val filter = RowFilter.regexFilter<TableModel, Int>(".", 0)
+        setContent {
+            Table(
+                rows = listOf(Person("Ada", 36), Person("Alan", 41), Person("Grace", 50)),
+                modifier = SwingModifier.name(label),
+                selectedRowIndices = linkedSetOf(2, 0, 1),
+                sortable = true,
+                rowFilter = filter,
+            ) {
+                column("Name") { it.name }
+            }
+        }
+
+        val table = onNodeOfType<JTable>().fetch()
         // A drag downwards from the first row: it ends - and so leaves the lead - on the last one.
         table.selectionModel.setSelectionInterval(0, 2)
         assertEquals(2, table.selectionModel.leadSelectionIndex, "the drag left the lead on the row it ended on")

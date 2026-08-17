@@ -144,7 +144,7 @@ internal class SwingApplier internal constructor(
         instance: SwingNodeHolder<*>,
     ) {
         // Stamp the owner's shared snapshot observer onto the node here, on the top-down pass. This MUST
-        // happen on the down pass: a node's own update changes - which copy this observer onto a
+        // happen on the down pass: a node's own update changes - which copy the observer onto a
         // snapshot-observing component such as Canvas - run between the top-down and bottom-up passes, so
         // a stamp deferred to insertBottomUp would not yet be visible when the node reads it, leaving that
         // component permanently unobserved (and a Canvas blank). The actual Swing attachment is still done
