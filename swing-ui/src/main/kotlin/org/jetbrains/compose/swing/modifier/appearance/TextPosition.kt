@@ -56,11 +56,13 @@ private val HorizontalTextPositionProperty =
             read = { it.horizontalTextPosition },
             // A label re-lays out on every write of this one, unlike its neighbors, so skip an
             // unchanged value rather than asking for a layout that changes nothing.
-            write = { c, v -> if (c.horizontalTextPosition != v) c.horizontalTextPosition = v },
+            write = { component, value ->
+                if (component.horizontalTextPosition != value) component.horizontalTextPosition = value
+            },
         ),
         propertyCase<AbstractButton, Int>(
             read = { it.horizontalTextPosition },
-            write = { c, v -> c.horizontalTextPosition = v },
+            write = { component, value -> component.horizontalTextPosition = value },
         ),
     )
 
@@ -69,11 +71,11 @@ private val VerticalTextPositionProperty =
         "verticalTextPosition",
         propertyCase<JLabel, Int>(
             read = { it.verticalTextPosition },
-            write = { c, v -> c.verticalTextPosition = v },
+            write = { component, value -> component.verticalTextPosition = value },
         ),
         propertyCase<AbstractButton, Int>(
             read = { it.verticalTextPosition },
-            write = { c, v -> c.verticalTextPosition = v },
+            write = { component, value -> component.verticalTextPosition = value },
         ),
     )
 
@@ -82,11 +84,11 @@ private val IconTextGapProperty =
         "iconTextGap",
         propertyCase<JLabel, Int>(
             read = { it.iconTextGap },
-            write = { c, v -> c.iconTextGap = v },
+            write = { component, value -> component.iconTextGap = value },
         ),
         propertyCase<AbstractButton, Int>(
             read = { it.iconTextGap },
             // Latched by the first write, as a button's painting flags are.
-            write = { c, v -> if (c.iconTextGap != v) c.iconTextGap = v },
+            write = { component, value -> if (component.iconTextGap != value) component.iconTextGap = value },
         ),
     )

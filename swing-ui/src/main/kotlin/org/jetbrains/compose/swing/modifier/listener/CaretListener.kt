@@ -21,6 +21,6 @@ import javax.swing.text.JTextComponent
 public fun SwingModifier.caretListener(listener: CaretListener): SwingModifier =
     listener<JTextComponent, CaretListener>(
         listener,
-        { c, l -> c.addCaretListener(l) },
-        { c, l -> c.removeCaretListener(l) },
+        JTextComponent::addCaretListener,
+        JTextComponent::removeCaretListener,
     )

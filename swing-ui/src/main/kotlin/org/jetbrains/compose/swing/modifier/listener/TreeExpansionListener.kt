@@ -16,6 +16,6 @@ import javax.swing.JTree as SwingJTree
 public fun SwingModifier.treeExpansionListener(listener: TreeExpansionListener): SwingModifier =
     listener<SwingJTree, TreeExpansionListener>(
         listener,
-        { c, l -> c.addTreeExpansionListener(l) },
-        { c, l -> c.removeTreeExpansionListener(l) },
+        SwingJTree::addTreeExpansionListener,
+        SwingJTree::removeTreeExpansionListener,
     )

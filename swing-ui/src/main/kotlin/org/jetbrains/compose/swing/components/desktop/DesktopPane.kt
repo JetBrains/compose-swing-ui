@@ -479,7 +479,7 @@ private fun FrameNode(
                     .slot(FRAME_REGION, InternalFrameAttachment),
             )
         },
-        content = { content() },
+        content = content,
     )
 }
 

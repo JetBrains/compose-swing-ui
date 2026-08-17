@@ -13,4 +13,9 @@ import javax.swing.JComponent
  * @see javax.swing.JComponent.setOpaque
  */
 public fun SwingModifier.opaque(opaque: Boolean): SwingModifier =
-    this then propertyElement<JComponent, Boolean>(opaque, read = { it.isOpaque }, write = { c, v -> c.isOpaque = v })
+    this then
+        propertyElement<JComponent, Boolean>(
+            opaque,
+            read = { it.isOpaque },
+            write = { component, value -> component.isOpaque = value },
+        )

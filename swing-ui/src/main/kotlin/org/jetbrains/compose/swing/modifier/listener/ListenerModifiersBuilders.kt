@@ -31,8 +31,8 @@ import java.awt.TextField as AwtTextField
 public fun SwingModifier.propertyChangeListener(listener: PropertyChangeListener): SwingModifier =
     listener<Component, PropertyChangeListener>(
         listener,
-        { c, l -> c.addPropertyChangeListener(l) },
-        { c, l -> c.removePropertyChangeListener(l) },
+        Component::addPropertyChangeListener,
+        Component::removePropertyChangeListener,
     )
 
 /**

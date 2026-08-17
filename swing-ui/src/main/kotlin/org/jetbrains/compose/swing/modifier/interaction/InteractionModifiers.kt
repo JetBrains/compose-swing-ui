@@ -31,7 +31,7 @@ public fun SwingModifier.focusable(focusable: Boolean): SwingModifier =
         propertyElement<Component, Boolean>(
             focusable,
             read = { it.isFocusable },
-            write = { c, v -> c.isFocusable = v },
+            write = { component, value -> component.isFocusable = value },
         )
 
 /**
@@ -46,7 +46,7 @@ public fun SwingModifier.enabled(enabled: Boolean): SwingModifier =
         propertyElement<Component, Boolean>(
             enabled,
             read = { it.isEnabled },
-            write = { c, v -> c.isEnabled = v },
+            write = { component, value -> component.isEnabled = value },
         )
 
 /**

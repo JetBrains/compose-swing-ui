@@ -16,6 +16,6 @@ import javax.swing.event.ListSelectionListener
 public fun SwingModifier.listSelectionListener(listener: ListSelectionListener): SwingModifier =
     listener<JList<*>, ListSelectionListener>(
         listener,
-        { c, l -> c.addListSelectionListener(l) },
-        { c, l -> c.removeListSelectionListener(l) },
+        JList<*>::addListSelectionListener,
+        JList<*>::removeListSelectionListener,
     )

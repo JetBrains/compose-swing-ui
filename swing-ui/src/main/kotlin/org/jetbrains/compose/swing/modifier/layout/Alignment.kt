@@ -19,9 +19,9 @@ public fun SwingModifier.alignmentX(value: Float): SwingModifier =
         propertyElement<JComponent, Float>(
             value,
             read = { it.alignmentX },
-            write = { c, v ->
-                c.alignmentX = v
-                c.revalidate()
+            write = { component, alignment ->
+                component.alignmentX = alignment
+                component.revalidate()
             },
         )
 
@@ -37,8 +37,8 @@ public fun SwingModifier.alignmentY(value: Float): SwingModifier =
         propertyElement<JComponent, Float>(
             value,
             read = { it.alignmentY },
-            write = { c, v ->
-                c.alignmentY = v
-                c.revalidate()
+            write = { component, alignment ->
+                component.alignmentY = alignment
+                component.revalidate()
             },
         )

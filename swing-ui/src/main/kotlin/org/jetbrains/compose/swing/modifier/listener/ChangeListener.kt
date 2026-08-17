@@ -71,8 +71,8 @@ private fun changeListenerRegistrar(component: Component): ChangeListenerRegistr
 
         is JColorChooser -> {
             ChangeListenerRegistrar(
-                { l -> component.selectionModel.addChangeListener(l) },
-                { l -> component.selectionModel.removeChangeListener(l) },
+                component.selectionModel::addChangeListener,
+                component.selectionModel::removeChangeListener,
             )
         }
 

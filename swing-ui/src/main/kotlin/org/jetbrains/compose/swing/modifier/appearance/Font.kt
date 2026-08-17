@@ -19,14 +19,14 @@ public fun SwingModifier.font(font: Font?): SwingModifier =
         propertyElement<Component, Font?>(
             font,
             read = { it.font },
-            write = { c, v ->
-                c.font = v
+            write = { component, value ->
+                component.font = value
                 // JComponent.setFont already revalidates and repaints. A plain AWT Component only
                 // invalidates, so a font change that resizes it stays invisible until an unrelated
                 // relayout - request one here for the non-JComponent target.
-                if (c !is JComponent) {
-                    c.revalidate()
-                    c.repaint()
+                if (component !is JComponent) {
+                    component.revalidate()
+                    component.repaint()
                 }
             },
         )

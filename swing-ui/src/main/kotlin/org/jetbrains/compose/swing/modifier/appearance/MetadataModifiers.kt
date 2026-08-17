@@ -20,7 +20,12 @@ import javax.swing.JComponent
  * @see java.awt.Component.setName
  */
 public fun SwingModifier.name(name: String?): SwingModifier =
-    this then propertyElement<Component, String?>(name, read = { it.name }, write = { c, v -> c.name = v })
+    this then
+        propertyElement<Component, String?>(
+            name,
+            read = { it.name },
+            write = { component, value -> component.name = value },
+        )
 
 /**
  * Tags the component with [tag] so it can be located in tests independently of its name.
@@ -35,7 +40,7 @@ private class TestTagElement(
         JComponent::class.java,
         tag,
         read = { it.getClientProperty(TEST_TAG_CLIENT_PROPERTY_KEY) },
-        write = { c, v -> c.putClientProperty(TEST_TAG_CLIENT_PROPERTY_KEY, v) },
+        write = { component, value -> component.putClientProperty(TEST_TAG_CLIENT_PROPERTY_KEY, value) },
     )
 
 /**
@@ -55,7 +60,7 @@ public fun SwingModifier.clientProperty(
             key,
             value,
             read = { it.getClientProperty(key) },
-            write = { c, v -> c.putClientProperty(key, v) },
+            write = { component, declared -> component.putClientProperty(key, declared) },
         )
 
 /**

@@ -43,7 +43,7 @@ public fun SwingModifier.pressedIcon(icon: Icon?): SwingModifier =
         propertyElement<AbstractButton, Icon?>(
             icon,
             read = { it.pressedIcon },
-            write = { c, v -> c.pressedIcon = v },
+            write = { component, value -> component.pressedIcon = value },
         )
 
 /**
@@ -57,7 +57,7 @@ public fun SwingModifier.selectedIcon(icon: Icon?): SwingModifier =
         propertyElement<AbstractButton, Icon?>(
             icon,
             read = { it.selectedIcon },
-            write = { c, v -> c.selectedIcon = v },
+            write = { component, value -> component.selectedIcon = value },
         )
 
 /**
@@ -74,7 +74,7 @@ public fun SwingModifier.disabledIcon(icon: Icon?): SwingModifier =
             // captured here may be that derived one. A derived icon is a UIResource, which the button
             // discards by itself the next time its base icon changes, so the fallback resumes.
             read = { it.disabledIcon },
-            write = { c, v -> c.disabledIcon = v },
+            write = { component, value -> component.disabledIcon = value },
         )
 
 /**
@@ -88,7 +88,7 @@ public fun SwingModifier.disabledSelectedIcon(icon: Icon?): SwingModifier =
         propertyElement<AbstractButton, Icon?>(
             icon,
             read = { it.disabledSelectedIcon },
-            write = { c, v -> c.disabledSelectedIcon = v },
+            write = { component, value -> component.disabledSelectedIcon = value },
         )
 
 /**
@@ -102,7 +102,7 @@ public fun SwingModifier.rolloverIcon(icon: Icon?): SwingModifier =
         propertyElement<AbstractButton, Icon?>(
             icon,
             read = { it.rolloverIcon },
-            write = { c, v -> c.rolloverIcon = v },
+            write = { component, value -> component.rolloverIcon = value },
         )
 
 /**
@@ -116,7 +116,7 @@ public fun SwingModifier.rolloverSelectedIcon(icon: Icon?): SwingModifier =
         propertyElement<AbstractButton, Icon?>(
             icon,
             read = { it.rolloverSelectedIcon },
-            write = { c, v -> c.rolloverSelectedIcon = v },
+            write = { component, value -> component.rolloverSelectedIcon = value },
         )
 
 /**
@@ -127,6 +127,6 @@ public fun SwingModifier.rolloverSelectedIcon(icon: Icon?): SwingModifier =
 private val IconProperty =
     MultiTargetProperty<Icon?>(
         "icon",
-        propertyCase<JLabel, Icon?>(read = { it.icon }, write = { c, v -> c.icon = v }),
-        propertyCase<AbstractButton, Icon?>(read = { it.icon }, write = { c, v -> c.icon = v }),
+        propertyCase<JLabel, Icon?>(read = { it.icon }, write = { component, value -> component.icon = value }),
+        propertyCase<AbstractButton, Icon?>(read = { it.icon }, write = { component, value -> component.icon = value }),
     )

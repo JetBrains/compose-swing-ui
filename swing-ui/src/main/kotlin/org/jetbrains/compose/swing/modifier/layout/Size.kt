@@ -18,9 +18,9 @@ public fun SwingModifier.preferredSize(size: Dimension?): SwingModifier =
         propertyElement<Component, Dimension?>(
             size,
             read = { if (it.isPreferredSizeSet) it.preferredSize else null },
-            write = { c, v ->
-                c.preferredSize = v
-                c.revalidate()
+            write = { component, value ->
+                component.preferredSize = value
+                component.revalidate()
             },
         )
 
@@ -44,9 +44,9 @@ public fun SwingModifier.minimumSize(size: Dimension?): SwingModifier =
         propertyElement<Component, Dimension?>(
             size,
             read = { if (it.isMinimumSizeSet) it.minimumSize else null },
-            write = { c, v ->
-                c.minimumSize = v
-                c.revalidate()
+            write = { component, value ->
+                component.minimumSize = value
+                component.revalidate()
             },
         )
 
@@ -70,9 +70,9 @@ public fun SwingModifier.maximumSize(size: Dimension?): SwingModifier =
         propertyElement<Component, Dimension?>(
             size,
             read = { if (it.isMaximumSizeSet) it.maximumSize else null },
-            write = { c, v ->
-                c.maximumSize = v
-                c.revalidate()
+            write = { component, value ->
+                component.maximumSize = value
+                component.revalidate()
             },
         )
 
@@ -110,7 +110,12 @@ public fun SwingModifier.size(
  * @see java.awt.Component.setSize
  */
 public fun SwingModifier.size(size: Dimension): SwingModifier =
-    this then propertyElement<Component, Dimension>(size, read = { it.size }, write = { c, v -> c.size = v })
+    this then
+        propertyElement<Component, Dimension>(
+            size,
+            read = { it.size },
+            write = { component, value -> component.size = value },
+        )
 
 /**
  * Sets the component's actual width to [width], keeping its current height, like `setSize(width,
@@ -120,7 +125,12 @@ public fun SwingModifier.size(size: Dimension): SwingModifier =
  * @see java.awt.Component.setSize
  */
 public fun SwingModifier.width(width: Int): SwingModifier =
-    this then propertyElement<Component, Int>(width, read = { it.width }, write = { c, v -> c.setSize(v, c.height) })
+    this then
+        propertyElement<Component, Int>(
+            width,
+            read = { it.width },
+            write = { component, value -> component.setSize(value, component.height) },
+        )
 
 /**
  * Sets the component's actual height to [height], keeping its current width, like `setSize(width,
@@ -130,4 +140,9 @@ public fun SwingModifier.width(width: Int): SwingModifier =
  * @see java.awt.Component.setSize
  */
 public fun SwingModifier.height(height: Int): SwingModifier =
-    this then propertyElement<Component, Int>(height, read = { it.height }, write = { c, v -> c.setSize(c.width, v) })
+    this then
+        propertyElement<Component, Int>(
+            height,
+            read = { it.height },
+            write = { component, value -> component.setSize(component.width, value) },
+        )

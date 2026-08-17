@@ -24,7 +24,7 @@ public fun SwingModifier.focusTraversalIndex(index: Int): SwingModifier =
         propertyElement<JComponent, Any?>(
             index,
             read = { it.getClientProperty(FOCUS_TRAVERSAL_INDEX_KEY) },
-            write = { c, v -> c.putClientProperty(FOCUS_TRAVERSAL_INDEX_KEY, v) },
+            write = { component, value -> component.putClientProperty(FOCUS_TRAVERSAL_INDEX_KEY, value) },
         )
 
 /**

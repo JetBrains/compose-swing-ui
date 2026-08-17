@@ -21,5 +21,5 @@ public fun SwingModifier.accessibleName(name: @Nls String?): SwingModifier =
         propertyElement<Component, String?>(
             name,
             read = { it.accessibleContext?.accessibleName },
-            write = { c, v -> c.accessibleContext?.accessibleName = v },
+            write = { component, value -> component.accessibleContext?.accessibleName = value },
         )

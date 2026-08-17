@@ -71,10 +71,13 @@ public fun SwingModifier.displayedMnemonicIndex(index: Int): SwingModifier =
 private val MnemonicProperty =
     MultiTargetProperty<Int>(
         "mnemonic",
-        propertyCase<AbstractButton, Int>(read = { it.mnemonic }, write = { c, v -> c.mnemonic = v }),
+        propertyCase<AbstractButton, Int>(
+            read = { it.mnemonic },
+            write = { component, value -> component.mnemonic = value },
+        ),
         propertyCase<JLabel, Int>(
             read = { it.displayedMnemonic },
-            write = { c, v -> c.displayedMnemonic = v },
+            write = { component, value -> component.displayedMnemonic = value },
         ),
     )
 
@@ -84,10 +87,10 @@ private val DisplayedMnemonicIndexProperty =
         "displayedMnemonicIndex",
         propertyCase<AbstractButton, Int>(
             read = { it.displayedMnemonicIndex },
-            write = { c, v -> c.displayedMnemonicIndex = v },
+            write = { component, value -> component.displayedMnemonicIndex = value },
         ),
         propertyCase<JLabel, Int>(
             read = { it.displayedMnemonicIndex },
-            write = { c, v -> c.displayedMnemonicIndex = v },
+            write = { component, value -> component.displayedMnemonicIndex = value },
         ),
     )

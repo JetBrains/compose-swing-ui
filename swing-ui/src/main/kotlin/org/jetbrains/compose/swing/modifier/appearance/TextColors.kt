@@ -22,12 +22,12 @@ public fun SwingModifier.caretColor(color: Color): SwingModifier =
         propertyElement<JTextComponent, Color>(
             color,
             read = { it.caretColor },
-            write = { c, v ->
-                c.caretColor = v
+            write = { component, value ->
+                component.caretColor = value
                 // A text component's color setters only fire a property change, and the color itself is
                 // read at paint time, so each of these writes asks for the repaint that puts the new
                 // color on the screen.
-                c.repaint()
+                component.repaint()
             },
         )
 
@@ -41,9 +41,9 @@ public fun SwingModifier.selectionColor(color: Color): SwingModifier =
         propertyElement<JTextComponent, Color>(
             color,
             read = { it.selectionColor },
-            write = { c, v ->
-                c.selectionColor = v
-                c.repaint()
+            write = { component, value ->
+                component.selectionColor = value
+                component.repaint()
             },
         )
 
@@ -57,9 +57,9 @@ public fun SwingModifier.selectedTextColor(color: Color): SwingModifier =
         propertyElement<JTextComponent, Color>(
             color,
             read = { it.selectedTextColor },
-            write = { c, v ->
-                c.selectedTextColor = v
-                c.repaint()
+            write = { component, value ->
+                component.selectedTextColor = value
+                component.repaint()
             },
         )
 
@@ -73,8 +73,8 @@ public fun SwingModifier.disabledTextColor(color: Color): SwingModifier =
         propertyElement<JTextComponent, Color>(
             color,
             read = { it.disabledTextColor },
-            write = { c, v ->
-                c.disabledTextColor = v
-                c.repaint()
+            write = { component, value ->
+                component.disabledTextColor = value
+                component.repaint()
             },
         )

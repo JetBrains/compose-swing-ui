@@ -26,5 +26,5 @@ public fun SwingModifier.actionCommand(command: String?): SwingModifier =
             // A button's own getter substitutes its text when no command is set; the model holds the
             // real value, including null, so reading from the model is what lets `null` restore the default.
             read = { it.model.actionCommand },
-            write = { c, v -> c.actionCommand = v },
+            write = { component, value -> component.actionCommand = value },
         )

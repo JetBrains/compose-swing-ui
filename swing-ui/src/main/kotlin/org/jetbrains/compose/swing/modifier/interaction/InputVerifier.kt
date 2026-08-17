@@ -44,7 +44,7 @@ public fun SwingModifier.verifyInputWhenFocusTarget(verify: Boolean): SwingModif
         propertyElement<JComponent, Boolean>(
             verify,
             read = { it.verifyInputWhenFocusTarget },
-            write = { c, v -> c.verifyInputWhenFocusTarget = v },
+            write = { component, value -> component.verifyInputWhenFocusTarget = value },
         )
 
 /**

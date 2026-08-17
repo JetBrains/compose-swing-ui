@@ -3,7 +3,6 @@
 
 package org.jetbrains.compose.swing.modifier.listener
 
-import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import java.awt.Component
 import java.awt.Container
@@ -57,10 +56,7 @@ public inline fun <reified T : Component, L : Any> SwingModifier.listener(
  * Equality follows that same by-identity contract: two elements are equal when they target the same
  * type and hold the same [instance], [attach] and [detach] objects, which is exactly the case in which
  * reconciling would change nothing.
- *
- * Marked [InternalSwingUiApi]; it may change without notice in any release.
  */
-@InternalSwingUiApi
 @PublishedApi
 internal class InstanceListenerElement<T : Component, L : Any>(
     override val targetType: Class<T>,
@@ -97,17 +93,13 @@ internal class InstanceListenerElement<T : Component, L : Any>(
  * pairing each instance with the attach/detach it was supplied with. An instance is thus always removed
  * through its own detach, even after a positional rebind hands the node an element carrying a different
  * listener type.
- *
- * Marked [InternalSwingUiApi]; it may change without notice in any release.
  */
-@InternalSwingUiApi
 @PublishedApi
 internal class InstanceListenerNode<T : Component, L : Any> : SwingModifier.Node<T>() {
     private var pending: InstanceListenerElement<T, L>? = null
     private var attached: InstanceListenerElement<T, L>? = null
 
     /** Records the latest element, then reconciles attachments. Called from the element's `update`. */
-    @InternalSwingUiApi
     fun swapTo(element: InstanceListenerElement<T, L>) {
         pending = element
         reconcile()
@@ -149,8 +141,8 @@ internal class InstanceListenerNode<T : Component, L : Any> : SwingModifier.Node
 public fun SwingModifier.mouseListener(listener: MouseListener): SwingModifier =
     listener<Component, MouseListener>(
         listener,
-        { c, l -> c.addMouseListener(l) },
-        { c, l -> c.removeMouseListener(l) },
+        Component::addMouseListener,
+        Component::removeMouseListener,
     )
 
 /**
@@ -161,8 +153,8 @@ public fun SwingModifier.mouseListener(listener: MouseListener): SwingModifier =
 public fun SwingModifier.mouseMotionListener(listener: MouseMotionListener): SwingModifier =
     listener<Component, MouseMotionListener>(
         listener,
-        { c, l -> c.addMouseMotionListener(l) },
-        { c, l -> c.removeMouseMotionListener(l) },
+        Component::addMouseMotionListener,
+        Component::removeMouseMotionListener,
     )
 
 /**
@@ -173,8 +165,8 @@ public fun SwingModifier.mouseMotionListener(listener: MouseMotionListener): Swi
 public fun SwingModifier.mouseWheelListener(listener: MouseWheelListener): SwingModifier =
     listener<Component, MouseWheelListener>(
         listener,
-        { c, l -> c.addMouseWheelListener(l) },
-        { c, l -> c.removeMouseWheelListener(l) },
+        Component::addMouseWheelListener,
+        Component::removeMouseWheelListener,
     )
 
 /**
@@ -185,8 +177,8 @@ public fun SwingModifier.mouseWheelListener(listener: MouseWheelListener): Swing
 public fun SwingModifier.keyListener(listener: KeyListener): SwingModifier =
     listener<Component, KeyListener>(
         listener,
-        { c, l -> c.addKeyListener(l) },
-        { c, l -> c.removeKeyListener(l) },
+        Component::addKeyListener,
+        Component::removeKeyListener,
     )
 
 /**
@@ -197,8 +189,8 @@ public fun SwingModifier.keyListener(listener: KeyListener): SwingModifier =
 public fun SwingModifier.focusListener(listener: FocusListener): SwingModifier =
     listener<Component, FocusListener>(
         listener,
-        { c, l -> c.addFocusListener(l) },
-        { c, l -> c.removeFocusListener(l) },
+        Component::addFocusListener,
+        Component::removeFocusListener,
     )
 
 /**
@@ -209,8 +201,8 @@ public fun SwingModifier.focusListener(listener: FocusListener): SwingModifier =
 public fun SwingModifier.componentListener(listener: ComponentListener): SwingModifier =
     listener<Component, ComponentListener>(
         listener,
-        { c, l -> c.addComponentListener(l) },
-        { c, l -> c.removeComponentListener(l) },
+        Component::addComponentListener,
+        Component::removeComponentListener,
     )
 
 /**
@@ -221,8 +213,8 @@ public fun SwingModifier.componentListener(listener: ComponentListener): SwingMo
 public fun SwingModifier.hierarchyListener(listener: HierarchyListener): SwingModifier =
     listener<Component, HierarchyListener>(
         listener,
-        { c, l -> c.addHierarchyListener(l) },
-        { c, l -> c.removeHierarchyListener(l) },
+        Component::addHierarchyListener,
+        Component::removeHierarchyListener,
     )
 
 /**
@@ -234,6 +226,6 @@ public fun SwingModifier.hierarchyListener(listener: HierarchyListener): SwingMo
 public fun SwingModifier.containerListener(listener: ContainerListener): SwingModifier =
     listener<Container, ContainerListener>(
         listener,
-        { c, l -> c.addContainerListener(l) },
-        { c, l -> c.removeContainerListener(l) },
+        Container::addContainerListener,
+        Container::removeContainerListener,
     )

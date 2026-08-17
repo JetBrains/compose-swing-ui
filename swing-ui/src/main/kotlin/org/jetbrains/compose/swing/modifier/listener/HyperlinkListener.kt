@@ -23,6 +23,6 @@ import javax.swing.event.HyperlinkListener
 public fun SwingModifier.hyperlinkListener(listener: HyperlinkListener): SwingModifier =
     listener<JEditorPane, HyperlinkListener>(
         listener,
-        { c, l -> c.addHyperlinkListener(l) },
-        { c, l -> c.removeHyperlinkListener(l) },
+        JEditorPane::addHyperlinkListener,
+        JEditorPane::removeHyperlinkListener,
     )

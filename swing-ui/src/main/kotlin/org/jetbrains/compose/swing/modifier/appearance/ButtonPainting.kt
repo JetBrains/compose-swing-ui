@@ -44,7 +44,9 @@ public fun SwingModifier.contentAreaFilled(filled: Boolean): SwingModifier =
             filled,
             read = { it.isContentAreaFilled },
             // Latched by the first write, as a button's border painting is.
-            write = { c, v -> if (c.isContentAreaFilled != v) c.isContentAreaFilled = v },
+            write = { component, value ->
+                if (component.isContentAreaFilled != value) component.isContentAreaFilled = value
+            },
         )
 
 /**
@@ -63,7 +65,9 @@ public fun SwingModifier.rolloverEnabled(enabled: Boolean): SwingModifier =
             enabled,
             read = { it.isRolloverEnabled },
             // Latched by the first write, as a button's border painting is.
-            write = { c, v -> if (c.isRolloverEnabled != v) c.isRolloverEnabled = v },
+            write = { component, value ->
+                if (component.isRolloverEnabled != value) component.isRolloverEnabled = value
+            },
         )
 
 /**
@@ -80,7 +84,7 @@ public fun SwingModifier.focusPainted(painted: Boolean): SwingModifier =
         propertyElement<AbstractButton, Boolean>(
             painted,
             read = { it.isFocusPainted },
-            write = { c, v -> c.isFocusPainted = v },
+            write = { component, value -> component.isFocusPainted = value },
         )
 
 /**
@@ -97,22 +101,22 @@ private val BorderPaintedProperty =
         "borderPainted",
         propertyCase<AbstractButton, Boolean>(
             read = { it.isBorderPainted },
-            write = { c, v -> if (c.isBorderPainted != v) c.isBorderPainted = v },
+            write = { component, value -> if (component.isBorderPainted != value) component.isBorderPainted = value },
         ),
         propertyCase<JProgressBar, Boolean>(
             read = { it.isBorderPainted },
-            write = { c, v -> if (c.isBorderPainted != v) c.isBorderPainted = v },
+            write = { component, value -> if (component.isBorderPainted != value) component.isBorderPainted = value },
         ),
         propertyCase<JToolBar, Boolean>(
             read = { it.isBorderPainted },
-            write = { c, v -> if (c.isBorderPainted != v) c.isBorderPainted = v },
+            write = { component, value -> if (component.isBorderPainted != value) component.isBorderPainted = value },
         ),
         propertyCase<JMenuBar, Boolean>(
             read = { it.isBorderPainted },
-            write = { c, v -> if (c.isBorderPainted != v) c.isBorderPainted = v },
+            write = { component, value -> if (component.isBorderPainted != value) component.isBorderPainted = value },
         ),
         propertyCase<JPopupMenu, Boolean>(
             read = { it.isBorderPainted },
-            write = { c, v -> if (c.isBorderPainted != v) c.isBorderPainted = v },
+            write = { component, value -> if (component.isBorderPainted != value) component.isBorderPainted = value },
         ),
     )

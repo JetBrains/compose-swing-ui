@@ -20,5 +20,5 @@ public fun SwingModifier.accessibleDescription(description: @Nls String?): Swing
         propertyElement<Component, String?>(
             description,
             read = { it.accessibleContext?.accessibleDescription },
-            write = { c, v -> c.accessibleContext?.accessibleDescription = v },
+            write = { component, value -> component.accessibleContext?.accessibleDescription = value },
         )

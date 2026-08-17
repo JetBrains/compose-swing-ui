@@ -33,14 +33,14 @@ private val MarginProperty =
         "margin",
         propertyCase<AbstractButton, Insets?>(
             read = { it.margin },
-            write = { c, v -> c.margin = v },
+            write = { component, value -> component.margin = value },
         ),
         propertyCase<JTextComponent, Insets?>(
             read = { it.margin },
             // JTextComponent.setMargin does not revalidate on its own; ask for the layout it needs.
-            write = { c, v ->
-                c.margin = v
-                c.revalidate()
+            write = { component, value ->
+                component.margin = value
+                component.revalidate()
             },
         ),
     )

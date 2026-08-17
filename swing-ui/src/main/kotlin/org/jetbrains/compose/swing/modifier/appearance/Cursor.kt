@@ -14,4 +14,9 @@ import java.awt.Cursor
  * @see java.awt.Component.setCursor
  */
 public fun SwingModifier.cursor(cursor: Cursor?): SwingModifier =
-    this then propertyElement<Component, Cursor?>(cursor, read = { it.cursor }, write = { c, v -> c.cursor = v })
+    this then
+        propertyElement<Component, Cursor?>(
+            cursor,
+            read = { it.cursor },
+            write = { component, value -> component.cursor = value },
+        )

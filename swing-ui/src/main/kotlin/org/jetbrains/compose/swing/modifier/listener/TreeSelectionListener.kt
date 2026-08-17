@@ -16,6 +16,6 @@ import javax.swing.JTree as SwingJTree
 public fun SwingModifier.treeSelectionListener(listener: TreeSelectionListener): SwingModifier =
     listener<SwingJTree, TreeSelectionListener>(
         listener,
-        { c, l -> c.addTreeSelectionListener(l) },
-        { c, l -> c.removeTreeSelectionListener(l) },
+        SwingJTree::addTreeSelectionListener,
+        SwingJTree::removeTreeSelectionListener,
     )

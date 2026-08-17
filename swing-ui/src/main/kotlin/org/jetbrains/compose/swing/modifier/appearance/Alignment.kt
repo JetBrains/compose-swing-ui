@@ -46,15 +46,15 @@ private val HorizontalAlignmentProperty =
         "horizontalAlignment",
         propertyCase<JLabel, Int>(
             read = { it.horizontalAlignment },
-            write = { c, v -> c.horizontalAlignment = v },
+            write = { component, value -> component.horizontalAlignment = value },
         ),
         propertyCase<AbstractButton, Int>(
             read = { it.horizontalAlignment },
-            write = { c, v -> c.horizontalAlignment = v },
+            write = { component, value -> component.horizontalAlignment = value },
         ),
         propertyCase<JTextField, Int>(
             read = { it.horizontalAlignment },
-            write = { c, v -> c.horizontalAlignment = v },
+            write = { component, value -> component.horizontalAlignment = value },
         ),
     )
 
@@ -63,10 +63,10 @@ private val VerticalAlignmentProperty =
         "verticalAlignment",
         propertyCase<JLabel, Int>(
             read = { it.verticalAlignment },
-            write = { c, v -> c.verticalAlignment = v },
+            write = { component, value -> component.verticalAlignment = value },
         ),
         propertyCase<AbstractButton, Int>(
             read = { it.verticalAlignment },
-            write = { c, v -> c.verticalAlignment = v },
+            write = { component, value -> component.verticalAlignment = value },
         ),
     )

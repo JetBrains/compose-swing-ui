@@ -17,4 +17,9 @@ import java.awt.Component
  * @see java.awt.Component.setVisible
  */
 public fun SwingModifier.visible(visible: Boolean): SwingModifier =
-    this then propertyElement<Component, Boolean>(visible, read = { it.isVisible }, write = { c, v -> c.isVisible = v })
+    this then
+        propertyElement<Component, Boolean>(
+            visible,
+            read = { it.isVisible },
+            write = { component, value -> component.isVisible = value },
+        )

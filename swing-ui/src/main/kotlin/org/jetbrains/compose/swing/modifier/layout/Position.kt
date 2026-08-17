@@ -25,7 +25,7 @@ public fun SwingModifier.bounds(
         propertyElement<Component, Rectangle>(
             Rectangle(x, y, width, height),
             read = { it.bounds },
-            write = { c, v -> c.bounds = v },
+            write = { component, value -> component.bounds = value },
         )
 
 /**
@@ -54,7 +54,12 @@ public fun SwingModifier.location(
  * @see java.awt.Component.setLocation
  */
 public fun SwingModifier.location(point: Point): SwingModifier =
-    this then propertyElement<Component, Point>(point, read = { it.location }, write = { c, v -> c.location = v })
+    this then
+        propertyElement<Component, Point>(
+            point,
+            read = { it.location },
+            write = { component, value -> component.location = value },
+        )
 
 /**
  * Sets the component's actual x position to [value], keeping its current y, like `setLocation(x, y)`.
@@ -64,7 +69,12 @@ public fun SwingModifier.location(point: Point): SwingModifier =
  * @see java.awt.Component.setLocation
  */
 public fun SwingModifier.x(value: Int): SwingModifier =
-    this then propertyElement<Component, Int>(value, read = { it.x }, write = { c, v -> c.setLocation(v, c.y) })
+    this then
+        propertyElement<Component, Int>(
+            value,
+            read = { it.x },
+            write = { component, x -> component.setLocation(x, component.y) },
+        )
 
 /**
  * Sets the component's actual y position to [value], keeping its current x, like `setLocation(x, y)`.
@@ -74,4 +84,9 @@ public fun SwingModifier.x(value: Int): SwingModifier =
  * @see java.awt.Component.setLocation
  */
 public fun SwingModifier.y(value: Int): SwingModifier =
-    this then propertyElement<Component, Int>(value, read = { it.y }, write = { c, v -> c.setLocation(c.x, v) })
+    this then
+        propertyElement<Component, Int>(
+            value,
+            read = { it.y },
+            write = { component, y -> component.setLocation(component.x, y) },
+        )

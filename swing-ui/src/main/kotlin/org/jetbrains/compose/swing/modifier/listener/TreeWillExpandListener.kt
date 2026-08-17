@@ -20,6 +20,6 @@ import javax.swing.JTree as SwingJTree
 public fun SwingModifier.treeWillExpandListener(listener: TreeWillExpandListener): SwingModifier =
     listener<SwingJTree, TreeWillExpandListener>(
         listener,
-        { c, l -> c.addTreeWillExpandListener(l) },
-        { c, l -> c.removeTreeWillExpandListener(l) },
+        SwingJTree::addTreeWillExpandListener,
+        SwingJTree::removeTreeWillExpandListener,
     )

@@ -16,6 +16,6 @@ import javax.swing.event.InternalFrameListener
 public fun SwingModifier.internalFrameListener(listener: InternalFrameListener): SwingModifier =
     listener<JInternalFrame, InternalFrameListener>(
         listener,
-        { c, l -> c.addInternalFrameListener(l) },
-        { c, l -> c.removeInternalFrameListener(l) },
+        JInternalFrame::addInternalFrameListener,
+        JInternalFrame::removeInternalFrameListener,
     )

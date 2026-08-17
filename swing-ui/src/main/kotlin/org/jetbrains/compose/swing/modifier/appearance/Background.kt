@@ -19,13 +19,13 @@ public fun SwingModifier.background(color: Color?): SwingModifier =
         propertyElement<Component, Color?>(
             color,
             read = { it.background },
-            write = { c, v ->
-                c.background = v
+            write = { component, value ->
+                component.background = value
                 // JComponent.setBackground already repaints. A plain AWT Component does not, so the
                 // new color would not show until an unrelated repaint - request one here.
-                if (c !is JComponent) {
-                    c.revalidate()
-                    c.repaint()
+                if (component !is JComponent) {
+                    component.revalidate()
+                    component.repaint()
                 }
             },
         )
