@@ -26,10 +26,12 @@ import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
 import org.jetbrains.compose.swing.samples.widgets.WrappedCaption
+import org.jetbrains.compose.swing.tooling.Preview
 
 // The accessibility modifiers: assistive-technology metadata (accessibleName/Description), label
 // association (labelFor), keyboard affordances (mnemonic, defaultButton), and composition-order
 // focus traversal.
+@Preview
 @Composable
 internal fun AccessibilitySection() {
     SectionColumn {

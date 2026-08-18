@@ -25,6 +25,7 @@ import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
+import org.jetbrains.compose.swing.tooling.Preview
 import java.awt.Color
 import java.awt.Dimension
 import javax.swing.JSplitPane
@@ -32,6 +33,7 @@ import javax.swing.SwingConstants
 
 // SplitPane and ToolBar: a resizable divider whose location is hoisted into state, and a tool bar of
 // buttons whose orientation and floatability flip live.
+@Preview
 @Composable
 internal fun SplitToolBarSection() {
     SectionColumn {

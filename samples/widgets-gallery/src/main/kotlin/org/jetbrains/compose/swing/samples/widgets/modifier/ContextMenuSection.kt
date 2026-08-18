@@ -16,10 +16,12 @@ import org.jetbrains.compose.swing.modifier.interaction.contextMenu
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
+import org.jetbrains.compose.swing.tooling.Preview
 
 // SwingModifier.contextMenu: a right-click popup built from the same menu composables a menu bar uses.
 // The popup reads live composition state, so each selection updates hoisted state that a status label
 // reflects, and CheckBoxMenuItems show the current flags.
+@Preview
 @Composable
 internal fun ContextMenuSection() {
     SectionColumn {

@@ -20,10 +20,12 @@ import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
 import org.jetbrains.compose.swing.samples.widgets.WrappedCaption
+import org.jetbrains.compose.swing.tooling.Preview
 
 // State-driven dynamic hierarchy: conditional composition (if{}) inserts or removes a whole subtree
 // from the component tree, taking its state with it - contrasted with visible(), which keeps the slot
 // in place and merely hides it.
+@Preview
 @Composable
 internal fun DynamicHierarchySection() {
     SectionColumn {

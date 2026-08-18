@@ -27,6 +27,7 @@ import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
 import org.jetbrains.compose.swing.text.TextRange
+import org.jetbrains.compose.swing.tooling.Preview
 import java.awt.Color
 import java.awt.Dimension
 import java.awt.FlowLayout
@@ -55,6 +56,7 @@ internal fun setEditorText(text: String) {
 
 // A multiline editor built on the state-based text model: DocumentState is the whole source of truth,
 // carrying an editor's scripted edits, its selection, and the search highlights painted over it.
+@Preview
 @Composable
 internal fun EditorSection() {
     SectionColumn {

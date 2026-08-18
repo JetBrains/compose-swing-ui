@@ -25,6 +25,7 @@ import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
 import org.jetbrains.compose.swing.samples.widgets.WrappedCaption
+import org.jetbrains.compose.swing.tooling.Preview
 import java.awt.Dimension
 import java.awt.FlowLayout
 import javax.swing.BoxLayout
@@ -64,6 +65,7 @@ internal const val EXPANSION_TREE_TAG = "tree-expansion"
 // handles, click-to-toggle, row height) driven live, a demo of expansion held in a TreeState together
 // with a will-expand veto and the state's reveal gesture, a demo of in-place editing and a composable
 // node body, and a demo of the model-backed overload rendering a caller-owned TreeModel as-is.
+@Preview
 @Composable
 internal fun TreeSection() {
     SectionColumn {

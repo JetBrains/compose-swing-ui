@@ -24,6 +24,7 @@ import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
+import org.jetbrains.compose.swing.tooling.Preview
 import java.awt.Color
 import java.awt.Dimension
 import java.awt.Rectangle
@@ -34,6 +35,7 @@ import javax.swing.event.InternalFrameEvent
 // The layered/MDI surfaces: LayeredPane stacks self-positioned children on depth layers (it does not
 // lay them out, so each child sets its own bounds; overlapping tints make the paint order visible), and
 // DesktopPane floats internal frames whose controlled close routes through onClose.
+@Preview
 @Composable
 internal fun LayeredAndMdiSection() {
     SectionColumn {

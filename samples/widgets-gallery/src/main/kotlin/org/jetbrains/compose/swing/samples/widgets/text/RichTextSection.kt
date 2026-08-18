@@ -20,6 +20,7 @@ import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
+import org.jetbrains.compose.swing.tooling.Preview
 import java.awt.Dimension
 import java.net.URI
 import javax.swing.event.HyperlinkEvent
@@ -29,6 +30,7 @@ import javax.swing.event.HyperlinkListener
 // each: a source area above the pane that renders what it holds, then a pane over an HTML document
 // state, where the rendered content itself is what the user types into. TextPane closes on a styled
 // document bound to a remember { mutableStateOf(...) } value.
+@Preview
 @Composable
 internal fun RichTextSection() {
     SectionColumn {

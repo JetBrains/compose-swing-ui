@@ -22,6 +22,7 @@ import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
+import org.jetbrains.compose.swing.tooling.Preview
 import java.awt.Color
 import java.awt.Dimension
 import java.awt.datatransfer.DataFlavor
@@ -31,6 +32,7 @@ import javax.swing.TransferHandler
 
 // The data-transfer modifiers: drag-and-drop between components and system-clipboard copy/paste.
 // All payloads are plain strings carried as a StringSelection.
+@Preview
 @Composable
 internal fun DataTransferSection() {
     SectionColumn {

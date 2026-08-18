@@ -26,6 +26,7 @@ import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
 import org.jetbrains.compose.swing.samples.widgets.WrappedCaption
+import org.jetbrains.compose.swing.tooling.Preview
 import org.jetbrains.compose.swing.window.Dialog
 import org.jetbrains.compose.swing.window.DialogState
 import org.jetbrains.compose.swing.window.GlassPane
@@ -50,6 +51,7 @@ import javax.swing.SwingConstants
 // modality types. Every reactive Window/Dialog argument - resizable, alwaysOnTop, undecorated,
 // iconImage, minimumSize, visible - is driven by a check box beside it, and each peer's geometry is
 // demonstrated as two-way state. The secondary window also demonstrates MenuBar and GlassPane.
+@Preview
 @Composable
 internal fun WindowsSection() {
     SectionColumn {

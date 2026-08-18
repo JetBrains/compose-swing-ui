@@ -19,6 +19,7 @@ import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
+import org.jetbrains.compose.swing.tooling.Preview
 import java.awt.Color
 import java.awt.Dimension
 import java.awt.event.KeyEvent
@@ -29,6 +30,7 @@ import javax.swing.UIManager
 // TabbedPane: a controlled selected index synced with external buttons, an optionally-disabled tab, a
 // dynamically added/removed tab keyed for stable identity, and a second strip whose placement and
 // overflow policy switch live while its tabs carry an icon, colors, a mnemonic and a custom header.
+@Preview
 @Composable
 internal fun TabsSection() {
     SectionColumn {

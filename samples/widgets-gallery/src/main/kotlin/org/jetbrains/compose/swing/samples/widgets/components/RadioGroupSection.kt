@@ -11,10 +11,12 @@ import org.jetbrains.compose.swing.components.selection.RadioGroup
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
+import org.jetbrains.compose.swing.tooling.Preview
 import javax.swing.BoxLayout
 
 // RadioGroup: a set of mutually exclusive options whose selection is held in a single selectedIndex
 // state, so the echo label can only ever name one choice.
+@Preview
 @Composable
 internal fun RadioGroupSection() {
     SectionColumn {

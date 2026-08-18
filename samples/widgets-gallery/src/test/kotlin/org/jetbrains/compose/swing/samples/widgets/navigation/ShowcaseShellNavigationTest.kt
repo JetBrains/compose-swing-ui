@@ -17,7 +17,7 @@ import kotlin.test.assertTrue
  * The gallery shell as it is actually navigated: an `androidx.navigation3` back stack behind a sidebar,
  * a detail region showing only the top entry, and a Back button popping it.
  *
- * These pin the behaviours the back stack adds over a plain index - history, a revisit, and the sidebar
+ * These pin the behaviors the back stack adds over a plain index - history, a revisit, and the sidebar
  * following a pop - and the one it takes away, which is the live state of the section left behind.
  */
 class ShowcaseShellNavigationTest {

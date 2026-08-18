@@ -19,10 +19,12 @@ import org.jetbrains.compose.swing.components.layout.FlowPanel
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
+import org.jetbrains.compose.swing.tooling.Preview
 
 // Compose effects running over the Swing recomposer: coroutine-backed LaunchedEffect, lifecycle-aware
 // DisposableEffect (its onDispose fires when the child leaves composition), and snapshot-derived
 // derivedStateOf - proof that the coroutine and snapshot bridges are wired to the Swing frame clock.
+@Preview
 @Composable
 internal fun EffectsSection() {
     SectionColumn {

@@ -34,6 +34,7 @@ import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
 import org.jetbrains.compose.swing.samples.widgets.rememberDotIcon
+import org.jetbrains.compose.swing.tooling.Preview
 import java.awt.Color
 import java.awt.Dimension
 import javax.swing.SwingConstants
@@ -43,6 +44,7 @@ private const val GLYPH_SLOT = 28
 
 // PasswordField exposes its value as a CharArray, so the strength echo below is derived from the
 // array length without ever interning the cleartext into a String.
+@Preview
 @Composable
 internal fun ComponentsSection() {
     SectionColumn {

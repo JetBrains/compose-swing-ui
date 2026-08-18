@@ -15,6 +15,7 @@ import org.jetbrains.compose.swing.modifier.appearance.foreground
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
+import org.jetbrains.compose.swing.tooling.Preview
 import java.awt.Color
 
 // The accent color flowing down the composition; consumed several layers deep to style labels.
@@ -23,6 +24,7 @@ private val LocalAccent = staticCompositionLocalOf { Color.BLUE }
 // A staticCompositionLocalOf driving Swing components: a picker provides the chosen accent near the top,
 // and helpers nested several layers deep read LocalAccent.current to color their labels - so changing
 // the selection repaints the whole subtree without threading the value through every level.
+@Preview
 @Composable
 internal fun CompositionLocalsSection() {
     SectionColumn {

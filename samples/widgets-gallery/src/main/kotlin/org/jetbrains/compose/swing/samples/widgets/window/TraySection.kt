@@ -18,12 +18,14 @@ import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
 import org.jetbrains.compose.swing.samples.widgets.WrappedCaption
+import org.jetbrains.compose.swing.tooling.Preview
 import java.awt.Color
 import java.awt.Image
 import java.awt.image.BufferedImage
 
 // Tray: a system-tray icon mounted only while a toggle is on, so the section has no tray side effect on
 // entry. The icon's activation and menu callbacks write back into composition state that status labels echo.
+@Preview
 @Composable
 internal fun TraySection() {
     SectionColumn {

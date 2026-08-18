@@ -17,6 +17,7 @@ import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
 import org.jetbrains.compose.swing.samples.widgets.WrappedCaption
+import org.jetbrains.compose.swing.tooling.Preview
 import java.awt.BasicStroke
 import java.awt.Color
 import java.awt.Dimension
@@ -32,6 +33,7 @@ import java.awt.geom.Path2D
 // hand-rendered. The slider values are read directly inside onDraw: Canvas observes the snapshot state
 // touched while drawing, so moving a slider repaints the surface automatically, with no read hoisted
 // into the composition or captured into the lambda.
+@Preview
 @Composable
 internal fun CanvasSection() {
     SectionColumn {

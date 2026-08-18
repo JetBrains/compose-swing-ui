@@ -29,6 +29,7 @@ import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
 import org.jetbrains.compose.swing.samples.widgets.WrappedCaption
+import org.jetbrains.compose.swing.tooling.Preview
 import java.awt.Color
 import java.awt.Dimension
 import java.awt.Rectangle
@@ -43,6 +44,7 @@ import javax.swing.SwingConstants
 // policies are forced always-on so every slot is visible at once. Further down: the pane's hoistable
 // ScrollState, the viewport content's own scrolling behavior, its border and wheel-scrolling switch, and
 // a raw JScrollBar driven through adjustmentListener.
+@Preview
 @Composable
 internal fun ScrollPaneSection() {
     SectionColumn {

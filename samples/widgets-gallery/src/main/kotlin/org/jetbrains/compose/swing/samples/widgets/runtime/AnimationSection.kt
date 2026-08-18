@@ -30,6 +30,7 @@ import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
 import org.jetbrains.compose.swing.samples.widgets.WrappedCaption
+import org.jetbrains.compose.swing.tooling.Preview
 import java.awt.Color
 import java.awt.Dimension
 import java.awt.RenderingHints
@@ -38,6 +39,7 @@ import java.awt.geom.Ellipse2D
 // The animation engine driving real Swing rendering over the window's frame clock: an eased
 // animateIntAsState, a physical spring, and an infinite looping transition. In every case the target
 // is plain hoisted Compose state and the animation interpolates toward it - no timers, no manual frames.
+@Preview
 @Composable
 internal fun AnimationSection() {
     SectionColumn {

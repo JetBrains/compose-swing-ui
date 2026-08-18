@@ -26,6 +26,7 @@ import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
 import org.jetbrains.compose.swing.samples.widgets.WrappedCaption
+import org.jetbrains.compose.swing.tooling.Preview
 import java.awt.Dimension
 import java.util.regex.Pattern
 import javax.swing.BoxLayout
@@ -92,6 +93,7 @@ internal const val SORT_FILTER_TEXT_TAG = "table-sort-filter-text"
 // Table: a typed-rows demo with a live selection-mode control, a sorting/filtering/layout demo covering
 // the table's own state (sort order, row filter, column layout, resize behavior), and a demo of the
 // model-backed overload rendering a caller-owned TableModel as-is.
+@Preview
 @Composable
 internal fun TableSection() {
     SectionColumn {

@@ -19,6 +19,7 @@ import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
 import org.jetbrains.compose.swing.samples.widgets.WrappedCaption
+import org.jetbrains.compose.swing.tooling.Preview
 import java.awt.Color
 import java.awt.Dimension
 import java.awt.FlowLayout
@@ -34,6 +35,7 @@ import javax.swing.JComponent
 // your own Swing component into the composition as a first-class citizen. factory constructs it, update
 // pushes state onto it, and a mouseListener modifier reports input back out; from the composition's
 // point of view it behaves exactly like a built-in widget.
+@Preview
 @Composable
 internal fun CustomComponentSection() {
     SectionColumn {
@@ -61,6 +63,23 @@ internal fun CustomComponentSection() {
                 onClick = { rating = 0 },
             )
         }
+    }
+}
+
+/**
+ * A preview of a component this project wrote, beside the component rather than in a file of previews:
+ * a preview belongs to the code it is a picture of, and the editor shows whichever ones the open file
+ * declares.
+ *
+ * Nothing about the renderer knows this component. It is laid out and painted the way any component is,
+ * so what previews here is `paintComponent` itself - which is what makes a preview useful while writing
+ * one.
+ */
+@Preview
+@Composable
+internal fun StarRatingPreview() {
+    FlowPanel(alignment = FlowLayout.LEADING) {
+        StarRating(rating = 3, onRatingChange = {})
     }
 }
 
