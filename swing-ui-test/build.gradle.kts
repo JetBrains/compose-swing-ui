@@ -5,6 +5,7 @@ plugins {
     id("buildsrc.convention.kotlin-quality")
     id("buildsrc.convention.publishing")
     id("buildsrc.convention.jacoco-coverage")
+    id("buildsrc.convention.window-system-lock")
 }
 
 kotlin {

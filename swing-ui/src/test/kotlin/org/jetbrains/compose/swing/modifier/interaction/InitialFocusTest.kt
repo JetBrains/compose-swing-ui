@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.modifier.interaction
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.ExclusiveWindowSystem
 import org.jetbrains.compose.swing.assumeKeyboardFocusIsPossible
 import org.jetbrains.compose.swing.assumeWindowBecomesFocused
 import org.jetbrains.compose.swing.components.layout.Column
@@ -43,6 +44,7 @@ import kotlin.test.assertTrue
  * case that asserts a declaration was *not* acted on names the component that must not have taken the
  * focus, which reads the same whichever of the two the property is reporting.
  */
+@ExclusiveWindowSystem
 class InitialFocusTest {
     @Test
     fun theDeclarationLeavesTheComponentsOwnFocusabilityAlone() = runComposeSwingTest {

@@ -5,6 +5,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.ExclusiveWindowSystem
 import org.jetbrains.compose.swing.assumeKeyboardFocusIsPossible
 import org.jetbrains.compose.swing.assumeWindowBecomesFocused
 import org.jetbrains.compose.swing.components.layout.Column
@@ -42,6 +43,7 @@ import kotlin.test.assertTrue
  * request must *not* do is asserted on the request itself, which answers whether anything was asked for
  * without consulting the window system at all.
  */
+@ExclusiveWindowSystem
 class FocusRequesterTest {
     @Test
     fun aRequesterBoundToNothingRefusesTheRequest() = runComposeSwingTest {

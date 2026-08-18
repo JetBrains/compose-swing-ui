@@ -22,6 +22,9 @@ the quality gates every change must pass, and the code style.
 ./gradlew :swing-ui:test
 ./gradlew :swing-ui:test --tests '*ComboBoxEditableTest*'
 
+# The tests that need the window system to itself (focus, minimization)
+./gradlew :swing-ui:exclusiveWindowSystemTest
+
 # Run a sample application
 ./gradlew :samples:todo-app:run
 ./gradlew :samples:widgets-gallery:run
@@ -35,6 +38,14 @@ incremental compiler recompiles only the sources a change touches, and the repor
 increment - a short or empty report means little was recompiled, not that the module has nothing
 unstable. Only a non-incremental compile produces a report covering the whole module:
 `./gradlew --rerun-tasks :swing-ui:compileKotlin`, or clean the module first.
+
+`:swing-ui` splits its suite across two tasks, and `check` runs both. `test` holds everything that
+asserts nothing about which window the window system is attending to, and runs it across parallel
+JVMs; `exclusiveWindowSystemTest` holds the classes tagged `ExclusiveWindowSystem` - those asserting
+on focus or minimization - and runs them one at a time, because two of them at once take that state
+from each other and skip. Write a new test into whichever it belongs to by tagging the class, not by
+where the file sits. Note that a scoped `:swing-ui:test` run also pulls in
+`exclusiveWindowSystemTest`, which the coverage report that follows a test run depends on.
 
 Scope a run while iterating; `./gradlew test` runs every module's suite. The modules test each other:
 `:swing-ui-test` publishes the harness that `:swing-ui`'s own tests are written against, so a harness

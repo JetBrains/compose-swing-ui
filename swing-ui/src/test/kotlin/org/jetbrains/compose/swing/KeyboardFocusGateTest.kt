@@ -24,6 +24,7 @@ import kotlin.time.Duration.Companion.milliseconds
  * The windows used here declare themselves unfocusable, which the window system declines to focus on every
  * host, so what the gate does at its deadline is observable whether or not this host grants focus at all.
  */
+@ExclusiveWindowSystem
 class KeyboardFocusGateTest {
     @Test
     fun aWindowTheSystemNeverFocusesSkipsTheTestInsteadOfFailingIt() {

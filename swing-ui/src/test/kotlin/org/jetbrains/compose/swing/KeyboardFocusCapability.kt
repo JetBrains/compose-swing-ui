@@ -28,6 +28,8 @@ import kotlin.time.TimeSource
  * probe window of its own, while being focused is a fact about one window at one moment. A test that
  * needs the window it opened focused waits for that window with [assumeWindowBecomesFocused].
  *
+ * A class calling this carries [ExclusiveWindowSystem].
+ *
  * Call this on the test method, before `runComposeSwingTest`: the probe waits for a window-system
  * notification, which cannot arrive while the event dispatch thread is blocked inside the test body.
  */
@@ -46,6 +48,8 @@ internal fun assumeKeyboardFocusIsPossible() {
  * keyboard is the library's own doing, so each test asserts that for itself below this gate, with plain
  * assertions: a window the system never focuses skips, and a focused window whose keyboard went to the
  * wrong component fails.
+ *
+ * A class calling this carries [ExclusiveWindowSystem].
  *
  * Call this inside `runComposeSwingTest`: waiting here suspends and hands the event dispatch thread back,
  * which is what lets the activation the window system posts arrive.

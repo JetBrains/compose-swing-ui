@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.ExclusiveWindowSystem
 import org.jetbrains.compose.swing.assumeKeyboardFocusIsPossible
 import org.jetbrains.compose.swing.assumeWindowBecomesFocused
 import org.jetbrains.compose.swing.components.layout.Column
@@ -32,6 +33,7 @@ import kotlin.test.assertTrue
  * Losing the keyboard is what triggers the commit, so these run only where the window system grants
  * focus to this process's windows.
  */
+@ExclusiveWindowSystem
 class FormattedTextFieldFocusTest {
     private fun integerFactory(): DefaultFormatterFactory {
         val formatter = NumberFormatter()

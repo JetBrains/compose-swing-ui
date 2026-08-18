@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.modifier.interaction
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.ExclusiveWindowSystem
 import org.jetbrains.compose.swing.assumeKeyboardFocusIsPossible
 import org.jetbrains.compose.swing.assumeWindowBecomesFocused
 import org.jetbrains.compose.swing.components.Label
@@ -29,6 +30,7 @@ import kotlin.test.assertTrue
  * The key-binding case needs a field that actually holds the keyboard: the field's Enter action asks the
  * platform which text component is focused, so it runs only where the window system grants focus.
  */
+@ExclusiveWindowSystem
 class OnAcceptModifierTest {
     @Test
     fun theFieldsActionEventRunsTheCallback() = runComposeSwingTest {

@@ -19,6 +19,7 @@ import kotlinx.coroutines.swing.Swing
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import org.jetbrains.compose.swing.ExclusiveWindowSystem
 import org.jetbrains.compose.swing.assumeFrameDeiconifies
 import org.jetbrains.compose.swing.assumeFrameIconifies
 import org.jetbrains.compose.swing.assumeKeyboardFocusIsPossible
@@ -73,6 +74,7 @@ import kotlin.time.TimeSource
  * a composition mounted through `runComposeSwingTest` reports CREATED however long it is driven. A case
  * that observes STARTED or RESUMED therefore mounts into a real window of its own and shows it.
  */
+@ExclusiveWindowSystem
 class CompositionLifecycleTest {
     @Test
     fun contentThatHangsOffNoWindowReportsCreated() = runSwingTest {
