@@ -138,7 +138,7 @@ private fun TabbedPaneImpl(
     // Reading the mirror here subscribes this composition to the user moving the pane's own selection, so
     // a move away from the declaration invalidates on its own instead of waiting for an unrelated
     // recomposition to notice it.
-    val held = applied.current
+    val held = applied.value
     // Captured here in the composable body: a header cannot be an applier node of the pane (see
     // TabHeaderIsland in TabbedPaneScope), so this context is threaded to it explicitly instead of being
     // inherited through the node tree.

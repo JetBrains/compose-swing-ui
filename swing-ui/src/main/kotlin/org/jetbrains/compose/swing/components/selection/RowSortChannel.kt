@@ -156,7 +156,7 @@ internal fun SwingNodeUpdater<JTable>.declareRowFilter(
     // independently, and one install answers for all three: they are one key. A filter the sorter already
     // has is not written again, so a pass that only the selection moved puts the selection back and does
     // nothing else.
-    set(Triple(rowFilter, declared, applied.current)) {
+    set(Triple(rowFilter, declared, applied.value)) {
         installContent(applied, declared, target) { sortChannel.applyRowFilter(rowFilter) }
     }
 }

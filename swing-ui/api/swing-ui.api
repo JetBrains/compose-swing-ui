@@ -729,9 +729,10 @@ public final class org/jetbrains/compose/swing/modifier/listener/ListenerModifie
 	public static final fun treeWillExpandListener (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljavax/swing/event/TreeWillExpandListener;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 }
 
-public final class org/jetbrains/compose/swing/node/AppliedValue {
+public final class org/jetbrains/compose/swing/node/AppliedValue : androidx/compose/runtime/State {
 	public static final field $stable I
 	public fun <init> (Ljava/lang/Object;)V
+	public fun getValue ()Ljava/lang/Object;
 	public final fun isWriting ()Z
 	public final fun observed (Ljava/lang/Object;)Z
 	public final fun settle (Ljava/lang/Object;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;)V

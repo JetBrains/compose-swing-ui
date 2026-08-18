@@ -267,10 +267,10 @@ that repeats the value it declared last pass is skipped, so the widget stays whe
 
 Three pieces work together:
 
-- `rememberAppliedValue(declared)` remembers an `AppliedValue<V>` seeded with the first declaration. It
-  mirrors what the widget currently holds as snapshot state, so a later read of it while composing
+- `rememberAppliedValue(declared)` remembers an `AppliedValue<V>` seeded with the first declaration. It is
+  a `State<V>` mirroring what the widget currently holds, so reading `applied.value` while composing
   depends on the user moving the widget the same way a read of any other state depends on that state.
-- `applied.observed(value)` is called from the widget's own listener with the value the widget just
+- `applied.observed(published)` is called from the widget's own listener with the value the widget just
   published. It updates the mirror and answers whether the move is news for the caller - `true` for a
   move the user made, `false` for a value that only arrived because the wrapper's own write to the widget
   just produced it. Call it for every value the widget publishes, in the order it publishes them.

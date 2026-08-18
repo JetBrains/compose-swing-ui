@@ -79,7 +79,7 @@ public fun ToolBar(
     // before it stands in a window, so seeding this `true` would make the bar's first docked reading look
     // like the user having docked it.
     val applied = rememberAppliedValue(false)
-    val held = applied.current
+    val held = applied.value
     // A bar is declared before it is anywhere - the applier runs this node's update block between its
     // top-down and bottom-up passes - so the pass declaring a floating bar has no window to open one
     // beside. Counting the times the bar is handed to a parent gives that pass a successor: the count

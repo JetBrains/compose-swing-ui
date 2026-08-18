@@ -84,7 +84,7 @@ public fun SplitPane(
     // mirror without being reported. A move away from either is the user's, reported once, and every
     // later move is then measured against the resolved position.
     val onMoved: (Int) -> Unit = { moved ->
-        if (dividerLocation < 0 && applied.current == dividerLocation) {
+        if (dividerLocation < 0 && applied.value == dividerLocation) {
             applied.observed(moved)
         } else if (applied.observed(moved)) {
             onDividerLocationChange(moved)

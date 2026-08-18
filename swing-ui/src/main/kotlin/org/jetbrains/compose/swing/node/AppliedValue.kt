@@ -4,6 +4,7 @@
 package org.jetbrains.compose.swing.node
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.annotation.RememberInComposition
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -14,7 +15,8 @@ import java.awt.Component
 
 /**
  * Mirrors, as snapshot state, the value a widget property currently holds - a property the user can
- * also move independently of the composition's declaration.
+ * also move independently of the composition's declaration. The mirror is that value as a [State], so
+ * [value] answers with what the widget holds now.
  *
  * A component that reads the mirror while composing is invalidated when the user moves the widget, the
  * same as any other snapshot-state read. Settling - reconciling a declaration against what the widget
@@ -31,7 +33,7 @@ public class AppliedValue<V>
     @RememberInComposition
     constructor(
         initial: V,
-    ) {
+    ) : State<V> {
         /** The widget's current value, mirrored as snapshot state. */
         private var observedValue by mutableStateOf(initial)
 
@@ -39,22 +41,28 @@ public class AppliedValue<V>
         private val appliedWrite = AppliedWrite()
 
         /** The widget's current value. Reading this while composing subscribes to the user moving it. */
-        internal val current: V get() = observedValue
+        override val value: V get() = observedValue
 
         /**
-         * Mirrors [value] as what the widget now holds, and returns whether it is a move by the user: a
+         * Mirrors [published] as what the widget now holds, and returns whether it is a move by the user: a
          * value that differs from what the mirror held before, and that did not happen inside a [write] of
          * this wrapper's own.
          *
          * Call this for every value the widget publishes, in the order it publishes them.
          */
-        public fun observed(value: V): Boolean {
-            val moved = value != observedValue
-            observedValue = value
+        public fun observed(published: V): Boolean {
+            val moved = published != observedValue
+            observedValue = published
             return moved && !isWriting
         }
 
-        /** Whether a write of this wrapper's own to its widget is currently in flight. */
+        /**
+         * Whether a write of this wrapper's own to its widget is currently in flight. It is true only for
+         * the length of a [write], which runs to completion on the event dispatch thread.
+         *
+         * Read it from a widget listener, which is where a write of this wrapper's own has to be told
+         * from the user's. It is not snapshot state, so reading it while composing subscribes to nothing.
+         */
         public val isWriting: Boolean get() = appliedWrite.isWriting
 
         /**
@@ -127,7 +135,7 @@ public fun <C : Component, V> SwingNodeUpdater<C>.declare(
 ) {
     // The declaration and the value the widget holds move independently, and one settle answers for both:
     // the two are one key.
-    set(value to applied.current) {
+    set(value to applied.value) {
         applied.settle(value, { read() }, { written -> write(written) }, { on -> onSettled(on) })
     }
 }

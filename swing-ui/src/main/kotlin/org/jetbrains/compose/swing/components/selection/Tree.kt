@@ -620,8 +620,8 @@ private fun TreeNode(
             // Reading both mirrors is what subscribes this composition to the user moving the tree's own
             // selection or expansion, so the pass that follows settles each against its declaration: a
             // change the caller adopts stands, and one it does not is written back over.
-            val heldSelection = appliedSelection.current
-            val heldExpansion = appliedExpansion.current
+            val heldSelection = appliedSelection.value
+            val heldExpansion = appliedExpansion.value
 
             // The declaration and the held value of each of selection and expansion move independently, and
             // one write answers for all four: they are one key.
