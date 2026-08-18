@@ -11,9 +11,12 @@ coroutines = "1.9.0"
 detekt = "2.0.0-alpha.6"
 dokka = "2.2.0"
 flatlaf = "3.7.2"
+intellijIdea = "2026.2.1"
+intellijPlatformGradlePlugin = "2.18.1"
 jetbrainsAnnotations = "23.0.0"
 knit = "0.5.1"
 kotlin = "2.3.20"
+kotlinxSerialization = "1.9.0"
 ktlint = "1.8.0"
 ktlint-gradle = "14.2.0"
 
@@ -37,9 +40,12 @@ kotlinGradlePlugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", ver
 kotlinxCoroutinesCore = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 kotlinxCoroutinesSwing = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-swing", version.ref = "coroutines" }
 kotlinxCoroutinesTest = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
+kotlinxSerializationCore = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "kotlinxSerialization" }
+kotlinxSerializationJson = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 ktlint-gradle-plugin = { module = "org.jlleitschuh.gradle:ktlint-gradle", version.ref = "ktlint-gradle" }
 
 [plugins]
 detekt = { id = "dev.detekt", version.ref = "detekt" }
+intellijPlatform = { id = "org.jetbrains.intellij.platform", version.ref = "intellijPlatformGradlePlugin" }
 knit = { id = "org.jetbrains.kotlinx.knit", version.ref = "knit" }
 ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlint-gradle" }

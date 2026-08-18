@@ -21,5 +21,6 @@ include(":swing-ui")
 include(":swing-ui-preview-host")
 include(":swing-ui-animation")
 include(":swing-ui-test")
+include(":idea-plugin")
 
 rootProject.name = "compose-swing-ui"
