@@ -26,6 +26,7 @@
             <option value="$PROJECT_DIR$/samples/widgets-gallery" />
             <option value="$PROJECT_DIR$/swing-ui" />
             <option value="$PROJECT_DIR$/swing-ui-animation" />
+            <option value="$PROJECT_DIR$/swing-ui-preview-host" />
             <option value="$PROJECT_DIR$/swing-ui-test" />
           </set>
         </option>

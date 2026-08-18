@@ -39,6 +39,11 @@ naming:
     ignoreAnnotated: ["Composable"]
 
 style:
+  UnusedPrivateFunction:
+    # A @Preview function is invoked reflectively by the preview tooling, never from source, so being
+    # private is correct and being unreferenced is not a defect.
+    ignoreAnnotated: ["Preview"]
+
   MagicNumber:
     # Default UI dimensions / parameters inside @Composable functions read fine inline.
     ignoreAnnotated: ["Composable"]

@@ -18,6 +18,7 @@ include(":samples:docs")
 include(":samples:todo-app")
 include(":samples:widgets-gallery")
 include(":swing-ui")
+include(":swing-ui-preview-host")
 include(":swing-ui-animation")
 include(":swing-ui-test")
 
