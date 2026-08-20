@@ -50,6 +50,15 @@ jobs:
           xvfb-run --auto-servernum ./gradlew --no-daemon --stacktrace --continue \
             build checkKotlinAbi
 
+      # The API reference is not part of `check`, so nothing above would notice if it stopped
+      # rendering. Build the aggregated site so a change that breaks it fails here rather than at
+      # release time. It needs no display.
+      - shell: bash
+        name: Build API Reference
+        run: |
+          ./gradlew --no-daemon --stacktrace \
+            dokkaGenerate
+
       # Sanity-check that the publishing configuration resolves and produces artifacts.
       - shell: bash
         name: Publish Dry Run

@@ -23,6 +23,8 @@ dependencies {
     implementation(libs.androidLint.gradle.plugin)
     // Contributes each publishing module's publications to the root project's Central Portal aggregation.
     implementation(libs.nmcp.gradle.plugin)
+    // Applied by the publishing convention, and aggregated by the api-reference convention.
+    implementation(libs.dokka.gradle.plugin)
 }
 
 // buildSrc is an included build and cannot apply its own precompiled `kotlin-quality` convention

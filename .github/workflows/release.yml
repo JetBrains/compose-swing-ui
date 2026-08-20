@@ -82,9 +82,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ inputs.version }}
           SUFFIX: ${{ inputs.suffix }}
+          PRERELEASE: ${{ inputs.suffix != '' }}
         run: |
           if [[ -n "$SUFFIX" ]]; then TAG="v$VERSION-$SUFFIX"; else TAG="v$VERSION"; fi
           gh release create "$TAG" \
+            --prerelease="$PRERELEASE" \
             --target "$GITHUB_SHA" \
             --title "$TAG" \
-            --generate-notes
+            --generate-notes \
+            --draft

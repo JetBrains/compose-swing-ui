@@ -6,6 +6,37 @@ per-parameter reference. The concepts behind the binding are in
 [`ARCHITECTURE.md`](ARCHITECTURE.md), and building a component of your own is
 [`CUSTOM-COMPONENTS.md`](CUSTOM-COMPONENTS.md).
 
+<!--- INCLUDE .*content.*
+import androidx.compose.runtime.*
+import org.jetbrains.compose.swing.components.*
+import org.jetbrains.compose.swing.components.button.*
+import org.jetbrains.compose.swing.components.layout.*
+import org.jetbrains.compose.swing.components.selection.*
+import org.jetbrains.compose.swing.components.text.*
+import org.jetbrains.compose.swing.modifier.*
+import org.jetbrains.compose.swing.modifier.interaction.*
+import org.jetbrains.compose.swing.modifier.layout.*
+import org.jetbrains.compose.swing.window.*
+import java.awt.Dimension
+import java.awt.GridBagConstraints
+import java.awt.Insets
+import javax.swing.*
+
+@Composable
+fun Example() {
+----- SUFFIX .*content.*
+}
+----- INCLUDE .*app.*
+import androidx.compose.runtime.*
+import org.jetbrains.compose.swing.components.*
+import org.jetbrains.compose.swing.components.button.*
+import org.jetbrains.compose.swing.components.layout.*
+import org.jetbrains.compose.swing.window.*
+import java.awt.Dimension
+
+fun main() =
+-->
+
 Two things hold for everything below.
 
 **Every parameter is reapplied on recomposition.** Pass state to a component and the widget follows
@@ -151,6 +182,8 @@ EditorPane(
 )
 ```
 
+<!--- CLEAR -->
+
 ---
 
 ## Buttons and choices
@@ -181,6 +214,8 @@ CheckBox("Word wrap", checked = wrap, onCheckedChange = { wrap = it })
 ToggleButton("Pin", selected = pinned, onSelectedChange = { pinned = it })
 ```
 
+<!--- CLEAR -->
+
 A `RadioGroup` owns the button group, so you declare the options and the selected index rather than
 wiring exclusivity yourself. The index is the composition's state on every pass, so a pick the caller
 does not adopt goes back to the declared option - including the option the group cleared without it
@@ -195,6 +230,8 @@ RadioGroup(selectedIndex = theme, onSelectionChange = { theme = it }) {
     option("Follow system")
 }
 ```
+
+<!--- KNIT example-components-content-01.kt -->
 
 An editable `ComboBox` has two outputs: `onSelectionChange` for a choice from the list, and
 `onValueCommit` for text typed into the editor. `itemContent` replaces the rendered cell with a
@@ -217,6 +254,8 @@ ComboBox(
     Label(if (isSelected) "> $item" else item)
 }
 ```
+
+<!--- KNIT example-components-content-02.kt -->
 
 `Slider` and `ProgressBar` both range over `0`..`100` by default and are horizontal, as is
 `Separator`. A slider's `labels` map declares the label table that `paintLabels` then paints; a
@@ -242,6 +281,8 @@ ProgressBar(value = zoom, min = 50, max = 200, stringPainted = true)
 Separator(orientation = SwingConstants.HORIZONTAL)
 ```
 
+<!--- KNIT example-components-content-03.kt -->
+
 `Slider` and `ProgressBar` also take a caller-owned `BoundedRangeModel` in place of `value`. The model
 owns the range; the library renders it and never writes to it, so mutating the model repaints the
 widgets without a recomposition. Handing the same instance to both is what lets a bar track a slider
@@ -253,6 +294,8 @@ val range = remember { DefaultBoundedRangeModel(30, 0, 0, 100) }
 Slider(model = range)
 ProgressBar(model = range)
 ```
+
+<!--- KNIT example-components-content-04.kt -->
 
 A `Spinner` shows its value through an editor, and two parameters decide which one. `format` is the
 pattern the spinner's own editor renders and parses with - a `DecimalFormat` pattern over a number
@@ -268,6 +311,8 @@ var hour by remember { mutableStateOf(9) }
 Spinner(hour, onValueChange = { hour = it.toInt() }, min = 0, max = 23, format = "00")
 Spinner(hour, onValueChange = { hour = it.toInt() }, min = 0, max = 23) { Label("$hour o'clock") }
 ```
+
+<!--- KNIT example-components-content-05.kt -->
 
 ---
 
@@ -303,6 +348,8 @@ ListBox(
 }
 ```
 
+<!--- KNIT example-components-content-06.kt -->
+
 A composable cell - a `ListBox` or `ComboBox` `itemContent`, a column's `cellContent`, a `Tree`'s
 `nodeContent` - composes **one** component, and that component is what the widget renders the row
 with: it is bounded at the row and laid out there. Compose several components into a panel and the row
@@ -319,6 +366,8 @@ ComboBox(items = languages, selectedItem = selected, onSelectionChange = { selec
     }
 }
 ```
+
+<!--- CLEAR -->
 
 A list measures each row by what its cell asks for. A tree does the same where its `rowHeight` is `0`,
 and otherwise gives every row the one height. A table never does: every one of its rows is the same
@@ -379,6 +428,8 @@ ScrollPane {
 }
 ```
 
+<!--- CLEAR -->
+
 A `Tree` is built from your own node type: a `root`, a `children` function, and a `label` for the
 text of a node. Selection and expansion are both a set of index paths - a `List<Int>` of child
 positions per node, walked from the root - so they mean the same thing across two compositions of the
@@ -420,6 +471,8 @@ Tree(
 }
 ```
 
+<!--- CLEAR -->
+
 A `ListState` holds what one `ListBox` has selected, and a `TreeState` what one `Tree` has selected and
 open. Each also carries the gesture that brings one row into view when the application decides to - a
 row just added, a search hit, a node a load has just filled in. Hoist one with `rememberListState()`
@@ -445,6 +498,8 @@ ScrollPane {
     ListBox(items = items, state = state, modifier = SwingModifier.viewport())
 }
 ```
+
+<!--- CLEAR -->
 
 To reveal a region of a scroll pane's content rather than a row of a widget, use
 [`ScrollState.revealRect`](#scrollstate).
@@ -501,6 +556,8 @@ BorderPanel {
 }
 ```
 
+<!--- CLEAR -->
+
 `Row` and `Column` are the two single-axis stacks you reach for most. Along its axis, a child keeps
 the size it prefers, and the space the container has left over is placed by an `Arrangement`
 (`Top`, `Bottom`, `Start`, `End`, `Center`, `SpaceBetween`, `SpaceAround`, `SpaceEvenly`,
@@ -523,6 +580,8 @@ Column(verticalArrangement = Arrangement.spacedBy(8), horizontalAlignment = Alig
     Label("Status", modifier = SwingModifier.align(Alignment.CenterHorizontally))
 }
 ```
+
+<!--- CLEAR -->
 
 A weighted child takes its share of what is left after every child that claims none has taken the
 size it prefers, in proportion to the weights; `weight(w, fill = false)` lets it settle for the size
@@ -561,6 +620,8 @@ GridBagPanel {
 }
 ```
 
+<!--- KNIT example-components-content-07.kt -->
+
 A child that declares no `item` is laid out under `GridBagConstraints`' own defaults, which place it
 relative to the child before it.
 
@@ -578,6 +639,8 @@ CardPanel(selectedCard = step) {
 }
 Button("Next", onClick = { step = "payment" })
 ```
+
+<!--- CLEAR -->
 
 Every child of a `TabbedPane` is one tab's body and declares that tab with `tab(...)`, which carries the
 tab's title, icon, tooltip, enabled flag, mnemonic and colors, and can take over what the tab strip
@@ -609,6 +672,8 @@ TabbedPane(selectedIndex = tab, onSelectedIndexChange = { tab = it }) {
 }
 ```
 
+<!--- CLEAR -->
+
 A `SplitPane`'s `first` side is the left or the top depending on `orientation`, which defaults to
 `JSplitPane.HORIZONTAL_SPLIT`. `dividerLocation` is declared and `onDividerLocationChange` reports
 where the user dragged it; `resizeWeight` decides which side keeps extra space, and
@@ -631,6 +696,8 @@ SplitPane(
 }
 ```
 
+<!--- CLEAR -->
+
 A `ScrollPane` holds nothing but its regions, so every child declares one: `viewport()`, `rowHeader()`,
 `columnHeader()` or `corner(...)`. `viewport()` also carries how far the pane scrolls per arrow button
 and per page, and whether the content is laid out at the viewport's own width or height - each `null`
@@ -648,6 +715,8 @@ ScrollPane(horizontalScrollbar = JScrollPane.HORIZONTAL_SCROLLBAR_NEVER) {
 }
 ```
 
+<!--- CLEAR -->
+
 A `ToolBar` is horizontal and floatable by default. `floating` declares whether the bar stands in a
 window of its own, and `onFloatingChange` reports where the user dragged it - or hands back the docked
 state a bar that cannot float settles for.
@@ -661,6 +730,8 @@ ToolBar(floatable = false, rollover = true) {
 }
 ```
 
+<!--- CLEAR -->
+
 A `LayeredPane` stacks children on integer depths - higher layers paint above lower ones, and within
 one layer the children stack in the order the composition declares them, the first of them on top. A
 child that declares no layer stands on `JLayeredPane.DEFAULT_LAYER`. It lays nothing out, so each
@@ -672,6 +743,8 @@ LayeredPane {
     Label("Floating", modifier = SwingModifier.layer(JLayeredPane.PALETTE_LAYER).bounds(16, 16, 120, 24))
 }
 ```
+
+<!--- CLEAR -->
 
 A `DesktopPane` hosts internal frames. Each frame declares a title, its window controls, and either
 plain `bounds` - where it starts, and wherever the user then leaves it - or an
@@ -706,6 +779,8 @@ DesktopPane {
     }
 }
 ```
+
+<!--- CLEAR -->
 
 To place children under a layout manager of your own, `layoutConstraint` is the builder a container you
 write yourself names its own placements over - see
@@ -754,6 +829,8 @@ Window(onCloseRequest = ::exitApplication) {
 }
 ```
 
+<!--- CLEAR -->
+
 A window exists while it is composed: opening one is composing it, closing it is not composing it,
 and `onCloseRequest` is where you flip the state that decides. `title` starts empty, `resizable` is
 `true`, `alwaysOnTop` is `false`, `undecorated` is `false`, and a dialog's `modality` is
@@ -775,6 +852,8 @@ application {
 }
 ```
 
+<!--- KNIT example-components-app-01.kt -->
+
 ```kotlin
 var asking by remember { mutableStateOf(false) }
 
@@ -793,6 +872,8 @@ if (asking) {
     }
 }
 ```
+
+<!--- KNIT example-components-content-08.kt -->
 
 To mount a composition into a Swing window or container you already own, use `setContent` - see
 [`ARCHITECTURE.md`](ARCHITECTURE.md#mounting-a-composition).
@@ -843,6 +924,8 @@ Row {
 }
 ```
 
+<!--- KNIT example-components-content-09.kt -->
+
 ---
 
 ## Menus
@@ -891,6 +974,8 @@ bar.setContent {
 frame.jMenuBar = bar
 ```
 
+<!--- CLEAR -->
+
 There is no command type, so one command reached from two surfaces - a menu item and a toolbar button
 that go gray together - is a shared value and a shared modifier. Both surfaces read the one state and
 apply the one chain, so enabling and disabling them is a single state write.
@@ -916,6 +1001,8 @@ Window(onCloseRequest = ::exitApplication) {
 }
 ```
 
+<!--- CLEAR -->
+
 ---
 
 ## Drawing
@@ -933,6 +1020,8 @@ Column {
     Slider(value = radius, onValueChange = { radius = it }, min = 4, max = 80)
 }
 ```
+
+<!--- KNIT example-components-content-10.kt -->
 
 ---
 
@@ -954,6 +1043,8 @@ application {
     }
 }
 ```
+
+<!--- CLEAR -->
 
 ---
 
@@ -997,6 +1088,8 @@ val report = rememberDocumentState("<h1>Report</h1><p>Q3 was <b>strong</b>.</p>"
 EditorPane(state = report, editable = false)
 ```
 
+<!--- KNIT example-components-content-11.kt -->
+
 ```kotlin
 val note = rememberDocumentState("Dear ")
 
@@ -1015,6 +1108,8 @@ Column {
     Button("Undo", modifier = SwingModifier.enabled(note.canUndo), onClick = note::undo)
 }
 ```
+
+<!--- KNIT example-components-content-12.kt -->
 
 ### `FormattedValueState`
 

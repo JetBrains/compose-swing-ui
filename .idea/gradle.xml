@@ -21,6 +21,7 @@
             <option value="$PROJECT_DIR$" />
             <option value="$PROJECT_DIR$/buildSrc" />
             <option value="$PROJECT_DIR$/samples" />
+            <option value="$PROJECT_DIR$/samples/docs" />
             <option value="$PROJECT_DIR$/samples/todo-app" />
             <option value="$PROJECT_DIR$/samples/widgets-gallery" />
             <option value="$PROJECT_DIR$/swing-ui" />

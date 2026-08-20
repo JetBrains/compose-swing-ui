@@ -5,6 +5,23 @@ components — and the top-level windows the composition realizes — assert the
 interactions through them. This guide shows how to write behavioral tests — tests that exercise
 state → recomposition → visible change through the public API.
 
+<!--- INCLUDE .*fragment.*
+import androidx.compose.runtime.*
+import org.jetbrains.compose.swing.test.*
+import org.jetbrains.compose.swing.test.interaction.*
+import javax.swing.*
+
+fun example() = runComposeSwingTest {
+----- SUFFIX .*fragment.*
+}
+----- INCLUDE .*case.*
+import androidx.compose.runtime.*
+import org.jetbrains.compose.swing.components.*
+import org.jetbrains.compose.swing.components.button.*
+import org.jetbrains.compose.swing.test.*
+import kotlin.test.*
+-->
+
 ## Setup
 
 Add the harness to the dependencies of the module under test:
@@ -15,6 +32,8 @@ dependencies {
     testImplementation(project(":swing-ui-test"))
 }
 ```
+
+<!--- CLEAR -->
 
 Then write a plain `@Test` method whose body is a `runComposeSwingTest { … }` block. Inside the block you
 call `setContent { … }` to mount your composable, and the harness, finders, assertions, and actions
@@ -40,6 +59,8 @@ class CounterTest {
     }
 }
 ```
+
+<!--- KNIT example-testing-01.kt -->
 
 `setContent` waits for the composition to settle before returning, so by the next line the tree
 reflects the initial state. After an action that writes Compose state, the harness settles again
@@ -72,6 +93,8 @@ onAllNodesWithTag("item").onLast().assertTextEquals("newest")
 onAllNodesOfType<JCheckBox>().assertAll(SwingMatcher.isEnabled())
 ```
 
+<!--- KNIT example-testing-fragment-01.kt -->
+
 ### Structure
 
 Where a component sits in the tree is expressed by matchers — `hasParent`, `hasAnyChild`,
@@ -82,6 +105,8 @@ scoped to a subtree by describing it rather than by holding a component:
 onAllNodesOfType<JLabel>().filter(SwingMatcher.hasAnyAncestor(SwingMatcher.hasTestTag("editor")))
 ```
 
+<!--- KNIT example-testing-fragment-02.kt -->
+
 From an interaction you can also step to the nodes around it with `onParent()`, `onChild()`,
 `onChildren()`, `onChildAt(index)`, `onSibling()`, `onSiblings()`, `onAncestors()` and
 `onDescendants()`. A step is as lazy as the query it extends, and `onAncestors()` stops at the root
@@ -91,6 +116,8 @@ the query searches:
 onNodeWithTag("editor").onDescendants().filter(SwingMatcher.isOfType<JLabel>()).assertCountEquals(2)
 onNodeWithText("Save").onParent().assert(SwingMatcher.isEnabled())
 ```
+
+<!--- KNIT example-testing-fragment-03.kt -->
 
 ### Test tags
 
@@ -104,9 +131,13 @@ import org.jetbrains.compose.swing.modifier.appearance.testTag
 TextField(value = name, onValueChange = { name = it }, modifier = SwingModifier.testTag("name-field"))
 ```
 
+<!--- CLEAR -->
+
 ```kotlin
 onNodeWithTag("name-field").performTextInput("Ada")
 ```
+
+<!--- KNIT example-testing-fragment-04.kt -->
 
 ## Asserting state
 
@@ -134,12 +165,16 @@ onNodeWithTag("submit")
     .assertTextEquals("Submit")
 ```
 
+<!--- KNIT example-testing-fragment-05.kt -->
+
 A check that is not one of the named assertions is still asserted through the node: `assert(matcher)`
 takes any `SwingMatcher`, so the failure message keeps the finder's context:
 
 ```kotlin
 onNodeOfType<JCheckBox>().assert(SwingMatcher.isSelected())
 ```
+
+<!--- KNIT example-testing-fragment-06.kt -->
 
 `fetch<T>()` hands back the live component itself. Its purpose is the comparison only the component
 can answer: that the widget settled on the value the composition declared, or that the same instance
@@ -151,6 +186,8 @@ import javax.swing.JList
 val list = onNodeOfType<JList<*>>().fetch<JList<*>>()
 assertEquals(2, list.selectedIndex, "the declared selection is the one the widget holds")
 ```
+
+<!--- CLEAR -->
 
 Prefer an assertion or a matcher wherever one covers the property, and reach for `fetch<T>()` where
 the Swing side of the contract is itself the subject.
@@ -170,6 +207,8 @@ val items = (0 until fileMenu.itemCount).map { fileMenu.getItem(it)?.text }
 assertEquals(listOf("New", null, "Open"), items)
 ```
 
+<!--- CLEAR -->
+
 Only the menu's own level is read this way: a submenu appears as its own item, named by its `text`,
 and what it drops down is read the same way, off the `JMenu` that item is.
 
@@ -188,6 +227,8 @@ onNodeWithTag("amount").performTextReplacement("42")
 onNodeWithText("Save").performClick()
 ```
 
+<!--- KNIT example-testing-fragment-07.kt -->
+
 ### Tabs
 
 A tabbed pane's strip is drawn by the look and feel rather than built from child components, so there
@@ -199,6 +240,8 @@ position to click; the action says so rather than landing on nothing.
 ```kotlin
 onNodeOfType<JTabbedPane>().performTabClick(2)
 ```
+
+<!--- KNIT example-testing-fragment-08.kt -->
 
 ### Focus
 
@@ -218,6 +261,8 @@ component the test did not expect is a different case — a real failure, assert
 onNodeWithTag("amount").performFocusLost()
 onNodeWithTag("amount").assertTextEquals("42.00")
 ```
+
+<!--- KNIT example-testing-fragment-09.kt -->
 
 ## Callback failures
 
@@ -247,6 +292,8 @@ fun aThrowingCallbackIsContainedAndReported() = runComposeSwingTest {
     assertEquals("boom", failures.single().message)
 }
 ```
+
+<!--- KNIT example-testing-case-01.kt -->
 
 ## Testing windows and dialogs
 
@@ -285,6 +332,8 @@ fun settingsWindowShowsItsContent() = runComposeSwingTest {
     window.onNodeWithText("Apply").assertIsEnabled()
 }
 ```
+
+<!--- KNIT example-testing-case-02.kt -->
 
 A dialog show is applied on its own event-dispatch turn; the idle gate drains it, so after a state
 change plus `awaitIdle()` the realized dialog already reflects the declared visibility.

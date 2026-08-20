@@ -2,6 +2,7 @@
 
 [![Version](https://img.shields.io/github/v/release/MatkovIvan/compose-swing-ui?sort=semver)](https://github.com/MatkovIvan/compose-swing-ui/releases/latest)
 [![Snapshot](https://github.com/MatkovIvan/compose-swing-ui/actions/workflows/snapshot.yml/badge.svg)](https://github.com/MatkovIvan/compose-swing-ui/actions/workflows/snapshot.yml)
+[![API reference](https://img.shields.io/badge/API-reference-blue)](https://matkovivan.github.io/compose-swing-ui/)
 
 A declarative, reactive way to build **Swing** UIs using Jetpack Compose's composition model -
 built on **Compose Runtime only**. No skiko, no Compose Multiplatform UI, no Skia renderer. Your
@@ -54,13 +55,16 @@ fun main() = application {
 }
 ```
 
+<!--- KNIT example-readme-01.kt -->
+
 A child of `BorderPanel` names its `BorderLayout` region on its own modifier: `north()`, `south()`,
 `center()`, and the rest of `BorderLayout`'s. A child that names no region occupies the center, so
 the panel's main content is written plainly.
 
 Every component family the library ships - text inputs, buttons, selection, layout containers,
 windows, dialogs and menus - is cataloged with the parameters that decide how it behaves in
-[`docs/COMPONENTS.md`](docs/COMPONENTS.md).
+[`docs/COMPONENTS.md`](docs/COMPONENTS.md). Every public declaration is documented in the
+[API reference](https://matkovivan.github.io/compose-swing-ui/), which tracks `master`.
 
 ## Mounting into existing Swing (`setContent`)
 
@@ -101,6 +105,8 @@ fun main() {
 }
 ```
 
+<!--- KNIT example-readme-02.kt -->
+
 `setContent` is called on the Event Dispatch Thread and returns a `DisposableHandle`; dispose it to
 tear the composition down. Nesting works: a `setContent` whose ancestor already hosts a composition
 joins that composition and shares its recomposition scope.
@@ -140,6 +146,8 @@ fun main() = application {
 }
 ```
 
+<!--- KNIT example-readme-03.kt -->
+
 The same tree fills a context menu through `SwingModifier.contextMenu { ... }` and a tray icon's menu
 through `Tray(menu = { ... })`. On a `JMenuBar` the application builds itself, `JMenuBar.setContent { ... }`
 takes it too.
@@ -177,6 +185,8 @@ fun SaveButton(onSave: () -> Unit) {
     )
 }
 ```
+
+<!--- KNIT example-readme-04.kt -->
 
 `lineBorder` and `emptyBorder` declare a border by its values and rebuild it only when they change.
 Hoist the other value objects a chain carries - a `Font` or an `Icon` - into `remember`.
@@ -235,6 +245,7 @@ Full quality-gate command (what CI runs):
   [`swing-ui-animation/README.md`](swing-ui-animation/README.md).
 - `swing-ui-test` - the test harness. See [`swing-ui-test/README.md`](swing-ui-test/README.md).
 - `samples/todo-app`, `samples/widgets-gallery` - runnable showcases.
+- `samples/docs` - the Kotlin snippets in this repository's Markdown, compiled by the build.
 
 ## Stability
 

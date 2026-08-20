@@ -4,6 +4,11 @@ Compose Swing UI ships wrappers for the common widgets (`Button`, `TextField`, `
 real applications host many bespoke Swing components. Wrapping your own component uses the same
 public `SwingNode` API every built-in wrapper is built on. This guide shows how.
 
+<!--- INCLUDE .*modifier.*
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import javax.swing.JComponent
+-->
+
 ## The mental model
 
 A composable component is a function that wraps a single Swing `Component`. You describe the
@@ -19,6 +24,8 @@ public fun MyWidget(/* state + callbacks */) {
     )
 }
 ```
+
+<!--- CLEAR -->
 
 - `factory` runs **once**, when the node enters the composition. Build (and do one-time
   configuration of) your Swing component here. Whatever it reads from the composable body, it reads
@@ -103,6 +110,8 @@ public inline fun <reified T : Component> SwingNode(
 )
 ```
 
+<!--- CLEAR -->
+
 The container overload additionally hosts composable `content` as children - use it when your
 component is a `java.awt.Container` (e.g. a custom `JPanel`) that should contain further
 composables:
@@ -119,6 +128,8 @@ public inline fun <reified T : Component> SwingNode(
     crossinline content: @Composable @SwingComposable () -> Unit,
 )
 ```
+
+<!--- CLEAR -->
 
 `childPlacement` says how the component holds the children `content` emits. The default,
 `ChildPlacement.Indexed`, adds them to the container by index and lets its layout manager place them.
@@ -175,6 +186,8 @@ public fun Banner(
 }
 ```
 
+<!--- CLEAR -->
+
 Two rules the framework holds you to. The uninstall action must remove the child **by identity** - the
 positions of a host's children shift as siblings come and go, so an index captured at install time can
 name another child by the time uninstall runs. And a component that declares your region while sitting
@@ -215,6 +228,8 @@ and lifecycle-safe listeners you apply a `SwingModifier` chain.
 set(value) { /* this: T */ this.someProperty = it }
 ```
 
+<!--- CLEAR -->
+
 `set` records `value` and runs the block (with the component as `this` and `value` as `it`) on the
 first composition, then again **only when `value` changes** between recompositions. This is the
 idiomatic way to push one piece of state onto one Swing property. Call `set` once per property you
@@ -241,6 +256,8 @@ SwingNode(
     },
 )
 ```
+
+<!--- CLEAR -->
 
 `update` behaves like `set` but skips the first composition, so use it - and only it - for a value the
 `factory` passed to the constructor. `set` would write that value a second time on the composition
@@ -331,6 +348,8 @@ fun MyCheckBox(
 }
 ```
 
+<!--- KNIT example-custom-01.kt -->
+
 ### The component is fully controlled
 
 Once a property is bound this way, the component is **fully controlled**: a change the caller does not
@@ -374,6 +393,8 @@ set(dividerLocation) { location ->
     }
 }
 ```
+
+<!--- CLEAR -->
 
 The `applied` here is the same `AppliedValue` its listener calls `observed` on - `write` is what lets the
 two share one mirror without fighting the user the way re-asserting the declaration on every pass would.
@@ -475,6 +496,8 @@ fun rememberRangeState(
     return remember { RangeState(model) }
 }
 ```
+
+<!--- KNIT example-custom-02.kt -->
 
 ### What the widget settles on is what the holder reports
 
@@ -578,6 +601,8 @@ public fun MyWidget(
     )
 }
 ```
+
+<!--- CLEAR -->
 
 The parameter and that call are not a courtesy to callers who want a border. Where a child sits in its
 parent - a `BorderLayout` region, a `GridBagConstraints`, a cell in a manager of your own - is declared
@@ -737,6 +762,8 @@ public fun SwingModifier.toolTip(text: String?): SwingModifier =
     then(ToolTipElement(text))
 ```
 
+<!--- KNIT example-custom-modifier-01.kt -->
+
 The built-in `toolTip` builder is the same property shape; the code above is the public `NodeElement`/`Node`
 path you write for a property the library does not ship.
 
@@ -759,6 +786,8 @@ listeners the host app attached are untouched.
 val onMove = remember { object : MouseAdapter() { override fun mouseMoved(e: MouseEvent) { /* ... */ } } }
 SwingModifier.name("canvas").mouseMotionListener(onMove)
 ```
+
+<!--- CLEAR -->
 
 The builders, by listener type: `mouseListener`, `mouseMotionListener`, `mouseWheelListener`,
 `keyListener`, `focusListener`, `componentListener`, `hierarchyListener`, `containerListener`
@@ -806,6 +835,8 @@ SwingModifier.listener<MyType, SomeListener>(
     detach = { component, l -> component.removeSomeListener(l) },
 )
 ```
+
+<!--- CLEAR -->
 
 `listener<T, L>` is reified on the target component type `T`, so `attach`/`detach` receive the
 component already typed, and a node whose component is not a `T` is rejected at apply with a clear
@@ -903,6 +934,8 @@ fun MySpinner(
 private val JSpinner.numberModel: SpinnerNumberModel get() = model as SpinnerNumberModel
 ```
 
+<!--- KNIT example-custom-03.kt -->
+
 The `if (this.value != it)` guard in the `value` setter prevents a feedback loop where applying the
 incoming state would itself fire the change listener.
 
@@ -937,6 +970,8 @@ fun TitledGroup(
     )
 }
 ```
+
+<!--- KNIT example-custom-04.kt -->
 
 A container takes a `modifier` and applies it for the same reason a leaf does, and for one more: a
 container is itself a child of whatever holds it, so the group above is placed in a `BorderPanel`

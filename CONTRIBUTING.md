@@ -28,6 +28,9 @@ the quality gates every change must pass, and the code style.
 # Run a sample application
 ./gradlew :samples:todo-app:run
 ./gradlew :samples:widgets-gallery:run
+
+# API reference for every published module, one site at build/dokka/html
+./gradlew :dokkaGenerate
 ```
 
 Compiling a module also writes the Compose compiler's reports - which composables are skippable, and
@@ -72,7 +75,8 @@ See [`docs/TESTING-COMPONENTS.md`](docs/TESTING-COMPONENTS.md) for the harness g
 `build` runs every module's `check` - compilation, ktlint, detekt, the Compose lint checks, tests,
 the coverage gates and `checkKotlinAbi` - plus `assemble`. Which of those a module carries depends on
 the convention plugins it applies: the vendored `swing-ui-animation` fork is exempt from ktlint,
-detekt and the lint checks. One gate sits outside `build`: `buildSrc` is an included build the
+detekt and the lint checks, and `samples/docs`, which holds generated code, carries none of them
+beyond compilation. One gate sits outside `build`: `buildSrc` is an included build the
 root-level tasks do not reach. So the full gate is two commands, and they are what to run locally
 before pushing:
 
@@ -116,6 +120,28 @@ Piece by piece:
   new behavior you can reach through the test harness. The floors are held, not chased: if a branch is
   a defensive guard with no reachable behavior, leave it uncovered rather than writing a test that
   asserts nothing.
+
+## Documentation snippets
+
+Kotlin snippets in `README.md` and `docs/` are compiled by the build, and marking one is opt-in:
+write `<!--- KNIT example-<document>-01.kt -->` on its own line after the closing fence, and Knit
+merges the block into a file under `samples/docs/build/generated/knit/example/`, taking the number
+from the document's own sequence. A snippet that is a fragment rather than a whole file gets its
+imports and its enclosing function from an `INCLUDE`/`SUFFIX` preamble at the top of the document,
+matched against the example file name; an unmarked block is followed by `<!--- CLEAR -->` so it does
+not merge into the next marked one.
+
+The generated files are a build output, not source: nothing under that directory is committed, and
+there is nothing to regenerate by hand. `build` writes them and compiles them, so a snippet that
+does not compile fails the build. While editing a document, the quick check is:
+
+```bash
+./gradlew :samples:docs:compileKotlin
+```
+
+Renaming or deleting a marked snippet leaves the file it used to generate behind in the build
+directory, where it keeps compiling. Run `./gradlew :samples:docs:clean` after such a change to get
+the same result a fresh checkout gets.
 
 ## Code style
 

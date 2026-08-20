@@ -43,4 +43,42 @@ jobs:
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          ./gradlew --no-daemon --stacktrace publish
+          ./gradlew --no-daemon --stacktrace \
+            publish
+
+  publish-docs:
+    name: Publish API Reference
+    needs: [validation]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - uses: actions/checkout@v6
+        name: Checkout Repository
+
+      - uses: ./.github/actions/setup-prerequisites
+        name: Setup Prerequisites
+        with:
+          java-version: 21
+
+      - shell: bash
+        name: Build API Reference
+        run: |
+          ./gradlew --no-daemon --stacktrace \
+            dokkaGenerate
+
+      - uses: actions/upload-pages-artifact@v5
+        name: Upload API Reference
+        with:
+          path: build/dokka/html
+
+      - uses: actions/deploy-pages@v5
+        name: Deploy to GitHub Pages
+        id: deployment

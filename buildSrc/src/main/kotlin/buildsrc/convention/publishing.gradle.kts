@@ -7,19 +7,13 @@ plugins {
     `maven-publish`
     signing
     id("com.gradleup.nmcp")
+    id("org.jetbrains.dokka")
 }
 
 private val publishGroup: String =
     providers.gradleProperty("group").orNull?.takeIf { it.isNotBlank() }
         ?: "dev.matkov.compose.swing"
-// Defaults to 0.1.0-SNAPSHOT, overridable with -Pversion=X.Y.Z; -PversionSuffix=... (for example
-// alpha.1, rc.1) appends a pre-release suffix.
-private val publishVersion: String =
-    run {
-        val base = providers.gradleProperty("version").orNull?.takeIf { it.isNotBlank() } ?: "0.1.0-SNAPSHOT"
-        val suffix = providers.gradleProperty("versionSuffix").orNull?.takeIf { it.isNotBlank() }
-        if (suffix == null) base else "$base-$suffix"
-    }
+private val publishVersion: String = resolvePublishVersion()
 
 group = publishGroup
 version = publishVersion
@@ -34,6 +28,10 @@ private val signingPassword: String = resolveSigningPassword()
 extensions.configure<JavaPluginExtension> {
     withSourcesJar()
     withJavadocJar()
+}
+
+dokka {
+    moduleName.set(project.name)
 }
 
 publishing {
