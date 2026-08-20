@@ -7,6 +7,7 @@ plugins {
 dependencies {
     implementation(project(":swing-ui"))
     implementation(project(":swing-ui-animation"))
+    implementation(libs.androidxNavigation3Runtime)
 
     testImplementation(kotlin("test"))
     testImplementation(project(":swing-ui-test"))
