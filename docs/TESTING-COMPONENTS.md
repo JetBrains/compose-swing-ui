@@ -110,7 +110,8 @@ onNodeWithTag("name-field").performTextInput("Ada")
 
 ## Asserting state
 
-Assertions are available on a `SwingNodeInteraction`; each returns the interaction so they chain:
+Assertions are available on a `SwingNodeInteraction`; each returns the interaction so they chain,
+except `assertDoesNotExist()`, which ends the chain:
 
 - `assertExists()` / `assertDoesNotExist()`
 - `assertIsDisplayed()` — assert the layout gave the component real bounds.

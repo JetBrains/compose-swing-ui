@@ -531,9 +531,9 @@ it prefers and leaves the rest to the arrangement. An explicit `maximumSize` cap
 `BoxPanel` is the direct `BoxLayout` wrapper, and a `ToolBar` lays its controls out the same way:
 each shares its leftover space out among the children that have room between the size they prefer and
 their maximum size, in proportion to that room. `Glue` is empty space with the most room of all, so it
-takes the largest share, and `Strut` and `RigidArea` are the fixed gaps between items. `FlowPanel`
-centers its children and gaps them by `5` pixels, and `GridPanel` starts as a single row that grows a
-column per child, with no gaps.
+takes the largest share, and `Strut`, `RigidArea` and `Spacer` (a `RigidArea` square) are the fixed
+gaps between items. `FlowPanel` centers its children and gaps them by `5` pixels, and `GridPanel`
+starts as a single row that grows a column per child, with no gaps.
 
 `GridBagPanel`'s `item` takes one parameter per `GridBagConstraints` field, under the field's own
 name and with its own default, so a grid-bag layout written against Swing carries over field for

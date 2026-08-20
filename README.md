@@ -1,5 +1,8 @@
 # Compose Swing UI
 
+[![Version](https://img.shields.io/github/v/release/MatkovIvan/compose-swing-ui?sort=semver)](https://github.com/MatkovIvan/compose-swing-ui/releases/latest)
+[![Snapshot](https://github.com/MatkovIvan/compose-swing-ui/actions/workflows/snapshot.yml/badge.svg)](https://github.com/MatkovIvan/compose-swing-ui/actions/workflows/snapshot.yml)
+
 A declarative, reactive way to build **Swing** UIs using Jetpack Compose's composition model -
 built on **Compose Runtime only**. No skiko, no Compose Multiplatform UI, no Skia renderer. Your
 components are real `JButton`/`JLabel`/`JPanel` widgets, laid out by Swing's own `LayoutManager`s
@@ -11,7 +14,7 @@ Inspired by [Compose HTML](https://github.com/JetBrains/compose-multiplatform) (
 ## Quick start
 
 A minimal app using the `application` entry point, a `Window`, a couple of components, and
-`BorderPanel`'s region slots:
+`BorderPanel`'s regions:
 
 ```kotlin
 import androidx.compose.runtime.getValue
@@ -33,32 +36,27 @@ fun main() = application {
         var count by remember { mutableIntStateOf(0) }
 
         BorderPanel {
-            north {
-                Label(
-                    "Compose Swing UI",
-                    modifier = SwingModifier.horizontalAlignment(SwingConstants.CENTER),
-                )
+            Label(
+                "Compose Swing UI",
+                modifier = SwingModifier.north().horizontalAlignment(SwingConstants.CENTER),
+            )
+            FlowPanel {
+                Label("Count: $count")
+                Button("Increment", onClick = { count++ })
+                Button("Decrement", onClick = { count-- })
             }
-            center {
-                FlowPanel {
-                    Label("Count: $count")
-                    Button("Increment", onClick = { count++ })
-                    Button("Decrement", onClick = { count-- })
-                }
-            }
-            south {
-                Label(
-                    "Status: ready",
-                    modifier = SwingModifier.horizontalAlignment(SwingConstants.CENTER),
-                )
-            }
+            Label(
+                "Status: ready",
+                modifier = SwingModifier.south().horizontalAlignment(SwingConstants.CENTER),
+            )
         }
     }
 }
 ```
 
-`BorderPanel` exposes each `BorderLayout` region as a declarative slot in a receiver DSL; declare only
-the regions you need.
+A child of `BorderPanel` names its `BorderLayout` region on its own modifier: `north()`, `south()`,
+`center()`, and the rest of `BorderLayout`'s. A child that names no region occupies the center, so
+the panel's main content is written plainly.
 
 Every component family the library ships - text inputs, buttons, selection, layout containers,
 windows, dialogs and menus - is cataloged with the parameters that decide how it behaves in
@@ -184,11 +182,10 @@ fun SaveButton(onSave: () -> Unit) {
 Hoist the other value objects a chain carries - a `Font` or an `Icon` - into `remember`.
 
 Domain callbacks like `onClick` and `onValueChange` stay ordinary parameters; only cross-cutting
-styling and interaction flow through `modifier`. Builders are grouped by concern: appearance, content
-placement, button painting, text colors, layout, metadata, interaction (which carries the typed
-listener builders), keyboard, data transfer, and accessibility. See
-[`docs/CUSTOM-COMPONENTS.md`](docs/CUSTOM-COMPONENTS.md) for what an unhoisted instance costs, and for
-writing your own modifier elements and listeners.
+styling and interaction flow through `modifier`. Builders are grouped by concern, one package each:
+appearance, layout, interaction, listener, keyboard, data transfer, and accessibility. See
+[`docs/CUSTOM-COMPONENTS.md`](docs/CUSTOM-COMPONENTS.md) for what an unhoisted instance costs, and
+for writing your own modifier elements and listeners.
 
 ## Bring your own Swing component
 

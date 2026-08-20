@@ -1052,9 +1052,9 @@ follows all three:
   runs: a replacement need not wait for the child it replaces to go, and only what remains at the end is
   what the composition declares. A container reaching its children through regions leaves that to the
   framework, which holds a `ChildPlacement.Slots` host to one child per region once the pass settles, as
-  `SplitPane` does for its two sides; one placing them under constraints runs its own check from a
-  `SideEffect`, which the runtime invokes after this composition's changes have reached the components,
-  as `CardPanel` does over the cards its deck holds. Either way the set a check runs against is what the
+  `SplitPane` does for its two sides; one placing them under constraints runs its own check on the
+  event-dispatch turn after the change pass, once a parked node's deactivation has run too, as
+  `CardPanel` does over the cards its deck holds. Either way the set a check runs against is what the
   container actually holds - its own children, its layout's own records - rather than a list a block
   gathered.
 

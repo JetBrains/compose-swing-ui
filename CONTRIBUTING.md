@@ -42,23 +42,28 @@ change is exercised far more by the library's suite than by the harness's own, a
 sit downstream of the two. A scoped run belongs to the edit loop; the gate below is what a change is
 judged by.
 
-Tests are deterministic and never sleep. Harness-driven tests never attach their root to a window,
-so they run with or without a display. A test that realizes a real top-level peer gates itself with
+Harness-driven tests are deterministic, never sleep, and never attach their root to a window, so
+they run with or without a display. Only a wait on something the composition does not drive - the
+window system, or a quiet period that proves nothing happened - polls against a real deadline. A test
+that realizes a real top-level peer gates itself with
 `assumeFalse(GraphicsEnvironment.isHeadless(), ...)` so it reports skipped without one, and others
-gate the same way on a capability the environment may withhold. A run with no failures is therefore
-not necessarily a complete one: the ignored count in `<module>/build/reports/tests/test/index.html`
-says what did not run. CI runs under a virtual framebuffer, so the display-gated tests skipped here
-run and are judged there too; only the ones gated on a capability the framebuffer itself lacks (see
-Quality gates below) still report skipped in CI.
+gate the same way on a capability the environment may withhold. A run with no
+failures is therefore not necessarily a complete one: the ignored count in
+`<module>/build/reports/tests/test/index.html` says what did not run. CI runs under a virtual
+framebuffer, so the display-gated tests skipped here run and are judged there too; only the ones
+gated on a capability the framebuffer itself lacks (see Quality gates below) still report skipped in
+CI.
 
 See [`docs/TESTING-COMPONENTS.md`](docs/TESTING-COMPONENTS.md) for the harness guide.
 
 ## Quality gates (all must pass)
 
 `build` runs every module's `check` - compilation, ktlint, detekt, the Compose lint checks, tests,
-the coverage gates and `checkKotlinAbi` - plus `assemble`. One gate sits outside it: `buildSrc` is an
-included build the root-level tasks do not reach. So the full gate is two commands, and they are what
-to run locally before pushing:
+the coverage gates and `checkKotlinAbi` - plus `assemble`. Which of those a module carries depends on
+the convention plugins it applies: the vendored `swing-ui-animation` fork is exempt from ktlint,
+detekt and the lint checks. One gate sits outside `build`: `buildSrc` is an included build the
+root-level tasks do not reach. So the full gate is two commands, and they are what to run locally
+before pushing:
 
 ```bash
 ./gradlew :buildSrc:ktlintCheck :buildSrc:detekt
@@ -89,8 +94,9 @@ Piece by piece:
   ```bash
   ./gradlew updateKotlinAbi
   ```
-  Commit the updated `swing-ui/api/swing-ui.api` (and `swing-ui-test/api/swing-ui-test.api` if the
-  test module's surface changed). A public-API change should be intentional and reviewed.
+  Commit whichever of `swing-ui/api/swing-ui.api`, `swing-ui-test/api/swing-ui-test.api` and
+  `swing-ui-animation/api/swing-ui-animation.api` the change moved. A public-API change should be
+  intentional and reviewed.
 - **`:buildSrc:ktlintCheck` / `:buildSrc:detekt`** - formatting, lint and static analysis for the
   convention plugins. Run them whenever you touch anything under `buildSrc/`.
 - **`jacocoTestCoverageVerification`** - `swing-ui`, `swing-ui-test` and `swing-ui-animation` each
