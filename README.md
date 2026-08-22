@@ -247,6 +247,9 @@ Full quality-gate command (what CI runs):
 - `swing-ui-test` - the test harness. See [`swing-ui-test/README.md`](swing-ui-test/README.md).
 - `samples/todo-app`, `samples/widgets-gallery` - runnable showcases.
 - `samples/docs` - the Kotlin snippets in this repository's Markdown, compiled by the build.
+- `benchmarks/SwingMark` - the JDK's SwingMark benchmark suite with every screen declared through the
+  library, for comparing against a run of the original. Unpublished. See
+  [`benchmarks/SwingMark/README.md`](benchmarks/SwingMark/README.md).
 
 ## Stability
 

@@ -14,6 +14,8 @@ dependencyResolutionManagement {
     }
 }
 
+include(":benchmarks:PassCost")
+include(":benchmarks:SwingMark")
 include(":samples:docs")
 include(":samples:todo-app")
 include(":samples:widgets-gallery")
