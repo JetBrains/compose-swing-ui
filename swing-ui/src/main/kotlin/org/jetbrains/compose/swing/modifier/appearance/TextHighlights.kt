@@ -39,7 +39,10 @@ import javax.swing.text.JTextComponent
 public fun SwingModifier.highlights(
     ranges: List<TextRange>,
     painter: Highlighter.HighlightPainter,
-): SwingModifier = this then HighlightsElement(ranges, painter)
+): SwingModifier =
+    // Reading the ranges here is what makes the composition declaring this chain one of their readers, so
+    // a caller that keeps them in a snapshot list and mutates it in place invalidates that composition.
+    this then HighlightsElement(ranges.toList(), painter)
 
 /**
  * Re-paints a text component's highlighter with the declared ranges whenever the declaration changes,
@@ -50,6 +53,9 @@ public fun SwingModifier.highlights(
  *
  * The [painter] is the caller's own object, handed to the highlighter as the mark's painter, so it is
  * compared by identity - the same comparison the node makes against what it has already painted.
+ *
+ * [ranges] is a list no caller holds. An equal element leaves the chain it declares adopted as-is, so
+ * what a later declaration is compared against must be a list nothing outside can change under it.
  */
 private class HighlightsElement(
     private val ranges: List<TextRange>,
@@ -88,8 +94,7 @@ private class HighlightsElement(
 
         /**
          * Paints [ranges] with [painter], unless what is already painted came from an equal declaration
-         * against the same document and [force] is not set. The ranges are snapshotted, so what is
-         * recorded as painted cannot be the very list a later declaration is compared against.
+         * against the same document and [force] is not set.
          */
         fun apply(force: Boolean) {
             val declaredRanges = ranges
@@ -99,7 +104,7 @@ private class HighlightsElement(
             val highlighter = component.highlighter
             if (declaredPainter == null || highlighter == null) return
             if (!force && declaredPainter === appliedPainter && declaredRanges == appliedRanges) return
-            appliedRanges = declaredRanges.toList()
+            appliedRanges = declaredRanges
             appliedPainter = declaredPainter
 
             removePainted(highlighter)

@@ -140,6 +140,12 @@ public fun <T> ListBox(
     fixedCellHeight: Int = -1,
     itemContent: (@Composable ListItemScope.(item: T) -> Unit)? = null,
 ) {
+    // The items this composition declares, read while composing: a caller may keep the items in a snapshot
+    // list and mutate that list in place, and reading them here is what makes this composition one of the
+    // list's readers, so such a mutation invalidates the list box and the new items reach the model. Held
+    // as a copy of its own, it is also what the next pass's items are compared against - a comparison
+    // against the caller's own list would be that list against itself, and never find a difference.
+    val declaredItems = items.toList()
     ListBoxNode(
         listSelectionListener = listSelectionListener,
         modifier = modifier,
@@ -152,7 +158,7 @@ public fun <T> ListBox(
         fixedCellHeight = fixedCellHeight,
         itemContent = itemContent,
     ) { applied ->
-        set(items) { newItems ->
+        set(declaredItems) { newItems ->
             installContent(applied, selectedIndices, listSelectionListener) { setListData(Vector(newItems)) }
         }
     }

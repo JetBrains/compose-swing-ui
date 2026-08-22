@@ -1,6 +1,7 @@
 package org.jetbrains.compose.swing.modifier.appearance
 
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.text.TextArea
@@ -56,6 +57,25 @@ class HighlightsModifierTest {
             listOf(6 to 11),
             area.paintedSpans(),
             "the new declaration should replace the previous marks rather than accumulate onto them",
+        )
+    }
+
+    @Test
+    fun aDeclaredStateListIsFollowedWhenTheCallerMutatesIt() = runComposeSwingTest {
+        val ranges = mutableStateListOf(TextRange(0, 5))
+        setContent {
+            TextArea(value = TEXT, onValueChange = {}, modifier = SwingModifier.highlights(ranges, Painter))
+        }
+        val area = onNodeOfType<JTextArea>().fetch()
+        assertEquals(listOf(0 to 5), area.paintedSpans(), "the first declaration should be painted")
+
+        ranges.add(TextRange(6, 11))
+        awaitIdle()
+
+        assertEquals(
+            listOf(0 to 5, 6 to 11),
+            area.paintedSpans(),
+            "a range added to the declared list should be painted",
         )
     }
 

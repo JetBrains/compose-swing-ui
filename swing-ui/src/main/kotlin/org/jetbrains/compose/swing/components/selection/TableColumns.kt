@@ -226,28 +226,45 @@ internal class TableScopeImpl<R> : TableScope<R> {
 }
 
 /**
- * The [AbstractTableModel] backing a [Table]: it presents [rows] through the [columns]' value
- * extractors and routes a committed cell edit to the edited column's `onCellEdit`.
+ * The [AbstractTableModel] backing a [Table]: it presents the rows it was last given through the
+ * [columns]' value extractors and routes a committed cell edit to the edited column's `onCellEdit`.
+ *
+ * The model answers every read - row count, cell value, editability - from the rows it was last given,
+ * which are held apart from any list the caller keeps, so what it reports is always what the table was
+ * last told, and a read during paint touches no caller state. An in-place edit of the caller's list never
+ * writes to them, so the displayed value only changes once the caller updates the backing state and a new
+ * composition supplies fresh rows.
  *
  * [refresh] takes the latest rows and columns on every recomposition and fires the *narrowest*
  * change event the difference warrants: a structure change only when the column shape (count,
  * headers, classes, editability, cell bodies) differs, a data change when only the rows differ, and
  * nothing at all when neither did, so a recomposition that changed no data leaves the table entirely alone.
- * An in-place edit never mutates [rows] itself, so the displayed value only changes once the caller
- * updates the backing state and a new composition supplies fresh rows.
  */
 internal class ColumnsTableModel<R> : AbstractTableModel() {
+    /**
+     * The rows the model last reported to the table, held apart from whatever list the caller declared
+     * them from: a caller may keep that list and mutate it in place, and only rows standing apart from it
+     * can tell the new contents from the old.
+     */
     private var rows: List<R> = emptyList()
     private var columns: List<ColumnDeclaration<R>> = emptyList()
 
-    /** Pushes the latest data into the model, notifying the table of whatever actually changed. */
+    /**
+     * Pushes the latest data into the model, notifying the table of whatever actually changed.
+     *
+     * The incoming [rows] are compared against the ones the model last reported, and a pass that finds
+     * them different adopts the new list along with firing the event.
+     *
+     * The model takes ownership of [rows] and answers every read from it, so the caller has to hand over a
+     * list nothing else can mutate.
+     */
     fun refresh(
         rows: List<R>,
         columns: List<ColumnDeclaration<R>>,
     ) {
         val structureChanged = columnsDiffer(this.columns, columns)
         val rowsChanged = this.rows != rows
-        this.rows = rows
+        if (rowsChanged) this.rows = rows
         this.columns = columns
         when {
             structureChanged -> fireTableStructureChanged()

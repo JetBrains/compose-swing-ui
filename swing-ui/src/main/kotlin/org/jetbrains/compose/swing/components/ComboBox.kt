@@ -62,15 +62,18 @@ public fun <T> ComboBox(
     maximumRowCount: Int = 8,
     itemContent: (@Composable ListItemScope.(item: T) -> Unit)? = null,
 ) {
+    // Reading the items while composing is what makes this composition one of their readers, so a caller
+    // that keeps them in a snapshot list and mutates it in place invalidates this combo box.
+    val declaredItems = items.toList()
     val applied = rememberAppliedValue(selectedItem)
-    val settled = rememberSelectionReader(items)
+    val settled = rememberSelectionReader(declaredItems)
     ComboBoxNode(
         modifier = modifier.onSelectionAction(applied, settled, onSelectionChange, onValueCommit),
         editable = editable,
         maximumRowCount = maximumRowCount,
         itemContent = itemContent,
     ) {
-        installItems(items, selectedItem, applied)
+        installItems(declaredItems, selectedItem, applied)
     }
 }
 
@@ -104,8 +107,11 @@ public fun <T> ComboBox(
     maximumRowCount: Int = 8,
     itemContent: (@Composable ListItemScope.(item: T) -> Unit)? = null,
 ) {
+    // Reading the items while composing is what makes this composition one of their readers, so a caller
+    // that keeps them in a snapshot list and mutates it in place invalidates this combo box.
+    val declaredItems = items.toList()
     val applied = rememberAppliedValue(selectedItem)
-    val settled = rememberSelectionReader(items)
+    val settled = rememberSelectionReader(declaredItems)
     // The caller's listener is attached as-is, and is the only action listener on the combo box. The
     // mirror rides the item-selection channel instead, so the declared selection still settles against
     // wherever the combo box lands, whether that is the user's own choice or the caller's own write back.
@@ -126,7 +132,7 @@ public fun <T> ComboBox(
         maximumRowCount = maximumRowCount,
         itemContent = itemContent,
     ) {
-        installItems(items, selectedItem, applied)
+        installItems(declaredItems, selectedItem, applied)
     }
 }
 
@@ -239,6 +245,10 @@ private fun <T> ComboBoxNode(
 
 /**
  * Declares [items] and [selectedItem] on the node both items-family [ComboBox] overloads render.
+ *
+ * [items] must be a list no caller holds: it is what the next pass's items are compared against to decide
+ * whether the combo box needs a new model, and a list the caller can mutate in place would be compared
+ * against itself and never differ.
  */
 private fun <T> SwingNodeUpdater<JComboBox<T>>.installItems(
     items: List<T>,

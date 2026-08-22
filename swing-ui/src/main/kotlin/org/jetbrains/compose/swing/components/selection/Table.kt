@@ -206,6 +206,10 @@ public fun <R> Table(
     tableColumnModelListener: TableColumnModelListener? = null,
     block: TableScope<R>.() -> Unit,
 ) {
+    // The rows this composition declares, read while composing: a caller may keep the rows in a snapshot
+    // list and mutate that list in place, and reading them here is what makes this composition one of the
+    // list's readers, so such a mutation invalidates the table and the new rows reach the model.
+    val declaredRows = rows.toList()
     val columns = TableScopeImpl<R>().apply(block).columns
     // The model this composition fills. It is handed to the factory so the table is built already
     // showing it, rather than a default model briefly standing in before the update block's own
@@ -249,7 +253,7 @@ public fun <R> Table(
             fun swapInDeclaredContent() {
                 sortChannel.unbindFrom(table, model)
                 table.model = model
-                model.refresh(rows, columns)
+                model.refresh(declaredRows, columns)
                 appliedColumn.write { table.applyDeclaredColumnWidths(columns) }
             }
 

@@ -209,12 +209,17 @@ public fun <T : Any> Spinner(
 ) {
     val applied = rememberAppliedValue<Any?>(value)
 
+    // The items this composition declares, read while composing: a caller may keep the items in a snapshot
+    // list and mutate that list in place, and reading them here is what makes this composition one of the
+    // list's readers, so such a mutation invalidates the spinner and the new items reach the model.
+    val declaredItems = items.toList()
+
     // Every value the channel carries comes from the ListSpinnerModel below, which reports only what its
-    // own items hold - the caller's List<T> - so the model can hand back nothing that is not a T. The
-    // type is lost only because Swing's SpinnerModel types its value as Any?.
+    // own items hold - the caller's List<T>, copied - so the model can hand back nothing that is not a T.
+    // The type is lost only because Swing's SpinnerModel types its value as Any?.
     @Suppress("UNCHECKED_CAST")
     val channel = rememberSpinnerValueChannel(applied) { onValueChange(it as T) }
-    val model = remember { ListSpinnerModel(items).also { it.setValue(value) } }
+    val model = remember { ListSpinnerModel(declaredItems).also { it.setValue(value) } }
 
     SpinnerNode(
         model = model,
@@ -222,7 +227,7 @@ public fun <T : Any> Spinner(
         format = null,
         editor = editor,
     ) {
-        set(items) { applied.write { model.items = it } }
+        set(declaredItems) { applied.write { model.items = it } }
         declare(value, applied, JSpinner::getValue, JSpinner::setValue) { settled -> channel.settledOn(settled) }
     }
 }
@@ -336,7 +341,13 @@ private class ListSpinnerModel<T>(
 ) : AbstractSpinnerModel() {
     private var index = 0
 
-    /** Assigning a new list moves the selection to its head. */
+    /**
+     * The items the spinner steps through. Assigning a new list moves the selection to its head.
+     *
+     * Every read the model answers - value, neighbors, the index a written value lands on - comes from
+     * this list, so it must be one no caller holds: what the model reports is then always what the
+     * spinner was last told, and a read during paint touches no caller state.
+     */
     var items: List<T> = items
         set(value) {
             field = value
