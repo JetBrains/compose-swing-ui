@@ -24,11 +24,11 @@ import kotlin.test.assertEquals
  * A move is published to the composition by the idle gate, which sends no frame of its own while the test
  * drives them, so the frame that follows is the apply pass that carries the move.
  *
- * Each case states how many passes it cost, because that is where a settle can go wrong without the
- * widget ever holding the wrong value: the settle writes what it observed back into the composition
- * during the apply phase, and that write is what buys the pass that absorbs it. A settle that stopped
- * recognizing its own write would re-dirty the mirror on every pass and never converge - a slider that
- * reads correctly forever while the pipeline turns for nothing.
+ * Each case states how many passes it cost and what each spent them on, because that is where a settle
+ * can go wrong without the widget ever holding the wrong value. A settle that stopped recognizing its own
+ * write would take the widget's echo of it for the user's, re-dirtying the mirror on every pass and never
+ * converging - a slider that reads correctly forever while the pipeline turns for nothing. The settlement
+ * is named in the trace, so a pass that settled the slider is told from one that merely ran.
  */
 class SettleOncePerApplyPassTest : TracedTest() {
     @Test
@@ -66,10 +66,10 @@ class SettleOncePerApplyPassTest : TracedTest() {
         )
         assertEquals(REDECLARED, slider.value, "the slider should hold the value that pass settled it on")
         assertEquals(
-            listOf(emptyList()),
+            listOf(listOf("settle")),
             tracer.passes(),
-            "the frame the test drove should carry exactly one pass, and a settle should write a property " +
-                "rather than rebuild the slider: ${tracer.sections}",
+            "the frame the test drove should carry exactly one pass, settling the slider once: a settle " +
+                "writes a property rather than rebuilding the slider: ${tracer.sections}",
         )
     }
 
@@ -100,9 +100,10 @@ class SettleOncePerApplyPassTest : TracedTest() {
         )
         assertEquals(DECLARED, slider.value, "the slider should be back on the declaration")
         assertEquals(
-            listOf(emptyList()),
+            listOf(listOf("settle")),
             tracer.passes(),
-            "the first driven frame should carry one pass, which changed no container: ${tracer.sections}",
+            "the first driven frame should carry one pass, settling the slider and changing no " +
+                "container: ${tracer.sections}",
         )
 
         // The new declaration reaches a pass of its own, which settles the widget a second time.
@@ -117,10 +118,10 @@ class SettleOncePerApplyPassTest : TracedTest() {
         )
         assertEquals(REDECLARED, slider.value, "the slider should hold the value the second pass settled it on")
         assertEquals(
-            listOf(emptyList(), emptyList()),
+            listOf(listOf("settle"), listOf("settle")),
             tracer.passes(),
-            "each driven frame should carry a pass of its own, which is what makes the split settle two: " +
-                "${tracer.sections}",
+            "each driven frame should carry a pass of its own, settling the slider once apiece, which is " +
+                "what makes the split settle two: ${tracer.sections}",
         )
     }
 
@@ -142,10 +143,11 @@ class SettleOncePerApplyPassTest : TracedTest() {
 
         assertEquals(MAX, slider.value, "the slider should hold the value it coerced the declaration to")
         assertEquals(
-            2,
-            tracer.passes().size,
-            "a declaration settled against the widget costs the pass that writes it and the pass that " +
-                "absorbs the read-back, coerced or not: ${tracer.sections}",
+            listOf(listOf("settle")),
+            tracer.passes(),
+            "a declaration settled against the widget costs the one pass that writes it and reads the " +
+                "answer back, coerced or not: the mirror knows the widget's echo of its own write and " +
+                "buys no further pass to absorb it: ${tracer.sections}",
         )
         tracer.clear()
         awaitIdle()

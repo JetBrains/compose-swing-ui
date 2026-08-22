@@ -1,6 +1,10 @@
 package org.jetbrains.compose.swing.node
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.Slider
 import org.jetbrains.compose.swing.core.TracedTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JMenuBar
@@ -15,6 +19,29 @@ import kotlin.test.assertTrue
  * update blocks it runs - where a widget is written and read back - are named as part of it.
  */
 class ApplySectionTest : TracedTest() {
+    @Test
+    fun settlingAWidgetIsReportedInsideTheChangePass() = runComposeSwingTest {
+        var value by mutableStateOf(10)
+        setContent { Slider(value = value, onValueChange = { value = it }) }
+        awaitIdle()
+        tracer.clear()
+
+        value = 40
+        awaitIdle()
+
+        val settlements = tracer.sections.filter { it.name == "settle" }
+        assertTrue(
+            settlements.isNotEmpty(),
+            "a changed declaration settles its widget, so the pass should report one: ${tracer.sections}",
+        )
+        for (settlement in settlements) {
+            assertTrue(
+                "apply" in settlement.enclosing,
+                "a settlement is part of the change pass and should be reported inside it, but got $settlement",
+            )
+        }
+    }
+
     @Test
     fun theChurnAPassDrivesIsReportedInsideIt() = runComposeSwingTest {
         setContent { Label("only child") }

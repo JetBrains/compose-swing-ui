@@ -562,7 +562,10 @@ BorderPanel {
 the size it prefers, and the space the container has left over is placed by an `Arrangement`
 (`Top`, `Bottom`, `Start`, `End`, `Center`, `SpaceBetween`, `SpaceAround`, `SpaceEvenly`,
 `spacedBy(gap)`, `aligned(...)`). Across the axis, a child sits where an `Alignment` puts it, or
-takes the whole cross extent in its place. Spacing and every other measure here is in pixels.
+takes the whole cross extent in its place. Spacing and every other measure here is in pixels. An
+`Arrangement` of your own is handed the children's sizes and the positions to write in two arrays the
+container owns and reuses on its next layout pass, so read and write them within the call and keep
+neither.
 
 A child claims a share of the leftover space with `weight`, names its own cross-axis placement
 with `align`, or takes the whole cross extent with `fillWidth` / `fillHeight` in place of both its

@@ -32,6 +32,9 @@ public object Arrangement {
          * Writes each child's offset from the left of [totalSize] into [outPositions], for children whose
          * widths are [sizes] in declaration order, in a container laid out under [orientation].
          * [outPositions] is as long as [sizes].
+         *
+         * Both arrays belong to the container laying out and are reused by its next pass: read and write
+         * them within this call, and keep neither.
          */
         public fun arrange(
             totalSize: Int,
@@ -50,6 +53,9 @@ public object Arrangement {
         /**
          * Writes each child's offset from the top of [totalSize] into [outPositions], for children whose
          * heights are [sizes] in declaration order. [outPositions] is as long as [sizes].
+         *
+         * Both arrays belong to the container laying out and are reused by its next pass: read and write
+         * them within this call, and keep neither.
          */
         public fun arrange(
             totalSize: Int,

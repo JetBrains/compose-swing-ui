@@ -111,9 +111,8 @@ public fun ToolBar(
 
             // The declaration, the state the bar is really in, and the bar's arrival in a container move
             // independently - the user drags the bar out without the declaration changing - and one settle
-            // answers for all three: they are one key, the way declare() makes one of the first two. The key
-            // skips the first pass, which declares the bar where it stands nowhere and has no window to
-            // float out of.
+            // answers for all three: they are one key. The key skips the first pass, which declares the
+            // bar where it stands nowhere and has no window to float out of.
             update(Triple(floating, held, attachments)) {
                 applied.settle(floating, { isFloating }, { standing -> applyFloating(standing) }, onFloatingChange)
             }

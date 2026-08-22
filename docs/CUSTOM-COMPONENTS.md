@@ -237,7 +237,8 @@ want kept in sync.
 
 A call is matched with the value it declared last pass by where it sits among the others, so an
 `update` block makes the same calls in the same order on every pass. A `set` inside a conditional is a
-bug - state the condition in the value, not in whether the call happens.
+bug - state the condition in the value, not in whether the call happens. The same holds for `declare`
+(see *Properties the user can also move*), which makes one such call of its own.
 
 `set` compares this pass's declaration only against the last one, so it is the right tool for a property
 only the composition writes. See *Properties the user can also move* below for a property the widget
@@ -314,6 +315,14 @@ Three pieces work together:
   whatever the widget ends up holding. Unlike `set`, it also depends on the widget's mirrored value, so it
   runs again on the pass that follows a move away from the declaration - the pass that settles the two
   sides against each other.
+
+The three belong to one node. Remember the `AppliedValue` in the component's own body, beside the
+`SwingNode` it settles, and call `declare` exactly once per pass: what a declaration is compared against
+lives on the mirror rather than in the composition, so a mirror shared between nodes, or remembered above
+the node it settles, goes on answering for a widget that is no longer there - and the widget built in its
+place keeps its constructor's value instead of the standing declaration. `declare` also makes one `set`
+call, so a `declare` inside a conditional shifts every later slot in the `update` block, exactly as a
+conditional `set` does.
 
 ### A worked example
 
@@ -1300,8 +1309,11 @@ Both `SwingNode` overloads take an opt-in `hostsSubcompositions: Boolean = false
 its children - for example, a Swing container that manages tabs, popups, or split panes by calling
 `setContent` on sub-panels it creates itself.
 
-Set it `true` so those nested `setContent` calls **join the surrounding composition** instead of
-spinning up a detached, independent one - sharing its recomposer, scope, and `CompositionLocal`s.
+Set it `true` so those nested `setContent` calls **join this node's own composition**, sharing its
+`CompositionLocal`s along with the recomposer and scope around it. Without the flag such a call joins
+whatever its place in the Swing tree resolves to - the island above it, or the composition its window
+shares - so it recomposes with everything else there but sees none of the `CompositionLocal`s this node
+stands under.
 
 ```kotlin
 SwingNode(

@@ -208,9 +208,13 @@ component's own elements chain onto it, following the Compose convention. Elemen
 are last-wins, so where a component declares a property itself, its own value stands - what a
 component means you to decide is a parameter, not a modifier element.
 
-A chain is immutable and diffed against the chain applied last, so a property whose declared value has
-not changed is not written again. A value compares structurally and a callback compares by identity.
-Building the chain inline in the composable body is therefore the intended style and needs no
+A chain is immutable and diffed against the chain applied last. One declaring what that one declared is
+skipped whole, and within a chain that did change every element is compared on its own, so a property
+whose declared value has not changed is not written again. A value compares structurally. A callback the
+node reads when an event fires is not a value the node holds, so it is no part of what its element
+declares: a chain the composition rebuilt around a fresh callback still declares the registration it
+declared last, the callback reaches the already-installed listener on its own, and the chain is skipped
+around it. Building the chain inline in the composable body is therefore the intended style and needs no
 `remember`; hoisting a chain is for sharing it as a theme token, not for making it cheap.
 
 Closed sets of Swing integer (and a few string) constants - scrollbar policies, orientations,
@@ -342,9 +346,16 @@ leaving it as one undifferentiated block of Swing time. Every section is opened 
 | `attach` | one node given its place in a container                                                |
 | `remove` | children taken out of a container                                                      |
 | `move`   | children reordered within a container                                                  |
+| `settle` | one mirror settling: a write to a widget property the user can also move, and the read-back that records what the widget was left holding |
 
-The last four nest inside `apply` and name each kind of churn the applier drives. Both the component
-and the menu applier open `apply`, so a menu composition's pass is named as well.
+All five nest inside `apply`: the four node sections name each kind of churn the applier drives, and
+`settle` names a wrapper's own write and read-back. Nothing finer: the composition already names
+every restartable composable, and a section per widget would cost more than it reports.
+
+`apply` deliberately covers the pass as a whole rather than its tail. The node update blocks - where
+each widget is written - run before the applier's final flush, so a section around the flush alone would
+report the change phase as a fraction of a percent of a frame when it is closer to a third. Both the
+component and the menu applier open it, so a menu composition's pass is named as well.
 
 Sections go through `androidx.tracing`'s `Tracer`. The library installs nothing: it reports to whoever
 installs a tracer, and to nobody otherwise. A build that traces adds `androidx.tracing:tracing` itself

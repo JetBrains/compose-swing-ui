@@ -9,6 +9,8 @@ import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.Assumptions.assumeFalse
+import java.awt.GraphicsEnvironment
 import java.awt.Scrollbar
 import java.awt.event.AdjustmentEvent
 import java.awt.event.AdjustmentListener
@@ -76,6 +78,9 @@ class AdjustmentListenerModifierTest {
 
     @Test
     fun theListenerInstanceIsRegisteredOnAnAwtScrollbar() = runComposeSwingTest {
+        // The component under test is a heavyweight AWT one, which cannot be built at all
+        // without a display, rather than merely shown on one.
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val values = mutableListOf<Int>()
         val listener = AdjustmentListener { values += it.value }
         setContent {

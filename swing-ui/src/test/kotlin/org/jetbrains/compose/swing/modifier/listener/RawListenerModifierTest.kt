@@ -12,7 +12,9 @@ import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.Component
+import java.awt.GraphicsEnvironment
 import java.awt.event.ActionEvent
 import java.awt.event.ActionListener
 import java.awt.event.MouseAdapter
@@ -267,6 +269,9 @@ class RawListenerModifierTest {
 
     @Test
     fun actionListenerOnRawAwtComponentsIsRegisteredOnEach() = runComposeSwingTest {
+        // The component under test is a heavyweight AWT one, which cannot be built at all
+        // without a display, rather than merely shown on one.
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val buttonListener = ActionListener { }
         val textFieldListener = ActionListener { }
         val listListener = ActionListener { }

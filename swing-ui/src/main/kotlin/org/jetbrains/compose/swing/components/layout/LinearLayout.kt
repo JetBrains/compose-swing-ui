@@ -22,6 +22,9 @@ import kotlin.math.sign
  *
  * [placements], [arrangement] and [alignment] are the values the current composition declares; the
  * container that owns this manager writes them as they change.
+ *
+ * One manager lays out the one container it belongs to: a row and a column each build one alongside the
+ * panel they create.
  */
 internal class LinearLayout(
     val axis: LayoutAxis,
@@ -37,6 +40,9 @@ internal class LinearLayout(
      * unknown child is measured; keyed by position, a stale entry would be another child's extent.
      */
     private val measured = IdentityHashMap<Component, Dimension>()
+
+    /** The working room a pass takes, kept for the next one - see [PassRoom]. */
+    internal val room: PassRoom = PassRoom()
 
     /** Children arrive with no constraint; a child's own declarations reach the manager as placements. */
     override fun addLayoutComponent(
@@ -95,7 +101,7 @@ internal class LinearLayout(
     override fun getLayoutAlignmentY(target: Container): Float = Component.CENTER_ALIGNMENT
 
     override fun layoutContainer(parent: Container) {
-        val children = parent.visibleChildren()
+        val children = room.visibleChildrenOf(parent)
         if (children.isEmpty()) return
         val insets = parent.insets
         val inner =
@@ -109,7 +115,7 @@ internal class LinearLayout(
         val availableCross = axis.cross(inner).coerceAtLeast(0)
         val orientation = parent.componentOrientation
         val sizes = measureMainAxis(children, availableMain)
-        val positions = IntArray(sizes.size)
+        val positions = room.positions(sizes.size)
         arrangement.arrange(availableMain, sizes, orientation, positions)
         children.forEachIndexed { index, child ->
             val crossSize = crossSize(child, availableCross)
@@ -152,15 +158,20 @@ private fun LinearLayout.combinedSize(
     parent: Container,
     extentOf: (Component) -> Dimension,
 ): Dimension {
-    val children = parent.visibleChildren()
     var main = 0
     var cross = 0
-    for (child in children) {
+    var visible = 0
+    // Read straight off the container: this walk needs no index of its own, so it borrows none of the
+    // room a layout pass keeps, and stays usable while one is in flight.
+    for (index in 0 until parent.componentCount) {
+        val child = parent.getComponent(index)
+        if (!child.isVisible) continue
         val extent = extentOf(child)
         main += axis.main(extent)
         cross = maxOf(cross, axis.cross(extent))
+        visible++
     }
-    if (children.isNotEmpty()) main += arrangement.spacing * (children.size - 1)
+    if (visible > 0) main += arrangement.spacing * (visible - 1)
     val insets = parent.insets
     val size = axis.dimension(main, cross)
     size.width += insets.left + insets.right
@@ -180,59 +191,60 @@ private fun LinearLayout.measureMainAxis(
     children: List<Component>,
     available: Int,
 ): IntArray {
-    val sizes = IntArray(children.size)
-    val weights = arrayOfNulls<WeightPlacement>(children.size)
+    val sizes = room.sizes(children.size)
     val spacing = arrangement.spacing
     var claimed = 0
     var weightedCount = 0
     children.forEachIndexed { index, child ->
         val weighted = placements.weightOf(child)
         if (weighted == null) {
-            val room = (available - claimed).coerceAtLeast(0)
-            val size = axis.main(preferredSizeOf(child)).coerceAtMost(room)
+            val unclaimed = (available - claimed).coerceAtLeast(0)
+            val size = axis.main(preferredSizeOf(child)).coerceAtMost(unclaimed)
             sizes[index] = size
-            claimed += size + minOf(spacing, room - size)
+            claimed += size + minOf(spacing, unclaimed - size)
         } else {
-            weights[index] = weighted
+            // distributeWeights writes every weighted index, out of what the rest leave unclaimed.
             weightedCount++
         }
     }
     if (weightedCount > 0) {
         val share = available - claimed - spacing * (weightedCount - 1)
-        distributeWeights(children, weights, sizes, share.coerceAtLeast(0))
+        distributeWeights(children, sizes, share.coerceAtLeast(0))
     }
     return sizes
 }
 
 /**
- * Shares [share] pixels among weighted children in proportion to their weights: a child's claim sits at
- * its own index of [weights], with every other index null. The total those shares are taken against is
- * summed from [weights] itself, so there is one account of what was claimed, not two to keep in step.
+ * Shares [share] pixels among the weighted children of [children], in proportion to their weights. An
+ * unweighted child already holds the extent it claimed and is passed over. The total those shares are
+ * taken against is summed from the same declarations that hand them out, so there is one account of what
+ * was claimed, not two to keep in step.
  *
  * Rounding each share on its own would lose or gain pixels against the total, so the difference is
  * handed out a pixel at a time to the leading weighted children.
  */
 private fun LinearLayout.distributeWeights(
     children: List<Component>,
-    weights: Array<WeightPlacement?>,
     sizes: IntArray,
     share: Int,
 ) {
     var totalWeight = 0.0
-    for (weighted in weights) {
-        if (weighted != null) totalWeight += weighted.weight.toDouble()
+    for (child in children) {
+        totalWeight += (placements.weightOf(child) ?: continue).weight.toDouble()
     }
     val unit = share / totalWeight
     var remainder = share
-    for (weighted in weights) {
-        if (weighted != null) remainder -= (unit * weighted.weight).roundToInt()
+    for (child in children) {
+        val weighted = placements.weightOf(child) ?: continue
+        remainder -= (unit * weighted.weight).roundToInt()
     }
     for (index in children.indices) {
-        val weighted = weights[index] ?: continue
+        val child = children[index]
+        val weighted = placements.weightOf(child) ?: continue
         val correction = remainder.sign
         remainder -= correction
         val granted = ((unit * weighted.weight).roundToInt() + correction).coerceAtLeast(0)
-        sizes[index] = weightedMainSize(children[index], weighted, granted)
+        sizes[index] = weightedMainSize(child, weighted, granted)
     }
 }
 
@@ -251,12 +263,51 @@ private fun LinearLayout.weightedMainSize(
     return minOf(requested, ceiling)
 }
 
-/** The children a layout pass places; an invisible child takes no space and no gap of its own. */
-private fun Container.visibleChildren(): List<Component> {
-    val visible = ArrayList<Component>(componentCount)
-    for (index in 0 until componentCount) {
-        val child = getComponent(index)
-        if (child.isVisible) visible.add(child)
+/**
+ * The working room one layout pass needs: the visible children it places, their extents along the axis,
+ * and the offsets it places them at.
+ *
+ * Held between passes rather than allocated per pass. One of these belongs to one [LinearLayout], and so
+ * to the one container that manager lays out; a pass runs to completion on the event dispatch thread
+ * before the next begins - so no two passes hold this at once. An extent read mid-pass reaches a child's
+ * own manager, which has room of its own.
+ */
+internal class PassRoom {
+    private val children = ArrayList<Component>()
+    private var sizes = IntArray(0)
+    private var positions = IntArray(0)
+
+    /** The visible children [parent] holds, in declaration order; an invisible child takes no space. */
+    fun visibleChildrenOf(parent: Container): List<Component> {
+        children.clear()
+        for (index in 0 until parent.componentCount) {
+            val child = parent.getComponent(index)
+            if (child.isVisible) children.add(child)
+        }
+        return children
     }
-    return visible
+
+    /**
+     * Room for [count] extents, reused where the child count has not moved - which is every pass over a
+     * container holding the children it already had. A pass writes every index while it measures, before
+     * any of them is read, so no extent it hands back is one the pass before it wrote.
+     */
+    fun sizes(count: Int): IntArray {
+        if (sizes.size != count) sizes = IntArray(count)
+        return sizes
+    }
+
+    /**
+     * Room for [count] offsets, cleared before it is handed over. An [Arrangement] writes the offsets it
+     * means to place, and one that leaves an index alone leaves that child at zero rather than at
+     * whatever the pass before it wrote.
+     */
+    fun positions(count: Int): IntArray {
+        if (positions.size != count) {
+            positions = IntArray(count)
+        } else {
+            positions.fill(0)
+        }
+        return positions
+    }
 }
