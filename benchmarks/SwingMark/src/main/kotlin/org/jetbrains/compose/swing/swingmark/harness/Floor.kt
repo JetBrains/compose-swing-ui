@@ -20,7 +20,7 @@ internal enum class Step {
     /** A change handed to the event dispatch thread and waited for. */
     POST_AND_WAIT,
 
-    /** [change]: a declared change published, framed, and waited for until the widgets carry it. */
+    /** [change]: a state write handed to the event dispatch thread and waited for until the widgets carry it. */
     CHANGE,
 }
 

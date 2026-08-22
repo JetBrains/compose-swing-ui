@@ -6,6 +6,8 @@ plugins {
 
 dependencies {
     implementation(project(":swing-ui"))
+    // Writes the captured spans out as a Perfetto trace, which -trace turns on.
+    implementation(libs.androidxTracingWire)
     // The gate proving both arms build the same screen: a ratio between them means nothing otherwise.
     testImplementation(kotlin("test"))
     testImplementation(project(":swing-ui-test"))

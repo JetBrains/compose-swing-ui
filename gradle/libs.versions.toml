@@ -23,6 +23,7 @@ androidxCollection = { module = "androidx.collection:collection", version.ref = 
 androidxLifecycleRuntimeCompose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "androidxLifecycle" }
 androidxNavigation3Runtime = { module = "androidx.navigation3:navigation3-runtime", version.ref = "androidxNavigation3" }
 androidxTracing = { module = "androidx.tracing:tracing", version.ref = "androidxTracing" }
+androidxTracingWire = { module = "androidx.tracing:tracing-wire", version.ref = "androidxTracing" }
 composeLintChecks = { module = "com.slack.lint.compose:compose-lint-checks", version.ref = "composeLintChecks" }
 composeRuntime = { module = "androidx.compose.runtime:runtime", version.ref = "compose" }
 detekt-gradle-plugin = { module = "dev.detekt:detekt-gradle-plugin", version.ref = "detekt" }

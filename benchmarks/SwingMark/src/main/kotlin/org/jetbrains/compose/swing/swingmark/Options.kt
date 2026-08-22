@@ -22,12 +22,16 @@ internal class Options {
     var doubleBuffering: Boolean = true
     var sleepBetweenRuns: Boolean = false
     var blitScrolling: Boolean = false
+
+    /** Where a Perfetto trace of the run is written, or `null` while the run records nothing. */
+    var traceDirectory: String? = null
 }
 
 /**
- * Reads the command line as the original reads it, printing what the original prints.
+ * Reads the command line as the original reads it, printing what the original prints. `-trace` is the
+ * one option this port adds.
  *
- * An unrecognised argument ends the run, as it does there: a benchmark that ignores an option reports a
+ * An unrecognized argument ends the run, as it does there: a benchmark that ignores an option reports a
  * number for something other than what was asked for. So does `-lf` together with `-n`, which name two
  * different look and feels.
  */
@@ -62,6 +66,11 @@ internal fun parseOptions(args: Array<String>): Options {
             argument == "-m" -> {
                 options.memoryReportFile = args[++index]
                 println("Will write memory report to file: ${options.memoryReportFile}")
+            }
+
+            argument == "-trace" -> {
+                options.traceDirectory = args[++index]
+                println("Will write a Perfetto trace to directory: ${options.traceDirectory}")
             }
 
             readSwitch(options, argument) -> {

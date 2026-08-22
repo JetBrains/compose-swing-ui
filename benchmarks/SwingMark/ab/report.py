@@ -28,9 +28,27 @@ import sys
 
 RESAMPLES = 20_000
 ORIGINAL_LINE = re.compile(r"^(.+?) = (\d+)\s+\(Paint = (\d+)\)")
-RAW_ARM_LINE = re.compile(r"^raw: (.+?) = (\d+)\s+\(Paint = (\d+)\)")
+# This suite prints figures the original does not, so the paint count is read up to whichever of the
+# comma and the closing bracket follows it.
+RAW_ARM_LINE = re.compile(r"^raw: (.+?) = (\d+)\s+\(Paint = (\d+)[,)]")
 RUN_LINE = re.compile(r"\*\*\*\* Starting run (\d+)")
 ORDER = ["Sliders", "Lists", "TextArea", "Table Rows", "Tree", "Sub-Menus"]
+
+# One line of each suite's output, copied as that suite prints it, and the fields a pattern has to read
+# out of it. A format that has moved on is caught here rather than as a report with no runs in it.
+SAMPLE_FIELDS = ("Table Rows", "1234", "45")
+SAMPLES = [
+    (ORIGINAL_LINE, "Table Rows = 1234   (Paint = 45)"),
+    (RAW_ARM_LINE, "raw: Table Rows = 1234   (Paint = 45, Dirty = 678900, Layout = 12)"),
+]
+
+
+def check_patterns():
+    """Exits where a suite no longer prints what the pattern reading it expects."""
+    for pattern, sample in SAMPLES:
+        matched = pattern.match(sample)
+        if not matched or matched.groups() != SAMPLE_FIELDS:
+            sys.exit(f"{pattern.pattern} no longer reads {sample!r}: the suite's output has changed")
 
 
 def load(raw, kind, line):
@@ -61,6 +79,7 @@ def interval(original, port):
 
 
 def main(raw):
+    check_patterns()
     original = load(raw, "orig", ORIGINAL_LINE)
     port = load(raw, "port", RAW_ARM_LINE)
     if not original or not port:

@@ -15,8 +15,8 @@ import kotlin.time.Duration.Companion.seconds
  *
  * Every test has one of these per arm. The two show the same screen and make the same changes; one builds
  * widgets and calls setters, the other declares the screen and writes state. Everything around them - the
- * order the tests run in, the wait between changes, the clock, the paint reset - is this harness, so the
- * two arms are timed by the same code.
+ * order the tests run in, the wait between changes, the paint reset - is this harness, so the two arms
+ * are timed by the same code.
  */
 internal interface SwingMarkTest {
     /** The name this test reports under, which is the name its original reports. */

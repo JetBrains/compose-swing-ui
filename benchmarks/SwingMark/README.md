@@ -32,7 +32,7 @@ window holds the focus.
 
 ## The command line
 
-The original's, option for option.
+The original's, option for option, and one this port adds.
 
 | option | effect |
 | --- | --- |
@@ -46,11 +46,18 @@ The original's, option for option.
 | `-sleep` | beep and collect between runs |
 | `-blit` | scroll by blitting |
 | `-version` | print what this suite is |
+| `-trace <dir>` | record the run as a Perfetto trace, written into this directory |
 
 Without `-lf` or `-n` the suite runs under Metal, which is the original's default and the only way the
 arms are comparable to the original: a look and feel decides how much painting each change costs.
 
-An unrecognised option ends the run, as it does in the original.
+`-trace` is this port's own, and off unless it is asked for. It records the library's own spans - the
+frame, the apply, a node arriving or leaving, a settle - together with every composable the Compose
+compiler marked, and leaves one `.perfetto-trace` file in the named directory, which opens in
+<https://ui.perfetto.dev/>. Only the declared arm has spans to open, and recording them costs the run
+what it costs, so a run being timed leaves this off.
+
+An unrecognized option ends the run, as it does in the original.
 
 ## The tests
 
@@ -81,13 +88,13 @@ scrolls through the state holder the library offers for it - `ListState.revealIn
 `TreeState.revealPath`, `ScrollState.revealRect`.
 
 Everything else is one harness the two share: the order the tests run in, the wait between changes, the
-frame clock, the paint reset, the report.
+paint reset, the report.
 
 ## The floor under each arm
 
 The two arms do not wait on the same things the same number of times. A raw change is a setter handed to
-the event dispatch thread; a declared change is a state write published, a frame delivered, and the widget
-read once the queue falls idle. Waiting costs something on its own, so a ratio taken over the two times as
+the event dispatch thread; a declared change is a state write handed to that thread and the widget read
+once the queue falls idle. Waiting costs something on its own, so a ratio taken over the two times as
 they stand is partly a ratio between the suite's own waits.
 
 So every arm is timed twice. Once driving its changes, and once - its floor - driving the same waits in
@@ -107,12 +114,14 @@ own spread rather than a measurement, and the ratio beside it means nothing.
 
 ## What the harness does
 
-- **Frames are sent, not awaited.** The harness mounts the declared arm on a composition runtime of its
-  own and delivers each frame itself, at a point it chooses. The raw arm has no clock to drive - a setter
-  is applied where it is called.
-- **Every declared change costs a settle.** A change publishes the state write and sends a frame before it
-  asks whether the widgets carry the change. A predicate asked first would return on a change that had not
-  run yet, leaving the invalidation to batch into a later one and charging that one for both.
+- **The library decides when a declared change lands.** The declared arm is composed on the recomposer
+  the library stands up for its screen, which recomposes on the event queue, so a state write reaches its
+  widget on the event-dispatch cycles that follow it. The suite sends it no frame; the raw arm has none
+  to send either - a setter is applied where it is called.
+- **Every declared change costs a settle.** A change posts the state write to the event dispatch thread
+  and drains the queue before it asks whether the widgets carry the change. A predicate asked first would
+  return on a change that had not run yet, leaving the invalidation to batch into a later one and charging
+  that one for both.
 - **A change waits once.** The widget is read on the event dispatch thread by the probe that finds the
   queue empty, so the settle is the only wait a change makes and no round trip is spent on the question.
   The probe answers that question and does nothing else: work started from there would land in a turn of
@@ -128,13 +137,22 @@ own spread rather than a measurement, and the ratio beside it means nothing.
 
 ## Reading the paint columns
 
-The two arms count paints differently, and the columns are not comparable to each other.
+Each arm's line carries three figures: `Paint`, `Dirty` and `Layout`.
 
+The two arms count `Paint` differently, so an arm's paint column is not comparable to the other arm's.
 The raw arm counts as the original counts, by subclassing the widget under test, so its figures stand
 beside the original's. The declared arm builds no widget of its own, so its paints are counted at the
 repaint manager: one per flush of the dirty regions rather than one per widget painted. The two agree
-closely on a screen holding one widget, and the declared figure reads far lower on a screen that scrolls,
-because a viewport paints itself as it scrolls rather than marking a region dirty.
+closely on a screen holding one widget.
+
+`Dirty` is the pixels the arm marked for repainting, summed over every region, and `Layout` is the
+components it handed the manager to lay out again before painting. Both arms go through the one repaint
+manager, so these two do compare across arms, and they separate an arm that paints often from one that
+paints a lot at a time.
+
+**A scroll moves none of the three.** A viewport copies what it has already painted and paints only the
+strip the copy uncovered, so a scrolling arm can cost real time while marking nothing. On a screen that
+scrolls, these figures say what was repainted and not what the arm spent.
 
 Read each column against its own arm's runs. A column that moves between runs of the same arm means that
 arm stopped driving the work it drove before.

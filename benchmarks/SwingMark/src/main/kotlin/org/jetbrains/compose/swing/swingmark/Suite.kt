@@ -39,6 +39,27 @@ internal class TestPair(
         }
     }
 
+    /**
+     * What [arm] of this test is called wherever a run is read per arm: the row of the XML report, and
+     * the stem of the span name the trace records that arm's timed section under. One name, so the two
+     * are read together.
+     */
+    fun rowName(arm: Arm): String = "${arm.label} $testName"
+
+    /**
+     * The span the trace records [arm]'s timed section under on repetition [run], which is counted from
+     * zero and named from one, as the suite names its runs everywhere it prints one.
+     *
+     * The repetitions of one arm show the same screen and make the same changes to it, so nothing but
+     * the name tells them apart in a trace, and nothing but the state of the VM behind them differs.
+     * A reader that holds them apart reads a repetition against the ones before it rather than mixing
+     * them into one figure, and drops the first as the printed comparison drops it.
+     */
+    fun sectionName(
+        arm: Arm,
+        run: Int,
+    ): String = "${rowName(arm)} run ${run + 1}"
+
     operator fun get(arm: Arm): SwingMarkTest =
         when (arm) {
             Arm.RAW -> raw

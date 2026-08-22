@@ -1,10 +1,12 @@
 package org.jetbrains.compose.swing.swingmark
 
 import kotlinx.coroutines.DisposableHandle
+import org.jetbrains.compose.swing.swingmark.harness.PaintCounter
 import org.jetbrains.compose.swing.swingmark.harness.Protocol
 import org.jetbrains.compose.swing.swingmark.harness.driveNull
 import org.jetbrains.compose.swing.swingmark.harness.rest
 import org.jetbrains.compose.swing.swingmark.harness.syncRam
+import org.jetbrains.compose.swing.swingmark.harness.traceHarness
 import org.jetbrains.compose.swing.swingmark.raw.ENABLE_WINDOW_BLIT
 import java.awt.BorderLayout
 import java.awt.CardLayout
@@ -32,7 +34,7 @@ internal class SwingMarkPanel(
     private val tabs = ArrayList<JPanel>()
 
     /** The rows the XML report carries, one per arm of each test. */
-    val rowNames: List<String> = pairs.flatMap { pair -> Arm.entries.map { "${it.label} ${pair.testName}" } }
+    val rowNames: List<String> = pairs.flatMap { pair -> Arm.entries.map(pair::rowName) }
 
     init {
         for (pair in pairs) {
@@ -63,7 +65,10 @@ internal class SwingMarkPanel(
         mounted.clear()
     }
 
-    /** Runs both arms of every test, printing `arm: name = milliseconds   (Paint = paints)` per arm. */
+    /**
+     * Runs both arms of every test, printing one line per arm:
+     * `arm: name = milliseconds   (Paint = paints, Dirty = dirtyArea, Layout = layouts)`.
+     */
     fun runTests(
         run: Int,
         report: Report,
@@ -94,15 +99,25 @@ internal class SwingMarkPanel(
         rest()
         test.resetPaints()
         Protocol.startCounting()
-        val start = System.currentTimeMillis()
-        test.runTest()
-        // Taken before the closing window, which the floor makes for itself: counted into the tally it
-        // would be driven again on top of that one, leaving every net time read against a floor one
-        // drain deeper than the one the arm stood on.
-        val tally = Protocol.tally()
-        closeTimedWindow()
-        val elapsed = System.currentTimeMillis() - start
+        lateinit var tally: IntArray
+        // The span the trace attributes work by: it covers exactly the stretch the arm's time is read
+        // over, so every frame, apply, settle and paint the arm caused falls inside it and nothing the
+        // suite did around it does. One section per arm of a run, not one per change, and named for the
+        // run as well as the arm, so a trace of several runs is read per repetition.
+        val elapsed =
+            traceHarness(pair.sectionName(arm, run)) {
+                val start = System.currentTimeMillis()
+                test.runTest()
+                // Taken before the closing window, which the floor makes for itself: counted into the
+                // tally it would be driven again on top of that one, leaving every net time read against
+                // a floor one drain deeper than the one the arm stood on.
+                tally = Protocol.tally()
+                closeTimedWindow()
+                System.currentTimeMillis() - start
+            }
         val paints = test.paints
+        val dirtyArea = PaintCounter.dirtyArea
+        val layouts = PaintCounter.layouts
         val floor = timeNullPass(tally)
 
         val runtime = Runtime.getRuntime()
@@ -111,7 +126,7 @@ internal class SwingMarkPanel(
         report.times[run][index * Arm.entries.size + arm.ordinal] = elapsed
         comparison.record(arm, pair.testName, run, Reading(elapsed, floor, paints))
 
-        println("${arm.label}: ${pair.testName} = $elapsed   (Paint = $paints)")
+        println("${arm.label}: ${pair.testName} = $elapsed   (Paint = $paints, Dirty = $dirtyArea, Layout = $layouts)")
     }
 
     /**

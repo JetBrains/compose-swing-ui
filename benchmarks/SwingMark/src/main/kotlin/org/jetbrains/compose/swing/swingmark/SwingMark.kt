@@ -1,10 +1,12 @@
 package org.jetbrains.compose.swing.swingmark
 
 import org.jetbrains.compose.swing.swingmark.harness.PaintCounter
+import org.jetbrains.compose.swing.swingmark.harness.TraceCapture
 import org.jetbrains.compose.swing.swingmark.harness.Watchdog
 import org.jetbrains.compose.swing.swingmark.harness.rest
 import org.jetbrains.compose.swing.swingmark.harness.syncRam
 import java.awt.Toolkit
+import java.io.File
 import java.util.Date
 import javax.swing.JFrame
 import javax.swing.SwingUtilities
@@ -33,6 +35,26 @@ fun main(args: Array<String>) {
     println("Java: ${System.getProperty("java.version")} (${System.getProperty("java.vm.name")})")
 
     val options = parseOptions(args)
+    // Opened before anything is built, because a capture records only what happens after it.
+    val capture = options.traceDirectory?.let { TraceCapture.open(File(it)) }
+    try {
+        runSuite(options, startTime)
+    } finally {
+        // The harness raises on a change that never reaches the widgets and on a queue that will not
+        // fall idle, and those are the runs a trace is asked for, so the trace is written on the way out
+        // rather than after the last report.
+        capture?.finish()?.let { println("Wrote Perfetto trace: ${it.absolutePath}") }
+    }
+    // Outside the block above, because exiting the process does not unwind: a trace closed from there
+    // would never be written.
+    if (options.autoQuit) exitProcess(0)
+}
+
+/** Runs the suite the number of times [options] asks for, and reports what the runs cost. */
+private fun runSuite(
+    options: Options,
+    startTime: Long,
+) {
     switchLookAndFeel(options.lookAndFeel)
     Thread.currentThread().priority = Thread.NORM_PRIORITY - 1
     Watchdog.start()
@@ -56,7 +78,6 @@ fun main(args: Array<String>) {
     comparison.print(options.runs)
     options.reportFile?.let(report::writeTimes)
     options.memoryReportFile?.let(report::writeMemory)
-    if (options.autoQuit) exitProcess(0)
 }
 
 /** The suite's window and the panel running the tests in it. */

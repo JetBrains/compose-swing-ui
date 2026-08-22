@@ -1,6 +1,7 @@
 package org.jetbrains.compose.swing.swingmark.raw
 
 import kotlinx.coroutines.DisposableHandle
+import org.jetbrains.compose.swing.swingmark.harness.PaintCounter
 import org.jetbrains.compose.swing.swingmark.harness.Protocol
 import org.jetbrains.compose.swing.swingmark.harness.Step
 import org.jetbrains.compose.swing.swingmark.harness.SwingMarkTest
@@ -29,6 +30,9 @@ internal abstract class RawTest : SwingMarkTest {
 
     override fun resetPaints() {
         paintCount = 0
+        // The dirty area is kept by the repaint manager, which both arms share, so this arm has to clear
+        // it too or its runs would each carry the ones before them.
+        PaintCounter.reset()
     }
 
     /** Builds the widgets this test drives, and answers with the component holding them. */
