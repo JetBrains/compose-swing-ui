@@ -140,12 +140,7 @@ public fun <T> ListBox(
     fixedCellHeight: Int = -1,
     itemContent: (@Composable ListItemScope.(item: T) -> Unit)? = null,
 ) {
-    // The items this composition declares, read while composing: a caller may keep the items in a snapshot
-    // list and mutate that list in place, and reading them here is what makes this composition one of the
-    // list's readers, so such a mutation invalidates the list box and the new items reach the model. Held
-    // as a copy of its own, it is also what the next pass's items are compared against - a comparison
-    // against the caller's own list would be that list against itself, and never find a difference.
-    val declaredItems = items.toList()
+    val declaredItems = rememberDeclaredList(items)
     ListBoxNode(
         listSelectionListener = listSelectionListener,
         modifier = modifier,
@@ -506,12 +501,11 @@ private fun JList<*>.installContent(
  * covers. A selection that already matches is left alone, so a recomposition that changed nothing
  * touches the list's selection model not at all, and a `null` declaration leaves it alone entirely.
  *
- * The rows are selected in ascending order, whatever order [indices] iterates in, so every set that names
- * the same rows leaves the list on the same selection and on the same lead row - the highest of them, left
- * behind by the last row selected.
- *
- * A list clears its selection before it selects, and each step of that is a settled change of its own;
- * marking the pair as one adjusting run leaves the list publishing a single settled selection.
+ * Whatever order [indices] iterates in, every set that names the same rows leaves the list on the same
+ * selection, the same lead row and the same anchor row. The two are the ends of the last run of adjacent
+ * rows the declared set names: the anchor where that run starts and the lead where it ends, which is the
+ * highest selected row. That is where a user's own drag over the same rows leaves them, and the anchor is
+ * where a later shift-click extends the selection from. See [selectExactly].
  */
 private fun applySelection(
     list: JList<*>,
@@ -520,9 +514,7 @@ private fun applySelection(
     if (indices == null) return
     val itemCount = list.model.size
     val valid = indices.filterTo(sortedSetOf()) { it in 0 until itemCount }
-    if (list.selectedIndices.toSet() == valid) return
-    val selectionModel = list.selectionModel
-    selectionModel.valueIsAdjusting = true
-    list.selectedIndices = valid.toIntArray()
-    selectionModel.valueIsAdjusting = false
+    val standing = list.selectedIndices
+    if (standing.holdsSelection(valid)) return
+    list.selectionModel.selectExactly(standing, valid)
 }

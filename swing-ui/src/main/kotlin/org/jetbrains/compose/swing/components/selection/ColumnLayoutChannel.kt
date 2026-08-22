@@ -5,7 +5,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.compose.swing.core.dispatchToCaller
-import org.jetbrains.compose.swing.node.AppliedWrite
+import org.jetbrains.compose.swing.node.AppliedValue
 import javax.swing.event.ChangeEvent
 import javax.swing.event.ListSelectionEvent
 import javax.swing.event.TableColumnModelEvent
@@ -13,25 +13,31 @@ import javax.swing.event.TableColumnModelListener
 import javax.swing.table.TableColumnModel
 
 /**
- * One table's column-layout channel: the layout the caller and the table currently agree on, and the
- * [listener] through which the user's own reorders and resizes reach the caller's [target] listener.
+ * One table's column-layout channel: the [listener] through which the user's own reorders and resizes
+ * reach the caller's [target] listener, mirrored into [applied] the way every two-way property is.
  *
  * A table publishes a margin change for every width it derives from its columns' preferred widths as well
  * as for a preferred width a resize drag changed, and it derives those widths afresh at every layout pass.
- * An event is therefore news only when the layout it leaves behind differs from the one already agreed -
+ * An event is therefore news only when the layout it leaves behind differs from the one the mirror holds -
  * which is what keeps a window resize, which changes every column's width and no column's layout, silent.
  */
 internal class ColumnLayoutChannel(
     private val target: State<TableColumnModelListener?>,
+    private val applied: AppliedValue<TableColumnLayout?>,
 ) {
-    private var agreed: TableColumnLayout? = null
-
-    /** Reports the user's own column reorders and resizes. Install it on the table's column model. */
+    /**
+     * Reports the user's own column reorders and resizes, and mirrors every layout the columns are left in
+     * - this wrapper's own writes included, so the mirror answers with what the columns hold now. Install
+     * it on the table's column model.
+     */
     val listener: ColumnLayoutMirror =
         object : ColumnLayoutMirror {
             // A table handed another column model publishes whatever layout that model arrives in. It is
-            // the caller's own doing, so it settles what the two agree on rather than reporting back.
-            override fun adoptModelSwap(model: TableColumnModel) = adopt(model.readColumnLayout())
+            // the caller's own doing, so it is mirrored rather than reported back - and the mirror moving
+            // is what has the next pass put the declaration onto the model that arrived.
+            override fun adoptModelSwap(model: TableColumnModel) {
+                applied.observed(model.readColumnLayout())
+            }
 
             // A column added or removed is the table rebuilding its columns, never a user gesture: no
             // header drag adds or removes one. A rebuild that a pass of the composition drives has the
@@ -52,9 +58,21 @@ internal class ColumnLayoutChannel(
             override fun columnSelectionChanged(event: ListSelectionEvent) = Unit
         }
 
-    /** Records [layout] as the layout the caller and the table agree on, so it is never reported back. */
-    fun adopt(layout: TableColumnLayout) {
-        agreed = layout
+    /**
+     * Settles the columns of [columns] on [declared], and records the layout they were left in as the one
+     * this pass answered for. A `null` declaration leaves the columns where they are.
+     *
+     * The whole of it is one settlement of the mirror, so the layout the columns are left in is not news:
+     * this pass asked for it and read it back.
+     */
+    fun settle(
+        columns: TableColumnModel,
+        declared: TableColumnLayout?,
+    ) {
+        applied.settle {
+            applied.write { columns.applyColumnLayout(declared) }
+            answered(columns.layoutHeld(applied.value))
+        }
     }
 
     /**
@@ -72,41 +90,47 @@ internal class ColumnLayoutChannel(
     fun preserveAcross(
         columns: TableColumnModel,
         declared: TableColumnLayout?,
-        applied: AppliedWrite,
         install: () -> Unit,
     ) {
-        val retained = declared ?: columns.readColumnLayout()
-        install()
-        applied.write { columns.applyColumnLayout(retained) }
-        val settled = columns.readColumnLayout()
-        adopt(settled)
+        val lost =
+            applied.settle {
+                val retained = declared ?: columns.layoutHeld(applied.value)
+                install()
+                applied.write { columns.applyColumnLayout(retained) }
+                val settled = columns.layoutHeld(retained)
+                answered(settled)
+                declared == null && !settled.holds(retained)
+            }
         // The columns are put back as this wrapper's own write, so nothing they publish carries the loss
         // out; a margin change over the model they are left in is how the caller hears what they were left
         // holding.
-        if (declared == null && !settled.holds(retained)) {
-            dispatchToCaller { target.value?.columnMarginChanged(ChangeEvent(columns)) }
-        }
+        if (lost) dispatchToCaller { target.value?.columnMarginChanged(ChangeEvent(columns)) }
     }
 
     /**
-     * Hands the layout [columns] are in to the caller's listener through [deliver], unless it is the one
-     * already agreed on. An event that arrives before a layout is agreed on is news.
+     * Mirrors the layout [columns] are in and hands it to the caller's listener through [deliver], unless
+     * the mirror already held it or this wrapper's own write left the columns in it.
      */
     private fun report(
         columns: TableColumnModel,
         deliver: (TableColumnModelListener) -> Unit,
     ) {
-        if (agreed?.holdsInPlace(columns) == true) return
-        agreed = columns.readColumnLayout()
-        target.value?.let(deliver)
+        val settled = columns.layoutHeld(applied.value)
+        if (applied.observed(settled)) target.value?.let(deliver)
     }
 }
 
 /**
- * Whether [columns] are already in [this] layout, walked column by column against the layout's own lists
- * rather than through a fresh [readColumnLayout] snapshot - every column event calls this, and most report
- * nothing new.
+ * [held] where the columns of [this] model are already in it, and a fresh [readColumnLayout] snapshot
+ * otherwise. Every column event answers this, and most answer with the layout already held: a table
+ * derives its columns' widths afresh at every layout pass and publishes a margin change for each, so the
+ * in-place walk is what keeps a window resize - which changes every width and no column's layout - free of
+ * both a report and a snapshot.
  */
+private fun TableColumnModel.layoutHeld(held: TableColumnLayout?): TableColumnLayout =
+    held?.takeIf { it.holdsInPlace(this) } ?: readColumnLayout()
+
+/** Whether [columns] are already in [this] layout, walked column by column against the layout's own lists. */
 private fun TableColumnLayout.holdsInPlace(columns: TableColumnModel): Boolean =
     columns.columnCount == modelIndices.size &&
         modelIndices.indices.all { position ->
@@ -116,9 +140,12 @@ private fun TableColumnLayout.holdsInPlace(columns: TableColumnModel): Boolean =
 
 /** A [ColumnLayoutChannel] that keeps reporting to the latest [listener] without being rebuilt. */
 @Composable
-internal fun rememberColumnLayoutChannel(listener: TableColumnModelListener?): ColumnLayoutChannel {
+internal fun rememberColumnLayoutChannel(
+    listener: TableColumnModelListener?,
+    applied: AppliedValue<TableColumnLayout?>,
+): ColumnLayoutChannel {
     val target = rememberUpdatedState(listener)
-    return remember { ColumnLayoutChannel(target) }
+    return remember { ColumnLayoutChannel(target, applied) }
 }
 
 /**
@@ -142,32 +169,4 @@ internal fun columnLayoutListener(onColumnLayoutChange: (TableColumnLayout) -> U
         override fun columnSelectionChanged(event: ListSelectionEvent) = Unit
 
         private fun report(source: Any) = onColumnLayoutChange((source as TableColumnModel).readColumnLayout())
-    }
-
-/** [listener], narrowed to the column reorders and resizes the user made. */
-internal fun AppliedWrite.userOnly(listener: ColumnLayoutMirror): ColumnLayoutMirror =
-    object : ColumnLayoutMirror {
-        // Filtering the wrapper's own writes is all this adds; a model swap still has to reach the state
-        // [listener] keeps, or the filter would hide the one thing that is not an event.
-        override fun adoptModelSwap(model: TableColumnModel) = listener.adoptModelSwap(model)
-
-        override fun columnAdded(event: TableColumnModelEvent) {
-            if (!isWriting) listener.columnAdded(event)
-        }
-
-        override fun columnRemoved(event: TableColumnModelEvent) {
-            if (!isWriting) listener.columnRemoved(event)
-        }
-
-        override fun columnMoved(event: TableColumnModelEvent) {
-            if (!isWriting) listener.columnMoved(event)
-        }
-
-        override fun columnMarginChanged(event: ChangeEvent) {
-            if (!isWriting) listener.columnMarginChanged(event)
-        }
-
-        override fun columnSelectionChanged(event: ListSelectionEvent) {
-            if (!isWriting) listener.columnSelectionChanged(event)
-        }
     }

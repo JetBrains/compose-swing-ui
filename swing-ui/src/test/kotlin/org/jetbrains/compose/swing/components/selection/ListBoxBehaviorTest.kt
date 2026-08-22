@@ -69,17 +69,26 @@ class ListBoxBehaviorTest {
         assertEquals(listOf(1), list.selectedIndices.toList(), "selection lost on items change")
     }
 
+    /**
+     * The list twin of
+     * [TableBehaviorTest.aSelectionTheCallerDoesNotAdoptDoesNotStandWhenItIsMadeAgain], over a `JList`'s
+     * own selection model.
+     */
     @Test
-    fun aSelectionTheCallerDoesNotAdoptDoesNotStand() = runComposeSwingTest {
+    fun aSelectionTheCallerDoesNotAdoptDoesNotStandWhenItIsMadeAgain() = runComposeSwingTest {
         setContent { ListBox(items = listOf("a", "b", "c"), selectedIndices = setOf(0)) }
 
         val list = onNodeOfType<JList<*>>().fetch()
-        list.selectedIndex = 1
-        awaitIdle()
+        repeat(2) {
+            list.selectedIndex = 1
+            awaitIdle()
+        }
 
-        // The list is already settled back onto the declared selection by the time the move's own
-        // recomposition finishes - not just once some later, unrelated recomposition happens to run.
-        assertEquals(listOf(0), list.selectedIndices.toList(), "an unadopted selection change does not stand")
+        assertEquals(
+            listOf(0),
+            list.selectedIndices.toList(),
+            "an unadopted selection change does not stand, however often it is made",
+        )
     }
 
     @Test

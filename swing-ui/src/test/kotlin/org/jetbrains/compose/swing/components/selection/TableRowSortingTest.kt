@@ -238,6 +238,45 @@ class TableRowSortingTest {
     }
 
     @Test
+    fun aFilterDeclaredWhileSortingIsOffReachesTheSorterTurningItOnBuilds() = runComposeSwingTest {
+        var sortable by mutableStateOf(false)
+        val filter = RowFilter.regexFilter<TableModel, Int>("A", 0)
+        setContent {
+            Table(rows = people, sortable = sortable, rowFilter = filter) {
+                column("Name") { it.name }
+            }
+        }
+
+        val table = onNodeOfType<JTable>().fetch()
+        assertEquals(people.map { it.name }, table.shownNames(), "a table with no sorter filters nothing")
+
+        sortable = true
+        awaitIdle()
+
+        val installed: Any? = (table.rowSorter as TableRowSorter<*>).rowFilter
+        assertSame(filter, installed, "the sorter sorting turns on should carry the declared filter")
+        assertEquals(listOf("Ada", "Alan"), table.shownNames(), "and hide the rows it rejects")
+    }
+
+    @Test
+    fun aDeclaredFilterOutlivesTheSorterAModelSwapRebuilds() = runComposeSwingTest {
+        var model by mutableStateOf(tableModel("Ada", "Alan", "Grace"))
+        val filter = RowFilter.regexFilter<TableModel, Int>("A", 0)
+        setContent { Table(model = model, sortable = true, rowFilter = filter) }
+
+        val table = onNodeOfType<JTable>().fetch()
+        assertEquals(listOf("Ada", "Alan"), table.shownNames(), "the declared filter should reach the rows")
+
+        // A sorter is welded to its model, so the swap takes this one off and builds another.
+        model = tableModel("Ada", "Bob")
+        awaitIdle()
+
+        val installed: Any? = (table.rowSorter as TableRowSorter<*>).rowFilter
+        assertSame(filter, installed, "the sorter built for the new model should carry the declared filter")
+        assertEquals(listOf("Ada"), table.shownNames(), "and hide the rows it rejects")
+    }
+
+    @Test
     fun sortingByAColumnHeaderReachesOnSortChange() = runComposeSwingTest {
         val received = mutableListOf<List<SortKey>>()
         setContent {

@@ -53,10 +53,28 @@ public sealed interface TreeNodeScope {
  * and what it reads out as the node's accessible text; a composable node reaches the value itself.
  */
 internal class TreeNodeValue<T>(
-    val value: T,
-    private val text: @Nls String,
+    value: T,
+    text: @Nls String,
 ) {
+    /** The value the node stands for. */
+    var value: T = value
+        private set
+
+    private var text: @Nls String = text
+
     override fun toString(): String = text
+
+    /**
+     * Takes over [value] and the [text] rendered for it. The node holding this goes on holding it, which is
+     * what keeps the row, the expansion and the selection reaching that node where they are.
+     */
+    fun carry(
+        value: T,
+        text: @Nls String,
+    ) {
+        this.value = value
+        this.text = text
+    }
 }
 
 /**

@@ -48,9 +48,6 @@ class SelectionFeedbackTest {
     private fun tableModel(vararg names: String): DefaultTableModel =
         DefaultTableModel(arrayOf<Any>("Name"), 0).apply { for (name in names) addRow(arrayOf<Any>(name)) }
 
-    /** The labels of the nodes the tree has selected. */
-    private fun JTree.selectedLabels(): List<String> = selectionPaths.orEmpty().map { it.lastPathComponent.toString() }
-
     @Test
     fun aRowsOnlyRefreshKeepsTheTableSelection() = runComposeSwingTest {
         val rows = mutableStateListOf(Person("Ada", 36), Person("Alan", 41), Person("Grace", 50))

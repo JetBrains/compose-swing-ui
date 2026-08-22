@@ -13,6 +13,7 @@ import javax.swing.LookAndFeel
 import javax.swing.tree.DefaultMutableTreeNode
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /**
  * A small data tree used to feed [Tree] from nested values: each [Node] yields its [children], and its
@@ -302,8 +303,13 @@ class TreeBehaviorTest {
         )
     }
 
+    /**
+     * The tree twin of
+     * [TableBehaviorTest.aSelectionTheCallerDoesNotAdoptDoesNotStandWhenItIsMadeAgain], over selection
+     * paths rather than row indices.
+     */
     @Test
-    fun aSelectionTheCallerDoesNotAdoptDoesNotStand() = runComposeSwingTest {
+    fun aSelectionTheCallerDoesNotAdoptDoesNotStandWhenItIsMadeAgain() = runComposeSwingTest {
         setContent {
             Tree(
                 root = sample,
@@ -314,43 +320,72 @@ class TreeBehaviorTest {
         }
 
         val tree = onNodeOfType<JTree>().fetch()
-        tree.selectionPath = tree.pathTo(1)
-        awaitIdle()
+        repeat(2) {
+            tree.selectionPath = tree.pathTo(1)
+            awaitIdle()
+        }
 
-        // The tree is already settled back onto the declared selection by the time the move's own
-        // recomposition finishes - not just once some later, unrelated recomposition happens to run.
         assertEquals(
             listOf(tree.pathTo(0)),
             tree.selectionPaths?.toList(),
-            "an unadopted selection change does not stand",
+            "an unadopted selection change does not stand, however often it is made",
         )
     }
 
     @Test
-    fun stateDrivenDataChangeRebuildsTheTree() = runComposeSwingTest {
+    fun stateDrivenDataChangeMovesTheRows() = runComposeSwingTest {
         var data by mutableStateOf(sample)
         setContent {
             Tree(
                 root = data,
                 children = { it.children },
                 label = { it.name },
+                expandedPaths = setOf(emptyList(), listOf(0)),
             )
         }
 
         val tree = onNodeOfType<JTree>().fetch()
         assertEquals(
-            2,
-            (tree.model.root as DefaultMutableTreeNode).childCount,
-            "the tree should start with two children",
+            listOf("root", "fruit", "apple", "pear", "veg"),
+            tree.rowLabels(),
+            "the tree should start on the rows the first data describes",
         )
 
         data = Node("root", listOf(Node("only", listOf(Node("leaf")))))
         awaitIdle()
 
-        val root = tree.model.root as DefaultMutableTreeNode
-        assertEquals(1, root.childCount, "the rebuilt tree should have one child")
-        assertEquals("only", tree.labelAt(listOf(0)), "the rebuilt node [0] should be only")
-        assertEquals("leaf", tree.labelAt(listOf(0, 0)), "the rebuilt node [0,0] should be leaf")
+        assertEquals(
+            listOf("root", "only", "leaf"),
+            tree.rowLabels(),
+            "the rows should be the ones the new data describes",
+        )
+    }
+
+    /**
+     * The expansion twin of the selection case: a node the caller declares open is reopened for every
+     * collapse made against that declaration, not only for the first one.
+     */
+    @Test
+    fun aCollapseTheCallerDoesNotAdoptDoesNotStandWhenItIsMadeAgain() = runComposeSwingTest {
+        setContent {
+            Tree(
+                root = sample,
+                children = { it.children },
+                label = { it.name },
+                expandedPaths = setOf(emptyList(), listOf(0)),
+            )
+        }
+
+        val tree = onNodeOfType<JTree>().fetch()
+        repeat(2) {
+            tree.collapsePath(tree.pathTo(0))
+            awaitIdle()
+        }
+
+        assertTrue(
+            tree.isExpanded(tree.pathTo(0)),
+            "an unadopted collapse does not stand, however often it is made",
+        )
     }
 
     @Test

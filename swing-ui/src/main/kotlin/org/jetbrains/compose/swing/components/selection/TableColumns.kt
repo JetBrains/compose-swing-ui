@@ -237,8 +237,9 @@ internal class TableScopeImpl<R> : TableScope<R> {
  *
  * [refresh] takes the latest rows and columns on every recomposition and fires the *narrowest*
  * change event the difference warrants: a structure change only when the column shape (count,
- * headers, classes, editability, cell bodies) differs, a data change when only the rows differ, and
- * nothing at all when neither did, so a recomposition that changed no data leaves the table entirely alone.
+ * headers, classes, editability, cell bodies) differs, an insert, delete or update naming just the rows
+ * that differ, and nothing at all when neither did, so a recomposition that changed no data leaves the
+ * table entirely alone.
  */
 internal class ColumnsTableModel<R> : AbstractTableModel() {
     /**
@@ -252,8 +253,9 @@ internal class ColumnsTableModel<R> : AbstractTableModel() {
     /**
      * Pushes the latest data into the model, notifying the table of whatever actually changed.
      *
-     * The incoming [rows] are compared against the ones the model last reported, and a pass that finds
-     * them different adopts the new list along with firing the event.
+     * The incoming [rows] are compared against the ones the model last reported, and are adopted before
+     * the event goes out: a table answering an insert or a delete reads the row count back off the model,
+     * and has to find the count the event implies.
      *
      * The model takes ownership of [rows] and answers every read from it, so the caller has to hand over a
      * list nothing else can mutate.
@@ -263,12 +265,49 @@ internal class ColumnsTableModel<R> : AbstractTableModel() {
         columns: List<ColumnDeclaration<R>>,
     ) {
         val structureChanged = columnsDiffer(this.columns, columns)
-        val rowsChanged = this.rows != rows
-        if (rowsChanged) this.rows = rows
+        val oldRows = this.rows
+        this.rows = rows
         this.columns = columns
+        // A structure change rebuilds the columns and repaints every cell on its own, which is every row
+        // an insert, a delete or an update could still have to name.
+        if (structureChanged) {
+            fireTableStructureChanged()
+            return
+        }
+        fireRowChange(oldRows, rows)
+    }
+
+    /**
+     * Tells the table which rows [new] holds that [old] did not, as the narrowest event that describes the
+     * difference.
+     *
+     * The rows the two lists share as a leading and a trailing run are the rows that did not move or
+     * change, and what lies between those runs is the whole of the difference: a run present in only one
+     * of the lists was inserted or deleted, and one of equal length in both was edited in place. Anything
+     * else - a difference that changes the row count and rewrites rows as well - falls back to the
+     * wholesale change, which costs a full repaint and empties the table's selection.
+     *
+     * Two runs and their lengths are all this walks the lists for, and the list a pass declaring the same
+     * rows hands over is the one already held, so such a pass compares nothing and allocates nothing.
+     */
+    private fun fireRowChange(
+        old: List<R>,
+        new: List<R>,
+    ) {
+        if (old === new) return
+        val shared = minOf(old.size, new.size)
+        var head = 0
+        while (head < shared && old[head] == new[head]) head++
+        var tail = 0
+        while (tail < shared - head && old[old.lastIndex - tail] == new[new.lastIndex - tail]) tail++
+        val removed = old.size - head - tail
+        val added = new.size - head - tail
         when {
-            structureChanged -> fireTableStructureChanged()
-            rowsChanged -> fireTableDataChanged()
+            removed == 0 && added == 0 -> Unit
+            removed == 0 -> fireTableRowsInserted(head, head + added - 1)
+            added == 0 -> fireTableRowsDeleted(head, head + removed - 1)
+            removed == added -> fireTableRowsUpdated(head, head + added - 1)
+            else -> fireTableDataChanged()
         }
     }
 

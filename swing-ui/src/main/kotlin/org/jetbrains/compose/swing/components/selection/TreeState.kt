@@ -43,6 +43,13 @@ import javax.swing.JTree
  * }
  * ```
  *
+ * [rowCount], [isExpanded] and [shownSelectedPaths] answer for the tree instead of for what this state
+ * holds. Each reads the bound tree where it is called, so what it reports is what the tree stands on -
+ * which is not always what was declared, since a structure can drop a node and a closed node cannot show
+ * its descendants selected. They are not snapshot state, so reading one subscribes to nothing; a composable
+ * that has to follow the user reads [selectedPaths] and [expandedPaths]. An unbound state has no tree to
+ * answer for and reports no rows, nothing open and nothing selected.
+ *
  * A state drives at most one tree: passing it to a second one moves it there and leaves the first
  * unbound.
  *
@@ -75,6 +82,36 @@ public class TreeState
         // The tree this state drives, or null when unbound. Only the binding modifier node writes it,
         // whose lifecycle owns the relationship.
         private var target: JTree? = null
+
+        /**
+         * How many rows the tree shows: every node whose ancestors are all open, and the root itself while
+         * it is shown. `0` while no tree is bound.
+         *
+         * @see javax.swing.JTree.getRowCount
+         */
+        public val rowCount: Int get() = target?.rowCount ?: 0
+
+        /**
+         * The nodes the tree has selected, as index paths from the root. Empty while no tree is bound.
+         *
+         * @see javax.swing.JTree.getSelectionPaths
+         */
+        public val shownSelectedPaths: Set<List<Int>>
+            get() {
+                val tree = target ?: return emptySet()
+                return readSelection(tree, tree.model)
+            }
+
+        /**
+         * Whether the tree shows the children of the node [path] names below it. `false` for a node no
+         * structure the tree currently shows has, for a node under a closed one, and while no tree is bound.
+         *
+         * @see javax.swing.JTree.isExpanded
+         */
+        public fun isExpanded(path: List<Int>): Boolean {
+            val tree = target ?: return false
+            return resolvePath(tree.model, path)?.let(tree::isExpanded) == true
+        }
 
         /**
          * Brings the node [path] names into view, opening every ancestor that hides it, and returns whether

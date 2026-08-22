@@ -9,6 +9,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.rememberUpdatedState
+import org.jetbrains.compose.swing.components.selection.rememberDeclaredList
 import org.jetbrains.compose.swing.constants.CalendarField
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
@@ -24,12 +25,16 @@ import java.util.Calendar
 import java.util.Date
 import javax.swing.AbstractSpinnerModel
 import javax.swing.JComponent
+import javax.swing.JFormattedTextField
 import javax.swing.JPanel
 import javax.swing.JSpinner
 import javax.swing.SpinnerDateModel
 import javax.swing.SpinnerModel
 import javax.swing.SpinnerNumberModel
 import javax.swing.event.ChangeListener
+import javax.swing.text.AttributeSet
+import javax.swing.text.DefaultFormatterFactory
+import javax.swing.text.DocumentFilter
 
 private class SpinnerValueChannel(
     private val applied: AppliedValue<Any?>,
@@ -189,7 +194,8 @@ public fun Spinner(
  *   [items] that does hold values settles the spinner on the head and reports it through
  *   [onValueChange], since a spinner over items always shows one of them.
  * @param onValueChange callback invoked with the value the user changes the spinner to - a step, or a
- *   committed edit landing on one of [items]; applying a [value] the spinner can hold is not itself
+ *   committed edit landing on one of [items], and with the value the spinner is left on where it cannot
+ *   hold [value]; applying a [value] the spinner can hold is not itself
  *   reported.
  * @param modifier the [SwingModifier] applied to the underlying component.
  * @param editor the editing surface the spinner shows in place of its own, composed into the spinner as
@@ -208,18 +214,14 @@ public fun <T : Any> Spinner(
     editor: (@Composable () -> Unit)? = null,
 ) {
     val applied = rememberAppliedValue<Any?>(value)
-
-    // The items this composition declares, read while composing: a caller may keep the items in a snapshot
-    // list and mutate that list in place, and reading them here is what makes this composition one of the
-    // list's readers, so such a mutation invalidates the spinner and the new items reach the model.
-    val declaredItems = items.toList()
+    val declaredItems = rememberDeclaredList(items)
 
     // Every value the channel carries comes from the ListSpinnerModel below, which reports only what its
     // own items hold - the caller's List<T>, copied - so the model can hand back nothing that is not a T.
     // The type is lost only because Swing's SpinnerModel types its value as Any?.
     @Suppress("UNCHECKED_CAST")
     val channel = rememberSpinnerValueChannel(applied) { onValueChange(it as T) }
-    val model = remember { ListSpinnerModel(declaredItems).also { it.setValue(value) } }
+    val model = remember { ListSpinnerModel(declaredItems).also { it.setIfHeld(value) } }
 
     SpinnerNode(
         model = model,
@@ -228,7 +230,12 @@ public fun <T : Any> Spinner(
         editor = editor,
     ) {
         set(declaredItems) { applied.write { model.items = it } }
-        declare(value, applied, JSpinner::getValue, JSpinner::setValue) { settled -> channel.settledOn(settled) }
+        declare(
+            value,
+            applied,
+            JSpinner::getValue,
+            write = { declared -> model.setIfHeld(declared) },
+        ) { settled -> channel.settledOn(settled) }
     }
 }
 
@@ -330,11 +337,12 @@ private fun SpinnerNode(
  * either end. An empty list is legal: the model then holds no value and offers no neighbor in either
  * direction, which is what a spinner reads to render nothing and refuse to step.
  *
- * This widens [javax.swing.SpinnerListModel] on the two points that model is strict about, because a
- * list arriving asynchronously is a normal frame in a declarative API: an empty [items] is allowed
- * rather than rejected, so [getValue] answers `null` while there is nothing to show instead of never
- * being empty in the first place; and [setValue] silently ignores a value absent from [items] instead
- * of throwing.
+ * This widens [javax.swing.SpinnerListModel] on the one point a list arriving asynchronously needs
+ * widened: an empty [items] is allowed rather than rejected, so [getValue] answers `null` while there is
+ * nothing to show instead of never being empty in the first place. [setValue] otherwise keeps that
+ * model's own contract, throwing for a value [items] does not hold rather than absorbing it silently -
+ * the editor a spinner over items shows relies on that exception to revert an edit it cannot resolve to
+ * one of them.
  */
 private class ListSpinnerModel<T>(
     items: List<T>,
@@ -361,7 +369,7 @@ private class ListSpinnerModel<T>(
         // A spinner over no items renders null and hands that same null back through its editor.
         if (items.isEmpty() && value == null) return
         val selected = items.indexOfFirst { it == value }
-        if (selected < 0) return
+        require(selected >= 0) { "\"$value\" is not one of the spinner's items" }
         if (selected != index) {
             index = selected
             fireStateChanged()
@@ -371,6 +379,115 @@ private class ListSpinnerModel<T>(
     override fun getNextValue(): Any? = items.getOrNull(index + 1)
 
     override fun getPreviousValue(): Any? = items.getOrNull(index - 1)
+
+    /**
+     * The first item at or after the one held whose text starts with [prefix], searched forwards and
+     * wrapping past the end of [items], or `null` where none does and where [items] is empty. This is
+     * what [javax.swing.SpinnerListModel] answers its editor with, matched the same way: case-sensitive,
+     * skipping an item that is `null`.
+     */
+    fun findNextMatch(prefix: String): Any? {
+        var candidate = index
+        repeat(items.size) {
+            val item = items[candidate]
+            if (item != null && item.toString().startsWith(prefix)) return item
+            candidate = (candidate + 1) % items.size
+        }
+        return null
+    }
+}
+
+/**
+ * Writes [value] to this model, or - given `null` over a non-empty [items] - the head, which is what a
+ * spinner over items always shows once it has any: `null` only ever means no selection has been declared,
+ * never that the spinner is to show nothing while items sit right there. A [value] neither [items] nor
+ * that fallback holds is left alone: [setValue] throws for one, so a caller that can offer only what a
+ * pass declares checks first rather than catching the model's own exception.
+ */
+private fun ListSpinnerModel<*>.setIfHeld(value: Any?) {
+    val target = value ?: items.firstOrNull()
+    if (target == null || items.any { it == target }) setValue(target)
+}
+
+/**
+ * The editor a spinner over a [ListSpinnerModel] shows itself through: an editable field whose formatter
+ * resolves committed text back to one of the model's items, so - unlike the read-only field a
+ * [JSpinner.DefaultEditor] otherwise builds for a model it does not recognize - a typed edit reaches the
+ * model rather than only sitting in the field.
+ */
+private class ItemsEditor(
+    spinner: JSpinner,
+) : JSpinner.DefaultEditor(spinner) {
+    init {
+        textField.isEditable = true
+        textField.formatterFactory = DefaultFormatterFactory(ItemsFormatter(spinner))
+    }
+}
+
+/**
+ * Resolves text to whichever of [spinner]'s items renders as it, and back. [spinner]'s model is read
+ * live on every resolution rather than captured once, since the items a spinner over items shows can
+ * change while an edit is in progress.
+ */
+private class ItemsFormatter(
+    private val spinner: JSpinner,
+) : JFormattedTextField.AbstractFormatter() {
+    private val filter = Filter()
+
+    override fun stringToValue(text: String?): Any? =
+        (spinner.model as ListSpinnerModel<*>).items.firstOrNull { it?.toString() == text } ?: text
+
+    override fun valueToString(value: Any?): String = value?.toString().orEmpty()
+
+    override fun getDocumentFilter(): DocumentFilter = filter
+
+    /**
+     * Completes text typed at the end of the field to the first item starting with it, and selects the
+     * completed tail so the next keystroke replaces it - what the editor a bare
+     * [javax.swing.SpinnerListModel] builds does, and what makes a distinguishing prefix enough to
+     * commit. An edit anywhere but the end, and a prefix no item starts with, reach the document as
+     * they stand.
+     */
+    private inner class Filter : DocumentFilter() {
+        override fun replace(
+            bypass: FilterBypass,
+            offset: Int,
+            length: Int,
+            text: String?,
+            attributes: AttributeSet?,
+        ) {
+            val completion = completionFor(bypass, offset, length, text)
+            if (completion == null) {
+                super.replace(bypass, offset, length, text, attributes)
+                return
+            }
+            bypass.remove(0, offset + length)
+            bypass.insertString(0, completion, null)
+            formattedTextField?.select(offset + text.orEmpty().length, completion.length)
+        }
+
+        override fun insertString(
+            bypass: FilterBypass,
+            offset: Int,
+            string: String?,
+            attributes: AttributeSet?,
+        ): Unit = replace(bypass, offset, 0, string, attributes)
+
+        /**
+         * The item text [text] completes to, or `null` for an edit not to complete. The edit has to land
+         * at the end of the field: completing one in the middle would take the text after it away.
+         */
+        private fun completionFor(
+            bypass: FilterBypass,
+            offset: Int,
+            length: Int,
+            text: String?,
+        ): String? {
+            if (text == null || offset + length != bypass.document.length) return null
+            val prefix = bypass.document.getText(0, offset) + text
+            return (spinner.model as ListSpinnerModel<*>).findNextMatch(prefix)?.toString()
+        }
+    }
 }
 
 /**
@@ -481,4 +598,9 @@ private class SpinnerComponent(
     model: SpinnerModel,
 ) : JSpinner(model) {
     fun defaultEditor(): JComponent = createEditor(this.model)
+
+    // JSpinner falls back to a read-only field for a model it does not recognize, which a
+    // ListSpinnerModel is: it stands in for javax.swing.SpinnerListModel without being one.
+    override fun createEditor(model: SpinnerModel): JComponent =
+        if (model is ListSpinnerModel<*>) ItemsEditor(this) else super.createEditor(model)
 }

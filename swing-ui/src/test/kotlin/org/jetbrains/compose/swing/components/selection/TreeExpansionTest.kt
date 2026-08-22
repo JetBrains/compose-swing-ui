@@ -302,8 +302,39 @@ class TreeExpansionTest {
         assertFalse(tree.isExpanded(tree.pathTo(0, 0)), "its dropped child collapses too")
     }
 
+    /**
+     * A tree remembers a node it was showing open under one it is asked to close, and brings it back open
+     * with the ancestor that was hiding it. Only what the tree shows open once the declaration's own
+     * expansions have run says which nodes the declaration leaves out.
+     */
     @Test
-    fun aDeclaredSelectionOutlastsTheExpansionAppliedWithIt() = runComposeSwingTest {
+    fun aDescendantTheTreeRemembersOpenIsClosedWhenTheDeclarationReopensItsAncestor() = runComposeSwingTest {
+        var expansion by mutableStateOf<Set<List<Int>>?>(null)
+        setContent {
+            Tree(root = deep, children = { it.children }, label = { it.name }, expandedPaths = expansion)
+        }
+
+        val tree = onNodeOfType<JTree>().fetch()
+        tree.expandPath(tree.pathTo(0))
+        tree.expandPath(tree.pathTo(0, 0))
+        tree.collapsePath(tree.pathTo(0))
+        awaitIdle()
+        assertEquals(listOf("root", "a"), tree.rowLabels(), "an undeclared collapse is the user's and stands")
+
+        expansion = setOf(emptyList(), listOf(0))
+        awaitIdle()
+
+        assertEquals(
+            listOf("root", "a", "b"),
+            tree.rowLabels(),
+            "the node the declaration leaves out is closed even where reopening its ancestor brought it back",
+        )
+        assertFalse(tree.isExpanded(tree.pathTo(0, 0)), "so its own child has no row")
+    }
+
+    @Test
+    fun aDeclaredCollapseTakesOverTheSelectionItHides() = runComposeSwingTest {
+        val received = mutableListOf<Set<List<Int>>>()
         setContent {
             Tree(
                 root = sample,
@@ -311,6 +342,208 @@ class TreeExpansionTest {
                 label = { it.name },
                 // The declared expansion leaves the subtree holding the declared selection closed.
                 expandedPaths = setOf(emptyList()),
+                selectedPaths = setOf(listOf(0, 0)),
+                onSelectionChange = { received += it },
+            )
+        }
+
+        val tree = onNodeOfType<JTree>().fetch()
+        assertFalse(tree.isExpanded(tree.pathTo(0)), "the node the declaration closes stays closed")
+        assertEquals(
+            listOf(tree.pathTo(0)),
+            tree.selectionPaths?.toList(),
+            "the closed node holds the selection its hidden descendant cannot",
+        )
+        assertEquals(listOf(setOf(listOf(0))), received, "and the selection it took over is reported once")
+    }
+
+    @Test
+    fun aDeclaredCollapseReportsTheSelectionTheUserLosesToIt() = runComposeSwingTest {
+        var expansion by mutableStateOf(setOf(emptyList(), listOf(0)))
+        val received = mutableListOf<Set<List<Int>>>()
+        setContent {
+            Tree(
+                root = sample,
+                children = { it.children },
+                label = { it.name },
+                expandedPaths = expansion,
+                onSelectionChange = { received += it },
+            )
+        }
+
+        val tree = onNodeOfType<JTree>().fetch()
+        tree.selectionPath = tree.pathTo(0, 0)
+        received.clear()
+
+        expansion = setOf(emptyList())
+        awaitIdle()
+
+        assertEquals(
+            listOf(tree.pathTo(0)),
+            tree.selectionPaths?.toList(),
+            "the closed node holds the selection its hidden descendant cannot",
+        )
+        assertEquals(listOf(setOf(listOf(0))), received, "the selection the user loses to the collapse is reported")
+    }
+
+    @Test
+    fun aSecondCollapseUnderTheSameSelectionIsReportedToo() = runComposeSwingTest {
+        var expansion by mutableStateOf(setOf(emptyList(), listOf(0), listOf(1)))
+        val received = mutableListOf<Set<List<Int>>>()
+        setContent {
+            Tree(
+                root = sample,
+                children = { it.children },
+                label = { it.name },
+                expandedPaths = expansion,
+                selectedPaths = setOf(listOf(0, 0), listOf(1, 0)),
+                onSelectionChange = { received += it },
+            )
+        }
+
+        val tree = onNodeOfType<JTree>().fetch()
+        assertEquals(
+            listOf(tree.pathTo(0, 0), tree.pathTo(1, 0)),
+            tree.selectionPaths?.toList(),
+            "both declared nodes start selected, each under an open parent",
+        )
+        assertEquals(emptyList(), received, "a selection the tree can hold whole reports nothing")
+
+        expansion = setOf(emptyList(), listOf(1))
+        awaitIdle()
+
+        assertEquals(
+            listOf(setOf(listOf(0), listOf(1, 0))),
+            received,
+            "the selection the first collapse takes over is reported",
+        )
+
+        // The selection declaration has not moved: what the second collapse takes over is a further loss
+        // all the same.
+        expansion = setOf(emptyList())
+        awaitIdle()
+
+        assertEquals(
+            listOf(tree.pathTo(0), tree.pathTo(1)),
+            tree.selectionPaths?.toList(),
+            "each closed node holds the selection its hidden descendant cannot",
+        )
+        assertEquals(
+            listOf(setOf(listOf(0), listOf(1, 0)), setOf(listOf(0), listOf(1))),
+            received,
+            "and the selection the second collapse takes over is reported as well",
+        )
+    }
+
+    /**
+     * What a collapse has already been reported to have taken over is measured against the declaration it
+     * was hidden out of. A later declaration is a selection of its own, so the nodes standing in for it are
+     * reported again even where the collapse that hides them has not moved.
+     */
+    @Test
+    fun aChangedSelectionUnderTheSameStandingCollapseIsReportedTakenOverAgain() = runComposeSwingTest {
+        var selection by mutableStateOf(setOf(listOf(0, 0), listOf(1, 0)))
+        val received = mutableListOf<Set<List<Int>>>()
+        setContent {
+            Tree(
+                root = sample,
+                children = { it.children },
+                label = { it.name },
+                // Only the root is open, so each selected node is stood in for by the closed node above it.
+                expandedPaths = setOf(emptyList()),
+                selectedPaths = selection,
+                onSelectionChange = { received += it },
+            )
+        }
+
+        val tree = onNodeOfType<JTree>().fetch()
+        assertEquals(
+            setOf(tree.pathTo(0), tree.pathTo(1)),
+            tree.selectionPaths?.toSet(),
+            "each closed node holds the selection its hidden descendant cannot",
+        )
+
+        selection = setOf(listOf(0, 0))
+        awaitIdle()
+
+        assertEquals(
+            listOf(tree.pathTo(0)),
+            tree.selectionPaths?.toList(),
+            "the node the narrowed declaration leaves out drops off the selection",
+        )
+        assertEquals(
+            listOf(setOf(listOf(0), listOf(1)), setOf(listOf(0))),
+            received,
+            "a declaration the standing collapse takes over is reported however much of it was reported before",
+        )
+    }
+
+    @Test
+    fun aRawListenerHearsTheCollapseTakeOverAsNodesLeavingTheSelection() = runComposeSwingTest {
+        val removed = mutableListOf<List<String>>()
+        val listener =
+            TreeSelectionListener { event ->
+                removed +=
+                    event.paths.filterIndexed { at, _ -> !event.isAddedPath(at) }.map {
+                        it.lastPathComponent.toString()
+                    }
+            }
+        setContent {
+            Tree(
+                root = sample,
+                children = { it.children },
+                label = { it.name },
+                treeSelectionListener = listener,
+                expandedPaths = setOf(emptyList()),
+                selectedPaths = setOf(listOf(0, 0)),
+            )
+        }
+
+        assertEquals(
+            listOf(listOf("apple")),
+            removed,
+            "the node the collapse hid is named to the raw listener as one that left the selection",
+        )
+    }
+
+    @Test
+    fun aSelectionDeclaredUnderAStandingCollapseIsReportedTakenOver() = runComposeSwingTest {
+        var selection by mutableStateOf(setOf(listOf(0)))
+        val received = mutableListOf<Set<List<Int>>>()
+        setContent {
+            Tree(
+                root = sample,
+                children = { it.children },
+                label = { it.name },
+                expandedPaths = setOf(emptyList()),
+                selectedPaths = selection,
+                onSelectionChange = { received += it },
+            )
+        }
+
+        val tree = onNodeOfType<JTree>().fetch()
+        assertEquals(listOf(tree.pathTo(0)), tree.selectionPaths?.toList(), "the visible node is selected")
+        assertEquals(emptyList(), received, "a selection the tree can hold whole reports nothing")
+
+        // The node stays closed, so the descendant now declared cannot be shown selected either.
+        selection = setOf(listOf(0, 1))
+        awaitIdle()
+
+        assertEquals(
+            listOf(tree.pathTo(0)),
+            tree.selectionPaths?.toList(),
+            "the closed node goes on holding the selection",
+        )
+        assertEquals(listOf(setOf(listOf(0))), received, "and the declaration it cannot hold is reported once")
+    }
+
+    @Test
+    fun aDeclaredSelectionOpensItsAncestorsWhereNoExpansionIsDeclared() = runComposeSwingTest {
+        setContent {
+            Tree(
+                root = sample,
+                children = { it.children },
+                label = { it.name },
                 selectedPaths = setOf(listOf(0, 0)),
             )
         }

@@ -39,6 +39,13 @@ import javax.swing.JList
  * }
  * ```
  *
+ * [itemCount] and [shownSelectedIndices] answer for the list instead of for what this state holds. Each
+ * reads the bound list where it is called, so what it reports is what the list stands on - which is not
+ * always what was declared, since a selection mode narrower than the declaration keeps only part of it
+ * and an index the items do not reach has no row to be selected at. They are not snapshot state, so
+ * reading one subscribes to nothing; a composable that has to follow the user reads [selectedIndices].
+ * An unbound state has no list to answer for and reports no items and nothing selected.
+ *
  * A state drives at most one list: passing it to a second one moves it there and leaves the first
  * unbound.
  *
@@ -62,6 +69,24 @@ public class ListState
         // The list this state drives, or null when unbound. Only the binding modifier node writes it,
         // whose lifecycle owns the relationship.
         private var target: JList<*>? = null
+
+        /**
+         * How many items the list shows. `0` while no list is bound.
+         *
+         * Named for the items rather than for rows, because `JList.getVisibleRowCount` already names
+         * something else: how many rows the list asks to be tall enough to show, not how many it holds.
+         *
+         * @see javax.swing.ListModel.getSize
+         */
+        public val itemCount: Int get() = target?.model?.size ?: 0
+
+        /**
+         * The rows the list has selected, as indices into its items. Empty while no list is bound.
+         *
+         * @see javax.swing.JList.getSelectedIndices
+         */
+        public val shownSelectedIndices: Set<Int>
+            get() = target?.selectedIndices?.toSet().orEmpty()
 
         /**
          * Brings the row at [index] into view and returns whether it was reached.

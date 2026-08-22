@@ -242,11 +242,29 @@ class SpinnerBehaviorTest {
         }
         awaitIdle()
 
-        val model = onNodeOfType<JSpinner>().fetch().model
+        val spinner = onNodeOfType<JSpinner>().fetch()
+        val model = spinner.model
         assertEquals(null, model.value, "a spinner over no items holds no value")
         assertEquals(null, model.nextValue, "a spinner over no items has nothing to step up to")
         assertEquals(null, model.previousValue, "a spinner over no items has nothing to step down to")
         assertEquals(0, changes, "an empty spinner holds no selection, so there is nothing to report")
+
+        val field = (spinner.editor as JSpinner.DefaultEditor).textField
+        assertEquals("", field.text, "a spinner over no items shows nothing, not the word null")
+    }
+
+    @Test
+    fun aValueTheItemsDoNotHoldWrittenOntoTheWidgetIsRefused() = runComposeSwingTest {
+        val changes = mutableListOf<String>()
+        setContent { Spinner(items = listOf("Ada", "Alan"), value = "Ada", onValueChange = { changes += it }) }
+        awaitIdle()
+
+        val spinner = onNodeOfType<JSpinner>().fetch()
+        assertFailsWith<IllegalArgumentException> { spinner.value = "Nope" }
+        awaitIdle()
+
+        assertEquals("Ada", spinner.value, "a refused write leaves the spinner on the item it was showing")
+        assertEquals(emptyList(), changes, "a refused write reports nothing")
     }
 
     @Test

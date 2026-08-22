@@ -71,6 +71,11 @@ internal fun <S> AppliedValue<Set<S>?>.writeNarrowing(
  * what the loss is measured against: nothing between them touches the widget, so a second read would
  * walk the same selection to the same answer. This runs on every pass a filter is reconciled over, and a
  * selection read is a walk of every selected row.
+ *
+ * The whole of it is one settlement of the mirror, so the selection the widget is left on invalidates
+ * nothing: this pass chose that selection, put it back and read it, and there is no more for a pass of
+ * its own to do about it. Left as a move, it would invalidate whoever read the mirror to build this
+ * install and have the same content installed a second time to reach the same widget.
  */
 internal fun <S> AppliedValue<Set<S>?>.installNarrowing(
     declared: Set<S>?,
@@ -79,15 +84,17 @@ internal fun <S> AppliedValue<Set<S>?>.installNarrowing(
     report: (Set<S>) -> Unit,
     install: () -> Unit,
 ) {
-    val retained = declared ?: selection()
-    write {
-        install()
-        apply(retained)
-    }
-    val settled = selection()
-    observed(settled)
-    if (declared != null) return
-    val lost = retained - settled
+    val lost =
+        settle {
+            val retained = declared ?: selection()
+            write {
+                install()
+                apply(retained)
+            }
+            val settled = selection()
+            answered(settled)
+            if (declared == null) retained - settled else emptySet()
+        }
     if (lost.isNotEmpty()) dispatchToCaller { report(lost) }
 }
 

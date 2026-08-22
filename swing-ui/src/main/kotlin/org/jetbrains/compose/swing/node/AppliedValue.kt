@@ -162,6 +162,99 @@ public class AppliedValue<V>
         }
 
         /**
+         * Records [value] as what a settlement of this mirror's own left the widget holding, and as the
+         * value the standing declaration has now been answered for.
+         *
+         * [settle] does this for the declaration it writes. A caller that reaches its widget some other
+         * way - applying two declarations the widget resolves together, or a write the widget answers by
+         * dropping part of what it held - records the answer here instead. Recording both is what makes
+         * the next pass quiet: [redeclare] compares the declaration and the mirrored value against this
+         * pair, so a pass in which neither moved has nothing to settle, while a move the user makes
+         * afterwards is measured against what the widget was actually left on.
+         */
+        internal fun answered(value: V) {
+            observedValue = value
+            declaredAgainst = value
+        }
+
+        /**
+         * Runs [block] as a settlement of this mirror's own: the value the widget is left holding when it
+         * returns is one this pass asked for and read back itself, so it is recorded as an answer rather
+         * than as news.
+         *
+         * The overload above settles a declaration by writing it. A write the widget answers by dropping
+         * part of what it held settles through this instead, wrapped around both the write and the read
+         * that records what survived it. [block] must close the settlement, and throws where it does not -
+         * see [SettlementScope] for the two ways to close one.
+         */
+        public fun <R> settle(block: SettlementScope<V>.() -> R): R {
+            val scope = RecordingScope(this)
+            return settling {
+                try {
+                    val outcome = scope.block()
+                    check(scope.closed) {
+                        "A settlement recorded nothing. Close it with answered() for a value read back, " +
+                            "or unchanged() where the write left this property alone."
+                    }
+                    outcome
+                } finally {
+                    scope.spend()
+                }
+            }
+        }
+
+        /**
+         * What a settlement says the widget was left holding. See [settle].
+         *
+         * A settlement is closed exactly one of two ways. [answered] records a value this pass read back,
+         * which is what a widget that resolved the write its own way has to be measured against
+         * afterwards. [unchanged] says the write left this mirror's property alone, so there is nothing to
+         * read back and nothing to record - the mirror already holds what the widget holds. Saying neither
+         * is a defect rather than a third case: it leaves the widget standing where the write left it with
+         * no later pass due to correct it.
+         */
+        public sealed interface SettlementScope<in V> {
+            /** Records [value] - what this settlement read the widget back as - as the answer to what it wrote. */
+            public fun answered(value: V)
+
+            /**
+             * Closes the settlement without recording, for a write that left this mirror's property alone.
+             *
+             * This is not [answered] with the value the mirror already holds: reading the widget back to
+             * pass one is the work a settlement that changed nothing exists to avoid.
+             */
+            public fun unchanged()
+        }
+
+        /**
+         * The [SettlementScope] one settlement runs against, which remembers whether it was closed so
+         * [settle] can refuse a settlement that recorded nothing.
+         */
+        private class RecordingScope<V>(
+            private val mirror: AppliedValue<V>,
+        ) : SettlementScope<V> {
+            var closed: Boolean = false
+                private set
+            private var spent: Boolean = false
+
+            /** Ends this scope's life with the settlement it was made for, so what escapes the block is inert. */
+            fun spend() {
+                spent = true
+            }
+
+            override fun answered(value: V) {
+                check(!spent) { "A settlement was closed after it returned. Record inside the settle block." }
+                mirror.answered(value)
+                closed = true
+            }
+
+            override fun unchanged() {
+                check(!spent) { "A settlement was closed after it returned. Record inside the settle block." }
+                closed = true
+            }
+        }
+
+        /**
          * Runs [block] as this mirror's own settling, marking the moves it makes as ones it answered.
          *
          * This is the whole of the settlement path: every write to a widget property the user can also
@@ -233,9 +326,10 @@ public fun <C : Component, V> SwingNodeUpdater<C>.declare(
     // The declaration and the value the widget holds move independently, and one settle answers for both.
     // The mirror keeps the pair it was last settled on and compares this pass's against it in place, so a
     // pass with nothing to settle builds no block to run and no key to compare through.
-    val settlement: Settlement<C>? =
-        if (applied.redeclare(value)) {
-            Settlement { component ->
+    settleWhenDue(
+        applied.redeclare(value),
+        {
+            Settlement<C> { component ->
                 applied.settle(
                     value,
                     { component.read() },
@@ -243,27 +337,33 @@ public fun <C : Component, V> SwingNodeUpdater<C>.declare(
                     { on -> component.onSettled(on) },
                 )
             }
-        } else {
-            null
-        }
-    // The slot is taken on every pass, and a fresh settlement is never what the slot already holds, so a
-    // settle that is due always runs. The comparison can only ever hold back the null that follows a
-    // settlement, which is why the block carries the settlement rather than the declaration: the one pass
-    // it holds back has nothing to do. The block captures nothing, so it is one shared instance rather
-    // than a per-pass allocation.
-    //
-    // On the first quiet pass after a settle the slot goes from a settlement to null, which the comparison
-    // does not hold back: one operation is scheduled that the null guard turns into nothing.
-    updater.set(settlement) { it?.applyTo(component) }
+        },
+    ) { settlement -> settlement.applyTo(this) }
 }
 
-/** Stands for a mirror no declaration has reached yet, so the first one it is given always settles. */
-private val Undeclared = Any()
-
 /**
- * One widget settle, carried in a composition slot until the composition applies its changes. It has no
- * value identity: two settlements are the same only when they are the same object.
+ * Carries the settlement [token] builds when [due], and runs [settle] against the component with it once
+ * the composition applies its changes. Nothing runs on a pass where nothing is due.
+ *
+ * This is how a declaration whose settling depends on more than its own value reaches its widget: what such
+ * a pass is compared against lives on the mirrors it settles rather than in the composition, so the slot
+ * carries a token standing for a due settlement instead of the declaration behind it. A fresh token is
+ * never what the slot already holds, so a settle that is due always runs; the one comparison the slot can
+ * hold back is the null that follows a settlement, and that pass has nothing to do.
+ *
+ * The slot is taken whether or not anything is due, so a call inside a conditional shifts every later slot
+ * of the same `update` block. State the condition in [due], not in whether the call happens.
  */
+internal inline fun <C : Component, D : Any> SwingNodeUpdater<C>.settleWhenDue(
+    due: Boolean,
+    token: () -> D,
+    crossinline settle: C.(D) -> Unit,
+): Unit = set(if (due) token() else null) { pending -> if (pending != null) settle(pending) }
+
+/** Stands for a value no declaration has reached yet, so the first one made always settles. */
+internal val Undeclared: Any = Any()
+
+/** One widget settle: the accessors to settle a declaration through, bound to the value it declares. */
 internal fun interface Settlement<in C : Component> {
     fun applyTo(component: C)
 }

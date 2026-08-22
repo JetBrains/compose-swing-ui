@@ -8,7 +8,9 @@ import org.jetbrains.compose.swing.modifier.appearance.toolTip
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JTable
+import javax.swing.table.DefaultTableColumnModel
 import javax.swing.table.DefaultTableModel
+import javax.swing.table.TableColumn
 import javax.swing.table.TableColumnModel
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -25,6 +27,10 @@ import kotlin.test.assertTrue
  * every pass, so it survives that rebuild and no callback carries it back; what the caller does not declare
  * belongs to the user, is carried across the rebuild all the same, and is reported where the new columns
  * cannot hold all of it.
+ *
+ * A user's own reorder or resize reaches the caller either way, and where a layout is declared it also
+ * provokes the pass that puts the declaration back - so a move the caller does not adopt is reported once
+ * and does not stand.
  *
  * Headless caveat: no native peer realizes, so a header drag is driven where the look and feel drives it -
  * a reorder through the column model's `moveColumn`, a resize through the header's resizing column and the
@@ -245,20 +251,64 @@ class TableColumnLayoutTest {
         val table = onNodeOfType<JTable>().fetch()
         val declaredWidths = table.columnModel.preferredWidths()
         table.dragColumnDivider(position = 0, width = 200)
+        // A report carries the layout it found the columns in, and the pass below puts the declared widths
+        // back, so what the drag left behind is read here, while it still stands.
+        val draggedWidths = table.columnModel.preferredWidths()
         awaitIdle()
 
-        val draggedWidths = table.columnModel.preferredWidths()
-        assertTrue(draggedWidths != declaredWidths, "the drag should reach the columns")
         assertTrue(
             received.isNotEmpty(),
             "a resize is the user's own gesture and reaches the caller whether or not a layout is declared",
         )
+        assertTrue(draggedWidths != declaredWidths, "the drag should reach the columns")
         assertEquals(
             draggedWidths,
             received.last().preferredWidths,
             "the widths the drag left the columns at should be reported",
         )
         assertEquals(listOf(0, 1), received.last().modelIndices, "a resize should leave the order alone")
+        assertEquals(
+            declaredWidths,
+            table.columnModel.preferredWidths(),
+            "a resize the caller does not adopt does not stand against a declared layout",
+        )
+    }
+
+    /**
+     * A table driven by a caller's own model has nothing that re-applies the layout for its own reasons, so
+     * this is where a declaration standing against a user who keeps moving away from it is decided.
+     */
+    @Test
+    fun aResizeTheCallerNeverAdoptsIsAnsweredEveryTimeItIsMade() = runComposeSwingTest {
+        val received = mutableListOf<TableColumnLayout>()
+        setContent {
+            Table(
+                model = tableModel("Name", "Age", "City"),
+                columnLayout = TableColumnLayout(modelIndices = listOf(0, 1, 2), preferredWidths = listOf(80, 90, 100)),
+                onColumnLayoutChange = { received += it },
+            )
+        }
+
+        val table = onNodeOfType<JTable>().fetch()
+        val declaredWidths = table.columnModel.preferredWidths()
+
+        table.dragColumnDivider(position = 0, width = 200)
+        awaitIdle()
+        assertTrue(received.isNotEmpty(), "the first resize should reach the caller")
+        assertEquals(declaredWidths, table.columnModel.preferredWidths(), "the declared widths should be back")
+        received.clear()
+
+        table.dragColumnDivider(position = 0, width = 200)
+        awaitIdle()
+        assertTrue(
+            received.isNotEmpty(),
+            "a resize the caller does not adopt reaches them however often it is made",
+        )
+        assertEquals(
+            declaredWidths,
+            table.columnModel.preferredWidths(),
+            "the declared widths should be back again, not left where the second resize put them",
+        )
     }
 
     @Test
@@ -516,20 +566,25 @@ class TableColumnLayoutTest {
 
         val table = onNodeOfType<JTable>().fetch()
         table.dragColumnDivider(position = 0, width = 200)
+        val draggedWidths = table.columnModel.preferredWidths()
         awaitIdle()
 
-        val draggedWidths = table.columnModel.preferredWidths()
-        assertTrue(draggedWidths != listOf(80, 90, 100), "the drag should reach the columns")
         assertTrue(
             received.isNotEmpty(),
             "a resize is the user's own gesture and reaches the caller whether or not a layout is declared",
         )
+        assertTrue(draggedWidths != listOf(80, 90, 100), "the drag should reach the columns")
         assertEquals(
             draggedWidths,
             received.last().preferredWidths,
             "the widths the drag left the columns at should be reported",
         )
         assertEquals(listOf(0, 1, 2), received.last().modelIndices, "a resize should leave the order alone")
+        assertEquals(
+            listOf(80, 90, 100),
+            table.columnModel.preferredWidths(),
+            "a resize the caller does not adopt does not stand against a declared layout",
+        )
     }
 
     @Test
@@ -552,18 +607,63 @@ class TableColumnLayoutTest {
         table.dragColumnDivider(position = 0, width = 200)
         awaitIdle()
         assertTrue(received.isNotEmpty(), "the resize the caller does not adopt should be reported")
-        val draggedWidths = table.widths()
+        // The drag moved every column's width and the pass put every one of them back, so the pass this
+        // asserts nothing was reported for did publish events.
+        assertEquals(listOf(80, 90, 100), table.columnModel.preferredWidths(), "the declared widths should be back")
+        assertTrue(
+            received.none { it.preferredWidths == listOf(80, 90, 100) },
+            "putting a declared layout back is the library's own write, not news",
+        )
         received.clear()
 
         tip = "Who is who"
         awaitIdle()
 
         assertEquals("Who is who", table.toolTipText, "the recomposition should have reached the table")
-        assertEquals(listOf(80, 90, 100), table.columnModel.preferredWidths(), "the declared widths should be back")
-        // A width the table settles on is published as a column event of its own, and the re-assert moves
-        // every one of them, so the pass this asserts nothing was reported for did publish events.
-        assertTrue(draggedWidths != table.widths(), "the re-assert should have moved the columns' widths")
-        assertEquals(emptyList(), received, "re-asserting a declared layout is the library's own write, not news")
+        assertEquals(
+            listOf(80, 90, 100),
+            table.columnModel.preferredWidths(),
+            "the declared widths should still stand",
+        )
+        assertEquals(emptyList(), received, "a pass that moves no column reports nothing")
+    }
+
+    /**
+     * A table publishes its columns through a column model the caller can replace whole. The columns that
+     * arrive are the caller's own doing and carry a layout of their own, so nothing is reported - and the
+     * declaration has to reach them, since no later pass would otherwise find anything to put back.
+     */
+    @Test
+    fun aDeclaredLayoutReachesTheColumnsAColumnModelSwapBringsIn() = runComposeSwingTest {
+        val received = mutableListOf<TableColumnLayout>()
+        setContent {
+            Table(
+                model = tableModel("Name", "Age"),
+                columnLayout = TableColumnLayout(modelIndices = listOf(1, 0), preferredWidths = listOf(80, 90)),
+                onColumnLayoutChange = { received += it },
+            )
+        }
+
+        val table = onNodeOfType<JTable>().fetch()
+        received.clear()
+        table.columnModel =
+            DefaultTableColumnModel().apply {
+                addColumn(TableColumn(0))
+                addColumn(TableColumn(1))
+            }
+        awaitIdle()
+
+        assertEquals(
+            listOf(1, 0),
+            table.columnModel.modelIndices(),
+            "the declared order reaches the columns the swap brought in",
+        )
+        assertEquals(
+            listOf(80, 90),
+            table.columnModel.preferredWidths(),
+            "and so do the declared widths",
+        )
+        assertEquals(emptyList(), received, "a column model the caller installs is their own doing and reports nothing")
     }
 
     @Test

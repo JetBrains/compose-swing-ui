@@ -59,8 +59,6 @@ class SelectionDeclarationTest {
     private fun tableModel(vararg names: String): DefaultTableModel =
         DefaultTableModel(arrayOf<Any>("Name"), 0).apply { for (name in names) addRow(arrayOf<Any>(name)) }
 
-    private fun JTree.selectedLabels(): List<String> = selectionPaths.orEmpty().map { it.lastPathComponent.toString() }
-
     private fun treeModel(rootLabel: String): DefaultTreeModel {
         val root = DefaultMutableTreeNode(rootLabel)
         for (leaf in listOf("apple", "pear")) root.add(DefaultMutableTreeNode(leaf))

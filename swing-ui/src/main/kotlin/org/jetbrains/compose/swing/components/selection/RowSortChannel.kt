@@ -6,6 +6,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.compose.swing.node.AppliedValue
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
+import org.jetbrains.compose.swing.node.settleWhenDue
 import javax.swing.JTable
 import javax.swing.RowFilter
 import javax.swing.RowSorter.SortKey
@@ -33,6 +34,20 @@ internal class RowSortChannel(
     private val target: State<RowSorterListener?>,
 ) {
     private var sorter: TableRowSorter<TableModel>? = null
+
+    /** The filter this channel was last declared with, which every sorter it builds starts out on. */
+    private var declaredFilter: RowFilter<in TableModel, in Int>? = null
+
+    /**
+     * Whether [filter] differs from the one this channel was last declared with, recording it either way.
+     * The record answers for whatever sorter is in place, since a sorter this channel builds starts out on
+     * it.
+     */
+    fun redeclareRowFilter(filter: RowFilter<in TableModel, in Int>?): Boolean {
+        if (filter == declaredFilter) return false
+        declaredFilter = filter
+        return true
+    }
 
     /** Reports the user's own sort-order changes. Installed on every sorter this channel builds. */
     private val listener =
@@ -124,6 +139,11 @@ internal class RowSortChannel(
         if (held != null && held === table.rowSorter && held.model === table.model) return
         detach(table)
         val fresh = TableRowSorter(table.model)
+        // A filter stands only as long as the sorter carrying it, so a sorter built here starts out on the
+        // declared one: an unchanged declaration is never written again, and would otherwise be left behind
+        // with the sorter that came off. Filtering it before the table takes it is what spares the table
+        // the rows this filter rejects.
+        declaredFilter?.let { fresh.rowFilter = it }
         sorter = fresh
         fresh.addRowSorterListener(listener)
         table.rowSorter = fresh
@@ -153,13 +173,23 @@ internal fun SwingNodeUpdater<JTable>.declareRowFilter(
     target: ListSelectionListener,
 ) {
     // The filter, the declared selection put back around it, and the selection the table itself holds move
-    // independently, and one install answers for all three: they are one key. A filter the sorter already
-    // has is not written again, so a pass that only the selection moved puts the selection back and does
-    // nothing else.
-    set(Triple(rowFilter, declared, applied.value)) {
-        installContent(applied, declared, target) { sortChannel.applyRowFilter(rowFilter) }
+    // independently, and one install answers for all three. The filter is compared by value; the selection
+    // is compared in place on its mirror, which holds the pairing the last install left the table on rather
+    // than the one this pass happened to read - so a move the user repeats is answered every time they make
+    // it. Both are redeclared whatever either answers, so each records the pairing this pass makes. A filter
+    // the sorter already has is not written again, so an install the selection alone asked for puts the
+    // selection back and does nothing else.
+    val selectionMoved = applied.redeclare(declared)
+    val filterMoved = sortChannel.redeclareRowFilter(rowFilter)
+    settleWhenDue(selectionMoved || filterMoved, { RowFilterInstall(rowFilter) }) { due ->
+        installContent(applied, declared, target) { sortChannel.applyRowFilter(due.filter) }
     }
 }
+
+/** One due install of a row filter: the filter to leave the sorter on. */
+private class RowFilterInstall(
+    val filter: RowFilter<in TableModel, in Int>?,
+)
 
 /** A [RowSortChannel] that keeps reporting to the latest [listener] without being rebuilt. */
 @Composable

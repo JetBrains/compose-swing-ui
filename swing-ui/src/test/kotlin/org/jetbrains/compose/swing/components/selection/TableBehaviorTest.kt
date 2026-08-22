@@ -72,8 +72,15 @@ class TableBehaviorTest {
         assertEquals(setOf(0, 2), received.last(), "selected row indices reported to callback")
     }
 
+    /**
+     * The table is settled back onto the declared selection by the time the move's own recomposition
+     * finishes, not once some later, unrelated recomposition happens to run. A declaration is the
+     * composition's state and is asserted again for every move made against it, so a user who makes the
+     * same move twice is answered twice: what the table was left holding after the first is not a reason
+     * to leave the second alone.
+     */
     @Test
-    fun aSelectionTheCallerDoesNotAdoptDoesNotStand() = runComposeSwingTest {
+    fun aSelectionTheCallerDoesNotAdoptDoesNotStandWhenItIsMadeAgain() = runComposeSwingTest {
         setContent {
             Table(
                 rows = listOf(Person("Ada", 36), Person("Alan", 41)),
@@ -84,12 +91,16 @@ class TableBehaviorTest {
         }
 
         val table = onNodeOfType<JTable>().fetch()
-        table.setRowSelectionInterval(1, 1)
-        awaitIdle()
+        repeat(2) {
+            table.setRowSelectionInterval(1, 1)
+            awaitIdle()
+        }
 
-        // The table is already settled back onto the declared selection by the time the move's own
-        // recomposition finishes - not just once some later, unrelated recomposition happens to run.
-        assertEquals(listOf(0), table.selectedRows.toList(), "an unadopted selection change does not stand")
+        assertEquals(
+            listOf(0),
+            table.selectedRows.toList(),
+            "an unadopted selection change does not stand, however often it is made",
+        )
     }
 
     @Test
@@ -196,6 +207,106 @@ class TableBehaviorTest {
 
         assertEquals(1, table.model.rowCount, "model reflects replaced rows")
         assertEquals("Grace", table.model.getValueAt(0, 0), "the replaced row's cell should render")
+    }
+
+    @Test
+    fun aSelectionTheUserMadeStandsAcrossARowChange() = runComposeSwingTest {
+        // The selection the caller declared nothing about is the user's, and a pass that gives the table
+        // new rows keeps it: a change naming only the added rows leaves it where it is, and one spanning
+        // the table empties it and has it put back. The row it names is the one it named before, so the
+        // lead and the anchor stand as well.
+        val rows = mutableStateListOf(Person("Ada", 36), Person("Alan", 41))
+        setContent {
+            Table(rows = rows) {
+                column("Name") { it.name }
+            }
+        }
+
+        val table = onNodeOfType<JTable>().fetch()
+        table.setRowSelectionInterval(0, 0)
+        awaitIdle()
+
+        rows.add(Person("Grace", 45))
+        awaitIdle()
+
+        assertEquals(3, table.model.rowCount, "the pass this asserts about has to have run")
+        assertEquals(listOf(0), table.selectedRows.toList(), "the row the user selected should stay selected")
+        assertEquals(0, table.selectionModel.leadSelectionIndex, "the selected row should stay the lead")
+        assertEquals(0, table.selectionModel.anchorSelectionIndex, "the selected row should stay the anchor")
+    }
+
+    @Test
+    fun aSelectionTheUserMadeStandsWhenARowIsInsertedAboveIt() = runComposeSwingTest {
+        val rows = mutableStateListOf(Person("Ada", 36), Person("Alan", 41), Person("Grace", 45))
+        setContent {
+            Table(rows = rows) {
+                column("Name") { it.name }
+            }
+        }
+
+        val table = onNodeOfType<JTable>().fetch()
+        table.setRowSelectionInterval(2, 2)
+        awaitIdle()
+
+        rows.add(0, Person("Edsger", 51))
+        awaitIdle()
+
+        assertEquals(4, table.model.rowCount, "the pass this asserts about has to have run")
+        assertEquals(
+            listOf(3),
+            table.selectedRows.toList(),
+            "the row the user selected should shift down and stay selected",
+        )
+    }
+
+    @Test
+    fun aSelectionTheUserMadeStandsWhenARowAboveItIsRemoved() = runComposeSwingTest {
+        val rows = mutableStateListOf(Person("Ada", 36), Person("Alan", 41), Person("Grace", 45))
+        var lossReported = false
+        setContent {
+            Table(
+                rows = rows,
+                onSelectionChange = { if (it.isEmpty()) lossReported = true },
+            ) {
+                column("Name") { it.name }
+            }
+        }
+
+        val table = onNodeOfType<JTable>().fetch()
+        table.setRowSelectionInterval(2, 2)
+        awaitIdle()
+        lossReported = false
+
+        rows.removeAt(0)
+        awaitIdle()
+
+        assertEquals(2, table.model.rowCount, "the pass this asserts about has to have run")
+        assertEquals(
+            listOf(1),
+            table.selectedRows.toList(),
+            "the row the user selected should shift up and stay selected",
+        )
+        assertFalse(lossReported, "a row the table kept must not be reported as lost")
+    }
+
+    /**
+     * A declared run of rows leaves the table where the user's own drag over them would: the anchor at the
+     * start of the run and the lead at its end. A shift-click extends from the anchor, so where it sits is
+     * what the user gets next.
+     */
+    @Test
+    fun aDeclaredRunOfRowsLeavesTheAnchorAtItsStart() = runComposeSwingTest {
+        val rows = listOf(Person("Ada", 36), Person("Alan", 41), Person("Grace", 45), Person("Edsger", 51))
+        setContent {
+            Table(rows = rows, selectedRowIndices = setOf(1, 2, 3)) {
+                column("Name") { it.name }
+            }
+        }
+
+        val table = onNodeOfType<JTable>().fetch()
+        assertEquals(listOf(1, 2, 3), table.selectedRows.toList(), "the declared rows should be selected")
+        assertEquals(3, table.selectionModel.leadSelectionIndex, "the end of the run should be the lead")
+        assertEquals(1, table.selectionModel.anchorSelectionIndex, "the start of the run should be the anchor")
     }
 
     @Test

@@ -315,8 +315,17 @@ Three pieces work together:
   whatever the widget ends up holding. Unlike `set`, it also depends on the widget's mirrored value, so it
   runs again on the pass that follows a move away from the declaration - the pass that settles the two
   sides against each other.
+- `applied.settle { ... }` is for a write the widget does not simply accept. Installing a row filter makes
+  a table drop the selected rows it hides. Declaring a tree's open nodes and its selection separately
+  lets the tree resolve the pair its own way, since a node is only selectable while its ancestors are
+  open. In both, what the widget ends up holding is not what you wrote, and `declare` cannot see it: it
+  reads back only the one property it wrote. So wrap the write yourself and say what the widget was left
+  holding - `answered(value)` for a value you read back, or `unchanged()` where this property did not
+  move. Saying neither throws. Say nothing at all and the mirror goes on claiming the widget holds what
+  you asked for: the next pass finds no difference, nothing puts the declaration back, and the user's own
+  move of that property is never reported.
 
-The three belong to one node. Remember the `AppliedValue` in the component's own body, beside the
+The pieces belong to one node. Remember the `AppliedValue` in the component's own body, beside the
 `SwingNode` it settles, and call `declare` exactly once per pass: what a declaration is compared against
 lives on the mirror rather than in the composition, so a mirror shared between nodes, or remembered above
 the node it settles, goes on answering for a widget that is no longer there - and the widget built in its

@@ -36,9 +36,6 @@ class TreeNodeReuseTest {
         return DefaultTreeModel(root)
     }
 
-    /** The labels of the nodes the tree has selected. */
-    private fun JTree.selectedLabels(): List<String> = selectionPaths.orEmpty().map { it.lastPathComponent.toString() }
-
     /** Renders the node at [row] through the renderer this tree carries, as a `JTree` does when it paints it. */
     private fun JTree.stampRow(row: Int): Component {
         val node = getPathForRow(row).lastPathComponent

@@ -8,6 +8,7 @@ import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JTree
 import javax.swing.event.TreeExpansionEvent
+import javax.swing.event.TreeExpansionListener
 import javax.swing.event.TreeSelectionListener
 import javax.swing.event.TreeWillExpandListener
 import javax.swing.tree.DefaultMutableTreeNode
@@ -136,6 +137,57 @@ class TreeExpansionVetoTest {
             failures.any { "the will-expand callback fails" in it.message.orEmpty() },
             "the callback's failure should be contained and reported, but was: $failures",
         )
+    }
+
+    @Test
+    fun aRefusedCollapseLeavesTheNodeOpenAndTheTreeGoesOnAnsweringForIt() = runComposeSwingTest {
+        var refusing = true
+        var expansion by mutableStateOf(setOf(emptyList<Int>(), listOf(0)))
+        val collapsed = mutableListOf<TreeExpansionEvent>()
+        val refusal =
+            object : TreeWillExpandListener {
+                override fun treeWillExpand(event: TreeExpansionEvent): Unit = Unit
+
+                override fun treeWillCollapse(event: TreeExpansionEvent) {
+                    if (refusing) throw ExpandVetoException(event)
+                }
+            }
+        val reports =
+            object : TreeExpansionListener {
+                override fun treeExpanded(event: TreeExpansionEvent): Unit = Unit
+
+                override fun treeCollapsed(event: TreeExpansionEvent) {
+                    collapsed += event
+                }
+            }
+        setContent {
+            Tree(
+                root = sample,
+                children = { it.children },
+                label = { it.name },
+                treeSelectionListener = remember { TreeSelectionListener { } },
+                expandedPaths = expansion,
+                treeExpansionListener = reports,
+                treeWillExpandListener = refusal,
+            )
+        }
+
+        val tree = onNodeOfType<JTree>().fetch()
+        assertTrue(tree.isExpanded(tree.pathTo(0)), "the declared node opens")
+
+        expansion = setOf(emptyList())
+        awaitIdle()
+
+        assertTrue(tree.isExpanded(tree.pathTo(0)), "the node the listener refuses to close stays open")
+
+        // The tree, not the declaration, says what is open: the node the refusal kept open is still the
+        // user's to close, and closing it is news the listener has not been told yet.
+        refusing = false
+        tree.collapsePath(tree.pathTo(0))
+        awaitIdle()
+
+        assertFalse(tree.isExpanded(tree.pathTo(0)), "the collapse the listener allows goes through")
+        assertEquals(1, collapsed.size, "and it reaches the expansion listener as a change")
     }
 
     @Test

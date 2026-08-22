@@ -63,7 +63,8 @@ holder are described in [`ARCHITECTURE.md`](ARCHITECTURE.md#shapes-for-state-the
 onCheckedChange = ...)`, `TabbedPane(selectedIndex, onSelectedIndexChange = ...)`.
 
 **A hoisted state holder.** `DocumentState`, `FormattedValueState`, `WindowState`, `DialogState`,
-`InternalFrameState`, `ScrollState`, `ListState`, `TreeState`. See [Hoisted state](#hoisted-state).
+`InternalFrameState`, `ScrollState`, `ListState`, `TableState`, `TreeState`. See
+[Hoisted state](#hoisted-state).
 
 **A raw Swing model.** `ComboBox(model)`, `ListBox(model)`, `Table(model)`, `Tree(model)`,
 `Spinner(model, changeListener)`, `Slider(model)`, `ProgressBar(model)`. When you already have a
@@ -102,9 +103,9 @@ every pass: it survives new items, and a user change your callback does not adop
 the new items are too few to hold it, what falls outside them leaves and the callback reports what is
 left.
 
-A `ListBox` and a `Tree` also take a `ListState` or a `TreeState` in place of those parameters, which
-holds the same facets as two-way state and reveals a row besides; see
-[Lists and tables](#lists-and-tables).
+A `ListBox`, a `Table` and a `Tree` also take a `ListState`, a `TableState` or a `TreeState` in place
+of those parameters, which holds the same facets as two-way state, reveals a row and reads back what
+the widget shows besides; see [Lists and tables](#lists-and-tables).
 
 Either way the callback reports the user's changes only, once per settled change - dragging across
 rows produces one call at the end, and rendering fresh items produces none. A `ComboBox` is always
@@ -473,18 +474,18 @@ Tree(
 
 <!--- CLEAR -->
 
-A `ListState` holds what one `ListBox` has selected, and a `TreeState` what one `Tree` has selected and
-open. Each also carries the gesture that brings one row into view when the application decides to - a
-row just added, a search hit, a node a load has just filled in. Hoist one with `rememberListState()`
-or `rememberTreeState()` and pass it as `state`; a widget driven by a state takes no
-`selectedIndices`/`expandedPaths` and no `onSelectionChange`/`onExpansionChange`, since the state is
-where those facets live.
+A `ListState` holds what one `ListBox` has selected, a `TableState` what one `Table` has selected, and
+a `TreeState` what one `Tree` has selected and open. Each also carries the gesture that brings one row
+into view when the application decides to - a row just added, a search hit, a node a load has just
+filled in. Hoist one with `rememberListState()`, `rememberTableState()` or `rememberTreeState()` and
+pass it as `state`; a widget driven by a state takes no selection or expansion parameter and no
+`onSelectionChange`/`onExpansionChange`, since the state is where those facets live.
 
-`revealIndex(index)` reveals a `ListBox` row, and `revealPath(path)` a `Tree` node, opening every
-ancestor hiding it. Each call answers whether it reached anything. Revealing is a gesture and not a
-declaration: it scrolls where it is called and leaves nothing behind, so no later pass scrolls back and
-where the user scrolls afterwards stands. A state drives one component at a time - passing it to a
-second moves it there.
+`revealIndex(index)` reveals a `ListBox` row, `revealRow(rowIndex)` a `Table` row, and
+`revealPath(path)` a `Tree` node, opening every ancestor hiding it. Each call answers whether it
+reached anything. Revealing is a gesture and not a declaration: it scrolls where it is called and
+leaves nothing behind, so no later pass scrolls back and where the user scrolls afterwards stands. A
+state drives one component at a time - passing it to a second moves it there.
 
 A row is revealed once the list holds it, so reveal from an effect that runs after the composition
 declaring it, not from the callback that declared it.
@@ -500,6 +501,9 @@ ScrollPane {
 ```
 
 <!--- CLEAR -->
+
+Each state also reads back what its widget currently shows, rather than what the composition declared:
+see [`ListState`](#liststate), [`TableState`](#tablestate) and [`TreeState`](#treestate).
 
 To reveal a region of a scroll pane's content rather than a row of a widget, use
 [`ScrollState.revealRect`](#scrollstate).
@@ -1208,9 +1212,33 @@ search hit - and answers whether the list held one to reveal. Revealing is a ges
 declaration: it scrolls where it is called and leaves nothing behind, so no later pass scrolls back and
 where the user scrolls afterwards stands.
 
+`itemCount` and `shownSelectedIndices` answer for the list rather than for the declaration: how many
+items it shows, and which rows it has selected. The two differ where the list cannot stand on what was
+declared - a selection mode narrower than the declaration keeps only part of a selection, and an index
+the items do not reach has no row to be selected at. Neither is snapshot state, so reading one
+subscribes to nothing; a composable that has to follow the user reads `selectedIndices`. An unbound
+state reports no items and nothing selected.
+
 Create it with `rememberListState(initialSelectedIndices)` and pass it to `ListBox` as `state`, in
 place of `selectedIndices` and `onSelectionChange`. A state drives one list at a time - passing it to a
 second moves it there. See [Lists and tables](#lists-and-tables).
+
+### `TableState`
+
+The same for one `Table`, over row indices. `selectedRowIndices` is two-way and re-applied on every
+pass, and an index names a row in the model's own row space and never the position the row is drawn
+at, so sorting and filtering move where a row is shown and leave the index naming it alone.
+
+`revealRow(rowIndex)` brings a row into view and answers whether the table held one to reveal. A row
+hidden by a row filter has nowhere to be shown, so revealing it reaches nothing.
+
+`rowCount` and `shownSelectedRowIndices` are the same read-back over the table: how many rows it
+shows - its model's rows, less the ones a row filter hides - and which rows it has selected, named by
+model index like `selectedRowIndices`. A row a filter hides has nowhere to be shown, so it is not
+among them.
+
+Create it with `rememberTableState(initialSelectedRowIndices)` and pass it to `Table` as `state`, in
+place of `selectedRowIndices` and `onSelectionChange`. A state drives one table at a time.
 
 ### `TreeState`
 
@@ -1222,6 +1250,12 @@ re-applied on every pass, so a state starting on the empty expansion opens nothi
 `revealPath(path)` brings a node into view, opening every ancestor that hides it, and answers whether
 the tree held such a node. The ancestors it opens arrive in `expandedPaths` like the user's own
 opening.
+
+`rowCount`, `shownSelectedPaths` and `isExpanded(path)` are the same read-back over the tree: how many
+rows it shows, which nodes it has selected, and whether one node shows its children below it. Closing
+a node takes the selection over from the descendants it hides, so what the tree reports selected is
+the closed node itself; a node the tree's current structure does not have is in none of the three
+answers.
 
 Create it with `rememberTreeState(initialSelectedPaths, initialExpandedPaths)` and pass it to `Tree` as
 `state`, in place of `selectedPaths`/`onSelectionChange` and `expandedPaths`/`onExpansionChange`. A

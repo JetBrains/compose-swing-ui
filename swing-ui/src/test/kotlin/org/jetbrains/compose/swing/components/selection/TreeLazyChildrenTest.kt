@@ -61,6 +61,87 @@ class TreeLazyChildrenTest {
         assertTrue(tree.isExpanded(tree.pathTo(0)), "which is what lets the user ask for them")
     }
 
+    /**
+     * The branch answer says nothing about a value the data gives children to: such a value is a branch
+     * whatever the answer is, so a node built as a leaf has to widen to take the children it gains and
+     * narrow again once they are gone.
+     */
+    @Test
+    fun aLeafThatGainsChildrenShowsThemAndIsALeafAgainWhenTheyGo() = runComposeSwingTest {
+        var note by mutableStateOf(FileEntry("note"))
+        setContent {
+            Tree(
+                root = FileEntry("root", listOf(note)),
+                children = { it.children },
+                label = { it.name },
+                hasChildren = { it.directory },
+            )
+        }
+
+        val tree = onNodeOfType<JTree>().fetch()
+        assertTrue(
+            tree.model.isLeaf(tree.pathTo(0).lastPathComponent),
+            "a value the branch answer denies and the data gives no children is a leaf",
+        )
+
+        note = FileEntry("note", listOf(FileEntry("line")))
+        awaitIdle()
+        tree.expandPath(tree.pathTo(0))
+
+        assertFalse(
+            tree.model.isLeaf(tree.pathTo(0).lastPathComponent),
+            "a value the data gives children is a branch however the branch answer answers for it",
+        )
+        assertEquals(
+            listOf("root", "note", "line"),
+            tree.rowLabels(),
+            "and the child it gained shows as a row under it",
+        )
+
+        note = FileEntry("note")
+        awaitIdle()
+
+        assertEquals(
+            listOf("root", "note"),
+            tree.rowLabels(),
+            "the child the data dropped leaves the rows",
+        )
+        assertTrue(
+            tree.model.isLeaf(tree.pathTo(0).lastPathComponent),
+            "and the node it left is a leaf again",
+        )
+    }
+
+    /**
+     * Whether a node answers for its own leafness is settled when it is built, so content that withdraws
+     * the branch answer - or makes one - asks for nodes of another shape than the ones standing.
+     */
+    @Test
+    fun aTreeThatWithdrawsItsBranchAnswerGetsNodesOfTheRightShape() = runComposeSwingTest {
+        var answersForBranches by mutableStateOf(true)
+        setContent {
+            val branchAnswer: ((FileEntry) -> Boolean)? = if (answersForBranches) ({ it.directory }) else null
+            Tree(root = sample, children = { it.children }, label = { it.name }, hasChildren = branchAnswer)
+        }
+
+        val tree = onNodeOfType<JTree>().fetch()
+        assertFalse(
+            tree.model.isLeaf(tree.pathTo(0).lastPathComponent),
+            "a childless directory is a branch while the caller answers for branches",
+        )
+
+        answersForBranches = false
+        awaitIdle()
+
+        assertTrue(
+            tree.model.isLeaf(tree.pathTo(0).lastPathComponent),
+            "with the answer withdrawn a value the data gives no children is a leaf",
+        )
+
+        tree.expandPath(tree.pathTo(0))
+        assertFalse(tree.isExpanded(tree.pathTo(0)), "and a leaf has nothing to open")
+    }
+
     @Test
     fun theChildrenAnExpansionReadsShowUnderTheNode() = runComposeSwingTest {
         var contents by mutableStateOf(emptyList<String>())

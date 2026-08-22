@@ -1,7 +1,5 @@
 package org.jetbrains.compose.swing.node
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import org.jetbrains.compose.swing.core.reportCallerFailure
 
 /**
@@ -55,7 +53,3 @@ internal class AppliedWrite {
         }
     }
 }
-
-/** Remembers the [AppliedWrite] a component marks its own writes to its widget through. */
-@Composable
-internal fun rememberAppliedWrite(): AppliedWrite = remember { AppliedWrite() }

@@ -330,25 +330,36 @@ class RawColumnLayoutListenerTest {
 
         val table = onNodeOfType<JTable>().fetch()
         table.dragColumnDivider(position = 0, width = 200)
+        val draggedWidths = table.columnModel.preferredWidths()
         awaitIdle()
         assertEquals(
             List(table.columnModel.columnCount) { "margin" },
             events.map { it.first },
             "the resize the caller does not adopt should arrive as one margin change per column",
         )
+        assertTrue(draggedWidths != listOf(80, 90, 100), "the drag should reach the columns")
         assertEquals(
-            table.columnModel.preferredWidths(),
+            draggedWidths,
             events.last().second.preferredWidths,
             "the widths the drag left the columns at should be reported",
         )
         assertEquals(listOf(0, 1, 2), events.last().second.modelIndices, "a resize should leave the order alone")
+        assertEquals(
+            listOf(80, 90, 100),
+            table.columnModel.preferredWidths(),
+            "a resize the caller does not adopt does not stand against a declared layout",
+        )
         events.clear()
 
         tip = "Who is who"
         awaitIdle()
 
         assertEquals("Who is who", table.toolTipText, "the recomposition should have reached the table")
-        assertEquals(listOf(80, 90, 100), table.columnModel.preferredWidths(), "the declared widths should be back")
-        assertEquals(emptyList(), events, "re-asserting a declared layout is the library's own write, not news")
+        assertEquals(
+            listOf(80, 90, 100),
+            table.columnModel.preferredWidths(),
+            "the declared widths should still stand",
+        )
+        assertEquals(emptyList(), events, "a pass that moves no column reports nothing")
     }
 }

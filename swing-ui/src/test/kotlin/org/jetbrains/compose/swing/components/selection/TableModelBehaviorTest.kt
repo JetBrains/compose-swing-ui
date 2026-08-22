@@ -30,6 +30,28 @@ class TableModelBehaviorTest {
     private fun tableModel(vararg names: String): DefaultTableModel =
         DefaultTableModel(names.map { arrayOf<Any?>(it) }.toTypedArray(), arrayOf<Any?>("Name"))
 
+    /**
+     * The twin of [TableBehaviorTest.aSelectionTheCallerDoesNotAdoptDoesNotStandWhenItIsMadeAgain] for a
+     * model the caller owns.
+     */
+    @Test
+    fun aSelectionTheCallerDoesNotAdoptDoesNotStandWhenItIsMadeAgain() = runComposeSwingTest {
+        val model = tableModel("Ada", "Alan", "Grace")
+        setContent { Table(model = model, selectedRowIndices = setOf(0)) }
+
+        val table = onNodeOfType<JTable>().fetch()
+        repeat(2) {
+            table.setRowSelectionInterval(1, 1)
+            awaitIdle()
+        }
+
+        assertEquals(
+            listOf(0),
+            table.selectedRows.toList(),
+            "an unadopted selection change does not stand, however often it is made",
+        )
+    }
+
     @Test
     fun modelRendersAsTheTableModel() = runComposeSwingTest {
         val model = tableModel("Ada", "Alan", "Grace")

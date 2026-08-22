@@ -22,3 +22,10 @@ internal fun TreeModel.pathTo(vararg indices: Int): TreePath {
     }
     return path
 }
+
+/** The text of every row the tree shows, top to bottom. */
+internal fun JTree.rowLabels(): List<String> =
+    (0 until rowCount).map { row -> getPathForRow(row).lastPathComponent.toString() }
+
+/** The labels of the nodes the tree has selected. */
+internal fun JTree.selectedLabels(): List<String> = selectionPaths.orEmpty().map { it.lastPathComponent.toString() }

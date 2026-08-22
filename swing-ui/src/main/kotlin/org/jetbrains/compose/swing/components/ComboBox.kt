@@ -10,6 +10,7 @@ import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.components.selection.ListItemScope
 import org.jetbrains.compose.swing.components.selection.composableItemCells
 import org.jetbrains.compose.swing.components.selection.rememberComposingListCellRenderer
+import org.jetbrains.compose.swing.components.selection.rememberDeclaredList
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
@@ -62,9 +63,7 @@ public fun <T> ComboBox(
     maximumRowCount: Int = 8,
     itemContent: (@Composable ListItemScope.(item: T) -> Unit)? = null,
 ) {
-    // Reading the items while composing is what makes this composition one of their readers, so a caller
-    // that keeps them in a snapshot list and mutates it in place invalidates this combo box.
-    val declaredItems = items.toList()
+    val declaredItems = rememberDeclaredList(items)
     val applied = rememberAppliedValue(selectedItem)
     val settled = rememberSelectionReader(declaredItems)
     ComboBoxNode(
@@ -107,9 +106,7 @@ public fun <T> ComboBox(
     maximumRowCount: Int = 8,
     itemContent: (@Composable ListItemScope.(item: T) -> Unit)? = null,
 ) {
-    // Reading the items while composing is what makes this composition one of their readers, so a caller
-    // that keeps them in a snapshot list and mutates it in place invalidates this combo box.
-    val declaredItems = items.toList()
+    val declaredItems = rememberDeclaredList(items)
     val applied = rememberAppliedValue(selectedItem)
     val settled = rememberSelectionReader(declaredItems)
     // The caller's listener is attached as-is, and is the only action listener on the combo box. The
