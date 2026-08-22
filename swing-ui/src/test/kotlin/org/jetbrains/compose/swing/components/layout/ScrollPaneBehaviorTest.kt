@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.ComponentOrientation
@@ -26,6 +27,12 @@ import kotlin.test.assertTrue
  * applier. These tests assert against the real AWT tree, on the EDT.
  */
 class ScrollPaneBehaviorTest {
+    @Test
+    fun anUndeclaredScrollPaneIsTheWidgetsOwn() = runComposeSwingTest {
+        setContent { ScrollPane {} }
+        onNodeOfType<JScrollPane>().assertTreeMatches(JScrollPane())
+    }
+
     @Test
     fun contentIsHostedInTheViewportViewNotAddedToTheScrollPane() = runComposeSwingTest {
         setContent {

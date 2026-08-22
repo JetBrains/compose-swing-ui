@@ -208,8 +208,9 @@ private class GoldenScreenshotComparator(
             dumpResults(actual, golden, result.diff)
             throw AssertionError(
                 "Image mismatch for golden '$goldenIdentifier'. ${result.statistics}. " +
-                    "The golden was not overwritten; review the diff in $RESULTS_DIR before " +
-                    "re-running with -D$UPDATE_PROPERTY=true.",
+                    "Recording never overwrites a golden the capture disagrees with: review the diff in " +
+                    "$RESULTS_DIR, and to accept the capture delete " +
+                    "$GOLDEN_SOURCE_DIR/$goldenIdentifier.png and run again to record it afresh.",
             )
         }
         dumpResults(actual, golden, result.diff)

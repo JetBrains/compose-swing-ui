@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.text.DecimalFormat
@@ -269,13 +270,9 @@ class FormattedTextFieldTest {
     }
 
     @Test
-    fun nullValueRendersEmptyAndDefaultFactoryFormatsByType() = runComposeSwingTest {
-        setContent {
-            FormattedTextField(value = null, onValueChange = {})
-        }
-        val field = onNodeOfType<JFormattedTextField>().fetch()
-        assertNull(field.value, "a null value should leave the field value null")
-        assertEquals("", field.text, "a null value should render as empty text")
+    fun anUndeclaredFormattedTextFieldIsTheWidgetsOwn() = runComposeSwingTest {
+        setContent { FormattedTextField(value = null, onValueChange = {}) }
+        onNodeOfType<JFormattedTextField>().assertTreeMatches(JFormattedTextField())
     }
 }
 

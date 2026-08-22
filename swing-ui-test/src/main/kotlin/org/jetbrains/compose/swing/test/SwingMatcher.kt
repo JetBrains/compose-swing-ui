@@ -65,7 +65,8 @@ public class SwingMatcher internal constructor(
         /**
          * Matches a component whose textual content equals [text], or contains it when [substring]
          * is `true`. Text is read from [javax.swing.JLabel.getText], [AbstractButton.getText], or
-         * [JTextComponent.getText] depending on the component type.
+         * [JTextComponent.getText] depending on the component type. A password field carries no
+         * readable text and never matches.
          *
          * @param text matched against the component's whole text; a component that carries none
          *   never matches.

@@ -116,8 +116,13 @@ class GoldenScreenshotTest {
                 }
 
             assertTrue(
-                failure.message.orEmpty().contains("The golden was not overwritten"),
+                failure.message.orEmpty().contains("never overwrites a golden the capture disagrees with"),
                 "update mode says it kept the golden it had: ${failure.message}",
+            )
+            assertTrue(
+                failure.message.orEmpty().contains("delete") && failure.message.orEmpty().contains("$identifier.png"),
+                "and names the golden to delete to accept the capture instead of the flag already set: " +
+                    "${failure.message}",
             )
             assertFalse(recorded.exists(), "a mismatch is never accepted as the new baseline")
         } finally {

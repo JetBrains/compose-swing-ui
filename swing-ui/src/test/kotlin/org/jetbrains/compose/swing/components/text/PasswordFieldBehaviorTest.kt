@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
 import org.jetbrains.compose.swing.runSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.interaction.performTextReplacement
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -23,6 +24,12 @@ import kotlin.test.assertEquals
  * an edit the caller does not adopt settles back onto the declared value.
  */
 class PasswordFieldBehaviorTest {
+    @Test
+    fun anUndeclaredPasswordFieldIsTheWidgetsOwn() = runComposeSwingTest {
+        setContent { PasswordField(value = CharArray(0), onValueChange = {}) }
+        onNodeOfType<JPasswordField>().assertTreeMatches(JPasswordField())
+    }
+
     @Test
     fun controlledValueRoundTripsThroughGetPassword() = runComposeSwingTest {
         setContent { PasswordField(value = "hunter2".toCharArray(), onValueChange = {}) }

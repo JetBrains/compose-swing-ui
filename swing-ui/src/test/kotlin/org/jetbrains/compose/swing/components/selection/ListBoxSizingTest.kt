@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JList
@@ -30,13 +31,7 @@ class ListBoxSizingTest {
     @Test
     fun undeclaredLayoutAndSizingLeaveTheListsOwnDefaults() = runComposeSwingTest {
         setContent { ListBox(items = items) }
-
-        val list = onNodeOfType<JList<*>>().fetch()
-        val own = JList<String>()
-        assertEquals(own.layoutOrientation, list.layoutOrientation, "the layout should be a JList's own")
-        assertEquals(own.prototypeCellValue, list.prototypeCellValue, "the prototype should be a JList's own")
-        assertEquals(own.fixedCellWidth, list.fixedCellWidth, "the fixed cell width should be a JList's own")
-        assertEquals(own.fixedCellHeight, list.fixedCellHeight, "the fixed cell height should be a JList's own")
+        onNodeOfType<JList<*>>().assertTreeMatches(JList(items.toTypedArray()))
     }
 
     @Test

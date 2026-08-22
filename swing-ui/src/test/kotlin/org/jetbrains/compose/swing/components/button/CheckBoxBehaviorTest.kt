@@ -15,6 +15,7 @@ import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.singleWidget
 import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -41,6 +42,12 @@ import kotlin.test.assertTrue
  * settle serves `RadioButton` and `ToggleButton`, which reach it through `declare`.
  */
 class CheckBoxBehaviorTest {
+    @Test
+    fun anUndeclaredCheckBoxIsTheWidgetsOwn() = runComposeSwingTest {
+        setContent { CheckBox(text = "", checked = false, onCheckedChange = {}) }
+        onNodeOfType<JCheckBox>().assertTreeMatches(JCheckBox())
+    }
+
     @Test
     fun theTextFollowsTheStateDrivingIt() = runComposeSwingTest {
         var text by mutableStateOf("Word wrap")

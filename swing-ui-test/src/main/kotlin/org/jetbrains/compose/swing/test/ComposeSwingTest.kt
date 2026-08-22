@@ -864,25 +864,10 @@ private class ComposeSwingTestImpl(
 
     private fun layoutRoot() {
         // Re-assert the root size (so it never collapses) and run a synchronous layout pass so every
-        // descendant receives real bounds. The applier only calls revalidate(), which defers layout
-        // to the RepaintManager; with no realized peer that deferred pass may never run, leaving
-        // children at 0x0.
-        //
-        // We cannot use validate(): on a container with no native peer / validate-root it
-        // short-circuits and assigns no child bounds. We instead drive doLayout() top-down ourselves -
-        // each container is sized by its parent's layout before we lay out its own children - which
-        // assigns real bounds throughout the tree synchronously on the EDT.
-        root.size = rootSize
-        layoutTree(root)
-    }
-
-    private fun layoutTree(component: Component) {
-        if (component is Container) {
-            // Lay out this container first so its children receive their bounds, then recurse so each
-            // child (now sized) lays out its own descendants.
-            component.doLayout()
-            for (child in component.components) layoutTree(child)
-        }
+        // descendant receives real bounds. The applier only calls revalidate(), which defers layout to
+        // the RepaintManager; with no realized peer that deferred pass may never run, leaving children
+        // at 0x0. See [layoutOffscreen] for why it is not validate() that runs the pass.
+        root.layoutOffscreen(rootSize)
     }
 
     override fun onNodeWithText(

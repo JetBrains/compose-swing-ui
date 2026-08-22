@@ -7,6 +7,7 @@ import org.jetbrains.compose.swing.components.layout.FlowPanel
 import org.jetbrains.compose.swing.components.selection.firstLabelText
 import org.jetbrains.compose.swing.components.selection.stampCell
 import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.event.ActionListener
@@ -27,6 +28,12 @@ import kotlin.test.assertTrue
  * cells, an editor and a capped popup on the same terms as the items-driven overloads.
  */
 class ComboBoxModelBehaviorTest {
+    @Test
+    fun anUndeclaredComboBoxIsTheWidgetsOwn() = runComposeSwingTest {
+        setContent { ComboBox(model = DefaultComboBoxModel(emptyArray<String>())) }
+        onNodeOfType<JComboBox<*>>().assertTreeMatches(JComboBox<String>())
+    }
+
     @Test
     fun modelRendersVerbatim() = runComposeSwingTest {
         val model = DefaultComboBoxModel(arrayOf("Red", "Green", "Blue"))

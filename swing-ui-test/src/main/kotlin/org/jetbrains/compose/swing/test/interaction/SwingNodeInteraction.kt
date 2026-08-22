@@ -160,7 +160,8 @@ public class SwingNodeInteraction<out T : Component> internal constructor(
     }
 
     /**
-     * Asserts the matched node's text equals [expected].
+     * Asserts the matched node's text equals [expected]. A password field carries no readable
+     * text, so this assertion always fails against one.
      *
      * @param expected the whole text the node must carry; a node whose type carries no text fails
      *   against any expectation.

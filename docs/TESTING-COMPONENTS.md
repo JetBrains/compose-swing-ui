@@ -85,6 +85,8 @@ Multi-node finders return a `SwingNodeInteractionCollection`:
 
 - `onAllNodesWithText(text)`, `onAllNodesWithTag(tag)`, `onAllNodesOfType<T>()`, `onAllNodes(matcher)`.
 
+Menu items can appear among these matches too (see *Menus* below).
+
 Narrow a collection with `filter(matcher)` or `filterToOne(matcher)`, assert its size with
 `assertCountEquals(n)`, assert over its members with `assertAll(matcher)` / `assertAny(matcher)`, and
 target one match with `[index]`, `onFirst()`, or `onLast()` — each returns a handle that re-resolves
@@ -221,9 +223,16 @@ the Swing side of the contract is itself the subject.
 
 ### Menus
 
-A menu is not part of the component tree its invoker lives in, so there is no node to find for it.
-Reach it through the component that holds it — a window's `jMenuBar`, a component's
-`componentPopupMenu` — with the typed `fetch<T>()`, then read its content through `JMenu`'s own
+A menu's items are walked like any other content: a `JMenu` keeps them in a `JPopupMenu` that no
+container holds, and the walk reaches them through Swing's own accessor for it. So a menu sitting
+inside the container being queried matches alongside the widgets beside it — a query for
+`AbstractButton` over such a tree matches every `JMenuItem` too — and is narrowed with a matcher that
+describes where the widget sits.
+
+A window's menu bar is the one that does not sit there: a declared `MenuBar { }` installs onto the
+window's root pane, while node queries root at the content pane beside it, so no finder reaches it.
+Read it — and a component's `componentPopupMenu`, which hangs off its component rather than being
+held in the tree — through the typed `fetch<T>()`, then read the content through `JMenu`'s own
 `itemCount` and `getItem(index)`, which reports a separator as `null`:
 
 ```kotlin
@@ -444,7 +453,8 @@ display — the step every frame the harness sends advances composition time by,
 refresh rate.
 
 The clock governs the test's own off-screen composition. Content composed under a real `Window` or
-`Dialog` recomposes on that window's recomposer, paced by its display, and is unaffected.
+`Dialog` runs on that window's own recomposer, whose frame-driven work is paced by the display the
+window is on, and is unaffected.
 
 ### What an unrealized tree does not do
 
@@ -471,6 +481,11 @@ the matched component) and on the test itself (captures the root). A `threshold`
 how strict the structural-similarity match is. To compare two captured images without a golden file,
 capture with `captureToImage()` and use `assertImageMatches(expected)`.
 
+`captureToImage()` is also available on a raw AWT component, for a hand-built reference outside any
+composition. It lays the component and its subtree out at the size the component carries, or at its
+preferred size when it carries none; give the reference the size of the composed component it is
+compared against and both images share the same dimensions.
+
 `captureToImages()` on a `SwingNodeInteractionCollection` captures every match at once, returning one
 image per matched component sized to its own bounds, in depth-first pre-order — the same order as the
 collection's other accessors:
@@ -490,8 +505,9 @@ With it set, a golden that does not exist yet is written to
 `src/test/resources/golden/<goldenIdentifier>.png` and the assertion passes, and a golden the capture
 already matches is rewritten from that capture. A golden the capture does *not* match is left alone:
 the captured, expected and difference images are written to `build/screenshot-test-results` and the
-assertion still fails, so a regression is never recorded as the new baseline. Reviewing that diff and
-re-running is what accepts a real visual change.
+assertion still fails, so a regression is never recorded as the new baseline. Accepting a real visual
+change means reviewing that diff, deleting `src/test/resources/golden/<goldenIdentifier>.png`, and
+running again to record the capture afresh.
 
 ### Comparing two images exactly
 
@@ -502,6 +518,35 @@ rather than merely alike: structural similarity averages over 10x10 windows to t
 and font-rasterization drift, which a small localized difference — a stray border, a margin, a
 one-pixel shift — can pass. It is what proves two components rendered by different routes rasterize
 the same.
+
+### Comparing against a hand-built tree
+
+`assertTreeMatches(expected)` is the structural counterpart of a capture: it asserts that the
+matched node and a reference tree carry the same widgets, nested the same way, holding the same
+state. Where a pixel comparison says only that two screens differ, this names the widget that
+differs and the property it differs in.
+
+Bounds are among what it compares, and the reference is laid out at the node's size before the
+comparison, so a tree built for the assertion needs no layout pass of its own. A menu's items are
+laid out too, in the popup that holds them. The two roots stand in trees of their own, so they are
+compared on their size alone; every node below them on its full bounds within its parent.
+
+```kotlin
+import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
+
+setContent { Button("Save", onClick = {}) }
+
+onNodeOfType<JButton>().assertTreeMatches(JButton("Save"))
+```
+
+It compares the shape of the tree and the state its widgets carry — everything this library's API can
+set on a component, from the colors and the border to the range a widget offers, what stands selected
+in it, and the columns, rows and tabs it is read through. Listeners are not compared: one listener is
+never equal to another.
+
+A class in the matched tree matches the reference as long as it extends it, so a component the library
+builds over `JButton` matches a plain `JButton`. Pass `allowSubclasses = false` to require the same
+class on both sides.
 
 ## Related
 

@@ -79,6 +79,8 @@ public final class org/jetbrains/compose/swing/test/SwingMatcher$Companion {
 public final class org/jetbrains/compose/swing/test/interaction/InteractionTestKt {
 	public static final fun assertProperty (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/lang/Object;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
 	public static synthetic fun assertProperty$default (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/lang/Object;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
+	public static final fun assertTreeMatches (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/awt/Component;Z)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
+	public static synthetic fun assertTreeMatches$default (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/awt/Component;ZILjava/lang/Object;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
 	public static final fun onAncestors (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;
 	public static final fun onChild (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
 	public static final fun onChildAt (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;I)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;

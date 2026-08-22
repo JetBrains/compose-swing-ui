@@ -6,8 +6,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.interaction.enabled
+import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.interaction.performClick
+import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import javax.swing.JButton
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -57,6 +60,12 @@ class ButtonTest {
         // gone and the new one is rendered on the same live component.
         onNodeWithText("Clicks: 0").assertDoesNotExist()
         onNodeWithText("Clicks: 1").assertExists()
+    }
+
+    @Test
+    fun anUndeclaredButtonIsTheWidgetsOwn() = runComposeSwingTest {
+        setContent { Button(text = "", onClick = {}) }
+        onNodeOfType<JButton>().assertTreeMatches(JButton(""))
     }
 
     @Test

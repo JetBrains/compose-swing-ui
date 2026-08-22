@@ -7,6 +7,7 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.toolTip
 import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -26,8 +27,9 @@ import kotlin.test.assertTrue
  * Behavioral tests for [DesktopPane] over a real
  * [SwingApplier][org.jetbrains.compose.swing.node.SwingApplier]. Each assertion reads the rendered
  * [JDesktopPane] and its [JInternalFrame] children: a declared frame is hosted with its title, bounds,
- * controls, and modifier; a frame is the only child the desktop takes and it takes as many of them as
- * the composition declares; frames are added and removed dynamically and the frame standing on the
+ * controls, and modifier; a frame that declares no controls leaves its widget at the bare
+ * `JInternalFrame`'s own defaults; a frame is the only child the desktop takes and it takes as many of
+ * them as the composition declares; frames are added and removed dynamically and the frame standing on the
  * desktop follows the declaration driving it; metadata updates on recomposition; and the close control
  * routes through `onClose` while leaving the frame in place until the composition drops it.
  */
@@ -72,6 +74,18 @@ class DesktopPaneBehaviorTest {
             "the frame should use the do-nothing close op",
         )
         onNodeWithText("editor-body").assertExists()
+    }
+
+    @Test
+    fun aFrameThatDeclaresNoControlsMatchesTheBareWidget() = runComposeSwingTest {
+        setContent {
+            DesktopPane {
+                InternalFrame(title = "Editor", bounds = Rectangle(0, 0, 100, 100), onClose = { }) { }
+            }
+        }
+
+        // A bare JInternalFrame is constructed hidden; the wrapper shows every frame it hosts.
+        onNodeOfType<JInternalFrame>().assertTreeMatches(JInternalFrame("Editor").apply { isVisible = true })
     }
 
     @Test

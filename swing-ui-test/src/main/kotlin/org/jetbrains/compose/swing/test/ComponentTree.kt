@@ -4,16 +4,20 @@ import java.awt.Component
 import java.awt.Container
 import javax.swing.AbstractButton
 import javax.swing.JLabel
+import javax.swing.JPasswordField
+import javax.swing.MenuElement
 import javax.swing.text.JTextComponent
 
 /**
  * Returns the textual content of [this] component for matching purposes, or `null` if the component
- * type has no associated text.
+ * type has no associated text. A [JPasswordField] always answers `null`: its content never appears
+ * in a component description, a text match, or a failure message.
  */
 internal fun Component.textOrNull(): String? =
     when (this) {
         is JLabel -> text
         is AbstractButton -> text
+        is JPasswordField -> null
         is JTextComponent -> text
         else -> null
     }
@@ -21,8 +25,22 @@ internal fun Component.textOrNull(): String? =
 /**
  * The direct children of [this] component, in the order its container holds them; empty for a
  * component that holds none. Must be called on the EDT.
+ *
+ * A menu holds its content outside the container's component array: a `JMenu`'s items live in the
+ * `JPopupMenu` it owns, which is not added to it. [MenuElement.getSubElements] is Swing's own
+ * accessor for that content, so any sub-element that is a component and is not already in the array
+ * follows the array here - which is what lets a walk reach a menu item at all.
  */
-internal fun Component.childComponents(): List<Component> = (this as? Container)?.components?.toList().orEmpty()
+internal fun Component.childComponents(): List<Component> {
+    val components = (this as? Container)?.components?.toList().orEmpty()
+    val subElements =
+        (this as? MenuElement)
+            ?.subElements
+            ?.filterIsInstance<Component>()
+            ?.filter { element -> components.none { it === element } }
+            .orEmpty()
+    return components + subElements
+}
 
 /**
  * Every other child of [this] component's parent, in the parent's order; empty when it has no parent.
@@ -53,7 +71,7 @@ internal fun Component.descendantComponents(): Sequence<Component> =
  * Recursively collects every component in the subtree rooted at [this] (excluding [this] itself)
  * that satisfies [matcher], in depth-first pre-order. Must be called on the EDT.
  *
- * Walks the real AWT tree via [Container.getComponents].
+ * Walks the live component tree, as [childComponents] reads it.
  */
 internal fun Container.findMatching(matcher: SwingMatcher): List<Component> =
     descendantComponents().filter(matcher::matches).toList()

@@ -12,6 +12,7 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.interaction.performTabClick
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -71,6 +72,12 @@ class TabbedPaneBehaviorTest {
         pane: JTabbedPane,
         index: Int,
     ): String = (pane.getComponentAt(index) as JLabel).text
+
+    @Test
+    fun anUndeclaredTabbedPaneIsTheWidgetsOwn() = runComposeSwingTest {
+        setContent { TabbedPane(selectedIndex = -1, onSelectedIndexChange = {}) {} }
+        onNodeOfType<JTabbedPane>().assertTreeMatches(JTabbedPane())
+    }
 
     @Test
     fun tabsDeclaredInCompositionAreAdded() = runComposeSwingTest {

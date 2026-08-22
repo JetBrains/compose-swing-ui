@@ -19,8 +19,11 @@ public fun SwingNodeInteraction<*>.onParent(): SwingNodeInteraction<Component> =
     derivedNode("onParent()") { listOfNotNull(it.parent) }
 
 /**
- * Returns a handle to the matched node's direct children, in their container's order. A node with
- * no children yields an empty collection.
+ * Returns a handle to the matched node's children, in their container's order. A node with no
+ * children yields an empty collection.
+ *
+ * A menu's items follow its own children: a `JMenu` keeps them in the popup it owns rather than
+ * among the components it holds, so a walk over those alone would stop at the menu.
  */
 public fun SwingNodeInteraction<*>.onChildren(): SwingNodeInteractionCollection<Component> =
     derivedNodes("onChildren()") { it.childComponents() }

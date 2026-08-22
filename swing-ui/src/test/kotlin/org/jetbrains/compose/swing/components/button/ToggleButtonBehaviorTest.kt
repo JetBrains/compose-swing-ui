@@ -10,6 +10,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.toolTip
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -24,6 +25,12 @@ import kotlin.test.assertNull
  * against the live `JToggleButton`.
  */
 class ToggleButtonBehaviorTest {
+    @Test
+    fun anUndeclaredToggleButtonIsTheWidgetsOwn() = runComposeSwingTest {
+        setContent { ToggleButton(text = "", selected = false, onSelectedChange = {}) }
+        onNodeOfType<JToggleButton>().assertTreeMatches(JToggleButton())
+    }
+
     @Test
     fun textRendersOntoTheButton() = runComposeSwingTest {
         setContent { ToggleButton(text = "Bold", selected = false, onSelectedChange = {}) }

@@ -6,6 +6,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.interaction.performTextInput
 import org.jetbrains.compose.swing.test.interaction.performTextReplacement
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -24,6 +25,12 @@ import kotlin.test.assertTrue
  * shared document is the single source of truth, so an edit on either side is observable on the other.
  */
 class TextFieldStateTest {
+    @Test
+    fun anUndeclaredTextFieldIsTheWidgetsOwn() = runComposeSwingTest {
+        setContent { TextField(value = "", onValueChange = {}) }
+        onNodeOfType<JTextField>().assertTreeMatches(JTextField())
+    }
+
     @Test
     fun typingIntoFieldUpdatesStateText() = runComposeSwingTest {
         lateinit var state: DocumentState

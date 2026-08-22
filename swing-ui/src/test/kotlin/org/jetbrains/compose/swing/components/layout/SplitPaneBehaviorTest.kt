@@ -7,6 +7,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.image.BufferedImage
@@ -30,6 +31,15 @@ import kotlin.test.assertTrue
  * follow the look and feel until the caller declares them.
  */
 class SplitPaneBehaviorTest {
+    @Test
+    fun anUndeclaredSplitPaneIsTheWidgetsOwn() = runComposeSwingTest {
+        setContent { SplitPane {} }
+        // JSplitPane() ships two placeholder buttons as children; the content-taking constructor takes
+        // none, and reads continuousLayout from the same UIManager key, so it is the reference that
+        // matches a SplitPane declared with no children.
+        onNodeOfType<JSplitPane>().assertTreeMatches(JSplitPane(JSplitPane.HORIZONTAL_SPLIT, null, null))
+    }
+
     @Test
     fun theSidesChildrenNameBecomeTheLeftAndRightComponents() = runComposeSwingTest {
         setContent {

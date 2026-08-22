@@ -9,6 +9,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.interaction.onChildAt
 import org.jetbrains.compose.swing.test.interaction.onChildren
 import org.jetbrains.compose.swing.test.interaction.onParent
@@ -44,6 +45,12 @@ class CardPanelBehaviorTest {
     ) {
         onNodeWithText(shown).assertIsVisible()
         hidden.forEach { onNodeWithText(it).assertIsNotVisible() }
+    }
+
+    @Test
+    fun anUndeclaredCardPanelIsTheWidgetsOwn() = runComposeSwingTest {
+        setContent { CardPanel(selectedCard = "a") { Label("a", SwingModifier.card("a")) } }
+        onNodeWithText("a").onParent().assertTreeMatches(JPanel(CardLayout()).apply { add(JLabel("a"), "a") })
     }
 
     @Test

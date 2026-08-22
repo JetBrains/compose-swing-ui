@@ -4,6 +4,7 @@ import androidx.compose.runtime.ReusableContentHost
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.AbstractSpinnerModel
@@ -17,6 +18,13 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 class SpinnerBehaviorTest {
+    @Test
+    fun anUndeclaredSpinnerIsTheWidgetsOwn() = runComposeSwingTest {
+        val bare = JSpinner()
+        setContent { Spinner(value = (bare.model as SpinnerNumberModel).number.toInt(), onValueChange = {}) }
+        onNodeOfType<JSpinner>().assertTreeMatches(bare)
+    }
+
     @Test
     fun theIntFactoryRendersValueAndBoundsIntoTheNumberModel() = runComposeSwingTest {
         setContent { Spinner(value = 5, onValueChange = {}, min = 0, max = 10, step = 2) }

@@ -10,6 +10,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.toolTip
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -28,6 +29,12 @@ import kotlin.test.assertNull
  * not stand: the next settled pass writes the declared state back over it.
  */
 class RadioButtonBehaviorTest {
+    @Test
+    fun anUndeclaredRadioButtonIsTheWidgetsOwn() = runComposeSwingTest {
+        setContent { RadioButton(text = "", selected = false, onSelectedChange = {}) }
+        onNodeOfType<JRadioButton>().assertTreeMatches(JRadioButton())
+    }
+
     @Test
     fun theTextFollowsTheStateDrivingIt() = runComposeSwingTest {
         var text by mutableStateOf("Compact")

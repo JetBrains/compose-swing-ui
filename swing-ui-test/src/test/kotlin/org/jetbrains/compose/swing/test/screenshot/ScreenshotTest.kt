@@ -8,6 +8,8 @@ import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Color
 import java.awt.image.BufferedImage
 import javax.swing.JButton
+import javax.swing.JLabel
+import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -26,6 +28,17 @@ class ScreenshotTest {
         assertTrue(image.width > 0 && image.height > 0, "captured image should have a positive size")
         assertEquals(component.width, image.width, "captured image width should match the component")
         assertEquals(component.height, image.height, "captured image height should match the component")
+    }
+
+    /** A hand-built reference needs no layout pass of its own: the capture lays it out at the size given. */
+    @Test
+    fun aHandBuiltComponentIsCapturedAtTheSizeItCarriesOrAsksFor() = runComposeSwingTest {
+        val unsized = JLabel("hi")
+        val sized = JPanel().apply { setSize(120, 40) }
+
+        assertEquals(unsized.preferredSize.width, unsized.captureToImage().width)
+        assertEquals(120, sized.captureToImage().width)
+        assertEquals(40, sized.captureToImage().height)
     }
 
     @Test

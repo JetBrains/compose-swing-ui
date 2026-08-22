@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.components.selection
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JTable
@@ -32,18 +33,8 @@ class TableSizingTest {
             }
         }
 
-        val table = onNodeOfType<JTable>().fetch()
-        val own = JTable()
-        assertEquals(own.rowHeight, table.rowHeight, "the row height should be a JTable's own")
-        assertEquals(own.autoResizeMode, table.autoResizeMode, "the auto-resize mode should be a JTable's own")
-        assertEquals(
-            own.fillsViewportHeight,
-            table.fillsViewportHeight,
-            "the viewport fill should be a JTable's own",
-        )
-        val ownColumn = JTable(DefaultTableModel(1, 1)).columnModel.getColumn(0)
-        assertEquals(ownColumn.minWidth, table.columnModel.getColumn(0).minWidth, "a column's own minimum width")
-        assertEquals(ownColumn.maxWidth, table.columnModel.getColumn(0).maxWidth, "a column's own maximum width")
+        val rows = people.map { arrayOf<Any?>(it.name) }.toTypedArray()
+        onNodeOfType<JTable>().assertTreeMatches(JTable(DefaultTableModel(rows, arrayOf<Any>("Name"))))
     }
 
     @Test

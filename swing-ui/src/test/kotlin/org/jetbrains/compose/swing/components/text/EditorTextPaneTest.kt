@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.neverEqualPolicy
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.test.SwingMatcher.Companion.isEditable
+import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.interaction.performTextReplacement
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -34,6 +35,18 @@ import kotlin.test.assertTrue
  * back from the live component.
  */
 class EditorTextPaneTest {
+    @Test
+    fun anUndeclaredEditorPaneIsTheWidgetsOwn() = runComposeSwingTest {
+        setContent { EditorPane(state = rememberDocumentState()) }
+        onNodeOfType<JEditorPane>().assertTreeMatches(JEditorPane())
+    }
+
+    @Test
+    fun anUndeclaredTextPaneIsTheWidgetsOwn() = runComposeSwingTest {
+        setContent { TextPane(value = "", onValueChange = {}) }
+        onNodeOfType<JTextPane>().assertTreeMatches(JTextPane())
+    }
+
     @Test
     fun editorPaneRendersMarkupThroughTheKitItsContentTypeNames() = runComposeSwingTest {
         setContent {

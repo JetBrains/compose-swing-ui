@@ -8,6 +8,7 @@ import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
 import org.jetbrains.compose.swing.components.text.TextArea
 import org.jetbrains.compose.swing.pressKey
 import org.jetbrains.compose.swing.runSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.interaction.performTextReplacement
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -40,6 +41,13 @@ class ValueComponentsTest {
         assertEquals(10, slider.minimum, "the slider should render its minimum")
         assertEquals(90, slider.maximum, "the slider should render its maximum")
         assertEquals(30, slider.value, "the slider should render its value")
+    }
+
+    @Test
+    fun anUndeclaredSliderIsTheWidgetsOwn() = runComposeSwingTest {
+        val bare = JSlider()
+        setContent { Slider(value = bare.value, onValueChange = {}) }
+        onNodeOfType<JSlider>().assertTreeMatches(bare)
     }
 
     @Test
@@ -305,6 +313,24 @@ class ValueComponentsTest {
     }
 
     @Test
+    fun anUndeclaredProgressBarIsTheWidgetsOwn() = runComposeSwingTest {
+        setContent { ProgressBar(value = 0) }
+        onNodeOfType<JProgressBar>().assertTreeMatches(JProgressBar())
+    }
+
+    @Test
+    fun aProgressBarOverARangeSpanningZeroStartsEmptyLikeTheBareWidget() = runComposeSwingTest {
+        val bare = JProgressBar(SIGNED_MINIMUM, SIGNED_MAXIMUM)
+        setContent { ProgressBar(value = SIGNED_MINIMUM, min = SIGNED_MINIMUM, max = SIGNED_MAXIMUM) }
+        val wrapped = onNodeOfType<JProgressBar>().fetch()
+        // An unspecified value is the range's own floor, so the bar reads as empty. A range spanning
+        // zero is what distinguishes that from a fixed zero: the model clamps a value below the
+        // minimum back up to it, so any range whose floor is above zero hides the difference.
+        assertEquals(bare.value, wrapped.value, "value")
+        assertEquals(SIGNED_MINIMUM, wrapped.value, "value sits at the minimum")
+    }
+
+    @Test
     fun textAreaRendersValueAndReportsEdits() = runComposeSwingTest {
         var text by mutableStateOf("hello")
         val reported = mutableListOf<String>()
@@ -323,6 +349,12 @@ class ValueComponentsTest {
 
         assertEquals("world", reported.last(), "onValueChange should report the edited text")
         onNodeOfType<JTextArea>().assertTextEquals("world")
+    }
+
+    @Test
+    fun anUndeclaredTextAreaIsTheWidgetsOwn() = runComposeSwingTest {
+        setContent { TextArea(value = "", onValueChange = {}) }
+        onNodeOfType<JTextArea>().assertTreeMatches(JTextArea())
     }
 
     @Test
@@ -353,6 +385,12 @@ class ValueComponentsTest {
             separator.orientation,
             "the separator should reflect the vertical orientation",
         )
+    }
+
+    @Test
+    fun anUndeclaredSeparatorIsTheWidgetsOwn() = runComposeSwingTest {
+        setContent { Separator() }
+        onNodeOfType<JSeparator>().assertTreeMatches(JSeparator())
     }
 
     @Test
@@ -391,5 +429,10 @@ class ValueComponentsTest {
             change = { it.value = 5 },
             read = { it.value },
         )
+    }
+
+    private companion object {
+        const val SIGNED_MINIMUM = -50
+        const val SIGNED_MAXIMUM = 50
     }
 }

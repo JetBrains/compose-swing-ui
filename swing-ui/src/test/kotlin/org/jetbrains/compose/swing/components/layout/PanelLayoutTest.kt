@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.interaction.onChildAt
 import org.jetbrains.compose.swing.test.interaction.onChildren
 import org.jetbrains.compose.swing.test.interaction.onParent
@@ -18,6 +19,7 @@ import java.awt.GridBagConstraints
 import java.awt.GridBagLayout
 import java.awt.GridLayout
 import javax.swing.BoxLayout
+import javax.swing.JLabel
 import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -30,6 +32,35 @@ import kotlin.test.assertTrue
  * component tree (count and order).
  */
 class PanelLayoutTest {
+    @Test
+    fun anUndeclaredBorderPanelIsTheWidgetsOwn() = runComposeSwingTest {
+        setContent { BorderPanel { Label("a") } }
+        onNodeWithText("a").onParent().assertTreeMatches(JPanel(BorderLayout()).apply { add(JLabel("a")) })
+    }
+
+    @Test
+    fun anUndeclaredFlowPanelIsTheWidgetsOwn() = runComposeSwingTest {
+        setContent { FlowPanel { Label("a") } }
+        onNodeWithText("a").onParent().assertTreeMatches(JPanel(FlowLayout()).apply { add(JLabel("a")) })
+    }
+
+    @Test
+    fun anUndeclaredGridPanelIsTheWidgetsOwn() = runComposeSwingTest {
+        setContent { GridPanel { Label("a") } }
+        onNodeWithText("a").onParent().assertTreeMatches(JPanel(GridLayout()).apply { add(JLabel("a")) })
+    }
+
+    @Test
+    fun anUndeclaredBoxPanelIsTheWidgetsOwn() = runComposeSwingTest {
+        setContent { BoxPanel { Label("a") } }
+        val reference =
+            JPanel().apply {
+                layout = BoxLayout(this, BoxLayout.Y_AXIS)
+                add(JLabel("a"))
+            }
+        onNodeWithText("a").onParent().assertTreeMatches(reference)
+    }
+
     @Test
     fun borderPanelUsesBorderLayoutAndHostsChildren() = runComposeSwingTest {
         setContent {

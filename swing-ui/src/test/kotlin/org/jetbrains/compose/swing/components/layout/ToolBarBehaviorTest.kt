@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.interaction.onChildAt
 import org.jetbrains.compose.swing.test.interaction.onChildren
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -45,6 +46,18 @@ class ToolBarBehaviorTest {
         bar.onChildren().assertCountEquals(2)
         bar.onChildAt(0).assertTextEquals("New")
         bar.onChildAt(1).assertTextEquals("Open")
+    }
+
+    @Test
+    fun anUndeclaredToolBarIsTheWidgetsOwn() = runComposeSwingTest {
+        setContent { ToolBar() }
+        onNodeOfType<JToolBar>().assertTreeMatches(JToolBar())
+    }
+
+    @Test
+    fun anUndeclaredSeparatorIsTheWidgetsOwn() = runComposeSwingTest {
+        setContent { ToolBarSeparator() }
+        onNodeOfType<JToolBar.Separator>().assertTreeMatches(JToolBar.Separator())
     }
 
     @Test

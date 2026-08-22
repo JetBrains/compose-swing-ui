@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
 import org.jetbrains.compose.swing.runSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JTree
@@ -209,6 +210,12 @@ class TreeBehaviorTest {
             tree.rowHeight,
             "withdrawing the declaration should give the look and feel's own height back",
         )
+    }
+
+    @Test
+    fun anUndeclaredTreeIsTheWidgetsOwn() = runComposeSwingTest {
+        setContent { Tree(root = "r", children = { emptyList() }) }
+        onNodeOfType<JTree>().assertTreeMatches(JTree(DefaultMutableTreeNode("r")))
     }
 
     @Test
