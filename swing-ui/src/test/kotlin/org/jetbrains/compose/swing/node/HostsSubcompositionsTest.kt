@@ -5,27 +5,34 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.core.COMPOSITION_KEY
 import org.jetbrains.compose.swing.core.get
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import java.awt.Panel
 import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 /**
- * Behavioral coverage for the `hostsSubcompositions = true` opt-in on [SwingNode].
+ * Behavioral coverage for hosting a nested composition on a [SwingNode], declared through
+ * `hostSubcompositions` in the node's update block.
  *
  * The scenario mirrors the real use case: a custom component built via [SwingNode] returns a
  * [java.awt.Container] whose OWN internal logic calls `setContent` on one of its children. That child
  * `setContent` carries no injected recomposer, so it must discover the surrounding composition by
  * walking up the Swing tree to the [SwingNode] component that opted in and stamped its composition
  * context there. We prove the nesting by reading a [androidx.compose.runtime.CompositionLocal] provided
- * at the top of the surrounding composition from inside the child's content, and prove the stamp is
- * cleared once the host node leaves the composition.
+ * at the top of the surrounding composition from inside the child's content, prove the stamp is
+ * cleared once the host node leaves the composition, and prove that a component which cannot carry the
+ * client property - anything that is not a [javax.swing.JComponent] - is refused rather than left
+ * hosting nothing.
  */
 class HostsSubcompositionsTest {
     @Test
@@ -35,9 +42,10 @@ class HostsSubcompositionsTest {
         runComposeSwingTest {
             setContent {
                 CompositionLocalProvider(LocalGreeting provides PROVIDED) {
+                    val parentContext = rememberCompositionContext()
                     SwingNode(
                         factory = { JPanel().also { hostPanel = it } },
-                        hostsSubcompositions = true,
+                        update = { hostSubcompositions(parentContext) },
                     ) {}
                 }
             }
@@ -71,9 +79,10 @@ class HostsSubcompositionsTest {
             var present by mutableStateOf(true)
             setContent {
                 if (present) {
+                    val parentContext = rememberCompositionContext()
                     SwingNode(
                         factory = { JPanel().also { hostPanel = it } },
-                        hostsSubcompositions = true,
+                        update = { hostSubcompositions(parentContext) },
                     ) {}
                 }
             }
@@ -103,9 +112,10 @@ class HostsSubcompositionsTest {
         runComposeSwingTest {
             var hosting by mutableStateOf(false)
             setContent {
+                val parentContext = rememberCompositionContext()
                 SwingNode(
                     factory = { JPanel().also { hostPanel = it } },
-                    hostsSubcompositions = hosting,
+                    update = { hostSubcompositions(if (hosting) parentContext else null) },
                 ) {}
             }
 
@@ -137,9 +147,10 @@ class HostsSubcompositionsTest {
         runComposeSwingTest {
             var hosting by mutableStateOf(false)
             setContent {
+                val parentContext = rememberCompositionContext()
                 SwingNode(
                     factory = { JPanel().also { hostPanel = it } },
-                    hostsSubcompositions = hosting,
+                    update = { hostSubcompositions(if (hosting) parentContext else null) },
                 )
             }
 
@@ -162,6 +173,27 @@ class HostsSubcompositionsTest {
                 "opting back out must clear the stamp so a later setContent walk finds no host here.",
             )
         }
+    }
+
+    @Test
+    fun hostingOnAComponentThatIsNotAJComponentIsRefused() = runComposeSwingTest {
+        // A factory is free to return any java.awt.Component, and a bare AWT one carries no client
+        // property for the descendant walk to find.
+        val refused =
+            assertFailsWith<IllegalStateException> {
+                setContent {
+                    val parentContext = rememberCompositionContext()
+                    SwingNode(
+                        factory = { Panel() },
+                        update = { hostSubcompositions(parentContext) },
+                    )
+                }
+            }
+
+        assertTrue(
+            "requires the node's component to be a JComponent" in refused.message.orEmpty(),
+            "the refusal must name what a host has to be, and said: ${refused.message}",
+        )
     }
 
     private companion object {

@@ -20,11 +20,7 @@ import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
 import org.jetbrains.compose.swing.node.declare
 import org.jetbrains.compose.swing.node.rememberAppliedValue
-import java.beans.PropertyChangeListener
-import java.util.Hashtable
 import javax.swing.BoundedRangeModel
-import javax.swing.JComponent
-import javax.swing.JLabel
 import javax.swing.JSlider
 import javax.swing.SwingConstants
 import javax.swing.event.ChangeEvent
@@ -84,7 +80,8 @@ public fun Slider(
     val channel = rememberSliderValueChannel(applied, applied, value)
     SliderNode(
         modifier = modifier.onSliderValue { slider -> channel.publish(slider, onValueChange, onValueSettled) },
-        labelRange = min..max,
+        labelMin = min,
+        labelMax = max,
         orientation = orientation,
         inverted = inverted,
         majorTickSpacing = majorTickSpacing,
@@ -155,7 +152,8 @@ public fun Slider(
     val applied = rememberAppliedValue(value)
     SliderNode(
         modifier = modifier.changeListener(changeListener).sliderValueMirror(applied),
-        labelRange = min..max,
+        labelMin = min,
+        labelMax = max,
         orientation = orientation,
         inverted = inverted,
         majorTickSpacing = majorTickSpacing,
@@ -333,7 +331,8 @@ private fun ModelSliderNode(
         modifier = modifier,
         // The range Swing's own labels are generated over is the model's, read as it stands: a range the
         // caller moves inside the model reaches the labels through the slider's own regeneration.
-        labelRange = model.minimum..model.maximum,
+        labelMin = model.minimum,
+        labelMax = model.maximum,
         orientation = orientation,
         inverted = inverted,
         majorTickSpacing = majorTickSpacing,
@@ -350,8 +349,8 @@ private fun ModelSliderNode(
 /**
  * The `JSlider` node every [Slider] overload renders: all of it but the range, which [installRange]
  * declares - a value between a minimum and a maximum in one family of overloads, the caller's own model in
- * the other. [labelRange] is the range Swing's own labels are generated over, and [modifier] already
- * carries every listener the slider needs.
+ * the other. [labelMin] and [labelMax] bound the range Swing's own labels are generated over, and
+ * [modifier] already carries every listener the slider needs.
  *
  * A declared value is settled against the slider through an [AppliedValue] rather than applied on change:
  * the user can drag the slider out from under the declaration, and a declaration equal to the last one
@@ -360,7 +359,8 @@ private fun ModelSliderNode(
 @Composable
 private fun SliderNode(
     modifier: SwingModifier,
-    labelRange: IntRange,
+    labelMin: Int,
+    labelMax: Int,
     @Orientation orientation: Int,
     inverted: Boolean,
     majorTickSpacing: Int,
@@ -371,6 +371,7 @@ private fun SliderNode(
     snapToTicks: Boolean,
     installRange: SwingNodeUpdater<JSlider>.() -> Unit,
 ) {
+    val declaredLabels = rememberDeclaredLabels(labels)
     SwingNode(
         factory = { JSlider() },
         update = {
@@ -383,18 +384,7 @@ private fun SliderNode(
             set(orientation) { this.orientation = it }
             set(inverted) { this.inverted = it }
             set(paintTicks) { this.paintTicks = it }
-            // A declared table goes in before the painting flag, because JSlider fills an unset table
-            // in with its own standard labels as soon as that flag is written. Those standard labels
-            // listen to the slider so they can regenerate themselves when the range moves, and the
-            // slider drops that registration only while they are still the table it holds - so the
-            // outgoing table's registration leaves with it here, or a table nothing renders would keep
-            // rewriting a declared map, and would fail outright on a range change once there is no
-            // table left for it to regenerate. What the slider paints is derived here instead, from
-            // the declared map or from the spacing and the range Swing's own labels sit on.
-            set(LabelDeclaration(labels, majorTickSpacing, labelRange)) { declaration ->
-                (labelTable as? PropertyChangeListener)?.let { removePropertyChangeListener(it) }
-                this.labelTable = declaration.labels?.toLabelTable() ?: standardLabels()
-            }
+            declareLabels(declaredLabels, majorTickSpacing, labelMin, labelMax)
             set(paintLabels) { this.paintLabels = it }
             applyModifier(modifier)
         },
@@ -469,30 +459,6 @@ private fun rememberSliderValueChannel(
     range: Any?,
     value: Int,
 ): SliderValueChannel = remember(range) { SliderValueChannel(applied, value) }
-
-/**
- * What the labels a slider paints are derived from: the declared map, or - where none is declared - the
- * major tick spacing and the range Swing's own labels are generated over.
- */
-private data class LabelDeclaration(
-    val labels: Map<Int, @Nls String>?,
-    val majorTickSpacing: Int,
-    val range: IntRange,
-)
-
-/** The `JSlider` label table this text draws as, one [JLabel] per entry. */
-private fun Map<Int, @Nls String>.toLabelTable(): Hashtable<Int, JComponent> {
-    val table = Hashtable<Int, JComponent>()
-    for ((value, text) in this) table[value] = JLabel(text)
-    return table
-}
-
-/**
- * The standard labels a `JSlider` puts at its major tick marks, or `null` when there is no major tick
- * spacing to place them at.
- */
-private fun JSlider.standardLabels(): Hashtable<Int, JComponent>? =
-    if (majorTickSpacing > 0) createStandardLabels(majorTickSpacing) else null
 
 /** A slider change listener whose own state describes the range model it is registered on. */
 private interface SliderValueMirror :

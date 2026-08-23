@@ -6,7 +6,6 @@ package org.jetbrains.compose.swing.node
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ComposeNode
 import androidx.compose.runtime.DisallowComposableCalls
-import androidx.compose.runtime.rememberCompositionContext
 import org.jetbrains.compose.swing.annotations.SwingComposable
 import java.awt.Component
 
@@ -32,16 +31,13 @@ import java.awt.Component
  * on to the instance it once saw: only the component the node currently holds is the one the composition
  * is driving.
  *
- * When [hostsSubcompositions] is `true`, a `setContent` call on a descendant Swing component joins
- * this composition, sharing its scope and [androidx.compose.runtime.CompositionLocal]s. The component
- * must be a [javax.swing.JComponent] or this throws [IllegalStateException]. Defaults to `false`.
+ * A node hosts nested compositions through [SwingNodeUpdater.hostSubcompositions], declared in [update]
+ * like any other property.
  *
  * @param factory builds the backing Swing component.
  * @param update typed update block; see [SwingNodeUpdater]. Install listeners through the modifier
  *   mechanism - see [org.jetbrains.compose.swing.modifier.listener].
  * @param onRelease optional teardown run when the node leaves the composition for good.
- * @param hostsSubcompositions when `true`, a descendant component's `setContent` joins this
- *   composition. Defaults to `false`.
  * @param childPlacement how children composed under this node are held; see [ChildPlacement]. Defaults
  *   to [ChildPlacement.Indexed].
  */
@@ -51,15 +47,12 @@ public inline fun <reified T : Component> SwingNode(
     noinline factory: () -> T,
     crossinline update: @DisallowComposableCalls SwingNodeUpdater<T>.() -> Unit = {},
     noinline onRelease: (T.() -> Unit)? = null,
-    hostsSubcompositions: Boolean = false,
     childPlacement: ChildPlacement = ChildPlacement.Indexed,
 ) {
-    val parentContext = if (hostsSubcompositions) rememberCompositionContext() else null
     ComposeNode<SwingNodeHolder<T>, SwingApplier>(
         factory = { SwingNodeHolder(factory()) },
         update = {
             set(childPlacement) { this.childPlacement = it }
-            set(parentContext) { hostSubcompositions(it) }
             SwingNodeUpdater(this).update()
             set(onRelease) { release ->
                 releaseBlock =
@@ -99,8 +92,6 @@ public inline fun <reified T : Component> SwingNode(
  * The component's own child array holds the indexed children in the order [content] emits them, whatever
  * layout constraint each of them declares, so a layout manager of your own can read `getComponents` as
  * the structure this composition declared and derive from all of it at measure or layout time.
- *
- * [hostsSubcompositions] behaves as in the leaf overload. Defaults to `false`.
  */
 @Composable
 @SwingComposable
@@ -108,18 +99,15 @@ public inline fun <reified T : Component> SwingNode(
     noinline factory: () -> T,
     crossinline update: @DisallowComposableCalls SwingNodeUpdater<T>.() -> Unit = {},
     noinline onRelease: (T.() -> Unit)? = null,
-    hostsSubcompositions: Boolean = false,
     childPlacement: ChildPlacement = ChildPlacement.Indexed,
     crossinline content:
         @Composable @SwingComposable
         () -> Unit,
 ) {
-    val parentContext = if (hostsSubcompositions) rememberCompositionContext() else null
     ComposeNode<SwingNodeHolder<T>, SwingApplier>(
         factory = { SwingNodeHolder(factory()) },
         update = {
             set(childPlacement) { this.childPlacement = it }
-            set(parentContext) { hostSubcompositions(it) }
             SwingNodeUpdater(this).update()
             set(onRelease) { release ->
                 releaseBlock =

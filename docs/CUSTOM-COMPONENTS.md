@@ -105,7 +105,6 @@ public inline fun <reified T : Component> SwingNode(
     noinline factory: () -> T,
     crossinline update: @DisallowComposableCalls SwingNodeUpdater<T>.() -> Unit = {},
     noinline onRelease: (T.() -> Unit)? = null,
-    hostsSubcompositions: Boolean = false,
     childPlacement: ChildPlacement = ChildPlacement.Indexed,
 )
 ```
@@ -123,7 +122,6 @@ public inline fun <reified T : Component> SwingNode(
     noinline factory: () -> T,
     crossinline update: @DisallowComposableCalls SwingNodeUpdater<T>.() -> Unit = {},
     noinline onRelease: (T.() -> Unit)? = null,
-    hostsSubcompositions: Boolean = false,
     childPlacement: ChildPlacement = ChildPlacement.Indexed,
     crossinline content: @Composable @SwingComposable () -> Unit,
 )
@@ -198,9 +196,6 @@ Uninstall is also where a region gives back the space it took. `setRowHeaderView
 pane leaves an empty header viewport still claiming layout space, so the library's own row-header
 attachment clears the whole header instead - `if (pane.rowHeader?.view === component) pane.setRowHeader(null)`,
 identity-checked so a child already replaced by another does not clear the new one.
-
-`hostsSubcompositions` defaults to `false`; you only set it for a custom container whose internal
-children run their own `setContent` - see *Hosting nested compositions* below.
 
 ### `@SwingComposable`: keeping Swing and `compose.ui` apart
 
@@ -1311,28 +1306,32 @@ Four things make a composite of this shape behave:
 Reach for `SwingNode` here only when the Swing container itself is yours; a composite assembled from
 built-in containers is an ordinary composable function.
 
-## Hosting nested compositions: `hostsSubcompositions`
+## Hosting nested compositions: `hostSubcompositions`
 
-Both `SwingNode` overloads take an opt-in `hostsSubcompositions: Boolean = false`. Leave it `false`
-(the default) unless your custom component, internally, drives its **own** `setContent` against one of
-its children - for example, a Swing container that manages tabs, popups, or split panes by calling
-`setContent` on sub-panels it creates itself.
+Declare `hostSubcompositions` in the update block for a custom component that, internally, drives its
+**own** `setContent` against one of its children - for example, a Swing container that manages tabs,
+popups, or split panes by calling `setContent` on sub-panels it creates itself.
 
-Set it `true` so those nested `setContent` calls **join this node's own composition**, sharing its
-`CompositionLocal`s along with the recomposer and scope around it. Without the flag such a call joins
+Those nested `setContent` calls then **join this node's own composition**, sharing its
+`CompositionLocal`s along with the recomposer and scope around it. Without it such a call joins
 whatever its place in the Swing tree resolves to - the content composition above it, or the one its window
 shares - so it recomposes with everything else there but sees none of the `CompositionLocal`s this node
 stands under.
 
+Read the enclosing context where the node is declared, and hand it over:
+
 ```kotlin
+val parentContext = rememberCompositionContext()
 SwingNode(
     factory = { TabbedPanel() }, // a JComponent that runs setContent on its own tab panels
-    hostsSubcompositions = true,
+    update = { hostSubcompositions(parentContext) },
 )
 ```
 
-When `hostsSubcompositions = true`, the factory component **must** be a `javax.swing.JComponent`; a
-bare `java.awt.Component` host throws `IllegalStateException` at apply.
+Pass `null` to host nothing, which is what a node that never declares it does.
+
+The component **must** be a `javax.swing.JComponent`; a bare `java.awt.Component` host throws
+`IllegalStateException` at apply.
 
 ## `onRelease` for cleanup
 

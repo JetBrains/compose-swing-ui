@@ -266,7 +266,6 @@ internal class SwingNodeHolder<out T : Component>
          * Throws [IllegalStateException] when the component is not a [JComponent], because only a
          * [JComponent] can carry a client property.
          */
-        @PublishedApi
         internal fun hostSubcompositions(context: CompositionContext?) {
             if (context == null) {
                 clearSubcompositionStamp()
@@ -275,9 +274,9 @@ internal class SwingNodeHolder<out T : Component>
             val host =
                 component as? JComponent
                     ?: error(
-                        "SwingNode(hostsSubcompositions = true) requires the factory component to be a " +
-                            "JComponent so descendant setContent calls can discover this composition via " +
-                            "the COMPOSITION_KEY client property, but it was a " +
+                        "hostSubcompositions requires the node's component to be a JComponent, so that " +
+                            "descendant setContent calls can discover this composition through the " +
+                            "COMPOSITION_KEY client property, but it was a " +
                             "'${component.javaClass.name}'. A non-JComponent cannot host subcompositions " +
                             "through the client-property walk.",
                     )

@@ -40,9 +40,11 @@ internal class AppliedWrite {
      *
      * Every throwable is caught: what a listener throws is the caller's choice, and naming only some
      * types would leave the rest free to end the composition.
+     *
+     * Inlined, so a write a settle makes carries no block of its own.
      */
     @Suppress("TooGenericExceptionCaught")
-    fun write(block: () -> Unit) {
+    inline fun write(block: () -> Unit) {
         writeDepth++
         try {
             block()

@@ -909,7 +909,6 @@ public final class org/jetbrains/compose/swing/node/SwingNodeHolder : androidx/c
 	public final fun getChildPlacement ()Lorg/jetbrains/compose/swing/node/ChildPlacement;
 	public fun getComponent ()Ljava/awt/Component;
 	public final fun getReleaseBlock ()Lkotlin/jvm/functions/Function0;
-	public final fun hostSubcompositions (Landroidx/compose/runtime/CompositionContext;)V
 	public fun onDeactivate ()V
 	public fun onRelease ()V
 	public fun onReuse ()V
@@ -925,6 +924,7 @@ public final class org/jetbrains/compose/swing/node/SwingNodeUpdater {
 	public static final fun equals-impl0 (Landroidx/compose/runtime/Composer;Landroidx/compose/runtime/Composer;)Z
 	public fun hashCode ()I
 	public static fun hashCode-impl (Landroidx/compose/runtime/Composer;)I
+	public static final fun hostSubcompositions-impl (Landroidx/compose/runtime/Composer;Landroidx/compose/runtime/CompositionContext;)V
 	public static final fun init-impl (Landroidx/compose/runtime/Composer;Lkotlin/jvm/functions/Function1;)V
 	public static final fun reconcile-impl (Landroidx/compose/runtime/Composer;Lkotlin/jvm/functions/Function1;)V
 	public static final fun set-impl (Landroidx/compose/runtime/Composer;Ljava/lang/Object;Lkotlin/jvm/functions/Function2;)V

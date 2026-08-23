@@ -6,6 +6,7 @@ import androidx.compose.runtime.Recomposer
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.tooling.CompositionRegistrationObserver
 import androidx.compose.runtime.tooling.ObservableComposition
@@ -431,7 +432,7 @@ class ComponentRecomposerTest {
     }
 
     /**
-     * A `SwingNode(hostsSubcompositions = true)` stamps its component with a context taken from inside
+     * A `SwingNode` declaring `hostSubcompositions` stamps its component with a context taken from inside
      * the composition, which names no recomposer. The walk passes over such a stamp and carries on to
      * the window's own, so content nested through one still answers with the scope actually driving it.
      */
@@ -442,7 +443,11 @@ class ComponentRecomposerTest {
         try {
             val composition = childOf(frame)
             val host = JPanel()
-            val outer = composition.setContent { SwingNode(factory = { host }, hostsSubcompositions = true) }
+            val outer =
+                composition.setContent {
+                    val parentContext = rememberCompositionContext()
+                    SwingNode(factory = { host }, update = { hostSubcompositions(parentContext) })
+                }
             var nested: DisposableHandle? = null
             try {
                 awaitUntil("the host node is applied") { host.parent != null }

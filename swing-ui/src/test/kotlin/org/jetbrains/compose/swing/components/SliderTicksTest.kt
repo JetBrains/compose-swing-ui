@@ -2,6 +2,7 @@ package org.jetbrains.compose.swing.components
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -20,7 +21,8 @@ import kotlin.test.assertTrue
  * flags reach the live `JSlider` and follow a state-driven recomposition, snapping resolves a value to
  * the closest tick, and the declared label map decides which labels are drawn - with Swing's own labels
  * at the major tick marks standing in whenever no map is declared and a later map replacing the labels
- * the one before it drew.
+ * the one before it drew. A caller may keep the map and mutate it in place rather than declaring a new
+ * one, and the labels follow that too.
  */
 class SliderTicksTest {
     /** The values the slider draws a label at, in ascending order. */
@@ -273,6 +275,35 @@ class SliderTicksTest {
         )
     }
 
+    /**
+     * A minimum above the maximum is a range no slider can span, and Swing's own model resolves it by
+     * bringing the two bounds together on the value declared last. The labels stand at the major ticks
+     * of the range the slider was left on, so a second such declaration - which resolves to a different
+     * single value - moves them there.
+     */
+    @Test
+    fun theLabelsFollowTheRangeAnInvertedDeclarationResolvesTo() = runComposeSwingTest {
+        var min by mutableIntStateOf(10)
+        var max by mutableIntStateOf(5)
+        setContent {
+            Slider(value = 0, onValueChange = {}, min = min, max = max, majorTickSpacing = 2, paintLabels = true)
+        }
+        val slider = onNodeOfType<JSlider>().fetch()
+        assertEquals(5, slider.minimum, "the slider should resolve the range onto the maximum declared last")
+        assertEquals(listOf(5), slider.labeledValues(), "the label should stand at the value the slider spans")
+
+        min = 20
+        max = 3
+        awaitIdle()
+
+        assertEquals(3, slider.minimum, "the slider should resolve the new range the same way")
+        assertEquals(
+            listOf(3),
+            slider.labeledValues(),
+            "the label should move to the value the second range resolved to",
+        )
+    }
+
     @Test
     fun withdrawingTheLabelMapBringsBackTheLabelsAtTheMajorTicks() = runComposeSwingTest {
         var labels by mutableStateOf<Map<Int, String>?>(mapOf(0 to "quiet", 100 to "loud"))
@@ -335,6 +366,66 @@ class SliderTicksTest {
         awaitIdle()
 
         assertNull(slider.labelTable, "without a major tick spacing there are no labels to fall back on")
+    }
+
+    @Test
+    fun aLabelMapTheCallerMutatesInPlaceRepaintsTheTextItChanged() = runComposeSwingTest {
+        val labels = mutableMapOf(0 to "quiet", 100 to "loud")
+        var value by mutableIntStateOf(30)
+        setContent {
+            Slider(
+                value = value,
+                onValueChange = {},
+                min = 0,
+                max = 100,
+                majorTickSpacing = 25,
+                paintLabels = true,
+                labels = labels,
+            )
+        }
+        val slider = onNodeOfType<JSlider>().fetch()
+        assertEquals("loud", slider.labelTextAt(100), "the declared text is what the slider paints")
+
+        // The caller keeps the map and edits it, so the slider is handed the same instance a pass later.
+        // Nothing tells the two apart but the entries themselves.
+        labels[100] = "deafening"
+        value = 40
+        awaitIdle()
+
+        assertEquals(
+            "deafening",
+            slider.labelTextAt(100),
+            "a map the caller mutates in place should reach the labels the slider paints",
+        )
+    }
+
+    @Test
+    fun mutatingASnapshotLabelMapIsOnItsOwnEnoughToRepaintTheText() = runComposeSwingTest {
+        val labels = mutableStateMapOf(0 to "quiet", 100 to "loud")
+        setContent {
+            Slider(
+                value = 30,
+                onValueChange = {},
+                min = 0,
+                max = 100,
+                majorTickSpacing = 25,
+                paintLabels = true,
+                labels = labels,
+            )
+        }
+        val slider = onNodeOfType<JSlider>().fetch()
+        assertEquals("loud", slider.labelTextAt(100), "the declared text is what the slider paints")
+
+        // Nothing else is declared anew: the slider recomposes only if the entries were read while it
+        // composed, which is what subscribes it to the map.
+        labels[100] = "deafening"
+        awaitIdle()
+
+        assertEquals(
+            "deafening",
+            slider.labelTextAt(100),
+            "an entry mutated in a snapshot map should invalidate the slider on its own",
+        )
     }
 
     @Test

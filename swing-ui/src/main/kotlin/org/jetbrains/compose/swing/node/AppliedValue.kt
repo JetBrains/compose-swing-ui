@@ -148,18 +148,53 @@ public class AppliedValue<V>
             write: (V) -> Unit,
             onSettled: (V) -> Unit = {},
         ) {
-            val settled =
-                settling {
-                    if (read() != declared) this.write { write(declared) }
-                    read().also { current ->
-                        observedValue = current
-                        declaredAgainst = current
-                    }
-                }
+            val settled = leftHolding(declared, read, write)
             // Runs while the composition applies its changes; dispatchToCaller keeps a callback failure
             // from ending the composition.
             if (settled != declared) dispatchToCaller { onSettled(settled) }
         }
+
+        /**
+         * Settles [component] on [declared], the way [settle] settles a widget reached through plain
+         * blocks: the property is carried by accessors of the component's own type, and [onSettled]
+         * hears what the widget was left holding where that is not [declared].
+         *
+         * This is what a declaration settles through. The accessors a component declares are the same on
+         * every pass, so handing them over with the component they read and write - rather than in blocks
+         * built around it - is what leaves a settling pass with nothing to build.
+         */
+        internal fun <C> settleThrough(
+            component: C,
+            declared: V,
+            read: C.() -> V,
+            write: C.(V) -> Unit,
+            onSettled: C.(V) -> Unit,
+        ) {
+            val settled = leftHolding(declared, { component.read() }, { written -> component.write(written) })
+            if (settled != declared) dispatchToCaller { component.onSettled(settled) }
+        }
+
+        /**
+         * The value the widget is left holding once [declared] has been settled onto it: written through
+         * [write] unless [read] already answers with it, then read back. That value becomes the baseline
+         * later moves are measured against and the one [declared] has now been answered for, so a widget
+         * that answered with a value of its own is not written again on every later pass.
+         *
+         * Inlined into both routes into it, so a settle carries the accessors it was given rather than
+         * blocks built around them.
+         */
+        private inline fun leftHolding(
+            declared: V,
+            read: () -> V,
+            crossinline write: (V) -> Unit,
+        ): V =
+            settling {
+                if (read() != declared) appliedWrite.write { write(declared) }
+                read().also { current ->
+                    observedValue = current
+                    declaredAgainst = current
+                }
+            }
 
         /**
          * Records [value] as what a settlement of this mirror's own left the widget holding, and as the
@@ -326,18 +361,12 @@ public fun <C : Component, V> SwingNodeUpdater<C>.declare(
     // The declaration and the value the widget holds move independently, and one settle answers for both.
     // The mirror keeps the pair it was last settled on and compares this pass's against it in place, so a
     // pass with nothing to settle builds no block to run and no key to compare through.
+    //
+    // The accessors are handed to the mirror as they are, together with the component they read and write:
+    // a settling pass builds the settlement itself and nothing besides.
     settleWhenDue(
         applied.redeclare(value),
-        {
-            Settlement<C> { component ->
-                applied.settle(
-                    value,
-                    { component.read() },
-                    { written -> component.write(written) },
-                    { on -> component.onSettled(on) },
-                )
-            }
-        },
+        { Settlement<C> { component -> applied.settleThrough(component, value, read, write, onSettled) } },
     ) { settlement -> settlement.applyTo(this) }
 }
 
