@@ -5,11 +5,10 @@ import org.jetbrains.compose.swing.passcost.harness.Frames
 import org.jetbrains.compose.swing.passcost.harness.drivePass
 import org.jetbrains.compose.swing.passcost.harness.enableAllocationCounting
 import org.jetbrains.compose.swing.passcost.harness.onEventDispatchThread
-import org.jetbrains.compose.swing.setContent
 import javax.swing.JPanel
 import kotlin.system.exitProcess
 
-/** The tree sizes every arm is measured on. */
+/** The tree sizes an arm is measured on unless it names its own. */
 internal val TREE_SIZES = listOf(SMALL_TREE, LARGE_TREE)
 
 /** The smaller of the two trees. */
@@ -17,6 +16,21 @@ internal const val SMALL_TREE = 1
 
 /** The larger of the two trees. */
 internal const val LARGE_TREE = 200
+
+/**
+ * How many copies of a widget that brings a widget tree of its own the larger of its two trees holds.
+ *
+ * Smaller than [LARGE_TREE] because one copy here is not one widget: a scroll pane brings two scroll bars
+ * and three viewports, an internal frame a root pane, a combo box a popup and an editor and a renderer, a
+ * spinner an editor around its model, and a styled pane rebuilds its whole element structure for every
+ * text written onto it. Two sizes are what separate the per-copy cost from the fixed one, so the pair
+ * stays; only the larger shrinks. Every such arm is measured at the same pair, so these widgets read
+ * against each other rather than each against a size of its own.
+ */
+internal const val HEAVY_TREE = 50
+
+/** The tree sizes a widget that brings a tree of its own is measured at, in place of [TREE_SIZES]. */
+internal val HEAVY_TREE_SIZES: List<Int> = listOf(SMALL_TREE, HEAVY_TREE)
 
 /** How many passes one batch measures unless the command line names another count. */
 internal const val DEFAULT_PASSES = 2000
@@ -51,6 +65,7 @@ internal const val TABLE_COLUMN_HEADER = "text"
 /** What the last node or row carries where an arm changes how many there are and nothing else. */
 internal const val STEADY_TEXT = "steady"
 
+internal const val REFERENCE_NODE_ARM = "reference node key only"
 internal const val PROPERTY_ARM = "one property changed"
 internal const val SCOPE_ABOVE_ARM = "read one scope above"
 internal const val INSERT_SERIES = "structural insert"
@@ -96,19 +111,27 @@ internal const val NULL_BUDGET_BYTES = 512.0
  * variant - driving the identical tree through the identical frame protocol with nothing changed at
  * all. The report prints the null beside every arm and states each arm net of its own null.
  *
- * @param args the first argument, if given, is how many passes one batch measures; it defaults to
- *   [DEFAULT_PASSES].
+ * An arm names itself, and `-only` measures the arms whose name contains a text - which is what makes a
+ * single widget answerable on its own, in seconds rather than in the minutes a whole run takes.
+ *
+ * @param args the command line; see `-help`.
  */
 fun main(args: Array<String>) {
-    val passes = passesPerBatch(args)
+    val options = parseOptions(args)
+    val arms = armsNamed(options.only)
+    if (options.listArms) {
+        for (arm in arms) for (series in arm.series) println(series)
+        return
+    }
+
     enableAllocationCounting()
     onEventDispatchThread { Frames.start() }
 
-    val report = Report(passes)
-    for (arm in arms()) {
-        for (widgets in TREE_SIZES) {
+    val report = Report(options.passes)
+    for (arm in arms) {
+        for (widgets in arm.sizes) {
             for (changing in listOf(false, true)) {
-                repeat(BATCHES) { batch -> report.add(measure(arm, widgets, changing, batch, passes)) }
+                repeat(BATCHES) { batch -> report.add(measure(arm, widgets, changing, batch, options.passes)) }
             }
         }
     }
@@ -120,12 +143,23 @@ fun main(args: Array<String>) {
     exitProcess(if (report.nullGateFailed) 1 else 0)
 }
 
-/** How many passes a batch measures, from the command line where it names a count. */
-private fun passesPerBatch(args: Array<String>): Int {
-    val named = args.firstOrNull() ?: return DEFAULT_PASSES
-    val passes = named.toIntOrNull()
-    check(passes != null && passes > 0) { "passes per batch must be a positive number, not '$named'" }
-    return passes
+/**
+ * The arms whose name contains one of [only], or every arm where nothing was named.
+ *
+ * A name that matches no arm ends the run: a filter that quietly measured nothing would still print a
+ * table, and an empty table reads as an arm that costs nothing.
+ */
+private fun armsNamed(only: List<String>): List<Arm> {
+    val all = arms()
+    if (only.isEmpty()) return all
+    val named =
+        all.filter { arm ->
+            arm.series.any { series -> only.any { series.contains(it, ignoreCase = true) } }
+        }
+    check(named.isNotEmpty()) {
+        "no arm is named by ${only.joinToString()}; -list prints the names this run knows"
+    }
+    return named
 }
 
 /**
@@ -147,7 +181,7 @@ private fun measure(
     lateinit var mount: DisposableHandle
     onEventDispatchThread {
         root = JPanel()
-        mount = root.setContent(parent = Frames.compositionContext, content = run.content)
+        mount = run.mount(root)
     }
     Frames.checkRunning()
 
@@ -167,6 +201,20 @@ private fun measure(
     onEventDispatchThread { mount.dispose() }
 
     return totals.map { (series, total) ->
-        Sample(Series(series, widgets, changing), batch, total.passes, total.frames, total.nanos, total.bytes)
+        Sample(Series(series, widgets, changing), batch, total.passes, total.frames, total.minNanos, total.bytes)
     }
 }
+
+/**
+ * The text written on pass [pass]. Two interned constants alternating, so every pass is a real change
+ * and the driver itself allocates nothing.
+ *
+ * [UNSET_TICK] - the pass before the first, which no driver ever writes - answers [INITIAL_TEXT], so a
+ * widget still carrying what it was composed with carries a text no pass declared.
+ */
+internal fun alternatingText(pass: Int): String =
+    when {
+        pass == UNSET_TICK -> INITIAL_TEXT
+        pass % 2 == 0 -> "A"
+        else -> "B"
+    }

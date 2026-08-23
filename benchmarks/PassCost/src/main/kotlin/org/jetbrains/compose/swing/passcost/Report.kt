@@ -17,10 +17,11 @@ internal class Sample(
     val batch: Int,
     val passes: Int,
     val frames: Long,
-    val nanos: Long,
+    /** The shortest pass of the batch, in nanoseconds. */
+    val minNanos: Long,
     val bytes: Long,
 ) {
-    val microsPerPass: Double get() = nanos.toDouble() / passes / NANOS_PER_MICRO
+    val microsPerPass: Double get() = minNanos.toDouble() / NANOS_PER_MICRO
     val bytesPerPass: Double get() = bytes.toDouble() / passes
     val framesPerPass: Double get() = frames.toDouble() / passes
 }
@@ -31,7 +32,7 @@ internal class Totals {
         private set
     var frames: Long = 0
         private set
-    var nanos: Long = 0
+    var minNanos: Long = Long.MAX_VALUE
         private set
     var bytes: Long = 0
         private set
@@ -39,7 +40,7 @@ internal class Totals {
     fun add(cost: PassMeasurement) {
         passes++
         frames += cost.frames
-        nanos += cost.nanos
+        minNanos = minOf(minNanos, cost.nanos)
         bytes += cost.bytes
     }
 }
@@ -76,7 +77,7 @@ internal class Report(
         val nulls = group.filter { !it.series.changing }
         val arms = group.filter { it.series.changing }
         val nullBytes = nulls.map { it.bytesPerPass }.average()
-        val nullMicros = nulls.map { it.microsPerPass }.average()
+        val nullMicros = nulls.minOf { it.microsPerPass }
         check(nulls.size == BATCHES && arms.size == BATCHES) {
             "'$series' on $widgets widgets was not measured in $BATCHES batches per variant"
         }
@@ -127,9 +128,9 @@ internal class Report(
             "B/pass",
             "null B/pass",
             "net B/pass",
-            "us/pass",
-            "null us",
-            "net us",
+            "min us",
+            "null min us",
+            "net min us",
         )
 
     private fun row(
@@ -149,8 +150,18 @@ internal class Report(
             nullBytes?.let { bytes(sample.bytesPerPass - it) } ?: "-",
             micros(sample.microsPerPass),
             nullMicros?.let(::micros) ?: "-",
-            nullMicros?.let { micros(sample.microsPerPass - it) } ?: "-",
+            nullMicros?.let { netMicros(sample.microsPerPass - it) } ?: "-",
         )
+
+    /**
+     * A net time, or [UNRESOLVED] where the arm's shortest pass did not beat its null's.
+     *
+     * The two minima are measured against the same clock but not in the same pass, so an arm whose work
+     * is shorter than what separates two readings of that clock can land either side of its null. Naming
+     * that says the arm costs less than this runner can measure; a negative number would read as an arm
+     * that costs less than changing nothing.
+     */
+    private fun netMicros(value: Double): String = if (value <= 0) UNRESOLVED else micros(value)
 
     private fun columns(vararg cells: String): String =
         String.format(
@@ -165,15 +176,22 @@ internal class Report(
 }
 
 private const val NANOS_PER_MICRO = 1000.0
+
+/** What the net time column reads where an arm's shortest pass did not beat its null's. */
+private const val UNRESOLVED = "under"
 private const val BANNER_WIDTH = 78
 
 private fun legend(passes: Int) =
     """
     Per-pass cost of the composition runtime. $passes passes per batch, $WARMUP warmup passes
-    discarded, $BATCHES batches per variant. The tree is a Column of $SMALL_TREE or $LARGE_TREE widgets;
-    the node arms give each widget $DECLARED_PROPERTIES keys or declarations. The tree and table arms
-    declare $SMALL_TREE or $LARGE_TREE child nodes or rows instead of widgets. An arm that alternates
-    splits a batch between its two series; the passes column states what each row was measured over.
+    discarded, $BATCHES batches per variant. The tree is a Column of as many widgets as the tree column
+    states - $SMALL_TREE or $LARGE_TREE unless an arm names its own sizes; the node arms give each widget
+    $DECLARED_PROPERTIES keys or declarations, and the tree and table arms declare that many child nodes
+    or rows instead of widgets. An arm that alternates splits a batch between its two series; the passes
+    column states what each row was measured over.
+
+    Read an arm down its two tree sizes before reading it across to another arm: the difference between
+    the two is what the change costs per widget, and the rest is what it costs however many there are.
 
     A pass is: publish the pass's state writes, drain the event queue, send a frame, drain again until
     no frame is wanted. Nothing lays out and nothing paints - no widget here is ever realized - so a
@@ -194,6 +212,17 @@ private fun legend(passes: Int) =
     step of its own after it, so neither covers this runner's waiting. Allocation is reproducible: an
     arm's batches agree to a fraction of a percent, and they repeat across runs - but a run's own
     just-in-time decisions can shift one arm by ten percent or more while every other arm holds, so
-    compare two arms inside one run and never across two. Wall-clock is not reproducible: it moves by up to 2.2x with machine load, so read the time
-    columns as a spread across the batches rather than as a point estimate.
+    compare two arms inside one run and never across two.
+
+    The time columns state the batch's shortest pass, not its mean. A pass can only be lengthened by
+    what interrupts it - the scheduler, a collection, another process - so the shortest pass of several
+    hundred is the one that ran with the least of that, and it is the closest reading of what the work
+    itself costs. A mean carries every interruption instead, which is what made this column move with
+    the machine's load rather than with the code. An arm still states its own repeatability: three
+    batches each report their own shortest pass, and a figure that moves between them is one to
+    distrust. The null column is the shortest null pass of the three batches, for the same reason.
+
+    A net time reading "under" is an arm whose shortest pass did not beat its null's: what it changes
+    costs less than what separates two readings of the clock, so this runner states no time for it. Its
+    bytes are still measured, and are the figure to read for such an arm.
     """.trimIndent()

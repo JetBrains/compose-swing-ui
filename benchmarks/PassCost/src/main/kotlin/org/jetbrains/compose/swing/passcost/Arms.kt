@@ -3,10 +3,14 @@ package org.jetbrains.compose.swing.passcost
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import kotlinx.coroutines.DisposableHandle
 import org.jetbrains.compose.swing.annotations.SwingComposable
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Column
+import org.jetbrains.compose.swing.passcost.harness.Frames
+import org.jetbrains.compose.swing.setContent
 import java.awt.Container
+import javax.swing.JPanel
 
 /**
  * One measured arm: a tree, and the change its driver makes to that tree on every pass.
@@ -20,20 +24,38 @@ import java.awt.Container
 internal class Arm(
     /** The names this arm's passes are reported under; more than one where a pass alternates. */
     val series: List<String>,
+    /**
+     * The tree sizes this arm is measured at, each of them twice. Two sizes are what separate what a
+     * change costs per widget from what it costs whatever the tree holds: the slope between them is the
+     * per-widget cost, and an arm flat across them carries none.
+     */
+    val sizes: List<Int> = TREE_SIZES,
     /** Builds the tree and its driver, fresh for every batch. [changing] false builds the null variant. */
     val build: (widgets: Int, changing: Boolean) -> Run,
 )
 
 /** A tree ready to be driven, the driver that changes it, and what has to hold once a batch is over. */
 internal class Run(
-    val content:
-        @Composable @SwingComposable
-        () -> Unit,
+    /**
+     * Composes this arm's tree under the panel a batch is given, and answers the handle that disposes
+     * it. An arm states this itself rather than handing over content because the applier a tree is
+     * composed into is part of what an arm measures - see [mountReferenceTree].
+     */
+    val mount: (root: JPanel) -> DisposableHandle,
     /** Makes this pass's change and answers the series the pass belongs to. */
     val drive: (pass: Int) -> String,
     /** Checked on the composed tree once [passes] passes have been driven onto it. */
     val verify: (root: Container, passes: Int) -> Unit,
-)
+) {
+    /** An arm whose tree is the Swing one every widget arm composes, mounted under this module's runtime. */
+    constructor(
+        content:
+            @Composable @SwingComposable
+            () -> Unit,
+        drive: (pass: Int) -> String,
+        verify: (root: Container, passes: Int) -> Unit,
+    ) : this({ root -> root.setContent(parent = Frames.compositionContext, content = content) }, drive, verify)
+}
 
 /** Every arm this module measures, in the order it reports them. */
 internal fun arms(): List<Arm> =
@@ -43,6 +65,7 @@ internal fun arms(): List<Arm> =
         structuralArm(),
         chainArm("modifier chain unchanged", freshCallback = false),
         chainArm("modifier chain rebuilt", freshCallback = true),
+        referenceNodeArm(),
         nodeArm("node key only", NodeShape.PLAIN),
         nodeArm("value keys only", NodeShape.KEYED),
         nodeArm("declared two-way", NodeShape.DECLARING),
@@ -55,7 +78,7 @@ internal fun arms(): List<Arm> =
         listItemsArm(),
         listSelectionArm(),
         treeSelectionArm(),
-    ) + tableSelectionArms()
+    ) + tableSelectionArms() + textArms() + controlArms() + panelArms() + containerArms() + fillerArms()
 
 /**
  * A label reading the changing text itself, so a write invalidates that label's scope and no other:
@@ -125,52 +148,47 @@ private fun scopeAboveArm(): Arm =
  * One widget appearing and disappearing at the end of the tree, reported as two series: the passes that
  * insert it and the passes that remove it. One driver produces both, so the two are measured on one
  * tree that never drifts in size.
+ *
+ * A label is emitted while the state holds a text, and the tree is composed holding [INITIAL_TEXT] - a
+ * text no pass writes. A tree that was never inserted into nor removed from therefore holds one label
+ * too many, reading a text neither series declares.
+ *
+ * The optional slot is a composable lambda rather than a call, so it carries a scope of its own that a
+ * write invalidates without re-executing the labels around it.
  */
 private fun structuralArm(): Arm =
     Arm(listOf(INSERT_SERIES, REMOVE_SERIES)) { widgets, changing ->
-        val present = mutableStateOf(false)
+        val extra = mutableStateOf<String?>(INITIAL_TEXT)
         val optionalRuns = IntArray(1)
+        val optional: @Composable () -> Unit = {
+            optionalRuns[0]++
+            val text = extra.value
+            if (text != null) Label(text)
+        }
         Run(
             content = {
                 Column {
                     for (index in 0 until widgets) Label(FILLER_TEXTS[index])
-                    OptionalLabel(present) { optionalRuns[0]++ }
+                    optional()
                 }
             },
             drive = { pass ->
                 val inserting = pass % 2 == 0
-                if (changing) present.value = inserting
+                if (changing) extra.value = if (inserting) EXTRA_TEXT else null
                 if (inserting) INSERT_SERIES else REMOVE_SERIES
             },
             verify = { root, passes ->
-                val inserted = changing && (passes - 1) % 2 == 0
-                checkWidgets("labels", labelCount(root), widgets + if (inserted) 1 else 0)
+                val standing =
+                    when {
+                        !changing -> INITIAL_TEXT
+                        (passes - 1) % 2 == 0 -> EXTRA_TEXT
+                        else -> null
+                    }
+                checkWidgets("labels", labelCount(root), widgets + if (standing != null) 1 else 0)
                 checkScopeRuns("the optional label's scope", optionalRuns[0], if (changing) 1 + passes else 1)
-            },
-        )
-    }
-
-/** Every widget carrying the same four-element modifier chain, re-declared on every pass. */
-private fun chainArm(
-    name: String,
-    freshCallback: Boolean,
-): Arm =
-    Arm(listOf(name)) { widgets, changing ->
-        val tick = mutableStateOf(UNSET_TICK)
-        val panelRuns = IntArray(1)
-        Run(
-            content = {
-                Column {
-                    repeat(widgets) { ChainPanel(tick, freshCallback) { panelRuns[0]++ } }
+                check(standing == null || labelTexts(root).contains(standing)) {
+                    "no label carries '$standing', the text the last pass emitted"
                 }
-            },
-            drive = { pass ->
-                if (changing) tick.value = pass % 2
-                name
-            },
-            verify = { root, passes ->
-                checkWidgets("panels", panelCount(root), widgets + 1)
-                checkScopeRuns("the panel scopes", panelRuns[0], widgets * if (changing) 1 + passes else 1)
             },
         )
     }
@@ -218,7 +236,8 @@ private fun nodeArm(
 /**
  * Raises unless every declared panel carries the name the last pass declared onto it - which is what
  * says that a moved declaration reached the widget and not only the mirror. A panel arrives unnamed,
- * so a declaration that never reached one leaves it carrying no name at all.
+ * so a declaration that never reached one leaves it carrying no name at all; the tick it is composed
+ * on names a third text, so a panel left on the first declaration it was given fails just as loudly.
  */
 private fun checkMovedPanels(
     root: Container,
@@ -260,19 +279,10 @@ private fun sliderValueArm(): Arm =
                 val values = sliderValues(root)
                 checkWidgets("sliders", values.size, widgets)
                 checkScopeRuns("the slider scopes", sliderRuns[0], widgets * if (changing) 1 + passes else 1)
-                val expected = if (changing) (passes - 1) % 2 else SLIDER_MAXIMUM
-                check(values.all { it == expected }) {
-                    "a slider is left on ${values.first { it != expected }}, where $expected was declared last"
-                }
+                checkApplied("slider", values, if (changing) (passes - 1) % 2 else SLIDER_MAXIMUM)
             },
         )
     }
-
-/**
- * The text written on pass [pass]. Two interned constants alternating, so every pass is a real change
- * and the driver itself allocates nothing.
- */
-internal fun alternatingText(pass: Int): String = if (pass % 2 == 0) "A" else "B"
 
 internal fun checkWidgets(
     what: String,
@@ -288,4 +298,18 @@ internal fun checkScopeRuns(
     expected: Int,
 ) {
     check(counted == expected) { "$what ran $counted times where $expected were expected" }
+}
+
+/**
+ * Raises unless every widget carries [expected], the value the last pass declared onto all of them -
+ * which is what says the declaration reached the widgets and not only the mirror they settle through.
+ */
+internal fun <T> checkApplied(
+    what: String,
+    applied: List<T>,
+    expected: T,
+) {
+    check(applied.all { it == expected }) {
+        "a $what is left on ${applied.first { it != expected }}, where $expected was declared last"
+    }
 }

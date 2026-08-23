@@ -34,8 +34,11 @@ internal fun <T : Component> singleOfType(
     return found.first()
 }
 
-/** Every component of [type] the composed [root] holds, at any depth, in the order a walk reaches them. */
-private fun <T : Component> componentsOfType(
+/**
+ * Every component of [type] the composed [root] holds, at any depth. The children of one container come
+ * in the order they were added to it, which is the order they were declared in.
+ */
+internal fun <T : Component> componentsOfType(
     root: Container,
     type: Class<T>,
 ): List<T> = buildList { collectOfType(root, type, this) }
