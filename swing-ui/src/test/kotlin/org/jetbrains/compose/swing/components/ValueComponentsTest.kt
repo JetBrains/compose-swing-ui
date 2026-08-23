@@ -93,12 +93,16 @@ class ValueComponentsTest {
     fun sliderReflectsStateDrivenRecomposition() = runComposeSwingTest {
         var value by mutableIntStateOf(10)
         setContent { Slider(value = value, onValueChange = {}) }
+        awaitIdle()
+        mainClock.autoAdvance = false
+
         val slider = onNodeOfType<JSlider>().fetch()
         assertEquals(10, slider.value, "the slider should start at the initial value")
 
         value = 75
         awaitIdle()
-        assertEquals(75, slider.value, "the slider should reflect the state-driven value")
+        mainClock.advanceTimeByFrame()
+        assertEquals(75, slider.value, "the pass declaring the value should leave the slider on it")
     }
 
     @Test

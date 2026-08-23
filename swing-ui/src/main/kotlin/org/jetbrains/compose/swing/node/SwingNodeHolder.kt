@@ -248,6 +248,27 @@ internal class SwingNodeHolder<out T : Component>
         internal var ownerObserver: SnapshotStateObserver? = null
 
         /**
+         * The update batch this node's applier keeps. The applier stamps it onto the node on the top-down
+         * insert pass, and it is the same batch for the node's whole life.
+         *
+         * A node's update reaches it through this, which is how a settle that cannot run until the batch
+         * has attached this node's children is handed over - see [childSettle].
+         */
+        internal var updateBatch: ComponentUpdateBatch? = null
+
+        /**
+         * The settle this node's update handed over to run against its children, or `null` for a node
+         * that declares none. See [SwingNodeUpdater.settleWithChildren].
+         *
+         * It outlives the pass that handed it over, because the pass that changes this node's children is
+         * not always a pass that recomposes the node: a strip that grows behind an `if` in the content
+         * would otherwise leave the node with nothing to settle its standing declaration against. What
+         * the block captured stays current, since a node is recomposed whenever anything it captures
+         * moves.
+         */
+        internal var childSettle: (() -> Unit)? = null
+
+        /**
          * `true` while the component carries a [COMPOSITION_KEY] stamp that this node published.
          *
          * A factory may return a component that hosts a composition of its own and stamps itself, which
@@ -299,12 +320,14 @@ internal class SwingNodeHolder<out T : Component>
          * Puts the node back to the state a new node starts from.
          *
          * It removes the subcomposition stamp, detaches the listeners the modifier chain installed,
-         * restores the properties the chain changed, and drops the component's tracked reads from the
-         * owner's observer. The detach covers every modifier-installed listener, including the
-         * built-in domain listener of the component. A stamp left behind would be found by a
-         * `setContent` call on a component below. That call would then nest into a composition that no
-         * longer runs. The shared observer itself keeps running for every other node. It is disposed
-         * with the composition.
+         * restores the properties the chain changed, drops the settle held against this node's children,
+         * and drops the component's tracked reads from the owner's observer. A settle left standing would
+         * be run against a declaration the composition no longer makes; an update that still declares one
+         * hands it over again on the pass that follows. The detach covers every modifier-installed
+         * listener, including the built-in domain listener of the component. A stamp left behind would be
+         * found by a `setContent` call on a component below. That call would then nest into a composition
+         * that no longer runs. The shared observer itself keeps running for every other node. It is
+         * disposed with the composition.
          *
          * It does not change where the component lives: [constraint], [declaredSlot] and
          * [childPlacement] all survive.
@@ -312,6 +335,7 @@ internal class SwingNodeHolder<out T : Component>
         private fun reset() {
             clearSubcompositionStamp()
             resetModifierState()
+            childSettle = null
             ownerObserver?.clear(component)
         }
 

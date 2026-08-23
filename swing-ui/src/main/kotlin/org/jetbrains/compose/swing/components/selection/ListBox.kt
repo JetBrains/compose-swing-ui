@@ -4,6 +4,7 @@
 package org.jetbrains.compose.swing.components.selection
 
 import androidx.compose.runtime.Composable
+import org.jetbrains.compose.swing.components.rememberDeclaredList
 import org.jetbrains.compose.swing.constants.ListLayoutOrientation
 import org.jetbrains.compose.swing.constants.SelectionMode
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -499,13 +500,8 @@ private fun JList<*>.installContent(
 /**
  * Re-applies [indices] as the list's selection, dropping any index the current item count no longer
  * covers. A selection that already matches is left alone, so a recomposition that changed nothing
- * touches the list's selection model not at all, and a `null` declaration leaves it alone entirely.
- *
- * Whatever order [indices] iterates in, every set that names the same rows leaves the list on the same
- * selection, the same lead row and the same anchor row. The two are the ends of the last run of adjacent
- * rows the declared set names: the anchor where that run starts and the lead where it ends, which is the
- * highest selected row. That is where a user's own drag over the same rows leaves them, and the anchor is
- * where a later shift-click extends the selection from. See [selectExactly].
+ * touches the list's selection model not at all, and a `null` declaration leaves it alone entirely. See
+ * [selectExactly].
  */
 private fun applySelection(
     list: JList<*>,

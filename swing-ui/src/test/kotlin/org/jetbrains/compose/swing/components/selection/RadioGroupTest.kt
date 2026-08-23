@@ -127,13 +127,21 @@ class RadioGroupTest {
                 threeOptions()
             }
         }
+        awaitIdle()
+        mainClock.autoAdvance = false
         onNodeWithText("Small").assert(isSelected())
 
         selectedIndex = 2
         awaitIdle()
-        onNodeWithText("Small").assert(isSelected(false))
-        onNodeWithText("Medium").assert(isSelected(false))
-        onNodeWithText("Large").assert(isSelected())
+        mainClock.advanceTimeByFrame()
+
+        val selected = onAllNodesOfType<JRadioButton>().fetchAll().map { it.isSelected }
+        assertEquals(
+            listOf(false, false, true),
+            selected,
+            "the pass declaring the index should leave the group on that option alone, not on the one " +
+                "it stood on before",
+        )
     }
 
     @Test

@@ -32,6 +32,13 @@ internal fun IntArray.holdsSelection(selection: SortedSet<Int>): Boolean {
  * every row of both the old and the new selection dirty; writing the difference marks the rows that actually
  * changed.
  *
+ * The outcome depends only on which rows [selection] names, never on the order they were declared in: the
+ * model is left on the same selection, the same lead and the same anchor - the ends of the last run of
+ * adjacent rows [selection] names, the anchor where that run starts and the lead where it ends. That is
+ * where a user's own drag over those rows leaves them, and a shift-click extends the selection from the
+ * anchor, so the anchor belongs on the run the caller declared rather than on whichever rows happened to
+ * join.
+ *
  * The whole update is one adjusting run, so the model publishes a single settled selection however many
  * intervals it took.
  */
@@ -74,12 +81,10 @@ internal fun ListSelectionModel.selectExactly(
  * Puts the anchor at the start of the last run of adjacent rows in [selection], and answers where that run
  * ends - the row the lead belongs on.
  *
- * A shift-click extends the selection from the anchor, so the anchor belongs on the run the caller
- * declared rather than on whichever rows happened to join. Writing the run as an interval is also what
- * settles which of its rows a mode too narrow to hold them all keeps, so it is written whatever the model
- * already holds. The anchor paints nothing, so a [standard] model has its lead put back to [leadBefore]
- * afterwards, leaving the lead's real move to be announced once. A model of another kind cannot separate
- * the two and announces what it announces.
+ * The run is written as an interval whatever the model already holds: that is what settles which of its rows
+ * a mode too narrow to hold them all keeps. The anchor paints nothing, so a [standard] model has its lead
+ * put back to [leadBefore] afterwards, leaving the lead's real move to be announced once. A model of another
+ * kind cannot separate the two and announces what it announces.
  */
 private fun ListSelectionModel.anchorLastInterval(
     selection: SortedSet<Int>,

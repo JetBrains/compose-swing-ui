@@ -10,39 +10,28 @@ import javax.swing.tree.TreePath
  */
 
 /**
- * Reads every expanded node of the tree back as index paths, walking the structure from the root. A node
- * under a collapsed one is not expanded, and so is not reported.
+ * Reads every expanded node of the tree back as index paths, in document order. A node under a collapsed
+ * one is not shown open, and so is not reported.
+ *
+ * The tree is asked which nodes it holds open rather than being asked node by node, so what this costs
+ * follows the nodes actually open and not the size of the structure. A structure is mostly closed, and a
+ * walk that tested every node built a path for each one only to throw it away.
  */
 internal fun readExpansion(
     tree: JTree,
     model: TreeModel,
 ): Set<List<Int>> {
     val root = model.root ?: return emptySet()
-    val expanded = LinkedHashSet<List<Int>>()
-    collectExpanded(tree, model, TreePath(root), ArrayList(), expanded)
-    return expanded
-}
-
-/**
- * Adds the node at [path] and each of its expanded descendants to [into], in document order. [indices]
- * names [path] and is walked along with it, one index pushed on the way down and taken off on the way
- * back, so the walk copies it only for the nodes it reports.
- */
-private fun collectExpanded(
-    tree: JTree,
-    model: TreeModel,
-    path: TreePath,
-    indices: ArrayList<Int>,
-    into: MutableSet<List<Int>>,
-) {
-    if (!tree.isExpanded(path)) return
-    into.add(ArrayList(indices))
-    val node = path.lastPathComponent
-    for (index in 0 until model.getChildCount(node)) {
-        indices.add(index)
-        collectExpanded(tree, model, path.pathByAddingChild(model.getChild(node, index)), indices, into)
-        indices.removeAt(indices.size - 1)
+    val expanded = ArrayList<List<Int>>()
+    for (path in shownOpen(tree, root)) {
+        val indices = pathToIndices(model, path)
+        // A tree remembers what it holds open by node, and prunes that record only for the events that
+        // name a removal. A node taken out of the structure under any other event is still remembered
+        // open while standing at no child position, and names nothing this can report.
+        if (indices.none { it < 0 }) expanded.add(indices)
     }
+    expanded.sortWith(treeDocumentOrder)
+    return LinkedHashSet(expanded)
 }
 
 /**

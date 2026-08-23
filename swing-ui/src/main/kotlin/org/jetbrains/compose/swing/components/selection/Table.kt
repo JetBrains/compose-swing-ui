@@ -5,24 +5,21 @@ package org.jetbrains.compose.swing.components.selection
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import org.jetbrains.compose.swing.components.rememberDeclaredList
 import org.jetbrains.compose.swing.constants.AutoResizeMode
 import org.jetbrains.compose.swing.constants.SelectionMode
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
-import org.jetbrains.compose.swing.modifier.listener.ModelSwapAware
-import org.jetbrains.compose.swing.modifier.listener.SwappableModel
 import org.jetbrains.compose.swing.modifier.propertyElement
 import org.jetbrains.compose.swing.node.AppliedValue
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
 import org.jetbrains.compose.swing.node.declare
 import org.jetbrains.compose.swing.node.rememberAppliedValue
-import org.jetbrains.compose.swing.node.settleWhenDue
 import javax.swing.JTable
 import javax.swing.ListSelectionModel
 import javax.swing.RowFilter
 import javax.swing.RowSorter.SortKey
-import javax.swing.event.ListSelectionEvent
 import javax.swing.event.ListSelectionListener
 import javax.swing.event.RowSorterListener
 import javax.swing.event.TableColumnModelListener
@@ -132,7 +129,7 @@ public fun <R> Table(
 ) {
     Table(
         rows = rows,
-        listSelectionListener = settledSelectionListener(onSelectionChange),
+        listSelectionListener = settledRowSelectionListener(onSelectionChange),
         modifier = modifier,
         selectedRowIndices = selectedRowIndices,
         selectionMode = selectionMode,
@@ -277,117 +274,6 @@ public fun <R> Table(
 }
 
 /**
- * Settles the table's columns on [columnLayout] whenever the declaration or the layout the columns are in
- * has moved since the pair this mirror last answered for, and does nothing at all on a pass where neither
- * did. Reading the mirror here is what subscribes the composition to a user's own reorder or resize, so a
- * declared layout is put back on the pass that follows their moving away from it.
- */
-private fun SwingNodeUpdater<JTable>.declareColumnLayout(
-    applied: AppliedValue<TableColumnLayout?>,
-    columnLayout: TableColumnLayout?,
-    channel: ColumnLayoutChannel,
-) {
-    settleWhenDue(applied.redeclare(columnLayout), { ColumnLayoutSettlement(columnLayout) }) { due ->
-        channel.settle(columnModel, due.layout)
-    }
-}
-
-/** One due settlement of a table's column layout: the layout to leave the columns in. */
-private class ColumnLayoutSettlement(
-    val layout: TableColumnLayout?,
-)
-
-/**
- * Installs a [ListSelectionListener] on a `JTable`'s `selectionModel` that mirrors every settled selection
- * into [applied] and forwards to [target] whatever arrives outside one of that mirror's own writes - the
- * adjusting events of a drag as well as the settled one, exactly as a caller's raw listener expects. Only
- * the settled value is worth mirroring: an adjusting one would invalidate this composition, and re-assert
- * the declaration, before the user has let go.
- *
- * A table publishes its selection through its selection model, which knows only the rows on screen; the
- * node this installs reads the table straight off the modifier chain it is attached to, so the event handed
- * on to the target is sourced at the table and the selection it carries can be read back off it the way a
- * list's is read back from the list.
- */
-private fun SwingModifier.userSelectionListener(
-    applied: AppliedValue<Set<Int>?>,
-    target: ListSelectionListener,
-): SwingModifier = this then UserSelectionListenerElement(applied, target)
-
-// A table publishes its selection through the selection model it holds, which a caller can replace.
-private val TABLE_SELECTION =
-    SwappableModel<JTable, ListSelectionModel, ListSelectionListener>(
-        property = "selectionModel",
-        modelType = ListSelectionModel::class.java,
-        model = JTable::getSelectionModel,
-        add = ListSelectionModel::addListSelectionListener,
-        remove = ListSelectionModel::removeListSelectionListener,
-    )
-
-/**
- * The additive [SwingModifier.NodeElement] backing [userSelectionListener].
- *
- * Both halves are compared by identity, so this is not a data class: the node forwards to [target]
- * itself, and a caller's listener may carry an `equals` of its own - a function reference does - under
- * which two listeners the node must tell apart compare equal. The element would skip, and the node
- * would keep forwarding to the listener the caller replaced.
- */
-private class UserSelectionListenerElement(
-    val applied: AppliedValue<Set<Int>?>,
-    val target: ListSelectionListener,
-) : SwingModifier.NodeElement<JTable, UserSelectionListenerElement.Node>() {
-    override fun equals(other: Any?): Boolean =
-        other is UserSelectionListenerElement && applied === other.applied && target === other.target
-
-    override fun hashCode(): Int = 31 * System.identityHashCode(applied) + System.identityHashCode(target)
-
-    override val targetType: Class<JTable> get() = JTable::class.java
-    override val additive: Boolean get() = true
-
-    override fun create(): Node = Node(applied)
-
-    override fun update(node: Node) {
-        node.applied = applied
-        node.target = target
-    }
-
-    /**
-     * The node takes the mirror at creation because its listener settles against it while attaching,
-     * before the first update lands. Both halves are pushed on every pass and read when an event fires,
-     * so a table mirrors into the [AppliedValue] and forwards to the listener the composition declares
-     * now.
-     */
-    class Node(
-        var applied: AppliedValue<Set<Int>?>,
-    ) : SwingModifier.Node<JTable>() {
-        var target: ListSelectionListener = ListSelectionListener {}
-
-        private val listener =
-            object : ListSelectionListener, ModelSwapAware<ListSelectionModel> {
-                override fun valueChanged(event: ListSelectionEvent) {
-                    val table = component
-                    if (!event.valueIsAdjusting) applied.observed(table.selectedModelRows())
-                    if (!applied.isWriting) {
-                        target.valueChanged(
-                            ListSelectionEvent(table, event.firstIndex, event.lastIndex, event.valueIsAdjusting),
-                        )
-                    }
-                }
-
-                // The rows a selection model holds are its own indices; the mirror describes the table's,
-                // so what it settles is read back through the table rather than off the incoming model.
-                override fun adoptModelSwap(model: ListSelectionModel) {
-                    applied.observed(component.selectedModelRows())
-                }
-            }
-
-        override fun onAttach(): Unit = TABLE_SELECTION.attachSettling(component, listener, listener::adoptModelSwap)
-
-        override fun onDetach(): Unit = TABLE_SELECTION.detach(component, listener)
-    }
-}
-
-/**
  * A composable wrapper for `JTable` driven by a caller-owned [TableModel].
  *
  * The [model] is displayed as-is: its own columns, values, and editability drive the table, and the
@@ -474,7 +360,7 @@ public fun Table(
 ) {
     Table(
         model = model,
-        listSelectionListener = settledSelectionListener(onSelectionChange),
+        listSelectionListener = settledRowSelectionListener(onSelectionChange),
         modifier = modifier,
         selectedRowIndices = selectedRowIndices,
         selectionMode = selectionMode,
@@ -583,6 +469,138 @@ public fun Table(
 }
 
 /**
+ * A [Table] driven by a [TableState] instead of a declared `selectedRowIndices` and an `onSelectionChange`
+ * lambda. The state owns the selection: the rows it holds are what the table shows selected, the user's own
+ * selecting is written back into it, and it is where a row is revealed from.
+ *
+ * ```
+ * val state = rememberTableState()
+ *
+ * ScrollPane {
+ *     Table(rows = people, state = state, modifier = SwingModifier.viewport()) {
+ *         column("Name") { it.name }
+ *     }
+ * }
+ * Label("Selected: ${state.selectedRowIndices.size}")
+ * ```
+ *
+ * @param rows the row data to display
+ * @param state the hoistable selection state the table applies and reports into; see [TableState]
+ * @param modifier the [SwingModifier] applied to the underlying component
+ * @param selectionMode how many rows/ranges may be selected
+ * @param sortable whether the table sorts and filters its rows; `false` - the default - leaves them in the
+ *   order [rows] declares and its column headers inert
+ * @param sortKeys the sort order the caller declares; `null` - the default - leaves the order to the user
+ * @param onSortChange callback invoked with the order the user's header click leaves the rows in
+ * @param rowFilter which of the rows the table shows, or `null` - the default - to show all of them; a
+ *   filter is adopted by identity, so pass a stable one (e.g. `remember {}`) to avoid churn
+ * @param rowHeight the height in pixels of every row; `null` - the default - leaves it to the look and feel
+ * @param autoResizeMode how the columns share out a change to the table's width
+ * @param fillsViewportHeight whether the table stretches to the full height of the viewport showing it,
+ *   rather than to the height of the rows it holds
+ * @param columnLayout the column order and widths the caller declares; `null` - the default - leaves the
+ *   column layout to the user
+ * @param onColumnLayoutChange callback invoked when the user reorders or resizes the columns
+ * @param block declares the columns; see [TableScope]
+ * @see javax.swing.JTable
+ */
+@Composable
+public fun <R> Table(
+    rows: List<R>,
+    state: TableState,
+    modifier: SwingModifier = SwingModifier,
+    @SelectionMode selectionMode: Int = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION,
+    sortable: Boolean = false,
+    sortKeys: List<SortKey>? = null,
+    onSortChange: (List<SortKey>) -> Unit = {},
+    rowFilter: RowFilter<in TableModel, in Int>? = null,
+    rowHeight: Int? = null,
+    @AutoResizeMode autoResizeMode: Int = JTable.AUTO_RESIZE_SUBSEQUENT_COLUMNS,
+    fillsViewportHeight: Boolean = false,
+    columnLayout: TableColumnLayout? = null,
+    onColumnLayoutChange: (TableColumnLayout) -> Unit = {},
+    block: TableScope<R>.() -> Unit,
+) {
+    Table(
+        rows = rows,
+        modifier = modifier.tableStateBinding(state),
+        selectedRowIndices = state.selectedRowIndices,
+        onSelectionChange = { indices -> state.selectedRowIndices = indices },
+        selectionMode = selectionMode,
+        sortable = sortable,
+        sortKeys = sortKeys,
+        onSortChange = onSortChange,
+        rowFilter = rowFilter,
+        rowHeight = rowHeight,
+        autoResizeMode = autoResizeMode,
+        fillsViewportHeight = fillsViewportHeight,
+        columnLayout = columnLayout,
+        onColumnLayoutChange = onColumnLayoutChange,
+        block = block,
+    )
+}
+
+/**
+ * A model-driven [Table] driven by a [TableState] instead of a declared `selectedRowIndices` and an
+ * `onSelectionChange` lambda. The state owns the selection: the rows it holds are what the table shows
+ * selected, the user's own selecting is written back into it, and it is where a row is revealed from.
+ *
+ * The [model] is displayed as-is and never mutated by the library; the selection survives a model swap.
+ *
+ * @param model the table model to display; owned by the caller and never mutated by the library
+ * @param state the hoistable selection state the table applies and reports into; see [TableState]
+ * @param modifier the [SwingModifier] applied to the underlying component
+ * @param selectionMode how many rows/ranges may be selected
+ * @param sortable whether the table sorts and filters its rows; `false` - the default - leaves them in the
+ *   order [model] holds them in and its column headers inert
+ * @param sortKeys the sort order the caller declares; `null` - the default - leaves the order to the user
+ * @param onSortChange callback invoked with the order the user's header click leaves the rows in
+ * @param rowFilter which of the rows the table shows, or `null` - the default - to show all of them; a
+ *   filter is adopted by identity, so pass a stable one (e.g. `remember {}`) to avoid churn
+ * @param rowHeight the height in pixels of every row; `null` - the default - leaves it to the look and feel
+ * @param autoResizeMode how the columns share out a change to the table's width
+ * @param fillsViewportHeight whether the table stretches to the full height of the viewport showing it,
+ *   rather than to the height of the rows it holds
+ * @param columnLayout the column order and widths the caller declares; `null` - the default - leaves the
+ *   column layout to the user
+ * @param onColumnLayoutChange callback invoked when the user reorders or resizes the columns
+ * @see javax.swing.JTable
+ */
+@Composable
+public fun Table(
+    model: TableModel,
+    state: TableState,
+    modifier: SwingModifier = SwingModifier,
+    @SelectionMode selectionMode: Int = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION,
+    sortable: Boolean = false,
+    sortKeys: List<SortKey>? = null,
+    onSortChange: (List<SortKey>) -> Unit = {},
+    rowFilter: RowFilter<in TableModel, in Int>? = null,
+    rowHeight: Int? = null,
+    @AutoResizeMode autoResizeMode: Int = JTable.AUTO_RESIZE_SUBSEQUENT_COLUMNS,
+    fillsViewportHeight: Boolean = false,
+    columnLayout: TableColumnLayout? = null,
+    onColumnLayoutChange: (TableColumnLayout) -> Unit = {},
+) {
+    Table(
+        model = model,
+        modifier = modifier.tableStateBinding(state),
+        selectedRowIndices = state.selectedRowIndices,
+        onSelectionChange = { indices -> state.selectedRowIndices = indices },
+        selectionMode = selectionMode,
+        sortable = sortable,
+        sortKeys = sortKeys,
+        onSortChange = onSortChange,
+        rowFilter = rowFilter,
+        rowHeight = rowHeight,
+        autoResizeMode = autoResizeMode,
+        fillsViewportHeight = fillsViewportHeight,
+        columnLayout = columnLayout,
+        onColumnLayoutChange = onColumnLayoutChange,
+    )
+}
+
+/**
  * The `JTable` node every [Table] overload renders: all of it but the content, which [installContent]
  * declares - a rows-and-columns refresh in one family of overloads, the caller's own model in the other.
  * [installContent] is handed the [AppliedValue]s mirroring the row selection and the column layout, and the
@@ -617,7 +635,7 @@ private fun TableNode(
     val appliedColumn = rememberAppliedValue<TableColumnLayout?>(null)
     val appliedSelection = rememberAppliedValue(selectedRowIndices)
     val appliedSort = rememberAppliedValue(sortKeys)
-    val columnChannel = rememberColumnLayoutChannel(tableColumnModelListener, appliedColumn)
+    val columnChannel = rememberColumnLayoutChannel(appliedColumn, tableColumnModelListener)
     val sortChannel = rememberRowSortChannel(appliedSort, rowSorterListener)
 
     SwingNode(
@@ -677,21 +695,6 @@ private fun SwingModifier.tableRowHeight(rowHeight: Int?): SwingModifier =
     }
 
 /**
- * The [ListSelectionListener] forwarding each settled row selection to [onSelectionChange], bridging a
- * lambda-based [Table] overload to the raw-listener overload it delegates to. A selection event is handed
- * on with the table as its source, so the settled selection is read back from the table - in the model's
- * row space - once the value stops adjusting.
- *
- * Rebuilt per pass rather than remembered: every place a [Table] takes it reads it live -
- * [UserSelectionListenerElement] holds it in a node field, and the rest call it while the pass that built
- * it runs.
- */
-private fun settledSelectionListener(onSelectionChange: (Set<Int>) -> Unit): ListSelectionListener =
-    ListSelectionListener { event ->
-        if (!event.valueIsAdjusting) onSelectionChange((event.source as JTable).selectedModelRows())
-    }
-
-/**
  * Gives the table new content through [install], keeping the rows [declared] names selected - or, where the
  * caller declared nothing, the rows the user had - and reporting to [target] the rows the new content is
  * too short to hold. See [installNarrowing].
@@ -717,14 +720,9 @@ internal fun JTable.installContent(
 /**
  * Re-applies [indices] as the table's selected rows. The indices name rows of the model, so a row the model
  * no longer holds is dropped and a row the current filter hides has no screen row to select and is dropped
- * too. A selection that already matches is left alone, so a recomposition that changed nothing touches the
- * table's selection model not at all, and a `null` declaration leaves it alone entirely.
- *
- * Whatever order [indices] iterates in, every set that names the same rows leaves the table on the same
- * selection, the same lead row and the same anchor row. The two are the ends of the last run of adjacent
- * rows the declared set names: the anchor where that run starts and the lead where it ends, which is the
- * highest selected row on screen. That is where a user's own drag over the same rows leaves them, and the
- * anchor is where a later shift-click extends the selection from. See [selectExactly].
+ * too; the rest are converted to the screen rows they sit on and selected there. A selection that already
+ * matches is left alone, so a recomposition that changed nothing touches the table's selection model not at
+ * all, and a `null` declaration leaves it alone entirely. See [selectExactly].
  */
 private fun applySelection(
     table: JTable,

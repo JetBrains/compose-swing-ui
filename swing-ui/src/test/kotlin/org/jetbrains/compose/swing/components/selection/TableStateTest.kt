@@ -55,14 +55,21 @@ class TableStateTest {
                 column("Name") { it.name }
             }
         }
+        awaitIdle()
+        mainClock.autoAdvance = false
 
         val table = onNodeOfType<JTable>().fetch()
         assertEquals(emptyList(), table.selectedRows.toList(), "a state naming no row selects none")
 
         state.selectedRowIndices = setOf(0, 2)
         awaitIdle()
+        mainClock.advanceTimeByFrame()
 
-        assertEquals(listOf(0, 2), table.selectedRows.toList(), "the rows the state names are the selected ones")
+        assertEquals(
+            listOf(0, 2),
+            table.selectedRows.toList(),
+            "the one pass that carries the state's new rows should already have selected them",
+        )
     }
 
     @Test
@@ -222,7 +229,7 @@ class TableStateTest {
     }
 
     @Test
-    fun aContiguousSelectionFiresFarFewerEventsThanRowsSelected() = runComposeSwingTest {
+    fun aContiguousSelectionIsWrittenAsOneInterval() = runComposeSwingTest {
         val rows = (0 until ROW_COUNT).map { Person("person $it", it) }
         val state = TableState()
         setContent {
@@ -245,10 +252,11 @@ class TableStateTest {
             table.selectionModel.leadSelectionIndex,
             "the lead stays the highest selected row",
         )
-        assertTrue(
-            eventCount < contiguousRun.count() / 4,
-            "a contiguous run of ${contiguousRun.count()} rows collapses into one interval, " +
-                "but fired $eventCount selection events",
+        assertEquals(
+            2,
+            eventCount,
+            "a run of ${contiguousRun.count()} adjacent rows is written as the one interval that spans " +
+                "them, which the model publishes once as it adjusts and once settled",
         )
     }
 

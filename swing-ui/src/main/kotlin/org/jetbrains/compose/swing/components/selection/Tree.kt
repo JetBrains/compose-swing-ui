@@ -677,6 +677,11 @@ private fun TreeNode(
  * Applies through [block] a property the tree answers by dropping nodes it can no longer hold, reporting to
  * [target] the ones the user loses to it where [declared] leaves the selection theirs, and leaves [applied]
  * mirroring the selection the tree was left with.
+ *
+ * The read that records what survived the write stays outside any settlement of the mirror's, because what
+ * it records is news: the tree has dropped nodes the composition may still declare, and the pass that puts
+ * them back is the one this recording asks for. A settlement here would mark the loss as already answered
+ * and leave a declared selection lying where the write dropped it.
  */
 private fun JTree.settleNarrowing(
     applied: AppliedValue<Set<List<Int>>?>,

@@ -15,7 +15,9 @@ import java.awt.event.ActionListener
 import javax.swing.JCheckBox
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 /**
  * Behavioral coverage for both [CheckBox] overloads, asserted on the live `JCheckBox`.
@@ -25,6 +27,9 @@ import kotlin.test.assertNull
  * callback. Text, checked state and the modifier are each driven through more than one value and back,
  * so a parameter honored only when the component is built would fail here. A click the caller does not
  * adopt does not stand - the next settled pass writes the declared state back over it.
+ *
+ * A declared checked state is settled by the pass that declares it and no later one. The same
+ * settle serves `RadioButton` and `ToggleButton`, which reach it through the shared `declareSelected`.
  */
 class CheckBoxBehaviorTest {
     @Test
@@ -49,16 +54,21 @@ class CheckBoxBehaviorTest {
         // box on the very first composition rather than the box merely keeping its own default.
         var checked by mutableStateOf(true)
         setContent { CheckBox(text = "Word wrap", checked = checked, onCheckedChange = {}) }
+        awaitIdle()
+        mainClock.autoAdvance = false
 
-        onNodeOfType<JCheckBox>().assert(SwingMatcher.isSelected())
+        val box = onNodeOfType<JCheckBox>().fetch()
+        assertTrue(box.isSelected, "the box should open on the checked state it first declares")
 
         checked = false
         awaitIdle()
-        onNodeOfType<JCheckBox>().assert(SwingMatcher.isSelected(false))
+        mainClock.advanceTimeByFrame()
+        assertFalse(box.isSelected, "the pass declaring the box clear should leave it clear, not still checked")
 
         checked = true
         awaitIdle()
-        onNodeOfType<JCheckBox>().assert(SwingMatcher.isSelected())
+        mainClock.advanceTimeByFrame()
+        assertTrue(box.isSelected, "the pass declaring the box checked again should leave it checked, not clear")
     }
 
     @Test

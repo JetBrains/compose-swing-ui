@@ -10,7 +10,6 @@ import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.components.selection.ListItemScope
 import org.jetbrains.compose.swing.components.selection.composableItemCells
 import org.jetbrains.compose.swing.components.selection.rememberComposingListCellRenderer
-import org.jetbrains.compose.swing.components.selection.rememberDeclaredList
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration

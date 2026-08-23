@@ -175,10 +175,17 @@ public class AppliedValue<V>
         }
 
         /**
-         * The value the widget is left holding once [declared] has been settled onto it: written through
-         * [write] unless [read] already answers with it, then read back. That value becomes the baseline
-         * later moves are measured against and the one [declared] has now been answered for, so a widget
-         * that answered with a value of its own is not written again on every later pass.
+         * The value the widget is left holding once [declared] has been settled onto it. That value
+         * becomes the baseline later moves are measured against and the one [declared] has now been
+         * answered for, so a widget that answered with a value of its own is not written again on every
+         * later pass.
+         *
+         * A widget already holding [declared] is left alone, and what it was read as is what it is left
+         * holding - nothing between the two reads could have moved it. Reading it a second time to learn
+         * that is what a settle costs where a read is more than a field access: a text component
+         * materializes its whole document for one, and the pass that follows a keystroke the caller
+         * adopted is exactly this case. Only a widget that was written to is read back, because only
+         * there can it answer with a value of its own.
          *
          * Inlined into both routes into it, so a settle carries the accessors it was given rather than
          * blocks built around them.
@@ -189,11 +196,16 @@ public class AppliedValue<V>
             crossinline write: (V) -> Unit,
         ): V =
             settling {
-                if (read() != declared) appliedWrite.write { write(declared) }
-                read().also { current ->
-                    observedValue = current
-                    declaredAgainst = current
-                }
+                val held = read()
+                val current =
+                    if (held == declared) {
+                        held
+                    } else {
+                        appliedWrite.write { write(declared) }
+                        read()
+                    }
+                answered(current)
+                current
             }
 
         /**
@@ -221,6 +233,14 @@ public class AppliedValue<V>
          * part of what it held settles through this instead, wrapped around both the write and the read
          * that records what survived it. [block] must close the settlement, and throws where it does not -
          * see [SettlementScope] for the two ways to close one.
+         *
+         * What decides whether a read-back belongs inside is whether this pass still owes the widget
+         * anything, and what settles that is whether the pass put the declaration back before it read.
+         * A pass that re-applied the declaration and read what the widget was left holding owes nothing
+         * further, whatever the widget kept of it: that is an answer. A pass that moved the widget by
+         * writing some other property, leaving a standing declaration lying where the widget dropped it,
+         * does still owe it: that is news, and its [observed] stays outside, where the move it records is
+         * what brings the pass that puts the declaration back.
          */
         public fun <R> settle(block: SettlementScope<V>.() -> R): R {
             val scope = RecordingScope(this)
@@ -292,9 +312,11 @@ public class AppliedValue<V>
         /**
          * Runs [block] as this mirror's own settling, marking the moves it makes as ones it answered.
          *
-         * This is the whole of the settlement path: every write to a widget property the user can also
-         * move, and the read-back that records what the widget was left holding, runs inside one of these,
-         * which [settle] enters - so it is the outermost bracket the settlement path shares.
+         * What runs inside is a write whose answer this mirror reads back and records - through [settle]
+         * or [settleThrough], which do both themselves, or through the [settle] overload wrapped around a
+         * the [answered] that records what the widget was left holding. A write that only marks itself as
+         * the wrapper's, with no answer recorded for it, stays outside, so the move it provokes is
+         * counted in [moves] and carries the widget's reply to the next pass.
          */
         private inline fun <R> settling(block: () -> R): R =
             trace("settle") {

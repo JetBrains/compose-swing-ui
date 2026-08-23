@@ -65,14 +65,30 @@ class InternalFrameStateTest {
         }
 
         val frame = onNodeOfType<JInternalFrame>().fetch()
+        awaitIdle()
+        mainClock.autoAdvance = false
+
+        // The frame's geometry is read where the frame is composed, so a write into the state invalidates
+        // that one scope and the pass it provokes is what places the frame.
         state.bounds = Rectangle(40, 50, 250, 150)
         awaitIdle()
-        assertEquals(Rectangle(40, 50, 250, 150), frame.bounds, "assigning bounds should move and resize the frame")
+        mainClock.advanceTimeByFrame()
+        assertEquals(
+            Rectangle(40, 50, 250, 150),
+            frame.bounds,
+            "the pass declaring bounds should leave the frame on them, not on the ones it stood on before",
+        )
 
         state.x = 5
         state.height = 90
         awaitIdle()
-        assertEquals(Rectangle(5, 50, 250, 90), frame.bounds, "each coordinate should drive the frame on its own")
+        mainClock.advanceTimeByFrame()
+        assertEquals(
+            Rectangle(5, 50, 250, 90),
+            frame.bounds,
+            "the pass declaring a coordinate should leave the frame on it, with the coordinates it did " +
+                "not name left as they stood",
+        )
     }
 
     @Test

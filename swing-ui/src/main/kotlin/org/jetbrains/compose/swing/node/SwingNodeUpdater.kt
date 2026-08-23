@@ -110,8 +110,31 @@ public value class SwingNodeUpdater<T : Component>
             }
 
         /**
-         * Hands the composition owner's shared [SnapshotStateObserver] to [block] with the typed
-         * component as `this`, so a snapshot-observing component can adopt it.
+         * Settles [block] against this node's children, at the end of the change pass rather than here.
+         *
+         * A node's update runs before the recomposer applies the content that update declared, so a write
+         * made here that reads the node's children - a `JTabbedPane` put on one of its own tabs - would
+         * be made against the children the pass before it left behind. Handing the write over instead
+         * has one pass declare a child and settle on it.
+         *
+         * The block runs at the end of the pass that hands it over, and again at the end of every later
+         * pass that adds, removes or moves this node's children, since that is when a standing
+         * declaration can become one the widget answers differently. It is therefore re-run holding what
+         * it captured on the pass that built it, which stays current: the node is recomposed whenever
+         * anything the block captures moves, and that pass hands over a block built from it.
+         *
+         * Runs on every composition like [reconcile].
+         */
+        internal fun settleWithChildren(block: T.() -> Unit): Unit =
+            updater.reconcile {
+                childSettle = { component.block() }
+                updateBatch?.holdForChildSettle(this)
+            }
+
+        /**
+         * Hands the composition owner's shared [SnapshotStateObserver] - stamped onto this node's
+         * holder by the applier at insert - to [block] with the typed component as `this`, so a
+         * snapshot-observing component (e.g. `Canvas`) can adopt it.
          *
          * The observer is the same for the node's whole life, and is handed over before the applier
          * attaches the component. [block] receives `null` only under an applier that owns no observer,

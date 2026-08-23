@@ -25,7 +25,8 @@ internal fun SwingModifier.textMirror(applied: AppliedValue<String>): SwingModif
 
 private val TEXT_MIRRORS =
     documentMirrorRegistration<AppliedValue<String>>(
-        onEdit = { applied, document -> applied.observed(document.fullText()) },
+        onEdit = { applied, document -> if (!applied.isWriting) applied.observed(document.fullText()) },
+        onAdopt = { applied, document -> applied.observed(document.fullText()) },
     )
 
 /**
@@ -35,15 +36,18 @@ private val TEXT_MIRRORS =
  * left.
  *
  * A component is handed a document by its caller, so [onAdopt] records and reports nothing, exactly as
- * declaring a new document does. [onEdit] is the one that reaches a caller's own callback, and defaults
- * to serving both for a binding that only records.
+ * declaring a new document does. Both are stated: [onEdit] skips an edit made inside a write of the
+ * binding's own, a distinction that has no meaning on a document the component was just handed. Such an
+ * edit is the settle's to account for - the settle making that write reads the component back itself once
+ * the write finishes - so [onEdit] skips it before materializing the document, which a long text would
+ * otherwise pay for twice.
  *
  * Hold the result in a `val`: it is the registration the listener sits on, and a fresh one on every pass
  * would register the listener again each time.
  */
 internal fun <C : Any> documentMirrorRegistration(
     onEdit: (current: C, document: Document) -> Unit,
-    onAdopt: (current: C, document: Document) -> Unit = onEdit,
+    onAdopt: (current: C, document: Document) -> Unit,
 ): CallbackRegistration<JTextComponent, C, DocumentMirror> =
     CallbackRegistration(
         adapter = { current ->

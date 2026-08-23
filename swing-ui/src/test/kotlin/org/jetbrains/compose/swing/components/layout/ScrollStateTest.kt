@@ -75,13 +75,16 @@ class ScrollStateTest {
     @Test
     fun assigningThePositionScrollsThePane() = runComposeSwingTest {
         val state = paneWithRoomToScroll()
+        // A position assigned on the state reaches the pane the state is bound to, not a declaration the
+        // composition reads: with the frames the test's to send, no frame at all is sent here.
+        mainClock.autoAdvance = false
 
         state.y = 40
         state.x = 25
         assertEquals(
             Point(25, 40),
             viewport().viewPosition,
-            "the viewport must show the position the state was assigned",
+            "the viewport must show the position the state was assigned, with no frame of the composition",
         )
     }
 
@@ -413,14 +416,20 @@ class ScrollStateTest {
             }
         }
         viewport().viewPosition = Point(0, 60)
+        awaitIdle()
+        mainClock.autoAdvance = false
 
+        // The state a pane binds to is a declared parameter, so the pass that declares another one is the
+        // pass that must move the pane onto it.
         useSecond = true
         awaitIdle()
+        mainClock.advanceTimeByFrame()
 
         assertEquals(
             15,
             viewport().viewPosition.y,
-            "the state the composition now declares owns the position, so the pane moves to it",
+            "the pass declaring another state should leave the pane on that state's position, not on the " +
+                "one it was scrolled to under the state it left",
         )
         assertEquals(15, second?.y, "and the state keeps reporting the position it imposed")
     }

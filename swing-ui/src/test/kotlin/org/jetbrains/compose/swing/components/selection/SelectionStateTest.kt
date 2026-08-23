@@ -52,14 +52,21 @@ class SelectionStateTest {
         setContent {
             ListBox(items = colors, state = state)
         }
+        awaitIdle()
+        mainClock.autoAdvance = false
 
         val list = onNodeOfType<JList<*>>().fetch()
         assertEquals(emptyList<Int>(), list.selectedIndices.toList(), "a state naming no row selects none")
 
         state.selectedIndices = setOf(0, 2)
         awaitIdle()
+        mainClock.advanceTimeByFrame()
 
-        assertEquals(listOf(0, 2), list.selectedIndices.toList(), "the rows the state names are selected")
+        assertEquals(
+            listOf(0, 2),
+            list.selectedIndices.toList(),
+            "the one pass that carries the state's new rows should already have selected them",
+        )
     }
 
     @Test
@@ -142,6 +149,8 @@ class SelectionStateTest {
         setContent {
             Tree(root = "root", children = { childrenOf(it) }, state = state)
         }
+        awaitIdle()
+        mainClock.autoAdvance = false
 
         val tree = onNodeOfType<JTree>().fetch()
         assertFalse(tree.isExpanded(tree.pathTo()), "a state naming no expansion opens nothing")
@@ -149,9 +158,17 @@ class SelectionStateTest {
         state.expandedPaths = setOf(emptyList(), listOf(0))
         state.selectedPaths = setOf(listOf(0, 0))
         awaitIdle()
+        mainClock.advanceTimeByFrame()
 
-        assertTrue(tree.isExpanded(tree.pathTo(0)), "the nodes the state names are open")
-        assertEquals(listOf(tree.pathTo(0, 0)), tree.selectionPaths?.toList(), "and the node it names is selected")
+        assertTrue(
+            tree.isExpanded(tree.pathTo(0)),
+            "the one pass that carries the state's expansion should already have opened the node it names",
+        )
+        assertEquals(
+            listOf(tree.pathTo(0, 0)),
+            tree.selectionPaths?.toList(),
+            "and the same pass should already have selected the node the state names",
+        )
     }
 
     @Test

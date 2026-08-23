@@ -280,12 +280,22 @@ class SplitPaneBehaviorTest {
             }
         }
 
+        awaitIdle()
+        mainClock.autoAdvance = false
+
         val pane = onNodeOfType<JSplitPane>().fetch()
         assertEquals(120, pane.dividerLocation, "the divider should start at the controlled location")
 
         location = 200
         awaitIdle()
-        assertEquals(200, pane.dividerLocation, "the divider should follow the controlled location")
+        mainClock.advanceTimeByFrame()
+
+        assertEquals(
+            200,
+            pane.dividerLocation,
+            "the pass declaring a divider location should leave the divider on it, not on the location it " +
+                "stood on before",
+        )
     }
 
     @Test

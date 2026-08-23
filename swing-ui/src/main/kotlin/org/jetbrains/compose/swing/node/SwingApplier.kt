@@ -44,7 +44,7 @@ import javax.swing.RootPaneContainer
  *   `Container.add`, and [root] shows the one top-level component that region holds - checked the way
  *   every other single-occupancy host is.
  *
- * Every container mutated during a change pass is revalidated and repainted once in [onEndChanges].
+ * Every container mutated during a change pass is revalidated and repainted once, by [ComponentUpdateBatch].
  *
  * Internal implementation type; not public API.
  *
@@ -93,6 +93,7 @@ internal class SwingApplier internal constructor(
             // component permanently unobserved (and a Canvas blank). The actual Swing attachment is still done
             // bottom-up (see insertBottomUp).
             instance.ownerObserver = ownerObserver
+            instance.updateBatch = batch
             changes.announceInsert(instance)
         }
     }
@@ -103,6 +104,9 @@ internal class SwingApplier internal constructor(
     ) {
         val parent = current
         val container = parent.containerFor("add child ${instance.component}")
+        // Held here rather than at each of the three ways out below: a node settling against its
+        // children answers for the children it ends the pass with, however each of them got there.
+        batch.holdForChildSettle(parent)
         if (!changes.takeAnnouncedInsert(instance)) {
             // The composition is relocating a node composed under another parent, and hands it over
             // before its modifier chain has run for this host, so what it carries is the placement it
@@ -162,6 +166,7 @@ internal class SwingApplier internal constructor(
         trace("remove") {
             val parent = current
             val container = parent.containerFor("remove children")
+            batch.holdForChildSettle(parent)
             if (parent.childPlacement.holdsRegions) {
                 // A region-holding container: its children were installed through their slot attachments and
                 // are not direct AWT-array entries, so address them by composition index in the child list
@@ -198,6 +203,7 @@ internal class SwingApplier internal constructor(
         if (from == to) return
 
         trace("move") {
+            batch.holdForChildSettle(parent)
             val children = parent.children
             if (parent.childPlacement.holdsRegions) {
                 with(regions) { parent.moveRegionChildren(container, from, to, count) }
@@ -394,6 +400,7 @@ private class ChildRegions(
         // A host that holds children is a Container, since attaching them required one; a node that is
         // not one holds none and so has no region to move a child between.
         val container = component as? Container ?: return
+        batch.holdForChildSettle(this)
         children.forEachIndexed { index, child ->
             if (!child.attachedToHost) return@forEachIndexed
             if (child.declaredSlot?.name != child.installedSlot?.name) {

@@ -62,6 +62,11 @@ class StateTextAreaTest {
         onNodeOfType<JTextArea>().assertTextEquals("abc")
     }
 
+    /**
+     * A state-driven area renders the state's own document, so a write through the state is a write to
+     * the document the area is showing: it lands as it is made, with no composition pass in between. The
+     * test holds the frames back to say so - the area holds the new text before any frame is sent.
+     */
     @Test
     fun assigningTextUpdatesTheArea() = runComposeSwingTest {
         lateinit var state: DocumentState
@@ -69,8 +74,14 @@ class StateTextAreaTest {
             state = rememberDocumentState("hello")
             TextArea(state = state)
         }
+        awaitIdle()
+        mainClock.autoAdvance = false
 
+        val area = onNodeOfType<JTextArea>().fetch()
         state.text = "help"
+
+        assertEquals("help", area.text, "a write through the state should reach the shared document as it is made")
+
         awaitIdle()
         onNodeOfType<JTextArea>().assertTextEquals("help")
         assertEquals("help", state.text.toString())

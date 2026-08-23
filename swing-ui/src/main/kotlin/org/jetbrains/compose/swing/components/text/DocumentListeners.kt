@@ -79,8 +79,10 @@ private class TextEdit(
 private val TEXT_EDITS =
     documentMirrorRegistration<TextEdit>(
         onEdit = { edit, document ->
-            val text = document.fullText()
-            if (edit.applied.observed(text)) edit.onUserEdit(text)
+            if (!edit.applied.isWriting) {
+                val text = document.fullText()
+                if (edit.applied.observed(text)) edit.onUserEdit(text)
+            }
         },
         onAdopt = { edit, document -> edit.applied.observed(document.fullText()) },
     )

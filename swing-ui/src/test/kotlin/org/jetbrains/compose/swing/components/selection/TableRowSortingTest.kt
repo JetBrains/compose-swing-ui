@@ -317,6 +317,29 @@ class TableRowSortingTest {
     }
 
     @Test
+    fun aDeclaredSortOrderOutlivesTheSorterAModelSwapRebuilds() = runComposeSwingTest {
+        var model by mutableStateOf(tableModel("Ada", "Alan", "Grace"))
+        val declared = listOf(SortKey(0, SortOrder.DESCENDING))
+        val received = mutableListOf<List<SortKey>>()
+        setContent { Table(model = model, sortable = true, sortKeys = declared, onSortChange = { received += it }) }
+
+        val table = onNodeOfType<JTable>().fetch()
+        assertEquals(listOf("Grace", "Alan", "Ada"), table.shownNames(), "the declared order should reach the rows")
+
+        // The sorter the swap builds starts out unsorted, so the declared order has to be put back onto it.
+        model = tableModel("Bob", "Zoe", "Ada")
+        awaitIdle()
+
+        assertEquals(
+            declared,
+            table.rowSorter.sortKeys.toList(),
+            "the sorter built for the new model should carry the declared order",
+        )
+        assertEquals(listOf("Zoe", "Bob", "Ada"), table.shownNames(), "and should order the new rows by it")
+        assertEquals(emptyList(), received, "an order the wrapper put back is its own doing, not the user's")
+    }
+
+    @Test
     fun anUndeclaredSortOrderIsNeverImposed() = runComposeSwingTest {
         var rows by mutableStateOf(people)
         setContent {

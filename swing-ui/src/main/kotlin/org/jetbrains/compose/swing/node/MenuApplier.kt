@@ -11,10 +11,10 @@ import javax.swing.JPopupMenu
 
 /**
  * Applier for the menu tree: `JMenuBar`/`JMenu`/`JPopupMenu` containers and `JMenuItem`/`JSeparator`
- * leaves, placed by index. Every container a change pass touches is revalidated and repainted once,
- * in [onEndChanges], and every popup of the tree that is on screen is packed there and once more on
- * the event-queue turn that follows, so a menu open while the pass ran takes the size of what it
- * shows now.
+ * leaves, placed by index. Every container a change pass touches is revalidated and repainted once: the
+ * applier hands that walk to [ComponentUpdateBatch]. Every popup of the tree that is on screen is packed
+ * in [onEndChanges] and once more on the event-queue turn that follows, so a menu open while the pass ran
+ * takes the size of what it shows now.
  *
  * Each node keeps its [SwingNodeHolder.children] in composition order, which is the index space the
  * runtime addresses. A parked child stands in that list with its component already detached - the
@@ -41,11 +41,16 @@ internal class MenuApplier(
      */
     private val deferredPack = DeferredAction { this.root.packShowingPopups() }
 
-    /** Menu nodes attach to their container on the bottom-up pass, so this pass has nothing to do. */
+    /**
+     * Menu nodes attach to their container on the bottom-up pass, so all this pass does is tell the node
+     * which change pass it is driven by - what a node settling against its children hands that settle to.
+     */
     override fun insertTopDown(
         index: Int,
         instance: SwingNodeHolder<*>,
-    ) = Unit
+    ) {
+        instance.updateBatch = batch
+    }
 
     override fun insertBottomUp(
         index: Int,
@@ -53,6 +58,7 @@ internal class MenuApplier(
     ) {
         val parent = current
         val container = parent.menuContainer("add menu child ${instance.component}")
+        batch.holdForChildSettle(parent)
         container.add(instance.component, parent.attachedSiblingsBefore(index))
         parent.children.add(index, instance)
         batch.markChanged(container)
@@ -64,6 +70,7 @@ internal class MenuApplier(
     ) {
         val parent = current
         val container = parent.menuContainer("remove menu children")
+        batch.holdForChildSettle(parent)
         // Each child leaves by component identity: a parked child's component is already detached, so
         // the container holds nothing at that child's composition index, and `Container.remove(Component)`
         // on a detached component is a no-op.
@@ -81,6 +88,7 @@ internal class MenuApplier(
         if (from == to) return
         val parent = current
         val container = parent.menuContainer("move menu children")
+        batch.holdForChildSettle(parent)
 
         val children = parent.children
         val moved = ArrayList(children.subList(from, from + count))

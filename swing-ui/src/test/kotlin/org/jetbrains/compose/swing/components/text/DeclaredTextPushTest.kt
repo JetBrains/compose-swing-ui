@@ -45,6 +45,12 @@ import kotlin.test.assertTrue
  * The declaration is the source of truth in both directions: an edit the caller does not answer with a
  * matching value settles back onto the declared one on the pass that carries their answer, so a
  * component never stands on content the caller has not adopted.
+ *
+ * A declaration reaches its component on the apply pass that makes it and needs no successor - the pass
+ * that carries a caller's answer to an edit is a different thing, timed in [TextSettlePassTimingTest].
+ * The tests that count that pass drive the frames themselves: with `autoAdvance` off the idle gate
+ * publishes a declaration without sending a frame, so the frame that follows is the apply pass carrying
+ * it, and what the component holds either side of that frame says which pass wrote it.
  */
 class DeclaredTextPushTest {
     @Test
@@ -52,11 +58,18 @@ class DeclaredTextPushTest {
         var value by mutableStateOf("hello")
         val reported = mutableListOf<String>()
         setContent { TextField(value = value, onValueChange = { reported += it }) }
+        awaitIdle()
+        mainClock.autoAdvance = false
 
+        val field = onNodeOfType<JTextField>().fetch()
         value = "world"
         awaitIdle()
 
-        onNodeOfType<JTextField>().assertTextEquals("world")
+        assertEquals("hello", field.text, "publishing a declaration is not itself what writes it")
+
+        mainClock.advanceTimeByFrame()
+
+        assertEquals("world", field.text, "the pass declaring the value should leave the field holding it")
         assertEquals(emptyList(), reported, "applying a value is not an edit")
     }
 
@@ -72,19 +85,43 @@ class DeclaredTextPushTest {
     }
 
     @Test
+    fun textFieldReportsAUserEditThatUndoesTheAppliedValue() = runComposeSwingTest {
+        var value by mutableStateOf("hello")
+        val reported = mutableListOf<String>()
+        setContent { TextField(value = value, onValueChange = { reported += it }) }
+
+        value = "hello!"
+        awaitIdle()
+        onNodeOfType<JTextField>().fetch().backspace()
+        awaitIdle()
+
+        // The field is back on the text it held before the declared write, so an edit is only told from
+        // that write by what the settle read back, not by whatever the write left behind on its way.
+        assertEquals(listOf("hello"), reported, "an edit undoing the declared write is the user's own")
+    }
+
+    @Test
     fun textAreaReportsNoEditForAnAppliedValue() = runComposeSwingTest {
         var value by mutableStateOf("hello")
         val reported = mutableListOf<String>()
         setContent { TextArea(value = value, onValueChange = { reported += it }) }
+        awaitIdle()
+        mainClock.autoAdvance = false
 
+        val area = onNodeOfType<JTextArea>().fetch()
         value = "world"
         awaitIdle()
 
-        val area = onNodeOfType<JTextArea>()
-        area.assertTextEquals("world")
+        assertEquals("hello", area.text, "publishing a declaration is not itself what writes it")
+
+        mainClock.advanceTimeByFrame()
+
+        assertEquals("world", area.text, "the pass declaring the value should leave the area holding it")
         assertEquals(emptyList(), reported, "applying a value is not an edit")
 
-        area.fetch().type("!")
+        // The keystroke below is answered by a settling pass, which the harness sends for itself again.
+        mainClock.autoAdvance = true
+        area.type("!")
         awaitIdle()
         assertEquals(listOf("world!"), reported, "a keystroke is reported once, with the new text")
     }
@@ -113,17 +150,42 @@ class DeclaredTextPushTest {
         var value by mutableStateOf("hunter2".toCharArray())
         val reported = mutableListOf<String>()
         setContent { PasswordField(value = value, onValueChange = { reported += String(it) }) }
+        awaitIdle()
+        mainClock.autoAdvance = false
 
+        val field = onNodeOfType<JPasswordField>().fetch()
         value = "secret".toCharArray()
         awaitIdle()
 
-        val field = onNodeOfType<JPasswordField>().fetch()
-        assertEquals("secret", String(field.password), "the field renders the value")
+        assertEquals("hunter2", String(field.password), "publishing a declaration is not itself what writes it")
+
+        mainClock.advanceTimeByFrame()
+
+        assertEquals(
+            "secret",
+            String(field.password),
+            "the pass declaring the value should leave the field holding it",
+        )
         assertEquals(emptyList(), reported, "applying a value is not an edit")
 
+        mainClock.autoAdvance = true
         field.type("!")
         awaitIdle()
         assertEquals(listOf("secret!"), reported, "a keystroke is reported once, with the new characters")
+    }
+
+    @Test
+    fun passwordFieldReportsAUserEditThatUndoesTheAppliedValue() = runComposeSwingTest {
+        var value by mutableStateOf("hunter2".toCharArray())
+        val reported = mutableListOf<String>()
+        setContent { PasswordField(value = value, onValueChange = { reported += String(it) }) }
+
+        value = "hunter2!".toCharArray()
+        awaitIdle()
+        onNodeOfType<JPasswordField>().fetch().backspace()
+        awaitIdle()
+
+        assertEquals(listOf("hunter2"), reported, "an edit undoing the declared write is the user's own")
     }
 
     @Test
@@ -131,15 +193,22 @@ class DeclaredTextPushTest {
         var value by mutableStateOf("hello")
         val reported = mutableListOf<String>()
         setContent { TextPane(value = value, onValueChange = { reported += it }) }
+        awaitIdle()
+        mainClock.autoAdvance = false
 
+        val pane = onNodeOfType<JTextPane>().fetch()
         value = "world"
         awaitIdle()
 
-        val pane = onNodeOfType<JTextPane>()
-        pane.assertTextEquals("world")
+        assertEquals("hello", pane.text, "publishing a declaration is not itself what writes it")
+
+        mainClock.advanceTimeByFrame()
+
+        assertEquals("world", pane.text, "the pass declaring the value should leave the pane holding it")
         assertEquals(emptyList(), reported, "applying a value is not an edit")
 
-        pane.fetch().type("!")
+        mainClock.autoAdvance = true
+        pane.type("!")
         awaitIdle()
         assertEquals(listOf("world!"), reported, "a keystroke is reported once, with the new text")
     }
@@ -152,12 +221,19 @@ class DeclaredTextPushTest {
             val factory = remember { integerFactory() }
             FormattedTextField(value = value, onValueChange = { reported += it }, formatterFactory = factory)
         }
+        awaitIdle()
+        mainClock.autoAdvance = false
 
+        val field = onNodeOfType<JFormattedTextField>().fetch()
         value = 250
         awaitIdle()
 
-        val field = onNodeOfType<JFormattedTextField>().fetch()
-        assertEquals(250, field.value, "the field holds the applied value")
+        assertEquals(1, field.value, "publishing a declaration is not itself what writes it")
+
+        mainClock.advanceTimeByFrame()
+
+        assertEquals(250, field.value, "the pass declaring the value should leave the field holding it")
+        assertEquals("250", field.text, "and the field should render the value that pass settled it on")
         assertEquals(emptyList(), reported, "applying a value is not a commit the field made from an edit")
     }
 
@@ -199,16 +275,24 @@ class DeclaredTextPushTest {
                 }
             }
         setContent { TextField(value = value, documentListener = listener) }
+        awaitIdle()
+        mainClock.autoAdvance = false
 
+        val field = onNodeOfType<JTextField>().fetch()
         seen.clear()
         value = "world"
         awaitIdle()
+
+        assertEquals(emptyList(), seen, "publishing a declaration is not itself what writes it")
+
+        mainClock.advanceTimeByFrame()
 
         assertEquals(
             listOf("remove@0", "insert@5"),
             seen,
             "a listener attached as-is observes the applied value as a removal of the document then an insertion",
         )
+        assertEquals("world", field.text, "the pass declaring the value should leave the field holding it")
     }
 
     @Test
@@ -471,4 +555,9 @@ private fun integerFactory(): DefaultFormatterFactory {
 // Types [text] at the end of the component's content, as a keystroke reaches the document.
 private fun JTextComponent.type(text: String) {
     document.insertString(document.length, text, null)
+}
+
+// Deletes the last character of the component's content, as a backspace reaches the document.
+private fun JTextComponent.backspace() {
+    document.remove(document.length - 1, 1)
 }

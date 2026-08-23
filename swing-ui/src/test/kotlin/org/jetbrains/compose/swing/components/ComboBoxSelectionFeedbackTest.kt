@@ -46,13 +46,18 @@ class ComboBoxSelectionFeedbackTest {
 
         val combo = onNodeOfType<JComboBox<*>>().fetch()
         received.clear()
+        awaitIdle()
+        mainClock.autoAdvance = false
 
         selection = "blue"
         awaitIdle()
+        mainClock.advanceTimeByFrame()
 
-        assertEquals("blue", combo.selectedItem, "the declared selection reaches the combo box")
+        assertEquals("blue", combo.selectedItem, "the pass declaring the selection should leave the combo box on it")
         assertEquals(emptyList(), received, "a declared selection change reported itself back")
 
+        // The choice below is the user's own.
+        mainClock.autoAdvance = true
         combo.selectedIndex = 1
         awaitIdle()
 

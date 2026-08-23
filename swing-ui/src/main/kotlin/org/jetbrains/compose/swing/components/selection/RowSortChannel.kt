@@ -90,9 +90,10 @@ internal class RowSortChannel(
      *
      * Taking a sorter on or off empties the table's selection, and new content resets the order its rows
      * were in, which is why this belongs inside the write that puts the selection back and why the order is
-     * put back here - after the columns' own rules, since those are what the ordering is worked out by. All
-     * of it runs as this channel's own write, so nothing the sorter publishes for it is reported as the
-     * user's.
+     * put back here - after the columns' own rules, since those are what the ordering is worked out by. The
+     * write and the read recording the order it left the rows in are one settlement of the mirror, so
+     * nothing the sorter publishes for it is reported as the user's, and the order it landed on is an
+     * answer rather than news.
      */
     fun preserveAcross(
         table: JTable,
@@ -102,18 +103,20 @@ internal class RowSortChannel(
         install: () -> Unit = {},
     ) {
         val retained = declared ?: sortKeys()
-        applied.write {
-            install()
-            bind(table, sortable)
-            sorter?.let { current ->
-                columns.forEachIndexed { index, column ->
-                    current.setSortable(index, column.isSortable)
-                    current.setComparator(index, column.comparator)
+        applied.settle {
+            applied.write {
+                install()
+                bind(table, sortable)
+                sorter?.let { current ->
+                    columns.forEachIndexed { index, column ->
+                        current.setSortable(index, column.isSortable)
+                        current.setComparator(index, column.comparator)
+                    }
                 }
+                applySortKeys(retained)
             }
-            applySortKeys(retained)
+            answered(sortKeys())
         }
-        applied.observed(sortKeys())
     }
 
     /**
@@ -198,7 +201,7 @@ internal fun rememberRowSortChannel(
     listener: RowSorterListener?,
 ): RowSortChannel {
     val target = rememberUpdatedState(listener)
-    return remember(applied) { RowSortChannel(applied, target) }
+    return remember { RowSortChannel(applied, target) }
 }
 
 /**

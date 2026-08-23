@@ -10,15 +10,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.constants.AutoResizeMode
-import org.jetbrains.compose.swing.constants.SelectionMode
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.binding
 import javax.swing.JTable
-import javax.swing.ListSelectionModel
-import javax.swing.RowFilter
-import javax.swing.RowSorter.SortKey
-import javax.swing.table.TableModel
 
 /**
  * A hoistable state holder for what a [Table] has selected, carrying the gesture that brings one of its
@@ -145,138 +139,6 @@ public class TableState
 @Composable
 public fun rememberTableState(initialSelectedRowIndices: Set<Int> = emptySet()): TableState =
     remember { TableState(initialSelectedRowIndices) }
-
-/**
- * A [Table] driven by a [TableState] instead of a declared `selectedRowIndices` and an `onSelectionChange`
- * lambda. The state owns the selection: the rows it holds are what the table shows selected, the user's own
- * selecting is written back into it, and it is where a row is revealed from.
- *
- * ```
- * val state = rememberTableState()
- *
- * ScrollPane {
- *     Table(rows = people, state = state, modifier = SwingModifier.viewport()) {
- *         column("Name") { it.name }
- *     }
- * }
- * Label("Selected: ${state.selectedRowIndices.size}")
- * ```
- *
- * @param rows the row data to display
- * @param state the hoistable selection state the table applies and reports into; see [TableState]
- * @param modifier the [SwingModifier] applied to the underlying component
- * @param selectionMode how many rows/ranges may be selected
- * @param sortable whether the table sorts and filters its rows; `false` - the default - leaves them in the
- *   order [rows] declares and its column headers inert
- * @param sortKeys the sort order the caller declares; `null` - the default - leaves the order to the user
- * @param onSortChange callback invoked with the order the user's header click leaves the rows in
- * @param rowFilter which of the rows the table shows, or `null` - the default - to show all of them; a
- *   filter is adopted by identity, so pass a stable one (e.g. `remember {}`) to avoid churn
- * @param rowHeight the height in pixels of every row; `null` - the default - leaves it to the look and feel
- * @param autoResizeMode how the columns share out a change to the table's width
- * @param fillsViewportHeight whether the table stretches to the full height of the viewport showing it,
- *   rather than to the height of the rows it holds
- * @param columnLayout the column order and widths the caller declares; `null` - the default - leaves the
- *   column layout to the user
- * @param onColumnLayoutChange callback invoked when the user reorders or resizes the columns
- * @param block declares the columns; see [TableScope]
- * @see javax.swing.JTable
- */
-@Composable
-public fun <R> Table(
-    rows: List<R>,
-    state: TableState,
-    modifier: SwingModifier = SwingModifier,
-    @SelectionMode selectionMode: Int = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION,
-    sortable: Boolean = false,
-    sortKeys: List<SortKey>? = null,
-    onSortChange: (List<SortKey>) -> Unit = {},
-    rowFilter: RowFilter<in TableModel, in Int>? = null,
-    rowHeight: Int? = null,
-    @AutoResizeMode autoResizeMode: Int = JTable.AUTO_RESIZE_SUBSEQUENT_COLUMNS,
-    fillsViewportHeight: Boolean = false,
-    columnLayout: TableColumnLayout? = null,
-    onColumnLayoutChange: (TableColumnLayout) -> Unit = {},
-    block: TableScope<R>.() -> Unit,
-) {
-    Table(
-        rows = rows,
-        modifier = modifier.tableStateBinding(state),
-        selectedRowIndices = state.selectedRowIndices,
-        onSelectionChange = { indices -> state.selectedRowIndices = indices },
-        selectionMode = selectionMode,
-        sortable = sortable,
-        sortKeys = sortKeys,
-        onSortChange = onSortChange,
-        rowFilter = rowFilter,
-        rowHeight = rowHeight,
-        autoResizeMode = autoResizeMode,
-        fillsViewportHeight = fillsViewportHeight,
-        columnLayout = columnLayout,
-        onColumnLayoutChange = onColumnLayoutChange,
-        block = block,
-    )
-}
-
-/**
- * A model-driven [Table] driven by a [TableState] instead of a declared `selectedRowIndices` and an
- * `onSelectionChange` lambda. The state owns the selection: the rows it holds are what the table shows
- * selected, the user's own selecting is written back into it, and it is where a row is revealed from.
- *
- * The [model] is displayed as-is and never mutated by the library; the selection survives a model swap.
- *
- * @param model the table model to display; owned by the caller and never mutated by the library
- * @param state the hoistable selection state the table applies and reports into; see [TableState]
- * @param modifier the [SwingModifier] applied to the underlying component
- * @param selectionMode how many rows/ranges may be selected
- * @param sortable whether the table sorts and filters its rows; `false` - the default - leaves them in the
- *   order [model] holds them in and its column headers inert
- * @param sortKeys the sort order the caller declares; `null` - the default - leaves the order to the user
- * @param onSortChange callback invoked with the order the user's header click leaves the rows in
- * @param rowFilter which of the rows the table shows, or `null` - the default - to show all of them; a
- *   filter is adopted by identity, so pass a stable one (e.g. `remember {}`) to avoid churn
- * @param rowHeight the height in pixels of every row; `null` - the default - leaves it to the look and feel
- * @param autoResizeMode how the columns share out a change to the table's width
- * @param fillsViewportHeight whether the table stretches to the full height of the viewport showing it,
- *   rather than to the height of the rows it holds
- * @param columnLayout the column order and widths the caller declares; `null` - the default - leaves the
- *   column layout to the user
- * @param onColumnLayoutChange callback invoked when the user reorders or resizes the columns
- * @see javax.swing.JTable
- */
-@Composable
-public fun Table(
-    model: TableModel,
-    state: TableState,
-    modifier: SwingModifier = SwingModifier,
-    @SelectionMode selectionMode: Int = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION,
-    sortable: Boolean = false,
-    sortKeys: List<SortKey>? = null,
-    onSortChange: (List<SortKey>) -> Unit = {},
-    rowFilter: RowFilter<in TableModel, in Int>? = null,
-    rowHeight: Int? = null,
-    @AutoResizeMode autoResizeMode: Int = JTable.AUTO_RESIZE_SUBSEQUENT_COLUMNS,
-    fillsViewportHeight: Boolean = false,
-    columnLayout: TableColumnLayout? = null,
-    onColumnLayoutChange: (TableColumnLayout) -> Unit = {},
-) {
-    Table(
-        model = model,
-        modifier = modifier.tableStateBinding(state),
-        selectedRowIndices = state.selectedRowIndices,
-        onSelectionChange = { indices -> state.selectedRowIndices = indices },
-        selectionMode = selectionMode,
-        sortable = sortable,
-        sortKeys = sortKeys,
-        onSortChange = onSortChange,
-        rowFilter = rowFilter,
-        rowHeight = rowHeight,
-        autoResizeMode = autoResizeMode,
-        fillsViewportHeight = fillsViewportHeight,
-        columnLayout = columnLayout,
-        onColumnLayoutChange = onColumnLayoutChange,
-    )
-}
 
 /** Binds [state] to the composable's table through the modifier chain; see [binding]. */
 internal fun SwingModifier.tableStateBinding(state: TableState): SwingModifier =

@@ -51,6 +51,33 @@ class FormattedTextFieldCommitTest {
         assertEquals(250, field.value, "and the field holds what was committed")
     }
 
+    /**
+     * A value written into the state is a declaration like any other: the composition reads it and the
+     * field is settled on it by the pass that does so.
+     */
+    @Test
+    fun aValueWrittenIntoTheStateReachesTheFieldOnThePassDeclaringIt() = runComposeSwingTest {
+        lateinit var state: FormattedValueState
+        setContent {
+            state = rememberFormattedValueState(1)
+            val factory = remember { integerFactory() }
+            FormattedTextField(state = state, formatterFactory = factory)
+        }
+        awaitIdle()
+        mainClock.autoAdvance = false
+
+        val field = onNodeOfType<JFormattedTextField>().fetch()
+        state.value = 250
+        awaitIdle()
+
+        assertEquals(1, field.value, "publishing a declaration is not itself what writes it")
+
+        mainClock.advanceTimeByFrame()
+
+        assertEquals(250, field.value, "the pass declaring the value should leave the field holding it")
+        assertEquals("250", field.text, "and the field should render the value that pass settled it on")
+    }
+
     @Test
     fun commitAnswersFalseForTextTheFormatterCannotRead() = runComposeSwingTest {
         lateinit var state: FormattedValueState

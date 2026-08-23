@@ -374,6 +374,8 @@ class SelectionDeclarationTest {
         setContent {
             Tree(model = model, modifier = SwingModifier.name(label), selectedPaths = setOf(listOf(0)))
         }
+        awaitIdle()
+        mainClock.autoAdvance = false
 
         val tree = onNodeOfType<JTree>().fetch()
         tree.setSelectionRow(2)
@@ -381,7 +383,37 @@ class SelectionDeclarationTest {
 
         label = "second"
         awaitIdle()
+        mainClock.advanceTimeByFrame()
 
-        assertEquals(listOf("apple"), tree.selectedLabels(), "the declared selection is re-applied")
+        assertEquals(
+            listOf("apple"),
+            tree.selectedLabels(),
+            "the one pass that re-declares the selection should already have taken the tree off the node " +
+                "the user moved it to",
+        )
+    }
+
+    @Test
+    fun aTreeSelectionMovedFromOneVisibleNodeToAnotherIsAppliedByThePassThatDeclaresIt() = runComposeSwingTest {
+        var selection by mutableStateOf(setOf(listOf(0)))
+        val model = treeModel("root")
+        setContent {
+            Tree(model = model, selectedPaths = selection)
+        }
+        awaitIdle()
+        mainClock.autoAdvance = false
+
+        val tree = onNodeOfType<JTree>().fetch()
+        assertEquals(listOf("apple"), tree.selectedLabels(), "the tree opens on the node it first names")
+
+        selection = setOf(listOf(1))
+        awaitIdle()
+        mainClock.advanceTimeByFrame()
+
+        assertEquals(
+            listOf("pear"),
+            tree.selectedLabels(),
+            "the one pass that declares the new node should already have moved the selection onto it",
+        )
     }
 }

@@ -4,24 +4,18 @@
 package org.jetbrains.compose.swing.components.layout
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
-import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.constants.TabLayoutPolicy
 import org.jetbrains.compose.swing.constants.TabPlacement
 import org.jetbrains.compose.swing.core.dispatchToCaller
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.changeListener
-import org.jetbrains.compose.swing.modifier.listener.containerListener
 import org.jetbrains.compose.swing.node.AppliedValue
 import org.jetbrains.compose.swing.node.ChildPlacement
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.rememberAppliedValue
-import java.awt.event.ContainerEvent
-import java.awt.event.ContainerListener
 import javax.swing.JTabbedPane
 import javax.swing.event.ChangeEvent
 import javax.swing.event.ChangeListener
@@ -137,8 +131,9 @@ private fun TabbedPaneImpl(
     val applied = rememberAppliedValue(selectedIndex)
     // Reading the mirror here subscribes this composition to the user moving the pane's own selection, so
     // a move away from the declaration invalidates on its own instead of waiting for an unrelated
-    // recomposition to notice it.
-    val held = applied.value
+    // recomposition to notice it. The value itself is nothing this body needs: the settle below reads the
+    // selection off the pane.
+    applied.value
     // Captured here in the composable body: a header cannot be an applier node of the pane (see
     // TabHeaderComposition in TabbedPaneScope), so this context is threaded to it explicitly instead of being
     // inherited through the node tree.
@@ -162,44 +157,20 @@ private fun TabbedPaneImpl(
         }
     }
 
-    // A tab becomes a page of the pane after this node's update block has run: the recomposer applies the
-    // content that block declared once it returns. A pass declaring both a tab and the selection naming it
-    // therefore has no such tab to select while it settles, so counting the pages the pane gains and loses
-    // gives that pass a successor to settle on. Read straight off the pane's own tab count rather than off
-    // every child event it fires: the look and feel parents its own children - a tab container, the
-    // scroll buttons - to the pane too, and none of those is a page moving.
-    var pages by remember { mutableIntStateOf(0) }
-    val pageListener =
-        remember {
-            object : ContainerListener {
-                private var lastTabCount = -1
-
-                override fun componentAdded(event: ContainerEvent) = trackTabCount(event)
-
-                override fun componentRemoved(event: ContainerEvent) = trackTabCount(event)
-
-                private fun trackTabCount(event: ContainerEvent) {
-                    val tabCount = (event.source as JTabbedPane).tabCount
-                    if (tabCount != lastTabCount) {
-                        lastTabCount = tabCount
-                        pages++
-                    }
-                }
-            }
-        }
-
     SwingNode(
         factory = { JTabbedPane() },
         update = {
             set(tabPlacement) { this.tabPlacement = it }
             set(tabLayoutPolicy) { this.tabLayoutPolicy = it }
-            applyModifier(modifier.changeListener(onUserSelection).containerListener(pageListener))
+            applyModifier(modifier.changeListener(onUserSelection))
 
-            // The declaration, the selection the pane is really on, and the strip itself move
-            // independently, and one settle answers for all three: they are one key. The key skips the first
-            // pass, which declares the pane while its strip is still empty: settling there would hand the
-            // caller the empty pane's own answer as though its declaration had been refused.
-            update(Triple(selectedIndex, held, pages)) {
+            // A tab becomes a page of the pane only once the recomposer has applied the content this block
+            // declares, so a selection written here would be written against the strip the pass before it
+            // left behind. Settled at the end of the change pass instead, which is what has one pass
+            // declare a tab and put the pane on it. The same settle runs again on every later pass that
+            // changes the strip: a tab arriving is what can turn a standing declaration into one the pane
+            // can honor, and a tab leaving is what drops the pane onto a neighbor nobody declared.
+            settleWithChildren {
                 settleSelection(this, selectedIndex, applied, reportedSelection, changeListener)
             }
         },
@@ -217,15 +188,16 @@ private const val NO_TAB = -1
  * Puts [pane] on the tab [selectedIndex] names, and tells [listener] which tab the pane is on instead
  * when that index names no tab of the strip.
  *
- * A declaration the pane can honor is asserted as one of [applied]'s own writes, so the caller does not
- * hear its own declaration back as an interaction. A declaration the pane cannot honor - an index past
- * the strip, which is what dropping the declared tab leaves behind - is a selection the caller believes
- * stands while the pane sits on the neighbor it fell back on. That tab is nothing the composition asked
- * for, so the caller is handed it rather than left with a selection the strip lost. This settles again
- * whenever the declaration, the mirror or the page count moves, so updating [reported] is what keeps a
- * standing fallback from being reported again on every repeat settle - a declaration the pane can honor
- * already updates it to the pane's post-write value, so only this separate, deliberately-lagging record
- * catches the fallback case.
+ * A declaration the pane can honor is written and read back as one settlement of [applied]'s, so neither
+ * the caller nor the composition hears the wrapper's own write back: the caller does not get its own
+ * declaration as an interaction, and the mirror does not schedule a pass to answer a move it just made.
+ * A declaration the pane cannot honor - an index past the strip, which is what dropping the declared tab
+ * leaves behind - is a selection the caller believes stands while the pane sits on the neighbor it fell
+ * back on. That tab is nothing the composition asked for, so the caller is handed it rather than left
+ * with a selection the strip lost. This runs on every pass that moves the declaration or the strip, so
+ * updating [reported] is what keeps a standing fallback from being reported again on every repeat settle
+ * - a declaration the pane can honor already updates it to the pane's post-write value, so only this
+ * separate, deliberately-lagging record catches the fallback case.
  *
  * The fallback reaches [listener] directly rather than from inside a write, so it runs contained the same
  * way: a throw out of it is reported rather than left to end the composition applying this pass.
@@ -238,7 +210,10 @@ private fun settleSelection(
     listener: ChangeListener,
 ) {
     if (selectedIndex == NO_TAB || selectedIndex in 0 until pane.tabCount) {
-        if (pane.selectedIndex != selectedIndex) applied.write { pane.selectedIndex = selectedIndex }
+        applied.settle {
+            if (pane.selectedIndex != selectedIndex) applied.write { pane.selectedIndex = selectedIndex }
+            answered(pane.selectedIndex)
+        }
         reported[0] = pane.selectedIndex
         return
     }

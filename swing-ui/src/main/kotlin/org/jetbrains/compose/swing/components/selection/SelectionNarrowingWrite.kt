@@ -200,18 +200,38 @@ internal fun JTree.narrowSelection(
     target: TreeSelectionListener,
     block: () -> Unit,
 ) {
-    val oldLead = leadSelectionPath
-    // The nodes the tree has selected, alongside the index paths they resolve to: the paths name what a loss
-    // has to be reported as, and the indices are what the loss is recognized by. The model stays as it is
-    // across this write, so both keep resolving to the same nodes.
-    val selectedNodes = selectionPaths.orEmpty()
-    val selectedIndices = selectedNodes.map { pathToIndices(model, it) }
+    val held = heldSelection(named = declared == null)
     applied.writeNarrowing(
         declaredSelection = declared,
         selection = { readSelection(this, model) },
-        report = { lost -> reportLostPaths(target, selectedNodes, selectedIndices, lost, oldLead) },
+        report = { lost -> reportLostPaths(target, held.nodes, held.indices, lost, held.lead) },
         block = block,
     )
+}
+
+/**
+ * The tree's selection as it stood before a write that can narrow it: the selected [nodes], the [indices]
+ * naming the same nodes as index paths in the structure the write starts from, and the [lead] the selection
+ * was led from. A loss is reported as the paths the caller knows the nodes by, and is recognized by the
+ * indices, resolved against whatever structure the write leaves.
+ */
+internal class HeldSelection(
+    val nodes: Array<out TreePath>,
+    val indices: List<List<Int>>,
+    val lead: TreePath?,
+)
+
+/**
+ * The selection [this] tree holds now, walked for the nodes it names only where [named] asks for them.
+ *
+ * Naming every selected node is a walk of the model for each, and only a selection the caller has not
+ * declared is measured against them: a declared one is the composition's state, so what a write takes off
+ * it is the composition's own doing and is not reported node by node. The lead is a field read either way,
+ * and every report names it whether the nodes were walked or not.
+ */
+internal fun JTree.heldSelection(named: Boolean): HeldSelection {
+    val nodes = if (named) selectionPaths.orEmpty() else emptyArray()
+    return HeldSelection(nodes, nodes.map { pathToIndices(model, it) }, leadSelectionPath)
 }
 
 /**

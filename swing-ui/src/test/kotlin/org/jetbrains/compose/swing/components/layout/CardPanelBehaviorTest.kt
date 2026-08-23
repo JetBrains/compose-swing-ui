@@ -70,12 +70,40 @@ class CardPanelBehaviorTest {
             }
         }
 
+        awaitIdle()
+        mainClock.autoAdvance = false
         assertShownCard(shown = "first", hidden = listOf("second"))
 
+        // The card the declaration below names is the one on top at the end of the pass carrying it.
         selected = "second"
         awaitIdle()
+        mainClock.advanceTimeByFrame()
 
         assertShownCard(shown = "second", hidden = listOf("first"))
+    }
+
+    @Test
+    fun aCardAndTheSelectionNamingItAreSettledByThePassThatDeclaresBoth() = runComposeSwingTest {
+        var grown by mutableStateOf(false)
+        setContent {
+            CardPanel(selectedCard = if (grown) "third" else "first") {
+                Label("first", SwingModifier.card("first"))
+                Label("second", SwingModifier.card("second"))
+                if (grown) Label("third", SwingModifier.card("third"))
+            }
+        }
+        awaitIdle()
+        mainClock.autoAdvance = false
+        assertShownCard(shown = "first", hidden = listOf("second"))
+
+        // A child becomes a card of the deck only once it has reached the panel, which happens after the
+        // panel's own update block has run. The card and the key naming it are declared together, so the
+        // single frame carrying both has to end with that card on top.
+        grown = true
+        awaitIdle()
+        mainClock.advanceTimeByFrame()
+
+        assertShownCard(shown = "third", hidden = listOf("first", "second"))
     }
 
     @Test

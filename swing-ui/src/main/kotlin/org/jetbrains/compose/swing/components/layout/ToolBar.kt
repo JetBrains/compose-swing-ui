@@ -4,11 +4,10 @@
 package org.jetbrains.compose.swing.components.layout
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.constants.Orientation
+import org.jetbrains.compose.swing.core.dispatchToCaller
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.hierarchyListener
@@ -41,7 +40,7 @@ import javax.swing.plaf.basic.BasicToolBarUI
  * bar into or docks it back to. Floating needs a window to open the bar's own beside, and a bar whose
  * look and feel gives it no dragging, whose [floatable] is `false`, or that is not in a window yet has
  * none to open. Where the bar cannot take the declaration it stays docked, and [onFloatingChange] is
- * handed that answer.
+ * handed that answer; a bar that comes to stand in a window later takes the standing declaration then.
  *
  * A floating bar is held by that window instead of the container it was declared in, and its items keep
  * composing there. The composition still counts the bar among the children of the container it left, so
@@ -54,8 +53,7 @@ import javax.swing.plaf.basic.BasicToolBarUI
  * @param floating whether the tool bar stands in a window of its own rather than in the container it was
  *   declared in (controlled)
  * @param onFloatingChange callback invoked with the state the user drags the bar into, or with the docked
- *   state the bar settles for when it cannot take [floating] - the settled state may be reported more
- *   than once, since a bar still finding its place in the hierarchy resettles on every attachment
+ *   state the bar settles for when it cannot take [floating]
  * @param rollover whether the look and feel draws an item's border only while the pointer is over it,
  *   or `null` to leave that choice to the look and feel; a choice withdrawn after being declared
  *   settles at its answer for good
@@ -76,13 +74,27 @@ public fun ToolBar(
     // before it stands in a window, so seeding this `true` would make the bar's first docked reading look
     // like the user having docked it.
     val applied = rememberAppliedValue(false)
-    val held = applied.value
-    // A bar is declared before it is anywhere - the applier runs this node's update block between its
-    // top-down and bottom-up passes - so the pass declaring a floating bar has no window to open one
-    // beside. Counting the times the bar is handed to a parent gives that pass a successor: the count
-    // moves once the bar lands somewhere, and the settle below runs then. Floating and docking are
-    // themselves such moves, since both hand the bar between its container and the look and feel's window.
-    var attachments by remember { mutableIntStateOf(0) }
+    // Reading the mirror here subscribes this composition to the user dragging the bar out or docking it
+    // back, so a move away from the declaration invalidates on its own instead of waiting for an
+    // unrelated recomposition to notice it. The value itself is nothing this body needs: the settle below
+    // reads the state off the bar.
+    applied.value
+    // Whether the bar ended the last settle holding something other than what was declared for it, which
+    // is what a bar that could not float looks like.
+    val refused = remember { booleanArrayOf(false) }
+    // Counts the containers a refused bar has been moved into. Floating needs a window to open the bar's
+    // own beside, and which window that is - or whether there is one at all - is the container's to say,
+    // so a refusal is answered by the bar being moved rather than by anything the composition declares.
+    // Reading the count here is what subscribes this composition to those moves; the number itself means
+    // nothing.
+    val placements = remember { mutableIntStateOf(0) }
+    placements.intValue
+    // The floating state the caller has last been told the bar holds: the one it declared and the bar
+    // took, the docked state it was handed for a declaration the bar refused, or the state of a move the
+    // user made themselves. Every settle records what the bar was left holding here, so a refusal that
+    // still stands is one the caller has already heard. Null while the caller has been told nothing, which
+    // is what tells a first refusal apart from a repeat of one.
+    val reportedFloating = remember { arrayOfNulls<Boolean>(1) }
 
     SwingNode(
         factory = { JToolBar(orientation).also { bar -> rollover?.let { bar.isRollover = it } } },
@@ -92,29 +104,44 @@ public fun ToolBar(
             update(rollover) { declared ->
                 isRollover = declared ?: UIManager.getBoolean(ROLLOVER_DEFAULT)
             }
-            // Only the mirror is written from the hierarchy event. Settling belongs to a composition pass,
-            // which is the one place the declaration to settle against exists - and writing to the
+            // Nothing is written to the bar from the hierarchy event. Settling belongs to a composition
+            // pass, which is the one place the declaration to settle against exists - and writing to the
             // hierarchy from inside a hierarchy event deadlocks, since the event arrives holding the AWT
             // tree lock that the write needs the toolkit to take. A move made inside a write of this
-            // wrapper's own is the declaration taking effect, and the mirror keeps it from being reported
-            // as the user's.
+            // wrapper's own is the declaration taking effect, and neither the mirror nor the placement
+            // count takes it for the user's.
             applyModifier(
                 modifier.hierarchyListener { event ->
                     if (event.changeFlags and HierarchyEvent.PARENT_CHANGED.toLong() == 0L) {
                         return@hierarchyListener
                     }
-                    attachments++
                     val standing = (event.component as JToolBar).isFloating
-                    if (applied.observed(standing)) onFloatingChange(standing)
+                    if (refused[0] && !applied.isWriting) placements.intValue++
+                    if (applied.observed(standing)) {
+                        reportedFloating[0] = standing
+                        onFloatingChange(standing)
+                    }
                 },
             )
 
-            // The declaration, the state the bar is really in, and the bar's arrival in a container move
-            // independently - the user drags the bar out without the declaration changing - and one settle
-            // answers for all three: they are one key. The key skips the first pass, which declares the
-            // bar where it stands nowhere and has no window to float out of.
-            update(Triple(floating, held, attachments)) {
-                applied.settle(floating, { isFloating }, { standing -> applyFloating(standing) }, onFloatingChange)
+            // A bar is declared before it is anywhere - the applier runs this node's update block between
+            // its top-down and bottom-up passes - so a floating declaration written here would be written
+            // against a bar that stands nowhere and has no window to float out of. Settled at the end of
+            // the change pass instead, which is where the bar already hangs in the container that declared
+            // it: the pass declaring a floating bar is the pass that moves it out.
+            //
+            // The refusal reaches the caller from here rather than from inside the settle, so the record of
+            // what the caller was told is what decides whether it is news: this runs again on every pass
+            // that recomposes the bar or changes its items, and a refusal that already stands is not a
+            // second answer. It reaches the caller contained, the way a settle would have dispatched it,
+            // so a throw out of it is reported rather than left to end the composition applying this pass.
+            settleWithChildren {
+                applied.settle(floating, { isFloating }, { standing -> applyFloating(standing) })
+                val settled = isFloating
+                val unheard = reportedFloating[0] != settled
+                reportedFloating[0] = settled
+                refused[0] = floating != settled
+                if (refused[0] && unheard) dispatchToCaller { onFloatingChange(settled) }
             }
         },
         onRelease = {

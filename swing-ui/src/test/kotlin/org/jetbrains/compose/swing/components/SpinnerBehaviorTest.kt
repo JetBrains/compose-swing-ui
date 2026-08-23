@@ -463,12 +463,16 @@ class SpinnerBehaviorTest {
         awaitIdle()
         assertEquals(3, stateValue, "the spinner starts at the initial value")
 
+        mainClock.autoAdvance = false
         stateValue = 9
         awaitIdle()
+        mainClock.advanceTimeByFrame()
 
         val spinner = onNodeOfType<JSpinner>().fetch()
-        assertEquals(9, spinner.value, "a later change to the value moves the spinner")
+        assertEquals(9, spinner.value, "the pass declaring the value should leave the spinner holding it")
 
+        // The move below is the widget's own.
+        mainClock.autoAdvance = true
         spinner.value = 6
         awaitIdle()
         assertEquals(6, stateValue, "the value is driven through the state")

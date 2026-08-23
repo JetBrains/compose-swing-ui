@@ -14,6 +14,7 @@ import javax.swing.event.TreeExpansionListener
 import javax.swing.event.TreeSelectionListener
 import javax.swing.tree.DefaultMutableTreeNode
 import javax.swing.tree.DefaultTreeModel
+import javax.swing.tree.TreePath
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -92,6 +93,8 @@ class TreeExpansionTest {
                 onExpansionChange = { received += it },
             )
         }
+        awaitIdle()
+        mainClock.autoAdvance = false
 
         val tree = onNodeOfType<JTree>().fetch()
         assertTrue(tree.isExpanded(tree.pathTo(1)), "the declared node should be expanded")
@@ -100,9 +103,16 @@ class TreeExpansionTest {
         // Every node the declaration leaves out collapses again: expansion is controlled, not only additive.
         expansion = setOf(emptyList(), listOf(0))
         awaitIdle()
+        mainClock.advanceTimeByFrame()
 
-        assertTrue(tree.isExpanded(tree.pathTo(0)), "the newly declared node should be expanded")
-        assertFalse(tree.isExpanded(tree.pathTo(1)), "the node dropped from the declaration should collapse")
+        assertTrue(
+            tree.isExpanded(tree.pathTo(0)),
+            "the one pass that declares the node should already have opened it",
+        )
+        assertFalse(
+            tree.isExpanded(tree.pathTo(1)),
+            "the one pass that drops the node from the declaration should already have closed it",
+        )
         assertEquals(emptyList(), received, "applying a declared expansion reported it back as the user's")
     }
 
@@ -355,6 +365,47 @@ class TreeExpansionTest {
             "the closed node holds the selection its hidden descendant cannot",
         )
         assertEquals(listOf(setOf(listOf(0))), received, "and the selection it took over is reported once")
+    }
+
+    @Test
+    fun installingAModelNeverOpensTheNodeTheDeclarationCloses() = runComposeSwingTest {
+        var model by mutableStateOf(sampleModel("root"))
+        val received = mutableListOf<Set<List<Int>>>()
+        val opened = mutableListOf<TreePath>()
+        setContent {
+            Tree(
+                model = model,
+                // The declared expansion leaves the subtree holding the declared selection closed.
+                expandedPaths = setOf(emptyList()),
+                selectedPaths = setOf(listOf(0, 0)),
+                onSelectionChange = { received += it },
+            )
+        }
+
+        val tree = onNodeOfType<JTree>().fetch()
+        assertEquals(listOf(setOf(listOf(0))), received, "the closed node takes over the selection it hides")
+        // A listener of the test's own is handed the wrapper's writes as well as the user's, so a node
+        // opened and closed again inside one install still shows up here.
+        tree.addTreeExpansionListener(
+            object : TreeExpansionListener {
+                override fun treeExpanded(event: TreeExpansionEvent) {
+                    opened += event.path
+                }
+
+                override fun treeCollapsed(event: TreeExpansionEvent) = Unit
+            },
+        )
+
+        model = sampleModel("trunk")
+        awaitIdle()
+
+        assertEquals(emptyList(), opened, "installing a model opens no node the declared expansion closes")
+        assertFalse(tree.isExpanded(tree.pathTo(0)), "the node the declaration closes stays closed")
+        assertEquals(
+            listOf(tree.pathTo(0)),
+            tree.selectionPaths?.toList(),
+            "and holds the selection its hidden descendant cannot",
+        )
     }
 
     @Test
@@ -621,6 +672,39 @@ class TreeExpansionTest {
         assertFalse(
             tree.isExpanded(tree.pathTo(0)),
             "the declared expansion stands against a user expansion even with no listener to report it",
+        )
+    }
+
+    @Test
+    fun anOpenNodeTheStructureNoLongerHoldsIsNotReported() = runComposeSwingTest {
+        val root = DefaultMutableTreeNode("root")
+        val fruit = DefaultMutableTreeNode("fruit").apply { add(DefaultMutableTreeNode("apple")) }
+        root.add(fruit)
+        root.add(DefaultMutableTreeNode("veg").apply { add(DefaultMutableTreeNode("carrot")) })
+        val model = DefaultTreeModel(root)
+        val reported = mutableListOf<Set<List<Int>>>()
+        setContent { Tree(model = model, onExpansionChange = { reported += it }) }
+
+        val tree = onNodeOfType<JTree>().fetch()
+        tree.expandPath(tree.pathTo(0))
+        tree.expandPath(tree.pathTo(1))
+        awaitIdle()
+
+        // Taken out of the structure and announced as a change rather than as a removal, which is what
+        // leaves the tree still holding it open: a tree prunes what it remembers open only for the events
+        // that name a removal, and a caller's model is free to publish any event it likes.
+        root.remove(fruit)
+        model.nodeChanged(root)
+        awaitIdle()
+        reported.clear()
+
+        tree.collapsePath(tree.pathTo(0))
+        awaitIdle()
+
+        assertEquals(
+            listOf(setOf(emptyList<Int>())),
+            reported,
+            "the node the structure dropped stands at no child position, so only the root is reported",
         )
     }
 }

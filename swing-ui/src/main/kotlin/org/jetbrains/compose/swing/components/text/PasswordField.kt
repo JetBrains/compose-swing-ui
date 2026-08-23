@@ -280,7 +280,10 @@ private fun Document.fullPassword(): CharArray {
 
 private val PASSWORD_MIRRORS =
     documentMirrorRegistration<AppliedValue<PasswordChars>>(
-        onEdit = { applied, document -> applied.observed(PasswordChars(document.fullPassword())) },
+        onEdit = { applied, document ->
+            if (!applied.isWriting) applied.observed(PasswordChars(document.fullPassword()))
+        },
+        onAdopt = { applied, document -> applied.observed(PasswordChars(document.fullPassword())) },
     )
 
 /** What the `onValueChange`-driven overload declares, as one value the listener it registers reads. */
@@ -294,8 +297,10 @@ private class PasswordEdit(
 private val PASSWORD_EDITS =
     documentMirrorRegistration<PasswordEdit>(
         onEdit = { edit, document ->
-            val current = document.fullPassword()
-            if (edit.applied.observed(PasswordChars(current))) edit.onValueChange(current.copyOf())
+            if (!edit.applied.isWriting) {
+                val current = document.fullPassword()
+                if (edit.applied.observed(PasswordChars(current))) edit.onValueChange(current.copyOf())
+            }
         },
         onAdopt = { edit, document -> edit.applied.observed(PasswordChars(document.fullPassword())) },
     )

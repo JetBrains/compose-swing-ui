@@ -1,7 +1,5 @@
 package org.jetbrains.compose.swing.components
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
 import java.beans.PropertyChangeListener
@@ -11,25 +9,9 @@ import javax.swing.JLabel
 import javax.swing.JSlider
 
 /*
- * The text a `Slider` draws at its values: the map a composition declares them as, and the table the
- * slider paints - the declared entries, or the standard labels Swing generates at the major tick marks.
+ * The table a `Slider` paints its text from: the entries a composition declares, or the standard labels
+ * Swing generates at the major tick marks.
  */
-
-/**
- * The labels [declared] names, held as a map of this composition's own - the map counterpart of
- * `rememberDeclaredList`, which carries why the entries are read here rather than in the apply block that
- * draws them. A `null` declaration is held as itself: there are no entries to read and none to copy.
- */
-@Composable
-internal fun rememberDeclaredLabels(declared: Map<Int, @Nls String>?): Map<Int, @Nls String>? {
-    val held = remember { arrayOfNulls<Map<Int, String>>(1) }
-    val standing = held[0]
-    return if (standing != null && standing == declared) {
-        standing
-    } else {
-        declared?.toMap().also { held[0] = it }
-    }
-}
 
 /**
  * Declares the table the slider paints its labels from: [labels] where the caller names them, and

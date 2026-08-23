@@ -62,6 +62,8 @@ class EditorTextPaneTest {
     fun editorPaneReRendersWhenTheMarkupChanges() = runComposeSwingTest {
         var markup by mutableStateOf("<p>before</p>")
         setContent { EditorPane(markup = markup, onLinkActivate = {}, contentType = "text/html") }
+        awaitIdle()
+        mainClock.autoAdvance = false
 
         val pane = onNodeOfType<JEditorPane>().fetch()
         assertTrue(pane.document.textContains("before"), "the pane renders the declared markup")
@@ -69,7 +71,11 @@ class EditorTextPaneTest {
         markup = "<p>after</p>"
         awaitIdle()
 
-        assertTrue(pane.document.textContains("after"), "a changed declaration is rendered")
+        assertTrue(pane.document.textContains("before"), "publishing a declaration is not itself what renders it")
+
+        mainClock.advanceTimeByFrame()
+
+        assertTrue(pane.document.textContains("after"), "the pass declaring the markup should render it")
         assertFalse(pane.document.textContains("before"), "the previous content is replaced")
     }
 

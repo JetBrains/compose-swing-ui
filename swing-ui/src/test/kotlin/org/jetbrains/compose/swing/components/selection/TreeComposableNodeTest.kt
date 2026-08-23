@@ -12,7 +12,11 @@ import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
 import javax.swing.JLabel
 import javax.swing.JTree
+import javax.swing.event.TreeModelEvent
+import javax.swing.event.TreeModelListener
+import javax.swing.tree.TreePath
 import kotlin.test.Test
+import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
@@ -20,11 +24,13 @@ import kotlin.test.assertTrue
 
 /**
  * A small data tree used to feed [Tree] from nested values: each [Branch] yields its [children], and
- * its [name] is what the row's label renders.
+ * its [name] is what the row's label renders. No label derives from [badge], so it reaches a row only
+ * through a node that renders the value itself.
  */
 private data class Branch(
     val name: String,
     val children: List<Branch> = emptyList(),
+    val badge: String = "",
 )
 
 /**
@@ -50,6 +56,21 @@ class TreeComposableNodeTest {
             row,
             hasFocus(),
         )
+    }
+
+    /** Records each node a model reports as changed, as the path naming that node. */
+    private fun nodeChangeRecorder(into: MutableList<TreePath>): TreeModelListener = object : TreeModelListener {
+        override fun treeNodesChanged(event: TreeModelEvent) {
+            // A model names a changed node by its parent's path and its position under it; the root,
+            // which has no parent, is named by its own path.
+            into += event.children?.map { event.treePath.pathByAddingChild(it) } ?: listOf(event.treePath)
+        }
+
+        override fun treeNodesInserted(event: TreeModelEvent) = Unit
+
+        override fun treeNodesRemoved(event: TreeModelEvent) = Unit
+
+        override fun treeStructureChanged(event: TreeModelEvent) = Unit
     }
 
     private val sample =
@@ -109,6 +130,67 @@ class TreeComposableNodeTest {
             "a node whose value is null is a node the node body renders",
         )
         assertEquals("leaf", tree.stampRow(2).firstLabelText(), "the next node renders its own value")
+    }
+
+    @Test
+    fun aValueMovingUnderAnUnchangedLabelRepaintsItsRow() = runComposeSwingTest {
+        var apple by mutableStateOf(Branch("apple", badge = "ripe"))
+        val changed = mutableListOf<TreePath>()
+        setContent {
+            Tree(
+                root = Branch("root", listOf(apple)),
+                children = { it.children },
+                label = { it.name },
+                expandedPaths = setOf(emptyList()),
+            ) { value ->
+                Label("${value.name} ${value.badge}")
+            }
+        }
+
+        val tree = onNodeOfType<JTree>().fetch()
+        assertEquals("apple ripe", tree.stampRow(1).firstLabelText(), "the node renders the value it stands for")
+        tree.model.addTreeModelListener(nodeChangeRecorder(changed))
+
+        apple = Branch("apple", badge = "eaten")
+        awaitIdle()
+
+        assertContains(
+            changed,
+            tree.pathTo(0),
+            "the row renders from the value, so a node that took over another one has to be painted again",
+        )
+        assertEquals("apple eaten", tree.stampRow(1).firstLabelText(), "and renders the value that stands")
+    }
+
+    @Test
+    fun aRebuiltButEqualSiblingIsNotPaintedAgain() = runComposeSwingTest {
+        var apple by mutableStateOf(Branch("apple", badge = "ripe"))
+        val changed = mutableListOf<TreePath>()
+        setContent {
+            Tree(
+                // Pear is built inline, so every pass hands the tree a fresh object holding the data the
+                // node already stands on.
+                root = Branch("root", listOf(apple, Branch("pear"))),
+                children = { it.children },
+                label = { it.name },
+                expandedPaths = setOf(emptyList()),
+            ) { value ->
+                Label("${value.name} ${value.badge}")
+            }
+        }
+
+        val tree = onNodeOfType<JTree>().fetch()
+        tree.model.addTreeModelListener(nodeChangeRecorder(changed))
+
+        apple = Branch("apple", badge = "eaten")
+        awaitIdle()
+
+        assertContains(changed, tree.pathTo(0), "the node whose value moved is repainted")
+        assertFalse(
+            tree.pathTo(1) in changed,
+            "a node handed a fresh object holding the same data renders what it already did, so it is " +
+                "not painted again",
+        )
     }
 
     @Test
@@ -187,9 +269,9 @@ class TreeComposableNodeTest {
 
     @Test
     fun composableNodesWorkInsideAScrollPane() = runComposeSwingTest {
-        // A composable node composition joins the enclosing composition, and the node's own nodes belong to the
-        // renderer rather than to the pane the tree is installed in: they render the row, they do not
-        // install themselves as the viewport's view.
+        // The composable node's node composition joins the enclosing composition, and its own nodes belong
+        // to the renderer rather than to the pane the tree is installed in: they render the row, they do
+        // not install themselves as the viewport's view.
         setContent {
             ScrollPane {
                 Tree(

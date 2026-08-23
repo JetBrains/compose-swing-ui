@@ -6,6 +6,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.compose.swing.core.dispatchToCaller
 import org.jetbrains.compose.swing.node.AppliedValue
+import org.jetbrains.compose.swing.node.SwingNodeUpdater
+import org.jetbrains.compose.swing.node.settleWhenDue
+import javax.swing.JTable
 import javax.swing.event.ChangeEvent
 import javax.swing.event.ListSelectionEvent
 import javax.swing.event.TableColumnModelEvent
@@ -22,8 +25,8 @@ import javax.swing.table.TableColumnModel
  * which is what keeps a window resize, which changes every column's width and no column's layout, silent.
  */
 internal class ColumnLayoutChannel(
-    private val target: State<TableColumnModelListener?>,
     private val applied: AppliedValue<TableColumnLayout?>,
+    private val target: State<TableColumnModelListener?>,
 ) {
     /**
      * Reports the user's own column reorders and resizes, and mirrors every layout the columns are left in
@@ -138,14 +141,35 @@ private fun TableColumnLayout.holdsInPlace(columns: TableColumnModel): Boolean =
             column.modelIndex == modelIndices[position] && column.preferredWidth == preferredWidths[position]
         }
 
+/**
+ * Settles the table's columns on [columnLayout] whenever the declaration or the layout the columns are in
+ * has moved since the pair this mirror last answered for, and does nothing at all on a pass where neither
+ * did. Reading the mirror here is what subscribes the composition to a user's own reorder or resize, so a
+ * declared layout is put back on the pass that follows their moving away from it.
+ */
+internal fun SwingNodeUpdater<JTable>.declareColumnLayout(
+    applied: AppliedValue<TableColumnLayout?>,
+    columnLayout: TableColumnLayout?,
+    channel: ColumnLayoutChannel,
+) {
+    settleWhenDue(applied.redeclare(columnLayout), { ColumnLayoutSettlement(columnLayout) }) { due ->
+        channel.settle(columnModel, due.layout)
+    }
+}
+
+/** One due settlement of a table's column layout: the layout to leave the columns in. */
+private class ColumnLayoutSettlement(
+    val layout: TableColumnLayout?,
+)
+
 /** A [ColumnLayoutChannel] that keeps reporting to the latest [listener] without being rebuilt. */
 @Composable
 internal fun rememberColumnLayoutChannel(
-    listener: TableColumnModelListener?,
     applied: AppliedValue<TableColumnLayout?>,
+    listener: TableColumnModelListener?,
 ): ColumnLayoutChannel {
     val target = rememberUpdatedState(listener)
-    return remember { ColumnLayoutChannel(target, applied) }
+    return remember { ColumnLayoutChannel(applied, target) }
 }
 
 /**

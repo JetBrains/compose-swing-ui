@@ -109,15 +109,19 @@ class SelectionDifferenceTest {
                 column("Name") { it.name }
             }
         }
+        awaitIdle()
+        mainClock.autoAdvance = false
 
         val table = onNodeOfType<JTable>().fetch()
         selection = setOf(1, 2, 5)
         awaitIdle()
+        mainClock.advanceTimeByFrame()
 
         assertEquals(
             Triple(listOf(1, 2, 5), 5, 5),
             table.selectionModel.state(),
-            "row 0 and row 4 leave the selection, row 2 and row 5 join it, and row 1 stays",
+            "the one pass that declares the selection should already have taken row 0 and row 4 out, put " +
+                "row 2 and row 5 in and left row 1 where it was",
         )
     }
 
@@ -125,15 +129,19 @@ class SelectionDifferenceTest {
     fun aListSelectionThatGainsAndLosesRowsHoldsExactlyWhatIsDeclared() = runComposeSwingTest {
         var selection by mutableStateOf(setOf(0, 1, 4))
         setContent { ListBox(items = colors, selectedIndices = selection) }
+        awaitIdle()
+        mainClock.autoAdvance = false
 
         val list = onNodeOfType<JList<*>>().fetch()
         selection = setOf(1, 2, 5)
         awaitIdle()
+        mainClock.advanceTimeByFrame()
 
         assertEquals(
             Triple(listOf(1, 2, 5), 5, 5),
             list.selectionModel.state(),
-            "row 0 and row 4 leave the selection, row 2 and row 5 join it, and row 1 stays",
+            "the one pass that declares the selection should already have taken row 0 and row 4 out, put " +
+                "row 2 and row 5 in and left row 1 where it was",
         )
     }
 
@@ -193,7 +201,7 @@ class SelectionDifferenceTest {
         assertEquals(
             3..4,
             settled.span,
-            "rows 0 to 3 were already selected, so the change reaches the model as the row that\n" +
+            "rows 0 to 3 were already selected, so the change reaches the model as the row that " +
                 "joined and the lead it moved",
         )
     }
@@ -212,7 +220,7 @@ class SelectionDifferenceTest {
         assertEquals(
             3..4,
             settled.span,
-            "rows 0 to 3 were already selected, so the change reaches the model as the row that\n" +
+            "rows 0 to 3 were already selected, so the change reaches the model as the row that " +
                 "joined and the lead it moved",
         )
     }
@@ -230,7 +238,12 @@ class SelectionDifferenceTest {
         selection = emptySet()
         awaitIdle()
 
-        assertEquals(emptyList(), table.selectedRows.toList(), "every row the declaration dropped is deselected")
+        assertEquals(
+            Triple(emptyList<Int>(), 1, 2),
+            table.selectionModel.state(),
+            "every row the declaration dropped is deselected, and the anchor and the lead stay on the ends " +
+                "of the run the last declaration named, which is where a shift-click extends from",
+        )
     }
 
     @Test
@@ -242,7 +255,12 @@ class SelectionDifferenceTest {
         selection = emptySet()
         awaitIdle()
 
-        assertEquals(emptyList(), list.selectedIndices.toList(), "every row the declaration dropped is deselected")
+        assertEquals(
+            Triple(emptyList<Int>(), 1, 2),
+            list.selectionModel.state(),
+            "every row the declaration dropped is deselected, and the anchor and the lead stay on the ends " +
+                "of the run the last declaration named, which is where a shift-click extends from",
+        )
     }
 }
 
