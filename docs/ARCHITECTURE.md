@@ -30,9 +30,11 @@ own scope. A scope of its own comes from a runtime created for a component with
 whose disposal the caller owns - an integration-level entry point, opted into with
 `@OptIn(InternalSwingUiApi::class)`.
 `container.setContent(parent) { ... }` then composes on the call, whatever the
-container is attached to, which is what serves a container built to be read rather than shown. Such
-a container joins the composition of the window it is in should it later be added to one, so a
-window's content still recomposes on one recomposer and one frame clock.
+container is attached to, which is what serves a container built to be read rather than shown.
+Everything mounted inside such a container joins the same parent: a `setContent` naming no parent of
+its own on a container hanging under that island resolves to the composition the island was given
+rather than to the window's. Such a container joins the composition of the window it is in should it
+later be added to one, so a window's content still recomposes on one recomposer and one frame clock.
 
 Content reads a `LifecycleOwner` through `LocalLifecycleOwner`, shared by everything that content
 hosts - popups, menus, overlays. A mount resolves that owner from where its container hangs in the

@@ -34,9 +34,11 @@ import javax.swing.RootPaneContainer
  *
  * A [parent] drives the composition instead, and the content composes **on this call**, whatever the
  * container is attached to - which is what reaches a container that is built to be read rather than
- * shown. The caller owns what they pass: disposing the returned handle disposes this island's
- * composition and leaves [parent] running. A container that later ends up in a different window joins
- * the composition of the window it is then in, recreating this island's content there.
+ * shown. Everything mounted inside this island joins [parent] as well: a `setContent` naming no parent
+ * of its own on a container hanging under this one resolves to [parent] rather than to the composition
+ * its window shares. The caller owns what they pass: disposing the returned handle disposes this
+ * island's composition and leaves [parent] running. A container that later ends up in a different
+ * window joins the composition of the window it is then in, recreating this island's content there.
  *
  * The content reads its [LocalWindow][org.jetbrains.compose.swing.window.LocalWindow] from the
  * composition it joins, and the window this container is in wherever that composition names none.
@@ -64,8 +66,9 @@ import javax.swing.RootPaneContainer
  *
  * Must be called on the Event Dispatch Thread.
  *
- * @param parent the composition context this content joins and shares the recomposition scope of.
- *   Defaults to `null`, meaning the composition the container's own place in the Swing tree resolves to.
+ * @param parent the composition context this content joins and shares the recomposition scope of, and
+ *   the one anything mounted inside this island joins. Defaults to `null`, meaning the composition the
+ *   container's own place in the Swing tree resolves to.
  * @param content the composable content to set
  * @return a [DisposableHandle] that disposes this island's composition when invoked (or, if the mount
  *   has not happened yet, cancels it).

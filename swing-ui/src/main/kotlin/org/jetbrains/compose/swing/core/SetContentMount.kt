@@ -36,10 +36,10 @@ internal class MountParent(
  * `null` if it cannot be resolved yet (the container has no host stamp and no window ancestor, so the
  * mount must be deferred until [component] takes a place that answers).
  *
- * Resolution order: first an existing host discovered self-first up the Swing tree, then the owning
- * window's shared recomposer. Those two are the whole order: a runtime created for a component is
- * reached only by passing its context in, so every island a window can account for shares that window's
- * one recomposer and one frame clock.
+ * Resolution order: first an existing host discovered up the Swing tree - a stamped host composition, or
+ * an island standing over [component] - then the owning window's shared recomposer. Those two are the
+ * whole order: a runtime created for a component is reached only by passing its context in, so every
+ * island a window can account for shares that window's one recomposer and one frame clock.
  */
 internal fun resolveParentOrNull(component: Component): MountParent? {
     val window = component.ownerWindowOrNull()
@@ -59,7 +59,7 @@ internal fun resolveParentOrNull(component: Component): MountParent? {
  * Mounts a `setContent` on [component] as soon as the context it nests into can be resolved, and
  * returns a [DisposableHandle] over the (possibly still pending) mount.
  *
- * If the context resolves immediately (a host stamp self-first up the tree, or the owning window's
+ * If the context resolves immediately (a host stamp or an island up the tree, or the owning window's
  * recomposer), [mount] runs synchronously here. Otherwise the mount is **deferred** until [component]
  * takes a place in the Swing tree that resolves one, at which point [mount] runs.
  *
@@ -116,6 +116,9 @@ private enum class MountPhase { Pending, Mounted, Disposed }
  * renderer takes to be painted - has not moved at all. A mount that stood in no window at all adopts the
  * first one it reaches without composing again.
  *
+ * A live mount publishes the context its content composes under to whatever is mounted inside its
+ * container, through the [IslandMountRegistration] it keeps there.
+ *
  * Lives only on the EDT, so its fields need no synchronization. All phase transitions go through this
  * object, so no caller can drive it into an illegal state, and [dispose] leaves it [MountPhase.Disposed]
  * with no listener installed.
@@ -144,16 +147,34 @@ private class SetContentMountState(
      */
     private val statedWindow = mutableStateOf<Window?>(null)
 
-    /** Handle removing the listener watching [component]'s place; held until [dispose]. */
-    private var placeChanges: DisposableHandle? = null
+    /**
+     * This mount's registration on [component]: the listener watching where the container hangs, and the
+     * context it publishes to whatever is mounted inside that container. Installed by [start] and removed
+     * by [dispose].
+     */
+    private val registration = IslandMountRegistration { placeChanged() }
+
+    /**
+     * Set while a rejoin is queued, so the several parent changes one move fires queue at most one.
+     */
+    private var rejoinScheduled = false
 
     /**
      * Watches where [component] hangs and composes the content under the parent there is now: the one
      * the caller named, or the one [component]'s place resolves to. A container whose place resolves to
      * nothing composes nothing yet and waits for one that does.
+     *
+     * A container already carrying a live island is refused. Only a live one stands in the way: a
+     * container whose island was disposed takes content again, and one whose mount is still waiting for
+     * a parent answers nothing yet.
      */
     fun start() {
-        placeChanges = onPlaceChanged(component, PARENT_CHANGE_FLAG) { placeChanged() }
+        check(component.islandCompositionContextOrNull() == null) {
+            "${component.javaClass.name} already holds the content of a live setContent. A container is " +
+                "asked once for the composition its contents nest into, and two islands cannot both be " +
+                "that answer - dispose the first island's handle before setting content here again."
+        }
+        component.addHierarchyListener(registration)
         val parent = namedParent ?: resolveParentOrNull(component)
         if (parent != null) composeUnder(parent)
     }
@@ -177,6 +198,10 @@ private class SetContentMountState(
         // container already hanging in a window would otherwise fall back on nothing, with no later move
         // to adopt one on.
         statedWindow.value = component.ownerWindowOrNull() ?: parent.window
+        // Published before the mount for the same reason, and the same reason the applier stamps a node
+        // on its way down: the content composes inside mount(), so a setContent that pass makes on a
+        // container of this island has to find this context already standing.
+        registration.context = parent.context
         composition = mount(parent, statedWindow)
         phase = MountPhase.Mounted
     }
@@ -203,19 +228,50 @@ private class SetContentMountState(
             }
 
             mountedIn !== arrivedIn -> {
-                val resolved = resolveParentOrNull(component) ?: return
-                composition?.dispose()
-                statedWindow.value = arrivedIn
-                composition = mount(resolved, statedWindow)
+                // Withdrawn on the spot: AWT delivers a parent change to a container's descendants before
+                // the container itself, so an island nested inside this one is asked where it hangs while
+                // this mount still names the composition it is leaving. Answering nothing sends that walk
+                // on to where it really hangs now, and the rejoin publishes this island's new answer.
+                registration.context = null
+                scheduleRejoin()
             }
         }
+    }
+
+    /** Queues [rejoin] behind the event being dispatched, at most once at a time. */
+    private fun scheduleRejoin() {
+        if (rejoinScheduled) return
+        rejoinScheduled = true
+        SwingUtilities.invokeLater(::rejoin)
+    }
+
+    /** Composes the content again under what [component]'s place resolves to now. */
+    private fun rejoin() {
+        // Cleared first: a move made while this one runs must queue one of its own.
+        rejoinScheduled = false
+        parentToRejoin()?.let { parent ->
+            composition?.dispose()
+            composeUnder(parent)
+        }
+    }
+
+    /**
+     * The parent [component] is to compose again under, or `null` where there is nothing to compose
+     * again. Where the container stands is read here rather than carried over from when the rejoin was
+     * queued: it may since have been disposed, taken out of every window, or put back in the one it was
+     * already in.
+     */
+    private fun parentToRejoin(): MountParent? {
+        val arrivedIn = component.ownerWindowOrNull()
+        val moved = phase == MountPhase.Mounted && arrivedIn != null && arrivedIn !== statedWindow.value
+        return if (moved) resolveParentOrNull(component) else null
     }
 
     override fun dispose() {
         if (phase == MountPhase.Disposed) return
         phase = MountPhase.Disposed
-        placeChanges?.dispose()
-        placeChanges = null
+        component.removeHierarchyListener(registration)
+        registration.context = null
         composition?.dispose()
         composition = null
         statedWindow.value = null
@@ -223,10 +279,45 @@ private class SetContentMountState(
 }
 
 /**
+ * The registration a `setContent` mount keeps on its container: the [HierarchyListener] following where
+ * that container hangs, carrying the [CompositionContext] the mount's content composes under.
+ *
+ * A mount is asked what it composes under through the registration it already keeps, the way a window is
+ * asked for its runtime through the listener that ends it - so what a container's content nests into is
+ * answered by the container itself rather than tracked anywhere else, removing the listener is the whole
+ * of withdrawing the answer, and a container that is garbage collected takes its mounts with it. The
+ * registration also reaches a [java.awt.Container] that is no [javax.swing.JComponent], which carries no
+ * client-property bag at all.
+ *
+ * [context] is `null` while the mount is still waiting for a parent, and again once it is disposed.
+ *
+ * @param onPlaceChanged run whenever [HierarchyEvent.PARENT_CHANGED] fires for the container.
+ */
+private class IslandMountRegistration(
+    private val onPlaceChanged: () -> Unit,
+) : HierarchyListener {
+    var context: CompositionContext? = null
+
+    override fun hierarchyChanged(event: HierarchyEvent) {
+        if (event.changeFlags and PARENT_CHANGE_FLAG != 0L) onPlaceChanged()
+    }
+}
+
+/**
+ * The [CompositionContext] the content of a live `setContent` island on this component composes under,
+ * or `null` where this component carries no island that has composed yet.
+ */
+internal fun Component.islandCompositionContextOrNull(): CompositionContext? =
+    hierarchyListeners.firstNotNullOfOrNull { (it as? IslandMountRegistration)?.context }
+
+/**
  * Runs [block] on every [HierarchyEvent] fired for [component] whose change flags intersect
- * [changeFlags], for as long as the returned handle is live. Shared by every watch of where a
- * component stands in the Swing tree, so which flags answer that question is named once at each call
- * site rather than the listener plumbing repeated around a different answer.
+ * [changeFlags], for as long as the returned handle is live, so which flags answer where a component
+ * stands is named at the call site rather than written into a listener of its own.
+ *
+ * The listener it installs is anonymous, so this serves a watch that only needs the callback. A watch
+ * whose listener must be found again on the component - to be asked what it holds, rather than only to
+ * run - installs a named one instead.
  *
  * @return a [DisposableHandle] that removes the listener. Disposing is idempotent.
  */

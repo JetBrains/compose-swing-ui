@@ -18,23 +18,34 @@ import javax.swing.SwingUtilities
 internal const val COMPOSITION_KEY: String = "org.jetbrains.compose.swing.composition"
 
 /**
- * Finds the parent [CompositionContext] by walking the Swing component tree, reading the
- * [COMPOSITION_KEY] client property off each [JComponent].
+ * Finds the parent [CompositionContext] by walking the Swing component tree, reading two things off each
+ * component on the way up: the [COMPOSITION_KEY] client property a host stamps on a [JComponent], and the
+ * context a live `setContent` island on that component composes its content under. The nearest ancestor
+ * that answers wins, so the innermost composition around this component is the one it joins.
  *
- * The walk is self-first: it checks the receiver before its ancestors, so a component stamped with a
- * context (an interop host, or a window root pane) is found by a `setContent` call on that component
- * itself, not only by its descendants.
+ * The client-property walk is self-first: it checks the receiver before its ancestors, so a component
+ * stamped with a context (an interop host, or a window root pane) is found by a `setContent` call on that
+ * component itself, not only by its descendants. An island's context answers for what hangs **inside**
+ * its container, so the receiver's own islands are passed over: a container asks where it hangs, not what
+ * it already carries.
  */
 internal fun Component.findParentCompositionContext(): CompositionContext? {
     var current: Component? = this
     while (current != null) {
-        if (current is JComponent) {
-            (current.getClientProperty(COMPOSITION_KEY) as? CompositionContext)?.let { return it }
-        }
+        current.compositionContextHere(walkStartedAt = this)?.let { return it }
         current = current.parent
     }
     return null
 }
+
+/**
+ * What this component alone answers the walk with: the [COMPOSITION_KEY] stamp a host published on it,
+ * or the context of a live island composing into it. An island answers only for what hangs inside its
+ * container, so the component the walk started at contributes its stamp and none of its islands.
+ */
+private fun Component.compositionContextHere(walkStartedAt: Component): CompositionContext? =
+    (this as? JComponent)?.getClientProperty(COMPOSITION_KEY) as? CompositionContext
+        ?: takeIf { it !== walkStartedAt }?.islandCompositionContextOrNull()
 
 /**
  * Sets [context] as this component's [COMPOSITION_KEY] client property, so descendant `setContent` calls
