@@ -1,8 +1,9 @@
 # Compose Swing UI
 
-[![Version](https://img.shields.io/github/v/release/MatkovIvan/compose-swing-ui?sort=semver)](https://github.com/MatkovIvan/compose-swing-ui/releases/latest)
-[![Snapshot](https://github.com/MatkovIvan/compose-swing-ui/actions/workflows/snapshot.yml/badge.svg)](https://github.com/MatkovIvan/compose-swing-ui/actions/workflows/snapshot.yml)
-[![API reference](https://img.shields.io/badge/API-reference-blue)](https://matkovivan.github.io/compose-swing-ui/)
+[![Team](https://jb.gg/badges/team-plastic.svg)](https://github.com/JetBrains#jetbrains-on-github)
+[![Version](https://img.shields.io/github/v/release/JetBrains/compose-swing-ui?sort=semver)](https://github.com/JetBrains/compose-swing-ui/releases/latest)
+[![Snapshot](https://github.com/JetBrains/compose-swing-ui/actions/workflows/snapshot.yml/badge.svg)](https://github.com/JetBrains/compose-swing-ui/actions/workflows/snapshot.yml)
+[![API reference](https://img.shields.io/badge/API-reference-blue)](https://jetbrains.github.io/compose-swing-ui/)
 
 A declarative, reactive way to build **Swing** UIs using Jetpack Compose's composition model -
 built on **Compose Runtime only**. No skiko, no Compose Multiplatform UI, no Skia renderer. Your
@@ -64,7 +65,7 @@ the panel's main content is written plainly.
 Every component family the library ships - text inputs, buttons, selection, layout containers,
 windows, dialogs and menus - is cataloged with the parameters that decide how it behaves in
 [`docs/COMPONENTS.md`](docs/COMPONENTS.md). Every public declaration is documented in the
-[API reference](https://matkovivan.github.io/compose-swing-ui/), which tracks `master`.
+[API reference](https://jetbrains.github.io/compose-swing-ui/), which tracks `master`.
 
 ## Mounting into existing Swing (`setContent`)
 
