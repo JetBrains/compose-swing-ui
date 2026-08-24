@@ -39,7 +39,7 @@ public fun SwingModifier.treeExpansionListener(
     onTreeCollapsed: (TreeExpansionEvent) -> Unit = UNDECLARED,
 ): SwingModifier {
     requireAnyDeclared("treeExpansionListener", declared(onTreeExpanded) || declared(onTreeCollapsed))
-    return liveCallbackListener<SwingJTree, TreeExpansionCallbacks, TreeExpansionListener>(
+    return listener<SwingJTree, TreeExpansionCallbacks, TreeExpansionListener>(
         callback = TreeExpansionCallbacks(onTreeExpanded, onTreeCollapsed),
         adapter = { current ->
             object : TreeExpansionListener {

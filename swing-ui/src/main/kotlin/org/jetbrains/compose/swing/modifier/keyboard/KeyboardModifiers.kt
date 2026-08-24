@@ -2,6 +2,7 @@ package org.jetbrains.compose.swing.modifier.keyboard
 
 import org.jetbrains.compose.swing.constants.FocusCondition
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.listener.listener
 import java.awt.Component
 import java.awt.event.ActionEvent
 import java.awt.event.KeyEvent
@@ -37,7 +38,24 @@ import javax.swing.SwingUtilities
  * @see java.awt.Component.addKeyListener
  */
 public fun SwingModifier.onKeyEvent(onKeyEvent: (KeyEvent) -> Boolean): SwingModifier =
-    this then KeyEventElement(onKeyEvent)
+    listener<Component, (KeyEvent) -> Boolean, KeyListener>(
+        callback = onKeyEvent,
+        adapter = { current ->
+            object : KeyListener {
+                override fun keyTyped(event: KeyEvent): Unit = dispatch(event)
+
+                override fun keyPressed(event: KeyEvent): Unit = dispatch(event)
+
+                override fun keyReleased(event: KeyEvent): Unit = dispatch(event)
+
+                private fun dispatch(event: KeyEvent) {
+                    if (current()(event)) event.consume()
+                }
+            }
+        },
+        attach = { component, listener -> component.addKeyListener(listener) },
+        detach = { component, listener -> component.removeKeyListener(listener) },
+    )
 
 /**
  * Binds a single [KeyStroke] to [onAction] via the component's `InputMap`/`ActionMap` - the
@@ -74,48 +92,6 @@ public fun SwingModifier.onKeyStroke(
         KeyStroke.getKeyStroke(keyStroke)
             ?: error("onKeyStroke could not parse the key-stroke descriptor \"$keyStroke\"")
     return onKeyStroke(parsed, condition, onAction)
-}
-
-/**
- * The additive [SwingModifier.NodeElement] backing [onKeyEvent]. Installs a [KeyListener] once and reads
- * [onKeyEvent] from the node's field, refreshed by `update`, so callbacks stay current.
- */
-private class KeyEventElement(
-    private val onKeyEvent: (KeyEvent) -> Boolean,
-) : SwingModifier.NodeElement<Component, KeyEventElement.Node>() {
-    override val targetType: Class<Component> get() = Component::class.java
-    override val additive: Boolean get() = true
-
-    override fun create(): Node = Node()
-
-    override fun update(node: Node) {
-        node.onKeyEvent = onKeyEvent
-    }
-
-    override fun equals(other: Any?): Boolean = other is KeyEventElement && onKeyEvent === other.onKeyEvent
-
-    override fun hashCode(): Int = System.identityHashCode(onKeyEvent)
-
-    class Node : SwingModifier.Node<Component>() {
-        var onKeyEvent: (KeyEvent) -> Boolean = { false }
-
-        private val listener =
-            object : KeyListener {
-                override fun keyTyped(e: KeyEvent): Unit = dispatch(e)
-
-                override fun keyPressed(e: KeyEvent): Unit = dispatch(e)
-
-                override fun keyReleased(e: KeyEvent): Unit = dispatch(e)
-
-                private fun dispatch(e: KeyEvent) {
-                    if (onKeyEvent(e)) e.consume()
-                }
-            }
-
-        override fun onAttach(): Unit = component.addKeyListener(listener)
-
-        override fun onDetach(): Unit = component.removeKeyListener(listener)
-    }
 }
 
 /**

@@ -42,7 +42,7 @@ public fun SwingModifier.keyListener(
     onKeyReleased: (KeyEvent) -> Unit = UNDECLARED,
 ): SwingModifier {
     requireAnyDeclared("keyListener", declared(onKeyTyped) || declared(onKeyPressed) || declared(onKeyReleased))
-    return liveCallbackListener<Component, KeyCallbacks, KeyListener>(
+    return listener<Component, KeyCallbacks, KeyListener>(
         callback = KeyCallbacks(onKeyTyped, onKeyPressed, onKeyReleased),
         adapter = { current ->
             object : KeyListener {

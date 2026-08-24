@@ -10,7 +10,6 @@ import org.jetbrains.compose.swing.constants.ContentType
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.hyperlinkListener
-import org.jetbrains.compose.swing.modifier.listener.liveCallbackListener
 import org.jetbrains.compose.swing.node.AppliedValue
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.rememberAppliedValue
@@ -59,7 +58,10 @@ public fun EditorPane(
 ) {
     RenderedPaneNode(
         markup = markup,
-        modifier = modifier.onLinkActivate(onLinkActivate),
+        modifier =
+            modifier.hyperlinkListener { event ->
+                if (event.eventType == HyperlinkEvent.EventType.ACTIVATED) onLinkActivate(event.description)
+            },
         contentType = contentType,
         baseUrl = baseUrl,
     )
@@ -130,22 +132,6 @@ private fun RenderedPaneNode(
         },
     )
 }
-
-/**
- * Installs one [HyperlinkListener] reporting the raw `href` of an activated link to the
- * [onLinkActivate] the current composition declares.
- */
-private fun SwingModifier.onLinkActivate(onLinkActivate: (String) -> Unit): SwingModifier =
-    liveCallbackListener<JEditorPane, (String) -> Unit, HyperlinkListener>(
-        callback = onLinkActivate,
-        adapter = { current ->
-            HyperlinkListener { event ->
-                if (event.eventType == HyperlinkEvent.EventType.ACTIVATED) current()(event.description)
-            }
-        },
-        attach = { pane, listener -> pane.addHyperlinkListener(listener) },
-        detach = { pane, listener -> pane.removeHyperlinkListener(listener) },
-    )
 
 /**
  * The source a rendered [EditorPane] shows: the kit reading its language, base location, and markup.

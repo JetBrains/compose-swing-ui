@@ -18,7 +18,7 @@ import javax.swing.event.HyperlinkListener
  * @see javax.swing.JEditorPane.addHyperlinkListener
  */
 public fun SwingModifier.hyperlinkListener(onHyperlinkUpdate: (HyperlinkEvent) -> Unit): SwingModifier =
-    liveCallbackListener<JEditorPane, (HyperlinkEvent) -> Unit, HyperlinkListener>(
+    listener<JEditorPane, (HyperlinkEvent) -> Unit, HyperlinkListener>(
         callback = onHyperlinkUpdate,
         adapter = { current -> HyperlinkListener { event -> current()(event) } },
         attach = { component, listener -> component.addHyperlinkListener(listener) },

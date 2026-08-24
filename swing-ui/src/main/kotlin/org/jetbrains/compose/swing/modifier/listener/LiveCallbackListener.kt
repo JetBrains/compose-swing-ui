@@ -7,16 +7,16 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import java.awt.Component
 
 /**
- * Installs one library-built listener that reads the caller's [callback] live - the seam for a modifier
- * or a component whose callback is a lambda the caller writes inline, and the twin of [listener].
+ * Installs one library-built listener that reads the caller's [callback] when an event fires - the seam
+ * every builder's lambda overload is built on.
  *
- * The two differ in what is registered. [listener] registers the caller's own listener object, whose
- * identity is the contract: a different object detaches the old one and attaches the new, so a caller
- * passing a fresh lambda has to `remember` it. Here the registered object is the one [adapter] builds,
- * and the caller's [callback] lives in a node field the adapter reads when the event fires - a fresh
- * lambda each recomposition costs one field write and re-registers nothing. Use [listener] when the
- * caller hands over a listener instance; use this when the caller hands over a callback the library
- * wraps.
+ * This is the callback half of the listener seam, and what is registered is what separates it from the
+ * overload taking a listener instance. That one registers the caller's own object, whose identity is
+ * the contract: a different object detaches the old one and attaches the new, so a caller passing a
+ * fresh lambda has to `remember` it. Here the registered object is the one [adapter] builds, and the
+ * caller's [callback] lives in a node field the adapter reads when the event fires - a fresh lambda
+ * each recomposition costs one field write and re-registers nothing. Hand over a listener instance to
+ * reach the other overload; hand over a callback the library wraps to reach this one.
  *
  * The built listener is added via [attach] when the element enters the chain and removed via [detach]
  * when it leaves or the node is released/reused. Each call is its own slot: two of them on one chain
@@ -35,7 +35,7 @@ import java.awt.Component
  *     than to the callback, such as the property name a listener is bound to. A change to it is a
  *     different registration and swaps it; null when the pairing closes over nothing.
  */
-internal inline fun <reified T : Component, C : Any, L : Any> SwingModifier.liveCallbackListener(
+public inline fun <reified T : Component, C : Any, L : Any> SwingModifier.listener(
     callback: C,
     noinline adapter: (current: () -> C) -> L,
     noinline attach: (component: T, listener: L) -> Unit,
@@ -46,19 +46,20 @@ internal inline fun <reified T : Component, C : Any, L : Any> SwingModifier.live
         LiveCallbackListenerElement(T::class.java, callback, adapter, attach, detach, registrationKey)
 
 /**
- * The additive [SwingModifier.NodeElement] backing [liveCallbackListener].
+ * The additive [SwingModifier.NodeElement] backing the callback overload of `listener`.
  *
  * Not a data class: [callback] is compared by identity, because a callback carries an `equals` of its
  * own - a function reference does - under which two callbacks the node must tell apart compare equal.
  * The element would skip its update and the node would keep calling the callback the caller replaced.
  */
+@PublishedApi
 internal class LiveCallbackListenerElement<T : Component, C : Any, L : Any>(
     override val targetType: Class<T>,
-    val callback: C,
-    val adapter: (current: () -> C) -> L,
-    val attach: (component: T, listener: L) -> Unit,
-    val detach: (component: T, listener: L) -> Unit,
-    val registrationKey: Any?,
+    internal val callback: C,
+    internal val adapter: (current: () -> C) -> L,
+    internal val attach: (component: T, listener: L) -> Unit,
+    internal val detach: (component: T, listener: L) -> Unit,
+    internal val registrationKey: Any?,
 ) : SwingModifier.NodeElement<T, LiveCallbackListenerNode<T, C, L>>() {
     override val additive: Boolean get() = true
 
@@ -89,6 +90,7 @@ internal class LiveCallbackListenerElement<T : Component, C : Any, L : Any>(
  * latest one, so the listener it built reads the callback the current composition declares, and is
  * always removed through the detach of the pairing that added it.
  */
+@PublishedApi
 internal class LiveCallbackListenerNode<T : Component, C : Any, L : Any>(
     private var element: LiveCallbackListenerElement<T, C, L>,
 ) : SwingModifier.Node<T>() {

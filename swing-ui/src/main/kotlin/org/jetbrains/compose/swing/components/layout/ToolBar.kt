@@ -11,12 +11,10 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.constants.Orientation
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
-import org.jetbrains.compose.swing.modifier.interaction.parentChangeListener
-import org.jetbrains.compose.swing.modifier.listener.liveCallbackListener
+import org.jetbrains.compose.swing.modifier.listener.hierarchyListener
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.rememberAppliedValue
-import java.awt.Component
-import java.awt.event.HierarchyListener
+import java.awt.event.HierarchyEvent
 import javax.swing.JToolBar
 import javax.swing.SwingConstants
 import javax.swing.SwingUtilities
@@ -101,9 +99,12 @@ public fun ToolBar(
             // wrapper's own is the declaration taking effect, and the mirror keeps it from being reported
             // as the user's.
             applyModifier(
-                modifier.onParentChange { component ->
+                modifier.hierarchyListener { event ->
+                    if (event.changeFlags and HierarchyEvent.PARENT_CHANGED.toLong() == 0L) {
+                        return@hierarchyListener
+                    }
                     attachments++
-                    val standing = (component as JToolBar).isFloating
+                    val standing = (event.component as JToolBar).isFloating
                     if (applied.observed(standing)) onFloatingChange(standing)
                 },
             )
@@ -125,19 +126,6 @@ public fun ToolBar(
         content = content,
     )
 }
-
-/**
- * Reports [onParentChanged] with the component whenever it is handed to a parent, loses one, or is handed
- * from one to another, reading the callback the current composition declares - so a lambda written inline
- * needs no `remember`.
- */
-private fun SwingModifier.onParentChange(onParentChanged: (Component) -> Unit): SwingModifier =
-    liveCallbackListener<Component, (Component) -> Unit, HierarchyListener>(
-        onParentChanged,
-        { current -> parentChangeListener { current().invoke(it) } },
-        { component, listener -> component.addHierarchyListener(listener) },
-        { component, listener -> component.removeHierarchyListener(listener) },
-    )
 
 /** The look-and-feel default a tool bar's UI reads while the bar records no rollover choice of its own. */
 private const val ROLLOVER_DEFAULT: String = "ToolBar.isRollover"

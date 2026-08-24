@@ -17,7 +17,7 @@ import java.awt.event.MouseWheelListener
  * @see java.awt.Component.addMouseWheelListener
  */
 public fun SwingModifier.mouseWheelListener(onMouseWheel: (MouseWheelEvent) -> Unit): SwingModifier =
-    liveCallbackListener<Component, (MouseWheelEvent) -> Unit, MouseWheelListener>(
+    listener<Component, (MouseWheelEvent) -> Unit, MouseWheelListener>(
         callback = onMouseWheel,
         adapter = { current -> MouseWheelListener { event -> current()(event) } },
         attach = { component, listener -> component.addMouseWheelListener(listener) },

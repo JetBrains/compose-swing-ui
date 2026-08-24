@@ -57,7 +57,7 @@ public fun SwingModifier.internalFrameListener(
         declared(onFrameOpened) || declared(onFrameClosing) || declared(onFrameClosed) || declared(onFrameIconified) ||
             declared(onFrameDeiconified) || declared(onFrameActivated) || declared(onFrameDeactivated),
     )
-    return liveCallbackListener<JInternalFrame, InternalFrameCallbacks, InternalFrameListener>(
+    return listener<JInternalFrame, InternalFrameCallbacks, InternalFrameListener>(
         callback =
             InternalFrameCallbacks(
                 onFrameOpened,

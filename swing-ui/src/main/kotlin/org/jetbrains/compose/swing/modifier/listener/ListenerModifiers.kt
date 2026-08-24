@@ -11,8 +11,9 @@ import java.awt.Component
  * listener seam, the one every builder taking a listener object is built on (the typed instance
  * builders like [mouseListener]/[actionListener] and the model builders like [changeListener]).
  *
- * A builder that takes a lambda instead registers a listener the library builds, which reads the lambda
- * when the event fires. That is the overload to reach for when the handler is written at the call site.
+ * The overload taking a callback and an adapter instead registers a listener the library builds, which
+ * reads the callback when the event fires. That is the one to reach for when the handler is written at
+ * the call site.
  *
  * The [instance] is added once via [attach] when the element enters the chain and removed via [detach]
  * when it leaves or the node is released/reused. Supplying a *different* instance (reference
@@ -42,8 +43,9 @@ public inline fun <reified T : Component, L : Any> SwingModifier.listener(
 ): SwingModifier = this then InstanceListenerElement(T::class.java, instance, attach, detach)
 
 /**
- * The additive [SwingModifier.NodeElement] backing [listener] and every typed/model builder. It carries the
- * by-identity add/remove contract described on [listener] into its [InstanceListenerNode].
+ * The additive [SwingModifier.NodeElement] backing the instance overload of `listener` and every
+ * typed/model builder. It carries that overload's by-identity add/remove contract into its
+ * [InstanceListenerNode].
  *
  * Equality follows that same by-identity contract: two elements are equal when they target the same
  * type and hold the same [instance], [attach] and [detach] objects, which is exactly the case in which

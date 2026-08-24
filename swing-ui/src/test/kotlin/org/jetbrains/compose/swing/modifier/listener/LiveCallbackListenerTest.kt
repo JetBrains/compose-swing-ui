@@ -36,7 +36,7 @@ class LiveCallbackListenerTest {
                 Button(
                     text = "press",
                     modifier =
-                        SwingModifier.liveCallbackListener<JButton, () -> Unit, ActionListener>(
+                        SwingModifier.listener<JButton, () -> Unit, ActionListener>(
                             callback = { reported = captured },
                             adapter = { current -> ActionListener { current()() } },
                             attach = { component, listener ->
@@ -82,7 +82,7 @@ class LiveCallbackListenerTest {
                 Button(
                     text = "press",
                     modifier =
-                        SwingModifier.liveCallbackListener<JButton, () -> Unit, ActionListener>(
+                        SwingModifier.listener<JButton, () -> Unit, ActionListener>(
                             callback = {},
                             adapter = adapter,
                             attach = { component, listener ->
@@ -131,7 +131,7 @@ class LiveCallbackListenerTest {
                 Button(
                     text = "press",
                     modifier =
-                        SwingModifier.liveCallbackListener<JButton, () -> Unit, ActionListener>(
+                        SwingModifier.listener<JButton, () -> Unit, ActionListener>(
                             callback = {},
                             adapter = { current -> ActionListener { current()() } },
                             attach = attach,

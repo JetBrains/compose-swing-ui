@@ -20,7 +20,7 @@ import java.awt.event.ItemListener
  * @see java.awt.ItemSelectable.addItemListener
  */
 public fun SwingModifier.itemListener(onItemStateChange: (ItemEvent) -> Unit): SwingModifier =
-    liveCallbackListener<Component, (ItemEvent) -> Unit, ItemListener>(
+    listener<Component, (ItemEvent) -> Unit, ItemListener>(
         callback = onItemStateChange,
         adapter = { current -> ItemListener { event -> current()(event) } },
         attach = { component, listener -> component.asItemSelectable().addItemListener(listener) },

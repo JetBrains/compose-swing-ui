@@ -836,12 +836,38 @@ single-lambda overload runs once per method, so one mouse interaction reaches it
 `treeWillExpandListener`'s lambdas answer with a boolean instead: returning `false` leaves the node as
 it was.
 
-### `SwingModifier.listener` - the last resort
+### `SwingModifier.listener(callback, adapter, ...)` - a lambda over a listener the library has no builder for
+
+The lambda overloads above are all built on one seam, and it is public. Reach for it when the channel
+you want has no builder - a listener kind the library does not ship, or one whose add/remove pair lives
+on a *model* rather than on the component - and what you have to run is a lambda:
+
+```kotlin
+SwingModifier.listener<MySlider, (Int) -> Unit, SomeListener>(
+    callback = onValueChange,
+    adapter = { current -> SomeListener { event -> current()(event.value) } },
+    attach = { component, listener -> component.model.addSomeListener(listener) },
+    detach = { component, listener -> component.model.removeSomeListener(listener) },
+    registrationKey = null,
+)
+```
+
+<!--- CLEAR -->
+
+It registers the listener `adapter` builds and hands that listener the latest `callback` every time an
+event fires, so a `callback` written at the call site needs no `remember`. Declare `adapter` as a lambda
+capturing nothing: its identity is what identifies the registration, and a capturing one would be a new
+registration on every recomposition. Where `attach` and `detach` close over something that belongs to
+the registration rather than to the callback - a property name, say - pass it as `registrationKey` so a
+change to it re-registers.
+
+### `SwingModifier.listener(instance, attach, detach)` - the last resort
 
 **Reach for something else first.** Three families cover the everyday cases, and all three are safer
 than the seam below:
 
-- the typed instance builders above, when you already hold a listener object;
+- the typed instance builders above, when you already hold a listener object for a channel that has
+  one;
 - the lambda overloads above, and the callback modifiers `onHover`, `onFocus`, `onPointerEvent`,
   `onKeyEvent`, `onKeyStroke`, `onAccept` and `inputVerifier`, when what you have is a lambda. These
   read the callback **live**, so a fresh lambda on every recomposition costs nothing and needs no
@@ -849,17 +875,16 @@ than the seam below:
 - the declaration modifiers, for behavior that is not a callback at all: `focusable`,
   `focusRequester`, `initialFocus`, `verifyInputWhenFocusTarget`, `documentFilter` and `contextMenu`.
 
-**Where the seam is genuinely right:** a listener kind the library ships no builder for, or one whose
-add/remove pair lives on a *model* rather than on the component. Then drop to
-`SwingModifier.listener`, the single listener seam every builder above is built on. It takes the
+**Where the seam is genuinely right:** you hold a listener **object** for a channel that has no
+builder. A lambda for such a channel goes to the callback overload above; this overload takes the
 listener `instance` plus the matching `attach`/`detach` pair:
 
 ```kotlin
-val listener = remember { SomeListener { /* read state off the event, call the live callback */ } }
+val myListener = remember { SomeListener { /* read state off the event */ } }
 SwingModifier.listener<MyType, SomeListener>(
-    instance = listener,
-    attach = { component, l -> component.addSomeListener(l) },   // component is already typed MyType
-    detach = { component, l -> component.removeSomeListener(l) },
+    instance = myListener,
+    attach = { component, listener -> component.addSomeListener(listener) },  // already typed MyType
+    detach = { component, listener -> component.removeSomeListener(listener) },
 )
 ```
 
@@ -872,8 +897,9 @@ error. There is no `key` parameter - like the typed builders, it is **additive**
 The same `instance` is added once via `attach` when the element enters the chain and removed via
 `detach` when it leaves or the node is released/reused. Supplying a *different* instance
 (reference inequality) on a later recomposition detaches the old one and attaches the new, so pass a
-**stable** instance - `remember { ... }` it. To keep the latest callbacks visible without re-attaching,
-wrap the callback in `rememberUpdatedState` and read it from inside the remembered listener.
+**stable** instance - `remember { ... }` it. A handler whose callback changes between recompositions
+belongs on the callback overload above instead: the library reads that callback when the event fires, so
+it stays current without anything being re-attached.
 
 **What it costs.** This is the one place in the everyday API where you name a component type, and
 holding the component is what makes it a last resort. The composition owns the values it declares for a

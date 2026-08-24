@@ -7,7 +7,7 @@ import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.documentListener
-import org.jetbrains.compose.swing.modifier.listener.liveCallbackListener
+import org.jetbrains.compose.swing.modifier.listener.listener
 import org.jetbrains.compose.swing.node.AppliedValue
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
@@ -157,7 +157,7 @@ private fun PasswordFieldNode(
  * text mirror does.
  */
 private fun SwingModifier.passwordMirror(applied: AppliedValue<PasswordChars>): SwingModifier =
-    liveCallbackListener<JTextComponent, AppliedValue<PasswordChars>, DocumentListener>(
+    listener<JTextComponent, AppliedValue<PasswordChars>, DocumentListener>(
         applied,
         { current ->
             documentChangeListener { event -> current().observed(PasswordChars(event.document.fullPassword())) }

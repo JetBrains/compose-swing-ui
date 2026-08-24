@@ -50,7 +50,7 @@ public fun SwingModifier.mouseListener(
         declared(onMouseClicked) || declared(onMousePressed) || declared(onMouseReleased) || declared(onMouseEntered) ||
             declared(onMouseExited),
     )
-    return liveCallbackListener<Component, MouseCallbacks, MouseListener>(
+    return listener<Component, MouseCallbacks, MouseListener>(
         callback = MouseCallbacks(onMouseClicked, onMousePressed, onMouseReleased, onMouseEntered, onMouseExited),
         adapter = { current ->
             object : MouseListener {

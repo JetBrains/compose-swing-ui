@@ -7,7 +7,6 @@ import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.constants.FocusLostBehavior
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
-import org.jetbrains.compose.swing.modifier.listener.liveCallbackListener
 import org.jetbrains.compose.swing.modifier.listener.propertyChangeListener
 import org.jetbrains.compose.swing.node.AppliedValue
 import org.jetbrains.compose.swing.node.SwingNode
@@ -242,17 +241,11 @@ private fun FormattedTextFieldNode(
  * pairs that are both non-null.
  */
 private fun SwingModifier.onValueCommit(onCommit: (Any?) -> Unit): SwingModifier =
-    liveCallbackListener<JFormattedTextField, (Any?) -> Unit, PropertyChangeListener>(
-        onCommit,
-        { current ->
-            PropertyChangeListener { event ->
-                if (event.oldValue == event.newValue) return@PropertyChangeListener
-                current()((event.source as JFormattedTextField).value)
-            }
-        },
-        { field, listener -> field.addPropertyChangeListener("value", listener) },
-        { field, listener -> field.removePropertyChangeListener("value", listener) },
-    )
+    propertyChangeListener("value") { event ->
+        // The field republishes its value on every commit attempt; only a value that moved is one to
+        // report.
+        if (event.oldValue != event.newValue) onCommit((event.source as JFormattedTextField).value)
+    }
 
 /**
  * Feeds [applied]'s mirror on every commit, alongside a caller's own raw listener, so the settlement the
@@ -260,20 +253,12 @@ private fun SwingModifier.onValueCommit(onCommit: (Any?) -> Unit): SwingModifier
  * nothing else observed.
  */
 private fun SwingModifier.valueMirror(applied: AppliedValue<Any?>): SwingModifier =
-    liveCallbackListener<JFormattedTextField, AppliedValue<Any?>, PropertyChangeListener>(
-        applied,
-        { current ->
-            PropertyChangeListener { event -> current().observed((event.source as JFormattedTextField).value) }
-        },
-        { field, listener -> field.addPropertyChangeListener("value", listener) },
-        { field, listener -> field.removePropertyChangeListener("value", listener) },
-    )
+    propertyChangeListener("value") { event ->
+        applied.observed((event.source as JFormattedTextField).value)
+    }
 
 /** Runs [onChange] with the field's edit validity each time the field reports it moved. */
 private fun SwingModifier.onEditValidity(onChange: (Boolean) -> Unit): SwingModifier =
-    liveCallbackListener<JFormattedTextField, (Boolean) -> Unit, PropertyChangeListener>(
-        onChange,
-        { current -> PropertyChangeListener { event -> current()((event.source as JFormattedTextField).isEditValid) } },
-        { field, listener -> field.addPropertyChangeListener("editValid", listener) },
-        { field, listener -> field.removePropertyChangeListener("editValid", listener) },
-    )
+    propertyChangeListener("editValid") { event ->
+        onChange((event.source as JFormattedTextField).isEditValid)
+    }

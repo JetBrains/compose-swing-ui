@@ -41,7 +41,7 @@ public fun SwingModifier.treeWillExpandListener(
     onWillCollapse: (TreeExpansionEvent) -> Boolean = UNDECLARED_ANSWER,
 ): SwingModifier {
     requireAnyDeclared("treeWillExpandListener", declared(onWillExpand) || declared(onWillCollapse))
-    return liveCallbackListener<SwingJTree, TreeWillExpandCallbacks, TreeWillExpandListener>(
+    return listener<SwingJTree, TreeWillExpandCallbacks, TreeWillExpandListener>(
         callback = TreeWillExpandCallbacks(onWillExpand, onWillCollapse),
         adapter = { current ->
             object : TreeWillExpandListener {

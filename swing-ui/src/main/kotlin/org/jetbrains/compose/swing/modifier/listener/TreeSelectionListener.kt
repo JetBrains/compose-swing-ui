@@ -17,7 +17,7 @@ import javax.swing.JTree as SwingJTree
  * @see javax.swing.JTree.addTreeSelectionListener
  */
 public fun SwingModifier.treeSelectionListener(onSelectionChange: (TreeSelectionEvent) -> Unit): SwingModifier =
-    liveCallbackListener<SwingJTree, (TreeSelectionEvent) -> Unit, TreeSelectionListener>(
+    listener<SwingJTree, (TreeSelectionEvent) -> Unit, TreeSelectionListener>(
         callback = onSelectionChange,
         adapter = { current -> TreeSelectionListener { event -> current()(event) } },
         attach = { component, listener -> component.addTreeSelectionListener(listener) },

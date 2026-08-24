@@ -8,7 +8,7 @@ import org.jetbrains.compose.swing.constants.ListLayoutOrientation
 import org.jetbrains.compose.swing.constants.SelectionMode
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
-import org.jetbrains.compose.swing.modifier.listener.liveCallbackListener
+import org.jetbrains.compose.swing.modifier.listener.listSelectionListener
 import org.jetbrains.compose.swing.node.AppliedValue
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
@@ -474,12 +474,7 @@ private fun settledSelectionListener(onSelectionChange: (Set<Int>) -> Unit): Lis
  * per list, so a pass declaring another listener to forward to costs a field write and no re-attach.
  */
 private fun SwingModifier.onListSelection(onChange: (ListSelectionEvent) -> Unit): SwingModifier =
-    liveCallbackListener<JList<*>, (ListSelectionEvent) -> Unit, ListSelectionListener>(
-        onChange,
-        { current -> ListSelectionListener { event -> current()(event) } },
-        { list, listener -> list.addListSelectionListener(listener) },
-        { list, listener -> list.removeListSelectionListener(listener) },
-    )
+    listSelectionListener(onChange)
 
 /**
  * Gives the list new content through [install], keeping the rows [declared] names selected - or, where the

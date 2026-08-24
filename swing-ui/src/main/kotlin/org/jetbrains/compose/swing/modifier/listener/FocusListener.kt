@@ -39,7 +39,7 @@ public fun SwingModifier.focusListener(
     onFocusLost: (FocusEvent) -> Unit = UNDECLARED,
 ): SwingModifier {
     requireAnyDeclared("focusListener", declared(onFocusGained) || declared(onFocusLost))
-    return liveCallbackListener<Component, FocusCallbacks, FocusListener>(
+    return listener<Component, FocusCallbacks, FocusListener>(
         callback = FocusCallbacks(onFocusGained, onFocusLost),
         adapter = { current ->
             object : FocusListener {

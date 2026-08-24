@@ -18,7 +18,7 @@ import javax.swing.text.JTextComponent
  * @see javax.swing.text.JTextComponent.addCaretListener
  */
 public fun SwingModifier.caretListener(onCaretUpdate: (CaretEvent) -> Unit): SwingModifier =
-    liveCallbackListener<JTextComponent, (CaretEvent) -> Unit, CaretListener>(
+    listener<JTextComponent, (CaretEvent) -> Unit, CaretListener>(
         callback = onCaretUpdate,
         adapter = { current -> CaretListener { event -> current()(event) } },
         attach = { component, listener -> component.addCaretListener(listener) },

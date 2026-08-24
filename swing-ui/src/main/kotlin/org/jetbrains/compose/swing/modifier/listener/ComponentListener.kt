@@ -46,7 +46,7 @@ public fun SwingModifier.componentListener(
         declared(onComponentResized) || declared(onComponentMoved) || declared(onComponentShown) ||
             declared(onComponentHidden),
     )
-    return liveCallbackListener<Component, ComponentCallbacks, ComponentListener>(
+    return listener<Component, ComponentCallbacks, ComponentListener>(
         callback = ComponentCallbacks(onComponentResized, onComponentMoved, onComponentShown, onComponentHidden),
         adapter = { current ->
             object : ComponentListener {

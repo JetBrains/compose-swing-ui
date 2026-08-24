@@ -796,6 +796,27 @@ public final class org/jetbrains/compose/swing/modifier/listener/ListenerModifie
 	public static synthetic fun treeWillExpandListener$default (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 }
 
+public final class org/jetbrains/compose/swing/modifier/listener/LiveCallbackListenerElement : org/jetbrains/compose/swing/modifier/SwingModifier$NodeElement {
+	public static final field $stable I
+	public fun <init> (Ljava/lang/Class;Ljava/lang/Object;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Ljava/lang/Object;)V
+	public synthetic fun create ()Lorg/jetbrains/compose/swing/modifier/SwingModifier$Node;
+	public fun create ()Lorg/jetbrains/compose/swing/modifier/listener/LiveCallbackListenerNode;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getAdditive ()Z
+	public fun getTargetType ()Ljava/lang/Class;
+	public fun hashCode ()I
+	public synthetic fun update (Lorg/jetbrains/compose/swing/modifier/SwingModifier$Node;)V
+	public fun update (Lorg/jetbrains/compose/swing/modifier/listener/LiveCallbackListenerNode;)V
+}
+
+public final class org/jetbrains/compose/swing/modifier/listener/LiveCallbackListenerNode : org/jetbrains/compose/swing/modifier/SwingModifier$Node {
+	public static final field $stable I
+	public fun <init> (Lorg/jetbrains/compose/swing/modifier/listener/LiveCallbackListenerElement;)V
+	public fun onAttach ()V
+	public fun onDetach ()V
+	public final fun swapTo (Lorg/jetbrains/compose/swing/modifier/listener/LiveCallbackListenerElement;)V
+}
+
 public final class org/jetbrains/compose/swing/node/AppliedValue : androidx/compose/runtime/State {
 	public static final field $stable I
 	public fun <init> (Ljava/lang/Object;)V

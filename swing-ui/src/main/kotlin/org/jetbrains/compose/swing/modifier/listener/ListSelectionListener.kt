@@ -17,7 +17,7 @@ import javax.swing.event.ListSelectionListener
  * @see javax.swing.JList.addListSelectionListener
  */
 public fun SwingModifier.listSelectionListener(onSelectionChange: (ListSelectionEvent) -> Unit): SwingModifier =
-    liveCallbackListener<JList<*>, (ListSelectionEvent) -> Unit, ListSelectionListener>(
+    listener<JList<*>, (ListSelectionEvent) -> Unit, ListSelectionListener>(
         callback = onSelectionChange,
         adapter = { current -> ListSelectionListener { event -> current()(event) } },
         attach = { component, listener -> component.addListSelectionListener(listener) },

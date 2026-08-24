@@ -5,11 +5,10 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.interaction.buttonGroup
-import org.jetbrains.compose.swing.modifier.listener.liveCallbackListener
+import org.jetbrains.compose.swing.modifier.listener.actionListener
+import org.jetbrains.compose.swing.modifier.listener.itemListener
 import org.jetbrains.compose.swing.node.AppliedValue
 import org.jetbrains.compose.swing.node.rememberAppliedValue
-import java.awt.event.ActionListener
-import java.awt.event.ItemListener
 import javax.swing.AbstractButton
 import javax.swing.ButtonGroup
 
@@ -58,35 +57,14 @@ internal fun ButtonGroupOption(
         val applied = rememberAppliedValue(selected)
         content(
             modifier
-                .onPick { onSelectionChange(index) }
-                .onSelectedStateChange { state -> applied.observed(state) }
+                .actionListener { event ->
+                    if ((event.source as AbstractButton).isSelected) onSelectionChange(index)
+                }.itemListener { event -> applied.observed((event.source as AbstractButton).isSelected) }
                 .buttonGroup(group),
             applied,
         )
     }
 }
-
-/** Calls [onPick] when the option raises an action event while it is the selected member. */
-private fun SwingModifier.onPick(onPick: () -> Unit): SwingModifier =
-    liveCallbackListener<AbstractButton, () -> Unit, ActionListener>(
-        callback = onPick,
-        adapter = { current ->
-            ActionListener { event -> if ((event.source as AbstractButton).isSelected) current().invoke() }
-        },
-        attach = { button, listener -> button.addActionListener(listener) },
-        detach = { button, listener -> button.removeActionListener(listener) },
-    )
-
-/** Calls [onSelectedStateChange] with the state the option ends up in, each time it publishes one. */
-private fun SwingModifier.onSelectedStateChange(onSelectedStateChange: (Boolean) -> Unit): SwingModifier =
-    liveCallbackListener<AbstractButton, (Boolean) -> Unit, ItemListener>(
-        callback = onSelectedStateChange,
-        adapter = { current ->
-            ItemListener { event -> current()((event.source as AbstractButton).isSelected) }
-        },
-        attach = { button, listener -> button.addItemListener(listener) },
-        detach = { button, listener -> button.removeItemListener(listener) },
-    )
 
 /**
  * Moves this button to [selected] within [group], leaving it alone when it already is.

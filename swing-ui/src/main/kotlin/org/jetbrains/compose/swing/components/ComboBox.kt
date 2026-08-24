@@ -14,13 +14,11 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.actionListener
 import org.jetbrains.compose.swing.modifier.listener.listener
-import org.jetbrains.compose.swing.modifier.listener.liveCallbackListener
 import org.jetbrains.compose.swing.node.AppliedValue
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
 import org.jetbrains.compose.swing.node.declare
 import org.jetbrains.compose.swing.node.rememberAppliedValue
-import java.awt.event.ActionEvent
 import java.awt.event.ActionListener
 import java.awt.event.ItemEvent
 import java.awt.event.ItemListener
@@ -307,22 +305,17 @@ private fun <V> SwingModifier.onSelectionAction(
     onSelectionChange: (V) -> Unit,
     onValueCommit: (@Nls String) -> Unit,
 ): SwingModifier =
-    liveCallbackListener<JComboBox<*>, (ActionEvent) -> Unit, ActionListener>(
-        { event ->
-            val comboBox = event.source as JComboBox<*>
-            val selection = comboBox.settled()
-            val isCommit = event.actionCommand == EDITOR_COMMITTED
-            val isNews = applied == null || applied.observed(selection)
-            if (isCommit) {
-                onValueCommit(comboBox.selectedItem?.toString().orEmpty())
-            } else if (isNews) {
-                onSelectionChange(selection)
-            }
-        },
-        { current -> ActionListener { current().invoke(it) } },
-        { component, listener -> component.addActionListener(listener) },
-        { component, listener -> component.removeActionListener(listener) },
-    )
+    actionListener { event ->
+        val comboBox = event.source as JComboBox<*>
+        val selection = comboBox.settled()
+        val isCommit = event.actionCommand == EDITOR_COMMITTED
+        val isNews = applied == null || applied.observed(selection)
+        if (isCommit) {
+            onValueCommit(comboBox.selectedItem?.toString().orEmpty())
+        } else if (isNews) {
+            onSelectionChange(selection)
+        }
+    }
 
 /** The action command a `JComboBox` fires an editor commit under. */
 private const val EDITOR_COMMITTED = "comboBoxEdited"

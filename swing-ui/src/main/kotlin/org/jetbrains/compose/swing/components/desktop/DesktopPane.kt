@@ -15,7 +15,6 @@ import org.jetbrains.compose.swing.modifier.layout.slot
 import org.jetbrains.compose.swing.modifier.listener.componentListener
 import org.jetbrains.compose.swing.modifier.listener.hierarchyListener
 import org.jetbrains.compose.swing.modifier.listener.internalFrameListener
-import org.jetbrains.compose.swing.modifier.listener.liveCallbackListener
 import org.jetbrains.compose.swing.modifier.listener.propertyChangeListener
 import org.jetbrains.compose.swing.node.ChildPlacement
 import org.jetbrains.compose.swing.node.SlotAttachment
@@ -30,8 +29,6 @@ import java.beans.PropertyChangeListener
 import java.beans.PropertyVetoException
 import javax.swing.JDesktopPane
 import javax.swing.JInternalFrame
-import javax.swing.event.InternalFrameAdapter
-import javax.swing.event.InternalFrameEvent
 import javax.swing.event.InternalFrameListener
 
 /**
@@ -402,7 +399,7 @@ private fun FrameNode(
     // by being removed from the composition). The raw overload installs the supplied listener instance.
     val closeChannel =
         rawListener?.let { SwingModifier.internalFrameListener(it) }
-            ?: SwingModifier.onFrameClosing { onClose?.invoke() }
+            ?: SwingModifier.internalFrameListener(onFrameClosing = { onClose?.invoke() })
     // Read here, in the composition of the frame these values belong to: a hoisted state receives the
     // user's every move, resize, iconification and maximization, and reading it here is what keeps each of
     // those recomposing this one frame instead of the desktop and every frame standing on it.
@@ -482,24 +479,6 @@ private fun FrameNode(
         content = content,
     )
 }
-
-/**
- * Runs [onClosing] when the frame's close control is used, reading the callback the current composition
- * declares, so a lambda written inline needs no `remember`.
- */
-private fun SwingModifier.onFrameClosing(onClosing: () -> Unit): SwingModifier =
-    liveCallbackListener<JInternalFrame, () -> Unit, InternalFrameListener>(
-        onClosing,
-        { current ->
-            object : InternalFrameAdapter() {
-                override fun internalFrameClosing(event: InternalFrameEvent) {
-                    current().invoke()
-                }
-            }
-        },
-        { component, listener -> component.addInternalFrameListener(listener) },
-        { component, listener -> component.removeInternalFrameListener(listener) },
-    )
 
 /**
  * The region of a `JDesktopPane` a frame fills, written as the call that declares one - see

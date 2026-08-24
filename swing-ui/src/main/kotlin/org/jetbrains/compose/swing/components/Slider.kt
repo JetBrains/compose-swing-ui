@@ -10,7 +10,7 @@ import org.jetbrains.compose.swing.constants.Orientation
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.changeListener
-import org.jetbrains.compose.swing.modifier.listener.liveCallbackListener
+import org.jetbrains.compose.swing.modifier.listener.listener
 import org.jetbrains.compose.swing.node.AppliedValue
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
@@ -104,12 +104,7 @@ public fun Slider(
 
 /** Runs [report] with the slider each time it publishes a value. */
 private fun SwingModifier.onSliderValue(report: (JSlider) -> Unit): SwingModifier =
-    liveCallbackListener<JSlider, (JSlider) -> Unit, ChangeListener>(
-        report,
-        { current -> ChangeListener { event -> current()(event.source as JSlider) } },
-        { slider, listener -> slider.addChangeListener(listener) },
-        { slider, listener -> slider.removeChangeListener(listener) },
-    )
+    changeListener { event -> report(event.source as JSlider) }
 
 /**
  * A composable wrapper for JSlider driven by a raw [ChangeListener] instead of the `onValueChange` and
@@ -180,7 +175,7 @@ public fun Slider(
  * declaration, before the user has let go.
  */
 private fun SwingModifier.sliderValueMirror(applied: AppliedValue<Int>): SwingModifier =
-    liveCallbackListener<JSlider, AppliedValue<Int>, ChangeListener>(
+    listener<JSlider, AppliedValue<Int>, ChangeListener>(
         applied,
         { current ->
             ChangeListener { event ->

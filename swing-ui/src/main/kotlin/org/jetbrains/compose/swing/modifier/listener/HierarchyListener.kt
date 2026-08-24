@@ -18,7 +18,7 @@ import java.awt.event.HierarchyListener
  * @see java.awt.Component.addHierarchyListener
  */
 public fun SwingModifier.hierarchyListener(onHierarchyChange: (HierarchyEvent) -> Unit): SwingModifier =
-    liveCallbackListener<Component, (HierarchyEvent) -> Unit, HierarchyListener>(
+    listener<Component, (HierarchyEvent) -> Unit, HierarchyListener>(
         callback = onHierarchyChange,
         adapter = { current -> HierarchyListener { event -> current()(event) } },
         attach = { component, listener -> component.addHierarchyListener(listener) },

@@ -14,8 +14,8 @@ import org.jetbrains.compose.swing.constants.TabPlacement
 import org.jetbrains.compose.swing.core.dispatchToCaller
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
+import org.jetbrains.compose.swing.modifier.listener.changeListener
 import org.jetbrains.compose.swing.modifier.listener.containerListener
-import org.jetbrains.compose.swing.modifier.listener.liveCallbackListener
 import org.jetbrains.compose.swing.node.AppliedValue
 import org.jetbrains.compose.swing.node.ChildPlacement
 import org.jetbrains.compose.swing.node.SwingNode
@@ -193,7 +193,7 @@ private fun TabbedPaneImpl(
         update = {
             set(tabPlacement) { this.tabPlacement = it }
             set(tabLayoutPolicy) { this.tabLayoutPolicy = it }
-            applyModifier(modifier.onPaneChange(onUserSelection).containerListener(pageListener))
+            applyModifier(modifier.changeListener(onUserSelection).containerListener(pageListener))
 
             // The declaration, the selection the pane is really on, and the strip itself move
             // independently, and one settle answers for all three: they are one key. The key skips the first
@@ -209,18 +209,6 @@ private fun TabbedPaneImpl(
         content = { scope.content() },
     )
 }
-
-/**
- * Hands the pane's own change events to [onChange], which is read live: the registration is made once
- * per pane, so a pass declaring another listener to forward to costs a field write and no re-attach.
- */
-private fun SwingModifier.onPaneChange(onChange: (ChangeEvent) -> Unit): SwingModifier =
-    liveCallbackListener<JTabbedPane, (ChangeEvent) -> Unit, ChangeListener>(
-        onChange,
-        { current -> ChangeListener { event -> current()(event) } },
-        { pane, listener -> pane.addChangeListener(listener) },
-        { pane, listener -> pane.removeChangeListener(listener) },
-    )
 
 /** The index a `JTabbedPane` reports when no tab of it is selected. */
 private const val NO_TAB = -1

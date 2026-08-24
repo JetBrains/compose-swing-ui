@@ -39,7 +39,7 @@ public fun SwingModifier.containerListener(
     onComponentRemoved: (ContainerEvent) -> Unit = UNDECLARED,
 ): SwingModifier {
     requireAnyDeclared("containerListener", declared(onComponentAdded) || declared(onComponentRemoved))
-    return liveCallbackListener<Container, ContainerCallbacks, ContainerListener>(
+    return listener<Container, ContainerCallbacks, ContainerListener>(
         callback = ContainerCallbacks(onComponentAdded, onComponentRemoved),
         adapter = { current ->
             object : ContainerListener {

@@ -18,7 +18,7 @@ import java.awt.event.AdjustmentListener
  * @see java.awt.Adjustable.addAdjustmentListener
  */
 public fun SwingModifier.adjustmentListener(onAdjustment: (AdjustmentEvent) -> Unit): SwingModifier =
-    liveCallbackListener<Component, (AdjustmentEvent) -> Unit, AdjustmentListener>(
+    listener<Component, (AdjustmentEvent) -> Unit, AdjustmentListener>(
         callback = onAdjustment,
         adapter = { current -> AdjustmentListener { event -> current()(event) } },
         attach = { component, listener -> component.asAdjustable().addAdjustmentListener(listener) },

@@ -25,7 +25,7 @@ import javax.swing.event.ChangeListener
  * @see javax.swing.event.ChangeListener
  */
 public fun SwingModifier.changeListener(onChange: (ChangeEvent) -> Unit): SwingModifier =
-    liveCallbackListener<Component, (ChangeEvent) -> Unit, ChangeListener>(
+    listener<Component, (ChangeEvent) -> Unit, ChangeListener>(
         callback = onChange,
         adapter = { current -> ChangeListener { event -> current()(event) } },
         attach = { component, listener -> changeListenerRegistrar(component).add(listener) },

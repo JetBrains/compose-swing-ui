@@ -8,10 +8,8 @@ import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.actionListener
-import org.jetbrains.compose.swing.modifier.listener.liveCallbackListener
 import org.jetbrains.compose.swing.node.SwingNode
 import java.awt.event.ActionListener
-import javax.swing.AbstractButton
 import javax.swing.JButton
 
 /**
@@ -28,7 +26,7 @@ public fun Button(
     modifier: SwingModifier = SwingModifier,
     onClick: () -> Unit = {},
 ) {
-    ButtonNode(text = text, modifier = modifier.onClick(onClick))
+    ButtonNode(text = text, modifier = modifier.actionListener { onClick() })
 }
 
 /**
@@ -65,12 +63,3 @@ private fun ButtonNode(
         },
     )
 }
-
-/** Installs one [ActionListener] calling the [onClick] the current composition declares. */
-private fun SwingModifier.onClick(onClick: () -> Unit): SwingModifier =
-    liveCallbackListener<AbstractButton, () -> Unit, ActionListener>(
-        callback = onClick,
-        adapter = { current -> ActionListener { current().invoke() } },
-        attach = { button, listener -> button.addActionListener(listener) },
-        detach = { button, listener -> button.removeActionListener(listener) },
-    )

@@ -30,7 +30,7 @@ import java.awt.TextField as AwtTextField
  * @see java.awt.Component.addPropertyChangeListener
  */
 public fun SwingModifier.propertyChangeListener(onPropertyChange: (PropertyChangeEvent) -> Unit): SwingModifier =
-    liveCallbackListener<Component, (PropertyChangeEvent) -> Unit, PropertyChangeListener>(
+    listener<Component, (PropertyChangeEvent) -> Unit, PropertyChangeListener>(
         callback = onPropertyChange,
         adapter = { current -> PropertyChangeListener { event -> current()(event) } },
         attach = { component, listener -> component.addPropertyChangeListener(listener) },
@@ -49,7 +49,7 @@ public fun SwingModifier.propertyChangeListener(
     name: String,
     onPropertyChange: (PropertyChangeEvent) -> Unit,
 ): SwingModifier =
-    liveCallbackListener<Component, (PropertyChangeEvent) -> Unit, PropertyChangeListener>(
+    listener<Component, (PropertyChangeEvent) -> Unit, PropertyChangeListener>(
         callback = onPropertyChange,
         adapter = { current -> PropertyChangeListener { event -> current()(event) } },
         attach = { component, listener -> component.addPropertyChangeListener(name, listener) },
@@ -59,7 +59,7 @@ public fun SwingModifier.propertyChangeListener(
 
 /*
  * Typed instance builders for model- and role-specific listeners - property change, action, and
- * text-document - built on [listener]'s by-identity add/remove contract.
+ * text-document - built on the by-identity add/remove contract of `listener`'s instance overload.
  */
 
 /**
@@ -101,7 +101,7 @@ public fun SwingModifier.propertyChangeListener(
  * @see java.awt.event.ActionListener
  */
 public fun SwingModifier.actionListener(onAction: (ActionEvent) -> Unit): SwingModifier =
-    liveCallbackListener<Component, (ActionEvent) -> Unit, ActionListener>(
+    listener<Component, (ActionEvent) -> Unit, ActionListener>(
         callback = onAction,
         adapter = { current -> ActionListener { event -> current()(event) } },
         attach = { component, listener -> actionListenerRegistrar(component).add(listener) },
@@ -189,7 +189,7 @@ public fun SwingModifier.documentListener(
     onChange: (DocumentEvent) -> Unit = UNDECLARED,
 ): SwingModifier {
     requireAnyDeclared("documentListener", declared(onInsert) || declared(onRemove) || declared(onChange))
-    return liveCallbackListener<JTextComponent, DocumentCallbacks, DocumentListener>(
+    return listener<JTextComponent, DocumentCallbacks, DocumentListener>(
         callback = DocumentCallbacks(onInsert, onRemove, onChange),
         adapter = { current ->
             object : DocumentListener {

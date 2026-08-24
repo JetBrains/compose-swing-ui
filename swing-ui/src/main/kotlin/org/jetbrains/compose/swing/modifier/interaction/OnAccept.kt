@@ -4,6 +4,7 @@
 package org.jetbrains.compose.swing.modifier.interaction
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.listener.listener
 import java.awt.event.ActionListener
 import javax.swing.JTextField
 
@@ -21,31 +22,10 @@ import javax.swing.JTextField
  *
  * @see javax.swing.JTextField.addActionListener
  */
-public fun SwingModifier.onAccept(onAccept: () -> Unit): SwingModifier = this then AcceptElement(onAccept)
-
-private class AcceptElement(
-    private val onAccept: () -> Unit,
-) : SwingModifier.NodeElement<JTextField, AcceptElement.Node>() {
-    override val targetType: Class<JTextField> get() = JTextField::class.java
-    override val additive: Boolean get() = true
-
-    override fun create(): Node = Node()
-
-    override fun update(node: Node) {
-        node.onAccept = onAccept
-    }
-
-    override fun equals(other: Any?): Boolean = other is AcceptElement && onAccept === other.onAccept
-
-    override fun hashCode(): Int = System.identityHashCode(onAccept)
-
-    class Node : SwingModifier.Node<JTextField>() {
-        var onAccept: () -> Unit = {}
-
-        private val listener = ActionListener { onAccept() }
-
-        override fun onAttach(): Unit = component.addActionListener(listener)
-
-        override fun onDetach(): Unit = component.removeActionListener(listener)
-    }
-}
+public fun SwingModifier.onAccept(onAccept: () -> Unit): SwingModifier =
+    listener<JTextField, () -> Unit, ActionListener>(
+        callback = onAccept,
+        adapter = { current -> ActionListener { current()() } },
+        attach = { field, listener -> field.addActionListener(listener) },
+        detach = { field, listener -> field.removeActionListener(listener) },
+    )

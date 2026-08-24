@@ -7,8 +7,8 @@ import androidx.compose.runtime.Composable
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
+import org.jetbrains.compose.swing.modifier.listener.actionListener
 import org.jetbrains.compose.swing.modifier.listener.listener
-import org.jetbrains.compose.swing.modifier.listener.liveCallbackListener
 import org.jetbrains.compose.swing.node.MenuNode
 import java.awt.event.ActionListener
 import javax.swing.JMenuItem
@@ -31,7 +31,7 @@ public fun MenuItem(
     accelerator: KeyStroke? = null,
     onClick: () -> Unit = {},
 ) {
-    MenuItemNode(text = text, accelerator = accelerator, modifier = modifier.onMenuAction(onClick))
+    MenuItemNode(text = text, accelerator = accelerator, modifier = modifier.actionListener { onClick() })
 }
 
 /**
@@ -84,15 +84,3 @@ private fun MenuItemNode(
         },
     )
 }
-
-/**
- * Runs [onClick] when the menu item is activated, reading the callback the current composition
- * declares, so a lambda written inline needs no `remember`.
- */
-private fun SwingModifier.onMenuAction(onClick: () -> Unit): SwingModifier =
-    liveCallbackListener<JMenuItem, () -> Unit, ActionListener>(
-        onClick,
-        { current -> ActionListener { current().invoke() } },
-        { component, listener -> component.addActionListener(listener) },
-        { component, listener -> component.removeActionListener(listener) },
-    )

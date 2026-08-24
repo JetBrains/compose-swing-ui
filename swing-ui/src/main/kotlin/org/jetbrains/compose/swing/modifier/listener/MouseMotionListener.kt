@@ -39,7 +39,7 @@ public fun SwingModifier.mouseMotionListener(
     onMouseMoved: (MouseEvent) -> Unit = UNDECLARED,
 ): SwingModifier {
     requireAnyDeclared("mouseMotionListener", declared(onMouseDragged) || declared(onMouseMoved))
-    return liveCallbackListener<Component, MouseMotionCallbacks, MouseMotionListener>(
+    return listener<Component, MouseMotionCallbacks, MouseMotionListener>(
         callback = MouseMotionCallbacks(onMouseDragged, onMouseMoved),
         adapter = { current ->
             object : MouseMotionListener {

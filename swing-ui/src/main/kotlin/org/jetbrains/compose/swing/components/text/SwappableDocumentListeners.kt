@@ -2,7 +2,6 @@ package org.jetbrains.compose.swing.components.text
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.listener
-import org.jetbrains.compose.swing.modifier.listener.liveCallbackListener
 import org.jetbrains.compose.swing.node.AppliedValue
 import java.beans.PropertyChangeEvent
 import java.beans.PropertyChangeListener
@@ -62,7 +61,7 @@ internal fun SwingModifier.swappableDocumentListener(listener: DocumentListener)
  * ride the way a slider's rides its `BoundedRangeModel`.
  */
 internal fun SwingModifier.textMirror(applied: AppliedValue<String>): SwingModifier =
-    liveCallbackListener<JTextComponent, AppliedValue<String>, DocumentListener>(
+    listener<JTextComponent, AppliedValue<String>, DocumentListener>(
         applied,
         { current -> documentChangeListener { event -> current().observed(event.document.fullText()) } },
         JTextComponent::attachSwappableDocumentListener,
@@ -77,7 +76,7 @@ internal fun SwingModifier.textMirror(applied: AppliedValue<String>): SwingModif
  * [onChange] is read live, so a lambda written inline needs no `remember`.
  */
 internal fun SwingModifier.onDocumentChange(onChange: (DocumentEvent) -> Unit): SwingModifier =
-    liveCallbackListener<JTextComponent, (DocumentEvent) -> Unit, DocumentListener>(
+    listener<JTextComponent, (DocumentEvent) -> Unit, DocumentListener>(
         onChange,
         { current -> documentChangeListener { current().invoke(it) } },
         JTextComponent::attachSwappableDocumentListener,

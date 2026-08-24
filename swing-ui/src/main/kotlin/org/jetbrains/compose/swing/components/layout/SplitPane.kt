@@ -11,7 +11,6 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.constants.SplitOrientation
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
-import org.jetbrains.compose.swing.modifier.listener.liveCallbackListener
 import org.jetbrains.compose.swing.modifier.listener.propertyChangeListener
 import org.jetbrains.compose.swing.node.AppliedValue
 import org.jetbrains.compose.swing.node.SwingNode
@@ -91,7 +90,10 @@ public fun SplitPane(
         }
     }
     SplitPaneImpl(
-        modifier = modifier.onDividerMoved(onMoved),
+        modifier =
+            modifier.propertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY) { event ->
+                onMoved((event.source as JSplitPane).dividerLocation)
+            },
         orientation = orientation,
         dividerLocation = dividerLocation,
         applied = applied,
@@ -156,24 +158,6 @@ public fun SplitPane(
         content = content,
     )
 }
-
-/**
- * Installs one `dividerLocation` [PropertyChangeListener] reporting the offset it left the divider at to
- * the [onMoved] the current composition declares.
- */
-private fun SwingModifier.onDividerMoved(onMoved: (Int) -> Unit): SwingModifier =
-    liveCallbackListener<JSplitPane, (Int) -> Unit, PropertyChangeListener>(
-        callback = onMoved,
-        adapter = { current ->
-            PropertyChangeListener { event -> current()((event.source as JSplitPane).dividerLocation) }
-        },
-        attach = { pane, listener ->
-            pane.addPropertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY, listener)
-        },
-        detach = { pane, listener ->
-            pane.removePropertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY, listener)
-        },
-    )
 
 /** The `JSplitPane` node both public [SplitPane] overloads render. */
 @Composable

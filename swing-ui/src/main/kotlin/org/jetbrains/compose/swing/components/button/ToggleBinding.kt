@@ -3,13 +3,12 @@ package org.jetbrains.compose.swing.components.button
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.actionListener
-import org.jetbrains.compose.swing.modifier.listener.liveCallbackListener
+import org.jetbrains.compose.swing.modifier.listener.itemListener
 import org.jetbrains.compose.swing.node.AppliedValue
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
 import org.jetbrains.compose.swing.node.declare
 import org.jetbrains.compose.swing.node.rememberAppliedValue
 import java.awt.event.ActionListener
-import java.awt.event.ItemListener
 import javax.swing.AbstractButton
 
 /**
@@ -27,21 +26,12 @@ internal fun rememberToggleReporting(
 ): Pair<SwingModifier, AppliedValue<Boolean>> {
     val applied = rememberAppliedValue(selected)
     val reporting =
-        SwingModifier.onToggle { isSelected -> if (applied.observed(isSelected)) onSelectedChange(isSelected) }
+        SwingModifier.actionListener { event ->
+            val isSelected = (event.source as AbstractButton).isSelected
+            if (applied.observed(isSelected)) onSelectedChange(isSelected)
+        }
     return reporting to applied
 }
-
-/**
- * Runs [onToggle] with the button's selected state on every toggle the button publishes on its action
- * channel, its own and the user's alike.
- */
-private fun SwingModifier.onToggle(onToggle: (Boolean) -> Unit): SwingModifier =
-    liveCallbackListener<AbstractButton, (Boolean) -> Unit, ActionListener>(
-        onToggle,
-        { current -> ActionListener { event -> current()((event.source as AbstractButton).isSelected) } },
-        { button, listener -> button.addActionListener(listener) },
-        { button, listener -> button.removeActionListener(listener) },
-    )
 
 /**
  * Wires the mirroring half of a two-state `AbstractButton` for a caller that supplies its own
@@ -66,12 +56,7 @@ internal fun rememberToggleMirroring(
  * action channel stays the caller's alone.
  */
 private fun SwingModifier.toggleMirror(applied: AppliedValue<Boolean>): SwingModifier =
-    liveCallbackListener<AbstractButton, AppliedValue<Boolean>, ItemListener>(
-        applied,
-        { current -> ItemListener { event -> current().observed((event.source as AbstractButton).isSelected) } },
-        { button, listener -> button.addItemListener(listener) },
-        { button, listener -> button.removeItemListener(listener) },
-    )
+    itemListener { event -> applied.observed((event.source as AbstractButton).isSelected) }
 
 /**
  * Settles the selected declaration a two-state `AbstractButton` node renders against the widget's own
