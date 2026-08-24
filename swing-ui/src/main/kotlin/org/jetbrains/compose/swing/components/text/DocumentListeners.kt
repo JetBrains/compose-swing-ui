@@ -1,6 +1,7 @@
 package org.jetbrains.compose.swing.components.text
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.listener.listener
 import org.jetbrains.compose.swing.node.AppliedValue
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
 import org.jetbrains.compose.swing.node.declare
@@ -67,11 +68,22 @@ internal fun documentChangeListener(onChange: (DocumentEvent) -> Unit): Document
 internal fun SwingModifier.onTextEdit(
     applied: AppliedValue<String>,
     onUserEdit: (String) -> Unit,
-): SwingModifier =
-    onDocumentChange { event ->
-        val text = event.document.fullText()
-        if (applied.observed(text)) onUserEdit(text)
-    }
+): SwingModifier = listener(TextEdit(applied, onUserEdit), TEXT_EDITS)
+
+/** What [onTextEdit] declares, as one value the listener it registers reads. */
+private class TextEdit(
+    val applied: AppliedValue<String>,
+    val onUserEdit: (String) -> Unit,
+)
+
+private val TEXT_EDITS =
+    documentMirrorRegistration<TextEdit>(
+        onEdit = { edit, document ->
+            val text = document.fullText()
+            if (edit.applied.observed(text)) edit.onUserEdit(text)
+        },
+        onAdopt = { edit, document -> edit.applied.observed(document.fullText()) },
+    )
 
 /**
  * Declares [value] as this text component's document text, keeping [applied] in sync with it: the text

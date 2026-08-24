@@ -19,6 +19,7 @@ import org.jetbrains.compose.swing.modifier.layout.componentOrientation
 import org.jetbrains.compose.swing.modifier.layout.maximumSize
 import org.jetbrains.compose.swing.modifier.layout.minimumSize
 import org.jetbrains.compose.swing.modifier.layout.visible
+import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
 import org.jetbrains.compose.swing.modifier.listener.listener
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
 import org.jetbrains.compose.swing.modifier.listener.mouseMotionListener
@@ -305,15 +306,8 @@ class SwingModifierTest {
                 "X",
                 modifier =
                     SwingModifier
-                        .listener<JButton, MouseListener>(
-                            mouseEnterListener { first++ },
-                            { component, listener -> component.addMouseListener(listener) },
-                            { component, listener -> component.removeMouseListener(listener) },
-                        ).listener<JButton, MouseListener>(
-                            mouseEnterListener { second++ },
-                            { component, listener -> component.addMouseListener(listener) },
-                            { component, listener -> component.removeMouseListener(listener) },
-                        ),
+                        .listener(mouseEnterListener { first++ }, MOUSE_EVENTS)
+                        .listener(mouseEnterListener { second++ }, MOUSE_EVENTS),
             )
         }
         val button = onNodeOfType<JButton>().fetch()
@@ -483,21 +477,24 @@ class SwingModifierTest {
         var detachCount = 0
         var enterCount = 0
         val stable = mouseEnterListener { enterCount++ }
+        // Built once here rather than inside the composable: the registration is what says where the
+        // listener sits, so a pass must hand the seam the same one.
+        val counted =
+            ListenerRegistration<JButton, MouseListener>(
+                { component, listener ->
+                    attachCount++
+                    component.addMouseListener(listener)
+                },
+                { component, listener ->
+                    detachCount++
+                    component.removeMouseListener(listener)
+                },
+            )
         setContent {
             Button(
                 label,
                 modifier =
-                    SwingModifier.listener<JButton, MouseListener>(
-                        stable,
-                        { component, listener ->
-                            attachCount++
-                            component.addMouseListener(listener)
-                        },
-                        { component, listener ->
-                            detachCount++
-                            component.removeMouseListener(listener)
-                        },
-                    ),
+                    SwingModifier.listener(stable, counted),
             )
         }
         assertEquals(1, attachCount, "the listener should be attached once on first apply")
@@ -650,5 +647,12 @@ class SwingModifierTest {
     private companion object {
         /** The message [SwingModifier.Node.component] fails with outside the attached window. */
         const val NOT_ATTACHED_MESSAGE = "Node is not attached"
+
+        /** The mouse registration the declarations in these tests register on. */
+        val MOUSE_EVENTS =
+            ListenerRegistration<JButton, MouseListener>(
+                { component, listener -> component.addMouseListener(listener) },
+                { component, listener -> component.removeMouseListener(listener) },
+            )
     }
 }

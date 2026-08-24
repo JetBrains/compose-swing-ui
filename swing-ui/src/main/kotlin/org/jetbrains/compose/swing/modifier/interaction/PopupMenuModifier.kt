@@ -112,6 +112,7 @@ private class PopupMenuElement(
     override fun create(): Node = Node(parentContext)
 
     override fun update(node: Node) {
+        node.parentContext = parentContext
         node.onDismiss = onDismiss
         node.display = display
         node.content = content
@@ -142,7 +143,7 @@ private class PopupMenuElement(
      * declaration changes, and takes it away when the declaration goes.
      */
     class Node(
-        private val parentContext: CompositionContext,
+        var parentContext: CompositionContext,
     ) : SwingModifier.Node<Component>() {
         var onDismiss: () -> Unit = {}
         var display: (popup: JPopupMenu, invoker: Component, x: Int, y: Int) -> Unit = ::showPopupAt

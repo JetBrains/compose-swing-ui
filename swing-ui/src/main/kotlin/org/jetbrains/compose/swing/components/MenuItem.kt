@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
+import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
 import org.jetbrains.compose.swing.modifier.listener.actionListener
 import org.jetbrains.compose.swing.modifier.listener.listener
 import org.jetbrains.compose.swing.node.MenuNode
@@ -57,17 +58,13 @@ public fun MenuItem(
         text = text,
         accelerator = accelerator,
         modifier =
-            modifier.listener<JMenuItem, ActionListener>(
-                actionListener,
-                { component, listener -> component.addActionListener(listener) },
-                { component, listener -> component.removeActionListener(listener) },
-            ),
+            modifier.listener(actionListener, MENU_ITEM_ACTION),
     )
 }
 
 /**
  * The `JMenuItem` node both [MenuItem] overloads render. [modifier] already carries the item's
- * activation channel, whichever of the two the overload driving it uses.
+ * activation registration, whichever of the two the overload driving it uses.
  */
 @Composable
 private fun MenuItemNode(
@@ -84,3 +81,9 @@ private fun MenuItemNode(
         },
     )
 }
+
+private val MENU_ITEM_ACTION =
+    ListenerRegistration<JMenuItem, ActionListener>(
+        { component, listener -> component.addActionListener(listener) },
+        { component, listener -> component.removeActionListener(listener) },
+    )

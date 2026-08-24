@@ -39,8 +39,31 @@ public fun SwingModifier.containerListener(
     onComponentRemoved: (ContainerEvent) -> Unit = UNDECLARED,
 ): SwingModifier {
     requireAnyDeclared("containerListener", declared(onComponentAdded) || declared(onComponentRemoved))
-    return listener<Container, ContainerCallbacks, ContainerListener>(
-        callback = ContainerCallbacks(onComponentAdded, onComponentRemoved),
+    return listener(ContainerCallbacks(onComponentAdded, onComponentRemoved), CONTAINER_CALLBACKS)
+}
+
+/**
+ * Attaches a [ContainerListener] (`addContainerListener`/`removeContainerListener`). Requires a
+ * [Container] target.
+ *
+ * @see java.awt.Container.addContainerListener
+ */
+public fun SwingModifier.containerListener(listener: ContainerListener): SwingModifier = listener(listener, CONTAINER)
+
+/** The lambdas [containerListener] was declared with, as one value the built listener reads. */
+private class ContainerCallbacks(
+    val onComponentAdded: (ContainerEvent) -> Unit,
+    val onComponentRemoved: (ContainerEvent) -> Unit,
+)
+
+private val CONTAINER =
+    ListenerRegistration<Container, ContainerListener>(
+        Container::addContainerListener,
+        Container::removeContainerListener,
+    )
+
+private val CONTAINER_CALLBACKS =
+    CallbackRegistration<Container, ContainerCallbacks, ContainerListener>(
         adapter = { current ->
             object : ContainerListener {
                 override fun componentAdded(event: ContainerEvent): Unit = current().onComponentAdded(event)
@@ -48,26 +71,5 @@ public fun SwingModifier.containerListener(
                 override fun componentRemoved(event: ContainerEvent): Unit = current().onComponentRemoved(event)
             }
         },
-        attach = { component, listener -> component.addContainerListener(listener) },
-        detach = { component, listener -> component.removeContainerListener(listener) },
+        registration = CONTAINER,
     )
-}
-
-/**
- * Attaches a [ContainerListener] (`addContainerListener`/`removeContainerListener`). Requires a
- * [Container] target (the add/remove pair lives on `java.awt.Container`).
- *
- * @see java.awt.Container.addContainerListener
- */
-public fun SwingModifier.containerListener(listener: ContainerListener): SwingModifier =
-    listener<Container, ContainerListener>(
-        listener,
-        Container::addContainerListener,
-        Container::removeContainerListener,
-    )
-
-/** The lambdas [containerListener] was declared with, as one value the built listener reads. */
-private class ContainerCallbacks(
-    val onComponentAdded: (ContainerEvent) -> Unit,
-    val onComponentRemoved: (ContainerEvent) -> Unit,
-)

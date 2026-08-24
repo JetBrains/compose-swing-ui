@@ -2,6 +2,8 @@ package org.jetbrains.compose.swing.modifier.keyboard
 
 import org.jetbrains.compose.swing.constants.FocusCondition
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.listener.CallbackRegistration
+import org.jetbrains.compose.swing.modifier.listener.KEY
 import org.jetbrains.compose.swing.modifier.listener.listener
 import java.awt.Component
 import java.awt.event.ActionEvent
@@ -38,24 +40,7 @@ import javax.swing.SwingUtilities
  * @see java.awt.Component.addKeyListener
  */
 public fun SwingModifier.onKeyEvent(onKeyEvent: (KeyEvent) -> Boolean): SwingModifier =
-    listener<Component, (KeyEvent) -> Boolean, KeyListener>(
-        callback = onKeyEvent,
-        adapter = { current ->
-            object : KeyListener {
-                override fun keyTyped(event: KeyEvent): Unit = dispatch(event)
-
-                override fun keyPressed(event: KeyEvent): Unit = dispatch(event)
-
-                override fun keyReleased(event: KeyEvent): Unit = dispatch(event)
-
-                private fun dispatch(event: KeyEvent) {
-                    if (current()(event)) event.consume()
-                }
-            }
-        },
-        attach = { component, listener -> component.addKeyListener(listener) },
-        detach = { component, listener -> component.removeKeyListener(listener) },
-    )
+    listener(onKeyEvent, CONSUMED_KEYS)
 
 /**
  * Binds a single [KeyStroke] to [onAction] via the component's `InputMap`/`ActionMap` - the
@@ -239,3 +224,21 @@ private class KeyStrokeAction(
 ) : AbstractAction() {
     override fun actionPerformed(e: ActionEvent?): Unit = onAction()
 }
+
+private val CONSUMED_KEYS =
+    CallbackRegistration<Component, (KeyEvent) -> Boolean, KeyListener>(
+        adapter = { current ->
+            object : KeyListener {
+                override fun keyTyped(event: KeyEvent): Unit = dispatch(event)
+
+                override fun keyPressed(event: KeyEvent): Unit = dispatch(event)
+
+                override fun keyReleased(event: KeyEvent): Unit = dispatch(event)
+
+                private fun dispatch(event: KeyEvent) {
+                    if (current()(event)) event.consume()
+                }
+            }
+        },
+        registration = KEY,
+    )

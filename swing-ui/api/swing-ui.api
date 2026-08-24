@@ -708,25 +708,11 @@ public final class org/jetbrains/compose/swing/modifier/layout/LayoutModifierKt 
 	public static final fun y (Lorg/jetbrains/compose/swing/modifier/SwingModifier;I)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 }
 
-public final class org/jetbrains/compose/swing/modifier/listener/InstanceListenerElement : org/jetbrains/compose/swing/modifier/SwingModifier$NodeElement {
+public final class org/jetbrains/compose/swing/modifier/listener/CallbackRegistration {
 	public static final field $stable I
-	public fun <init> (Ljava/lang/Class;Ljava/lang/Object;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;)V
-	public synthetic fun create ()Lorg/jetbrains/compose/swing/modifier/SwingModifier$Node;
-	public fun create ()Lorg/jetbrains/compose/swing/modifier/listener/InstanceListenerNode;
+	public fun <init> (Lkotlin/jvm/functions/Function1;Lorg/jetbrains/compose/swing/modifier/listener/ListenerRegistration;)V
 	public fun equals (Ljava/lang/Object;)Z
-	public fun getAdditive ()Z
-	public fun getTargetType ()Ljava/lang/Class;
 	public fun hashCode ()I
-	public synthetic fun update (Lorg/jetbrains/compose/swing/modifier/SwingModifier$Node;)V
-	public fun update (Lorg/jetbrains/compose/swing/modifier/listener/InstanceListenerNode;)V
-}
-
-public final class org/jetbrains/compose/swing/modifier/listener/InstanceListenerNode : org/jetbrains/compose/swing/modifier/SwingModifier$Node {
-	public static final field $stable I
-	public fun <init> ()V
-	public fun onAttach ()V
-	public fun onDetach ()V
-	public final fun swapTo (Lorg/jetbrains/compose/swing/modifier/listener/InstanceListenerElement;)V
 }
 
 public final class org/jetbrains/compose/swing/modifier/listener/ListenerModifierKt {
@@ -770,6 +756,8 @@ public final class org/jetbrains/compose/swing/modifier/listener/ListenerModifie
 	public static synthetic fun keyListener$default (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun listSelectionListener (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljavax/swing/event/ListSelectionListener;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun listSelectionListener (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun listener (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/reflect/KClass;Ljava/lang/Object;Lorg/jetbrains/compose/swing/modifier/listener/CallbackRegistration;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun listener (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/reflect/KClass;Ljava/lang/Object;Lorg/jetbrains/compose/swing/modifier/listener/ListenerRegistration;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun mouseListener (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/awt/event/MouseListener;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun mouseListener (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun mouseListener (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
@@ -796,25 +784,12 @@ public final class org/jetbrains/compose/swing/modifier/listener/ListenerModifie
 	public static synthetic fun treeWillExpandListener$default (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 }
 
-public final class org/jetbrains/compose/swing/modifier/listener/LiveCallbackListenerElement : org/jetbrains/compose/swing/modifier/SwingModifier$NodeElement {
+public final class org/jetbrains/compose/swing/modifier/listener/ListenerRegistration {
 	public static final field $stable I
-	public fun <init> (Ljava/lang/Class;Ljava/lang/Object;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Ljava/lang/Object;)V
-	public synthetic fun create ()Lorg/jetbrains/compose/swing/modifier/SwingModifier$Node;
-	public fun create ()Lorg/jetbrains/compose/swing/modifier/listener/LiveCallbackListenerNode;
+	public fun <init> (Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Ljava/lang/Object;)V
+	public synthetic fun <init> (Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Ljava/lang/Object;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
-	public fun getAdditive ()Z
-	public fun getTargetType ()Ljava/lang/Class;
 	public fun hashCode ()I
-	public synthetic fun update (Lorg/jetbrains/compose/swing/modifier/SwingModifier$Node;)V
-	public fun update (Lorg/jetbrains/compose/swing/modifier/listener/LiveCallbackListenerNode;)V
-}
-
-public final class org/jetbrains/compose/swing/modifier/listener/LiveCallbackListenerNode : org/jetbrains/compose/swing/modifier/SwingModifier$Node {
-	public static final field $stable I
-	public fun <init> (Lorg/jetbrains/compose/swing/modifier/listener/LiveCallbackListenerElement;)V
-	public fun onAttach ()V
-	public fun onDetach ()V
-	public final fun swapTo (Lorg/jetbrains/compose/swing/modifier/listener/LiveCallbackListenerElement;)V
 }
 
 public final class org/jetbrains/compose/swing/node/AppliedValue : androidx/compose/runtime/State {

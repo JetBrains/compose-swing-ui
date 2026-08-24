@@ -16,7 +16,6 @@ import org.jetbrains.compose.swing.node.rememberAppliedValue
 import javax.swing.JPasswordField
 import javax.swing.event.DocumentListener
 import javax.swing.text.Document
-import javax.swing.text.JTextComponent
 import javax.swing.text.Segment
 
 /**
@@ -67,11 +66,7 @@ public fun PasswordField(
         // Deliver the raw characters by reading the document into a char array via a Segment, keeping
         // the password out of an unzeroable String. The array applied mirrors is retained as-is; the
         // callback is handed a distinct copy of its own, free to zero without corrupting that mirror.
-        modifier =
-            modifier.onDocumentChange { event ->
-                val current = event.document.fullPassword()
-                if (applied.observed(PasswordChars(current))) onValueChange(current.copyOf())
-            },
+        modifier = modifier.listener(PasswordEdit(applied, onValueChange), PASSWORD_EDITS),
         echoChar = echoChar,
         columns = columns,
         editable = editable,
@@ -157,14 +152,7 @@ private fun PasswordFieldNode(
  * text mirror does.
  */
 private fun SwingModifier.passwordMirror(applied: AppliedValue<PasswordChars>): SwingModifier =
-    listener<JTextComponent, AppliedValue<PasswordChars>, DocumentListener>(
-        applied,
-        { current ->
-            documentChangeListener { event -> current().observed(PasswordChars(event.document.fullPassword())) }
-        },
-        JTextComponent::attachSwappableDocumentListener,
-        JTextComponent::detachSwappableDocumentListener,
-    )
+    listener(applied, PASSWORD_MIRRORS)
 
 /**
  * The characters a password field declares or holds, compared by content rather than the reference
@@ -289,3 +277,25 @@ private fun Document.fullPassword(): CharArray {
     getText(0, length, segment)
     return segment.array.copyOfRange(segment.offset, segment.offset + segment.count)
 }
+
+private val PASSWORD_MIRRORS =
+    documentMirrorRegistration<AppliedValue<PasswordChars>>(
+        onEdit = { applied, document -> applied.observed(PasswordChars(document.fullPassword())) },
+    )
+
+/** What the `onValueChange`-driven overload declares, as one value the listener it registers reads. */
+private class PasswordEdit(
+    val applied: AppliedValue<PasswordChars>,
+    val onValueChange: (CharArray) -> Unit,
+)
+
+// The array applied mirrors is retained as-is; the callback is handed a distinct copy of its own, free
+// to zero without corrupting that mirror.
+private val PASSWORD_EDITS =
+    documentMirrorRegistration<PasswordEdit>(
+        onEdit = { edit, document ->
+            val current = document.fullPassword()
+            if (edit.applied.observed(PasswordChars(current))) edit.onValueChange(current.copyOf())
+        },
+        onAdopt = { edit, document -> edit.applied.observed(PasswordChars(document.fullPassword())) },
+    )

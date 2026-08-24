@@ -17,12 +17,7 @@ import javax.swing.JTree as SwingJTree
  * @see javax.swing.JTree.addTreeSelectionListener
  */
 public fun SwingModifier.treeSelectionListener(onSelectionChange: (TreeSelectionEvent) -> Unit): SwingModifier =
-    listener<SwingJTree, (TreeSelectionEvent) -> Unit, TreeSelectionListener>(
-        callback = onSelectionChange,
-        adapter = { current -> TreeSelectionListener { event -> current()(event) } },
-        attach = { component, listener -> component.addTreeSelectionListener(listener) },
-        detach = { component, listener -> component.removeTreeSelectionListener(listener) },
-    )
+    listener(onSelectionChange, TREE_SELECTION_CALLBACKS)
 
 /**
  * Attaches a [TreeSelectionListener]
@@ -31,8 +26,16 @@ public fun SwingModifier.treeSelectionListener(onSelectionChange: (TreeSelection
  * @see javax.swing.JTree.addTreeSelectionListener
  */
 public fun SwingModifier.treeSelectionListener(listener: TreeSelectionListener): SwingModifier =
-    listener<SwingJTree, TreeSelectionListener>(
-        listener,
+    listener(listener, TREE_SELECTION)
+
+private val TREE_SELECTION =
+    ListenerRegistration<SwingJTree, TreeSelectionListener>(
         SwingJTree::addTreeSelectionListener,
         SwingJTree::removeTreeSelectionListener,
+    )
+
+private val TREE_SELECTION_CALLBACKS =
+    CallbackRegistration<SwingJTree, (TreeSelectionEvent) -> Unit, TreeSelectionListener>(
+        adapter = { current -> TreeSelectionListener { event -> current()(event) } },
+        registration = TREE_SELECTION,
     )

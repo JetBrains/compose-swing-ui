@@ -9,6 +9,8 @@ import org.jetbrains.compose.swing.constants.AutoResizeMode
 import org.jetbrains.compose.swing.constants.SelectionMode
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
+import org.jetbrains.compose.swing.modifier.listener.ModelSwapAware
+import org.jetbrains.compose.swing.modifier.listener.SwappableModel
 import org.jetbrains.compose.swing.modifier.propertyElement
 import org.jetbrains.compose.swing.node.AppliedValue
 import org.jetbrains.compose.swing.node.AppliedWrite
@@ -17,7 +19,6 @@ import org.jetbrains.compose.swing.node.SwingNodeUpdater
 import org.jetbrains.compose.swing.node.declare
 import org.jetbrains.compose.swing.node.rememberAppliedValue
 import org.jetbrains.compose.swing.node.rememberAppliedWrite
-import org.jetbrains.compose.swing.node.userOnly
 import javax.swing.JTable
 import javax.swing.ListSelectionModel
 import javax.swing.RowFilter
@@ -291,6 +292,16 @@ private fun SwingModifier.userSelectionListener(
     target: ListSelectionListener,
 ): SwingModifier = this then UserSelectionListenerElement(applied, target)
 
+// A table publishes its selection through the selection model it holds, which a caller can replace.
+private val TABLE_SELECTION =
+    SwappableModel<JTable, ListSelectionModel, ListSelectionListener>(
+        property = "selectionModel",
+        modelType = ListSelectionModel::class.java,
+        model = JTable::getSelectionModel,
+        add = ListSelectionModel::addListSelectionListener,
+        remove = ListSelectionModel::removeListSelectionListener,
+    )
+
 /**
  * The additive [SwingModifier.NodeElement] backing [userSelectionListener].
  *
@@ -314,33 +325,41 @@ private class UserSelectionListenerElement(
     override fun create(): Node = Node(applied)
 
     override fun update(node: Node) {
+        node.applied = applied
         node.target = target
     }
 
     /**
-     * The mirror is the table's own for as long as this node drives it, so the node takes it at creation;
-     * the caller's listener is pushed on every pass and read when an event fires, so a table always
-     * forwards to the listener the current composition declares.
+     * The node takes the mirror at creation because its listener settles against it while attaching,
+     * before the first update lands. Both halves are pushed on every pass and read when an event fires,
+     * so a table mirrors into the [AppliedValue] and forwards to the listener the composition declares
+     * now.
      */
     class Node(
-        private val applied: AppliedValue<Set<Int>?>,
+        var applied: AppliedValue<Set<Int>?>,
     ) : SwingModifier.Node<JTable>() {
         var target: ListSelectionListener = ListSelectionListener {}
 
         private val listener =
-            ListSelectionListener { event ->
-                val table = component
-                if (!event.valueIsAdjusting) applied.observed(table.selectedModelRows())
-                if (!applied.isWriting) {
-                    target.valueChanged(
-                        ListSelectionEvent(table, event.firstIndex, event.lastIndex, event.valueIsAdjusting),
-                    )
+            object : ListSelectionListener, ModelSwapAware {
+                override fun valueChanged(event: ListSelectionEvent) {
+                    val table = component
+                    if (!event.valueIsAdjusting) applied.observed(table.selectedModelRows())
+                    if (!applied.isWriting) {
+                        target.valueChanged(
+                            ListSelectionEvent(table, event.firstIndex, event.lastIndex, event.valueIsAdjusting),
+                        )
+                    }
+                }
+
+                override fun adoptModelSwap(model: Any) {
+                    applied.observed(component.selectedModelRows())
                 }
             }
 
-        override fun onAttach(): Unit = component.selectionModel.addListSelectionListener(listener)
+        override fun onAttach(): Unit = TABLE_SELECTION.attach(component, listener)
 
-        override fun onDetach(): Unit = component.selectionModel.removeListSelectionListener(listener)
+        override fun onDetach(): Unit = TABLE_SELECTION.detach(component, listener)
     }
 }
 

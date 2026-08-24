@@ -4,6 +4,8 @@
 package org.jetbrains.compose.swing.modifier.interaction
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.listener.CallbackRegistration
+import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
 import org.jetbrains.compose.swing.modifier.listener.listener
 import java.awt.event.ActionListener
 import javax.swing.JTextField
@@ -22,10 +24,16 @@ import javax.swing.JTextField
  *
  * @see javax.swing.JTextField.addActionListener
  */
-public fun SwingModifier.onAccept(onAccept: () -> Unit): SwingModifier =
-    listener<JTextField, () -> Unit, ActionListener>(
-        callback = onAccept,
+public fun SwingModifier.onAccept(onAccept: () -> Unit): SwingModifier = listener(onAccept, ACCEPTS)
+
+private val ACCEPT =
+    ListenerRegistration<JTextField, ActionListener>(
+        { field, listener -> field.addActionListener(listener) },
+        { field, listener -> field.removeActionListener(listener) },
+    )
+
+private val ACCEPTS =
+    CallbackRegistration<JTextField, () -> Unit, ActionListener>(
         adapter = { current -> ActionListener { current()() } },
-        attach = { field, listener -> field.addActionListener(listener) },
-        detach = { field, listener -> field.removeActionListener(listener) },
+        registration = ACCEPT,
     )

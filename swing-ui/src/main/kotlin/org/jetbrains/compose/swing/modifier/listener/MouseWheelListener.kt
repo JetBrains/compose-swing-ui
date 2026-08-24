@@ -17,12 +17,7 @@ import java.awt.event.MouseWheelListener
  * @see java.awt.Component.addMouseWheelListener
  */
 public fun SwingModifier.mouseWheelListener(onMouseWheel: (MouseWheelEvent) -> Unit): SwingModifier =
-    listener<Component, (MouseWheelEvent) -> Unit, MouseWheelListener>(
-        callback = onMouseWheel,
-        adapter = { current -> MouseWheelListener { event -> current()(event) } },
-        attach = { component, listener -> component.addMouseWheelListener(listener) },
-        detach = { component, listener -> component.removeMouseWheelListener(listener) },
-    )
+    listener(onMouseWheel, MOUSE_WHEEL_CALLBACKS)
 
 /**
  * Attaches a [MouseWheelListener] (`addMouseWheelListener`/`removeMouseWheelListener`).
@@ -30,8 +25,16 @@ public fun SwingModifier.mouseWheelListener(onMouseWheel: (MouseWheelEvent) -> U
  * @see java.awt.Component.addMouseWheelListener
  */
 public fun SwingModifier.mouseWheelListener(listener: MouseWheelListener): SwingModifier =
-    listener<Component, MouseWheelListener>(
-        listener,
+    listener(listener, MOUSE_WHEEL)
+
+private val MOUSE_WHEEL =
+    ListenerRegistration<Component, MouseWheelListener>(
         Component::addMouseWheelListener,
         Component::removeMouseWheelListener,
+    )
+
+private val MOUSE_WHEEL_CALLBACKS =
+    CallbackRegistration<Component, (MouseWheelEvent) -> Unit, MouseWheelListener>(
+        adapter = { current -> MouseWheelListener { event -> current()(event) } },
+        registration = MOUSE_WHEEL,
     )

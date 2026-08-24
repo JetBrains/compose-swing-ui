@@ -57,17 +57,50 @@ public fun SwingModifier.internalFrameListener(
         declared(onFrameOpened) || declared(onFrameClosing) || declared(onFrameClosed) || declared(onFrameIconified) ||
             declared(onFrameDeiconified) || declared(onFrameActivated) || declared(onFrameDeactivated),
     )
-    return listener<JInternalFrame, InternalFrameCallbacks, InternalFrameListener>(
-        callback =
-            InternalFrameCallbacks(
-                onFrameOpened,
-                onFrameClosing,
-                onFrameClosed,
-                onFrameIconified,
-                onFrameDeiconified,
-                onFrameActivated,
-                onFrameDeactivated,
-            ),
+    return listener(
+        InternalFrameCallbacks(
+            onFrameOpened,
+            onFrameClosing,
+            onFrameClosed,
+            onFrameIconified,
+            onFrameDeiconified,
+            onFrameActivated,
+            onFrameDeactivated,
+        ),
+        INTERNAL_FRAME_CALLBACKS,
+    )
+}
+
+/**
+ * Attaches an [InternalFrameListener]
+ * (`addInternalFrameListener`/`removeInternalFrameListener`). Requires a [JInternalFrame] target.
+ *
+ * @see javax.swing.JInternalFrame.addInternalFrameListener
+ */
+public fun SwingModifier.internalFrameListener(listener: InternalFrameListener): SwingModifier =
+    listener(listener, INTERNAL_FRAME)
+
+/** The lambdas [internalFrameListener] was declared with, as one value the built listener reads. */
+@Suppress("LongParameterList")
+// One field per method of the listener interface, holding the lambda declared for it.
+private class InternalFrameCallbacks(
+    val onFrameOpened: (InternalFrameEvent) -> Unit,
+    val onFrameClosing: (InternalFrameEvent) -> Unit,
+    val onFrameClosed: (InternalFrameEvent) -> Unit,
+    val onFrameIconified: (InternalFrameEvent) -> Unit,
+    val onFrameDeiconified: (InternalFrameEvent) -> Unit,
+    val onFrameActivated: (InternalFrameEvent) -> Unit,
+    val onFrameDeactivated: (InternalFrameEvent) -> Unit,
+)
+
+private val INTERNAL_FRAME =
+    ListenerRegistration<JInternalFrame, InternalFrameListener>(
+        JInternalFrame::addInternalFrameListener,
+        JInternalFrame::removeInternalFrameListener,
+    )
+
+private val INTERNAL_FRAME_CALLBACKS =
+    CallbackRegistration<JInternalFrame, InternalFrameCallbacks, InternalFrameListener>(
         adapter = { current ->
             object : InternalFrameListener {
                 override fun internalFrameOpened(event: InternalFrameEvent): Unit = current().onFrameOpened(event)
@@ -87,33 +120,5 @@ public fun SwingModifier.internalFrameListener(
                     current().onFrameDeactivated(event)
             }
         },
-        attach = { component, listener -> component.addInternalFrameListener(listener) },
-        detach = { component, listener -> component.removeInternalFrameListener(listener) },
+        registration = INTERNAL_FRAME,
     )
-}
-
-/**
- * Attaches an [InternalFrameListener]
- * (`addInternalFrameListener`/`removeInternalFrameListener`). Requires a [JInternalFrame] target.
- *
- * @see javax.swing.JInternalFrame.addInternalFrameListener
- */
-public fun SwingModifier.internalFrameListener(listener: InternalFrameListener): SwingModifier =
-    listener<JInternalFrame, InternalFrameListener>(
-        listener,
-        JInternalFrame::addInternalFrameListener,
-        JInternalFrame::removeInternalFrameListener,
-    )
-
-/** The lambdas [internalFrameListener] was declared with, as one value the built listener reads. */
-@Suppress("LongParameterList")
-// One field per method of the listener interface, holding the lambda declared for it.
-private class InternalFrameCallbacks(
-    val onFrameOpened: (InternalFrameEvent) -> Unit,
-    val onFrameClosing: (InternalFrameEvent) -> Unit,
-    val onFrameClosed: (InternalFrameEvent) -> Unit,
-    val onFrameIconified: (InternalFrameEvent) -> Unit,
-    val onFrameDeiconified: (InternalFrameEvent) -> Unit,
-    val onFrameActivated: (InternalFrameEvent) -> Unit,
-    val onFrameDeactivated: (InternalFrameEvent) -> Unit,
-)

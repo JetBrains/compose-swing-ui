@@ -39,18 +39,7 @@ public fun SwingModifier.focusListener(
     onFocusLost: (FocusEvent) -> Unit = UNDECLARED,
 ): SwingModifier {
     requireAnyDeclared("focusListener", declared(onFocusGained) || declared(onFocusLost))
-    return listener<Component, FocusCallbacks, FocusListener>(
-        callback = FocusCallbacks(onFocusGained, onFocusLost),
-        adapter = { current ->
-            object : FocusListener {
-                override fun focusGained(event: FocusEvent): Unit = current().onFocusGained(event)
-
-                override fun focusLost(event: FocusEvent): Unit = current().onFocusLost(event)
-            }
-        },
-        attach = { component, listener -> component.addFocusListener(listener) },
-        detach = { component, listener -> component.removeFocusListener(listener) },
-    )
+    return listener(FocusCallbacks(onFocusGained, onFocusLost), FOCUS_CALLBACKS)
 }
 
 /**
@@ -58,15 +47,28 @@ public fun SwingModifier.focusListener(
  *
  * @see java.awt.Component.addFocusListener
  */
-public fun SwingModifier.focusListener(listener: FocusListener): SwingModifier =
-    listener<Component, FocusListener>(
-        listener,
-        Component::addFocusListener,
-        Component::removeFocusListener,
-    )
+public fun SwingModifier.focusListener(listener: FocusListener): SwingModifier = listener(listener, FOCUS)
 
 /** The lambdas [focusListener] was declared with, as one value the built listener reads. */
 private class FocusCallbacks(
     val onFocusGained: (FocusEvent) -> Unit,
     val onFocusLost: (FocusEvent) -> Unit,
 )
+
+private val FOCUS =
+    ListenerRegistration<Component, FocusListener>(
+        Component::addFocusListener,
+        Component::removeFocusListener,
+    )
+
+private val FOCUS_CALLBACKS =
+    CallbackRegistration<Component, FocusCallbacks, FocusListener>(
+        adapter = { current ->
+            object : FocusListener {
+                override fun focusGained(event: FocusEvent): Unit = current().onFocusGained(event)
+
+                override fun focusLost(event: FocusEvent): Unit = current().onFocusLost(event)
+            }
+        },
+        registration = FOCUS,
+    )

@@ -2,6 +2,7 @@ package org.jetbrains.compose.swing.node
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifierDiff
+import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
 import org.jetbrains.compose.swing.modifier.listener.listener
 import javax.swing.JButton
 import kotlin.test.Test
@@ -26,32 +27,32 @@ import kotlin.test.assertEquals
  * not advance.
  */
 class SwingNodeHolderLifecycleTest {
-    /**
-     * Builds a single-listener modifier that records attach/detach counts. The listener instance is a
-     * stable marker shared across the builder's calls, so re-applying it while attached is a by-identity
-     * no-op (the install-guard holds); attach increments on install, detach on removal. The listener
-     * never fires in these lifecycle tests, only attaches/detaches.
-     */
+    /** A stable marker: the listener never fires in these tests, it only attaches and detaches. */
     private val markerInstance = Any()
 
-    private fun listenerModifier(
-        attachCounter: IntArray,
-        detachCounter: IntArray,
-    ): SwingModifier = SwingModifier.listener<JButton, Any>(
-        instance = markerInstance,
-        attach = { _, _ -> attachCounter[0]++ },
-        detach = { _, _ -> detachCounter[0]++ },
-    )
+    private val attach = IntArray(1)
+    private val detach = IntArray(1)
+
+    /**
+     * The registration the counts are taken through, held for the whole test so that re-applying the
+     * modifier while it is attached is the same registration and writes nothing.
+     */
+    private val counted =
+        ListenerRegistration<JButton, Any>(
+            { _, _ -> attach[0]++ },
+            { _, _ -> detach[0]++ },
+        )
+
+    /** A chain carrying one counted listener. Every call builds the same registration. */
+    private fun listenerModifier(): SwingModifier = SwingModifier.listener(markerInstance, counted)
 
     @Test
     fun onRelease_runsReleaseBlockOnceAndDetachesListeners() {
         val holder = SwingNodeHolder(JButton("b"))
-        val attach = IntArray(1)
-        val detach = IntArray(1)
         val releaseCount = IntArray(1)
         holder.releaseBlock = { releaseCount[0]++ }
 
-        holder.applyModifierDiff(listenerModifier(attach, detach))
+        holder.applyModifierDiff(listenerModifier())
         assertEquals(1, attach[0], "applying the modifier must attach exactly one listener")
 
         holder.onRelease()
@@ -69,16 +70,14 @@ class SwingNodeHolderLifecycleTest {
     @Test
     fun onReuse_detachesAndClearsStateSoNextApplyReattaches() {
         val holder = SwingNodeHolder(JButton("b"))
-        val attach = IntArray(1)
-        val detach = IntArray(1)
 
         // First composition: applying the modifier attaches exactly one listener.
-        holder.applyModifierDiff(listenerModifier(attach, detach))
+        holder.applyModifierDiff(listenerModifier())
         assertEquals(1, attach[0], "the first apply must attach exactly one listener")
 
         // Re-applying the same listener position while attached is a no-op (install-guard holds):
         // still exactly one listener.
-        holder.applyModifierDiff(listenerModifier(attach, detach))
+        holder.applyModifierDiff(listenerModifier())
         assertEquals(1, attach[0], "re-applying the same listener while attached must not re-attach")
 
         // Slot reuse.
@@ -87,7 +86,7 @@ class SwingNodeHolderLifecycleTest {
 
         // Next apply after reuse MUST re-attach a fresh listener (the core regression check: this can
         // only advance if reuse cleared the cached diff so the install-guard no longer holds).
-        holder.applyModifierDiff(listenerModifier(attach, detach))
+        holder.applyModifierDiff(listenerModifier())
         assertEquals(2, attach[0], "a reused holder must re-attach exactly one fresh listener")
     }
 
@@ -131,10 +130,8 @@ class SwingNodeHolderLifecycleTest {
     @Test
     fun onDeactivate_detachesAndClearsStateSoLaterActivationReattaches() {
         val holder = SwingNodeHolder(JButton("b"))
-        val attach = IntArray(1)
-        val detach = IntArray(1)
 
-        holder.applyModifierDiff(listenerModifier(attach, detach))
+        holder.applyModifierDiff(listenerModifier())
         assertEquals(1, attach[0], "applying the modifier must attach exactly one listener")
 
         // Deactivation (movableContent parked the node).
@@ -143,18 +140,16 @@ class SwingNodeHolderLifecycleTest {
 
         // A later apply on the same holder must find its diff state clean, whatever calls it: the
         // observable proof that onDeactivate cleared it rather than leaving the install-guard tripped.
-        holder.applyModifierDiff(listenerModifier(attach, detach))
+        holder.applyModifierDiff(listenerModifier())
         assertEquals(2, attach[0], "a later apply on a deactivated holder must re-attach exactly one fresh listener")
     }
 
     @Test
     fun repeatedReuseCyclesKeepListenerCountBalanced() {
         val holder = SwingNodeHolder(JButton("b"))
-        val attach = IntArray(1)
-        val detach = IntArray(1)
 
         repeat(4) {
-            holder.applyModifierDiff(listenerModifier(attach, detach))
+            holder.applyModifierDiff(listenerModifier())
             holder.onReuse()
         }
 
@@ -170,9 +165,7 @@ class SwingNodeHolderLifecycleTest {
         holder.onReuse()
 
         // Subsequent apply still attaches exactly one listener and detaches none.
-        val attach = IntArray(1)
-        val detach = IntArray(1)
-        holder.applyModifierDiff(listenerModifier(attach, detach))
+        holder.applyModifierDiff(listenerModifier())
         assertEquals(1, attach[0], "apply after a no-op reuse must still attach exactly one listener")
         assertEquals(0, detach[0], "apply after a no-op reuse must not detach anything")
     }

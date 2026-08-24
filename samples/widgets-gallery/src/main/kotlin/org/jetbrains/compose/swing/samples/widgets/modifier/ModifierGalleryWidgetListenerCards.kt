@@ -15,6 +15,7 @@ import org.jetbrains.compose.swing.components.layout.ColumnScope
 import org.jetbrains.compose.swing.components.layout.FlowPanel
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
 import org.jetbrains.compose.swing.modifier.listener.actionListener
 import org.jetbrains.compose.swing.modifier.listener.changeListener
 import org.jetbrains.compose.swing.modifier.listener.documentListener
@@ -76,7 +77,7 @@ internal fun ColumnScope.ChangeListenerCard() {
 
 @Composable
 internal fun ColumnScope.ListenerEscapeHatchCard() {
-    ExampleCard("listener<T, L> (escape hatch: PopupMenuListener has no typed builder)") {
+    ExampleCard("listener (escape hatch: PopupMenuListener has no typed builder)") {
         var opens by remember { mutableIntStateOf(0) }
         val popupListener =
             remember {
@@ -98,11 +99,7 @@ internal fun ColumnScope.ListenerEscapeHatchCard() {
                 selectedItem = language,
                 onSelectionChange = { language = it ?: language },
                 modifier =
-                    SwingModifier.listener<JComboBox<*>, PopupMenuListener>(
-                        popupListener,
-                        { component, listener -> component.addPopupMenuListener(listener) },
-                        { component, listener -> component.removePopupMenuListener(listener) },
-                    ),
+                    SwingModifier.listener(popupListener, POPUP_MENU),
             )
         }
         Label("Popup opened $opens time(s)")
@@ -190,3 +187,10 @@ internal fun ColumnScope.KeyListenerCard() {
         Label("Keys pressed: $presses")
     }
 }
+
+// The registration the escape hatch registers on, held once: it is what says where the listener sits.
+private val POPUP_MENU =
+    ListenerRegistration<JComboBox<*>, PopupMenuListener>(
+        { component, listener -> component.addPopupMenuListener(listener) },
+        { component, listener -> component.removePopupMenuListener(listener) },
+    )

@@ -46,8 +46,35 @@ public fun SwingModifier.componentListener(
         declared(onComponentResized) || declared(onComponentMoved) || declared(onComponentShown) ||
             declared(onComponentHidden),
     )
-    return listener<Component, ComponentCallbacks, ComponentListener>(
-        callback = ComponentCallbacks(onComponentResized, onComponentMoved, onComponentShown, onComponentHidden),
+    return listener(
+        ComponentCallbacks(onComponentResized, onComponentMoved, onComponentShown, onComponentHidden),
+        COMPONENT_CALLBACKS,
+    )
+}
+
+/**
+ * Attaches a [ComponentListener] (`addComponentListener`/`removeComponentListener`).
+ *
+ * @see java.awt.Component.addComponentListener
+ */
+public fun SwingModifier.componentListener(listener: ComponentListener): SwingModifier = listener(listener, COMPONENT)
+
+/** The lambdas [componentListener] was declared with, as one value the built listener reads. */
+private class ComponentCallbacks(
+    val onComponentResized: (ComponentEvent) -> Unit,
+    val onComponentMoved: (ComponentEvent) -> Unit,
+    val onComponentShown: (ComponentEvent) -> Unit,
+    val onComponentHidden: (ComponentEvent) -> Unit,
+)
+
+private val COMPONENT =
+    ListenerRegistration<Component, ComponentListener>(
+        Component::addComponentListener,
+        Component::removeComponentListener,
+    )
+
+private val COMPONENT_CALLBACKS =
+    CallbackRegistration<Component, ComponentCallbacks, ComponentListener>(
         adapter = { current ->
             object : ComponentListener {
                 override fun componentResized(event: ComponentEvent): Unit = current().onComponentResized(event)
@@ -59,27 +86,5 @@ public fun SwingModifier.componentListener(
                 override fun componentHidden(event: ComponentEvent): Unit = current().onComponentHidden(event)
             }
         },
-        attach = { component, listener -> component.addComponentListener(listener) },
-        detach = { component, listener -> component.removeComponentListener(listener) },
+        registration = COMPONENT,
     )
-}
-
-/**
- * Attaches a [ComponentListener] (`addComponentListener`/`removeComponentListener`).
- *
- * @see java.awt.Component.addComponentListener
- */
-public fun SwingModifier.componentListener(listener: ComponentListener): SwingModifier =
-    listener<Component, ComponentListener>(
-        listener,
-        Component::addComponentListener,
-        Component::removeComponentListener,
-    )
-
-/** The lambdas [componentListener] was declared with, as one value the built listener reads. */
-private class ComponentCallbacks(
-    val onComponentResized: (ComponentEvent) -> Unit,
-    val onComponentMoved: (ComponentEvent) -> Unit,
-    val onComponentShown: (ComponentEvent) -> Unit,
-    val onComponentHidden: (ComponentEvent) -> Unit,
-)

@@ -42,8 +42,31 @@ public fun SwingModifier.keyListener(
     onKeyReleased: (KeyEvent) -> Unit = UNDECLARED,
 ): SwingModifier {
     requireAnyDeclared("keyListener", declared(onKeyTyped) || declared(onKeyPressed) || declared(onKeyReleased))
-    return listener<Component, KeyCallbacks, KeyListener>(
-        callback = KeyCallbacks(onKeyTyped, onKeyPressed, onKeyReleased),
+    return listener(KeyCallbacks(onKeyTyped, onKeyPressed, onKeyReleased), KEY_CALLBACKS)
+}
+
+/**
+ * Attaches a [KeyListener] (`addKeyListener`/`removeKeyListener`).
+ *
+ * @see java.awt.Component.addKeyListener
+ */
+public fun SwingModifier.keyListener(listener: KeyListener): SwingModifier = listener(listener, KEY)
+
+private class KeyCallbacks(
+    val onKeyTyped: (KeyEvent) -> Unit,
+    val onKeyPressed: (KeyEvent) -> Unit,
+    val onKeyReleased: (KeyEvent) -> Unit,
+)
+
+/** The registration a key listener sits on, shared by every builder over a component's keys. */
+internal val KEY =
+    ListenerRegistration<Component, KeyListener>(
+        Component::addKeyListener,
+        Component::removeKeyListener,
+    )
+
+private val KEY_CALLBACKS =
+    CallbackRegistration<Component, KeyCallbacks, KeyListener>(
         adapter = { current ->
             object : KeyListener {
                 override fun keyTyped(event: KeyEvent): Unit = current().onKeyTyped(event)
@@ -53,26 +76,5 @@ public fun SwingModifier.keyListener(
                 override fun keyReleased(event: KeyEvent): Unit = current().onKeyReleased(event)
             }
         },
-        attach = { component, listener -> component.addKeyListener(listener) },
-        detach = { component, listener -> component.removeKeyListener(listener) },
+        registration = KEY,
     )
-}
-
-/**
- * Attaches a [KeyListener] (`addKeyListener`/`removeKeyListener`).
- *
- * @see java.awt.Component.addKeyListener
- */
-public fun SwingModifier.keyListener(listener: KeyListener): SwingModifier =
-    listener<Component, KeyListener>(
-        listener,
-        Component::addKeyListener,
-        Component::removeKeyListener,
-    )
-
-/** The lambdas [keyListener] was declared with, as one value the built listener reads. */
-private class KeyCallbacks(
-    val onKeyTyped: (KeyEvent) -> Unit,
-    val onKeyPressed: (KeyEvent) -> Unit,
-    val onKeyReleased: (KeyEvent) -> Unit,
-)

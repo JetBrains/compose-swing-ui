@@ -18,12 +18,7 @@ import java.awt.event.AdjustmentListener
  * @see java.awt.Adjustable.addAdjustmentListener
  */
 public fun SwingModifier.adjustmentListener(onAdjustment: (AdjustmentEvent) -> Unit): SwingModifier =
-    listener<Component, (AdjustmentEvent) -> Unit, AdjustmentListener>(
-        callback = onAdjustment,
-        adapter = { current -> AdjustmentListener { event -> current()(event) } },
-        attach = { component, listener -> component.asAdjustable().addAdjustmentListener(listener) },
-        detach = { component, listener -> component.asAdjustable().removeAdjustmentListener(listener) },
-    )
+    listener(onAdjustment, ADJUSTMENT_CALLBACKS)
 
 /**
  * Attaches an [AdjustmentListener] (`addAdjustmentListener`/`removeAdjustmentListener`) to a scrollbar
@@ -36,11 +31,7 @@ public fun SwingModifier.adjustmentListener(onAdjustment: (AdjustmentEvent) -> U
  * @see java.awt.Adjustable.addAdjustmentListener
  */
 public fun SwingModifier.adjustmentListener(listener: AdjustmentListener): SwingModifier =
-    listener<Component, AdjustmentListener>(
-        listener,
-        { component, instance -> component.asAdjustable().addAdjustmentListener(instance) },
-        { component, instance -> component.asAdjustable().removeAdjustmentListener(instance) },
-    )
+    listener(listener, ADJUSTMENT)
 
 /**
  * Casts to [Adjustable], the interface the scrollbar classes implement. A component that isn't one
@@ -52,3 +43,15 @@ private fun Component.asAdjustable(): Adjustable =
             "adjustmentListener requires a scrollbar component (JScrollBar, java.awt.Scrollbar), " +
                 "but the component is a ${javaClass.name}",
         )
+
+private val ADJUSTMENT =
+    ListenerRegistration<Component, AdjustmentListener>(
+        { component, listener -> component.asAdjustable().addAdjustmentListener(listener) },
+        { component, listener -> component.asAdjustable().removeAdjustmentListener(listener) },
+    )
+
+private val ADJUSTMENT_CALLBACKS =
+    CallbackRegistration<Component, (AdjustmentEvent) -> Unit, AdjustmentListener>(
+        adapter = { current -> AdjustmentListener { event -> current()(event) } },
+        registration = ADJUSTMENT,
+    )

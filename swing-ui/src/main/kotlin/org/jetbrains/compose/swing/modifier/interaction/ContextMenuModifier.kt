@@ -111,6 +111,7 @@ private class ContextMenuElement(
     override fun create(): Node = Node(parentContext)
 
     override fun update(node: Node) {
+        node.parentContext = parentContext
         node.onOpen = onOpen
         node.onClose = onClose
         node.display = display
@@ -141,7 +142,7 @@ private class ContextMenuElement(
      * and installs the popup-trigger mouse listener.
      */
     class Node(
-        private val parentContext: CompositionContext,
+        var parentContext: CompositionContext,
     ) : SwingModifier.Node<JComponent>() {
         var onOpen: () -> Unit = {}
         var onClose: () -> Unit = {}

@@ -25,27 +25,17 @@ import javax.swing.event.ChangeListener
  * @see javax.swing.event.ChangeListener
  */
 public fun SwingModifier.changeListener(onChange: (ChangeEvent) -> Unit): SwingModifier =
-    listener<Component, (ChangeEvent) -> Unit, ChangeListener>(
-        callback = onChange,
-        adapter = { current -> ChangeListener { event -> current()(event) } },
-        attach = { component, listener -> changeListenerRegistrar(component).add(listener) },
-        detach = { component, listener -> changeListenerRegistrar(component).remove(listener) },
-    )
+    listener(onChange, CHANGE_CALLBACKS)
 
 /**
  * Attaches a [ChangeListener] (`addChangeListener`/`removeChangeListener`) to a component that fires
  * change events (`JSlider`, `JSpinner`, `JTabbedPane`, `JProgressBar`, `AbstractButton`, `JViewport`,
- * `JColorChooser`). A color chooser publishes its change events through the `selectionModel` it holds
- * when the listener is installed.
+ * `JColorChooser`). A color chooser publishes its change events through its `selectionModel`, and the
+ * registration follows that model when the chooser is given another one.
  *
  * @see javax.swing.event.ChangeListener
  */
-public fun SwingModifier.changeListener(listener: ChangeListener): SwingModifier =
-    listener<Component, ChangeListener>(
-        listener,
-        { component, instance -> changeListenerRegistrar(component).add(instance) },
-        { component, instance -> changeListenerRegistrar(component).remove(instance) },
-    )
+public fun SwingModifier.changeListener(listener: ChangeListener): SwingModifier = listener(listener, CHANGE)
 
 /**
  * The matched widget's `addChangeListener`/`removeChangeListener` pair, resolved once so a single
@@ -89,8 +79,8 @@ private fun changeListenerRegistrar(component: Component): ChangeListenerRegistr
 
         is JColorChooser -> {
             ChangeListenerRegistrar(
-                component.selectionModel::addChangeListener,
-                component.selectionModel::removeChangeListener,
+                component::attachSwappableChangeListener,
+                component::detachSwappableChangeListener,
             )
         }
 
@@ -103,3 +93,15 @@ private fun changeListenerTargetError(component: Component): String =
     "changeListener requires a component that fires change events " +
         "(JSlider, JSpinner, JTabbedPane, JProgressBar, AbstractButton, JViewport, JColorChooser), " +
         "but the component is a ${component.javaClass.name}"
+
+private val CHANGE =
+    ListenerRegistration<Component, ChangeListener>(
+        { component, listener -> changeListenerRegistrar(component).add(listener) },
+        { component, listener -> changeListenerRegistrar(component).remove(listener) },
+    )
+
+private val CHANGE_CALLBACKS =
+    CallbackRegistration<Component, (ChangeEvent) -> Unit, ChangeListener>(
+        adapter = { current -> ChangeListener { event -> current()(event) } },
+        registration = CHANGE,
+    )

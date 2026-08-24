@@ -10,7 +10,7 @@ import javax.swing.text.JTextComponent
 
 /**
  * Runs [onCaretUpdate] whenever the caret moves or the selection changes. Requires a [JTextComponent]
- * target. Each event carries the caret offset and the selection anchor, so one lambda observes both.
+ * target.
  *
  * [onCaretUpdate] is read when the event fires, so writing a fresh lambda on every recomposition
  * registers nothing again.
@@ -18,12 +18,7 @@ import javax.swing.text.JTextComponent
  * @see javax.swing.text.JTextComponent.addCaretListener
  */
 public fun SwingModifier.caretListener(onCaretUpdate: (CaretEvent) -> Unit): SwingModifier =
-    listener<JTextComponent, (CaretEvent) -> Unit, CaretListener>(
-        callback = onCaretUpdate,
-        adapter = { current -> CaretListener { event -> current()(event) } },
-        attach = { component, listener -> component.addCaretListener(listener) },
-        detach = { component, listener -> component.removeCaretListener(listener) },
-    )
+    listener(onCaretUpdate, CARET_CALLBACKS)
 
 /**
  * Attaches a [CaretListener] (`addCaretListener`/`removeCaretListener`). Requires a [JTextComponent]
@@ -31,14 +26,21 @@ public fun SwingModifier.caretListener(onCaretUpdate: (CaretEvent) -> Unit): Swi
  * so one listener observes both the caret position and the selected range.
  *
  * The listener observes the component's caret rather than a document, so it keeps reporting after the
- * component's `document` is replaced - unlike [documentListener], which binds the document the
- * component holds at install time.
+ * component's `document` is replaced - as does [documentListener], which follows the document the
+ * component swaps in.
  *
  * @see javax.swing.text.JTextComponent.addCaretListener
  */
-public fun SwingModifier.caretListener(listener: CaretListener): SwingModifier =
-    listener<JTextComponent, CaretListener>(
-        listener,
+public fun SwingModifier.caretListener(listener: CaretListener): SwingModifier = listener(listener, CARET)
+
+private val CARET =
+    ListenerRegistration<JTextComponent, CaretListener>(
         JTextComponent::addCaretListener,
         JTextComponent::removeCaretListener,
+    )
+
+private val CARET_CALLBACKS =
+    CallbackRegistration<JTextComponent, (CaretEvent) -> Unit, CaretListener>(
+        adapter = { current -> CaretListener { event -> current()(event) } },
+        registration = CARET,
     )

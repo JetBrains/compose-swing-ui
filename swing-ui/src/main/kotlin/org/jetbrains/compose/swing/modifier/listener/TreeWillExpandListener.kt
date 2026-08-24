@@ -13,9 +13,6 @@ import javax.swing.JTree as SwingJTree
  * Asks [onWillChange] before a node of the tree opens or closes whether it may: answering false leaves
  * the node as it was and no expansion event follows. Requires a [javax.swing.JTree] target.
  *
- * [onWillChange] is read when the event fires, so writing a fresh lambda on every recomposition
- * registers nothing again.
- *
  * @see javax.swing.JTree.addTreeWillExpandListener
  */
 public fun SwingModifier.treeWillExpandListener(onWillChange: (TreeExpansionEvent) -> Boolean): SwingModifier =
@@ -41,22 +38,7 @@ public fun SwingModifier.treeWillExpandListener(
     onWillCollapse: (TreeExpansionEvent) -> Boolean = UNDECLARED_ANSWER,
 ): SwingModifier {
     requireAnyDeclared("treeWillExpandListener", declared(onWillExpand) || declared(onWillCollapse))
-    return listener<SwingJTree, TreeWillExpandCallbacks, TreeWillExpandListener>(
-        callback = TreeWillExpandCallbacks(onWillExpand, onWillCollapse),
-        adapter = { current ->
-            object : TreeWillExpandListener {
-                override fun treeWillExpand(event: TreeExpansionEvent) {
-                    if (!current().onWillExpand(event)) throw ExpandVetoException(event)
-                }
-
-                override fun treeWillCollapse(event: TreeExpansionEvent) {
-                    if (!current().onWillCollapse(event)) throw ExpandVetoException(event)
-                }
-            }
-        },
-        attach = { component, listener -> component.addTreeWillExpandListener(listener) },
-        detach = { component, listener -> component.removeTreeWillExpandListener(listener) },
-    )
+    return listener(TreeWillExpandCallbacks(onWillExpand, onWillCollapse), TREE_WILL_EXPAND_CALLBACKS)
 }
 
 /**
@@ -70,14 +52,32 @@ public fun SwingModifier.treeWillExpandListener(
  * @see javax.swing.JTree.addTreeWillExpandListener
  */
 public fun SwingModifier.treeWillExpandListener(listener: TreeWillExpandListener): SwingModifier =
-    listener<SwingJTree, TreeWillExpandListener>(
-        listener,
-        SwingJTree::addTreeWillExpandListener,
-        SwingJTree::removeTreeWillExpandListener,
-    )
+    listener(listener, TREE_WILL_EXPAND)
 
 /** The lambdas [treeWillExpandListener] was declared with, as one value the built listener reads. */
 private class TreeWillExpandCallbacks(
     val onWillExpand: (TreeExpansionEvent) -> Boolean,
     val onWillCollapse: (TreeExpansionEvent) -> Boolean,
 )
+
+private val TREE_WILL_EXPAND =
+    ListenerRegistration<SwingJTree, TreeWillExpandListener>(
+        SwingJTree::addTreeWillExpandListener,
+        SwingJTree::removeTreeWillExpandListener,
+    )
+
+private val TREE_WILL_EXPAND_CALLBACKS =
+    CallbackRegistration<SwingJTree, TreeWillExpandCallbacks, TreeWillExpandListener>(
+        adapter = { current ->
+            object : TreeWillExpandListener {
+                override fun treeWillExpand(event: TreeExpansionEvent) {
+                    if (!current().onWillExpand(event)) throw ExpandVetoException(event)
+                }
+
+                override fun treeWillCollapse(event: TreeExpansionEvent) {
+                    if (!current().onWillCollapse(event)) throw ExpandVetoException(event)
+                }
+            }
+        },
+        registration = TREE_WILL_EXPAND,
+    )

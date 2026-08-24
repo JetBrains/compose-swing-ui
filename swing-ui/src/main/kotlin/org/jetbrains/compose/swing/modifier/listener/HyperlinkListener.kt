@@ -18,12 +18,7 @@ import javax.swing.event.HyperlinkListener
  * @see javax.swing.JEditorPane.addHyperlinkListener
  */
 public fun SwingModifier.hyperlinkListener(onHyperlinkUpdate: (HyperlinkEvent) -> Unit): SwingModifier =
-    listener<JEditorPane, (HyperlinkEvent) -> Unit, HyperlinkListener>(
-        callback = onHyperlinkUpdate,
-        adapter = { current -> HyperlinkListener { event -> current()(event) } },
-        attach = { component, listener -> component.addHyperlinkListener(listener) },
-        detach = { component, listener -> component.removeHyperlinkListener(listener) },
-    )
+    listener(onHyperlinkUpdate, HYPERLINK_CALLBACKS)
 
 /**
  * Attaches a [HyperlinkListener] (`addHyperlinkListener`/`removeHyperlinkListener`). Requires a
@@ -38,9 +33,16 @@ public fun SwingModifier.hyperlinkListener(onHyperlinkUpdate: (HyperlinkEvent) -
  *
  * @see javax.swing.JEditorPane.addHyperlinkListener
  */
-public fun SwingModifier.hyperlinkListener(listener: HyperlinkListener): SwingModifier =
-    listener<JEditorPane, HyperlinkListener>(
-        listener,
+public fun SwingModifier.hyperlinkListener(listener: HyperlinkListener): SwingModifier = listener(listener, HYPERLINK)
+
+private val HYPERLINK =
+    ListenerRegistration<JEditorPane, HyperlinkListener>(
         JEditorPane::addHyperlinkListener,
         JEditorPane::removeHyperlinkListener,
+    )
+
+private val HYPERLINK_CALLBACKS =
+    CallbackRegistration<JEditorPane, (HyperlinkEvent) -> Unit, HyperlinkListener>(
+        adapter = { current -> HyperlinkListener { event -> current()(event) } },
+        registration = HYPERLINK,
     )

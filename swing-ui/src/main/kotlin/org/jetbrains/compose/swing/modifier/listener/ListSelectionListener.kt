@@ -17,12 +17,7 @@ import javax.swing.event.ListSelectionListener
  * @see javax.swing.JList.addListSelectionListener
  */
 public fun SwingModifier.listSelectionListener(onSelectionChange: (ListSelectionEvent) -> Unit): SwingModifier =
-    listener<JList<*>, (ListSelectionEvent) -> Unit, ListSelectionListener>(
-        callback = onSelectionChange,
-        adapter = { current -> ListSelectionListener { event -> current()(event) } },
-        attach = { component, listener -> component.addListSelectionListener(listener) },
-        detach = { component, listener -> component.removeListSelectionListener(listener) },
-    )
+    listener(onSelectionChange, LIST_SELECTION_CALLBACKS)
 
 /**
  * Attaches a [ListSelectionListener]
@@ -31,8 +26,16 @@ public fun SwingModifier.listSelectionListener(onSelectionChange: (ListSelection
  * @see javax.swing.JList.addListSelectionListener
  */
 public fun SwingModifier.listSelectionListener(listener: ListSelectionListener): SwingModifier =
-    listener<JList<*>, ListSelectionListener>(
-        listener,
+    listener(listener, LIST_SELECTION)
+
+private val LIST_SELECTION =
+    ListenerRegistration<JList<*>, ListSelectionListener>(
         JList<*>::addListSelectionListener,
         JList<*>::removeListSelectionListener,
+    )
+
+private val LIST_SELECTION_CALLBACKS =
+    CallbackRegistration<JList<*>, (ListSelectionEvent) -> Unit, ListSelectionListener>(
+        adapter = { current -> ListSelectionListener { event -> current()(event) } },
+        registration = LIST_SELECTION,
     )

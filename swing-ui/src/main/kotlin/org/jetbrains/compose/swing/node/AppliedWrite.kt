@@ -3,10 +3,6 @@ package org.jetbrains.compose.swing.node
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import org.jetbrains.compose.swing.core.reportCallerFailure
-import javax.swing.event.ChangeEvent
-import javax.swing.event.ListSelectionEvent
-import javax.swing.event.TableColumnModelEvent
-import javax.swing.event.TableColumnModelListener
 
 /**
  * A reentrancy guard marking the wrapper's own writes to its widget, so a listener can tell them from
@@ -63,27 +59,3 @@ internal class AppliedWrite {
 /** Remembers the [AppliedWrite] a component marks its own writes to its widget through. */
 @Composable
 internal fun rememberAppliedWrite(): AppliedWrite = remember { AppliedWrite() }
-
-/** [listener], narrowed to the column reorders and resizes the user made. */
-internal fun AppliedWrite.userOnly(listener: TableColumnModelListener): TableColumnModelListener =
-    object : TableColumnModelListener {
-        override fun columnAdded(event: TableColumnModelEvent) {
-            if (!isWriting) listener.columnAdded(event)
-        }
-
-        override fun columnRemoved(event: TableColumnModelEvent) {
-            if (!isWriting) listener.columnRemoved(event)
-        }
-
-        override fun columnMoved(event: TableColumnModelEvent) {
-            if (!isWriting) listener.columnMoved(event)
-        }
-
-        override fun columnMarginChanged(event: ChangeEvent) {
-            if (!isWriting) listener.columnMarginChanged(event)
-        }
-
-        override fun columnSelectionChanged(event: ListSelectionEvent) {
-            if (!isWriting) listener.columnSelectionChanged(event)
-        }
-    }

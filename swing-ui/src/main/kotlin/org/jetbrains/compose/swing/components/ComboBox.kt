@@ -12,6 +12,7 @@ import org.jetbrains.compose.swing.components.selection.composableItemCells
 import org.jetbrains.compose.swing.components.selection.rememberComposingListCellRenderer
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
+import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
 import org.jetbrains.compose.swing.modifier.listener.actionListener
 import org.jetbrains.compose.swing.modifier.listener.listener
 import org.jetbrains.compose.swing.node.AppliedValue
@@ -106,7 +107,7 @@ public fun <T> ComboBox(
     val applied = rememberAppliedValue(selectedItem)
     val settled = rememberSelectionReader(items)
     // The caller's listener is attached as-is, and is the only action listener on the combo box. The
-    // mirror rides the item-selection channel instead, so the declared selection still settles against
+    // mirror rides the item-selection registration instead, so the declared selection still settles against
     // wherever the combo box lands, whether that is the user's own choice or the caller's own write back.
     val mirror =
         remember(applied, settled) {
@@ -120,11 +121,7 @@ public fun <T> ComboBox(
         modifier =
             modifier
                 .actionListener(actionListener)
-                .listener<JComboBox<*>, ItemListener>(
-                    mirror,
-                    { component, listener -> component.addItemListener(listener) },
-                    { component, listener -> component.removeItemListener(listener) },
-                ),
+                .listener(mirror, COMBO_ITEM_SELECTION),
         editable = editable,
         maximumRowCount = maximumRowCount,
         itemContent = itemContent,
@@ -286,7 +283,7 @@ private fun <T> rememberSelectionReader(items: List<T>): JComboBox<*>.() -> T? {
 private fun <T> List<T>.selectionOf(value: Any?): T? = firstOrNull { it == value }
 
 /**
- * Installs the action channel the `onSelectionChange`-driven overloads listen on: it splits a combo box's
+ * Installs the action registration the `onSelectionChange`-driven overloads listen on: it splits a combo box's
  * action events into the two things a caller can act on - committing the editor reports the text that was
  * typed to [onValueCommit], and any other change reports what [settled] reads off the combo box to
  * [onSelectionChange]. A commit is reported regardless of [applied], since its text carries a value the
@@ -335,3 +332,9 @@ private fun <T> applySelection(
     if (items.selectionOf(comboBox.selectedItem) == selection) return
     comboBox.selectedItem = selection
 }
+
+private val COMBO_ITEM_SELECTION =
+    ListenerRegistration<JComboBox<*>, ItemListener>(
+        { component, listener -> component.addItemListener(listener) },
+        { component, listener -> component.removeItemListener(listener) },
+    )

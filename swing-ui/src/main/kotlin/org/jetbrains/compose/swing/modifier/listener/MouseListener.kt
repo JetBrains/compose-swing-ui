@@ -50,8 +50,35 @@ public fun SwingModifier.mouseListener(
         declared(onMouseClicked) || declared(onMousePressed) || declared(onMouseReleased) || declared(onMouseEntered) ||
             declared(onMouseExited),
     )
-    return listener<Component, MouseCallbacks, MouseListener>(
-        callback = MouseCallbacks(onMouseClicked, onMousePressed, onMouseReleased, onMouseEntered, onMouseExited),
+    return listener(
+        MouseCallbacks(onMouseClicked, onMousePressed, onMouseReleased, onMouseEntered, onMouseExited),
+        MOUSE_CALLBACKS,
+    )
+}
+
+/**
+ * Attaches a [MouseListener] (`addMouseListener`/`removeMouseListener`).
+ *
+ * @see java.awt.Component.addMouseListener
+ */
+public fun SwingModifier.mouseListener(listener: MouseListener): SwingModifier = listener(listener, MOUSE)
+
+private class MouseCallbacks(
+    val onMouseClicked: (MouseEvent) -> Unit,
+    val onMousePressed: (MouseEvent) -> Unit,
+    val onMouseReleased: (MouseEvent) -> Unit,
+    val onMouseEntered: (MouseEvent) -> Unit,
+    val onMouseExited: (MouseEvent) -> Unit,
+)
+
+private val MOUSE =
+    ListenerRegistration<Component, MouseListener>(
+        Component::addMouseListener,
+        Component::removeMouseListener,
+    )
+
+private val MOUSE_CALLBACKS =
+    CallbackRegistration<Component, MouseCallbacks, MouseListener>(
         adapter = { current ->
             object : MouseListener {
                 override fun mouseClicked(event: MouseEvent): Unit = current().onMouseClicked(event)
@@ -65,28 +92,5 @@ public fun SwingModifier.mouseListener(
                 override fun mouseExited(event: MouseEvent): Unit = current().onMouseExited(event)
             }
         },
-        attach = { component, listener -> component.addMouseListener(listener) },
-        detach = { component, listener -> component.removeMouseListener(listener) },
+        registration = MOUSE,
     )
-}
-
-/**
- * Attaches a [MouseListener] (`addMouseListener`/`removeMouseListener`).
- *
- * @see java.awt.Component.addMouseListener
- */
-public fun SwingModifier.mouseListener(listener: MouseListener): SwingModifier =
-    listener<Component, MouseListener>(
-        listener,
-        Component::addMouseListener,
-        Component::removeMouseListener,
-    )
-
-/** The lambdas [mouseListener] was declared with, as one value the built listener reads. */
-private class MouseCallbacks(
-    val onMouseClicked: (MouseEvent) -> Unit,
-    val onMousePressed: (MouseEvent) -> Unit,
-    val onMouseReleased: (MouseEvent) -> Unit,
-    val onMouseEntered: (MouseEvent) -> Unit,
-    val onMouseExited: (MouseEvent) -> Unit,
-)

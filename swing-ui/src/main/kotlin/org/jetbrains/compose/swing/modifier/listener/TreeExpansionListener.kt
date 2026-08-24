@@ -12,9 +12,6 @@ import javax.swing.JTree as SwingJTree
  * Runs [onExpansionChange] whenever a node of the tree opens or closes. Requires a
  * [javax.swing.JTree] target.
  *
- * [onExpansionChange] is read when the event fires, so writing a fresh lambda on every recomposition
- * registers nothing again.
- *
  * @see javax.swing.JTree.addTreeExpansionListener
  */
 public fun SwingModifier.treeExpansionListener(onExpansionChange: (TreeExpansionEvent) -> Unit): SwingModifier =
@@ -39,18 +36,7 @@ public fun SwingModifier.treeExpansionListener(
     onTreeCollapsed: (TreeExpansionEvent) -> Unit = UNDECLARED,
 ): SwingModifier {
     requireAnyDeclared("treeExpansionListener", declared(onTreeExpanded) || declared(onTreeCollapsed))
-    return listener<SwingJTree, TreeExpansionCallbacks, TreeExpansionListener>(
-        callback = TreeExpansionCallbacks(onTreeExpanded, onTreeCollapsed),
-        adapter = { current ->
-            object : TreeExpansionListener {
-                override fun treeExpanded(event: TreeExpansionEvent): Unit = current().onTreeExpanded(event)
-
-                override fun treeCollapsed(event: TreeExpansionEvent): Unit = current().onTreeCollapsed(event)
-            }
-        },
-        attach = { component, listener -> component.addTreeExpansionListener(listener) },
-        detach = { component, listener -> component.removeTreeExpansionListener(listener) },
-    )
+    return listener(TreeExpansionCallbacks(onTreeExpanded, onTreeCollapsed), TREE_EXPANSION_CALLBACKS)
 }
 
 /**
@@ -60,14 +46,28 @@ public fun SwingModifier.treeExpansionListener(
  * @see javax.swing.JTree.addTreeExpansionListener
  */
 public fun SwingModifier.treeExpansionListener(listener: TreeExpansionListener): SwingModifier =
-    listener<SwingJTree, TreeExpansionListener>(
-        listener,
-        SwingJTree::addTreeExpansionListener,
-        SwingJTree::removeTreeExpansionListener,
-    )
+    listener(listener, TREE_EXPANSION)
 
 /** The lambdas [treeExpansionListener] was declared with, as one value the built listener reads. */
 private class TreeExpansionCallbacks(
     val onTreeExpanded: (TreeExpansionEvent) -> Unit,
     val onTreeCollapsed: (TreeExpansionEvent) -> Unit,
 )
+
+private val TREE_EXPANSION =
+    ListenerRegistration<SwingJTree, TreeExpansionListener>(
+        SwingJTree::addTreeExpansionListener,
+        SwingJTree::removeTreeExpansionListener,
+    )
+
+private val TREE_EXPANSION_CALLBACKS =
+    CallbackRegistration<SwingJTree, TreeExpansionCallbacks, TreeExpansionListener>(
+        adapter = { current ->
+            object : TreeExpansionListener {
+                override fun treeExpanded(event: TreeExpansionEvent): Unit = current().onTreeExpanded(event)
+
+                override fun treeCollapsed(event: TreeExpansionEvent): Unit = current().onTreeCollapsed(event)
+            }
+        },
+        registration = TREE_EXPANSION,
+    )

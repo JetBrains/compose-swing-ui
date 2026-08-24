@@ -9,6 +9,7 @@ import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.constants.ContentType
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
+import org.jetbrains.compose.swing.modifier.listener.documentListener
 import org.jetbrains.compose.swing.modifier.listener.hyperlinkListener
 import org.jetbrains.compose.swing.node.AppliedValue
 import org.jetbrains.compose.swing.node.SwingNode
@@ -269,7 +270,7 @@ public fun TextPane(
     TextPaneNode(
         value = value,
         applied = applied,
-        modifier = modifier.swappableDocumentListener(documentListener).textMirror(applied),
+        modifier = modifier.documentListener(documentListener).textMirror(applied),
         editable = editable,
     )
 }

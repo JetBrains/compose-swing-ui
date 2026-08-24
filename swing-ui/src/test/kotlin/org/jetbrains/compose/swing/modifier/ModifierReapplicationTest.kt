@@ -7,6 +7,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.modifier.appearance.background
+import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
 import org.jetbrains.compose.swing.modifier.listener.listener
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -123,7 +124,7 @@ class ModifierReapplicationTest {
             SwingModifier
                 .background(Color.GREEN)
                 .then(CountingToolTipElement("hello", writes))
-                .listener(hover, ADD_MOUSE_LISTENER, REMOVE_MOUSE_LISTENER)
+                .listener(hover, MOUSE_EVENTS)
         setContent {
             Label("tick $tick")
             ReusableContentHost(active = active) {
@@ -300,12 +301,13 @@ class ModifierReapplicationTest {
 
     private companion object {
         /**
-         * The add/remove pair handed to `listener`, held once so a chain built from them is the same
-         * declaration on every pass.
+         * The registration handed to `listener`, held once so a chain built from it is the same declaration
+         * on every pass.
          */
-        val ADD_MOUSE_LISTENER: (JButton, MouseListener) -> Unit =
-            { component, listener -> component.addMouseListener(listener) }
-        val REMOVE_MOUSE_LISTENER: (JButton, MouseListener) -> Unit =
-            { component, listener -> component.removeMouseListener(listener) }
+        val MOUSE_EVENTS =
+            ListenerRegistration<JButton, MouseListener>(
+                { component, listener -> component.addMouseListener(listener) },
+                { component, listener -> component.removeMouseListener(listener) },
+            )
     }
 }

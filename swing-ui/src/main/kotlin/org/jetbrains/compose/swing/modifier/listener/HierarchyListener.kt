@@ -18,21 +18,23 @@ import java.awt.event.HierarchyListener
  * @see java.awt.Component.addHierarchyListener
  */
 public fun SwingModifier.hierarchyListener(onHierarchyChange: (HierarchyEvent) -> Unit): SwingModifier =
-    listener<Component, (HierarchyEvent) -> Unit, HierarchyListener>(
-        callback = onHierarchyChange,
-        adapter = { current -> HierarchyListener { event -> current()(event) } },
-        attach = { component, listener -> component.addHierarchyListener(listener) },
-        detach = { component, listener -> component.removeHierarchyListener(listener) },
-    )
+    listener(onHierarchyChange, HIERARCHY_CALLBACKS)
 
 /**
  * Attaches a [HierarchyListener] (`addHierarchyListener`/`removeHierarchyListener`).
  *
  * @see java.awt.Component.addHierarchyListener
  */
-public fun SwingModifier.hierarchyListener(listener: HierarchyListener): SwingModifier =
-    listener<Component, HierarchyListener>(
-        listener,
+public fun SwingModifier.hierarchyListener(listener: HierarchyListener): SwingModifier = listener(listener, HIERARCHY)
+
+private val HIERARCHY =
+    ListenerRegistration<Component, HierarchyListener>(
         Component::addHierarchyListener,
         Component::removeHierarchyListener,
+    )
+
+private val HIERARCHY_CALLBACKS =
+    CallbackRegistration<Component, (HierarchyEvent) -> Unit, HierarchyListener>(
+        adapter = { current -> HierarchyListener { event -> current()(event) } },
+        registration = HIERARCHY,
     )

@@ -165,9 +165,10 @@ application attaches directly to a component are never touched. A node installs 
 listener that always sees current composition state, rather than re-attaching one on every
 recomposition.
 
-Listeners are exposed through the modifier system. A typed lambda for a specific event and a raw
-listener share one installation path, so the behavior is the same regardless of which form a caller
-uses.
+Listeners are exposed through the modifier system, where the form a caller declares selects the
+mechanism. A raw listener is registered by identity, so a fresh instance each recomposition detaches
+the old one and attaches the new. A lambda is read when the event fires, so the library builds the
+listener once and a fresh lambda re-registers nothing.
 
 ---
 

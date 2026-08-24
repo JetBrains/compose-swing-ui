@@ -5,6 +5,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.compose.swing.core.dispatchToCaller
+import org.jetbrains.compose.swing.modifier.listener.ModelSwapAware
 import org.jetbrains.compose.swing.node.AppliedWrite
 import javax.swing.event.ChangeEvent
 import javax.swing.event.ListSelectionEvent
@@ -28,7 +29,11 @@ internal class ColumnLayoutChannel(
 
     /** Reports the user's own column reorders and resizes. Install it on the table's column model. */
     val listener: TableColumnModelListener =
-        object : TableColumnModelListener {
+        object : TableColumnModelListener, ModelSwapAware {
+            // A table handed another column model publishes whatever layout that model arrives in. It is
+            // the caller's own doing, so it settles what the two agree on rather than reporting back.
+            override fun adoptModelSwap(model: Any) = adopt((model as TableColumnModel).readColumnLayout())
+
             // A column added or removed is the table rebuilding its columns, never a user gesture: no
             // header drag adds or removes one. A rebuild that a pass of the composition drives has the
             // layout it left behind settled by preserveAcross; one that a caller's own mutation of the
@@ -138,4 +143,34 @@ internal fun columnLayoutListener(onColumnLayoutChange: (TableColumnLayout) -> U
         override fun columnSelectionChanged(event: ListSelectionEvent) = Unit
 
         private fun report(source: Any) = onColumnLayoutChange((source as TableColumnModel).readColumnLayout())
+    }
+
+/** [listener], narrowed to the column reorders and resizes the user made. */
+internal fun AppliedWrite.userOnly(listener: TableColumnModelListener): TableColumnModelListener =
+    object : TableColumnModelListener, ModelSwapAware {
+        // Filtering the wrapper's own writes is all this adds; a model swap still has to reach whatever
+        // state [listener] keeps, or the filter would hide the one thing that is not an event.
+        override fun adoptModelSwap(model: Any) {
+            (listener as? ModelSwapAware)?.adoptModelSwap(model)
+        }
+
+        override fun columnAdded(event: TableColumnModelEvent) {
+            if (!isWriting) listener.columnAdded(event)
+        }
+
+        override fun columnRemoved(event: TableColumnModelEvent) {
+            if (!isWriting) listener.columnRemoved(event)
+        }
+
+        override fun columnMoved(event: TableColumnModelEvent) {
+            if (!isWriting) listener.columnMoved(event)
+        }
+
+        override fun columnMarginChanged(event: ChangeEvent) {
+            if (!isWriting) listener.columnMarginChanged(event)
+        }
+
+        override fun columnSelectionChanged(event: ListSelectionEvent) {
+            if (!isWriting) listener.columnSelectionChanged(event)
+        }
     }

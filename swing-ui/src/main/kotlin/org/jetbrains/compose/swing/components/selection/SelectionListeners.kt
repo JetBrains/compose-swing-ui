@@ -1,9 +1,12 @@
 package org.jetbrains.compose.swing.components.selection
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
+import org.jetbrains.compose.swing.modifier.listener.SwappableModel
 import org.jetbrains.compose.swing.modifier.listener.listener
 import javax.swing.JTable
 import javax.swing.event.TableColumnModelListener
+import javax.swing.table.TableColumnModel
 
 /*
  * Internal listener helper for a registration site the public typed builders do not reach: a table's
@@ -13,12 +16,22 @@ import javax.swing.event.TableColumnModelListener
 
 /**
  * Attaches a [TableColumnModelListener] to a `JTable`'s `columnModel`, where the order and the widths
- * of its columns are published. A table keeps one column model across a structure change - the columns
- * are rebuilt inside it - so the registration outlives every rebuild.
+ * of its columns are published. The columns of a structure change are rebuilt inside whichever model is
+ * current, and a table given another column model takes the registration with it.
  */
 internal fun SwingModifier.tableColumnModelListener(listener: TableColumnModelListener): SwingModifier =
-    listener<JTable, TableColumnModelListener>(
-        listener,
-        { component, instance -> component.columnModel.addColumnModelListener(instance) },
-        { component, instance -> component.columnModel.removeColumnModelListener(instance) },
+    listener(listener, TABLE_COLUMN_LISTENERS)
+
+// A table publishes its column order and widths through the column model it holds, which a caller can
+// replace; the columns of a structure change are rebuilt inside whichever model is current.
+private val TABLE_COLUMNS =
+    SwappableModel<JTable, TableColumnModel, TableColumnModelListener>(
+        property = "columnModel",
+        modelType = TableColumnModel::class.java,
+        model = JTable::getColumnModel,
+        add = TableColumnModel::addColumnModelListener,
+        remove = TableColumnModel::removeColumnModelListener,
     )
+
+private val TABLE_COLUMN_LISTENERS =
+    ListenerRegistration<JTable, TableColumnModelListener>(TABLE_COLUMNS::attach, TABLE_COLUMNS::detach)

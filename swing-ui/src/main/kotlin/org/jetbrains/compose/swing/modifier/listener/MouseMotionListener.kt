@@ -39,18 +39,7 @@ public fun SwingModifier.mouseMotionListener(
     onMouseMoved: (MouseEvent) -> Unit = UNDECLARED,
 ): SwingModifier {
     requireAnyDeclared("mouseMotionListener", declared(onMouseDragged) || declared(onMouseMoved))
-    return listener<Component, MouseMotionCallbacks, MouseMotionListener>(
-        callback = MouseMotionCallbacks(onMouseDragged, onMouseMoved),
-        adapter = { current ->
-            object : MouseMotionListener {
-                override fun mouseDragged(event: MouseEvent): Unit = current().onMouseDragged(event)
-
-                override fun mouseMoved(event: MouseEvent): Unit = current().onMouseMoved(event)
-            }
-        },
-        attach = { component, listener -> component.addMouseMotionListener(listener) },
-        detach = { component, listener -> component.removeMouseMotionListener(listener) },
-    )
+    return listener(MouseMotionCallbacks(onMouseDragged, onMouseMoved), MOUSE_MOTION_CALLBACKS)
 }
 
 /**
@@ -59,14 +48,27 @@ public fun SwingModifier.mouseMotionListener(
  * @see java.awt.Component.addMouseMotionListener
  */
 public fun SwingModifier.mouseMotionListener(listener: MouseMotionListener): SwingModifier =
-    listener<Component, MouseMotionListener>(
-        listener,
-        Component::addMouseMotionListener,
-        Component::removeMouseMotionListener,
-    )
+    listener(listener, MOUSE_MOTION)
 
-/** The lambdas [mouseMotionListener] was declared with, as one value the built listener reads. */
 private class MouseMotionCallbacks(
     val onMouseDragged: (MouseEvent) -> Unit,
     val onMouseMoved: (MouseEvent) -> Unit,
 )
+
+private val MOUSE_MOTION =
+    ListenerRegistration<Component, MouseMotionListener>(
+        Component::addMouseMotionListener,
+        Component::removeMouseMotionListener,
+    )
+
+private val MOUSE_MOTION_CALLBACKS =
+    CallbackRegistration<Component, MouseMotionCallbacks, MouseMotionListener>(
+        adapter = { current ->
+            object : MouseMotionListener {
+                override fun mouseDragged(event: MouseEvent): Unit = current().onMouseDragged(event)
+
+                override fun mouseMoved(event: MouseEvent): Unit = current().onMouseMoved(event)
+            }
+        },
+        registration = MOUSE_MOTION,
+    )
