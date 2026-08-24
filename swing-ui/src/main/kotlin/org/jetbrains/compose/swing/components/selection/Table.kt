@@ -341,7 +341,7 @@ private class UserSelectionListenerElement(
         var target: ListSelectionListener = ListSelectionListener {}
 
         private val listener =
-            object : ListSelectionListener, ModelSwapAware {
+            object : ListSelectionListener, ModelSwapAware<ListSelectionModel> {
                 override fun valueChanged(event: ListSelectionEvent) {
                     val table = component
                     if (!event.valueIsAdjusting) applied.observed(table.selectedModelRows())
@@ -352,12 +352,14 @@ private class UserSelectionListenerElement(
                     }
                 }
 
-                override fun adoptModelSwap(model: Any) {
+                // The rows a selection model holds are its own indices; the mirror describes the table's,
+                // so what it settles is read back through the table rather than off the incoming model.
+                override fun adoptModelSwap(model: ListSelectionModel) {
                     applied.observed(component.selectedModelRows())
                 }
             }
 
-        override fun onAttach(): Unit = TABLE_SELECTION.attach(component, listener)
+        override fun onAttach(): Unit = TABLE_SELECTION.attachSettling(component, listener, listener::adoptModelSwap)
 
         override fun onDetach(): Unit = TABLE_SELECTION.detach(component, listener)
     }

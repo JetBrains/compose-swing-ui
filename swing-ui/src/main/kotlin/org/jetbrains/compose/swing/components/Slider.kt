@@ -494,22 +494,30 @@ private fun Map<Int, @Nls String>.toLabelTable(): Hashtable<Int, JComponent> {
 private fun JSlider.standardLabels(): Hashtable<Int, JComponent>? =
     if (majorTickSpacing > 0) createStandardLabels(majorTickSpacing) else null
 
-private val SLIDER_RANGE_LISTENERS =
-    ListenerRegistration<JSlider, ChangeListener>(SLIDER_RANGE::attach, SLIDER_RANGE::detach)
+/** A slider change listener whose own state describes the range model it is registered on. */
+private interface SliderValueMirror :
+    ChangeListener,
+    ModelSwapAware<BoundedRangeModel>
+
+private val SLIDER_VALUE_MIRRORS =
+    ListenerRegistration<JSlider, SliderValueMirror>(
+        { slider, mirror -> SLIDER_RANGE.attachSettling(slider, mirror, mirror::adoptModelSwap) },
+        SLIDER_RANGE::detach,
+    )
 
 private val SLIDER_VALUES =
-    CallbackRegistration<JSlider, AppliedValue<Int>, ChangeListener>(
+    CallbackRegistration<JSlider, AppliedValue<Int>, SliderValueMirror>(
         adapter = { current ->
-            object : ChangeListener, ModelSwapAware {
+            object : SliderValueMirror {
                 override fun stateChanged(event: ChangeEvent) {
                     val model = event.source as BoundedRangeModel
                     if (!model.valueIsAdjusting) current().observed(model.value)
                 }
 
-                override fun adoptModelSwap(model: Any) {
-                    current().observed((model as BoundedRangeModel).value)
+                override fun adoptModelSwap(model: BoundedRangeModel) {
+                    current().observed(model.value)
                 }
             }
         },
-        registration = SLIDER_RANGE_LISTENERS,
+        registration = SLIDER_VALUE_MIRRORS,
     )

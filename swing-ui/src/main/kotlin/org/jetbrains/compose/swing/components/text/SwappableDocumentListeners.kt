@@ -2,12 +2,11 @@ package org.jetbrains.compose.swing.components.text
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.CallbackRegistration
-import org.jetbrains.compose.swing.modifier.listener.ModelSwapAware
-import org.jetbrains.compose.swing.modifier.listener.SWAPPABLE_DOCUMENT
+import org.jetbrains.compose.swing.modifier.listener.DocumentMirror
+import org.jetbrains.compose.swing.modifier.listener.SETTLING_DOCUMENT
 import org.jetbrains.compose.swing.modifier.listener.listener
 import org.jetbrains.compose.swing.node.AppliedValue
 import javax.swing.event.DocumentEvent
-import javax.swing.event.DocumentListener
 import javax.swing.text.Document
 import javax.swing.text.JTextComponent
 
@@ -30,32 +29,33 @@ private val TEXT_MIRRORS =
     )
 
 /**
- * The registration a binding that describes a document's contents is registered on. [onEdit] runs for every
- * edit; [onAdopt] runs once the registration has followed the component to a document it was handed, so
- * what the binding holds describes the document the component holds now rather than the one it left.
+ * The registration a binding that describes a document's contents is registered on. [onEdit] runs for
+ * every edit; [onAdopt] runs once the registration has followed the component to a document it was
+ * handed, so what the binding holds describes the document the component holds now rather than the one it
+ * left.
  *
  * A component is handed a document by its caller, so [onAdopt] records and reports nothing, exactly as
  * declaring a new document does. [onEdit] is the one that reaches a caller's own callback, and defaults
  * to serving both for a binding that only records.
  *
- * Hold the result in a `val`: it is the registration the registration sits on, and a fresh one on every pass
+ * Hold the result in a `val`: it is the registration the listener sits on, and a fresh one on every pass
  * would register the listener again each time.
  */
 internal fun <C : Any> documentMirrorRegistration(
     onEdit: (current: C, document: Document) -> Unit,
     onAdopt: (current: C, document: Document) -> Unit = onEdit,
-): CallbackRegistration<JTextComponent, C, DocumentListener> =
+): CallbackRegistration<JTextComponent, C, DocumentMirror> =
     CallbackRegistration(
         adapter = { current ->
-            object : DocumentListener, ModelSwapAware {
+            object : DocumentMirror {
                 override fun insertUpdate(event: DocumentEvent): Unit = onEdit(current(), event.document)
 
                 override fun removeUpdate(event: DocumentEvent): Unit = onEdit(current(), event.document)
 
                 override fun changedUpdate(event: DocumentEvent): Unit = onEdit(current(), event.document)
 
-                override fun adoptModelSwap(model: Any): Unit = onAdopt(current(), model as Document)
+                override fun adoptModelSwap(model: Document): Unit = onAdopt(current(), model)
             }
         },
-        registration = SWAPPABLE_DOCUMENT,
+        registration = SETTLING_DOCUMENT,
     )

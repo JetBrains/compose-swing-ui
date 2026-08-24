@@ -15,17 +15,33 @@ private val TEXT_DOCUMENT =
         remove = Document::removeDocumentListener,
     )
 
+/** A document listener whose own state describes the document it is registered on. */
+internal interface DocumentMirror :
+    DocumentListener,
+    ModelSwapAware<Document>
+
 /** Adds [documentListener] to the document the receiver holds, and follows it across a swap. */
 internal fun JTextComponent.attachSwappableDocumentListener(documentListener: DocumentListener): Unit =
     TEXT_DOCUMENT.attach(this, documentListener)
 
-/** Undoes [attachSwappableDocumentListener]. */
+/** [attachSwappableDocumentListener], settling [mirror] against every document it follows to. */
+internal fun JTextComponent.attachSettlingDocumentListener(mirror: DocumentMirror): Unit =
+    TEXT_DOCUMENT.attachSettling(this, mirror, mirror::adoptModelSwap)
+
+/** Undoes either attach. */
 internal fun JTextComponent.detachSwappableDocumentListener(documentListener: DocumentListener): Unit =
     TEXT_DOCUMENT.detach(this, documentListener)
 
-/** The registration a document listener is registered on: whichever document the component holds now. */
+/** Where a document listener is registered: whichever document the component holds now. */
 internal val SWAPPABLE_DOCUMENT =
     ListenerRegistration<JTextComponent, DocumentListener>(
         JTextComponent::attachSwappableDocumentListener,
+        JTextComponent::detachSwappableDocumentListener,
+    )
+
+/** [SWAPPABLE_DOCUMENT] for a listener that keeps state describing the document it sits on. */
+internal val SETTLING_DOCUMENT =
+    ListenerRegistration<JTextComponent, DocumentMirror>(
+        JTextComponent::attachSettlingDocumentListener,
         JTextComponent::detachSwappableDocumentListener,
     )

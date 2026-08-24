@@ -2,6 +2,7 @@ package org.jetbrains.compose.swing.components.selection
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
+import org.jetbrains.compose.swing.modifier.listener.ModelSwapAware
 import org.jetbrains.compose.swing.modifier.listener.SwappableModel
 import org.jetbrains.compose.swing.modifier.listener.listener
 import javax.swing.JTable
@@ -19,11 +20,16 @@ import javax.swing.table.TableColumnModel
  * of its columns are published. The columns of a structure change are rebuilt inside whichever model is
  * current, and a table given another column model takes the registration with it.
  */
-internal fun SwingModifier.tableColumnModelListener(listener: TableColumnModelListener): SwingModifier =
+internal fun SwingModifier.tableColumnModelListener(listener: ColumnLayoutMirror): SwingModifier =
     listener(listener, TABLE_COLUMN_LISTENERS)
 
+/** A column model listener whose own state describes the column model it is registered on. */
+internal interface ColumnLayoutMirror :
+    TableColumnModelListener,
+    ModelSwapAware<TableColumnModel>
+
 // A table publishes its column order and widths through the column model it holds, which a caller can
-// replace; the columns of a structure change are rebuilt inside whichever model is current.
+// replace.
 private val TABLE_COLUMNS =
     SwappableModel<JTable, TableColumnModel, TableColumnModelListener>(
         property = "columnModel",
@@ -34,4 +40,7 @@ private val TABLE_COLUMNS =
     )
 
 private val TABLE_COLUMN_LISTENERS =
-    ListenerRegistration<JTable, TableColumnModelListener>(TABLE_COLUMNS::attach, TABLE_COLUMNS::detach)
+    ListenerRegistration<JTable, ColumnLayoutMirror>(
+        { table, mirror -> TABLE_COLUMNS.attachSettling(table, mirror, mirror::adoptModelSwap) },
+        TABLE_COLUMNS::detach,
+    )

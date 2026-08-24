@@ -16,9 +16,9 @@ import java.beans.PropertyChangeListener
  * Moving the registration is only half of it. A listener that keeps state describing the model it sits
  * on - the value, the selection or the layout it and the caller last agreed on - would go on comparing
  * against a model that is no longer there, and a later change that happened to match that stale state
- * would read as no change at all. Such a listener declares [ModelSwapAware] and is told about the
- * replacement, which *settles* its state and reports nothing: a swap is the caller's own doing, so it
- * reaches no callback, exactly as declaring a new model on a component does.
+ * would read as no change at all. Such a listener is registered through [SwappableModel.attachSettling],
+ * which settles its state against every model the registration follows to. Settling reports nothing: a
+ * swap is the caller's own doing, so it reaches no callback, exactly as declaring a new model does.
  */
 
 /**
@@ -43,20 +43,29 @@ internal class SwappableModel<C : Component, M : Any, L : Any>(
     /**
      * Registers [listener] on the model [component] holds now, and moves it to the replacement whenever
      * that model is swapped out, until [detach] takes it off again.
+     *
+     * For a listener that keeps no state describing the model it sits on. A listener that keeps such
+     * state takes [attachSettling] instead, or a swap leaves its state describing a model that is gone.
      */
     fun attach(
         component: C,
         listener: L,
-    ) {
-        val current = model(component)
-        add(current, listener)
-        (listener as? ModelSwapAware)?.adoptModelSwap(current)
-        component.addPropertyChangeListener(property, ModelSwapListener(this, listener, modelType, add, remove))
-    }
+    ): Unit = register(component, listener, settle = null)
 
     /**
-     * Undoes [attach]: unregisters [listener] from the model [component] holds at this moment - the one
-     * the registration followed to - and stops following further swaps.
+     * [attach] for a listener whose own state describes the model it sits on. [settle] states to the
+     * listener the model the registration sits on, both now and after every swap it follows, and reports
+     * nothing.
+     */
+    fun attachSettling(
+        component: C,
+        listener: L,
+        settle: (M) -> Unit,
+    ): Unit = register(component, listener, settle)
+
+    /**
+     * Undoes either attach: unregisters [listener] from the model [component] holds at this moment - the
+     * one the registration followed to - and stops following further swaps.
      */
     fun detach(
         component: C,
@@ -69,12 +78,26 @@ internal class SwappableModel<C : Component, M : Any, L : Any>(
             .firstOrNull { it.owner === this && it.listener === listener }
             ?.let { component.removePropertyChangeListener(property, it) }
     }
+
+    private fun register(
+        component: C,
+        listener: L,
+        settle: ((M) -> Unit)?,
+    ) {
+        val current = model(component)
+        add(current, listener)
+        settle?.invoke(current)
+        component.addPropertyChangeListener(
+            property,
+            ModelSwapListener(this, listener, modelType, add, remove, settle),
+        )
+    }
 }
 
 /**
  * Re-homes [listener] across a swap of the model: removed from the outgoing one and added to the
  * incoming one, so one registration follows the component rather than staying behind on a model nothing
- * reads.
+ * reads. Where the registration asked for it, [settle] then states the incoming model to the listener.
  *
  * Held by the component rather than by the modifier chain, so the pairing survives every recomposition
  * that rebuilds the chain. [owner] together with [listener] is what tells the instance a detach has to
@@ -86,12 +109,13 @@ private class ModelSwapListener<M : Any, L : Any>(
     private val modelType: Class<M>,
     private val add: (M, L) -> Unit,
     private val remove: (M, L) -> Unit,
+    private val settle: ((M) -> Unit)?,
 ) : PropertyChangeListener {
     override fun propertyChange(event: PropertyChangeEvent) {
         asModel(event.oldValue)?.let { remove(it, listener) }
         asModel(event.newValue)?.let {
             add(it, listener)
-            (listener as? ModelSwapAware)?.adoptModelSwap(it)
+            settle?.invoke(it)
         }
     }
 
@@ -99,15 +123,17 @@ private class ModelSwapListener<M : Any, L : Any>(
 }
 
 /**
- * A listener whose own state describes the model it is registered on, and which therefore has to be told
- * when that model is replaced under it.
+ * A listener whose own state describes the model of type [M] it is registered on, and which therefore
+ * has to be told when that model is replaced under it.
  *
- * Implement it alongside the listener interface itself.
+ * Implement it alongside the listener interface itself, in one interface naming both. That interface is
+ * what a [ListenerRegistration] over a [SwappableModel] is declared to carry, so every listener the
+ * registration installs has an [adoptModelSwap] to hand [SwappableModel.attachSettling].
  */
-internal fun interface ModelSwapAware {
+internal fun interface ModelSwapAware<M : Any> {
     /**
      * Settles this listener's state against [model], the model the registration now sits on. A swap is
      * the caller's own doing, so this reports nothing: it records, it does not deliver.
      */
-    fun adoptModelSwap(model: Any)
+    fun adoptModelSwap(model: M)
 }
