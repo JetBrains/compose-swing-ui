@@ -12,7 +12,7 @@ plugins {
 
 private val publishGroup: String =
     providers.gradleProperty("group").orNull?.takeIf { it.isNotBlank() }
-        ?: "dev.matkov.compose.swing"
+        ?: "org.jetbrains.compose.swing"
 private val publishVersion: String = resolvePublishVersion()
 
 group = publishGroup
