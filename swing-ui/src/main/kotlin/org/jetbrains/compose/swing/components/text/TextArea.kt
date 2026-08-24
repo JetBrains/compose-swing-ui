@@ -27,9 +27,9 @@ import javax.swing.event.DocumentListener
  * area with the [DocumentState] overload ([TextArea]) and a [DocumentState] from `rememberDocumentState`.
  *
  * @param value the current text value
- * @param modifier the [SwingModifier] applied to the underlying component
  * @param onValueChange callback invoked with the area's new text when the area is edited; applying
  *   [value] is not itself reported
+ * @param modifier the [SwingModifier] applied to the underlying component
  * @param rows the number of rows
  * @param columns the number of columns
  * @param editable whether the user can edit the text
@@ -44,8 +44,8 @@ import javax.swing.event.DocumentListener
 @Composable
 public fun TextArea(
     value: @Nls String,
+    onValueChange: (@Nls String) -> Unit,
     modifier: SwingModifier = SwingModifier,
-    onValueChange: (@Nls String) -> Unit = {},
     rows: Int = 0,
     columns: Int = 0,
     editable: Boolean = true,

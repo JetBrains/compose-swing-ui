@@ -30,7 +30,7 @@ class TrayUnsupportedPlatformTest {
         // The bounded await is the assertion: it completes only because an unsupported Tray keeps
         // no reason for the application to stay open.
         withTimeout(EXIT_TIMEOUT) {
-            awaitApplication { Tray(image = icon()) }
+            awaitApplication { Tray(image = icon(), onAction = {}) }
         }
     }
 
@@ -43,7 +43,7 @@ class TrayUnsupportedPlatformTest {
         System.setErr(PrintStream(captured, true))
         try {
             withTimeout(EXIT_TIMEOUT) {
-                awaitApplication { Tray(image = icon()) }
+                awaitApplication { Tray(image = icon(), onAction = {}) }
             }
         } finally {
             System.setErr(originalErr)

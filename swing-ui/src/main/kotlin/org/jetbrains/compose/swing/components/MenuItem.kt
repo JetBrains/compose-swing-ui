@@ -19,18 +19,18 @@ import javax.swing.KeyStroke
  * A composable wrapper for JMenuItem.
  *
  * @param text the text of the menu item
+ * @param onClick callback to be invoked when the menu item is clicked
  * @param modifier the [SwingModifier] applied to the underlying component
  * @param accelerator the key combination that activates the item without navigating the menu
  *   hierarchy, displayed next to its text; `null` (the default) leaves the item without one
- * @param onClick callback to be invoked when the menu item is clicked
  * @see javax.swing.JMenuItem
  */
 @Composable
 public fun MenuItem(
     text: @Nls String,
+    onClick: () -> Unit,
     modifier: SwingModifier = SwingModifier,
     accelerator: KeyStroke? = null,
-    onClick: () -> Unit = {},
 ) {
     MenuItemNode(text = text, accelerator = accelerator, modifier = modifier.actionListener { onClick() })
 }
@@ -64,7 +64,7 @@ public fun MenuItem(
 
 /**
  * The `JMenuItem` node both [MenuItem] overloads render. [modifier] already carries the item's
- * activation registration, whichever of the two the overload driving it uses.
+ * activation channel, whichever of the two the overload driving it uses.
  */
 @Composable
 private fun MenuItemNode(

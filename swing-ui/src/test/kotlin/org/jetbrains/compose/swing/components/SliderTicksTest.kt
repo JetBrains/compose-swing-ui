@@ -40,6 +40,7 @@ class SliderTicksTest {
         setContent {
             Slider(
                 value = 30,
+                onValueChange = {},
                 min = 0,
                 max = 100,
                 majorTickSpacing = majorTickSpacing,
@@ -116,7 +117,7 @@ class SliderTicksTest {
     @Test
     fun paintingLabelsWithoutADeclaredMapDrawsOneAtEveryMajorTick() = runComposeSwingTest {
         setContent {
-            Slider(value = 30, min = 0, max = 100, majorTickSpacing = 25, paintLabels = true)
+            Slider(value = 30, onValueChange = {}, min = 0, max = 100, majorTickSpacing = 25, paintLabels = true)
         }
 
         val slider = onNodeOfType<JSlider>().fetch()
@@ -128,7 +129,14 @@ class SliderTicksTest {
     fun theLabelsAtTheMajorTicksFollowAChangedMajorTickSpacing() = runComposeSwingTest {
         var majorTickSpacing by mutableIntStateOf(10)
         setContent {
-            Slider(value = 30, min = 0, max = 100, majorTickSpacing = majorTickSpacing, paintLabels = true)
+            Slider(
+                value = 30,
+                onValueChange = {},
+                min = 0,
+                max = 100,
+                majorTickSpacing = majorTickSpacing,
+                paintLabels = true,
+            )
         }
         val slider = onNodeOfType<JSlider>().fetch()
         assertEquals(
@@ -153,6 +161,7 @@ class SliderTicksTest {
         setContent {
             Slider(
                 value = 30,
+                onValueChange = {},
                 min = 0,
                 max = 100,
                 majorTickSpacing = 25,
@@ -171,7 +180,15 @@ class SliderTicksTest {
     fun swappingOneLabelMapForAnotherRepaintsTheTexts() = runComposeSwingTest {
         var labels by mutableStateOf(mapOf(0 to "quiet", 100 to "loud"))
         setContent {
-            Slider(value = 30, min = 0, max = 100, majorTickSpacing = 25, paintLabels = true, labels = labels)
+            Slider(
+                value = 30,
+                onValueChange = {},
+                min = 0,
+                max = 100,
+                majorTickSpacing = 25,
+                paintLabels = true,
+                labels = labels,
+            )
         }
         val slider = onNodeOfType<JSlider>().fetch()
         assertEquals("quiet", slider.labelTextAt(0), "the declared text is what the slider paints")
@@ -194,7 +211,15 @@ class SliderTicksTest {
         var labels by mutableStateOf<Map<Int, String>?>(null)
         var max by mutableIntStateOf(100)
         setContent {
-            Slider(value = 30, min = 0, max = max, majorTickSpacing = 25, paintLabels = true, labels = labels)
+            Slider(
+                value = 30,
+                onValueChange = {},
+                min = 0,
+                max = max,
+                majorTickSpacing = 25,
+                paintLabels = true,
+                labels = labels,
+            )
         }
         val slider = onNodeOfType<JSlider>().fetch()
         assertEquals(listOf(0, 25, 50, 75, 100), slider.labeledValues(), "Swing should label every major tick")
@@ -219,7 +244,14 @@ class SliderTicksTest {
         var min by mutableIntStateOf(0)
         var majorTickSpacing by mutableIntStateOf(25)
         setContent {
-            Slider(value = 50, min = min, max = 100, majorTickSpacing = majorTickSpacing, paintLabels = true)
+            Slider(
+                value = 50,
+                onValueChange = {},
+                min = min,
+                max = 100,
+                majorTickSpacing = majorTickSpacing,
+                paintLabels = true,
+            )
         }
         val slider = onNodeOfType<JSlider>().fetch()
         assertEquals(listOf(0, 25, 50, 75, 100), slider.labeledValues(), "Swing should label every major tick")
@@ -245,7 +277,15 @@ class SliderTicksTest {
     fun withdrawingTheLabelMapBringsBackTheLabelsAtTheMajorTicks() = runComposeSwingTest {
         var labels by mutableStateOf<Map<Int, String>?>(mapOf(0 to "quiet", 100 to "loud"))
         setContent {
-            Slider(value = 30, min = 0, max = 100, majorTickSpacing = 25, paintLabels = true, labels = labels)
+            Slider(
+                value = 30,
+                onValueChange = {},
+                min = 0,
+                max = 100,
+                majorTickSpacing = 25,
+                paintLabels = true,
+                labels = labels,
+            )
         }
         val slider = onNodeOfType<JSlider>().fetch()
         assertEquals(listOf(0, 100), slider.labeledValues(), "only the declared values should be labeled")
@@ -261,7 +301,15 @@ class SliderTicksTest {
     fun withdrawingTheLabelMapRestoresTheSameLabelsWhileTheyAreNotPainted() = runComposeSwingTest {
         var labels by mutableStateOf<Map<Int, String>?>(mapOf(0 to "quiet", 100 to "loud"))
         setContent {
-            Slider(value = 30, min = 0, max = 100, majorTickSpacing = 25, paintLabels = false, labels = labels)
+            Slider(
+                value = 30,
+                onValueChange = {},
+                min = 0,
+                max = 100,
+                majorTickSpacing = 25,
+                paintLabels = false,
+                labels = labels,
+            )
         }
         val slider = onNodeOfType<JSlider>().fetch()
         assertEquals(listOf(0, 100), slider.labeledValues(), "only the declared values should be labeled")
@@ -279,7 +327,7 @@ class SliderTicksTest {
     @Test
     fun withdrawingTheLabelMapWithoutAMajorTickSpacingLeavesNoLabels() = runComposeSwingTest {
         var labels by mutableStateOf<Map<Int, String>?>(mapOf(10 to "ten"))
-        setContent { Slider(value = 30, min = 0, max = 100, paintLabels = true, labels = labels) }
+        setContent { Slider(value = 30, onValueChange = {}, min = 0, max = 100, paintLabels = true, labels = labels) }
         val slider = onNodeOfType<JSlider>().fetch()
         assertEquals(listOf(10), slider.labeledValues(), "the declared value should be labeled")
 
@@ -294,7 +342,15 @@ class SliderTicksTest {
         var value by mutableIntStateOf(30)
         setContent {
             val labels = mapOf(0 to "quiet", 100 to "loud")
-            Slider(value = value, min = 0, max = 100, majorTickSpacing = 25, paintLabels = true, labels = labels)
+            Slider(
+                value = value,
+                onValueChange = {},
+                min = 0,
+                max = 100,
+                majorTickSpacing = 25,
+                paintLabels = true,
+                labels = labels,
+            )
         }
 
         val slider = onNodeOfType<JSlider>().fetch()

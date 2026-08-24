@@ -62,7 +62,7 @@ class ComboBoxSelectionFeedbackTest {
     fun aChoiceTheCallerDoesNotAdoptDoesNotStand() = runComposeSwingTest {
         val selection = "red"
         setContent {
-            ComboBox(items = listOf("red", "green", "blue"), selectedItem = selection)
+            ComboBox(items = listOf("red", "green", "blue"), selectedItem = selection, onSelectionChange = {})
         }
 
         val combo = onNodeOfType<JComboBox<*>>().fetch()
@@ -249,8 +249,8 @@ class ComboBoxSelectionFeedbackTest {
         setContent {
             ComboBox(
                 items = listOf("red", "green", "blue"),
-                actionListener = listener,
                 selectedItem = selection,
+                actionListener = listener,
             )
         }
 
@@ -323,8 +323,8 @@ class ComboBoxSelectionFeedbackTest {
         setContent {
             ComboBox(
                 items = listOf("red", "green", "blue"),
-                actionListener = listener,
                 selectedItem = selection,
+                actionListener = listener,
                 editable = true,
             )
         }

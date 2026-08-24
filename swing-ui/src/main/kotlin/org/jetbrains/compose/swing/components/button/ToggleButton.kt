@@ -24,17 +24,17 @@ import javax.swing.JToggleButton
  * ```
  *
  * @param text the text to display on the button
- * @param modifier the [SwingModifier] applied to the underlying component
  * @param selected whether the button is in its selected state
  * @param onSelectedChange callback invoked with the new selected state when the button is toggled
+ * @param modifier the [SwingModifier] applied to the underlying component
  * @see javax.swing.JToggleButton
  */
 @Composable
 public fun ToggleButton(
     text: @Nls String,
+    selected: Boolean,
+    onSelectedChange: (Boolean) -> Unit,
     modifier: SwingModifier = SwingModifier,
-    selected: Boolean = false,
-    onSelectedChange: (Boolean) -> Unit = {},
 ) {
     val (reporting, applied) = rememberToggleReporting(selected, onSelectedChange)
     ToggleButtonNode(
@@ -51,17 +51,17 @@ public fun ToggleButton(
  * `remember {}`) to avoid churn.
  *
  * @param text the text to display on the button
+ * @param selected whether the button is in its selected state
  * @param actionListener the listener notified when the button is toggled
  * @param modifier the [SwingModifier] applied to the underlying component
- * @param selected whether the button is in its selected state
  * @see javax.swing.JToggleButton
  */
 @Composable
 public fun ToggleButton(
     text: @Nls String,
+    selected: Boolean,
     actionListener: ActionListener,
     modifier: SwingModifier = SwingModifier,
-    selected: Boolean = false,
 ) {
     val (mirroring, applied) = rememberToggleMirroring(selected, actionListener)
     ToggleButtonNode(

@@ -25,7 +25,7 @@ class TextSizeHintsTest {
     @Test
     fun aFieldIsBuiltWithTheColumnsItIsGiven() = runComposeSwingTest {
         setContent {
-            TextField(value = "", columns = WIDE_COLUMNS)
+            TextField(value = "", onValueChange = {}, columns = WIDE_COLUMNS)
         }
 
         assertEquals(WIDE_COLUMNS, onNodeOfType<JTextField>().fetch().columns)
@@ -35,7 +35,7 @@ class TextSizeHintsTest {
     fun aFieldFollowsItsColumnsAfterTheFirstComposition() = runComposeSwingTest {
         var columns by mutableIntStateOf(NARROW_COLUMNS)
         setContent {
-            TextField(value = "", columns = columns)
+            TextField(value = "", onValueChange = {}, columns = columns)
         }
 
         val field = onNodeOfType<JTextField>().fetch()
@@ -69,7 +69,7 @@ class TextSizeHintsTest {
     @Test
     fun anAreaIsBuiltWithTheRowsAndColumnsItIsGiven() = runComposeSwingTest {
         setContent {
-            TextArea(value = "", rows = TALL_ROWS, columns = WIDE_COLUMNS)
+            TextArea(value = "", onValueChange = {}, rows = TALL_ROWS, columns = WIDE_COLUMNS)
         }
 
         val area = onNodeOfType<JTextArea>().fetch()
@@ -82,7 +82,7 @@ class TextSizeHintsTest {
         var rows by mutableIntStateOf(SHORT_ROWS)
         var columns by mutableIntStateOf(NARROW_COLUMNS)
         setContent {
-            TextArea(value = "", rows = rows, columns = columns)
+            TextArea(value = "", onValueChange = {}, rows = rows, columns = columns)
         }
 
         val area = onNodeOfType<JTextArea>().fetch()
@@ -125,7 +125,7 @@ class TextSizeHintsTest {
     fun aFormattedFieldFollowsItsColumns() = runComposeSwingTest {
         var columns by mutableIntStateOf(NARROW_COLUMNS)
         setContent {
-            FormattedTextField(value = null, columns = columns)
+            FormattedTextField(value = null, onValueChange = {}, columns = columns)
         }
 
         val field = onNodeOfType<JFormattedTextField>().fetch()
@@ -143,7 +143,7 @@ class TextSizeHintsTest {
     fun aPasswordFieldFollowsItsColumns() = runComposeSwingTest {
         var columns by mutableIntStateOf(NARROW_COLUMNS)
         setContent {
-            PasswordField(value = CharArray(0), columns = columns)
+            PasswordField(value = CharArray(0), onValueChange = {}, columns = columns)
         }
 
         val field = onNodeOfType<JPasswordField>().fetch()
@@ -162,7 +162,7 @@ class TextSizeHintsTest {
         var columns by mutableIntStateOf(NARROW_COLUMNS)
         setContent {
             ReusableContentHost(active) {
-                TextField(value = "", columns = columns)
+                TextField(value = "", onValueChange = {}, columns = columns)
             }
         }
         val parked = onNodeOfType<JTextField>().fetch()

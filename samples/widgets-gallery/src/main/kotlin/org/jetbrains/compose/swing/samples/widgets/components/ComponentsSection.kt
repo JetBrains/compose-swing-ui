@@ -163,7 +163,7 @@ private fun ColumnScope.PasswordStateCard() {
         FlowPanel {
             Label("Password:")
             PasswordField(state = state, columns = 20)
-            Button("Undo", modifier = SwingModifier.enabled(state.canUndo), onClick = state::undo)
+            Button("Undo", onClick = state::undo, modifier = SwingModifier.enabled(state.canUndo))
         }
         Label("Length: ${state.text.length}")
     }

@@ -28,7 +28,7 @@ class CheckBoxBehaviorTest {
     @Test
     fun theTextFollowsTheStateDrivingIt() = runComposeSwingTest {
         var text by mutableStateOf("Word wrap")
-        setContent { CheckBox(text = text, checked = false) }
+        setContent { CheckBox(text = text, checked = false, onCheckedChange = {}) }
 
         onNodeOfType<JCheckBox>().assertTextEquals("Word wrap")
 
@@ -46,7 +46,7 @@ class CheckBoxBehaviorTest {
         // A JCheckBox is built unchecked, so declaring `true` first proves the parameter reaches the
         // box on the very first composition rather than the box merely keeping its own default.
         var checked by mutableStateOf(true)
-        setContent { CheckBox(text = "Word wrap", checked = checked) }
+        setContent { CheckBox(text = "Word wrap", checked = checked, onCheckedChange = {}) }
 
         onNodeOfType<JCheckBox>().assert(SwingMatcher.isSelected())
 
@@ -146,6 +146,7 @@ class CheckBoxBehaviorTest {
             CheckBox(
                 text = "Word wrap",
                 checked = false,
+                onCheckedChange = {},
                 modifier = tip?.let { SwingModifier.toolTip(it) } ?: SwingModifier,
             )
         }
@@ -172,9 +173,9 @@ class CheckBoxBehaviorTest {
             val listener = remember { ActionListener { event -> reported += (event.source as JCheckBox).isSelected } }
             CheckBox(
                 text = text,
+                checked = checked,
                 actionListener = listener,
                 modifier = tip?.let { SwingModifier.toolTip(it) } ?: SwingModifier,
-                checked = checked,
             )
         }
 
@@ -210,8 +211,8 @@ class CheckBoxBehaviorTest {
             val secondListener = remember { ActionListener { latest++ } }
             CheckBox(
                 text = "Word wrap",
-                actionListener = if (second) secondListener else firstListener,
                 checked = false,
+                actionListener = if (second) secondListener else firstListener,
             )
         }
 
@@ -234,7 +235,7 @@ class CheckBoxBehaviorTest {
     @Test
     fun aClickTheCallerDoesNotAdoptDoesNotStand() = runComposeSwingTest {
         var text by mutableStateOf("Word wrap")
-        setContent { CheckBox(text = text, checked = false) }
+        setContent { CheckBox(text = text, checked = false, onCheckedChange = {}) }
 
         val checkBox = onNodeOfType<JCheckBox>()
         checkBox.performClick()

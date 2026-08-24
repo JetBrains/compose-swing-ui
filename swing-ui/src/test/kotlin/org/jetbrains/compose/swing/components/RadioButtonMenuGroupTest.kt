@@ -43,9 +43,9 @@ class RadioButtonMenuGroupTest {
     fun theOptionsJoinTheSurroundingMenuWithExactlyOneSelected() = runComposeSwingTest {
         val popup =
             composeMenu {
-                MenuItem("Refresh")
+                MenuItem("Refresh", onClick = { })
                 RadioButtonMenuGroup(selectedIndex = 0, onSelectionChange = {}) { threeOptions() }
-                MenuItem("Close")
+                MenuItem("Close", onClick = { })
             }
 
         assertEquals(

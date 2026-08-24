@@ -34,7 +34,7 @@ class SpinnerEditorBehaviorTest {
 
     @Test
     fun withNothingDeclaredTheSpinnerShowsTheEditorItBuildsForItsModel() = runComposeSwingTest {
-        setContent { Spinner(value = 1.5, step = 0.5) }
+        setContent { Spinner(value = 1.5, onValueChange = {}, step = 0.5) }
 
         val editor =
             assertIs<JSpinner.NumberEditor>(
@@ -46,7 +46,7 @@ class SpinnerEditorBehaviorTest {
 
     @Test
     fun aNumberFormatIsThePatternTheSpinnerRendersWith() = runComposeSwingTest {
-        setContent { Spinner(value = 1.5, step = 0.5, format = "#0.00") }
+        setContent { Spinner(value = 1.5, onValueChange = {}, step = 0.5, format = "#0.00") }
 
         val editor =
             assertIs<JSpinner.NumberEditor>(
@@ -64,7 +64,7 @@ class SpinnerEditorBehaviorTest {
     @Test
     fun aDateFormatIsThePatternTheSpinnerRendersWith() = runComposeSwingTest {
         val march15 = GregorianCalendar(2024, Calendar.MARCH, 15).time
-        setContent { Spinner(value = march15, format = "yyyy-MM-dd") }
+        setContent { Spinner(value = march15, onValueChange = {}, format = "yyyy-MM-dd") }
 
         val editor =
             assertIs<JSpinner.DateEditor>(
@@ -78,7 +78,7 @@ class SpinnerEditorBehaviorTest {
     @Test
     fun changingTheFormatAcrossRecompositionIsHonored() = runComposeSwingTest {
         var format by mutableStateOf("#0.00")
-        setContent { Spinner(value = 1.5, step = 0.5, format = format) }
+        setContent { Spinner(value = 1.5, onValueChange = {}, step = 0.5, format = format) }
         awaitIdle()
 
         val spinner = onNodeOfType<JSpinner>().fetch()
@@ -103,7 +103,7 @@ class SpinnerEditorBehaviorTest {
     @Test
     fun clearingTheFormatRestoresTheSpinnersOwnPattern() = runComposeSwingTest {
         var format by mutableStateOf<String?>("#0.0000")
-        setContent { Spinner(value = 1.5, step = 0.5, format = format) }
+        setContent { Spinner(value = 1.5, onValueChange = {}, step = 0.5, format = format) }
         awaitIdle()
 
         val spinner = onNodeOfType<JSpinner>().fetch()
@@ -153,6 +153,7 @@ class SpinnerEditorBehaviorTest {
         setContent {
             Spinner(
                 value = 1.5,
+                onValueChange = {},
                 step = 0.5,
                 format = if (composed) null else "#0.00",
                 editor = if (composed) ({ Label("mine") }) else null,
@@ -180,6 +181,7 @@ class SpinnerEditorBehaviorTest {
         setContent {
             Spinner(
                 value = 1.5,
+                onValueChange = {},
                 step = 0.5,
                 editor = if (composed) ({ Label("mine") }) else null,
             )
@@ -265,6 +267,7 @@ class SpinnerEditorBehaviorTest {
                 setContent {
                     Spinner(
                         value = 1.5,
+                        onValueChange = {},
                         step = 0.5,
                         format = "#0.00",
                         editor = { Label("mine") },

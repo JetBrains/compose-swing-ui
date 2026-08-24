@@ -40,7 +40,7 @@ class DesktopPaneFrameIdentityTest {
             DesktopPane {
                 titles.forEach { title ->
                     key(title) {
-                        InternalFrame(title = title, bounds = Rectangle(10, 10, 120, 90)) {
+                        InternalFrame(title = title, bounds = Rectangle(10, 10, 120, 90), onClose = { }) {
                             Label(text = title.lowercase())
                         }
                     }
@@ -75,7 +75,7 @@ class DesktopPaneFrameIdentityTest {
             DesktopPane {
                 frames.forEach { (title, state) ->
                     key(state) {
-                        InternalFrame(title = title, state = state) { Label(text = title.lowercase()) }
+                        InternalFrame(title = title, state = state, onClose = { }) { Label(text = title.lowercase()) }
                     }
                 }
             }
@@ -108,9 +108,17 @@ class DesktopPaneFrameIdentityTest {
         setContent {
             DesktopPane {
                 if (showEditor) {
-                    InternalFrame(title = "Editor", bounds = Rectangle(0, 0, 100, 100)) { Label(text = "editor") }
+                    InternalFrame(
+                        title = "Editor",
+                        bounds = Rectangle(0, 0, 100, 100),
+                        onClose = { },
+                    ) { Label(text = "editor") }
                 }
-                InternalFrame(title = "Console", bounds = Rectangle(10, 10, 120, 90)) { Label(text = "console") }
+                InternalFrame(
+                    title = "Console",
+                    bounds = Rectangle(10, 10, 120, 90),
+                    onClose = { },
+                ) { Label(text = "console") }
             }
         }
 
@@ -144,7 +152,7 @@ class DesktopPaneFrameIdentityTest {
             DesktopPane {
                 titles.forEach { title ->
                     key(title) {
-                        InternalFrame(title = title, bounds = Rectangle(10, 10, 120, 90)) {
+                        InternalFrame(title = title, bounds = Rectangle(10, 10, 120, 90), onClose = { }) {
                             Label(text = title.lowercase())
                         }
                     }
@@ -184,7 +192,7 @@ class DesktopPaneFrameIdentityTest {
         setContent {
             DesktopPane {
                 titles.forEach { title ->
-                    InternalFrame(title = title, bounds = Rectangle(10, 10, 120, 90)) {
+                    InternalFrame(title = title, bounds = Rectangle(10, 10, 120, 90), onClose = { }) {
                         Label(text = title.lowercase())
                     }
                 }

@@ -94,8 +94,8 @@ private fun ColumnScope.AddTaskRow(onAdd: (String) -> Unit) {
             TextField(
                 value = draft,
                 onValueChange = { draft = it },
-                columns = 28,
                 modifier = SwingModifier.accessibleName("New task").onAccept { commit() },
+                columns = 28,
             )
             Button(
                 text = "Add",
@@ -162,8 +162,8 @@ private fun ColumnScope.TaskRow(
         TextField(
             value = task.title,
             onValueChange = onRename,
-            columns = 28,
             modifier = SwingModifier.weight(1f).testTag(taskTitleTag(task.id)),
+            columns = 28,
         )
         Button(
             text = "Remove",

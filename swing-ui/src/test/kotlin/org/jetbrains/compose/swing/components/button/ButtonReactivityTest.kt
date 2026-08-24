@@ -26,7 +26,7 @@ class ButtonReactivityTest {
     @Test
     fun theTextFollowsTheStateDrivingIt() = runComposeSwingTest {
         var text by mutableStateOf("Save")
-        setContent { Button(text = text) }
+        setContent { Button(text = text, onClick = { }) }
 
         onNodeOfType<JButton>().assertTextEquals("Save")
 
@@ -43,7 +43,11 @@ class ButtonReactivityTest {
     fun theModifierFollowsTheStateDrivingIt() = runComposeSwingTest {
         var tip by mutableStateOf<String?>("Saves the file")
         setContent {
-            Button(text = "Save", modifier = tip?.let { SwingModifier.toolTip(it) } ?: SwingModifier)
+            Button(
+                text = "Save",
+                onClick = { },
+                modifier = tip?.let { SwingModifier.toolTip(it) } ?: SwingModifier,
+            )
         }
 
         val button = onNodeOfType<JButton>().fetch()

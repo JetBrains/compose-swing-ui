@@ -33,8 +33,8 @@ internal fun ColumnScope.NumberFieldCard() {
             Label("Quantity:")
             FormattedTextField(
                 value = quantity,
-                formatterFactory = factory,
                 onValueChange = { quantity = it },
+                formatterFactory = factory,
                 focusLostBehavior = JFormattedTextField.COMMIT_OR_REVERT,
                 columns = 8,
             )
@@ -83,8 +83,8 @@ internal fun ColumnScope.MaskFieldCard() {
             Label("Phone:")
             FormattedTextField(
                 value = phone,
-                formatterFactory = factory,
                 onValueChange = { phone = it },
+                formatterFactory = factory,
                 focusLostBehavior = JFormattedTextField.COMMIT,
                 columns = 10,
             )

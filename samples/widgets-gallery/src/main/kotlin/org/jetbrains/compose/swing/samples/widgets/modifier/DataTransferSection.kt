@@ -107,8 +107,8 @@ private fun ColumnScope.ClipboardCard() {
             )
         }
         FlowPanel {
-            Button("Copy") { clipboard.copy() }
-            Button("Paste") { status = if (clipboard.paste()) "Pasted" else "Nothing to paste" }
+            Button("Copy", onClick = { clipboard.copy() })
+            Button("Paste", onClick = { status = if (clipboard.paste()) "Pasted" else "Nothing to paste" })
             Label(status)
         }
     }

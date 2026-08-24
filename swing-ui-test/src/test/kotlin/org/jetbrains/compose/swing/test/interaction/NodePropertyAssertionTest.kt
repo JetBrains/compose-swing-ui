@@ -48,7 +48,7 @@ class NodePropertyAssertionTest {
 
     @Test
     fun aMismatchAppendsTheCallersMessage() = runComposeSwingTest {
-        setContent { TextField(value = "typed", columns = 4) }
+        setContent { TextField(value = "typed", onValueChange = { }, columns = 4) }
 
         val failure =
             assertFailsWith<AssertionError> {

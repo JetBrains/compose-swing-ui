@@ -47,10 +47,7 @@ internal fun ColumnScope.SwingListenerCard() {
         // remember the listener instance: Swing listeners are additive, so a fresh instance each
         // recomposition would detach the old and attach the new. The wrapper's onClick still fires too.
         val listener = remember { ActionListener { rawClicks++ } }
-        Button(
-            "Click (raw listener)",
-            modifier = SwingModifier.actionListener(listener),
-        )
+        Button("Click (raw listener)", onClick = { }, modifier = SwingModifier.actionListener(listener))
         Label("Raw listener fired $rawClicks time(s)")
     }
 }
@@ -66,9 +63,9 @@ internal fun ColumnScope.ChangeListenerCard() {
             Slider(
                 value = value,
                 onValueChange = { value = it },
+                modifier = SwingModifier.changeListener(listener),
                 min = 0,
                 max = 100,
-                modifier = SwingModifier.changeListener(listener),
             )
         }
         Label("Raw change listener fired $changes time(s)")
@@ -143,8 +140,8 @@ internal fun ColumnScope.DocumentListenerCard() {
             }
         TextField(
             value = text,
-            modifier = SwingModifier.documentListener(listener),
             onValueChange = { text = it },
+            modifier = SwingModifier.documentListener(listener),
             columns = 24,
         )
         Label("Document edits: $edits")
@@ -159,7 +156,7 @@ internal fun ColumnScope.PropertyChangeListenerCard() {
         val listener = remember { PropertyChangeListener { changes++ } }
         Label(text, modifier = SwingModifier.propertyChangeListener("text", listener))
         FlowPanel {
-            Button("Change text") { text = if (text == "Edit me") "Changed!" else "Edit me" }
+            Button("Change text", onClick = { text = if (text == "Edit me") "Changed!" else "Edit me" })
             Label("\"text\" changed $changes time(s)")
         }
     }
@@ -180,15 +177,15 @@ internal fun ColumnScope.KeyListenerCard() {
             }
         TextField(
             value = text,
-            modifier = SwingModifier.keyListener(listener),
             onValueChange = { text = it },
+            modifier = SwingModifier.keyListener(listener),
             columns = 24,
         )
         Label("Keys pressed: $presses")
     }
 }
 
-// The registration the escape hatch registers on, held once: it is what says where the listener sits.
+// The registration the escape hatch uses, held once: it is what says where the listener sits.
 private val POPUP_MENU =
     ListenerRegistration<JComboBox<*>, PopupMenuListener>(
         { component, listener -> component.addPopupMenuListener(listener) },

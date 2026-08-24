@@ -101,7 +101,7 @@ class ComposeSwingTestSmokeTest {
 
     @Test
     fun textFieldIsOfType() = runComposeSwingTest {
-        setContent { TextField(value = "x") }
+        setContent { TextField(value = "x", onValueChange = { }) }
         val matches = root.findMatching(SwingMatcher.isOfType<JTextField>())
         assertEquals(1, matches.size)
     }

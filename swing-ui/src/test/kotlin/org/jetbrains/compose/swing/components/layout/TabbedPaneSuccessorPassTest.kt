@@ -30,7 +30,7 @@ class TabbedPaneSuccessorPassTest {
     fun aTabAndTheSelectionNamingItAreSettledByThePassTheStripsGrowthSetsOff() = runComposeSwingTest {
         var grown by mutableStateOf(false)
         setContent {
-            TabbedPane(selectedIndex = if (grown) ADDED_TAB else FIRST_TAB) {
+            TabbedPane(selectedIndex = if (grown) ADDED_TAB else FIRST_TAB, onSelectedIndexChange = {}) {
                 Label(text = "one", modifier = SwingModifier.tab("One"))
                 Label(text = "two", modifier = SwingModifier.tab("Two"))
                 if (grown) Label(text = "three", modifier = SwingModifier.tab("Three"))
@@ -68,7 +68,7 @@ class TabbedPaneSuccessorPassTest {
     fun aSelectionNamingATabTheStripAlreadyHoldsIsSettledByThePassThatCarriesIt() = runComposeSwingTest {
         var moved by mutableStateOf(false)
         setContent {
-            TabbedPane(selectedIndex = if (moved) SECOND_TAB else FIRST_TAB) {
+            TabbedPane(selectedIndex = if (moved) SECOND_TAB else FIRST_TAB, onSelectedIndexChange = {}) {
                 Label(text = "one", modifier = SwingModifier.tab("One"))
                 Label(text = "two", modifier = SwingModifier.tab("Two"))
             }

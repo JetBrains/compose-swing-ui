@@ -36,7 +36,7 @@ class OnAcceptModifierTest {
     fun theFieldsActionEventRunsTheCallback() = runComposeSwingTest {
         var accepted = 0
         setContent {
-            TextField("query", modifier = SwingModifier.onAccept { accepted++ })
+            TextField("query", onValueChange = {}, modifier = SwingModifier.onAccept { accepted++ })
         }
         val field = onNodeOfType<JTextField>().fetch()
 
@@ -50,7 +50,7 @@ class OnAcceptModifierTest {
         var ran: String? = null
         setContent {
             val current = declared
-            TextField("query", modifier = SwingModifier.onAccept { ran = current })
+            TextField("query", onValueChange = {}, modifier = SwingModifier.onAccept { ran = current })
         }
         val field = onNodeOfType<JTextField>().fetch()
 
@@ -68,7 +68,11 @@ class OnAcceptModifierTest {
         var first = 0
         var second = 0
         setContent {
-            TextField("query", modifier = SwingModifier.onAccept { first++ }.onAccept { second++ })
+            TextField(
+                "query",
+                onValueChange = {},
+                modifier = SwingModifier.onAccept { first++ }.onAccept { second++ },
+            )
         }
         val field = onNodeOfType<JTextField>().fetch()
 
@@ -84,6 +88,7 @@ class OnAcceptModifierTest {
         setContent {
             TextField(
                 "query",
+                onValueChange = {},
                 modifier = if (attached) SwingModifier.onAccept { accepted++ } else SwingModifier,
             )
         }
@@ -123,6 +128,7 @@ class OnAcceptModifierTest {
                     requester = rememberFocusRequester()
                     TextField(
                         "query",
+                        onValueChange = {},
                         modifier = SwingModifier.focusRequester(requester).onAccept { accepted++ },
                     )
                 }

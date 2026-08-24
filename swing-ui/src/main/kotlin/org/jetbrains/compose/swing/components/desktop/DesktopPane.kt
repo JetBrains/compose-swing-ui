@@ -59,9 +59,19 @@ import javax.swing.event.InternalFrameListener
  *
  * ```
  * val editor = rememberInternalFrameState(bounds = Rectangle(0, 0, 300, 200))
+ * var editorOpen by remember { mutableStateOf(true) }
+ * var consoleOpen by remember { mutableStateOf(true) }
  * DesktopPane {
- *     InternalFrame(title = "Editor", state = editor) { Editor() }
- *     InternalFrame(title = "Console", bounds = Rectangle(40, 40, 300, 200)) { Console() }
+ *     if (editorOpen) {
+ *         InternalFrame(title = "Editor", state = editor, onClose = { editorOpen = false }) { Editor() }
+ *     }
+ *     if (consoleOpen) {
+ *         InternalFrame(
+ *             title = "Console",
+ *             bounds = Rectangle(40, 40, 300, 200),
+ *             onClose = { consoleOpen = false },
+ *         ) { Console() }
+ *     }
  * }
  * ```
  *
@@ -134,10 +144,10 @@ public sealed interface DesktopPaneScope {
      *
      * @param title the text shown in the frame's title bar
      * @param bounds the frame's position and size within the desktop
-     * @param modifier the [SwingModifier] applied to the frame
-     * @param controls which window controls the frame shows
      * @param onClose callback invoked when the user activates the frame's close control; remove the
      *   frame from the composition in response to actually close it
+     * @param modifier the [SwingModifier] applied to the frame
+     * @param controls which window controls the frame shows
      * @param content the composable shown in the frame's body
      * @see javax.swing.JInternalFrame
      */
@@ -145,9 +155,9 @@ public sealed interface DesktopPaneScope {
     public fun InternalFrame(
         title: @Nls String,
         bounds: Rectangle,
+        onClose: () -> Unit,
         modifier: SwingModifier = SwingModifier,
         controls: InternalFrameControls = InternalFrameControls(),
-        onClose: () -> Unit = {},
         content: @Composable () -> Unit,
     )
 
@@ -187,10 +197,10 @@ public sealed interface DesktopPaneScope {
      * @param title the text shown in the frame's title bar
      * @param state the hoistable, observable geometry and window state of the frame, driving this frame
      *   alone
-     * @param modifier the [SwingModifier] applied to the frame
-     * @param controls which window controls the frame shows
      * @param onClose callback invoked when the user activates the frame's close control; remove the
      *   frame from the composition in response to actually close it
+     * @param modifier the [SwingModifier] applied to the frame
+     * @param controls which window controls the frame shows
      * @param content the composable shown in the frame's body
      * @see javax.swing.JInternalFrame
      */
@@ -198,9 +208,9 @@ public sealed interface DesktopPaneScope {
     public fun InternalFrame(
         title: @Nls String,
         state: InternalFrameState,
+        onClose: () -> Unit,
         modifier: SwingModifier = SwingModifier,
         controls: InternalFrameControls = InternalFrameControls(),
-        onClose: () -> Unit = {},
         content: @Composable () -> Unit,
     )
 
@@ -242,9 +252,9 @@ private class DesktopPaneScopeImpl : DesktopPaneScope {
     override fun InternalFrame(
         title: @Nls String,
         bounds: Rectangle,
+        onClose: () -> Unit,
         modifier: SwingModifier,
         controls: InternalFrameControls,
-        onClose: () -> Unit,
         content: @Composable () -> Unit,
     ) {
         FrameNode(
@@ -282,9 +292,9 @@ private class DesktopPaneScopeImpl : DesktopPaneScope {
     override fun InternalFrame(
         title: @Nls String,
         state: InternalFrameState,
+        onClose: () -> Unit,
         modifier: SwingModifier,
         controls: InternalFrameControls,
-        onClose: () -> Unit,
         content: @Composable () -> Unit,
     ) {
         StateClaim(state)

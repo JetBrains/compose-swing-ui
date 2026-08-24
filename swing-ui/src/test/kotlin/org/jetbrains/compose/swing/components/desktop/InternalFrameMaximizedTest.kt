@@ -48,8 +48,9 @@ class InternalFrameMaximizedTest {
             InternalFrame(
                 title = "Editor",
                 state = state,
-                controls = InternalFrameControls(maximizable = true, iconifiable = true),
+                onClose = { },
                 modifier = SwingModifier.toolTip(toolTip),
+                controls = InternalFrameControls(maximizable = true, iconifiable = true),
             ) { Label(text = "body") }
         }
     }
@@ -181,8 +182,9 @@ class InternalFrameMaximizedTest {
                 InternalFrame(
                     title = "Editor",
                     state = state,
-                    controls = InternalFrameControls(maximizable = true),
+                    onClose = { },
                     modifier = SwingModifier.toolTip(tip),
+                    controls = InternalFrameControls(maximizable = true),
                 ) { Label(text = "body") }
             }
         }
@@ -348,6 +350,7 @@ class InternalFrameMaximizedTest {
                 InternalFrame(
                     title = "Editor",
                     state = if (useSecond) second else first,
+                    onClose = { },
                     controls = InternalFrameControls(maximizable = true),
                 ) { Label(text = "body") }
             }
@@ -370,8 +373,9 @@ class InternalFrameMaximizedTest {
                 InternalFrame(
                     title = "Editor",
                     bounds = Rectangle(10, 20, 100, 80),
-                    controls = InternalFrameControls(maximizable = true),
+                    onClose = { },
                     modifier = SwingModifier.toolTip(tip),
+                    controls = InternalFrameControls(maximizable = true),
                 ) { Label(text = "body") }
             }
         }

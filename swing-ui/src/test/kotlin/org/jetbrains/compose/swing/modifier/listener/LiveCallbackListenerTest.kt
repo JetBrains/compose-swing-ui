@@ -50,6 +50,7 @@ class LiveCallbackListenerTest {
                 val captured = declared
                 Button(
                     text = "press",
+                    onClick = { },
                     modifier = SwingModifier.listener({ reported = captured }, counted),
                 )
             }

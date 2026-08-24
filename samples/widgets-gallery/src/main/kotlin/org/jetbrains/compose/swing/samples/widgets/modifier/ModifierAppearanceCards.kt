@@ -145,6 +145,7 @@ internal fun ColumnScope.TextPositionCard() {
         FlowPanel(modifier = SwingModifier.preferredSize(Dimension(260, 90))) {
             Button(
                 "Labeled",
+                onClick = { },
                 modifier =
                     SwingModifier
                         .icon(dot)
@@ -175,6 +176,7 @@ internal fun ColumnScope.ButtonPaintingCard() {
         FlowPanel {
             Button(
                 "Hover, focus or click me",
+                onClick = { },
                 modifier =
                     SwingModifier
                         .borderPainted(isBorderPainted)

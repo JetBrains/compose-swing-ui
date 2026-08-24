@@ -52,7 +52,11 @@ internal fun ColumnScope.SizeAndVisibilityCard() {
         var shown by remember { mutableStateOf(true) }
         CheckBox(text = "Show the second button", checked = shown, onCheckedChange = { shown = it })
         FlowPanel {
-            Button("Wide button", modifier = SwingModifier.preferredSize(Dimension(WIDE_BUTTON, BUTTON_HEIGHT)))
+            Button(
+                "Wide button",
+                onClick = { },
+                modifier = SwingModifier.preferredSize(Dimension(WIDE_BUTTON, BUTTON_HEIGHT)),
+            )
             // The slot's footprint is reserved by the wrapping panel's preferredSize, so visible(false)
             // hides the button but keeps it attached and the row does not collapse - unlike conditional
             // composition (if (shown) Button(...)), which drops the child and lets the layout reflow.
@@ -61,7 +65,7 @@ internal fun ColumnScope.SizeAndVisibilityCard() {
                 hgap = 0,
                 vgap = 0,
             ) {
-                Button("Toggle me", modifier = SwingModifier.visible(shown))
+                Button("Toggle me", onClick = { }, modifier = SwingModifier.visible(shown))
             }
         }
     }
@@ -77,6 +81,7 @@ internal fun ColumnScope.SizeConstraintsCard() {
         Row(modifier = SwingModifier.fillWidth()) {
             Button(
                 "Clamped button",
+                onClick = { },
                 modifier =
                     SwingModifier
                         .minimumSize(Dimension(120, BUTTON_HEIGHT))
@@ -154,10 +159,12 @@ internal fun ColumnScope.AlignmentCard() {
         BoxPanel(axis = BoxLayout.Y_AXIS) {
             Button(
                 "Wide row button",
+                onClick = { },
                 modifier = SwingModifier.preferredSize(Dimension(WIDE_BUTTON, BUTTON_HEIGHT)),
             )
             Button(
                 "Narrow",
+                onClick = { },
                 modifier =
                     SwingModifier.alignmentX(
                         if (aligned) Component.LEFT_ALIGNMENT else Component.CENTER_ALIGNMENT,
@@ -218,6 +225,7 @@ internal fun ColumnScope.MarginCard() {
         FlowPanel(modifier = SwingModifier.lineBorder(Color.GRAY, 1)) {
             Button(
                 "Padded button",
+                onClick = { },
                 modifier = SwingModifier.margin(Insets(padding, padding, padding, padding)),
             )
         }

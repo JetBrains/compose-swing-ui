@@ -27,7 +27,7 @@ class RadioButtonBehaviorTest {
     @Test
     fun theTextFollowsTheStateDrivingIt() = runComposeSwingTest {
         var text by mutableStateOf("Compact")
-        setContent { RadioButton(text = text) }
+        setContent { RadioButton(text = text, selected = false, onSelectedChange = {}) }
 
         onNodeOfType<JRadioButton>().assertTextEquals("Compact")
 
@@ -45,7 +45,7 @@ class RadioButtonBehaviorTest {
         // A JRadioButton starts unselected, so declaring `true` first proves the parameter reaches the
         // button on the first composition, not just the button's own default.
         var selected by mutableStateOf(true)
-        setContent { RadioButton(text = "Compact", selected = selected) }
+        setContent { RadioButton(text = "Compact", selected = selected, onSelectedChange = {}) }
 
         onNodeOfType<JRadioButton>().assert(SwingMatcher.isSelected())
 
@@ -138,7 +138,12 @@ class RadioButtonBehaviorTest {
     fun theModifierFollowsTheStateDrivingIt() = runComposeSwingTest {
         var tip by mutableStateOf<String?>("Denser layout")
         setContent {
-            RadioButton(text = "Compact", modifier = tip?.let { SwingModifier.toolTip(it) } ?: SwingModifier)
+            RadioButton(
+                text = "Compact",
+                selected = false,
+                onSelectedChange = {},
+                modifier = tip?.let { SwingModifier.toolTip(it) } ?: SwingModifier,
+            )
         }
 
         val radio = onNodeOfType<JRadioButton>().fetch()
@@ -164,9 +169,9 @@ class RadioButtonBehaviorTest {
                 remember { ActionListener { event -> reported += (event.source as JRadioButton).isSelected } }
             RadioButton(
                 text = text,
+                selected = selected,
                 actionListener = listener,
                 modifier = tip?.let { SwingModifier.toolTip(it) } ?: SwingModifier,
-                selected = selected,
             )
         }
 
@@ -200,7 +205,11 @@ class RadioButtonBehaviorTest {
         setContent {
             val firstListener = remember { ActionListener { first++ } }
             val secondListener = remember { ActionListener { latest++ } }
-            RadioButton(text = "Compact", actionListener = if (second) secondListener else firstListener)
+            RadioButton(
+                text = "Compact",
+                selected = false,
+                actionListener = if (second) secondListener else firstListener,
+            )
         }
 
         onNodeOfType<JRadioButton>().performClick()
@@ -222,7 +231,7 @@ class RadioButtonBehaviorTest {
     @Test
     fun aSelectionTheCallerDoesNotAdoptDoesNotStand() = runComposeSwingTest {
         var text by mutableStateOf("Compact")
-        setContent { RadioButton(text = text, selected = false) }
+        setContent { RadioButton(text = text, selected = false, onSelectedChange = {}) }
 
         val radioButton = onNodeOfType<JRadioButton>()
         radioButton.performClick()
@@ -238,7 +247,7 @@ class RadioButtonBehaviorTest {
     @Test
     fun aClearingClickTheCallerDoesNotAdoptDoesNotStand() = runComposeSwingTest {
         var text by mutableStateOf("Compact")
-        setContent { RadioButton(text = text, selected = true) }
+        setContent { RadioButton(text = text, selected = true, onSelectedChange = {}) }
 
         val radioButton = onNodeOfType<JRadioButton>()
         radioButton.performClick()

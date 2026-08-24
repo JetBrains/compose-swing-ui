@@ -31,7 +31,7 @@ class TrayBehaviorTest {
         val image = trayImage()
         val bare = TrayIcon(image)
 
-        setContent { Tray(image = image) }
+        setContent { Tray(image = image, onAction = {}) }
 
         val icon = trayIconShowing(image)
         // A tray icon that declares neither property is left exactly as a hand-built one starts out:
@@ -47,7 +47,7 @@ class TrayBehaviorTest {
         assumeTrue(SystemTray.isSupported(), "requires a platform system tray")
         val image = trayImage()
 
-        setContent { Tray(image = image, tooltip = "Reports", imageAutoSize = true) }
+        setContent { Tray(image = image, onAction = {}, tooltip = "Reports", imageAutoSize = true) }
 
         val icon = trayIconShowing(image)
         assertEquals("Reports", icon.toolTip, "the declared tooltip should reach the icon")
@@ -63,7 +63,7 @@ class TrayBehaviorTest {
         var tooltip by mutableStateOf<String?>("Idle")
         var imageAutoSize by mutableStateOf(true)
 
-        setContent { Tray(image = image, tooltip = tooltip, imageAutoSize = imageAutoSize) }
+        setContent { Tray(image = image, onAction = {}, tooltip = tooltip, imageAutoSize = imageAutoSize) }
 
         val icon = trayIconShowing(first)
         assertEquals("Idle", icon.toolTip, "the icon should start at the declared tooltip")

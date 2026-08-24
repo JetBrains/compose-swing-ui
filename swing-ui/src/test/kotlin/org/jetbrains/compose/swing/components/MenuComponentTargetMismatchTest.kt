@@ -38,7 +38,7 @@ class MenuComponentTargetMismatchTest {
                 @androidx.compose.runtime.Composable
                 fun Mixed() {
                     FlowPanel {
-                        MenuItem(text = "x")
+                        MenuItem(text = "x", onClick = {})
                     }
                 }
                 """.trimIndent(),
@@ -96,7 +96,7 @@ class MenuComponentTargetMismatchTest {
                 @androidx.compose.runtime.Composable
                 fun Menus() {
                     Menu(text = "m") {
-                        MenuItem(text = "x")
+                        MenuItem(text = "x", onClick = {})
                     }
                 }
                 """.trimIndent(),

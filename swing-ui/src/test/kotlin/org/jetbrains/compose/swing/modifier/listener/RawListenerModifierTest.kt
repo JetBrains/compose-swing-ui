@@ -49,7 +49,7 @@ class RawListenerModifierTest {
         var pressed = 0
         val listener = mousePressListener { pressed++ }
         setContent {
-            Button("X", modifier = SwingModifier.mouseListener(listener))
+            Button("X", onClick = { }, modifier = SwingModifier.mouseListener(listener))
         }
         val button = onNodeOfType<JButton>().fetch()
         assertTrue(button.mouseListeners.any { it === listener }, "the exact listener instance should be registered")
@@ -66,6 +66,7 @@ class RawListenerModifierTest {
         setContent {
             Button(
                 "X",
+                onClick = { },
                 modifier = if (attached) SwingModifier.mouseListener(listener) else SwingModifier,
             )
         }
@@ -93,6 +94,7 @@ class RawListenerModifierTest {
         setContent {
             Button(
                 "X",
+                onClick = { },
                 modifier = SwingModifier.mouseListener(firstListener).mouseListener(secondListener),
             )
         }
@@ -115,6 +117,7 @@ class RawListenerModifierTest {
         setContent {
             Button(
                 "X",
+                onClick = { },
                 modifier = SwingModifier.mouseListener(if (useFirst) firstListener else secondListener),
             )
         }
@@ -205,7 +208,7 @@ class RawListenerModifierTest {
         var actions = 0
         val listener = ActionListener { actions++ }
         setContent {
-            Button("X", modifier = SwingModifier.actionListener(listener))
+            Button("X", onClick = { }, modifier = SwingModifier.actionListener(listener))
         }
         val button = onNodeOfType<JButton>().fetch()
         assertTrue(button.actionListeners.any { it === listener }, "the action listener instance should be registered")
@@ -220,7 +223,7 @@ class RawListenerModifierTest {
         var actions = 0
         val listener = ActionListener { actions++ }
         setContent {
-            TextField("query", modifier = SwingModifier.actionListener(listener))
+            TextField("query", onValueChange = {}, modifier = SwingModifier.actionListener(listener))
         }
         val field = onNodeOfType<JTextField>().fetch()
         assertTrue(field.actionListeners.any { it === listener }, "the instance should be registered on the field")
@@ -236,6 +239,7 @@ class RawListenerModifierTest {
             ComboBox(
                 items = listOf("a", "b"),
                 selectedItem = "a",
+                onSelectionChange = {},
                 modifier = SwingModifier.actionListener(listener),
             )
         }

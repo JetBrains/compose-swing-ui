@@ -279,7 +279,7 @@ it takes no longer fails the test:
 fun aThrowingCallbackIsContainedAndReported() = runComposeSwingTest {
     var max by mutableIntStateOf(100)
     setContent {
-        Slider(value = 50, max = max, onValueChange = { error("boom") })
+        Slider(value = 50, onValueChange = { error("boom") }, max = max)
     }
 
     // Narrowing the range below the declared value forces the slider to clamp it on the spot, which is

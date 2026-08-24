@@ -25,7 +25,7 @@ class SelectionComponentsTest {
     @Test
     fun checkBoxRendersTextAndCheckedState() = runComposeSwingTest {
         setContent {
-            CheckBox(text = "Agree", checked = true)
+            CheckBox(text = "Agree", checked = true, onCheckedChange = {})
         }
         onNodeOfType<JCheckBox>()
             .assertTextEquals("Agree")
@@ -58,7 +58,7 @@ class SelectionComponentsTest {
     @Test
     fun checkBoxReflectsStateDrivenRecomposition() = runComposeSwingTest {
         var checked by mutableStateOf(false)
-        setContent { CheckBox(text = "Agree", checked = checked) }
+        setContent { CheckBox(text = "Agree", checked = checked, onCheckedChange = {}) }
         onNodeOfType<JCheckBox>().assert(isSelected(false))
 
         checked = true
@@ -69,7 +69,7 @@ class SelectionComponentsTest {
     @Test
     fun radioButtonRendersTextAndSelectedState() = runComposeSwingTest {
         setContent {
-            RadioButton(text = "Option A", selected = true)
+            RadioButton(text = "Option A", selected = true, onSelectedChange = {})
         }
         onNodeOfType<JRadioButton>()
             .assertTextEquals("Option A")
@@ -98,7 +98,7 @@ class SelectionComponentsTest {
     @Test
     fun comboBoxRendersItemsAndSelectedItem() = runComposeSwingTest {
         setContent {
-            ComboBox(items = listOf("Red", "Green", "Blue"), selectedItem = "Green")
+            ComboBox(items = listOf("Red", "Green", "Blue"), selectedItem = "Green", onSelectionChange = {})
         }
         val combo = onNodeOfType<JComboBox<*>>().fetch()
         assertEquals(3, combo.itemCount, "the combo box should hold all three items")
@@ -155,7 +155,7 @@ class SelectionComponentsTest {
     fun comboBoxItemsRebuildPreservesDeclaredSelection() = runComposeSwingTest {
         var items by mutableStateOf(listOf("Red", "Green", "Blue"))
         setContent {
-            ComboBox(items = items, selectedItem = "Green")
+            ComboBox(items = items, selectedItem = "Green", onSelectionChange = {})
         }
         val combo = onNodeOfType<JComboBox<*>>().fetch()
         assertEquals("Green", combo.selectedItem, "the declared selection should render initially")
@@ -170,7 +170,7 @@ class SelectionComponentsTest {
     fun comboBoxSelectedItemNullDeselects() = runComposeSwingTest {
         var selectedItem by mutableStateOf<String?>("Green")
         setContent {
-            ComboBox(items = listOf("Red", "Green", "Blue"), selectedItem = selectedItem)
+            ComboBox(items = listOf("Red", "Green", "Blue"), selectedItem = selectedItem, onSelectionChange = {})
         }
         val combo = onNodeOfType<JComboBox<*>>().fetch()
         assertEquals("Green", combo.selectedItem, "the declared selection should render initially")
@@ -185,7 +185,7 @@ class SelectionComponentsTest {
     fun comboBoxRebuildsItemsOnRecomposition() = runComposeSwingTest {
         var items by mutableStateOf(listOf("A", "B"))
         setContent {
-            ComboBox(items = items, selectedItem = items.first())
+            ComboBox(items = items, selectedItem = items.first(), onSelectionChange = {})
         }
         val combo = onNodeOfType<JComboBox<*>>().fetch()
         assertEquals(2, combo.itemCount, "the combo box should start with two items")

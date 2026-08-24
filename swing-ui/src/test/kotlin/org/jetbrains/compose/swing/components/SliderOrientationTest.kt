@@ -24,6 +24,7 @@ class SliderOrientationTest {
         setContent {
             Slider(
                 value = 30,
+                onValueChange = {},
                 min = 0,
                 max = 100,
                 orientation = SwingConstants.VERTICAL,
@@ -41,7 +42,7 @@ class SliderOrientationTest {
     fun theOrientationAndTheDirectionFollowStateDrivenRecomposition() = runComposeSwingTest {
         var orientation by mutableIntStateOf(SwingConstants.HORIZONTAL)
         var inverted by mutableStateOf(false)
-        setContent { Slider(value = 30, orientation = orientation, inverted = inverted) }
+        setContent { Slider(value = 30, onValueChange = {}, orientation = orientation, inverted = inverted) }
         val slider = onNodeOfType<JSlider>().fetch()
         assertEquals(
             SwingConstants.HORIZONTAL,

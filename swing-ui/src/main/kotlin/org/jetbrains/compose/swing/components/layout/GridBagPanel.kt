@@ -21,6 +21,7 @@ import javax.swing.JPanel
  *     Label(text = "Name", modifier = SwingModifier.item(gridx = 0, gridy = 0))
  *     Button(
  *         text = "Pick",
+ *         onClick = ::pick,
  *         modifier = SwingModifier.item(gridx = 1, gridy = 0, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL),
  *     )
  * }

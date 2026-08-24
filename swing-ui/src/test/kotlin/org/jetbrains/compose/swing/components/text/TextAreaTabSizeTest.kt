@@ -19,7 +19,7 @@ import kotlin.test.assertEquals
 class TextAreaTabSizeTest {
     @Test
     fun anUndeclaredTabSizeIsTheAreasOwn() = runComposeSwingTest {
-        setContent { TextArea(value = "a\tb") }
+        setContent { TextArea(value = "a\tb", onValueChange = {}) }
 
         assertEquals(
             JTextArea().tabSize,
@@ -31,7 +31,7 @@ class TextAreaTabSizeTest {
     @Test
     fun aDeclaredTabSizeReachesTheAreaAndFollowsRecomposition() = runComposeSwingTest {
         var tabSize by mutableStateOf(4)
-        setContent { TextArea(value = "a\tb", tabSize = tabSize) }
+        setContent { TextArea(value = "a\tb", onValueChange = {}, tabSize = tabSize) }
 
         val area = onNodeOfType<JTextArea>().fetch()
         assertEquals(4, area.tabSize, "the declared tab size is the one the area expands a tab to")

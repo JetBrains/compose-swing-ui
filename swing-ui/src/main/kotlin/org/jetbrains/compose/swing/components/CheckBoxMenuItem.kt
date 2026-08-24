@@ -20,20 +20,20 @@ import javax.swing.KeyStroke
  * A composable wrapper for JCheckBoxMenuItem.
  *
  * @param text the text of the menu item
- * @param modifier the [SwingModifier] applied to the underlying component
  * @param checked whether the menu item is checked
+ * @param onCheckedChange callback invoked when the checked state changes
+ * @param modifier the [SwingModifier] applied to the underlying component
  * @param accelerator the key combination that activates the item without navigating the menu
  *   hierarchy, displayed next to its text; `null` (the default) leaves the item without one
- * @param onCheckedChange callback invoked when the checked state changes
  * @see javax.swing.JCheckBoxMenuItem
  */
 @Composable
 public fun CheckBoxMenuItem(
     text: @Nls String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
     modifier: SwingModifier = SwingModifier,
-    checked: Boolean = false,
     accelerator: KeyStroke? = null,
-    onCheckedChange: (Boolean) -> Unit = {},
 ) {
     val (reporting, applied) = rememberToggleReporting(checked, onCheckedChange)
     CheckBoxMenuItemNode(
@@ -51,9 +51,9 @@ public fun CheckBoxMenuItem(
  * `remember {}`) to avoid churn.
  *
  * @param text the text of the menu item
+ * @param checked whether the menu item is checked
  * @param actionListener the listener notified when the item is toggled
  * @param modifier the [SwingModifier] applied to the underlying component
- * @param checked whether the menu item is checked
  * @param accelerator the key combination that activates the item without navigating the menu
  *   hierarchy, displayed next to its text; `null` (the default) leaves the item without one
  * @see javax.swing.JCheckBoxMenuItem
@@ -61,9 +61,9 @@ public fun CheckBoxMenuItem(
 @Composable
 public fun CheckBoxMenuItem(
     text: @Nls String,
+    checked: Boolean,
     actionListener: ActionListener,
     modifier: SwingModifier = SwingModifier,
-    checked: Boolean = false,
     accelerator: KeyStroke? = null,
 ) {
     val (mirroring, applied) = rememberToggleMirroring(checked, actionListener)

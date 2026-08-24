@@ -51,6 +51,7 @@ class DesktopPaneBehaviorTest {
                 InternalFrame(
                     title = "Editor",
                     bounds = Rectangle(10, 20, 300, 200),
+                    onClose = { },
                     controls = InternalFrameControls(closable = true, iconifiable = true),
                 ) { Label(text = "editor-body") }
             }
@@ -106,8 +107,16 @@ class DesktopPaneBehaviorTest {
         // two frames declared alike are two frames rather than one taking the other's place.
         setContent {
             DesktopPane {
-                InternalFrame(title = "Notes", bounds = Rectangle(0, 0, 120, 90)) { Label(text = "first") }
-                InternalFrame(title = "Notes", bounds = Rectangle(20, 20, 120, 90)) { Label(text = "second") }
+                InternalFrame(
+                    title = "Notes",
+                    bounds = Rectangle(0, 0, 120, 90),
+                    onClose = { },
+                ) { Label(text = "first") }
+                InternalFrame(
+                    title = "Notes",
+                    bounds = Rectangle(20, 20, 120, 90),
+                    onClose = { },
+                ) { Label(text = "second") }
             }
         }
 
@@ -126,11 +135,11 @@ class DesktopPaneBehaviorTest {
             val editorShown = editing
             DesktopPane {
                 if (editorShown) {
-                    InternalFrame(title = "Editor", bounds = Rectangle(0, 0, 200, 150)) {
+                    InternalFrame(title = "Editor", bounds = Rectangle(0, 0, 200, 150), onClose = { }) {
                         Label(text = "editor-body")
                     }
                 } else {
-                    InternalFrame(title = "Viewer", bounds = Rectangle(0, 0, 200, 150)) {
+                    InternalFrame(title = "Viewer", bounds = Rectangle(0, 0, 200, 150), onClose = { }) {
                         Label(text = "viewer-body")
                     }
                 }
@@ -160,9 +169,13 @@ class DesktopPaneBehaviorTest {
         var showSecond by mutableStateOf(true)
         setContent {
             DesktopPane {
-                InternalFrame(title = "One", bounds = Rectangle(0, 0, 100, 100)) { Label(text = "1") }
+                InternalFrame(title = "One", bounds = Rectangle(0, 0, 100, 100), onClose = { }) { Label(text = "1") }
                 if (showSecond) {
-                    InternalFrame(title = "Two", bounds = Rectangle(0, 0, 100, 100)) { Label(text = "2") }
+                    InternalFrame(
+                        title = "Two",
+                        bounds = Rectangle(0, 0, 100, 100),
+                        onClose = { },
+                    ) { Label(text = "2") }
                 }
             }
         }
@@ -189,6 +202,7 @@ class DesktopPaneBehaviorTest {
                 InternalFrame(
                     title = title,
                     bounds = bounds,
+                    onClose = { },
                     controls = InternalFrameControls(resizable = resizable),
                 ) { Label(text = "body") }
             }
@@ -284,6 +298,7 @@ class DesktopPaneBehaviorTest {
                 InternalFrame(
                     title = "Editor",
                     bounds = Rectangle(0, 0, 100, 100),
+                    onClose = { },
                     controls = controls,
                 ) { Label(text = "body") }
             }
@@ -319,6 +334,7 @@ class DesktopPaneBehaviorTest {
                 InternalFrame(
                     title = "Editor",
                     bounds = Rectangle(0, 0, 100, 100),
+                    onClose = { },
                     modifier = tip?.let { SwingModifier.toolTip(it) } ?: SwingModifier,
                 ) { Label(text = "body") }
             }
@@ -383,8 +399,8 @@ class DesktopPaneBehaviorTest {
                 InternalFrame(
                     title = "Closable",
                     bounds = Rectangle(0, 0, 100, 100),
-                    controls = InternalFrameControls(closable = true),
                     onClose = { runs += current },
+                    controls = InternalFrameControls(closable = true),
                 ) { Label(text = "body") }
             }
         }
@@ -453,7 +469,7 @@ class DesktopPaneBehaviorTest {
             // go on showing the children it started with.
             val bothChildren = second
             DesktopPane {
-                InternalFrame(title = "Editor", bounds = Rectangle(0, 0, 200, 200)) {
+                InternalFrame(title = "Editor", bounds = Rectangle(0, 0, 200, 200), onClose = { }) {
                     Label(text = "first")
                     if (bothChildren) Label(text = "second")
                 }
@@ -487,7 +503,7 @@ class DesktopPaneBehaviorTest {
             // a different declaration each pass rather than one lambda that re-reads the state.
             val hasChild = show
             DesktopPane {
-                InternalFrame(title = "Editor", bounds = Rectangle(0, 0, 200, 200)) {
+                InternalFrame(title = "Editor", bounds = Rectangle(0, 0, 200, 200), onClose = { }) {
                     if (hasChild) Label(text = "body")
                 }
             }
@@ -513,7 +529,11 @@ class DesktopPaneBehaviorTest {
         var tip by mutableStateOf<String?>("Workspace")
         setContent {
             DesktopPane(modifier = tip?.let { SwingModifier.toolTip(it) } ?: SwingModifier) {
-                InternalFrame(title = "Frame", bounds = Rectangle(0, 0, 100, 100)) { Label(text = "body") }
+                InternalFrame(
+                    title = "Frame",
+                    bounds = Rectangle(0, 0, 100, 100),
+                    onClose = { },
+                ) { Label(text = "body") }
             }
         }
 
@@ -535,7 +555,11 @@ class DesktopPaneBehaviorTest {
         setContent {
             if (show) {
                 DesktopPane {
-                    InternalFrame(title = "Frame", bounds = Rectangle(0, 0, 100, 100)) { Label(text = "body") }
+                    InternalFrame(
+                        title = "Frame",
+                        bounds = Rectangle(0, 0, 100, 100),
+                        onClose = { },
+                    ) { Label(text = "body") }
                 }
             }
         }

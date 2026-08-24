@@ -24,7 +24,7 @@ class ComboBoxEditableTest {
         // applied the value at all would still satisfy an opening `isEditable(false)`.
         var editable by mutableStateOf(true)
         setContent {
-            ComboBox(items = listOf("red", "green"), selectedItem = null, editable = editable)
+            ComboBox(items = listOf("red", "green"), selectedItem = null, onSelectionChange = {}, editable = editable)
         }
 
         onNodeOfType<JComboBox<*>>().assert(SwingMatcher.isEditable())
@@ -123,7 +123,12 @@ class ComboBoxEditableTest {
     fun maximumRowCountTracksTheDeclaredValue() = runComposeSwingTest {
         var rows by mutableStateOf(3)
         setContent {
-            ComboBox(items = listOf("red", "green", "blue"), selectedItem = null, maximumRowCount = rows)
+            ComboBox(
+                items = listOf("red", "green", "blue"),
+                selectedItem = null,
+                onSelectionChange = {},
+                maximumRowCount = rows,
+            )
         }
 
         val combo = onNodeOfType<JComboBox<*>>().fetch()

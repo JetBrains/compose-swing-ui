@@ -37,7 +37,7 @@ class ComboBoxComposableCellTest {
     @Test
     fun itemContentRealizesAComposableCellPerItem() = runComposeSwingTest {
         setContent {
-            ComboBox(items = listOf("red", "green", "blue"), selectedItem = "red") { item ->
+            ComboBox(items = listOf("red", "green", "blue"), selectedItem = "red", onSelectionChange = {}) { item ->
                 FlowPanel { Label(item) }
             }
         }
@@ -51,7 +51,7 @@ class ComboBoxComposableCellTest {
     fun recomposedItemContentUpdatesTheCell() = runComposeSwingTest {
         var items by mutableStateOf(listOf("old"))
         setContent {
-            ComboBox(items = items, selectedItem = items.first()) { item ->
+            ComboBox(items = items, selectedItem = items.first(), onSelectionChange = {}) { item ->
                 Label(item)
             }
         }
@@ -67,7 +67,7 @@ class ComboBoxComposableCellTest {
     @Test
     fun theDisplayAreaOfAnUnselectedComboComposesNoCell() = runComposeSwingTest {
         setContent {
-            ComboBox(items = listOf("red", "green"), selectedItem = null) { item ->
+            ComboBox(items = listOf("red", "green"), selectedItem = null, onSelectionChange = {}) { item ->
                 Label(item)
             }
         }
@@ -89,7 +89,7 @@ class ComboBoxComposableCellTest {
         var showCombo by mutableStateOf(true)
         setContent {
             if (showCombo) {
-                ComboBox(items = listOf("red", "green"), selectedItem = "red") { item ->
+                ComboBox(items = listOf("red", "green"), selectedItem = "red", onSelectionChange = {}) { item ->
                     Label(item)
                 }
             }
@@ -123,7 +123,7 @@ class ComboBoxComposableCellTest {
 
     @Test
     fun omittingItemContentKeepsTheDefaultRenderer() = runComposeSwingTest {
-        setContent { ComboBox(items = listOf("a", "b"), selectedItem = "a") }
+        setContent { ComboBox(items = listOf("a", "b"), selectedItem = "a", onSelectionChange = {}) }
 
         val combo = onNodeOfType<JComboBox<*>>().fetch()
         val cell = combo.stampCell(index = 0)
@@ -138,6 +138,7 @@ class ComboBoxComposableCellTest {
             ComboBox(
                 items = listOf("red", "green"),
                 selectedItem = "red",
+                onSelectionChange = {},
                 itemContent =
                     if (composableCells) {
                         { item -> FlowPanel { Label(item) } }
@@ -174,6 +175,7 @@ class ComboBoxComposableCellTest {
             ComboBox(
                 items = listOf("red", "green"),
                 selectedItem = "red",
+                onSelectionChange = {},
                 itemContent =
                     if (composableCells) {
                         { item -> FlowPanel { Label(item) } }
@@ -211,6 +213,7 @@ class ComboBoxComposableCellTest {
             ComboBox(
                 items = listOf("red", "green"),
                 selectedItem = "red",
+                onSelectionChange = {},
                 editable = true,
                 itemContent =
                     if (composableCells) {
@@ -247,6 +250,7 @@ class ComboBoxComposableCellTest {
                 ComboBox(
                     items = listOf("red", "green"),
                     selectedItem = "red",
+                    onSelectionChange = {},
                     editable = true,
                     itemContent =
                         if (composableCells) {
@@ -286,6 +290,7 @@ class ComboBoxComposableCellTest {
                 ComboBox(
                     items = listOf("red", "green"),
                     selectedItem = "red",
+                    onSelectionChange = {},
                     itemContent =
                         if (composableCells) {
                             { item -> Label(item) }
@@ -335,7 +340,9 @@ class ComboBoxComposableCellTest {
         var active by mutableStateOf(true)
         setContent {
             ReusableContentHost(active = active) {
-                ComboBox(items = listOf("red", "green"), selectedItem = "red") { item -> Label(item) }
+                ComboBox(items = listOf("red", "green"), selectedItem = "red", onSelectionChange = {}) { item ->
+                    Label(item)
+                }
             }
         }
         val combo = onNodeOfType<JComboBox<*>>().fetch<JComboBox<String>>()

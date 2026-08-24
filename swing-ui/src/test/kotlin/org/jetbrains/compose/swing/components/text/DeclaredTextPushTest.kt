@@ -148,7 +148,7 @@ class DeclaredTextPushTest {
         val reported = mutableListOf<Any?>()
         setContent {
             val factory = remember { integerFactory() }
-            FormattedTextField(value = value, formatterFactory = factory, onValueChange = { reported += it })
+            FormattedTextField(value = value, onValueChange = { reported += it }, formatterFactory = factory)
         }
 
         value = 250
@@ -273,7 +273,7 @@ class DeclaredTextPushTest {
 
     @Test
     fun aTextFieldEditTheCallerDoesNotAdoptIsSettledBack() = runComposeSwingTest {
-        setContent { TextField(value = "hello") }
+        setContent { TextField(value = "hello", onValueChange = {}) }
 
         onNodeOfType<JTextField>().fetch().type("!")
         awaitIdle()
@@ -283,7 +283,7 @@ class DeclaredTextPushTest {
 
     @Test
     fun aTextAreaEditTheCallerDoesNotAdoptIsSettledBack() = runComposeSwingTest {
-        setContent { TextArea(value = "hello") }
+        setContent { TextArea(value = "hello", onValueChange = {}) }
 
         onNodeOfType<JTextArea>().fetch().type("!")
         awaitIdle()
@@ -293,7 +293,7 @@ class DeclaredTextPushTest {
 
     @Test
     fun aTextPaneEditTheCallerDoesNotAdoptIsSettledBack() = runComposeSwingTest {
-        setContent { TextPane(value = "hello") }
+        setContent { TextPane(value = "hello", onValueChange = {}) }
 
         onNodeOfType<JTextPane>().fetch().type("!")
         awaitIdle()
@@ -305,7 +305,7 @@ class DeclaredTextPushTest {
     fun aCommitTheCallerDoesNotAdoptIsSettledBack() = runComposeSwingTest {
         setContent {
             val factory = remember { integerFactory() }
-            FormattedTextField(value = 1, formatterFactory = factory)
+            FormattedTextField(value = 1, onValueChange = {}, formatterFactory = factory)
         }
 
         val field = onNodeOfType<JFormattedTextField>().fetch()

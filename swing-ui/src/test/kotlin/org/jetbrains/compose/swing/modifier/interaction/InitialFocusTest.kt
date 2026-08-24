@@ -50,7 +50,11 @@ class InitialFocusTest {
     fun theDeclarationLeavesTheComponentsOwnFocusabilityAlone() = runComposeSwingTest {
         var declared by mutableStateOf(true)
         setContent {
-            TextField("field", modifier = if (declared) SwingModifier.initialFocus() else SwingModifier)
+            TextField(
+                "field",
+                onValueChange = {},
+                modifier = if (declared) SwingModifier.initialFocus() else SwingModifier,
+            )
         }
         val field = onNodeOfType<JTextField>().fetch()
         assertTrue(field.isFocusable, "the declaration must not change what the component allows")
@@ -66,8 +70,8 @@ class InitialFocusTest {
         setContent {
             Window(onCloseRequest = {}, title = "initial-focus-routing-test") {
                 Column {
-                    TextField("first")
-                    TextField("second", modifier = SwingModifier.initialFocus())
+                    TextField("first", onValueChange = {})
+                    TextField("second", onValueChange = {}, modifier = SwingModifier.initialFocus())
                 }
             }
         }
@@ -86,8 +90,8 @@ class InitialFocusTest {
             setContent {
                 Window(onCloseRequest = {}, title = "initial-focus-test") {
                     Column {
-                        TextField("first")
-                        TextField("second", modifier = SwingModifier.initialFocus())
+                        TextField("first", onValueChange = {})
+                        TextField("second", onValueChange = {}, modifier = SwingModifier.initialFocus())
                     }
                 }
             }
@@ -108,8 +112,8 @@ class InitialFocusTest {
             Window(onCloseRequest = {}, title = "initial-focus-reshow-test") {
                 Column {
                     moveToFirst = rememberFocusRequester()
-                    TextField("first", modifier = SwingModifier.focusRequester(moveToFirst))
-                    TextField("second", modifier = SwingModifier.visible(shown).initialFocus())
+                    TextField("first", onValueChange = {}, modifier = SwingModifier.focusRequester(moveToFirst))
+                    TextField("second", onValueChange = {}, modifier = SwingModifier.visible(shown).initialFocus())
                 }
             }
         }
@@ -145,11 +149,12 @@ class InitialFocusTest {
             Window(onCloseRequest = {}, title = "initial-focus-withdrawn-test") {
                 Column {
                     moveToFirst = rememberFocusRequester()
-                    TextField("first", modifier = SwingModifier.focusRequester(moveToFirst))
+                    TextField("first", onValueChange = {}, modifier = SwingModifier.focusRequester(moveToFirst))
                     // The declaration is made while the component is hidden, so it is still waiting for
                     // the component to show when it is withdrawn.
                     TextField(
                         "second",
+                        onValueChange = {},
                         modifier =
                             SwingModifier.visible(shown).let { if (declared) it.initialFocus() else it },
                     )
@@ -185,10 +190,10 @@ class InitialFocusTest {
             Window(onCloseRequest = {}, title = "initial-focus-once-test") {
                 Column {
                     moveToFirst = rememberFocusRequester()
-                    TextField("first", modifier = SwingModifier.focusRequester(moveToFirst))
+                    TextField("first", onValueChange = {}, modifier = SwingModifier.focusRequester(moveToFirst))
                     // The declaring component's own chain carries the changing value, so the
                     // recomposition really re-applies the declaration rather than skipping the child.
-                    TextField("second", modifier = SwingModifier.name(label).initialFocus())
+                    TextField("second", onValueChange = {}, modifier = SwingModifier.name(label).initialFocus())
                 }
             }
         }
@@ -219,11 +224,11 @@ class InitialFocusTest {
         setContent {
             Window(onCloseRequest = {}, title = "initial-focus-late-show-test") {
                 Column {
-                    TextField("first")
+                    TextField("first", onValueChange = {})
                     // Declared while hidden, so the declaration is still waiting for the component when
                     // the window opens: the focus it takes is taken on the component's own first showing
                     // rather than on the window's.
-                    TextField("second", modifier = SwingModifier.visible(shown).initialFocus())
+                    TextField("second", onValueChange = {}, modifier = SwingModifier.visible(shown).initialFocus())
                 }
             }
         }

@@ -54,9 +54,9 @@ import javax.swing.event.ChangeListener
  * ```
  *
  * @param selectedIndex the index of the selected tab, or `-1` for none (controlled)
- * @param modifier the [SwingModifier] applied to the underlying `JTabbedPane`
  * @param onSelectedIndexChange callback invoked with the index of the tab the user selects, and with the
  *   tab the pane is left on where [selectedIndex] names no tab of the strip
+ * @param modifier the [SwingModifier] applied to the underlying `JTabbedPane`
  * @param tabPlacement where the tab strip is drawn
  * @param tabLayoutPolicy how the tab strip handles overflow
  * @param content the composable content of the pane, one child per tab; see [TabbedPaneScope]
@@ -65,8 +65,8 @@ import javax.swing.event.ChangeListener
 @Composable
 public fun TabbedPane(
     selectedIndex: Int,
+    onSelectedIndexChange: (Int) -> Unit,
     modifier: SwingModifier = SwingModifier,
-    onSelectedIndexChange: (Int) -> Unit = {},
     @TabPlacement tabPlacement: Int = JTabbedPane.TOP,
     @TabLayoutPolicy tabLayoutPolicy: Int = JTabbedPane.WRAP_TAB_LAYOUT,
     content: @Composable TabbedPaneScope.() -> Unit,

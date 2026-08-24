@@ -40,9 +40,9 @@ import javax.swing.text.Segment
  * field with [PasswordField] and a [DocumentState] from `rememberDocumentState`.
  *
  * @param value the current text value, as raw characters
- * @param modifier the [SwingModifier] applied to the underlying component
  * @param onValueChange callback invoked with the field's new characters when the field is edited;
  *   applying [value] is not itself reported
+ * @param modifier the [SwingModifier] applied to the underlying component
  * @param echoChar the masking character; `null` applies the look-and-feel's installed echo character,
  *   and the NUL character (U+0000) shows the text in clear text
  * @param columns the number of columns
@@ -53,8 +53,8 @@ import javax.swing.text.Segment
 @Composable
 public fun PasswordField(
     value: CharArray,
+    onValueChange: (CharArray) -> Unit,
     modifier: SwingModifier = SwingModifier,
-    onValueChange: (CharArray) -> Unit = {},
     echoChar: Char? = null,
     columns: Int = 0,
     editable: Boolean = true,

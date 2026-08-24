@@ -88,6 +88,7 @@ internal fun ColumnScope.ComponentAndHierarchyListenerCard() {
         FlowPanel(modifier = SwingModifier.preferredSize(Dimension(180, 40)), hgap = 0, vgap = 0) {
             Button(
                 "Watched button",
+                onClick = { },
                 modifier =
                     SwingModifier
                         .visible(shown)

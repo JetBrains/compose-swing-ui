@@ -34,9 +34,9 @@ import javax.swing.SwingConstants
 internal fun ColumnScope.FlowPanelCard() {
     ExampleCard("FlowPanel") {
         FlowPanel(alignment = FlowLayout.LEADING, hgap = 12, vgap = 4) {
-            Button("One")
-            Button("Two")
-            Button("Three")
+            Button("One", onClick = { })
+            Button("Two", onClick = { })
+            Button("Three", onClick = { })
         }
     }
 }

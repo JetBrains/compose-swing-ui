@@ -37,6 +37,7 @@ class FormattedTextFieldTest {
         setContent {
             FormattedTextField(
                 value = 42,
+                onValueChange = {},
                 formatterFactory = integerFactory(),
             )
         }
@@ -52,11 +53,11 @@ class FormattedTextFieldTest {
         setContent {
             FormattedTextField(
                 value = value,
-                formatterFactory = integerFactory(),
                 onValueChange = {
                     reported += it
                     value = it
                 },
+                formatterFactory = integerFactory(),
             )
         }
         val field = onNodeOfType<JFormattedTextField>().fetch()
@@ -75,11 +76,11 @@ class FormattedTextFieldTest {
         setContent {
             FormattedTextField(
                 value = value,
-                formatterFactory = integerFactory(),
                 onValueChange = {
                     reported += it
                     value = it
                 },
+                formatterFactory = integerFactory(),
             )
         }
         val field = onNodeOfType<JFormattedTextField>().fetch()
@@ -98,6 +99,7 @@ class FormattedTextFieldTest {
         setContent {
             FormattedTextField(
                 value = value,
+                onValueChange = {},
                 formatterFactory = integerFactory(),
             )
         }
@@ -117,11 +119,11 @@ class FormattedTextFieldTest {
         setContent {
             FormattedTextField(
                 value = value,
-                formatterFactory = integerFactory(),
                 onValueChange = {
                     reported += it
                     value = it
                 },
+                formatterFactory = integerFactory(),
             )
         }
         val field = onNodeOfType<JFormattedTextField>().fetch()
@@ -140,8 +142,8 @@ class FormattedTextFieldTest {
             val factory = remember { integerFactory() }
             FormattedTextField(
                 value = value,
-                formatterFactory = factory,
                 onValueChange = { value = it },
+                formatterFactory = factory,
             )
         }
         val field = onNodeOfType<JFormattedTextField>().fetch()
@@ -165,8 +167,8 @@ class FormattedTextFieldTest {
             val factory = remember { DefaultFormatterFactory(BlankIsNoValueFormatter()) }
             FormattedTextField(
                 value = null,
-                formatterFactory = factory,
                 onValueChange = { reported += it },
+                formatterFactory = factory,
             )
         }
         val field = onNodeOfType<JFormattedTextField>().fetch()
@@ -188,6 +190,7 @@ class FormattedTextFieldTest {
             generation
             FormattedTextField(
                 value = 42,
+                onValueChange = {},
                 // A new instance per recomposition: a new formatter to install, whatever it formats.
                 formatterFactory = integerFactory(),
             )
@@ -211,6 +214,7 @@ class FormattedTextFieldTest {
             val factory = remember { integerFactory() }
             FormattedTextField(
                 value = 42,
+                onValueChange = {},
                 formatterFactory = factory,
             )
         }
@@ -230,6 +234,7 @@ class FormattedTextFieldTest {
         setContent {
             FormattedTextField(
                 value = 3,
+                onValueChange = {},
                 formatterFactory = integerFactory(),
                 focusLostBehavior = JFormattedTextField.PERSIST,
             )
@@ -248,8 +253,8 @@ class FormattedTextFieldTest {
             val factory = remember(groups) { patternFactory(if (groups) "#,###" else "#") }
             FormattedTextField(
                 value = 1234567,
-                formatterFactory = factory,
                 onValueChange = { reported += it },
+                formatterFactory = factory,
             )
         }
         val field = onNodeOfType<JFormattedTextField>().fetch()
@@ -266,7 +271,7 @@ class FormattedTextFieldTest {
     @Test
     fun nullValueRendersEmptyAndDefaultFactoryFormatsByType() = runComposeSwingTest {
         setContent {
-            FormattedTextField(value = null)
+            FormattedTextField(value = null, onValueChange = {})
         }
         val field = onNodeOfType<JFormattedTextField>().fetch()
         assertNull(field.value, "a null value should leave the field value null")

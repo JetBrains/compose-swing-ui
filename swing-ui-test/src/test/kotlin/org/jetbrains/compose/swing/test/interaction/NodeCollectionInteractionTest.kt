@@ -83,7 +83,7 @@ class NodeCollectionInteractionTest {
             BoxPanel {
                 Label(text = "alpha")
                 Label(text = "beta")
-                Button(text = "go")
+                Button(text = "go", onClick = { })
             }
         }
         val labels = onAllNodesOfType<JLabel>().fetchAll<JLabel>()
@@ -95,7 +95,7 @@ class NodeCollectionInteractionTest {
         setContent {
             BoxPanel {
                 Label(text = "alpha")
-                Button(text = "go")
+                Button(text = "go", onClick = { })
             }
         }
         // Every component matches the all-matching base query, but they are not all JLabels.

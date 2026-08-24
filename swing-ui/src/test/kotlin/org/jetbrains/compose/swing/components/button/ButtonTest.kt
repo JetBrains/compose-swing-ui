@@ -37,7 +37,7 @@ class ButtonTest {
     @Test
     fun enabledModifierIsReflectedOnTheComponent() = runComposeSwingTest {
         setContent {
-            Button(text = "Disabled", modifier = SwingModifier.enabled(false), onClick = {})
+            Button(text = "Disabled", onClick = {}, modifier = SwingModifier.enabled(false))
         }
         onNodeWithText("Disabled").assertIsNotEnabled()
     }
@@ -62,7 +62,7 @@ class ButtonTest {
     fun enabledStateTogglesAcrossRecomposition() = runComposeSwingTest {
         var enabledState by mutableStateOf(true)
         setContent {
-            Button(text = "Toggle", modifier = SwingModifier.enabled(enabledState), onClick = {})
+            Button(text = "Toggle", onClick = {}, modifier = SwingModifier.enabled(enabledState))
         }
         onNodeWithText("Toggle").assertIsEnabled()
 

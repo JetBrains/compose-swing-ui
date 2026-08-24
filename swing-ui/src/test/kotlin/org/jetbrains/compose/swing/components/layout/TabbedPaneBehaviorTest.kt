@@ -139,7 +139,7 @@ class TabbedPaneBehaviorTest {
         val events = mutableListOf<Int>()
         var selected by mutableIntStateOf(0)
         setContent {
-            TabbedPane(selectedIndex = selected, modifier = roomForTheStrip, onSelectedIndexChange = { events += it }) {
+            TabbedPane(selectedIndex = selected, onSelectedIndexChange = { events += it }, modifier = roomForTheStrip) {
                 Label("1", SwingModifier.tab("One"))
                 Label("2", SwingModifier.tab("Two"))
                 Label("3", SwingModifier.tab("Three"))
@@ -510,7 +510,7 @@ class TabbedPaneBehaviorTest {
                 if (asLabel) {
                     Label("as a label", SwingModifier.tab("Body"))
                 } else {
-                    Button("as a button", modifier = SwingModifier.tab("Body"))
+                    Button("as a button", onClick = { }, modifier = SwingModifier.tab("Body"))
                 }
             }
         }

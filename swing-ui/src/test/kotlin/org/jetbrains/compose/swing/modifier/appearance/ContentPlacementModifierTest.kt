@@ -30,8 +30,12 @@ class ContentPlacementModifierTest {
     fun horizontalAlignmentReachesEachKindThatDeclaresIt() = runComposeSwingTest {
         setContent {
             Label("Legend", modifier = SwingModifier.horizontalAlignment(SwingConstants.RIGHT))
-            Button("Save", modifier = SwingModifier.horizontalAlignment(SwingConstants.LEFT))
-            TextField(value = "", modifier = SwingModifier.horizontalAlignment(SwingConstants.CENTER))
+            Button("Save", onClick = { }, modifier = SwingModifier.horizontalAlignment(SwingConstants.LEFT))
+            TextField(
+                value = "",
+                onValueChange = {},
+                modifier = SwingModifier.horizontalAlignment(SwingConstants.CENTER),
+            )
         }
 
         assertEquals(SwingConstants.RIGHT, onNodeOfType<JLabel>().fetch().horizontalAlignment, "label")
@@ -43,7 +47,7 @@ class ContentPlacementModifierTest {
     fun verticalAlignmentReachesLabelsAndButtons() = runComposeSwingTest {
         setContent {
             Label("Legend", modifier = SwingModifier.verticalAlignment(SwingConstants.TOP))
-            Button("Save", modifier = SwingModifier.verticalAlignment(SwingConstants.BOTTOM))
+            Button("Save", onClick = { }, modifier = SwingModifier.verticalAlignment(SwingConstants.BOTTOM))
         }
 
         assertEquals(SwingConstants.TOP, onNodeOfType<JLabel>().fetch().verticalAlignment, "label")
@@ -56,7 +60,11 @@ class ContentPlacementModifierTest {
             assertFailsWith<IllegalStateException> {
                 runComposeSwingTest {
                     setContent {
-                        TextField(value = "", modifier = SwingModifier.verticalAlignment(SwingConstants.TOP))
+                        TextField(
+                            value = "",
+                            onValueChange = {},
+                            modifier = SwingModifier.verticalAlignment(SwingConstants.TOP),
+                        )
                     }
                 }
             }
@@ -91,6 +99,7 @@ class ContentPlacementModifierTest {
         setContent {
             Button(
                 "Save",
+                onClick = { },
                 modifier =
                     SwingModifier
                         .horizontalTextPosition(SwingConstants.LEADING)

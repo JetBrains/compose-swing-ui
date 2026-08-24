@@ -177,8 +177,8 @@ FormattedTextField(
 )
 EditorPane(
     markup = "<h1>Report</h1><p>See the <a href=\"/q3\">details</a>.</p>",
-    contentType = "text/html",
     onLinkActivate = { href -> open(href) },
+    contentType = "text/html",
 )
 ```
 
@@ -209,7 +209,7 @@ toggle the caller does not adopt goes back where it was.
 var wrap by remember { mutableStateOf(false) }
 var pinned by remember { mutableStateOf(false) }
 
-Button("Save", modifier = SwingModifier.icon(saveIcon), onClick = ::save)
+Button("Save", onClick = ::save, modifier = SwingModifier.icon(saveIcon))
 CheckBox("Word wrap", checked = wrap, onCheckedChange = { wrap = it })
 ToggleButton("Pin", selected = pinned, onSelectedChange = { pinned = it })
 ```
@@ -613,9 +613,9 @@ GridBagPanel {
     )
     TextField(
         name,
+        onValueChange = { name = it },
         modifier =
             SwingModifier.item(gridx = 1, gridy = 0, weightx = 1.0, fill = GridBagConstraints.HORIZONTAL),
-        onValueChange = { name = it },
     )
 }
 ```
@@ -771,8 +771,8 @@ DesktopPane {
         InternalFrame(
             title = "Palette",
             state = palette,
-            controls = InternalFrameControls(closable = true, resizable = true),
             onClose = { open = false },
+            controls = InternalFrameControls(closable = true, resizable = true),
         ) {
             Body()
         }
@@ -867,7 +867,7 @@ if (asking) {
     ) {
         BorderPanel {
             Label("Delete the selection?")
-            Button("OK", modifier = SwingModifier.pageEnd(), onClick = { asking = false })
+            Button("OK", onClick = { asking = false }, modifier = SwingModifier.pageEnd())
         }
     }
 }
@@ -909,7 +909,6 @@ Row {
     )
     Button(
         "Close",
-        modifier = SwingModifier.enabled(path != null),
         onClick = {
             val answer =
                 JOptionPane.showConfirmDialog(
@@ -920,6 +919,7 @@ Row {
                 )
             if (answer == JOptionPane.YES_OPTION) path = null
         },
+        modifier = SwingModifier.enabled(path != null),
     )
 }
 ```
@@ -958,9 +958,9 @@ bar.setContent {
     var theme by remember { mutableStateOf(0) }
 
     Menu("File") {
-        MenuItem("Open", accelerator = KeyStroke.getKeyStroke("control O"), onClick = ::open)
+        MenuItem("Open", onClick = ::open, accelerator = KeyStroke.getKeyStroke("control O"))
         MenuSeparator()
-        MenuItem("Save", accelerator = KeyStroke.getKeyStroke("control S"), onClick = ::save)
+        MenuItem("Save", onClick = ::save, accelerator = KeyStroke.getKeyStroke("control S"))
     }
     Menu("View") {
         CheckBoxMenuItem("Word wrap", checked = wordWrap, onCheckedChange = { wordWrap = it })
@@ -989,14 +989,14 @@ Window(onCloseRequest = ::exitApplication) {
         Menu("File") {
             MenuItem(
                 "Save",
+                onClick = ::save,
                 modifier = whenDirty,
                 accelerator = KeyStroke.getKeyStroke("control S"),
-                onClick = ::save,
             )
         }
     }
     ToolBar {
-        Button("Save", modifier = whenDirty, onClick = ::save)
+        Button("Save", onClick = ::save, modifier = whenDirty)
     }
 }
 ```
@@ -1036,7 +1036,7 @@ the icon runs `onAction`. `imageAutoSize` defaults to `false`, painting the imag
 application {
     var paused by remember { mutableStateOf(false) }
 
-    Tray(image = trayImage, tooltip = "Indexer") {
+    Tray(image = trayImage, onAction = { paused = !paused }, tooltip = "Indexer") {
         CheckBoxMenuItem("Paused", checked = paused, onCheckedChange = { paused = it })
         MenuSeparator()
         MenuItem("Quit", onClick = ::exitApplication)
@@ -1105,7 +1105,7 @@ Column {
             }
         },
     )
-    Button("Undo", modifier = SwingModifier.enabled(note.canUndo), onClick = note::undo)
+    Button("Undo", onClick = note::undo, modifier = SwingModifier.enabled(note.canUndo))
 }
 ```
 

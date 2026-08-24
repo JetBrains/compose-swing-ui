@@ -41,11 +41,11 @@ import javax.swing.event.ChangeListener
  * is until then, and the slider follows the mouse in the meantime.
  *
  * @param value the current value
- * @param modifier the [SwingModifier] applied to the underlying component
  * @param onValueChange callback invoked with every value the user moves the slider to, the ones a drag
  *   passes through included, and with the value the slider is left on where it cannot hold [value] - one
  *   outside the range, or one off the grid [snapToTicks] resolves to; applying a [value] the slider can
  *   hold is not itself reported
+ * @param modifier the [SwingModifier] applied to the underlying component
  * @param onValueSettled callback invoked with the value the slider settles on: the one a drag is released
  *   on, one the user reaches outside a drag, and the value the slider is left on where it cannot hold
  *   [value]
@@ -66,8 +66,8 @@ import javax.swing.event.ChangeListener
 @Composable
 public fun Slider(
     value: Int,
+    onValueChange: (Int) -> Unit,
     modifier: SwingModifier = SwingModifier,
-    onValueChange: (Int) -> Unit = {},
     onValueSettled: (Int) -> Unit = {},
     min: Int = 0,
     max: Int = 100,
@@ -81,9 +81,9 @@ public fun Slider(
     snapToTicks: Boolean = false,
 ) {
     val applied = rememberAppliedValue(value)
-    val registration = rememberSliderValueChannel(applied, applied, value)
+    val channel = rememberSliderValueChannel(applied, applied, value)
     SliderNode(
-        modifier = modifier.onSliderValue { slider -> registration.publish(slider, onValueChange, onValueSettled) },
+        modifier = modifier.onSliderValue { slider -> channel.publish(slider, onValueChange, onValueSettled) },
         labelRange = min..max,
         orientation = orientation,
         inverted = inverted,
@@ -95,14 +95,14 @@ public fun Slider(
         snapToTicks = snapToTicks,
     ) {
         // Narrowing the range can force JSlider to clamp the value on the spot, which the change listener
-        // would otherwise see as an unannounced move; the write guard is what tells the registration that the
+        // would otherwise see as an unannounced move; the write guard is what tells the channel that the
         // clamp is this declaration settling, not the user's.
         set(min) { applied.write { this.minimum = it } }
         set(max) { applied.write { this.maximum = it } }
         // A slider left on a value of its own is where the composition's declaration ended up, and the
         // callbacks are the only way the caller learns of it.
         declare(value, applied, JSlider::getValue, JSlider::setValue) { settled ->
-            registration.settledOn(settled, onValueChange, onValueSettled)
+            channel.settledOn(settled, onValueChange, onValueSettled)
         }
     }
 }
@@ -208,7 +208,7 @@ private val SLIDER_RANGE =
  * ```
  *
  * A drag reaches [onValueChange] a value at a time and [onValueSettled] once, on the value it is released
- * on; see the declared-value [Slider] for what each registration carries.
+ * on; see the declared-value [Slider] for what each channel carries.
  *
  * @param model the range the slider renders and the user moves; owned by the caller and never written to
  *   by the library
@@ -244,12 +244,12 @@ public fun Slider(
     labels: Map<Int, @Nls String>? = null,
     snapToTicks: Boolean = false,
 ) {
-    // Nothing is declared over a caller's model, so there is no mirror for the registration to settle against
+    // Nothing is declared over a caller's model, so there is no mirror for the channel to settle against
     // and every value the slider publishes is the model's own.
-    val registration = rememberSliderValueChannel(null, model, model.value)
+    val channel = rememberSliderValueChannel(null, model, model.value)
     ModelSliderNode(
         model = model,
-        modifier = modifier.onSliderValue { slider -> registration.publish(slider, onValueChange, onValueSettled) },
+        modifier = modifier.onSliderValue { slider -> channel.publish(slider, onValueChange, onValueSettled) },
         orientation = orientation,
         inverted = inverted,
         majorTickSpacing = majorTickSpacing,
@@ -402,14 +402,14 @@ private fun SliderNode(
 }
 
 /**
- * One slider's value registration: the value the caller and the slider currently agree on, and whether a drag
- * is underway. The callbacks the values reach the caller through are passed in per event, so the registration
+ * One slider's value channel: the value the caller and the slider currently agree on, and whether a drag
+ * is underway. The callbacks the values reach the caller through are passed in per event, so the channel
  * outlives a recomposition that declares new ones.
  *
  * A drag publishes a value per step before it settles, and only the value it settles on is mirrored into
  * [applied] - mirroring one it passes through would invalidate the composition, and re-assert the
  * declaration, before the user has let go. Every step still reaches `onValueChange`, since following the
- * drag is what that registration is for, while `onValueSettled` hears the value the drag ends on - which is news
+ * drag is what that channel is for, while `onValueSettled` hears the value the drag ends on - which is news
  * even where the caller already adopted it, because the release is what it reports.
  *
  * A `null` [applied] is a caller-owned model: nothing is declared over it, so nothing tells the wrapper's
@@ -423,7 +423,7 @@ private class SliderValueChannel(
     private var adjusting: Boolean = false
 
     /**
-     * Reports [value] as the value the slider answered a declaration with, on both registrations: it is where
+     * Reports [value] as the value the slider answered a declaration with, on both channels: it is where
      * the declaration ended up, and the caller hears of it here or not at all.
      */
     fun settledOn(
@@ -436,7 +436,7 @@ private class SliderValueChannel(
         onValueSettled(value)
     }
 
-    /** Reports a value the slider published, on the registrations it is news on. */
+    /** Reports a value the slider published, on the channels it is news on. */
     fun publish(
         slider: JSlider,
         onValueChange: (Int) -> Unit,
@@ -458,9 +458,9 @@ private class SliderValueChannel(
  * Remembers the [SliderValueChannel] the lambda-driven overloads report through, seeded with [value] so
  * the first value the slider publishes is measured against what the composition declares.
  *
- * [range] is what the registration measures values against - the [AppliedValue] a declared value settles
+ * [range] is what the channel measures values against - the [AppliedValue] a declared value settles
  * through, or a caller's own model. A slider given a different model is measuring against a different
- * range, so the registration is rebuilt around the value that model arrived holding rather than left seeded
+ * range, so the channel is rebuilt around the value that model arrived holding rather than left seeded
  * with a value the slider no longer shows.
  */
 @Composable

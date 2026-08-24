@@ -33,7 +33,9 @@ class TextSettlePassTimingTest {
         val changes = mutableListOf<String>()
         // Attached as-is and never rebuilt, so it stays on the document across every pass below.
         val recorder = documentChangeRecorder(changes)
-        setContent { TextField(value = DECLARED, modifier = SwingModifier.documentListener(recorder)) }
+        setContent {
+            TextField(value = DECLARED, onValueChange = {}, modifier = SwingModifier.documentListener(recorder))
+        }
         awaitIdle()
         mainClock.autoAdvance = false
 
@@ -64,8 +66,8 @@ class TextSettlePassTimingTest {
         setContent {
             TextField(
                 value = value,
-                modifier = SwingModifier.documentListener(recorder),
                 onValueChange = { value = it },
+                modifier = SwingModifier.documentListener(recorder),
             )
         }
         awaitIdle()
@@ -95,8 +97,8 @@ class TextSettlePassTimingTest {
         setContent {
             TextField(
                 value = value,
-                modifier = SwingModifier.documentListener(recorder),
                 onValueChange = { value = it.uppercase() },
+                modifier = SwingModifier.documentListener(recorder),
             )
         }
         awaitIdle()

@@ -39,7 +39,7 @@ class CaretListenerModifierTest {
     fun theCaretOffsetAndSelectionAnchorAreReported() = runComposeSwingTest {
         val recorder = CaretRecorder()
         setContent {
-            TextField("hello", modifier = SwingModifier.caretListener(recorder))
+            TextField("hello", onValueChange = {}, modifier = SwingModifier.caretListener(recorder))
         }
         val field = onNodeOfType<JTextField>().fetch<JTextComponent>()
 
@@ -57,7 +57,7 @@ class CaretListenerModifierTest {
         val first = CaretRecorder()
         val second = CaretRecorder()
         setContent {
-            TextField("hello", modifier = SwingModifier.caretListener(first).caretListener(second))
+            TextField("hello", onValueChange = {}, modifier = SwingModifier.caretListener(first).caretListener(second))
         }
         val field = onNodeOfType<JTextField>().fetch<JTextComponent>()
         assertTrue(field.caretListeners.any { it === first }, "the first instance must be registered")
@@ -72,7 +72,7 @@ class CaretListenerModifierTest {
     fun theRegistrationSurvivesADocumentSwap() = runComposeSwingTest {
         val recorder = CaretRecorder()
         setContent {
-            TextField("hello", modifier = SwingModifier.caretListener(recorder))
+            TextField("hello", onValueChange = {}, modifier = SwingModifier.caretListener(recorder))
         }
         val field = onNodeOfType<JTextField>().fetch<JTextComponent>()
 
@@ -90,7 +90,11 @@ class CaretListenerModifierTest {
         var attached by mutableStateOf(true)
         val recorder = CaretRecorder()
         setContent {
-            TextField("hello", modifier = if (attached) SwingModifier.caretListener(recorder) else SwingModifier)
+            TextField(
+                "hello",
+                onValueChange = {},
+                modifier = if (attached) SwingModifier.caretListener(recorder) else SwingModifier,
+            )
         }
         val field = onNodeOfType<JTextField>().fetch<JTextComponent>()
         field.caretPosition = 1

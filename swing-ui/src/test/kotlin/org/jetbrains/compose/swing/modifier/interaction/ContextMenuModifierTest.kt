@@ -80,10 +80,10 @@ class ContextMenuModifierTest {
                     SwingModifier.contextMenu(
                         display = { popup, _, _, _ -> captured = popup },
                     ) {
-                        MenuItem("Cut")
-                        MenuItem("Copy")
+                        MenuItem("Cut", onClick = { })
+                        MenuItem("Copy", onClick = { })
                         MenuSeparator()
-                        MenuItem("Paste")
+                        MenuItem("Paste", onClick = { })
                     },
             )
         }
@@ -114,8 +114,8 @@ class ContextMenuModifierTest {
                     SwingModifier.contextMenu(
                         display = { popup, _, _, _ -> captured = popup },
                     ) {
-                        MenuItem("Cut")
-                        MenuItem("Paste")
+                        MenuItem("Cut", onClick = { })
+                        MenuItem("Paste", onClick = { })
                     },
             )
         }
@@ -148,7 +148,7 @@ class ContextMenuModifierTest {
                     SwingModifier.contextMenu(
                         display = { popup, _, _, _ -> captured = popup },
                     ) {
-                        MenuItem("Copy")
+                        MenuItem("Copy", onClick = { })
                         MenuItem("Paste", onClick = { pasted++ })
                     },
             )
@@ -175,7 +175,7 @@ class ContextMenuModifierTest {
                         display = { popup, _, _, _ -> captured = popup },
                     ) {
                         Menu("More") {
-                            MenuItem("Nested")
+                            MenuItem("Nested", onClick = { })
                         }
                     },
             )
@@ -200,8 +200,8 @@ class ContextMenuModifierTest {
                     SwingModifier.contextMenu(
                         display = { popup, _, _, _ -> captured = popup },
                     ) {
-                        MenuItem("Always")
-                        if (enabledExtra) MenuItem("Extra")
+                        MenuItem("Always", onClick = { })
+                        if (enabledExtra) MenuItem("Extra", onClick = { })
                     },
             )
         }
@@ -234,7 +234,7 @@ class ContextMenuModifierTest {
                 // the trigger point (the production default) instead of via a caller-supplied seam.
                 modifier =
                     SwingModifier.contextMenu {
-                        MenuItem("Cut")
+                        MenuItem("Cut", onClick = { })
                     },
             )
         }
@@ -381,7 +381,7 @@ class ContextMenuModifierTest {
                             popups++
                         },
                     ) {
-                        MenuItem(itemText)
+                        MenuItem(itemText, onClick = { })
                     },
             )
         }
@@ -408,8 +408,8 @@ class ContextMenuModifierTest {
             opened += popup.menuItemTexts().single()
         }
         setContent {
-            val firstMenu = SwingModifier.contextMenu(display = record) { MenuItem("Cut") }
-            Label("target", modifier = firstMenu.contextMenu(display = record) { MenuItem("Paste") })
+            val firstMenu = SwingModifier.contextMenu(display = record) { MenuItem("Cut", onClick = { }) }
+            Label("target", modifier = firstMenu.contextMenu(display = record) { MenuItem("Paste", onClick = { }) })
         }
         val target = onNodeOfType<JLabel>().fetch()
 
@@ -432,7 +432,7 @@ class ContextMenuModifierTest {
                     SwingModifier.contextMenu(
                         display = { popup, _, _, _ -> captured = popup },
                     ) {
-                        MenuItem("Cut")
+                        MenuItem("Cut", onClick = { })
                     }
                 } else {
                     SwingModifier
@@ -469,7 +469,7 @@ class ContextMenuModifierTest {
         setContent {
             val modifier =
                 if (withMenu) {
-                    SwingModifier.contextMenu { MenuItem("Cut") }
+                    SwingModifier.contextMenu { MenuItem("Cut", onClick = { }) }
                 } else {
                     SwingModifier
                 }
@@ -493,10 +493,10 @@ class ContextMenuModifierTest {
     fun droppingTheModifierClearsTheOwnMenuRatherThanPinningAnInheritedOne() = runComposeSwingTest {
         var withMenu by mutableStateOf(true)
         setContent {
-            Column(modifier = SwingModifier.contextMenu { MenuItem("Outer") }) {
+            Column(modifier = SwingModifier.contextMenu { MenuItem("Outer", onClick = { }) }) {
                 val inner =
                     if (withMenu) {
-                        SwingModifier.contextMenu { MenuItem("Inner") }
+                        SwingModifier.contextMenu { MenuItem("Inner", onClick = { }) }
                     } else {
                         SwingModifier
                     }
@@ -536,7 +536,7 @@ class ContextMenuModifierTest {
                         onOpen = { opened += (captured ?: error("no popup")).menuItemTexts() },
                         display = { popup, _, _, _ -> captured = popup },
                     ) {
-                        MenuItem("Cut")
+                        MenuItem("Cut", onClick = { })
                     },
             )
         }
@@ -564,7 +564,7 @@ class ContextMenuModifierTest {
                         onClose = { closes++ },
                         display = { popup, _, _, _ -> captured += popup },
                     ) {
-                        MenuItem("Cut")
+                        MenuItem("Cut", onClick = { })
                     },
             )
         }
@@ -595,7 +595,7 @@ class ContextMenuModifierTest {
                         display = { popup, _, _, _ -> captured = popup },
                     ) {
                         DisposableEffect(Unit) { onDispose { released++ } }
-                        MenuItem("Cut")
+                        MenuItem("Cut", onClick = { })
                     },
             )
         }
@@ -624,7 +624,7 @@ class ContextMenuModifierTest {
                         onOpen = { opens++ },
                         display = { _, _, _, _ -> throw IllegalComponentStateException("no place for the menu") },
                     ) {
-                        MenuItem("Cut")
+                        MenuItem("Cut", onClick = { })
                     },
             )
         }
@@ -644,7 +644,7 @@ class ContextMenuModifierTest {
                     SwingModifier.contextMenu(
                         display = { popup, _, _, _ -> captured = popup },
                     ) {
-                        MenuItem("Cut")
+                        MenuItem("Cut", onClick = { })
                     },
             )
         }

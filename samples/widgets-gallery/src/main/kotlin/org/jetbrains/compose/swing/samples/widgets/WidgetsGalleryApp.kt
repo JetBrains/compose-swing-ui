@@ -53,29 +53,29 @@ internal fun ShowcaseMenuBar(onExit: () -> Unit) {
     Menu("File") {
         MenuItem(
             "New",
-            accelerator = KeyStroke.getKeyStroke(KeyEvent.VK_N, shortcut),
             onClick = { setEditorText("") },
+            accelerator = KeyStroke.getKeyStroke(KeyEvent.VK_N, shortcut),
         )
-        MenuItem("Open", accelerator = KeyStroke.getKeyStroke(KeyEvent.VK_O, shortcut)) {
+        MenuItem("Open", onClick = {
             // Loads a canned document into the shared editor. The Editor section - a separate
             // composition - renders it through that shared document.
             setEditorText(SAMPLE_DOCUMENT)
             owner?.toFront()
-        }
+        }, accelerator = KeyStroke.getKeyStroke(KeyEvent.VK_O, shortcut))
         MenuSeparator()
         MenuItem("Exit", onClick = onExit)
     }
     Menu("Edit") {
-        MenuItem("Cut", accelerator = KeyStroke.getKeyStroke(KeyEvent.VK_X, shortcut))
-        MenuItem("Copy", accelerator = KeyStroke.getKeyStroke(KeyEvent.VK_C, shortcut))
-        MenuItem("Paste", accelerator = KeyStroke.getKeyStroke(KeyEvent.VK_V, shortcut))
+        MenuItem("Cut", onClick = { }, accelerator = KeyStroke.getKeyStroke(KeyEvent.VK_X, shortcut))
+        MenuItem("Copy", onClick = { }, accelerator = KeyStroke.getKeyStroke(KeyEvent.VK_C, shortcut))
+        MenuItem("Paste", onClick = { }, accelerator = KeyStroke.getKeyStroke(KeyEvent.VK_V, shortcut))
     }
     Menu("View") {
         CheckBoxMenuItem(
             "Wrap text",
             checked = wrapText,
-            accelerator = KeyStroke.getKeyStroke(KeyEvent.VK_W, shortcut),
             onCheckedChange = { wrapText = it },
+            accelerator = KeyStroke.getKeyStroke(KeyEvent.VK_W, shortcut),
         )
         MenuSeparator()
         RadioButtonMenuGroup(selectedIndex = density, onSelectionChange = { density = it }) {
@@ -139,8 +139,8 @@ internal fun ShowcaseShell() {
         FlowPanel(modifier = SwingModifier.south(), alignment = FlowLayout.LEADING) {
             Button(
                 text = "Back",
-                modifier = SwingModifier.enabled(backStack.size > 1),
                 onClick = { backStack.removeLastOrNull() },
+                modifier = SwingModifier.enabled(backStack.size > 1),
             )
             Label("Section: $current")
         }

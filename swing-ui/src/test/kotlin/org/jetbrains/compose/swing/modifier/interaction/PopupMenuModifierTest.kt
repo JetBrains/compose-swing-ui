@@ -67,10 +67,10 @@ class PopupMenuModifierTest {
                         onDismiss = { expanded = false },
                         display = { popup, _, _, _ -> captured = popup },
                     ) {
-                        MenuItem("Cut")
-                        MenuItem("Copy")
+                        MenuItem("Cut", onClick = { })
+                        MenuItem("Copy", onClick = { })
                         MenuSeparator()
-                        Menu("More") { MenuItem("Nested") }
+                        Menu("More") { MenuItem("Nested", onClick = { }) }
                     },
             )
         }
@@ -109,7 +109,7 @@ class PopupMenuModifierTest {
                             anchor = x to y
                         },
                     ) {
-                        MenuItem("Cut")
+                        MenuItem("Cut", onClick = { })
                     },
             )
         }
@@ -168,7 +168,7 @@ class PopupMenuModifierTest {
                         display = { popup, _, _, _ -> captured = popup },
                     ) {
                         DisposableEffect(Unit) { onDispose { released++ } }
-                        MenuItem("Cut")
+                        MenuItem("Cut", onClick = { })
                     },
             )
         }
@@ -202,7 +202,7 @@ class PopupMenuModifierTest {
                         onDismiss = {},
                         display = { popup, _, _, _ -> captured = popup },
                     ) {
-                        MenuItem("Cut")
+                        MenuItem("Cut", onClick = { })
                     },
             )
         }
@@ -234,7 +234,7 @@ class PopupMenuModifierTest {
                         display = { popup, _, _, _ -> captured = popup },
                     ) {
                         DisposableEffect(Unit) { onDispose { released++ } }
-                        MenuItem("Cut")
+                        MenuItem("Cut", onClick = { })
                     },
             )
         }
@@ -269,7 +269,7 @@ class PopupMenuModifierTest {
                             display = { _, _, _, _ -> },
                         ) {
                             DisposableEffect(Unit) { onDispose { released++ } }
-                            MenuItem("Cut")
+                            MenuItem("Cut", onClick = { })
                         },
                 )
             }
@@ -358,8 +358,8 @@ class PopupMenuModifierTest {
                         onDismiss = { expanded = false },
                         display = { popup, _, _, _ -> captured = popup },
                     ) {
-                        MenuItem("Always")
-                        if (extra) MenuItem("Extra")
+                        MenuItem("Always", onClick = { })
+                        if (extra) MenuItem("Extra", onClick = { })
                     },
             )
         }
@@ -391,12 +391,12 @@ class PopupMenuModifierTest {
                             expanded = true,
                             onDismiss = {},
                             display = { popup, _, _, _ -> opened += popup.menuItemTexts() },
-                        ) { MenuItem("First") }
+                        ) { MenuItem("First", onClick = { }) }
                         .popupMenu(
                             expanded = true,
                             onDismiss = {},
                             display = { popup, _, _, _ -> opened += popup.menuItemTexts() },
-                        ) { MenuItem("Second") },
+                        ) { MenuItem("Second", onClick = { }) },
             )
         }
 
@@ -422,7 +422,7 @@ class PopupMenuModifierTest {
                             onDismiss = {},
                             display = { popup, _, _, _ -> captured = popup },
                         ) {
-                            MenuItem("Cut")
+                            MenuItem("Cut", onClick = { })
                         },
                 )
             }
@@ -448,7 +448,7 @@ class PopupMenuModifierTest {
         setWindowContent {
             Label(
                 "target",
-                modifier = SwingModifier.popupMenu(expanded = true, onDismiss = {}) { MenuItem("Cut") },
+                modifier = SwingModifier.popupMenu(expanded = true, onDismiss = {}) { MenuItem("Cut", onClick = { }) },
             )
         }
 
@@ -473,7 +473,7 @@ class PopupMenuModifierTest {
                             onDismiss = {},
                             display = { popup, _, _, _ -> captured = popup },
                         ) {
-                            MenuItem("Cut")
+                            MenuItem("Cut", onClick = { })
                         },
                 )
             }
@@ -499,7 +499,7 @@ class PopupMenuModifierTest {
             Label(
                 "target",
                 // The overload without the presentation seam, the one production uses.
-                modifier = SwingModifier.popupMenu(expanded = false, onDismiss = {}) { MenuItem("Cut") },
+                modifier = SwingModifier.popupMenu(expanded = false, onDismiss = {}) { MenuItem("Cut", onClick = { }) },
             )
         }
 

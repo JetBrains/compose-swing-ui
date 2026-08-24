@@ -53,6 +53,7 @@ class ButtonStateIconModifierTest {
         setContent {
             Button(
                 "Save",
+                onClick = { },
                 modifier =
                     SwingModifier
                         .icon(base)
@@ -77,7 +78,9 @@ class ButtonStateIconModifierTest {
     @Test
     fun aStateIconReachesACheckBox() = runComposeSwingTest {
         val checkBoxIcon = icon()
-        setContent { CheckBox("Wrap", checked = false, modifier = SwingModifier.selectedIcon(checkBoxIcon)) }
+        setContent {
+            CheckBox("Wrap", checked = false, onCheckedChange = {}, modifier = SwingModifier.selectedIcon(checkBoxIcon))
+        }
 
         assertSame(checkBoxIcon, onNodeOfType<JCheckBox>().fetch().selectedIcon, "check box")
     }
@@ -85,7 +88,7 @@ class ButtonStateIconModifierTest {
     @Test
     fun aStateIconReachesAMenuItem() = runComposeSwingTest {
         val menuItemIcon = icon()
-        val popup = composeMenu { MenuItem("Open", modifier = SwingModifier.pressedIcon(menuItemIcon)) }
+        val popup = composeMenu { MenuItem("Open", onClick = { }, modifier = SwingModifier.pressedIcon(menuItemIcon)) }
 
         assertSame(menuItemIcon, (popup.getComponent(0) as JMenuItem).pressedIcon, "menu item")
     }
@@ -95,7 +98,7 @@ class ButtonStateIconModifierTest {
         val first = icon()
         val second = icon()
         var current by mutableStateOf(first)
-        setContent { Button("Save", modifier = SwingModifier.pressedIcon(current)) }
+        setContent { Button("Save", onClick = { }, modifier = SwingModifier.pressedIcon(current)) }
 
         val button = onNodeOfType<JButton>().fetch()
         assertSame(first, button.pressedIcon, "the declared icon")
@@ -110,7 +113,11 @@ class ButtonStateIconModifierTest {
     fun droppingAStateIconRestoresTheOneTheButtonHad() = runComposeSwingTest {
         var decorated by mutableStateOf(true)
         setContent {
-            Button("Save", modifier = if (decorated) SwingModifier.selectedIcon(icon()) else SwingModifier)
+            Button(
+                "Save",
+                onClick = { },
+                modifier = if (decorated) SwingModifier.selectedIcon(icon()) else SwingModifier,
+            )
         }
 
         val button = onNodeOfType<AbstractButton>().fetch()
@@ -130,7 +137,11 @@ class ButtonStateIconModifierTest {
         setContent {
             Button(
                 "Save",
-                modifier = SwingModifier.icon(base).let { if (decorated) it.disabledIcon(declared) else it },
+                onClick = { },
+                modifier =
+                    SwingModifier.icon(base).let {
+                        if (decorated) it.disabledIcon(declared) else it
+                    },
             )
         }
 
@@ -154,8 +165,8 @@ class ButtonStateIconModifierTest {
             withoutLookAndFeelDefault("Button.rollover") {
                 withoutLookAndFeelDefault("CheckBox.rollover") {
                     setContent {
-                        Button("Save", modifier = SwingModifier.rolloverIcon(icon()))
-                        CheckBox("Wrap", checked = false)
+                        Button("Save", onClick = { }, modifier = SwingModifier.rolloverIcon(icon()))
+                        CheckBox("Wrap", checked = false, onCheckedChange = {})
                     }
 
                     assertTrue(
@@ -177,7 +188,11 @@ class ButtonStateIconModifierTest {
             withoutLookAndFeelDefault("Button.rollover") {
                 var rollover by mutableStateOf(true)
                 setContent {
-                    Button("Save", modifier = if (rollover) SwingModifier.rolloverEnabled(true) else SwingModifier)
+                    Button(
+                        "Save",
+                        onClick = { },
+                        modifier = if (rollover) SwingModifier.rolloverEnabled(true) else SwingModifier,
+                    )
                 }
 
                 val button = onNodeOfType<JButton>().fetch()

@@ -26,8 +26,8 @@ import javax.swing.text.html.HTMLDocument
 /**
  * A composable wrapper for `JEditorPane` rendering [markup], source written in the language
  * [contentType] names. The kit registered for that content type parses it, so
- * `EditorPane("<h1>Report</h1>", contentType = "text/html")` renders a heading rather than the
- * characters that spell one.
+ * `EditorPane("<h1>Report</h1>", { href -> open(href) }, contentType = "text/html")` renders a
+ * heading rather than the characters that spell one.
  *
  * The pane renders and does not report: it holds no text the caller does not declare, and the user
  * cannot type into it. To let the user author rich text, drive a pane with a [DocumentState] through
@@ -40,11 +40,11 @@ import javax.swing.text.html.HTMLDocument
  * model holds no base having nothing to resolve against in the first place.
  *
  * @param markup the source, written in [contentType]'s language, the pane renders
+ * @param onLinkActivate callback invoked with the raw `href` of a link the user activates
  * @param modifier the [SwingModifier] applied to the underlying component
  * @param contentType the MIME type naming the kit that parses and renders [markup] (a [ContentType]
  *   MIME string)
  * @param baseUrl the location relative references in HTML [markup] resolve against
- * @param onLinkActivate callback invoked with the raw `href` of a link the user activates
  * @throws IllegalArgumentException if no editor kit is registered for [contentType].
  * @see EditorPane the [DocumentState]-driven overload, for text the user authors
  * @see javax.swing.JEditorPane
@@ -52,10 +52,10 @@ import javax.swing.text.html.HTMLDocument
 @Composable
 public fun EditorPane(
     markup: @Nls String,
+    onLinkActivate: (String) -> Unit,
     modifier: SwingModifier = SwingModifier,
     @ContentType contentType: String = "text/plain",
     baseUrl: URL? = null,
-    onLinkActivate: (String) -> Unit = {},
 ) {
     RenderedPaneNode(
         markup = markup,
@@ -216,9 +216,9 @@ public fun EditorPane(
  * pane with the [DocumentState] overload ([TextPane]) and a [DocumentState] from `rememberDocumentState`.
  *
  * @param value the current text
- * @param modifier the [SwingModifier] applied to the underlying component
  * @param onValueChange callback invoked with the pane's new text when the pane is edited; applying
  *   [value] is not itself reported
+ * @param modifier the [SwingModifier] applied to the underlying component
  * @param editable whether the user can edit the text
  * @see TextPane the [DocumentState]-driven overload for large or complex editors
  * @see javax.swing.JTextPane
@@ -226,8 +226,8 @@ public fun EditorPane(
 @Composable
 public fun TextPane(
     value: @Nls String,
+    onValueChange: (@Nls String) -> Unit,
     modifier: SwingModifier = SwingModifier,
-    onValueChange: (@Nls String) -> Unit = {},
     editable: Boolean = true,
 ) {
     val applied = rememberAppliedValue(value)

@@ -43,7 +43,7 @@ class TabbedPaneReactivityTest {
     fun theTabStripIsDrawnWhereTabPlacementSaysAndFollowsIt() = runComposeSwingTest {
         var placement by mutableIntStateOf(JTabbedPane.TOP)
         setContent {
-            TabbedPane(selectedIndex = 0, tabPlacement = placement) {
+            TabbedPane(selectedIndex = 0, onSelectedIndexChange = {}, tabPlacement = placement) {
                 Label("g", SwingModifier.tab("General"))
             }
         }
@@ -64,7 +64,7 @@ class TabbedPaneReactivityTest {
     fun theTabStripHandlesOverflowTheWayTabLayoutPolicySays() = runComposeSwingTest {
         var policy by mutableIntStateOf(JTabbedPane.WRAP_TAB_LAYOUT)
         setContent {
-            TabbedPane(selectedIndex = 0, tabLayoutPolicy = policy) {
+            TabbedPane(selectedIndex = 0, onSelectedIndexChange = {}, tabLayoutPolicy = policy) {
                 Label("g", SwingModifier.tab("General"))
             }
         }
@@ -87,7 +87,7 @@ class TabbedPaneReactivityTest {
         val second = icon()
         var declared by mutableStateOf<Icon?>(null)
         setContent {
-            TabbedPane(selectedIndex = 0) {
+            TabbedPane(selectedIndex = 0, onSelectedIndexChange = {}) {
                 Label("g", SwingModifier.tab("General", icon = declared))
             }
         }
@@ -112,7 +112,7 @@ class TabbedPaneReactivityTest {
     fun aTabsTooltipFollowsItsDeclarationAndGoesAwayWithIt() = runComposeSwingTest {
         var tooltip by mutableStateOf<String?>(null)
         setContent {
-            TabbedPane(selectedIndex = 0) {
+            TabbedPane(selectedIndex = 0, onSelectedIndexChange = {}) {
                 Label("g", SwingModifier.tab("General", tooltip = tooltip))
             }
         }
@@ -138,7 +138,7 @@ class TabbedPaneReactivityTest {
         var title by mutableStateOf("General")
         var enabled by mutableStateOf(true)
         setContent {
-            TabbedPane(selectedIndex = 0) {
+            TabbedPane(selectedIndex = 0, onSelectedIndexChange = {}) {
                 Label("g", SwingModifier.tab(title, enabled = enabled))
             }
         }
@@ -163,7 +163,7 @@ class TabbedPaneReactivityTest {
     @Test
     fun aTabsMnemonicAndItsExplicitIndexBothReachTheTabOnTheFirstPass() = runComposeSwingTest {
         setContent {
-            TabbedPane(selectedIndex = 0) {
+            TabbedPane(selectedIndex = 0, onSelectedIndexChange = {}) {
                 // "Settings" underlines its first 't' (index 2) on its own; the explicit index names the
                 // second one instead, so which of the two the tab shows is what the assertion tells apart.
                 Label("g", SwingModifier.tab("Settings", mnemonic = KeyEvent.VK_T, displayedMnemonicIndex = 3))
@@ -183,7 +183,7 @@ class TabbedPaneReactivityTest {
     fun withdrawingTheExplicitIndexBringsBackTheMnemonicsOwnComputedIndex() = runComposeSwingTest {
         var displayedMnemonicIndex by mutableStateOf<Int?>(3)
         setContent {
-            TabbedPane(selectedIndex = 0) {
+            TabbedPane(selectedIndex = 0, onSelectedIndexChange = {}) {
                 Label(
                     "g",
                     SwingModifier.tab(
@@ -212,7 +212,7 @@ class TabbedPaneReactivityTest {
     fun changingTheMnemonicKeepsAnExplicitIndexItDidNotMove() = runComposeSwingTest {
         var mnemonic by mutableIntStateOf(-1)
         setContent {
-            TabbedPane(selectedIndex = 0) {
+            TabbedPane(selectedIndex = 0, onSelectedIndexChange = {}) {
                 Label("g", SwingModifier.tab("Settings", mnemonic = mnemonic, displayedMnemonicIndex = 3))
             }
         }
@@ -235,7 +235,7 @@ class TabbedPaneReactivityTest {
         var title by mutableStateOf("Save")
         var displayedMnemonicIndex by mutableStateOf<Int?>(1)
         setContent {
-            TabbedPane(selectedIndex = 0) {
+            TabbedPane(selectedIndex = 0, onSelectedIndexChange = {}) {
                 Label(
                     "g",
                     SwingModifier.tab(
@@ -273,7 +273,7 @@ class TabbedPaneReactivityTest {
     fun aTitleShrinkingBelowAStandingExplicitIndexUnderlinesNoneInsteadOfThrowing() = runComposeSwingTest {
         var title by mutableStateOf("Save As")
         setContent {
-            TabbedPane(selectedIndex = 0) {
+            TabbedPane(selectedIndex = 0, onSelectedIndexChange = {}) {
                 Label("g", SwingModifier.tab(title, mnemonic = KeyEvent.VK_S, displayedMnemonicIndex = 5))
             }
         }
@@ -298,7 +298,7 @@ class TabbedPaneReactivityTest {
         var background by mutableStateOf<Color?>(Color.RED)
         var foreground by mutableStateOf<Color?>(Color.WHITE)
         setContent {
-            TabbedPane(selectedIndex = 0) {
+            TabbedPane(selectedIndex = 0, onSelectedIndexChange = {}) {
                 Label("g", SwingModifier.tab("General", background = background, foreground = foreground))
             }
         }
@@ -341,11 +341,11 @@ class TabbedPaneReactivityTest {
             val declaredBy = origin
             TabbedPane(
                 selectedIndex = selected,
-                modifier = roomForTheStrip,
                 onSelectedIndexChange = {
                     reported += "$declaredBy:$it"
                     selected = it
                 },
+                modifier = roomForTheStrip,
             ) {
                 Label("1", SwingModifier.tab("One"))
                 Label("2", SwingModifier.tab("Two"))
@@ -373,8 +373,8 @@ class TabbedPaneReactivityTest {
             val second = remember { recordingListener(secondEvents) }
             TabbedPane(
                 selectedIndex = 0,
-                modifier = roomForTheStrip,
                 changeListener = if (useSecond) second else first,
+                modifier = roomForTheStrip,
             ) {
                 Label("1", SwingModifier.tab("One"))
                 Label("2", SwingModifier.tab("Two"))
@@ -429,7 +429,7 @@ class TabbedPaneReactivityTest {
     fun aTabsBodyFollowsTheContentItIsDeclaredWith() = runComposeSwingTest {
         var caption by mutableStateOf("first")
         setContent {
-            TabbedPane(selectedIndex = 0) {
+            TabbedPane(selectedIndex = 0, onSelectedIndexChange = {}) {
                 Label(caption, SwingModifier.tab("General"))
             }
         }
@@ -447,7 +447,7 @@ class TabbedPaneReactivityTest {
     fun aTabsHeaderGoesAwayWhenItIsNoLongerDeclared() = runComposeSwingTest {
         var withHeader by mutableStateOf(true)
         setContent {
-            TabbedPane(selectedIndex = 0) {
+            TabbedPane(selectedIndex = 0, onSelectedIndexChange = {}) {
                 Label("g", SwingModifier.tab("General", header = if (withHeader) ({ Label("custom") }) else null))
             }
         }

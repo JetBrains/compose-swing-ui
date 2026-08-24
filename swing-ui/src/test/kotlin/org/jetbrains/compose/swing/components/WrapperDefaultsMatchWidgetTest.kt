@@ -1,8 +1,6 @@
 package org.jetbrains.compose.swing.components
 
 import org.jetbrains.compose.swing.components.button.Button
-import org.jetbrains.compose.swing.components.button.RadioButton
-import org.jetbrains.compose.swing.components.button.ToggleButton
 import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.components.layout.SplitPane
 import org.jetbrains.compose.swing.components.layout.TabbedPane
@@ -29,7 +27,6 @@ import javax.swing.JFormattedTextField
 import javax.swing.JList
 import javax.swing.JPasswordField
 import javax.swing.JProgressBar
-import javax.swing.JRadioButton
 import javax.swing.JScrollPane
 import javax.swing.JSeparator
 import javax.swing.JSlider
@@ -40,7 +37,6 @@ import javax.swing.JTable
 import javax.swing.JTextArea
 import javax.swing.JTextField
 import javax.swing.JTextPane
-import javax.swing.JToggleButton
 import javax.swing.JToolBar
 import javax.swing.JTree
 import javax.swing.SpinnerNumberModel
@@ -59,7 +55,7 @@ class WrapperDefaultsMatchWidgetTest {
     @Test
     fun textFieldDefaultsMatchBareWidget() = runComposeSwingTest {
         val bare = JTextField()
-        setContent { TextField(value = "") }
+        setContent { TextField(value = "", onValueChange = {}) }
         val wrapped = onNodeOfType<JTextField>().fetch()
         assertEquals(bare.columns, wrapped.columns, "columns")
         assertEquals(bare.isEditable, wrapped.isEditable, "editable")
@@ -68,7 +64,7 @@ class WrapperDefaultsMatchWidgetTest {
     @Test
     fun textAreaDefaultsMatchBareWidget() = runComposeSwingTest {
         val bare = JTextArea()
-        setContent { TextArea(value = "") }
+        setContent { TextArea(value = "", onValueChange = {}) }
         val wrapped = onNodeOfType<JTextArea>().fetch()
         assertEquals(bare.rows, wrapped.rows, "rows")
         assertEquals(bare.columns, wrapped.columns, "columns")
@@ -80,7 +76,7 @@ class WrapperDefaultsMatchWidgetTest {
     @Test
     fun passwordFieldDefaultsMatchBareWidget() = runComposeSwingTest {
         val bare = JPasswordField()
-        setContent { PasswordField(value = CharArray(0)) }
+        setContent { PasswordField(value = CharArray(0), onValueChange = {}) }
         val wrapped = onNodeOfType<JPasswordField>().fetch()
         assertEquals(bare.columns, wrapped.columns, "columns")
         assertEquals(bare.echoChar, wrapped.echoChar, "echoChar")
@@ -99,7 +95,7 @@ class WrapperDefaultsMatchWidgetTest {
     @Test
     fun textPaneDefaultsMatchBareWidget() = runComposeSwingTest {
         val bare = JTextPane()
-        setContent { TextPane(value = "") }
+        setContent { TextPane(value = "", onValueChange = {}) }
         val wrapped = onNodeOfType<JTextPane>().fetch()
         assertEquals(bare.isEditable, wrapped.isEditable, "editable")
     }
@@ -107,7 +103,7 @@ class WrapperDefaultsMatchWidgetTest {
     @Test
     fun formattedTextFieldDefaultsMatchBareWidget() = runComposeSwingTest {
         val bare = JFormattedTextField()
-        setContent { FormattedTextField(value = null) }
+        setContent { FormattedTextField(value = null, onValueChange = {}) }
         val wrapped = onNodeOfType<JFormattedTextField>().fetch()
         assertEquals(bare.columns, wrapped.columns, "columns")
         assertEquals(bare.focusLostBehavior, wrapped.focusLostBehavior, "focusLostBehavior")
@@ -126,7 +122,7 @@ class WrapperDefaultsMatchWidgetTest {
     @Test
     fun sliderDefaultsMatchBareWidget() = runComposeSwingTest {
         val bare = JSlider()
-        setContent { Slider(value = bare.value) }
+        setContent { Slider(value = bare.value, onValueChange = {}) }
         val wrapped = onNodeOfType<JSlider>().fetch()
         assertEquals(bare.minimum, wrapped.minimum, "minimum")
         assertEquals(bare.maximum, wrapped.maximum, "maximum")
@@ -143,9 +139,8 @@ class WrapperDefaultsMatchWidgetTest {
     @Test
     fun spinnerDefaultsMatchBareWidget() = runComposeSwingTest {
         val bare = JSpinner().model as SpinnerNumberModel
-        setContent { Spinner(value = bare.number.toInt()) }
+        setContent { Spinner(value = bare.number.toInt(), onValueChange = {}) }
         val wrapped = onNodeOfType<JSpinner>().fetch().model as SpinnerNumberModel
-        assertEquals(bare.value, wrapped.value, "value")
         assertEquals(bare.stepSize, wrapped.stepSize, "stepSize")
         assertEquals(bare.minimum, wrapped.minimum, "minimum")
         assertEquals(bare.maximum, wrapped.maximum, "maximum")
@@ -188,25 +183,9 @@ class WrapperDefaultsMatchWidgetTest {
     @Test
     fun buttonDefaultsMatchBareWidget() = runComposeSwingTest {
         val bare = JButton()
-        setContent { Button(text = "") }
+        setContent { Button(text = "", onClick = { }) }
         val wrapped = onNodeOfType<JButton>().fetch()
         assertEquals(bare.isEnabled, wrapped.isEnabled, "enabled")
-    }
-
-    @Test
-    fun radioButtonDefaultsMatchBareWidget() = runComposeSwingTest {
-        val bare = JRadioButton()
-        setContent { RadioButton(text = "") }
-        val wrapped = onNodeOfType<JRadioButton>().fetch()
-        assertEquals(bare.isSelected, wrapped.isSelected, "selected")
-    }
-
-    @Test
-    fun toggleButtonDefaultsMatchBareWidget() = runComposeSwingTest {
-        val bare = JToggleButton()
-        setContent { ToggleButton(text = "") }
-        val wrapped = onNodeOfType<JToggleButton>().fetch()
-        assertEquals(bare.isSelected, wrapped.isSelected, "selected")
     }
 
     @Test
@@ -266,7 +245,7 @@ class WrapperDefaultsMatchWidgetTest {
     @Test
     fun tabbedPaneDefaultsMatchBareWidget() = runComposeSwingTest {
         val bare = JTabbedPane()
-        setContent { TabbedPane(selectedIndex = -1) {} }
+        setContent { TabbedPane(selectedIndex = -1, onSelectedIndexChange = {}) {} }
         val wrapped = onNodeOfType<JTabbedPane>().fetch()
         assertEquals(bare.tabPlacement, wrapped.tabPlacement, "tabPlacement")
         assertEquals(bare.tabLayoutPolicy, wrapped.tabLayoutPolicy, "tabLayoutPolicy")

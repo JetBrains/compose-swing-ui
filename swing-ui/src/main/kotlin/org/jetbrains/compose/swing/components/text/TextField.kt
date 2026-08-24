@@ -27,9 +27,9 @@ import javax.swing.event.DocumentListener
  * the field with the [DocumentState] overload and a [DocumentState] from `rememberDocumentState`.
  *
  * @param value the current text value
- * @param modifier the [SwingModifier] applied to the underlying component
  * @param onValueChange callback invoked with the field's new text when the field is edited; applying
  *   [value] is not itself reported
+ * @param modifier the [SwingModifier] applied to the underlying component
  * @param columns the number of columns
  * @param editable whether the user can edit the text
  * @see TextField the [DocumentState]-driven overload for large or complex editors
@@ -38,8 +38,8 @@ import javax.swing.event.DocumentListener
 @Composable
 public fun TextField(
     value: @Nls String,
+    onValueChange: (@Nls String) -> Unit,
     modifier: SwingModifier = SwingModifier,
-    onValueChange: (@Nls String) -> Unit = {},
     columns: Int = 0,
     editable: Boolean = true,
 ) {

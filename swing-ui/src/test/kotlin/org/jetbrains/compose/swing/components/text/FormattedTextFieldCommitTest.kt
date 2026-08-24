@@ -114,6 +114,7 @@ class FormattedTextFieldCommitTest {
             val factory = remember { integerFactory() }
             FormattedTextField(
                 value = 1,
+                onValueChange = {},
                 formatterFactory = factory,
                 onEditValidChange = { reported += it },
             )

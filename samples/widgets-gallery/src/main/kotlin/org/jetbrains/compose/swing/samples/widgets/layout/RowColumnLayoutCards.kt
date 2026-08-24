@@ -30,7 +30,7 @@ internal fun ColumnScope.RowCard() {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Label("Leading")
-            Button("Takes the width that is left", modifier = SwingModifier.weight(1f))
+            Button("Takes the width that is left", onClick = { }, modifier = SwingModifier.weight(1f))
             Label("Trailing")
         }
     }
@@ -65,8 +65,8 @@ internal fun ColumnScope.RowArrangementCard() {
             horizontalArrangement = arrangements[selected].second,
         ) {
             Label(text = "<html>Two<br>lines</html>")
-            Button("Bottom-aligned", modifier = SwingModifier.align(Alignment.Bottom))
-            Button("Fills height", modifier = SwingModifier.fillHeight())
+            Button("Bottom-aligned", onClick = { }, modifier = SwingModifier.align(Alignment.Bottom))
+            Button("Fills height", onClick = { }, modifier = SwingModifier.fillHeight())
         }
     }
 }
@@ -81,9 +81,9 @@ internal fun ColumnScope.ColumnCard() {
             verticalArrangement = Arrangement.spacedBy(6),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Button("Centered by the column")
-            Button("Centered too")
-            Button("Aligned to the end", modifier = SwingModifier.align(Alignment.End))
+            Button("Centered by the column", onClick = { })
+            Button("Centered too", onClick = { })
+            Button("Aligned to the end", onClick = { }, modifier = SwingModifier.align(Alignment.End))
         }
     }
 }
@@ -115,9 +115,9 @@ internal fun ColumnScope.ColumnArrangementCard() {
             modifier = SwingModifier.preferredSize(Dimension(200, 160)),
             verticalArrangement = arrangements[selected].second,
         ) {
-            Button("One")
-            Button("Two")
-            Button("Three")
+            Button("One", onClick = { })
+            Button("Two", onClick = { })
+            Button("Three", onClick = { })
         }
     }
 }

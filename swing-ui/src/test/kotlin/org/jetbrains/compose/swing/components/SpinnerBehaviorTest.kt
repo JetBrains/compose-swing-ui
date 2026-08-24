@@ -19,7 +19,7 @@ import kotlin.test.assertTrue
 class SpinnerBehaviorTest {
     @Test
     fun theIntFactoryRendersValueAndBoundsIntoTheNumberModel() = runComposeSwingTest {
-        setContent { Spinner(value = 5, min = 0, max = 10, step = 2) }
+        setContent { Spinner(value = 5, onValueChange = {}, min = 0, max = 10, step = 2) }
 
         val model = onNodeOfType<JSpinner>().fetch().model as SpinnerNumberModel
         assertEquals(5, model.value, "the model should render the initial value")
@@ -31,13 +31,13 @@ class SpinnerBehaviorTest {
     @Test
     fun anInitialValueOutsideTheBoundsIsRefused() = runComposeSwingTest {
         assertFailsWith<IllegalArgumentException> {
-            setContent { Spinner(value = -1, min = 0, max = 100) }
+            setContent { Spinner(value = -1, onValueChange = {}, min = 0, max = 100) }
         }
     }
 
     @Test
     fun aNullBoundLeavesThatSideOpen() = runComposeSwingTest {
-        setContent { Spinner(value = 5) }
+        setContent { Spinner(value = 5, onValueChange = {}) }
 
         val model = onNodeOfType<JSpinner>().fetch().model as SpinnerNumberModel
         assertEquals(null, model.minimum, "a null min leaves the lower side unbounded")

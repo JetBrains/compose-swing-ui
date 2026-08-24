@@ -36,8 +36,8 @@ class InternalFrameRecompositionScopeTest {
         setContent {
             DesktopPane {
                 desktopPasses[0]++
-                InternalFrame(title = "Editor", state = editor) { Label(text = "editor") }
-                InternalFrame(title = consoleTitle, state = console) {
+                InternalFrame(title = "Editor", state = editor, onClose = { }) { Label(text = "editor") }
+                InternalFrame(title = consoleTitle, state = console, onClose = { }) {
                     consolePasses[0]++
                     Label(text = "console")
                 }

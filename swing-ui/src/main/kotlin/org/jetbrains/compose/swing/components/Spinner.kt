@@ -69,10 +69,10 @@ private fun rememberSpinnerValueChannel(
  * not move the value, so the spinner can hold one outside its own range until the next value it takes.
  *
  * @param value the current value.
- * @param modifier the [SwingModifier] applied to the underlying component.
  * @param onValueChange callback invoked with the value the user changes the spinner to - a step, a
  *   scroll, or a committed edit - and with the value the spinner is left on where it cannot hold
  *   [value]; applying a [value] the spinner can hold is not itself reported.
+ * @param modifier the [SwingModifier] applied to the underlying component.
  * @param min the smallest selectable value, or `null` for none.
  * @param max the largest selectable value, or `null` for none.
  * @param step the amount a step changes the value by.
@@ -91,8 +91,8 @@ private fun rememberSpinnerValueChannel(
 @Composable
 public fun Spinner(
     value: Number,
+    onValueChange: (Number) -> Unit,
     modifier: SwingModifier = SwingModifier,
-    onValueChange: (Number) -> Unit = {},
     min: Number? = null,
     max: Number? = null,
     step: Number = 1,
@@ -129,10 +129,10 @@ public fun Spinner(
  * takes.
  *
  * @param value the current value.
- * @param modifier the [SwingModifier] applied to the underlying component.
  * @param onValueChange callback invoked with the value the user changes the spinner to - a step, a
  *   scroll, or a committed edit - and with the value the spinner is left on where it cannot hold
  *   [value]; applying a [value] the spinner can hold is not itself reported.
+ * @param modifier the [SwingModifier] applied to the underlying component.
  * @param start the earliest selectable date, or `null` for none.
  * @param end the latest selectable date, or `null` for none.
  * @param calendarField the `Calendar` field a step moves the value by.
@@ -151,8 +151,8 @@ public fun Spinner(
 @Composable
 public fun Spinner(
     value: Date,
+    onValueChange: (Date) -> Unit,
     modifier: SwingModifier = SwingModifier,
-    onValueChange: (Date) -> Unit = {},
     start: Date? = null,
     end: Date? = null,
     @CalendarField calendarField: Int = Calendar.DAY_OF_MONTH,
@@ -188,10 +188,10 @@ public fun Spinner(
  *   spinner in, and the one to declare while a list is still loading. Declaring `null` against an
  *   [items] that does hold values settles the spinner on the head and reports it through
  *   [onValueChange], since a spinner over items always shows one of them.
- * @param modifier the [SwingModifier] applied to the underlying component.
  * @param onValueChange callback invoked with the value the user changes the spinner to - a step, or a
  *   committed edit landing on one of [items]; applying a [value] the spinner can hold is not itself
  *   reported.
+ * @param modifier the [SwingModifier] applied to the underlying component.
  * @param editor the editing surface the spinner shows in place of its own, composed into the spinner as
  *   an island of the enclosing composition, so it reads the same state and locals the caller does;
  *   `null` leaves the editor the one the spinner builds for its own model. A fresh lambda each
@@ -203,8 +203,8 @@ public fun Spinner(
 public fun <T : Any> Spinner(
     items: List<T>,
     value: T?,
+    onValueChange: (T) -> Unit,
     modifier: SwingModifier = SwingModifier,
-    onValueChange: (T) -> Unit = {},
     editor: (@Composable () -> Unit)? = null,
 ) {
     val applied = rememberAppliedValue<Any?>(value)

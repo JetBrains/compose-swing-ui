@@ -28,7 +28,7 @@ class MenuItemSelectionTest {
     @Test
     fun aCheckTheCallerDoesNotAdoptDoesNotStand() = runComposeSwingTest {
         var text by mutableStateOf("Word wrap")
-        val popup = composeMenu { CheckBoxMenuItem(text = text, checked = false) }
+        val popup = composeMenu { CheckBoxMenuItem(text = text, checked = false, onCheckedChange = {}) }
 
         val item = popup.getComponent(0) as JCheckBoxMenuItem
         item.doClick()
@@ -79,7 +79,7 @@ class MenuItemSelectionTest {
                     remember {
                         ActionListener { event -> reported += (event.source as JCheckBoxMenuItem).isSelected }
                     }
-                CheckBoxMenuItem(text = "Word wrap", actionListener = listener, checked = false)
+                CheckBoxMenuItem(text = "Word wrap", checked = false, actionListener = listener)
             }
 
         val item = popup.getComponent(0) as JCheckBoxMenuItem
@@ -93,7 +93,7 @@ class MenuItemSelectionTest {
     @Test
     fun aSelectionTheCallerDoesNotAdoptDoesNotStand() = runComposeSwingTest {
         var text by mutableStateOf("Compact")
-        val popup = composeMenu { RadioButtonMenuItem(text = text, selected = false) }
+        val popup = composeMenu { RadioButtonMenuItem(text = text, selected = false, onSelectedChange = {}) }
 
         val item = popup.getComponent(0) as JRadioButtonMenuItem
         item.doClick()
@@ -142,7 +142,7 @@ class MenuItemSelectionTest {
                     remember {
                         ActionListener { event -> reported += (event.source as JRadioButtonMenuItem).isSelected }
                     }
-                RadioButtonMenuItem(text = "Compact", actionListener = listener, selected = false)
+                RadioButtonMenuItem(text = "Compact", selected = false, actionListener = listener)
             }
 
         val item = popup.getComponent(0) as JRadioButtonMenuItem

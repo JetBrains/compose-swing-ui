@@ -55,15 +55,15 @@ class FormattedTextFieldFocusTest {
                         toField = rememberFocusRequester()
                         FormattedTextField(
                             value = value,
-                            modifier = SwingModifier.focusRequester(toField),
-                            formatterFactory = remember { integerFactory() },
                             onValueChange = {
                                 reported += it
                                 value = it
                             },
+                            modifier = SwingModifier.focusRequester(toField),
+                            formatterFactory = remember { integerFactory() },
                         )
                         away = rememberFocusRequester()
-                        TextField("away", modifier = SwingModifier.focusRequester(away))
+                        TextField("away", onValueChange = {}, modifier = SwingModifier.focusRequester(away))
                     }
                 }
             }
@@ -102,15 +102,15 @@ class FormattedTextFieldFocusTest {
                         toField = rememberFocusRequester()
                         FormattedTextField(
                             value = value,
-                            modifier = SwingModifier.focusRequester(toField),
-                            formatterFactory = remember { integerFactory() },
                             onValueChange = {
                                 reported += it
                                 value = it
                             },
+                            modifier = SwingModifier.focusRequester(toField),
+                            formatterFactory = remember { integerFactory() },
                         )
                         away = rememberFocusRequester()
-                        TextField("away", modifier = SwingModifier.focusRequester(away))
+                        TextField("away", onValueChange = {}, modifier = SwingModifier.focusRequester(away))
                     }
                 }
             }

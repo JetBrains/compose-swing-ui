@@ -424,6 +424,7 @@ class KeyboardModifierTest {
         setContent {
             Button(
                 "X",
+                onClick = { },
                 modifier =
                     SwingModifier
                         .onPointerEvent(
@@ -450,7 +451,15 @@ class KeyboardModifierTest {
         setContent {
             Button(
                 "X",
-                modifier = if (enabled) SwingModifier.onPointerEvent(onPress = { pressed++ }) else SwingModifier,
+                onClick = { },
+                modifier =
+                    if (enabled) {
+                        SwingModifier.onPointerEvent(onPress = {
+                            pressed++
+                        })
+                    } else {
+                        SwingModifier
+                    },
             )
         }
         val button = onNodeOfType<JButton>().fetch()

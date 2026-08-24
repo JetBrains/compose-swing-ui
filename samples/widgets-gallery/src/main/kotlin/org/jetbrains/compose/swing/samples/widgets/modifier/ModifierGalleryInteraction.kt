@@ -37,6 +37,7 @@ internal fun ColumnScope.HoverFocusCard() {
         FlowPanel {
             Button(
                 "Hover or focus me",
+                onClick = { },
                 modifier =
                     SwingModifier
                         .onHover(
@@ -79,8 +80,8 @@ internal fun ColumnScope.KeyStrokeCard() {
         var text by remember { mutableStateOf("Focus me, press ctrl S") }
         TextField(
             value = text,
-            modifier = SwingModifier.onKeyStroke("ctrl S") { saves++ },
             onValueChange = { text = it },
+            modifier = SwingModifier.onKeyStroke("ctrl S") { saves++ },
             columns = 28,
         )
         Label("Save shortcut fired $saves time(s)")
@@ -96,12 +97,12 @@ internal fun ColumnScope.KeyEventCard() {
         CheckBox(text = "Consume key events", checked = consume, onCheckedChange = { consume = it })
         TextField(
             value = text,
+            onValueChange = { text = it },
             modifier =
                 SwingModifier.onKeyEvent { e ->
                     if (e.id == KeyEvent.KEY_PRESSED) lastKey = KeyEvent.getKeyText(e.keyCode)
                     consume
                 },
-            onValueChange = { text = it },
             columns = 28,
         )
         Label("Last key pressed: $lastKey")

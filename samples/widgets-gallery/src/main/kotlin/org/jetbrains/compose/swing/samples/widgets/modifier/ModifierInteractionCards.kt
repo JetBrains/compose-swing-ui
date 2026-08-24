@@ -40,8 +40,8 @@ internal fun ColumnScope.EnabledCard() {
         CheckBox(text = "Field enabled", checked = editable, onCheckedChange = { editable = it })
         TextField(
             value = text,
-            modifier = SwingModifier.enabled(editable),
             onValueChange = { text = it },
+            modifier = SwingModifier.enabled(editable),
             columns = 28,
         )
     }
@@ -53,7 +53,7 @@ internal fun ColumnScope.FocusableCard() {
         var canFocus by remember { mutableStateOf(true) }
         CheckBox(text = "Button is focusable", checked = canFocus, onCheckedChange = { canFocus = it })
         FlowPanel {
-            Button("Tab reaches me only when focusable", modifier = SwingModifier.focusable(canFocus))
+            Button("Tab reaches me only when focusable", onClick = { }, modifier = SwingModifier.focusable(canFocus))
         }
     }
 }
@@ -67,8 +67,8 @@ internal fun ColumnScope.FocusCard() {
             Button("Focus the field", onClick = { requester.requestFocus() })
             TextField(
                 value = text,
-                modifier = SwingModifier.focusRequester(requester),
                 onValueChange = { text = it },
+                modifier = SwingModifier.focusRequester(requester),
                 columns = 20,
             )
         }
@@ -82,8 +82,8 @@ internal fun ColumnScope.InitialFocusCard() {
         var text by remember { mutableStateOf("") }
         TextField(
             value = text,
-            modifier = SwingModifier.initialFocus(),
             onValueChange = { text = it },
+            modifier = SwingModifier.initialFocus(),
             columns = 20,
         )
     }
@@ -97,21 +97,21 @@ internal fun ColumnScope.ButtonGroupCard() {
         FlowPanel {
             RadioButton(
                 text = "Small",
-                modifier = SwingModifier.buttonGroup(group),
                 selected = choice == "Small",
                 onSelectedChange = { choice = "Small" },
+                modifier = SwingModifier.buttonGroup(group),
             )
             RadioButton(
                 text = "Medium",
-                modifier = SwingModifier.buttonGroup(group),
                 selected = choice == "Medium",
                 onSelectedChange = { choice = "Medium" },
+                modifier = SwingModifier.buttonGroup(group),
             )
             RadioButton(
                 text = "Large",
-                modifier = SwingModifier.buttonGroup(group),
                 selected = choice == "Large",
                 onSelectedChange = { choice = "Large" },
+                modifier = SwingModifier.buttonGroup(group),
             )
         }
         Label("Selected: $choice")
@@ -131,6 +131,7 @@ internal fun ColumnScope.DisplayedMnemonicIndexCard() {
         FlowPanel {
             Button(
                 "Save As",
+                onClick = { },
                 modifier =
                     SwingModifier
                         .mnemonic('A')
@@ -168,8 +169,8 @@ internal fun ColumnScope.PopupMenuCard() {
                 onClick = { expanded = true },
                 modifier =
                     SwingModifier.popupMenu(expanded, onDismiss = { expanded = false }) {
-                        MenuItem("As CSV") { lastAction = "As CSV" }
-                        MenuItem("As JSON") { lastAction = "As JSON" }
+                        MenuItem("As CSV", onClick = { lastAction = "As CSV" })
+                        MenuItem("As JSON", onClick = { lastAction = "As JSON" })
                     },
             )
         }

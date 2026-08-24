@@ -41,7 +41,11 @@ class AccessibilityModifierTest {
     fun accessibleNameAppliesAndRestoresOnRemoval() = runComposeSwingTest {
         var named by mutableStateOf(true)
         setContent {
-            TextField("", modifier = if (named) SwingModifier.accessibleName("City field") else SwingModifier)
+            TextField(
+                "",
+                onValueChange = {},
+                modifier = if (named) SwingModifier.accessibleName("City field") else SwingModifier,
+            )
         }
         val field = onNodeOfType<JTextField>()
         // A JTextField has no intrinsic accessible name, so the pre-modifier default is null.
@@ -65,6 +69,7 @@ class AccessibilityModifierTest {
         setContent {
             Button(
                 "Save",
+                onClick = { },
                 modifier =
                     if (described) SwingModifier.accessibleDescription("Persist the document") else SwingModifier,
             )
@@ -114,7 +119,7 @@ class AccessibilityModifierTest {
     fun mnemonicOnButtonAppliesAndRestoresOnRemoval() = runComposeSwingTest {
         var withMnemonic by mutableStateOf(true)
         setContent {
-            Button("Save", modifier = if (withMnemonic) SwingModifier.mnemonic('S') else SwingModifier)
+            Button("Save", onClick = { }, modifier = if (withMnemonic) SwingModifier.mnemonic('S') else SwingModifier)
         }
         val button = onNodeOfType<JButton>()
         assertEquals(KeyEvent.VK_S, button.fetch().mnemonic, "the mnemonic should apply while present")
@@ -141,7 +146,7 @@ class AccessibilityModifierTest {
         setContent {
             val usernameField = rememberLabelTarget()
             Label("Name", modifier = SwingModifier.labelFor(usernameField))
-            TextField("", modifier = SwingModifier.labelTarget(usernameField))
+            TextField("", onValueChange = {}, modifier = SwingModifier.labelTarget(usernameField))
         }
         awaitIdle()
         assertSame(
@@ -156,7 +161,7 @@ class AccessibilityModifierTest {
         setContent {
             val usernameField = rememberLabelTarget()
             // The target is declared before its label; the pairing still resolves once both attach.
-            TextField("", modifier = SwingModifier.labelTarget(usernameField))
+            TextField("", onValueChange = {}, modifier = SwingModifier.labelTarget(usernameField))
             Label("Name", modifier = SwingModifier.labelFor(usernameField))
         }
         awaitIdle()
@@ -175,7 +180,7 @@ class AccessibilityModifierTest {
             // The middle label captions the field and is itself the outer label's captioned target.
             Label("Section", modifier = SwingModifier.labelFor(caption))
             Label("Name", modifier = SwingModifier.labelFor(field).labelTarget(caption))
-            TextField("", modifier = SwingModifier.labelTarget(field))
+            TextField("", onValueChange = {}, modifier = SwingModifier.labelTarget(field))
         }
         awaitIdle()
         val name = onNodeWithText("Name").fetch<JLabel>()
@@ -194,7 +199,7 @@ class AccessibilityModifierTest {
     @Test
     fun checkBoxMnemonicApplies() = runComposeSwingTest {
         setContent {
-            CheckBox(text = "Agree", checked = false, modifier = SwingModifier.mnemonic('A'))
+            CheckBox(text = "Agree", checked = false, onCheckedChange = {}, modifier = SwingModifier.mnemonic('A'))
         }
         assertEquals(
             KeyEvent.VK_A,
@@ -206,7 +211,7 @@ class AccessibilityModifierTest {
     @Test
     fun aKeyCodeMnemonicNamesAKeyNoCharacterTypes() = runComposeSwingTest {
         setContent {
-            Button("Help", modifier = SwingModifier.mnemonic(KeyEvent.VK_F2))
+            Button("Help", onClick = { }, modifier = SwingModifier.mnemonic(KeyEvent.VK_F2))
             Label("Name", modifier = SwingModifier.mnemonic(KeyEvent.VK_F3))
         }
         assertEquals(KeyEvent.VK_F2, onNodeOfType<JButton>().fetch().mnemonic, "the button's key code")
@@ -216,8 +221,13 @@ class AccessibilityModifierTest {
     @Test
     fun aCharacterMnemonicResolvesToTheSameKeyInEitherCase() = runComposeSwingTest {
         setContent {
-            Button("Save", modifier = SwingModifier.mnemonic('s'))
-            CheckBox(text = "Save all", checked = false, modifier = SwingModifier.mnemonic('S'))
+            Button("Save", onClick = { }, modifier = SwingModifier.mnemonic('s'))
+            CheckBox(
+                text = "Save all",
+                checked = false,
+                onCheckedChange = {},
+                modifier = SwingModifier.mnemonic('S'),
+            )
         }
         assertEquals(KeyEvent.VK_S, onNodeOfType<JButton>().fetch().mnemonic, "the lower-case character")
         assertEquals(KeyEvent.VK_S, onNodeOfType<JCheckBox>().fetch().mnemonic, "the upper-case character")
@@ -230,7 +240,11 @@ class AccessibilityModifierTest {
             // "Save As" carries the mnemonic letter 'A' twice: in "Save" and in "As".
             Button(
                 "Save As",
-                modifier = SwingModifier.mnemonic('A').let { if (chosen) it.displayedMnemonicIndex(5) else it },
+                onClick = { },
+                modifier =
+                    SwingModifier.mnemonic('A').let {
+                        if (chosen) it.displayedMnemonicIndex(5) else it
+                    },
             )
         }
         val button = onNodeOfType<JButton>().fetch()
@@ -251,7 +265,13 @@ class AccessibilityModifierTest {
         setContent {
             Button(
                 "Save As",
-                modifier = SwingModifier.mnemonic('A').displayedMnemonicIndex(if (underlined) 5 else -1),
+                onClick = {
+                },
+                modifier =
+                    SwingModifier
+                        .mnemonic(
+                            'A',
+                        ).displayedMnemonicIndex(if (underlined) 5 else -1),
             )
         }
         val button = onNodeOfType<JButton>().fetch()

@@ -38,7 +38,7 @@ class InputVerifierModifierTest {
             // The answer is fixed at composition time, so a predicate the node never refreshed keeps
             // answering what the previous composition declared.
             val declared = valid
-            TextField("port", modifier = SwingModifier.inputVerifier { declared })
+            TextField("port", onValueChange = {}, modifier = SwingModifier.inputVerifier { declared })
         }
         val field = onNodeOfType<JTextField>().fetch()
         val elsewhere = JTextField()
@@ -54,7 +54,7 @@ class InputVerifierModifierTest {
     fun theVerifierIsTheSameObjectAcrossRecompositions() = runComposeSwingTest {
         var valid by mutableStateOf(false)
         setContent {
-            TextField("port", modifier = SwingModifier.inputVerifier { valid })
+            TextField("port", onValueChange = {}, modifier = SwingModifier.inputVerifier { valid })
         }
         val field = onNodeOfType<JTextField>().fetch()
         val installed = field.inputVerifier
@@ -97,6 +97,7 @@ class InputVerifierModifierTest {
         setContent {
             TextField(
                 "port",
+                onValueChange = {},
                 modifier = if (gated) SwingModifier.inputVerifier { false } else SwingModifier,
             )
         }
@@ -112,7 +113,7 @@ class InputVerifierModifierTest {
     fun theFocusTargetCanRefuseToConsultTheGate() = runComposeSwingTest {
         var declared by mutableStateOf(false)
         setContent {
-            TextField("cancel", modifier = SwingModifier.verifyInputWhenFocusTarget(declared))
+            TextField("cancel", onValueChange = {}, modifier = SwingModifier.verifyInputWhenFocusTarget(declared))
         }
         val field = onNodeOfType<JTextField>().fetch()
         assertFalse(field.verifyInputWhenFocusTarget, "the declared value must be written through")
@@ -128,6 +129,7 @@ class InputVerifierModifierTest {
         setContent {
             TextField(
                 "cancel",
+                onValueChange = {},
                 modifier = if (declared) SwingModifier.verifyInputWhenFocusTarget(false) else SwingModifier,
             )
         }

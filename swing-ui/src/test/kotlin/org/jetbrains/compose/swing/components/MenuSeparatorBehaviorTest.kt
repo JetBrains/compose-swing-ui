@@ -21,9 +21,9 @@ class MenuSeparatorBehaviorTest {
     fun aDeclaredSeparatorIsTheWidgetAMenuDividesItsItemsWith() = runComposeSwingTest {
         val popup =
             composeMenu {
-                MenuItem("Cut")
+                MenuItem("Cut", onClick = { })
                 MenuSeparator()
-                MenuItem("Paste")
+                MenuItem("Paste", onClick = { })
             }
 
         assertEquals(

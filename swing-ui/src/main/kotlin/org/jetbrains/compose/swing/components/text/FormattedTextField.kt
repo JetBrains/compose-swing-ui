@@ -59,10 +59,10 @@ import javax.swing.JFormattedTextField.AbstractFormatterFactory
  * and to take a part-typed edit on demand rather than waiting for the field's own focus-lost behavior.
  *
  * @param value the committed, typed value
- * @param modifier the [SwingModifier] applied to the underlying component
- * @param formatterFactory the factory producing the field's formatter, or `null` for the default
  * @param onValueChange callback invoked with the parsed value when the field commits an edit;
  *   applying [value] is not itself reported
+ * @param modifier the [SwingModifier] applied to the underlying component
+ * @param formatterFactory the factory producing the field's formatter, or `null` for the default
  * @param onEditValidChange callback invoked with whether the text now parses, each time that changes
  * @param focusLostBehavior what to do with a partial edit when the field loses focus (a
  *   [FocusLostBehavior] `JFormattedTextField` constant)
@@ -74,9 +74,9 @@ import javax.swing.JFormattedTextField.AbstractFormatterFactory
 @Composable
 public fun FormattedTextField(
     value: Any?,
+    onValueChange: (Any?) -> Unit,
     modifier: SwingModifier = SwingModifier,
     formatterFactory: AbstractFormatterFactory? = null,
-    onValueChange: (Any?) -> Unit = {},
     onEditValidChange: (Boolean) -> Unit = {},
     @FocusLostBehavior focusLostBehavior: Int = JFormattedTextField.COMMIT_OR_REVERT,
     columns: Int = 0,

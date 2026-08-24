@@ -49,11 +49,11 @@ private fun ColumnScope.AccessibleMetadataCard() {
         WrappedCaption("Screen readers announce the name + description below for this field.")
         TextField(
             value = value,
+            onValueChange = { value = it },
             modifier =
                 SwingModifier
                     .accessibleName("Search query")
                     .accessibleDescription("Type a term to filter the results list."),
-            onValueChange = { value = it },
             columns = 24,
         )
     }
@@ -71,8 +71,8 @@ private fun ColumnScope.LabelForCard() {
             )
             TextField(
                 value = name,
-                modifier = SwingModifier.labelTarget(usernameField),
                 onValueChange = { name = it },
+                modifier = SwingModifier.labelTarget(usernameField),
                 columns = 20,
             )
         }
@@ -86,8 +86,8 @@ private fun ColumnScope.MnemonicCard() {
         FlowPanel {
             Button(
                 "Save",
-                modifier = SwingModifier.mnemonic('S'),
                 onClick = { saves++ },
+                modifier = SwingModifier.mnemonic('S'),
             )
             Label("Saved $saves time(s)")
         }
@@ -101,8 +101,8 @@ private fun ColumnScope.DefaultButtonCard() {
         FlowPanel {
             Button(
                 "Submit",
-                modifier = SwingModifier.defaultButton(true),
                 onClick = { submits++ },
+                modifier = SwingModifier.defaultButton(true),
             )
             Label("Submitted $submits time(s)")
         }
@@ -119,20 +119,20 @@ private fun ColumnScope.FocusTraversalCard() {
         Column(modifier = SwingModifier.orderedFocusTraversal()) {
             TextField(
                 value = third,
-                modifier = SwingModifier.focusTraversalIndex(3),
                 onValueChange = { third = it },
+                modifier = SwingModifier.focusTraversalIndex(3),
                 columns = 20,
             )
             TextField(
                 value = second,
-                modifier = SwingModifier.focusTraversalIndex(2),
                 onValueChange = { second = it },
+                modifier = SwingModifier.focusTraversalIndex(2),
                 columns = 20,
             )
             TextField(
                 value = first,
-                modifier = SwingModifier.focusTraversalIndex(1),
                 onValueChange = { first = it },
+                modifier = SwingModifier.focusTraversalIndex(1),
                 columns = 20,
             )
         }

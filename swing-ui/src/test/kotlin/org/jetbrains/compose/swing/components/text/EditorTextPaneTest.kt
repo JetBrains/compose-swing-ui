@@ -36,7 +36,7 @@ class EditorTextPaneTest {
     @Test
     fun editorPaneRendersMarkupThroughTheKitItsContentTypeNames() = runComposeSwingTest {
         setContent {
-            EditorPane(markup = "<h2>Title</h2><p>Body.</p>", contentType = "text/html")
+            EditorPane(markup = "<h2>Title</h2><p>Body.</p>", onLinkActivate = {}, contentType = "text/html")
         }
 
         val pane = onNodeOfType<JEditorPane>().fetch()
@@ -50,7 +50,7 @@ class EditorTextPaneTest {
     @Test
     fun plainTextMarkupIsRenderedAsTheCharactersItIs() = runComposeSwingTest {
         setContent {
-            EditorPane(markup = "<h2>Title</h2>", contentType = "text/plain")
+            EditorPane(markup = "<h2>Title</h2>", onLinkActivate = {}, contentType = "text/plain")
         }
 
         val pane = onNodeOfType<JEditorPane>()
@@ -61,7 +61,7 @@ class EditorTextPaneTest {
     @Test
     fun editorPaneReRendersWhenTheMarkupChanges() = runComposeSwingTest {
         var markup by mutableStateOf("<p>before</p>")
-        setContent { EditorPane(markup = markup, contentType = "text/html") }
+        setContent { EditorPane(markup = markup, onLinkActivate = {}, contentType = "text/html") }
 
         val pane = onNodeOfType<JEditorPane>().fetch()
         assertTrue(pane.document.textContains("before"), "the pane renders the declared markup")
@@ -79,6 +79,7 @@ class EditorTextPaneTest {
         setContent {
             EditorPane(
                 markup = "<b>keep me</b>",
+                onLinkActivate = {},
                 contentType = if (html) "text/html" else "text/plain",
             )
         }
@@ -101,7 +102,9 @@ class EditorTextPaneTest {
         val failure =
             assertFailsWith<IllegalArgumentException> {
                 runComposeSwingTest {
-                    setContent { EditorPane(markup = "<h2>Title</h2>", contentType = "text/x-nothing") }
+                    setContent {
+                        EditorPane(markup = "<h2>Title</h2>", onLinkActivate = {}, contentType = "text/x-nothing")
+                    }
                 }
             }
 
@@ -115,7 +118,7 @@ class EditorTextPaneTest {
     @Test
     fun aContentTypeCarryingParametersNamesTheKitOfItsMediaType() = runComposeSwingTest {
         setContent {
-            EditorPane(markup = "<h2>Title</h2>", contentType = "text/html; charset=UTF-8")
+            EditorPane(markup = "<h2>Title</h2>", onLinkActivate = {}, contentType = "text/html; charset=UTF-8")
         }
 
         // The kit registry is keyed by media type alone, so the parameters are dropped before the lookup.
@@ -131,7 +134,7 @@ class EditorTextPaneTest {
         // already holds would bring a fresh document with it and drop what is rendered, so the pane is
         // held to the source having changed and the kit not.
         var markup by mutableStateOf("{\\rtf1 before}")
-        setContent { EditorPane(markup = markup, contentType = "application/rtf") }
+        setContent { EditorPane(markup = markup, onLinkActivate = {}, contentType = "application/rtf") }
 
         val before = onNodeOfType<JEditorPane>().fetch().document
 
@@ -145,7 +148,7 @@ class EditorTextPaneTest {
 
     @Test
     fun aRenderedEditorPaneIsNotEditable() = runComposeSwingTest {
-        setContent { EditorPane(markup = "read me") }
+        setContent { EditorPane(markup = "read me", onLinkActivate = {}) }
 
         // A rendered pane holds only what is declared.
         onNodeOfType<JEditorPane>().assert(isEditable(false))
@@ -157,8 +160,8 @@ class EditorTextPaneTest {
         setContent {
             EditorPane(
                 markup = "<p><a href=\"/q3/details\">details</a></p>",
-                contentType = "text/html",
                 onLinkActivate = { reported += it },
+                contentType = "text/html",
             )
         }
 
@@ -174,8 +177,8 @@ class EditorTextPaneTest {
         setContent {
             EditorPane(
                 markup = "<p><a href=\"/q3\">details</a></p>",
-                contentType = "text/html",
                 onLinkActivate = { reported += it },
+                contentType = "text/html",
             )
         }
 
@@ -215,6 +218,7 @@ class EditorTextPaneTest {
         setContent {
             EditorPane(
                 markup = "<p><a href=\"details\">details</a></p>",
+                onLinkActivate = {},
                 contentType = "text/html",
                 baseUrl = baseUrl,
             )
@@ -244,7 +248,7 @@ class EditorTextPaneTest {
         // without the state itself calling URL.equals to find that out.
         var baseUrl by mutableStateOf(URI("http://never-resolved.invalid/docs/").toURL(), neverEqualPolicy())
         setContent {
-            EditorPane(markup = "<p>hello</p>", contentType = "text/html", baseUrl = baseUrl)
+            EditorPane(markup = "<p>hello</p>", onLinkActivate = {}, contentType = "text/html", baseUrl = baseUrl)
         }
 
         val document = onNodeOfType<JEditorPane>().fetch().document
@@ -303,7 +307,7 @@ class EditorTextPaneTest {
         var text by mutableStateOf("before")
         var editable by mutableStateOf(true)
         setContent {
-            TextPane(value = text, editable = editable)
+            TextPane(value = text, onValueChange = {}, editable = editable)
         }
         onNodeOfType<JTextPane>().assertTextEquals("before").assert(isEditable())
 

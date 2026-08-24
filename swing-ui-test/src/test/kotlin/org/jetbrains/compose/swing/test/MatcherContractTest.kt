@@ -185,7 +185,7 @@ class MatcherContractTest {
         var checked by mutableStateOf(false)
         setContent {
             BoxPanel {
-                CheckBox(text = "agree", checked = checked)
+                CheckBox(text = "agree", checked = checked, onCheckedChange = { })
                 Label(text = "plain")
             }
         }
@@ -209,8 +209,8 @@ class MatcherContractTest {
         var editable by mutableStateOf(true)
         setContent {
             BoxPanel {
-                TextField(value = "typed", editable = editable)
-                ComboBox(items = listOf("one", "two"), selectedItem = null, editable = false)
+                TextField(value = "typed", onValueChange = { }, editable = editable)
+                ComboBox(items = listOf("one", "two"), selectedItem = null, onSelectionChange = { }, editable = false)
                 Label(text = "plain")
             }
         }

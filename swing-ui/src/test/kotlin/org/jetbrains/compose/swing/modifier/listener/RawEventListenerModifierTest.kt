@@ -42,7 +42,7 @@ class RawEventListenerModifierTest {
         var fired = 0
         val listener = ChangeListener { fired++ }
         setContent {
-            Slider(value = 10, modifier = SwingModifier.changeListener(listener))
+            Slider(value = 10, onValueChange = {}, modifier = SwingModifier.changeListener(listener))
         }
         val slider = onNodeOfType<JSlider>().fetch()
         assertTrue(

@@ -24,7 +24,7 @@ import java.awt.Insets
 internal fun ColumnScope.GridPanelCard() {
     ExampleCard("GridPanel (2x3)") {
         GridPanel(rows = 2, cols = 3, hgap = 6, vgap = 6) {
-            repeat(6) { index -> Button("Cell ${index + 1}") }
+            repeat(6) { index -> Button("Cell ${index + 1}", onClick = { }) }
         }
     }
 }
@@ -44,13 +44,15 @@ internal fun ColumnScope.GridBagPanelCard() {
             )
             Button(
                 "Pick a name",
-                SwingModifier.item(
-                    gridx = 1,
-                    gridy = 0,
-                    weightx = 1.0,
-                    fill = GridBagConstraints.HORIZONTAL,
-                    insets = Insets(4, 4, 4, 4),
-                ),
+                onClick = { },
+                modifier =
+                    SwingModifier.item(
+                        gridx = 1,
+                        gridy = 0,
+                        weightx = 1.0,
+                        fill = GridBagConstraints.HORIZONTAL,
+                        insets = Insets(4, 4, 4, 4),
+                    ),
             )
             Label(
                 "A row spanning both columns",

@@ -31,6 +31,7 @@ class HighlightsModifierTest {
         setContent {
             TextArea(
                 value = TEXT,
+                onValueChange = {},
                 modifier = SwingModifier.highlights(listOf(TextRange(0, 5), TextRange(6, 11)), Painter),
             )
         }
@@ -43,7 +44,7 @@ class HighlightsModifierTest {
     fun aChangedDeclarationReplacesTheMarksItLeft() = runComposeSwingTest {
         var ranges by mutableStateOf(listOf(TextRange(0, 5)))
         setContent {
-            TextArea(value = TEXT, modifier = SwingModifier.highlights(ranges, Painter))
+            TextArea(value = TEXT, onValueChange = {}, modifier = SwingModifier.highlights(ranges, Painter))
         }
         val area = onNodeOfType<JTextArea>().fetch()
         assertEquals(listOf(0 to 5), area.paintedSpans(), "the first declaration should be painted")
@@ -61,7 +62,11 @@ class HighlightsModifierTest {
     @Test
     fun aRangeIsPaintedWhicheverWayRoundItsOffsetsAre() = runComposeSwingTest {
         setContent {
-            TextArea(value = TEXT, modifier = SwingModifier.highlights(listOf(TextRange(11, 6)), Painter))
+            TextArea(
+                value = TEXT,
+                onValueChange = {},
+                modifier = SwingModifier.highlights(listOf(TextRange(11, 6)), Painter),
+            )
         }
         val area = onNodeOfType<JTextArea>().fetch()
 
@@ -71,7 +76,11 @@ class HighlightsModifierTest {
     @Test
     fun aRangeBeyondTheTextPaintsAsFarAsTheTextGoes() = runComposeSwingTest {
         setContent {
-            TextArea(value = TEXT, modifier = SwingModifier.highlights(listOf(TextRange(6, 400)), Painter))
+            TextArea(
+                value = TEXT,
+                onValueChange = {},
+                modifier = SwingModifier.highlights(listOf(TextRange(6, 400)), Painter),
+            )
         }
         val area = onNodeOfType<JTextArea>().fetch()
 
@@ -86,7 +95,7 @@ class HighlightsModifierTest {
     fun marksMadeOutsideTheDeclarationSurviveIt() = runComposeSwingTest {
         var ranges by mutableStateOf(listOf(TextRange(0, 5)))
         setContent {
-            TextArea(value = TEXT, modifier = SwingModifier.highlights(ranges, Painter))
+            TextArea(value = TEXT, onValueChange = {}, modifier = SwingModifier.highlights(ranges, Painter))
         }
         val area = onNodeOfType<JTextArea>().fetch()
         // A mark another party painted straight onto the highlighter, outside any modifier chain.
@@ -108,6 +117,7 @@ class HighlightsModifierTest {
         setContent {
             TextArea(
                 value = TEXT,
+                onValueChange = {},
                 modifier = if (marked) SwingModifier.highlights(listOf(TextRange(0, 5)), Painter) else SwingModifier,
             )
         }
@@ -124,7 +134,7 @@ class HighlightsModifierTest {
     fun anEmptyDeclarationPaintsNothing() = runComposeSwingTest {
         var ranges by mutableStateOf(listOf(TextRange(0, 5)))
         setContent {
-            TextArea(value = TEXT, modifier = SwingModifier.highlights(ranges, Painter))
+            TextArea(value = TEXT, onValueChange = {}, modifier = SwingModifier.highlights(ranges, Painter))
         }
         val area = onNodeOfType<JTextArea>().fetch()
         assertEquals(listOf(0 to 5), area.paintedSpans(), "the declaration should be painted while it has a range")
@@ -140,7 +150,7 @@ class HighlightsModifierTest {
         val ranges = listOf(TextRange(0, 5))
         var painter by mutableStateOf<Highlighter.HighlightPainter>(Painter)
         setContent {
-            TextArea(value = TEXT, modifier = SwingModifier.highlights(ranges, painter))
+            TextArea(value = TEXT, onValueChange = {}, modifier = SwingModifier.highlights(ranges, painter))
         }
         val area = onNodeOfType<JTextArea>().fetch()
         assertEquals(listOf(0 to 5), area.paintedSpans(), "the first painter should paint the declared range")

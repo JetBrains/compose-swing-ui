@@ -40,8 +40,8 @@ import javax.swing.JComboBox
  * @param items the list of items to display
  * @param selectedItem the selected item (controlled); `null` selects nothing, as does an item the current
  *   [items] do not contain
- * @param modifier the [SwingModifier] applied to the underlying component
  * @param onSelectionChange callback invoked when the user chooses an item
+ * @param modifier the [SwingModifier] applied to the underlying component
  * @param editable whether the user can type a value into the combo box's editor; `false` by default
  * @param onValueCommit callback invoked with the editor's text when an [editable] combo box's editor is
  *   committed; a text that matches no item is reported here and nowhere else, since [selectedItem]
@@ -55,8 +55,8 @@ import javax.swing.JComboBox
 public fun <T> ComboBox(
     items: List<T>,
     selectedItem: T?,
+    onSelectionChange: (T?) -> Unit,
     modifier: SwingModifier = SwingModifier,
-    onSelectionChange: (T?) -> Unit = {},
     editable: Boolean = false,
     onValueCommit: (@Nls String) -> Unit = {},
     maximumRowCount: Int = 8,
@@ -107,7 +107,7 @@ public fun <T> ComboBox(
     val applied = rememberAppliedValue(selectedItem)
     val settled = rememberSelectionReader(items)
     // The caller's listener is attached as-is, and is the only action listener on the combo box. The
-    // mirror rides the item-selection registration instead, so the declared selection still settles against
+    // mirror rides the item-selection channel instead, so the declared selection still settles against
     // wherever the combo box lands, whether that is the user's own choice or the caller's own write back.
     val mirror =
         remember(applied, settled) {
@@ -283,7 +283,7 @@ private fun <T> rememberSelectionReader(items: List<T>): JComboBox<*>.() -> T? {
 private fun <T> List<T>.selectionOf(value: Any?): T? = firstOrNull { it == value }
 
 /**
- * Installs the action registration the `onSelectionChange`-driven overloads listen on: it splits a combo box's
+ * Installs the action channel the `onSelectionChange`-driven overloads listen on: it splits a combo box's
  * action events into the two things a caller can act on - committing the editor reports the text that was
  * typed to [onValueCommit], and any other change reports what [settled] reads off the combo box to
  * [onSelectionChange]. A commit is reported regardless of [applied], since its text carries a value the

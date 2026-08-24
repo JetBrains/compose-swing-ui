@@ -22,7 +22,7 @@ class SpinnerDateBehaviorTest {
     @Test
     fun theDateFactoryDefaultsToAnUnboundedDaySequence() = runComposeSwingTest {
         val march15 = date(Calendar.MARCH, 15)
-        setContent { Spinner(value = march15) }
+        setContent { Spinner(value = march15, onValueChange = {}) }
 
         val model = onNodeOfType<JSpinner>().fetch().model as SpinnerDateModel
         assertEquals(march15, model.value, "the model renders the initial date")
@@ -52,6 +52,7 @@ class SpinnerDateBehaviorTest {
         setContent {
             Spinner(
                 value = march15,
+                onValueChange = {},
                 start = march15,
                 end = date(Calendar.MARCH, 16),
             )
@@ -66,7 +67,7 @@ class SpinnerDateBehaviorTest {
     fun changingTheCalendarFieldAcrossRecompositionIsHonored() = runComposeSwingTest {
         val march15 = date(Calendar.MARCH, 15)
         var calendarField by mutableStateOf(Calendar.DAY_OF_MONTH)
-        setContent { Spinner(value = march15, calendarField = calendarField) }
+        setContent { Spinner(value = march15, onValueChange = {}, calendarField = calendarField) }
         awaitIdle()
 
         val model = onNodeOfType<JSpinner>().fetch().model
@@ -83,7 +84,7 @@ class SpinnerDateBehaviorTest {
     fun changingTheDateBoundsAcrossRecompositionIsHonored() = runComposeSwingTest {
         val march15 = date(Calendar.MARCH, 15)
         var end: Date? by mutableStateOf(march15)
-        setContent { Spinner(value = march15, end = end) }
+        setContent { Spinner(value = march15, onValueChange = {}, end = end) }
         awaitIdle()
 
         val model = onNodeOfType<JSpinner>().fetch().model
@@ -101,6 +102,7 @@ class SpinnerDateBehaviorTest {
             setContent {
                 Spinner(
                     value = date(Calendar.MARCH, 15),
+                    onValueChange = {},
                     start = date(Calendar.MARCH, 16),
                 )
             }

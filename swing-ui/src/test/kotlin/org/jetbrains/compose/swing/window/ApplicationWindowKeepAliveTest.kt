@@ -77,7 +77,7 @@ class ApplicationWindowKeepAliveTest {
             launch {
                 awaitApplication {
                     scope = this
-                    Tray(image = icon)
+                    Tray(image = icon, onAction = { })
                 }
             }
         try {

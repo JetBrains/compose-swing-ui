@@ -96,7 +96,7 @@ class RawComponentListenerOverloadTest {
     @Test
     fun checkBoxActionListenerOverloadRegistersInstance() = runComposeSwingTest {
         val listener = ActionListener { }
-        setContent { CheckBox("X", actionListener = listener, checked = false) }
+        setContent { CheckBox("X", checked = false, actionListener = listener) }
         assertTrue(
             onNodeOfType<JCheckBox>().fetch().actionListeners.any { it === listener },
             "the declared listener instance should be registered on the widget",
@@ -106,7 +106,7 @@ class RawComponentListenerOverloadTest {
     @Test
     fun radioButtonActionListenerOverloadRegistersInstance() = runComposeSwingTest {
         val listener = ActionListener { }
-        setContent { RadioButton("X", actionListener = listener) }
+        setContent { RadioButton("X", selected = false, actionListener = listener) }
         assertTrue(
             onNodeOfType<JRadioButton>().fetch().actionListeners.any { it === listener },
             "the declared listener instance should be registered on the widget",
@@ -116,7 +116,7 @@ class RawComponentListenerOverloadTest {
     @Test
     fun toggleButtonActionListenerOverloadRegistersInstance() = runComposeSwingTest {
         val listener = ActionListener { }
-        setContent { ToggleButton("X", actionListener = listener) }
+        setContent { ToggleButton("X", selected = false, actionListener = listener) }
         assertTrue(
             onNodeOfType<JToggleButton>().fetch().actionListeners.any { it === listener },
             "the declared listener instance should be registered on the widget",
@@ -127,7 +127,7 @@ class RawComponentListenerOverloadTest {
     fun comboBoxActionListenerOverloadNotifiesInstance() = runComposeSwingTest {
         var notified = false
         val listener = ActionListener { notified = true }
-        setContent { ComboBox(items = listOf("a", "b"), actionListener = listener, selectedItem = "a") }
+        setContent { ComboBox(items = listOf("a", "b"), selectedItem = "a", actionListener = listener) }
         onNodeOfType<JComboBox<*>>().fetch<JComboBox<*>>().selectedIndex = 1
         assertTrue(notified, "driving the widget the way the user would should reach the declared listener")
     }

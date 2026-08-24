@@ -97,21 +97,21 @@ private fun ColumnScope.DesktopPaneCard() {
         }
 
         DesktopPane(modifier = SwingModifier.preferredSize(Dimension(320, 220))) {
-            InternalFrame(title = "Editor", bounds = Rectangle(0, 0, 180, 120)) {
+            InternalFrame(title = "Editor", bounds = Rectangle(0, 0, 180, 120), onClose = { }) {
                 Label("Editor frame")
             }
-            InternalFrame(title = "Console", bounds = Rectangle(60, 50, 180, 120)) {
+            InternalFrame(title = "Console", bounds = Rectangle(60, 50, 180, 120), onClose = { }) {
                 Label("Console frame")
             }
             if (extraOpen) {
                 InternalFrame(
                     title = "Inspector",
                     bounds = Rectangle(120, 90, 180, 110),
-                    controls = InternalFrameControls(closable = true),
                     onClose = {
                         closedCount++
                         extraOpen = false
                     },
+                    controls = InternalFrameControls(closable = true),
                 ) {
                     Label("Inspector frame")
                 }

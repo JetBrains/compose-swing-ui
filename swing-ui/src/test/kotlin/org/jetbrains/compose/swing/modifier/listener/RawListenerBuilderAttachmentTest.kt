@@ -46,7 +46,7 @@ class RawListenerBuilderAttachmentTest {
     @Test
     fun keyListenerInstanceIsRegistered() = runComposeSwingTest {
         val listener: KeyListener = object : KeyAdapter() {}
-        setContent { Button("X", modifier = SwingModifier.keyListener(listener)) }
+        setContent { Button("X", onClick = { }, modifier = SwingModifier.keyListener(listener)) }
         assertTrue(
             onNodeOfType<JButton>().fetch().keyListeners.any { it === listener },
             "the exact key listener instance should be registered on the button",
@@ -56,7 +56,7 @@ class RawListenerBuilderAttachmentTest {
     @Test
     fun focusListenerInstanceIsRegistered() = runComposeSwingTest {
         val listener: FocusListener = object : FocusAdapter() {}
-        setContent { Button("X", modifier = SwingModifier.focusListener(listener)) }
+        setContent { Button("X", onClick = { }, modifier = SwingModifier.focusListener(listener)) }
         assertTrue(
             onNodeOfType<JButton>().fetch().focusListeners.any { it === listener },
             "the exact focus listener instance should be registered on the button",
@@ -66,7 +66,7 @@ class RawListenerBuilderAttachmentTest {
     @Test
     fun componentListenerInstanceIsRegistered() = runComposeSwingTest {
         val listener: ComponentListener = object : ComponentAdapter() {}
-        setContent { Button("X", modifier = SwingModifier.componentListener(listener)) }
+        setContent { Button("X", onClick = { }, modifier = SwingModifier.componentListener(listener)) }
         assertTrue(
             onNodeOfType<JButton>().fetch().componentListeners.any { it === listener },
             "the exact component listener instance should be registered on the button",
@@ -76,7 +76,7 @@ class RawListenerBuilderAttachmentTest {
     @Test
     fun mouseMotionListenerInstanceIsRegistered() = runComposeSwingTest {
         val listener: MouseMotionListener = object : MouseAdapter() {}
-        setContent { Button("X", modifier = SwingModifier.mouseMotionListener(listener)) }
+        setContent { Button("X", onClick = { }, modifier = SwingModifier.mouseMotionListener(listener)) }
         assertTrue(
             onNodeOfType<JButton>().fetch().mouseMotionListeners.any { it === listener },
             "the exact mouse motion listener instance should be registered on the button",
@@ -86,7 +86,7 @@ class RawListenerBuilderAttachmentTest {
     @Test
     fun mouseWheelListenerInstanceIsRegistered() = runComposeSwingTest {
         val listener = MouseWheelListener { }
-        setContent { Button("X", modifier = SwingModifier.mouseWheelListener(listener)) }
+        setContent { Button("X", onClick = { }, modifier = SwingModifier.mouseWheelListener(listener)) }
         assertTrue(
             onNodeOfType<JButton>().fetch().mouseWheelListeners.any { it === listener },
             "the exact mouse wheel listener instance should be registered on the button",
@@ -96,7 +96,7 @@ class RawListenerBuilderAttachmentTest {
     @Test
     fun hierarchyListenerInstanceIsRegistered() = runComposeSwingTest {
         val listener = HierarchyListener { }
-        setContent { Button("X", modifier = SwingModifier.hierarchyListener(listener)) }
+        setContent { Button("X", onClick = { }, modifier = SwingModifier.hierarchyListener(listener)) }
         assertTrue(
             onNodeOfType<JButton>().fetch().hierarchyListeners.any { it === listener },
             "the exact hierarchy listener instance should be registered on the button",
@@ -108,7 +108,7 @@ class RawListenerBuilderAttachmentTest {
         val listener: ContainerListener = object : ContainerAdapter() {}
         setContent {
             FlowPanel(modifier = SwingModifier.containerListener(listener)) {
-                Button("child")
+                Button("child", onClick = { })
             }
         }
         // The panel is the container the declared child ended up in.
@@ -130,7 +130,7 @@ class RawListenerBuilderAttachmentTest {
                 override fun changedUpdate(e: DocumentEvent?) = Unit
             }
         setContent {
-            TextField("hello", modifier = SwingModifier.documentListener(listener))
+            TextField("hello", onValueChange = {}, modifier = SwingModifier.documentListener(listener))
         }
         val field = onNodeOfType<JTextComponent>().fetch()
         // AbstractDocument exposes its registered DocumentListeners; the exact instance must be there.

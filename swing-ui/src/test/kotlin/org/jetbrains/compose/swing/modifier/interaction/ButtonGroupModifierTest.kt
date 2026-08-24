@@ -43,9 +43,9 @@ class ButtonGroupModifierTest {
                 listOf("Small", "Medium", "Large").forEachIndexed { index, text ->
                     RadioButton(
                         text = text,
-                        modifier = SwingModifier.buttonGroup(group),
                         selected = choice == index,
                         onSelectedChange = { choice = index },
+                        modifier = SwingModifier.buttonGroup(group),
                     )
                 }
             }
@@ -79,17 +79,17 @@ class ButtonGroupModifierTest {
                 listOf("L0", "L1").forEachIndexed { index, text ->
                     RadioButton(
                         text = text,
-                        modifier = SwingModifier.buttonGroup(leftGroup),
                         selected = left == index,
                         onSelectedChange = { left = index },
+                        modifier = SwingModifier.buttonGroup(leftGroup),
                     )
                 }
                 listOf("R0", "R1").forEachIndexed { index, text ->
                     RadioButton(
                         text = text,
-                        modifier = SwingModifier.buttonGroup(rightGroup),
                         selected = right == index,
                         onSelectedChange = { right = index },
+                        modifier = SwingModifier.buttonGroup(rightGroup),
                     )
                 }
             }
@@ -114,9 +114,16 @@ class ButtonGroupModifierTest {
             first = remember { ButtonGroup() }
             second = remember { ButtonGroup() }
             Column {
-                RadioButton(text = "A", modifier = SwingModifier.buttonGroup(first))
+                RadioButton(
+                    text = "A",
+                    selected = false,
+                    onSelectedChange = {},
+                    modifier = SwingModifier.buttonGroup(first),
+                )
                 RadioButton(
                     text = "B",
+                    selected = false,
+                    onSelectedChange = {},
                     modifier = SwingModifier.buttonGroup(if (moved) second else first),
                 )
             }
@@ -143,8 +150,20 @@ class ButtonGroupModifierTest {
         setContent {
             group = remember { ButtonGroup() }
             Column {
-                RadioButton(text = "Kept", modifier = SwingModifier.buttonGroup(group))
-                if (showExtra) RadioButton(text = "Extra", modifier = SwingModifier.buttonGroup(group))
+                RadioButton(
+                    text = "Kept",
+                    selected = false,
+                    onSelectedChange = {},
+                    modifier = SwingModifier.buttonGroup(group),
+                )
+                if (showExtra) {
+                    RadioButton(
+                        text = "Extra",
+                        selected = false,
+                        onSelectedChange = {},
+                        modifier = SwingModifier.buttonGroup(group),
+                    )
+                }
             }
         }
         val extra = onNodeWithText("Extra").fetch<JRadioButton>()
@@ -166,6 +185,8 @@ class ButtonGroupModifierTest {
             group = remember { ButtonGroup() }
             ToggleButton(
                 text = "Bold",
+                selected = false,
+                onSelectedChange = {},
                 modifier = if (grouped) SwingModifier.buttonGroup(group) else SwingModifier,
             )
         }

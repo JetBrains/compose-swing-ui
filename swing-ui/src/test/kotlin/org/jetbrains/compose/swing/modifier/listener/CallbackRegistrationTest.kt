@@ -17,7 +17,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertSame
 
 /**
- * A registration by callback is the registration the listener was built for. Two registrations can build their
+ * A registration by callback is where the listener it built sits. Two registrations can build their
  * listener the same way and still register it in different places - two bound properties of one
  * component do - so the way it is built does not say where it sits, and reconciling on that alone
  * leaves a declared registration uninstalled.
@@ -52,6 +52,7 @@ class CallbackRegistrationTest {
             FlowPanel {
                 Button(
                     text = "declared",
+                    onClick = { },
                     modifier =
                         SwingModifier.listener(
                             { event: PropertyChangeEvent -> seen += event.propertyName },
@@ -70,7 +71,7 @@ class CallbackRegistrationTest {
         assertEquals(
             1,
             button.getPropertyChangeListeners("background").size,
-            "a registration declared in its place is the one the callback is registered on",
+            "a registration declared in its place is the one the callback is added through",
         )
         assertEquals(
             0,
@@ -88,10 +89,11 @@ class CallbackRegistrationTest {
         var label by mutableStateOf("first")
         setContent {
             FlowPanel {
-                // A lambda written here is a new object on every pass; the registration is not, and it is the
-                // registration that says where the listener sits.
+                // A lambda written here is a new object on every pass; the registration is not, and it
+                // is the registration that says where the listener sits.
                 Button(
                     text = label,
+                    onClick = { },
                     modifier = SwingModifier.listener({ _: PropertyChangeEvent -> }, onEnabled),
                 )
             }
@@ -110,14 +112,11 @@ class CallbackRegistrationTest {
     }
 
     @Test
-    fun oneChannelServesEveryDeclarationOfTheSameBoundProperty() = runComposeSwingTest {
+    fun oneRegistrationServesEveryDeclarationOfTheSameBoundProperty() = runComposeSwingTest {
         var label by mutableStateOf("first")
         setContent {
             FlowPanel {
-                Button(
-                    text = label,
-                    modifier = SwingModifier.propertyChangeListener("enabled") { },
-                )
+                Button(text = label, onClick = { }, modifier = SwingModifier.propertyChangeListener("enabled") { })
             }
         }
         val button = onNodeOfType<JButton>().fetch<JButton>()
@@ -140,6 +139,7 @@ class CallbackRegistrationTest {
             FlowPanel {
                 Button(
                     text = "declared",
+                    onClick = { },
                     modifier =
                         SwingModifier.propertyChangeListener(
                             if (onBackgroundNow) "background" else "enabled",

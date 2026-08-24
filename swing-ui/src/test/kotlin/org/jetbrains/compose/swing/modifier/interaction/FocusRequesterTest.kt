@@ -50,7 +50,7 @@ class FocusRequesterTest {
         lateinit var requester: FocusRequester
         setContent {
             requester = rememberFocusRequester()
-            TextField("unbound")
+            TextField("unbound", onValueChange = {})
         }
         assertFalse(
             requester.requestFocus(),
@@ -65,9 +65,9 @@ class FocusRequesterTest {
         setContent {
             Window(onCloseRequest = {}, title = "focus-requester-routing-test") {
                 Column {
-                    TextField("first")
+                    TextField("first", onValueChange = {})
                     requester = rememberFocusRequester()
-                    TextField("second", modifier = SwingModifier.focusRequester(requester))
+                    TextField("second", onValueChange = {}, modifier = SwingModifier.focusRequester(requester))
                 }
             }
         }
@@ -88,9 +88,9 @@ class FocusRequesterTest {
             setContent {
                 Window(onCloseRequest = {}, title = "focus-requester-test") {
                     Column {
-                        TextField("first")
+                        TextField("first", onValueChange = {})
                         requester = rememberFocusRequester()
-                        TextField("second", modifier = SwingModifier.focusRequester(requester))
+                        TextField("second", onValueChange = {}, modifier = SwingModifier.focusRequester(requester))
                     }
                 }
             }
@@ -113,10 +113,11 @@ class FocusRequesterTest {
             Window(onCloseRequest = {}, title = "focus-requester-unbind-test") {
                 Column {
                     anchor = rememberFocusRequester()
-                    TextField("anchor", modifier = SwingModifier.focusRequester(anchor))
+                    TextField("anchor", onValueChange = {}, modifier = SwingModifier.focusRequester(anchor))
                     requester = rememberFocusRequester()
                     TextField(
                         "gated",
+                        onValueChange = {},
                         modifier = if (bound) SwingModifier.focusRequester(requester) else SwingModifier,
                     )
                 }
@@ -157,11 +158,12 @@ class FocusRequesterTest {
             Window(onCloseRequest = {}, title = "focus-requester-swap-test") {
                 Column {
                     anchor = rememberFocusRequester()
-                    TextField("anchor", modifier = SwingModifier.focusRequester(anchor))
+                    TextField("anchor", onValueChange = {}, modifier = SwingModifier.focusRequester(anchor))
                     first = rememberFocusRequester()
                     second = rememberFocusRequester()
                     TextField(
                         "driven",
+                        onValueChange = {},
                         modifier = SwingModifier.focusRequester(if (useFirst) first else second),
                     )
                 }
@@ -211,12 +213,12 @@ class FocusRequesterTest {
             Window(onCloseRequest = {}, title = "focus-requester-shared-test") {
                 Column {
                     anchor = rememberFocusRequester()
-                    TextField("anchor", modifier = SwingModifier.focusRequester(anchor))
+                    TextField("anchor", onValueChange = {}, modifier = SwingModifier.focusRequester(anchor))
                     shared = rememberFocusRequester()
                     if (early) {
                         EarlierDeclaration(label, shared)
                     }
-                    TextField("late", modifier = SwingModifier.focusRequester(shared))
+                    TextField("late", onValueChange = {}, modifier = SwingModifier.focusRequester(shared))
                 }
             }
         }
@@ -250,6 +252,6 @@ class FocusRequesterTest {
         label: State<String>,
         requester: FocusRequester,
     ) {
-        TextField("early", modifier = SwingModifier.name(label.value).focusRequester(requester))
+        TextField("early", onValueChange = {}, modifier = SwingModifier.name(label.value).focusRequester(requester))
     }
 }

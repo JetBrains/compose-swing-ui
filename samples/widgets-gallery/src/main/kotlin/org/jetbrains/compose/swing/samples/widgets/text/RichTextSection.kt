@@ -66,9 +66,9 @@ private fun ColumnScope.MarkupPreviewCard() {
         ScrollPane(modifier = SwingModifier.preferredSize(Dimension(360, 120))) {
             EditorPane(
                 markup = markup,
+                onLinkActivate = { activated = it },
                 modifier = SwingModifier.viewport(),
                 contentType = "text/html",
-                onLinkActivate = { activated = it },
             )
         }
         Label("Link activated: $activated")
@@ -152,7 +152,7 @@ private fun ColumnScope.TextPaneStateCard() {
                     "Edits here go through the undo manager.}",
                 contentType = "text/rtf",
             )
-        Button("Undo", modifier = SwingModifier.enabled(state.canUndo), onClick = state::undo)
+        Button("Undo", onClick = state::undo, modifier = SwingModifier.enabled(state.canUndo))
         ScrollPane(modifier = SwingModifier.preferredSize(Dimension(360, 100))) {
             TextPane(state = state, modifier = SwingModifier.viewport())
         }

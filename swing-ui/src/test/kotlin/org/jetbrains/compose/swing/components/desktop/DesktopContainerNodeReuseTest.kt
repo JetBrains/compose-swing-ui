@@ -32,9 +32,17 @@ class DesktopContainerNodeReuseTest {
         setContent {
             ReusableContentHost(active = active) {
                 DesktopPane {
-                    InternalFrame(title = "Editor", bounds = Rectangle(0, 0, 200, 100)) { Label(text = "editor") }
+                    InternalFrame(
+                        title = "Editor",
+                        bounds = Rectangle(0, 0, 200, 100),
+                        onClose = { },
+                    ) { Label(text = "editor") }
                     if (showConsole) {
-                        InternalFrame(title = "Console", bounds = Rectangle(20, 20, 200, 100)) { Label(text = "log") }
+                        InternalFrame(
+                            title = "Console",
+                            bounds = Rectangle(20, 20, 200, 100),
+                            onClose = { },
+                        ) { Label(text = "log") }
                     }
                 }
             }

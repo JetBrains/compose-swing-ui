@@ -70,9 +70,9 @@ class FocusTraversalModifierTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         setFormContent {
             FlowPanel(modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
-                TextField("third", modifier = SwingModifier.focusTraversalIndex(30))
-                TextField("first", modifier = SwingModifier.focusTraversalIndex(10))
-                TextField("second", modifier = SwingModifier.focusTraversalIndex(20))
+                TextField("third", onValueChange = {}, modifier = SwingModifier.focusTraversalIndex(30))
+                TextField("first", onValueChange = {}, modifier = SwingModifier.focusTraversalIndex(10))
+                TextField("second", onValueChange = {}, modifier = SwingModifier.focusTraversalIndex(20))
             }
         }
         val panel = formContainer(PANEL_TAG).fetch<JPanel>()
@@ -98,7 +98,7 @@ class FocusTraversalModifierTest {
                         if (ordered) it.orderedFocusTraversal() else it
                     },
             ) {
-                TextField("")
+                TextField("", onValueChange = {})
             }
         }
         // A bare FlowPanel is not a focus cycle root and inherits its container's policy; the modifier
@@ -128,7 +128,7 @@ class FocusTraversalModifierTest {
     fun aFormWithNoPeerHasNoTraversalOrder() = runComposeSwingTest {
         setContent {
             FlowPanel(modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
-                TextField("")
+                TextField("", onValueChange = {})
             }
         }
         val panel = onNodeWithTag(PANEL_TAG).fetch<JPanel>()
@@ -148,8 +148,8 @@ class FocusTraversalModifierTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         setFormContent {
             FlowPanel(modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
-                TextField("first", modifier = SwingModifier.focusTraversalIndex(10))
-                TextField("second", modifier = SwingModifier.focusTraversalIndex(20))
+                TextField("first", onValueChange = {}, modifier = SwingModifier.focusTraversalIndex(10))
+                TextField("second", onValueChange = {}, modifier = SwingModifier.focusTraversalIndex(20))
             }
         }
         val panel = formContainer(PANEL_TAG).fetch<JPanel>()
@@ -168,9 +168,9 @@ class FocusTraversalModifierTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         setFormContent {
             FlowPanel(modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
-                TextField("plainA")
-                TextField("indexed", modifier = SwingModifier.focusTraversalIndex(5))
-                TextField("plainB")
+                TextField("plainA", onValueChange = {})
+                TextField("indexed", onValueChange = {}, modifier = SwingModifier.focusTraversalIndex(5))
+                TextField("plainB", onValueChange = {})
             }
         }
         val panel = formContainer(PANEL_TAG).fetch<JPanel>()
@@ -190,9 +190,9 @@ class FocusTraversalModifierTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         setFormContent {
             FlowPanel(modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
-                TextField("off", modifier = SwingModifier.enabled(false).focusTraversalIndex(10))
-                TextField("hidden", modifier = SwingModifier.visible(false).focusTraversalIndex(20))
-                TextField("live", modifier = SwingModifier.focusTraversalIndex(30))
+                TextField("off", onValueChange = {}, modifier = SwingModifier.enabled(false).focusTraversalIndex(10))
+                TextField("hidden", onValueChange = {}, modifier = SwingModifier.visible(false).focusTraversalIndex(20))
+                TextField("live", onValueChange = {}, modifier = SwingModifier.focusTraversalIndex(30))
             }
         }
         val panel = formContainer(PANEL_TAG).fetch<JPanel>()
@@ -216,7 +216,7 @@ class FocusTraversalModifierTest {
                 SwingNode(factory = { heavyweight }) {
                     SwingNode(factory = { nested })
                 }
-                Button("OK")
+                Button("OK", onClick = { })
             }
         }
         val panel = formContainer(PANEL_TAG).fetch<JPanel>()
@@ -239,7 +239,7 @@ class FocusTraversalModifierTest {
         setFormContent {
             FlowPanel(modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
                 SwingNode(factory = { raw })
-                Button("OK")
+                Button("OK", onClick = { })
             }
         }
         val panel = formContainer(PANEL_TAG).fetch<JPanel>()
@@ -258,9 +258,9 @@ class FocusTraversalModifierTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         setFormContent {
             FlowPanel(modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
-                TextField("outer", modifier = SwingModifier.focusTraversalIndex(20))
+                TextField("outer", onValueChange = {}, modifier = SwingModifier.focusTraversalIndex(20))
                 FlowPanel {
-                    TextField("nested", modifier = SwingModifier.focusTraversalIndex(10))
+                    TextField("nested", onValueChange = {}, modifier = SwingModifier.focusTraversalIndex(10))
                 }
             }
         }
@@ -279,9 +279,9 @@ class FocusTraversalModifierTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         setFormContent {
             FlowPanel(modifier = SwingModifier.testTag("outerPanel").orderedFocusTraversal()) {
-                TextField("outer", modifier = SwingModifier.focusTraversalIndex(20))
+                TextField("outer", onValueChange = {}, modifier = SwingModifier.focusTraversalIndex(20))
                 FlowPanel(modifier = SwingModifier.testTag("innerPanel").orderedFocusTraversal()) {
-                    TextField("inner", modifier = SwingModifier.focusTraversalIndex(10))
+                    TextField("inner", onValueChange = {}, modifier = SwingModifier.focusTraversalIndex(10))
                 }
             }
         }
@@ -327,7 +327,7 @@ class FocusTraversalModifierTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         setFormContent {
             FlowPanel(modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
-                Button("A", modifier = SwingModifier.focusable(true).focusTraversalIndex(1))
+                Button("A", onClick = { }, modifier = SwingModifier.focusable(true).focusTraversalIndex(1))
             }
         }
         val panel = formContainer(PANEL_TAG).fetch<JPanel>()
@@ -346,9 +346,9 @@ class FocusTraversalModifierTest {
             FlowPanel(modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
                 Label("Name:")
                 FlowPanel {
-                    TextField("name")
+                    TextField("name", onValueChange = {})
                 }
-                Button("OK")
+                Button("OK", onClick = { })
             }
         }
         val panel = formContainer(PANEL_TAG).fetch<JPanel>()
@@ -369,8 +369,8 @@ class FocusTraversalModifierTest {
         setFormContent {
             FlowPanel(modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
                 Label("Legend", modifier = SwingModifier.focusable(true))
-                Button("Skipped", modifier = SwingModifier.focusable(false))
-                Button("OK")
+                Button("Skipped", onClick = { }, modifier = SwingModifier.focusable(false))
+                Button("OK", onClick = { })
             }
         }
         val panel = formContainer(PANEL_TAG).fetch<JPanel>()
@@ -389,7 +389,7 @@ class FocusTraversalModifierTest {
         setFormContent {
             FlowPanel(modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
                 Label("Legend", modifier = SwingModifier.focusable(true).enabled(false))
-                Button("OK")
+                Button("OK", onClick = { })
             }
         }
         val panel = formContainer(PANEL_TAG).fetch<JPanel>()
@@ -407,10 +407,10 @@ class FocusTraversalModifierTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         setFormContent {
             FlowPanel(modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
-                Button("A")
-                Button("B", modifier = SwingModifier.enabled(false))
-                Button("C", modifier = SwingModifier.visible(false))
-                Button("D")
+                Button("A", onClick = { })
+                Button("B", onClick = { }, modifier = SwingModifier.enabled(false))
+                Button("C", onClick = { }, modifier = SwingModifier.visible(false))
+                Button("D", onClick = { })
             }
         }
         val panel = formContainer(PANEL_TAG).fetch<JPanel>()
@@ -453,9 +453,9 @@ class FocusTraversalModifierTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         setFormContent {
             FlowPanel(modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
-                Button("A")
-                Button("B")
-                Button("C")
+                Button("A", onClick = { })
+                Button("B", onClick = { })
+                Button("C", onClick = { })
                 FlowPanel(modifier = SwingModifier.testTag("group"))
             }
         }

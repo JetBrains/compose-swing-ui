@@ -63,7 +63,7 @@ class PasswordFieldBehaviorTest {
     fun echoCharTracksComposedValueAcrossRecomposition() = runComposeSwingTest {
         val defaultEchoChar = JPasswordField().echoChar
         var echoChar by mutableStateOf<Char?>('#')
-        setContent { PasswordField(value = "hunter2".toCharArray(), echoChar = echoChar) }
+        setContent { PasswordField(value = "hunter2".toCharArray(), onValueChange = {}, echoChar = echoChar) }
 
         val field = onNodeOfType<JPasswordField>().fetch()
         assertEquals('#', field.echoChar, "a non-null echo character should be applied")

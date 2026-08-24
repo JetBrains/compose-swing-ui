@@ -44,7 +44,7 @@ class InternalFrameStateTest {
         val state = InternalFrameState(Rectangle(10, 20, 300, 200))
         setContent {
             DesktopPane {
-                InternalFrame(title = "Editor", state = state) { Label(text = "body") }
+                InternalFrame(title = "Editor", state = state, onClose = { }) { Label(text = "body") }
             }
         }
 
@@ -60,7 +60,7 @@ class InternalFrameStateTest {
         val state = InternalFrameState(Rectangle(0, 0, 100, 100))
         setContent {
             DesktopPane {
-                InternalFrame(title = "Editor", state = state) { Label(text = "body") }
+                InternalFrame(title = "Editor", state = state, onClose = { }) { Label(text = "body") }
             }
         }
 
@@ -80,7 +80,7 @@ class InternalFrameStateTest {
         val state = InternalFrameState(Rectangle(0, 0, 100, 100))
         setContent {
             DesktopPane {
-                InternalFrame(title = "Editor", state = state) { Label(text = "body") }
+                InternalFrame(title = "Editor", state = state, onClose = { }) { Label(text = "body") }
             }
         }
 
@@ -98,6 +98,7 @@ class InternalFrameStateTest {
                 InternalFrame(
                     title = "Editor",
                     state = state,
+                    onClose = { },
                     controls = InternalFrameControls(resizable = true),
                 ) { Label(text = "body") }
             }
@@ -115,7 +116,7 @@ class InternalFrameStateTest {
         val state = InternalFrameState(Rectangle(0, 0, 100, 100))
         setContent {
             DesktopPane {
-                InternalFrame(title = "Editor", state = state) { Label(text = "body") }
+                InternalFrame(title = "Editor", state = state, onClose = { }) { Label(text = "body") }
             }
         }
 
@@ -141,7 +142,7 @@ class InternalFrameStateTest {
         var tip by mutableStateOf("Edits the document")
         setContent {
             DesktopPane {
-                InternalFrame(title = "Editor", state = state, modifier = SwingModifier.toolTip(tip)) {
+                InternalFrame(title = "Editor", state = state, onClose = { }, modifier = SwingModifier.toolTip(tip)) {
                     Label(text = "body")
                 }
             }
@@ -183,7 +184,7 @@ class InternalFrameStateTest {
                     }
                 }
                 DesktopPane {
-                    InternalFrame(title = "Editor", state = state) { Label(text = "body") }
+                    InternalFrame(title = "Editor", state = state, onClose = { }) { Label(text = "body") }
                 }
             }
 
@@ -206,7 +207,7 @@ class InternalFrameStateTest {
             val second = declareSecondMove
             SideEffect { if (second) state.bounds = Rectangle(80, 90, 100, 100) }
             DesktopPane {
-                InternalFrame(title = "Editor", state = state) { Label(text = "body") }
+                InternalFrame(title = "Editor", state = state, onClose = { }) { Label(text = "body") }
             }
         }
 
@@ -226,6 +227,7 @@ class InternalFrameStateTest {
                 InternalFrame(
                     title = "Editor",
                     bounds = Rectangle(0, 0, 400, 300),
+                    onClose = { },
                     modifier = SwingModifier.toolTip(tip),
                 ) { Label(text = "body") }
             }
@@ -255,8 +257,9 @@ class InternalFrameStateTest {
                 InternalFrame(
                     title = "Editor",
                     state = state,
-                    controls = InternalFrameControls(iconifiable = true),
+                    onClose = { },
                     modifier = SwingModifier.toolTip(tip),
+                    controls = InternalFrameControls(iconifiable = true),
                 ) { Label(text = "body") }
             }
         }
@@ -288,6 +291,7 @@ class InternalFrameStateTest {
                     InternalFrame(
                         title = "Editor",
                         state = state,
+                        onClose = { },
                         controls = InternalFrameControls(iconifiable = true),
                     ) { Label(text = "body") }
                 }
@@ -312,7 +316,11 @@ class InternalFrameStateTest {
         var useSecond by mutableStateOf(false)
         setContent {
             DesktopPane {
-                InternalFrame(title = "Editor", state = if (useSecond) second else first) { Label(text = "body") }
+                InternalFrame(
+                    title = "Editor",
+                    state = if (useSecond) second else first,
+                    onClose = { },
+                ) { Label(text = "body") }
             }
         }
 

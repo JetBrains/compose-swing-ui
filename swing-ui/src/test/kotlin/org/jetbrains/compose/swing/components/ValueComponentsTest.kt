@@ -28,7 +28,7 @@ class ValueComponentsTest {
     @Test
     fun sliderRendersValueAndRange() = runComposeSwingTest {
         setContent {
-            Slider(value = 30, min = 10, max = 90)
+            Slider(value = 30, onValueChange = {}, min = 10, max = 90)
         }
         val slider = onNodeOfType<JSlider>().fetch()
         assertEquals(10, slider.minimum, "the slider should render its minimum")
@@ -89,7 +89,7 @@ class ValueComponentsTest {
     @Test
     fun sliderReflectsStateDrivenRecomposition() = runComposeSwingTest {
         var value by mutableIntStateOf(10)
-        setContent { Slider(value = value) }
+        setContent { Slider(value = value, onValueChange = {}) }
         val slider = onNodeOfType<JSlider>().fetch()
         assertEquals(10, slider.value, "the slider should start at the initial value")
 
@@ -129,7 +129,7 @@ class ValueComponentsTest {
         // The declaration never moves: what the widget is left holding is the whole of what this pins.
         val value by mutableIntStateOf(30)
         setContent {
-            Slider(value = value, min = 0, max = 100)
+            Slider(value = value, onValueChange = {}, min = 0, max = 100)
         }
         val slider = onNodeOfType<JSlider>().fetch()
 

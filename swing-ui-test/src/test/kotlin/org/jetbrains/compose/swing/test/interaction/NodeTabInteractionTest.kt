@@ -40,11 +40,11 @@ class NodeTabInteractionTest {
             // selection it makes to be the one that stands.
             TabbedPane(
                 selectedIndex = selected,
-                modifier = roomForTheStrip,
                 onSelectedIndexChange = {
                     reported += it
                     selected = it
                 },
+                modifier = roomForTheStrip,
             ) {
                 Label("1", SwingModifier.tab("One"))
                 Label("2", SwingModifier.tab("Two"))
@@ -66,8 +66,8 @@ class NodeTabInteractionTest {
             // selection it makes to be the one that stands.
             TabbedPane(
                 selectedIndex = selected,
-                modifier = roomForTheStrip,
                 onSelectedIndexChange = { selected = it },
+                modifier = roomForTheStrip,
             ) {
                 Label("first", SwingModifier.tab("One"))
                 Label("second", SwingModifier.tab("Two"))
@@ -86,7 +86,7 @@ class NodeTabInteractionTest {
     fun clickingTheSelectedTabChangesNothing() = runComposeSwingTest {
         val reported = mutableListOf<Int>()
         setContent {
-            TabbedPane(selectedIndex = 1, modifier = roomForTheStrip, onSelectedIndexChange = { reported += it }) {
+            TabbedPane(selectedIndex = 1, onSelectedIndexChange = { reported += it }, modifier = roomForTheStrip) {
                 Label("1", SwingModifier.tab("One"))
                 Label("2", SwingModifier.tab("Two"))
             }
@@ -102,7 +102,7 @@ class NodeTabInteractionTest {
     fun clickingADisabledTabChangesNothing() = runComposeSwingTest {
         val reported = mutableListOf<Int>()
         setContent {
-            TabbedPane(selectedIndex = 0, modifier = roomForTheStrip, onSelectedIndexChange = { reported += it }) {
+            TabbedPane(selectedIndex = 0, onSelectedIndexChange = { reported += it }, modifier = roomForTheStrip) {
                 Label("1", SwingModifier.tab("One"))
                 Label("2", SwingModifier.tab("Two", enabled = false))
             }
@@ -120,8 +120,8 @@ class NodeTabInteractionTest {
         setContent {
             TabbedPane(
                 selectedIndex = 0,
-                modifier = roomForTheStrip.enabled(false),
                 onSelectedIndexChange = { reported += it },
+                modifier = roomForTheStrip.enabled(false),
             ) {
                 Label("1", SwingModifier.tab("One"))
                 Label("2", SwingModifier.tab("Two"))
@@ -144,8 +144,8 @@ class NodeTabInteractionTest {
                 Label(text = "showing tab $selected")
                 TabbedPane(
                     selectedIndex = selected,
-                    modifier = roomForTheStrip,
                     onSelectedIndexChange = { selected = it },
+                    modifier = roomForTheStrip,
                 ) {
                     Label("first", SwingModifier.tab("One"))
                     Label("second", SwingModifier.tab("Two"))
@@ -169,11 +169,11 @@ class NodeTabInteractionTest {
         setContent {
             TabbedPane(
                 selectedIndex = selected,
-                modifier = roomForTheStrip,
                 onSelectedIndexChange = {
                     reported += it
                     selected = 2
                 },
+                modifier = roomForTheStrip,
             ) {
                 Label("1", SwingModifier.tab("One"))
                 Label("2", SwingModifier.tab("Two"))
@@ -218,7 +218,11 @@ class NodeTabInteractionTest {
                 }
             }
         setContent {
-            TabbedPane(selectedIndex = 0, modifier = roomForTheStrip.mouseListener(recorder)) {
+            TabbedPane(
+                selectedIndex = 0,
+                onSelectedIndexChange = { },
+                modifier = roomForTheStrip.mouseListener(recorder),
+            ) {
                 Label("1", SwingModifier.tab("One"))
                 Label("2", SwingModifier.tab("Two"))
             }
@@ -244,7 +248,7 @@ class NodeTabInteractionTest {
     @Test
     fun clickingAnIndexOutsideTheStripFailsReadably() = runComposeSwingTest {
         setContent {
-            TabbedPane(selectedIndex = 0, modifier = roomForTheStrip) {
+            TabbedPane(selectedIndex = 0, onSelectedIndexChange = { }, modifier = roomForTheStrip) {
                 Label("1", SwingModifier.tab("One"))
                 Label("2", SwingModifier.tab("Two"))
             }
@@ -273,6 +277,7 @@ class NodeTabInteractionTest {
             // one is outside the visible run and has no position on screen to aim at.
             TabbedPane(
                 selectedIndex = 0,
+                onSelectedIndexChange = { },
                 modifier = roomForTheStrip,
                 tabLayoutPolicy = JTabbedPane.SCROLL_TAB_LAYOUT,
             ) {

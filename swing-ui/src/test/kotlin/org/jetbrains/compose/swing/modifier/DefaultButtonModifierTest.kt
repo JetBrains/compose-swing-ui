@@ -71,7 +71,7 @@ class DefaultButtonModifierTest {
     @Test
     fun defaultButtonBecomesRootPaneDefault() {
         setContent {
-            Button("OK", modifier = SwingModifier.defaultButton())
+            Button("OK", onClick = { }, modifier = SwingModifier.defaultButton())
         }
         assertSame(
             theButton(),
@@ -84,7 +84,7 @@ class DefaultButtonModifierTest {
     fun clearingDefaultButtonReleasesRootPaneDefault() {
         var isDefault by mutableStateOf(true)
         setContent {
-            Button("OK", modifier = SwingModifier.defaultButton(isDefault))
+            Button("OK", onClick = { }, modifier = SwingModifier.defaultButton(isDefault))
         }
         assertSame(
             theButton(),
@@ -101,7 +101,7 @@ class DefaultButtonModifierTest {
     fun removingDefaultButtonModifierReleasesRootPaneDefault() {
         var present by mutableStateOf(true)
         setContent {
-            Button("OK", modifier = if (present) SwingModifier.defaultButton() else SwingModifier)
+            Button("OK", onClick = { }, modifier = if (present) SwingModifier.defaultButton() else SwingModifier)
         }
         assertSame(
             theButton(),

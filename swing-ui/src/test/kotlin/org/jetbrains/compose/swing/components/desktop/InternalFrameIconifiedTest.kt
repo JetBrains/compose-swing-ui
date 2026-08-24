@@ -37,6 +37,7 @@ class InternalFrameIconifiedTest {
                 InternalFrame(
                     title = "Editor",
                     state = state,
+                    onClose = { },
                     controls = InternalFrameControls(iconifiable = true),
                 ) { Label(text = "body") }
             }
@@ -57,6 +58,7 @@ class InternalFrameIconifiedTest {
                 InternalFrame(
                     title = "Editor",
                     state = state,
+                    onClose = { },
                     controls = InternalFrameControls(iconifiable = true),
                 ) { Label(text = "body") }
             }
@@ -87,6 +89,7 @@ class InternalFrameIconifiedTest {
                 InternalFrame(
                     title = "Editor",
                     state = state,
+                    onClose = { },
                     controls = InternalFrameControls(iconifiable = true),
                 ) { Label(text = "body") }
             }
@@ -113,8 +116,9 @@ class InternalFrameIconifiedTest {
                 InternalFrame(
                     title = "Editor",
                     state = state,
-                    controls = InternalFrameControls(iconifiable = true),
+                    onClose = { },
                     modifier = SwingModifier.toolTip(tip),
+                    controls = InternalFrameControls(iconifiable = true),
                 ) { Label(text = "body") }
             }
         }
@@ -136,8 +140,9 @@ class InternalFrameIconifiedTest {
                 InternalFrame(
                     title = "Editor",
                     bounds = Rectangle(10, 20, 300, 200),
-                    controls = InternalFrameControls(iconifiable = true),
+                    onClose = { },
                     modifier = SwingModifier.toolTip(tip),
+                    controls = InternalFrameControls(iconifiable = true),
                 ) { Label(text = "body") }
             }
         }
@@ -167,6 +172,7 @@ class InternalFrameIconifiedTest {
                 InternalFrame(
                     title = "Editor",
                     state = if (useSecond) second else first,
+                    onClose = { },
                     controls = InternalFrameControls(iconifiable = true),
                 ) { Label(text = "body") }
             }
@@ -189,6 +195,7 @@ class InternalFrameIconifiedTest {
                 InternalFrame(
                     title = "Editor",
                     state = state,
+                    onClose = { },
                     controls = InternalFrameControls(iconifiable = true),
                 ) { Label(text = "body") }
             }
@@ -219,6 +226,7 @@ class InternalFrameIconifiedTest {
                     InternalFrame(
                         title = "Editor",
                         state = state,
+                        onClose = { },
                         controls = InternalFrameControls(iconifiable = true),
                     ) { Label(text = "body") }
                 }

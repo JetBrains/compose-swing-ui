@@ -161,11 +161,11 @@ private fun ColumnScope.HighlightCard() {
         TextArea(
             value = source,
             onValueChange = { source = it },
+            modifier = SwingModifier.highlights(matches, painter),
             rows = 4,
             columns = 50,
             lineWrap = true,
             wrapStyleWord = true,
-            modifier = SwingModifier.highlights(matches, painter),
         )
         Label("${matches.size} match(es)")
     }
@@ -212,14 +212,14 @@ private fun ColumnScope.CaretCard() {
             TextArea(
                 value = text,
                 onValueChange = { text = it },
-                rows = 6,
-                columns = 40,
                 modifier =
                     SwingModifier
                         .viewport()
                         .caretListener(caretMoveListener)
                         .documentListener(documentEditListener)
                         .caretUpdatePolicy(CARET_UPDATE_POLICIES[policyIndex].second),
+                rows = 6,
+                columns = 40,
             )
         }
         Button("Append a line at the end", onClick = { text += "Appended line.\n" })

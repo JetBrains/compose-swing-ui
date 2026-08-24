@@ -353,8 +353,9 @@ class SelectionDeclarationTest {
         setContent {
             ComboBox(
                 items = listOf("red", "green", "blue"),
-                modifier = SwingModifier.name(label),
                 selectedItem = "red",
+                onSelectionChange = {},
+                modifier = SwingModifier.name(label),
             )
         }
 

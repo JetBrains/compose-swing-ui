@@ -67,7 +67,7 @@ class SlotHostReactivationTest {
     @Test
     fun aReactivatedTabbedPaneStillHostsItsTabs() = runComposeSwingTest {
         parkAndReactivate {
-            TabbedPane(selectedIndex = 0) {
+            TabbedPane(selectedIndex = 0, onSelectedIndexChange = {}) {
                 Label("g", SwingModifier.tab("General"))
                 Label("a", SwingModifier.tab("Advanced"))
             }
@@ -131,10 +131,15 @@ class SlotHostReactivationTest {
     fun aReactivatedDesktopPaneStillHostsItsFrames() = runComposeSwingTest {
         parkAndReactivate {
             DesktopPane {
-                InternalFrame(title = "Editor", bounds = Rectangle(0, 0, FRAME_SIDE, FRAME_SIDE)) { Label("editor") }
+                InternalFrame(
+                    title = "Editor",
+                    bounds = Rectangle(0, 0, FRAME_SIDE, FRAME_SIDE),
+                    onClose = { },
+                ) { Label("editor") }
                 InternalFrame(
                     title = "Console",
                     bounds = Rectangle(20, 20, FRAME_SIDE, FRAME_SIDE),
+                    onClose = { },
                 ) { Label("console") }
             }
         }

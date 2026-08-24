@@ -73,8 +73,8 @@ internal fun ColumnScope.InputVerifierCard() {
             // of being held back by it.
             Button(
                 "Reset",
-                modifier = SwingModifier.verifyInputWhenFocusTarget(false),
                 onClick = { port = "8080" },
+                modifier = SwingModifier.verifyInputWhenFocusTarget(false),
             )
         }
         Label(if (portValid) "Port is valid" else "Port is invalid - focus is held here until it is fixed")
@@ -90,7 +90,7 @@ internal fun ColumnScope.DocumentStateCard() {
         FlowPanel {
             Label("Text:")
             TextField(state = state, columns = 16)
-            Button("Undo", modifier = SwingModifier.enabled(state.canUndo), onClick = state::undo)
+            Button("Undo", onClick = state::undo, modifier = SwingModifier.enabled(state.canUndo))
         }
         Label("Length is ${state.text.length}")
     }

@@ -38,9 +38,9 @@ class MenuAcceleratorTest {
     fun anAcceleratorReachesEveryMenuItemType() = runComposeSwingTest {
         val popup =
             composeMenu {
-                MenuItem("Open", accelerator = OPEN)
-                CheckBoxMenuItem("Word wrap", accelerator = WRAP)
-                RadioButtonMenuItem("Compact", accelerator = COMPACT)
+                MenuItem("Open", onClick = { }, accelerator = OPEN)
+                CheckBoxMenuItem("Word wrap", checked = false, onCheckedChange = {}, accelerator = WRAP)
+                RadioButtonMenuItem("Compact", selected = false, onSelectedChange = {}, accelerator = COMPACT)
             }
 
         assertEquals(OPEN, (popup.getComponent(0) as JMenuItem).accelerator, "a plain item shows its accelerator")
@@ -61,9 +61,9 @@ class MenuAcceleratorTest {
         val bare = JMenuItem()
         val popup =
             composeMenu {
-                MenuItem("Open")
-                CheckBoxMenuItem("Word wrap")
-                RadioButtonMenuItem("Compact")
+                MenuItem("Open", onClick = { })
+                CheckBoxMenuItem("Word wrap", checked = false, onCheckedChange = {})
+                RadioButtonMenuItem("Compact", selected = false, onSelectedChange = {})
             }
 
         repeat(popup.componentCount) { index ->
@@ -78,7 +78,7 @@ class MenuAcceleratorTest {
     @Test
     fun theAcceleratorFollowsTheStateDrivingIt() = runComposeSwingTest {
         var current by mutableStateOf<KeyStroke?>(OPEN)
-        val popup = composeMenu { MenuItem("Open", accelerator = current) }
+        val popup = composeMenu { MenuItem("Open", onClick = { }, accelerator = current) }
 
         val item = popup.getComponent(0) as JMenuItem
         assertEquals(OPEN, item.accelerator, "the declared accelerator")

@@ -56,8 +56,8 @@ internal fun TabsSection() {
 
             TabbedPane(
                 selectedIndex = selected,
-                modifier = SwingModifier.preferredSize(Dimension(420, 160)),
                 onSelectedIndexChange = { selected = it },
+                modifier = SwingModifier.preferredSize(Dimension(420, 160)),
                 tabPlacement = JTabbedPane.TOP,
             ) {
                 FlowPanel(SwingModifier.tab("General")) {

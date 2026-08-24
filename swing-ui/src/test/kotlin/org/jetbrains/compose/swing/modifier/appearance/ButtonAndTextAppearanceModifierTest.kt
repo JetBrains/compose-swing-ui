@@ -46,6 +46,7 @@ class ButtonAndTextAppearanceModifierTest {
         setContent {
             Button(
                 "Save",
+                onClick = { },
                 modifier =
                     SwingModifier
                         .borderPainted(false)
@@ -64,7 +65,7 @@ class ButtonAndTextAppearanceModifierTest {
     fun droppingThePaintFlagsRestoresWhatTheButtonPainted() = runComposeSwingTest {
         var flat by mutableStateOf(true)
         setContent {
-            Button("Save", modifier = if (flat) SwingModifier.borderPainted(false) else SwingModifier)
+            Button("Save", onClick = { }, modifier = if (flat) SwingModifier.borderPainted(false) else SwingModifier)
         }
 
         val button = onNodeOfType<JButton>().fetch()
@@ -94,6 +95,7 @@ class ButtonAndTextAppearanceModifierTest {
         setContent {
             TextField(
                 value = "",
+                onValueChange = {},
                 modifier =
                     SwingModifier
                         .caretColor(Color.RED)
@@ -113,7 +115,7 @@ class ButtonAndTextAppearanceModifierTest {
     @Test
     fun aCaretColorFollowsTheStateDrivingIt() = runComposeSwingTest {
         var color by mutableStateOf(Color.RED)
-        setContent { TextField(value = "", modifier = SwingModifier.caretColor(color)) }
+        setContent { TextField(value = "", onValueChange = {}, modifier = SwingModifier.caretColor(color)) }
 
         val field = onNodeOfType<JTextField>().fetch()
         assertEquals(Color.RED, field.caretColor, "the declared color")
@@ -128,7 +130,11 @@ class ButtonAndTextAppearanceModifierTest {
     fun droppingACaretColorRestoresTheLookAndFeelsOwn() = runComposeSwingTest {
         var recolored by mutableStateOf(true)
         setContent {
-            TextField(value = "", modifier = if (recolored) SwingModifier.caretColor(Color.RED) else SwingModifier)
+            TextField(
+                value = "",
+                onValueChange = {},
+                modifier = if (recolored) SwingModifier.caretColor(Color.RED) else SwingModifier,
+            )
         }
 
         val field = onNodeOfType<JTextField>().fetch()
@@ -146,8 +152,8 @@ class ButtonAndTextAppearanceModifierTest {
     fun aMarginReachesBothAButtonAndATextField() = runComposeSwingTest {
         val margin = Insets(3, 7, 3, 7)
         setContent {
-            Button("Save", modifier = SwingModifier.margin(margin))
-            TextField(value = "", modifier = SwingModifier.margin(margin))
+            Button("Save", onClick = { }, modifier = SwingModifier.margin(margin))
+            TextField(value = "", onValueChange = {}, modifier = SwingModifier.margin(margin))
         }
 
         assertEquals(margin, onNodeOfType<JButton>().fetch().margin, "button")
@@ -158,7 +164,11 @@ class ButtonAndTextAppearanceModifierTest {
     fun droppingAMarginRestoresTheLookAndFeelsOwn() = runComposeSwingTest {
         var inset by mutableStateOf(true)
         setContent {
-            Button("Save", modifier = if (inset) SwingModifier.margin(Insets(9, 9, 9, 9)) else SwingModifier)
+            Button(
+                "Save",
+                onClick = { },
+                modifier = if (inset) SwingModifier.margin(Insets(9, 9, 9, 9)) else SwingModifier,
+            )
         }
 
         val button = onNodeOfType<JButton>().fetch()
@@ -176,7 +186,7 @@ class ButtonAndTextAppearanceModifierTest {
             // A menu item is built on a button, so it is in the scope of this modifier, and unlike a
             // plain button it takes its border painting from a look-and-feel default that can be
             // changed under it.
-            val popup = composeMenu { MenuItem("Open", modifier = SwingModifier.borderPainted(true)) }
+            val popup = composeMenu { MenuItem("Open", onClick = { }, modifier = SwingModifier.borderPainted(true)) }
             val item = popup.getComponent(0) as JMenuItem
             assertTrue(item.isBorderPainted, "the declared painting is what the item shows")
 
@@ -198,8 +208,13 @@ class ButtonAndTextAppearanceModifierTest {
             // nothing over that, so the button declares the fill it already carries while the check box
             // declares one it does not.
             setContent {
-                Button("Save", modifier = SwingModifier.contentAreaFilled(true))
-                CheckBox("Wrap", checked = false, modifier = SwingModifier.contentAreaFilled(false))
+                Button("Save", onClick = { }, modifier = SwingModifier.contentAreaFilled(true))
+                CheckBox(
+                    "Wrap",
+                    checked = false,
+                    onCheckedChange = {},
+                    modifier = SwingModifier.contentAreaFilled(false),
+                )
             }
             val button = onNodeOfType<JButton>().fetch()
             val box = onNodeOfType<JCheckBox>().fetch()
@@ -224,8 +239,13 @@ class ButtonAndTextAppearanceModifierTest {
             // A Basic look and feel installs one gap on everything built on a button, so the button
             // declares the gap it already carries while the check box declares one it does not.
             setContent {
-                Button("Save", modifier = SwingModifier.iconTextGap(INSTALLED_GAP))
-                CheckBox("Wrap", checked = false, modifier = SwingModifier.iconTextGap(DECLARED_GAP))
+                Button("Save", onClick = { }, modifier = SwingModifier.iconTextGap(INSTALLED_GAP))
+                CheckBox(
+                    "Wrap",
+                    checked = false,
+                    onCheckedChange = {},
+                    modifier = SwingModifier.iconTextGap(DECLARED_GAP),
+                )
             }
             val button = onNodeOfType<JButton>().fetch()
             val box = onNodeOfType<JCheckBox>().fetch()

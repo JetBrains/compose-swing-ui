@@ -64,7 +64,7 @@ class SwingModifierTest {
 
     @Test
     fun nameModifierMakesComponentFindable() = runComposeSwingTest {
-        setContent { Button("Save", modifier = SwingModifier.name("save-button")) }
+        setContent { Button("Save", onClick = { }, modifier = SwingModifier.name("save-button")) }
         onNodeWithName("save-button").assert(SwingMatcher.isOfType<JButton>())
     }
 
@@ -133,7 +133,15 @@ class SwingModifierTest {
         setContent {
             Button(
                 "X",
-                modifier = if (hoverEnabled) SwingModifier.onHover(onEnter = { enterCount++ }) else SwingModifier,
+                onClick = { },
+                modifier =
+                    if (hoverEnabled) {
+                        SwingModifier.onHover(onEnter = {
+                            enterCount++
+                        })
+                    } else {
+                        SwingModifier
+                    },
             )
         }
         val button = onNodeOfType<JButton>().fetch()
@@ -152,7 +160,7 @@ class SwingModifierTest {
         var target by mutableStateOf("first")
         var captured = ""
         setContent {
-            Button("X", modifier = SwingModifier.onHover(onEnter = { captured = target }))
+            Button("X", onClick = { }, modifier = SwingModifier.onHover(onEnter = { captured = target }))
         }
         val button = onNodeOfType<JButton>().fetch()
 
@@ -169,7 +177,7 @@ class SwingModifierTest {
     fun enabledModifierAppliesAndRestoresOnRemoval() = runComposeSwingTest {
         var disabled by mutableStateOf(true)
         setContent {
-            Button("X", modifier = if (disabled) SwingModifier.enabled(false) else SwingModifier)
+            Button("X", onClick = { }, modifier = if (disabled) SwingModifier.enabled(false) else SwingModifier)
         }
         val button = onNodeOfType<JButton>()
         button.assertIsNotEnabled()
@@ -184,7 +192,7 @@ class SwingModifierTest {
     fun visibleModifierAppliesAndRestoresOnRemoval() = runComposeSwingTest {
         var hidden by mutableStateOf(true)
         setContent {
-            Button("X", modifier = if (hidden) SwingModifier.visible(false) else SwingModifier)
+            Button("X", onClick = { }, modifier = if (hidden) SwingModifier.visible(false) else SwingModifier)
         }
         val button = onNodeOfType<JButton>()
         button.assertIsNotVisible()
@@ -304,6 +312,7 @@ class SwingModifierTest {
         setContent {
             Button(
                 "X",
+                onClick = { },
                 modifier =
                     SwingModifier
                         .listener(mouseEnterListener { first++ }, MOUSE_EVENTS)
@@ -325,6 +334,7 @@ class SwingModifierTest {
         setContent {
             Button(
                 "X",
+                onClick = { },
                 modifier =
                     SwingModifier
                         .onHover(onEnter = { first++ })
@@ -356,6 +366,7 @@ class SwingModifierTest {
         setContent {
             Button(
                 "X",
+                onClick = { },
                 modifier =
                     SwingModifier
                         .let { if (firstHoverEnabled) it.onHover(onEnter = { first++ }) else it }
@@ -384,6 +395,7 @@ class SwingModifierTest {
         setContent {
             Button(
                 "X",
+                onClick = { },
                 modifier =
                     SwingModifier
                         .let { if (hoverEnabled) it.onHover(onEnter = {}) else it }
@@ -410,6 +422,7 @@ class SwingModifierTest {
         setContent {
             Button(
                 "X",
+                onClick = { },
                 modifier =
                     SwingModifier
                         .let { if (hoverEnabled) it.onHover(onEnter = { enterCount++ }) else it }
@@ -446,6 +459,7 @@ class SwingModifierTest {
         setContent {
             Button(
                 "X",
+                onClick = { },
                 modifier =
                     SwingModifier
                         .let { if (mouseEnabled) it.mouseListener(mouse) else it }
@@ -493,6 +507,7 @@ class SwingModifierTest {
         setContent {
             Button(
                 label,
+                onClick = { },
                 modifier =
                     SwingModifier.listener(stable, counted),
             )
@@ -547,7 +562,7 @@ class SwingModifierTest {
 
     @Test
     fun customElementWrapsAnArbitraryProperty() = runComposeSwingTest {
-        setContent { Button("X", modifier = SwingModifier.then(ToolTipElement("hello"))) }
+        setContent { Button("X", onClick = { }, modifier = SwingModifier.then(ToolTipElement("hello"))) }
         assertEquals("hello", onNodeOfType<JButton>().fetch().toolTipText)
     }
 
@@ -569,7 +584,16 @@ class SwingModifierTest {
         setContent {
             Button(
                 "X",
-                modifier = if (styled) SwingModifier.then(ToolTipElement("hello", nodes::add)) else SwingModifier,
+                onClick = {
+                },
+                modifier =
+                    if (styled) {
+                        SwingModifier.then(
+                            ToolTipElement("hello", nodes::add),
+                        )
+                    } else {
+                        SwingModifier
+                    },
             )
         }
         assertEquals("hello", onNodeOfType<JButton>().fetch().toolTipText)
@@ -648,7 +672,7 @@ class SwingModifierTest {
         /** The message [SwingModifier.Node.component] fails with outside the attached window. */
         const val NOT_ATTACHED_MESSAGE = "Node is not attached"
 
-        /** The mouse registration the declarations in these tests register on. */
+        /** The mouse registration the declarations in these tests use. */
         val MOUSE_EVENTS =
             ListenerRegistration<JButton, MouseListener>(
                 { component, listener -> component.addMouseListener(listener) },

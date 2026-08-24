@@ -31,6 +31,7 @@ class PropertyChangeRegistrationTest {
             FlowPanel {
                 Button(
                     text = "press",
+                    onClick = { },
                     modifier = SwingModifier.propertyChangeListener(watched, instance),
                 )
             }
@@ -67,6 +68,7 @@ class PropertyChangeRegistrationTest {
             FlowPanel {
                 Button(
                     text = label,
+                    onClick = { },
                     modifier = SwingModifier.propertyChangeListener("enabled", composed),
                 )
             }

@@ -16,7 +16,7 @@ import java.util.Objects
  * ```
  * GridBagPanel {
  *     Label(text = "Name", modifier = SwingModifier.item(gridx = 0, gridy = 0))
- *     Button(text = "Pick", modifier = SwingModifier.item(gridx = 1, gridy = 0, weightx = 1.0))
+ *     Button(text = "Pick", onClick = ::pick, modifier = SwingModifier.item(gridx = 1, gridy = 0, weightx = 1.0))
  * }
  * ```
  *

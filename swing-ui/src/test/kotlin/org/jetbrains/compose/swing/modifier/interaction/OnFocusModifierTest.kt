@@ -22,7 +22,7 @@ class OnFocusModifierTest {
         var gained = 0
         var lost = 0
         setContent {
-            Button("X", modifier = SwingModifier.onFocus(onGained = { gained++ }, onLost = { lost++ }))
+            Button("X", onClick = { }, modifier = SwingModifier.onFocus(onGained = { gained++ }, onLost = { lost++ }))
         }
 
         onNodeOfType<JButton>().performFocusGained()
@@ -41,6 +41,7 @@ class OnFocusModifierTest {
         setContent {
             Button(
                 "X",
+                onClick = { },
                 modifier = if (enabled) SwingModifier.onFocus(onGained = { gained++ }) else SwingModifier,
             )
         }

@@ -31,10 +31,7 @@ class LambdaListenerModifierTest {
                 // at fire time is the latest one whichever pass wrote the lambda, which cannot tell a
                 // stale lambda from a live one.
                 val captured = declared
-                Button(
-                    text = declared,
-                    modifier = SwingModifier.actionListener { reported = captured },
-                )
+                Button(text = declared, onClick = { }, modifier = SwingModifier.actionListener { reported = captured })
             }
         }
 
@@ -68,6 +65,7 @@ class LambdaListenerModifierTest {
                 val captured = watched
                 Button(
                     text = watched,
+                    onClick = { },
                     modifier =
                         SwingModifier.propertyChangeListener(watched) {
                             seen += "$captured:${it.propertyName}"

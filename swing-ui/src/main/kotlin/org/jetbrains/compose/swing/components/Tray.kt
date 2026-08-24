@@ -58,7 +58,7 @@ import javax.swing.event.PopupMenuListener
 @Composable
 public fun Tray(
     image: Image,
-    onAction: () -> Unit = {},
+    onAction: () -> Unit,
     tooltip: @Nls String? = null,
     imageAutoSize: Boolean = false,
     menu:

@@ -34,8 +34,8 @@ class DesktopPaneStateClaimTest {
             assertFailsWith<IllegalArgumentException> {
                 setContent {
                     DesktopPane {
-                        InternalFrame(title = "Editor", state = shared) { Label(text = "editor") }
-                        InternalFrame(title = "Console", state = shared) { Label(text = "console") }
+                        InternalFrame(title = "Editor", state = shared, onClose = { }) { Label(text = "editor") }
+                        InternalFrame(title = "Console", state = shared, onClose = { }) { Label(text = "console") }
                     }
                 }
             }
@@ -57,7 +57,7 @@ class DesktopPaneStateClaimTest {
             DesktopPane {
                 titles.forEach { title ->
                     key(title) {
-                        InternalFrame(title = title, state = shared) { Label(text = title.lowercase()) }
+                        InternalFrame(title = title, state = shared, onClose = { }) { Label(text = title.lowercase()) }
                     }
                 }
             }

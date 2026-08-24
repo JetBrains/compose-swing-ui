@@ -29,6 +29,7 @@ class InstanceRegistrationTest {
                 val handler = remember { object : MouseAdapter() {} }
                 Button(
                     text = if (motion) "motion" else "plain",
+                    onClick = { },
                     modifier =
                         if (motion) {
                             SwingModifier.mouseMotionListener(handler)
@@ -47,7 +48,7 @@ class InstanceRegistrationTest {
         assertEquals(
             1,
             button.mouseMotionListeners.count { it is MouseAdapter },
-            "the same instance declared on the motion registration is registered there",
+            "the same instance declared on the motion registration is added there",
         )
         assertEquals(
             0,
@@ -57,7 +58,7 @@ class InstanceRegistrationTest {
     }
 
     @Test
-    fun theSameInstanceOnTheSameChannelIsNotReRegistered() = runComposeSwingTest {
+    fun theSameInstanceOnTheSameRegistrationIsNotReRegistered() = runComposeSwingTest {
         var attachments = 0
         var removals = 0
         var label by mutableStateOf("first")
@@ -79,7 +80,7 @@ class InstanceRegistrationTest {
                             },
                         )
                     }
-                Button(text = label, modifier = SwingModifier.listener(handler, counted))
+                Button(text = label, onClick = { }, modifier = SwingModifier.listener(handler, counted))
             }
         }
         onNodeOfType<JButton>().fetch<JButton>()

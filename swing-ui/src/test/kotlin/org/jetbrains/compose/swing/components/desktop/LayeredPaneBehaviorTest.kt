@@ -275,7 +275,7 @@ class LayeredPaneBehaviorTest {
             val showsEditor = editing
             LayeredPane {
                 if (showsEditor) {
-                    Button(text = "editor", modifier = SwingModifier.layer(JLayeredPane.DEFAULT_LAYER))
+                    Button(text = "editor", onClick = { }, modifier = SwingModifier.layer(JLayeredPane.DEFAULT_LAYER))
                 } else {
                     Label(text = "viewer", modifier = SwingModifier.layer(JLayeredPane.DEFAULT_LAYER))
                 }

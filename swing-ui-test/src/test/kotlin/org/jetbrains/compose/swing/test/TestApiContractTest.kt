@@ -72,7 +72,7 @@ class TestApiContractTest {
     fun enabledAssertionsReflectState() = runComposeSwingTest {
         var on by mutableStateOf(true)
         setContent {
-            Button(text = "toggle", modifier = SwingModifier.enabled(on))
+            Button(text = "toggle", onClick = { }, modifier = SwingModifier.enabled(on))
         }
 
         onNodeWithText("toggle").assertIsEnabled()
@@ -151,7 +151,7 @@ class TestApiContractTest {
 
     @Test
     fun textComponentTextEqualsReadsFieldText() = runComposeSwingTest {
-        setContent { TextField(value = "field text") }
+        setContent { TextField(value = "field text", onValueChange = { }) }
         onNodeWithText("field text").assertTextEquals("field text")
     }
 
@@ -175,7 +175,7 @@ class TestApiContractTest {
     fun reifiedTypeFindersAreConvenienceForMatcherFinders() = runComposeSwingTest {
         setContent {
             BoxPanel {
-                TextField(value = "field")
+                TextField(value = "field", onValueChange = { })
                 Button(text = "btn", onClick = {})
             }
         }
@@ -186,7 +186,7 @@ class TestApiContractTest {
 
     @Test
     fun fetchReturnsTheTypedComponentForDirectDriving() = runComposeSwingTest {
-        setContent { TextField(value = "typed") }
+        setContent { TextField(value = "typed", onValueChange = { }) }
 
         // fetch returns the match typed, so the component's own API is reachable without a cast.
         val field: JTextField = onNodeOfType<JTextField>().fetch()

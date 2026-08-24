@@ -61,7 +61,7 @@ class ComposableCellLayoutTest {
     @Test
     fun aComboBoxIsMeasuredByTheCellsOwnComponent() = runComposeSwingTest {
         setContent {
-            ComboBox(items = listOf("Kotlin", "Java"), selectedItem = "Kotlin") { item ->
+            ComboBox(items = listOf("Kotlin", "Java"), selectedItem = "Kotlin", onSelectionChange = {}) { item ->
                 FlowPanel { Label(item) }
             }
         }

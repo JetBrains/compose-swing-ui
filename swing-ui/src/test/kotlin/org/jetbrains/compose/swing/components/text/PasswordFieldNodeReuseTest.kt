@@ -23,7 +23,7 @@ class PasswordFieldNodeReuseTest {
         var active by mutableStateOf(true)
         setContent {
             ReusableContentHost(active = active) {
-                PasswordField(value = "hunter2".toCharArray())
+                PasswordField(value = "hunter2".toCharArray(), onValueChange = {})
             }
         }
         assertEquals(
@@ -51,7 +51,7 @@ class PasswordFieldNodeReuseTest {
         var echoChar by mutableStateOf<Char?>('#')
         setContent {
             ReusableContentHost(active = active) {
-                PasswordField(value = "hunter2".toCharArray(), echoChar = echoChar)
+                PasswordField(value = "hunter2".toCharArray(), onValueChange = {}, echoChar = echoChar)
             }
         }
         assertEquals(

@@ -38,7 +38,7 @@ class TextEditableTest {
 
     @Test
     fun nonEditableTextFieldRejectsTypedText() = runComposeSwingTest {
-        setContent { TextField(value = "seed", editable = false) }
+        setContent { TextField(value = "seed", onValueChange = {}, editable = false) }
 
         val field = onNodeOfType<JTextField>().fetch()
         field.typeCharacter('X')
@@ -49,7 +49,7 @@ class TextEditableTest {
 
     @Test
     fun nonEditableTextFieldStaysEnabledAndSelectable() = runComposeSwingTest {
-        setContent { TextField(value = "seed", editable = false) }
+        setContent { TextField(value = "seed", onValueChange = {}, editable = false) }
 
         onNodeOfType<JTextField>().assert(isEditable(false)).assertIsEnabled()
 
@@ -61,7 +61,7 @@ class TextEditableTest {
     @Test
     fun textFieldEditableFollowsRecomposition() = runComposeSwingTest {
         var editable by mutableStateOf(true)
-        setContent { TextField(value = "seed", editable = editable) }
+        setContent { TextField(value = "seed", onValueChange = {}, editable = editable) }
 
         val field = onNodeOfType<JTextField>().fetch()
         assertTrue(field.isEditable)
@@ -95,7 +95,7 @@ class TextEditableTest {
 
     @Test
     fun nonEditableTextAreaRejectsTypedText() = runComposeSwingTest {
-        setContent { TextArea(value = "seed", editable = false) }
+        setContent { TextArea(value = "seed", onValueChange = {}, editable = false) }
 
         val area = onNodeOfType<JTextArea>().fetch()
         area.typeCharacter('X')
@@ -107,7 +107,7 @@ class TextEditableTest {
     @Test
     fun textAreaEditableFollowsRecomposition() = runComposeSwingTest {
         var editable by mutableStateOf(true)
-        setContent { TextArea(value = "seed", editable = editable) }
+        setContent { TextArea(value = "seed", onValueChange = {}, editable = editable) }
 
         val area = onNodeOfType<JTextArea>().fetch()
         assertTrue(area.isEditable)
@@ -141,7 +141,7 @@ class TextEditableTest {
 
     @Test
     fun nonEditablePasswordFieldRejectsTypedText() = runComposeSwingTest {
-        setContent { PasswordField(value = "seed".toCharArray(), editable = false) }
+        setContent { PasswordField(value = "seed".toCharArray(), onValueChange = {}, editable = false) }
 
         val field = onNodeOfType<JPasswordField>().fetch()
         field.typeCharacter('X')
@@ -153,7 +153,7 @@ class TextEditableTest {
     @Test
     fun passwordFieldEditableFollowsRecomposition() = runComposeSwingTest {
         var editable by mutableStateOf(true)
-        setContent { PasswordField(value = "seed".toCharArray(), editable = editable) }
+        setContent { PasswordField(value = "seed".toCharArray(), onValueChange = {}, editable = editable) }
 
         val field = onNodeOfType<JPasswordField>().fetch()
         assertTrue(field.isEditable)
@@ -187,7 +187,7 @@ class TextEditableTest {
 
     @Test
     fun nonEditableFormattedTextFieldRejectsTypedText() = runComposeSwingTest {
-        setContent { FormattedTextField(value = "seed", editable = false) }
+        setContent { FormattedTextField(value = "seed", onValueChange = {}, editable = false) }
 
         val field = onNodeOfType<JFormattedTextField>().fetch()
         field.typeCharacter('X')
@@ -199,7 +199,7 @@ class TextEditableTest {
     @Test
     fun formattedTextFieldEditableFollowsRecomposition() = runComposeSwingTest {
         var editable by mutableStateOf(true)
-        setContent { FormattedTextField(value = "seed", editable = editable) }
+        setContent { FormattedTextField(value = "seed", onValueChange = {}, editable = editable) }
 
         val field = onNodeOfType<JFormattedTextField>().fetch()
         assertTrue(field.isEditable)

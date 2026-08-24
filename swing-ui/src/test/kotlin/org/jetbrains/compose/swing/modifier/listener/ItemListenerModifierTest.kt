@@ -41,8 +41,8 @@ class ItemListenerModifierTest {
             CheckBox(
                 text = "Ready",
                 checked = checked,
-                modifier = SwingModifier.itemListener(listener),
                 onCheckedChange = { checked = it },
+                modifier = SwingModifier.itemListener(listener),
             )
         }
         val box = onNodeOfType<JCheckBox>().fetch()
@@ -75,21 +75,21 @@ class ItemListenerModifierTest {
             Column {
                 RadioButton(
                     text = "A",
-                    modifier = SwingModifier.buttonGroup(group).itemListener(first),
                     selected = choice == 0,
                     onSelectedChange = {
                         activated += "A"
                         choice = 0
                     },
+                    modifier = SwingModifier.buttonGroup(group).itemListener(first),
                 )
                 RadioButton(
                     text = "B",
-                    modifier = SwingModifier.buttonGroup(group).itemListener(second),
                     selected = choice == 1,
                     onSelectedChange = {
                         activated += "B"
                         choice = 1
                     },
+                    modifier = SwingModifier.buttonGroup(group).itemListener(second),
                 )
             }
         }
@@ -117,8 +117,8 @@ class ItemListenerModifierTest {
             ComboBox(
                 items = listOf("red", "green"),
                 selectedItem = selection,
-                modifier = SwingModifier.itemListener(listener),
                 onSelectionChange = { selection = it },
+                modifier = SwingModifier.itemListener(listener),
             )
         }
         val combo = onNodeOfType<JComboBox<*>>().fetch()
@@ -147,6 +147,7 @@ class ItemListenerModifierTest {
             CheckBox(
                 text = "Ready",
                 checked = false,
+                onCheckedChange = {},
                 modifier = if (observed) SwingModifier.itemListener(listener) else SwingModifier,
             )
         }

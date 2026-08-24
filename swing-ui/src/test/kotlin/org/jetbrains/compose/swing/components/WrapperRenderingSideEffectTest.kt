@@ -77,14 +77,14 @@ class WrapperRenderingSideEffectTest {
 
     @Test
     fun buttonAddsNoRenderingSideEffects() = assertWrapperMatchesRaw(
-        content = { Button(text = BUTTON_TEXT) },
+        content = { Button(text = BUTTON_TEXT, onClick = { }) },
         find = { onNodeOfType<JButton>() },
         buildRaw = { JButton().apply { text = BUTTON_TEXT } },
     )
 
     @Test
     fun uncheckedCheckBoxAddsNoRenderingSideEffects() = assertWrapperMatchesRaw(
-        content = { CheckBox(text = CHECK_TEXT, checked = false) },
+        content = { CheckBox(text = CHECK_TEXT, checked = false, onCheckedChange = {}) },
         find = { onNodeOfType<JCheckBox>() },
         buildRaw = {
             JCheckBox().apply {
@@ -96,7 +96,7 @@ class WrapperRenderingSideEffectTest {
 
     @Test
     fun checkedCheckBoxAddsNoRenderingSideEffects() = assertWrapperMatchesRaw(
-        content = { CheckBox(text = CHECK_TEXT, checked = true) },
+        content = { CheckBox(text = CHECK_TEXT, checked = true, onCheckedChange = {}) },
         find = { onNodeOfType<JCheckBox>() },
         buildRaw = {
             JCheckBox().apply {
@@ -108,7 +108,7 @@ class WrapperRenderingSideEffectTest {
 
     @Test
     fun unselectedRadioButtonAddsNoRenderingSideEffects() = assertWrapperMatchesRaw(
-        content = { RadioButton(text = RADIO_TEXT, selected = false) },
+        content = { RadioButton(text = RADIO_TEXT, selected = false, onSelectedChange = {}) },
         find = { onNodeOfType<JRadioButton>() },
         buildRaw = {
             JRadioButton().apply {
@@ -120,7 +120,7 @@ class WrapperRenderingSideEffectTest {
 
     @Test
     fun selectedRadioButtonAddsNoRenderingSideEffects() = assertWrapperMatchesRaw(
-        content = { RadioButton(text = RADIO_TEXT, selected = true) },
+        content = { RadioButton(text = RADIO_TEXT, selected = true, onSelectedChange = {}) },
         find = { onNodeOfType<JRadioButton>() },
         buildRaw = {
             JRadioButton().apply {
@@ -132,7 +132,7 @@ class WrapperRenderingSideEffectTest {
 
     @Test
     fun selectedToggleButtonAddsNoRenderingSideEffects() = assertWrapperMatchesRaw(
-        content = { ToggleButton(text = TOGGLE_TEXT, selected = true) },
+        content = { ToggleButton(text = TOGGLE_TEXT, selected = true, onSelectedChange = {}) },
         find = { onNodeOfType<JToggleButton>() },
         buildRaw = {
             JToggleButton().apply {
@@ -144,7 +144,7 @@ class WrapperRenderingSideEffectTest {
 
     @Test
     fun sliderAddsNoRenderingSideEffects() = assertWrapperMatchesRaw(
-        content = { Slider(value = SLIDER_VALUE, min = 0, max = 100) },
+        content = { Slider(value = SLIDER_VALUE, onValueChange = {}, min = 0, max = 100) },
         find = { onNodeOfType<JSlider>() },
         buildRaw = { JSlider(0, 100, SLIDER_VALUE) },
     )
@@ -176,28 +176,28 @@ class WrapperRenderingSideEffectTest {
 
     @Test
     fun textFieldAddsNoRenderingSideEffects() = assertWrapperMatchesRaw(
-        content = { TextField(value = FIELD_TEXT) },
+        content = { TextField(value = FIELD_TEXT, onValueChange = {}) },
         find = { onNodeOfType<JTextField>() },
         buildRaw = { JTextField(0).apply { text = FIELD_TEXT } },
     )
 
     @Test
     fun textAreaAddsNoRenderingSideEffects() = assertWrapperMatchesRaw(
-        content = { TextArea(value = AREA_TEXT) },
+        content = { TextArea(value = AREA_TEXT, onValueChange = {}) },
         find = { onNodeOfType<JTextArea>() },
         buildRaw = { JTextArea(0, 0).apply { text = AREA_TEXT } },
     )
 
     @Test
     fun passwordFieldAddsNoRenderingSideEffects() = assertWrapperMatchesRaw(
-        content = { PasswordField(value = PASSWORD.toCharArray()) },
+        content = { PasswordField(value = PASSWORD.toCharArray(), onValueChange = {}) },
         find = { onNodeOfType<JPasswordField>() },
         buildRaw = { JPasswordField(0).apply { text = PASSWORD } },
     )
 
     @Test
     fun comboBoxAddsNoRenderingSideEffects() = assertWrapperMatchesRaw(
-        content = { ComboBox(items = COMBO_ITEMS, selectedItem = COMBO_ITEMS.first()) },
+        content = { ComboBox(items = COMBO_ITEMS, selectedItem = COMBO_ITEMS.first(), onSelectionChange = {}) },
         find = { onNodeOfType<JComboBox<*>>() },
         buildRaw = {
             JComboBox<String>().apply {

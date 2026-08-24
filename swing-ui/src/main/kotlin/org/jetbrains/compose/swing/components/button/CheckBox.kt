@@ -17,16 +17,16 @@ import javax.swing.JCheckBox
  *
  * @param text the text to display next to the checkbox
  * @param checked whether the checkbox is checked
- * @param modifier the [SwingModifier] applied to the underlying component
  * @param onCheckedChange callback invoked when the checked state changes
+ * @param modifier the [SwingModifier] applied to the underlying component
  * @see javax.swing.JCheckBox
  */
 @Composable
 public fun CheckBox(
     text: @Nls String,
     checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
     modifier: SwingModifier = SwingModifier,
-    onCheckedChange: (Boolean) -> Unit = {},
 ) {
     val (reporting, applied) = rememberToggleReporting(checked, onCheckedChange)
     CheckBoxNode(

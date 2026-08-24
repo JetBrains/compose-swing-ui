@@ -243,8 +243,8 @@ private fun SortFilterControls(
         TextField(
             value = filterText,
             onValueChange = onFilterTextChange,
-            columns = 14,
             modifier = SwingModifier.testTag(SORT_FILTER_TEXT_TAG),
+            columns = 14,
         )
     }
 }

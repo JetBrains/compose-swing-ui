@@ -81,7 +81,7 @@ class TabbedPaneSelectionReportingTest {
     @Test
     fun aSelectionTheCallerDoesNotAdoptDoesNotStand() = runComposeSwingTest {
         setContent {
-            TabbedPane(selectedIndex = 0, modifier = roomForTheStrip, onSelectedIndexChange = {}) {
+            TabbedPane(selectedIndex = 0, onSelectedIndexChange = {}, modifier = roomForTheStrip) {
                 Label("1", SwingModifier.tab("One"))
                 Label("2", SwingModifier.tab("Two"))
                 Label("3", SwingModifier.tab("Three"))
@@ -219,7 +219,7 @@ class TabbedPaneSelectionReportingTest {
         val error =
             assertFailsWith<IllegalArgumentException> {
                 setContent {
-                    TabbedPane(selectedIndex = -2) {
+                    TabbedPane(selectedIndex = -2, onSelectedIndexChange = {}) {
                         Label("1", SwingModifier.tab("One"))
                         Label("2", SwingModifier.tab("Two"))
                     }
@@ -242,7 +242,7 @@ class TabbedPaneSelectionReportingTest {
         // page count - the rejection has to come from the declaration itself, not from a settle it would
         // otherwise never trigger.
         assertFailsWith<IllegalArgumentException> {
-            setContent { TabbedPane(selectedIndex = -2) {} }
+            setContent { TabbedPane(selectedIndex = -2, onSelectedIndexChange = {}) {} }
             awaitIdle()
         }
     }
@@ -272,7 +272,7 @@ class TabbedPaneSelectionReportingTest {
         var showThird by mutableStateOf(true)
         var firstTitle by mutableStateOf("One")
         setContent {
-            TabbedPane(selectedIndex = 2, modifier = roomForTheStrip, onSelectedIndexChange = { reported += it }) {
+            TabbedPane(selectedIndex = 2, onSelectedIndexChange = { reported += it }, modifier = roomForTheStrip) {
                 Label("1", SwingModifier.tab(firstTitle))
                 Label("2", SwingModifier.tab("Two"))
                 if (showThird) Label("3", SwingModifier.tab("Three"))
@@ -302,8 +302,8 @@ class TabbedPaneSelectionReportingTest {
         setContent {
             TabbedPane(
                 selectedIndex = selected,
-                modifier = roomForTheStrip,
                 onSelectedIndexChange = { reported += it },
+                modifier = roomForTheStrip,
             ) {
                 Label("1", SwingModifier.tab("One"))
                 Label("2", SwingModifier.tab("Two"))
@@ -373,7 +373,7 @@ class TabbedPaneSelectionReportingTest {
     fun aSelectionMadeWhileNoneIsDeclaredIsReported() = runComposeSwingTest {
         val reported = mutableListOf<Int>()
         setContent {
-            TabbedPane(selectedIndex = -1, modifier = roomForTheStrip, onSelectedIndexChange = { reported += it }) {
+            TabbedPane(selectedIndex = -1, onSelectedIndexChange = { reported += it }, modifier = roomForTheStrip) {
                 Label("1", SwingModifier.tab("One"))
                 Label("2", SwingModifier.tab("Two"))
             }
@@ -420,7 +420,7 @@ class TabbedPaneSelectionReportingTest {
     fun selectingATabReportsIt() = runComposeSwingTest {
         val reported = mutableListOf<Int>()
         setContent {
-            TabbedPane(selectedIndex = 0, modifier = roomForTheStrip, onSelectedIndexChange = { reported += it }) {
+            TabbedPane(selectedIndex = 0, onSelectedIndexChange = { reported += it }, modifier = roomForTheStrip) {
                 Label("1", SwingModifier.tab("One"))
                 Label("2", SwingModifier.tab("Two"))
                 Label("3", SwingModifier.tab("Three"))
@@ -441,8 +441,8 @@ class TabbedPaneSelectionReportingTest {
         setContent {
             TabbedPane(
                 selectedIndex = selected,
-                modifier = roomForTheStrip,
                 onSelectedIndexChange = { reported += it },
+                modifier = roomForTheStrip,
             ) {
                 Label("1", SwingModifier.tab("One"))
                 Label("2", SwingModifier.tab("Two"))
@@ -495,7 +495,7 @@ class TabbedPaneSelectionReportingTest {
             // reported. Read here so the whole pane recomposes and the failing node's apply runs inside
             // the pass that re-settles the selection.
             val failing = failApply
-            TabbedPane(selectedIndex = 0, modifier = roomForTheStrip, onSelectedIndexChange = { reported += it }) {
+            TabbedPane(selectedIndex = 0, onSelectedIndexChange = { reported += it }, modifier = roomForTheStrip) {
                 SwingNode(
                     factory = { JPanel() },
                     update = {
@@ -530,8 +530,8 @@ class TabbedPaneSelectionReportingTest {
                 }
             TabbedPane(
                 selectedIndex = selected,
-                modifier = roomForTheStrip.changeListener(failing),
                 onSelectedIndexChange = { reported += it },
+                modifier = roomForTheStrip.changeListener(failing),
             ) {
                 Label("1", SwingModifier.tab("One"))
                 Label("2", SwingModifier.tab("Two"))
@@ -596,7 +596,7 @@ class TabbedPaneSelectionReportingTest {
         setContent {
             val listener =
                 remember { ChangeListener { event -> reported += (event.source as JTabbedPane).selectedIndex } }
-            TabbedPane(selectedIndex = selected, modifier = roomForTheStrip, changeListener = listener) {
+            TabbedPane(selectedIndex = selected, changeListener = listener, modifier = roomForTheStrip) {
                 Label("1", SwingModifier.tab("One"))
                 Label("2", SwingModifier.tab("Two"))
                 Label("3", SwingModifier.tab("Three"))

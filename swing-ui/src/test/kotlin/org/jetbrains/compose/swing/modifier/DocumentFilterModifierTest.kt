@@ -69,7 +69,7 @@ class DocumentFilterModifierTest {
     @Test
     fun filterIsInstalledOnTheDocument() = runComposeSwingTest {
         setContent {
-            TextField(value = "", modifier = SwingModifier.documentFilter(DigitsOnlyFilter))
+            TextField(value = "", onValueChange = {}, modifier = SwingModifier.documentFilter(DigitsOnlyFilter))
         }
         val document = onNodeOfType<JTextField>().fetch().document as AbstractDocument
         assertEquals(DigitsOnlyFilter, document.documentFilter, "the declared filter should reach the document")
@@ -82,11 +82,11 @@ class DocumentFilterModifierTest {
         setContent {
             TextField(
                 value = text,
-                modifier = SwingModifier.documentFilter(DigitsOnlyFilter),
                 onValueChange = {
                     reported += it
                     text = it
                 },
+                modifier = SwingModifier.documentFilter(DigitsOnlyFilter),
             )
         }
         val field = onNodeOfType<JTextField>().fetch()
@@ -103,8 +103,8 @@ class DocumentFilterModifierTest {
         setContent {
             TextField(
                 value = text,
-                modifier = SwingModifier.documentFilter(DigitsOnlyFilter),
                 onValueChange = { text = it },
+                modifier = SwingModifier.documentFilter(DigitsOnlyFilter),
             )
         }
         val field = onNodeOfType<JTextField>().fetch()
@@ -121,8 +121,8 @@ class DocumentFilterModifierTest {
         setContent {
             TextField(
                 value = text,
-                modifier = SwingModifier.documentFilter(if (filtered) DigitsOnlyFilter else null),
                 onValueChange = { text = it },
+                modifier = SwingModifier.documentFilter(if (filtered) DigitsOnlyFilter else null),
             )
         }
         val document = onNodeOfType<JTextField>().fetch().document as AbstractDocument
@@ -145,8 +145,8 @@ class DocumentFilterModifierTest {
         setContent {
             TextField(
                 value = text,
-                modifier = if (filtering) SwingModifier.documentFilter(DigitsOnlyFilter) else SwingModifier,
                 onValueChange = { text = it },
+                modifier = if (filtering) SwingModifier.documentFilter(DigitsOnlyFilter) else SwingModifier,
             )
         }
         val document = onNodeOfType<JTextField>().fetch().document as AbstractDocument
@@ -211,6 +211,7 @@ class DocumentFilterModifierTest {
         setContent {
             EditorPane(
                 markup = "",
+                onLinkActivate = {},
                 modifier = SwingModifier.documentFilter(DigitsOnlyFilter),
                 contentType = contentType,
             )

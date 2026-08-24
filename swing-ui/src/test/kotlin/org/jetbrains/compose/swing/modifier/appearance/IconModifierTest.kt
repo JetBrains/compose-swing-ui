@@ -46,7 +46,7 @@ class IconModifierTest {
     @Test
     fun anIconReachesAButton() = runComposeSwingTest {
         val icon = icon()
-        setContent { Button("Save", modifier = SwingModifier.icon(icon)) }
+        setContent { Button("Save", onClick = { }, modifier = SwingModifier.icon(icon)) }
 
         assertSame(icon, onNodeOfType<JButton>().fetch().icon)
     }
@@ -54,7 +54,7 @@ class IconModifierTest {
     @Test
     fun anIconReachesACheckBox() = runComposeSwingTest {
         val icon = icon()
-        setContent { CheckBox("Enabled", checked = false, modifier = SwingModifier.icon(icon)) }
+        setContent { CheckBox("Enabled", checked = false, onCheckedChange = {}, modifier = SwingModifier.icon(icon)) }
 
         assertSame(icon, onNodeOfType<JCheckBox>().fetch().icon)
     }
@@ -62,7 +62,7 @@ class IconModifierTest {
     @Test
     fun anIconReachesAMenuItem() = runComposeSwingTest {
         val icon = icon()
-        val popup = composeMenu { MenuItem("Open", modifier = SwingModifier.icon(icon)) }
+        val popup = composeMenu { MenuItem("Open", onClick = { }, modifier = SwingModifier.icon(icon)) }
 
         assertSame(icon, (popup.getComponent(0) as JMenuItem).icon)
     }
@@ -87,7 +87,7 @@ class IconModifierTest {
     fun droppingTheModifierRestoresTheIconTheComponentHad() = runComposeSwingTest {
         var decorated by mutableStateOf(true)
         setContent {
-            Button("Save", modifier = if (decorated) SwingModifier.icon(icon()) else SwingModifier)
+            Button("Save", onClick = { }, modifier = if (decorated) SwingModifier.icon(icon()) else SwingModifier)
         }
 
         val button = onNodeOfType<AbstractButton>().fetch()

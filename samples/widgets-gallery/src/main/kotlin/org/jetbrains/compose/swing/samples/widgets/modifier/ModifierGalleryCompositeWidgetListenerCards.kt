@@ -119,9 +119,9 @@ internal fun ColumnScope.HyperlinkListenerCard() {
             remember { HyperlinkListener { event -> lastEvent = "${event.eventType}: ${event.description}" } }
         EditorPane(
             markup = "<a href=\"https://example.com\">Hover or click this link</a>",
-            contentType = "text/html",
             onLinkActivate = { activated = it },
             modifier = SwingModifier.hyperlinkListener(listener).preferredSize(Dimension(260, 40)),
+            contentType = "text/html",
         )
         Label("Last hyperlink event: $lastEvent")
         Label("Activated: $activated")
@@ -149,6 +149,7 @@ internal fun ColumnScope.InternalFrameListenerCard() {
             InternalFrame(
                 title = "Notes",
                 bounds = Rectangle(10, 10, 200, 100),
+                onClose = { },
                 modifier = SwingModifier.internalFrameListener(listener),
             ) {
                 Label("Click me")

@@ -35,13 +35,13 @@ private fun ColumnScope.ActionMenuCard() {
         var lastAction by remember { mutableStateOf("none") }
         val menu =
             SwingModifier.contextMenu {
-                MenuItem("Cut") { lastAction = "Cut" }
-                MenuItem("Copy") { lastAction = "Copy" }
-                MenuItem("Paste") { lastAction = "Paste" }
+                MenuItem("Cut", onClick = { lastAction = "Cut" })
+                MenuItem("Copy", onClick = { lastAction = "Copy" })
+                MenuItem("Paste", onClick = { lastAction = "Paste" })
                 MenuSeparator()
                 Menu("More") {
-                    MenuItem("Select all") { lastAction = "Select all" }
-                    MenuItem("Clear") { lastAction = "Clear" }
+                    MenuItem("Select all", onClick = { lastAction = "Select all" })
+                    MenuItem("Clear", onClick = { lastAction = "Clear" })
                 }
             }
         Label("Right-click here for actions", modifier = menu)
@@ -56,8 +56,8 @@ private fun ColumnScope.StatefulMenuCard() {
         var lineNumbers by remember { mutableStateOf(false) }
         val menu =
             SwingModifier.contextMenu {
-                CheckBoxMenuItem("Word wrap", checked = wrap) { wrap = it }
-                CheckBoxMenuItem("Line numbers", checked = lineNumbers) { lineNumbers = it }
+                CheckBoxMenuItem("Word wrap", checked = wrap, onCheckedChange = { wrap = it })
+                CheckBoxMenuItem("Line numbers", checked = lineNumbers, onCheckedChange = { lineNumbers = it })
             }
         Label("Right-click here to toggle options", modifier = menu)
         Label("Word wrap: ${if (wrap) "on" else "off"}, line numbers: ${if (lineNumbers) "on" else "off"}")

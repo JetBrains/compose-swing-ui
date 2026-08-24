@@ -102,7 +102,11 @@ class NodeFocusInteractionTest {
         var gained = 0
         var lost = 0
         setContent {
-            Button(text = "X", modifier = SwingModifier.onFocus(onGained = { gained++ }, onLost = { lost++ }))
+            Button(
+                text = "X",
+                onClick = { },
+                modifier = SwingModifier.onFocus(onGained = { gained++ }, onLost = { lost++ }),
+            )
         }
 
         onNodeOfType<JButton>().performFocusGained()
@@ -124,7 +128,12 @@ class NodeFocusInteractionTest {
                 Label(text = "focus: $focus")
                 Button(
                     text = "X",
-                    modifier = SwingModifier.onFocus(onGained = { focus = "gained" }, onLost = { focus = "lost" }),
+                    onClick = { },
+                    modifier =
+                        SwingModifier.onFocus(onGained = { focus = "gained" }, onLost = {
+                            focus =
+                                "lost"
+                        }),
                 )
             }
         }
@@ -140,7 +149,7 @@ class NodeFocusInteractionTest {
     fun aNodeUnderTheHarnessRootNeverOwnsFocus() = runComposeSwingTest {
         setContent {
             Column {
-                Button(text = "X")
+                Button(text = "X", onClick = { })
                 // A sibling the query never names, so only the dump can account for it.
                 Label(text = "sibling")
             }
@@ -159,7 +168,7 @@ class NodeFocusInteractionTest {
 
     @Test
     fun aDeliveredFocusGainConfersNoOwnership() = runComposeSwingTest {
-        setContent { Button(text = "X") }
+        setContent { Button(text = "X", onClick = { }) }
 
         // The notification is delivered to the node, but ownership belongs to the windowing system and
         // the harness root is attached to no window; the two must not be confused for each other.
@@ -171,7 +180,7 @@ class NodeFocusInteractionTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         setContent {
             Window(onCloseRequest = {}, title = "focus-owner", visible = true) {
-                TextField(value = "owner")
+                TextField(value = "owner", onValueChange = { })
             }
         }
         val frame = onWindow().fetch<JFrame>()

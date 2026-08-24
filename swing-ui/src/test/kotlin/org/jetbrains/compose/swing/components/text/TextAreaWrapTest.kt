@@ -20,7 +20,7 @@ class TextAreaWrapTest {
     @Test
     fun wrappingParametersReachTheArea() = runComposeSwingTest {
         setContent {
-            TextArea(value = "a long line of prose", lineWrap = true, wrapStyleWord = true)
+            TextArea(value = "a long line of prose", onValueChange = {}, lineWrap = true, wrapStyleWord = true)
         }
 
         val area = onNodeOfType<JTextArea>().fetch()
@@ -31,7 +31,7 @@ class TextAreaWrapTest {
     @Test
     fun lineWrapFollowsRecomposition() = runComposeSwingTest {
         var lineWrap by mutableStateOf(true)
-        setContent { TextArea(value = "a long line of prose", lineWrap = lineWrap) }
+        setContent { TextArea(value = "a long line of prose", onValueChange = {}, lineWrap = lineWrap) }
 
         val area = onNodeOfType<JTextArea>().fetch()
         assertTrue(area.lineWrap)
@@ -48,7 +48,7 @@ class TextAreaWrapTest {
     @Test
     fun wrapStyleWordFollowsRecompositionIndependentlyOfLineWrap() = runComposeSwingTest {
         var wrapStyleWord by mutableStateOf(true)
-        setContent { TextArea(value = "a long line of prose", wrapStyleWord = wrapStyleWord) }
+        setContent { TextArea(value = "a long line of prose", onValueChange = {}, wrapStyleWord = wrapStyleWord) }
 
         val area = onNodeOfType<JTextArea>().fetch()
         assertTrue(area.wrapStyleWord)
@@ -62,7 +62,7 @@ class TextAreaWrapTest {
     @Test
     fun lineWrapDrivesScrollableWidthTracking() = runComposeSwingTest {
         var lineWrap by mutableStateOf(true)
-        setContent { TextArea(value = "a long line of prose", lineWrap = lineWrap) }
+        setContent { TextArea(value = "a long line of prose", onValueChange = {}, lineWrap = lineWrap) }
 
         val area = onNodeOfType<JTextArea>().fetch()
         assertTrue(

@@ -36,9 +36,9 @@ class TrayMenuHostTest {
                 parentContext = context ?: error("no context"),
                 display = { popup, _, _ -> captured = popup },
                 menu = {
-                    MenuItem("Open")
+                    MenuItem("Open", onClick = { })
                     MenuSeparator()
-                    Menu("More") { MenuItem("Nested") }
+                    Menu("More") { MenuItem("Nested", onClick = { }) }
                 },
             )
 
@@ -89,8 +89,8 @@ class TrayMenuHostTest {
                 parentContext = context ?: error("no context"),
                 display = { popup, _, _ -> captured = popup },
                 menu = {
-                    MenuItem("Always")
-                    if (showExtra) MenuItem("Extra")
+                    MenuItem("Always", onClick = { })
+                    if (showExtra) MenuItem("Extra", onClick = { })
                 },
             )
 

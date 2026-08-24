@@ -46,6 +46,7 @@ class ModifierReapplicationTest {
             Label("tick $tick")
             Button(
                 "X",
+                onClick = { },
                 modifier =
                     SwingModifier
                         .background(Color.GREEN)
@@ -71,7 +72,7 @@ class ModifierReapplicationTest {
         var text by mutableStateOf("first")
         val writes = AtomicInteger()
         setContent {
-            Button("X", modifier = SwingModifier.then(CountingToolTipElement(text, writes)))
+            Button("X", onClick = { }, modifier = SwingModifier.then(CountingToolTipElement(text, writes)))
         }
         val button = onNodeOfType<JButton>().fetch()
         assertEquals("first", button.toolTipText, "the element should apply its initial value")
@@ -91,6 +92,7 @@ class ModifierReapplicationTest {
         setContent {
             Button(
                 "X",
+                onClick = { },
                 modifier =
                     SwingModifier
                         .background(accent)
@@ -128,7 +130,7 @@ class ModifierReapplicationTest {
         setContent {
             Label("tick $tick")
             ReusableContentHost(active = active) {
-                Button("X", modifier = chain)
+                Button("X", onClick = { }, modifier = chain)
             }
         }
         val beforePark = onNodeOfType<JButton>().fetch()
@@ -177,7 +179,7 @@ class ModifierReapplicationTest {
             // The lambda captures this pass's local, so a stale callback reports the stale value
             // instead of quietly reading the current one at fire time.
             val declared = if (second) "second" else "first"
-            Button("X", modifier = SwingModifier.then(HoverCallbackElement { captured = declared }))
+            Button("X", onClick = { }, modifier = SwingModifier.then(HoverCallbackElement { captured = declared }))
         }
         val button = onNodeOfType<JButton>().fetch()
 
@@ -198,7 +200,16 @@ class ModifierReapplicationTest {
         setContent {
             Button(
                 "X",
-                modifier = if (styled) SwingModifier.then(CountingToolTipElement("hello", writes)) else SwingModifier,
+                onClick = {
+                },
+                modifier =
+                    if (styled) {
+                        SwingModifier.then(
+                            CountingToolTipElement("hello", writes),
+                        )
+                    } else {
+                        SwingModifier
+                    },
             )
         }
         val button = onNodeOfType<JButton>().fetch()

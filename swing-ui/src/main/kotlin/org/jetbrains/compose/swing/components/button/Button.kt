@@ -16,15 +16,15 @@ import javax.swing.JButton
  * A composable wrapper for JButton.
  *
  * @param text the text to display on the button
- * @param modifier the [SwingModifier] applied to the underlying component
  * @param onClick callback to be invoked when the button is clicked
+ * @param modifier the [SwingModifier] applied to the underlying component
  * @see javax.swing.JButton
  */
 @Composable
 public fun Button(
     text: @Nls String,
+    onClick: () -> Unit,
     modifier: SwingModifier = SwingModifier,
-    onClick: () -> Unit = {},
 ) {
     ButtonNode(text = text, modifier = modifier.actionListener { onClick() })
 }

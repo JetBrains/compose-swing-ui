@@ -55,7 +55,6 @@ internal fun ColumnScope.TextColorsCard() {
         TextField(
             value = text,
             onValueChange = { text = it },
-            columns = 40,
             modifier =
                 SwingModifier
                     .caretColor(caret.color)
@@ -63,6 +62,7 @@ internal fun ColumnScope.TextColorsCard() {
                     .selectedTextColor(selectedText.color)
                     .disabledTextColor(disabledText.color)
                     .enabled(enabled),
+            columns = 40,
         )
     }
 }

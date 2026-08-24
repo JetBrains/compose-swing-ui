@@ -26,6 +26,7 @@ class DocumentSwapRegistrationTest {
             FlowPanel {
                 TextField(
                     value = "",
+                    onValueChange = {},
                     modifier = SwingModifier.documentListener(onInsert = { inserts++ }),
                 )
             }
@@ -48,6 +49,7 @@ class DocumentSwapRegistrationTest {
             FlowPanel {
                 TextField(
                     value = "",
+                    onValueChange = {},
                     modifier =
                         if (declared) {
                             SwingModifier.documentListener(onInsert = { inserts++ })
@@ -82,6 +84,7 @@ class DocumentSwapRegistrationTest {
             FlowPanel {
                 TextField(
                     value = "",
+                    onValueChange = {},
                     modifier =
                         if (declared) {
                             SwingModifier.documentListener(onInsert = { })

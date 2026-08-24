@@ -121,7 +121,11 @@ class ScrollPaneScrollBehaviorTest {
     fun contentThatDeclaresNoAnswerIsTheViewportsViewItself() = runComposeSwingTest {
         setContent {
             ScrollPane(modifier = SwingModifier.preferredSize(PANE_WIDTH, PANE_HEIGHT)) {
-                TextArea(value = "line\n".repeat(LINE_COUNT), modifier = SwingModifier.viewport())
+                TextArea(
+                    value = "line\n".repeat(LINE_COUNT),
+                    onValueChange = {},
+                    modifier = SwingModifier.viewport(),
+                )
             }
         }
 
@@ -142,6 +146,7 @@ class ScrollPaneScrollBehaviorTest {
             ScrollPane(modifier = SwingModifier.preferredSize(PANE_WIDTH, PANE_HEIGHT)) {
                 TextArea(
                     value = "line\n".repeat(LINE_COUNT),
+                    onValueChange = {},
                     modifier = SwingModifier.viewport(unitIncrement = unitIncrement),
                 )
             }
@@ -183,6 +188,7 @@ class ScrollPaneScrollBehaviorTest {
             ScrollPane(modifier = SwingModifier.preferredSize(PANE_WIDTH, PANE_HEIGHT)) {
                 TextArea(
                     value = "line\n".repeat(LINE_COUNT),
+                    onValueChange = {},
                     modifier = SwingModifier.viewport(tracksViewportWidth = false, tracksViewportHeight = false),
                 )
             }

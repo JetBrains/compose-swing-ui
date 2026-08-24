@@ -20,20 +20,20 @@ import javax.swing.KeyStroke
  * A composable wrapper for JRadioButtonMenuItem.
  *
  * @param text the text of the menu item
- * @param modifier the [SwingModifier] applied to the underlying component
  * @param selected whether the menu item is selected
+ * @param onSelectedChange callback invoked with the new selected state when the item is activated
+ * @param modifier the [SwingModifier] applied to the underlying component
  * @param accelerator the key combination that activates the item without navigating the menu
  *   hierarchy, displayed next to its text; `null` (the default) leaves the item without one
- * @param onSelectedChange callback invoked with the new selected state when the item is activated
  * @see javax.swing.JRadioButtonMenuItem
  */
 @Composable
 public fun RadioButtonMenuItem(
     text: @Nls String,
+    selected: Boolean,
+    onSelectedChange: (Boolean) -> Unit,
     modifier: SwingModifier = SwingModifier,
-    selected: Boolean = false,
     accelerator: KeyStroke? = null,
-    onSelectedChange: (Boolean) -> Unit = {},
 ) {
     val (reporting, applied) = rememberToggleReporting(selected, onSelectedChange)
     RadioButtonMenuItemNode(
@@ -51,9 +51,9 @@ public fun RadioButtonMenuItem(
  * `remember {}`) to avoid churn.
  *
  * @param text the text of the menu item
+ * @param selected whether the menu item is selected
  * @param actionListener the listener notified when the item is activated
  * @param modifier the [SwingModifier] applied to the underlying component
- * @param selected whether the menu item is selected
  * @param accelerator the key combination that activates the item without navigating the menu
  *   hierarchy, displayed next to its text; `null` (the default) leaves the item without one
  * @see javax.swing.JRadioButtonMenuItem
@@ -61,9 +61,9 @@ public fun RadioButtonMenuItem(
 @Composable
 public fun RadioButtonMenuItem(
     text: @Nls String,
+    selected: Boolean,
     actionListener: ActionListener,
     modifier: SwingModifier = SwingModifier,
-    selected: Boolean = false,
     accelerator: KeyStroke? = null,
 ) {
     val (mirroring, applied) = rememberToggleMirroring(selected, actionListener)
