@@ -5,7 +5,25 @@ package org.jetbrains.compose.swing.modifier.listener
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import javax.swing.JEditorPane
+import javax.swing.event.HyperlinkEvent
 import javax.swing.event.HyperlinkListener
+
+/**
+ * Runs [onHyperlinkUpdate] when the user enters, leaves or activates a link. Requires a [JEditorPane]
+ * target, and reports only while the pane is not editable, as [hyperlinkListener] describes.
+ *
+ * [onHyperlinkUpdate] is read when the event fires, so writing a fresh lambda on every recomposition
+ * registers nothing again.
+ *
+ * @see javax.swing.JEditorPane.addHyperlinkListener
+ */
+public fun SwingModifier.hyperlinkListener(onHyperlinkUpdate: (HyperlinkEvent) -> Unit): SwingModifier =
+    liveCallbackListener<JEditorPane, (HyperlinkEvent) -> Unit, HyperlinkListener>(
+        callback = onHyperlinkUpdate,
+        adapter = { current -> HyperlinkListener { event -> current()(event) } },
+        attach = { component, listener -> component.addHyperlinkListener(listener) },
+        detach = { component, listener -> component.removeHyperlinkListener(listener) },
+    )
 
 /**
  * Attaches a [HyperlinkListener] (`addHyperlinkListener`/`removeHyperlinkListener`). Requires a

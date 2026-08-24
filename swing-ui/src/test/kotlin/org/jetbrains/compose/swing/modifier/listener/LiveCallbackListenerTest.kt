@@ -29,11 +29,15 @@ class LiveCallbackListenerTest {
         var declared by mutableStateOf("first")
         setContent {
             FlowPanel {
+                // Captured while the chain is built, so each lambda reports the value its own pass
+                // declared. A value read when the click fires is the latest one whichever pass wrote
+                // the lambda, which cannot tell a stale callback from a live one.
+                val captured = declared
                 Button(
                     text = "press",
                     modifier =
                         SwingModifier.liveCallbackListener<JButton, () -> Unit, ActionListener>(
-                            callback = { reported = declared },
+                            callback = { reported = captured },
                             adapter = { current -> ActionListener { current()() } },
                             attach = { component, listener ->
                                 attachments++

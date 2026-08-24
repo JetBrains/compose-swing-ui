@@ -6,7 +6,24 @@ package org.jetbrains.compose.swing.modifier.listener
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import java.awt.Adjustable
 import java.awt.Component
+import java.awt.event.AdjustmentEvent
 import java.awt.event.AdjustmentListener
+
+/**
+ * Runs [onAdjustment] whenever a scrollbar's value changes - the scrollbars [adjustmentListener] lists.
+ *
+ * [onAdjustment] is read when the event fires, so writing a fresh lambda on every recomposition
+ * registers nothing again.
+ *
+ * @see java.awt.Adjustable.addAdjustmentListener
+ */
+public fun SwingModifier.adjustmentListener(onAdjustment: (AdjustmentEvent) -> Unit): SwingModifier =
+    liveCallbackListener<Component, (AdjustmentEvent) -> Unit, AdjustmentListener>(
+        callback = onAdjustment,
+        adapter = { current -> AdjustmentListener { event -> current()(event) } },
+        attach = { component, listener -> component.asAdjustable().addAdjustmentListener(listener) },
+        detach = { component, listener -> component.asAdjustable().removeAdjustmentListener(listener) },
+    )
 
 /**
  * Attaches an [AdjustmentListener] (`addAdjustmentListener`/`removeAdjustmentListener`) to a scrollbar

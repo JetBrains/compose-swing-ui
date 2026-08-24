@@ -43,16 +43,16 @@ public fun CheckBox(
  * instance (e.g. `remember {}`) to avoid churn.
  *
  * @param text the text to display next to the checkbox
- * @param actionListener the listener notified when the checkbox is toggled
  * @param checked whether the checkbox is checked
+ * @param actionListener the listener notified when the checkbox is toggled
  * @param modifier the [SwingModifier] applied to the underlying component
  * @see javax.swing.JCheckBox
  */
 @Composable
 public fun CheckBox(
     text: @Nls String,
-    actionListener: ActionListener,
     checked: Boolean,
+    actionListener: ActionListener,
     modifier: SwingModifier = SwingModifier,
 ) {
     val (mirroring, applied) = rememberToggleMirroring(checked, actionListener)

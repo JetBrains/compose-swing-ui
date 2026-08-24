@@ -31,13 +31,19 @@ import java.awt.Component
  * @param adapter builds the listener object; its `current` argument yields the latest [callback].
  * @param attach adds the built listener to the (already-typed) component.
  * @param detach removes the built listener from the component.
+ * @param registrationKey what [attach] and [detach] close over that belongs to the registration rather
+ *     than to the callback, such as the property name a listener is bound to. A change to it is a
+ *     different registration and swaps it; null when the pairing closes over nothing.
  */
 internal inline fun <reified T : Component, C : Any, L : Any> SwingModifier.liveCallbackListener(
     callback: C,
     noinline adapter: (current: () -> C) -> L,
     noinline attach: (component: T, listener: L) -> Unit,
     noinline detach: (component: T, listener: L) -> Unit,
-): SwingModifier = this then LiveCallbackListenerElement(T::class.java, callback, adapter, attach, detach)
+    registrationKey: Any? = null,
+): SwingModifier =
+    this then
+        LiveCallbackListenerElement(T::class.java, callback, adapter, attach, detach, registrationKey)
 
 /**
  * The additive [SwingModifier.NodeElement] backing [liveCallbackListener].
@@ -52,6 +58,7 @@ internal class LiveCallbackListenerElement<T : Component, C : Any, L : Any>(
     val adapter: (current: () -> C) -> L,
     val attach: (component: T, listener: L) -> Unit,
     val detach: (component: T, listener: L) -> Unit,
+    val registrationKey: Any?,
 ) : SwingModifier.NodeElement<T, LiveCallbackListenerNode<T, C, L>>() {
     override val additive: Boolean get() = true
 
@@ -64,13 +71,15 @@ internal class LiveCallbackListenerElement<T : Component, C : Any, L : Any>(
         if (other !is LiveCallbackListenerElement<*, *, *>) return false
         if (targetType != other.targetType) return false
         if (callback !== other.callback) return false
-        return adapter === other.adapter
+        if (adapter !== other.adapter) return false
+        return registrationKey == other.registrationKey
     }
 
     override fun hashCode(): Int {
         var result = targetType.hashCode()
         result = 31 * result + System.identityHashCode(callback)
         result = 31 * result + System.identityHashCode(adapter)
+        result = 31 * result + registrationKey.hashCode()
         return result
     }
 }
@@ -91,13 +100,14 @@ internal class LiveCallbackListenerNode<T : Component, C : Any, L : Any>(
 
     /**
      * Records the latest element, which is all a fresh callback costs. Called from the element's
-     * `update`, hence only while the node is attached: an [element] built by a different adapter is a
-     * different registration, and swapping it needs the component.
+     * `update`, hence only while the node is attached: an [element] built by a different adapter, or
+     * carrying a different registration key, is a different registration, and swapping it needs the
+     * component.
      */
     fun swapTo(next: LiveCallbackListenerElement<T, C, L>) {
         val current = element
         element = next
-        if (current.adapter === next.adapter) return
+        if (current.adapter === next.adapter && current.registrationKey == next.registrationKey) return
         current.detach(component, listener)
         listener = next.adapter { element.callback }
         next.attach(component, listener)

@@ -6,7 +6,26 @@ package org.jetbrains.compose.swing.modifier.listener
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import java.awt.Component
 import java.awt.ItemSelectable
+import java.awt.event.ItemEvent
 import java.awt.event.ItemListener
+
+/**
+ * Runs [onItemStateChange] on the item event of a component that fires one - the components
+ * [itemListener] lists, over the same channel, which reports the state a component ends up in however
+ * it got there.
+ *
+ * [onItemStateChange] is read when the event fires, so writing a fresh lambda on every recomposition
+ * registers nothing again.
+ *
+ * @see java.awt.ItemSelectable.addItemListener
+ */
+public fun SwingModifier.itemListener(onItemStateChange: (ItemEvent) -> Unit): SwingModifier =
+    liveCallbackListener<Component, (ItemEvent) -> Unit, ItemListener>(
+        callback = onItemStateChange,
+        adapter = { current -> ItemListener { event -> current()(event) } },
+        attach = { component, listener -> component.asItemSelectable().addItemListener(listener) },
+        detach = { component, listener -> component.asItemSelectable().removeItemListener(listener) },
+    )
 
 /**
  * Attaches an [ItemListener] (`addItemListener`/`removeItemListener`) to a component that fires item

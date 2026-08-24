@@ -12,7 +12,25 @@ import javax.swing.JSlider
 import javax.swing.JSpinner
 import javax.swing.JTabbedPane
 import javax.swing.JViewport
+import javax.swing.event.ChangeEvent
 import javax.swing.event.ChangeListener
+
+/**
+ * Runs [onChange] on the change event of a component that fires one - the widgets [changeListener]
+ * lists.
+ *
+ * [onChange] is read when the event fires, so writing a fresh lambda on every recomposition registers
+ * nothing again.
+ *
+ * @see javax.swing.event.ChangeListener
+ */
+public fun SwingModifier.changeListener(onChange: (ChangeEvent) -> Unit): SwingModifier =
+    liveCallbackListener<Component, (ChangeEvent) -> Unit, ChangeListener>(
+        callback = onChange,
+        adapter = { current -> ChangeListener { event -> current()(event) } },
+        attach = { component, listener -> changeListenerRegistrar(component).add(listener) },
+        detach = { component, listener -> changeListenerRegistrar(component).remove(listener) },
+    )
 
 /**
  * Attaches a [ChangeListener] (`addChangeListener`/`removeChangeListener`) to a component that fires

@@ -4,8 +4,26 @@
 package org.jetbrains.compose.swing.modifier.listener
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import javax.swing.event.CaretEvent
 import javax.swing.event.CaretListener
 import javax.swing.text.JTextComponent
+
+/**
+ * Runs [onCaretUpdate] whenever the caret moves or the selection changes. Requires a [JTextComponent]
+ * target. Each event carries the caret offset and the selection anchor, so one lambda observes both.
+ *
+ * [onCaretUpdate] is read when the event fires, so writing a fresh lambda on every recomposition
+ * registers nothing again.
+ *
+ * @see javax.swing.text.JTextComponent.addCaretListener
+ */
+public fun SwingModifier.caretListener(onCaretUpdate: (CaretEvent) -> Unit): SwingModifier =
+    liveCallbackListener<JTextComponent, (CaretEvent) -> Unit, CaretListener>(
+        callback = onCaretUpdate,
+        adapter = { current -> CaretListener { event -> current()(event) } },
+        attach = { component, listener -> component.addCaretListener(listener) },
+        detach = { component, listener -> component.removeCaretListener(listener) },
+    )
 
 /**
  * Attaches a [CaretListener] (`addCaretListener`/`removeCaretListener`). Requires a [JTextComponent]

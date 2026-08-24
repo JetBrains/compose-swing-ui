@@ -5,22 +5,14 @@ package org.jetbrains.compose.swing.modifier.listener
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import java.awt.Component
-import java.awt.Container
-import java.awt.event.ComponentListener
-import java.awt.event.ContainerListener
-import java.awt.event.FocusListener
-import java.awt.event.HierarchyListener
-import java.awt.event.KeyListener
-import java.awt.event.MouseListener
-import java.awt.event.MouseMotionListener
-import java.awt.event.MouseWheelListener
 
 /**
  * Installs a listener instance on the target component via the modifier mechanism - the by-identity
  * listener seam, the one every builder taking a listener object is built on (the typed instance
- * builders like [mouseListener]/[actionListener] and the model builders like [changeListener]). A
- * builder taking a callback instead of a listener object registers a listener the library builds; that
- * is the internal `liveCallbackListener` seam, which documents the choice between the two.
+ * builders like [mouseListener]/[actionListener] and the model builders like [changeListener]).
+ *
+ * A builder that takes a lambda instead registers a listener the library builds, which reads the lambda
+ * when the event fires. That is the overload to reach for when the handler is written at the call site.
  *
  * The [instance] is added once via [attach] when the element enters the chain and removed via [detach]
  * when it leaves or the node is released/reused. Supplying a *different* instance (reference
@@ -123,109 +115,3 @@ internal class InstanceListenerNode<T : Component, L : Any> : SwingModifier.Node
         attached = null
     }
 }
-
-/*
- * Typed instance builders - attach an EXISTING Swing/AWT listener object to a component as-is, following
- * the by-identity contract documented above on `listener`.
- *
- * Multi-method interfaces are passed as objects; single-method (SAM) interfaces also accept a lambda via
- * Kotlin SAM conversion, but a fresh lambda each recomposition is a new instance and triggers the
- * detach-old/attach-new swap - `remember {}` it to keep one stable instance.
- */
-
-/**
- * Attaches a [MouseListener] (`addMouseListener`/`removeMouseListener`).
- *
- * @see java.awt.Component.addMouseListener
- */
-public fun SwingModifier.mouseListener(listener: MouseListener): SwingModifier =
-    listener<Component, MouseListener>(
-        listener,
-        Component::addMouseListener,
-        Component::removeMouseListener,
-    )
-
-/**
- * Attaches a [MouseMotionListener] (`addMouseMotionListener`/`removeMouseMotionListener`).
- *
- * @see java.awt.Component.addMouseMotionListener
- */
-public fun SwingModifier.mouseMotionListener(listener: MouseMotionListener): SwingModifier =
-    listener<Component, MouseMotionListener>(
-        listener,
-        Component::addMouseMotionListener,
-        Component::removeMouseMotionListener,
-    )
-
-/**
- * Attaches a [MouseWheelListener] (`addMouseWheelListener`/`removeMouseWheelListener`).
- *
- * @see java.awt.Component.addMouseWheelListener
- */
-public fun SwingModifier.mouseWheelListener(listener: MouseWheelListener): SwingModifier =
-    listener<Component, MouseWheelListener>(
-        listener,
-        Component::addMouseWheelListener,
-        Component::removeMouseWheelListener,
-    )
-
-/**
- * Attaches a [KeyListener] (`addKeyListener`/`removeKeyListener`).
- *
- * @see java.awt.Component.addKeyListener
- */
-public fun SwingModifier.keyListener(listener: KeyListener): SwingModifier =
-    listener<Component, KeyListener>(
-        listener,
-        Component::addKeyListener,
-        Component::removeKeyListener,
-    )
-
-/**
- * Attaches a [FocusListener] (`addFocusListener`/`removeFocusListener`).
- *
- * @see java.awt.Component.addFocusListener
- */
-public fun SwingModifier.focusListener(listener: FocusListener): SwingModifier =
-    listener<Component, FocusListener>(
-        listener,
-        Component::addFocusListener,
-        Component::removeFocusListener,
-    )
-
-/**
- * Attaches a [ComponentListener] (`addComponentListener`/`removeComponentListener`).
- *
- * @see java.awt.Component.addComponentListener
- */
-public fun SwingModifier.componentListener(listener: ComponentListener): SwingModifier =
-    listener<Component, ComponentListener>(
-        listener,
-        Component::addComponentListener,
-        Component::removeComponentListener,
-    )
-
-/**
- * Attaches a [HierarchyListener] (`addHierarchyListener`/`removeHierarchyListener`).
- *
- * @see java.awt.Component.addHierarchyListener
- */
-public fun SwingModifier.hierarchyListener(listener: HierarchyListener): SwingModifier =
-    listener<Component, HierarchyListener>(
-        listener,
-        Component::addHierarchyListener,
-        Component::removeHierarchyListener,
-    )
-
-/**
- * Attaches a [ContainerListener] (`addContainerListener`/`removeContainerListener`). Requires a
- * [Container] target (the add/remove pair lives on `java.awt.Container`).
- *
- * @see java.awt.Container.addContainerListener
- */
-public fun SwingModifier.containerListener(listener: ContainerListener): SwingModifier =
-    listener<Container, ContainerListener>(
-        listener,
-        Container::addContainerListener,
-        Container::removeContainerListener,
-    )

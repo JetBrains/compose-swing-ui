@@ -4,6 +4,9 @@
 package org.jetbrains.compose.swing.modifier.interaction
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.listener.UNDECLARED_ACTION
+import org.jetbrains.compose.swing.modifier.listener.declared
+import org.jetbrains.compose.swing.modifier.listener.requireAnyDeclared
 import org.jetbrains.compose.swing.modifier.propertyElement
 import java.awt.Component
 import java.awt.event.FocusEvent
@@ -52,22 +55,32 @@ public fun SwingModifier.enabled(enabled: Boolean): SwingModifier =
 /**
  * Installs mouse enter/exit handlers.
  *
+ * A callback left undeclared reports nowhere, and declaring neither is refused.
+ *
  * @see java.awt.Component.addMouseListener
  */
 public fun SwingModifier.onHover(
-    onEnter: () -> Unit = {},
-    onExit: () -> Unit = {},
-): SwingModifier = this then HoverElement(onEnter, onExit)
+    onEnter: () -> Unit = UNDECLARED_ACTION,
+    onExit: () -> Unit = UNDECLARED_ACTION,
+): SwingModifier {
+    requireAnyDeclared("onHover", declared(onEnter) || declared(onExit))
+    return this then HoverElement(onEnter, onExit)
+}
 
 /**
  * Installs focus gained/lost handlers.
  *
+ * A callback left undeclared reports nowhere, and declaring neither is refused.
+ *
  * @see java.awt.Component.addFocusListener
  */
 public fun SwingModifier.onFocus(
-    onGained: () -> Unit = {},
-    onLost: () -> Unit = {},
-): SwingModifier = this then FocusElement(onGained, onLost)
+    onGained: () -> Unit = UNDECLARED_ACTION,
+    onLost: () -> Unit = UNDECLARED_ACTION,
+): SwingModifier {
+    requireAnyDeclared("onFocus", declared(onGained) || declared(onLost))
+    return this then FocusElement(onGained, onLost)
+}
 
 /**
  * Installs mouse press/release/click handlers. [onPress] fires on `MOUSE_PRESSED`, [onRelease] on
@@ -78,13 +91,18 @@ public fun SwingModifier.onFocus(
  * Multiple `onPointerEvent` applications all fire. Callbacks are read live, so passing fresh lambdas
  * each recomposition is fine.
  *
+ * A callback left undeclared reports nowhere, and declaring none is refused.
+ *
  * @see java.awt.Component.addMouseListener
  */
 public fun SwingModifier.onPointerEvent(
     onPress: ((MouseEvent) -> Unit)? = null,
     onRelease: ((MouseEvent) -> Unit)? = null,
     onClick: ((MouseEvent) -> Unit)? = null,
-): SwingModifier = this then PointerEventElement(onPress, onRelease, onClick)
+): SwingModifier {
+    requireAnyDeclared("onPointerEvent", onPress != null || onRelease != null || onClick != null)
+    return this then PointerEventElement(onPress, onRelease, onClick)
+}
 
 private class HoverElement(
     private val onEnter: () -> Unit,

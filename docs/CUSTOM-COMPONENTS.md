@@ -304,15 +304,12 @@ Three pieces work together:
 
 ```kotlin
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.declare
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.actionListener
 import org.jetbrains.compose.swing.node.rememberAppliedValue
-import java.awt.event.ActionListener
 import javax.swing.JCheckBox
 
 @Composable
@@ -322,19 +319,8 @@ fun MyCheckBox(
     modifier: SwingModifier = SwingModifier,
     onCheckedChange: (Boolean) -> Unit = {},
 ) {
-    val callback = rememberUpdatedState(onCheckedChange)
     // The mirror this component settles `checked` through, seeded with the first declaration.
     val applied = rememberAppliedValue(checked)
-    // The box publishes its new value for every toggle, its own and the user's alike. `observed`
-    // answers which is which by value: a toggle that lands on the declaration is the declaration
-    // arriving, not a move to report.
-    val listener =
-        remember(applied) {
-            ActionListener { event ->
-                val selected = (event.source as JCheckBox).isSelected
-                if (applied.observed(selected)) callback.value(selected)
-            }
-        }
     SwingNode(
         factory = { JCheckBox() },
         update = {
@@ -342,7 +328,16 @@ fun MyCheckBox(
             // Settles `checked` against the box whenever either side has moved, rather than only when
             // this pass's declaration differs from the last one.
             declare(checked, applied, JCheckBox::isSelected, JCheckBox::setSelected)
-            applyModifier(modifier.actionListener(listener))
+            // The box publishes its new value for every toggle, its own and the user's alike.
+            // `observed` answers which is which by value: a toggle that lands on the declaration is
+            // the declaration arriving, not a move to report. The lambda is read when the event
+            // fires, so writing it here holds nothing across compositions.
+            applyModifier(
+                modifier.actionListener { event ->
+                    val selected = (event.source as JCheckBox).isSelected
+                    if (applied.observed(selected)) onCheckedChange(selected)
+                },
+            )
         },
     )
 }
@@ -632,8 +627,8 @@ Built-in modifier builders are extension functions on `SwingModifier`, grouped b
   `defaultButton`, `onHover`, `onFocus`, `onPointerEvent`, `onAccept`, `focusRequester`, `initialFocus`,
   `inputVerifier`, `verifyInputWhenFocusTarget`, `documentFilter`, `caretUpdatePolicy` (requires a
   `JTextComponent` whose caret is a `DefaultCaret`), and `contextMenu` and `popupMenu`
-  (a composed menu opened by the platform popup gesture and by state respectively), plus the typed
-  instance listener builders (`mouseListener`, `keyListener`, ...; see *Attaching a listener* below).
+  (a composed menu opened by the platform popup gesture and by state respectively), plus the listener
+  builders (`mouseListener`, `keyListener`, ...; see *Attaching a listener* below).
 - **Keyboard** - `onKeyEvent`, `onKeyStroke`.
 - **Data transfer** - `draggable`, `dropTarget`, `onExportDone`, `clipboard`.
 - **Accessibility** - `accessibleName`, `accessibleDescription`, `mnemonic`, and the `labelFor` /
@@ -806,9 +801,40 @@ The same instance-builder contract also covers widget- and model-specific listen
 `JEditorPane` target).
 
 Each builder is **additive** (no key): two of the same builder both install and both fire, mirroring
-Swing's `addXxxListener`. Pass a **stable** instance - `remember { ... }` it. A fresh lambda or object
-on each recomposition is a new instance, which detaches the old one and attaches the new (a correct
-but wasteful `remove`/`add` round-trip).
+Swing's `addXxxListener`. Pass a **stable** instance - `remember { ... }` it. A fresh object on each
+recomposition is a new instance, which detaches the old one and attaches the new (a correct but
+wasteful `remove`/`add` round-trip). A handler written at the call site is not that case: it selects
+the lambda overload below instead.
+
+### Lambda overloads - write the handler at the call site
+
+Every builder above also takes a lambda, and a lambda selects that overload rather than the instance
+one. The library builds the listener and reads the lambda when the event fires, so declaring a fresh
+lambda on every recomposition registers nothing again and needs no `remember`:
+
+```kotlin
+SwingModifier.actionListener { event -> println(event.actionCommand) }
+```
+
+Where the listener interface has a single method, the lambda is that method's: `actionListener`,
+`itemListener`, `changeListener`, `caretListener`, `adjustmentListener`, `hyperlinkListener`,
+`listSelectionListener`, `treeSelectionListener`, `hierarchyListener`, `mouseWheelListener`, and
+`propertyChangeListener` both unbound and bound to a property name - where declaring a different name
+moves the registration to that property.
+
+Where it has several methods there are two overloads: one lambda that every method of the interface
+calls, and one parameter per method for a caller that tells them apart.
+
+```kotlin
+SwingModifier
+    .documentListener { println("the document changed") }
+    .mouseListener(onMouseClicked = { println("clicked") }, onMouseExited = { println("left") })
+```
+
+A method left undeclared reports nowhere rather than inheriting another method's lambda. The
+single-lambda overload runs once per method, so one mouse interaction reaches it more than once.
+`treeWillExpandListener`'s lambdas answer with a boolean instead: returning `false` leaves the node as
+it was.
 
 ### `SwingModifier.listener` - the last resort
 
@@ -816,9 +842,10 @@ but wasteful `remove`/`add` round-trip).
 than the seam below:
 
 - the typed instance builders above, when you already hold a listener object;
-- the callback modifiers, when what you have is a lambda: `onHover`, `onFocus`, `onPointerEvent`,
-  `onKeyEvent`, `onKeyStroke`, `onAccept` and `inputVerifier`. These read the callback **live**, so a
-  fresh lambda on every recomposition costs nothing and needs no `remember`;
+- the lambda overloads above, and the callback modifiers `onHover`, `onFocus`, `onPointerEvent`,
+  `onKeyEvent`, `onKeyStroke`, `onAccept` and `inputVerifier`, when what you have is a lambda. These
+  read the callback **live**, so a fresh lambda on every recomposition costs nothing and needs no
+  `remember`;
 - the declaration modifiers, for behavior that is not a callback at all: `focusable`,
   `focusRequester`, `initialFocus`, `verifyInputWhenFocusTarget`, `documentFilter` and `contextMenu`.
 
@@ -892,15 +919,12 @@ Here is a complete, compilable wrapper for `JSpinner`, mirroring how `TextField`
 
 ```kotlin
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.changeListener
 import javax.swing.JSpinner
 import javax.swing.SpinnerNumberModel
-import javax.swing.event.ChangeListener
 
 @Composable
 fun MySpinner(
@@ -911,10 +935,6 @@ fun MySpinner(
     max: Int = 100,
     step: Int = 1,
 ) {
-    // rememberUpdatedState keeps the latest callback without re-attaching the listener every recomposition.
-    val callback = rememberUpdatedState(onValueChange)
-    // One stable ChangeListener for the node's lifetime - remember it so the same instance is re-used.
-    val listener = remember { ChangeListener { event -> callback.value((event.source as JSpinner).value as Int) } }
     SwingNode(
         factory = { JSpinner(SpinnerNumberModel()) },
         update = {
@@ -925,7 +945,7 @@ fun MySpinner(
             set(value) { if (this.value != it) this.value = it }
             // The component chains its own element onto the caller's modifier; the changeListener
             // builder owns the listener's lifecycle.
-            applyModifier(modifier.changeListener(listener))
+            applyModifier(modifier.changeListener { event -> onValueChange((event.source as JSpinner).value as Int) })
         },
     )
 }

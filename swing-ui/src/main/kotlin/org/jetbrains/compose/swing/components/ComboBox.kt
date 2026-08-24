@@ -83,9 +83,9 @@ public fun <T> ComboBox(
  * and re-asserted as on the `onSelectionChange`-driven overload.
  *
  * @param items the list of items to display
- * @param actionListener the listener notified of every action event the combo box fires
  * @param selectedItem the selected item; `null` selects nothing, as does an item the current [items] do
  *   not contain
+ * @param actionListener the listener notified of every action event the combo box fires
  * @param modifier the [SwingModifier] applied to the underlying component
  * @param editable whether the user can type a value into the combo box's editor; `false` by default.
  *   An editor commit reaches [actionListener] under the `"comboBoxEdited"` action command, carrying
@@ -98,8 +98,8 @@ public fun <T> ComboBox(
 @Composable
 public fun <T> ComboBox(
     items: List<T>,
-    actionListener: ActionListener,
     selectedItem: T?,
+    actionListener: ActionListener,
     modifier: SwingModifier = SwingModifier,
     editable: Boolean = false,
     maximumRowCount: Int = 8,
