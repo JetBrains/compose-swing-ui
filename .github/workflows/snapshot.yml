@@ -42,6 +42,9 @@ jobs:
         env:
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MAVEN_REPO_URL: https://packages.jetbrains.team/maven/p/cmp/dev
+          MAVEN_REPO_USERNAME: ${{ secrets.COMPOSE_REPO_USERNAME }}
+          MAVEN_REPO_PASSWORD: ${{ secrets.COMPOSE_REPO_KEY }}
         run: |
           ./gradlew --no-daemon --stacktrace \
             publish

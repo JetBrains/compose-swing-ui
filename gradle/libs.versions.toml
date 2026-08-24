@@ -14,7 +14,6 @@ knit = "0.5.1"
 kotlin = "2.3.20"
 ktlint = "1.8.0"
 ktlint-gradle = "14.0.1"
-nmcp = "1.6.1"
 
 [libraries]
 androidLint-gradle-plugin = { module = "com.android.lint:com.android.lint.gradle.plugin", version.ref = "androidLint" }
@@ -35,7 +34,6 @@ kotlinxCoroutinesCore = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-cor
 kotlinxCoroutinesSwing = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-swing", version.ref = "coroutines" }
 kotlinxCoroutinesTest = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
 ktlint-gradle-plugin = { module = "org.jlleitschuh.gradle:ktlint-gradle", version.ref = "ktlint-gradle" }
-nmcp-gradle-plugin = { module = "com.gradleup.nmcp:com.gradleup.nmcp.gradle.plugin", version.ref = "nmcp" }
 
 [plugins]
 detekt = { id = "dev.detekt", version.ref = "detekt" }
