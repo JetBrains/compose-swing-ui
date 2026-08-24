@@ -14,6 +14,7 @@ import androidx.compose.runtime.setValue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.swing.Swing
@@ -153,18 +154,18 @@ public fun CoroutineScope.launchApplication(content: @Composable ApplicationScop
  * flow into their content.
  */
 public suspend fun awaitApplication(content: @Composable ApplicationScope.() -> Unit) {
-    val frameClock = SwingFrameClock()
-    try {
-        withContext(Dispatchers.Swing) {
-            withContext(frameClock) {
-                GlobalSnapshotManager.ensureStarted()
+    withContext(Dispatchers.Swing) {
+        GlobalSnapshotManager.ensureStarted()
 
-                val recomposer = Recomposer(coroutineContext)
-                var isOpen by mutableStateOf(true)
+        val recomposer = Recomposer(coroutineContext)
+        val frameClock = SwingFrameClock(recomposer)
+        try {
+            var isOpen by mutableStateOf(true)
 
-                val applicationScope = ApplicationScopeImpl { isOpen = false }
+            val applicationScope = ApplicationScopeImpl { isOpen = false }
 
-                launch {
+            coroutineScope {
+                launch(frameClock) {
                     recomposer.runRecomposeAndApplyChanges()
                 }
 
@@ -184,9 +185,9 @@ public suspend fun awaitApplication(content: @Composable ApplicationScope.() -> 
                     }
                 }
             }
+        } finally {
+            frameClock.dispose()
         }
-    } finally {
-        frameClock.dispose()
     }
 }
 

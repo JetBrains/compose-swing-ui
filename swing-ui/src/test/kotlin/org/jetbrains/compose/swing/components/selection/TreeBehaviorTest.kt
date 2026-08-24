@@ -4,6 +4,8 @@ import androidx.compose.runtime.ReusableContentHost
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.assertUnadoptedMoveIsPutBack
+import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JTree
@@ -410,6 +412,24 @@ class TreeBehaviorTest {
             listOf("second selection", "second expansion"),
             reported,
             "a callback the recomposition replaced is not the one that runs",
+        )
+    }
+
+    @Test
+    fun aSelectionTheCallerDoesNotAdoptComesOffWithinEventCycles() = runSwingTest {
+        assertUnadoptedMoveIsPutBack(
+            type = JTree::class.java,
+            declared = emptyList<Int>(),
+            content = {
+                Tree(
+                    root = "root",
+                    children = { node -> if (node == "root") listOf("one", "two") else emptyList() },
+                    selectedPaths = emptySet(),
+                    onSelectionChange = {},
+                )
+            },
+            move = { it.setSelectionRow(0) },
+            read = { it.selectionRows?.toList().orEmpty() },
         )
     }
 }

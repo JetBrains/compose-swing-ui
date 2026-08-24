@@ -4,7 +4,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.assertUnadoptedMoveIsPutBack
 import org.jetbrains.compose.swing.components.text.TextArea
+import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.DefaultBoundedRangeModel
@@ -12,6 +14,7 @@ import javax.swing.JLabel
 import javax.swing.JProgressBar
 import javax.swing.JSeparator
 import javax.swing.JSlider
+import javax.swing.JSpinner
 import javax.swing.JTextArea
 import javax.swing.SwingConstants
 import kotlin.test.Test
@@ -354,5 +357,27 @@ class ValueComponentsTest {
         caption = "after"
         awaitIdle()
         onNodeOfType<JLabel>().assertTextEquals("after")
+    }
+
+    @Test
+    fun aSliderMoveTheCallerDoesNotAdoptComesOffWithinEventCycles() = runSwingTest {
+        assertUnadoptedMoveIsPutBack(
+            type = JSlider::class.java,
+            declared = 10,
+            content = { Slider(value = 10, onValueChange = {}) },
+            move = { it.value = 80 },
+            read = { it.value },
+        )
+    }
+
+    @Test
+    fun aSpinnerMoveTheCallerDoesNotAdoptComesOffWithinEventCycles() = runSwingTest {
+        assertUnadoptedMoveIsPutBack(
+            type = JSpinner::class.java,
+            declared = 1,
+            content = { Spinner(value = 1, onValueChange = {}) },
+            move = { it.value = 5 },
+            read = { it.value },
+        )
     }
 }

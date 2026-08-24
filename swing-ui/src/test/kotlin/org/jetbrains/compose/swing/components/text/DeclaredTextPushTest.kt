@@ -4,7 +4,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.assertUnadoptedMoveIsPutBack
 import org.jetbrains.compose.swing.node.AppliedValue
+import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.beans.PropertyChangeListener
@@ -391,6 +393,50 @@ class DeclaredTextPushTest {
 
         document.insertString(document.length, "!", null)
         assertEquals(listOf("inner-outer!"), reported, "the edit after the outermost write is reported")
+    }
+
+    @Test
+    fun aTextFieldEditTheCallerDoesNotAdoptComesOffWithinEventCycles() = runSwingTest {
+        assertUnadoptedMoveIsPutBack(
+            type = JTextField::class.java,
+            declared = "Ada",
+            content = { TextField(value = "Ada", onValueChange = {}) },
+            move = { it.text = "Adam" },
+            read = { it.text },
+        )
+    }
+
+    @Test
+    fun aTextAreaEditTheCallerDoesNotAdoptComesOffWithinEventCycles() = runSwingTest {
+        assertUnadoptedMoveIsPutBack(
+            type = JTextArea::class.java,
+            declared = "Ada",
+            content = { TextArea(value = "Ada", onValueChange = {}) },
+            move = { it.text = "Adam" },
+            read = { it.text },
+        )
+    }
+
+    @Test
+    fun aTextPaneEditTheCallerDoesNotAdoptComesOffWithinEventCycles() = runSwingTest {
+        assertUnadoptedMoveIsPutBack(
+            type = JTextPane::class.java,
+            declared = "Ada",
+            content = { TextPane(value = "Ada", onValueChange = {}) },
+            move = { it.text = "Adam" },
+            read = { it.text },
+        )
+    }
+
+    @Test
+    fun aCommitTheCallerDoesNotAdoptComesOffWithinEventCycles() = runSwingTest {
+        assertUnadoptedMoveIsPutBack(
+            type = JFormattedTextField::class.java,
+            declared = 10,
+            content = { FormattedTextField(value = 10, onValueChange = {}) },
+            move = { it.value = 42 },
+            read = { it.value },
+        )
     }
 }
 

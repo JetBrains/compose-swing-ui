@@ -3,6 +3,8 @@ package org.jetbrains.compose.swing.components.text
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.assertUnadoptedMoveIsPutBack
+import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JPasswordField
@@ -114,6 +116,17 @@ class PasswordFieldBehaviorTest {
         // The wrapper's own mirror listener, attached alongside the caller's raw one, is what keeps the
         // declared value settling back with no onValueChange callback to report through.
         assertEquals("hunter2", String(field.fetch().password))
+    }
+
+    @Test
+    fun anEditTheCallerDoesNotAdoptComesOffWithinEventCycles() = runSwingTest {
+        assertUnadoptedMoveIsPutBack(
+            type = JPasswordField::class.java,
+            declared = "hunter2",
+            content = { PasswordField(value = "hunter2".toCharArray(), onValueChange = {}) },
+            move = { it.text = "hunter3" },
+            read = { String(it.password) },
+        )
     }
 }
 

@@ -1,5 +1,8 @@
 package org.jetbrains.compose.swing.core
 
+import androidx.compose.runtime.Recomposer
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.swing.Swing
 import java.beans.PropertyChangeEvent
 import java.beans.PropertyChangeListener
 import javax.swing.SwingUtilities
@@ -21,13 +24,13 @@ import kotlin.test.assertEquals
 class SwingFrameClockRetimeTest {
     @Test
     fun framesPerSecondMapsToTimerDelay() = onEdt {
-        assertEquals(MILLIS_AT_60, SwingFrameClock(FPS_60).frameDelayMillis, "60 fps should map to a ~16 ms cadence")
-        assertEquals(MILLIS_AT_120, SwingFrameClock(FPS_120).frameDelayMillis, "120 fps should map to a ~8 ms cadence")
+        assertEquals(MILLIS_AT_60, clockAt(FPS_60).frameDelayMillis, "60 fps should map to a ~16 ms cadence")
+        assertEquals(MILLIS_AT_120, clockAt(FPS_120).frameDelayMillis, "120 fps should map to a ~8 ms cadence")
     }
 
     @Test
     fun setFramesPerSecondRecomputesTheDelay() = onEdt {
-        val clock = SwingFrameClock(FPS_60)
+        val clock = clockAt(FPS_60)
         assertEquals(MILLIS_AT_60, clock.frameDelayMillis, "the clock should start at the 60 fps cadence")
 
         clock.setFramesPerSecond(FPS_120)
@@ -39,7 +42,7 @@ class SwingFrameClockRetimeTest {
 
     @Test
     fun nonPositiveFramesPerSecondIsCoercedToAtLeastOneFrame() = onEdt {
-        val clock = SwingFrameClock(FPS_60)
+        val clock = clockAt(FPS_60)
         clock.setFramesPerSecond(0)
         assertEquals(
             MILLIS_PER_SECOND,
@@ -53,7 +56,7 @@ class SwingFrameClockRetimeTest {
         // Models the wiring SwingRecomposer.create installs: a "graphicsConfiguration" listener that
         // retimes the clock from the event's new value, standing in for a real window's
         // displayRefreshRate() call, which needs a realized Window on a display.
-        val clock = SwingFrameClock(FPS_60)
+        val clock = clockAt(FPS_60)
         val listener = PropertyChangeListener { event -> clock.setFramesPerSecond(event.newValue as Int) }
 
         listener.propertyChange(
@@ -66,6 +69,13 @@ class SwingFrameClockRetimeTest {
             "firing a graphicsConfiguration change to a 120 Hz display should retime the clock to ~8 ms",
         )
     }
+
+    /**
+     * A clock over a recomposer that is never started: the cadence arithmetic these cases cover is the
+     * clock's own, and the recomposer takes no part in it.
+     */
+    private fun clockAt(framesPerSecond: Int): SwingFrameClock =
+        SwingFrameClock(Recomposer(Dispatchers.Swing), framesPerSecond)
 
     private fun <T> onEdt(action: () -> T): T {
         if (SwingUtilities.isEventDispatchThread()) return action()

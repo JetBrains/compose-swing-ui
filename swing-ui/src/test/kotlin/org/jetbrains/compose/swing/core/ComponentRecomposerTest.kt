@@ -39,7 +39,7 @@ import kotlin.time.Duration.Companion.seconds
  * caller creates for a component with [SwingRecomposer.create] and disposes itself - and for the
  * boundary between it and the runtime a [java.awt.Window] owns.
  *
- * A component-hosted runtime runs on the Swing frame-clock timer, so the test body runs on the EDT and
+ * A component-hosted runtime recomposes on the event queue, so the test body runs on the EDT and
  * yields it back between checks until a bounded deadline. The cases that need a window realize a real
  * off-screen [JFrame] and skip on a headless environment; the rest run either way, since a
  * component-hosted runtime needs no window at all.
@@ -216,7 +216,7 @@ class ComponentRecomposerTest {
         try {
             assertEquals(FPS_120, island.displayRefreshRate(), "the component under test reports its own rate")
             assertEquals(
-                SwingFrameClock(island.displayRefreshRate()).frameDelayMillis,
+                SwingFrameClock(runtime.recomposer, island.displayRefreshRate()).frameDelayMillis,
                 runtime.clock.frameDelayMillis,
                 "the runtime must pace its clock by the rate its component reports",
             )
@@ -224,7 +224,7 @@ class ComponentRecomposerTest {
             // Moving to a display of another rate is reported as a "graphicsConfiguration" change.
             island.display = FakeDisplayConfiguration(FPS_60)
             assertEquals(
-                SwingFrameClock(island.displayRefreshRate()).frameDelayMillis,
+                SwingFrameClock(runtime.recomposer, island.displayRefreshRate()).frameDelayMillis,
                 runtime.clock.frameDelayMillis,
                 "the runtime must follow its component to a display of a different rate",
             )

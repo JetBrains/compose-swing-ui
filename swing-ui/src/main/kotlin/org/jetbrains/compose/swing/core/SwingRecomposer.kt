@@ -14,13 +14,13 @@ import java.awt.Component
 import java.beans.PropertyChangeListener
 
 /**
- * The runtime a composition is driven by: a single [Recomposer], the frame clock that paces it, and the
+ * The runtime a composition is driven by: a single [Recomposer], the frame clock it recomposes on, and the
  * [CoroutineScope] they run on. Every island nested into one of these recomposes on one recomposer and
  * one frame clock.
  *
- * The clock is cadenced to the display the component the runtime was created for is on, and follows
- * that component across displays: a component reports every [java.awt.GraphicsConfiguration] change,
- * including the ones an ancestor propagates down to it.
+ * Frame-driven work is cadenced to the display the component the runtime was created for is on, and
+ * follows that component across displays: a component reports every [java.awt.GraphicsConfiguration]
+ * change, including the ones an ancestor propagates down to it.
  *
  * Content is mounted on the runtime by passing its [compositionContext] as the parent of a mount.
  *
@@ -64,14 +64,14 @@ public class SwingRecomposer private constructor(
         private const val GRAPHICS_CONFIGURATION_PROPERTY: String = "graphicsConfiguration"
 
         /**
-         * Starts a runtime paced by the display [component] is on, running at a default cadence while
-         * that component is outside any container. This is what serves content built to be read rather
-         * than shown, which reaches a composition with no window anywhere in the picture.
+         * Starts a runtime whose frame-driven work is paced by the display [component] is on, running
+         * at a default cadence while that component is outside any container. This is what serves
+         * content built to be read rather than shown, which reaches a composition with no window
+         * anywhere in the picture.
          *
-         * The runtime is reachable only through the [compositionContext] the returned instance carries:
-         * it is left off the component's composition stamp, so a mount that resolves its parent from the
-         * Swing tree resolves a host composition or the window's one runtime, and two islands under one
-         * window stay on one recomposer and one frame clock.
+         * Creating the runtime publishes nothing on [component], so a mount resolving its parent from
+         * the Swing tree reaches this runtime only through content a caller has already mounted under
+         * it, and two islands a window accounts for stay on one recomposer and one frame clock.
          *
          * The caller owns the returned runtime and decides when it ends: [dispose] it once the content
          * it drives is torn down. Content that belongs to a window joins that window's own runtime
@@ -82,10 +82,10 @@ public class SwingRecomposer private constructor(
         public fun create(component: Component): SwingRecomposer {
             checkEventDispatchThread()
             GlobalSnapshotManager.ensureStarted()
-            val clock = SwingFrameClock(component.displayRefreshRate())
-            val scope = CoroutineScope(Dispatchers.Swing + Job() + clock)
+            val scope = CoroutineScope(Dispatchers.Swing + Job())
             val recomposer = Recomposer(scope.coroutineContext)
-            scope.launch {
+            val clock = SwingFrameClock(recomposer, component.displayRefreshRate())
+            scope.launch(clock) {
                 recomposer.runRecomposeAndApplyChanges()
             }
             // Retime the clock when the component moves to a display with a different refresh rate. Fires

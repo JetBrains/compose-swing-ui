@@ -13,8 +13,8 @@ import javax.swing.RootPaneContainer
  * same one on every call after it.
  *
  * Content mounted under it recomposes together with the rest of this window's content, on one
- * recomposition scope paced by the display the window is on. The window owns the context and tears it
- * down when it is disposed.
+ * recomposition scope whose frame-driven work is paced by the display the window is on. The window owns
+ * the context and tears it down when it is disposed.
  *
  * Pass it as the parent context of a mount to join this window's composition - which is what a mount
  * on a container already under this window resolves to on its own.

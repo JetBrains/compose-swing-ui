@@ -54,6 +54,7 @@ internal fun ComponentsSection() {
         PasswordCard()
         PasswordStateCard()
         ToggleCard()
+        UnadoptedMoveCard()
         ChoiceCard()
         RangeCard()
         ListBoxCard()
@@ -189,6 +190,47 @@ private fun ColumnScope.ToggleCard() {
             RadioButton(text = "High", selected = choice == 2, onSelectedChange = { if (it) choice = 2 })
         }
         Label("Priority index: $choice")
+    }
+}
+
+@Composable
+private fun ColumnScope.UnadoptedMoveCard() {
+    ExampleCard("A move the caller does not adopt") {
+        var signedIn by remember { mutableStateOf(false) }
+        var syncing by remember { mutableStateOf(false) }
+        var refused by remember { mutableIntStateOf(0) }
+
+        CheckBox(text = "Signed in", checked = signedIn, onCheckedChange = { signedIn = it })
+        // Adopted only while signed in. Swing selects the box on the click, before the callback is
+        // told about it, so a refused click leaves it selected until the pass that follows writes
+        // this declaration back over it.
+        CheckBox(
+            text = "Sync in the background",
+            checked = syncing,
+            onCheckedChange = { if (signedIn) syncing = it else refused++ },
+        )
+        Label(
+            if (signedIn) {
+                "Syncing is ${if (syncing) "on" else "off"}"
+            } else {
+                "Sign in to change this - refused $refused click(s)"
+            },
+        )
+
+        var year by remember { mutableStateOf("2026") }
+        var lastRefusedEdit by remember { mutableStateOf<String?>(null) }
+        TextField(
+            value = year,
+            onValueChange = { edited ->
+                if (edited.all(Char::isDigit)) {
+                    year = edited
+                    lastRefusedEdit = null
+                } else {
+                    lastRefusedEdit = edited
+                }
+            },
+        )
+        Label(lastRefusedEdit?.let { "\"$it\" is not a year - the field shows $year" } ?: "Digits only")
     }
 }
 

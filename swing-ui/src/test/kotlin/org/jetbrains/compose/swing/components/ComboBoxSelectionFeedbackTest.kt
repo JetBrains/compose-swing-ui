@@ -4,6 +4,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.assertUnadoptedMoveIsPutBack
+import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.event.ActionEvent
@@ -349,6 +351,23 @@ class ComboBoxSelectionFeedbackTest {
             listOf("comboBoxChanged", "comboBoxChanged", "comboBoxEdited", "comboBoxChanged"),
             commands,
             "the user's commit and the wrapper's reassertion of the declared item both reach the raw listener",
+        )
+    }
+
+    @Test
+    fun aChoiceTheCallerDoesNotAdoptComesOffWithinEventCycles() = runSwingTest {
+        assertUnadoptedMoveIsPutBack(
+            type = JComboBox::class.java,
+            declared = "Ada",
+            content = {
+                ComboBox(
+                    items = listOf("Ada", "Alan", "Grace"),
+                    selectedItem = "Ada",
+                    onSelectionChange = {},
+                )
+            },
+            move = { it.selectedIndex = 2 },
+            read = { it.selectedItem },
         )
     }
 }

@@ -3,6 +3,8 @@ package org.jetbrains.compose.swing.components.selection
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.assertUnadoptedMoveIsPutBack
+import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JList
@@ -143,5 +145,22 @@ class ListBoxBehaviorTest {
         awaitIdle()
 
         assertEquals(listOf(2 to 0), positions, "the anchor and lead of the range should reach the listener")
+    }
+
+    @Test
+    fun aSelectionTheCallerDoesNotAdoptComesOffWithinEventCycles() = runSwingTest {
+        assertUnadoptedMoveIsPutBack(
+            type = JList::class.java,
+            declared = emptyList<Int>(),
+            content = {
+                ListBox(
+                    items = listOf("Ada", "Alan", "Grace"),
+                    selectedIndices = emptySet(),
+                    onSelectionChange = {},
+                )
+            },
+            move = { it.selectedIndex = 1 },
+            read = { it.selectedIndices.toList() },
+        )
     }
 }

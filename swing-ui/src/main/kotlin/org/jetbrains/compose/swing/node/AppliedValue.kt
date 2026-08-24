@@ -27,6 +27,11 @@ import java.awt.Component
  * not. The next pass acts on that answer: an adopted move leaves the widget alone, an unadopted one
  * writes the declaration back, so the widget snaps away from where the user put it.
  *
+ * The pass is a later event than the move, and Swing has already queued the repaint the move provoked,
+ * so the widget can be painted once holding a value the caller rejected. The pass follows within a few
+ * event-dispatch cycles, inside a single display refresh interval. That bounds how long the rejected
+ * value survives; it is not a guarantee that the value is never shown.
+ *
  * Runs on the event dispatch thread.
  */
 public class AppliedValue<V>

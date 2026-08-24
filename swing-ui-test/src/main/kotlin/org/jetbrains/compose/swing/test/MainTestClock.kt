@@ -15,8 +15,8 @@ import kotlin.time.Duration.Companion.seconds
  *
  * This clock governs only [ComposeSwingTest]'s own off-screen composition. Content composed under a
  * real [org.jetbrains.compose.swing.window.Window] or [org.jetbrains.compose.swing.window.Dialog]
- * recomposes on that window's own recomposer, paced by its own display's refresh rate - this clock
- * has no effect on it.
+ * runs on that window's own recomposer, whose frame-driven work is paced by the display that window
+ * is on - this clock has no effect on it.
  */
 public sealed interface MainTestClock {
     /**

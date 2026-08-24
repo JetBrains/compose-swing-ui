@@ -4,8 +4,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.assertUnadoptedMoveIsPutBack
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.toolTip
+import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -270,5 +272,16 @@ class ToggleButtonBehaviorTest {
         text = "Strong"
         awaitIdle()
         toggle.assert(SwingMatcher.isSelected())
+    }
+
+    @Test
+    fun aSelectingClickTheCallerDoesNotAdoptComesOffWithinEventCycles() = runSwingTest {
+        assertUnadoptedMoveIsPutBack(
+            type = JToggleButton::class.java,
+            declared = false,
+            content = { ToggleButton(text = "Bold", selected = false, onSelectedChange = {}) },
+            move = { it.doClick(0) },
+            read = { it.isSelected },
+        )
     }
 }

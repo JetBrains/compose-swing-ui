@@ -6,12 +6,14 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.assertUnadoptedMoveIsPutBack
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.listener.changeListener
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -611,5 +613,21 @@ class TabbedPaneSelectionReportingTest {
 
         selectTab(0)
         assertEquals(listOf(0), reported, "the selection the user makes should reach the declared listener")
+    }
+
+    @Test
+    fun aSelectionTheCallerDoesNotAdoptComesOffWithinEventCycles() = runSwingTest {
+        assertUnadoptedMoveIsPutBack(
+            type = JTabbedPane::class.java,
+            declared = 0,
+            content = {
+                TabbedPane(selectedIndex = 0, onSelectedIndexChange = {}) {
+                    Label("g", SwingModifier.tab("General"))
+                    Label("a", SwingModifier.tab("Advanced"))
+                }
+            },
+            move = { it.selectedIndex = 1 },
+            read = { it.selectedIndex },
+        )
     }
 }

@@ -4,8 +4,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.assertUnadoptedMoveIsPutBack
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.toolTip
+import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -246,5 +248,16 @@ class CheckBoxBehaviorTest {
         text = "Wrap lines"
         awaitIdle()
         checkBox.assert(SwingMatcher.isSelected(false))
+    }
+
+    @Test
+    fun aClickTheCallerDoesNotAdoptComesOffWithinEventCycles() = runSwingTest {
+        assertUnadoptedMoveIsPutBack(
+            type = JCheckBox::class.java,
+            declared = false,
+            content = { CheckBox(text = "Word wrap", checked = false, onCheckedChange = {}) },
+            move = { it.doClick(0) },
+            read = { it.isSelected },
+        )
     }
 }

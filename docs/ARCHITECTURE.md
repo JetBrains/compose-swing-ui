@@ -63,13 +63,36 @@ behaves as it does on any Compose target.
 
 ---
 
-## Pacing with a frame clock
+## Two cadences: changes and animation time
 
-Each top-level composition is paced by its own frame clock running at a display-like cadence on the
-EDT. `withFrameNanos`, the animation APIs built on it, and recomposition are all driven by this
-clock. The clock advances only while something is waiting for a frame, so an idle window does no
-per-frame work while an animating one advances at a steady rate. Time-based work in separate
-windows is independent.
+A change and the passage of animation time advance at rates of their own.
+
+A change follows the event queue. Writing state invalidates the scopes that read it, and the pass that
+recomposes and applies those scopes is dispatched as an event of its own, so a declared change reaches
+its widget a handful of event-dispatch cycles after the event that made it rather than at the next tick
+of a frame cadence. It costs one pass per event rather than one per write: the pass is dispatched only
+once the Swing event that made the writes has returned, so a listener writing ten properties still
+costs a single pass.
+
+That is not a setter. A setter is on its widget for the very next statement; a declared write is never
+visible inside the event that made it, and code that has to see the result waits for a later cycle.
+
+A widget the user can move themselves settles on this cadence too, and Swing's own ordering shows
+through. Swing applies the move first: a click flips `JCheckBox.isSelected` and queues the repaint
+before the action listener that reports the click runs. The put-back is a later event, so it cannot
+precede a repaint already queued, and the widget is painted once holding the value the caller
+rejected. A handful of event-dispatch cycles keep that paint inside a single display refresh
+interval, so the rejected value is not scanned out. Ordering the put-back ahead of the paint would mean holding back
+every paint in the process until the composition had settled.
+
+`withFrameNanos`, and the animation APIs built on it, advance at a nominal cadence instead. Content
+mounted under a window takes that cadence from the display the window is on and follows it across
+displays; a composition standing in no window keeps a fixed nominal rate. The cadence is best-effort
+wall-clock timing rather than vsync, and it runs only while something is awaiting a frame, so an idle
+window does no per-frame work while an animating one advances a step at a time. A change landing
+mid-animation does not wait for the animation's next frame - it applies on the cycles that follow the
+event that made it - and leaves the animation exactly where it was, so the animation neither skips a
+step nor takes an extra one. Time-based work in separate windows is independent.
 
 ---
 
@@ -307,9 +330,11 @@ Button(text = "Clicks: $count", onClick = { count++ })
 
 1. The user clicks. Swing fires the button's listener on the EDT and the current `onClick` runs
    `count++`.
-2. Writing the state is observed and the scope that read `count` is scheduled to recompose.
-3. On the next frame the invalidated scope re-executes and recomputes the label; the stable listener
-   is left in place.
+2. Writing the state is observed and the scope that read `count` is scheduled to recompose. The
+   listener returns with the button still showing the old label.
+3. The notification, the recomposer waking and the frame it then asks for each travel as an event, so
+   a handful of event-dispatch cycles later the invalidated scope re-executes and recomputes the
+   label; the stable listener is left in place.
 4. The change is applied to the live button, and its container is marked for layout.
 5. Once the change pass completes, that container is laid out and repainted once, and the new label
    is on screen.

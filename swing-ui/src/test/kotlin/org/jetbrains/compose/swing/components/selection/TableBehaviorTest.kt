@@ -4,8 +4,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.assertUnadoptedMoveIsPutBack
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
+import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JCheckBox
@@ -259,5 +261,24 @@ class TableBehaviorTest {
 
         assertSame(column, table.columnModel.getColumn(0), "the column survives a pass that changed no data")
         assertEquals(123, table.columnModel.getColumn(0).preferredWidth, "and so does the width set on it")
+    }
+
+    @Test
+    fun aSelectionTheCallerDoesNotAdoptComesOffWithinEventCycles() = runSwingTest {
+        assertUnadoptedMoveIsPutBack(
+            type = JTable::class.java,
+            declared = emptyList<Int>(),
+            content = {
+                Table(
+                    rows = listOf("Ada", "Alan"),
+                    selectedRowIndices = emptySet(),
+                    onSelectionChange = {},
+                ) {
+                    column("Name") { it }
+                }
+            },
+            move = { it.setRowSelectionInterval(1, 1) },
+            read = { it.selectedRows.toList() },
+        )
     }
 }
