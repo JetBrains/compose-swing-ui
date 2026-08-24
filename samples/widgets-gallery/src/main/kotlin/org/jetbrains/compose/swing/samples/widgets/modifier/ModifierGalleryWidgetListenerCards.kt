@@ -100,8 +100,8 @@ internal fun ColumnScope.ListenerEscapeHatchCard() {
                 modifier =
                     SwingModifier.listener<JComboBox<*>, PopupMenuListener>(
                         popupListener,
-                        { c, l -> c.addPopupMenuListener(l) },
-                        { c, l -> c.removePopupMenuListener(l) },
+                        { component, listener -> component.addPopupMenuListener(listener) },
+                        { component, listener -> component.removePopupMenuListener(listener) },
                     ),
             )
         }

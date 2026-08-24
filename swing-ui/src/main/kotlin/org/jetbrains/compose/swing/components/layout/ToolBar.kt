@@ -135,8 +135,8 @@ private fun SwingModifier.onParentChange(onParentChanged: (Component) -> Unit): 
     liveCallbackListener<Component, (Component) -> Unit, HierarchyListener>(
         onParentChanged,
         { current -> parentChangeListener { current().invoke(it) } },
-        { c, l -> c.addHierarchyListener(l) },
-        { c, l -> c.removeHierarchyListener(l) },
+        { component, listener -> component.addHierarchyListener(listener) },
+        { component, listener -> component.removeHierarchyListener(listener) },
     )
 
 /** The look-and-feel default a tool bar's UI reads while the bar records no rollover choice of its own. */

@@ -124,8 +124,8 @@ public fun <T> ComboBox(
                 .actionListener(actionListener)
                 .listener<JComboBox<*>, ItemListener>(
                     mirror,
-                    { c, l -> c.addItemListener(l) },
-                    { c, l -> c.removeItemListener(l) },
+                    { component, listener -> component.addItemListener(listener) },
+                    { component, listener -> component.removeItemListener(listener) },
                 ),
         editable = editable,
         maximumRowCount = maximumRowCount,
@@ -320,8 +320,8 @@ private fun <V> SwingModifier.onSelectionAction(
             }
         },
         { current -> ActionListener { current().invoke(it) } },
-        { c, l -> c.addActionListener(l) },
-        { c, l -> c.removeActionListener(l) },
+        { component, listener -> component.addActionListener(listener) },
+        { component, listener -> component.removeActionListener(listener) },
     )
 
 /** The action command a `JComboBox` fires an editor commit under. */

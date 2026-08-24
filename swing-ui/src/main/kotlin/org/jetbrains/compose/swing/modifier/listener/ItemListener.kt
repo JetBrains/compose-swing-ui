@@ -23,8 +23,8 @@ import java.awt.event.ItemListener
 public fun SwingModifier.itemListener(listener: ItemListener): SwingModifier =
     listener<Component, ItemListener>(
         listener,
-        { c, l -> c.asItemSelectable().addItemListener(l) },
-        { c, l -> c.asItemSelectable().removeItemListener(l) },
+        { component, instance -> component.asItemSelectable().addItemListener(instance) },
+        { component, instance -> component.asItemSelectable().removeItemListener(instance) },
     )
 
 /**

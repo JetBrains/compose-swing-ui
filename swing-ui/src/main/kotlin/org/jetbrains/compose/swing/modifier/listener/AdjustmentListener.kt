@@ -21,8 +21,8 @@ import java.awt.event.AdjustmentListener
 public fun SwingModifier.adjustmentListener(listener: AdjustmentListener): SwingModifier =
     listener<Component, AdjustmentListener>(
         listener,
-        { c, l -> c.asAdjustable().addAdjustmentListener(l) },
-        { c, l -> c.asAdjustable().removeAdjustmentListener(l) },
+        { component, instance -> component.asAdjustable().addAdjustmentListener(instance) },
+        { component, instance -> component.asAdjustable().removeAdjustmentListener(instance) },
     )
 
 /**

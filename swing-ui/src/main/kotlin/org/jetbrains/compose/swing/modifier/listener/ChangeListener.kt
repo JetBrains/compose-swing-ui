@@ -25,8 +25,8 @@ import javax.swing.event.ChangeListener
 public fun SwingModifier.changeListener(listener: ChangeListener): SwingModifier =
     listener<Component, ChangeListener>(
         listener,
-        { c, l -> changeListenerRegistrar(c).add(l) },
-        { c, l -> changeListenerRegistrar(c).remove(l) },
+        { component, instance -> changeListenerRegistrar(component).add(instance) },
+        { component, instance -> changeListenerRegistrar(component).remove(instance) },
     )
 
 /**

@@ -497,8 +497,8 @@ private fun SwingModifier.onFrameClosing(onClosing: () -> Unit): SwingModifier =
                 }
             }
         },
-        { c, l -> c.addInternalFrameListener(l) },
-        { c, l -> c.removeInternalFrameListener(l) },
+        { component, listener -> component.addInternalFrameListener(listener) },
+        { component, listener -> component.removeInternalFrameListener(listener) },
     )
 
 /**

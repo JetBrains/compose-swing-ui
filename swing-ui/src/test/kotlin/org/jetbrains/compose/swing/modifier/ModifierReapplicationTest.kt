@@ -303,7 +303,9 @@ class ModifierReapplicationTest {
          * The add/remove pair handed to `listener`, held once so a chain built from them is the same
          * declaration on every pass.
          */
-        val ADD_MOUSE_LISTENER: (JButton, MouseListener) -> Unit = { c, l -> c.addMouseListener(l) }
-        val REMOVE_MOUSE_LISTENER: (JButton, MouseListener) -> Unit = { c, l -> c.removeMouseListener(l) }
+        val ADD_MOUSE_LISTENER: (JButton, MouseListener) -> Unit =
+            { component, listener -> component.addMouseListener(listener) }
+        val REMOVE_MOUSE_LISTENER: (JButton, MouseListener) -> Unit =
+            { component, listener -> component.removeMouseListener(listener) }
     }
 }

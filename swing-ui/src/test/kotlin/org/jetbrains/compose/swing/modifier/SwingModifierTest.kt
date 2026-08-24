@@ -307,12 +307,12 @@ class SwingModifierTest {
                     SwingModifier
                         .listener<JButton, MouseListener>(
                             mouseEnterListener { first++ },
-                            { c, l -> c.addMouseListener(l) },
-                            { c, l -> c.removeMouseListener(l) },
+                            { component, listener -> component.addMouseListener(listener) },
+                            { component, listener -> component.removeMouseListener(listener) },
                         ).listener<JButton, MouseListener>(
                             mouseEnterListener { second++ },
-                            { c, l -> c.addMouseListener(l) },
-                            { c, l -> c.removeMouseListener(l) },
+                            { component, listener -> component.addMouseListener(listener) },
+                            { component, listener -> component.removeMouseListener(listener) },
                         ),
             )
         }
@@ -489,13 +489,13 @@ class SwingModifierTest {
                 modifier =
                     SwingModifier.listener<JButton, MouseListener>(
                         stable,
-                        { c, l ->
+                        { component, listener ->
                             attachCount++
-                            c.addMouseListener(l)
+                            component.addMouseListener(listener)
                         },
-                        { c, l ->
+                        { component, listener ->
                             detachCount++
-                            c.removeMouseListener(l)
+                            component.removeMouseListener(listener)
                         },
                     ),
             )

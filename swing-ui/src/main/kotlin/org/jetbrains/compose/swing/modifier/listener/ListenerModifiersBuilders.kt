@@ -47,8 +47,8 @@ public fun SwingModifier.propertyChangeListener(
 ): SwingModifier =
     listener<Component, PropertyChangeListener>(
         listener,
-        { c, l -> c.addPropertyChangeListener(name, l) },
-        { c, l -> c.removePropertyChangeListener(name, l) },
+        { component, instance -> component.addPropertyChangeListener(name, instance) },
+        { component, instance -> component.removePropertyChangeListener(name, instance) },
     )
 
 /**
@@ -64,8 +64,8 @@ public fun SwingModifier.propertyChangeListener(
 public fun SwingModifier.actionListener(listener: ActionListener): SwingModifier =
     listener<Component, ActionListener>(
         listener,
-        { c, l -> actionListenerRegistrar(c).add(l) },
-        { c, l -> actionListenerRegistrar(c).remove(l) },
+        { component, instance -> actionListenerRegistrar(component).add(instance) },
+        { component, instance -> actionListenerRegistrar(component).remove(instance) },
     )
 
 /** The matched widget's `addActionListener`/`removeActionListener` pair. */
@@ -107,6 +107,6 @@ private fun actionListenerTargetError(component: Component): String =
 public fun SwingModifier.documentListener(listener: DocumentListener): SwingModifier =
     listener<JTextComponent, DocumentListener>(
         listener,
-        { c, l -> c.document.addDocumentListener(l) },
-        { c, l -> c.document.removeDocumentListener(l) },
+        { component, instance -> component.document.addDocumentListener(instance) },
+        { component, instance -> component.document.removeDocumentListener(instance) },
     )

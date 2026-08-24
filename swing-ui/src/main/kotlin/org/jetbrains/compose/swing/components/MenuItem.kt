@@ -59,8 +59,8 @@ public fun MenuItem(
         modifier =
             modifier.listener<JMenuItem, ActionListener>(
                 actionListener,
-                { c, l -> c.addActionListener(l) },
-                { c, l -> c.removeActionListener(l) },
+                { component, listener -> component.addActionListener(listener) },
+                { component, listener -> component.removeActionListener(listener) },
             ),
     )
 }
@@ -93,6 +93,6 @@ private fun SwingModifier.onMenuAction(onClick: () -> Unit): SwingModifier =
     liveCallbackListener<JMenuItem, () -> Unit, ActionListener>(
         onClick,
         { current -> ActionListener { current().invoke() } },
-        { c, l -> c.addActionListener(l) },
-        { c, l -> c.removeActionListener(l) },
+        { component, listener -> component.addActionListener(listener) },
+        { component, listener -> component.removeActionListener(listener) },
     )

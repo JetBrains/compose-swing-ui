@@ -19,6 +19,6 @@ import javax.swing.event.TableColumnModelListener
 internal fun SwingModifier.tableColumnModelListener(listener: TableColumnModelListener): SwingModifier =
     listener<JTable, TableColumnModelListener>(
         listener,
-        { c, l -> c.columnModel.addColumnModelListener(l) },
-        { c, l -> c.columnModel.removeColumnModelListener(l) },
+        { component, instance -> component.columnModel.addColumnModelListener(instance) },
+        { component, instance -> component.columnModel.removeColumnModelListener(instance) },
     )
