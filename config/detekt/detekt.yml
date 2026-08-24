@@ -42,3 +42,8 @@ style:
   MagicNumber:
     # Default UI dimensions / parameters inside @Composable functions read fine inline.
     ignoreAnnotated: ["Composable"]
+  # ktlint reports no unused import, whatever the import is, so without this rule nothing in the
+  # build notices one. It resolves the references it counts, and runs in detektMain/detektTest,
+  # which `check` depends on.
+  UnusedImport:
+    active: true

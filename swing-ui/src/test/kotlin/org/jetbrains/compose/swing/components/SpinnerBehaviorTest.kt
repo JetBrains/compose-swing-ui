@@ -8,7 +8,6 @@ import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.AbstractSpinnerModel
 import javax.swing.JSpinner
-import javax.swing.SpinnerModel
 import javax.swing.SpinnerNumberModel
 import javax.swing.SwingUtilities
 import javax.swing.event.ChangeListener

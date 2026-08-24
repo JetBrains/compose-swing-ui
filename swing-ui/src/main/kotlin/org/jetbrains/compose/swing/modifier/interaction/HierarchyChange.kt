@@ -6,7 +6,7 @@ import java.awt.event.HierarchyListener
 
 // A component is declared before it is anywhere: the applier runs a node's update block between its
 // top-down and bottom-up passes, so a wrapper reading its own parent while declaring finds none. What
-// the hierarchy reports afterwards is how a wrapper hears where it ended up. The listeners built here
+// the hierarchy reports afterward is how a wrapper hears where it ended up. The listeners built here
 // each answer one such question, so a caller states which change it is waiting for rather than
 // filtering an event's flags itself.
 

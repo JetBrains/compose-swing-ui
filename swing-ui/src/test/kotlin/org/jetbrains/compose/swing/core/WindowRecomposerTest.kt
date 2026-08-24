@@ -3,16 +3,10 @@ package org.jetbrains.compose.swing.core
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.swing.Swing
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.core.findParentCompositionContext
-import org.jetbrains.compose.swing.core.getOrCreateRecomposer
-import org.jetbrains.compose.swing.core.recomposerOrNull
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
 import org.junit.jupiter.api.Assumptions.assumeFalse

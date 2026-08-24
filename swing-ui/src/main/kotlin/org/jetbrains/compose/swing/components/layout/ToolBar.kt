@@ -13,7 +13,6 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.interaction.parentChangeListener
 import org.jetbrains.compose.swing.modifier.listener.liveCallbackListener
-import org.jetbrains.compose.swing.node.AppliedValue
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.rememberAppliedValue
 import java.awt.Component

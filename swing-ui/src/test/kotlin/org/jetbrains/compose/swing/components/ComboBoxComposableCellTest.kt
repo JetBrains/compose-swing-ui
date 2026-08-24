@@ -12,7 +12,6 @@ import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JComboBox
 import javax.swing.JLabel
-import javax.swing.JList
 import javax.swing.JTextField
 import javax.swing.ListCellRenderer
 import javax.swing.SwingUtilities

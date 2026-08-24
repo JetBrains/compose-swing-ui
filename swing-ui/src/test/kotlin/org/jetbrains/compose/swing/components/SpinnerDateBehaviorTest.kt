@@ -13,7 +13,6 @@ import javax.swing.SpinnerDateModel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertTrue
 
 /**
  * Behavioral tests for the date [Spinner] overload, driven through the real composition

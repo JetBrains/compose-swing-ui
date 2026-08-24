@@ -7,7 +7,6 @@ import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.ControlledComposition
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.runtime.snapshots.SnapshotStateObserver
-import androidx.lifecycle.LifecycleOwner
 import java.awt.Component
 import javax.swing.JComponent
 import javax.swing.SwingUtilities

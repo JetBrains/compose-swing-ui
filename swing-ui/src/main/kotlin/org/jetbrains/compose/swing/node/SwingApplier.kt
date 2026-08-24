@@ -2,7 +2,6 @@ package org.jetbrains.compose.swing.node
 
 import androidx.compose.runtime.AbstractApplier
 import androidx.compose.runtime.snapshots.SnapshotStateObserver
-import java.awt.Component
 import java.awt.Container
 import java.util.Collections
 import java.util.IdentityHashMap

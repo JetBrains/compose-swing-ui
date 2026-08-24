@@ -13,8 +13,6 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.swing.Swing
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.core.COMPOSITION_KEY
-import org.jetbrains.compose.swing.core.findParentCompositionContext
 import org.jetbrains.compose.swing.setContent
 import java.awt.Container
 import java.awt.Dimension

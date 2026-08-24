@@ -1,6 +1,5 @@
 package org.jetbrains.compose.swing.core
 
-import org.jetbrains.compose.swing.core.SwingFrameClock
 import java.beans.PropertyChangeEvent
 import java.beans.PropertyChangeListener
 import javax.swing.SwingUtilities
