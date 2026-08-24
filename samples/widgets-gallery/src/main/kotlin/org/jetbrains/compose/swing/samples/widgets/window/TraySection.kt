@@ -65,8 +65,8 @@ private fun ColumnScope.TrayToggleCard() {
             val icon = remember { trayImage() }
             Tray(
                 image = icon,
-                tooltip = "Compose Swing showcase",
                 onAction = { lastAction = "icon activated" },
+                tooltip = "Compose Swing showcase",
                 imageAutoSize = imageAutoSize,
                 menu = {
                     CheckBoxMenuItem(

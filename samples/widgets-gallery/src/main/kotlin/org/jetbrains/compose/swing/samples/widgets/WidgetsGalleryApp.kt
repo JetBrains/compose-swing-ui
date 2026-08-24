@@ -136,7 +136,7 @@ internal fun ShowcaseShell() {
         }
         // The entry names no region, so BorderLayout gives it the center by default.
         entries.last().Content()
-        FlowPanel(alignment = FlowLayout.LEADING, modifier = SwingModifier.south()) {
+        FlowPanel(modifier = SwingModifier.south(), alignment = FlowLayout.LEADING) {
             Button(
                 text = "Back",
                 modifier = SwingModifier.enabled(backStack.size > 1),

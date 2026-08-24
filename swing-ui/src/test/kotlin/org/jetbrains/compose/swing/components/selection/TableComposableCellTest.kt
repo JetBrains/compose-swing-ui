@@ -175,7 +175,7 @@ class TableComposableCellTest {
         // install themselves as the viewport's view.
         setContent {
             ScrollPane {
-                Table(rows = people, selectedRowIndices = setOf(0), modifier = SwingModifier.viewport()) {
+                Table(rows = people, modifier = SwingModifier.viewport(), selectedRowIndices = setOf(0)) {
                     column("Name", cellContent = { row -> FlowPanel { Label(row.name) } }) { it.name }
                 }
             }

@@ -89,7 +89,7 @@ class NestedLayoutConstraintTest {
     fun panelsInBorderRegionsPlaceTheirOwnChildrenByTheirOwnLayout() = runComposeSwingTest {
         setContent {
             BorderPanel {
-                GridPanel(rows = 1, cols = 2, modifier = SwingModifier.north()) {
+                GridPanel(modifier = SwingModifier.north(), rows = 1, cols = 2) {
                     Label(text = "g1")
                     Label(text = "g2")
                 }

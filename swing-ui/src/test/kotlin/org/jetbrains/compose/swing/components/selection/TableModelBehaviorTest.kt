@@ -48,8 +48,8 @@ class TableModelBehaviorTest {
         setContent {
             Table(
                 model = tableModel("Ada", "Alan", "Grace"),
-                selectionMode = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION,
                 onSelectionChange = { received += it },
+                selectionMode = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION,
             )
         }
 

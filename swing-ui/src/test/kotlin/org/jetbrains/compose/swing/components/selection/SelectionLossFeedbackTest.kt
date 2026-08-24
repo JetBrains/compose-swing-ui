@@ -580,8 +580,8 @@ class SelectionLossFeedbackTest {
             Tree(
                 root = sample,
                 children = { it.children },
-                label = { it.name },
                 treeSelectionListener = listener,
+                label = { it.name },
                 selectedPaths = setOf(listOf(0), listOf(1)),
                 selectionMode = mode,
             )
@@ -607,8 +607,8 @@ class SelectionLossFeedbackTest {
             Tree(
                 root = sample,
                 children = { it.children },
-                label = { it.name },
                 treeSelectionListener = listener,
+                label = { it.name },
                 selectedPaths = setOf(emptyList()),
                 rootVisible = rootVisible,
             )

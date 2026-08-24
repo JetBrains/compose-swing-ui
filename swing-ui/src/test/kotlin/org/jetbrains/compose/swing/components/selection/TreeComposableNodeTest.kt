@@ -195,9 +195,9 @@ class TreeComposableNodeTest {
                 Tree(
                     root = sample,
                     children = { it.children },
+                    modifier = SwingModifier.viewport(),
                     label = { it.name },
                     selectedPaths = setOf(emptyList()),
-                    modifier = SwingModifier.viewport(),
                 ) { value ->
                     FlowPanel { Label(value.name) }
                 }

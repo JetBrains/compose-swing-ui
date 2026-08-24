@@ -53,8 +53,8 @@ class TableBehaviorTest {
         setContent {
             Table(
                 rows = listOf(Person("Ada", 36), Person("Alan", 41), Person("Grace", 50)),
-                selectionMode = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION,
                 onSelectionChange = { received += it },
+                selectionMode = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION,
             ) {
                 column("Name") { it.name }
             }

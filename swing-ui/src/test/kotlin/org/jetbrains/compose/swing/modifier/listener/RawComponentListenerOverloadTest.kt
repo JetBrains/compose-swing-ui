@@ -250,8 +250,8 @@ class RawComponentListenerOverloadTest {
                     root = "root",
                     children = { if (it == "root") listOf("leaf") else emptyList() },
                     treeSelectionListener = TreeSelectionListener { },
-                    treeExpansionListener = listener,
                     modifier = SwingModifier.viewport(),
+                    treeExpansionListener = listener,
                 )
             }
         }

@@ -165,7 +165,7 @@ class BoxFillersTest {
     @Test
     fun glueBetweenTwoItemsPushesTheSecondToTheTrailingEdge() = runComposeSwingTest {
         setContent {
-            BoxPanel(axis = BoxLayout.X_AXIS, modifier = SwingModifier.preferredSize(400, 40)) {
+            BoxPanel(modifier = SwingModifier.preferredSize(400, 40), axis = BoxLayout.X_AXIS) {
                 Label("leading", modifier = SwingModifier.fixed())
                 Glue()
                 Label("trailing", modifier = SwingModifier.fixed())
@@ -186,7 +186,7 @@ class BoxFillersTest {
     @Test
     fun withoutGlueTheItemsStayPackedTogether() = runComposeSwingTest {
         setContent {
-            BoxPanel(axis = BoxLayout.X_AXIS, modifier = SwingModifier.preferredSize(400, 40)) {
+            BoxPanel(modifier = SwingModifier.preferredSize(400, 40), axis = BoxLayout.X_AXIS) {
                 Label("leading", modifier = SwingModifier.fixed())
                 Label("trailing", modifier = SwingModifier.fixed())
             }

@@ -60,9 +60,9 @@ public fun SwingModifier.contextMenu(
         () -> Unit,
 ): SwingModifier =
     contextMenu(
+        display = ::showPopupAt,
         onOpen = onOpen,
         onClose = onClose,
-        display = ::showPopupAt,
         content = content,
     )
 

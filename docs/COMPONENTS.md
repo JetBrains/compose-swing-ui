@@ -572,7 +572,7 @@ extensions so children stay plain:
 
 ```kotlin
 Column(verticalArrangement = Arrangement.spacedBy(8), horizontalAlignment = Alignment.Start) {
-    Row(horizontalArrangement = Arrangement.End, modifier = SwingModifier.fillWidth()) {
+    Row(modifier = SwingModifier.fillWidth(), horizontalArrangement = Arrangement.End) {
         Button("Back", onClick = ::open)
         Button("Forward", onClick = ::open)
     }

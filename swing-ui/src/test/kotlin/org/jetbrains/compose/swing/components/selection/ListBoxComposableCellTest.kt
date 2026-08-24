@@ -142,8 +142,8 @@ class ListBoxComposableCellTest {
             ScrollPane {
                 ListBox(
                     items = listOf("first", "second"),
-                    selectedIndices = setOf(0),
                     modifier = SwingModifier.viewport(),
+                    selectedIndices = setOf(0),
                 ) { item ->
                     FlowPanel { Label(item) }
                 }

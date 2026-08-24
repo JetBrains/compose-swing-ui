@@ -279,7 +279,7 @@ class ValueComponentsTest {
         var max by mutableIntStateOf(100)
         var value by mutableIntStateOf(50)
         setContent {
-            ProgressBar(min = 0, max = max, value = value)
+            ProgressBar(value = value, min = 0, max = max)
         }
         val bar = onNodeOfType<JProgressBar>().fetch()
         assertEquals(50, bar.value, "the progress bar should start at its declared value")

@@ -107,7 +107,7 @@ private fun ColumnScope.ScrollStateCard() {
         Slider(value = scroll.x, onValueChange = { scroll.x = it }, min = 0, max = scroll.maxX)
         Slider(value = scroll.y, onValueChange = { scroll.y = it }, min = 0, max = scroll.maxY)
         Label("Viewport ${scroll.extentWidth}x${scroll.extentHeight}, content ${scroll.viewWidth}x${scroll.viewHeight}")
-        ScrollPane(state = scroll, modifier = SwingModifier.preferredSize(Dimension(220, 120))) {
+        ScrollPane(modifier = SwingModifier.preferredSize(Dimension(220, 120)), state = scroll) {
             GridPanel(SwingModifier.viewport(), rows = ROWS, cols = COLS, hgap = 1, vgap = 1) {
                 repeat(ROWS * COLS) { index ->
                     Cell("R${index / COLS},C${index % COLS}", Color(0xE1, 0xF5, 0xFE))

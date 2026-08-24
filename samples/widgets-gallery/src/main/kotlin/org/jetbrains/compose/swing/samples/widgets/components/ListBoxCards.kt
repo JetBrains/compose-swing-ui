@@ -70,8 +70,8 @@ internal fun ColumnScope.ListBoxCard() {
                 selectedIndices = selection,
                 onSelectionChange = { selection = it },
                 selectionMode = listBoxSelectionModes[selectionModeIndex].second,
-                layoutOrientation = listBoxOrientations[orientationIndex].second,
                 visibleRowCount = visibleRows,
+                layoutOrientation = listBoxOrientations[orientationIndex].second,
             ) { row ->
                 FlowPanel(
                     modifier = SwingModifier.opaque(false),

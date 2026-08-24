@@ -119,15 +119,15 @@ private fun ColumnScope.SelectableTreeCard() {
             Tree(
                 root = sampleTree,
                 children = { it.children },
+                modifier = SwingModifier.viewport().testTag(PRIMARY_TREE_TAG),
                 label = { it.name },
                 selectedPaths = selection,
                 onSelectionChange = { selection = it },
                 selectionMode = selectionModes[selectionModeIndex].second,
                 rootVisible = rootVisible,
                 showsRootHandles = showsRootHandles,
-                toggleClickCount = toggleClicks,
                 rowHeight = rowHeight,
-                modifier = SwingModifier.viewport().testTag(PRIMARY_TREE_TAG),
+                toggleClickCount = toggleClicks,
             )
         }
         Label(text = "Selected path: ${describeSelection(selection)}")
@@ -155,10 +155,10 @@ private fun ColumnScope.ExpansionTreeCard() {
             Tree(
                 root = sampleTree,
                 children = { it.children },
-                label = { it.name },
                 state = state,
-                onWillExpand = if (lockDocs) ({ value, _ -> value.name != "docs" }) else null,
                 modifier = SwingModifier.viewport().testTag(EXPANSION_TREE_TAG),
+                label = { it.name },
+                onWillExpand = if (lockDocs) ({ value, _ -> value.name != "docs" }) else null,
             )
         }
         Label("Expanded nodes: ${state.expandedPaths.size}")
@@ -179,8 +179,8 @@ private fun ColumnScope.EditableTreeCard() {
             Tree(
                 root = sampleTree,
                 children = { it.children },
-                label = { renamed[it] ?: it.name },
                 modifier = SwingModifier.viewport(),
+                label = { renamed[it] ?: it.name },
                 isEditable = true,
                 onNodeEdit = { value, _, newValue -> renamed = renamed + (value to newValue.toString()) },
             ) { value ->

@@ -39,7 +39,7 @@ class ProgressBarTextTest {
 
     @Test
     fun aPaintedNullStringShowsTheCompletionPercentage() = runComposeSwingTest {
-        setContent { ProgressBar(min = 0, max = 200, value = 50, stringPainted = true) }
+        setContent { ProgressBar(value = 50, min = 0, max = 200, stringPainted = true) }
 
         val bar = onNodeOfType<JProgressBar>().fetch()
         assertTrue(bar.isStringPainted, "the bar should paint text over itself")
@@ -48,7 +48,7 @@ class ProgressBarTextTest {
 
     @Test
     fun aDeclaredStringOverridesThePercentage() = runComposeSwingTest {
-        setContent { ProgressBar(min = 0, max = 200, value = 50, stringPainted = true, string = "Copying") }
+        setContent { ProgressBar(value = 50, min = 0, max = 200, stringPainted = true, string = "Copying") }
 
         val bar = onNodeOfType<JProgressBar>().fetch()
         assertTrue(bar.isStringPainted, "the bar should paint text over itself")
@@ -58,7 +58,7 @@ class ProgressBarTextTest {
     @Test
     fun stringPaintedTogglesOnRecomposition() = runComposeSwingTest {
         var stringPainted by mutableStateOf(false)
-        setContent { ProgressBar(min = 0, max = 200, value = 50, stringPainted = stringPainted) }
+        setContent { ProgressBar(value = 50, min = 0, max = 200, stringPainted = stringPainted) }
 
         val bar = onNodeOfType<JProgressBar>().fetch()
         assertFalse(bar.isStringPainted, "the bar should start without painted text")
@@ -75,7 +75,7 @@ class ProgressBarTextTest {
     @Test
     fun clearingTheStringFallsBackToThePercentage() = runComposeSwingTest {
         var string by mutableStateOf<String?>("Copying")
-        setContent { ProgressBar(min = 0, max = 200, value = 50, stringPainted = true, string = string) }
+        setContent { ProgressBar(value = 50, min = 0, max = 200, stringPainted = true, string = string) }
 
         val bar = onNodeOfType<JProgressBar>().fetch()
         assertEquals("Copying", bar.string, "the bar should start with the declared string")

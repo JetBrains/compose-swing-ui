@@ -47,9 +47,9 @@ internal fun ColumnScope.ListSelectionListenerCard() {
         val listener = remember { ListSelectionListener { event -> if (!event.valueIsAdjusting) events++ } }
         ListBox(
             items = fruits,
+            modifier = SwingModifier.listSelectionListener(listener).preferredSize(Dimension(160, 90)),
             selectedIndices = selected,
             onSelectionChange = { selected = it },
-            modifier = SwingModifier.listSelectionListener(listener).preferredSize(Dimension(160, 90)),
             visibleRowCount = 4,
         )
         Label("Selection events: $events")
@@ -90,13 +90,13 @@ internal fun ColumnScope.TreeListenersCard() {
         Tree(
             root = root,
             children = { it.children },
-            label = { it.name },
             modifier =
                 SwingModifier
                     .treeSelectionListener(selectionListener)
                     .treeExpansionListener(expansionListener)
                     .treeWillExpandListener(willExpandListener)
                     .preferredSize(Dimension(200, 120)),
+            label = { it.name },
             onSelectionChange = {},
             onExpansionChange = {},
         )

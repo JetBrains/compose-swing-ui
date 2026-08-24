@@ -359,8 +359,8 @@ class TreeBehaviorTest {
                 root = sample,
                 children = { it.children },
                 label = { it.name },
-                rootVisible = rootVisible,
                 expandedPaths = setOf(emptyList()),
+                rootVisible = rootVisible,
             )
         }
 

@@ -117,10 +117,10 @@ private fun ColumnScope.SelectableTableCard() {
         ScrollPane(modifier = SwingModifier.preferredSize(Dimension(360, 140))) {
             Table(
                 rows = people,
+                modifier = SwingModifier.viewport().testTag(PRIMARY_TABLE_TAG),
                 selectedRowIndices = selection,
                 onSelectionChange = { selection = it },
                 selectionMode = tableSelectionModes[selectionModeIndex].second,
-                modifier = SwingModifier.viewport().testTag(PRIMARY_TABLE_TAG),
             ) {
                 column("Name") { it.name }
                 column("Role") { it.role }
@@ -195,16 +195,16 @@ private fun ColumnScope.SortingFilteringTableCard() {
         ScrollPane(modifier = SwingModifier.preferredSize(Dimension(440, 160))) {
             Table(
                 rows = sampleBooks,
+                modifier = SwingModifier.viewport().testTag(SORT_FILTER_TABLE_TAG),
                 sortable = sortableEnabled,
                 sortKeys = sortKeys,
                 onSortChange = { sortKeys = it },
                 rowFilter = rowFilter,
-                autoResizeMode = tableResizeModes[layout.resizeModeIndex].second,
                 rowHeight = layout.rowHeight,
+                autoResizeMode = tableResizeModes[layout.resizeModeIndex].second,
                 fillsViewportHeight = layout.fillsViewportHeight,
                 columnLayout = columnLayout,
                 onColumnLayoutChange = { columnLayout = it },
-                modifier = SwingModifier.viewport().testTag(SORT_FILTER_TABLE_TAG),
             ) {
                 column("Title") { it.title }
                 // A comparator sees whatever the column's value lambda produced, typed as the cell values

@@ -268,8 +268,8 @@ class TreeExpansionTest {
             Tree(
                 root = sample,
                 children = { it.children },
-                label = { it.name },
                 modifier = SwingModifier.name(label),
+                label = { it.name },
                 expandedPaths = setOf(emptyList()),
             )
         }
@@ -332,8 +332,8 @@ class TreeExpansionTest {
             Tree(
                 root = sample,
                 children = { it.children },
-                label = { it.name },
                 treeSelectionListener = remember { TreeSelectionListener { } },
+                label = { it.name },
                 treeExpansionListener = listener,
             )
         }
@@ -375,8 +375,8 @@ class TreeExpansionTest {
             Tree(
                 root = sample,
                 children = { it.children },
-                label = { it.name },
                 treeSelectionListener = remember { TreeSelectionListener { } },
+                label = { it.name },
                 expandedPaths = setOf(emptyList()),
             )
         }

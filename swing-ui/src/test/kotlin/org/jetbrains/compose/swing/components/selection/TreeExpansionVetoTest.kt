@@ -150,8 +150,8 @@ class TreeExpansionVetoTest {
             Tree(
                 root = sample,
                 children = { it.children },
-                label = { it.name },
                 treeSelectionListener = remember { TreeSelectionListener { } },
+                label = { it.name },
                 treeWillExpandListener = listener,
             )
         }

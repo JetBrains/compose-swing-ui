@@ -63,9 +63,9 @@ private fun ColumnScope.AnimatedProgressCard() {
         )
         ProgressBar(
             value = animated,
+            modifier = SwingModifier.preferredSize(Dimension(360, 22)),
             min = 0,
             max = 100,
-            modifier = SwingModifier.preferredSize(Dimension(360, 22)),
         )
         FlowPanel {
             Label("Target: $target")
