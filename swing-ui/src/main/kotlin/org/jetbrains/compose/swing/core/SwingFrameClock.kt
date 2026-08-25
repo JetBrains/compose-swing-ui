@@ -7,6 +7,7 @@ import java.awt.Component
 import java.awt.DisplayMode
 import javax.swing.SwingUtilities
 import javax.swing.Timer
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * The [MonotonicFrameClock] a [Recomposer] recomposes on, holding recomposition and frame-driven work
@@ -130,10 +131,16 @@ internal class SwingFrameClock(
 
     internal companion object {
         const val DEFAULT_FRAMES_PER_SECOND: Int = 60
-        private const val MILLIS_PER_SECOND: Int = 1000
 
-        private fun delayMillisFor(framesPerSecond: Int): Int =
-            (MILLIS_PER_SECOND / framesPerSecond.coerceAtLeast(1)).coerceAtLeast(1)
+        /**
+         * The [Timer] delay one frame of [framesPerSecond] takes, in whole milliseconds and never below
+         * one: a zero delay would fire the timer as fast as the event queue drains. A non-positive rate
+         * is read as a single frame per second.
+         */
+        private fun delayMillisFor(framesPerSecond: Int): Int {
+            val frame = 1.seconds / framesPerSecond.coerceAtLeast(1)
+            return frame.inWholeMilliseconds.coerceAtLeast(1).toInt()
+        }
 
         /**
          * The component's current display refresh rate in frames per second, read from

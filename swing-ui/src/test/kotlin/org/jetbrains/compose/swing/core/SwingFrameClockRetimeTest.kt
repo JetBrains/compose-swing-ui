@@ -45,7 +45,7 @@ class SwingFrameClockRetimeTest {
         val clock = clockAt(FPS_60)
         clock.setFramesPerSecond(0)
         assertEquals(
-            MILLIS_PER_SECOND,
+            MILLIS_AT_1_FPS,
             clock.frameDelayMillis,
             "a non-positive fps must not divide by zero; it falls back to one frame per second",
         )
@@ -90,6 +90,6 @@ class SwingFrameClockRetimeTest {
         const val FPS_120: Int = 120
         const val MILLIS_AT_60: Int = 16
         const val MILLIS_AT_120: Int = 8
-        const val MILLIS_PER_SECOND: Int = 1000
+        const val MILLIS_AT_1_FPS: Int = 1000
     }
 }
