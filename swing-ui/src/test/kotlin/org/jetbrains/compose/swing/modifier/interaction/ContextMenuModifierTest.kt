@@ -11,11 +11,9 @@ import org.jetbrains.compose.swing.components.Menu
 import org.jetbrains.compose.swing.components.MenuItem
 import org.jetbrains.compose.swing.components.MenuSeparator
 import org.jetbrains.compose.swing.components.RadioButtonMenuItem
-import org.jetbrains.compose.swing.components.layout.Column
 import org.jetbrains.compose.swing.menuItemTexts
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
-import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.publishClose
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
@@ -27,7 +25,6 @@ import javax.swing.JMenu
 import javax.swing.JMenuItem
 import javax.swing.JPopupMenu
 import javax.swing.JRadioButtonMenuItem
-import javax.swing.event.PopupMenuEvent
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -50,26 +47,6 @@ import kotlin.test.assertTrue
  * the user's dismissal travels its production path.
  */
 class ContextMenuModifierTest {
-    private fun popupTrigger(component: Component): MouseEvent = MouseEvent(
-        component,
-        MouseEvent.MOUSE_PRESSED,
-        0L,
-        0,
-        3,
-        4,
-        1,
-        // popupTrigger = true: this is the platform popup gesture.
-        true,
-    )
-
-    /**
-     * Closes [popup] the way it closes on its own: Swing publishes the close to the popup's listeners as
-     * it goes invisible, whether the user selected an item, pressed Escape or clicked away.
-     */
-    private fun publishClose(popup: JPopupMenu) {
-        popup.popupMenuListeners.forEach { it.popupMenuWillBecomeInvisible(PopupMenuEvent(popup)) }
-    }
-
     @Test
     fun popupTriggerBuildsAPopupMirroringTheComposedMenu() = runComposeSwingTest {
         var captured: JPopupMenu? = null
@@ -423,108 +400,6 @@ class ContextMenuModifierTest {
     }
 
     @Test
-    fun droppingTheModifierRemovesThePopupTrigger() = runComposeSwingTest {
-        var captured: JPopupMenu? = null
-        var withMenu by mutableStateOf(true)
-        setContent {
-            val modifier =
-                if (withMenu) {
-                    SwingModifier.contextMenu(
-                        display = { popup, _, _, _ -> captured = popup },
-                    ) {
-                        MenuItem("Cut", onClick = { })
-                    }
-                } else {
-                    SwingModifier
-                }
-            Label("target", modifier = modifier)
-        }
-        val target = onNodeOfType<JLabel>().fetch()
-        target.dispatchEvent(popupTrigger(target))
-        assertEquals(
-            listOf("Cut"),
-            (captured ?: error("no popup")).menuItemTexts(),
-            "the composed menu must open while the modifier is in the chain",
-        )
-
-        withMenu = false
-        awaitIdle()
-        captured = null
-        target.dispatchEvent(popupTrigger(target))
-        assertNull(captured, "a popup gesture must build no menu once the modifier leaves the chain")
-
-        withMenu = true
-        awaitIdle()
-        target.dispatchEvent(popupTrigger(target))
-        assertEquals(
-            listOf("Cut"),
-            (captured ?: error("no popup")).menuItemTexts(),
-            "the menu must open again once the modifier returns to the chain",
-        )
-    }
-
-    @Test
-    fun droppingTheModifierRestoresTheComponentsPopupMenu() = runComposeSwingTest {
-        var withMenu by mutableStateOf(true)
-        setContent {
-            val modifier =
-                if (withMenu) {
-                    SwingModifier.contextMenu { MenuItem("Cut", onClick = { }) }
-                } else {
-                    SwingModifier
-                }
-            Label("target", modifier = modifier)
-        }
-        val target = onNodeOfType<JLabel>().fetch()
-        assertNotNull(
-            target.componentPopupMenu,
-            "the declared menu must be the component's popup menu while the modifier is in the chain",
-        )
-
-        withMenu = false
-        awaitIdle()
-        assertNull(
-            target.componentPopupMenu,
-            "the popup menu the component carried before the declaration must come back",
-        )
-    }
-
-    @Test
-    fun droppingTheModifierClearsTheOwnMenuRatherThanPinningAnInheritedOne() = runComposeSwingTest {
-        var withMenu by mutableStateOf(true)
-        setContent {
-            Column(modifier = SwingModifier.contextMenu { MenuItem("Outer", onClick = { }) }) {
-                val inner =
-                    if (withMenu) {
-                        SwingModifier.contextMenu { MenuItem("Inner", onClick = { }) }
-                    } else {
-                        SwingModifier
-                    }
-                SwingNode(
-                    factory = { JLabel("target").apply { inheritsPopupMenu = true } },
-                    update = { applyModifier(inner) },
-                )
-            }
-        }
-        val target = onNodeOfType<JLabel>().fetch()
-        assertNotNull(
-            target.componentPopupMenu,
-            "the declared inner menu must be the component's popup menu while the modifier is in the chain",
-        )
-
-        withMenu = false
-        awaitIdle()
-
-        // With inheritance switched off, getComponentPopupMenu() answers the component's own field
-        // directly: a captured-and-restored ancestor menu would still show up here, a cleared one would not.
-        target.inheritsPopupMenu = false
-        assertNull(
-            target.componentPopupMenu,
-            "the component's own popup menu must be cleared, not left pinned to the ancestor menu it inherited",
-        )
-    }
-
-    @Test
     fun eitherGestureReportsTheMenuOpening() = runComposeSwingTest {
         val opened = mutableListOf<List<String?>>()
         var captured: JPopupMenu? = null
@@ -632,6 +507,44 @@ class ContextMenuModifierTest {
 
         assertFailsWith<IllegalComponentStateException> { target.dispatchEvent(popupTrigger(target)) }
         assertEquals(0, opens, "a menu that never reached the screen has not opened")
+    }
+
+    @Test
+    fun aPresentationThatDeclinesTheMenuDoesNotStrandItsComposition() = runComposeSwingTest {
+        var released = 0
+        var displayCalls = 0
+        var captured: JPopupMenu? = null
+        setContent {
+            Label(
+                "target",
+                modifier =
+                    SwingModifier.contextMenu(
+                        display = { popup, _, _, _ ->
+                            displayCalls++
+                            // The first trigger declines the menu - captured stays null, the way a
+                            // display seam that has nowhere to put the menu would leave it.
+                            if (displayCalls > 1) captured = popup
+                        },
+                    ) {
+                        DisposableEffect(Unit) { onDispose { released++ } }
+                        MenuItem("Cut", onClick = { })
+                    },
+            )
+        }
+        val target = onNodeOfType<JLabel>().fetch()
+
+        target.dispatchEvent(popupTrigger(target))
+        assertEquals(0, released, "a declined menu is not disposed by the decline itself")
+
+        target.dispatchEvent(popupTrigger(target))
+        awaitIdle()
+
+        assertEquals(
+            1,
+            released,
+            "a menu the presentation declined must not be stranded: the next trigger disposes it",
+        )
+        assertNotNull(captured, "the second trigger's own menu is still presented normally")
     }
 
     @Test

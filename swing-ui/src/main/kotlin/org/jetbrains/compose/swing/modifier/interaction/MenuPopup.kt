@@ -15,15 +15,15 @@ import javax.swing.event.PopupMenuListener
  * them, so the menu sees the same state and composition locals as its declaration site.
  *
  * The menu composition is released as soon as the popup closes, however it closed, so nothing that
- * declared a menu keeps one alive: [onClosed] reports the popup closing on its own, and [close] takes
- * the menu away without reporting anything.
+ * declared a menu keeps one alive: [onClosed] reports the popup closing on its own, handing over the
+ * menu that closed, and [close] takes the menu away without reporting anything.
  */
 internal class MenuPopup(
     parentContext: CompositionContext,
     content:
         @Composable @SwingMenuComposable
         () -> Unit,
-    private val onClosed: () -> Unit,
+    private val onClosed: (MenuPopup) -> Unit,
 ) {
     val popup: JPopupMenu = JPopupMenu()
 
@@ -42,7 +42,7 @@ internal class MenuPopup(
                 closed = true
                 popup.removePopupMenuListener(this)
                 mount.dispose()
-                onClosed()
+                onClosed(this@MenuPopup)
             }
 
             override fun popupMenuCanceled(event: PopupMenuEvent) = Unit

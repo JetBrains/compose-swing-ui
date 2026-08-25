@@ -362,3 +362,21 @@ internal class SwingNodeHolder<out T : Component>
             }
         }
     }
+
+/**
+ * Whether this child's component really stands in its host's container, which is what a position among
+ * a host's children is counted over. A child the pass has taken in but not attached yet is not there
+ * yet, and a parked one is not there any more - the runtime keeps its place in the composition, so it
+ * goes on standing in [SwingNodeHolder.children] with its component already detached.
+ */
+internal val SwingNodeHolder<*>.attachedToHost: Boolean
+    get() = !awaitingAttachment && !deactivated
+
+/**
+ * The place among this host's attached children that the child composed at [index] takes: the siblings
+ * ahead of it that are attached already. A host mid-pass holds every child the composition put here,
+ * including any it has yet to attach or has parked, so the position handed to a host is counted rather
+ * than composed.
+ */
+internal fun SwingNodeHolder<*>.attachedSiblingsBefore(index: Int): Int =
+    (0 until index).count { children[it].attachedToHost }

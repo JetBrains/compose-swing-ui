@@ -35,13 +35,14 @@ import javax.swing.JPopupMenu
  * visible to the menu items and to their callbacks.
  *
  * [onOpen] reports the menu reaching the screen and [onClose] the user closing it - selecting an item,
- * pressing Escape, clicking away. A menu reports one open and one close, whichever gesture opened it
- * and whichever way it went away. The close is the toolkit's own doing and cannot be refused, so
- * [onClose] reports a close rather than asking for one.
+ * pressing Escape, clicking away. The close is the toolkit's own doing and cannot be refused, so
+ * [onClose] reports a close rather than asking for one. A menu another gesture replaces, or that the
+ * declaration takes away by leaving the chain, is released without a close of its own.
  *
  * Call this `@Composable` builder where you build the component's modifier chain, and pass a fresh
  * [content] lambda each recomposition. The popup is dismissed and its resources released when the user
- * closes it.
+ * closes it, when another gesture opens a menu of its own, and when the declaration leaves the chain
+ * while the menu is open.
  *
  * For a menu the application opens itself - a drop-down button, an overflow menu, a shortcut - use
  * [popupMenu].
@@ -139,7 +140,7 @@ private class ContextMenuElement(
 
     /**
      * The node backing [ContextMenuElement]: makes the target's popup menu the one every gesture opens,
-     * and installs the popup-trigger mouse listener.
+     * installs the popup-trigger mouse listener, and takes an open menu away when the declaration goes.
      */
     class Node(
         var parentContext: CompositionContext,
@@ -163,13 +164,30 @@ private class ContextMenuElement(
                     x: Int,
                     y: Int,
                 ) {
-                    val menu = MenuPopup(parentContext, content, onClosed = { onClose() })
+                    // A predecessor still held here never reached the screen - the display below may
+                    // decline this one too - so it is taken down rather than left running unreachable.
+                    open?.close()
+                    val menu = MenuPopup(parentContext, content, onClosed = ::onMenuClosed)
+                    open = menu
                     // The open is reported once the presentation has put the menu on screen, so a
                     // presentation that refuses the menu reports no open.
                     display(menu.popup, invoker, x, y)
                     onOpen()
                 }
             }
+
+        // The menu currently on screen, if any, so detach can take it away: a menu the composition
+        // stops declaring must not keep running, even though nothing dismissed it.
+        private var open: MenuPopup? = null
+
+        private fun onMenuClosed(menu: MenuPopup) {
+            // Only the menu this node still tracks clears the field. Putting a popup on screen hides
+            // whatever popup the toolkit's selection path already held, in the same call and before it
+            // returns, so a close landing here can be one for a menu already replaced - which is how
+            // detach came to close nothing and leave the replacement running.
+            if (open === menu) open = null
+            onClose()
+        }
 
         private var original: JPopupMenu? = null
 
@@ -201,6 +219,10 @@ private class ContextMenuElement(
         }
 
         override fun onDetach() {
+            // Closing is idempotent and reports nothing, so a menu the composition takes away this way
+            // raises no close event - matching a menu the user closed, which is already gone here.
+            open?.close()
+            open = null
             component.removeMouseListener(listener)
             component.componentPopupMenu = original
         }

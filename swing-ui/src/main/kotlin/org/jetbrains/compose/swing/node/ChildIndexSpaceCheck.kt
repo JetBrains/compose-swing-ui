@@ -4,7 +4,6 @@ import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import java.awt.Component
 import java.awt.Container
 import java.util.IdentityHashMap
-import javax.swing.SwingUtilities
 
 /**
  * Turns on the debug-only walk that holds an applier's [SwingNodeHolder.children] index space to the
@@ -22,35 +21,13 @@ import javax.swing.SwingUtilities
 public var debugValidateChildIndexSpace: Boolean = false
 
 /**
- * Runs [check] once on the turn of the event queue after the one a change pass was applied in - the
- * same turn, and for the same reason, `DeferredRegionCheck` waits for: only there has a parked node's
- * deactivation, dispatched by the runtime once the changes applying it are themselves applied, actually
- * run.
- */
-internal class DeferredCheck(
-    private val check: () -> Unit,
-) {
-    private var scheduled: Boolean = false
-
-    /** Asks for the check on the next turn of the event queue, once for however many passes ask in this one. */
-    fun schedule() {
-        if (scheduled) return
-        scheduled = true
-        SwingUtilities.invokeLater {
-            scheduled = false
-            check()
-        }
-    }
-}
-
-/**
  * Debug-only: holds this applier's whole [SwingNodeHolder.children] index space to the real Swing state
  * it stands for. See [debugValidateChildIndexSpace] for when this runs and what it costs.
  *
- * Runs through [DeferredCheck], on the same turn `checkOneChildPerRegion` and `checkRootShowsOneChild`
- * are called on - see that type for why a turn is waited at all. Checked mid-pass instead, this would
- * refuse states the composition itself allows while a pass is still running: a relocated child stands in
- * its new host's children before its component is attached anywhere, and a region may briefly hold two
+ * Deferred a turn, on the same one `checkOneChildPerRegion` and `checkRootShowsOneChild` are called on -
+ * see `DeferredRegionCheck` for what that turn is worth. Checked mid-pass instead, this would refuse
+ * states the composition itself allows while a pass is still running: a relocated child stands in its
+ * new host's children before its component is attached anywhere, and a region may briefly hold two
  * children while a replacement arrives before the child it replaces leaves.
  */
 internal fun SwingNodeHolder<*>.checkChildIndexSpace() {

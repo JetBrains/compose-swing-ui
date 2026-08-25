@@ -161,6 +161,130 @@ class MenuApplierTest {
     }
 
     @Test
+    fun insertAfterAParkedSiblingLandsAfterTheSurvivor() {
+        val popup = JPopupMenu()
+        val applier = MenuApplier(popup)
+        val first = holder(namedItem("first"))
+
+        applier.onBeginChanges()
+        applier.onNode(applier.root) {
+            insertBottomUp(0, first)
+            insertBottomUp(1, holder(namedItem("second")))
+        }
+        applier.onEndChanges()
+
+        // Park the first item the way the runtime parks reusable content: the lifecycle callback
+        // detaches the component while the holder keeps its place in the composition.
+        first.onDeactivate()
+        assertEquals(listOf("second"), itemNames(popup), "a parked item leaves the popup")
+
+        applier.onBeginChanges()
+        applier.onNode(applier.root) {
+            // The runtime still counts the parked group, so the composition index is past the end of
+            // what the popup holds.
+            insertBottomUp(2, holder(namedItem("third")))
+        }
+        applier.onEndChanges()
+
+        assertEquals(
+            listOf("second", "third"),
+            itemNames(popup),
+            "an item inserted after a parked sibling must land after the survivor",
+        )
+    }
+
+    @Test
+    fun removeOfAParkedHolderLeavesTheAttachedItemsAlone() {
+        val popup = JPopupMenu()
+        val applier = MenuApplier(popup)
+        val first = holder(namedItem("first"))
+
+        applier.onBeginChanges()
+        applier.onNode(applier.root) {
+            insertBottomUp(0, first)
+            insertBottomUp(1, holder(namedItem("second")))
+        }
+        applier.onEndChanges()
+        first.onDeactivate()
+
+        // Reactivating parked content replays as the runtime does for a non-reusable node: the parked
+        // node is deleted and a fresh one inserted in its place.
+        applier.onBeginChanges()
+        applier.onNode(applier.root) {
+            remove(0, 1)
+            insertBottomUp(0, holder(namedItem("fresh")))
+        }
+        applier.onEndChanges()
+
+        assertEquals(
+            listOf("fresh", "second"),
+            itemNames(popup),
+            "deleting a parked holder must not take an attached item with it",
+        )
+    }
+
+    @Test
+    fun movingAcrossAParkedSiblingKeepsTheDeclaredOrder() {
+        val popup = JPopupMenu()
+        val applier = MenuApplier(popup)
+        val first = holder(namedItem("a"))
+
+        applier.onBeginChanges()
+        applier.onNode(applier.root) {
+            insertBottomUp(0, first)
+            insertBottomUp(1, holder(namedItem("b")))
+            insertBottomUp(2, holder(namedItem("c")))
+        }
+        applier.onEndChanges()
+
+        first.onDeactivate()
+        assertEquals(listOf("b", "c"), itemNames(popup), "a parked item leaves the popup")
+
+        applier.onBeginChanges()
+        applier.onNode(applier.root) {
+            // The composition puts "c" between the parked "a" and "b"; the popup has no position 1.
+            move(2, 1, 1)
+        }
+        applier.onEndChanges()
+
+        assertEquals(
+            listOf("c", "b"),
+            itemNames(popup),
+            "a move must count its target position over the siblings the popup actually holds",
+        )
+    }
+
+    @Test
+    fun movingARangeThatHoldsAParkedHolderLeavesItDetached() {
+        val popup = JPopupMenu()
+        val applier = MenuApplier(popup)
+        val first = holder(namedItem("a"))
+
+        applier.onBeginChanges()
+        applier.onNode(applier.root) {
+            insertBottomUp(0, first)
+            insertBottomUp(1, holder(namedItem("b")))
+            insertBottomUp(2, holder(namedItem("c")))
+        }
+        applier.onEndChanges()
+
+        first.onDeactivate()
+
+        applier.onBeginChanges()
+        applier.onNode(applier.root) {
+            // Move the range ["a", "b"] past "c"; the parked "a" travels with it in composition order.
+            move(0, 3, 2)
+        }
+        applier.onEndChanges()
+
+        assertEquals(
+            listOf("c", "b"),
+            itemNames(popup),
+            "a moved range must re-add only the children the popup holds, and the parked one must stay out",
+        )
+    }
+
+    @Test
     fun popupMenuRootAcceptsItemsAndClears() {
         val popup = JPopupMenu()
         val applier = MenuApplier(popup)

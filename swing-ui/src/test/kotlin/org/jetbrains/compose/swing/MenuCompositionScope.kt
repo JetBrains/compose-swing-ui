@@ -12,6 +12,7 @@ import javax.swing.JMenu
 import javax.swing.JMenuItem
 import javax.swing.JPopupMenu
 import javax.swing.JSeparator
+import javax.swing.event.PopupMenuEvent
 
 /**
  * Composes [menu] into a popup menu nested in the harness composition and returns the populated popup.
@@ -25,13 +26,10 @@ internal suspend fun ComposeSwingTest.composeMenu(
         @Composable @SwingMenuComposable
         () -> Unit,
 ): JPopupMenu {
-    var context: CompositionContext? = null
-    setContent { context = captureContext() }
-
     var captured: JPopupMenu? = null
     val host =
         TrayMenuHost(
-            parentContext = context ?: error("no context"),
+            parentContext = captureParentContext(),
             display = { popup, _, _ -> captured = popup },
             menu = menu,
         )
@@ -39,6 +37,16 @@ internal suspend fun ComposeSwingTest.composeMenu(
     awaitIdle()
 
     return captured ?: error("the menu was not composed")
+}
+
+/**
+ * Mounts the harness root and returns the composition context a menu nests into - the parent a
+ * [TrayMenuHost] or [composeMenu] menu composition is built under.
+ */
+internal fun ComposeSwingTest.captureParentContext(): CompositionContext {
+    var context: CompositionContext? = null
+    setContent { context = captureContext() }
+    return context ?: error("no context")
 }
 
 @Composable
@@ -76,6 +84,14 @@ internal fun JPopupMenu.menuItemTexts(): List<String?> = components.map { it.men
  * Must be called on the EDT.
  */
 internal fun JMenu.menuItemTexts(): List<String?> = popupMenu.menuItemTexts()
+
+/**
+ * Closes [popup] the way it closes on its own: Swing publishes the close to the popup's listeners as
+ * it goes invisible, whether the user selected an item, pressed Escape or clicked away.
+ */
+internal fun publishClose(popup: JPopupMenu) {
+    popup.popupMenuListeners.forEach { it.popupMenuWillBecomeInvisible(PopupMenuEvent(popup)) }
+}
 
 /** The label one component of a menu contributes. */
 private fun Component.menuLabel(): String? = when (this) {

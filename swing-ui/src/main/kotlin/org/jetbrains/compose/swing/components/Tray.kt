@@ -15,8 +15,7 @@ import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import org.jetbrains.compose.swing.annotations.SwingMenuComposable
 import org.jetbrains.compose.swing.core.KeepEnclosingApplicationAlive
-import org.jetbrains.compose.swing.core.SwingCompositionMount
-import org.jetbrains.compose.swing.node.MenuApplier
+import org.jetbrains.compose.swing.modifier.interaction.MenuPopup
 import java.awt.Image
 import java.awt.SystemTray
 import java.awt.TrayIcon
@@ -117,6 +116,9 @@ public fun Tray(
         val systemTray = SystemTray.getSystemTray()
         systemTray.add(trayIcon)
         onDispose {
+            // Close an open tray menu before its icon goes: the menu is a child composition of this
+            // one, and hiding it now keeps it from outliving the icon that opened it.
+            menuHost.closeMenu()
             systemTray.remove(trayIcon)
             trayIcon.removeActionListener(actionListener)
             trayIcon.removeMouseListener(mouseListener)
@@ -127,7 +129,8 @@ public fun Tray(
 /**
  * Builds and presents the popup menu of a [Tray]. On each [showMenu] call it composes [menu] fresh into
  * a [JPopupMenu] nested in [parentContext], so the menu reflects the current composition state, then
- * hands the populated popup to [display]. The menu composition is disposed when the popup closes.
+ * hands the populated popup to [display]. The menu composition is disposed when the popup closes, when
+ * a newer [showMenu] call replaces it, or when [closeMenu] closes it.
  *
  * @param parentContext the composition context the popup menu nests into.
  * @param display presents the populated popup at the gesture point; the production default shows it
@@ -142,18 +145,32 @@ public class TrayMenuHost(
         @Composable @SwingMenuComposable
         () -> Unit,
 ) {
-    /** Composes [menu] into a fresh [JPopupMenu] and presents it through [display] at ([x], [y]). */
+    private var open: MenuPopup? = null
+
+    /**
+     * Composes [menu] into a fresh [JPopupMenu] and presents it through [display] at ([x], [y]),
+     * closing the previously shown menu first.
+     */
     public fun showMenu(
         x: Int,
         y: Int,
     ) {
-        val popup = JPopupMenu()
-        val mount = SwingCompositionMount.nestedUnobserved(parentContext) { MenuApplier(popup) }
-        mount.setContent(menu)
+        closeMenu()
 
-        popup.doOnHiddenOnce { mount.dispose() }
+        // Only the menu still tracked clears the field: a close can land here for one already replaced.
+        // See ContextMenuElement.Node.onMenuClosed.
+        val shown = MenuPopup(parentContext, menu) { closing -> if (open === closing) open = null }
+        open = shown
+        display(shown.popup, x, y)
+    }
 
-        display(popup, x, y)
+    /**
+     * Closes the menu last shown by [showMenu]: hides its popup and disposes its menu composition.
+     * A no-op when no menu is open, so it is safe to call repeatedly.
+     */
+    public fun closeMenu() {
+        open?.close()
+        open = null
     }
 }
 

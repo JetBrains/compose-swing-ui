@@ -1,6 +1,7 @@
 package org.jetbrains.compose.swing.node
 
 import androidx.compose.runtime.AbstractApplier
+import org.jetbrains.compose.swing.util.DeferredAction
 import java.awt.Component
 import java.awt.Container
 import javax.swing.JComponent
@@ -11,7 +12,15 @@ import javax.swing.JPopupMenu
 /**
  * Applier for the menu tree: `JMenuBar`/`JMenu`/`JPopupMenu` containers and `JMenuItem`/`JSeparator`
  * leaves, placed by index. Every container a change pass touches is revalidated and repainted once,
- * in [onEndChanges].
+ * in [onEndChanges], and every popup of the tree that is on screen is packed there and once more on
+ * the event-queue turn that follows, so a menu open while the pass ran takes the size of what it
+ * shows now.
+ *
+ * Each node keeps its [SwingNodeHolder.children] in composition order, which is the index space the
+ * runtime addresses. A parked child stands in that list with its component already detached - the
+ * runtime keeps a deactivated group's place while the container no longer holds the item - so the
+ * position handed to a container is counted over the siblings actually attached, and a remove or a
+ * move addresses each child's component by identity rather than by container index.
  *
  * The root is a [JMenuBar] for a window menu bar, or a [JPopupMenu] for a context menu.
  *
@@ -24,6 +33,14 @@ internal class MenuApplier(
     /** The bookkeeping for the batch of component updates in flight. */
     private val batch = ComponentUpdateBatch()
 
+    /**
+     * Packs the showing popups once more, on the turn of the event queue after the one a change pass
+     * was applied in: the runtime dispatches a parked node's [SwingNodeHolder.onDeactivate] - which
+     * detaches its component - after [onEndChanges], so a popup packed there still holds the parked
+     * item's space.
+     */
+    private val deferredPack = DeferredAction { this.root.packShowingPopups() }
+
     /** Menu nodes attach to their container on the bottom-up pass, so this pass has nothing to do. */
     override fun insertTopDown(
         index: Int,
@@ -34,8 +51,10 @@ internal class MenuApplier(
         index: Int,
         instance: SwingNodeHolder<*>,
     ) {
-        val container = menuContainer("add menu child ${instance.component}")
-        container.add(instance.component, index)
+        val parent = current
+        val container = parent.menuContainer("add menu child ${instance.component}")
+        container.add(instance.component, parent.attachedSiblingsBefore(index))
+        parent.children.add(index, instance)
         batch.markChanged(container)
     }
 
@@ -43,8 +62,14 @@ internal class MenuApplier(
         index: Int,
         count: Int,
     ) {
-        val container = menuContainer("remove menu children")
-        repeat(count) { container.remove(index) }
+        val parent = current
+        val container = parent.menuContainer("remove menu children")
+        // Each child leaves by component identity: a parked child's component is already detached, so
+        // the container holds nothing at that child's composition index, and `Container.remove(Component)`
+        // on a detached component is a no-op.
+        val removed = parent.children.subList(index, index + count)
+        for (holder in removed) container.remove(holder.component)
+        removed.clear()
         batch.markChanged(container)
     }
 
@@ -53,19 +78,21 @@ internal class MenuApplier(
         to: Int,
         count: Int,
     ) {
-        val container = menuContainer("move menu children")
         if (from == to) return
+        val parent = current
+        val container = parent.menuContainer("move menu children")
 
-        val moved = ArrayList<Component>(count)
-        repeat(count) {
-            moved += container.getComponent(from)
-            container.remove(from)
-        }
-        // Removing `count` items at `from` shifts indices above `from` down by `count`; mirrors
+        val children = parent.children
+        val moved = ArrayList(children.subList(from, from + count))
+        for (holder in moved) container.remove(holder.component)
+        children.subList(from, from + count).clear()
+        // Removing `count` children at `from` shifts indices above `from` down by `count`; mirrors
         // SwingApplier.move's index math.
-        val insertIndex = if (from > to) to else to - count
-        moved.forEachIndexed { offset, component ->
-            container.add(component, insertIndex + offset)
+        val targetBase = if (from > to) to else to - count
+        children.addAll(targetBase, moved)
+        moved.forEachIndexed { offset, holder ->
+            if (!holder.attachedToHost) return@forEachIndexed
+            container.add(holder.component, parent.attachedSiblingsBefore(targetBase + offset))
         }
         batch.markChanged(container)
     }
@@ -73,6 +100,7 @@ internal class MenuApplier(
     override fun onClear() {
         val rootMenu = root.component
         removeAllChildren(rootMenu)
+        root.children.clear()
         (rootMenu as? Container)?.let { batch.markChanged(it) }
     }
 
@@ -84,19 +112,26 @@ internal class MenuApplier(
     override fun onEndChanges() {
         super.onEndChanges()
         batch.end {}
+        // Packed after every pass, not only after container changes: an update block that lengthens an
+        // item's text touches no container.
+        root.packShowingPopups()
+        deferredPack.schedule()
     }
 
     /**
-     * The current node as a menu container that accepts `add`/`remove(index)`. A `JMenu`'s children
-     * live in its popup; `JMenuBar` and `JPopupMenu` are used as-is.
+     * Packs every popup of this subtree that is on screen: a realized popup keeps the size it was shown
+     * with, so items added, removed or resized while it is open would otherwise be clipped or leave a
+     * blank strip. Packing a popup that is not on screen is already a no-op, so the visibility check
+     * only spares the walk.
      */
-    private fun menuContainer(action: String): Container =
-        when (val node = current.component) {
-            is JMenu -> node.popupMenu
-            is JMenuBar -> node
-            is JPopupMenu -> node
-            else -> error("Current menu node $node is not a menu container, cannot $action")
+    private fun SwingNodeHolder<*>.packShowingPopups() {
+        when (val node = component) {
+            is JPopupMenu -> if (node.isVisible) node.pack()
+            is JMenu -> node.popupMenu.let { if (it.isVisible) it.pack() }
+            else -> Unit
         }
+        for (child in children) child.packShowingPopups()
+    }
 
     private fun removeAllChildren(node: Component) {
         when (node) {
@@ -107,3 +142,17 @@ internal class MenuApplier(
         }
     }
 }
+
+/**
+ * The Swing container this node holds its menu children in: a `JMenu`'s children live in its popup;
+ * `JMenuBar` and `JPopupMenu` are used as-is.
+ *
+ * @param action what the container is wanted for, named where the node is no menu container at all.
+ */
+private fun SwingNodeHolder<*>.menuContainer(action: String): Container =
+    when (val node = component) {
+        is JMenu -> node.popupMenu
+        is JMenuBar -> node
+        is JPopupMenu -> node
+        else -> error("Current menu node $node is not a menu container, cannot $action")
+    }

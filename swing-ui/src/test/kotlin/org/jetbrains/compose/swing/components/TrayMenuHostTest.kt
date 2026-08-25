@@ -1,11 +1,9 @@
 package org.jetbrains.compose.swing.components
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.captureParentContext
 import org.jetbrains.compose.swing.menuItemTexts
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JMenu
@@ -27,13 +25,10 @@ import kotlin.test.assertEquals
 class TrayMenuHostTest {
     @Test
     fun showMenuBuildsAMenuMirroringTheComposition() = runComposeSwingTest {
-        var context: CompositionContext? = null
-        setContent { context = captureContext() }
-
         var captured: JPopupMenu? = null
         val host =
             TrayMenuHost(
-                parentContext = context ?: error("no context"),
+                parentContext = captureParentContext(),
                 display = { popup, _, _ -> captured = popup },
                 menu = {
                     MenuItem("Open", onClick = { })
@@ -57,14 +52,11 @@ class TrayMenuHostTest {
 
     @Test
     fun selectingAMenuItemRunsItsCallback() = runComposeSwingTest {
-        var context: CompositionContext? = null
-        setContent { context = captureContext() }
-
         var clicked = 0
         var captured: JPopupMenu? = null
         val host =
             TrayMenuHost(
-                parentContext = context ?: error("no context"),
+                parentContext = captureParentContext(),
                 display = { popup, _, _ -> captured = popup },
                 menu = { MenuItem("Quit", onClick = { clicked++ }) },
             )
@@ -79,14 +71,11 @@ class TrayMenuHostTest {
 
     @Test
     fun theMenuReflectsCurrentCompositionStateOnEachOpen() = runComposeSwingTest {
-        var context: CompositionContext? = null
         var showExtra by mutableStateOf(false)
-        setContent { context = captureContext() }
-
         var captured: JPopupMenu? = null
         val host =
             TrayMenuHost(
-                parentContext = context ?: error("no context"),
+                parentContext = captureParentContext(),
                 display = { popup, _, _ -> captured = popup },
                 menu = {
                     MenuItem("Always", onClick = { })
@@ -112,13 +101,5 @@ class TrayMenuHostTest {
             (captured ?: error("no popup")).menuItemTexts(),
             "a popup opened after the state flips reflects the new state",
         )
-    }
-
-    @Composable
-    private fun captureContext(): CompositionContext {
-        // Compose something so the harness root settles, while capturing the surrounding context the
-        // tray menu nests into.
-        Label("host")
-        return rememberCompositionContext()
     }
 }

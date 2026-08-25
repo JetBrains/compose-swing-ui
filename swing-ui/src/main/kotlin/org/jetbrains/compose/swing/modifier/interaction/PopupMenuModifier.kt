@@ -185,8 +185,10 @@ private class PopupMenuElement(
             display(menu.popup, component, 0, component.height)
         }
 
-        private fun onMenuClosed() {
-            open = null
+        private fun onMenuClosed(menu: MenuPopup) {
+            // Only the menu this node still tracks clears the field - see
+            // ContextMenuElement.Node.onMenuClosed for the close that lands here for one already gone.
+            if (open === menu) open = null
             onDismiss()
         }
 

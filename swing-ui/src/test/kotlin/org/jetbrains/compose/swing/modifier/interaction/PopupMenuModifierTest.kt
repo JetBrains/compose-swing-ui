@@ -13,6 +13,7 @@ import org.jetbrains.compose.swing.components.MenuItem
 import org.jetbrains.compose.swing.components.MenuSeparator
 import org.jetbrains.compose.swing.menuItemTexts
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.publishClose
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.onWindowWithTitle
@@ -25,7 +26,6 @@ import javax.swing.JLabel
 import javax.swing.JMenu
 import javax.swing.JMenuItem
 import javax.swing.JPopupMenu
-import javax.swing.event.PopupMenuEvent
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -46,14 +46,6 @@ import kotlin.test.assertTrue
  * contract, so the user's dismissal travels its production path.
  */
 class PopupMenuModifierTest {
-    /**
-     * Closes [popup] the way it closes on its own: Swing publishes the close to the popup's listeners as
-     * it goes invisible, whether the user selected an item, pressed Escape or clicked away.
-     */
-    private fun publishClose(popup: JPopupMenu) {
-        popup.popupMenuListeners.forEach { it.popupMenuWillBecomeInvisible(PopupMenuEvent(popup)) }
-    }
-
     @Test
     fun anExpandedMenuComposesTheDeclaredItems() = runComposeSwingTest {
         var captured: JPopupMenu? = null

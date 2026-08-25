@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.node
 import androidx.compose.runtime.AbstractApplier
 import androidx.compose.runtime.snapshots.SnapshotStateObserver
 import org.jetbrains.compose.swing.core.trace
+import org.jetbrains.compose.swing.util.DeferredAction
 import java.awt.Container
 import java.util.Collections
 import java.util.IdentityHashMap
@@ -287,7 +288,7 @@ private class ChildRegions(
         }
 
     /** The debug-only child-index-space walk, deferred the same turn and for the same reason as [regionCheck]. */
-    private val indexSpaceCheck = DeferredCheck { this.root.checkChildIndexSpace() }
+    private val indexSpaceCheck = DeferredAction { this.root.checkChildIndexSpace() }
 
     init {
         // The root is the one node no composable declares, so the code that mounts the composition says
@@ -459,7 +460,7 @@ private class ChildRegions(
 private const val ROOT_SLOT_NAME: String = "content"
 
 /**
- * The hosts to hold to one child per region, checked by [check] on the turn [DeferredCheck] runs it -
+ * The hosts to hold to one child per region, checked by [check] on the turn [DeferredAction] runs it -
  * see that type for why a turn is waited at all.
  */
 private class DeferredRegionCheck(
@@ -467,7 +468,7 @@ private class DeferredRegionCheck(
 ) {
     private val hosts: MutableSet<SwingNodeHolder<*>> = Collections.newSetFromMap(IdentityHashMap())
     private val turn =
-        DeferredCheck {
+        DeferredAction {
             val pending = hosts.toList()
             hosts.clear()
             for (host in pending) check(host)
@@ -631,24 +632,6 @@ private fun SwingNodeHolder<*>.checkPlacementOf(
         mixedChildKinds(host, child, fillsRegion)
     }
 }
-
-/**
- * Whether this child's component really stands in its host's container, which is what a position among
- * a host's children is counted over. A child the pass has taken in but not attached yet is not there
- * yet, and a parked one is not there any more - the runtime keeps its place in the composition, so it
- * goes on standing in [SwingNodeHolder.children] with its component already detached.
- */
-private val SwingNodeHolder<*>.attachedToHost: Boolean
-    get() = !awaitingAttachment && !deactivated
-
-/**
- * The place among this host's attached children that the child composed at [index] takes: the siblings
- * ahead of it that are attached already. A host mid-pass holds every child the composition put here,
- * including any it has yet to attach or has parked, so the position handed to a host is counted rather
- * than composed.
- */
-private fun SwingNodeHolder<*>.attachedSiblingsBefore(index: Int): Int =
-    (0 until index).count { children[it].attachedToHost }
 
 /**
  * Holds a child to the placement this host declares: a host that holds its children in regions of its own

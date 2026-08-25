@@ -6,8 +6,8 @@ package org.jetbrains.compose.swing.components.layout
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
-import org.jetbrains.compose.swing.node.DeferredCheck
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.util.DeferredAction
 import java.awt.CardLayout
 import java.awt.Component
 import javax.swing.JPanel
@@ -71,9 +71,14 @@ private class StateCardPanel(
             applyTargetCard()
         }
 
-    /** Checks the deck holds one child per card, deferred the turn [DeferredCheck] waits for. */
+    /**
+     * Checks the deck holds one child per card, on the turn of the event queue after the one the children
+     * were added in. Mid-pass a card can hold two, when the child replacing another arrives before that
+     * one has left: a parked child gives its place up in a deactivation the runtime dispatches only once
+     * the pass parking it is applied whole.
+     */
     private val cardCheck =
-        DeferredCheck {
+        DeferredAction {
             val repeated = (layout as CardDeckLayout).repeatedCardName()
             if (repeated != null) cardHeldByMoreThanOneChild(repeated)
         }
