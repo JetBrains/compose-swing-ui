@@ -19,10 +19,10 @@ import kotlin.test.assertTrue
  * the node's own factory: a controlled selection reaches the fresh list the same way it reaches any
  * freshly composed one.
  *
- * A composable cell is owned by the composition too: the island stamping it lives only while the node is
- * in the composition, so a list that outlives its own composable cell - parked before it is torn down -
- * paints that row through the renderer it renders through before that cell, and the fresh list
- * reactivation builds stamps the composable cell again.
+ * A composable cell is owned by the composition too: the cell composition stamping it lives only while
+ * the node is in the composition, so a list that outlives its own composable cell - parked before it is
+ * torn down - paints that row through the renderer it renders through before that cell, and the fresh
+ * list reactivation builds stamps the composable cell again.
  */
 class ListBoxNodeReuseTest {
     private val colors = listOf("red", "green")
@@ -45,7 +45,7 @@ class ListBoxNodeReuseTest {
         active = false
         awaitIdle()
 
-        // A parked list keeps painting through whatever renderer it carries once the cell island behind
+        // A parked list keeps painting through whatever renderer it carries once the composition stamping
         // its composable cell is gone: the renderer it rendered through before that cell is what has to
         // be back on it by then.
         val parked = list.stampCell(index = 0)

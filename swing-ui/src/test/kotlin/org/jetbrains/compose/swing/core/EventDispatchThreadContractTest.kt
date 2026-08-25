@@ -1,7 +1,10 @@
 package org.jetbrains.compose.swing.core
 
+import androidx.compose.runtime.CompositionContext
 import kotlinx.coroutines.DisposableHandle
 import org.jetbrains.compose.swing.setContent
+import org.jetbrains.compose.swing.setContentAsInteropHost
+import org.jetbrains.compose.swing.setContentAsMenuInteropHost
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.GraphicsEnvironment
 import javax.swing.JFrame
@@ -11,14 +14,16 @@ import javax.swing.SwingUtilities
 import kotlin.test.Test
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Pins the thread-confinement contract of the composition entry points: every `setContent` overload,
- * and the handle each one hands back, must run on the Swing Event Dispatch Thread, and a call from any
- * other thread fails immediately with an [IllegalStateException] naming the offending thread - instead
- * of mounting or tearing down a composition whose applier would then mutate Swing state off the EDT.
+ * Pins the thread-confinement contract of the composition entry points, both ways: every `setContent`
+ * overload must run on the Swing Event Dispatch Thread, and so must disposing what it returns - a
+ * disposal empties the caller's container, which is as much a Swing mutation as mounting into it. A
+ * call from any other thread fails immediately with an [IllegalStateException] naming the offending
+ * thread - instead of mutating Swing state off the EDT.
  *
  * Each case performs the call on a named worker thread and joins it, so the assertions run on the
  * test thread against the failure the worker actually observed.
@@ -48,20 +53,76 @@ class EventDispatchThreadContractTest {
     }
 
     @Test
-    fun disposingAMountedCompositionOffTheEventDispatchThreadFailsFast() {
+    fun mountDisposalOffTheEventDispatchThreadFailsFast() {
         val panel = JPanel()
-        lateinit var runtime: SwingRecomposer
-        lateinit var content: DisposableHandle
+        lateinit var handle: DisposableHandle
+        SwingUtilities.invokeAndWait { handle = panel.setContent { } }
+        try {
+            assertRejectedOffEdt { handle.dispose() }
+        } finally {
+            SwingUtilities.invokeAndWait { handle.dispose() }
+        }
+    }
+
+    @Test
+    fun recomposerDisposalOffTheEventDispatchThreadFailsFast() {
+        val panel = JPanel()
+        lateinit var recomposer: SwingRecomposer
+        SwingUtilities.invokeAndWait { recomposer = SwingRecomposer.create(panel) }
+        try {
+            assertRejectedOffEdt { recomposer.dispose() }
+        } finally {
+            SwingUtilities.invokeAndWait { recomposer.dispose() }
+        }
+    }
+
+    @Test
+    fun interopHostDisposalOffTheEventDispatchThreadFailsFast() {
+        val panel = JPanel()
+        lateinit var recomposer: SwingRecomposer
+        lateinit var handle: DisposableHandle
         SwingUtilities.invokeAndWait {
-            runtime = SwingRecomposer.create(panel)
-            content = panel.setContent(parent = runtime.compositionContext) { }
+            recomposer = SwingRecomposer.create(panel)
+            handle = panel.setContentAsInteropHost(recomposer.compositionContext) { }
         }
         try {
-            assertRejectedOffEdt { content.dispose() }
+            assertRejectedOffEdt { handle.dispose() }
+
+            // The disposal empties the host and withdraws the context it published on it, so a rejected
+            // one must have touched neither. Read on the EDT, asserted off it.
+            var published: CompositionContext? = null
+            SwingUtilities.invokeAndWait { published = panel.findParentCompositionContext() }
+            assertSame(
+                recomposer.compositionContext,
+                published,
+                "a disposal rejected off the Event Dispatch Thread must leave the interop host's " +
+                    "published context standing",
+            )
         } finally {
             SwingUtilities.invokeAndWait {
-                content.dispose()
-                runtime.dispose()
+                handle.dispose()
+                recomposer.dispose()
+            }
+        }
+    }
+
+    @Test
+    fun menuInteropHostDisposalOffTheEventDispatchThreadFailsFast() {
+        val menuBar = JMenuBar()
+        lateinit var recomposer: SwingRecomposer
+        lateinit var handle: DisposableHandle
+        SwingUtilities.invokeAndWait {
+            recomposer = SwingRecomposer.create(menuBar)
+            handle = menuBar.setContentAsMenuInteropHost(recomposer.compositionContext) { }
+        }
+        try {
+            // The handle disposes only what the call mounted, so the thread it demands is that
+            // content's own.
+            assertRejectedOffEdt { handle.dispose() }
+        } finally {
+            SwingUtilities.invokeAndWait {
+                handle.dispose()
+                recomposer.dispose()
             }
         }
     }
@@ -77,7 +138,7 @@ class EventDispatchThreadContractTest {
         worker.start()
         worker.join(JOIN_TIMEOUT.inWholeMilliseconds)
 
-        val thrown = assertNotNull(failure, "setContent off the Event Dispatch Thread must fail")
+        val thrown = assertNotNull(failure, "the call off the Event Dispatch Thread must fail")
         assertIs<IllegalStateException>(thrown, "the off-EDT call must be rejected as illegal state")
         val message = assertNotNull(thrown.message, "the failure must carry a diagnostic message")
         assertTrue(

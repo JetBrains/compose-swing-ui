@@ -32,19 +32,19 @@ import kotlin.time.Duration.Companion.seconds
 class FrameSectionTest : TracedTest() {
     @Test
     fun aFrameNamesTheChangesItApplies() = runSwingTest {
-        val island = JPanel()
-        val runtime = SwingRecomposer.create(island)
+        val composition = JPanel()
+        val recomposer = SwingRecomposer.create(composition)
         var text by mutableStateOf("v0")
         var content: DisposableHandle? = null
         try {
-            content = island.setContent(parent = runtime.compositionContext) { Label(text = text) }
-            awaitUntil("the content mounts") { labelTextOrNull(island) == "v0" }
+            content = composition.setContent(parent = recomposer.compositionContext) { Label(text = text) }
+            awaitUntil("the content mounts") { labelTextOrNull(composition) == "v0" }
             // The mount composes and applies synchronously, on the caller's own turn rather than on a
             // frame. What this case states is the frame a later write is carried through.
             tracer.clear()
 
             text = "v1"
-            awaitUntil("the write reaches the widget") { labelTextOrNull(island) == "v1" }
+            awaitUntil("the write reaches the widget") { labelTextOrNull(composition) == "v1" }
 
             val sections = tracer.sections
             assertTrue(
@@ -64,26 +64,26 @@ class FrameSectionTest : TracedTest() {
             )
         } finally {
             content?.dispose()
-            runtime.dispose()
+            recomposer.dispose()
         }
     }
 
     @Test
     fun everyWriteMadeUnderOneEventIsCarriedByOneChangePass() = runSwingTest {
-        val island = JPanel()
-        val runtime = SwingRecomposer.create(island)
+        val composition = JPanel()
+        val recomposer = SwingRecomposer.create(composition)
         var first by mutableStateOf("a0")
         var second by mutableStateOf("b0")
         var third by mutableStateOf("c0")
         var content: DisposableHandle? = null
         try {
             content =
-                island.setContent(parent = runtime.compositionContext) {
+                composition.setContent(parent = recomposer.compositionContext) {
                     Label(text = first)
                     Label(text = second)
                     Label(text = third)
                 }
-            awaitUntil("the content mounts") { labelTexts(island) == listOf("a0", "b0", "c0") }
+            awaitUntil("the content mounts") { labelTexts(composition) == listOf("a0", "b0", "c0") }
             tracer.clear()
 
             // No suspension point between the writes, so all three are made while the event dispatch
@@ -91,7 +91,7 @@ class FrameSectionTest : TracedTest() {
             first = "a1"
             second = "b1"
             third = "c1"
-            awaitUntil("the writes reach their widgets") { labelTexts(island) == listOf("a1", "b1", "c1") }
+            awaitUntil("the writes reach their widgets") { labelTexts(composition) == listOf("a1", "b1", "c1") }
 
             val applied = tracer.sections.filter { it.name == "apply" }
             assertEquals(
@@ -107,7 +107,7 @@ class FrameSectionTest : TracedTest() {
             )
         } finally {
             content?.dispose()
-            runtime.dispose()
+            recomposer.dispose()
         }
     }
 

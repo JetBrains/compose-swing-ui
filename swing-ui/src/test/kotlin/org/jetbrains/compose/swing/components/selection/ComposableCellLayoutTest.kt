@@ -96,7 +96,7 @@ class ComposableCellLayoutTest {
             ListBox(items = listOf("beta")) { item -> FlowPanel { Label(item) } }
         }
 
-        // Every cell island is rooted at the same empty container, so two widgets rendering composable
+        // Every cell composition is rooted at the same empty container, so two widgets rendering composable
         // cells at once would collide there if a cell's component ever joined that root.
         val lists = onAllNodesOfType<JList<*>>().fetchAll()
         val first = lists[0].stampCell(index = 0)

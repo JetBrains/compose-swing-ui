@@ -74,6 +74,8 @@ internal class SwingFrameClock(
 
     private var dispatchScheduled = false
 
+    private var disposed = false
+
     private val broadcastClock = BroadcastFrameClock(onNewAwaiters = ::scheduleDispatch)
 
     init {
@@ -99,9 +101,12 @@ internal class SwingFrameClock(
     }
 
     /**
-     * Stops the underlying timer. Safe to call multiple times.
+     * Stops the underlying timer and retires the clock: nothing further is scheduled, and a frame
+     * dispatch already on the event queue neither broadcasts a frame nor restarts the timer. Safe to
+     * call multiple times.
      */
     fun dispose() {
+        disposed = true
         timer.stop()
     }
 
@@ -111,7 +116,7 @@ internal class SwingFrameClock(
      * first awaiter appears, which for this clock is the recomposer and nothing else.
      */
     private fun scheduleDispatch() {
-        if (dispatchScheduled) return
+        if (disposed || dispatchScheduled) return
         dispatchScheduled = true
         SwingUtilities.invokeLater(::dispatchFrame)
     }
@@ -124,6 +129,8 @@ internal class SwingFrameClock(
      * and the frame itself stays one method the runtime compiles on its own.
      */
     private fun dispatchFrame() {
+        // A dispatch queued before disposal still runs afterwards; it must do nothing.
+        if (disposed) return
         trace("frame") { runFrame() }
     }
 

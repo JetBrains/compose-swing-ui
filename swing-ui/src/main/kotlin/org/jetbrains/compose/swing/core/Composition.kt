@@ -23,14 +23,14 @@ internal val COMPOSITION_KEY: Key<CompositionContext> = Key("org.jetbrains.compo
 /**
  * Finds the parent [CompositionContext] by walking the Swing component tree, reading two things off each
  * component on the way up: the [COMPOSITION_KEY] client property a host stamps on a [JComponent], and the
- * context a live `setContent` island on that component composes its content under. The nearest ancestor
- * that answers wins, so the innermost composition around this component is the one it joins.
+ * context a live `setContent` composition rooted on that component composes its content under. The nearest
+ * ancestor that answers wins, so the innermost composition around this component is the one it joins.
  *
  * The client-property walk is self-first: it checks the receiver before its ancestors, so a component
  * stamped with a context (an interop host, or a window root pane) is found by a `setContent` call on that
- * component itself, not only by its descendants. An island's context answers for what hangs **inside**
- * its container, so the receiver's own islands are passed over: a container asks where it hangs, not what
- * it already carries.
+ * component itself, not only by its descendants. A content composition's context answers for what hangs
+ * **inside** its container, so the receiver's own content compositions are passed over: a container asks
+ * where it hangs, not what it already carries.
  */
 internal fun Component.findParentCompositionContext(): CompositionContext? {
     var current: Component? = this
@@ -43,12 +43,12 @@ internal fun Component.findParentCompositionContext(): CompositionContext? {
 
 /**
  * What this component alone answers the walk with: the [COMPOSITION_KEY] stamp a host published on it,
- * or the context of a live island composing into it. An island answers only for what hangs inside its
- * container, so the component the walk started at contributes its stamp and none of its islands.
+ * or the context of a live content composition composing into it. A content composition answers only for
+ * what hangs inside its container, so the component the walk started at contributes its stamp alone.
  */
 private fun Component.compositionContextHere(walkStartedAt: Component): CompositionContext? =
     (this as? JComponent)?.get(COMPOSITION_KEY)
-        ?: takeIf { it !== walkStartedAt }?.islandCompositionContextOrNull()
+        ?: takeIf { it !== walkStartedAt }?.contentCompositionContextOrNull()
 
 /**
  * Sets [context] as this component's [COMPOSITION_KEY] client property, so descendant `setContent` calls
@@ -77,19 +77,19 @@ internal fun checkEventDispatchThread() {
 }
 
 /**
- * Mounts a single island [Composition] as a child of a [CompositionContext].
+ * Mounts a single composition [Composition] as a child of a [CompositionContext].
  *
- * The island shares its parent's recomposition runtime - the parent context owns the recomposer, clock
- * and scope. This mount owns only its [Composition] and, where the island has one, its
- * [SnapshotStateObserver]; disposing it disposes just this island, never the parent.
+ * The composition shares its parent's recomposition recomposer - the parent context owns the recomposer, clock
+ * and scope. This mount owns only its [Composition] and, where the composition has one, its
+ * [SnapshotStateObserver]; disposing it disposes just this composition, never the parent.
  *
- * An island over an applier that observes snapshot state is the composition owner for the components
+ * A composition over an applier that observes snapshot state is the composition owner for the components
  * that do (`Canvas`, for example): it owns one [SnapshotStateObserver] shared by every such component,
  * each registered as its own scope. The applier stamps that observer onto every node it inserts, so a
  * component reaches it through its [org.jetbrains.compose.swing.node.SwingNodeHolder] instead of
  * resolving a `CompositionLocal`.
  */
-internal class SwingCompositionMount private constructor(
+internal class SwingContentComposition private constructor(
     private val composition: Composition,
     private val observer: SnapshotStateObserver?,
     private val host: JComponent?,
@@ -102,9 +102,9 @@ internal class SwingCompositionMount private constructor(
     }
 
     /**
-     * Applies [writeState] to the island's driving state, then recomposes this island synchronously:
-     * both passes run and complete on the caller's thread before this returns. This bypasses the parent
-     * recomposer's asynchronous, frame-clock-gated loop, using the island's own
+     * Applies [writeState] to this composition's driving state, then recomposes it synchronously: both
+     * passes run and complete on the caller's thread before this returns. This bypasses the parent
+     * recomposer's asynchronous, frame-clock-gated loop, using this composition's own
      * [ControlledComposition.recompose] and [ControlledComposition.applyChanges] directly.
      *
      * Intended for a host that must have its Swing subtree fully materialized the instant it returns - a
@@ -114,10 +114,10 @@ internal class SwingCompositionMount private constructor(
      * directly, so its writes invalidate the composition now instead of waiting for the parent
      * recomposer's own schedule.
      *
-     * Once the mount is [dispose]d, a stamp is a no-op instead of an error: a Swing widget keeps invoking
-     * a renderer it captured even while its window is torn down (during focus and layout passes), so
-     * this call must stay safe to make on a disposed island. [writeState] is skipped too, since recording
-     * reads and writes against a disposed composition is dead work.
+     * Once this composition is [dispose]d, a stamp is a no-op instead of an error: a Swing widget keeps
+     * invoking a renderer it captured even while its window is torn down (during focus and layout
+     * passes), so this call must stay safe to make on a disposed composition. [writeState] is skipped
+     * too, since recording reads and writes against a disposed composition is dead work.
      *
      * Must be called on the Event Dispatch Thread.
      */
@@ -151,7 +151,7 @@ internal class SwingCompositionMount private constructor(
     }
 
     /**
-     * Disposes this island's [Composition] and stops the owner-level [SnapshotStateObserver] it owns.
+     * Disposes this composition's [Composition] and stops the owner-level [SnapshotStateObserver] it owns.
      *
      * Must be called on the Event Dispatch Thread. A handle a caller holds can be disposed from
      * anywhere - a coroutine's completion, most of all - and this writes the Swing tree and the
@@ -174,7 +174,7 @@ internal class SwingCompositionMount private constructor(
         fun nested(
             parent: CompositionContext,
             applierFactory: (SnapshotStateObserver) -> AbstractApplier<SwingNodeHolder<*>>,
-        ): SwingCompositionMount {
+        ): SwingContentComposition {
             GlobalSnapshotManager.ensureStarted()
             // Shared by every snapshot-observing component (e.g. Canvas) in this owner. The callback runs
             // directly, with no invokeLater: an ordinary write's notification already runs on the EDT
@@ -183,7 +183,7 @@ internal class SwingCompositionMount private constructor(
             // thread calls it, so nothing here depends on the notification having arrived on the EDT.
             val observer = SnapshotStateObserver { onChanged -> onChanged() }.apply { start() }
             val applier = applierFactory(observer)
-            return SwingCompositionMount(
+            return SwingContentComposition(
                 composition = Composition(applier, parent),
                 observer = observer,
                 host = applier.hostOrNull(),
@@ -192,16 +192,16 @@ internal class SwingCompositionMount private constructor(
 
         /**
          * Mounts a child composition of [parent] over an applier that observes no snapshot state, so the
-         * island owns no [SnapshotStateObserver] and registers none globally. A menu composition holds
+         * composition owns no [SnapshotStateObserver] and registers none globally. A menu composition holds
          * no component that paints from observed reads.
          */
         fun nestedUnobserved(
             parent: CompositionContext,
             applierFactory: () -> AbstractApplier<SwingNodeHolder<*>>,
-        ): SwingCompositionMount {
+        ): SwingContentComposition {
             GlobalSnapshotManager.ensureStarted()
             val applier = applierFactory()
-            return SwingCompositionMount(
+            return SwingContentComposition(
                 composition = Composition(applier, parent),
                 observer = null,
                 host = applier.hostOrNull(),

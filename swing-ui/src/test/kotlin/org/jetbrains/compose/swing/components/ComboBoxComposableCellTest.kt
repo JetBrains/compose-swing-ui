@@ -101,7 +101,7 @@ class ComboBoxComposableCellTest {
 
         // The renderer outlives its composition: the popup list of the combo box keeps the renderer it
         // was given and goes on invoking it while the window it belongs to is torn down, after the cell
-        // island is disposed.
+        // composition is disposed.
         showCombo = false
         awaitIdle()
 
@@ -109,11 +109,11 @@ class ComboBoxComposableCellTest {
         assertNotSame(
             cellBefore,
             cellAfter,
-            "a disposed cell island must give up the component it composed",
+            "a disposed cell composition must give up the component it composed",
         )
         assertNull(
             cellAfter.firstLabelText(),
-            "a stamp on a disposed cell island must render an empty cell rather than a stale item",
+            "a stamp on a disposed cell composition must render an empty cell rather than a stale item",
         )
         assertTrue(
             combo.stampCell(index = 1) is JLabel,
@@ -351,9 +351,9 @@ class ComboBoxComposableCellTest {
         active = false
         awaitIdle()
 
-        // A parked combo box keeps painting through whatever renderer it carries once the cell island
-        // behind its composable cell is gone: the renderer it rendered through before that cell is what
-        // has to be back on it by then.
+        // A parked combo box keeps painting through whatever renderer it carries once the cell
+        // composition behind its composable cell is gone: the renderer it rendered through before that
+        // cell is what has to be back on it by then.
         val parked = combo.stampCell(index = 0)
         assertTrue(parked is JLabel, "a parked combo box should render items through the renderer of its own")
         assertEquals("red", (parked as JLabel).text, "the combo box's own renderer renders the item's toString")

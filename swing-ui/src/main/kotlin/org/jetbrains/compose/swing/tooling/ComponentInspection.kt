@@ -28,15 +28,15 @@ import javax.swing.JComponent
  * component its content is rooted at. Written only while [isDebugInspectorInfoEnabled] is on, and
  * cleared when the composition behind it is disposed.
  */
-private val COMPOSITION_MOUNT_KEY: Key<CompositionData> = Key("org.jetbrains.compose.swing.compositionMount")
+private val COMPOSITION_DATA_KEY: Key<CompositionData> = Key("org.jetbrains.compose.swing.compositionData")
 
 /** Publishes [data] on this component, or clears what is published when passed `null`. */
 internal fun JComponent.publishCompositionData(data: CompositionData?) {
-    this[COMPOSITION_MOUNT_KEY] = data
+    this[COMPOSITION_DATA_KEY] = data
 }
 
 /** The slot table published on this component, or `null` where none is. */
-internal fun JComponent.publishedCompositionData(): CompositionData? = this[COMPOSITION_MOUNT_KEY]
+internal fun JComponent.publishedCompositionData(): CompositionData? = this[COMPOSITION_DATA_KEY]
 
 /**
  * Whether the compositions this library mounts record where each component was declared, which is what
@@ -47,7 +47,7 @@ internal fun JComponent.publishedCompositionData(): CompositionData? = this[COMP
  * mounted afterwards. Each rebuilds its content afresh and records as it composes, because the runtime
  * writes source information only as content is inserted. That rebuild lands on a later recomposition
  * pass, so a composition answers once it has recomposed rather than by the time this returns, and it
- * discards everything `remember`ed inside the content while state hoisted above the mount survives.
+ * discards everything `remember`ed inside the content while state hoisted above it survives.
  *
  * Turning it off reverses both: each composition builds its content afresh once more, this time without
  * recording, and withdraws what it published. A composition answers for what it declared only while this
@@ -124,7 +124,7 @@ internal class InspectionGate {
  *
  * The caller decides when it stands: it is declared while [isDebugInspectorInfoEnabled] is on and gone
  * when it goes off, and the caller keys its content on the same answer so the pass that follows inserts
- * that content afresh. Re-insertion is what lets a composer that has just been told to record do so for
+ * that content afresh. Re-insertion is what lets a composer that has been told to record do so for
  * content that was already built.
  */
 @Composable
@@ -135,9 +135,8 @@ internal fun InspectedContent(
 ) {
     val recording = host?.takeIf { inspecting }
     if (recording != null) InspectedEffect(recording)
-    // Keyed on the answer, so turning the switch on gives the content a new identity and the pass that
-    // follows inserts it afresh. Building afresh discards everything the content remembered; state
-    // hoisted above the mount survives.
+    // Keyed on the answer: building afresh discards everything the content remembered; state hoisted
+    // above it survives.
     key(recording != null) { content() }
 }
 
@@ -170,9 +169,9 @@ private fun InspectedEffect(host: JComponent) {
  * carry the declaration site; [attachComposeStackTrace] is what leads back to the declaring code.
  *
  * The search starts at this component and walks up its Swing ancestors, and the nearest composition that
- * declared it wins: a component declared inside a nested `setContent` island is answered by that island
- * rather than by the composition around it, and a component that hosts an island of its own is still
- * answered with the group that declared it.
+ * declared it wins: a component declared inside a nested `setContent` composition is answered by that
+ * composition rather than by the one around it, and a component that hosts a content composition of its
+ * own is still answered with the group that declared it.
  *
  * The answer reads the composition's slot table as it stands, and the next recomposition of that
  * composition retires it: descending a group held across one fails. Read what you need while the answer
@@ -193,9 +192,9 @@ public fun Component.findDeclaringGroup(): CompositionGroup? {
  * It answers whether or not that composition declared the component, so a component built by hand and
  * added to composed content is answered with the composition it stands in.
  *
- * The walk starts at this component, so one that hosts an island of its own is answered with that
- * island - the composition it carries is nearer than the one that declared it. Use [findDeclaringGroup]
- * for the other question: which group declared a component.
+ * The walk starts at this component, so one that hosts a content composition of its own is answered with
+ * that composition - the one it carries is nearer than the one that declared it. Use
+ * [findDeclaringGroup] for the other question: which group declared a component.
  *
  * A composition rooted at a [java.awt.Container] that is no [JComponent] is never found, neither for the
  * components it declared nor for the ones standing in it.

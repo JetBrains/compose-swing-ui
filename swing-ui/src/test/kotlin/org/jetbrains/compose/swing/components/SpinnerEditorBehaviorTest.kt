@@ -138,8 +138,8 @@ class SpinnerEditorBehaviorTest {
         value = 4
         awaitIdle()
 
-        assertSame(host, spinner.editor, "a step recomposes the editor island rather than rebuilding it")
-        assertEquals("value 4", host.firstLabelText(), "and the island renders the value it now reads")
+        assertSame(host, spinner.editor, "a step recomposes the editor composition rather than rebuilding it")
+        assertEquals("value 4", host.firstLabelText(), "and the composition renders the value it now reads")
     }
 
     /** The text of the first [JLabel] anywhere beneath this component. */

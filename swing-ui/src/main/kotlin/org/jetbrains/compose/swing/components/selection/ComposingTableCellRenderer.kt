@@ -19,11 +19,10 @@ import javax.swing.table.TableCellRenderer
  * cell being stamped, exposed as read-only composition state so the cell can lay itself out by row,
  * column, selection and focus.
  *
- * Mirrors the arguments of
- * [javax.swing.table.TableCellRenderer.getTableCellRendererComponent], with both indices named the way
- * the rest of a [Table] names them - the model's own row and column space, which is the space the rows
- * and the columns are declared in - rather than the position the cell is drawn at, so sorting, filtering
- * and a column drag leave the cell each index names alone.
+ * Mirrors the arguments of [javax.swing.table.TableCellRenderer.getTableCellRendererComponent]. Both
+ * indices are in the model's row and column space - the space rows and columns are declared in - rather
+ * than the position the cell is drawn at, so sorting, filtering and a column drag never change which
+ * cell an index names.
  *
  * @see javax.swing.table.TableCellRenderer.getTableCellRendererComponent
  */
@@ -43,14 +42,13 @@ public sealed interface TableCellScope {
 
 /**
  * A [TableCellRenderer] that paints one column's cells through a real `@Composable` body, over the
- * reused [CellStampIsland] every such renderer stamps through.
+ * reused [CellStampComposition] every such renderer stamps through.
  *
- * The component the cell composes is what the table is handed. The table bounds it at the cell it is
- * painting and lays it out there. A table gives every one of its rows the same height and never measures
- * one by what its cells ask for, so what the cell composes decides how it fills the cell it is given, and
- * the table's row height decides how tall that is.
+ * The component the cell composes is what the table is handed; the table bounds and lays it out at the
+ * cell being painted. A table gives every row the same height and never measures a row by what its cells
+ * ask for, so the cell's content decides how it fills that space, not how tall the space is.
  *
- * @param parentContext the enclosing composition this renderer's cell island joins.
+ * @param parentContext the enclosing composition this renderer's cell composition joins.
  * @param rowAt the row a cell's row index names, resolved at every stamp against the rows the table
  *   holds then, so a renderer outlives any one pass's rows.
  */
@@ -58,20 +56,19 @@ internal class ComposingTableCellRenderer<R>(
     parentContext: CompositionContext,
     private val rowAt: (rowIndex: Int) -> R?,
 ) : TableCellRenderer {
-    // The cell inputs, held as composition state so writing them invalidates the cell body that reads
-    // them. A single reused cell (null before the first stamp) keeps the size-1 pool the rubber-stamp
-    // model expects.
+    // A single reused cell (null before the first stamp) keeps the size-1 pool the rubber-stamp model
+    // expects.
     private val rowState = mutableStateOf<R?>(null)
     private var currentRow by rowState
     private val scope = MutableTableCellScope()
 
     // The cell body every stamp composes, held as composition state so a pass that declares a fresh one
-    // is honored without rebuilding this renderer or its island. It is null until the column this
-    // renderer was built for hands over the body it declares, which composes the empty cell.
+    // is honored without rebuilding this renderer or its cell composition. It is null until the column
+    // this renderer was built for hands over the body it declares, which composes the empty cell.
     private val contentState = mutableStateOf<(@Composable TableCellScope.(row: R) -> Unit)?>(null)
 
-    private val island =
-        CellStampIsland(
+    private val cellComposition =
+        CellStampComposition(
             parentContext,
             "A composable cell renders a single component, and this one composes several. Compose them " +
                 "into one container - a panel whose layout arranges them - and the table renders that.",
@@ -101,7 +98,7 @@ internal class ComposingTableCellRenderer<R>(
         // `null` too, so presence is read from the index bound rather than from what `rowAt` answers.
         val hasRow = rowIndex in 0 until table.model.rowCount
         val resolvedRow = if (hasRow) rowAt(rowIndex) else null
-        return island.stamp(hasCell = hasRow) {
+        return cellComposition.stamp(hasCell = hasRow) {
             currentRow = resolvedRow
             scope.rowIndex = rowIndex
             scope.columnIndex = columnIndex
@@ -110,14 +107,14 @@ internal class ComposingTableCellRenderer<R>(
         }
     }
 
-    /** Disposes this renderer's cell island; see [CellStampIsland.dispose]. */
-    fun dispose(): Unit = island.dispose()
+    /** Disposes this renderer's cell composition; see [CellStampComposition.dispose]. */
+    fun dispose(): Unit = cellComposition.dispose()
 }
 
 /**
- * The cell body a [ComposingTableCellRenderer]'s island composes; the island composes it only where the
- * stamp names a row, so [rowState] always holds that row here - itself `null` among the values a row can
- * hold. A column that declares no cell body composes nothing regardless: that one is about the
+ * The cell body a [ComposingTableCellRenderer]'s cell composition composes; it composes the body only
+ * where the stamp names a row, so [rowState] always holds that row here - itself `null` among the values
+ * a row can hold. A column that declares no cell body composes nothing regardless: that one is about the
  * declaration, not the row.
  */
 @Composable
@@ -142,20 +139,20 @@ private class MutableTableCellScope : TableCellScope {
 }
 
 /**
- * The composable cells of one [Table]'s columns: an island per column that declares a cell body, created
- * as the column takes one and disposed as the column gives it up or goes away.
+ * The composable cells of one [Table]'s columns: a cell composition per column that declares a cell body,
+ * created as the column takes one and disposed as the column gives it up or goes away.
  *
- * Every such column gets an island of its own rather than sharing one. A shared island would hold one
- * cell body at a time, so every stamp of a column other than the last one stamped would rebuild that
- * cell's whole Swing subtree - once per cell, over every cell a table paints. An island holds a
- * composition and a started snapshot observer, which is why one is disposed the moment its column stops
- * declaring a cell body rather than left to the end of the table's own composition.
+ * Every such column gets a cell composition of its own rather than sharing one. A shared composition
+ * holds one cell body at a time, so every stamp of a column other than the last one stamped would
+ * rebuild that cell's whole Swing subtree - once per cell, over every cell the table paints. Each
+ * composition also holds a started snapshot observer, so a column is disposed the moment it stops
+ * declaring a cell body rather than kept until the table's own composition ends.
  *
- * @param parentContext the enclosing composition every island joins.
+ * @param parentContext the enclosing composition every cell composition joins.
  * @param rowAt the row a cell's row index names; taken once and invoked at every stamp, so it has to
  *   read the rows the table holds then rather than close over one pass's list.
  */
-internal class TableCellIslands<R>(
+internal class TableCellCompositions<R>(
     private val parentContext: CompositionContext,
     private val rowAt: (rowIndex: Int) -> R?,
 ) {
@@ -163,44 +160,42 @@ internal class TableCellIslands<R>(
     // the model index of the column each one renders. A column declaring no cell body holds `null`, and
     // the size is what a column past the declarations is recognized by: one the table is about to
     // rebuild, left alone rather than handed a renderer for a column that no longer exists.
-    private val islands = mutableListOf<ComposingTableCellRenderer<R>?>()
+    private val perColumn = mutableListOf<ComposingTableCellRenderer<R>?>()
 
     /**
-     * Takes each of [columns]' cell bodies as what that column's later stamps compose, mounting an island
-     * for a column that declares one for the first time and disposing the island of a column that no
-     * longer does.
+     * Takes each of [columns]' cell bodies as what that column's later stamps compose, mounting a cell
+     * composition for a column that declares one for the first time and disposing that of a column that
+     * no longer does.
      */
     fun adopt(columns: List<ColumnDeclaration<R>>) {
-        for (index in columns.size until islands.size) islands[index]?.dispose()
-        if (islands.size > columns.size) islands.subList(columns.size, islands.size).clear()
-        while (islands.size < columns.size) islands.add(null)
+        for (index in columns.size until perColumn.size) perColumn[index]?.dispose()
+        if (perColumn.size > columns.size) perColumn.subList(columns.size, perColumn.size).clear()
+        while (perColumn.size < columns.size) perColumn.add(null)
         columns.forEachIndexed { index, column ->
             val content = column.cellContent
             if (content == null) {
-                islands[index]?.dispose()
-                islands[index] = null
+                perColumn[index]?.dispose()
+                perColumn[index] = null
             } else {
-                val island = islands[index] ?: ComposingTableCellRenderer(parentContext, rowAt)
-                islands[index] = island
-                island.adopt(content)
+                val renderer = perColumn[index] ?: ComposingTableCellRenderer(parentContext, rowAt)
+                perColumn[index] = renderer
+                renderer.adopt(content)
             }
         }
     }
 
     /**
-     * Puts each held island's renderer onto the column it stamps for, and every column that holds none of
-     * them back to no renderer of its own - which is what leaves its cells to the one the table picks by
-     * the column's class, exactly as a column the table built and never gave a composable cell renders. No
-     * column of this table ever carries a renderer other than an island's or `null`, so a column already
-     * holding the renderer it should is left untouched.
-     *
-     * A structure change builds the columns afresh, so this runs on every pass rather than once.
+     * Puts each held renderer onto the column it stamps for, and clears every column with none back to
+     * no renderer of its own - the same state as a column the table built and never gave a composable
+     * cell, so it renders through the one the table picks by the column's class. No column of this table
+     * ever carries a renderer other than one of these or `null`, so a column already holding the renderer
+     * it should is left untouched.
      */
     fun install(table: JTable) {
         for (position in 0 until table.columnModel.columnCount) {
             val column = table.columnModel.getColumn(position)
-            if (column.modelIndex >= islands.size) continue
-            val renderer = islands[column.modelIndex]
+            if (column.modelIndex >= perColumn.size) continue
+            val renderer = perColumn[column.modelIndex]
             if (column.cellRenderer !== renderer) column.cellRenderer = renderer
         }
     }
@@ -213,43 +208,43 @@ internal class TableCellIslands<R>(
         }
     }
 
-    /** Disposes every island, leaving the columns that held one rendering through none. */
+    /** Disposes every cell composition, leaving the columns that held one rendering through none. */
     fun dispose() {
-        islands.forEach { it?.dispose() }
-        islands.clear()
+        perColumn.forEach { it?.dispose() }
+        perColumn.clear()
     }
 }
 
 /**
- * Folds [cellIslands] into the chain as what the table's columns stamp their cells through.
+ * Folds [cellCompositions] into the chain as what the table's columns stamp their cells through.
  *
- * A column's renderer belongs to the column rather than to the table, and a structure change builds the
- * columns afresh, so the renderers are put on from the element's own update - which every pass runs -
- * rather than once as it attaches. Detaching on release, reuse and deactivate as well as on withdrawal is
- * what gives the columns their own renderers back at the very moment the islands behind their composable
- * cells are disposed: the table may still be asked to size or render a cell directly even once parking
- * has detached it from the Swing tree, and a renderer over a disposed island paints nothing.
+ * A column's renderer belongs to the column rather than to the table, and a structure change rebuilds
+ * the columns, so renderers are put on from the element's own `update` - which every pass runs - rather
+ * than once as it attaches. Detaching on release, reuse and deactivate as well as on withdrawal returns
+ * each column its own renderer at the exact moment the composition behind its composable cell is
+ * disposed: the table may still be asked to size or render a cell directly after parking has detached it
+ * from the Swing tree, and a renderer over a disposed composition paints nothing.
  */
-internal fun SwingModifier.composableColumnCells(cellIslands: TableCellIslands<*>): SwingModifier =
-    this then ColumnCellsElement(cellIslands)
+internal fun SwingModifier.composableColumnCells(cellCompositions: TableCellCompositions<*>): SwingModifier =
+    this then ColumnCellsElement(cellCompositions)
 
 /**
  * The [SwingModifier.NodeElement] behind [composableColumnCells].
  *
- * Equal only to itself, so every pass builds an element the slot has to apply: the renderers live on the
- * columns rather than on the table, and a structure change builds the columns afresh, so putting them on
- * is the work a pass has to redo even where nothing about the declaration changed. Comparing the islands
- * would make a pass that carries the same ones skip exactly that.
+ * Equal only to itself, so every pass builds an element the slot has to apply: renderers live on the
+ * columns rather than the table, and a structure change rebuilds the columns, so putting them on is work
+ * a pass must redo even where nothing about the declaration changed. Comparing the compositions would
+ * let a pass carrying the same ones skip exactly that.
  */
 private class ColumnCellsElement(
-    private val cellIslands: TableCellIslands<*>,
+    private val cellCompositions: TableCellCompositions<*>,
 ) : SwingModifier.NodeElement<JTable, ColumnCellsNode>() {
     override val targetType: Class<JTable> get() = JTable::class.java
 
     override fun create(): ColumnCellsNode = ColumnCellsNode()
 
     override fun update(node: ColumnCellsNode) {
-        node.apply(cellIslands)
+        node.apply(cellCompositions)
     }
 
     override fun equals(other: Any?): Boolean = this === other
@@ -259,39 +254,39 @@ private class ColumnCellsElement(
 
 /** The [SwingModifier.Node] behind [composableColumnCells]. */
 private class ColumnCellsNode : SwingModifier.Node<JTable>() {
-    private var cellIslands: TableCellIslands<*>? = null
+    private var cellCompositions: TableCellCompositions<*>? = null
 
-    /** Puts [islands]' renderers onto the table's columns; call from the element's `update`. */
-    fun apply(islands: TableCellIslands<*>) {
-        cellIslands = islands
-        islands.install(component)
+    /** Puts [cellCompositions]' renderers onto the table's columns; call from the element's `update`. */
+    fun apply(cellCompositions: TableCellCompositions<*>) {
+        this@ColumnCellsNode.cellCompositions = cellCompositions
+        cellCompositions.install(component)
     }
 
     override fun onDetach() {
-        cellIslands?.uninstall(component)
-        cellIslands = null
+        cellCompositions?.uninstall(component)
+        cellCompositions = null
     }
 }
 
 /**
- * Remembers the [TableCellIslands] of a table whose columns are [columns], captured against the
+ * Remembers the [TableCellCompositions] of a table whose columns are [columns], captured against the
  * enclosing composition so every cell body joins it, and disposed when the table leaves that
- * composition. The islands follow the declarations on every pass, so a column that gains or loses a cell
- * body gains or loses its island with it.
+ * composition. The cell compositions follow the declarations on every pass, so a column that gains or
+ * loses a cell body gains or loses its cell composition with it.
  *
- * Call from a `@Composable` scope that folds the returned islands into the modifier chain of a `JTable`
- * through [composableColumnCells].
+ * Call from a `@Composable` scope that folds the returned compositions into the modifier chain of a
+ * `JTable` through [composableColumnCells].
  */
 @Composable
-internal fun <R> rememberTableCellIslands(
+internal fun <R> rememberTableCellCompositions(
     columns: List<ColumnDeclaration<R>>,
     rowAt: (rowIndex: Int) -> R?,
-): TableCellIslands<R> {
+): TableCellCompositions<R> {
     val parentContext = rememberCompositionContext()
-    val islands = remember(parentContext) { TableCellIslands(parentContext, rowAt) }
-    islands.adopt(columns)
-    DisposableEffect(islands) {
-        onDispose { islands.dispose() }
+    val cellCompositions = remember(parentContext) { TableCellCompositions(parentContext, rowAt) }
+    cellCompositions.adopt(columns)
+    DisposableEffect(cellCompositions) {
+        onDispose { cellCompositions.dispose() }
     }
-    return islands
+    return cellCompositions
 }

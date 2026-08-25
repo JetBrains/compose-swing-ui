@@ -13,7 +13,7 @@ import org.jetbrains.compose.swing.components.Slider
 import org.jetbrains.compose.swing.components.layout.BoxPanel
 import org.jetbrains.compose.swing.components.layout.TabbedPane
 import org.jetbrains.compose.swing.components.text.TextField
-import org.jetbrains.compose.swing.core.SwingCompositionMount
+import org.jetbrains.compose.swing.core.SwingContentComposition
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingApplier
@@ -52,9 +52,9 @@ private const val COLLECTION_ATTEMPTS = 20
  * stops, and what a re-insertion it asks for keeps or discards.
  *
  * The switch is process-wide state, so every test leaves it off again - otherwise it would leak into a
- * later test, and into every composition the rest of the suite mounts. The Compose runtime's diagnostic
+ * later test, and into every composition the rest of the suite mounts. The Compose recomposer's diagnostic
  * stack trace mode is process-wide too and belongs to the application, which these tests stand in for:
- * they put the runtime in it before each test and back to its default after.
+ * they put the recomposer in it before each test and back to its default after.
  */
 class DebugInspectorInfoTest {
     /** Stands in for an application that enabled Compose diagnostic stack traces. */
@@ -177,17 +177,17 @@ class DebugInspectorInfoTest {
             "and no component it declared is answered for",
         )
 
-        val islandHost = JPanel()
-        val handle = islandHost.setContent(parent = parentContext) { Label(text = "island") }
+        val compositionHost = JPanel()
+        val handle = compositionHost.setContent(parent = parentContext) { Label(text = "composition") }
         try {
             awaitIdle()
 
             assertNull(
-                islandHost.findCompositionData(),
+                compositionHost.findCompositionData(),
                 "a composition mounted after inspection went off publishes nothing",
             )
             assertNull(
-                islandHost.components.single().findDeclaringGroup(),
+                compositionHost.components.single().findDeclaringGroup(),
                 "and answers for no component it declared",
             )
         } finally {
@@ -220,34 +220,34 @@ class DebugInspectorInfoTest {
 
     @Test
     fun contentUnderACapturedContextIsReachedOnTheNextPassItTakes() = runComposeSwingTest {
-        var buildsOfTheIsland = 0
-        var driveTheIsland by mutableStateOf(0)
+        var buildsOfTheComposition = 0
+        var driveTheComposition by mutableStateOf(0)
         lateinit var parentContext: CompositionContext
         setContent { parentContext = rememberCompositionContext() }
 
-        val islandHost = JPanel()
+        val compositionHost = JPanel()
         val handle =
-            islandHost.setContent(parent = parentContext) {
-                remember { buildsOfTheIsland++ }
+            compositionHost.setContent(parent = parentContext) {
+                remember { buildsOfTheComposition++ }
                 @Suppress("UNUSED_EXPRESSION")
-                driveTheIsland
-                Label(text = "island", modifier = SwingModifier.testTag(NESTED_TAG))
+                driveTheComposition
+                Label(text = "composition", modifier = SwingModifier.testTag(NESTED_TAG))
             }
         try {
             awaitIdle()
-            assertEquals(1, buildsOfTheIsland, "the island is built once by its own mount")
+            assertEquals(1, buildsOfTheComposition, "the composition is built once by its own mount")
 
             isDebugInspectorInfoEnabled = true
             awaitIdle()
             assertEquals(
                 1,
-                buildsOfTheIsland,
+                buildsOfTheComposition,
                 "the switch brings about no pass of its own for content under a captured context",
             )
 
-            driveTheIsland++
-            waitUntil(timeout = 5.seconds) { buildsOfTheIsland == 2 }
-            assertAnsweredWithItsOwnGroup(islandHost.components.single())
+            driveTheComposition++
+            waitUntil(timeout = 5.seconds) { buildsOfTheComposition == 2 }
+            assertAnsweredWithItsOwnGroup(compositionHost.components.single())
         } finally {
             handle.dispose()
         }
@@ -284,24 +284,24 @@ class DebugInspectorInfoTest {
         lateinit var parentContext: CompositionContext
         setContent { parentContext = rememberCompositionContext() }
 
-        var buildsOfTheIsland = 0
-        // No client-property bag, so this island can publish nothing and answers for nothing.
+        var buildsOfTheComposition = 0
+        // No client-property bag, so this composition can publish nothing and answers for nothing.
         val bareHost = Container()
         val handle =
             bareHost.setContent(parent = parentContext) {
-                remember { buildsOfTheIsland++ }
-                Label(text = "island", modifier = SwingModifier.testTag(NESTED_TAG))
+                remember { buildsOfTheComposition++ }
+                Label(text = "composition", modifier = SwingModifier.testTag(NESTED_TAG))
             }
         try {
             awaitIdle()
-            assertEquals(1, buildsOfTheIsland, "the island is built once by its own mount")
+            assertEquals(1, buildsOfTheComposition, "the composition is built once by its own mount")
 
             isDebugInspectorInfoEnabled = true
             awaitIdle()
 
             assertEquals(
                 1,
-                buildsOfTheIsland,
+                buildsOfTheComposition,
                 "rebuilding a composition nothing can read source information off would be cost with no " +
                     "payload, so it is left alone",
             )
@@ -322,17 +322,17 @@ class DebugInspectorInfoTest {
         isDebugInspectorInfoEnabled = true
         awaitIdle()
 
-        var buildsOfTheIsland = 0
-        // No client-property bag, so this island can publish nothing and answers for nothing.
+        var buildsOfTheComposition = 0
+        // No client-property bag, so this composition can publish nothing and answers for nothing.
         val bareHost = Container()
         val handle =
             bareHost.setContent(parent = parentContext) {
-                remember { buildsOfTheIsland++ }
-                Label(text = "island", modifier = SwingModifier.testTag(NESTED_TAG))
+                remember { buildsOfTheComposition++ }
+                Label(text = "composition", modifier = SwingModifier.testTag(NESTED_TAG))
             }
         try {
             awaitIdle()
-            assertEquals(1, buildsOfTheIsland, "the island is built once and re-inserted for nothing")
+            assertEquals(1, buildsOfTheComposition, "the composition is built once and re-inserted for nothing")
             assertNull(
                 bareHost.components.single().findDeclaringGroup(),
                 "and the component it declared is answered for by nothing",
@@ -349,16 +349,16 @@ class DebugInspectorInfoTest {
 
         isDebugInspectorInfoEnabled = true
         awaitIdle()
-        val islandHost = JPanel()
-        val handle = islandHost.setContent(parent = parentContext) { Label(text = "island") }
+        val compositionHost = JPanel()
+        val handle = compositionHost.setContent(parent = parentContext) { Label(text = "composition") }
         awaitIdle()
-        assertNotNull(islandHost.findCompositionData(), "the island publishes itself on its host")
-        assertAnsweredWithItsOwnGroup(islandHost.components.single())
+        assertNotNull(compositionHost.findCompositionData(), "the composition publishes itself on its host")
+        assertAnsweredWithItsOwnGroup(compositionHost.components.single())
 
         handle.dispose()
 
         assertNull(
-            islandHost.findCompositionData(),
+            compositionHost.findCompositionData(),
             "a disposed composition must not stay published on its host",
         )
     }
@@ -368,21 +368,21 @@ class DebugInspectorInfoTest {
         lateinit var parentContext: CompositionContext
         setContent { parentContext = rememberCompositionContext() }
 
-        val islandHost = JPanel()
-        val handle = islandHost.setContent(parent = parentContext) { Label(text = "island") }
+        val compositionHost = JPanel()
+        val handle = compositionHost.setContent(parent = parentContext) { Label(text = "composition") }
         awaitIdle()
-        val islandLabel = islandHost.components.single()
+        val compositionLabel = compositionHost.components.single()
 
         handle.dispose()
         isDebugInspectorInfoEnabled = true
         awaitIdle()
 
         assertNull(
-            islandHost.findCompositionData(),
+            compositionHost.findCompositionData(),
             "the switch reaches what is mounted, and a disposed composition is not, so nothing is " +
                 "published on the host it was rooted at",
         )
-        assertNull(islandLabel.findDeclaringGroup(), "and a component it declared answers with nothing")
+        assertNull(compositionLabel.findDeclaringGroup(), "and a component it declared answers with nothing")
     }
 
     @Test
@@ -391,22 +391,25 @@ class DebugInspectorInfoTest {
         isDebugInspectorInfoEnabled = true
         setContent { parentContext = rememberCompositionContext() }
 
-        // Two compositions rooted at one container, mounted rather than set as islands: `setContent`
-        // refuses a container already carrying a live island, and what a mount withdraws once another has
+        // Two compositions rooted at one container, mounted rather than set as compositions: `setContent`
+        // refuses a container already carrying a live composition, and what a mount withdraws once another has
         // taken its host is what is under test.
-        val islandHost = JPanel()
-        val stale = SwingCompositionMount.nested(parentContext) { observer -> SwingApplier(islandHost, observer) }
+        val compositionHost = JPanel()
+        val stale =
+            SwingContentComposition.nested(
+                parentContext,
+            ) { observer -> SwingApplier(compositionHost, observer) }
         stale.setContent { Label(text = "stale") }
         // Declared only once the stale composition is gone: disposing one empties the container it is
         // rooted at, which is the host these two share.
         var showTheLabel by mutableStateOf(false)
-        val live = SwingCompositionMount.nested(parentContext) { observer -> SwingApplier(islandHost, observer) }
+        val live = SwingContentComposition.nested(parentContext) { observer -> SwingApplier(compositionHost, observer) }
         try {
             live.setContent { if (showTheLabel) Label(text = "live") }
             awaitIdle()
             val published =
                 assertNotNull(
-                    islandHost.findCompositionData(),
+                    compositionHost.findCompositionData(),
                     "the one mounted last is what the host carries",
                 )
 
@@ -414,12 +417,12 @@ class DebugInspectorInfoTest {
 
             assertSame(
                 published,
-                islandHost.findCompositionData(),
+                compositionHost.findCompositionData(),
                 "and disposing the one it took the host from leaves that publication where it stands",
             )
             showTheLabel = true
             awaitIdle()
-            assertAnsweredWithItsOwnGroup(islandHost.components.single())
+            assertAnsweredWithItsOwnGroup(compositionHost.components.single())
         } finally {
             live.dispose()
         }
@@ -427,12 +430,12 @@ class DebugInspectorInfoTest {
 
     @Test
     fun aCompositionNobodyDisposedIsCollectableOnceNothingElseHoldsIt() {
-        val published = mountAnIslandAndLetGoOfIt()
+        val published = mountACompositionAndLetGoOfIt()
 
         repeat(COLLECTION_ATTEMPTS) {
             if (published.get() == null) return
             // A composition stays known to the recomposer that drove it until it is disposed, and a
-            // recomposer stays in the runtime's set of running ones until its cancellation has finished
+            // recomposer stays in the recomposer's set of running ones until its cancellation has finished
             // unwinding - which happens on the event dispatch thread, after the test body it belonged to
             // returned. Letting that thread run first keeps this a question about what this library
             // holds, rather than a race with a teardown still in flight.
@@ -475,24 +478,24 @@ private fun assertAnsweredWithItsOwnGroup(component: Component) {
 }
 
 /**
- * Mounts an island, drops the handle that would dispose it, and hands back a weak reference to what it
+ * Mounts a composition, drops the handle that would dispose it, and hands back a weak reference to what it
  * published. Everything strong is confined to this call's own frame, which is gone by the time the
  * caller looks at the reference.
  */
-private fun mountAnIslandAndLetGoOfIt(): WeakReference<Any> {
-    var islandHost: JPanel? = JPanel()
+private fun mountACompositionAndLetGoOfIt(): WeakReference<Any> {
+    var compositionHost: JPanel? = JPanel()
     runComposeSwingTest {
         isDebugInspectorInfoEnabled = true
         lateinit var parentContext: CompositionContext
         setContent { parentContext = rememberCompositionContext() }
-        islandHost!!.setContent(parent = parentContext) { Label(text = "island") }
+        compositionHost!!.setContent(parent = parentContext) { Label(text = "composition") }
         awaitIdle()
     }
     val published =
         assertNotNull(
-            islandHost!!.publishedCompositionData(),
-            "the island must still be published, which is what says nobody disposed it",
+            compositionHost!!.publishedCompositionData(),
+            "the composition must still be published, which is what says nobody disposed it",
         )
-    islandHost = null
+    compositionHost = null
     return WeakReference(published)
 }

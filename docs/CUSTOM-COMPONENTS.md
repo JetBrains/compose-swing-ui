@@ -1320,7 +1320,7 @@ its children - for example, a Swing container that manages tabs, popups, or spli
 
 Set it `true` so those nested `setContent` calls **join this node's own composition**, sharing its
 `CompositionLocal`s along with the recomposer and scope around it. Without the flag such a call joins
-whatever its place in the Swing tree resolves to - the island above it, or the composition its window
+whatever its place in the Swing tree resolves to - the content composition above it, or the one its window
 shares - so it recomposes with everything else there but sees none of the `CompositionLocal`s this node
 stands under.
 

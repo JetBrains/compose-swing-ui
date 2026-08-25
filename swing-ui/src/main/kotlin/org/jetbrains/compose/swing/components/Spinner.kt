@@ -85,9 +85,9 @@ private fun rememberSpinnerValueChannel(
  *   `null` formats it the way the locale does. A new pattern rebuilds the spinner's own editor around
  *   it.
  * @param editor the editing surface the spinner shows in place of its own, composed into the spinner as
- *   an island of the enclosing composition, so it reads the same state and locals the caller does;
+ *   a composition of the enclosing composition, so it reads the same state and locals the caller does;
  *   `null` leaves the editor the one the spinner builds for its own model. A fresh lambda each
- *   recomposition is fine - the island recomposes rather than being rebuilt, so characters typed but
+ *   recomposition is fine - the composition recomposes rather than being rebuilt, so characters typed but
  *   not committed stand.
  * @throws IllegalArgumentException if both a [format] and an [editor] are declared, or if [value]
  *   falls outside [min]..[max].
@@ -109,7 +109,7 @@ public fun Spinner(
 
     // The general SpinnerNumberModel constructor takes Comparable minimum/maximum. Number is not itself
     // Comparable, but every concrete Number a caller passes (Int, Double, Long, ...) is Comparable at
-    // runtime, so the star-projected cast of the bounds is sound.
+    // recomposer, so the star-projected cast of the bounds is sound.
     val model = remember { SpinnerNumberModel(value, min as Comparable<*>?, max as Comparable<*>?, step) }
 
     SpinnerNode(
@@ -145,9 +145,9 @@ public fun Spinner(
  *   pattern; `null` formats it the way the locale does. A new pattern rebuilds the spinner's own
  *   editor around it.
  * @param editor the editing surface the spinner shows in place of its own, composed into the spinner as
- *   an island of the enclosing composition, so it reads the same state and locals the caller does;
+ *   a composition of the enclosing composition, so it reads the same state and locals the caller does;
  *   `null` leaves the editor the one the spinner builds for its own model. A fresh lambda each
- *   recomposition is fine - the island recomposes rather than being rebuilt, so characters typed but
+ *   recomposition is fine - the composition recomposes rather than being rebuilt, so characters typed but
  *   not committed stand.
  * @throws IllegalArgumentException if both a [format] and an [editor] are declared, or if [value]
  *   falls outside [start]..[end].
@@ -199,9 +199,9 @@ public fun Spinner(
  *   reported.
  * @param modifier the [SwingModifier] applied to the underlying component.
  * @param editor the editing surface the spinner shows in place of its own, composed into the spinner as
- *   an island of the enclosing composition, so it reads the same state and locals the caller does;
+ *   a composition of the enclosing composition, so it reads the same state and locals the caller does;
  *   `null` leaves the editor the one the spinner builds for its own model. A fresh lambda each
- *   recomposition is fine - the island recomposes rather than being rebuilt, so characters typed but
+ *   recomposition is fine - the composition recomposes rather than being rebuilt, so characters typed but
  *   not committed stand.
  * @see javax.swing.JSpinner
  */
@@ -252,9 +252,9 @@ public fun <T : Any> Spinner(
  *   over a number model, a `SimpleDateFormat` pattern over a date model; `null` formats them the way the
  *   locale does. A new pattern rebuilds the spinner's own editor around it.
  * @param editor the editing surface the spinner shows in place of its own, composed into the spinner as
- *   an island of the enclosing composition, so it reads the same state and locals the caller does;
+ *   a composition of the enclosing composition, so it reads the same state and locals the caller does;
  *   `null` leaves the editor the one the spinner builds for its own model. A fresh lambda each
- *   recomposition is fine - the island recomposes rather than being rebuilt, so characters typed but
+ *   recomposition is fine - the composition recomposes rather than being rebuilt, so characters typed but
  *   not committed stand.
  * @throws IllegalArgumentException if both a [format] and an [editor] are declared, or if a [format] is
  *   declared over a model that is neither a number's nor a date's.
@@ -309,7 +309,7 @@ private fun SpinnerNode(
     }
     val parentContext = rememberCompositionContext()
     // The panel a composed editor renders into, remembered here so the same instance is handed both to
-    // the modifier below, which installs it as the spinner's editor, and to the island composed beside
+    // the modifier below, which installs it as the spinner's editor, and to the composition composed beside
     // the node, which fills it.
     val editorPanel = if (editor != null) remember { JPanel(BorderLayout()).apply { isOpaque = false } } else null
     SwingNode<JSpinner>(
@@ -319,7 +319,7 @@ private fun SpinnerNode(
             // A `JSpinner` editor is built for the model it edits, so the model is part of what the
             // editor is derived from: swapping the model rebuilds the editor around the new one even
             // where the format stands. A composed editor is not derived from any of them and is
-            // installed by the island instead, so it withholds the write here.
+            // installed by the composition instead, so it withholds the write here.
             set(EditorDeclaration(model, format, editor != null)) { declaration ->
                 if (!declaration.composed) this.editor = (this as SpinnerComponent).declaredEditor(declaration)
             }
@@ -328,7 +328,7 @@ private fun SpinnerNode(
         },
     )
     if (editor != null && editorPanel != null) {
-        SpinnerEditorIsland(editorPanel, parentContext, editor)
+        SpinnerEditorComposition(editorPanel, parentContext, editor)
     }
 }
 
@@ -494,13 +494,13 @@ private class ItemsFormatter(
  * Composes [content] into [panel], which the modifier chain installs as the spinner's editor for as long
  * as an editor is declared.
  *
- * The island joins [parentContext], so the editing surface reads the state and the
+ * The composition joins [parentContext], so the editing surface reads the state and the
  * [androidx.compose.runtime.CompositionLocal]s the spinner's own caller does. [content] flows in through
- * [rememberUpdatedState]: a fresh lambda each recomposition recomposes the island rather than rebuilding
+ * [rememberUpdatedState]: a fresh lambda each recomposition recomposes the composition rather than rebuilding
  * it, so an edit in progress is not thrown away.
  */
 @Composable
-private fun SpinnerEditorIsland(
+private fun SpinnerEditorComposition(
     panel: JPanel,
     parentContext: CompositionContext,
     content:
@@ -522,7 +522,7 @@ private fun SpinnerEditorIsland(
 /**
  * What the component a spinner edits its value through is derived from: the model that value belongs to,
  * the pattern the spinner's own editor formats it with, and whether an editor is composed instead. A
- * [composed] editor is the island's to install; with neither it nor a [format], the editor is the one the
+ * [composed] editor is the composition's to install; with neither it nor a [format], the editor is the one the
  * spinner builds for its model.
  */
 private data class EditorDeclaration(

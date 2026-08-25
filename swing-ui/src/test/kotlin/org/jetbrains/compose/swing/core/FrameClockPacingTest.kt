@@ -37,25 +37,25 @@ import kotlin.time.Duration.Companion.seconds
 class FrameClockPacingTest {
     @Test
     fun everyWriteMadeWhileHandlingOneEventCostsASinglePass() = runSwingTest {
-        val island = JPanel()
-        val runtime = SwingRecomposer.create(island)
+        val composition = JPanel()
+        val recomposer = SwingRecomposer.create(composition)
         var counter by mutableStateOf(0)
         var passes = 0
         var content: DisposableHandle? = null
         try {
             content =
-                island.setContent(parent = runtime.compositionContext) {
+                composition.setContent(parent = recomposer.compositionContext) {
                     Label(text = "n=$counter")
                     SideEffect { passes++ }
                 }
-            awaitUntil("the content mounts") { labelTextOrNull(island) == "n=0" }
+            awaitUntil("the content mounts") { labelTextOrNull(composition) == "n=0" }
             val passesBefore = passes
 
             // No suspension point between the writes, so all of them are made while the event
             // dispatch thread is handling a single event, exactly as a Swing listener would.
             repeat(WRITES_PER_EVENT) { counter = it + 1 }
 
-            awaitUntil("the writes reach the widget") { labelTextOrNull(island) == "n=$WRITES_PER_EVENT" }
+            awaitUntil("the writes reach the widget") { labelTextOrNull(composition) == "n=$WRITES_PER_EVENT" }
             delay(QUIET_PERIOD)
             assertEquals(
                 1,
@@ -64,24 +64,28 @@ class FrameClockPacingTest {
             )
         } finally {
             content?.dispose()
-            runtime.dispose()
+            recomposer.dispose()
         }
     }
 
     @Test
     fun aWriteReachesItsWidgetWithoutWaitingOutAFrame() = runSwingTest {
-        val island = JPanel()
-        val runtime = SwingRecomposer.create(island)
+        val composition = JPanel()
+        val recomposer = SwingRecomposer.create(composition)
         var text by mutableStateOf("v0")
         var content: DisposableHandle? = null
         try {
-            content = island.setContent(parent = runtime.compositionContext) { Label(text = text) }
-            awaitUntil("the content mounts") { labelTextOrNull(island) == "v0" }
+            content = composition.setContent(parent = recomposer.compositionContext) { Label(text = text) }
+            awaitUntil("the content mounts") { labelTextOrNull(composition) == "v0" }
 
             repeat(WRITES_TIMED) { round ->
                 val expected = "v${round + 1}"
                 text = expected
-                val cycles = cyclesUntil("write $expected reaches the widget") { labelTextOrNull(island) == expected }
+                val cycles =
+                    cyclesUntil("write $expected reaches the widget") {
+                        labelTextOrNull(composition) ==
+                            expected
+                    }
                 assertTrue(
                     cycles <= MAX_CYCLES_TO_APPLY,
                     "a write must apply on the cycles right after the event that made it, " +
@@ -90,20 +94,20 @@ class FrameClockPacingTest {
             }
         } finally {
             content?.dispose()
-            runtime.dispose()
+            recomposer.dispose()
         }
     }
 
     @Test
     fun anAnimationAdvancesAtTheClockCadenceRatherThanAsFastAsTheEventQueueTurns() = runSwingTest {
-        val island = JPanel()
-        val runtime = SwingRecomposer.create(island)
+        val composition = JPanel()
+        val recomposer = SwingRecomposer.create(composition)
         var target by mutableStateOf(0f)
         val steps = mutableListOf<Float>()
         var content: DisposableHandle? = null
         try {
             content =
-                island.setContent(parent = runtime.compositionContext) {
+                composition.setContent(parent = recomposer.compositionContext) {
                     val fraction = linearRamp(target)
                     Label(text = "f=$fraction")
                     SideEffect { if (steps.lastOrNull() != fraction) steps += fraction }
@@ -113,14 +117,14 @@ class FrameClockPacingTest {
             target = 1f
             awaitUntil("the animation reaches its target") { steps.last() == 1f }
 
-            val cadenceFrames = ANIMATION_MILLIS / runtime.clock.frameDelayMillis
+            val cadenceFrames = ANIMATION_MILLIS / recomposer.clock.frameDelayMillis
             assertTrue(
                 steps.size > 1,
                 "the animation must advance in steps rather than snap to its target; it went $steps",
             )
             assertTrue(
                 steps.size <= cadenceFrames * CADENCE_HEADROOM,
-                "a ${ANIMATION_MILLIS}ms animation on a ${runtime.clock.frameDelayMillis}ms cadence takes on " +
+                "a ${ANIMATION_MILLIS}ms animation on a ${recomposer.clock.frameDelayMillis}ms cadence takes on " +
                     "the order of $cadenceFrames steps; ${steps.size} means it ran as fast as the event " +
                     "queue turned rather than on the clock",
             )
@@ -134,21 +138,21 @@ class FrameClockPacingTest {
             )
         } finally {
             content?.dispose()
-            runtime.dispose()
+            recomposer.dispose()
         }
     }
 
     @Test
     fun aWriteLandingMidAnimationAppliesAtOnceAndTheAnimationNeitherSkipsNorJumps() = runSwingTest {
-        val island = JPanel()
-        val runtime = SwingRecomposer.create(island)
+        val composition = JPanel()
+        val recomposer = SwingRecomposer.create(composition)
         var target by mutableStateOf(0f)
         var counter by mutableStateOf(0)
         val steps = mutableListOf<Float>()
         var content: DisposableHandle? = null
         try {
             content =
-                island.setContent(parent = runtime.compositionContext) {
+                composition.setContent(parent = recomposer.compositionContext) {
                     val fraction = linearRamp(target)
                     Label(text = "n=$counter f=$fraction")
                     SideEffect { if (steps.lastOrNull() != fraction) steps += fraction }
@@ -166,7 +170,7 @@ class FrameClockPacingTest {
                     maxOf(
                         worstCycles,
                         cyclesUntil("write $writes reaches the widget") {
-                            labelTextOrNull(island)?.startsWith("n=$writes ") == true
+                            labelTextOrNull(composition)?.startsWith("n=$writes ") == true
                         },
                     )
             }
@@ -177,7 +181,7 @@ class FrameClockPacingTest {
                 "a write made mid-animation must not wait for the animation's next frame; " +
                     "the slowest took $worstCycles event-dispatch cycles",
             )
-            val cadenceFrames = ANIMATION_MILLIS / runtime.clock.frameDelayMillis
+            val cadenceFrames = ANIMATION_MILLIS / recomposer.clock.frameDelayMillis
             assertTrue(
                 steps.size <= cadenceFrames * CADENCE_HEADROOM,
                 "writes must not smuggle extra animation frames in: a ${ANIMATION_MILLIS}ms animation " +
@@ -189,19 +193,19 @@ class FrameClockPacingTest {
             )
         } finally {
             content?.dispose()
-            runtime.dispose()
+            recomposer.dispose()
         }
     }
 
     @Test
     fun workThatStartsAwaitingFramesLongAfterTheLastOneStillGetsThem() = runSwingTest {
-        val island = JPanel()
-        val runtime = SwingRecomposer.create(island)
+        val composition = JPanel()
+        val recomposer = SwingRecomposer.create(composition)
         var framesSeen by mutableStateOf(0)
         var content: DisposableHandle? = null
         try {
             content =
-                island.setContent(parent = runtime.compositionContext) {
+                composition.setContent(parent = recomposer.compositionContext) {
                     Label(text = "frames=$framesSeen")
                     LaunchedEffect(Unit) {
                         // The composition is fully settled and asking for nothing by the time this
@@ -212,47 +216,47 @@ class FrameClockPacingTest {
                         }
                     }
                 }
-            awaitUntil("the content mounts") { labelTextOrNull(island) == "frames=0" }
+            awaitUntil("the content mounts") { labelTextOrNull(composition) == "frames=0" }
             delay(LATE_START)
             assertEquals(0, framesSeen, "the case needs the composition idle when the frame awaiting starts")
 
             awaitUntil("frame-driven work started from an idle composition runs") { framesSeen == LATE_FRAMES }
         } finally {
             content?.dispose()
-            runtime.dispose()
+            recomposer.dispose()
         }
     }
 
     @Test
     fun anIdleCompositionKeepsNoTimerRunning() = runSwingTest {
-        val island = JPanel()
-        val runtime = SwingRecomposer.create(island)
+        val composition = JPanel()
+        val recomposer = SwingRecomposer.create(composition)
         var target by mutableStateOf(0f)
         val steps = mutableListOf<Float>()
         var content: DisposableHandle? = null
         try {
             content =
-                island.setContent(parent = runtime.compositionContext) {
+                composition.setContent(parent = recomposer.compositionContext) {
                     val fraction = linearRamp(target)
                     Label(text = "f=$fraction")
                     SideEffect { if (steps.lastOrNull() != fraction) steps += fraction }
                 }
             awaitUntil("the content mounts") { steps.isNotEmpty() }
             assertTrue(
-                !runtime.clock.isPacingFrameDrivenWork,
+                !recomposer.clock.isPacingFrameDrivenWork,
                 "a composition that has only ever recomposed must run no timer",
             )
 
             target = 1f
             awaitUntil("the animation is running") { steps.size > 1 }
-            assertTrue(runtime.clock.isPacingFrameDrivenWork, "an animation must be paced by the timer")
+            assertTrue(recomposer.clock.isPacingFrameDrivenWork, "an animation must be paced by the timer")
 
             awaitUntil("the animation ends and the timer stops") {
-                steps.last() == 1f && !runtime.clock.isPacingFrameDrivenWork
+                steps.last() == 1f && !recomposer.clock.isPacingFrameDrivenWork
             }
         } finally {
             content?.dispose()
-            runtime.dispose()
+            recomposer.dispose()
         }
     }
 

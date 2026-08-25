@@ -55,7 +55,7 @@ composition did - a component built by hand, and one whose composition has not r
 
 The separate question of which composition a component hosts or stands in is
 `Component.findCompositionData()`, which answers whether or not that composition declared it. The walk
-starts at the component, so a host is answered with the island it hosts rather than with the composition
+starts at the component, so a host is answered with the composition it hosts rather than with the one
 that declared it.
 
 The declaring answer is a group rather than the whole composition because a `CompositionGroup` is a
@@ -69,9 +69,9 @@ The declaring answer is a group rather than the whole composition because a `Com
 | What that component declared in turn | descend `compositionGroups` from the group |
 
 The search starts at the component and walks up its Swing ancestors, and the nearest composition that
-declared it wins. So a component declared inside a nested `setContent` island is answered by that island
-rather than by the composition around it, and a component that hosts an island of its own is still
-answered with the group that declared it - the island it carries never declared its own host.
+declared it wins. So a component declared inside a nested `setContent` is answered by that content
+composition rather than by the one around it, and a component that hosts a composition of its own is
+still answered with the group that declared it - the composition it carries never declared its own host.
 
 A composition rooted at a `java.awt.Container` that is no `JComponent` publishes nothing, having no
 client-property bag, and the components it declared are not found; where two compositions are rooted at
@@ -148,7 +148,7 @@ what is already there and starts nothing, so it may be asked of any component wi
   rather than driving one of its own, and `ApplicationScope.recomposer` is the one to register on.
   `findRecomposer()` answers `null` there, as it does for a component no composed content reaches.
 
-Registering on a recomposer reports the islands nested inside its compositions as well.
+Registering on a recomposer reports the content compositions nested inside its own as well.
 
 ## A worked example
 

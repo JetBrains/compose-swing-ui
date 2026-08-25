@@ -21,6 +21,7 @@ import kotlinx.coroutines.swing.Swing
 import kotlinx.coroutines.withContext
 import org.jetbrains.compose.swing.core.GlobalSnapshotManager
 import org.jetbrains.compose.swing.core.SwingFrameClock
+import javax.swing.SwingUtilities
 import kotlin.system.exitProcess
 
 /**
@@ -38,8 +39,10 @@ import kotlin.system.exitProcess
  * block; otherwise that code won't be executed, as [application] exits the process.
  *
  * This entry point is a blocking operation (it blocks the current thread until the application
- * finishes) and can't be called on the UI thread. To launch a new application from the UI thread
- * (for example, from some event listener), use [launchApplication] instead.
+ * finishes) and can't be called on the UI thread: the composition it waits on runs its recomposer
+ * on that same thread, so calling from there would block the thread the wait depends on. To launch
+ * a new application from the UI thread (for example, from some event listener), use
+ * [launchApplication] instead.
  *
  * The application can launch background tasks using [androidx.compose.runtime.LaunchedEffect]
  * or create [Window], [Dialog], or [org.jetbrains.compose.swing.components.Tray] in a declarative
@@ -72,12 +75,15 @@ import kotlin.system.exitProcess
  * down. If `false`, the execution of the function is unblocked after the application exits
  * (when the last window is closed, and all [androidx.compose.runtime.LaunchedEffect]s are complete).
  * @param content the application's content, composed against an [ApplicationScope].
+ * @throws IllegalStateException if called on the Event Dispatch Thread.
  * @see [awaitApplication]
  */
 public fun application(
     exitProcessOnExit: Boolean = true,
     content: @Composable ApplicationScope.() -> Unit,
 ) {
+    checkNotEventDispatchThread()
+
     runBlocking {
         awaitApplication {
             content()
@@ -86,6 +92,22 @@ public fun application(
 
     if (exitProcessOnExit) {
         exitProcess(0)
+    }
+}
+
+/**
+ * Asserts the caller is off the Swing Event Dispatch Thread, failing loudly otherwise.
+ *
+ * [application] blocks the calling thread until the composition it hosts exits, and that
+ * composition's recomposer runs on the Event Dispatch Thread. Called from there, it would block
+ * the thread its own progress depends on and hang with no diagnostic; this check fails fast
+ * instead.
+ */
+private fun checkNotEventDispatchThread() {
+    check(!SwingUtilities.isEventDispatchThread()) {
+        "application() must not be called on the Event Dispatch Thread, but was called on " +
+            "'${Thread.currentThread().name}'. Use launchApplication() from the Event Dispatch " +
+            "Thread instead."
     }
 }
 
@@ -209,7 +231,7 @@ public sealed interface ApplicationScope {
      *
      * `Recomposer.observe(CompositionRegistrationObserver)` registers on it to be told as each of those
      * compositions is registered and unregistered. A composition registers with the recomposer at the
-     * root of its context chain, so this one reports every island inside a declared window as well.
+     * root of its context chain, so this one reports every composition inside a declared window as well.
      */
     public val recomposer: Recomposer
 }

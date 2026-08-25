@@ -134,7 +134,7 @@ class ListBoxComposableCellTest {
 
     @Test
     fun composableCellsWorkInsideAScrollPane() = runComposeSwingTest {
-        // A composable cell island joins the enclosing composition, and the cell's own nodes belong to the
+        // A cell composition joins the enclosing composition, and the cell's own nodes belong to the
         // renderer rather than to the pane the list is installed in: they render the row, they do not
         // install themselves as the viewport's view. Selecting a row synchronously stamps a cell during
         // the enclosing composition's apply pass, which is exactly when such leakage surfaces.
@@ -174,8 +174,8 @@ class ListBoxComposableCellTest {
         val cellBefore = composingRenderer.stampCell(value = "alpha", index = 0, list = list)
 
         // The renderer outlives its composition: whoever captured it - a widget, a popup of its own -
-        // goes on invoking it while the window it belongs to is torn down, after the cell island is
-        // disposed.
+        // goes on invoking it while the window it belongs to is torn down, after the cell composition
+        // is disposed.
         showList = false
         awaitIdle()
 
@@ -183,11 +183,11 @@ class ListBoxComposableCellTest {
         assertNotSame(
             cellBefore,
             cellAfter,
-            "a disposed cell island must give up the component it composed",
+            "a disposed cell composition must give up the component it composed",
         )
         assertNull(
             cellAfter.firstLabelText(),
-            "a stamp on a disposed cell island must render an empty cell rather than a stale row",
+            "a stamp on a disposed cell composition must render an empty cell rather than a stale row",
         )
         assertTrue(
             list.stampCell(index = 1) is JLabel,

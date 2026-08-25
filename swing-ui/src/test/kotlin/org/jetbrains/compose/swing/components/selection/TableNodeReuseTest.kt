@@ -22,10 +22,10 @@ import kotlin.test.assertTrue
  *
  * A controlled selection reaches the fresh table the same way it reaches any freshly composed one.
  *
- * A column's composable cell is owned by the composition too: the island stamping it lives only while
- * the node is in the composition, so a table that outlives its own composable cell - parked before it is
- * torn down - paints that column through the renderer it picks by the column's class, and the fresh
- * table reactivation builds stamps the composable cell again.
+ * A column's composable cell is owned by the composition too: the cell composition stamping it lives
+ * only while the node is in the composition, so a table that outlives its own composable cell - parked
+ * before it is torn down - paints that column through the renderer it picks by the column's class, and
+ * the fresh table reactivation builds stamps the composable cell again.
  */
 class TableNodeReuseTest {
     private val people = listOf(Person("Ada", 36), Person("Alan", 41))

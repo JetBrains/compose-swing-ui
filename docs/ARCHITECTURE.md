@@ -29,8 +29,8 @@ A mount can also be given the composition it nests into. A composable scope hand
 composed content - a `Recomposer` is a `CompositionContext`, so it stands as a parent as it is.
 `container.setContent(parent) { ... }` then composes on the call, whatever the container is attached
 to. Everything mounted inside such a container joins the same parent: a
-`setContent` naming no parent of its own on a container hanging under that island resolves to the
-composition the island was given rather than to the window's. A container given a window's own scope
+`setContent` naming no parent of its own on a container hanging under that content composition resolves
+to the composition it was given rather than to the window's. A container given a window's own scope
 joins the composition of the window it is in should it later be added to another, so a window's
 content still recomposes on one recomposer and one frame clock. A container given a runtime of its
 own is kept on that runtime instead: a move brings only the window its content reads up to date.

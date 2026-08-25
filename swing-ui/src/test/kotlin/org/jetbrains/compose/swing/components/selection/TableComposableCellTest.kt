@@ -29,9 +29,9 @@ import kotlin.test.assertTrue
  * [TableCellScope], and a column that declares no cell body renders through the renderer the table picks
  * by the column's class.
  *
- * Each column that declares a cell body gets an island of its own, and a column that stops declaring one
- * gives its island up: a cell body whose column is gone composes no more, and the renderer the table
- * captured stamps the empty cell a disposed island composes.
+ * Each column that declares a cell body gets a cell composition of its own, and a column that stops
+ * declaring one gives that composition up: a cell body whose column is gone composes no more, and the
+ * renderer the table captured stamps the empty cell a disposed composition composes.
  *
  * The cell's component lives outside the composition root - it is what the renderer hands the table - so
  * these drive the renderer directly (as `JTable` does when it paints a cell) and inspect what it returns.
@@ -83,7 +83,7 @@ class TableComposableCellTest {
             }
         }
 
-        // Two columns declaring cells hold an island each, so neither is rebuilt by the other's stamps.
+        // Two columns declaring cells hold a cell composition each, so neither is rebuilt by the other's stamps.
         val table = onNodeOfType<JTable>().fetch()
         val name = table.stampCell(row = 0, column = 0)
         val age = table.stampCell(row = 0, column = 1)
@@ -170,7 +170,7 @@ class TableComposableCellTest {
 
     @Test
     fun composableCellsWorkInsideAScrollPane() = runComposeSwingTest {
-        // A composable cell island joins the enclosing composition, and the cell's own nodes belong to the
+        // A cell composition joins the enclosing composition, and the cell's own nodes belong to the
         // renderer rather than to the pane the table is installed in: they render the cell, they do not
         // install themselves as the viewport's view.
         setContent {
@@ -272,7 +272,7 @@ class TableComposableCellTest {
         composed.clear()
         badge = "review"
         awaitIdle()
-        assertTrue(composed.isNotEmpty(), "a live cell island should compose again when the state it reads moves")
+        assertTrue(composed.isNotEmpty(), "a live cell composition should compose again when the state it reads moves")
 
         showBadge = false
         awaitIdle()
@@ -282,14 +282,14 @@ class TableComposableCellTest {
         assertEquals(
             emptyList<String>(),
             composed.toList(),
-            "a removed column's cell island must be disposed, so the state it read invalidates nothing",
+            "a removed column's cell composition must be disposed, so the state it read invalidates nothing",
         )
 
         val cellAfter =
             badgeRenderer.getTableCellRendererComponent(table, "final", false, false, 0, 0)
         assertNull(
             cellAfter.firstLabelText(),
-            "a stamp on the disposed island must render an empty cell rather than a stale one",
+            "a stamp on the disposed cell composition must render an empty cell rather than a stale one",
         )
     }
 
@@ -316,8 +316,8 @@ class TableComposableCellTest {
         composableCells = false
         awaitIdle()
 
-        // Disposing a cell island must touch nothing of the composition it was mounted from. Discarding the
-        // table afterwards rewrites the very slots the disposal ran from, and disposing the composition at
+        // Disposing a cell composition must touch nothing of the composition it was mounted from. Discarding
+        // the table afterwards rewrites the very slots the disposal ran from, and disposing the composition at
         // the end of the test rewrites all of them, so both fail outright if the disposal disturbed either.
         showTable = false
         awaitIdle()

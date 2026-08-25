@@ -46,7 +46,7 @@ import javax.swing.RootPaneContainer
  *
  * Every container mutated during a change pass is revalidated and repainted once in [onEndChanges].
  *
- * Internal runtime type; not public API.
+ * Internal implementation type; not public API.
  *
  * @param root the container the composition is rooted at.
  * @param ownerObserver the composition owner's shared snapshot observer, stamped onto every node.
@@ -249,7 +249,8 @@ internal class SwingApplier internal constructor(
         // holders still carry the uninstall action for the region each one fills; releasing those is left
         // to SwingNodeHolder.onRelease, which the runtime calls for every node. Clearing the root's own
         // child lists drops its references to that subtree; every deeper node's lists go with the node.
-        // The root's placement stays as the mount declared it: the composition is emptied, not re-hosted.
+        // The root's placement stays as it was declared when the content mounted: the composition is
+        // emptied, not re-hosted.
         val container = root.component as? Container ?: return
         container.childHost.removeAll()
         root.children.clear()
@@ -292,11 +293,11 @@ private class ChildRegions(
 
     init {
         // The root is the one node no composable declares, so the code that mounts the composition says
-        // how its top-level children are attached: a mount supplying a `rootSlot` installs every one of
-        // them into the single region that slot fills. Recording that as the root's own placement is what
-        // has the removal and the move of such a child follow the same route as its install, and what
-        // holds the mount to the one top-level child its slot shows - the same rule this applier holds
-        // every other host to, checked in the same place.
+        // how its top-level children are attached: content that mounts with a `rootSlot` has every one of
+        // them installed into the single region that slot fills. Recording that as the root's own placement
+        // is what has the removal and the move of such a child follow the same route as its install, and
+        // what holds the composition to the one top-level child that slot shows - the same rule this
+        // applier holds every other host to, checked in the same place.
         if (rootSlot != null) this.root.childPlacement = ChildPlacement.Slots(ROOT_SLOT_NAME)
     }
 
@@ -456,12 +457,14 @@ private class ChildRegions(
     }
 }
 
-/** The region of the mount that the composition's own top-level children fill. */
+/** The name of the root slot region a composition's own top-level children fill. */
 private const val ROOT_SLOT_NAME: String = "content"
 
 /**
- * The hosts to hold to one child per region, checked by [check] on the turn [DeferredAction] runs it -
- * see that type for why a turn is waited at all.
+ * The hosts to hold to one child per region, checked by [check] on the turn of the event queue after the
+ * one the change pass was applied in. Only there has a parked node's deactivation - dispatched by the
+ * runtime once the changes applying it are themselves applied - actually run, so only there does a host
+ * hold the children the composition means it to.
  */
 private class DeferredRegionCheck(
     private val check: (SwingNodeHolder<*>) -> Unit,
@@ -517,8 +520,8 @@ private class ChangeRecord {
 
     /**
      * The [ChildPlacement.Slots] hosts a child was installed into, held to the single occupant each of
-     * their regions shows - and the composition root, when a mount states that placement for it, to the
-     * one top-level child its slot shows.
+     * their regions shows - and the composition root, where the content mounted under that placement, to
+     * the one top-level child its root slot shows.
      */
     private val filledSlotHosts: MutableSet<SwingNodeHolder<*>> =
         Collections.newSetFromMap(IdentityHashMap())
@@ -660,7 +663,7 @@ private fun SwingNodeHolder<*>.checkChildKind(
 }
 
 /**
- * Holds the composition root to the single top-level child its mount's slot shows, counting the children
+ * Holds the composition root to the single top-level child its root slot shows, counting the children
  * the composition drives. Called once the pass that filled the slot has been dispatched whole, for the
  * same reason [checkOneChildPerRegion] is.
  *

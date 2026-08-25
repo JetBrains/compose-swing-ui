@@ -51,7 +51,7 @@ private const val OWN_FILE = "ComponentInspectionTest.kt"
  * The switch is process-wide state, so every test leaves it off again - otherwise it would leak into a
  * later test, and into every composition the rest of the suite mounts. The Compose runtime's diagnostic
  * stack trace mode is process-wide too and belongs to the application, which these tests stand in for:
- * they put the runtime in it before each test and back to its default after.
+ * they set that mode before each test and restore its default after.
  */
 class ComponentInspectionTest {
     /** Stands in for an application that enabled Compose diagnostic stack traces. */
@@ -150,7 +150,7 @@ class ComponentInspectionTest {
     }
 
     @Test
-    fun aComponentHostingAnIslandIsStillAnsweredWithTheGroupThatDeclaredIt() = runComposeSwingTest {
+    fun aComponentHostingAContentCompositionIsStillAnsweredWithTheGroupThatDeclaredIt() = runComposeSwingTest {
         val nestedHost = JPanel()
         isDebugInspectorInfoEnabled = true
         setContent { SwingNode(factory = { nestedHost }) }
@@ -161,12 +161,12 @@ class ComponentInspectionTest {
             assertSame(
                 nestedHost,
                 (assertNotNull(nestedHost.findDeclaringGroup()).node as? SwingComponentNode)?.component,
-                "the island a component hosts declared it no more than a stranger did, so the composition " +
-                    "that did declare it is the one that answers",
+                "the content composition a component hosts declared it no more than a stranger did, so " +
+                    "the composition that did declare it is the one that answers",
             )
             assertTrue(
                 declarationTraceOf(nestedHost).contains(OWN_FILE),
-                "and the trace names where it was declared, not the island it carries",
+                "and the trace names where it was declared, not the content composition it carries",
             )
             assertSame(
                 onNodeWithTag(NESTED_TAG).fetch(),
@@ -174,13 +174,13 @@ class ComponentInspectionTest {
                     assertNotNull(onNodeWithTag(NESTED_TAG).fetch().findDeclaringGroup()).node
                         as? SwingComponentNode
                 )?.component,
-                "while a component inside the island is answered by the island itself",
+                "while a component inside that composition is answered by it",
             )
             assertSame(
                 onNodeWithTag(NESTED_TAG).fetch().findCompositionData(),
                 nestedHost.findCompositionData(),
-                "and the composition a host stands in is the island it carries, which is nearer than the " +
-                    "one that declared the host",
+                "and the composition a host stands in is the one it carries, which is nearer than the " +
+                    "composition that declared the host",
             )
         } finally {
             handle.dispose()
@@ -224,7 +224,7 @@ class ComponentInspectionTest {
     }
 
     @Test
-    fun aComponentInsideANestedIslandIsAnsweredForByThatIslandsOwnComposition() = runComposeSwingTest {
+    fun aComponentInsideANestedCompositionIsAnsweredForByThatCompositionsOwnGroups() = runComposeSwingTest {
         val nestedHost = JPanel()
         isDebugInspectorInfoEnabled = true
         setContent {
@@ -241,13 +241,13 @@ class ComponentInspectionTest {
             assertSame(
                 assertNotNull(nestedHost.findCompositionData()),
                 nested.findCompositionData(),
-                "the island that declared it is the nearest composition above it, so that is the one it " +
-                    "is answered with",
+                "the content composition that declared it is the nearest composition above it, so that " +
+                    "is the one it is answered with",
             )
             assertNotSame(
                 root.findCompositionData(),
                 nested.findCompositionData(),
-                "and never the composition around that island, which declared the host and nothing inside it",
+                "and never the composition around it, which declared the host and nothing inside it",
             )
         } finally {
             handle.dispose()

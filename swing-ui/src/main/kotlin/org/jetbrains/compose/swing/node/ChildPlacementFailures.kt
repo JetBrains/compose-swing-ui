@@ -43,14 +43,14 @@ internal fun hostHasNoRegions(
         "that offers that region."
 }
 
-/** A composition emitting two top-level children into a mount slot that shows one component. */
+/** A composition emitting two top-level children into a root slot that shows one component. */
 internal fun rootSlotFilledTwice(
     root: Component,
     first: Component,
     second: Component,
 ): String =
     "A composition mounted into a ${root.declaredName} installs every top-level component it " +
-        "emits through the one root slot its mount supplies, which shows a single component there. " +
+        "emits into the one root slot it is mounted through, which shows a single component there. " +
         "This composition emits two: a ${first.declaredName} and a ${second.declaredName}. " +
         "Emit one, wrapping several in a container of their own."
 

@@ -130,7 +130,7 @@ class WaitUntilContractTest {
     fun setContentMayOnlyBeCalledOnce() = runComposeSwingTest {
         setContent { Label(text = "first") }
 
-        // A second mount would leave two compositions writing the same root, so it is rejected.
+        // A second setContent call would leave two compositions writing the same root, so it is rejected.
         assertFailsWith<IllegalStateException> { setContent { Label(text = "second") } }
         onNodeWithText("first").assertExists()
         onNodeWithText("second").assertDoesNotExist()

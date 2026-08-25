@@ -46,7 +46,7 @@ class TableStateListRowsTest : TracedTest() {
         // Building the table is churn, and reading it here is what says the recording below is a silence
         // rather than a channel that was never listening.
         val mountChurn = tracer.passes().flatten().filterNot { it == SETTLE }
-        assertTrue(mountChurn.isNotEmpty(), "the mount should have taken the table into the tree")
+        assertTrue(mountChurn.isNotEmpty(), "mounting the content should have taken the table into the tree")
         tracer.clear()
 
         rows.add(Person("Alan", 41))

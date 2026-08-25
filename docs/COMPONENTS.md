@@ -301,9 +301,9 @@ ProgressBar(model = range)
 A `Spinner` shows its value through an editor, and two parameters decide which one. `format` is the
 pattern the spinner's own editor renders and parses with - a `DecimalFormat` pattern over a number
 model, a `SimpleDateFormat` pattern over a date one - and `null` formats the value the way the locale
-does. `editor` replaces that editor with a composable, composed into the spinner as an island of the
+does. `editor` replaces that editor with a composable, composed into the spinner as a composition of the
 enclosing composition, so the editing surface reads the same state and composition locals the call
-site does. A fresh lambda each pass recomposes the island rather than rebuilding it, so characters
+site does. A fresh lambda each pass recomposes it rather than rebuilding it, so characters
 typed but not committed stand. Declaring both is refused: each names what the spinner shows.
 
 ```kotlin

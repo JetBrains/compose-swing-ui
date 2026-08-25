@@ -79,7 +79,7 @@ internal class TreeNodeValue<T>(
 
 /**
  * A [TreeCellRenderer] that paints each node through a real `@Composable` body, over the reused
- * [CellStampIsland] every such renderer stamps through.
+ * [CellStampComposition] every such renderer stamps through.
  *
  * The component the node composes is what the tree is handed. The tree bounds it at the row it is
  * painting and lays it out there, and its preferred size is what the tree measures the row by - as long
@@ -87,9 +87,9 @@ internal class TreeNodeValue<T>(
  * node composes.
  *
  * The [currentNodeContent] is read through a [State] so a recomposition that supplies a fresh node
- * body is honored without rebuilding the renderer or its island.
+ * body is honored without rebuilding the renderer or its node composition.
  *
- * @param parentContext the enclosing composition this renderer's node island joins.
+ * @param parentContext the enclosing composition this renderer's node composition joins.
  * @param currentNodeContent the always-current composable node body, invoked with the [TreeNodeScope]
  *   and the value the node stands for.
  */
@@ -97,15 +97,14 @@ internal class ComposingTreeCellRenderer<T>(
     parentContext: CompositionContext,
     private val currentNodeContent: State<@Composable TreeNodeScope.(value: T) -> Unit>,
 ) : TreeCellRenderer {
-    // The row inputs, held as composition state so writing them invalidates the node body that reads
-    // them. A single reused node body (null before the first stamp) keeps the size-1 pool the
-    // rubber-stamp model expects.
+    // A single reused node body (null before the first stamp) keeps the size-1 pool the rubber-stamp
+    // model expects.
     private val valueState = mutableStateOf<T?>(null)
     private var currentValue by valueState
     private val scope = MutableTreeNodeScope()
 
-    private val island =
-        CellStampIsland(
+    private val cellComposition =
+        CellStampComposition(
             parentContext,
             "A composable node renders a single component, and this one composes several. Compose them " +
                 "into one container - a panel whose layout arranges them - and the tree renders that.",
@@ -125,7 +124,7 @@ internal class ComposingTreeCellRenderer<T>(
         // A node the tree stamps carries the TreeNodeValue wrapper; the value it holds is the node's own
         // to be `null` or not. The wrapper's presence is what names a node, never the value's nullity.
         val carried = (value as? DefaultMutableTreeNode)?.userObject as? TreeNodeValue<*>
-        return island.stamp(hasCell = carried != null) {
+        return cellComposition.stamp(hasCell = carried != null) {
             currentValue = valueOf(carried)
             scope.row = row
             scope.isSelected = selected
@@ -135,8 +134,8 @@ internal class ComposingTreeCellRenderer<T>(
         }
     }
 
-    /** Disposes this renderer's node island; see [CellStampIsland.dispose]. */
-    fun dispose(): Unit = island.dispose()
+    /** Disposes this renderer's node composition; see [CellStampComposition.dispose]. */
+    fun dispose(): Unit = cellComposition.dispose()
 
     /**
      * The value [carried] holds. This renderer is installed by a value-driven Tree alone, and every node
@@ -149,7 +148,7 @@ internal class ComposingTreeCellRenderer<T>(
 }
 
 /**
- * The node body a [ComposingTreeCellRenderer]'s island composes; the island composes it only where the
+ * The node body a [ComposingTreeCellRenderer] stamps. The node composition composes it only where the
  * stamp names a node, so [valueState] always holds that node's value here - itself `null` among the
  * values a node can hold.
  */

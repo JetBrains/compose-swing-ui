@@ -17,26 +17,26 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
 /**
- * The conflict contract of a synchronously recomposed island.
+ * The conflict contract of a synchronously recomposed composition.
  *
- * A state object the island writes, also written outside it after the island's snapshot was taken,
+ * A state object the composition writes, also written outside it after the composition's snapshot was taken,
  * cannot merge, so the apply fails. It reaches the caller as a [SnapshotApplyConflictException] instead
  * of being swallowed: silently rendering an uncommitted value would show state nothing else agrees with.
  *
- * The island survives the failure: a further synchronous recompose drives new state to the Swing tree,
+ * The composition survives the failure: a further synchronous recompose drives new state to the Swing tree,
  * and the failed pass's composed state is still there to read, because that pass recomposed and applied
  * within one snapshot, leaving the composition with nothing computed but unapplied.
  */
 class SynchronousRecomposeConflictTest {
     @Test
-    fun aFailedApplyReachesTheCallerAndLeavesTheIslandRecomposable() = runComposeSwingTest {
+    fun aFailedApplyReachesTheCallerAndLeavesTheCompositionRecomposable() = runComposeSwingTest {
         lateinit var parentContext: CompositionContext
         setContent { parentContext = rememberCompositionContext() }
 
         val input = mutableStateOf("")
         val host = JPanel()
         val mount =
-            SwingCompositionMount.nested(parentContext) { observer -> SwingApplier(host, observer) }
+            SwingContentComposition.nested(parentContext) { observer -> SwingApplier(host, observer) }
         try {
             mount.setContent {
                 val text = input.value
@@ -50,8 +50,8 @@ class SynchronousRecomposeConflictTest {
             assertFailsWith<SnapshotApplyConflictException> {
                 mount.recomposeSynchronously {
                     input.value = "conflicting"
-                    // Written in its own snapshot off the global state, not the island's: the write
-                    // the island's apply cannot merge with.
+                    // Written in its own snapshot off the global state, not the composition's: the write
+                    // the composition's apply cannot merge with.
                     thread { Snapshot.withMutableSnapshot { input.value = "elsewhere" } }.join()
                 }
             }
@@ -64,7 +64,7 @@ class SynchronousRecomposeConflictTest {
             assertEquals(
                 "settled:$KEPT",
                 label.text,
-                "the island should still recompose and materialize, reading what the failed pass composed",
+                "the composition should still recompose and materialize, reading what the failed pass composed",
             )
         } finally {
             mount.dispose()

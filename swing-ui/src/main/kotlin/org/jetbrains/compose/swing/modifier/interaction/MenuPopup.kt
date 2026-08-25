@@ -3,7 +3,7 @@ package org.jetbrains.compose.swing.modifier.interaction
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionContext
 import org.jetbrains.compose.swing.annotations.SwingMenuComposable
-import org.jetbrains.compose.swing.core.SwingCompositionMount
+import org.jetbrains.compose.swing.core.SwingContentComposition
 import org.jetbrains.compose.swing.node.MenuApplier
 import java.awt.Component
 import javax.swing.JPopupMenu
@@ -27,7 +27,7 @@ internal class MenuPopup(
 ) {
     val popup: JPopupMenu = JPopupMenu()
 
-    private val mount = SwingCompositionMount.nestedUnobserved(parentContext) { MenuApplier(popup) }
+    private val mount = SwingContentComposition.nestedUnobserved(parentContext) { MenuApplier(popup) }
 
     // Whether the menu has closed, by close() or by the popup closing itself. Hiding the popup here
     // still fires the listener, so this flag stops that from being reported as a close of its own.

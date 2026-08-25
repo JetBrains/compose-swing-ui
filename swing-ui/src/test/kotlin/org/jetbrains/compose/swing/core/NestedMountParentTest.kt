@@ -27,79 +27,88 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Behavioral tests for the composition a `setContent` nested inside an island joins.
+ * Behavioral tests for the composition a `setContent` nested inside another composition joins.
  *
- * An island mounted under a caller's own [androidx.compose.runtime.CompositionContext] governs
- * everything mounted inside it: a container that hangs under such an island composes on the runtime the
- * island was given, not on the one its window happens to own - whether the mount is made during the
- * island's own first pass, once that pass has put the container in place, or before a later
- * recomposition inserts it. Where no island stands in the way, a container joins the composition its
- * window shares, which is what every parentless mount resolves to.
+ * A content composition mounted under a caller's own [androidx.compose.runtime.CompositionContext]
+ * governs everything mounted inside it: a container that hangs under such a composition composes on the
+ * recomposer that composition was given, not on the one its window happens to own - whether the content
+ * is mounted during the enclosing composition's own first pass, once that pass has put the container in
+ * place, or before a later recomposition inserts it. Where no enclosing composition stands in the way, a
+ * container joins the composition its window shares, which is what naming no parent resolves to.
  *
- * Which runtime a mount joined is read off what it does: the runtime the island was given is disposed,
- * and content that joined it stops recomposing while a sibling on the window's own runtime goes on.
+ * Which recomposer content joined is read off what it does: the recomposer the enclosing composition was
+ * given is disposed, and content that joined it stops recomposing while a sibling on the window's own
+ * recomposer goes on.
  *
  * Each case realizes a real top-level peer, so each skips on a headless environment.
  */
 class NestedMountParentTest {
     @Test
-    fun aNestedMountMadeDuringTheIslandsFirstPassJoinsTheRuntimeItsIslandWasGiven() = runSwingTest {
+    fun contentMountedDuringTheCompositionsFirstPassJoinsTheRecomposerTheCompositionWasGiven() = runSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display to realize a window")
         val frame = realizedFrame()
-        val runtime = SwingRecomposer.create(JPanel())
-        val island = JPanel().also { frame.contentPane.add(it) }
-        val windowIsland = JPanel().also { frame.contentPane.add(it) }
+        val recomposer = SwingRecomposer.create(JPanel())
+        val composition = JPanel().also { frame.contentPane.add(it) }
+        val windowComposition = JPanel().also { frame.contentPane.add(it) }
         val nested = JPanel()
         var text by mutableStateOf("v0")
-        var islandHandle: DisposableHandle? = null
+        var compositionHandle: DisposableHandle? = null
         var windowHandle: DisposableHandle? = null
         try {
-            islandHandle =
-                island.setContent(parent = runtime.compositionContext) {
+            compositionHandle =
+                composition.setContent(parent = recomposer.compositionContext) {
                     SwingNode(factory = { nested })
-                    // The nested mount is made from an effect of the island's own first pass, before that
-                    // pass has returned, so it resolves its parent while the island is still composing.
-                    // The island's composition owns it, and ends it.
+                    // The nested content is mounted from an effect of the enclosing composition's own
+                    // first pass, before that pass has returned, so it resolves its parent while that
+                    // composition is still composing. The enclosing composition owns it, and ends it.
                     DisposableEffect(Unit) {
                         val handle = nested.setContent { Label(text = text) }
                         onDispose { handle.dispose() }
                     }
                 }
-            windowHandle = windowIsland.setContent { Label(text = text) }
+            windowHandle = windowComposition.setContent { Label(text = text) }
             awaitUntil("both contents render") {
-                labelTexts(nested) == listOf("v0") && labelTexts(windowIsland) == listOf("v0")
+                labelTexts(nested) == listOf("v0") && labelTexts(windowComposition) == listOf("v0")
             }
-            assertSame(island, nested.parent, "the island's first pass composed the nested container into place")
+            assertSame(
+                composition,
+                nested.parent,
+                "the enclosing composition's first pass composed the nested container into place",
+            )
 
-            runtime.dispose()
+            recomposer.dispose()
             text = "v1"
-            awaitUntil("the window's own island recomposes") { labelTexts(windowIsland) == listOf("v1") }
+            awaitUntil("the window's own content composition recomposes") {
+                labelTexts(windowComposition) == listOf("v1")
+            }
             delay(QUIET_PERIOD)
             assertEquals(
                 listOf("v0"),
                 labelTexts(nested),
-                "content mounted during the island's first pass must recompose on the runtime that island " +
-                    "was given, not on the window's",
+                "content mounted during the enclosing composition's first pass must recompose on the " +
+                    "recomposer that composition was given, not on the window's",
             )
         } finally {
-            islandHandle?.dispose()
+            compositionHandle?.dispose()
             windowHandle?.dispose()
-            runtime.dispose()
+            recomposer.dispose()
             frame.dispose()
         }
     }
 
     @Test
-    fun aNestedMountWithNoIslandAboveItJoinsItsWindow() = runSwingTest {
+    fun contentMountedWithNoCompositionAboveItJoinsItsWindow() = runSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display to realize a window")
         val frame = realizedFrame()
-        val island = JPanel().also { frame.contentPane.add(it) }
+        val composition = JPanel().also { frame.contentPane.add(it) }
         val nested = JPanel()
-        var islandHandle: DisposableHandle? = null
+        var compositionHandle: DisposableHandle? = null
         var nestedHandle: DisposableHandle? = null
         try {
-            islandHandle = island.setContent { SwingNode(factory = { nested }) }
-            awaitUntil("the island composes its nested container into place") { nested.parent === island }
+            compositionHandle = composition.setContent { SwingNode(factory = { nested }) }
+            awaitUntil("the content composition composes its nested container into place") {
+                nested.parent === composition
+            }
 
             nestedHandle = nested.setContent { Label(text = "nested") }
             awaitUntil("the nested content renders") { labelTexts(nested) == listOf("nested") }
@@ -107,105 +116,120 @@ class NestedMountParentTest {
             assertSame(
                 frame.compositionContext(),
                 nested.findParentCompositionContext(),
-                "a mount under an island that named no parent must join the window's shared composition",
+                "content mounted under a composition that named no parent must join the window's shared " +
+                    "composition",
             )
         } finally {
             nestedHandle?.dispose()
-            islandHandle?.dispose()
+            compositionHandle?.dispose()
             frame.dispose()
         }
     }
 
     @Test
-    fun aNestedMountInsertedByALaterRecompositionJoinsTheRuntimeItsIslandWasGiven() = runSwingTest {
+    fun contentInsertedByALaterRecompositionJoinsTheRecomposerTheCompositionWasGiven() = runSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display to realize a window")
         val frame = realizedFrame()
-        val runtime = SwingRecomposer.create(JPanel())
-        val island = JPanel().also { frame.contentPane.add(it) }
-        val windowIsland = JPanel().also { frame.contentPane.add(it) }
+        val recomposer = SwingRecomposer.create(JPanel())
+        val composition = JPanel().also { frame.contentPane.add(it) }
+        val windowComposition = JPanel().also { frame.contentPane.add(it) }
         val nested = JPanel()
         var showNested by mutableStateOf(false)
         var text by mutableStateOf("v0")
-        var islandHandle: DisposableHandle? = null
+        var compositionHandle: DisposableHandle? = null
         var nestedHandle: DisposableHandle? = null
         var windowHandle: DisposableHandle? = null
         try {
-            islandHandle =
-                island.setContent(parent = runtime.compositionContext) {
-                    Label(text = "island")
+            compositionHandle =
+                composition.setContent(parent = recomposer.compositionContext) {
+                    Label(text = "outer")
                     if (showNested) SwingNode(factory = { nested })
                 }
-            windowHandle = windowIsland.setContent { Label(text = text) }
-            awaitUntil("the island composes without the nested container") { labelTexts(island) == listOf("island") }
+            windowHandle = windowComposition.setContent { Label(text = text) }
+            awaitUntil("the outer composition composes without the nested container") {
+                labelTexts(composition) == listOf("outer")
+            }
 
-            // The mount is made while the container hangs nowhere, so it waits for a place; the place it
-            // then takes is one a later recomposition gives it.
+            // The content is mounted while the container hangs nowhere, so it waits for a place; the
+            // place it then takes is one a later recomposition gives it.
             nestedHandle = nested.setContent { Label(text = text) }
             showNested = true
 
-            awaitUntil("a later recomposition inserts the nested container") { nested.parent === island }
+            awaitUntil("a later recomposition inserts the nested container") { nested.parent === composition }
             awaitUntil("both contents render") {
-                labelTexts(nested) == listOf("v0") && labelTexts(windowIsland) == listOf("v0")
+                labelTexts(nested) == listOf("v0") && labelTexts(windowComposition) == listOf("v0")
             }
-            assertEquals(listOf("island", "v0"), labelTexts(island), "the island holds what both mounts composed")
+            assertEquals(
+                listOf("outer", "v0"),
+                labelTexts(composition),
+                "the outer composition holds the content of both",
+            )
 
-            runtime.dispose()
+            recomposer.dispose()
             text = "v1"
-            awaitUntil("the window's own island recomposes") { labelTexts(windowIsland) == listOf("v1") }
+            awaitUntil("the window's own content composition recomposes") {
+                labelTexts(windowComposition) == listOf("v1")
+            }
             delay(QUIET_PERIOD)
             assertEquals(
                 listOf("v0"),
                 labelTexts(nested),
-                "content a later recomposition places inside an island must recompose on the runtime that " +
-                    "island was given, not on the window's",
+                "content a later recomposition places inside another composition must recompose on the " +
+                    "recomposer that composition was given, not on the window's",
             )
         } finally {
             nestedHandle?.dispose()
             windowHandle?.dispose()
-            islandHandle?.dispose()
-            runtime.dispose()
+            compositionHandle?.dispose()
+            recomposer.dispose()
             frame.dispose()
         }
     }
 
     @Test
-    fun nestedContentRecomposesOnTheRuntimeItsIslandWasGiven() = runSwingTest {
+    fun nestedContentRecomposesOnTheRecomposerTheCompositionWasGiven() = runSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display to realize a window")
         val frame = realizedFrame()
-        val runtime = SwingRecomposer.create(JPanel())
-        val island = JPanel().also { frame.contentPane.add(it) }
-        val windowIsland = JPanel().also { frame.contentPane.add(it) }
+        val recomposer = SwingRecomposer.create(JPanel())
+        val composition = JPanel().also { frame.contentPane.add(it) }
+        val windowComposition = JPanel().also { frame.contentPane.add(it) }
         val nested = JPanel()
         var text by mutableStateOf("v0")
-        var islandHandle: DisposableHandle? = null
+        var compositionHandle: DisposableHandle? = null
         var nestedHandle: DisposableHandle? = null
         var windowHandle: DisposableHandle? = null
         try {
-            islandHandle = island.setContent(parent = runtime.compositionContext) { SwingNode(factory = { nested }) }
-            windowHandle = windowIsland.setContent { Label(text = text) }
-            awaitUntil("the island composes its nested container into place") { nested.parent === island }
+            compositionHandle =
+                composition.setContent(parent = recomposer.compositionContext) { SwingNode(factory = { nested }) }
+            windowHandle = windowComposition.setContent { Label(text = text) }
+            awaitUntil("the content composition composes its nested container into place") {
+                nested.parent === composition
+            }
 
             nestedHandle = nested.setContent { Label(text = text) }
             awaitUntil("both contents render") {
-                labelTexts(nested) == listOf("v0") && labelTexts(windowIsland) == listOf("v0")
+                labelTexts(nested) == listOf("v0") && labelTexts(windowComposition) == listOf("v0")
             }
 
-            // Only the runtime the island was given is disposed. Content that joined it stops recomposing;
-            // content that joined the window goes on.
-            runtime.dispose()
+            // Only the recomposer the enclosing composition was given is disposed. Content that joined it
+            // stops recomposing; content that joined the window goes on.
+            recomposer.dispose()
             text = "v1"
-            awaitUntil("the window's own island recomposes") { labelTexts(windowIsland) == listOf("v1") }
+            awaitUntil("the window's own content composition recomposes") {
+                labelTexts(windowComposition) == listOf("v1")
+            }
             delay(QUIET_PERIOD)
             assertEquals(
                 listOf("v0"),
                 labelTexts(nested),
-                "nested content must recompose on the runtime its island was given, not on the window's",
+                "nested content must recompose on the recomposer its enclosing composition was given, not " +
+                    "on the window's",
             )
         } finally {
             nestedHandle?.dispose()
             windowHandle?.dispose()
-            islandHandle?.dispose()
-            runtime.dispose()
+            compositionHandle?.dispose()
+            recomposer.dispose()
             frame.dispose()
         }
     }
@@ -222,7 +246,7 @@ class NestedMountParentTest {
         var innerHandle: DisposableHandle? = null
         try {
             outerHandle = outer.setContent { SwingNode(factory = { inner }) }
-            awaitUntil("the outer island composes the nested container into place") { inner.parent === outer }
+            awaitUntil("the outer composition composes the nested container into place") { inner.parent === outer }
 
             innerHandle = inner.setContent { Label(text = text) }
             awaitUntil("the nested content renders") { labelTexts(inner) == listOf("v0") }
@@ -249,26 +273,26 @@ class NestedMountParentTest {
     }
 
     @Test
-    fun aNestedMountStaysOnItsIslandsRuntimeWhenItsContainerMovesToAnotherWindow() = runSwingTest {
+    fun contentMountedStaysOnItsCompositionsRecomposerWhenItsContainerMovesToAnotherWindow() = runSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display to realize a window")
         val first = realizedFrame()
         val second = realizedFrame()
-        val runtime = SwingRecomposer.create(JPanel())
+        val recomposer = SwingRecomposer.create(JPanel())
         val outer = JPanel().also { first.contentPane.add(it) }
-        val windowIsland = JPanel().also { first.contentPane.add(it) }
+        val windowComposition = JPanel().also { first.contentPane.add(it) }
         val inner = JPanel()
         var text by mutableStateOf("v0")
         var outerHandle: DisposableHandle? = null
         var innerHandle: DisposableHandle? = null
         var windowHandle: DisposableHandle? = null
         try {
-            outerHandle = outer.setContent(parent = runtime.compositionContext) { SwingNode(factory = { inner }) }
-            windowHandle = windowIsland.setContent { Label(text = text) }
-            awaitUntil("the outer island composes the nested container into place") { inner.parent === outer }
+            outerHandle = outer.setContent(parent = recomposer.compositionContext) { SwingNode(factory = { inner }) }
+            windowHandle = windowComposition.setContent { Label(text = text) }
+            awaitUntil("the outer composition composes the nested container into place") { inner.parent === outer }
 
             innerHandle = inner.setContent { Label(text = text) }
             awaitUntil("both contents render") {
-                labelTexts(inner) == listOf("v0") && labelTexts(windowIsland) == listOf("v0")
+                labelTexts(inner) == listOf("v0") && labelTexts(windowComposition) == listOf("v0")
             }
 
             second.contentPane.add(outer)
@@ -276,36 +300,38 @@ class NestedMountParentTest {
             awaitUntil("the outer container is in the second window") {
                 SwingUtilities.getWindowAncestor(outer) === second
             }
-            // The nested mount's rejoin is queued behind the reparenting event rather than run inline, so
-            // a quiet period here lets it settle before the container moves again.
+            // The nested content's rejoin is queued behind the reparenting event rather than run inline,
+            // so a quiet period here lets it settle before the container moves again.
             delay(QUIET_PERIOD)
 
-            // Moved a second time, back to the window it started in: the nested mount is asked to resolve
-            // its parent again, so this is what tells a caller's runtime read fresh on every move from one
-            // that only ever happened to be read on the move that settled first.
+            // Moved a second time, back to the window it started in: the nested content is asked to
+            // resolve its parent again, so this is what tells a caller's recomposer read fresh on every
+            // move from one that only ever happened to be read on the move that settled first.
             first.contentPane.add(outer)
             awaitUntil("the outer container is back in the first window") {
                 SwingUtilities.getWindowAncestor(outer) === first
             }
             delay(QUIET_PERIOD)
 
-            // Only the runtime the outer island was given is disposed. The nested content that joined it
-            // must stop recomposing, while a sibling on the window's own runtime goes on.
-            runtime.dispose()
+            // Only the recomposer the outer composition was given is disposed. The nested content that
+            // joined it must stop recomposing, while a sibling on the window's own recomposer goes on.
+            recomposer.dispose()
             text = "v1"
-            awaitUntil("the window's own island recomposes") { labelTexts(windowIsland) == listOf("v1") }
+            awaitUntil("the window's own content composition recomposes") {
+                labelTexts(windowComposition) == listOf("v1")
+            }
             delay(QUIET_PERIOD)
             assertEquals(
                 listOf("v0"),
                 labelTexts(inner),
-                "a nested mount must stay on the runtime its island was given after the island's container " +
-                    "moves to another window",
+                "nested content must stay on the recomposer the enclosing composition was given after that " +
+                    "composition's container moves to another window",
             )
         } finally {
             innerHandle?.dispose()
             windowHandle?.dispose()
             outerHandle?.dispose()
-            runtime.dispose()
+            recomposer.dispose()
             second.dispose()
             first.dispose()
         }
@@ -357,7 +383,7 @@ class NestedMountParentTest {
     private companion object {
         val SETTLE_TIMEOUT = 10.seconds
 
-        /** Spans many frame intervals, so a runtime still running would have applied a change well inside it. */
+        /** Spans many frame intervals, so a recomposer still running would have applied a change well inside it. */
         val QUIET_PERIOD = 300.milliseconds
     }
 }

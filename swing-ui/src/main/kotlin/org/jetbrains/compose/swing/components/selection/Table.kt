@@ -211,9 +211,9 @@ public fun <R> Table(
     // showing it, rather than a default model briefly standing in before the update block's own
     // set(model) call installs this one.
     val model = remember { ColumnsTableModel<R>() }
-    // One cell island per column that declares a composable cell, following the declarations pass by
-    // pass. Each island resolves the row a stamp names against the rows the model holds then.
-    val cellIslands = rememberTableCellIslands(columns) { rowIndex -> model.rowAt(rowIndex) }
+    // One cell composition per column that declares a composable cell, following the declarations pass by
+    // pass. Each composition resolves the row a stamp names against the rows the model holds then.
+    val cellCompositions = rememberTableCellCompositions(columns) { rowIndex -> model.rowAt(rowIndex) }
 
     TableNode(
         listSelectionListener = listSelectionListener,
@@ -228,7 +228,7 @@ public fun <R> Table(
         fillsViewportHeight = fillsViewportHeight,
         tableColumnModelListener = tableColumnModelListener,
         model = model,
-        cellIslands = cellIslands,
+        cellCompositions = cellCompositions,
     ) { appliedSelection, appliedColumn, sortChannel, columnChannel ->
         // The refresh that gives the table this composition's model, rows, columns and cell renderers,
         // named step by step. The steps nest instead of running in sequence: each wraps the ones that can
@@ -556,7 +556,7 @@ public fun Table(
         fillsViewportHeight = fillsViewportHeight,
         tableColumnModelListener = tableColumnModelListener,
         model = model,
-        cellIslands = null,
+        cellCompositions = null,
     ) { appliedSelection, appliedColumn, sortChannel, columnChannel ->
         set(model) { newModel ->
             val table = this
@@ -604,7 +604,7 @@ private fun TableNode(
     fillsViewportHeight: Boolean,
     tableColumnModelListener: TableColumnModelListener?,
     model: TableModel,
-    cellIslands: TableCellIslands<*>?,
+    cellCompositions: TableCellCompositions<*>?,
     installContent: SwingNodeUpdater<JTable>.(
         AppliedValue<Set<Int>?>,
         AppliedValue<TableColumnLayout?>,
@@ -644,7 +644,7 @@ private fun TableNode(
                     .tableColumnModelListener(columnChannel.listener)
                     .tableRowHeight(rowHeight)
             applyModifier(
-                if (cellIslands == null) tableModifier else tableModifier.composableColumnCells(cellIslands),
+                if (cellCompositions == null) tableModifier else tableModifier.composableColumnCells(cellCompositions),
             )
         },
     )

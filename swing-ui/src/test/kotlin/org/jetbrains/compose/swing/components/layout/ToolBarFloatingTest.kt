@@ -55,10 +55,10 @@ class ToolBarFloatingTest {
     }
 
     @Test
-    fun aDeclaredFloatMovesTheBarOutAndWithdrawingItDocksItBack() = onARealizedFrame { frame, island ->
+    fun aDeclaredFloatMovesTheBarOutAndWithdrawingItDocksItBack() = onARealizedFrame { frame, composition ->
         val reported = mutableListOf<Boolean>()
         var floating by mutableStateOf(false)
-        island.setContent {
+        composition.setContent {
             ToolBar(floating = floating, onFloatingChange = { reported += it }) {
                 Button(text = "New", onClick = {})
             }
@@ -82,9 +82,9 @@ class ToolBarFloatingTest {
 
     @Test
     fun aBarDeclaredFloatingBeforeItStandsInAWindowFloatsWithoutReportingARefusal() =
-        onARealizedFrame { frame, island ->
+        onARealizedFrame { frame, composition ->
             val reported = mutableListOf<Boolean>()
-            island.setContent {
+            composition.setContent {
                 ToolBar(floating = true, onFloatingChange = { reported += it }) {
                     Button(text = "New", onClick = {})
                 }
@@ -104,9 +104,9 @@ class ToolBarFloatingTest {
 
     @Test
     fun theUserFloatingTheBarIsReportedAndSnapsBackWhileTheDeclarationStandsDocked() =
-        onARealizedFrame { frame, island ->
+        onARealizedFrame { frame, composition ->
             val reported = mutableListOf<Boolean>()
-            island.setContent {
+            composition.setContent {
                 ToolBar(floating = false, onFloatingChange = { reported += it }) {
                     Button(text = "New", onClick = {})
                 }
@@ -136,9 +136,9 @@ class ToolBarFloatingTest {
         }
 
     @Test
-    fun leavingTheCompositionWhileFloatingDisposesTheWindowItMovedInto() = onARealizedFrame { frame, island ->
+    fun leavingTheCompositionWhileFloatingDisposesTheWindowItMovedInto() = onARealizedFrame { frame, composition ->
         var present by mutableStateOf(true)
-        island.setContent {
+        composition.setContent {
             if (present) {
                 ToolBar(floating = true) {
                     Button(text = "New", onClick = {})
@@ -160,7 +160,7 @@ class ToolBarFloatingTest {
 
     /**
      * Runs [body] under Metal - whose tool bars drag, which a look and feel need not do - against a
-     * realized frame and an island inside it, disposing the frame on every exit path.
+     * realized frame and a composition inside it, disposing the frame on every exit path.
      */
     private fun onARealizedFrame(body: suspend (JFrame, Container) -> Unit) {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")

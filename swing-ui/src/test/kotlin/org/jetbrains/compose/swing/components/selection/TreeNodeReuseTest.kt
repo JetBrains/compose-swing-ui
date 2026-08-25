@@ -21,10 +21,10 @@ import kotlin.test.assertTrue
  * the node's own factory: a controlled selection reaches the fresh tree the same way it reaches any
  * freshly composed one.
  *
- * A composable node is owned by the composition too: the island stamping it lives only while the node is
- * in the composition, so a tree that outlives its own composable node - parked before it is torn down -
- * paints through the renderer its UI delegate builds, and the fresh tree reactivation builds stamps the
- * composable node again.
+ * A composable node is owned by the composition too: the content composition behind it lives only while
+ * the node is in the composition, so a tree that outlives its own composable node - parked before it is
+ * torn down - paints through the renderer its UI delegate builds, and the fresh tree reactivation builds
+ * stamps the composable node again.
  */
 class TreeNodeReuseTest {
     private val leaves = listOf("apple", "pear")
@@ -93,9 +93,9 @@ class TreeNodeReuseTest {
         active = false
         awaitIdle()
 
-        // A parked tree keeps painting through whatever renderer it carries once the island behind its
-        // composable node is gone: the renderer its UI delegate builds is what has to be back on it by
-        // then.
+        // A parked tree keeps painting through whatever renderer it carries once the composition behind
+        // its composable node is gone: the renderer its UI delegate builds is what has to be back on it
+        // by then.
         val parked = tree.stampRow(row = 1)
         assertTrue(parked is JLabel, "a parked tree should render rows through the renderer of its own")
         assertEquals("apple", (parked as JLabel).text, "the tree's own renderer renders the node's own text")

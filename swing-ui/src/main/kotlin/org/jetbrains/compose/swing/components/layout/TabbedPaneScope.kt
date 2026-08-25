@@ -190,7 +190,7 @@ private data class TabMetadata(
  * tab's current position - so removing an earlier tab first never invalidates a later tab's removal.
  *
  * The tab is created here carrying everything the declaration names, since this is the first moment it
- * exists (see [TabElement]). A declared [header] is rendered by an island installed as the tab's own
+ * exists (see [TabElement]). A declared [header] is rendered by a composition installed as the tab's own
  * component, for the same reason.
  *
  * Joining and leaving the strip both move a pane's selection - the first tab to arrive becomes the
@@ -238,8 +238,8 @@ private class TabAttachment(
  * nothing and [TabAttachment] creates the tab with that first declaration instead. Every later pass runs
  * with the tab on the strip.
  *
- * Not a data class: the [header] the node renders in an island of its own and the [headerContext] that
- * island joins are registered instances, compared by identity.
+ * Not a data class: the [header] the node renders in a composition of its own and the [headerContext] that
+ * composition joins are registered instances, compared by identity.
  */
 private class TabElement(
     val metadata: TabMetadata,
@@ -267,12 +267,12 @@ private class TabElement(
 }
 
 /**
- * The tab a component is the page of for as long as its chain declares one. It holds the island a declared
- * header renders in, so withdrawing the declaration takes that island back off the strip and the tab is
+ * The tab a component is the page of for as long as its chain declares one. It holds the composition a declared
+ * header renders in, so withdrawing the declaration takes that composition back off the strip and the tab is
  * rendered by the pane itself again.
  */
 private class TabNode : SwingModifier.Node<Component>() {
-    private var island: TabHeaderIsland? = null
+    private var composition: TabHeaderComposition? = null
 
     /** Writes [metadata] and the [header] declaration onto this component's tab, where it has one. */
     fun declare(
@@ -288,8 +288,8 @@ private class TabNode : SwingModifier.Node<Component>() {
     }
 
     /**
-     * Renders the tab at [index] with [header], reusing the island already rendering it - which is what
-     * re-renders a changed header in place - and taking that island off the strip where the declaration
+     * Renders the tab at [index] with [header], reusing the composition already rendering it - which is what
+     * re-renders a changed header in place - and taking that composition off the strip where the declaration
      * names no header at all.
      */
     private fun declareHeader(
@@ -298,28 +298,28 @@ private class TabNode : SwingModifier.Node<Component>() {
         header: (@Composable () -> Unit)?,
         headerContext: CompositionContext,
     ) {
-        val rendered = pane.tabIslandAt(index)
+        val rendered = pane.tabCompositionAt(index)
         if (header == null) {
             rendered?.let {
                 it.dispose()
                 pane.setTabComponentAt(index, null)
             }
-            island = null
+            composition = null
             return
         }
-        island = rendered?.also { it.render(header) } ?: pane.renderTab(index, header, headerContext)
+        composition = rendered?.also { it.render(header) } ?: pane.renderTab(index, header, headerContext)
     }
 
     override fun onDetach() {
         val pane = component.parent as? JTabbedPane
         val index = pane?.indexOfComponent(component) ?: -1
-        val rendered = if (index >= 0) pane?.tabIslandAt(index) else null
-        // The island the pane still renders where the tab is standing, and otherwise the one this node put
-        // there: a tab that has already left the strip took its own tab component with it, and the island
+        val rendered = if (index >= 0) pane?.tabCompositionAt(index) else null
+        // The composition the pane still renders where the tab is standing, and otherwise the one this node put
+        // there: a tab that has already left the strip took its own tab component with it, and the composition
         // rendering it is disposed here rather than left composing.
-        (rendered ?: island)?.dispose()
+        (rendered ?: composition)?.dispose()
         if (rendered != null) pane?.setTabComponentAt(index, null)
-        island = null
+        composition = null
     }
 }
 
@@ -328,18 +328,19 @@ private fun JTabbedPane.renderTab(
     index: Int,
     header: @Composable () -> Unit,
     headerContext: CompositionContext,
-): TabHeaderIsland = TabHeaderIsland(headerContext, header).also { setTabComponentAt(index, it) }
+): TabHeaderComposition = TabHeaderComposition(headerContext, header).also { setTabComponentAt(index, it) }
 
-/** The island rendering the tab at [index], or `null` where the pane renders that tab itself. */
-private fun JTabbedPane.tabIslandAt(index: Int): TabHeaderIsland? = getTabComponentAt(index) as? TabHeaderIsland
+/** The composition rendering the tab at [index], or `null` where the pane renders that tab itself. */
+private fun JTabbedPane.tabCompositionAt(index: Int): TabHeaderComposition? =
+    getTabComponentAt(index) as? TabHeaderComposition
 
 /**
- * Disposes the island rendering the tab [component] is the page of, where that tab renders through one.
+ * Disposes the composition rendering the tab [component] is the page of, where that tab renders through one.
  * A tab releases its tab component along with its page, so this runs before the page is taken out.
  */
 private fun JTabbedPane.releaseHeaderOf(component: Component) {
     val index = indexOfComponent(component)
-    if (index >= 0) tabIslandAt(index)?.dispose()
+    if (index >= 0) tabCompositionAt(index)?.dispose()
 }
 
 /**
@@ -353,7 +354,7 @@ private fun tabHost(host: Container): JTabbedPane =
     host as? JTabbedPane ?: error(wrongSlotHost(host, JTabbedPane::class.java, TAB_SLOT_NAME))
 
 /**
- * The island one tab's header renders in: a gapless leading flow, so the strip shows exactly what the
+ * The composition one tab's header renders in: a gapless leading flow, so the strip shows exactly what the
  * header composes at its own preferred size and the look and feel's tab insets are the only padding around
  * it. The panel is the tab's own component and never a page of the pane, which is what `setTabComponentAt`
  * rejects.
@@ -364,7 +365,7 @@ private fun tabHost(host: Container): JTabbedPane =
  * [androidx.compose.runtime.CompositionLocal]s in scope, and the header it renders is composition state of
  * its own, so a redeclared header re-renders in place instead of remounting.
  */
-private class TabHeaderIsland(
+private class TabHeaderComposition(
     parentContext: CompositionContext,
     header: @Composable () -> Unit,
 ) : JPanel(FlowLayout(FlowLayout.LEADING, 0, 0)) {
@@ -376,12 +377,12 @@ private class TabHeaderIsland(
         mounted = setContentAsInteropHost(parentContext) { declared.value() }
     }
 
-    /** Renders [header] in place of the one this island holds. */
+    /** Renders [header] in place of the one this composition holds. */
     fun render(header: @Composable () -> Unit) {
         declared.value = header
     }
 
-    /** Disposes this island's composition. Calling it again is a no-op. */
+    /** Disposes this composition's composition. Calling it again is a no-op. */
     fun dispose() {
         mounted?.dispose()
         mounted = null

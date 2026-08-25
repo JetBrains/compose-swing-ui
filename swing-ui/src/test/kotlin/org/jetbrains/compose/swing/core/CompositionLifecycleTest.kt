@@ -75,13 +75,13 @@ class CompositionLifecycleTest {
     @Test
     fun contentThatHangsOffNoWindowReportsCreated() = runSwingTest {
         // A container of its own, in no window at all - the state a composition mounted into a container
-        // built before it is shown opens in. It composes under a runtime of its own, so nothing above
+        // built before it is shown opens in. It composes under a recomposer of its own, so nothing above
         // states an owner and the root mints one following where its own container hangs.
-        val runtime = SwingRecomposer.create(JPanel())
+        val recomposer = SwingRecomposer.create(JPanel())
         try {
             val reader = LifecycleReader()
             val panel = JPanel()
-            val handle = panel.setContent(parent = runtime.compositionContext) { reader.Observe() }
+            val handle = panel.setContent(parent = recomposer.compositionContext) { reader.Observe() }
 
             assertEquals(
                 Lifecycle.State.CREATED,
@@ -90,7 +90,7 @@ class CompositionLifecycleTest {
             )
             handle.dispose()
         } finally {
-            runtime.dispose()
+            recomposer.dispose()
         }
     }
 
@@ -100,7 +100,8 @@ class CompositionLifecycleTest {
         val panel = JPanel()
         val reader = LifecycleReader()
         val handle = panel.setContent { reader.Observe() }
-        val frame = frameHolding(UNFOCUSED_TITLE, panel)
+        // Unrealized, because the state before the peer is what this case starts from.
+        val frame = frameHolding(UNFOCUSED_TITLE, panel, realized = false)
         try {
             awaitState(reader, Lifecycle.State.CREATED)
             assertEquals(
@@ -262,7 +263,7 @@ class CompositionLifecycleTest {
             assertEquals(
                 Lifecycle.State.DESTROYED,
                 reader.state,
-                "disposing the handle a mount returned must end the owner that mount minted at DESTROYED",
+                "disposing the handle setContent returned must end the owner it minted at DESTROYED",
             )
         } finally {
             frame.dispose()
@@ -270,40 +271,42 @@ class CompositionLifecycleTest {
     }
 
     @Test
-    fun disposingAnIslandThatReadAnOwnerFromTheTreeLeavesThatOwnerLive() = runComposeSwingTest {
+    fun disposingACompositionThatReadAnOwnerFromTheTreeLeavesThatOwnerLive() = runComposeSwingTest {
         lateinit var enclosing: CompositionContext
         setContent { enclosing = rememberCompositionContext() }
         awaitIdle()
 
         // The host joins the enclosing composition and reads the owner that composition carries. The
-        // island hangs under the host and reads the same one rather than being given one of its own - and
-        // an owner belongs to whoever minted it, not to every root that reads it.
+        // content composition hangs under the host and reads the same one rather than being given one of
+        // its own - and an owner belongs to whoever minted it, not to every root that reads it.
         val hostContent = LifecycleReader()
         val host = JPanel()
         val hostHandle = host.setContent(parent = enclosing) { hostContent.Observe() }
         val hostOwner = assertNotNull(hostContent.owner, "the host content must have read an owner")
 
-        val islandContent = LifecycleReader()
-        val island = JPanel().also { host.add(it) }
-        val islandHandle = island.setContent(parent = enclosing) { islandContent.Observe() }
+        val compositionContent = LifecycleReader()
+        val composition = JPanel().also { host.add(it) }
+        val compositionHandle = composition.setContent(parent = enclosing) { compositionContent.Observe() }
         try {
             assertSame(
                 hostOwner,
-                islandContent.owner,
-                "an island hanging under composed content must read the owner that content was given",
+                compositionContent.owner,
+                "a content composition hanging under composed content must read the owner that content " +
+                    "was given",
             )
 
-            islandHandle.dispose()
+            compositionHandle.dispose()
 
             assertNotEquals(
                 Lifecycle.State.DESTROYED,
                 hostOwner.lifecycle.currentState,
-                "disposing an island must not end an owner the island only read",
+                "disposing a content composition must not end an owner it only read",
             )
             assertSame(
                 hostOwner,
                 hostContent.owner,
-                "an owner an island only read must go on answering for the content that inherited it",
+                "an owner a content composition only read must go on answering for the content that " +
+                    "inherited it",
             )
         } finally {
             hostHandle.dispose()
@@ -360,7 +363,7 @@ class CompositionLifecycleTest {
             assertEquals(
                 Lifecycle.State.DESTROYED,
                 reader.state,
-                "disposing the mount must end the owner at DESTROYED",
+                "disposing the handle must end the owner at DESTROYED",
             )
 
             // Taking the container back out of the window is a move a live owner would follow all the
@@ -500,17 +503,17 @@ class CompositionLifecycleTest {
     }
 
     @Test
-    fun anIslandHangingInAWindowReadsThatWindowsOwner() = runComposeSwingTest {
+    fun aCompositionHangingInAWindowReadsThatWindowsOwner() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val windowContent = LifecycleReader()
-        val islandContent = LifecycleReader()
+        val compositionContent = LifecycleReader()
         var windowComposition: CompositionContext? = null
         var windowContentPane: Container? = null
-        // A window's content publishes the owner that window was given, so an island hanging under it
-        // reads that owner - one owner per window, however many islands the window hosts, and whichever
-        // composition each of them joins.
+        // A window's content publishes the owner that window was given, so a content composition hanging
+        // under it reads that owner - one owner per window, however many content compositions it hosts,
+        // and whichever composition each of them joins.
         setContent {
-            Window(onCloseRequest = {}, title = ISLAND_IN_WINDOW_TITLE, visible = false) {
+            Window(onCloseRequest = {}, title = COMPOSITION_IN_WINDOW_TITLE, visible = false) {
                 windowContent.Observe()
                 windowComposition = rememberCompositionContext()
                 windowContentPane = (LocalWindow.current as? RootPaneContainer)?.contentPane
@@ -520,13 +523,14 @@ class CompositionLifecycleTest {
 
         val published = checkNotNull(windowComposition) { "the window content must have published its context" }
         val contentPane = checkNotNull(windowContentPane) { "the window content must have read its own window" }
-        val island = JPanel().also { contentPane.add(it) }
-        val handle = island.setContent(parent = published) { islandContent.Observe() }
+        val composition = JPanel().also { contentPane.add(it) }
+        val handle = composition.setContent(parent = published) { compositionContent.Observe() }
         try {
             assertSame(
                 assertNotNull(windowContent.owner, "the window content must have read an owner"),
-                islandContent.owner,
-                "an island hanging in a composed window must read that window's owner rather than one of its own",
+                compositionContent.owner,
+                "a content composition hanging in a composed window must read that window's owner " +
+                    "rather than one of its own",
             )
         } finally {
             handle.dispose()
@@ -534,29 +538,30 @@ class CompositionLifecycleTest {
     }
 
     @Test
-    fun anIslandReadsTheOwnerPublishedAboveItInTheSwingTree() = runComposeSwingTest {
+    fun aCompositionReadsTheOwnerPublishedAboveItInTheSwingTree() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val hostContent = LifecycleReader()
-        val islandContent = LifecycleReader()
+        val compositionContent = LifecycleReader()
         val host = JPanel()
         val hostHandle = host.setContent { hostContent.Observe() }
         val frame = frameHolding(WALKED_OWNER_TITLE, host)
         try {
             val hostOwner = assertNotNull(hostContent.owner, "the host content must have read an owner")
 
-            // The island names the composition the window shares as its parent, which is no composition
-            // root of the Swing tree and publishes nothing. What answers is where the island hangs: the
-            // content composed above it published the owner it was given, for exactly this.
-            val island = JPanel().also { host.add(it) }
-            val islandHandle = island.setContent(parent = frame.compositionContext()) { islandContent.Observe() }
+            // The content composition names the composition the window shares as its parent, which is
+            // no composition root of the Swing tree and publishes nothing. What answers is where it
+            // hangs: the content composed above it published the owner it was given, for exactly this.
+            val composition = JPanel().also { host.add(it) }
+            val compositionHandle =
+                composition.setContent(parent = frame.compositionContext()) { compositionContent.Observe() }
             try {
                 assertSame(
                     hostOwner,
-                    islandContent.owner,
-                    "an island must read the owner published above it in the Swing tree",
+                    compositionContent.owner,
+                    "a content composition must read the owner published above it in the Swing tree",
                 )
             } finally {
-                islandHandle.dispose()
+                compositionHandle.dispose()
             }
         } finally {
             hostHandle.dispose()
@@ -565,38 +570,38 @@ class CompositionLifecycleTest {
     }
 
     @Test
-    fun anIslandComposedAgainInAnotherWindowReadsTheOwnerStatedThere() = runComposeSwingTest {
+    fun aCompositionComposedAgainInAnotherWindowReadsTheOwnerStatedThere() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val firstRoot = LifecycleReader()
         val secondRoot = LifecycleReader()
-        val islandContent = LifecycleReader()
+        val compositionContent = LifecycleReader()
         val firstHost = JPanel()
         val secondHost = JPanel()
         val firstHandle = firstHost.setContent { firstRoot.Observe() }
         val secondHandle = secondHost.setContent { secondRoot.Observe() }
         val first = frameHolding(REHOMED_FROM_TITLE, firstHost)
         val second = frameHolding(REHOMED_TO_TITLE, secondHost)
-        val island = JPanel().also { firstHost.add(it) }
-        val islandHandle = island.setContent { islandContent.Observe() }
+        val composition = JPanel().also { firstHost.add(it) }
+        val compositionHandle = composition.setContent { compositionContent.Observe() }
         try {
             assertSame(
                 assertNotNull(firstRoot.owner, "the content of the window it starts in must have read an owner"),
-                islandContent.owner,
-                "an island must read the owner published in the window it is composed in",
+                compositionContent.owner,
+                "a content composition must read the owner published in the window it is composed in",
             )
 
             // Moving the container into another window composes its content again there, and the owner
             // that pass resolves is the one published in the window it arrived in.
-            secondHost.add(island)
+            secondHost.add(composition)
             awaitEventsDelivered()
 
             assertSame(
                 assertNotNull(secondRoot.owner, "the content of the window it moves to must have read an owner"),
-                islandContent.owner,
-                "an island composed again in another window must read the owner published there",
+                compositionContent.owner,
+                "a content composition composed again in another window must read the owner published there",
             )
         } finally {
-            islandHandle.dispose()
+            compositionHandle.dispose()
             firstHandle.dispose()
             secondHandle.dispose()
             first.dispose()
@@ -649,7 +654,7 @@ class CompositionLifecycleTest {
             assertEquals(
                 Lifecycle.State.DESTROYED,
                 reader.state,
-                "disposing the mount must end the owner its live pass minted",
+                "disposing the handle must end the owner its live pass minted",
             )
         } finally {
             first.dispose()
@@ -760,14 +765,22 @@ private class LifecycleReader {
  * The content is added as the frame is built, which is the moment a `setContent` waiting for a window
  * mounts and composes - so a reader in that content has read its owner by the time this returns. Must
  * be called on the event dispatch thread.
+ *
+ * The frame is [realized] first, unless the case is about the state content reports before its window
+ * has a peer: a window that is never realized posts no `windowClosed`, so its teardown reaches nothing,
+ * and a case leaving content composed in one has to dispose that content to end the recomposer under it.
+ * Realizing here rather than through `pack()` keeps the size the window system is asked to hand the
+ * focus to.
  */
 private fun frameHolding(
     title: String,
     content: Container = JPanel(),
+    realized: Boolean = true,
 ): JFrame = JFrame(title).apply {
     defaultCloseOperation = WindowConstants.DISPOSE_ON_CLOSE
-    contentPane.add(content)
     setSize(FRAME_SIDE, FRAME_SIDE)
+    if (realized) addNotify()
+    contentPane.add(content)
 }
 
 /**
@@ -832,7 +845,7 @@ private const val HOSTED_CONTENT_TITLE = "lifecycle-hosted-content-window"
 private const val LEAVING_TITLE = "lifecycle-leaving-window"
 private const val APPLICATION_TITLE = "lifecycle-application-window"
 private const val OWN_OWNER_DISPOSED_TITLE = "lifecycle-own-owner-disposed-window"
-private const val ISLAND_IN_WINDOW_TITLE = "lifecycle-island-in-window"
+private const val COMPOSITION_IN_WINDOW_TITLE = "lifecycle-content-composition-in-window"
 private const val WALKED_OWNER_TITLE = "lifecycle-walked-owner-window"
 private const val REHOMED_FROM_TITLE = "lifecycle-rehomed-from-window"
 private const val REHOMED_TO_TITLE = "lifecycle-rehomed-to-window"

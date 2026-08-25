@@ -20,8 +20,8 @@ import java.awt.Window
  * The owning AWT [Window] of the current subtree.
  *
  * Every composition the library roots in a window carries it: the [javax.swing.JFrame] or [javax.swing.JDialog] behind
- * a composed [Window] or [Dialog], and the window a `setContent` island is attached to - every island of it. A nested
- * island inherits the value of the composition it joins. The window its own container hangs in answers only where
+ * a composed [Window] or [Dialog], and the window a `setContent` content composition is attached to. A composition
+ * nested in another inherits the value of the one it joins. The window its own container hangs in answers only where
  * that composition names none, so content composed away from any window (a list cell renderer's rows, a menu shown
  * from a popup) keeps reading the window it was composed under rather than whichever transient peer it is painted
  * into.
@@ -50,20 +50,20 @@ public val LocalWindow: CompositionLocal<Window?>
 internal val LocalProvidableWindow: ProvidableCompositionLocal<Window?> = staticCompositionLocalOf { null }
 
 /**
- * Composes [content] as an island mounted in a window it does not own: a `setContent` on a container or
- * a menu bar.
+ * Composes [content] as a content composition mounted in a window it does not own: a `setContent` on a
+ * container or a menu bar.
  *
  * Both locals are inherited first, and answered from where [component] hangs only where that inheritance
  * says nothing. That is what leaves [LocalLifecycleOwner] overridable from outside the library - by a
- * caller, or by a navigation library - since an island defers to whatever stands above it.
+ * caller, or by a navigation library - since a content composition defers to whatever stands above it.
  *
- * [window] is the window the mount has settled on, not one resolved while composing, so an island that
- * already has one stands under it from its first pass. It is observable, so an island that inherited none
- * reads the window its container reaches once it arrives there.
+ * [window] is the window the content composition has settled on, not one resolved while composing, so one
+ * that already has a window stands under it from its first pass. It is observable, so a content
+ * composition that inherited none reads the window its container reaches once it arrives there.
  */
 @Composable
 @ComposableOpenTarget(-1)
-internal fun ProvideIslandLocals(
+internal fun ProvideContentLocals(
     window: State<Window?>,
     component: Component,
     content:

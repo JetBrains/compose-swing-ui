@@ -52,7 +52,7 @@ class HarnessLifecycleStateTest {
     }
 
     @Test
-    fun everyIslandOfATestReadsOneOwner() = runComposeSwingTest {
+    fun everyContentCompositionOfATestReadsOneOwner() = runComposeSwingTest {
         var first: LifecycleOwner? = null
         var second: LifecycleOwner? = null
         setContent {

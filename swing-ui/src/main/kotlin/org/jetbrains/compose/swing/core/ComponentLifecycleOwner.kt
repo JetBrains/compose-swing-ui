@@ -33,8 +33,8 @@ internal fun rememberLifecycleOwner(component: Component): LifecycleOwner =
 /**
  * Publishes the [LifecycleOwner] the content around this call reads as [component]'s stamp, so a root
  * mounted at or under it that inherits nothing resolves the same owner. That is what the stamp is for:
- * independent subtrees, each under a runtime of its own, standing in one window and sharing one
- * lifecycle. A root nested in another's composition inherits the owner instead and needs no stamp.
+ * independent subtrees, each driven by a recomposer of its own, standing in one window and sharing
+ * one lifecycle. A root nested in another's composition inherits the owner instead and needs no stamp.
  *
  * The owner is read from inside the provision rather than resolved again, so what is stamped is what the
  * content reads, whether this root stated it or took it from above.

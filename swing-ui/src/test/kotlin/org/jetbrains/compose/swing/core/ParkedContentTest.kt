@@ -362,7 +362,7 @@ class ParkedContentTest : TracedTest() {
         assertEquals(
             "parked-Red",
             combo.stampCell(index = 0).firstLabelText(),
-            "the cell shows what the island's active content composes",
+            "the cell shows what the cell composition's active content composes",
         )
         awaitIdle()
 

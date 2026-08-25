@@ -73,7 +73,7 @@ class SetContentParentTest {
     }
 
     @Test
-    fun disposingAnIslandLeavesItsParentDrivingTheNextOne() {
+    fun disposingACompositionLeavesItsParentDrivingTheNextOne() {
         val first = onEdt { JPanel().apply { size = Dimension(SIZE, SIZE) } }
         val second = onEdt { JPanel().apply { size = Dimension(SIZE, SIZE) } }
         var shared by mutableStateOf("v0")
@@ -81,22 +81,26 @@ class SetContentParentTest {
         val firstHandle = onEdt { first.setContent(parent = recomposer) { Label(text = "first=$shared") } }
         handles += firstHandle
         waitForIdle()
-        assertEquals(listOf("first=v0"), labelTexts(first), "the first island should render its initial state")
+        assertEquals(
+            listOf("first=v0"),
+            labelTexts(first),
+            "the first content composition should render its initial state",
+        )
 
-        // The handle owns this island and nothing else, so disposing it takes only the island's content
-        // down and leaves the parent the caller owns running.
+        // The handle owns this content composition and nothing else, so disposing it takes only that
+        // composition's content down and leaves the parent the caller owns running.
         onEdt { firstHandle.dispose() }
         assertEquals(
             emptyList(),
             labelTexts(first),
-            "disposing the handle must take the island's composed content with it",
+            "disposing the handle must take the composed content with it",
         )
 
         onEdt { handles += second.setContent(parent = recomposer) { Label(text = "second=$shared") } }
         assertEquals(
             listOf("second=v0"),
             labelTexts(second),
-            "a second island must compose under a parent that outlived the first island",
+            "a second content composition must compose under a parent that outlived the first",
         )
 
         onEdt { shared = "v1" }
@@ -104,20 +108,20 @@ class SetContentParentTest {
         assertEquals(
             listOf("second=v1"),
             labelTexts(second),
-            "the parent must keep driving recomposition after one of its islands was disposed",
+            "the parent must keep driving recomposition after one of its content compositions was disposed",
         )
         assertEquals(
             emptyList(),
             labelTexts(first),
-            "a disposed island must not compose again when the state it read changes",
+            "a disposed content composition must not compose again when the state it read changes",
         )
     }
 
     @Test
     fun aNamedParentMountWatchesTheContainersPlaceAndGivesItUpOnDispose() {
         // Two things watch the container's place in the Swing tree, each with its own HierarchyListener:
-        // the mount (so a container that ends up in a window joins that window's composition) and the
-        // content's lifecycle owner (which reads whether the content is shown off that same place).
+        // the mount phase (so a container that ends up in a window joins that window's composition) and
+        // the content's lifecycle owner (which reads whether the content is shown off that same place).
         // Disposing the handle gives both listeners back.
         val detached = onEdt { JPanel().apply { size = Dimension(SIZE, SIZE) } }
         val before = onEdt { detached.hierarchyListeners.size }
@@ -126,15 +130,15 @@ class SetContentParentTest {
         assertEquals(
             before + 2,
             onEdt { detached.hierarchyListeners.size },
-            "a mount under a named parent must watch the container's place with one HierarchyListener for the " +
-                "mount and one for the content's lifecycle",
+            "content mounted under a named parent must watch the container's place with one " +
+                "HierarchyListener for the mount phase and one for the content's lifecycle",
         )
 
         onEdt { handle.dispose() }
         assertEquals(
             before,
             onEdt { detached.hierarchyListeners.size },
-            "disposing the handle must unregister every HierarchyListener the mount added",
+            "disposing the handle must unregister every HierarchyListener setContent added",
         )
         assertEquals(emptyList(), labelTexts(detached), "disposing the handle must take the content down")
 
@@ -147,9 +151,10 @@ class SetContentParentTest {
     }
 
     @Test
-    fun aMoveThatResolvesToNoParentLeavesTheIslandComposingAndDisposableCleanly() {
+    fun aMoveThatResolvesToNoParentLeavesTheCompositionComposingAndDisposableCleanly() {
         // Moved into another container that is itself in no window, the container's place still resolves
-        // to no parent of its own, so the island keeps composing under the parent it was given.
+        // to no parent of its own, so the content composition keeps composing under the parent it was
+        // given.
         val detached = onEdt { JPanel().apply { size = Dimension(SIZE, SIZE) } }
         val newHost = onEdt { JPanel().apply { size = Dimension(SIZE, SIZE) } }
         var shared by mutableStateOf("v0")
@@ -169,14 +174,15 @@ class SetContentParentTest {
         assertEquals(
             2,
             onEdt { detached.hierarchyListeners.size },
-            "a live mount and the lifecycle of its content must both keep watching the container's place after a move",
+            "a live content composition and the lifecycle of its content must both keep watching the " +
+                "container's place after a move",
         )
 
         onEdt { handle.dispose() }
         assertEquals(
             0,
             onEdt { detached.hierarchyListeners.size },
-            "disposing after a move must unregister every HierarchyListener the mount added",
+            "disposing after a move must unregister every HierarchyListener setContent added",
         )
         assertEquals(emptyList(), labelTexts(detached), "disposing after a move must take the content down")
     }

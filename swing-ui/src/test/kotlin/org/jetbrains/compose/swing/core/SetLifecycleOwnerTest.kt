@@ -22,17 +22,17 @@ import kotlin.test.assertSame
 class SetLifecycleOwnerTest {
     @Test
     fun aRootUnderAPublishedOwnerReadsItRatherThanMintingOne() = runSwingTest {
-        val runtime = SwingRecomposer.create(JPanel())
+        val recomposer = SwingRecomposer.create(JPanel())
         try {
             val host = JPanel()
             val published = HostOwner()
             host.setLifecycleOwner(published)
-            val island = JPanel().also { host.add(it) }
+            val composition = JPanel().also { host.add(it) }
 
             var read: LifecycleOwner? = null
             val handle =
-                island.setContent(
-                    parent = runtime.compositionContext,
+                composition.setContent(
+                    parent = recomposer.compositionContext,
                 ) { read = LocalLifecycleOwner.current }
 
             assertSame(
@@ -42,24 +42,24 @@ class SetLifecycleOwnerTest {
             )
             handle.dispose()
         } finally {
-            runtime.dispose()
+            recomposer.dispose()
         }
     }
 
     @Test
     fun aRootUnderNoPublishedOwnerMintsOne() = runSwingTest {
-        val runtime = SwingRecomposer.create(JPanel())
+        val recomposer = SwingRecomposer.create(JPanel())
         try {
             val host = JPanel()
             val published = HostOwner()
             host.setLifecycleOwner(published)
             host.setLifecycleOwner(null)
-            val island = JPanel().also { host.add(it) }
+            val composition = JPanel().also { host.add(it) }
 
             var read: LifecycleOwner? = null
             val handle =
-                island.setContent(
-                    parent = runtime.compositionContext,
+                composition.setContent(
+                    parent = recomposer.compositionContext,
                 ) { read = LocalLifecycleOwner.current }
 
             assertNotSame(
@@ -70,7 +70,7 @@ class SetLifecycleOwnerTest {
             )
             handle.dispose()
         } finally {
-            runtime.dispose()
+            recomposer.dispose()
         }
     }
 

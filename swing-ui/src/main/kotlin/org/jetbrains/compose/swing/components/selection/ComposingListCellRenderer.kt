@@ -46,7 +46,7 @@ public sealed interface ListItemScope {
 
 /**
  * A [ListCellRenderer] that paints each row through a real `@Composable` cell, over the reused
- * [CellStampIsland] every such renderer stamps through.
+ * [CellStampComposition] every such renderer stamps through.
  *
  * The component the cell composes is what the widget is handed. The widget bounds it at the row it is
  * painting and lays it out there, and its preferred size is what the widget measures a row by - so what
@@ -54,13 +54,13 @@ public sealed interface ListItemScope {
  * composes.
  *
  * The renderer is declared over `Any?` because it is installed through a modifier element, which names
- * one component type for every widget it serves; the item a stamp hands over is an item of the model
+ * one component type for every widget it serves. The item a stamp hands over is an item of the model
  * the composable that built this renderer installed, so it is the cell body's own element type.
  *
  * The [currentItemContent] is read through a [State] so a recomposition that supplies a fresh cell
- * lambda is honored without rebuilding the renderer or its island.
+ * lambda is honored without rebuilding the renderer or its cell composition.
  *
- * @param parentContext the enclosing composition this renderer's cell island joins.
+ * @param parentContext the enclosing composition this renderer's cell composition joins.
  * @param currentItemContent the always-current composable cell body, invoked with the [ListItemScope]
  *   and item.
  */
@@ -68,13 +68,12 @@ internal class ComposingListCellRenderer<T>(
     parentContext: CompositionContext,
     private val currentItemContent: State<@Composable ListItemScope.(item: T) -> Unit>,
 ) : ListCellRenderer<Any?> {
-    // The row inputs, held as composition state so writing them invalidates the cell body that reads
-    // them. A single reused item cell keeps the size-1 pool the rubber-stamp model expects.
+    // A single reused item cell keeps the size-1 pool the rubber-stamp model expects.
     private val itemState = mutableStateOf<Any?>(null)
     private val scope = MutableListItemScope()
 
-    private val island =
-        CellStampIsland(
+    private val cellComposition =
+        CellStampComposition(
             parentContext,
             "A composable cell renders a single component, and this one composes several. Compose them " +
                 "into one container - a panel whose layout arranges them - and the widget renders that.",
@@ -91,19 +90,19 @@ internal class ComposingListCellRenderer<T>(
     ): Component =
         // Every row the widget paints names the item it holds, `null` among them. A combo box's display
         // area is the one stamp made for no row at all, and with nothing selected it names no item either.
-        island.stamp(hasCell = index >= 0 || value != null) {
+        cellComposition.stamp(hasCell = index >= 0 || value != null) {
             itemState.value = value
             scope.index = index
             scope.isSelected = isSelected
             scope.cellHasFocus = cellHasFocus
         }
 
-    /** Disposes this renderer's cell island; see [CellStampIsland.dispose]. */
-    fun dispose(): Unit = island.dispose()
+    /** Disposes this renderer's cell composition; see [CellStampComposition.dispose]. */
+    fun dispose(): Unit = cellComposition.dispose()
 }
 
 /**
- * The cell body a [ComposingListCellRenderer]'s island composes; the island composes it only where the
+ * The cell body a [ComposingListCellRenderer] stamps. The cell composition composes it only where the
  * stamp names an item, so [itemState] always holds that item here - itself `null` among the values an
  * item can hold.
  */
@@ -158,9 +157,9 @@ internal fun <T> rememberComposingListCellRenderer(
  * back on a look-and-feel change, so it is restored the way every modifier property is: the value the
  * widget carried before a composable cell displaced it is captured as the element attaches, and written
  * back as it detaches. Detaching on release, reuse and deactivate as well as on withdrawal is what gives
- * the widget its own renderer back at the very moment the island behind the composable cell is disposed
- * - the widget may still be asked to size or render a row directly even once parking has detached it
- * from the Swing tree, and a renderer over a disposed island paints nothing.
+ * the widget its own renderer back at the very moment the composition behind the composable cell is
+ * disposed - the widget may still be asked to size or render a row directly even once parking has
+ * detached it from the Swing tree, and a renderer over a disposed composition paints nothing.
  *
  * A `JList` and a `JComboBox` each declare this property for themselves, with no supertype declaring it
  * between them, which is what makes it a [MultiTargetProperty] rather than a property element of one
@@ -174,8 +173,7 @@ internal fun SwingModifier.composableItemCells(itemRenderer: ComposingListCellRe
  * one property, reached through the accessor of whichever widget carries it.
  *
  * Both are read and written through a widget of items of `Any?`, the element type every composable cell
- * renderer is declared over: a renderer either widget carries renders whatever its own model holds, and
- * a modifier element names one component type for every widget it serves.
+ * renderer is declared over: a renderer either widget carries renders whatever its own model holds.
  */
 private val ITEM_RENDERER =
     MultiTargetProperty<ListCellRenderer<in Any?>?>(

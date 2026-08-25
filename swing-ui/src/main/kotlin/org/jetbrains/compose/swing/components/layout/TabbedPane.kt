@@ -140,7 +140,7 @@ private fun TabbedPaneImpl(
     // recomposition to notice it.
     val held = applied.value
     // Captured here in the composable body: a header cannot be an applier node of the pane (see
-    // TabHeaderIsland in TabbedPaneScope), so this context is threaded to it explicitly instead of being
+    // TabHeaderComposition in TabbedPaneScope), so this context is threaded to it explicitly instead of being
     // inherited through the node tree.
     val headerParentContext = rememberCompositionContext()
     // Remembered with the pane: a tab's declaration is built against these as that tab's modifier is
@@ -162,7 +162,7 @@ private fun TabbedPaneImpl(
         }
     }
 
-    // A tab becomes a page of the pane after this node's update block has run: the runtime applies the
+    // A tab becomes a page of the pane after this node's update block has run: the recomposer applies the
     // content that block declared once it returns. A pass declaring both a tab and the selection naming it
     // therefore has no such tab to select while it settles, so counting the pages the pane gains and loses
     // gives that pass a successor to settle on. Read straight off the pane's own tab count rather than off

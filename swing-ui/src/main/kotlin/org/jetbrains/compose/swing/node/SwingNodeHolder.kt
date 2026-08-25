@@ -66,12 +66,12 @@ internal class DeclaredSlot(
  * component there.
  *
  * [name] is nullable where [DeclaredSlot.name] is not: a component the applier installs through the
- * mount's own root slot fills no region any chain declared, so it carries an attachment and an
+ * composition's own root slot fills no region any chain declared, so it carries an attachment and an
  * uninstall action but no name. A component installed through a region its chain named takes that
  * region's name instead.
  *
  * @property attachment the attachment that installed the component
- * @property name the name of the region filled, or `null` for the mount's root slot
+ * @property name the name of the region filled, or `null` for the composition's root slot
  * @property uninstall detaches the component and frees the region; runs on removal, move, parking and
  *   release
  */

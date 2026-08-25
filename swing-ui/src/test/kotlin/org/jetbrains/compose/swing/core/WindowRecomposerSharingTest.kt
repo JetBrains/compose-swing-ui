@@ -32,11 +32,11 @@ import kotlin.time.Duration.Companion.seconds
  * display; they exercise the resolution mechanism the window path is built on:
  *  - a window publishes ONE [Recomposer] as the [COMPOSITION_KEY] context on a
  *    [javax.swing.JComponent] ancestor of its content (its root pane), and
- *  - every island under that ancestor resolves to it via the self-first
+ *  - every composition under that ancestor resolves to it via the self-first
  *    [findParentCompositionContext] walk.
  *
  * A single ancestor stamped with one recomposer stands in for a window root pane, and two sibling
- * islands beneath it model two in-window islands. Driven on a controllable [BroadcastFrameClock] (no
+ * compositions beneath it model two in-window compositions. Driven on a controllable [BroadcastFrameClock] (no
  * sleeps, bounded frames).
  */
 class WindowRecomposerSharingTest {
@@ -58,42 +58,42 @@ class WindowRecomposerSharingTest {
     }
 
     @Test
-    fun twoIslandsUnderOneStampedAncestorShareItsRecomposer() {
+    fun twoCompositionsUnderOneStampedAncestorShareItsRecomposer() {
         // The ancestor stands in for a window root pane: stamped with exactly ONE recomposer context,
         // exactly as getOrCreateRecomposer() publishes it.
         val windowRoot = onEdt { JPanel().apply { size = Dimension(SIZE, SIZE) } }
-        val islandA = onEdt { JPanel().also { windowRoot.add(it) } }
-        val islandB = onEdt { JPanel().also { windowRoot.add(it) } }
+        val compositionA = onEdt { JPanel().also { windowRoot.add(it) } }
+        val compositionB = onEdt { JPanel().also { windowRoot.add(it) } }
         onEdt { windowRoot[COMPOSITION_KEY] = recomposer }
 
-        // Both islands read ONE shared state: mutating it recomposes BOTH only if they share one
+        // Both compositions read ONE shared state: mutating it recomposes BOTH only if they share one
         // recomposer, since a recomposer of their own would not be driven by this clock.
         var shared by mutableStateOf("v0")
         onEdt {
-            handles += islandA.setContent { Label(text = "a=$shared") }
-            handles += islandB.setContent { Label(text = "b=$shared") }
+            handles += compositionA.setContent { Label(text = "a=$shared") }
+            handles += compositionB.setContent { Label(text = "b=$shared") }
         }
         waitForIdle()
 
-        assertEquals("a=v0", labelText(islandA), "island A should render the initial shared state")
-        assertEquals("b=v0", labelText(islandB), "island B should render the initial shared state")
+        assertEquals("a=v0", labelText(compositionA), "composition A should render the initial shared state")
+        assertEquals("b=v0", labelText(compositionB), "composition B should render the initial shared state")
 
         // Both content panes resolved to the SAME published recomposer context.
         assertSame(
             recomposer,
-            onEdt { islandA.findParentCompositionContext() },
-            "island A did not resolve to the shared window recomposer",
+            onEdt { compositionA.findParentCompositionContext() },
+            "composition A did not resolve to the shared window recomposer",
         )
         assertSame(
             recomposer,
-            onEdt { islandB.findParentCompositionContext() },
-            "island B did not resolve to the shared window recomposer",
+            onEdt { compositionB.findParentCompositionContext() },
+            "composition B did not resolve to the shared window recomposer",
         )
 
         onEdt { shared = "v1" }
         waitForIdle()
-        assertEquals("a=v1", labelText(islandA), "island A did not recompose on the shared recomposer")
-        assertEquals("b=v1", labelText(islandB), "island B did not recompose on the shared recomposer")
+        assertEquals("a=v1", labelText(compositionA), "composition A did not recompose on the shared recomposer")
+        assertEquals("b=v1", labelText(compositionB), "composition B did not recompose on the shared recomposer")
     }
 
     @Test

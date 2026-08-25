@@ -53,57 +53,71 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Behavioral tests for a composition runtime hosted by a plain [java.awt.Component] - the runtime a
+ * Behavioral tests for a composition recomposer hosted by a plain [java.awt.Component] - the recomposer a
  * caller creates for a component with [SwingRecomposer.create] and disposes itself - and for the
- * boundary between it and the runtime a [java.awt.Window] owns - including the window that owns none,
+ * boundary between it and the recomposer a [java.awt.Window] owns - including the window that owns none,
  * because its content is part of an application composition declared elsewhere.
  *
- * A component-hosted runtime recomposes on the event queue, so the test body runs on the EDT and
+ * A component-hosted recomposer recomposes on the event queue, so the test body runs on the EDT and
  * yields it back between checks until a bounded deadline. The cases that need a window realize a real
  * off-screen [JFrame] and skip on a headless environment; the rest run either way, since a
- * component-hosted runtime needs no window at all.
+ * component-hosted recomposer needs no window at all.
  */
 class ComponentRecomposerTest {
     @Test
-    fun aComponentOutsideAnyWindowComposesAndRecomposesOnItsOwnRuntime() = runSwingTest {
-        val island = JPanel()
+    fun aComponentOutsideAnyWindowComposesAndRecomposesOnItsOwnRecomposer() = runSwingTest {
+        val composition = JPanel()
         assertNull(
-            SwingUtilities.getWindowAncestor(island),
+            SwingUtilities.getWindowAncestor(composition),
             "the case under test is a container with no window anywhere above it",
         )
 
-        val runtime = SwingRecomposer.create(island)
+        val recomposer = SwingRecomposer.create(composition)
         var text by mutableStateOf("v0")
         var content: DisposableHandle? = null
         try {
-            content = island.setContent(parent = runtime.compositionContext) { Label(text = text) }
-            awaitUntil("the component-hosted runtime composes its content") { labelTextOrNull(island) == "v0" }
+            content = composition.setContent(parent = recomposer.compositionContext) { Label(text = text) }
+            awaitUntil("the component-hosted recomposer composes its content") { labelTextOrNull(composition) == "v0" }
 
             text = "v1"
-            awaitUntil("the component-hosted runtime recomposes on a state change") { labelTextOrNull(island) == "v1" }
+            awaitUntil("the component-hosted recomposer recomposes on a state change") {
+                labelTextOrNull(composition) ==
+                    "v1"
+            }
         } finally {
             content?.dispose()
-            runtime.dispose()
+            recomposer.dispose()
         }
     }
 
     @Test
-    fun disposingTheRuntimeEndsItsScopeIdempotentlyAndLeavesNoListenerBehind() = runSwingTest {
-        val island = JPanel()
-        val listenersBefore = island.getPropertyChangeListeners(GRAPHICS_CONFIGURATION_PROPERTY).size
+    fun aDisposedRecomposerDisposesContentThatRegistersWithIt() = runSwingTest {
+        val recomposer = SwingRecomposer.create(JPanel())
+        recomposer.dispose()
 
-        val runtime = SwingRecomposer.create(island)
+        var disposals = 0
+        recomposer.registerContentComposition(DisposableHandle { disposals++ })
+
+        assertEquals(1, disposals, "content registering with a disposed recomposer is disposed on the spot")
+    }
+
+    @Test
+    fun disposingTheRecomposerEndsItsScopeIdempotentlyAndLeavesNoListenerBehind() = runSwingTest {
+        val composition = JPanel()
+        val listenersBefore = composition.getPropertyChangeListeners(GRAPHICS_CONFIGURATION_PROPERTY).size
+
+        val recomposer = SwingRecomposer.create(composition)
         var text by mutableStateOf("v0")
         var effectAlive = false
         var content: DisposableHandle? = null
         try {
             assertEquals(
                 listenersBefore + 1,
-                island.getPropertyChangeListeners(GRAPHICS_CONFIGURATION_PROPERTY).size,
-                "a runtime follows its component across displays, so it listens on that component",
+                composition.getPropertyChangeListeners(GRAPHICS_CONFIGURATION_PROPERTY).size,
+                "a recomposer follows its component across displays, so it listens on that component",
             )
             content =
-                island.setContent(parent = runtime.compositionContext) {
+                composition.setContent(parent = recomposer.compositionContext) {
                     Label(text = text)
                     LaunchedEffect(Unit) {
                         effectAlive = true
@@ -114,53 +128,53 @@ class ComponentRecomposerTest {
                         }
                     }
                 }
-            awaitUntil("the runtime's scope runs the content's effect") { effectAlive }
+            awaitUntil("the recomposer's scope runs the content's effect") { effectAlive }
 
-            runtime.dispose()
-            awaitUntil("disposing the runtime cancels what its scope was running") { !effectAlive }
+            recomposer.dispose()
+            awaitUntil("disposing the recomposer cancels what its scope was running") { !effectAlive }
             assertEquals(
                 listenersBefore,
-                island.getPropertyChangeListeners(GRAPHICS_CONFIGURATION_PROPERTY).size,
-                "a disposed runtime leaves no listener on its component",
+                composition.getPropertyChangeListeners(GRAPHICS_CONFIGURATION_PROPERTY).size,
+                "a disposed recomposer leaves no listener on its component",
             )
 
             // Nothing drives the content now. The quiet period spans many frame intervals, so a
             // recomposer still running would have applied the change well inside it.
             text = "v1"
             delay(QUIET_PERIOD)
-            assertEquals("v0", labelTextOrNull(island), "content of a disposed runtime stops recomposing")
+            assertEquals("v0", labelTextOrNull(composition), "content of a disposed recomposer stops recomposing")
 
-            runtime.dispose()
+            recomposer.dispose()
             assertEquals(
                 listenersBefore,
-                island.getPropertyChangeListeners(GRAPHICS_CONFIGURATION_PROPERTY).size,
+                composition.getPropertyChangeListeners(GRAPHICS_CONFIGURATION_PROPERTY).size,
                 "a second dispose is a no-op, not a failure",
             )
         } finally {
             content?.dispose()
-            runtime.dispose()
+            recomposer.dispose()
         }
     }
 
     @Test
-    fun aComponentHostedRuntimeIsReachedOnlyByHoldingIt() = runSwingTest {
-        // The runtime is published nowhere on the component, so the self-first tree walk every
+    fun aComponentHostedRecomposerIsReachedOnlyByHoldingIt() = runSwingTest {
+        // The recomposer is published nowhere on the component, so the self-first tree walk every
         // parentless setContent resolves through cannot find it.
         val host = JPanel()
         val descendant = JPanel().also { host.add(it) }
 
-        val runtime = SwingRecomposer.create(host)
+        val recomposer = SwingRecomposer.create(host)
         try {
             assertNull(
                 host.findParentCompositionContext(),
-                "creating a runtime must not stamp its context on the component",
+                "creating a recomposer must not stamp its context on the component",
             )
             assertNull(
                 descendant.findParentCompositionContext(),
-                "a descendant must not discover the runtime created for its ancestor",
+                "a descendant must not discover the recomposer created for its ancestor",
             )
         } finally {
-            runtime.dispose()
+            recomposer.dispose()
         }
     }
 
@@ -172,47 +186,48 @@ class ComponentRecomposerTest {
             val context = frame.compositionContext()
             assertSame(context, frame.compositionContext(), "a window hands out one context on every call")
 
-            val islandA = childOf(frame)
-            val islandB = childOf(frame)
-            val islands = listOf(islandA.setContent { Label(text = "a") }, islandB.setContent { Label(text = "b") })
+            val compositionA = childOf(frame)
+            val compositionB = childOf(frame)
+            val compositions =
+                listOf(compositionA.setContent { Label(text = "a") }, compositionB.setContent { Label(text = "b") })
             try {
-                awaitUntil("both islands render") {
-                    labelTextOrNull(islandA) == "a" && labelTextOrNull(islandB) == "b"
+                awaitUntil("both compositions render") {
+                    labelTextOrNull(compositionA) == "a" && labelTextOrNull(compositionB) == "b"
                 }
-                assertSame(context, islandA.findParentCompositionContext(), "island A joined another context")
-                assertSame(context, islandB.findParentCompositionContext(), "island B joined another context")
+                assertSame(context, compositionA.findParentCompositionContext(), "composition A joined another context")
+                assertSame(context, compositionB.findParentCompositionContext(), "composition B joined another context")
             } finally {
-                islands.forEach { it.dispose() }
+                compositions.forEach { it.dispose() }
             }
 
-            // The window owns what it handed out: closing it releases the runtime with no caller involved.
+            // The window owns what it handed out: closing it releases the recomposer with no caller involved.
             frame.dispose()
-            awaitUntil("the closed window releases its runtime") { frame.swingRecomposerOrNull() == null }
+            awaitUntil("the closed window releases its recomposer") { frame.swingRecomposerOrNull() == null }
         } finally {
             frame.dispose()
         }
     }
 
     @Test
-    fun aContainerInsideAWindowJoinsThatWindowRatherThanMintingItsOwnRuntime() = runSwingTest {
+    fun aContainerInsideAWindowJoinsThatWindowRatherThanMintingItsOwnRecomposer() = runSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display to realize a window")
         val frame = realizedFrame()
         try {
-            val island = childOf(frame)
-            val listenersBefore = island.getPropertyChangeListeners(GRAPHICS_CONFIGURATION_PROPERTY).size
+            val composition = childOf(frame)
+            val listenersBefore = composition.getPropertyChangeListeners(GRAPHICS_CONFIGURATION_PROPERTY).size
 
-            val content = island.setContent { Label(text = "in-window") }
+            val content = composition.setContent { Label(text = "in-window") }
             try {
-                awaitUntil("the in-window island renders") { labelTextOrNull(island) == "in-window" }
+                awaitUntil("the in-window composition renders") { labelTextOrNull(composition) == "in-window" }
                 assertSame(
                     frame.compositionContext(),
-                    island.findParentCompositionContext(),
+                    composition.findParentCompositionContext(),
                     "a container in a window must join that window's context",
                 )
                 assertEquals(
                     listenersBefore,
-                    island.getPropertyChangeListeners(GRAPHICS_CONFIGURATION_PROPERTY).size,
-                    "joining a window must create no runtime of the container's own",
+                    composition.getPropertyChangeListeners(GRAPHICS_CONFIGURATION_PROPERTY).size,
+                    "joining a window must create no recomposer of the container's own",
                 )
             } finally {
                 content.dispose()
@@ -223,40 +238,40 @@ class ComponentRecomposerTest {
     }
 
     @Test
-    fun aComponentHostedRuntimeIsCadencedToTheRateItsComponentReports() = runSwingTest {
+    fun aComponentHostedRecomposerIsCadencedToTheRateItsComponentReports() = runSwingTest {
         // A test cannot move a component onto a display of a chosen refresh rate, so the component
-        // reports one directly: the runtime reads the rate through the component's
+        // reports one directly: the recomposer reads the rate through the component's
         // GraphicsConfiguration. The expectation is the cadence of a clock built for that reported
         // rate, never a fixed delay.
-        val island = ReportingDisplayPanel()
-        island.display = FakeDisplayConfiguration(FPS_120)
+        val composition = ReportingDisplayPanel()
+        composition.display = FakeDisplayConfiguration(FPS_120)
 
-        val runtime = SwingRecomposer.create(island)
+        val recomposer = SwingRecomposer.create(composition)
         try {
-            assertEquals(FPS_120, island.displayRefreshRate(), "the component under test reports its own rate")
+            assertEquals(FPS_120, composition.displayRefreshRate(), "the component under test reports its own rate")
             assertEquals(
-                SwingFrameClock(runtime.recomposer, island.displayRefreshRate()).frameDelayMillis,
-                runtime.clock.frameDelayMillis,
-                "the runtime must pace its clock by the rate its component reports",
+                SwingFrameClock(recomposer.recomposer, composition.displayRefreshRate()).frameDelayMillis,
+                recomposer.clock.frameDelayMillis,
+                "the recomposer must pace its clock by the rate its component reports",
             )
 
             // Moving to a display of another rate is reported as a "graphicsConfiguration" change.
-            island.display = FakeDisplayConfiguration(FPS_60)
+            composition.display = FakeDisplayConfiguration(FPS_60)
             assertEquals(
-                SwingFrameClock(runtime.recomposer, island.displayRefreshRate()).frameDelayMillis,
-                runtime.clock.frameDelayMillis,
-                "the runtime must follow its component to a display of a different rate",
+                SwingFrameClock(recomposer.recomposer, composition.displayRefreshRate()).frameDelayMillis,
+                recomposer.clock.frameDelayMillis,
+                "the recomposer must follow its component to a display of a different rate",
             )
         } finally {
-            runtime.dispose()
+            recomposer.dispose()
         }
     }
 
     @Test
-    fun aWindowComposingUnderAnApplicationIsRefusedARuntimeOfItsOwn() = runBlocking {
+    fun aWindowComposingUnderAnApplicationIsRefusedARecomposerOfItsOwn() = runBlocking {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display to realize a window")
         var refusal: Throwable? = null
-        var runtimeMinted = true
+        var recomposerMinted = true
         var foundOnTheWindow: Recomposer? = null
 
         withTimeout(SETTLE_TIMEOUT) {
@@ -267,7 +282,7 @@ class ComponentRecomposerTest {
                         // The application's effects run on the EDT, which is where a window is asked
                         // what recomposer it has.
                         refusal = runCatching { peer?.compositionContext() }.exceptionOrNull()
-                        runtimeMinted = peer?.swingRecomposerOrNull() != null
+                        recomposerMinted = peer?.swingRecomposerOrNull() != null
                         foundOnTheWindow = peer?.findRecomposer()
                         exitApplication()
                     }
@@ -283,7 +298,7 @@ class ComponentRecomposerTest {
             "the refusal must name where the recomposer really is, but was: ${thrown.message}",
         )
         assertFalse(
-            runtimeMinted,
+            recomposerMinted,
             "asking must not answer by creating a recomposer that drives nothing",
         )
         assertNull(
@@ -386,20 +401,20 @@ class ComponentRecomposerTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display to realize a window")
         val frame = realizedFrame()
         try {
-            val island = childOf(frame)
-            val content = island.setContent { Label(text = "in-window") }
+            val composition = childOf(frame)
+            val content = composition.setContent { Label(text = "in-window") }
             try {
-                awaitUntil("the island renders") { labelTextOrNull(island) == "in-window" }
+                awaitUntil("the composition renders") { labelTextOrNull(composition) == "in-window" }
                 val driving = assertNotNull(frame.swingRecomposerOrNull()).recomposer
 
                 assertSame(
                     driving,
-                    island.findRecomposer(),
+                    composition.findRecomposer(),
                     "a component must find the recomposer the window it stands in drives",
                 )
                 assertSame(
                     driving,
-                    island.components.single().findRecomposer(),
+                    composition.components.single().findRecomposer(),
                     "and so must one nested deeper, since the walk reaches the window from anywhere below it",
                 )
                 assertSame(
@@ -425,9 +440,9 @@ class ComponentRecomposerTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display to realize a window")
         val frame = realizedFrame()
         try {
-            val island = childOf(frame)
+            val composition = childOf(frame)
             val host = JPanel()
-            val outer = island.setContent { SwingNode(factory = { host }, hostsSubcompositions = true) }
+            val outer = composition.setContent { SwingNode(factory = { host }, hostsSubcompositions = true) }
             var nested: DisposableHandle? = null
             try {
                 awaitUntil("the host node is applied") { host.parent != null }
@@ -437,7 +452,7 @@ class ComponentRecomposerTest {
                 )
 
                 nested = host.setContent { Label(text = "nested") }
-                awaitUntil("the nested island composes") { labelTextOrNull(host) == "nested" }
+                awaitUntil("the nested composition composes") { labelTextOrNull(host) == "nested" }
 
                 val driving = assertNotNull(frame.swingRecomposerOrNull()).recomposer
                 assertSame(
@@ -459,10 +474,10 @@ class ComponentRecomposerTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display to realize a window")
         val frame = realizedFrame()
         try {
-            val island = childOf(frame)
+            val composition = childOf(frame)
 
             assertNull(
-                island.findRecomposer(),
+                composition.findRecomposer(),
                 "a window holding no composed content drives no recomposer to find",
             )
             assertNull(
@@ -484,64 +499,64 @@ class ComponentRecomposerTest {
     }
 
     /**
-     * A runtime a caller creates for a component is what that component's content composes on, so it is
+     * A recomposer a caller creates for a component is what that component's content composes on, so it is
      * what the component answers with - the window it happens to hang under drives its own content and
      * not this, and answers nothing here.
      */
     @Test
-    fun aComponentFindsTheRuntimeItsCallerCreatedForIt() = runSwingTest {
+    fun aComponentFindsTheRecomposerItsCallerCreatedForIt() = runSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display to realize a window")
         val frame = realizedFrame()
         try {
-            val island = childOf(frame)
-            val runtime = SwingRecomposer.create(island)
+            val composition = childOf(frame)
+            val recomposer = SwingRecomposer.create(composition)
             var content: DisposableHandle? = null
             try {
-                content = island.setContent(parent = runtime.compositionContext) { Label(text = "hello") }
-                awaitUntil("the caller's runtime composes its content") { labelTextOrNull(island) == "hello" }
+                content = composition.setContent(parent = recomposer.compositionContext) { Label(text = "hello") }
+                awaitUntil("the caller's recomposer composes its content") { labelTextOrNull(composition) == "hello" }
 
                 assertSame(
-                    runtime.recomposer,
-                    island.findRecomposer(),
-                    "the container answers with the runtime its content was given, not with its window's",
+                    recomposer.recomposer,
+                    composition.findRecomposer(),
+                    "the container answers with the recomposer its content was given, not with its window's",
                 )
                 assertSame(
-                    runtime.recomposer,
-                    island.components.single().findRecomposer(),
+                    recomposer.recomposer,
+                    composition.components.single().findRecomposer(),
                     "and so does a component nested inside that content",
                 )
                 assertNull(
                     frame.swingRecomposerOrNull(),
-                    "naming a runtime of one's own leaves the window driving nothing, so the answer can " +
-                        "only have come from the runtime the caller created",
+                    "naming a recomposer of one's own leaves the window driving nothing, so the answer can " +
+                        "only have come from the recomposer the caller created",
                 )
             } finally {
                 content?.dispose()
-                runtime.dispose()
+                recomposer.dispose()
             }
         } finally {
             frame.dispose()
         }
     }
 
-    /** A component-hosted runtime needs no window, and is found from a container hanging under none. */
+    /** A component-hosted recomposer needs no window, and is found from a container hanging under none. */
     @Test
-    fun aRuntimeIsFoundOnAComponentThatStandsInNoWindow() = runSwingTest {
-        val island = JPanel()
-        val runtime = SwingRecomposer.create(island)
+    fun aRecomposerIsFoundOnAComponentThatStandsInNoWindow() = runSwingTest {
+        val composition = JPanel()
+        val recomposer = SwingRecomposer.create(composition)
         var content: DisposableHandle? = null
         try {
-            content = island.setContent(parent = runtime.compositionContext) { Label(text = "detached") }
-            awaitUntil("the detached content composes") { labelTextOrNull(island) == "detached" }
+            content = composition.setContent(parent = recomposer.compositionContext) { Label(text = "detached") }
+            awaitUntil("the detached content composes") { labelTextOrNull(composition) == "detached" }
 
             assertSame(
-                runtime.recomposer,
-                island.components.single().findRecomposer(),
+                recomposer.recomposer,
+                composition.components.single().findRecomposer(),
                 "what drives a component's content is a fact about the content, not about any window",
             )
         } finally {
             content?.dispose()
-            runtime.dispose()
+            recomposer.dispose()
         }
     }
 
@@ -568,14 +583,14 @@ class ComponentRecomposerTest {
 
                 inner = composed.contentPane.setContent { Label(text = "owned") }
                 awaitUntil("the dialog's content composes") { labelTextOrNull(composed.contentPane) == "owned" }
-                val ownRuntime = assertNotNull(composed.swingRecomposerOrNull()).recomposer
+                val ownRecomposer = assertNotNull(composed.swingRecomposerOrNull()).recomposer
 
                 assertSame(
-                    ownRuntime,
+                    ownRecomposer,
                     composed.contentPane.findRecomposer(),
-                    "an owned window drives its own content, and that runtime is what it answers with",
+                    "an owned window drives its own content, and that recomposer is what it answers with",
                 )
-                assertSame(ownRuntime, composed.findRecomposer(), "and the window itself answers the same")
+                assertSame(ownRecomposer, composed.findRecomposer(), "and the window itself answers the same")
             } finally {
                 inner?.dispose()
                 composed.dispose()
@@ -607,7 +622,7 @@ class ComponentRecomposerTest {
         pack()
     }
 
-    /** Adds and returns a fresh island container inside [frame]'s content pane. Must be on the EDT. */
+    /** Adds and returns a fresh composition container inside [frame]'s content pane. Must be on the EDT. */
     private fun childOf(frame: JFrame): Container = JPanel().also { frame.contentPane.add(it) }
 
     /** The single [JLabel]'s text in [container]'s subtree, or `null` while none has mounted yet. */

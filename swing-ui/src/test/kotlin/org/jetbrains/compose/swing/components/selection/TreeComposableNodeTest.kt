@@ -187,7 +187,7 @@ class TreeComposableNodeTest {
 
     @Test
     fun composableNodesWorkInsideAScrollPane() = runComposeSwingTest {
-        // A composable node island joins the enclosing composition, and the node's own nodes belong to the
+        // A composable node composition joins the enclosing composition, and the node's own nodes belong to the
         // renderer rather than to the pane the tree is installed in: they render the row, they do not
         // install themselves as the viewport's view.
         setContent {

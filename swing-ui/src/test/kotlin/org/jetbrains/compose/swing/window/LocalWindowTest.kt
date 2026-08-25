@@ -26,13 +26,13 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Behavioral tests for the window every island reads as its [LocalWindow]: content mounted into a
- * window reads that window without anyone stating it, whether the content is set on the window, on a
- * container that reaches one later, on a menu bar that is installed on one afterwards, or on a
- * container inside a window the composition itself realized - and whichever island of that window it
- * is. Content composed away from any window keeps reading the window it was composed under.
+ * Behavioral tests for the window every content composition reads as its [LocalWindow]: content mounted
+ * into a window reads that window without anyone stating it, whether the content is set on the window, on
+ * a container that reaches one later, on a menu bar that is installed on one afterwards, or on a
+ * container inside a window the composition itself realized - and whichever content composition of that
+ * window it is. Content composed away from any window keeps reading the window it was composed under.
  *
- * A window a composition declares is a window of its own, so an island in it reads the peer it is in
+ * A window a composition declares is a window of its own, so content in it reads the peer it is in
  * rather than the window the declaration was composed under - which for a dialog declared in a window's
  * content is the frame behind it.
  *
@@ -49,11 +49,11 @@ class LocalWindowTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val frame = realizedFrame()
         try {
-            val island = WindowReader()
-            frame.setContent { island.Read() }
+            val composition = WindowReader()
+            frame.setContent { composition.Read() }
 
-            awaitComposed("the content set on the window composes", island)
-            assertSame(frame, island.seen, "content set on a window must read that window as its LocalWindow")
+            awaitComposed("the content set on the window composes", composition)
+            assertSame(frame, composition.seen, "content set on a window must read that window as its LocalWindow")
         } finally {
             frame.dispose()
         }
@@ -64,17 +64,17 @@ class LocalWindowTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val frame = realizedFrame()
         try {
-            // The mount is deferred until the container gains a window ancestor, so the window it reads
-            // is the one that resolved the mount - not one that had to be known at the setContent call.
+            // The content mounts only once the container gains a window ancestor, so the window it reads
+            // is the one that attachment resolved - not one that had to be known at the setContent call.
             val panel = JPanel()
-            val island = WindowReader()
-            panel.setContent { island.Read() }
+            val composition = WindowReader()
+            panel.setContent { composition.Read() }
 
             frame.contentPane.add(panel)
             frame.pack()
 
-            awaitComposed("the deferred content composes once attached", island)
-            assertSame(frame, island.seen, "content mounted on attach must read the window it was attached to")
+            awaitComposed("the deferred content composes once attached", composition)
+            assertSame(frame, composition.seen, "content mounted on attach must read the window it was attached to")
         } finally {
             frame.dispose()
         }
@@ -105,17 +105,17 @@ class LocalWindowTest {
     }
 
     @Test
-    fun everyIslandOfAWindowReadsIt() = runSwingTest {
+    fun everyContentCompositionOfAWindowReadsIt() = runSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val frame = realizedFrame()
         try {
-            // The everyday shape of an application: a menu bar and two islands in the window's own Swing
-            // layout, each composing components of its own. Whichever island mounts first is the one
-            // that creates the window's shared composition scope, so this pins that the window is stated
-            // to every island of it rather than only to that first one.
+            // The everyday shape of an application: a menu bar and two content compositions in the
+            // window's own Swing layout, each composing components of its own. Whichever one mounts
+            // first is the one that creates the window's shared composition scope, so this pins that the
+            // window is stated to every content composition of it rather than only to that first one.
             //
-            // Each island gets a container to itself: an applier addresses the children of the container
-            // it composes into by index, so an island sharing a container with another would be
+            // Each one gets a container to itself: an applier addresses the children of the container it
+            // composes into by index, so a composition sharing a container with another would be
             // composing into an index space holding children it does not account for.
             val menuBar = JMenuBar()
             val menu = WindowReader()
@@ -128,22 +128,26 @@ class LocalWindowTest {
             val first = WindowReader()
             JPanel().also { frame.contentPane.add(it) }.setContent {
                 first.Read()
-                Label(text = "first island")
+                Label(text = "first content")
             }
 
             val second = WindowReader()
             JPanel().also { frame.contentPane.add(it) }.setContent {
                 second.Read()
-                Label(text = "second island")
+                Label(text = "second content")
             }
             frame.pack()
 
             awaitComposed("the menu bar composes", menu)
-            awaitComposed("the first content island composes", first)
-            awaitComposed("the second content island composes", second)
+            awaitComposed("the first content composition composes", first)
+            awaitComposed("the second content composition composes", second)
             assertSame(frame, menu.seen, "the menu bar must read the window it is installed on")
-            assertSame(frame, first.seen, "an island of a window must read that window")
-            assertSame(frame, second.seen, "a further island of the same window must read that window too")
+            assertSame(frame, first.seen, "a content composition of a window must read that window")
+            assertSame(
+                frame,
+                second.seen,
+                "a further content composition of the same window must read that window too",
+            )
         } finally {
             frame.dispose()
         }
@@ -185,11 +189,11 @@ class LocalWindowTest {
             // An owned window's Swing parent is the window that owns it, so the window a dialog is in
             // has to be answered as the dialog itself. Content reading its owner instead would anchor a
             // peer of its own - a file chooser, a nested dialog - to the frame behind it.
-            val island = WindowReader()
-            (dialog as Container).setContent { island.Read() }
+            val composition = WindowReader()
+            (dialog as Container).setContent { composition.Read() }
 
-            awaitComposed("the content set on the dialog composes", island)
-            assertSame(dialog, island.seen, "content set on an owned dialog must read that dialog")
+            awaitComposed("the content set on the dialog composes", composition)
+            assertSame(dialog, composition.seen, "content set on an owned dialog must read that dialog")
         } finally {
             dialog.dispose()
             owner.dispose()
@@ -197,51 +201,51 @@ class LocalWindowTest {
     }
 
     @Test
-    fun anIslandInsideAComposedWindowReadsThatWindow() = runComposeSwingTest {
+    fun aCompositionInsideAComposedWindowReadsThatWindow() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         // The declaration is composed under no window at all, and the peer it realizes is a window of
-        // its own: an island nested in that peer is in the window the peer is, whatever the composition
+        // its own: content nested in that peer is in the window the peer is, whatever the composition
         // the declaration was made in is under.
         val host = JPanel()
         setContent {
-            Window(onCloseRequest = {}, title = ISLAND_HOST_WINDOW_TITLE, visible = false) {
+            Window(onCloseRequest = {}, title = COMPOSITION_HOST_WINDOW_TITLE, visible = false) {
                 SwingNode(factory = { host })
             }
         }
 
-        val peer = onWindowWithTitle(ISLAND_HOST_WINDOW_TITLE).fetch<JFrame>()
-        val island = WindowReader()
-        val handle = host.setContent { island.Read() }
+        val peer = onWindowWithTitle(COMPOSITION_HOST_WINDOW_TITLE).fetch<JFrame>()
+        val composition = WindowReader()
+        val handle = host.setContent { composition.Read() }
         awaitIdle()
 
-        assertTrue(island.composed, "an island mounted in a composed window must compose")
-        assertSame(peer, island.seen, "an island mounted inside a composed window must read that window")
+        assertTrue(composition.composed, "content mounted in a composed window must compose")
+        assertSame(peer, composition.seen, "content mounted inside a composed window must read that window")
         handle.dispose()
     }
 
     @Test
-    fun anIslandInsideAComposedDialogReadsTheDialogAndNotTheWindowAroundIt() = runComposeSwingTest {
+    fun aCompositionInsideAComposedDialogReadsTheDialogAndNotTheWindowAroundIt() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
-        // The dialog is declared in the content of a window, so the two windows differ: an island in the
-        // dialog is in the dialog, not in the window the declaration hangs off. Reading the window
-        // instead would anchor a peer opened out of the island - a nested dialog, a file chooser - to the
-        // frame behind the dialog it was opened from.
+        // The dialog is declared in the content of a window, so the two windows differ: content mounted
+        // in the dialog is in the dialog, not in the window the declaration hangs off. Reading the window
+        // instead would anchor a peer opened out of that content - a nested dialog, a file chooser - to
+        // the frame behind the dialog it was opened from.
         val host = JPanel()
         setContent {
-            Window(onCloseRequest = {}, title = ISLAND_HOST_OWNER_TITLE, visible = false) {
-                Dialog(onCloseRequest = {}, title = ISLAND_HOST_DIALOG_TITLE, visible = false) {
+            Window(onCloseRequest = {}, title = COMPOSITION_HOST_OWNER_TITLE, visible = false) {
+                Dialog(onCloseRequest = {}, title = COMPOSITION_HOST_DIALOG_TITLE, visible = false) {
                     SwingNode(factory = { host })
                 }
             }
         }
 
-        val peer = onWindowWithTitle(ISLAND_HOST_DIALOG_TITLE).fetch<JDialog>()
-        val island = WindowReader()
-        val handle = host.setContent { island.Read() }
+        val peer = onWindowWithTitle(COMPOSITION_HOST_DIALOG_TITLE).fetch<JDialog>()
+        val composition = WindowReader()
+        val handle = host.setContent { composition.Read() }
         awaitIdle()
 
-        assertTrue(island.composed, "an island mounted in a composed dialog must compose")
-        assertSame(peer, island.seen, "an island mounted inside a composed dialog must read that dialog")
+        assertTrue(composition.composed, "content mounted in a composed dialog must compose")
+        assertSame(peer, composition.seen, "content mounted inside a composed dialog must read that dialog")
         handle.dispose()
     }
 
@@ -296,8 +300,8 @@ class LocalWindowTest {
 
     private companion object {
         val SETTLE_TIMEOUT = 10.seconds
-        const val ISLAND_HOST_WINDOW_TITLE: String = "local-window-island-host"
-        const val ISLAND_HOST_OWNER_TITLE: String = "local-window-island-dialog-owner"
-        const val ISLAND_HOST_DIALOG_TITLE: String = "local-window-island-dialog"
+        const val COMPOSITION_HOST_WINDOW_TITLE: String = "local-window-content-host"
+        const val COMPOSITION_HOST_OWNER_TITLE: String = "local-window-content-dialog-owner"
+        const val COMPOSITION_HOST_DIALOG_TITLE: String = "local-window-content-dialog"
     }
 }

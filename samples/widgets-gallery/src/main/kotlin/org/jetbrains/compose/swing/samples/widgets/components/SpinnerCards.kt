@@ -113,7 +113,7 @@ internal fun ColumnScope.EditorSpinnerCard() {
         var weight by remember { mutableStateOf(70.0) }
         FlowPanel {
             Label("Weight:")
-            // The editor is an island of this composition, so it reads the same state the card does and
+            // The editor composition is part of this one, so it reads the same state the card does and
             // renders the unit beside the value it qualifies.
             Spinner(
                 weight,
