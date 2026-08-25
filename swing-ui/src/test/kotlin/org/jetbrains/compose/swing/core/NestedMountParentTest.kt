@@ -248,6 +248,69 @@ class NestedMountParentTest {
         }
     }
 
+    @Test
+    fun aNestedMountStaysOnItsIslandsRuntimeWhenItsContainerMovesToAnotherWindow() = runSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display to realize a window")
+        val first = realizedFrame()
+        val second = realizedFrame()
+        val runtime = SwingRecomposer.create(JPanel())
+        val outer = JPanel().also { first.contentPane.add(it) }
+        val windowIsland = JPanel().also { first.contentPane.add(it) }
+        val inner = JPanel()
+        var text by mutableStateOf("v0")
+        var outerHandle: DisposableHandle? = null
+        var innerHandle: DisposableHandle? = null
+        var windowHandle: DisposableHandle? = null
+        try {
+            outerHandle = outer.setContent(parent = runtime.compositionContext) { SwingNode(factory = { inner }) }
+            windowHandle = windowIsland.setContent { Label(text = text) }
+            awaitUntil("the outer island composes the nested container into place") { inner.parent === outer }
+
+            innerHandle = inner.setContent { Label(text = text) }
+            awaitUntil("both contents render") {
+                labelTexts(inner) == listOf("v0") && labelTexts(windowIsland) == listOf("v0")
+            }
+
+            second.contentPane.add(outer)
+            second.pack()
+            awaitUntil("the outer container is in the second window") {
+                SwingUtilities.getWindowAncestor(outer) === second
+            }
+            // The nested mount's rejoin is queued behind the reparenting event rather than run inline, so
+            // a quiet period here lets it settle before the container moves again.
+            delay(QUIET_PERIOD)
+
+            // Moved a second time, back to the window it started in: the nested mount is asked to resolve
+            // its parent again, so this is what tells a caller's runtime read fresh on every move from one
+            // that only ever happened to be read on the move that settled first.
+            first.contentPane.add(outer)
+            awaitUntil("the outer container is back in the first window") {
+                SwingUtilities.getWindowAncestor(outer) === first
+            }
+            delay(QUIET_PERIOD)
+
+            // Only the runtime the outer island was given is disposed. The nested content that joined it
+            // must stop recomposing, while a sibling on the window's own runtime goes on.
+            runtime.dispose()
+            text = "v1"
+            awaitUntil("the window's own island recomposes") { labelTexts(windowIsland) == listOf("v1") }
+            delay(QUIET_PERIOD)
+            assertEquals(
+                listOf("v0"),
+                labelTexts(inner),
+                "a nested mount must stay on the runtime its island was given after the island's container " +
+                    "moves to another window",
+            )
+        } finally {
+            innerHandle?.dispose()
+            windowHandle?.dispose()
+            outerHandle?.dispose()
+            runtime.dispose()
+            second.dispose()
+            first.dispose()
+        }
+    }
+
     /**
      * A realized, off-screen [JFrame] with a live peer. Packing realizes the peer without showing the
      * frame. Must be called on the EDT.

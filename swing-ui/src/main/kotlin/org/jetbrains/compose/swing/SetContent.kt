@@ -38,7 +38,9 @@ import javax.swing.RootPaneContainer
  * of its own on a container hanging under this one resolves to [parent] rather than to the composition
  * its window shares. The caller owns what they pass: disposing the returned handle disposes this
  * island's composition and leaves [parent] running. A container that later ends up in a different
- * window joins the composition of the window it is then in, recreating this island's content there.
+ * window joins the composition of the window it is then in, recreating this island's content there -
+ * unless [parent] is a runtime of the caller's own, which the content is kept on. A move then brings only
+ * the window the content reads up to date, and everything the content remembered survives it.
  *
  * The content reads its [LocalWindow][org.jetbrains.compose.swing.window.LocalWindow] from the
  * composition it joins, and the window this container is in wherever that composition names none.

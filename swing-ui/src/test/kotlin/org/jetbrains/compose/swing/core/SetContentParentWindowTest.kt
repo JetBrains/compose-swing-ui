@@ -15,6 +15,7 @@ import androidx.lifecycle.LifecycleRegistry
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.DisposableHandle
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
 import org.jetbrains.compose.swing.components.Label
@@ -31,12 +32,14 @@ import javax.swing.CellRendererPane
 import javax.swing.JFrame
 import javax.swing.JLabel
 import javax.swing.JPanel
+import javax.swing.SwingUtilities
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNotSame
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /** A [androidx.compose.runtime.CompositionLocal] a host composition provides to whatever nests into it. */
@@ -556,6 +559,52 @@ class SetContentParentWindowTest {
     }
 
     @Test
+    fun anIslandGivenItsOwnRuntimeKeepsItAcrossAWindowMove() = runSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        val first = realizedFrame()
+        val second = realizedFrame()
+        val runtime = SwingRecomposer.create(JPanel())
+        val island = JPanel().also { first.contentPane.add(it) }
+        val windowIsland = JPanel().also { first.contentPane.add(it) }
+        var text by mutableStateOf("v0")
+        var islandHandle: DisposableHandle? = null
+        var windowHandle: DisposableHandle? = null
+        try {
+            // A runtime of its own belongs to no window, so the move a container carrying it makes between
+            // windows is nothing the composition it belongs to has to account for.
+            islandHandle = island.setContent(parent = runtime.compositionContext) { Label(text = text) }
+            windowHandle = windowIsland.setContent { Label(text = text) }
+            awaitUntil("both islands render") {
+                labelTexts(island) == listOf("v0") && labelTexts(windowIsland) == listOf("v0")
+            }
+
+            second.contentPane.add(island)
+            second.pack()
+            awaitUntil("the island is in the second window") {
+                SwingUtilities.getWindowAncestor(island) === second
+            }
+
+            // Only the caller's runtime is disposed. An island that kept it must stop recomposing;
+            // the window's own island goes on.
+            runtime.dispose()
+            text = "v1"
+            awaitUntil("the window's own island recomposes") { labelTexts(windowIsland) == listOf("v1") }
+            delay(QUIET_PERIOD)
+            assertEquals(
+                listOf("v0"),
+                labelTexts(island),
+                "an island given its own runtime must keep it across a window move, not join the window",
+            )
+        } finally {
+            islandHandle?.dispose()
+            windowHandle?.dispose()
+            runtime.dispose()
+            second.dispose()
+            first.dispose()
+        }
+    }
+
+    @Test
     fun anIslandReadsALifecycleOwnerProvidedOverTheCompositionItJoins() = runSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val frame = realizedFrame()
@@ -783,6 +832,10 @@ class SetContentParentWindowTest {
 
     private companion object {
         val SETTLE_TIMEOUT = 10.seconds
+
+        /** Spans many frame intervals, so a runtime still running would have applied a change well inside it. */
+        val QUIET_PERIOD = 300.milliseconds
+
         const val CELL_SIDE: Int = 40
     }
 }

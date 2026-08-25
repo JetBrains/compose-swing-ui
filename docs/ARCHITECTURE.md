@@ -33,8 +33,10 @@ whose disposal the caller owns - an integration-level entry point, opted into wi
 container is attached to, which is what serves a container built to be read rather than shown.
 Everything mounted inside such a container joins the same parent: a `setContent` naming no parent of
 its own on a container hanging under that island resolves to the composition the island was given
-rather than to the window's. Such a container joins the composition of the window it is in should it
-later be added to one, so a window's content still recomposes on one recomposer and one frame clock.
+rather than to the window's. A container given a window's own scope joins the composition of the
+window it is in should it later be added to another, so a window's content still recomposes on one
+recomposer and one frame clock. A container given a runtime of its own is kept on that runtime
+instead: a move brings only the window its content reads up to date.
 
 Content reads a `LifecycleOwner` through `LocalLifecycleOwner`, shared by everything that content
 hosts - popups, menus, overlays. A mount resolves that owner from where its container hangs in the

@@ -1,6 +1,7 @@
 package org.jetbrains.compose.swing.core
 
 import androidx.compose.runtime.CompositionContext
+import androidx.compose.runtime.Recomposer
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import kotlinx.coroutines.DisposableHandle
@@ -69,7 +70,8 @@ internal fun resolveParentOrNull(component: Component): MountParent? {
 internal fun mountWhenParentResolves(
     component: Component,
     mount: (MountParent, State<Window?>) -> SwingCompositionMount,
-): DisposableHandle = SetContentMountState(component, namedParent = null, mount).also { it.start() }
+): DisposableHandle =
+    SetContentMountState(component, standsOnItsOwnRuntime = false, mount).also { it.start(namedParent = null) }
 
 /**
  * Mounts a `setContent` on [component] under the [namedParent] its caller supplied, composing on the
@@ -82,12 +84,43 @@ internal fun mountUnderNamedParent(
     component: Component,
     namedParent: CompositionContext,
     mount: (MountParent, State<Window?>) -> SwingCompositionMount,
-): DisposableHandle =
-    SetContentMountState(
-        component,
-        MountParent(namedParent, windowOwning(namedParent)),
-        mount,
-    ).also { it.start() }
+): DisposableHandle {
+    check(!namedParent.hasEnded) {
+        "The composition context named for ${component.javaClass.name} belongs to a runtime that has " +
+            "ended, so content composed under it would never recompose. Name a live runtime, or name no " +
+            "parent at all to join the composition this container's own place resolves to."
+    }
+    val parent = MountParent(namedParent, windowOwning(namedParent))
+    // A runtime built for a component is a Recomposer itself, and is owned by no window. A context taken
+    // from inside a live composition is that composition's own child and is torn down with it, and a
+    // window's recomposer ends with its window, so content named either of those follows windows like any
+    // other.
+    val standsOnItsOwnRuntime = namedParent is Recomposer && parent.window == null
+    return SetContentMountState(component, standsOnItsOwnRuntime, mount).also { it.start(parent) }
+}
+
+/**
+ * Whether this context is a runtime that has been cancelled, so nothing composed under it would
+ * recompose again.
+ *
+ * Only a [Recomposer] answers anything here. A context published by a live composition is that
+ * composition's own child and carries no state of its own.
+ *
+ * A cancelled runtime reports [ShuttingDown][Recomposer.State.ShuttingDown] or
+ * [ShutDown][Recomposer.State.ShutDown] whether or not it ever recomposed: cancelling sets the first
+ * from [Idle][Recomposer.State.Idle] or beyond, and the effect job completing sets one of them
+ * otherwise. A runtime that has been built but never started is
+ * [Inactive][Recomposer.State.Inactive], which is a live one.
+ *
+ * The states are named rather than compared by order, so a state added between them cannot change what
+ * this answers.
+ */
+private val CompositionContext.hasEnded: Boolean
+    get() =
+        when ((this as? Recomposer)?.currentState?.value) {
+            Recomposer.State.ShutDown, Recomposer.State.ShuttingDown -> true
+            else -> false
+        }
 
 /**
  * The phase a `setContent` mount is in, whichever way it comes by the parent it composes under.
@@ -124,13 +157,14 @@ private enum class MountPhase { Pending, Mounted, Disposed }
  * with no listener installed.
  *
  * @param component the container the content is composed into, and whose place in the tree is watched.
- * @param namedParent the context the caller named for the content to compose under, or `null` to
- *   resolve one from where [component] hangs in the Swing tree.
+ * @param standsOnItsOwnRuntime whether the content composes on a runtime of its own rather than inside
+ *   another composition. Fixed for the life of the mount, because it states what the caller named rather
+ *   than where the container hangs.
  * @param mount creates and starts the [SwingCompositionMount] under a parent context.
  */
 private class SetContentMountState(
     private val component: Component,
-    private val namedParent: MountParent?,
+    private val standsOnItsOwnRuntime: Boolean,
     private val mount: (MountParent, State<Window?>) -> SwingCompositionMount,
 ) : DisposableHandle {
     private var phase = MountPhase.Pending
@@ -167,8 +201,12 @@ private class SetContentMountState(
      * A container already carrying a live island is refused. Only a live one stands in the way: a
      * container whose island was disposed takes content again, and one whose mount is still waiting for
      * a parent answers nothing yet.
+     *
+     * @param namedParent the parent the caller named, or `null` to resolve one from where [component]
+     *   hangs in the Swing tree. Taken as a parameter rather than held as a field, so neither the
+     *   context nor the window it names outlives the call that uses them.
      */
-    fun start() {
+    fun start(namedParent: MountParent?) {
         check(component.islandCompositionContextOrNull() == null) {
             "${component.javaClass.name} already holds the content of a live setContent. A container is " +
                 "asked once for the composition its contents nest into, and two islands cannot both be " +
@@ -223,6 +261,13 @@ private class SetContentMountState(
         val arrivedIn = component.ownerWindowOrNull() ?: return
         val mountedIn = statedWindow.value
         when {
+            // Such a runtime serves a composition standing outside any window at all, so the window a
+            // container hangs in is something its content reads, never what decides which composition it
+            // belongs to. Only the window it reads is brought up to date.
+            standsOnItsOwnRuntime -> {
+                statedWindow.value = arrivedIn
+            }
+
             mountedIn == null -> {
                 statedWindow.value = arrivedIn
             }
