@@ -12,6 +12,7 @@ import org.jetbrains.compose.swing.test.interaction.onParent
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.BorderLayout
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertSame
 
 /**
@@ -19,8 +20,13 @@ import kotlin.test.assertSame
  * appearing or disappearing shifts the composition indices of its siblings, and the applier addresses
  * the AWT component array by that index, so a stable sibling has to come through the toggle as the
  * same component in the same region - both when the conditional child arrives and when it leaves.
+ *
+ * Keeping the same instance in the same region is not on its own evidence that a sibling was left
+ * alone: a host that dropped all three children and re-added the two that survived would end up
+ * holding exactly that, and would have reset the depth and the attach order every one of them was
+ * given. The churn the applier reports is what tells the two apart.
  */
-class ConditionalSlotToggleTest {
+class ConditionalSlotToggleTest : TracedTest() {
     private companion object {
         const val NORTH_TEXT = "North"
         const val CENTER_TEXT = "Center"
@@ -52,13 +58,27 @@ class ConditionalSlotToggleTest {
         // The live sibling instances, so the toggle cycle can be shown to preserve identity.
         val centerBefore = center.fetch()
         val southBefore = south.fetch()
+        tracer.clear()
 
         showNorth = true
         awaitIdle()
         north.assertLayoutConstraint(BorderLayout.NORTH)
+        assertEquals(
+            listOf(listOf("insert", "attach")),
+            tracer.passes(),
+            "the arriving child should cost one pass that takes it in and gives it its region; a pass " +
+                "that also re-added its siblings would leave the same tree behind: ${tracer.sections}",
+        )
+        tracer.clear()
 
         showNorth = false
         awaitIdle()
+        assertEquals(
+            listOf(listOf("remove")),
+            tracer.passes(),
+            "the child leaving should cost one remove and nothing else - the siblings whose composition " +
+                "indices it shifted are never taken out of the panel: ${tracer.sections}",
+        )
 
         // NORTH is gone; CENTER and SOUTH still exist, in their correct regions, same instances.
         north.assertDoesNotExist()

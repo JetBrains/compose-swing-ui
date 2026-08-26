@@ -3,8 +3,6 @@ package org.jetbrains.compose.swing.node
 import androidx.compose.runtime.AbstractApplier
 import java.awt.Component
 import java.awt.Container
-import java.util.Collections
-import java.util.IdentityHashMap
 import javax.swing.JComponent
 import javax.swing.JMenu
 import javax.swing.JMenuBar
@@ -23,8 +21,8 @@ import javax.swing.JPopupMenu
 internal class MenuApplier(
     root: JComponent,
 ) : AbstractApplier<SwingNodeHolder<*>>(SwingNodeHolder(root)) {
-    private val dirtyContainers: MutableSet<Container> =
-        Collections.newSetFromMap(IdentityHashMap())
+    /** The bookkeeping for the batch of component updates in flight. */
+    private val batch = ComponentUpdateBatch()
 
     /** Menu nodes attach to their container on the bottom-up pass, so this pass has nothing to do. */
     override fun insertTopDown(
@@ -38,7 +36,7 @@ internal class MenuApplier(
     ) {
         val container = menuContainer("add menu child ${instance.component}")
         container.add(instance.component, index)
-        dirtyContainers += container
+        batch.markChanged(container)
     }
 
     override fun remove(
@@ -47,7 +45,7 @@ internal class MenuApplier(
     ) {
         val container = menuContainer("remove menu children")
         repeat(count) { container.remove(index) }
-        dirtyContainers += container
+        batch.markChanged(container)
     }
 
     override fun move(
@@ -69,25 +67,23 @@ internal class MenuApplier(
         moved.forEachIndexed { offset, component ->
             container.add(component, insertIndex + offset)
         }
-        dirtyContainers += container
+        batch.markChanged(container)
     }
 
     override fun onClear() {
         val rootMenu = root.component
         removeAllChildren(rootMenu)
-        (rootMenu as? Container)?.let { dirtyContainers += it }
+        (rootMenu as? Container)?.let { batch.markChanged(it) }
+    }
+
+    override fun onBeginChanges() {
+        super.onBeginChanges()
+        batch.begin()
     }
 
     override fun onEndChanges() {
         super.onEndChanges()
-        for (container in dirtyContainers) {
-            container.revalidate()
-            // repaint() is load-bearing for remove/removeAll: Container.remove only calls
-            // invalidateIfValid() and never repaints the vacated region, so without it a removed
-            // child's pixels linger. Relayout is already covered by Component.reshape.
-            container.repaint()
-        }
-        dirtyContainers.clear()
+        batch.end {}
     }
 
     /**

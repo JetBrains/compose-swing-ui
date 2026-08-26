@@ -116,7 +116,18 @@ internal class SwingFrameClock(
         SwingUtilities.invokeLater(::dispatchFrame)
     }
 
+    /**
+     * Sections the whole frame: recomposition and the changes it applies both run inside it, so what a
+     * declared change costs is the length of this section.
+     *
+     * The frame runs as a call rather than as this function's body, so the section brackets it from outside
+     * and the frame itself stays one method the runtime compiles on its own.
+     */
     private fun dispatchFrame() {
+        trace("frame") { runFrame() }
+    }
+
+    private fun runFrame() {
         // Cleared first: a frame the recomposer asks for again while this one runs must re-arm.
         dispatchScheduled = false
         // Read before the frame, because an awaiter this frame resumes re-registers from a later

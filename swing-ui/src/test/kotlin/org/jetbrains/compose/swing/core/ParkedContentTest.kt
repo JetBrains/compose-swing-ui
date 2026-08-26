@@ -46,8 +46,14 @@ import kotlin.test.assertTrue
  * A parked component is unaddressable by test tag: it is detached from the tree a tag lookup walks. So
  * every component here is fetched while the composition still drives it, and the tag is fetched again
  * once the composition drives a component there again.
+ *
+ * How a parked component leaves is load-bearing: the node detaches itself as it deactivates, and the
+ * holder stays where the composition put it. Parking routed through the applier's own remove would shift
+ * every later sibling's composition index under the applier - see
+ * [aSiblingArrivingAfterAChildWasParkedIsPlacedAmongTheChildrenReallyThere], which is what would break -
+ * while the detached component that case reads would look exactly the same.
  */
-class ParkedContentTest {
+class ParkedContentTest : TracedTest() {
     @Test
     fun parkingDetachesTheComponentAndReactivatingBuildsAFreshOne() = runComposeSwingTest {
         var active by mutableStateOf(true)
@@ -62,15 +68,35 @@ class ParkedContentTest {
 
         val body = onNodeWithTag(BODY).fetch<JLabel>()
         assertTrue(body.isVisible, "A component the composition drives is shown.")
+        tracer.clear()
 
         active = false
         awaitIdle()
 
         onNodeWithTag(BODY).assertDoesNotExist()
         assertNull(body.parent, "A parked component is detached from the tree.")
+        assertEquals(
+            emptyList(),
+            tracer.passes().flatten(),
+            "parking is the node's own doing, so no pass takes a child out of a container; a parked " +
+                "child dropped through the applier would shift every later sibling's index: ${tracer.sections}",
+        )
+        tracer.clear()
 
         active = true
         awaitIdle()
+
+        val churn = tracer.passes().flatten()
+        assertEquals(
+            1,
+            churn.count { it == "insert" },
+            "reactivation builds exactly one fresh child: ${tracer.sections}",
+        )
+        assertEquals(
+            1,
+            churn.count { it == "attach" },
+            "and gives that child its place exactly once: ${tracer.sections}",
+        )
 
         val reactivated = onNodeWithTag(BODY).fetch<JLabel>()
         assertNotSame(body, reactivated, "reactivation builds a fresh component rather than reusing the parked one")

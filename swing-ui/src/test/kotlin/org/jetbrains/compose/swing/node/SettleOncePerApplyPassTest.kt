@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Slider
+import org.jetbrains.compose.swing.core.TracedTest
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JSlider
@@ -22,8 +23,14 @@ import kotlin.test.assertEquals
  *
  * A move is published to the composition by the idle gate, which sends no frame of its own while the test
  * drives them, so the frame that follows is the apply pass that carries the move.
+ *
+ * Each case states how many passes it cost, because that is where a settle can go wrong without the
+ * widget ever holding the wrong value: the settle writes what it observed back into the composition
+ * during the apply phase, and that write is what buys the pass that absorbs it. A settle that stopped
+ * recognizing its own write would re-dirty the mirror on every pass and never converge - a slider that
+ * reads correctly forever while the pipeline turns for nothing.
  */
-class SettleOncePerApplyPassTest {
+class SettleOncePerApplyPassTest : TracedTest() {
     @Test
     fun aDeclarationAndAWidgetMoveArrivingInOneFrameAreSettledByOneWrite() = runComposeSwingTest {
         val values = mutableListOf<Int>()
@@ -48,6 +55,7 @@ class SettleOncePerApplyPassTest {
         // own reach the slider in a single apply pass.
         slider.value = MOVED
         declared = REDECLARED
+        tracer.clear()
         awaitIdle()
         mainClock.advanceTimeByFrame()
 
@@ -57,6 +65,12 @@ class SettleOncePerApplyPassTest {
             "the pass carrying both moves should write the declaration once",
         )
         assertEquals(REDECLARED, slider.value, "the slider should hold the value that pass settled it on")
+        assertEquals(
+            listOf(emptyList()),
+            tracer.passes(),
+            "the frame the test drove should carry exactly one pass, and a settle should write a property " +
+                "rather than rebuild the slider: ${tracer.sections}",
+        )
     }
 
     @Test
@@ -75,6 +89,7 @@ class SettleOncePerApplyPassTest {
 
         // The user's move alone reaches the first pass, so it settles against the standing declaration.
         slider.value = MOVED
+        tracer.clear()
         awaitIdle()
         mainClock.advanceTimeByFrame()
 
@@ -84,6 +99,11 @@ class SettleOncePerApplyPassTest {
             "a move the declaration does not adopt should be written back by the pass that follows it",
         )
         assertEquals(DECLARED, slider.value, "the slider should be back on the declaration")
+        assertEquals(
+            listOf(emptyList()),
+            tracer.passes(),
+            "the first driven frame should carry one pass, which changed no container: ${tracer.sections}",
+        )
 
         // The new declaration reaches a pass of its own, which settles the widget a second time.
         declared = REDECLARED
@@ -96,6 +116,46 @@ class SettleOncePerApplyPassTest {
             "each pass should settle the slider apiece, so the split move passes through the declaration",
         )
         assertEquals(REDECLARED, slider.value, "the slider should hold the value the second pass settled it on")
+        assertEquals(
+            listOf(emptyList(), emptyList()),
+            tracer.passes(),
+            "each driven frame should carry a pass of its own, which is what makes the split settle two: " +
+                "${tracer.sections}",
+        )
+    }
+
+    @Test
+    fun aDeclarationTheSliderCoercesSettlesRatherThanOscillating() = runComposeSwingTest {
+        var declared by mutableIntStateOf(DECLARED)
+        setContent {
+            Slider(value = declared, changeListener = {}, min = MIN, max = MAX)
+        }
+        awaitIdle()
+
+        val slider = onNodeOfType<JSlider>().fetch()
+        tracer.clear()
+
+        // Out of the slider's range, so what the widget holds after the write is not what was declared:
+        // the settle has to absorb the coerced value rather than declare its way back to it.
+        declared = BEYOND_MAX
+        awaitIdle()
+
+        assertEquals(MAX, slider.value, "the slider should hold the value it coerced the declaration to")
+        assertEquals(
+            2,
+            tracer.passes().size,
+            "a declaration settled against the widget costs the pass that writes it and the pass that " +
+                "absorbs the read-back, coerced or not: ${tracer.sections}",
+        )
+        tracer.clear()
+        awaitIdle()
+
+        assertEquals(
+            emptyList(),
+            tracer.passes(),
+            "and then it converges: a settle that did not recognize its own write would re-dirty the " +
+                "mirror forever while the slider read correctly throughout: ${tracer.sections}",
+        )
     }
 
     private companion object {
@@ -110,5 +170,8 @@ class SettleOncePerApplyPassTest {
 
         /** The declaration that replaces [DECLARED]. */
         const val REDECLARED = 20
+
+        /** A declaration past the slider's range, which the widget answers with [MAX]. */
+        const val BEYOND_MAX = 150
     }
 }

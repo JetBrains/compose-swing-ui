@@ -2,6 +2,7 @@ package org.jetbrains.compose.swing.node
 
 import androidx.compose.runtime.AbstractApplier
 import androidx.compose.runtime.snapshots.SnapshotStateObserver
+import org.jetbrains.compose.swing.core.trace
 import java.awt.Container
 import java.util.Collections
 import java.util.IdentityHashMap
@@ -58,30 +59,227 @@ internal class SwingApplier internal constructor(
     private val ownerObserver: SnapshotStateObserver,
     private val rootSlot: SlotAttachment? = null,
 ) : AbstractApplier<SwingNodeHolder<*>>(SwingNodeHolder(root)) {
-    /** Containers touched during the current change pass; revalidated in [onEndChanges]. */
-    private val dirtyContainers: MutableSet<Container> =
-        Collections.newSetFromMap(IdentityHashMap())
+    /** The bookkeeping for the batch of component updates in flight. */
+    private val batch = ComponentUpdateBatch()
 
-    /**
-     * The [ChildPlacement.Slots] hosts a child was installed into during the current change pass, held in
-     * [onEndChanges] to the single occupant each of their regions shows - and the composition root, when a
-     * mount states that placement for it, to the one top-level child its slot shows. A host is looked at
-     * once the pass has settled because a pass may hold two children in one region while it runs: a
-     * replacement is inserted before the child it replaces is removed, and only what remains at the end of
-     * the pass is what the composition declares.
-     */
-    private val filledSlotHosts: MutableSet<SwingNodeHolder<*>> =
-        Collections.newSetFromMap(IdentityHashMap())
+    /** What the change pass in flight has said about where children go. */
+    private val changes = ChangeRecord()
 
-    /**
-     * The hosts a child of which named, during the current change pass, a region other than the one its
-     * component is installed in. Each of them is brought to what its children declare in [onEndChanges],
-     * before any host is held to its regions, so a component moves once however many times the pass
-     * declared it and the check that follows reads the regions the children are really in.
-     */
-    private val restatedRegionHosts: MutableSet<SwingNodeHolder<*>> =
-        Collections.newSetFromMap(IdentityHashMap())
+    /** The regions this applier's hosts hold their children in. */
+    private val regions = ChildRegions(this.root, rootSlot, batch, changes)
 
+    override fun up() {
+        // A node's own update changes run while the applier is positioned at it, so leaving the node is
+        // the first point in the pass at which the region its chain names this time is on the holder and
+        // its host is known - the node the applier returns to. Nothing is moved here: the pass may be
+        // mid-swap, and a node that arrived this pass is left before it is installed, so both would look
+        // like a component in the wrong region. What the pass leaves behind is settled in onEndChanges,
+        // where a host whose children all name the region they are in costs one walk of its child list.
+        val node = current
+        super.up()
+        if (node.declaredSlot?.name != node.installedSlot?.name) changes.recordRegionRestated(current)
+    }
+
+    override fun insertTopDown(
+        index: Int,
+        instance: SwingNodeHolder<*>,
+    ) {
+        trace("insert") {
+            // Stamp the owner's shared snapshot observer onto the node here, on the top-down pass. This MUST
+            // happen on the down pass: a node's own update changes - which copy the observer onto a
+            // snapshot-observing component such as Canvas - run between the top-down and bottom-up passes, so
+            // a stamp deferred to insertBottomUp would not yet be visible when the node reads it, leaving that
+            // component permanently unobserved (and a Canvas blank). The actual Swing attachment is still done
+            // bottom-up (see insertBottomUp).
+            instance.ownerObserver = ownerObserver
+            changes.announceInsert(instance)
+        }
+    }
+
+    override fun insertBottomUp(
+        index: Int,
+        instance: SwingNodeHolder<*>,
+    ) {
+        val parent = current
+        val container = parent.containerFor("add child ${instance.component}")
+        if (!changes.takeAnnouncedInsert(instance)) {
+            // The composition is relocating a node composed under another parent, and hands it over
+            // before its modifier chain has run for this host, so what it carries is the placement it
+            // named at the host it is leaving. Take it into this node's composition-ordered child list,
+            // which is what a remove or a move later in the pass addresses by index, and attach it once
+            // the pass has settled and its chain has named the placement it fills here.
+            parent.children.add(index, instance)
+            changes.recordRelocated(parent, instance)
+            return
+        }
+        trace("attach") {
+            // The owner's shared snapshot observer was already stamped onto this node on the top-down pass
+            // (see insertTopDown); here we only perform the Swing attachment.
+            val attachment = regions.attachmentOf(parent, instance)
+            parent.checkPlacementOf(container, instance, fillsRegion = attachment != null)
+            // The place the host is handed is the one among the children already attached to it, which is the
+            // composition index unless the pass has taken a relocated sibling in and not attached it yet.
+            val position = parent.attachedSiblingsBefore(index)
+            if (attachment != null) {
+                // This node fills a named region of `container` reached through a dedicated Swing setter
+                // (e.g. a JScrollPane region via setViewportView/setRowHeaderView/...), not the generic
+                // Container.add. Install it through the attachment, record on the holder what installed it
+                // and how the region is released again, and record the holder in this node's
+                // composition-ordered child list so remove/move can address it by index and release the
+                // region. Mark the container dirty so the new content gets laid out, and the host for the
+                // one-child-per-region check this pass ends with.
+                instance.installedThrough(attachment, attachment.install(container, instance.component, position))
+                parent.children.add(index, instance)
+                if (parent.childPlacement is ChildPlacement.Slots) changes.recordSlotFilled(parent)
+                batch.markChanged(container)
+                return
+            }
+            val constraint = instance.constraint
+            // Always hand the host the position the child takes, whether or not it carries a layout
+            // constraint. `Container.add(Component, Object)` IGNORES the index and appends, while a
+            // constrained layout (e.g. BorderLayout) stores the component by its region - so the 2-arg form
+            // would tell a constrained child's host nothing about where the composition puts it, and a plain
+            // container would then paint the children in the order they happened to arrive. The 3-arg
+            // `add(Component, Object, int)` states the position AND applies the constraint. What the host
+            // makes of that position is its own: a plain container holds its children in exactly the order
+            // given, a `JLayeredPane` reads it as a position within the depth the constraint names.
+            val childHost = container.childHost
+            if (constraint != null) {
+                childHost.add(instance.component, constraint, position)
+            } else {
+                childHost.add(instance.component, position)
+            }
+            parent.children.add(index, instance)
+            batch.markChanged(container)
+        }
+    }
+
+    override fun remove(
+        index: Int,
+        count: Int,
+    ) {
+        trace("remove") {
+            val parent = current
+            val container = parent.containerFor("remove children")
+            if (parent.childPlacement.holdsRegions) {
+                // A region-holding container: its children were installed through their slot attachments and
+                // are not direct AWT-array entries, so address them by composition index in the child list
+                // and run each holder's uninstall to release the host region (e.g. clear a JScrollPane
+                // region). Iterate the fixed sub-list and clear it in one shot.
+                val removed = parent.children.subList(index, index + count)
+                for (holder in removed) {
+                    holder.releaseInstalledSlot()
+                }
+                removed.clear()
+                batch.markChanged(container)
+                return
+            }
+            // Ordinary children are the AWT array's own entries, but where in that array a host keeps each of
+            // them is the host's own business: a `JLayeredPane` sorts its children by the depth each one
+            // declares, so what it holds at a composition index is some other child. The composition-order
+            // child list is what says which children the pass drops, and each of them leaves the host by
+            // component identity, which addresses the same child however the host has arranged them.
+            val childHost = container.childHost
+            val removed = parent.children.subList(index, index + count)
+            for (holder in removed) childHost.remove(holder.component)
+            removed.clear()
+            batch.markChanged(container)
+        }
+    }
+
+    override fun move(
+        from: Int,
+        to: Int,
+        count: Int,
+    ) {
+        val parent = current
+        val container = parent.containerFor("move children")
+        if (from == to) return
+
+        trace("move") {
+            val children = parent.children
+            if (parent.childPlacement.holdsRegions) {
+                with(regions) { parent.moveRegionChildren(container, from, to, count) }
+                return
+            }
+
+            // Ordinary children: detach the moved run from the AWT array, which holds them, so it can be
+            // re-inserted at the mirrored target. The composition-order child list is what names the run,
+            // and each of its components leaves the host by identity, which is the same child whichever
+            // place in its own array the host has given it. A child the pass has yet to attach is in no
+            // array to leave, and the move is the whole of what it needs: it is attached at the place the
+            // list gives it once the pass has settled.
+            val childHost = container.childHost
+            val moved = ArrayList(children.subList(from, from + count))
+            for (holder in moved) childHost.remove(holder.component)
+            children.subList(from, from + count).clear()
+
+            // After removing `count` items starting at `from`, indices above `from` shifted down by
+            // `count`. Mirror Compose HTML DomNodeWrapper.move index math.
+            val targetBase = if (from > to) to else to - count
+            // Re-insert each moved component at the place the composition puts it, which is its position
+            // among the children the host holds already. Every add carries an explicit index: the 3-arg form
+            // (index + constraint) for constrained children so the layout region is restored, the 2-arg form
+            // for unconstrained children. Because each add specifies its own index, no running cursor is
+            // needed and the run lands contiguously regardless of constrained/unconstrained mix. The
+            // constraint is read off the holder now rather than remembered at insert, so a child whose
+            // constraint changed since keeps the current one.
+            children.addAll(targetBase, moved)
+            moved.forEachIndexed { offset, holder ->
+                if (!holder.attachedToHost) return@forEachIndexed
+                val constraint = holder.constraint
+                val targetIndex = parent.attachedSiblingsBefore(targetBase + offset)
+                if (constraint != null) {
+                    childHost.add(holder.component, constraint, targetIndex)
+                } else {
+                    childHost.add(holder.component, targetIndex)
+                }
+            }
+            batch.markChanged(container)
+        }
+    }
+
+    override fun onClear() {
+        // Only ever runs on the ROOT container, which is user-supplied and never slot-attached. The
+        // children are discarded through the same child host that added them, so a root-pane root loses
+        // its composed content and keeps its root pane. `removeAll()` there takes the whole composed
+        // subtree with it, including any slot-hosting descendants (a JScrollPane's viewport/headers/
+        // corners go away with their JScrollPane). The AWT hierarchy is therefore already gone, but the
+        // holders still carry the uninstall action for the region each one fills; releasing those is left
+        // to SwingNodeHolder.onRelease, which the runtime calls for every node. Clearing the root's own
+        // child lists drops its references to that subtree; every deeper node's lists go with the node.
+        // The root's placement stays as the mount declared it: the composition is emptied, not re-hosted.
+        val container = root.component as? Container ?: return
+        container.childHost.removeAll()
+        root.children.clear()
+        changes.forget()
+        batch.markChanged(container)
+    }
+
+    override fun onBeginChanges() {
+        super.onBeginChanges()
+        batch.begin()
+    }
+
+    override fun onEndChanges() {
+        super.onEndChanges()
+        batch.end(regions::reconcile)
+    }
+}
+
+/**
+ * The regions a host's children occupy, and what one batch of updates said about them.
+ *
+ * [SwingApplier] translates the runtime's applier protocol; this holds the model that protocol moves.
+ * A batch names arrivals, relocations and restated regions as it runs, and [reconcile] brings every
+ * host it touched to what its children declare once the batch has settled.
+ */
+private class ChildRegions(
+    private val root: SwingNodeHolder<*>,
+    private val rootSlot: SlotAttachment?,
+    private val batch: ComponentUpdateBatch,
+    private val changes: ChangeRecord,
+) {
     /** The hosts still to be held to one child per region. */
     private val regionCheck =
         DeferredRegionCheck { host ->
@@ -90,9 +288,6 @@ internal class SwingApplier internal constructor(
 
     /** The debug-only child-index-space walk, deferred the same turn and for the same reason as [regionCheck]. */
     private val indexSpaceCheck = DeferredCheck { this.root.checkChildIndexSpace() }
-
-    /** What the current change pass has said about the nodes it inserts and the ones it relocates. */
-    private val arrivals = ArrivingChildren()
 
     init {
         // The root is the one node no composable declares, so the code that mounts the composition says
@@ -114,219 +309,28 @@ internal class SwingApplier internal constructor(
      * child, which names no region of its own, keep the root slot it was installed through instead of
      * looking like a child that has given its region up.
      */
-    private fun attachmentOf(
+    fun attachmentOf(
         host: SwingNodeHolder<*>,
         child: SwingNodeHolder<*>,
     ): SlotAttachment? = child.declaredSlot?.attachment ?: rootSlot.takeIf { host === root }
 
-    override fun up() {
-        // A node's own update changes run while the applier is positioned at it, so leaving the node is
-        // the first point in the pass at which the region its chain names this time is on the holder and
-        // its host is known - the node the applier returns to. Nothing is moved here: the pass may be
-        // mid-swap, and a node that arrived this pass is left before it is installed, so both would look
-        // like a component in the wrong region. What the pass leaves behind is settled in onEndChanges,
-        // where a host whose children all name the region they are in costs one walk of its child list.
-        val node = current
-        super.up()
-        if (node.declaredSlot?.name != node.installedSlot?.name) restatedRegionHosts += current
-    }
-
-    override fun insertTopDown(
-        index: Int,
-        instance: SwingNodeHolder<*>,
-    ) {
-        // Stamp the owner's shared snapshot observer onto the node here, on the top-down pass. This MUST
-        // happen on the down pass: a node's own update changes - which copy the observer onto a
-        // snapshot-observing component such as Canvas - run between the top-down and bottom-up passes, so
-        // a stamp deferred to insertBottomUp would not yet be visible when the node reads it, leaving that
-        // component permanently unobserved (and a Canvas blank). The actual Swing attachment is still done
-        // bottom-up (see insertBottomUp).
-        instance.ownerObserver = ownerObserver
-        arrivals.announceInsert(instance)
-    }
-
-    override fun insertBottomUp(
-        index: Int,
-        instance: SwingNodeHolder<*>,
-    ) {
-        val parent = current
-        val container = parent.containerFor("add child ${instance.component}")
-        if (!arrivals.takeAnnouncedInsert(instance)) {
-            // The composition is relocating a node composed under another parent, and hands it over
-            // before its modifier chain has run for this host, so what it carries is the placement it
-            // named at the host it is leaving. Take it into this node's composition-ordered child list,
-            // which is what a remove or a move later in the pass addresses by index, and attach it once
-            // the pass has settled and its chain has named the placement it fills here.
-            parent.children.add(index, instance)
-            arrivals.recordRelocated(parent, instance)
-            return
-        }
-        // The owner's shared snapshot observer was already stamped onto this node on the top-down pass
-        // (see insertTopDown); here we only perform the Swing attachment.
-        val attachment = attachmentOf(parent, instance)
-        parent.checkPlacementOf(container, instance, fillsRegion = attachment != null)
-        // The place the host is handed is the one among the children already attached to it, which is the
-        // composition index unless the pass has taken a relocated sibling in and not attached it yet.
-        val position = parent.attachedSiblingsBefore(index)
-        if (attachment != null) {
-            // This node fills a named region of `container` reached through a dedicated Swing setter
-            // (e.g. a JScrollPane region via setViewportView/setRowHeaderView/...), not the generic
-            // Container.add. Install it through the attachment, record on the holder what installed it
-            // and how the region is released again, and record the holder in this node's
-            // composition-ordered child list so remove/move can address it by index and release the
-            // region. Mark the container dirty so the new content gets laid out, and the host for the
-            // one-child-per-region check this pass ends with.
-            instance.installedThrough(attachment, attachment.install(container, instance.component, position))
-            parent.children.add(index, instance)
-            if (parent.childPlacement is ChildPlacement.Slots) filledSlotHosts += parent
-            dirtyContainers += container
-            return
-        }
-        val constraint = instance.constraint
-        // Always hand the host the position the child takes, whether or not it carries a layout
-        // constraint. `Container.add(Component, Object)` IGNORES the index and appends, while a
-        // constrained layout (e.g. BorderLayout) stores the component by its region - so the 2-arg form
-        // would tell a constrained child's host nothing about where the composition puts it, and a plain
-        // container would then paint the children in the order they happened to arrive. The 3-arg
-        // `add(Component, Object, int)` states the position AND applies the constraint. What the host
-        // makes of that position is its own: a plain container holds its children in exactly the order
-        // given, a `JLayeredPane` reads it as a position within the depth the constraint names.
-        val childHost = container.childHost
-        if (constraint != null) {
-            childHost.add(instance.component, constraint, position)
-        } else {
-            childHost.add(instance.component, position)
-        }
-        parent.children.add(index, instance)
-        dirtyContainers += container
-    }
-
-    override fun remove(
-        index: Int,
-        count: Int,
-    ) {
-        val parent = current
-        val container = parent.containerFor("remove children")
-        if (parent.childPlacement.holdsRegions) {
-            // A region-holding container: its children were installed through their slot attachments and
-            // are not direct AWT-array entries, so address them by composition index in the child list
-            // and run each holder's uninstall to release the host region (e.g. clear a JScrollPane
-            // region). Iterate the fixed sub-list and clear it in one shot.
-            val removed = parent.children.subList(index, index + count)
-            for (holder in removed) {
-                holder.releaseInstalledSlot()
-            }
-            removed.clear()
-            dirtyContainers += container
-            return
-        }
-        // Ordinary children are the AWT array's own entries, but where in that array a host keeps each of
-        // them is the host's own business: a `JLayeredPane` sorts its children by the depth each one
-        // declares, so what it holds at a composition index is some other child. The composition-order
-        // child list is what says which children the pass drops, and each of them leaves the host by
-        // component identity, which addresses the same child however the host has arranged them.
-        val childHost = container.childHost
-        val removed = parent.children.subList(index, index + count)
-        for (holder in removed) childHost.remove(holder.component)
-        removed.clear()
-        dirtyContainers += container
-    }
-
-    override fun move(
-        from: Int,
-        to: Int,
-        count: Int,
-    ) {
-        val parent = current
-        val container = parent.containerFor("move children")
-        if (from == to) return
-
-        val children = parent.children
-        if (parent.childPlacement.holdsRegions) {
-            parent.moveRegionChildren(container, from, to, count)
-            return
-        }
-
-        // Ordinary children: detach the moved run from the AWT array, which holds them, so it can be
-        // re-inserted at the mirrored target. The composition-order child list is what names the run,
-        // and each of its components leaves the host by identity, which is the same child whichever
-        // place in its own array the host has given it. A child the pass has yet to attach is in no
-        // array to leave, and the move is the whole of what it needs: it is attached at the place the
-        // list gives it once the pass has settled.
-        val childHost = container.childHost
-        val moved = ArrayList(children.subList(from, from + count))
-        for (holder in moved) childHost.remove(holder.component)
-        children.subList(from, from + count).clear()
-
-        // After removing `count` items starting at `from`, indices above `from` shifted down by
-        // `count`. Mirror Compose HTML DomNodeWrapper.move index math.
-        val targetBase = if (from > to) to else to - count
-        // Re-insert each moved component at the place the composition puts it, which is its position
-        // among the children the host holds already. Every add carries an explicit index: the 3-arg form
-        // (index + constraint) for constrained children so the layout region is restored, the 2-arg form
-        // for unconstrained children. Because each add specifies its own index, no running cursor is
-        // needed and the run lands contiguously regardless of constrained/unconstrained mix. The
-        // constraint is read off the holder now rather than remembered at insert, so a child whose
-        // constraint changed since keeps the current one.
-        children.addAll(targetBase, moved)
-        moved.forEachIndexed { offset, holder ->
-            if (!holder.attachedToHost) return@forEachIndexed
-            val constraint = holder.constraint
-            val targetIndex = parent.attachedSiblingsBefore(targetBase + offset)
-            if (constraint != null) {
-                childHost.add(holder.component, constraint, targetIndex)
-            } else {
-                childHost.add(holder.component, targetIndex)
-            }
-        }
-        dirtyContainers += container
-    }
-
-    override fun onClear() {
-        // Only ever runs on the ROOT container, which is user-supplied and never slot-attached. The
-        // children are discarded through the same child host that added them, so a root-pane root loses
-        // its composed content and keeps its root pane. `removeAll()` there takes the whole composed
-        // subtree with it, including any slot-hosting descendants (a JScrollPane's viewport/headers/
-        // corners go away with their JScrollPane). The AWT hierarchy is therefore already gone, but the
-        // holders still carry the uninstall action for the region each one fills; releasing those is left
-        // to SwingNodeHolder.onRelease, which the runtime calls for every node. Clearing the root's own
-        // child lists drops its references to that subtree; every deeper node's lists go with the node.
-        // The root's placement stays as the mount declared it: the composition is emptied, not re-hosted.
-        val container = root.component as? Container ?: return
-        container.childHost.removeAll()
-        root.children.clear()
-        arrivals.forget()
-        dirtyContainers += container
-    }
-
-    override fun onEndChanges() {
-        super.onEndChanges()
+    fun reconcile() {
         try {
             // The pass has settled, so every chain has run for the host its node belongs to now and a
             // relocated child names the placement it fills here. Attaching them first is what leaves the
             // two steps below reading hosts whose children are all attached.
-            for ((host, child) in arrivals.relocated) host.attachRelocatedChild(child)
+            for ((host, child) in changes.relocated) trace("attach") { host.attachRelocatedChild(child) }
             // A chain has named its child's region for the last time this pass, and each of these hosts
             // can be brought to what its children declare. This runs whole: the check below reads the
             // region each child is really in, and a component that arrives in a region as this runs is
             // one more child of a host the check has to answer for.
-            for (host in restatedRegionHosts) host.moveRestatedChildren()
+            for (host in changes.hostsWithRestatedRegions) host.moveRestatedChildren()
             // Every region of these hosts now holds what the composition declares for it. Which children
             // still count is settled once this pass has been dispatched whole - see DeferredRegionCheck.
-            for (host in filledSlotHosts) regionCheck.hold(host)
+            for (host in changes.hostsWithFilledSlots) regionCheck.hold(host)
         } finally {
-            arrivals.forget()
-            restatedRegionHosts.clear()
-            filledSlotHosts.clear()
+            changes.forget()
         }
-        for (container in dirtyContainers) {
-            container.revalidate()
-            // repaint() is load-bearing for the remove/removeAll case: Container.remove only calls
-            // invalidateIfValid() and never repaints the vacated region, so without this the removed
-            // child's pixels would linger. (The relayout case is already covered by Component.reshape.)
-            container.repaint()
-        }
-        dirtyContainers.clear()
         regionCheck.schedule()
         if (debugValidateChildIndexSpace) indexSpaceCheck.schedule()
     }
@@ -355,7 +359,7 @@ internal class SwingApplier internal constructor(
         child.awaitingAttachment = false
         if (attachment != null) {
             child.installedThrough(attachment, attachment.install(container, child.component, position))
-            if (childPlacement is ChildPlacement.Slots) filledSlotHosts += this
+            if (childPlacement is ChildPlacement.Slots) changes.recordSlotFilled(this)
         } else {
             val childHost = container.childHost
             val constraint = child.constraint
@@ -365,7 +369,7 @@ internal class SwingApplier internal constructor(
                 childHost.add(child.component, position)
             }
         }
-        dirtyContainers += container
+        batch.markChanged(container)
     }
 
     /**
@@ -392,12 +396,12 @@ internal class SwingApplier internal constructor(
             if (!child.attachedToHost) return@forEachIndexed
             if (child.declaredSlot?.name != child.installedSlot?.name) {
                 child.releaseInstalledSlot()
-                dirtyContainers += container
+                batch.markChanged(container)
                 val attachment = attachmentOf(this, child)
                 checkChildKind(container, child, fillsRegion = attachment != null)
                 if (attachment != null) {
                     child.installedThrough(attachment, attachment.install(container, child.component, index))
-                    if (childPlacement is ChildPlacement.Slots) filledSlotHosts += this
+                    if (childPlacement is ChildPlacement.Slots) changes.recordSlotFilled(this)
                 }
             }
         }
@@ -419,7 +423,7 @@ internal class SwingApplier internal constructor(
      * place along. A child whose chain gives its region up in the same pass is released and then refused,
      * the way one arriving at a region-holding host without a region is.
      */
-    private fun SwingNodeHolder<*>.moveRegionChildren(
+    fun SwingNodeHolder<*>.moveRegionChildren(
         container: Container,
         from: Int,
         to: Int,
@@ -447,7 +451,7 @@ internal class SwingApplier internal constructor(
                 child.installedThrough(attachment, attachment.install(container, child.component, position))
             }
         }
-        dirtyContainers += container
+        batch.markChanged(container)
     }
 }
 
@@ -482,31 +486,63 @@ private class DeferredRegionCheck(
 }
 
 /**
- * The children a single change pass brings to their hosts: which of them the composition is inserting
- * outright, and which it is relocating from another parent.
+ * What one change pass has said about where children go, and what [ChildRegions.reconcile] therefore
+ * owes each host once that pass has settled: children to attach, regions to bring to what a chain
+ * restated, hosts to hold to one child per region.
  *
- * A node the composition inserts is handed over top-down first and bottom-up after, a relocated one the
- * other way about, so a node arriving bottom-up that was not announced on the way down is one the pass
- * moved. A node still awaiting attachment arrived as a relocated one and stays that, however many hosts
- * the pass hands it to.
+ * [SwingApplier] records into this as it walks; nothing here is acted on while the pass runs, because a
+ * pass reaches a host several times and only what stands at the end of it is what the composition
+ * declares. A pass may hold two children in one region while it runs - a replacement is inserted before
+ * the child it replaces is removed - so a host looked at too early answers for a sibling that is on its
+ * way out.
  *
  * The record lasts as long as the pass does: [forget] ends it.
  */
-private class ArrivingChildren {
+private class ChangeRecord {
     /** The announced inserts not taken in bottom-up yet. */
     private val announced: MutableSet<SwingNodeHolder<*>> =
         Collections.newSetFromMap(IdentityHashMap())
 
-    private val arrivals: MutableList<Pair<SwingNodeHolder<*>, SwingNodeHolder<*>>> = ArrayList()
+    private val relocations: MutableList<Pair<SwingNodeHolder<*>, SwingNodeHolder<*>>> = ArrayList()
+
+    /**
+     * The hosts a child of which named a region other than the one its component is installed in. Each is
+     * brought to what its children declare before any host is held to its regions, so a component moves
+     * once however many times the pass declared it, and the check that follows reads the regions the
+     * children are really in.
+     */
+    private val restatedRegionHosts: MutableSet<SwingNodeHolder<*>> =
+        Collections.newSetFromMap(IdentityHashMap())
+
+    /**
+     * The [ChildPlacement.Slots] hosts a child was installed into, held to the single occupant each of
+     * their regions shows - and the composition root, when a mount states that placement for it, to the
+     * one top-level child its slot shows.
+     */
+    private val filledSlotHosts: MutableSet<SwingNodeHolder<*>> =
+        Collections.newSetFromMap(IdentityHashMap())
 
     /**
      * Each relocated child against the host it arrived at, in arrival order. Such a child reaches its new
      * host before its own modifier chain has run there, so it is attached once the pass has settled and
      * the placement it names is what it declares at the host it is at now.
      */
-    val relocated: List<Pair<SwingNodeHolder<*>, SwingNodeHolder<*>>> get() = arrivals
+    val relocated: List<Pair<SwingNodeHolder<*>, SwingNodeHolder<*>>> get() = relocations
 
-    /** Announces [node] as one the composition is inserting rather than relocating. */
+    /** The hosts whose children named a region other than the one they are installed in. */
+    val hostsWithRestatedRegions: Set<SwingNodeHolder<*>> get() = restatedRegionHosts
+
+    /** The hosts a child was installed into a region of. */
+    val hostsWithFilledSlots: Set<SwingNodeHolder<*>> get() = filledSlotHosts
+
+    /**
+     * Announces [node] as one the composition is inserting rather than relocating.
+     *
+     * An inserted node is handed over top-down first and bottom-up after, a relocated one the other way
+     * about, so a node arriving bottom-up that was not announced on the way down is one the pass moved. A
+     * node still awaiting attachment arrived as a relocated one and stays that, however many hosts the
+     * pass hands it to.
+     */
     fun announceInsert(node: SwingNodeHolder<*>) {
         if (!node.awaitingAttachment) announced += node
     }
@@ -520,17 +556,29 @@ private class ArrivingChildren {
         child: SwingNodeHolder<*>,
     ) {
         child.awaitingAttachment = true
-        arrivals += host to child
+        relocations += host to child
+    }
+
+    /** Records that a child of [host] named a region other than the one its component is installed in. */
+    fun recordRegionRestated(host: SwingNodeHolder<*>) {
+        restatedRegionHosts += host
+    }
+
+    /** Records that [host] had a child installed into one of the regions it holds. */
+    fun recordSlotFilled(host: SwingNodeHolder<*>) {
+        filledSlotHosts += host
     }
 
     /**
      * Drops what the pass recorded, so no child is left standing in a host's children as one still to be
-     * attached.
+     * attached and no host is answered for twice.
      */
     fun forget() {
-        for ((_, child) in arrivals) child.awaitingAttachment = false
-        arrivals.clear()
+        for ((_, child) in relocations) child.awaitingAttachment = false
+        relocations.clear()
         announced.clear()
+        restatedRegionHosts.clear()
+        filledSlotHosts.clear()
     }
 }
 

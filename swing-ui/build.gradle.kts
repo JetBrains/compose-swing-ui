@@ -44,6 +44,7 @@ dependencies {
     // types must be on consumers' compile classpath; the Swing dispatcher stays an implementation detail.
     api(libs.kotlinxCoroutinesCore)
     implementation(libs.kotlinxCoroutinesSwing)
+    implementation(libs.androidxTracing)
     // @MagicConstant typed-constant and @Nls human-readable-string annotations. CLASS/IDE-only:
     // compileOnly so they warn consumers in-IDE across the jar boundary without leaking
     // org.jetbrains:annotations to the published runtime.

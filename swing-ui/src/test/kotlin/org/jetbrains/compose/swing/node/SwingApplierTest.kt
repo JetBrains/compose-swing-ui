@@ -413,6 +413,25 @@ class SwingApplierTest {
     }
 
     @Test
+    fun onEndChanges_doesNotRevalidateAContainerAnAbandonedPassMarked() = onEdt {
+        val root = CountingPanel()
+        val applier = applierFor(root)
+
+        applier.onBeginChanges()
+        applier.onContainer(applier.root) { insertChild(0, holder(namedButton("a"))) }
+        // A pass that throws unwinds past the call the runtime would have ended it with, so the applier
+        // is never told this one ended and the container it marked is never refreshed for it.
+
+        applier.onBeginChanges()
+        val before = root.revalidateCount
+        applier.onEndChanges()
+
+        // The second pass mutated nothing, so what it refreshes says whether it inherited the first
+        // pass's containers.
+        assertEquals(before, root.revalidateCount)
+    }
+
+    @Test
     fun onEndChanges_repaintsParentRegionAfterRemovingChild() = onEdt {
         val root = CountingPanel()
         val applier = applierFor(root)

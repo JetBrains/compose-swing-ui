@@ -841,6 +841,7 @@ public final class org/jetbrains/compose/swing/node/MenuApplier : androidx/compo
 	public synthetic fun insertTopDown (ILjava/lang/Object;)V
 	public fun insertTopDown (ILorg/jetbrains/compose/swing/node/SwingNodeHolder;)V
 	public fun move (III)V
+	public fun onBeginChanges ()V
 	public fun onEndChanges ()V
 	public fun remove (II)V
 }
@@ -862,6 +863,7 @@ public final class org/jetbrains/compose/swing/node/SwingApplier : androidx/comp
 	public synthetic fun insertTopDown (ILjava/lang/Object;)V
 	public fun insertTopDown (ILorg/jetbrains/compose/swing/node/SwingNodeHolder;)V
 	public fun move (III)V
+	public fun onBeginChanges ()V
 	public fun onEndChanges ()V
 	public fun remove (II)V
 	public fun up ()V

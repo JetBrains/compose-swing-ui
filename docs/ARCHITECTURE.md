@@ -349,6 +349,44 @@ is what makes the structural change visible.
 
 ---
 
+## Naming what a change costs
+
+The pipeline names its own stretches, so a profiler can attribute a declared change rather than
+leaving it as one undifferentiated block of Swing time. Every section is opened under the trace category
+`org.jetbrains.compose.swing`:
+
+| Section  | Covers                                                                                 |
+|----------|----------------------------------------------------------------------------------------|
+| `frame`  | one frame whole: the recomposition and the changes it applies                          |
+| `apply`  | one change pass, from the runtime driving the first change to the last container being brought up to date |
+| `insert` | one node taken into the tree                                                           |
+| `attach` | one node given its place in a container                                                |
+| `remove` | children taken out of a container                                                      |
+| `move`   | children reordered within a container                                                  |
+
+The last four nest inside `apply` and name each kind of churn the applier drives. Nothing finer: the
+composition already names every restartable composable, and a section per widget would cost more than it
+reports.
+
+`apply` deliberately covers the pass as a whole rather than its tail. The node update blocks - where
+each widget is written - run before the applier's final flush, so a section around the flush alone would
+report the change phase as a fraction of a percent of a frame when it is closer to a third. Both the
+component and the menu applier open it, so a menu composition's pass is named as well.
+
+Sections go through `androidx.tracing`'s `Tracer`. The library installs nothing: it reports to whoever
+installs a tracer, and to nobody otherwise. Installing one is a decision for whoever wants a
+recording, not one the library makes for its consumers - so a build that traces adds
+`androidx.tracing:tracing` itself and installs a `Tracer` before the first composition is mounted.
+With none installed, a section costs one category check and one call to a close that does nothing.
+
+Those are not the only sections a recording can carry. The Compose compiler already writes a marker
+around every restartable composable, and those markers reach whatever `CompositionTracer` is
+installed through `Composer.setTracer`, which is internal Compose runtime API a tool opts in to.
+Install one alongside a `Tracer` and a single recording carries the frame and the change pass with
+the composables that ran inside them.
+
+---
+
 ## Why Swing needs an explicit applier
 
 The same Compose runtime drives very different targets, and the differences concentrate in how

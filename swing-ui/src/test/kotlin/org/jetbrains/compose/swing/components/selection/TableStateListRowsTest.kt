@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.core.TracedTest
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JTable
@@ -19,8 +20,13 @@ import kotlin.test.assertTrue
  * A `JTable` repaints what a `TableModel` tells it changed. A model that answers a caller's list
  * directly reports the new contents to anything that asks, so a row count read back is no evidence
  * the table was told: these tests assert on the events the model fires.
+ *
+ * The event is no evidence the widget was left alone either. A pass that swapped the model wholesale, or
+ * rebuilt the table outright, would fire an equivalent event and read back the same rows - while losing
+ * the table's selection, its column widths and its sort keys. That the row reaches the table through the
+ * model is stated by the churn the applier reports: none.
  */
-class TableStateListRowsTest {
+class TableStateListRowsTest : TracedTest() {
     @Test
     fun addingToADeclaredStateListNotifiesTheTable() = runComposeSwingTest {
         val rows = mutableStateListOf(Person("Ada", 36))
@@ -33,6 +39,13 @@ class TableStateListRowsTest {
         val table = onNodeOfType<JTable>().fetch()
         val events = mutableListOf<TableModelEvent>()
         table.model.addTableModelListener(TableModelListener { events += it })
+        // Building the table is churn, and reading it here is what says the recording below is a silence
+        // rather than a channel that was never listening.
+        assertTrue(
+            tracer.passes().flatten().isNotEmpty(),
+            "the mount should have taken the table into the tree",
+        )
+        tracer.clear()
 
         rows.add(Person("Alan", 41))
         awaitIdle()
@@ -41,6 +54,12 @@ class TableStateListRowsTest {
         assertTrue(
             events.isNotEmpty(),
             "the table was never told its rows changed, so it will not repaint them",
+        )
+        assertEquals(
+            emptyList(),
+            tracer.passes().flatten(),
+            "the row should reach the table through the model, with no pass rebuilding or re-adding the " +
+                "table itself: ${tracer.sections}",
         )
     }
 

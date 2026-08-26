@@ -31,8 +31,14 @@ import kotlin.test.assertTrue
  * and the two are what a move can be between, in either direction. The declaration that decides it is
  * the one the content's modifier chain makes at the host it has moved to, so a pane's region is filled
  * by the content that names it there and released by the content that has gone elsewhere.
+ *
+ * A relocation is not a reorder, and the churn the applier reports is the only thing that says so: the
+ * content is released by the host it leaves on one pass and given its place at the host it moved to on
+ * the next, which is what lets the pass in between see a region nobody fills. A move routed through the
+ * reorder path would leave the content holding the region it declared at its old host - a viewport never
+ * released, a tab never vacated - and the tree the happy case ends on would look the same.
  */
-class MovableContentPlacementTest {
+class MovableContentPlacementTest : TracedTest() {
     @Test
     fun contentMovedOutOfARegionIsHeldByTheHostThatAddsItByIndex() = runComposeSwingTest {
         var inPane by mutableStateOf(true)
@@ -51,6 +57,7 @@ class MovableContentPlacementTest {
         val label = onNodeWithText("body").fetch()
         val pane = onNodeWithTag("pane").fetch<JScrollPane>()
         assertSame(label, pane.viewport.view, "the content fills the region it names while it is composed there")
+        tracer.clear()
 
         inPane = false
         awaitIdle()
@@ -59,6 +66,27 @@ class MovableContentPlacementTest {
         assertSame(label, onNodeWithText("body").fetch(), "the move keeps the component the content was realized as")
         assertEquals(listOf<Component>(label), panel.components.toList(), "the host it moved to holds it by index")
         assertNull(pane.viewport.view, "the region it left holds nothing")
+
+        val passes = tracer.passes()
+        assertTrue(
+            passes.none { "move" in it },
+            "a relocation is not a reorder: the content leaves its old host outright: ${tracer.sections}",
+        )
+        assertEquals(
+            2,
+            passes.size,
+            "the content should be released by the host it leaves on one pass and placed at the host it " +
+                "moved to on the next: ${tracer.sections}",
+        )
+        assertEquals(
+            listOf("remove"),
+            passes.first(),
+            "the first pass should only release the region the content gave up: ${tracer.sections}",
+        )
+        assertTrue(
+            "attach" in passes.last(),
+            "the pass that follows should give the content its place at the host it moved to: ${tracer.sections}",
+        )
     }
 
     @Test

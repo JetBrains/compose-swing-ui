@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.BoxPanel
 import org.jetbrains.compose.swing.components.layout.SplitPane
+import org.jetbrains.compose.swing.core.TracedTest
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -13,6 +14,7 @@ import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JComponent
 import javax.swing.JSplitPane
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertSame
@@ -26,8 +28,12 @@ import kotlin.test.assertTrue
  * settled state to answer for. That is what the wait buys: while the pass runs the child names its new
  * region and stands in neither, a state the composition allows and the walk would refuse. A divergence
  * that outlives the pass is refused, and the tree the refusal names is the one the pass finished leaving.
+ *
+ * That the move really is one pass is stated rather than assumed: the sides a split pane holds read the
+ * same whether one pass carried the move or three did, and a move split across passes would give the walk
+ * a torn-down state to answer for.
  */
-class DeferredChildIndexSpaceTimingTest {
+class DeferredChildIndexSpaceTimingTest : TracedTest() {
     @Test
     fun aChildMovedBetweenRegionsIsAnsweredForInTheRegionThePassLeftItIn() = runComposeSwingTest {
         var onFirstSide by mutableStateOf(true)
@@ -51,11 +57,28 @@ class DeferredChildIndexSpaceTimingTest {
         // move and the turn the pass schedules the walk on, so the walk reads the child where the pass
         // left it rather than mid-move.
         onFirstSide = false
+        tracer.clear()
         awaitIdle()
         mainClock.advanceTimeByFrame()
 
         assertSame(movable, pane.rightComponent, "the child should stand on the side it now names")
         assertNull(pane.leftComponent, "the side the child left should be empty")
+        assertEquals(
+            listOf(emptyList()),
+            tracer.passes(),
+            "the whole move should land in one pass, and a region restated at the same host is settled " +
+                "as the pass ends rather than by taking the child out and putting it back: ${tracer.sections}",
+        )
+
+        tracer.clear()
+        mainClock.advanceTimeByFrame()
+
+        assertEquals(
+            emptyList(),
+            tracer.passes(),
+            "the move needs no successor pass, so the walk has only the one settled state to answer for: " +
+                "${tracer.sections}",
+        )
     }
 
     @Test

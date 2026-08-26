@@ -4,6 +4,7 @@ androidxAnnotation = "1.8.1"
 androidxCollection = "1.5.0"
 androidxLifecycle = "2.9.4"
 androidxNavigation3 = "1.1.0"
+androidxTracing = "2.0.0"
 compose = "1.10.0"
 composeLintChecks = "1.5.2"
 coroutines = "1.9.0"
@@ -21,6 +22,7 @@ androidxAnnotation = { module = "androidx.annotation:annotation", version.ref = 
 androidxCollection = { module = "androidx.collection:collection", version.ref = "androidxCollection" }
 androidxLifecycleRuntimeCompose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "androidxLifecycle" }
 androidxNavigation3Runtime = { module = "androidx.navigation3:navigation3-runtime", version.ref = "androidxNavigation3" }
+androidxTracing = { module = "androidx.tracing:tracing", version.ref = "androidxTracing" }
 composeLintChecks = { module = "com.slack.lint.compose:compose-lint-checks", version.ref = "composeLintChecks" }
 composeRuntime = { module = "androidx.compose.runtime:runtime", version.ref = "compose" }
 detekt-gradle-plugin = { module = "dev.detekt:detekt-gradle-plugin", version.ref = "detekt" }
