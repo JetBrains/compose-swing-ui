@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.node
 
+import androidx.compose.runtime.ReusableContent
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -188,5 +189,92 @@ class SwingNodeTest {
         present = false
         awaitIdle()
         assertEquals(1, releases, "the release block runs when the node leaves the composition")
+    }
+
+    @Test
+    fun theInitBlockRunsOnceAtCreationAndNotAgainOnRecomposition() = runComposeSwingTest {
+        var text by mutableStateOf("first")
+        var inits = 0
+        setContent {
+            SwingNode(
+                factory = { JLabel() },
+                update = {
+                    set(text) { this.text = it }
+                    init { inits++ }
+                },
+            )
+        }
+
+        onNodeOfType<JLabel>().assertTextEquals("first")
+        assertEquals(1, inits, "the init block runs once when the node is built")
+
+        text = "second"
+        awaitIdle()
+        onNodeOfType<JLabel>().assertTextEquals("second")
+        assertEquals(1, inits, "the init block does not run again when the node recomposes")
+    }
+
+    @Test
+    fun theInitBlockSeesWhatTheSetBlockAboveItAlreadyApplied() = runComposeSwingTest {
+        var seenAtInit: String? = null
+        setContent {
+            SwingNode(
+                factory = { JLabel() },
+                update = {
+                    set("built-by-set") { this.text = it }
+                    init { seenAtInit = text }
+                },
+            )
+        }
+
+        onNodeOfType<JLabel>().assertTextEquals("built-by-set")
+        assertEquals(
+            "built-by-set",
+            seenAtInit,
+            "init declared after a set block runs after it, so it sees the value that set applied",
+        )
+    }
+
+    @Test
+    fun theInitBlockDeclaredFirstRunsBeforeTheSetBlockBelowIt() = runComposeSwingTest {
+        var seenAtInit: String? = null
+        setContent {
+            SwingNode(
+                factory = { JLabel() },
+                update = {
+                    init { seenAtInit = text }
+                    set("built-by-set") { this.text = it }
+                },
+            )
+        }
+
+        onNodeOfType<JLabel>().assertTextEquals("built-by-set")
+        assertEquals(
+            "",
+            seenAtInit,
+            "the blocks run in the order the update lambda declares them, so an init declared first " +
+                "sees the component as the factory built it",
+        )
+    }
+
+    @Test
+    fun aFreshComponentBuiltAfterAKeyChangeRunsInitAgain() = runComposeSwingTest {
+        var reuseKey by mutableStateOf(0)
+        var inits = 0
+        setContent {
+            ReusableContent(reuseKey) {
+                SwingNode(
+                    factory = { JLabel() },
+                    update = { init { inits++ } },
+                )
+            }
+        }
+
+        assertEquals(1, inits, "the init block runs once for the component the first key builds")
+
+        reuseKey = 1
+        awaitIdle()
+
+        assertEquals(2, inits, "a key change builds a fresh component and runs init again for it")
     }
 }

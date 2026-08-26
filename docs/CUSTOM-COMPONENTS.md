@@ -272,6 +272,24 @@ A property that changes the size a component asks for needs a layout pass to go 
 Swing setters only invalidate - `JTextField.setColumns` and `JTextArea.setRows` among them - and
 nothing in the update pass asks for a layout on their behalf, so call `revalidate()` after the write.
 
+### `init { ... }` - one-time setup after creation
+
+```kotlin
+SwingNode(
+    factory = { JTextField() },
+    update = {
+        set(text) { this.text = it }
+        init { selectAll() } // declared after `set`, so `text` is applied and there is something to select
+    },
+)
+```
+
+<!--- CLEAR -->
+
+`init` runs once, on the pass that builds the component - reach for it when a one-time setup step
+needs a value `set`/`update` just computed, one the `factory` cannot see. The blocks run in the order
+the `update` lambda declares them, so declare `init` after the blocks whose values it reads.
+
 ## Properties the user can also move
 
 `set` and `update` both assume the composition is the property's only writer. Some widget properties have
