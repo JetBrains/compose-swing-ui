@@ -923,6 +923,21 @@ public final class org/jetbrains/compose/swing/text/TextRange {
 	public final synthetic fun unbox-impl ()J
 }
 
+public abstract interface annotation class org/jetbrains/compose/swing/tooling/Preview : java/lang/annotation/Annotation {
+	public abstract fun heightPx ()I
+	public abstract fun lookAndFeel ()Ljava/lang/String;
+	public abstract fun name ()Ljava/lang/String;
+	public abstract fun widthPx ()I
+}
+
+public abstract interface annotation class org/jetbrains/compose/swing/tooling/Preview$Container : java/lang/annotation/Annotation {
+	public abstract fun value ()[Lorg/jetbrains/compose/swing/tooling/Preview;
+}
+
+public abstract interface class org/jetbrains/compose/swing/tooling/PreviewEnvironment {
+	public abstract fun prepare ()V
+}
+
 public final class org/jetbrains/compose/swing/tooling/ToolingKt {
 	public static final fun attachComposeStackTrace (Ljava/awt/Component;Ljava/lang/Throwable;)Z
 	public static final fun findCompositionData (Ljava/awt/Component;)Landroidx/compose/runtime/tooling/CompositionData;
