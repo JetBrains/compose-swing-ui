@@ -27,6 +27,17 @@ internal interface SwingCompositionOwner {
     val observer: SnapshotStateObserver?
 
     /**
+     * Runs the frame this composition's pending writes are owed inside the event being dispatched,
+     * rather than from an event of its own - which is what puts a declaration back onto a widget before
+     * the user sees the change it answers. See [MirrorState.report].
+     *
+     * Declines while a frame is already running, leaving that settlement to the one the event queued,
+     * and skips entirely a composition that no recomposer of this library is driving. Runs on the event
+     * dispatch thread.
+     */
+    fun settleNow()
+
+    /**
      * The batch of component updates in flight, which is how a settle that cannot run until the batch
      * has attached a node's children is handed over - see [SwingNodeHolder.childSettle].
      */

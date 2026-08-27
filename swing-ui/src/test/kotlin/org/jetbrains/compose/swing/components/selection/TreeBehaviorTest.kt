@@ -4,7 +4,7 @@ import androidx.compose.runtime.ReusableContentHost
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.assertUnadoptedChangeIsPutBack
+import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -451,20 +451,38 @@ class TreeBehaviorTest {
     }
 
     @Test
-    fun aSelectionTheCallerDoesNotAdoptComesOffWithinEventCycles() = runSwingTest {
-        assertUnadoptedChangeIsPutBack(
+    fun aSelectionTheCallerDoesNotAdoptIsNeverPainted() = runSwingTest {
+        assertUnadoptedChangeIsNeverPainted(
             type = JTree::class.java,
             declared = emptyList<Int>(),
-            content = {
+            content = { report ->
                 Tree(
                     root = "root",
                     children = { node -> if (node == "root") listOf("one", "two") else emptyList() },
                     selectedPaths = emptySet(),
-                    onSelectionChange = {},
+                    onSelectionChange = { report() },
                 )
             },
             change = { it.setSelectionRow(0) },
             read = { it.selectionRows?.toList().orEmpty() },
+        )
+    }
+
+    @Test
+    fun anExpansionTheCallerDoesNotAdoptIsNeverPainted() = runSwingTest {
+        assertUnadoptedChangeIsNeverPainted(
+            type = JTree::class.java,
+            declared = false,
+            content = { report ->
+                Tree(
+                    root = "root",
+                    children = { node -> if (node == "root") listOf("one", "two") else emptyList() },
+                    expandedPaths = emptySet(),
+                    onExpansionChange = { report() },
+                )
+            },
+            change = { it.expandRow(0) },
+            read = { it.isExpanded(0) },
         )
     }
 }

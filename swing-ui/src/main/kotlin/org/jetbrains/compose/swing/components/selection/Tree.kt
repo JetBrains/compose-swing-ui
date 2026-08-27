@@ -594,7 +594,7 @@ private fun TreeNode(
             TreeSelectionListener { event ->
                 if (selectionMirror.isWriting) return@TreeSelectionListener
                 val tree = event.source as JTree
-                if (selectionMirror.observed(readSelection(tree, tree.model))) {
+                selectionMirror.report(readSelection(tree, tree.model)) {
                     treeSelectionListener.valueChanged(event)
                 }
             }
@@ -614,7 +614,7 @@ private fun TreeNode(
                 ) {
                     if (expansionMirror.isWriting) return
                     val tree = event.source as JTree
-                    if (expansionMirror.observed(readExpansion(tree, tree.model))) {
+                    expansionMirror.report(readExpansion(tree, tree.model)) {
                         treeExpansionListener?.let(deliver)
                     }
                 }
@@ -627,6 +627,8 @@ private fun TreeNode(
         // is told apart from a later one.
         factory = { JTree(DefaultTreeModel(null)) },
         update = {
+            applyMirror(selectionMirror)
+            applyMirror(expansionMirror)
             set(selectionMode) { mode ->
                 settleNarrowing(selectionMirror, selectedPaths, treeSelectionListener) {
                     selectionModel.selectionMode = mode

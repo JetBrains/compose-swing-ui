@@ -77,13 +77,8 @@ costs a single pass.
 That is not a setter. A setter is on its widget for the very next statement; a declared write is never
 visible inside the event that made it, and code that has to see the result waits for a later cycle.
 
-A widget the user can move themselves settles on this cadence too, and Swing's own ordering shows
-through. Swing applies the move first: a click flips `JCheckBox.isSelected` and queues the repaint
-before the action listener that reports the click runs. The put-back is a later event, so it cannot
-precede a repaint already queued, and the widget is painted once holding the value the caller
-rejected. A handful of event-dispatch cycles keep that paint inside a single display refresh
-interval, so the rejected value is not scanned out. Ordering the put-back ahead of the paint would
-mean holding back every paint in the process until the composition had settled.
+A widget the user can change themselves follows a cadence of its own, because the composition and the
+user both write it. *Settling a value the user can also change*, below, is where that one is described.
 
 `withFrameNanos`, and the animation APIs built on it, advance at a nominal cadence instead. Content
 mounted under a window takes that cadence from the display the window is on and follows it across
@@ -321,10 +316,55 @@ widget has drifted from it.
 
 **Settling runs in a pass, not at the moment of the change.** The value to settle against is the
 declaration, and the declaration only exists while a pass is running. So a change is recorded when it
-happens and answered on the pass that follows. Swing has already queued the repaint the move provoked, so
-a widget can be painted once holding a value the caller rejected. The pass follows within a few
-event-dispatch cycles, inside one display refresh interval. That bounds how long the rejected value
-shows; it is not a guarantee that it never shows.
+happens and answered on the pass that follows.
+
+That pass has to arrive before the user sees the change. Swing asks for a repaint from inside the setter
+that writes the widget, and the event serving it is queued ahead of anything the report of that change
+can schedule, so a pass that costs an event of its own is always a frame too late: the rejected value is
+painted, and the declaration arrives for the paint after it.
+
+**A discrete interaction settles before the repaint it provokes is served.** Once the caller has been
+told of the change and has had its chance to adopt it, the component asks its composition for a frame -
+publish the writes, drain the resumed work, run the pass - and where nothing has queued one already that
+frame runs there and then, inside the event that made the change. This is the same body the scheduled
+path
+runs, so there is no second path to keep correct, and it holds back while a frame is already running,
+while anything awaits a frame, and while one is already queued for the event being dispatched, leaving
+those cases to the path that queued it.
+
+**Every frame publishes the writes made since it was queued, before it broadcasts.** Publishing belongs
+to the frame rather than to whoever asked for one: a queued frame runs after whatever writes the events
+between the request and the frame made, and one that broadcast without publishing them would recompose
+against a value already superseded - leaving the widget holding a change the composition has answered,
+for
+the paint that follows to show.
+
+What a node reaches for that frame is the owner its applier attached to it as it inserted it - one
+object per composition, holding the snapshot observer its components register with, the batch its
+updates are held in, and the call that runs that frame. A node applies the owner to the mirrors it
+settles as it is created, through `applyMirror`, so a wrapper's listener has one to ask. The owner holds
+the composition context it was mounted under and reads the runtime out of the coroutine context that
+states it, so nothing walks the Swing tree for it. It reads it on each change it settles rather than
+keeping a reference of its own, because one runtime serves several compositions.
+
+A change no wrapper reports that way is settled by the runtime instead, without the wrapper naming a
+frame at all. A component hands its event to the toolkit's listeners before it processes that event
+itself, and the repaint the change provokes is asked for during the processing. So a frame queued from a
+toolkit listener is queued ahead of that repaint: the runtime listens for the events a declared value
+changes on - key, mouse, motion, input method, and the focus loss a formatted field commits its text on -
+and queues one frame per event, which settles the declaration before the paint the change asked for is
+served. That is what covers a text edit, a formatted commit, and an option inside a group,
+none of which can settle from their own report. A frame queued from the report of a change instead is
+behind the repaint by construction, however early it is queued, which is why a report cannot carry it.
+
+The two do not make one another redundant. A report settles without queueing a frame at all, and settles
+a change the runtime is handed no event for.
+
+A continuous gesture is covered too: motion is in that mask, and a drag step costs no pass the recomposer
+was not already going to run, only a frame queued where one is not queued already. What keeps the
+scheduled path is a change the runtime is handed no event for - a write from a timer, a drop, a caller
+reaching the widget directly. There the pass follows within a few event-dispatch cycles, which bounds
+how long the rejected value shows without guaranteeing it never shows.
 
 What schedules that pass is the mirror itself. Reading the mirror while composing subscribes the reading
 scope to the widget changing, the same way any other state read does. A change the caller adopts would

@@ -251,7 +251,12 @@ class ComponentRecomposerTest {
         try {
             assertEquals(FPS_120, composition.displayRefreshRate(), "the component under test reports its own rate")
             assertEquals(
-                SwingFrameClock(recomposer.recomposer, composition.displayRefreshRate()).frameDelayMillis,
+                SwingUiDispatcher()
+                    .frameClock
+                    .apply {
+                        pace(recomposer.recomposer)
+                        setFramesPerSecond(composition.displayRefreshRate())
+                    }.frameDelayMillis,
                 recomposer.clock.frameDelayMillis,
                 "the recomposer must pace its clock by the rate its component reports",
             )
@@ -259,7 +264,12 @@ class ComponentRecomposerTest {
             // Moving to a display of another rate is reported as a "graphicsConfiguration" change.
             composition.display = FakeDisplayConfiguration(FPS_60)
             assertEquals(
-                SwingFrameClock(recomposer.recomposer, composition.displayRefreshRate()).frameDelayMillis,
+                SwingUiDispatcher()
+                    .frameClock
+                    .apply {
+                        pace(recomposer.recomposer)
+                        setFramesPerSecond(composition.displayRefreshRate())
+                    }.frameDelayMillis,
                 recomposer.clock.frameDelayMillis,
                 "the recomposer must follow its component to a display of a different rate",
             )

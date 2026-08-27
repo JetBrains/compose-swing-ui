@@ -19,8 +19,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.swing.Swing
 import kotlinx.coroutines.withContext
+import org.jetbrains.compose.swing.core.EventDispatchHook
 import org.jetbrains.compose.swing.core.GlobalSnapshotManager
-import org.jetbrains.compose.swing.core.SwingFrameClock
+import org.jetbrains.compose.swing.core.SwingUiDispatcher
+import java.awt.Toolkit
 import javax.swing.SwingUtilities
 import kotlin.system.exitProcess
 
@@ -179,19 +181,25 @@ public suspend fun awaitApplication(content: @Composable ApplicationScope.() -> 
     withContext(Dispatchers.Swing) {
         GlobalSnapshotManager.ensureStarted()
 
-        val recomposer = Recomposer(coroutineContext)
-        val frameClock = SwingFrameClock(recomposer)
+        val dispatcher = SwingUiDispatcher()
+        val recomposer = Recomposer(coroutineContext + dispatcher)
+        val frameClock = dispatcher.frameClock
+        frameClock.pace(recomposer)
+        // A window declared here composes on this clock, so its widgets need their moves settled ahead of
+        // the repaint like any other. An application names no component to take a toolkit from, and the
+        // windows it declares are built on the default one.
+        EventDispatchHook.subscribe(Toolkit.getDefaultToolkit(), frameClock)
         try {
             var isOpen by mutableStateOf(true)
 
             val applicationScope = ApplicationScopeImpl(recomposer) { isOpen = false }
 
             coroutineScope {
-                launch(frameClock) {
+                launch(dispatcher + frameClock) {
                     recomposer.runRecomposeAndApplyChanges()
                 }
 
-                launch {
+                launch(dispatcher) {
                     val applier = ApplicationApplier()
                     val composition = Composition(applier, recomposer)
                     try {
@@ -208,6 +216,7 @@ public suspend fun awaitApplication(content: @Composable ApplicationScope.() -> 
                 }
             }
         } finally {
+            // Disposal withdraws the clock from the hook it was subscribed on.
             frameClock.dispose()
         }
     }
@@ -231,7 +240,8 @@ public sealed interface ApplicationScope {
      *
      * `Recomposer.observe(CompositionRegistrationObserver)` registers on it to be told as each of those
      * compositions is registered and unregistered. A composition registers with the recomposer at the
-     * root of its context chain, so this one reports every composition inside a declared window as well.
+     * root of its context chain, so this one reports every content composition inside a declared window
+     * as well.
      */
     public val recomposer: Recomposer
 }

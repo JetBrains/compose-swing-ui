@@ -36,10 +36,14 @@ import java.awt.Component
  * not. The next pass acts on that answer: an adopted change leaves the widget alone, an unadopted one
  * writes the declaration back, so the widget snaps away from what the user left it holding.
  *
- * The pass is a later event than the move, and Swing has already queued the repaint the move provoked,
- * so the widget can be painted once holding a value the caller rejected. The pass follows within a few
- * event-dispatch cycles, inside a single display refresh interval. That bounds how long the rejected
- * value survives; it is not a guarantee that the value is never shown.
+ * Swing asks for the repaint a change provokes while the widget is still handling it, ahead of anything
+ * the report of that change can schedule. A change carried to the caller through [report] settles inside
+ * the event that made it wherever a frame can run there, so the declaration is back on the widget before
+ * that repaint is served and the rejected value is never shown. A change only [observed] leaves the pass
+ * a later event, following within a few event-dispatch cycles, inside a single display refresh interval:
+ * the widget can be painted once holding a value the caller rejected, and what is bounded is how long
+ * that value survives. A reported change takes that same later pass where a frame is already running, or
+ * where something else is waiting for one.
  *
  * Runs on the event dispatch thread.
  */
@@ -48,6 +52,17 @@ public class MirrorState<V>
     constructor(
         initial: V,
     ) : State<V> {
+        /**
+         * The composition a reported change takes its frame in, handed over by the node this mirror
+         * settles through as that node is created - see [SwingNodeUpdater.applyMirror].
+         *
+         * A mirror with none cannot [report]: the change would reach the caller and the widget would keep
+         * it until an event of its own carried the answer, which is the flash [report] exists to
+         * prevent. So the first change through an unstated mirror fails, rather than quietly taking a
+         * slower path nothing announces.
+         */
+        internal var owner: SwingCompositionOwner? = null
+
         /**
          * The channel an unanswered change travels to the composition on, and the whole of what [subscribe]
          * subscribes to. It is bumped once per change no [settle] of this mirror's own answered for; the
@@ -130,6 +145,42 @@ public class MirrorState<V>
             observedValue = published
             if (changed && settleDepth == 0) unanswered++
             return changed && !isWriting
+        }
+
+        /**
+         * Carries a value the widget published to the caller: mirrors [published] through [observed] and,
+         * where that is a change of the user's, hands it to [onChanged] and settles the composition on the
+         * answer - inside the event that made the change wherever a frame can run there, so the
+         * declaration is back on the widget before the repaint that change asked for is served. Where one
+         * cannot, the pass follows a later event, as it does for a change only [observed].
+         *
+         * This is how a widget property the user can also change is reported. [onChanged] runs first and
+         * settling follows it, so a caller that adopts the change is settled on what it wrote and one that
+         * does not is settled back onto its standing declaration.
+         *
+         * Report a discrete interaction this way - a click, a selection, a step. A continuous gesture
+         * reports a change per drag step, and the value one step lands on is replaced by the next well
+         * inside a display refresh interval, so there is nothing visible to correct and batching the
+         * steps is worth more than the pass: mirror a gesture through [observed] instead. A change
+         * carried on a second channel behind a listener the caller supplied goes the same way: that
+         * channel fires before the caller's own and would settle the widget against a declaration the
+         * caller is about to change.
+         *
+         * Runs on the event dispatch thread.
+         */
+        public fun report(
+            published: V,
+            onChanged: (V) -> Unit,
+        ) {
+            if (!observed(published)) return
+            val reportingOwner =
+                checkNotNull(owner) {
+                    "This mirror has not been applied to a node. Declare the property with declare(), " +
+                        "which applies it, or apply it directly with applyMirror() in the update block " +
+                        "of the node the mirror settles."
+                }
+            onChanged(published)
+            reportingOwner.settleNow()
         }
 
         /**
@@ -389,11 +440,11 @@ public fun <V> rememberMirrorState(initial: V): MirrorState<V> = remember { Mirr
  * [onSettled] receives the value when the widget answers the write with one of its own. A widget that
  * can hold every declaration it is given never calls it, so the default does nothing.
  *
- * Call this exactly once per pass, for one node, against an [mirror] remembered in that node's own
- * group. It makes one [SwingNodeUpdater.set] call, so a [declare] inside a conditional shifts every
- * later slot in the `update` block; and what a declaration is compared against lives on [mirror]
- * rather than in the composition, so an [mirror] that outlives its node answers for a widget that is
- * no longer there. State a condition in [value], not in whether the call happens.
+ * Call this exactly once per pass, for one node, against a [mirror] remembered in that node's own group.
+ * It calls [SwingNodeUpdater.set], so a [declare] inside a conditional shifts every later slot in the
+ * `update` block; and what a declaration is compared against lives on [mirror] rather than in the
+ * composition, so a [mirror] that outlives its node answers for a widget that is no longer there. State
+ * a condition in [value], not in whether the call happens.
  */
 public fun <C : Component, V> SwingNodeUpdater<C>.declare(
     value: V,
@@ -402,6 +453,7 @@ public fun <C : Component, V> SwingNodeUpdater<C>.declare(
     write: C.(V) -> Unit,
     onSettled: C.(V) -> Unit = {},
 ) {
+    applyMirror(mirror)
     // The declaration and the value the widget holds change independently, and one settle answers for both.
     // The mirror keeps the pair it was last settled on and compares this pass's against it in place, so a
     // pass with nothing to settle builds no block to run and no key to compare through.
@@ -434,7 +486,7 @@ internal inline fun <C : Component, D : Any> SwingNodeUpdater<C>.settleWhenDue(
 ): Unit = set(if (due) token() else null) { pending -> if (pending != null) settle(pending) }
 
 /** Stands for a value no declaration has reached yet, so the first one made always settles. */
-internal val Undeclared: Any = Any()
+private val Undeclared: Any = Any()
 
 /** One widget settle: the accessors to settle a declaration through, bound to the value it declares. */
 internal fun interface Settlement<in C : Component> {

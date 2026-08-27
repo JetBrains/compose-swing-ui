@@ -64,4 +64,57 @@ class RawSelectionListenerTest {
         assertTrue(adjusting.any { it }, "the drag's adjusting events reach the raw listener")
         assertEquals(false, adjusting.last(), "the settled event reaches the raw listener")
     }
+
+    @Test
+    fun aRawListListenerSeesTheSettledEventOfADragEndingWhereItBegan() = runComposeSwingTest {
+        val adjusting = mutableListOf<Boolean>()
+        val listener = ListSelectionListener { event -> adjusting += event.valueIsAdjusting }
+        setContent {
+            ListBox(items = listOf("red", "green", "blue"), listSelectionListener = listener)
+        }
+
+        val selection = onNodeOfType<JList<*>>().fetch().selectionModel
+        selection.setSelectionInterval(0, 0)
+        adjusting.clear()
+
+        selection.valueIsAdjusting = true
+        selection.setSelectionInterval(1, 1)
+        selection.setSelectionInterval(0, 0)
+        selection.valueIsAdjusting = false
+
+        assertEquals(false, adjusting.lastOrNull(), SETTLED_EVENT_OF_A_DRAG_ENDING_WHERE_IT_BEGAN)
+    }
+
+    @Test
+    fun aRawTableListenerSeesTheSettledEventOfADragEndingWhereItBegan() = runComposeSwingTest {
+        val adjusting = mutableListOf<Boolean>()
+        val listener = ListSelectionListener { event -> adjusting += event.valueIsAdjusting }
+        setContent {
+            Table(
+                rows = listOf(Person("Ada", 36), Person("Alan", 41), Person("Grace", 50)),
+                listSelectionListener = listener,
+            ) {
+                column("Name") { it.name }
+            }
+        }
+
+        val selection = onNodeOfType<JTable>().fetch().selectionModel
+        selection.setSelectionInterval(0, 0)
+        adjusting.clear()
+
+        selection.valueIsAdjusting = true
+        selection.setSelectionInterval(1, 1)
+        selection.setSelectionInterval(0, 0)
+        selection.valueIsAdjusting = false
+
+        assertEquals(false, adjusting.lastOrNull(), SETTLED_EVENT_OF_A_DRAG_ENDING_WHERE_IT_BEGAN)
+    }
 }
+
+/**
+ * What a drag ending on the row it began on owes the caller's own listener. The widget still raises the
+ * settled event, so the caller still hears it: what reaches the listener follows the write depth alone,
+ * as it does without a mirror, rather than whether the selection ended somewhere new.
+ */
+private const val SETTLED_EVENT_OF_A_DRAG_ENDING_WHERE_IT_BEGAN =
+    "the settled event of a drag that ends on the row it began on reaches the raw listener"

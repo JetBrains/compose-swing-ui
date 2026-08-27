@@ -4,8 +4,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
+import org.jetbrains.compose.swing.click
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
+import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.SwingMatcher.Companion.isSelected
 import org.jetbrains.compose.swing.test.interaction.onParent
 import org.jetbrains.compose.swing.test.onAllNodesOfType
@@ -316,5 +319,21 @@ class RadioGroupTest {
         assertEquals(BoxLayout.Y_AXIS, layout.axis, "the new axis")
         assertSame(panel, layout.target, "the layout should target the group's panel")
         assertEquals(3, panel.componentCount, "the options survive the axis change")
+    }
+
+    @Test
+    fun anOptionTheCallerDoesNotAdoptIsNeverPainted() = runSwingTest {
+        // An option's mirror rides the item channel, which a button publishes before the action
+        // channel that reports the choice - so an option cannot settle from its own report. The
+        // frame the runtime queues from the event settles it instead, once the whole event is over.
+        assertUnadoptedChangeIsNeverPainted(
+            type = JRadioButton::class.java,
+            declared = false,
+            content = { report ->
+                RadioGroup(selectedIndex = -1, onSelectionChange = { report() }) { option("Small") }
+            },
+            change = { option -> option.click() },
+            read = { it.isSelected },
+        )
     }
 }

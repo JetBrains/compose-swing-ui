@@ -4,7 +4,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Slider
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -114,7 +113,7 @@ class DeclaredValueSettlesInOnePassTest {
         declared: Int,
         onPass: () -> Unit,
     ) {
-        val mirror = remember { MirrorState(MIN) }
+        val mirror = rememberMirrorState(MIN)
         SwingNode(
             factory = { JSlider(MIN, MAX, MIN).apply { addChangeListener { mirror.observed(value) } } },
             update = {
@@ -135,7 +134,7 @@ class DeclaredValueSettlesInOnePassTest {
         declared: String,
         onPass: () -> Unit,
     ) {
-        val mirror = remember { MirrorState<String?>(null) }
+        val mirror = rememberMirrorState<String?>(null)
         SwingNode(
             factory = { JLabel() },
             update = {

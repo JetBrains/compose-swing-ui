@@ -4,10 +4,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.UserChange
+import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
+import org.jetbrains.compose.swing.deliverEvent
+import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import java.awt.event.FocusEvent
 import java.beans.PropertyChangeListener
 import javax.swing.JFormattedTextField
+import javax.swing.JTextField
 import javax.swing.text.DefaultFormatterFactory
 import javax.swing.text.NumberFormatter
 import kotlin.test.Test
@@ -175,5 +181,42 @@ class FormattedTextFieldCommitTest {
         awaitIdle()
 
         assertEquals(listOf(false), reported, "validity is its own channel, whatever drives the value")
+    }
+
+    /**
+     * The commit a focus loss makes is the one move of a formatted field that no gesture on the field
+     * itself carries: `JFormattedTextField.processFocusEvent` runs its focus-lost handler as it answers
+     * the event, and `COMMIT_OR_REVERT` takes the typed text as the field's value there and then. The
+     * field mirrors that commit without reporting it from inside the change, so what puts the declaration
+     * back ahead of the repaint the commit provokes is the settlement queued when the toolkit is handed
+     * the focus event - which is why a focus loss is one of the events a settlement is queued behind.
+     *
+     * The event is non-temporary and names the component focus went to, as a real transfer does: a
+     * temporary loss - what a window deactivation raises - commits nothing at all.
+     */
+    @Test
+    fun aCommitAFocusLossMakesAndTheCallerRefusesIsNeverPainted() = runSwingTest {
+        assertUnadoptedChangeIsNeverPainted(
+            type = JFormattedTextField::class.java,
+            declared = 10,
+            content = { report ->
+                FormattedTextField(
+                    value = 10,
+                    onValueChange = { report() },
+                    formatterFactory = remember { integerFactory() },
+                )
+            },
+            change =
+                UserChange(
+                    // Typing moves nothing the caller declared - the field holds its committed value
+                    // until something commits the edit - so it is the earlier event the user has already
+                    // been shown, and the commit the focus loss makes is the whole of the change measured.
+                    earlier = { field -> field.text = "42" },
+                    made = { field ->
+                        field.deliverEvent(FocusEvent(field, FocusEvent.FOCUS_LOST, false, JTextField()))
+                    },
+                ),
+            read = { it.value },
+        )
     }
 }

@@ -4,7 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.assertUnadoptedChangeIsPutBack
+import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -360,15 +360,15 @@ class ComboBoxSelectionFeedbackTest {
     }
 
     @Test
-    fun aChoiceTheCallerDoesNotAdoptComesOffWithinEventCycles() = runSwingTest {
-        assertUnadoptedChangeIsPutBack(
+    fun aChoiceTheCallerDoesNotAdoptIsNeverPainted() = runSwingTest {
+        assertUnadoptedChangeIsNeverPainted(
             type = JComboBox::class.java,
             declared = "Ada",
-            content = {
+            content = { report ->
                 ComboBox(
                     items = listOf("Ada", "Alan", "Grace"),
                     selectedItem = "Ada",
-                    onSelectionChange = {},
+                    onSelectionChange = { report() },
                 )
             },
             change = { it.selectedIndex = 2 },

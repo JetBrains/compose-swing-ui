@@ -3,12 +3,10 @@ package org.jetbrains.compose.swing.core
 import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.Recomposer
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.DisposableHandle
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.swing.Swing
 import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import org.jetbrains.compose.swing.core.SwingFrameClock.Companion.displayRefreshRate
 import org.jetbrains.compose.swing.util.DeferredAction
@@ -109,7 +107,8 @@ public class SwingRecomposer private constructor(
 
     /**
      * Disposes the content compositions registered as composing under this recomposer, then cancels the
-     * recomposer, stops the clock, and cancels the scope they run on. Idempotent.
+     * recomposer, disposes the clock - which is what withdraws it from [EventDispatchHook] - and cancels
+     * the scope they run on. Idempotent.
      *
      * Must be called on the Event Dispatch Thread.
      */
@@ -175,9 +174,12 @@ public class SwingRecomposer private constructor(
         ): SwingRecomposer {
             checkEventDispatchThread()
             GlobalSnapshotManager.ensureStarted()
-            val scope = CoroutineScope(Dispatchers.Swing + Job())
+            val dispatcher = SwingUiDispatcher()
+            val scope = CoroutineScope(dispatcher + Job())
             val recomposer = Recomposer(scope.coroutineContext)
-            val clock = SwingFrameClock(recomposer, component.displayRefreshRate())
+            val clock = dispatcher.frameClock
+            clock.pace(recomposer)
+            clock.setFramesPerSecond(component.displayRefreshRate())
             scope.launch(clock) {
                 recomposer.runRecomposeAndApplyChanges()
             }
@@ -187,6 +189,7 @@ public class SwingRecomposer private constructor(
                 onPropertyChanged(component, GRAPHICS_CONFIGURATION_PROPERTY) {
                     clock.setFramesPerSecond(component.displayRefreshRate())
                 }
+            EventDispatchHook.subscribe(component.toolkit, clock)
             return SwingRecomposer(recomposer, clock, scope, refreshRateWatch, disposeOnceUnused, onDisposed)
         }
     }

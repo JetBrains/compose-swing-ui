@@ -70,8 +70,8 @@ public value class SwingNodeUpdater<T : Component>
          * Publishes [context] on the component, so that a `setContent` call on a component below it joins
          * this composition - sharing its scope and its
          * [CompositionLocal][androidx.compose.runtime.CompositionLocal]s. Without it such a call joins
-         * whatever its place in the Swing tree resolves to - the composition above it, or the composition its
-         * window shares - so it recomposes with everything else there but sees none of the
+         * whatever its place in the Swing tree resolves to - the content composition above it, or the one
+         * its window shares - so it recomposes with everything else there but sees none of the
          * `CompositionLocal`s this node stands under. A `null` [context] leaves the component hosting
          * nothing.
          *
@@ -112,16 +112,15 @@ public value class SwingNodeUpdater<T : Component>
         /**
          * Settles [block] against this node's children, at the end of the change pass rather than here.
          *
-         * A node's update runs before the recomposer applies the content that update declared, so a write
+         * A node's update runs before the runtime applies the content that update declared, so a write
          * made here that reads the node's children - a `JTabbedPane` put on one of its own tabs - would
          * be made against the children the pass before it left behind. Handing the write over instead
          * has one pass declare a child and settle on it.
          *
          * The block runs at the end of the pass that hands it over, and again at the end of every later
          * pass that adds, removes or moves this node's children, since that is when a standing
-         * declaration can become one the widget answers differently. It is therefore re-run holding what
-         * it captured on the pass that built it, which stays current: the node is recomposed whenever
-         * anything the block captures moves, and that pass hands over a block built from it.
+         * declaration can become one the widget answers differently. See [SwingNodeHolder.childSettle]
+         * for why the block held from an earlier pass still applies.
          *
          * Runs on every composition like [reconcile].
          */
@@ -130,6 +129,21 @@ public value class SwingNodeUpdater<T : Component>
                 childSettle = { component.block() }
                 requireOwner().updateBatch.holdForChildSettle(this)
             }
+
+        /**
+         * Applies [mirror] to this node, so the mirror belongs to it - which is what lets
+         * [MirrorState.report] answer a change inside the event that made it rather than from an event
+         * of its own.
+         *
+         * [declare] states it for the declaration it settles, so a component built the usual way needs
+         * nothing here. State it directly where a component settles a mirror some other way - applying
+         * two declarations the widget resolves together, or reading back a property no declaration is
+         * written through. A mirror that reports without it fails at the first change.
+         *
+         * Runs once, on the pass that creates the node: the composition a node stands in is the same for
+         * its whole life.
+         */
+        public fun applyMirror(mirror: MirrorState<*>): Unit = updater.init(mirror) { it.owner = owner }
 
         /**
          * Hands the composition owner's shared [SnapshotStateObserver] - stamped onto this node's

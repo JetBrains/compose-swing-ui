@@ -47,9 +47,9 @@ private class SpinnerValueChannel(
 
     val listener: ChangeListener =
         ChangeListener { event ->
-            val current = (event.source as JSpinner).value
-            if (mirror.observed(current) && current != null) {
-                onValueChange(current)
+            mirror.report((event.source as JSpinner).value) { current ->
+                // A model over an empty sequence settles on null: there is no selection to report.
+                if (current != null) onValueChange(current)
             }
         }
 }
@@ -84,10 +84,10 @@ private fun rememberSpinnerValueChannel(
  *   `null` formats it the way the locale does. A new pattern rebuilds the spinner's own editor around
  *   it.
  * @param editor the editing surface the spinner shows in place of its own, composed into the spinner as
- *   a composition of the enclosing composition, so it reads the same state and locals the caller does;
- *   `null` leaves the editor the one the spinner builds for its own model. A fresh lambda each
- *   recomposition is fine - the composition recomposes rather than being rebuilt, so characters typed but
- *   not committed stand.
+ *   a composition of its own joined to the caller's, so it reads the same state and locals the caller
+ *   does; `null` leaves the editor the one the spinner builds for its own model. A fresh lambda each
+ *   recomposition is fine - that composition recomposes rather than being rebuilt, so characters typed
+ *   but not committed stand.
  * @throws IllegalArgumentException if both a [format] and an [editor] are declared, or if [value]
  *   falls outside [min]..[max].
  * @see javax.swing.JSpinner
@@ -108,7 +108,7 @@ public fun Spinner(
 
     // The general SpinnerNumberModel constructor takes Comparable minimum/maximum. Number is not itself
     // Comparable, but every concrete Number a caller passes (Int, Double, Long, ...) is Comparable at
-    // recomposer, so the star-projected cast of the bounds is sound.
+    // runtime, so the star-projected cast of the bounds is sound.
     val model = remember { SpinnerNumberModel(value, min as Comparable<*>?, max as Comparable<*>?, step) }
 
     SpinnerNode(
@@ -144,10 +144,10 @@ public fun Spinner(
  *   pattern; `null` formats it the way the locale does. A new pattern rebuilds the spinner's own
  *   editor around it.
  * @param editor the editing surface the spinner shows in place of its own, composed into the spinner as
- *   a composition of the enclosing composition, so it reads the same state and locals the caller does;
- *   `null` leaves the editor the one the spinner builds for its own model. A fresh lambda each
- *   recomposition is fine - the composition recomposes rather than being rebuilt, so characters typed but
- *   not committed stand.
+ *   a composition of its own joined to the caller's, so it reads the same state and locals the caller
+ *   does; `null` leaves the editor the one the spinner builds for its own model. A fresh lambda each
+ *   recomposition is fine - that composition recomposes rather than being rebuilt, so characters typed
+ *   but not committed stand.
  * @throws IllegalArgumentException if both a [format] and an [editor] are declared, or if [value]
  *   falls outside [start]..[end].
  * @see javax.swing.JSpinner
@@ -198,10 +198,10 @@ public fun Spinner(
  *   reported.
  * @param modifier the [SwingModifier] applied to the underlying component.
  * @param editor the editing surface the spinner shows in place of its own, composed into the spinner as
- *   a composition of the enclosing composition, so it reads the same state and locals the caller does;
- *   `null` leaves the editor the one the spinner builds for its own model. A fresh lambda each
- *   recomposition is fine - the composition recomposes rather than being rebuilt, so characters typed but
- *   not committed stand.
+ *   a composition of its own joined to the caller's, so it reads the same state and locals the caller
+ *   does; `null` leaves the editor the one the spinner builds for its own model. A fresh lambda each
+ *   recomposition is fine - that composition recomposes rather than being rebuilt, so characters typed
+ *   but not committed stand.
  * @see javax.swing.JSpinner
  */
 @Composable
@@ -251,10 +251,10 @@ public fun <T : Any> Spinner(
  *   over a number model, a `SimpleDateFormat` pattern over a date model; `null` formats them the way the
  *   locale does. A new pattern rebuilds the spinner's own editor around it.
  * @param editor the editing surface the spinner shows in place of its own, composed into the spinner as
- *   a composition of the enclosing composition, so it reads the same state and locals the caller does;
- *   `null` leaves the editor the one the spinner builds for its own model. A fresh lambda each
- *   recomposition is fine - the composition recomposes rather than being rebuilt, so characters typed but
- *   not committed stand.
+ *   a composition of its own joined to the caller's, so it reads the same state and locals the caller
+ *   does; `null` leaves the editor the one the spinner builds for its own model. A fresh lambda each
+ *   recomposition is fine - that composition recomposes rather than being rebuilt, so characters typed
+ *   but not committed stand.
  * @throws IllegalArgumentException if both a [format] and an [editor] are declared, or if a [format] is
  *   declared over a model that is neither a number's nor a date's.
  * @see javax.swing.JSpinner
@@ -308,7 +308,7 @@ private fun SpinnerNode(
     }
     val parentContext = rememberCompositionContext()
     // The panel a composed editor renders into, remembered here so the same instance is handed both to
-    // the modifier below, which installs it as the spinner's editor, and to the composition composed beside
+    // the modifier below, which installs it as the spinner's editor, and to the editor composition beside
     // the node, which fills it.
     val editorPanel = if (editor != null) remember { JPanel(BorderLayout()).apply { isOpaque = false } } else null
     SwingNode<JSpinner>(
@@ -318,7 +318,7 @@ private fun SpinnerNode(
             // A `JSpinner` editor is built for the model it edits, so the model is part of what the
             // editor is derived from: swapping the model rebuilds the editor around the new one even
             // where the format stands. A composed editor is not derived from any of them and is
-            // installed by the composition instead, so it withholds the write here.
+            // installed by the editor composition instead, so it withholds the write here.
             set(EditorDeclaration(model, format, editor != null)) { declaration ->
                 if (!declaration.composed) this.editor = (this as SpinnerComponent).declaredEditor(declaration)
             }
@@ -495,8 +495,8 @@ private class ItemsFormatter(
  *
  * The composition joins [parentContext], so the editing surface reads the state and the
  * [androidx.compose.runtime.CompositionLocal]s the spinner's own caller does. [content] flows in through
- * [rememberUpdatedState]: a fresh lambda each recomposition recomposes the composition rather than rebuilding
- * it, so an edit in progress is not thrown away.
+ * [rememberUpdatedState]: a fresh lambda each recomposition recomposes it rather than rebuilding it, so an
+ * edit in progress is not thrown away.
  */
 @Composable
 private fun SpinnerEditorComposition(
@@ -521,8 +521,8 @@ private fun SpinnerEditorComposition(
 /**
  * What the component a spinner edits its value through is derived from: the model that value belongs to,
  * the pattern the spinner's own editor formats it with, and whether an editor is composed instead. A
- * [composed] editor is the composition's to install; with neither it nor a [format], the editor is the one the
- * spinner builds for its model.
+ * [composed] editor is the editor composition's to install; with neither it nor a [format], the editor is
+ * the one the spinner builds for its model.
  */
 private data class EditorDeclaration(
     val model: SpinnerModel,

@@ -21,6 +21,7 @@ import javax.swing.JLabel
 import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -82,10 +83,7 @@ class FrameClockPacingTest {
                 val expected = "v${round + 1}"
                 text = expected
                 val cycles =
-                    cyclesUntil("write $expected reaches the widget") {
-                        labelTextOrNull(composition) ==
-                            expected
-                    }
+                    cyclesUntil("write $expected reaches the widget") { labelTextOrNull(composition) == expected }
                 assertTrue(
                     cycles <= MAX_CYCLES_TO_APPLY,
                     "a write must apply on the cycles right after the event that made it, " +
@@ -217,8 +215,15 @@ class FrameClockPacingTest {
                     }
                 }
             awaitUntil("the content mounts") { labelTextOrNull(composition) == "frames=0" }
-            delay(LATE_START)
+            // Read partway into the gap, while the effect is still waiting it out: a read taken at the
+            // end of the gap races the first frame the effect then asks for, which a composition that
+            // settles inside the event that woke it can win.
+            delay(LATE_START / 2)
             assertEquals(0, framesSeen, "the case needs the composition idle when the frame awaiting starts")
+            assertFalse(
+                recomposer.clock.isPacingFrameDrivenWork,
+                "the case needs nothing awaiting a frame when the frame awaiting starts",
+            )
 
             awaitUntil("frame-driven work started from an idle composition runs") { framesSeen == LATE_FRAMES }
         } finally {

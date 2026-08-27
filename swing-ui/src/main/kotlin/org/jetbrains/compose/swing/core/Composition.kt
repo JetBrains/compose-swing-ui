@@ -79,20 +79,21 @@ internal fun checkEventDispatchThread() {
 }
 
 /**
- * Mounts a single composition [Composition] as a child of a [CompositionContext].
+ * A single content composition - a [Composition] rooted on a Swing container, mounted as a child of a
+ * [CompositionContext].
  *
- * The composition shares its parent's recomposition recomposer - the parent context owns the recomposer, clock
- * and scope. This mount owns only its [Composition] and what that composition's nodes share; disposing
- * it disposes just this composition, never the parent.
+ * The parent context owns the recomposer, clock and scope this composition runs on. The content
+ * composition owns only its own [Composition] and what that composition's nodes share; disposing it
+ * disposes only this composition, never the parent.
  *
- * It is that shared thing: it is the composition's [SwingCompositionOwner], holding the observer every
- * snapshot-observing component in it registers with and the batch its updates are held in. Nodes see
- * it through that interface alone, so a node reaches what its composition owns without reaching the
- * composition's lifecycle. It attaches its applier's root, and every node below takes it from its
- * parent as it is inserted.
+ * It is that shared thing: it is the content composition's [SwingCompositionOwner], holding the observer
+ * every snapshot-observing component in it registers with, the batch its updates are held in, and the
+ * call that settles a reported change. Nodes see it through that interface alone, so a node reaches what
+ * its composition owns without reaching the composition's lifecycle. It attaches its applier's root, and
+ * every node below takes it from its parent as it is inserted.
  */
 internal class SwingContentComposition private constructor(
-    parent: CompositionContext,
+    private val parent: CompositionContext,
     observed: Boolean,
     applierFactory: (SwingCompositionOwner) -> AbstractApplier<SwingNodeHolder<*>>,
 ) : SwingCompositionOwner {
@@ -104,6 +105,8 @@ internal class SwingContentComposition private constructor(
      */
     override val observer: SnapshotStateObserver? =
         if (observed) SnapshotStateObserver { onChanged -> onChanged() }.apply { start() } else null
+
+    override fun settleNow(): Unit = parent.swingFrameClock()?.settleInPlace() ?: Unit
 
     override val updateBatch: ComponentUpdateBatch = ComponentUpdateBatch()
 

@@ -311,11 +311,14 @@ private fun <V> SwingModifier.onSelectionAction(
     actionListener { event ->
         val comboBox = event.source as JComboBox<*>
         val selection = comboBox.settled()
-        val isCommit = event.actionCommand == EDITOR_COMMITTED
-        val isNews = mirror == null || mirror.observed(selection)
-        if (isCommit) {
+        if (event.actionCommand == EDITOR_COMMITTED) {
+            // An editor commit is the field's text channel, not a choice: mirrored without settling, the
+            // way every other text edit is.
+            mirror?.observed(selection)
             onValueCommit(comboBox.selectedItem?.toString().orEmpty())
-        } else if (isNews) {
+        } else if (mirror != null) {
+            mirror.report(selection, onSelectionChange)
+        } else {
             onSelectionChange(selection)
         }
     }

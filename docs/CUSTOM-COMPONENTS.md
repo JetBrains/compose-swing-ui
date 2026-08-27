@@ -303,15 +303,18 @@ These pieces work together. For why settling works this way, see
   a `State<V>` mirroring what the widget currently holds, so reading `mirror.value` while composing
   subscribes to the user changing the widget. Where a body needs that subscription but not the value,
   call `mirror.subscribe()` instead of reading a value it discards.
-- `mirror.observed(published)` is called from the widget's own listener with the value the widget just
-  published. It updates the mirror and answers whether the move is news for the caller - `true` for a
-  move the user made, `false` for a value that only arrived because the wrapper's own write to the widget
-  just produced it. Call it for every value the widget publishes, in the order it publishes them.
+- `mirror.report(published) { ... }` is called from the widget's own listener with the value the widget
+  just published. It updates the mirror, runs the block for a change the user made - not for a value
+  that only arrived because the wrapper's own write to the widget just produced it - and then settles the
+  composition on the caller's answer. See *When a change settles* below for which changes are reported.
+- `mirror.observed(published)` is the same without the settling: it updates the mirror and answers
+  whether the change is news, leaving the pass to arrive from the event queue a few cycles later. Use it
+  where settling inside the event would be wrong - see below. Call it for every value the widget
+  publishes, in the order it publishes them.
 - `declare(value, mirror, read, write)` in the `update` block settles the widget on `value`: it writes
   through `mirror` wherever `read()` does not already answer with it, and keeps the mirror in step with
   whatever the widget ends up holding. Unlike `set`, it runs again on the pass that follows a change
-  away from the declaration. Call it once per pass: it takes a slot whether or not anything is due, so a
-  `declare` inside a conditional shifts every later slot of the same `update` block.
+  away from the declaration.
 - `mirror.settle { ... }` is for a write the widget does not simply accept. Installing a row filter makes
   a table drop the selected rows it hides. Declaring a tree's open nodes and its selection separately
   lets the tree resolve the pair its own way, since a node is only selectable while its ancestors are
@@ -321,6 +324,40 @@ These pieces work together. For why settling works this way, see
   move. Saying neither throws. Say nothing at all and the mirror goes on claiming the widget holds what
   you asked for: the next pass finds no difference, nothing puts the declaration back, and the user's own
   change to that property is never reported.
+
+### When a change settles
+
+`report` gets the declaration back on the widget before the repaint that change asked for is served, and
+the caller's block runs first.
+
+Report a discrete interaction that way: a click, a selection, a step. Two kinds of change should use
+`observed` instead:
+
+- **A continuous gesture** - a drag, a resize. It reports a change per step, and the value one step lands
+  on is replaced by the next well inside a display refresh interval, so there is nothing visible to
+  correct and batching the steps is worth more than the pass.
+- **A change mirrored on one channel and reported on another.** A toggle publishes an item event before
+  it publishes its action event, so a mirror riding the item channel has already recorded the change by
+  the time the action channel reports it. Settling on the earlier channel would put the declaration back
+  before the caller heard about the change at all.
+
+Neither choice leaves a change the user makes showing before it is settled: the runtime listens for the
+events a declared value changes on - key, mouse, motion, input method, and the focus loss a formatted
+field commits its text on - and queues its frame ahead of the repaint the change provokes, whether or not
+a wrapper reports it. Where the runtime has already queued that frame, `report` runs no pass of its own:
+the queued settlement puts the declaration back after the event returns, still ahead of that repaint.
+
+That still leaves `report` doing work the runtime cannot. A change the runtime is handed no event for is
+settled only by the pass that follows it: a change a timer or a caller makes with no event in hand, and a
+drop, which Swing dispatches without offering it to toolkit listeners. So report a discrete interaction
+wherever the component can, and reach for `observed` where one of the two reasons above applies.
+
+A mirror reports through a node, and `declare` states that for the declaration it settles - so a
+component built the way above needs nothing more. A component that settles a mirror some other way -
+applying two declarations the widget resolves together, or reading back a property no declaration is
+written through - applies it itself with `applyMirror(mirror)` in the `update` block, and makes the write
+inside `mirror.settle`. A mirror that reports without either fails at the first change rather than
+quietly taking the slower path.
 
 The pieces belong to one node. Remember the `MirrorState` in the component's own body, beside the
 `SwingNode` it settles, and call `declare` exactly once per pass: what a declaration is compared against
@@ -362,13 +399,13 @@ fun MyCheckBox(
             // this pass's declaration differs from the last one.
             declare(checked, mirror, JCheckBox::isSelected, JCheckBox::setSelected)
             // The box publishes its new value for every toggle, its own and the user's alike.
-            // `observed` answers which is which by value: a toggle that lands on the declaration is
-            // the declaration arriving, not a move to report. The lambda is read when the event
-            // fires, so writing it here holds nothing across compositions.
+            // `report` tells which is which by value - a toggle that lands on the declaration is the
+            // declaration arriving, not a change - and settles the composition once the caller has had
+            // it. The lambda is read when the event fires, so writing it here holds nothing
+            // across compositions.
             applyModifier(
                 modifier.actionListener { event ->
-                    val selected = (event.source as JCheckBox).isSelected
-                    if (mirror.observed(selected)) onCheckedChange(selected)
+                    mirror.report((event.source as JCheckBox).isSelected, onCheckedChange)
                 },
             )
         },
@@ -416,14 +453,14 @@ own and the listener does not mistake it for a change to report:
 ```kotlin
 set(dividerLocation) { location ->
     if (this.dividerLocation != location) {
-        applied.write { this.dividerLocation = location }
+        mirror.write { this.dividerLocation = location }
     }
 }
 ```
 
 <!--- CLEAR -->
 
-The `applied` here is the same `MirrorState` its listener calls `observed` on - `write` is what lets the
+The `mirror` here is the same `MirrorState` its listener calls `observed` on - `write` is what lets the
 two share one mirror without fighting the user the way re-asserting the declaration on every pass would.
 
 ## Writing a state holder
@@ -973,7 +1010,7 @@ throw reaching it ends that composition for good, and the window it drives stops
 the rest of its life.
 
 So contain what the caller supplied, at the edge their code sits behind. The two-way binding already
-does: `declare`'s `onSettled` and anything a write through `applied.write { }` provokes are contained
+does: `declare`'s `onSettled` and anything a write through `mirror.write { }` provokes are contained
 and reported, and the pass finishes. Where your component calls the caller's code itself during a pass,
 catch `Throwable` around that call and hand it to `Thread.currentThread().uncaughtExceptionHandler`,
 which is where Swing leaves an exception raised under its own pump - the caller sees the failure in the

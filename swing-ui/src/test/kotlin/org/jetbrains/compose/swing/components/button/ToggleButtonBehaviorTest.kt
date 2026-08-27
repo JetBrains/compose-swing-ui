@@ -4,7 +4,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.assertUnadoptedChangeIsPutBack
+import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
+import org.jetbrains.compose.swing.click
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.toolTip
 import org.jetbrains.compose.swing.runSwingTest
@@ -275,12 +276,12 @@ class ToggleButtonBehaviorTest {
     }
 
     @Test
-    fun aSelectingClickTheCallerDoesNotAdoptComesOffWithinEventCycles() = runSwingTest {
-        assertUnadoptedChangeIsPutBack(
+    fun aSelectingClickTheCallerDoesNotAdoptIsNeverPainted() = runSwingTest {
+        assertUnadoptedChangeIsNeverPainted(
             type = JToggleButton::class.java,
             declared = false,
-            content = { ToggleButton(text = "Bold", selected = false, onSelectedChange = {}) },
-            change = { it.doClick(0) },
+            content = { report -> ToggleButton(text = "Bold", selected = false, onSelectedChange = { report() }) },
+            change = { it.click() },
             read = { it.isSelected },
         )
     }

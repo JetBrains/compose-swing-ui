@@ -4,11 +4,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.assertUnadoptedChangeIsPutBack
+import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
 import org.jetbrains.compose.swing.components.text.TextArea
+import org.jetbrains.compose.swing.pressKey
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import java.awt.event.KeyEvent
 import javax.swing.DefaultBoundedRangeModel
 import javax.swing.JLabel
 import javax.swing.JProgressBar
@@ -364,22 +366,27 @@ class ValueComponentsTest {
     }
 
     @Test
-    fun aSliderMoveTheCallerDoesNotAdoptComesOffWithinEventCycles() = runSwingTest {
-        assertUnadoptedChangeIsPutBack(
+    fun aSliderDragTheCallerDoesNotAdoptIsNeverPainted() = runSwingTest {
+        // A drag is the one continuous gesture the runtime queues a frame for. The knob follows the
+        // pointer through motion events, so a step the caller refuses is painted like any other move
+        // unless the frame is queued ahead of the repaint that step asks for.
+        assertUnadoptedChangeIsNeverPainted(
             type = JSlider::class.java,
             declared = 10,
-            content = { Slider(value = 10, onValueChange = {}) },
-            change = { it.value = 80 },
+            content = { report -> Slider(value = 10, onValueChange = { report() }) },
+            // The arrow key a slider binds to its own increment action, which is how a user moves a
+            // knob without the pointer.
+            change = { slider -> slider.pressKey(KeyEvent.VK_RIGHT) },
             read = { it.value },
         )
     }
 
     @Test
-    fun aSpinnerMoveTheCallerDoesNotAdoptComesOffWithinEventCycles() = runSwingTest {
-        assertUnadoptedChangeIsPutBack(
+    fun aSpinnerStepTheCallerDoesNotAdoptIsNeverPainted() = runSwingTest {
+        assertUnadoptedChangeIsNeverPainted(
             type = JSpinner::class.java,
             declared = 1,
-            content = { Spinner(value = 1, onValueChange = {}) },
+            content = { report -> Spinner(value = 1, onValueChange = { report() }) },
             change = { it.value = 5 },
             read = { it.value },
         )

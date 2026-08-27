@@ -11,6 +11,7 @@ import kotlinx.coroutines.swing.Swing
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
 import org.jetbrains.compose.swing.runSwingTest
+import javax.swing.SwingUtilities
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -29,7 +30,7 @@ class SwingFrameClockDisposalTest {
     @Test
     fun aDispatchQueuedBeforeDisposalDoesNotRestartTheTimer() = runSwingTest {
         val recomposer = Recomposer(Dispatchers.Swing)
-        val clock = SwingFrameClock(recomposer)
+        val clock = SwingUiDispatcher().frameClock.apply { pace(recomposer) }
         val compositionClock = checkNotNull(recomposer.effectCoroutineContext[MonotonicFrameClock])
         // Parked for the whole test: this is the frame-driven work the timer paces, and what a
         // dispatch running after disposal reads when it decides to restart the timer.
@@ -67,7 +68,7 @@ class SwingFrameClockDisposalTest {
     @Test
     fun aFrameAwaitedAfterDisposalIsNeverServed() = runSwingTest {
         val recomposer = Recomposer(Dispatchers.Swing)
-        val clock = SwingFrameClock(recomposer)
+        val clock = SwingUiDispatcher().frameClock.apply { pace(recomposer) }
         val compositionClock = checkNotNull(recomposer.effectCoroutineContext[MonotonicFrameClock])
         val frameDrivenWork = launch(start = CoroutineStart.UNDISPATCHED) { compositionClock.withFrameNanos { } }
         clock.dispose()
@@ -85,6 +86,36 @@ class SwingFrameClockDisposalTest {
         } finally {
             lateFrame.cancel()
             frameDrivenWork.cancel()
+            recomposer.cancel()
+        }
+    }
+
+    /**
+     * A settlement the hook queues for an event is a call to [SwingFrameClock.settleInPlace] on the
+     * event-queue turn after the one it was queued from, and the clock it settles can be disposed in
+     * between - a composition torn down inside the very event that made the change. The call has to do
+     * nothing then: the recomposer is cancelled, and the writes it would publish are owed to a
+     * composition that is gone.
+     */
+    @Test
+    fun aSettlementQueuedBeforeDisposalRunsNoFrameAfterIt() = runSwingTest {
+        val recomposer = Recomposer(Dispatchers.Swing)
+        val clock = SwingUiDispatcher().frameClock.apply { pace(recomposer) }
+        var lateFrame: Job? = null
+        try {
+            lateFrame = launch(start = CoroutineStart.UNDISPATCHED) { clock.withFrameNanos { } }
+            // Queued as the hook queues one, and disposed in the same event, so the settlement runs on a
+            // clock that was disposed after it was queued.
+            SwingUtilities.invokeLater { clock.settleInPlace() }
+            clock.dispose()
+
+            drainEventQueue()
+            assertTrue(
+                lateFrame.isActive,
+                "a settlement queued before disposal ran a frame on a disposed clock",
+            )
+        } finally {
+            lateFrame?.cancel()
             recomposer.cancel()
         }
     }

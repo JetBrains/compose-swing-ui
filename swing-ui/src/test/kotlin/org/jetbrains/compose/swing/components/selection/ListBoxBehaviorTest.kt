@@ -3,7 +3,7 @@ package org.jetbrains.compose.swing.components.selection
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.assertUnadoptedChangeIsPutBack
+import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -157,19 +157,45 @@ class ListBoxBehaviorTest {
     }
 
     @Test
-    fun aSelectionTheCallerDoesNotAdoptComesOffWithinEventCycles() = runSwingTest {
-        assertUnadoptedChangeIsPutBack(
+    fun aSelectionTheCallerDoesNotAdoptIsNeverPainted() = runSwingTest {
+        assertUnadoptedChangeIsNeverPainted(
             type = JList::class.java,
             declared = emptyList<Int>(),
-            content = {
+            content = { report ->
                 ListBox(
                     items = listOf("Ada", "Alan", "Grace"),
                     selectedIndices = emptySet(),
-                    onSelectionChange = {},
+                    onSelectionChange = { report() },
                 )
             },
             change = { it.selectedIndex = 1 },
             read = { it.selectedIndices.toList() },
         )
+    }
+
+    @Test
+    fun draggingAcrossRowsDoesNotSettleUntilAdjustingEnds() = runComposeSwingTest {
+        var selection by mutableStateOf(setOf(0))
+        var changes = 0
+        setContent {
+            ListBox(
+                items = listOf("a", "b", "c"),
+                selectedIndices = selection,
+                onSelectionChange = {
+                    selection = it
+                    changes++
+                },
+            )
+        }
+        val list = onNodeOfType<JList<*>>().fetch()
+        list.selectionModel.valueIsAdjusting = true
+        list.selectionModel.setSelectionInterval(1, 1)
+        list.selectionModel.addSelectionInterval(2, 2)
+        awaitIdle()
+
+        assertEquals(0, changes, "a selection still under the user's hand is not the one to report")
+        list.selectionModel.valueIsAdjusting = false
+        awaitIdle()
+        assertEquals(1, changes, "the selection the drag settles on is reported once")
     }
 }

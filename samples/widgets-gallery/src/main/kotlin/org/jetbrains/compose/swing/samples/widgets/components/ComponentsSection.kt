@@ -202,8 +202,9 @@ private fun ColumnScope.UnadoptedChangeCard() {
 
         CheckBox(text = "Signed in", checked = signedIn, onCheckedChange = { signedIn = it })
         // Adopted only while signed in. Swing selects the box on the click, before the callback is
-        // told about it, so a refused click leaves it selected until the pass that follows writes
-        // this declaration back over it.
+        // told about it, so a refused click takes the box off this declaration - and the pass that
+        // writes the declaration back runs before the paint that click asked for, so the box is
+        // never seen holding the refused value.
         CheckBox(
             text = "Sync in the background",
             checked = syncing,

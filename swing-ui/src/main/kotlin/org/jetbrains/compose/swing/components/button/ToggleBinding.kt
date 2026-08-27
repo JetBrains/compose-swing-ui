@@ -27,8 +27,7 @@ internal fun rememberToggleReporting(
     val mirror = rememberMirrorState(selected)
     val reporting =
         SwingModifier.actionListener { event ->
-            val isSelected = (event.source as AbstractButton).isSelected
-            if (mirror.observed(isSelected)) onSelectedChange(isSelected)
+            mirror.report((event.source as AbstractButton).isSelected, onSelectedChange)
         }
     return reporting to mirror
 }

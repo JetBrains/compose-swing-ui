@@ -83,13 +83,24 @@ private class UserSelectionListenerElement(
         private val listener =
             object : ListSelectionListener, ModelSwapAware<ListSelectionModel> {
                 override fun valueChanged(event: ListSelectionEvent) {
-                    val table = component
-                    if (!event.valueIsAdjusting) mirror.observed(table.selectedModelRows())
-                    if (!mirror.isWriting) {
-                        target.valueChanged(
-                            ListSelectionEvent(table, event.firstIndex, event.lastIndex, event.valueIsAdjusting),
-                        )
+                    // The caller hears every event the table raises, and hears it before the settle, so a
+                    // selection it adopts is the one settled against. Only a settled selection is
+                    // reported: settling mid-drag would put the declaration back under the user's hand,
+                    // one row at a time. The report is owed even where that listener throws - see the
+                    // same rule on ListBox's own.
+                    try {
+                        forward(event)
+                    } finally {
+                        if (!event.valueIsAdjusting) mirror.report(component.selectedModelRows()) {}
                     }
+                }
+
+                private fun forward(event: ListSelectionEvent) {
+                    if (mirror.isWriting) return
+                    val table = component
+                    target.valueChanged(
+                        ListSelectionEvent(table, event.firstIndex, event.lastIndex, event.valueIsAdjusting),
+                    )
                 }
 
                 // The rows a selection model holds are its own indices; the mirror describes the table's,

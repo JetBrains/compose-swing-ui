@@ -74,8 +74,10 @@ class SwingFrameClockRetimeTest {
      * A clock over a recomposer that is never started: the cadence arithmetic these cases cover is the
      * clock's own, and the recomposer takes no part in it.
      */
-    private fun clockAt(framesPerSecond: Int): SwingFrameClock =
-        SwingFrameClock(Recomposer(Dispatchers.Swing), framesPerSecond)
+    private fun clockAt(framesPerSecond: Int): SwingFrameClock = SwingUiDispatcher().frameClock.apply {
+        pace(Recomposer(Dispatchers.Swing))
+        setFramesPerSecond(framesPerSecond)
+    }
 
     private fun <T> onEdt(action: () -> T): T {
         if (SwingUtilities.isEventDispatchThread()) return action()

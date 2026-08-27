@@ -4,16 +4,21 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.assertUnadoptedChangeIsPutBack
+import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
+import org.jetbrains.compose.swing.click
+import org.jetbrains.compose.swing.drag
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import java.awt.Point
 import javax.swing.JCheckBox
 import javax.swing.JTable
 import javax.swing.JTextField
 import javax.swing.ListSelectionModel
+import javax.swing.RowSorter.SortKey
+import javax.swing.table.JTableHeader
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -289,6 +294,35 @@ class TableBehaviorTest {
         assertFalse(lossReported, "a row the table kept must not be reported as lost")
     }
 
+    @Test
+    fun draggingAcrossRowsDoesNotSettleUntilAdjustingEnds() = runComposeSwingTest {
+        val rows = listOf(Person("Ada", 36), Person("Alan", 41), Person("Grace", 45))
+        var selection by mutableStateOf(setOf(0))
+        var changes = 0
+        setContent {
+            Table(
+                rows = rows,
+                selectedRowIndices = selection,
+                onSelectionChange = {
+                    selection = it
+                    changes++
+                },
+            ) {
+                column("Name") { it.name }
+            }
+        }
+        val table = onNodeOfType<JTable>().fetch()
+        table.selectionModel.valueIsAdjusting = true
+        table.selectionModel.setSelectionInterval(1, 1)
+        table.selectionModel.addSelectionInterval(2, 2)
+        awaitIdle()
+
+        assertEquals(0, changes, "a selection still under the user's hand is not the one to report")
+        table.selectionModel.valueIsAdjusting = false
+        awaitIdle()
+        assertEquals(1, changes, "the selection the drag settles on is reported once")
+    }
+
     /**
      * A declared run of rows leaves the table where the user's own drag over them would: the anchor at the
      * start of the run and the lead at its end. A shift-click extends from the anchor, so where it sits is
@@ -375,15 +409,15 @@ class TableBehaviorTest {
     }
 
     @Test
-    fun aSelectionTheCallerDoesNotAdoptComesOffWithinEventCycles() = runSwingTest {
-        assertUnadoptedChangeIsPutBack(
+    fun aSelectionTheCallerDoesNotAdoptIsNeverPainted() = runSwingTest {
+        assertUnadoptedChangeIsNeverPainted(
             type = JTable::class.java,
             declared = emptyList<Int>(),
-            content = {
+            content = { report ->
                 Table(
                     rows = listOf("Ada", "Alan"),
                     selectedRowIndices = emptySet(),
-                    onSelectionChange = {},
+                    onSelectionChange = { report() },
                 ) {
                     column("Name") { it }
                 }
@@ -392,4 +426,82 @@ class TableBehaviorTest {
             read = { it.selectedRows.toList() },
         )
     }
+
+    /**
+     * A sort order the user asks for is only mirrored, never reported from inside the change, so the pass
+     * that puts the declared order back is the one a runtime queues when the toolkit is handed the event -
+     * ahead of the repaint the re-sorted rows ask for.
+     */
+    @Test
+    fun aSortTheCallerDoesNotAdoptIsNeverPainted() = runSwingTest {
+        assertUnadoptedChangeIsNeverPainted(
+            type = JTable::class.java,
+            declared = emptyList<SortKey>(),
+            content = { report ->
+                Table(
+                    rows = listOf("Ada", "Alan"),
+                    sortable = true,
+                    sortKeys = emptyList(),
+                    onSortChange = { report() },
+                ) {
+                    column("Name") { it }
+                }
+            },
+            // The click lands on the column header, where a user asks a table to sort; the header's own
+            // UI is what toggles the sorter. A table standing outside a scroll pane carries its header
+            // unsized, so the header is given the bounds a scroll pane would have given it first.
+            change = { table -> table.tableHeader.sized(table).click(table.headerCenterOf(0)) },
+            read = { table -> table.rowSorter.sortKeys.toList() },
+        )
+    }
+
+    /**
+     * A column the user drags to another position is only mirrored, never reported from inside the change,
+     * so what puts the declared order back ahead of the repaint the reordered columns ask for is the
+     * settlement queued when the toolkit is handed the header's own event.
+     */
+    @Test
+    fun aColumnReorderTheCallerDoesNotAdoptIsNeverPainted() = runSwingTest {
+        val declared = TableColumnLayout(listOf(0, 1), listOf(DEFAULT_COLUMN_WIDTH, DEFAULT_COLUMN_WIDTH))
+        assertUnadoptedChangeIsNeverPainted(
+            type = JTable::class.java,
+            declared = declared,
+            content = { report ->
+                Table(
+                    rows = listOf(Person("Ada", 36)),
+                    columnLayout = declared,
+                    onColumnLayoutChange = { report() },
+                ) {
+                    column("Name") { it.name }
+                    column("Age") { it.age }
+                }
+            },
+            // The drag takes hold of the first column's header and carries it past the second, which is
+            // how a user reorders columns; the header's own UI is what moves the column. The header is
+            // sized first, as it is for a sort.
+            change = { table ->
+                table.tableHeader.sized(table).drag(table.headerCenterOf(0), table.headerCenterOf(1))
+            },
+            read = { table -> table.columnModel.readColumnLayout() },
+        )
+    }
+
+    private companion object {
+        /** The width a `TableColumn` is built with, which is what an undragged column's layout names. */
+        const val DEFAULT_COLUMN_WIDTH: Int = 75
+    }
+}
+
+/**
+ * Gives this header the bounds a scroll pane would give it, so a gesture aimed at a column lands on
+ * that column. A [JTable] standing outside a scroll pane never adds its header to the hierarchy, which
+ * leaves it unsized and every position on it resolving to nothing.
+ */
+private fun JTableHeader.sized(table: JTable): JTableHeader =
+    apply { setSize(table.width, preferredSize.height.coerceAtLeast(1)) }
+
+/** The middle of the header cell for the column at [index], in the header's own coordinates. */
+private fun JTable.headerCenterOf(index: Int): Point {
+    val x = (0 until index).sumOf { columnModel.getColumn(it).width }
+    return Point(x + columnModel.getColumn(index).width / 2, tableHeader.height / 2)
 }

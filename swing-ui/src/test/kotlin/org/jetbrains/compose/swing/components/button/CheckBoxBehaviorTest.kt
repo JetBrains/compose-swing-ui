@@ -4,15 +4,22 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.assertUnadoptedChangeIsPutBack
+import kotlinx.coroutines.DisposableHandle
+import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
+import org.jetbrains.compose.swing.click
+import org.jetbrains.compose.swing.core.SwingRecomposer
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.toolTip
+import org.jetbrains.compose.swing.modifier.listener.actionListener
 import org.jetbrains.compose.swing.runSwingTest
+import org.jetbrains.compose.swing.setContent
+import org.jetbrains.compose.swing.singleWidget
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.event.ActionListener
 import javax.swing.JCheckBox
+import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -26,7 +33,8 @@ import kotlin.test.assertTrue
  * state through the callback, and a value pushed in from composition applies without echoing back as a
  * callback. Text, checked state and the modifier are each driven through more than one value and back,
  * so a parameter honored only when the component is built would fail here. A click the caller does not
- * adopt does not stand - the next settled pass writes the declared state back over it.
+ * adopt does not stand - the next settled pass writes the declared state back over it - and a click it
+ * does adopt is left standing, both by the time the click returns.
  *
  * A declared checked state is settled by the pass that declares it and no later one. The same
  * settle serves `RadioButton` and `ToggleButton`, which reach it through the shared `declareSelected`.
@@ -261,12 +269,70 @@ class CheckBoxBehaviorTest {
     }
 
     @Test
-    fun aClickTheCallerDoesNotAdoptComesOffWithinEventCycles() = runSwingTest {
-        assertUnadoptedChangeIsPutBack(
+    fun aClickTheCallerAdoptsLeavesTheBoxOnWhatTheCallerAdopted() = runSwingTest {
+        val composition = JPanel()
+        val recomposer = SwingRecomposer.create(composition)
+        var mounted: DisposableHandle? = null
+        try {
+            var checked by mutableStateOf(false)
+            mounted =
+                composition.setContent(parent = recomposer.compositionContext) {
+                    CheckBox(text = "Word wrap", checked = checked, onCheckedChange = { checked = it })
+                }
+            val box = singleWidget(composition, JCheckBox::class.java)
+
+            box.doClick(0)
+
+            // Read with no cycle in between: the click's own settle is what has to leave the box here,
+            // not a pass a later event brings.
+            assertTrue(
+                box.isSelected,
+                "a click the caller adopts must be settled on what the caller wrote, not put back on " +
+                    "the declaration that click replaced",
+            )
+        } finally {
+            mounted?.dispose()
+            recomposer.dispose()
+        }
+    }
+
+    @Test
+    fun anActionListenerTheCallerAddedReadsTheStateTheClickProduced() = runComposeSwingTest {
+        val seen = mutableListOf<Boolean>()
+        setContent {
+            CheckBox(
+                text = "Word wrap",
+                checked = false,
+                // Never adopted, so the wrapper settles the box back to false on the same click.
+                onCheckedChange = { },
+                modifier =
+                    SwingModifier.actionListener { event ->
+                        seen += (event.source as JCheckBox).isSelected
+                    },
+            )
+        }
+
+        onNodeOfType<JCheckBox>().performClick()
+
+        assertEquals(
+            listOf(true),
+            seen,
+            "a listener the caller added must be handed the state its click produced, not the one the " +
+                "declaration settles back over it",
+        )
+        assertFalse(
+            onNodeOfType<JCheckBox>().fetch<JCheckBox>().isSelected,
+            "the settle this asserts about has to have run: the unadopted click is put back",
+        )
+    }
+
+    @Test
+    fun aClickTheCallerDoesNotAdoptIsNeverPainted() = runSwingTest {
+        assertUnadoptedChangeIsNeverPainted(
             type = JCheckBox::class.java,
             declared = false,
-            content = { CheckBox(text = "Word wrap", checked = false, onCheckedChange = {}) },
-            change = { it.doClick(0) },
+            content = { report -> CheckBox(text = "Word wrap", checked = false, onCheckedChange = { report() }) },
+            change = { it.click() },
             read = { it.isSelected },
         )
     }

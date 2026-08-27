@@ -4,11 +4,17 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.UserChange
+import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
 import org.jetbrains.compose.swing.assertUnadoptedChangeIsPutBack
+import org.jetbrains.compose.swing.deliverEvent
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.jetbrains.compose.swing.type
+import org.jetbrains.compose.swing.typeBurst
+import java.awt.event.FocusEvent
 import java.beans.PropertyChangeListener
 import java.text.ParseException
 import javax.swing.JFormattedTextField
@@ -479,46 +485,114 @@ class DeclaredTextPushTest {
         assertEquals(listOf("inner-outer!"), reported, "the edit after the outermost write is reported")
     }
 
+    /**
+     * The one case for an edit that reaches a text component with no toolkit event in flight - what a
+     * dropped value is, since the event carrying a drop never reaches the toolkit's listeners. Nothing
+     * queues a frame ahead of the repaint such an edit provokes, so the declaration travels the event
+     * queue back onto the field, on the cycles that path costs and with no frame-paced work behind it.
+     */
     @Test
-    fun aTextFieldEditTheCallerDoesNotAdoptComesOffWithinEventCycles() = runSwingTest {
+    fun aTextFieldEditMadeOutsideAnEventComesOffOnTheEventQueue() = runSwingTest {
         assertUnadoptedChangeIsPutBack(
             type = JTextField::class.java,
             declared = "Ada",
-            content = { TextField(value = "Ada", onValueChange = {}) },
+            content = { report -> TextField(value = "Ada", onValueChange = { report() }) },
             change = { it.text = "Adam" },
             read = { it.text },
         )
     }
 
     @Test
-    fun aTextAreaEditTheCallerDoesNotAdoptComesOffWithinEventCycles() = runSwingTest {
-        assertUnadoptedChangeIsPutBack(
+    fun aTextFieldEditTheUserMakesAndTheCallerRefusesIsNeverPainted() = runSwingTest {
+        assertUnadoptedChangeIsNeverPainted(
+            type = JTextField::class.java,
+            declared = "Ada",
+            content = { report -> TextField(value = "Ada", onValueChange = { report() }) },
+            change = { field -> field.type("m") },
+            read = { it.text },
+        )
+    }
+
+    /**
+     * The gallery's "year" field, which flashed the digits it refused.
+     *
+     * A keystroke arrives as three events, each from an event-queue cycle of its own, and a frame the
+     * recomposer had already asked for runs among them. A queued frame that broadcast without first
+     * publishing the writes made since it was queued recomposed against a value already superseded, so
+     * it settled nothing and the repaint right behind it painted the refused text.
+     */
+    @Test
+    fun aRefusedKeystrokeIsNeverPaintedWhileAFrameIsAlreadyQueued() = runSwingTest {
+        assertUnadoptedChangeIsNeverPainted(
+            type = JTextField::class.java,
+            declared = "2026",
+            content = { report ->
+                var year by remember { mutableStateOf("2026") }
+                TextField(
+                    value = year,
+                    onValueChange = { edited ->
+                        if (edited.all(Char::isDigit)) year = edited
+                        report()
+                    },
+                )
+            },
+            change = { field -> field.type("xy") },
+            read = { it.text },
+        )
+    }
+
+    @Test
+    fun aRefusedKeystrokeIsNeverPaintedWhileTheUserKeepsTyping() = runSwingTest {
+        // A burst leaves each keystroke's repaint still pending when the next one lands. The next
+        // keystroke's change is merged into that repaint, which keeps the place it was queued in -
+        // ahead of the settlement this keystroke queued behind it. Only settling from the report beats
+        // it there.
+        assertUnadoptedChangeIsNeverPainted(
+            type = JTextField::class.java,
+            declared = "Ada",
+            content = { report -> TextField(value = "Ada", onValueChange = { report() }) },
+            change = { field -> field.typeBurst("xy") },
+            read = { it.text },
+        )
+    }
+
+    @Test
+    fun aTextAreaEditTheUserMakesAndTheCallerRefusesIsNeverPainted() = runSwingTest {
+        assertUnadoptedChangeIsNeverPainted(
             type = JTextArea::class.java,
             declared = "Ada",
-            content = { TextArea(value = "Ada", onValueChange = {}) },
-            change = { it.text = "Adam" },
+            content = { report -> TextArea(value = "Ada", onValueChange = { report() }) },
+            change = { area -> area.type("m") },
             read = { it.text },
         )
     }
 
     @Test
-    fun aTextPaneEditTheCallerDoesNotAdoptComesOffWithinEventCycles() = runSwingTest {
-        assertUnadoptedChangeIsPutBack(
+    fun aTextPaneEditTheUserMakesAndTheCallerRefusesIsNeverPainted() = runSwingTest {
+        assertUnadoptedChangeIsNeverPainted(
             type = JTextPane::class.java,
             declared = "Ada",
-            content = { TextPane(value = "Ada", onValueChange = {}) },
-            change = { it.text = "Adam" },
+            content = { report -> TextPane(value = "Ada", onValueChange = { report() }) },
+            change = { pane -> pane.type("m") },
             read = { it.text },
         )
     }
 
     @Test
-    fun aCommitTheCallerDoesNotAdoptComesOffWithinEventCycles() = runSwingTest {
-        assertUnadoptedChangeIsPutBack(
+    fun aCommitTheUserMakesAndTheCallerRefusesIsNeverPainted() = runSwingTest {
+        assertUnadoptedChangeIsNeverPainted(
             type = JFormattedTextField::class.java,
             declared = 10,
-            content = { FormattedTextField(value = 10, onValueChange = {}) },
-            change = { it.value = 42 },
+            content = { report -> FormattedTextField(value = 10, onValueChange = { report() }) },
+            change =
+                UserChange(
+                    // The digit is typed but not committed: a formatted field commits its edit when
+                    // focus leaves it, so the focus loss is the event the change is made in.
+                    earlier = { field -> field.type("2") },
+                    made = { field ->
+                        field.deliverEvent(FocusEvent(field, FocusEvent.FOCUS_LOST, false, JTextField()))
+                    },
+                ),
             read = { it.value },
         )
     }

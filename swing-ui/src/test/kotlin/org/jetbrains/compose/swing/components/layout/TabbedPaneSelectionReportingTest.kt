@@ -6,7 +6,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.assertUnadoptedChangeIsPutBack
+import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
@@ -616,12 +616,12 @@ class TabbedPaneSelectionReportingTest {
     }
 
     @Test
-    fun aSelectionTheCallerDoesNotAdoptComesOffWithinEventCycles() = runSwingTest {
-        assertUnadoptedChangeIsPutBack(
+    fun aSelectionTheCallerDoesNotAdoptIsNeverPainted() = runSwingTest {
+        assertUnadoptedChangeIsNeverPainted(
             type = JTabbedPane::class.java,
             declared = 0,
-            content = {
-                TabbedPane(selectedIndex = 0, onSelectedIndexChange = {}) {
+            content = { report ->
+                TabbedPane(selectedIndex = 0, onSelectedIndexChange = { report() }) {
                     Label("g", SwingModifier.tab("General"))
                     Label("a", SwingModifier.tab("Advanced"))
                 }

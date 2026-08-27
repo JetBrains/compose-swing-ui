@@ -3,8 +3,8 @@ package org.jetbrains.compose.swing.node
 import androidx.compose.runtime.snapshots.SnapshotStateObserver
 
 /**
- * The [SwingCompositionOwner] a test attaches an applier's root to, standing in for the mount that owns
- * one in production.
+ * The [SwingCompositionOwner] a test attaches an applier's root to, standing in for the content
+ * composition that owns one in production.
  *
  * A case that drives an applier without a composition around it observes nothing unless it asks for
  * [observing]: what it needs from an owner is the update batch every applier holds its pass in.
@@ -12,6 +12,9 @@ import androidx.compose.runtime.snapshots.SnapshotStateObserver
 internal class TestCompositionOwner private constructor(
     override val observer: SnapshotStateObserver?,
 ) : SwingCompositionOwner {
+    /** A case that drives an applier without a composition around it has no pass to settle. */
+    override fun settleNow(): Unit = Unit
+
     override val updateBatch: ComponentUpdateBatch = ComponentUpdateBatch()
 
     /** Stops the observer this owner started, if it started one. */

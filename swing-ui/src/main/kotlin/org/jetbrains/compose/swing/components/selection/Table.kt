@@ -208,8 +208,8 @@ public fun <R> Table(
     // showing it, rather than a default model briefly standing in before the update block's own
     // set(model) call installs this one.
     val model = remember { ColumnsTableModel<R>() }
-    // One cell composition per column that declares a composable cell, following the declarations pass by
-    // pass. Each composition resolves the row a stamp names against the rows the model holds then.
+    // One cell composition per column that declares a composable cell, following the declarations pass
+    // by pass. Each resolves the row a stamp names against the rows the model holds then.
     val cellCompositions = rememberTableCellCompositions(columns) { rowIndex -> model.rowAt(rowIndex) }
 
     TableNode(
@@ -642,6 +642,7 @@ private fun TableNode(
     SwingNode(
         factory = { JTable(model) },
         update = {
+            applyMirror(selectionMirror)
             set(selectionMode) { mode ->
                 narrowSelection(selectionMirror, selectedRowIndices, listSelectionListener) {
                     applySelectionMode(mode)

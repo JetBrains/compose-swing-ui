@@ -423,11 +423,18 @@ private fun <T> ListBoxNode(
     val mirror = rememberMirrorState(selectedIndices)
     // A drag publishes one selection per row crossed before it settles, so only the settled value is worth
     // mirroring - mirroring an adjusting one would invalidate this composition, and re-assert the
-    // declaration, before the user has let go. Forwarding to the caller's own listener follows the write
-    // depth alone, exactly as it did without a mirror, so every adjusting event still reaches it.
+    // declaration, before the user has let go, one row at a time.
     val onUserSelection: (ListSelectionEvent) -> Unit = { event ->
-        if (!event.valueIsAdjusting) mirror.observed((event.source as JList<*>).selectedIndices.toSet())
-        if (!mirror.isWriting) listSelectionListener.valueChanged(event)
+        // The caller hears every event the list raises, gated on the write depth alone exactly as it was
+        // without a mirror, and hears it before the settle, so a selection it adopts is the one settled
+        // against. The report is owed either way: a caller's listener that throws has already left the
+        // caller's own state behind, and a stale record on top of that would settle the list against a
+        // selection it no longer holds.
+        try {
+            if (!mirror.isWriting) listSelectionListener.valueChanged(event)
+        } finally {
+            if (!event.valueIsAdjusting) mirror.report((event.source as JList<*>).selectedIndices.toSet()) {}
+        }
     }
     SwingNode(
         factory = { JList<T>() },

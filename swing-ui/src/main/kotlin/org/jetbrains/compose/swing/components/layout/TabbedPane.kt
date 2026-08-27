@@ -134,8 +134,8 @@ private fun TabbedPaneImpl(
     // from the mirror: the settle below reads the selection off the pane.
     mirror.subscribe()
     // Captured here in the composable body: a header cannot be an applier node of the pane (see
-    // TabHeaderComposition in TabbedPaneScope), so this context is threaded to it explicitly instead of being
-    // inherited through the node tree.
+    // TabHeaderComposition in TabbedPaneScope), so this context is threaded to it explicitly instead of
+    // being inherited through the node tree.
     val headerParentContext = rememberCompositionContext()
     // Remembered with the pane: a tab's declaration is built against these as that tab's modifier is
     // built, so both outlive the pass that declared it.
@@ -146,11 +146,10 @@ private fun TabbedPaneImpl(
     // recorded here, so a pane holding anything else is holding a selection the caller has not heard of.
     val reportedSelection = remember { intArrayOf(NO_TAB) }
     val onUserSelection: (ChangeEvent) -> Unit = { event ->
-        val current = (event.source as JTabbedPane).selectedIndex
         // Only a change of the user's is theirs to be told about, and only one they were told about
         // belongs in the record - a change the pane made under one of this wrapper's own writes is
         // settled below, which is where the record catches up with it.
-        if (mirror.observed(current)) {
+        mirror.report((event.source as JTabbedPane).selectedIndex) { current ->
             reportedSelection[0] = current
             changeListener.stateChanged(event)
         }
@@ -159,11 +158,12 @@ private fun TabbedPaneImpl(
     SwingNode(
         factory = { JTabbedPane() },
         update = {
+            applyMirror(mirror)
             set(tabPlacement) { this.tabPlacement = it }
             set(tabLayoutPolicy) { this.tabLayoutPolicy = it }
             applyModifier(modifier.changeListener(onUserSelection))
 
-            // A tab becomes a page of the pane only once the recomposer has applied the content this block
+            // A tab becomes a page of the pane only once the runtime has applied the content this block
             // declares, so a selection written here would be written against the strip the pass before it
             // left behind. Settled at the end of the change pass instead, which is what has one pass
             // declare a tab and put the pane on it. The same settle runs again on every later pass that
