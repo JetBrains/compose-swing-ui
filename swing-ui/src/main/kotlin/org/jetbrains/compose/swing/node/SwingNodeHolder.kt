@@ -5,6 +5,7 @@ import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.snapshots.SnapshotStateObserver
 import org.jetbrains.annotations.VisibleForTesting
 import org.jetbrains.compose.swing.core.COMPOSITION_KEY
+import org.jetbrains.compose.swing.core.set
 import org.jetbrains.compose.swing.modifier.SwingModifierState
 import org.jetbrains.compose.swing.modifier.resetModifierState
 import java.awt.Component
@@ -276,7 +277,7 @@ internal class SwingNodeHolder<out T : Component>
                             "'${component.javaClass.name}'. A non-JComponent cannot host subcompositions " +
                             "through the client-property walk.",
                     )
-            host.putClientProperty(COMPOSITION_KEY, context)
+            host[COMPOSITION_KEY] = context
             hostsSubcompositions = true
         }
 
@@ -287,7 +288,7 @@ internal class SwingNodeHolder<out T : Component>
          */
         private fun clearSubcompositionStamp() {
             if (!hostsSubcompositions) return
-            (component as? JComponent)?.putClientProperty(COMPOSITION_KEY, null)
+            (component as? JComponent)?.set(COMPOSITION_KEY, null)
             hostsSubcompositions = false
         }
 

@@ -3,6 +3,10 @@
 
 package org.jetbrains.compose.swing.modifier.appearance
 
+import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
+import org.jetbrains.compose.swing.core.Key
+import org.jetbrains.compose.swing.core.get
+import org.jetbrains.compose.swing.core.set
 import org.jetbrains.compose.swing.modifier.PropertyElement
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.propertyElement
@@ -34,13 +38,28 @@ public fun SwingModifier.name(name: String?): SwingModifier =
  */
 public fun SwingModifier.testTag(tag: String): SwingModifier = this then TestTagElement(tag)
 
+/**
+ * The tag [testTag] set on this component, or `null` where it carries none: a component the modifier
+ * was never applied to, and one that is no `JComponent` and so holds no client properties at all.
+ *
+ * A test harness resolves a tagged component through this. What the library publishes is the read; the
+ * slot the tag sits in stays its own.
+ *
+ * Marked [InternalSwingUiApi]; it may change or be removed without notice in any release.
+ */
+@InternalSwingUiApi
+public fun Component.testTagOrNull(): String? = (this as? JComponent)?.get(TEST_TAG_KEY)
+
+/** The client property [testTag] stores its tag under, read back by [testTagOrNull]. */
+private val TEST_TAG_KEY: Key<String> = Key("org.jetbrains.compose.swing.testTag")
+
 private class TestTagElement(
-    tag: Any?,
-) : PropertyElement<JComponent, Any?>(
+    tag: String?,
+) : PropertyElement<JComponent, String?>(
         JComponent::class.java,
         tag,
-        read = { it.getClientProperty(TEST_TAG_CLIENT_PROPERTY_KEY) },
-        write = { component, value -> component.putClientProperty(TEST_TAG_CLIENT_PROPERTY_KEY, value) },
+        read = { it[TEST_TAG_KEY] },
+        write = { component, value -> component[TEST_TAG_KEY] = value },
     )
 
 /**

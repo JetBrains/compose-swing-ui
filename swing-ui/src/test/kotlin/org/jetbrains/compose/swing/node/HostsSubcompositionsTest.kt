@@ -6,6 +6,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.core.COMPOSITION_KEY
+import org.jetbrains.compose.swing.core.get
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JPanel
@@ -78,7 +80,7 @@ class HostsSubcompositionsTest {
 
             assertEquals(
                 true,
-                hostPanel.getClientProperty(COMPOSITION_KEY_FOR_TEST) != null,
+                hostPanel[COMPOSITION_KEY] != null,
                 "an opted-in host node must publish the COMPOSITION_KEY stamp while in the composition.",
             )
 
@@ -88,7 +90,7 @@ class HostsSubcompositionsTest {
             awaitIdle()
 
             assertNull(
-                hostPanel.getClientProperty(COMPOSITION_KEY_FOR_TEST),
+                hostPanel[COMPOSITION_KEY],
                 "releasing the host node must clear the COMPOSITION_KEY stamp.",
             )
         }
@@ -108,21 +110,21 @@ class HostsSubcompositionsTest {
             }
 
             assertNull(
-                hostPanel.getClientProperty(COMPOSITION_KEY_FOR_TEST),
+                hostPanel[COMPOSITION_KEY],
                 "a node that does not opt in must publish no COMPOSITION_KEY stamp.",
             )
 
             hosting = true
             awaitIdle()
             assertNotNull(
-                hostPanel.getClientProperty(COMPOSITION_KEY_FOR_TEST),
+                hostPanel[COMPOSITION_KEY],
                 "opting in must publish the stamp so descendants can discover the composition.",
             )
 
             hosting = false
             awaitIdle()
             assertNull(
-                hostPanel.getClientProperty(COMPOSITION_KEY_FOR_TEST),
+                hostPanel[COMPOSITION_KEY],
                 "opting back out must clear the stamp so a later setContent walk finds no host here.",
             )
         }
@@ -142,21 +144,21 @@ class HostsSubcompositionsTest {
             }
 
             assertNull(
-                hostPanel.getClientProperty(COMPOSITION_KEY_FOR_TEST),
+                hostPanel[COMPOSITION_KEY],
                 "a node that does not opt in must publish no COMPOSITION_KEY stamp.",
             )
 
             hosting = true
             awaitIdle()
             assertNotNull(
-                hostPanel.getClientProperty(COMPOSITION_KEY_FOR_TEST),
+                hostPanel[COMPOSITION_KEY],
                 "opting in must publish the stamp so descendants can discover the composition.",
             )
 
             hosting = false
             awaitIdle()
             assertNull(
-                hostPanel.getClientProperty(COMPOSITION_KEY_FOR_TEST),
+                hostPanel[COMPOSITION_KEY],
                 "opting back out must clear the stamp so a later setContent walk finds no host here.",
             )
         }
@@ -169,10 +171,5 @@ class HostsSubcompositionsTest {
         // Provided at the top of the surrounding composition; the nested child reads it to prove it
         // joined that composition rather than starting a detached one (which would see UNPROVIDED).
         val LocalGreeting = compositionLocalOf { UNPROVIDED }
-
-        // The client-property key the library publishes for the descendant tree-walk. Kept internal in
-        // production; the literal is duplicated here only to assert observable Swing state (the stamp
-        // being present then cleared), never a private field of the library.
-        const val COMPOSITION_KEY_FOR_TEST: String = "org.jetbrains.compose.swing.composition"
     }
 }

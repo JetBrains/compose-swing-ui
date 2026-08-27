@@ -1,7 +1,7 @@
 package org.jetbrains.compose.swing.test
 
 import org.jetbrains.annotations.Nls
-import org.jetbrains.compose.swing.modifier.appearance.TEST_TAG_CLIENT_PROPERTY_KEY
+import org.jetbrains.compose.swing.modifier.appearance.testTagOrNull
 import java.awt.Component
 import java.awt.Container
 import java.awt.Dialog
@@ -9,7 +9,6 @@ import java.awt.Frame
 import javax.accessibility.AccessibleRole
 import javax.swing.AbstractButton
 import javax.swing.JComboBox
-import javax.swing.JComponent
 import javax.swing.JInternalFrame
 import javax.swing.text.JTextComponent
 
@@ -68,10 +67,7 @@ public class SwingMatcher internal constructor(
 
         /** Matches a component tagged with [tag] via `SwingModifier.testTag`. */
         public fun hasTestTag(tag: String): SwingMatcher =
-            SwingMatcher("hasTestTag(\"$tag\")") { component ->
-                component is JComponent &&
-                    component.getClientProperty(TEST_TAG_CLIENT_PROPERTY_KEY) == tag
-            }
+            SwingMatcher("hasTestTag(\"$tag\")") { component -> component.testTagOrNull() == tag }
 
         /**
          * Matches a component whose accessible name equals [name], read from its

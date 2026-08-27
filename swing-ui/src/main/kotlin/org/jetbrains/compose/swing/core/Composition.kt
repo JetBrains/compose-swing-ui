@@ -15,7 +15,7 @@ import javax.swing.SwingUtilities
  * Client property key under which a component's [CompositionContext] is stored, so nested
  * compositions can find their parent and share its recomposition scope.
  */
-internal const val COMPOSITION_KEY: String = "org.jetbrains.compose.swing.composition"
+internal val COMPOSITION_KEY: Key<CompositionContext> = Key("org.jetbrains.compose.swing.composition")
 
 /**
  * Finds the parent [CompositionContext] by walking the Swing component tree, reading two things off each
@@ -44,7 +44,7 @@ internal fun Component.findParentCompositionContext(): CompositionContext? {
  * container, so the component the walk started at contributes its stamp and none of its islands.
  */
 private fun Component.compositionContextHere(walkStartedAt: Component): CompositionContext? =
-    (this as? JComponent)?.getClientProperty(COMPOSITION_KEY) as? CompositionContext
+    (this as? JComponent)?.get(COMPOSITION_KEY)
         ?: takeIf { it !== walkStartedAt }?.islandCompositionContextOrNull()
 
 /**
@@ -57,7 +57,7 @@ private fun Component.compositionContextHere(walkStartedAt: Component): Composit
  * stamps nothing.
  */
 internal fun JComponent.setCompositionContext(context: CompositionContext?) {
-    putClientProperty(COMPOSITION_KEY, context)
+    this[COMPOSITION_KEY] = context
 }
 
 /**

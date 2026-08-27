@@ -64,7 +64,7 @@ class WindowRecomposerSharingTest {
         val windowRoot = onEdt { JPanel().apply { size = Dimension(SIZE, SIZE) } }
         val islandA = onEdt { JPanel().also { windowRoot.add(it) } }
         val islandB = onEdt { JPanel().also { windowRoot.add(it) } }
-        onEdt { windowRoot.putClientProperty(COMPOSITION_KEY, recomposer) }
+        onEdt { windowRoot[COMPOSITION_KEY] = recomposer }
 
         // Both islands read ONE shared state: mutating it recomposes BOTH only if they share one
         // recomposer, since a recomposer of their own would not be driven by this clock.
@@ -101,7 +101,7 @@ class WindowRecomposerSharingTest {
         // A container stamped with a context is discovered by a setContent call on that very
         // container (self-first), not only by descendants - the semantics the window root pane relies on.
         val host = onEdt { JPanel().apply { size = Dimension(SIZE, SIZE) } }
-        onEdt { host.putClientProperty(COMPOSITION_KEY, recomposer) }
+        onEdt { host[COMPOSITION_KEY] = recomposer }
 
         var value by mutableStateOf("seed")
         onEdt { handles += host.setContent { Label(text = "self=$value") } }

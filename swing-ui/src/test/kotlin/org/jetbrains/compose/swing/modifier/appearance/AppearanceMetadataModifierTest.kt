@@ -7,6 +7,7 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.interaction.focusable
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.modifier.listener.propertyChangeListener
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Color
@@ -14,6 +15,7 @@ import java.awt.Cursor
 import java.awt.Dimension
 import java.awt.Font
 import java.awt.Insets
+import java.awt.Panel
 import javax.swing.BorderFactory
 import javax.swing.JLabel
 import javax.swing.border.Border
@@ -30,7 +32,7 @@ import kotlin.test.assertTrue
 
 /**
  * Behavioral coverage for the appearance and metadata [SwingModifier]s that lack a dedicated suite:
- * font, border, cursor, clientProperty, focusable and preferredSize. Each test asserts the applied
+ * font, border, cursor, clientProperty, testTag, focusable and preferredSize. Each test asserts the applied
  * Swing property AND its restoration to the pre-modifier default once the element leaves the chain -
  * the round-trip contract every property element promises.
  */
@@ -314,6 +316,50 @@ class AppearanceMetadataModifierTest {
         val label = onNodeOfType<JLabel>().fetch()
         assertEquals(Dimension(123, 45), label.preferredSize, "the overload should apply the dimension")
         assertTrue(label.isPreferredSizeSet, "the overload should set the preferred-size-set flag")
+    }
+
+    @Test
+    fun testTagOrNullReadsBackWhatTheTestTagModifierApplied() = runComposeSwingTest {
+        var tagged by mutableStateOf(true)
+        setContent {
+            Label("untagged")
+            Label("tagged", modifier = if (tagged) SwingModifier.testTag("the-tag") else SwingModifier)
+        }
+        val label = onNodeWithText("tagged")
+        assertEquals("the-tag", label.fetch<JLabel>().testTagOrNull(), "the applied tag should read back")
+        assertNull(
+            onNodeWithText("untagged").fetch<JLabel>().testTagOrNull(),
+            "a component the modifier was never applied to should carry no tag",
+        )
+
+        tagged = false
+        awaitIdle()
+        assertNull(label.fetch<JLabel>().testTagOrNull(), "removing the modifier should clear the tag")
+    }
+
+    @Test
+    fun testTagOrNullAnswersNullForAComponentThatHoldsNoClientProperties() {
+        assertNull(Panel().testTagOrNull(), "a component that is no JComponent carries no tag")
+    }
+
+    @Test
+    fun applyingATestTagFiresAPropertyChangeUnderThePlainPropertyName() = runComposeSwingTest {
+        var tagged by mutableStateOf(false)
+        val seen = mutableListOf<Any?>()
+        // The name a client-property write fires under is what a bound listener matches on, so it is
+        // contract towards callers and the test states it rather than reading it back off the key.
+        val watcher =
+            SwingModifier.propertyChangeListener("org.jetbrains.compose.swing.testTag") {
+                seen += it.newValue
+            }
+        setContent {
+            val tag = if (tagged) SwingModifier.testTag("the-tag") else SwingModifier
+            Label("X", modifier = watcher then tag)
+        }
+
+        tagged = true
+        awaitIdle()
+        assertEquals(listOf<Any?>("the-tag"), seen, "applying a tag should notify a listener bound to that name")
     }
 }
 

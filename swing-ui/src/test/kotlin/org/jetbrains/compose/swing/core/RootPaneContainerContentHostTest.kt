@@ -57,7 +57,7 @@ class RootPaneContainerContentHostTest {
     private fun hostFrame(): JInternalFrame = onEdt {
         JInternalFrame("host").apply {
             bounds = Rectangle(0, 0, SIZE, SIZE)
-            putClientProperty(COMPOSITION_KEY, recomposer)
+            this[COMPOSITION_KEY] = recomposer
         }
     }
 

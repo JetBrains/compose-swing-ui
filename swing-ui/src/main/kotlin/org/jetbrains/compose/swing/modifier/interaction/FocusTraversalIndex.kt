@@ -3,6 +3,9 @@
 
 package org.jetbrains.compose.swing.modifier.interaction
 
+import org.jetbrains.compose.swing.core.Key
+import org.jetbrains.compose.swing.core.get
+import org.jetbrains.compose.swing.core.set
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.propertyElement
 import java.awt.Component
@@ -21,10 +24,10 @@ import javax.swing.LayoutFocusTraversalPolicy
  */
 public fun SwingModifier.focusTraversalIndex(index: Int): SwingModifier =
     this then
-        propertyElement<JComponent, Any?>(
+        propertyElement<JComponent, Int?>(
             index,
-            read = { it.getClientProperty(FOCUS_TRAVERSAL_INDEX_KEY) },
-            write = { component, value -> component.putClientProperty(FOCUS_TRAVERSAL_INDEX_KEY, value) },
+            read = { it[FOCUS_TRAVERSAL_INDEX_KEY] },
+            write = { component, value -> component[FOCUS_TRAVERSAL_INDEX_KEY] = value },
         )
 
 /**
@@ -45,7 +48,7 @@ public fun SwingModifier.orderedFocusTraversal(): SwingModifier = this then Orde
  * The `JComponent` client-property key under which [focusTraversalIndex] stores a component's traversal
  * position. Read by the [orderedFocusTraversal] policy to order children.
  */
-private const val FOCUS_TRAVERSAL_INDEX_KEY: String = "org.jetbrains.compose.swing.focusTraversalIndex"
+private val FOCUS_TRAVERSAL_INDEX_KEY: Key<Int> = Key("org.jetbrains.compose.swing.focusTraversalIndex")
 
 private object OrderedFocusTraversalElement :
     SwingModifier.NodeElement<JComponent, OrderedFocusTraversalElement.Node>() {
@@ -125,7 +128,7 @@ private object CompositionOrderComparator : Comparator<Component> {
  * and a component with no index anywhere sorts after every indexed one.
  */
 private fun Component.effectiveTraversalIndex(): Int {
-    var earliest = (this as? JComponent)?.getClientProperty(FOCUS_TRAVERSAL_INDEX_KEY) as? Int ?: Int.MAX_VALUE
+    var earliest = (this as? JComponent)?.get(FOCUS_TRAVERSAL_INDEX_KEY) ?: Int.MAX_VALUE
     if (this is Container) {
         for (child in components) earliest = minOf(earliest, child.effectiveTraversalIndex())
     }

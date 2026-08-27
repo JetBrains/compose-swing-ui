@@ -68,14 +68,14 @@ internal fun PublishLifecycleOwner(component: Component) {
  */
 @InternalSwingUiApi
 public fun JComponent.setLifecycleOwner(owner: LifecycleOwner?) {
-    putClientProperty(LIFECYCLE_OWNER_KEY, owner)
+    this[LIFECYCLE_OWNER_KEY] = owner
 }
 
 /**
  * Client property key under which the [LifecycleOwner] a composition root states is stored, so a root
  * mounted under that one finds the owner the Swing tree around it stands under.
  */
-private const val LIFECYCLE_OWNER_KEY: String = "org.jetbrains.compose.swing.lifecycleOwner"
+private val LIFECYCLE_OWNER_KEY: Key<LifecycleOwner> = Key("org.jetbrains.compose.swing.lifecycleOwner")
 
 /**
  * Finds the [LifecycleOwner] of the composition root this component stands under, by walking the Swing
@@ -92,7 +92,7 @@ public fun Component.findLifecycleOwner(): LifecycleOwner? {
     var current: Component? = this
     while (current != null) {
         if (current is JComponent) {
-            (current.getClientProperty(LIFECYCLE_OWNER_KEY) as? LifecycleOwner)?.let { return it }
+            current[LIFECYCLE_OWNER_KEY]?.let { return it }
         }
         current = current.parent
     }
