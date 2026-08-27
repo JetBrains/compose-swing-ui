@@ -4,6 +4,7 @@ import org.jetbrains.compose.swing.samples.widgets.ShowcaseShell
 import org.jetbrains.compose.swing.samples.widgets.onSectionList
 import org.jetbrains.compose.swing.samples.widgets.showcaseSections
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JList

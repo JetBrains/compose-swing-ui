@@ -6,6 +6,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.swing.test.interaction.performTextInput
+import org.jetbrains.compose.swing.test.interaction.performTextReplacement
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.text.TextRange
@@ -304,11 +306,13 @@ class TextFieldStateTest {
             }
 
         awaitIdle()
-        onNodeOfType<JTextField>().performTextReplacement("two")
+        // One character, so the edit the user makes is one edit: typing emits per keystroke, because a
+        // keystroke is what the document takes.
+        onNodeOfType<JTextField>().performTextInput("!")
         state.text = "three"
         awaitIdle()
         collector.join()
 
-        assertEquals(listOf("one", "two", "three"), collected.map { it.toString() })
+        assertEquals(listOf("one", "one!", "three"), collected.map { it.toString() })
     }
 }

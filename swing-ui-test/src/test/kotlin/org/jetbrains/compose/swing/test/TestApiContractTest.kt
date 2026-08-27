@@ -12,7 +12,13 @@ import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.interaction.enabled
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.test.interaction.performClick
+import org.jetbrains.compose.swing.test.interaction.performTextInput
+import org.jetbrains.compose.swing.test.interaction.performTextReplacement
+import java.awt.AWTEvent
 import java.awt.BorderLayout
+import java.awt.Toolkit
+import java.awt.event.AWTEventListener
 import javax.swing.JButton
 import javax.swing.JLabel
 import javax.swing.JTextField
@@ -132,9 +138,12 @@ class TestApiContractTest {
     }
 
     @Test
-    fun performClickRejectsNonButton() = runComposeSwingTest {
+    fun performClickOnANodeThatResolvesNoClickChangesNothing() = runComposeSwingTest {
         setContent { Label(text = "not a button") }
-        assertFailsWith<AssertionError> { onNodeWithText("not a button").performClick() }
+
+        // A click is the events the toolkit delivers, so any node accepts one; what a click means is
+        // the node's own UI's to decide, and a label's decides nothing.
+        onNodeWithText("not a button").performClick().assertExists()
     }
 
     @Test
@@ -203,5 +212,57 @@ class TestApiContractTest {
         setContent { Label(text = "just a label") }
 
         assertFailsWith<AssertionError> { onNodeWithText("just a label").fetch<JTextField>() }
+    }
+
+    @Test
+    fun performClickFiresTheButtonFromTheEventsTheToolkitIsHandedFirst() = runComposeSwingTest {
+        // A widget only asks for the repaint a change provokes once it is processing an event, and the
+        // recomposer settles a declaration ahead of that repaint, from a frame queued the moment the
+        // toolkit is handed the event. A click written straight onto the widget skips that, so a
+        // wrapper whose behavior differs between a user's change and a plain write cannot be
+        // exercised through this action unless the click is made inside an event.
+        val order = mutableListOf<String>()
+        val watcher = AWTEventListener { order += "toolkit" }
+
+        setContent { Button(text = "Go", onClick = { order += "click" }) }
+        val toolkit = Toolkit.getDefaultToolkit()
+        toolkit.addAWTEventListener(watcher, AWTEvent.MOUSE_EVENT_MASK)
+        try {
+            onNodeOfType<JButton>().performClick()
+        } finally {
+            toolkit.removeAWTEventListener(watcher)
+        }
+
+        assertEquals(
+            listOf("toolkit", "toolkit", "click", "toolkit"),
+            order,
+            "a click is the press, the release and the MOUSE_CLICKED the toolkit delivers, and the button " +
+                "fires from the release it is handed - so the toolkit sees the press and the release before " +
+                "the button acts, which is what lets the recomposer queue its frame ahead of the repaint " +
+                "the click provokes",
+        )
+    }
+
+    @Test
+    fun performTextReplacementEditsFromTheKeyEventsTheToolkitIsHandedFirst() = runComposeSwingTest {
+        val order = mutableListOf<String>()
+        val watcher = AWTEventListener { order += "toolkit" }
+
+        setContent { TextField(value = "Ada", onValueChange = { order += "edit" }) }
+        val toolkit = Toolkit.getDefaultToolkit()
+        toolkit.addAWTEventListener(watcher, AWTEvent.KEY_EVENT_MASK)
+        try {
+            onNodeOfType<JTextField>().performTextReplacement("Adam")
+        } finally {
+            toolkit.removeAWTEventListener(watcher)
+        }
+
+        assertEquals(
+            listOf("toolkit", "edit"),
+            order.distinct(),
+            "the text is typed, so the toolkit is handed the key events before the edit they make " +
+                "reaches the document - which is what lets the recomposer queue its frame ahead of the " +
+                "repaint the edit provokes",
+        )
     }
 }

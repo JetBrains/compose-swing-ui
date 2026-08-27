@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.samples.widgets
 
+import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Rectangle

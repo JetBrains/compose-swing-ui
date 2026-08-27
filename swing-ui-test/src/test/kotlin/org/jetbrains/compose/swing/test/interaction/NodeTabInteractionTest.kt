@@ -261,6 +261,21 @@ class NodeTabInteractionTest {
     }
 
     @Test
+    fun clickingAnIndexBelowTheStripFailsReadably() = runComposeSwingTest {
+        setContent {
+            TabbedPane(selectedIndex = 0, onSelectedIndexChange = { }, modifier = roomForTheStrip) {
+                Label("1", SwingModifier.tab("One"))
+                Label("2", SwingModifier.tab("Two"))
+            }
+        }
+
+        val failure = assertFailsWith<AssertionError> { onNodeOfType<JTabbedPane>().performTabClick(-1) }
+        val message = failure.message.orEmpty()
+        assertTrue(message.contains("has 2 tab(s)"), "the failure should quantify the strip: $message")
+        assertTrue(message.contains("index -1"), "the failure should name the index asked for: $message")
+    }
+
+    @Test
     fun clickingANodeWithNoTabsFailsReadably() = runComposeSwingTest {
         setContent { Label("plain") }
 

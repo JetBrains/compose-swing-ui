@@ -1,6 +1,7 @@
 package org.jetbrains.compose.swing.platform
 
 import org.jetbrains.annotations.VisibleForTesting
+import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 
 /**
  * An operating system family whose Swing behavior differs from the others'.
@@ -8,14 +9,29 @@ import org.jetbrains.annotations.VisibleForTesting
  * [Unknown] covers every system outside the three families; code branching on the host treats it as
  * the default case.
  */
-internal enum class HostOs {
+@InternalSwingUiApi
+public enum class HostOs {
+    /** Any Linux distribution. */
     Linux,
+
+    /** Any version of Windows. */
     Windows,
+
+    /** macOS. */
     MacOs,
+
+    /** Every system outside the three families, and a JVM that names none. */
     Unknown,
     ;
 
-    val isMacOs: Boolean get() = this == MacOs
+    /** Whether this is [Linux]. */
+    public val isLinux: Boolean get() = this == Linux
+
+    /** Whether this is [Windows]. */
+    public val isWindows: Boolean get() = this == Windows
+
+    /** Whether this is [MacOs]. */
+    public val isMacOs: Boolean get() = this == MacOs
 }
 
 /**
@@ -36,4 +52,5 @@ internal fun hostOsOf(osName: String): HostOs =
  * The operating system this JVM runs on, resolved once from the `os.name` system property and kept for
  * the JVM's lifetime.
  */
-internal val hostOs: HostOs by lazy { hostOsOf(System.getProperty("os.name").orEmpty()) }
+@InternalSwingUiApi
+public val hostOs: HostOs by lazy { hostOsOf(System.getProperty("os.name").orEmpty()) }

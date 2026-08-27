@@ -14,9 +14,12 @@ import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Dimension
+import java.awt.datatransfer.Transferable
+import javax.swing.JComponent
 import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.JTextField
+import javax.swing.TransferHandler
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -213,6 +216,42 @@ class NodeInteractionContractTest {
         assertTrue(
             failure.message.orEmpty().contains("JTextComponent"),
             "the failure should name the type the action requires: ${failure.message}",
+        )
+    }
+
+    @Test
+    fun performTextPasteRejectsAComponentThatCarriesNoTransferHandler() = runComposeSwingTest {
+        setContent { SwingNode(factory = { JTextField().apply { transferHandler = null } }) }
+
+        val failure = assertFailsWith<AssertionError> { onNodeOfType<JTextField>().performTextPaste("x") }
+        assertTrue(
+            failure.message.orEmpty().contains("TransferHandler"),
+            "the failure should name what the node has none of: ${failure.message}",
+        )
+    }
+
+    @Test
+    fun performTextPasteReportsAHandlerThatRefusesTheText() = runComposeSwingTest {
+        setContent {
+            SwingNode(
+                factory = {
+                    JTextField().apply {
+                        transferHandler =
+                            object : TransferHandler() {
+                                override fun importData(
+                                    comp: JComponent,
+                                    transferable: Transferable,
+                                ): Boolean = false
+                            }
+                    }
+                },
+            )
+        }
+
+        val failure = assertFailsWith<AssertionError> { onNodeOfType<JTextField>().performTextPaste("x") }
+        assertTrue(
+            failure.message.orEmpty().contains("refused"),
+            "the failure should say the handler refused the text: ${failure.message}",
         )
     }
 

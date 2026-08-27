@@ -29,8 +29,10 @@ class HostOsTest {
     }
 
     @Test
-    fun theMacOsPredicateHoldsForThatFamilyAlone() {
+    fun eachFamilyPredicateHoldsForThatFamilyAlone() {
         for (os in HostOs.entries) {
+            assertEquals(os == HostOs.Linux, os.isLinux, "$os.isLinux")
+            assertEquals(os == HostOs.Windows, os.isWindows, "$os.isWindows")
             assertEquals(os == HostOs.MacOs, os.isMacOs, "$os.isMacOs")
         }
     }

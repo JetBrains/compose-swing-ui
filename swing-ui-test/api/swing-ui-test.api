@@ -89,6 +89,37 @@ public final class org/jetbrains/compose/swing/test/interaction/InteractionTestK
 	public static final fun onSiblings (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;
 }
 
+public final class org/jetbrains/compose/swing/test/interaction/SwingNodeInputEventsKt {
+	public static final fun performClick (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/awt/Point;IIILkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun performClick$default (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/awt/Point;IIILkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public static final fun performContextClick (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/awt/Point;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun performContextClick$default (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/awt/Point;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public static final fun performEvent (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun performFocusGained (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun performFocusGained$default (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;ZLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public static final fun performFocusLost (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun performFocusLost$default (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;ZLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public static final fun performKeyPress (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;IILkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun performKeyPress$default (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;IILkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public static final fun performMouseDrag (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/awt/Point;Ljava/awt/Point;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun performMouseEnter (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/awt/Point;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun performMouseEnter$default (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/awt/Point;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public static final fun performMouseExit (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/awt/Point;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun performMouseExit$default (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/awt/Point;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public static final fun performMouseMove (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/awt/Point;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun performMousePress (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/awt/Point;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun performMousePress$default (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/awt/Point;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public static final fun performMouseRelease (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/awt/Point;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun performMouseRelease$default (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/awt/Point;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public static final fun performMouseWheel (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;ILjava/awt/Point;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun performMouseWheel$default (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;ILjava/awt/Point;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public static final fun performTabClick (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun performTextInput (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun performTextPaste (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun performTextReplacement (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun performTyping (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
 public final class org/jetbrains/compose/swing/test/interaction/SwingNodeInteraction {
 	public static final field $stable I
 	public final fun assert (Lorg/jetbrains/compose/swing/test/SwingMatcher;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
@@ -105,14 +136,6 @@ public final class org/jetbrains/compose/swing/test/interaction/SwingNodeInterac
 	public final fun assertTextEquals (Ljava/lang/String;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
 	public final fun fetch ()Ljava/awt/Component;
 	public final fun getMatcherDescription ()Ljava/lang/String;
-	public final fun performClick (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public final fun performFocusGained (ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public static synthetic fun performFocusGained$default (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;ZLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
-	public final fun performFocusLost (ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public static synthetic fun performFocusLost$default (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;ZLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
-	public final fun performTabClick (ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public final fun performTextInput (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public final fun performTextReplacement (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun resolve ()Ljava/awt/Component;
 	public final fun retype (Lkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;
 }

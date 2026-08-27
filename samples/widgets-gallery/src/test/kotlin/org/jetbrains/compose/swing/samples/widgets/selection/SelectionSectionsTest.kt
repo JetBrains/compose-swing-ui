@@ -1,6 +1,7 @@
 package org.jetbrains.compose.swing.samples.widgets.selection
 
 import org.jetbrains.compose.swing.samples.widgets.openSection
+import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JTable
 import javax.swing.JTextField

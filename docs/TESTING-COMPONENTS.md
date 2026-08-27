@@ -41,6 +41,7 @@ are all in scope.
 
 ```kotlin
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.components.button.Button
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -214,28 +215,54 @@ and what it drops down is read the same way, off the `JMenu` that item is.
 
 ## Driving interactions
 
-Actions are available on a `SwingNodeInteraction`:
+Actions are available on a `SwingNodeInteraction`. Each one delivers the events the toolkit delivers for
+that gesture — a click is a press, a release and a `MOUSE_CLICKED`; a character is a `KEY_PRESSED`, a
+`KEY_TYPED` and a `KEY_RELEASED` — **each from an event-queue cycle of its own**, and settles the
+composition afterwards. So the component's own UI decides what a gesture means, exactly as it does for a
+user, and a widget that refuses an edit refuses it here too.
 
-- `performClick()` — click the component.
-- `performTextInput(text)` — append text to a text component.
-- `performTextReplacement(text)` — replace a text component's contents.
+- `performClick(position, button, clicks, modifiers)` — click the component, at its middle unless a
+  position is given. `clicks = 2` is a double click, delivered as the toolkit delivers one: two clicks
+  carrying their running count. `button` and `modifiers` are what make a middle-button click or a
+  shift-click that extends a selection.
+- `performContextClick(position)` — the platform's context-menu gesture: a secondary click whose press
+  and release both report themselves as the popup trigger, since platforms differ over which carries it.
+- `performMousePress(position)` / `performMouseRelease(position)` — half a click each, for a gesture a
+  test holds open.
+- `performMouseDrag(from, to)` — press, one drag step, release.
+- `performMouseEnter(position)` / `performMouseMove(position)` / `performMouseExit(position)` — the
+  pointer arriving, travelling and leaving, which is what a rollover state and a tooltip follow.
+- `performMouseWheel(rotation, position)` — turn the wheel by whole notches.
+- `performKeyPress(keyCode, modifiers)` — a key that means something other than a character.
+- `performTyping(text)` — type at the caret.
+- `performTextInput(text)` — type onto the end of a text component's contents.
+- `performTextReplacement(text)` — select all, and type over it.
+- `performTextPaste(text)` — paste over the selection, through the component's own transfer handler,
+  running no key binding.
 - `performFocusGained()` / `performFocusLost()` — deliver a focus notification to the component.
 - `performTabClick(index)` — click a tab of a tabbed pane.
+- `performEvent { node -> … }` — deliver one event you build yourself.
 
 ```kotlin
 onNodeWithTag("amount").performTextReplacement("42")
 onNodeWithText("Save").performClick()
 ```
 
+The typing gestures deliver real keystrokes, so the component's own key bindings decide what each one
+does: a tab types into a text area and traverses focus in a single-line field, exactly as it does for a
+user. `performTextPaste` runs no binding, so it carries content a component's keys will not produce.
+Where no gesture produces what a test needs, `fetch()` hands back the widget to write to directly,
+which exercises nothing about input handling.
+
 <!--- KNIT example-testing-fragment-07.kt -->
 
 ### Tabs
 
 A tabbed pane's strip is drawn by the look and feel rather than built from child components, so there
-is no node to find for a tab. `performTabClick(index)` aims a real click at it instead: writing the
-pane's selected index directly would be the composition's own write, not a user's, and a wrapper that
-tells the two apart could not be tested that way. A tab the strip does not currently show has no
-position to click; the action says so rather than landing on nothing.
+is no node to find for a tab. `performTabClick(index)` aims a click at the tab's own position instead:
+writing the pane's selected index directly would be the composition's own write, not a user's, and a
+wrapper that tells the two apart could not be tested that way. A tab the strip does not currently show
+has no position to click; the action says so rather than landing on nothing.
 
 ```kotlin
 onNodeOfType<JTabbedPane>().performTabClick(2)

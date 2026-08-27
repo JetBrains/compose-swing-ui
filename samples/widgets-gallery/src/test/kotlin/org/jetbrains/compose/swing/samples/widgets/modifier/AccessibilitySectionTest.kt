@@ -2,6 +2,7 @@ package org.jetbrains.compose.swing.samples.widgets.modifier
 
 import org.jetbrains.compose.swing.samples.widgets.openSection
 import org.jetbrains.compose.swing.test.SwingMatcher
+import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import kotlin.test.Test
 
