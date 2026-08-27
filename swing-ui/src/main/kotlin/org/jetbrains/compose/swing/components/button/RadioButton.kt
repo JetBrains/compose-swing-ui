@@ -7,7 +7,7 @@ import androidx.compose.runtime.Composable
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
-import org.jetbrains.compose.swing.node.AppliedValue
+import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
 import java.awt.event.ActionListener
 import javax.swing.JRadioButton
@@ -28,12 +28,12 @@ public fun RadioButton(
     onSelectedChange: (Boolean) -> Unit,
     modifier: SwingModifier = SwingModifier,
 ) {
-    val (reporting, applied) = rememberToggleReporting(selected, onSelectedChange)
+    val (reporting, mirror) = rememberToggleReporting(selected, onSelectedChange)
     RadioButtonNode(
         text = text,
         modifier = modifier.then(reporting),
         selected = selected,
-        applied = applied,
+        mirror = mirror,
     )
 }
 
@@ -55,18 +55,18 @@ public fun RadioButton(
     actionListener: ActionListener,
     modifier: SwingModifier = SwingModifier,
 ) {
-    val (mirroring, applied) = rememberToggleMirroring(selected, actionListener)
+    val (mirroring, mirror) = rememberToggleMirroring(selected, actionListener)
     RadioButtonNode(
         text = text,
         modifier = modifier.then(mirroring),
         selected = selected,
-        applied = applied,
+        mirror = mirror,
     )
 }
 
 /**
  * The `JRadioButton` node both [RadioButton] overloads render. [selected] is settled against the button
- * through [applied] rather than applied on change: the user can move the button out from under the
+ * through [mirror] rather than applied on change: the user can take the button out from under the
  * declaration, and a declaration equal to the last one still has to stand.
  */
 @Composable
@@ -74,13 +74,13 @@ private fun RadioButtonNode(
     text: @Nls String,
     modifier: SwingModifier,
     selected: Boolean,
-    applied: AppliedValue<Boolean>,
+    mirror: MirrorState<Boolean>,
 ) {
     SwingNode(
         factory = { JRadioButton() },
         update = {
             set(text) { this.text = it }
-            declareSelected(selected, applied)
+            declareSelected(selected, mirror)
             applyModifier(modifier)
         },
     )

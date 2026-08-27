@@ -7,8 +7,8 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.interaction.buttonGroup
 import org.jetbrains.compose.swing.modifier.listener.actionListener
 import org.jetbrains.compose.swing.modifier.listener.itemListener
-import org.jetbrains.compose.swing.node.AppliedValue
-import org.jetbrains.compose.swing.node.rememberAppliedValue
+import org.jetbrains.compose.swing.node.MirrorState
+import org.jetbrains.compose.swing.node.rememberMirrorState
 import javax.swing.AbstractButton
 import javax.swing.ButtonGroup
 
@@ -42,7 +42,7 @@ internal fun rememberButtonGroup(): ButtonGroup = remember { ButtonGroup() }
  * @param onSelectionChange callback invoked with [index] when the user selects this option
  * @param content receives the [SwingModifier] the option's node has to apply - [modifier], the
  *   listeners watching the option, and the membership that enrolls the node in [group] - along with the
- *   [AppliedValue] its node settles [selected] against
+ *   [MirrorState] its node settles [selected] against
  */
 @Composable
 internal fun ButtonGroupOption(
@@ -51,17 +51,17 @@ internal fun ButtonGroupOption(
     modifier: SwingModifier,
     selected: Boolean,
     onSelectionChange: (Int) -> Unit,
-    content: @Composable (SwingModifier, AppliedValue<Boolean>) -> Unit,
+    content: @Composable (SwingModifier, MirrorState<Boolean>) -> Unit,
 ) {
     key(index) {
-        val applied = rememberAppliedValue(selected)
+        val mirror = rememberMirrorState(selected)
         content(
             modifier
                 .actionListener { event ->
                     if ((event.source as AbstractButton).isSelected) onSelectionChange(index)
-                }.itemListener { event -> applied.observed((event.source as AbstractButton).isSelected) }
+                }.itemListener { event -> mirror.observed((event.source as AbstractButton).isSelected) }
                 .buttonGroup(group),
-            applied,
+            mirror,
         )
     }
 }

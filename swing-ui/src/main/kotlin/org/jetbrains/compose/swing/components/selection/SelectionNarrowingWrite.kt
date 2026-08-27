@@ -2,7 +2,7 @@ package org.jetbrains.compose.swing.components.selection
 
 import org.jetbrains.compose.swing.constants.SelectionMode
 import org.jetbrains.compose.swing.core.dispatchToCaller
-import org.jetbrains.compose.swing.node.AppliedValue
+import org.jetbrains.compose.swing.node.MirrorState
 import javax.swing.JList
 import javax.swing.JTable
 import javax.swing.JTree
@@ -36,7 +36,7 @@ import javax.swing.tree.TreePath
  * [report] reaches the caller's own listener directly rather than from inside a write, so it runs contained
  * the same way, and a throw out of it is reported rather than left to end the composition.
  */
-internal fun <S> AppliedValue<Set<S>?>.writeNarrowing(
+internal fun <S> MirrorState<Set<S>?>.writeNarrowing(
     declaredSelection: Set<S>?,
     selection: () -> Set<S>,
     report: (Set<S>) -> Unit,
@@ -65,7 +65,7 @@ internal fun <S> AppliedValue<Set<S>?>.writeNarrowing(
  * write, and the part of the selection the new content could not hold is handed to [report] once that
  * write has returned, the same way [writeNarrowing] hands off a loss.
  *
- * The mirror is read back through [selection] once the write is done, the same way [AppliedValue.settle]
+ * The mirror is read back through [selection] once the write is done, the same way [MirrorState.settle]
  * does - a listener attached to the widget would record the same value as it happens, but this holds
  * regardless of whether one is attached to catch it. That one read is both what the mirror records and
  * what the loss is measured against: nothing between them touches the widget, so a second read would
@@ -74,10 +74,11 @@ internal fun <S> AppliedValue<Set<S>?>.writeNarrowing(
  *
  * The whole of it is one settlement of the mirror, so the selection the widget is left on invalidates
  * nothing: this pass chose that selection, put it back and read it, and there is no more for a pass of
- * its own to do about it. Left as a move, it would invalidate whoever read the mirror to build this
+ * its own to do about it. Left as an unanswered change, it would invalidate whoever read the mirror to
+ * build this
  * install and have the same content installed a second time to reach the same widget.
  */
-internal fun <S> AppliedValue<Set<S>?>.installNarrowing(
+internal fun <S> MirrorState<Set<S>?>.installNarrowing(
     declared: Set<S>?,
     selection: () -> Set<S>,
     apply: (Set<S>) -> Unit,
@@ -104,12 +105,12 @@ internal fun <S> AppliedValue<Set<S>?>.installNarrowing(
  * [writeNarrowing].
  */
 internal fun JList<*>.narrowSelection(
-    applied: AppliedValue<Set<Int>?>,
+    mirror: MirrorState<Set<Int>?>,
     declared: Set<Int>?,
     target: ListSelectionListener,
     block: () -> Unit,
 ): Unit =
-    applied.writeNarrowing(
+    mirror.writeNarrowing(
         declaredSelection = declared,
         selection = { selectedIndices.toSet() },
         report = { lost -> reportLostRows(target, lost) },
@@ -166,12 +167,12 @@ internal fun JTable.applySelectionMode(
  * [writeNarrowing].
  */
 internal fun JTable.narrowSelection(
-    applied: AppliedValue<Set<Int>?>,
+    mirror: MirrorState<Set<Int>?>,
     declared: Set<Int>?,
     target: ListSelectionListener,
     block: () -> Unit,
 ): Unit =
-    applied.writeNarrowing(
+    mirror.writeNarrowing(
         declaredSelection = declared,
         selection = { selectedModelRows() },
         report = { lost -> reportLostRows(target, lost) },
@@ -195,13 +196,13 @@ internal fun JTable.reportLostRows(
  * [writeNarrowing].
  */
 internal fun JTree.narrowSelection(
-    applied: AppliedValue<Set<List<Int>>?>,
+    mirror: MirrorState<Set<List<Int>>?>,
     declared: Set<List<Int>>?,
     target: TreeSelectionListener,
     block: () -> Unit,
 ) {
     val held = heldSelection(named = declared == null)
-    applied.writeNarrowing(
+    mirror.writeNarrowing(
         declaredSelection = declared,
         selection = { readSelection(this, model) },
         report = { lost -> reportLostPaths(target, held.nodes, held.indices, lost, held.lead) },

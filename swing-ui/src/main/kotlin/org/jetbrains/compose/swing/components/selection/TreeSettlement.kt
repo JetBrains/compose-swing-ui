@@ -1,6 +1,6 @@
 package org.jetbrains.compose.swing.components.selection
 
-import org.jetbrains.compose.swing.node.AppliedValue
+import org.jetbrains.compose.swing.node.MirrorState
 import javax.swing.JTree
 import javax.swing.event.TreeSelectionListener
 import javax.swing.tree.TreeModel
@@ -12,7 +12,7 @@ import javax.swing.tree.TreePath
  * Three roles carry one settling between them. The declarations are what the composition states this
  * pass - a selection, an expansion, and the listener a loss is reported to. The mirrors are what the
  * tree was last known to hold, one per facet, and are what let a listener tell the wrapper's own write
- * from a move the user made. The outcome is what the write left standing, which is not always what was
+ * from a change the user made. The outcome is what the write left standing, which is not always what was
  * declared: a collapse takes over the selection it hides, and a structure the model no longer holds
  * drops the paths naming it.
  */
@@ -21,12 +21,13 @@ import javax.swing.tree.TreePath
  * What a tree settles its two declarations through, for the life of one node: the mirror of each facet, and
  * the nodes a collapse was last reported to have taken over.
  *
- * The mirrors travel together because one write moves both - installing a model, applying a collapse - and
- * each has to see the other's write in flight for its listener to tell the wrapper's doing from the user's.
+ * The mirrors travel together because one write changes both - installing a model, applying a collapse -
+ * and each has to see the other's write in flight for its listener to tell the wrapper's doing from the
+ * user's.
  */
 internal class TreeMirrors(
-    val selection: AppliedValue<Set<List<Int>>?>,
-    val expansion: AppliedValue<Set<List<Int>>?>,
+    val selection: MirrorState<Set<List<Int>>?>,
+    val expansion: MirrorState<Set<List<Int>>?>,
 ) {
     /** The declared selection the nodes in [reportedNarrowing] were hidden out of. */
     private var narrowedDeclaration: Set<List<Int>>? = null
@@ -89,7 +90,7 @@ internal sealed interface SettledExpansion {
         val open: Set<List<Int>>,
     ) : SettledExpansion
 
-    /** The write moved them without naming them, so the tree is what answers for them. */
+    /** The write changed them without naming them, so the tree is what answers for them. */
     data object Unnamed : SettledExpansion
 }
 
@@ -108,7 +109,7 @@ internal sealed interface SettledExpansion {
  * keeps the expansion a `JTree` gives a model it is handed.
  *
  * Both the selection narrowing and the expansion restore run as one settlement of each mirror in
- * [declarations] - installing a model can move both, and each mirror has to see its own write coming for
+ * [declarations] - installing a model can change both, and each mirror has to see its own write coming for
  * its listener to tell it apart from the user's, and what the tree is left showing open is what this
  * install asked for and read back.
  */
@@ -154,9 +155,9 @@ internal fun <T> JTree.updateContent(
 ) {
     val walkEvery = !standing.content.walksAlike(content)
     settleSelection(declarations) {
-        val structureMoved = content.syncInto(standing, walkEvery)
+        val structureChanged = content.syncInto(standing, walkEvery)
         standing.content = content
-        applyDeclarations(declarations, structureMoved)
+        applyDeclarations(declarations, structureChanged)
     }
 }
 
@@ -188,12 +189,12 @@ internal fun JTree.settleSelection(
     var outcome = TreeSettleOutcome(emptySet(), SettledExpansion.Standing)
     // The write and the read-backs that record what survived it are one settlement of each mirror, which
     // is what the nested brackets state. Each mirror's write stays inside its own bracket: a settlement
-    // marks the moves it made as answered, and the write is what a listener reads to tell the wrapper's
+    // marks the changes it made as answered, and the write is what a listener reads to tell the wrapper's
     // doing from the user's.
     mirrors.expansion.settle openness@{
         mirrors.selection.settle {
             mirrors.expansion.write { mirrors.selection.write { outcome = settle() } }
-            // What the write left is recorded as the answer to the declarations it applied, not as a move:
+            // What the write left is recorded as the answer to the declarations it applied, not as news:
             // this pass asked for it and read it back, so there is nothing for a further pass to do about
             // it. Each settlement is closed against its own mirror, so the expansion's is named: inside
             // the selection's block it is the outer receiver.
@@ -220,7 +221,7 @@ internal fun JTree.settleSelection(
  * Re-asserts on the tree what [declarations] declares: a declaration is the composition's state, so a user
  * change the caller does not adopt is undone, while an undeclared selection or expansion is left standing.
  * Answers with the selected paths a declared collapse took over - see [applyVisibleSelection] - and with
- * the nodes the tree is left showing open. [structureMoved] says whether the write this runs inside took a
+ * the nodes the tree is left showing open. [structureChanged] says whether the write this runs inside took a
  * node out of the structure or put one in.
  *
  * The selection is applied after the expansion, because a tree drops the selection inside a subtree it is
@@ -232,14 +233,14 @@ internal fun JTree.settleSelection(
  */
 internal fun JTree.applyDeclarations(
     declarations: TreeDeclarations,
-    structureMoved: Boolean,
+    structureChanged: Boolean,
 ): TreeSettleOutcome {
     val declaredExpansion = declarations.declaredExpansion
     if (declaredExpansion == null) {
         val selected = applySelection(this, model, declarations.declaredSelection)
         // A tree opens what it must to show a node it is given to select, and a structure change renames by
         // index every node after the one it moved: either leaves the tree to answer for what it shows open.
-        val expansion = if (selected || structureMoved) SettledExpansion.Unnamed else SettledExpansion.Standing
+        val expansion = if (selected || structureChanged) SettledExpansion.Unnamed else SettledExpansion.Standing
         return TreeSettleOutcome(emptySet(), expansion)
     }
     val opened = applyExpansion(this, model, declaredExpansion)

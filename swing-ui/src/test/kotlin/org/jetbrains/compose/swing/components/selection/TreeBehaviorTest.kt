@@ -4,7 +4,7 @@ import androidx.compose.runtime.ReusableContentHost
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.assertUnadoptedMoveIsPutBack
+import org.jetbrains.compose.swing.assertUnadoptedChangeIsPutBack
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -452,7 +452,7 @@ class TreeBehaviorTest {
 
     @Test
     fun aSelectionTheCallerDoesNotAdoptComesOffWithinEventCycles() = runSwingTest {
-        assertUnadoptedMoveIsPutBack(
+        assertUnadoptedChangeIsPutBack(
             type = JTree::class.java,
             declared = emptyList<Int>(),
             content = {
@@ -463,7 +463,7 @@ class TreeBehaviorTest {
                     onSelectionChange = {},
                 )
             },
-            move = { it.setSelectionRow(0) },
+            change = { it.setSelectionRow(0) },
             read = { it.selectionRows?.toList().orEmpty() },
         )
     }

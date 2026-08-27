@@ -23,7 +23,7 @@ import kotlin.test.assertEquals
  * the opposite - it is news, and reaches the caller and the composition alike.
  *
  * The node's own update block is where the passes are counted, because that is the scope a two-way
- * declaration reads the mirror from and so the scope a move invalidates.
+ * declaration reads the mirror from and so the scope a change invalidates.
  */
 class DeclaredValueSettlesInOnePassTest {
     @Test
@@ -65,7 +65,7 @@ class DeclaredValueSettlesInOnePassTest {
     }
 
     @Test
-    fun aMoveTheWidgetMakesReachesTheCallerAndTheComposition() = runComposeSwingTest {
+    fun aChangeTheWidgetMakesReachesTheCallerAndTheComposition() = runComposeSwingTest {
         val reported = mutableListOf<Int>()
         val declared by mutableIntStateOf(DECLARED)
         setContent {
@@ -77,16 +77,16 @@ class DeclaredValueSettlesInOnePassTest {
         assertEquals(DECLARED, slider.value, "the slider should open on what the composition declares")
 
         // Nothing but the mirror can carry this to the composition: the test writes no state of its own
-        // between the move and the pass that answers it.
-        slider.value = MOVED
+        // between the change and the pass that answers it.
+        slider.value = CHANGED
         awaitIdle()
 
-        assertEquals(listOf(MOVED), reported, "the move should reach the caller")
-        assertEquals(DECLARED, slider.value, "a move the caller does not adopt should be written back")
+        assertEquals(listOf(CHANGED), reported, "the change should reach the caller")
+        assertEquals(DECLARED, slider.value, "a change the caller does not adopt should be written back")
     }
 
     @Test
-    fun aMoveTheCallerAdoptsStands() = runComposeSwingTest {
+    fun aChangeTheCallerAdoptsStands() = runComposeSwingTest {
         var declared by mutableIntStateOf(DECLARED)
         setContent {
             Slider(value = declared, onValueChange = { declared = it }, min = MIN, max = MAX)
@@ -94,11 +94,11 @@ class DeclaredValueSettlesInOnePassTest {
         awaitIdle()
 
         val slider = onNodeOfType<JSlider>().fetch()
-        slider.value = MOVED
+        slider.value = CHANGED
         awaitIdle()
 
-        assertEquals(MOVED, slider.value, "a move the caller adopts should be left where the user put it")
-        assertEquals(MOVED, declared, "the caller should be holding the value it adopted")
+        assertEquals(CHANGED, slider.value, "a change the caller adopts should be left where the user put it")
+        assertEquals(CHANGED, declared, "the caller should be holding the value it adopted")
     }
 
     /**
@@ -114,12 +114,12 @@ class DeclaredValueSettlesInOnePassTest {
         declared: Int,
         onPass: () -> Unit,
     ) {
-        val applied = remember { AppliedValue(MIN) }
+        val mirror = remember { MirrorState(MIN) }
         SwingNode(
-            factory = { JSlider(MIN, MAX, MIN).apply { addChangeListener { applied.observed(value) } } },
+            factory = { JSlider(MIN, MAX, MIN).apply { addChangeListener { mirror.observed(value) } } },
             update = {
                 onPass()
-                declare(declared, applied, JSlider::getValue, JSlider::setValue)
+                declare(declared, mirror, JSlider::getValue, JSlider::setValue)
             },
         )
     }
@@ -135,12 +135,12 @@ class DeclaredValueSettlesInOnePassTest {
         declared: String,
         onPass: () -> Unit,
     ) {
-        val applied = remember { AppliedValue<String?>(null) }
+        val mirror = remember { MirrorState<String?>(null) }
         SwingNode(
             factory = { JLabel() },
             update = {
                 onPass()
-                declare(declared, applied, { name }, { name = it })
+                declare(declared, mirror, { name }, { name = it })
             },
         )
     }
@@ -157,7 +157,7 @@ class DeclaredValueSettlesInOnePassTest {
         const val DECLARED = 40
 
         /** Where the widget is left, away from the declaration. */
-        const val MOVED = 70
+        const val CHANGED = 70
 
         /** The declaration that replaces [DECLARED]. */
         const val REDECLARED = 20

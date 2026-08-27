@@ -52,13 +52,13 @@ public fun RadioButtonMenuGroup(
 
     scope.options.forEachIndexed { index, option ->
         val selected = index == selectedIndex
-        ButtonGroupOption(group, index, option.modifier, selected, onSelectionChange) { optionModifier, applied ->
+        ButtonGroupOption(group, index, option.modifier, selected, onSelectionChange) { optionModifier, mirror ->
             MenuNode(
                 factory = { JRadioButtonMenuItem() },
                 update = {
                     set(option.text) { this.text = it }
                     set(option.accelerator) { this.accelerator = it }
-                    declare(selected, applied, { isSelected }, { applyGroupSelection(group, it) })
+                    declare(selected, mirror, { isSelected }, { applyGroupSelection(group, it) })
                     applyModifier(optionModifier)
                 },
             )

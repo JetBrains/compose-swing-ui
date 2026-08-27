@@ -3,7 +3,7 @@ package org.jetbrains.compose.swing.components.text
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.assertUnadoptedMoveIsPutBack
+import org.jetbrains.compose.swing.assertUnadoptedChangeIsPutBack
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -120,11 +120,11 @@ class PasswordFieldBehaviorTest {
 
     @Test
     fun anEditTheCallerDoesNotAdoptComesOffWithinEventCycles() = runSwingTest {
-        assertUnadoptedMoveIsPutBack(
+        assertUnadoptedChangeIsPutBack(
             type = JPasswordField::class.java,
             declared = "hunter2",
             content = { PasswordField(value = "hunter2".toCharArray(), onValueChange = {}) },
-            move = { it.text = "hunter3" },
+            change = { it.text = "hunter3" },
             read = { String(it.password) },
         )
     }

@@ -15,11 +15,11 @@ import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
 import org.jetbrains.compose.swing.modifier.listener.actionListener
 import org.jetbrains.compose.swing.modifier.listener.listener
-import org.jetbrains.compose.swing.node.AppliedValue
+import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
 import org.jetbrains.compose.swing.node.declare
-import org.jetbrains.compose.swing.node.rememberAppliedValue
+import org.jetbrains.compose.swing.node.rememberMirrorState
 import java.awt.event.ActionListener
 import java.awt.event.ItemEvent
 import java.awt.event.ItemListener
@@ -63,15 +63,15 @@ public fun <T> ComboBox(
     itemContent: (@Composable ListItemScope.(item: T) -> Unit)? = null,
 ) {
     val declaredItems = rememberDeclaredList(items)
-    val applied = rememberAppliedValue(selectedItem)
+    val mirror = rememberMirrorState(selectedItem)
     val settled = rememberSelectionReader(declaredItems)
     ComboBoxNode(
-        modifier = modifier.onSelectionAction(applied, settled, onSelectionChange, onValueCommit),
+        modifier = modifier.onSelectionAction(mirror, settled, onSelectionChange, onValueCommit),
         editable = editable,
         maximumRowCount = maximumRowCount,
         itemContent = itemContent,
     ) {
-        installItems(declaredItems, selectedItem, applied)
+        installItems(declaredItems, selectedItem, mirror)
     }
 }
 
@@ -106,16 +106,16 @@ public fun <T> ComboBox(
     itemContent: (@Composable ListItemScope.(item: T) -> Unit)? = null,
 ) {
     val declaredItems = rememberDeclaredList(items)
-    val applied = rememberAppliedValue(selectedItem)
+    val mirror = rememberMirrorState(selectedItem)
     val settled = rememberSelectionReader(declaredItems)
     // The caller's listener is attached as-is, and is the only action listener on the combo box. The
     // mirror rides the item-selection channel instead, so the declared selection still settles against
     // wherever the combo box lands, whether that is the user's own choice or the caller's own write back.
-    val mirror =
-        remember(applied, settled) {
+    val itemMirror =
+        remember(mirror, settled) {
             ItemListener { event ->
                 if (event.stateChange == ItemEvent.SELECTED) {
-                    applied.observed((event.source as JComboBox<*>).settled())
+                    mirror.observed((event.source as JComboBox<*>).settled())
                 }
             }
         }
@@ -123,12 +123,12 @@ public fun <T> ComboBox(
         modifier =
             modifier
                 .actionListener(actionListener)
-                .listener(mirror, COMBO_ITEM_SELECTION),
+                .listener(itemMirror, COMBO_ITEM_SELECTION),
         editable = editable,
         maximumRowCount = maximumRowCount,
         itemContent = itemContent,
     ) {
-        installItems(declaredItems, selectedItem, applied)
+        installItems(declaredItems, selectedItem, mirror)
     }
 }
 
@@ -249,7 +249,7 @@ private fun <T> ComboBoxNode(
 private fun <T> SwingNodeUpdater<JComboBox<T>>.installItems(
     items: List<T>,
     selectedItem: T?,
-    applied: AppliedValue<T?>,
+    mirror: MirrorState<T?>,
 ) {
     set(items) { newItems ->
         // A prebuilt model already carrying the declared selection swaps in silently
@@ -261,7 +261,7 @@ private fun <T> SwingNodeUpdater<JComboBox<T>>.installItems(
     }
     declare(
         selectedItem,
-        applied,
+        mirror,
         read = { items.selectionOf(this.selectedItem) },
         write = { applySelection(this, items, it) },
     )
@@ -292,18 +292,18 @@ private fun <T> List<T>.selectionOf(value: Any?): T? = firstOrNull { it == value
  * Installs the action channel the `onSelectionChange`-driven overloads listen on: it splits a combo box's
  * action events into the two things a caller can act on - committing the editor reports the text that was
  * typed to [onValueCommit], and any other change reports what [settled] reads off the combo box to
- * [onSelectionChange]. A commit is reported regardless of [applied], since its text carries a value the
+ * [onSelectionChange]. A commit is reported regardless of [mirror], since its text carries a value the
  * items do not contain.
  *
- * Where [applied] tracks a declared selection, a plain selection change is narrowed to the user's own
+ * Where [mirror] tracks a declared selection, a plain selection change is narrowed to the user's own
  * choices: the declaration is the composition's own state, so applying it - and the combo box publishing
- * an action event for that write - is not itself a choice. A `null` [applied] means the caller's model
+ * an action event for that write - is not itself a choice. A `null` [mirror] means the caller's model
  * owns the selection, so nothing is declared and every change is the user's.
  *
  * The callbacks are read live, so the ones the current composition declares are the ones invoked.
  */
 private fun <V> SwingModifier.onSelectionAction(
-    applied: AppliedValue<V>?,
+    mirror: MirrorState<V>?,
     settled: JComboBox<*>.() -> V,
     onSelectionChange: (V) -> Unit,
     onValueCommit: (@Nls String) -> Unit,
@@ -312,7 +312,7 @@ private fun <V> SwingModifier.onSelectionAction(
         val comboBox = event.source as JComboBox<*>
         val selection = comboBox.settled()
         val isCommit = event.actionCommand == EDITOR_COMMITTED
-        val isNews = applied == null || applied.observed(selection)
+        val isNews = mirror == null || mirror.observed(selection)
         if (isCommit) {
             onValueCommit(comboBox.selectedItem?.toString().orEmpty())
         } else if (isNews) {

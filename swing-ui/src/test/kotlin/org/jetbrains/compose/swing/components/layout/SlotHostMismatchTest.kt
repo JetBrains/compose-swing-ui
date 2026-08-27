@@ -3,7 +3,7 @@ package org.jetbrains.compose.swing.components.layout
 import androidx.compose.runtime.rememberCompositionContext
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.node.AppliedValue
+import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import kotlin.test.Test
 import kotlin.test.assertFailsWith
@@ -70,7 +70,7 @@ class SlotHostMismatchTest {
                     // A tab's placement modifier needs no live header context to be built - it is a
                     // plain SwingModifier value - but TabbedPaneScopeImpl still takes one, so this reaches
                     // for one from the very composition the misplaced child is declared in.
-                    val scope = TabbedPaneScopeImpl(AppliedValue(0), rememberCompositionContext())
+                    val scope = TabbedPaneScopeImpl(MirrorState(0), rememberCompositionContext())
                     val misplaced = with(scope) { SwingModifier.tab("Tab") }
                     SplitPane {
                         Label(text = "misplaced", modifier = misplaced)

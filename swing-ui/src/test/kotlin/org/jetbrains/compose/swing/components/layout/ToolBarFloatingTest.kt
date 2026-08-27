@@ -120,21 +120,53 @@ class ToolBarFloatingTest {
             val bar = requireNotNull(toolBarIn(frame))
             (bar.ui as BasicToolBarUI).setFloating(true, null)
 
-            awaitUntil("the move reaches the caller") { reported.isNotEmpty() }
+            awaitUntil("the change reaches the caller") { reported.isNotEmpty() }
             assertEquals(
                 listOf(true),
                 reported,
-                "a move the composition did not make is the user's, and the caller is told of it",
+                "a change the composition did not make is the user's, and the caller is told of it",
             )
 
-            // The declaration still says docked and the caller did not adopt the move, so the next pass
+            // The declaration still says docked and the caller did not adopt the change, so the next pass
             // writes the declaration back - the contract every controlled value here follows.
-            awaitUntil("the unadopted move is undone") { toolBarIn(frame)?.isFloatingNow == false }
+            awaitUntil("the unadopted change is undone") { toolBarIn(frame)?.isFloatingNow == false }
             assertFalse(
                 requireNotNull(toolBarIn(frame)).isFloatingNow,
-                "an unadopted move snaps back to the standing declaration",
+                "an unadopted change snaps back to the standing declaration",
             )
         }
+
+    @Test
+    fun theUserFloatingTheBarSnapsBackWithNothingElseProvokingAPass() = onARealizedFrame { frame, mount ->
+        var declared by mutableStateOf(false)
+        mount {
+            ToolBar(floating = declared) {
+                Button(text = "New", onClick = {})
+            }
+        }
+        awaitUntil("the bar has mounted") { toolBarIn(frame) != null }
+
+        // A declared float out and back, awaited both ways, leaves nothing still pending from composing
+        // the content: the declaration standing at the end is the docked one the bar is already holding,
+        // and no state this content reads moves again. So the move made below is the only thing left
+        // that can bring a pass, which is what makes this case measure the bar's own move rather than a
+        // pass it rode on.
+        declared = true
+        awaitUntil("the declared float takes") { toolBarIn(frame)?.isFloatingNow == true }
+        declared = false
+        awaitUntil("the declared dock takes") { toolBarIn(frame)?.isFloatingNow == false }
+
+        (requireNotNull(toolBarIn(frame)).ui as BasicToolBarUI).setFloating(true, null)
+
+        awaitUntil("the bar's own move brings the pass that undoes it") {
+            toolBarIn(frame)?.isFloatingNow == false
+        }
+        assertFalse(
+            requireNotNull(toolBarIn(frame)).isFloatingNow,
+            "the bar moving under a standing declaration is what brings the pass that writes the " +
+                "declaration back, so an unadopted change is undone with nothing else due to provoke one",
+        )
+    }
 
     @Test
     fun aBarRefusedAFloatTakesItOnceItComesToStandInAWindow() =
@@ -145,8 +177,8 @@ class ToolBarFloatingTest {
                     Button(text = "New", onClick = {})
                 }
             }
-            // Composed into a composition standing in no window, so the bar has none to open its own beside
-            // and settles docked.
+            // Composed into a container standing in no window, so the bar has none to open its own
+            // beside and settles docked.
             awaitUntil("the refusal reaches the caller") { reported.isNotEmpty() }
             assertEquals(
                 listOf(false),
@@ -154,7 +186,7 @@ class ToolBarFloatingTest {
                 "a bar with no window to float out of should hand the caller the docked state it " +
                     "settled for",
             )
-            assertNull(toolBarIn(frame), "the bar hangs in a composition the frame does not hold")
+            assertNull(toolBarIn(frame), "the bar hangs in a container the frame does not hold")
 
             frame.contentPane.add(composition)
             frame.validate()
@@ -191,8 +223,8 @@ class ToolBarFloatingTest {
     }
 
     /**
-     * Runs [body] against a realized frame already holding the composition, handing it the mount that
-     * composes into that composition.
+     * Runs [body] against a realized frame already holding the container, handing it the function that
+     * mounts content into that container.
      */
     private fun onARealizedFrame(body: suspend (JFrame, (@Composable () -> Unit) -> Unit) -> Unit) =
         onARealizedFrameAndADetachedComposition { frame, composition, mount ->
@@ -203,15 +235,15 @@ class ToolBarFloatingTest {
 
     /**
      * Runs [body] under Metal - whose tool bars drag, which a look and feel need not do - against a
-     * realized frame, handing it that frame, a composition standing in no window yet, and the mount that
-     * composes into that composition. A body that wants the composition in the frame puts it there itself, which
-     * is what makes where a bar stands something a case can decide.
+     * realized frame, handing it that frame, a container standing in no window yet, and the function
+     * that mounts content into that container. A body that wants the container in the frame puts it
+     * there itself, which is what makes where a bar stands something a case can decide.
      *
-     * The mount names the frame's composition, which is what lets a case compose into a composition that
-     * hangs nowhere: a mount left to resolve its own parent waits for its container to reach a window,
-     * so a composition standing in none would compose nothing at all. A composition already in the frame
-     * resolves to that same composition, so naming it changes nothing for a case that puts it there
-     * first.
+     * Content is mounted under the frame's composition by name, which is what lets a case compose into
+     * a container that hangs nowhere: content left to resolve its own parent waits for its container to
+     * reach a window, so a container standing in none would compose nothing at all. A container already
+     * in the frame resolves to that same composition, so naming it changes nothing for a case that puts
+     * it there first.
      *
      * The composition is ended before the frame is, on every exit path. The look and feel is restored
      * process-wide once this returns, which a bar left composing would answer by re-applying its

@@ -2,7 +2,7 @@ package org.jetbrains.compose.swing.components.text
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.listener
-import org.jetbrains.compose.swing.node.AppliedValue
+import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
 import org.jetbrains.compose.swing.node.declare
 import javax.swing.event.DocumentEvent
@@ -60,46 +60,46 @@ internal fun documentChangeListener(onChange: (DocumentEvent) -> Unit): Document
 
 /**
  * Reports a text component's current document text to [onUserEdit] for every edit, staying silent for an
- * edit that only echoes a write [applied] is making of its own - settling a declared value back onto the
+ * edit that only echoes a write [mirror] is making of its own - settling a declared value back onto the
  * component - so [onUserEdit] hears the user's own edits and nothing else. A declared value the component
  * cannot hold verbatim - an installed `DocumentFilter` rewrote or refused it - settles silently: neither
  * this listener nor [declareText] reports what the component actually holds back to [onUserEdit].
  */
 internal fun SwingModifier.onTextEdit(
-    applied: AppliedValue<String>,
+    mirror: MirrorState<String>,
     onUserEdit: (String) -> Unit,
-): SwingModifier = listener(TextEdit(applied, onUserEdit), TEXT_EDITS)
+): SwingModifier = listener(TextEdit(mirror, onUserEdit), TEXT_EDITS)
 
 /** What [onTextEdit] declares, as one value the listener it registers reads. */
 private class TextEdit(
-    val applied: AppliedValue<String>,
+    val mirror: MirrorState<String>,
     val onUserEdit: (String) -> Unit,
 )
 
 private val TEXT_EDITS =
     documentMirrorRegistration<TextEdit>(
         onEdit = { edit, document ->
-            if (!edit.applied.isWriting) {
+            if (!edit.mirror.isWriting) {
                 val text = document.fullText()
-                if (edit.applied.observed(text)) edit.onUserEdit(text)
+                if (edit.mirror.observed(text)) edit.onUserEdit(text)
             }
         },
-        onAdopt = { edit, document -> edit.applied.observed(document.fullText()) },
+        onAdopt = { edit, document -> edit.mirror.observed(document.fullText()) },
     )
 
 /**
- * Declares [value] as this text component's document text, keeping [applied] in sync with it: the text
- * is written where the component does not already hold it, through [applied] so the write does not echo
+ * Declares [value] as this text component's document text, keeping [mirror] in sync with it: the text
+ * is written where the component does not already hold it, through [mirror] so the write does not echo
  * back as the user's own, and an edit the caller does not answer with a matching [value] is settled
  * back onto the declared text on the pass that carries their answer.
  */
 internal fun <C : JTextComponent> SwingNodeUpdater<C>.declareText(
     value: String,
-    applied: AppliedValue<String>,
+    mirror: MirrorState<String>,
 ) {
     declare(
         value,
-        applied,
+        mirror,
         read = { document.fullText() },
         write = { document.replaceSpan(0, document.length, it) },
     )

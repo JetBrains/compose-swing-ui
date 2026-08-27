@@ -8,11 +8,11 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.documentListener
 import org.jetbrains.compose.swing.modifier.listener.listener
-import org.jetbrains.compose.swing.node.AppliedValue
+import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
 import org.jetbrains.compose.swing.node.declare
-import org.jetbrains.compose.swing.node.rememberAppliedValue
+import org.jetbrains.compose.swing.node.rememberMirrorState
 import javax.swing.JPasswordField
 import javax.swing.event.DocumentListener
 import javax.swing.text.Document
@@ -25,7 +25,7 @@ import javax.swing.text.Segment
  * the comparison this wrapper makes against the field's characters need no extra, unzeroable `String`
  * copy of the password. Committing an edit still makes one: `JPasswordField.setText` takes a `String`,
  * so the password is materialized as one on its way into the field. That copy, the characters this
- * wrapper goes on mirroring to settle a move away from [value], and any copy Swing itself retains are
+ * wrapper goes on mirroring to settle a change away from [value], and any copy Swing itself retains are
  * all outside what a caller can zero.
  *
  * This field is strictly controlled: characters the field settles on that [onValueChange] does not
@@ -59,14 +59,14 @@ public fun PasswordField(
     columns: Int = 0,
     editable: Boolean = true,
 ) {
-    val applied = rememberAppliedValue(PasswordChars(value))
+    val mirror = rememberMirrorState(PasswordChars(value))
     PasswordFieldNode(
         value = value,
-        applied = applied,
+        mirror = mirror,
         // Deliver the raw characters by reading the document into a char array via a Segment, keeping
         // the password out of an unzeroable String. The array applied mirrors is retained as-is; the
         // callback is handed a distinct copy of its own, free to zero without corrupting that mirror.
-        modifier = modifier.listener(PasswordEdit(applied, onValueChange), PASSWORD_EDITS),
+        modifier = modifier.listener(PasswordEdit(mirror, onValueChange), PASSWORD_EDITS),
         echoChar = echoChar,
         columns = columns,
         editable = editable,
@@ -108,11 +108,11 @@ public fun PasswordField(
     columns: Int = 0,
     editable: Boolean = true,
 ) {
-    val applied = rememberAppliedValue(PasswordChars(value))
+    val mirror = rememberMirrorState(PasswordChars(value))
     PasswordFieldNode(
         value = value,
-        applied = applied,
-        modifier = modifier.documentListener(documentListener).passwordMirror(applied),
+        mirror = mirror,
+        modifier = modifier.documentListener(documentListener).passwordMirror(mirror),
         echoChar = echoChar,
         columns = columns,
         editable = editable,
@@ -126,7 +126,7 @@ public fun PasswordField(
 @Composable
 private fun PasswordFieldNode(
     value: CharArray,
-    applied: AppliedValue<PasswordChars>,
+    mirror: MirrorState<PasswordChars>,
     modifier: SwingModifier,
     echoChar: Char?,
     columns: Int,
@@ -137,22 +137,22 @@ private fun PasswordFieldNode(
         columns = columns,
         editable = editable,
         update = {
-            declarePassword(value, applied)
+            declarePassword(value, mirror)
             applyModifier(modifier)
         },
     )
 }
 
 /**
- * Mirrors into [applied] the characters the field holds after every edit, so the settlement
+ * Mirrors into [mirror] the characters the field holds after every edit, so the settlement
  * [declarePassword] makes compares against what the field currently holds rather than characters an edit
  * nothing else observed left behind.
  *
  * The listener rides the document the field currently holds, following a `document` property swap as the
  * text mirror does.
  */
-private fun SwingModifier.passwordMirror(applied: AppliedValue<PasswordChars>): SwingModifier =
-    listener(applied, PASSWORD_MIRRORS)
+private fun SwingModifier.passwordMirror(mirror: MirrorState<PasswordChars>): SwingModifier =
+    listener(mirror, PASSWORD_MIRRORS)
 
 /**
  * The characters a password field declares or holds, compared by content rather than the reference
@@ -168,25 +168,25 @@ private class PasswordChars(
 }
 
 /**
- * Declares [value] as this password field's characters, keeping [applied] in sync with them through
- * [declare]: they are written where the field does not already hold them, through [applied] so the write
+ * Declares [value] as this password field's characters, keeping [mirror] in sync with them through
+ * [declare]: they are written where the field does not already hold them, through [mirror] so the write
  * does not echo back as the user's own, and characters the field settles on that the caller does not
  * answer with a matching [value] are settled back onto the declared ones on the pass that carries their
  * answer.
  *
  * `getPassword()` answers with a fresh array on every call and leaves zeroing it to whoever read it, and
  * a settlement reads one for each comparison it makes. Each read zeroes the array the read before it
- * produced, so the one array left standing is the last: the characters [applied] goes on mirroring as
+ * produced, so the one array left standing is the last: the characters [mirror] goes on mirroring as
  * what the field held.
  */
 private fun <C : JPasswordField> SwingNodeUpdater<C>.declarePassword(
     value: CharArray,
-    applied: AppliedValue<PasswordChars>,
+    mirror: MirrorState<PasswordChars>,
 ) {
     val lastRead = arrayOfNulls<CharArray>(1)
     declare(
         value = PasswordChars(value),
-        applied = applied,
+        mirror = mirror,
         read = {
             lastRead[0]?.fill('\u0000')
             PasswordChars(password).also { lastRead[0] = it.chars }
@@ -279,16 +279,16 @@ private fun Document.fullPassword(): CharArray {
 }
 
 private val PASSWORD_MIRRORS =
-    documentMirrorRegistration<AppliedValue<PasswordChars>>(
-        onEdit = { applied, document ->
-            if (!applied.isWriting) applied.observed(PasswordChars(document.fullPassword()))
+    documentMirrorRegistration<MirrorState<PasswordChars>>(
+        onEdit = { mirror, document ->
+            if (!mirror.isWriting) mirror.observed(PasswordChars(document.fullPassword()))
         },
-        onAdopt = { applied, document -> applied.observed(PasswordChars(document.fullPassword())) },
+        onAdopt = { mirror, document -> mirror.observed(PasswordChars(document.fullPassword())) },
     )
 
 /** What the `onValueChange`-driven overload declares, as one value the listener it registers reads. */
 private class PasswordEdit(
-    val applied: AppliedValue<PasswordChars>,
+    val mirror: MirrorState<PasswordChars>,
     val onValueChange: (CharArray) -> Unit,
 )
 
@@ -297,10 +297,10 @@ private class PasswordEdit(
 private val PASSWORD_EDITS =
     documentMirrorRegistration<PasswordEdit>(
         onEdit = { edit, document ->
-            if (!edit.applied.isWriting) {
+            if (!edit.mirror.isWriting) {
                 val current = document.fullPassword()
-                if (edit.applied.observed(PasswordChars(current))) edit.onValueChange(current.copyOf())
+                if (edit.mirror.observed(PasswordChars(current))) edit.onValueChange(current.copyOf())
             }
         },
-        onAdopt = { edit, document -> edit.applied.observed(PasswordChars(document.fullPassword())) },
+        onAdopt = { edit, document -> edit.mirror.observed(PasswordChars(document.fullPassword())) },
     )

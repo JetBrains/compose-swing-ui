@@ -10,8 +10,8 @@ import org.jetbrains.compose.swing.components.button.rememberToggleMirroring
 import org.jetbrains.compose.swing.components.button.rememberToggleReporting
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
-import org.jetbrains.compose.swing.node.AppliedValue
 import org.jetbrains.compose.swing.node.MenuNode
+import org.jetbrains.compose.swing.node.MirrorState
 import java.awt.event.ActionListener
 import javax.swing.JCheckBoxMenuItem
 import javax.swing.KeyStroke
@@ -35,13 +35,13 @@ public fun CheckBoxMenuItem(
     modifier: SwingModifier = SwingModifier,
     accelerator: KeyStroke? = null,
 ) {
-    val (reporting, applied) = rememberToggleReporting(checked, onCheckedChange)
+    val (reporting, mirror) = rememberToggleReporting(checked, onCheckedChange)
     CheckBoxMenuItemNode(
         text = text,
         modifier = modifier.then(reporting),
         checked = checked,
         accelerator = accelerator,
-        applied = applied,
+        mirror = mirror,
     )
 }
 
@@ -66,19 +66,19 @@ public fun CheckBoxMenuItem(
     modifier: SwingModifier = SwingModifier,
     accelerator: KeyStroke? = null,
 ) {
-    val (mirroring, applied) = rememberToggleMirroring(checked, actionListener)
+    val (mirroring, mirror) = rememberToggleMirroring(checked, actionListener)
     CheckBoxMenuItemNode(
         text = text,
         modifier = modifier.then(mirroring),
         checked = checked,
         accelerator = accelerator,
-        applied = applied,
+        mirror = mirror,
     )
 }
 
 /**
  * The `JCheckBoxMenuItem` node both [CheckBoxMenuItem] overloads render. [checked] is settled against the
- * item through [applied] rather than applied on change: the user can toggle the item out from under the
+ * item through [mirror] rather than applied on change: the user can toggle the item out from under the
  * declaration, and a declaration equal to the last one still has to stand.
  */
 @Composable
@@ -87,13 +87,13 @@ private fun CheckBoxMenuItemNode(
     modifier: SwingModifier,
     checked: Boolean,
     accelerator: KeyStroke?,
-    applied: AppliedValue<Boolean>,
+    mirror: MirrorState<Boolean>,
 ) {
     MenuNode(
         factory = { JCheckBoxMenuItem() },
         update = {
             set(text) { this.text = it }
-            declareSelected(checked, applied)
+            declareSelected(checked, mirror)
             set(accelerator) { this.accelerator = it }
             applyModifier(modifier)
         },

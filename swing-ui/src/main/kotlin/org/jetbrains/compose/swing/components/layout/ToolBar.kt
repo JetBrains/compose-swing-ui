@@ -12,7 +12,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.hierarchyListener
 import org.jetbrains.compose.swing.node.SwingNode
-import org.jetbrains.compose.swing.node.rememberAppliedValue
+import org.jetbrains.compose.swing.node.rememberMirrorState
 import java.awt.event.HierarchyEvent
 import javax.swing.JToolBar
 import javax.swing.SwingConstants
@@ -73,12 +73,11 @@ public fun ToolBar(
     // Seeded with what a bar holds when it is built rather than with the declaration: a bar cannot float
     // before it stands in a window, so seeding this `true` would make the bar's first docked reading look
     // like the user having docked it.
-    val applied = rememberAppliedValue(false)
-    // Reading the mirror here subscribes this composition to the user dragging the bar out or docking it
-    // back, so a move away from the declaration invalidates on its own instead of waiting for an
-    // unrelated recomposition to notice it. The value itself is nothing this body needs: the settle below
-    // reads the state off the bar.
-    applied.value
+    val mirror = rememberMirrorState(false)
+    // Subscribed here so that the user dragging the bar out or docking it back invalidates on its own
+    // instead of waiting for an unrelated recomposition to notice it. What the bar is left on is nothing
+    // this body reads from the mirror: the settle below reads the state off the bar.
+    mirror.subscribe()
     // Whether the bar ended the last settle holding something other than what was declared for it, which
     // is what a bar that could not float looks like.
     val refused = remember { booleanArrayOf(false) }
@@ -90,7 +89,7 @@ public fun ToolBar(
     val placements = remember { mutableIntStateOf(0) }
     placements.intValue
     // The floating state the caller has last been told the bar holds: the one it declared and the bar
-    // took, the docked state it was handed for a declaration the bar refused, or the state of a move the
+    // took, the docked state it was handed for a declaration the bar refused, or the state of a change the
     // user made themselves. Every settle records what the bar was left holding here, so a refusal that
     // still stands is one the caller has already heard. Null while the caller has been told nothing, which
     // is what tells a first refusal apart from a repeat of one.
@@ -107,7 +106,7 @@ public fun ToolBar(
             // Nothing is written to the bar from the hierarchy event. Settling belongs to a composition
             // pass, which is the one place the declaration to settle against exists - and writing to the
             // hierarchy from inside a hierarchy event deadlocks, since the event arrives holding the AWT
-            // tree lock that the write needs the toolkit to take. A move made inside a write of this
+            // tree lock that the write needs the toolkit to take. A change made inside a write of this
             // wrapper's own is the declaration taking effect, and neither the mirror nor the placement
             // count takes it for the user's.
             applyModifier(
@@ -116,8 +115,8 @@ public fun ToolBar(
                         return@hierarchyListener
                     }
                     val standing = (event.component as JToolBar).isFloating
-                    if (refused[0] && !applied.isWriting) placements.intValue++
-                    if (applied.observed(standing)) {
+                    if (refused[0] && !mirror.isWriting) placements.intValue++
+                    if (mirror.observed(standing)) {
                         reportedFloating[0] = standing
                         onFloatingChange(standing)
                     }
@@ -136,7 +135,7 @@ public fun ToolBar(
             // second answer. It reaches the caller contained, the way a settle would have dispatched it,
             // so a throw out of it is reported rather than left to end the composition applying this pass.
             settleWithChildren {
-                applied.settle(floating, { isFloating }, { standing -> applyFloating(standing) })
+                mirror.settle(floating, { isFloating }, { standing -> applyFloating(standing) })
                 val settled = isFloating
                 val unheard = reportedFloating[0] != settled
                 reportedFloating[0] = settled

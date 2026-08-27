@@ -4,7 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.assertUnadoptedMoveIsPutBack
+import org.jetbrains.compose.swing.assertUnadoptedChangeIsPutBack
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -133,7 +133,7 @@ class ComboBoxSelectionFeedbackTest {
         assertEquals(1, combo.selectedIndex, "the combo box holds the declared item at the first equal one")
         assertEquals(emptyList(), received, "a declared selection change reported itself back")
 
-        // Back to the first item, so that choosing one of the equal ones below is a move.
+        // Back to the first item, so that choosing one of the equal ones below is a change.
         selection = "red"
         awaitIdle()
         received.clear()
@@ -361,7 +361,7 @@ class ComboBoxSelectionFeedbackTest {
 
     @Test
     fun aChoiceTheCallerDoesNotAdoptComesOffWithinEventCycles() = runSwingTest {
-        assertUnadoptedMoveIsPutBack(
+        assertUnadoptedChangeIsPutBack(
             type = JComboBox::class.java,
             declared = "Ada",
             content = {
@@ -371,7 +371,7 @@ class ComboBoxSelectionFeedbackTest {
                     onSelectionChange = {},
                 )
             },
-            move = { it.selectedIndex = 2 },
+            change = { it.selectedIndex = 2 },
             read = { it.selectedItem },
         )
     }

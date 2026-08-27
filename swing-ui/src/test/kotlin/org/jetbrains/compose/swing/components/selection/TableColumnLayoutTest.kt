@@ -29,7 +29,7 @@ import kotlin.test.assertTrue
  * cannot hold all of it.
  *
  * A user's own reorder or resize reaches the caller either way, and where a layout is declared it also
- * provokes the pass that puts the declaration back - so a move the caller does not adopt is reported once
+ * provokes the pass that puts the declaration back - so a change the caller does not adopt is reported once
  * and does not stand.
  *
  * Headless caveat: no native peer realizes, so a header drag is driven where the look and feel drives it -

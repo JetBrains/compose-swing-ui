@@ -7,14 +7,15 @@ import androidx.compose.runtime.mutableStateOf
 import org.jetbrains.compose.swing.core.SwingContentComposition
 import org.jetbrains.compose.swing.node.SlotAttachment
 import org.jetbrains.compose.swing.node.SwingApplier
+import org.jetbrains.compose.swing.node.SwingNodeHolder
 import java.awt.Component
 import java.awt.Container
 
 /**
  * The rubber stamp a widget's composable cells are painted through - ONE reused component and ONE reused
  * nested [SwingContentComposition], recomposed for every cell the widget asks to paint. This is the model a
- * `ListCellRenderer`, a `TableCellRenderer` and a `TreeCellRenderer` are all built on, and one composition
- * serves any of them.
+ * `ListCellRenderer`, a `TableCellRenderer` and a `TreeCellRenderer` are all built on, and one cell
+ * composition serves any of them.
  *
  * The composition joins the enclosing one (via the [parentContext] captured with
  * `rememberCompositionContext`), so [body] sees the surrounding state and
@@ -22,12 +23,13 @@ import java.awt.Container
  * synchronously by [stamp] rather than by the window recomposer's asynchronous frame loop. The cells are
  * display-only stamps: a single reused component tree, never per-cell interactive.
  *
- * The component [body] composes is what the widget is handed: it fills the composition's single-view slot, as
- * a `JScrollPane` region does, so nothing of the composition's stands between that component and the cell.
+ * The component [body] composes is what the widget is handed: it fills the cell composition's single-view
+ * slot, as a `JScrollPane` region does, so nothing of that composition's stands between the component and
+ * the cell.
  *
- * @param parentContext the enclosing composition this composition joins.
+ * @param parentContext the enclosing composition this cell composition joins.
  * @param singleComponentMessage reports a cell body that composes more than one component, in the words
- *   of the widget the composition stamps for.
+ *   of the widget this cell composition stamps for.
  * @param body the cell body every stamp composes, holding the composition state the stamps write; a
  *   [stamp] whose `hasCell` is `false` composes none of it, which is what leaves the widget the empty
  *   cell - decided once here rather than by each renderer inferring it from the value it stamped.
@@ -41,9 +43,7 @@ internal class CellStampComposition(
     // the widget's to bound and lay out, so it is handed over exactly as the cell composed it.
     private var cell: Component? = null
 
-    // The cell's single-view slot, through which the composition's composition attaches its one top-level
-    // node. A cell renders one component, the way a JScrollPane region hosts one view, so what fills
-    // the slot is what the widget is handed for the cell.
+    // The cell's single-view slot, through which the cell composition attaches its one top-level node.
     private val slot =
         SlotAttachment { _, component, index ->
             check(index == 0) { singleComponentMessage }
@@ -58,31 +58,30 @@ internal class CellStampComposition(
             }
         }
 
-    // Whether the widget named a cell for the pending stamp to render, decided once here so every
-    // renderer states its own presence signal rather than this composition - or a renderer - inferring it
-    // from the nullity of the value the cell body reads.
+    // Whether the widget named a cell for the pending stamp to render; see stamp()'s `hasCell` parameter
+    // for why this is never inferred from the value the cell body reads.
     private val hasCellState = mutableStateOf(false)
 
-    // The composition's own composition, mounted as this composition is created and disposed by [dispose]. It joins
+    // The cell composition itself, mounted as this object is created and disposed by [dispose]. It joins
     // parentContext but is a separate ControlledComposition, driven synchronously by [stamp].
-    private val mount: SwingContentComposition =
+    private val composition: SwingContentComposition =
         SwingContentComposition
-            .nested(parentContext) { observer ->
-                SwingApplier(EMPTY_CELL, observer, rootSlot = slot)
+            .nested(parentContext) { owner ->
+                SwingApplier(SwingNodeHolder(EMPTY_CELL).attachedTo(owner), rootSlot = slot)
             }.apply {
                 setContent { Stamp(hasCellState, body) }
             }
 
     // Re-entrancy guard: the synchronous recompose+apply below runs the applier, which revalidates the
     // components it touched; that must not recursively drive another stamp mid-flush. What such a stamp
-    // is answered with is the component the composition holds, which is the cell being flushed.
+    // is answered with is the component this composition holds, which is the cell being flushed.
     private var stamping = false
 
     /**
-     * Writes [hasCell] and the cell inputs through [writeInputs], then recomposes-and-applies this composition
-     * synchronously, so the cell's Swing subtree is fully materialized before the component this returns
-     * reaches the widget's `CellRendererPane` to paint. The write is recorded against the composition
-     * composition so the synchronous recompose sees the change; this takes no frame from the window
+     * Writes [hasCell] and the cell inputs through [writeInputs], then recomposes-and-applies this cell
+     * composition synchronously, so the cell's Swing subtree is fully materialized before the component
+     * this returns reaches the widget's `CellRendererPane` to paint. The write is recorded against the
+     * cell composition so the synchronous recompose sees the change; this takes no frame from the window
      * recomposer.
      *
      * @param hasCell whether the widget named a cell for this stamp to render - a presence signal each
@@ -98,7 +97,7 @@ internal class CellStampComposition(
         if (stamping) return cell ?: EMPTY_CELL
         stamping = true
         try {
-            mount.recomposeSynchronously {
+            composition.recomposeSynchronously {
                 hasCellState.value = hasCell
                 writeInputs()
             }
@@ -109,24 +108,17 @@ internal class CellStampComposition(
     }
 
     /**
-     * Disposes this composition's composition and its observer. A renderer over it stays safe to invoke
+     * Disposes this cell composition and its observer. A renderer over it stays safe to invoke
      * afterwards - the widget that captured that renderer outlives the composition - and a stamp on a
-     * disposed composition renders the empty cell a composition holding nothing composes.
+     * disposed one renders the empty cell a composition holding nothing composes.
      */
-    fun dispose(): Unit = mount.dispose()
+    fun dispose(): Unit = composition.dispose()
 }
 
 /**
  * The restartable body of a [CellStampComposition]'s composition. [body] runs here, below the non-restartable
  * root of `setContent`, so the composition state a stamp writes invalidates this scope alone and the
  * synchronous recompose re-runs exactly it.
- *
- * What [body] composes is the composition's own top-level node, so it fills the composition's slot and is
- * handed to the widget as it was composed - placed by the widget that renders it rather than by any
- * container of the library's.
- *
- * [body] composes only where [hasCell] is `true`; a stamp that names no cell leaves the slot untaken,
- * which is what leaves the widget the empty cell.
  */
 @Composable
 private fun Stamp(
@@ -137,10 +129,10 @@ private fun Stamp(
 }
 
 /**
- * The container every cell composition is rooted at, and the one a widget is handed for a cell that composes
- * no component of its own. One serves every composition because nothing ever tells them apart: a cell's
- * component fills its composition's slot rather than joining this container, so it holds no child, draws
- * nothing and asks for no room. It exists at all because a composition is rooted at a component and a
+ * The container every cell composition is rooted at, and the one a widget is handed for a cell that
+ * composes no component of its own. One serves them all because nothing ever tells them apart: a cell's
+ * component fills its own composition's slot rather than joining this container, so it holds no child,
+ * draws nothing and asks for no room. It exists at all because a composition is rooted at a component and a
  * widget dereferences whatever its renderer returns - an empty cell is a component that renders as
  * nothing, not the absence of one.
  */

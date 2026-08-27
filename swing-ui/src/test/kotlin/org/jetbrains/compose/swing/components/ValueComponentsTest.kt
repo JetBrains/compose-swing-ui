@@ -4,7 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.assertUnadoptedMoveIsPutBack
+import org.jetbrains.compose.swing.assertUnadoptedChangeIsPutBack
 import org.jetbrains.compose.swing.components.text.TextArea
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -61,12 +61,12 @@ class ValueComponentsTest {
         slider.value = 42
         awaitIdle()
 
-        assertEquals(listOf(42), reported, "the move should be reported once, with the value moved to")
+        assertEquals(listOf(42), reported, "the change should be reported once, with the value changed to")
         assertEquals(42, slider.value, "the slider should land on the value it was moved to")
     }
 
     @Test
-    fun sliderReportsAUserMoveAndNotTheValueItWasGiven() = runComposeSwingTest {
+    fun sliderReportsAUserChangeAndNotTheValueItWasGiven() = runComposeSwingTest {
         var value by mutableIntStateOf(10)
         val reported = mutableListOf<Int>()
         setContent {
@@ -122,7 +122,7 @@ class ValueComponentsTest {
         assertEquals(50, slider.value, "the slider should start at its declared value")
 
         // Narrowing the range below the declared value forces JSlider to clamp it on the spot; that
-        // clamp is the wrapper settling its own declaration, not a move the user made.
+        // clamp is the wrapper settling its own declaration, not a change the user made.
         max = 30
         awaitIdle()
 
@@ -132,7 +132,7 @@ class ValueComponentsTest {
     }
 
     @Test
-    fun aMoveTheCallerDoesNotAdoptDoesNotStand() = runComposeSwingTest {
+    fun aChangeTheCallerDoesNotAdoptDoesNotStand() = runComposeSwingTest {
         // The declaration never moves: what the widget is left holding is the whole of what this pins.
         val value by mutableIntStateOf(30)
         setContent {
@@ -141,11 +141,11 @@ class ValueComponentsTest {
         val slider = onNodeOfType<JSlider>().fetch()
 
         // Moving the knob directly is the same write path a drag takes; with no onValueChange to
-        // adopt it, the move does not stand past the settle awaitIdle drives.
+        // adopt it, the change does not stand past the settle awaitIdle drives.
         slider.value = 70
         awaitIdle()
 
-        assertEquals(30, slider.value, "a move the caller does not adopt does not stand")
+        assertEquals(30, slider.value, "a change the caller does not adopt does not stand")
     }
 
     @Test
@@ -365,22 +365,22 @@ class ValueComponentsTest {
 
     @Test
     fun aSliderMoveTheCallerDoesNotAdoptComesOffWithinEventCycles() = runSwingTest {
-        assertUnadoptedMoveIsPutBack(
+        assertUnadoptedChangeIsPutBack(
             type = JSlider::class.java,
             declared = 10,
             content = { Slider(value = 10, onValueChange = {}) },
-            move = { it.value = 80 },
+            change = { it.value = 80 },
             read = { it.value },
         )
     }
 
     @Test
     fun aSpinnerMoveTheCallerDoesNotAdoptComesOffWithinEventCycles() = runSwingTest {
-        assertUnadoptedMoveIsPutBack(
+        assertUnadoptedChangeIsPutBack(
             type = JSpinner::class.java,
             declared = 1,
             content = { Spinner(value = 1, onValueChange = {}) },
-            move = { it.value = 5 },
+            change = { it.value = 5 },
             read = { it.value },
         )
     }

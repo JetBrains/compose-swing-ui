@@ -2,6 +2,7 @@ package org.jetbrains.compose.swing.node
 
 import androidx.compose.runtime.AbstractApplier
 import org.jetbrains.compose.swing.util.DeferredAction
+import org.jetbrains.compose.swing.util.fastForEach
 import java.awt.Component
 import java.awt.Container
 import javax.swing.JComponent
@@ -28,10 +29,10 @@ import javax.swing.JPopupMenu
  */
 @PublishedApi
 internal class MenuApplier(
-    root: JComponent,
-) : AbstractApplier<SwingNodeHolder<*>>(SwingNodeHolder(root)) {
-    /** The bookkeeping for the batch of component updates in flight. */
-    private val batch = ComponentUpdateBatch()
+    root: SwingNodeHolder<JComponent>,
+) : AbstractApplier<SwingNodeHolder<*>>(root) {
+    /** The bookkeeping for the batch of component updates in flight, read off the root like any node. */
+    private val batch = root.requireOwner().updateBatch
 
     /**
      * Packs the showing popups once more, on the turn of the event queue after the one a change pass
@@ -42,14 +43,14 @@ internal class MenuApplier(
     private val deferredPack = DeferredAction { this.root.packShowingPopups() }
 
     /**
-     * Menu nodes attach to their container on the bottom-up pass, so all this pass does is tell the node
-     * which change pass it is driven by - what a node settling against its children hands that settle to.
+     * Attaches the node to the composition its parent stands in. This MUST happen on the top-down pass -
+     * see [SwingCompositionOwner]. A menu node takes its place in its container on the bottom-up pass.
      */
     override fun insertTopDown(
         index: Int,
         instance: SwingNodeHolder<*>,
     ) {
-        instance.updateBatch = batch
+        instance.attachedTo(current.owner)
     }
 
     override fun insertBottomUp(
@@ -74,9 +75,7 @@ internal class MenuApplier(
         // Each child leaves by component identity: a parked child's component is already detached, so
         // the container holds nothing at that child's composition index, and `Container.remove(Component)`
         // on a detached component is a no-op.
-        val removed = parent.children.subList(index, index + count)
-        for (holder in removed) container.remove(holder.component)
-        removed.clear()
+        parent.removeChildRun(index, count) { container.remove(it.component) }
         batch.markChanged(container)
     }
 
@@ -90,18 +89,13 @@ internal class MenuApplier(
         val container = parent.menuContainer("move menu children")
         batch.holdForChildSettle(parent)
 
-        val children = parent.children
-        val moved = ArrayList(children.subList(from, from + count))
-        for (holder in moved) container.remove(holder.component)
-        children.subList(from, from + count).clear()
-        // Removing `count` children at `from` shifts indices above `from` down by `count`; mirrors
-        // SwingApplier.move's index math.
-        val targetBase = if (from > to) to else to - count
-        children.addAll(targetBase, moved)
-        moved.forEachIndexed { offset, holder ->
-            if (!holder.attachedToHost) return@forEachIndexed
-            container.add(holder.component, parent.attachedSiblingsBefore(targetBase + offset))
-        }
+        parent.moveChildRun(
+            from,
+            to,
+            count,
+            detach = { container.remove(it.component) },
+            place = { holder, position -> container.add(holder.component, position) },
+        )
         batch.markChanged(container)
     }
 
@@ -138,7 +132,7 @@ internal class MenuApplier(
             is JMenu -> node.popupMenu.let { if (it.isVisible) it.pack() }
             else -> Unit
         }
-        for (child in children) child.packShowingPopups()
+        children.fastForEach { it.packShowingPopups() }
     }
 
     private fun removeAllChildren(node: Component) {

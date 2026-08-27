@@ -4,8 +4,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.assertUnadoptedMoveIsPutBack
-import org.jetbrains.compose.swing.node.AppliedValue
+import org.jetbrains.compose.swing.assertUnadoptedChangeIsPutBack
+import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -460,17 +460,17 @@ class DeclaredTextPushTest {
 
     @Test
     fun aNestedWriteKeepsTheOuterOneSilent() {
-        // No wrapper nests a write inside another, so this drives AppliedValue directly to pin the
+        // No wrapper nests a write inside another, so this drives MirrorState directly to pin the
         // nesting behavior callers may rely on.
         val reported = mutableListOf<String>()
         val document = PlainDocument()
-        val applied = AppliedValue(Unit)
+        val mirror = MirrorState(Unit)
         document.addDocumentListener(
-            documentChangeListener { event -> if (!applied.isWriting) reported += event.document.fullText() },
+            documentChangeListener { event -> if (!mirror.isWriting) reported += event.document.fullText() },
         )
 
-        applied.write {
-            applied.write { document.insertString(0, "inner", null) }
+        mirror.write {
+            mirror.write { document.insertString(0, "inner", null) }
             document.insertString(document.length, "-outer", null)
         }
         assertEquals(emptyList(), reported, "a write nested in another leaves the outer one silent too")
@@ -481,44 +481,44 @@ class DeclaredTextPushTest {
 
     @Test
     fun aTextFieldEditTheCallerDoesNotAdoptComesOffWithinEventCycles() = runSwingTest {
-        assertUnadoptedMoveIsPutBack(
+        assertUnadoptedChangeIsPutBack(
             type = JTextField::class.java,
             declared = "Ada",
             content = { TextField(value = "Ada", onValueChange = {}) },
-            move = { it.text = "Adam" },
+            change = { it.text = "Adam" },
             read = { it.text },
         )
     }
 
     @Test
     fun aTextAreaEditTheCallerDoesNotAdoptComesOffWithinEventCycles() = runSwingTest {
-        assertUnadoptedMoveIsPutBack(
+        assertUnadoptedChangeIsPutBack(
             type = JTextArea::class.java,
             declared = "Ada",
             content = { TextArea(value = "Ada", onValueChange = {}) },
-            move = { it.text = "Adam" },
+            change = { it.text = "Adam" },
             read = { it.text },
         )
     }
 
     @Test
     fun aTextPaneEditTheCallerDoesNotAdoptComesOffWithinEventCycles() = runSwingTest {
-        assertUnadoptedMoveIsPutBack(
+        assertUnadoptedChangeIsPutBack(
             type = JTextPane::class.java,
             declared = "Ada",
             content = { TextPane(value = "Ada", onValueChange = {}) },
-            move = { it.text = "Adam" },
+            change = { it.text = "Adam" },
             read = { it.text },
         )
     }
 
     @Test
     fun aCommitTheCallerDoesNotAdoptComesOffWithinEventCycles() = runSwingTest {
-        assertUnadoptedMoveIsPutBack(
+        assertUnadoptedChangeIsPutBack(
             type = JFormattedTextField::class.java,
             declared = 10,
             content = { FormattedTextField(value = 10, onValueChange = {}) },
-            move = { it.value = 42 },
+            change = { it.value = 42 },
             read = { it.value },
         )
     }

@@ -11,10 +11,10 @@ import org.jetbrains.compose.swing.constants.TreeSelectionMode
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.propertyElement
-import org.jetbrains.compose.swing.node.AppliedValue
+import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
-import org.jetbrains.compose.swing.node.rememberAppliedValue
+import org.jetbrains.compose.swing.node.rememberMirrorState
 import org.jetbrains.compose.swing.node.settleWhenDue
 import javax.swing.JTree
 import javax.swing.event.TreeExpansionEvent
@@ -563,7 +563,7 @@ public fun Tree(
  * The `JTree` node every [Tree] overload renders: all of it but the structure, which [installContent]
  * declares - values walked through child accessors in one family of overloads, the caller's own model in
  * the other. [installContent] is handed the tree's [TreeMirrors], since giving the tree a new structure is
- * one of the writes that moves both of the facets it settles.
+ * one of the writes that changes both of the facets it settles.
  */
 @Composable
 private fun TreeNode(
@@ -583,24 +583,24 @@ private fun TreeNode(
     nodeRenderer: ComposingTreeCellRenderer<*>?,
     installContent: SwingNodeUpdater<JTree>.(TreeMirrors) -> Unit,
 ) {
-    val appliedSelection = rememberAppliedValue(selectedPaths)
-    val appliedExpansion = rememberAppliedValue(expandedPaths)
-    val mirrors = remember(appliedSelection, appliedExpansion) { TreeMirrors(appliedSelection, appliedExpansion) }
+    val selectionMirror = rememberMirrorState(selectedPaths)
+    val expansionMirror = rememberMirrorState(expandedPaths)
+    val mirrors = remember(selectionMirror, expansionMirror) { TreeMirrors(selectionMirror, expansionMirror) }
     // An event a write of the wrapper's own raised is never the user's, and the write reads the tree back
     // into its mirror once it has returned, so the walk that would answer with what the mirror is about to
     // be told anyway is skipped while one is in flight.
     val userSelectionListener =
-        remember(appliedSelection, treeSelectionListener) {
+        remember(selectionMirror, treeSelectionListener) {
             TreeSelectionListener { event ->
-                if (appliedSelection.isWriting) return@TreeSelectionListener
+                if (selectionMirror.isWriting) return@TreeSelectionListener
                 val tree = event.source as JTree
-                if (appliedSelection.observed(readSelection(tree, tree.model))) {
+                if (selectionMirror.observed(readSelection(tree, tree.model))) {
                     treeSelectionListener.valueChanged(event)
                 }
             }
         }
     val userExpansionListener =
-        remember(appliedExpansion, treeExpansionListener) {
+        remember(expansionMirror, treeExpansionListener) {
             object : TreeExpansionListener {
                 override fun treeExpanded(event: TreeExpansionEvent) =
                     report(event) { target -> target.treeExpanded(event) }
@@ -612,9 +612,9 @@ private fun TreeNode(
                     event: TreeExpansionEvent,
                     deliver: (TreeExpansionListener) -> Unit,
                 ) {
-                    if (appliedExpansion.isWriting) return
+                    if (expansionMirror.isWriting) return
                     val tree = event.source as JTree
-                    if (appliedExpansion.observed(readExpansion(tree, tree.model))) {
+                    if (expansionMirror.observed(readExpansion(tree, tree.model))) {
                         treeExpansionListener?.let(deliver)
                     }
                 }
@@ -628,19 +628,19 @@ private fun TreeNode(
         factory = { JTree(DefaultTreeModel(null)) },
         update = {
             set(selectionMode) { mode ->
-                settleNarrowing(appliedSelection, selectedPaths, treeSelectionListener) {
+                settleNarrowing(selectionMirror, selectedPaths, treeSelectionListener) {
                     selectionModel.selectionMode = mode
                 }
             }
             set(rootVisible) { visible ->
-                settleNarrowing(appliedSelection, selectedPaths, treeSelectionListener) { isRootVisible = visible }
+                settleNarrowing(selectionMirror, selectedPaths, treeSelectionListener) { isRootVisible = visible }
             }
             set(isEditable) { editable -> this.isEditable = editable }
             set(visibleRowCount) { count -> this.visibleRowCount = count }
             set(toggleClickCount) { clicks -> this.toggleClickCount = clicks }
             installContent(mirrors)
-            // Redeclaring each mirror subscribes this composition to the user moving the tree's own
-            // selection or expansion, and answers whether that mirror or its declaration has moved since
+            // Redeclaring each mirror subscribes this composition to the user changing the tree's own
+            // selection or expansion, and answers whether that mirror or its declaration has changed since
             // the last settling recorded the pair. Both are redeclared whatever either answers, so each
             // records the pair this pass makes: a mirror left unrecorded would keep answering for a pass
             // that is already over.
@@ -649,12 +649,12 @@ private fun TreeNode(
             // the two combined - a node is only selectable where its ancestors are open - so applying one
             // without the other would leave the tree standing on a pairing neither declaration asked for.
             // Each mirror still sees the write as its own, which is what the nesting is for.
-            val selectionMoved = appliedSelection.redeclare(selectedPaths)
-            val expansionMoved = appliedExpansion.redeclare(expandedPaths)
-            // The mirrors hold what the settling left the tree on, so a move the user repeats is answered
+            val selectionChanged = selectionMirror.redeclare(selectedPaths)
+            val expansionChanged = expansionMirror.redeclare(expandedPaths)
+            // The mirrors hold what the settling left the tree on, so a change the user repeats is answered
             // every time they make it.
             settleWhenDue(
-                selectionMoved || expansionMoved,
+                selectionChanged || expansionChanged,
                 {
                     TreeDeclarations(
                         mirrors = mirrors,
@@ -664,7 +664,7 @@ private fun TreeNode(
                     )
                 },
             ) { declarations ->
-                settleSelection(declarations) { applyDeclarations(declarations, structureMoved = false) }
+                settleSelection(declarations) { applyDeclarations(declarations, structureChanged = false) }
             }
             val treeModifier =
                 modifier.treeListeners(userSelectionListener, userExpansionListener, treeWillExpandListener)
@@ -675,7 +675,7 @@ private fun TreeNode(
 
 /**
  * Applies through [block] a property the tree answers by dropping nodes it can no longer hold, reporting to
- * [target] the ones the user loses to it where [declared] leaves the selection theirs, and leaves [applied]
+ * [target] the ones the user loses to it where [declared] leaves the selection theirs, and leaves [mirror]
  * mirroring the selection the tree was left with.
  *
  * The read that records what survived the write stays outside any settlement of the mirror's, because what
@@ -684,13 +684,13 @@ private fun TreeNode(
  * and leave a declared selection lying where the write dropped it.
  */
 private fun JTree.settleNarrowing(
-    applied: AppliedValue<Set<List<Int>>?>,
+    mirror: MirrorState<Set<List<Int>>?>,
     declared: Set<List<Int>>?,
     target: TreeSelectionListener,
     block: () -> Unit,
 ) {
-    narrowSelection(applied, declared, target, block)
-    applied.observed(readSelection(this, model))
+    narrowSelection(mirror, declared, target, block)
+    mirror.observed(readSelection(this, model))
 }
 
 /**

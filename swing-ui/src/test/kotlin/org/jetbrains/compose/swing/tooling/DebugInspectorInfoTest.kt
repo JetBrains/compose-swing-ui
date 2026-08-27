@@ -18,6 +18,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingApplier
 import org.jetbrains.compose.swing.node.SwingComponentNode
+import org.jetbrains.compose.swing.node.SwingNodeHolder
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -52,9 +53,9 @@ private const val COLLECTION_ATTEMPTS = 20
  * stops, and what a re-insertion it asks for keeps or discards.
  *
  * The switch is process-wide state, so every test leaves it off again - otherwise it would leak into a
- * later test, and into every composition the rest of the suite mounts. The Compose recomposer's diagnostic
+ * later test, and into every composition the rest of the suite mounts. The Compose runtime's diagnostic
  * stack trace mode is process-wide too and belongs to the application, which these tests stand in for:
- * they put the recomposer in it before each test and back to its default after.
+ * they set that mode before each test and restore its default after.
  */
 class DebugInspectorInfoTest {
     /** Stands in for an application that enabled Compose diagnostic stack traces. */
@@ -178,7 +179,7 @@ class DebugInspectorInfoTest {
         )
 
         val compositionHost = JPanel()
-        val handle = compositionHost.setContent(parent = parentContext) { Label(text = "composition") }
+        val handle = compositionHost.setContent(parent = parentContext) { Label(text = "nested") }
         try {
             awaitIdle()
 
@@ -231,11 +232,11 @@ class DebugInspectorInfoTest {
                 remember { buildsOfTheComposition++ }
                 @Suppress("UNUSED_EXPRESSION")
                 driveTheComposition
-                Label(text = "composition", modifier = SwingModifier.testTag(NESTED_TAG))
+                Label(text = "nested", modifier = SwingModifier.testTag(NESTED_TAG))
             }
         try {
             awaitIdle()
-            assertEquals(1, buildsOfTheComposition, "the composition is built once by its own mount")
+            assertEquals(1, buildsOfTheComposition, "the content composition is built once by its own mount")
 
             isDebugInspectorInfoEnabled = true
             awaitIdle()
@@ -290,11 +291,11 @@ class DebugInspectorInfoTest {
         val handle =
             bareHost.setContent(parent = parentContext) {
                 remember { buildsOfTheComposition++ }
-                Label(text = "composition", modifier = SwingModifier.testTag(NESTED_TAG))
+                Label(text = "nested", modifier = SwingModifier.testTag(NESTED_TAG))
             }
         try {
             awaitIdle()
-            assertEquals(1, buildsOfTheComposition, "the composition is built once by its own mount")
+            assertEquals(1, buildsOfTheComposition, "the content composition is built once by its own mount")
 
             isDebugInspectorInfoEnabled = true
             awaitIdle()
@@ -328,11 +329,15 @@ class DebugInspectorInfoTest {
         val handle =
             bareHost.setContent(parent = parentContext) {
                 remember { buildsOfTheComposition++ }
-                Label(text = "composition", modifier = SwingModifier.testTag(NESTED_TAG))
+                Label(text = "nested", modifier = SwingModifier.testTag(NESTED_TAG))
             }
         try {
             awaitIdle()
-            assertEquals(1, buildsOfTheComposition, "the composition is built once and re-inserted for nothing")
+            assertEquals(
+                1,
+                buildsOfTheComposition,
+                "the content composition is built once and re-inserted for nothing",
+            )
             assertNull(
                 bareHost.components.single().findDeclaringGroup(),
                 "and the component it declared is answered for by nothing",
@@ -350,9 +355,9 @@ class DebugInspectorInfoTest {
         isDebugInspectorInfoEnabled = true
         awaitIdle()
         val compositionHost = JPanel()
-        val handle = compositionHost.setContent(parent = parentContext) { Label(text = "composition") }
+        val handle = compositionHost.setContent(parent = parentContext) { Label(text = "nested") }
         awaitIdle()
-        assertNotNull(compositionHost.findCompositionData(), "the composition publishes itself on its host")
+        assertNotNull(compositionHost.findCompositionData(), "the content composition publishes itself on its host")
         assertAnsweredWithItsOwnGroup(compositionHost.components.single())
 
         handle.dispose()
@@ -369,7 +374,7 @@ class DebugInspectorInfoTest {
         setContent { parentContext = rememberCompositionContext() }
 
         val compositionHost = JPanel()
-        val handle = compositionHost.setContent(parent = parentContext) { Label(text = "composition") }
+        val handle = compositionHost.setContent(parent = parentContext) { Label(text = "nested") }
         awaitIdle()
         val compositionLabel = compositionHost.components.single()
 
@@ -391,19 +396,22 @@ class DebugInspectorInfoTest {
         isDebugInspectorInfoEnabled = true
         setContent { parentContext = rememberCompositionContext() }
 
-        // Two compositions rooted at one container, mounted rather than set as compositions: `setContent`
-        // refuses a container already carrying a live composition, and what a mount withdraws once another has
-        // taken its host is what is under test.
+        // Two compositions rooted at one container, created directly rather than through `setContent`:
+        // that refuses a container already carrying a live composition, and what a composition withdraws
+        // once another has taken its host is what is under test.
         val compositionHost = JPanel()
         val stale =
-            SwingContentComposition.nested(
-                parentContext,
-            ) { observer -> SwingApplier(compositionHost, observer) }
+            SwingContentComposition.nested(parentContext) { owner ->
+                SwingApplier(SwingNodeHolder(compositionHost).attachedTo(owner))
+            }
         stale.setContent { Label(text = "stale") }
         // Declared only once the stale composition is gone: disposing one empties the container it is
         // rooted at, which is the host these two share.
         var showTheLabel by mutableStateOf(false)
-        val live = SwingContentComposition.nested(parentContext) { observer -> SwingApplier(compositionHost, observer) }
+        val live =
+            SwingContentComposition.nested(parentContext) { owner ->
+                SwingApplier(SwingNodeHolder(compositionHost).attachedTo(owner))
+            }
         try {
             live.setContent { if (showTheLabel) Label(text = "live") }
             awaitIdle()
@@ -435,10 +443,10 @@ class DebugInspectorInfoTest {
         repeat(COLLECTION_ATTEMPTS) {
             if (published.get() == null) return
             // A composition stays known to the recomposer that drove it until it is disposed, and a
-            // recomposer stays in the recomposer's set of running ones until its cancellation has finished
-            // unwinding - which happens on the event dispatch thread, after the test body it belonged to
-            // returned. Letting that thread run first keeps this a question about what this library
-            // holds, rather than a race with a teardown still in flight.
+            // recomposer stays in the Compose runtime's set of running recomposers until its cancellation
+            // has finished unwinding - which happens on the event dispatch thread, after the test body it
+            // belonged to returned. Letting that thread run first keeps this a question about what this
+            // library holds, rather than a race with a teardown still in flight.
             SwingUtilities.invokeAndWait { }
             System.gc()
         }
@@ -478,9 +486,9 @@ private fun assertAnsweredWithItsOwnGroup(component: Component) {
 }
 
 /**
- * Mounts a composition, drops the handle that would dispose it, and hands back a weak reference to what it
- * published. Everything strong is confined to this call's own frame, which is gone by the time the
- * caller looks at the reference.
+ * Mounts a content composition, drops the handle that would dispose it, and hands back a weak reference
+ * to what it published. Everything strong is confined to this call's own frame, which is gone by the time
+ * the caller looks at the reference.
  */
 private fun mountACompositionAndLetGoOfIt(): WeakReference<Any> {
     var compositionHost: JPanel? = JPanel()
@@ -488,7 +496,7 @@ private fun mountACompositionAndLetGoOfIt(): WeakReference<Any> {
         isDebugInspectorInfoEnabled = true
         lateinit var parentContext: CompositionContext
         setContent { parentContext = rememberCompositionContext() }
-        compositionHost!!.setContent(parent = parentContext) { Label(text = "composition") }
+        compositionHost!!.setContent(parent = parentContext) { Label(text = "nested") }
         awaitIdle()
     }
     val published =

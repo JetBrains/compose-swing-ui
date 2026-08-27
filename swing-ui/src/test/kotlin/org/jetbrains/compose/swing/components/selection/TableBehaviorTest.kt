@@ -4,7 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.assertUnadoptedMoveIsPutBack
+import org.jetbrains.compose.swing.assertUnadoptedChangeIsPutBack
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.runSwingTest
@@ -73,7 +73,7 @@ class TableBehaviorTest {
     }
 
     /**
-     * The table is settled back onto the declared selection by the time the move's own recomposition
+     * The table is settled back onto the declared selection by the time the change's own recomposition
      * finishes, not once some later, unrelated recomposition happens to run. A declaration is the
      * composition's state and is asserted again for every move made against it, so a user who makes the
      * same move twice is answered twice: what the table was left holding after the first is not a reason
@@ -376,7 +376,7 @@ class TableBehaviorTest {
 
     @Test
     fun aSelectionTheCallerDoesNotAdoptComesOffWithinEventCycles() = runSwingTest {
-        assertUnadoptedMoveIsPutBack(
+        assertUnadoptedChangeIsPutBack(
             type = JTable::class.java,
             declared = emptyList<Int>(),
             content = {
@@ -388,7 +388,7 @@ class TableBehaviorTest {
                     column("Name") { it }
                 }
             },
-            move = { it.setRowSelectionInterval(1, 1) },
+            change = { it.setRowSelectionInterval(1, 1) },
             read = { it.selectedRows.toList() },
         )
     }

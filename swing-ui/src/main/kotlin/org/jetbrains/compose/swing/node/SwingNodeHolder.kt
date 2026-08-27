@@ -2,15 +2,17 @@ package org.jetbrains.compose.swing.node
 
 import androidx.compose.runtime.ComposeNodeLifecycleCallback
 import androidx.compose.runtime.CompositionContext
-import androidx.compose.runtime.snapshots.SnapshotStateObserver
 import org.jetbrains.annotations.VisibleForTesting
 import org.jetbrains.compose.swing.core.COMPOSITION_KEY
 import org.jetbrains.compose.swing.core.set
 import org.jetbrains.compose.swing.modifier.SwingModifierState
 import org.jetbrains.compose.swing.modifier.resetModifierState
+import org.jetbrains.compose.swing.util.fastForEach
+import org.jetbrains.compose.swing.util.fastForEachIndexed
 import java.awt.Component
 import java.awt.Container
 import java.awt.LayoutManager2
+import java.util.Collections
 import javax.swing.JComponent
 
 /**
@@ -236,25 +238,23 @@ internal class SwingNodeHolder<out T : Component>
         internal var childPlacement: ChildPlacement = ChildPlacement.Indexed
 
         /**
-         * The shared [SnapshotStateObserver] of the composition owner. The applier stamps it onto the
-         * node on the top-down insert pass. A component adopts it from the node instead of resolving
-         * a `CompositionLocal`. The node's update block runs before the bottom-up pass, so a stamp
-         * left to that pass would reach a component that has already been attached and painted.
+         * What this node's composition owns and every node under it shares - see [SwingCompositionOwner],
+         * which states when a node is attached to it and why it has to be then.
          *
-         * A component that observes snapshot state, such as `Canvas`, adopts it once and keeps it for
-         * the node's whole life. It is `null` when the composition's applier observes no snapshot
-         * state, such as a menu.
+         * It is the same owner for the node's whole life, and `null` only on a node not yet inserted
+         * into a composition.
          */
-        internal var ownerObserver: SnapshotStateObserver? = null
+        internal var owner: SwingCompositionOwner? = null
+            private set
 
         /**
-         * The update batch this node's applier keeps. The applier stamps it onto the node on the top-down
-         * insert pass, and it is the same batch for the node's whole life.
+         * Attaches this node to the composition [owner] stands for, and answers it.
          *
-         * A node's update reaches it through this, which is how a settle that cannot run until the batch
-         * has attached this node's children is handed over - see [childSettle].
+         * An applier attaches a node to the composition its parent stands in as it inserts it, so the
+         * owner travels the node tree. The root is attached by the composition itself, being the one node
+         * no parent hands an owner down to.
          */
-        internal var updateBatch: ComponentUpdateBatch? = null
+        internal fun attachedTo(owner: SwingCompositionOwner?): SwingNodeHolder<T> = also { it.owner = owner }
 
         /**
          * The settle this node's update handed over to run against its children, or `null` for a node
@@ -336,7 +336,7 @@ internal class SwingNodeHolder<out T : Component>
             clearSubcompositionStamp()
             resetModifierState()
             childSettle = null
-            ownerObserver?.clear(component)
+            owner?.observer?.clear(component)
         }
 
         /** The node is leaving the composition for good. */
@@ -401,5 +401,66 @@ internal val SwingNodeHolder<*>.attachedToHost: Boolean
  * including any it has yet to attach or has parked, so the position handed to a host is counted rather
  * than composed.
  */
-internal fun SwingNodeHolder<*>.attachedSiblingsBefore(index: Int): Int =
-    (0 until index).count { children[it].attachedToHost }
+internal fun SwingNodeHolder<*>.attachedSiblingsBefore(index: Int): Int {
+    var attached = 0
+    children.fastForEach(0 until index) { if (it.attachedToHost) attached++ }
+    return attached
+}
+
+/**
+ * Takes the run of [count] children at [index] out of this host's composition-order child list, handing
+ * each of them to [release] before the list loses it.
+ */
+internal inline fun SwingNodeHolder<*>.removeChildRun(
+    index: Int,
+    count: Int,
+    crossinline release: (SwingNodeHolder<*>) -> Unit,
+) {
+    children.fastForEach(index until index + count) { release(it) }
+    children.subList(index, index + count).clear()
+}
+
+/**
+ * Moves the run of [count] children at [from] to [to] in this host's composition-order child list, hands
+ * each moved child to [detach], and then hands back the ones attached to this host with the position
+ * each of them takes among its attached siblings.
+ *
+ * A child the pass has yet to attach is passed over: it stands nowhere to be placed, and takes the
+ * position the list gives it once the pass has settled.
+ */
+internal inline fun SwingNodeHolder<*>.moveChildRun(
+    from: Int,
+    to: Int,
+    count: Int,
+    crossinline detach: (child: SwingNodeHolder<*>) -> Unit,
+    crossinline place: (child: SwingNodeHolder<*>, position: Int) -> Unit,
+) {
+    val target = moveChildRun(from, to, count)
+    // The whole run leaves its host before any of it goes back: a place addresses the position among the
+    // children that stay, and a run still standing where it was would push each of them one along.
+    children.fastForEach(target until target + count) { detach(it) }
+    children.fastForEachIndexed(target until target + count) { position, child ->
+        if (child.attachedToHost) place(child, attachedSiblingsBefore(position))
+    }
+}
+
+/**
+ * Moves the run of [count] children at [from] to [to] in this host's composition-order child list, and
+ * returns the index the run stands at once it has moved: taking a run out at [from] shifts the positions
+ * above it down by [count], which is the index space [to] is given in.
+ *
+ * The run and the children it travels past swap places, so the move is a rotation of the span between
+ * the two positions, and no child leaves the list.
+ */
+internal fun SwingNodeHolder<*>.moveChildRun(
+    from: Int,
+    to: Int,
+    count: Int,
+): Int {
+    val target = if (from > to) to else to - count
+    Collections.rotate(
+        children.subList(minOf(from, target), maxOf(from + count, to)),
+        if (from > to) count else -count,
+    )
+    return target
+}

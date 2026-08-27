@@ -107,7 +107,7 @@ class TextMirrorAttachmentTest {
         document.insertString(document.length, "!", null)
         awaitIdle()
 
-        // Only a mirror that rejoined the reactivated field reports the edit as a move, which is what
+        // Only a mirror that rejoined the reactivated field reports the edit as a change, which is what
         // brings the pass that writes the declared text back over it.
         field.assertTextEquals("hello")
     }

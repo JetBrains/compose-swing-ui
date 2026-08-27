@@ -8,10 +8,10 @@ import org.jetbrains.compose.swing.constants.FocusLostBehavior
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.propertyChangeListener
-import org.jetbrains.compose.swing.node.AppliedValue
+import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.declare
-import org.jetbrains.compose.swing.node.rememberAppliedValue
+import org.jetbrains.compose.swing.node.rememberMirrorState
 import java.beans.PropertyChangeListener
 import javax.swing.JFormattedTextField
 import javax.swing.JFormattedTextField.AbstractFormatterFactory
@@ -82,13 +82,13 @@ public fun FormattedTextField(
     columns: Int = 0,
     editable: Boolean = true,
 ) {
-    val applied = rememberAppliedValue(value)
+    val mirror = rememberMirrorState(value)
     FormattedTextFieldNode(
         value = value,
-        applied = applied,
+        mirror = mirror,
         modifier =
             modifier
-                .onValueCommit { committed -> if (applied.observed(committed)) onValueChange(committed) }
+                .onValueCommit { committed -> if (mirror.observed(committed)) onValueChange(committed) }
                 .onEditValidity(onEditValidChange),
         formatterFactory = formatterFactory,
         focusLostBehavior = focusLostBehavior,
@@ -135,14 +135,14 @@ public fun FormattedTextField(
     columns: Int = 0,
     editable: Boolean = true,
 ) {
-    val applied = rememberAppliedValue(value)
+    val mirror = rememberMirrorState(value)
     FormattedTextFieldNode(
         value = value,
-        applied = applied,
+        mirror = mirror,
         modifier =
             modifier
                 .propertyChangeListener("value", valuePropertyChangeListener)
-                .valueMirror(applied)
+                .valueMirror(mirror)
                 .onEditValidity(onEditValidChange),
         formatterFactory = formatterFactory,
         focusLostBehavior = focusLostBehavior,
@@ -185,13 +185,13 @@ public fun FormattedTextField(
     columns: Int = 0,
     editable: Boolean = true,
 ) {
-    val applied = rememberAppliedValue(state.value)
+    val mirror = rememberMirrorState(state.value)
     FormattedTextFieldNode(
         value = state.value,
-        applied = applied,
+        mirror = mirror,
         modifier =
             modifier
-                .onValueCommit { committed -> if (applied.observed(committed)) state.value = committed }
+                .onValueCommit { committed -> if (mirror.observed(committed)) state.value = committed }
                 .formattedValueStateBinding(state),
         formatterFactory = formatterFactory,
         focusLostBehavior = focusLostBehavior,
@@ -207,7 +207,7 @@ public fun FormattedTextField(
 @Composable
 private fun FormattedTextFieldNode(
     value: Any?,
-    applied: AppliedValue<Any?>,
+    mirror: MirrorState<Any?>,
     modifier: SwingModifier,
     formatterFactory: AbstractFormatterFactory?,
     @FocusLostBehavior focusLostBehavior: Int,
@@ -226,7 +226,7 @@ private fun FormattedTextFieldNode(
             // Writing a value reinstalls the formatter and regenerates the field's characters from it, so
             // a value the field has already committed is not written again: the characters the user has
             // typed since that commit survive a callback writing the committed value back.
-            declare(value, applied, read = { this.value }, write = { this.value = it })
+            declare(value, mirror, read = { this.value }, write = { this.value = it })
             set(editable) { this.isEditable = it }
             applyModifier(modifier)
         },
@@ -237,27 +237,27 @@ private fun FormattedTextFieldNode(
  * Runs [onCommit] with the value the field holds each time it commits a different one.
  *
  * An event carrying equal values commits nothing: the field regenerates its characters from the value and
- * fires the property whether or not the value moved, and `PropertyChangeSupport` filters only the equal
+ * fires the property whether or not the value changed, and `PropertyChangeSupport` filters only the equal
  * pairs that are both non-null.
  */
 private fun SwingModifier.onValueCommit(onCommit: (Any?) -> Unit): SwingModifier =
     propertyChangeListener("value") { event ->
-        // The field republishes its value on every commit attempt; only a value that moved is one to
+        // The field republishes its value on every commit attempt; only a value that changed is one to
         // report.
         if (event.oldValue != event.newValue) onCommit((event.source as JFormattedTextField).value)
     }
 
 /**
- * Feeds [applied]'s mirror on every commit, alongside a caller's own raw listener, so the settlement the
+ * Feeds [mirror]'s mirror on every commit, alongside a caller's own raw listener, so the settlement the
  * node makes keeps comparing against the value the field holds now rather than a stale one from a commit
  * nothing else observed.
  */
-private fun SwingModifier.valueMirror(applied: AppliedValue<Any?>): SwingModifier =
+private fun SwingModifier.valueMirror(mirror: MirrorState<Any?>): SwingModifier =
     propertyChangeListener("value") { event ->
-        applied.observed((event.source as JFormattedTextField).value)
+        mirror.observed((event.source as JFormattedTextField).value)
     }
 
-/** Runs [onChange] with the field's edit validity each time the field reports it moved. */
+/** Runs [onChange] with the field's edit validity each time the field reports it changed. */
 private fun SwingModifier.onEditValidity(onChange: (Boolean) -> Unit): SwingModifier =
     propertyChangeListener("editValid") { event ->
         onChange((event.source as JFormattedTextField).isEditValid)

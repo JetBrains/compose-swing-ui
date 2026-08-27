@@ -12,9 +12,9 @@ import org.jetbrains.compose.swing.constants.SplitOrientation
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.propertyChangeListener
-import org.jetbrains.compose.swing.node.AppliedValue
+import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
-import org.jetbrains.compose.swing.node.rememberAppliedValue
+import org.jetbrains.compose.swing.node.rememberMirrorState
 import java.beans.PropertyChangeListener
 import javax.swing.JSplitPane
 import javax.swing.UIManager
@@ -75,7 +75,7 @@ public fun SplitPane(
     continuousLayout: Boolean? = null,
     content: @Composable SplitPaneScope.() -> Unit,
 ) {
-    val applied = rememberAppliedValue(dividerLocation)
+    val mirror = rememberMirrorState(dividerLocation)
     // The pane publishes its new offset for every move, its own and the user's alike, including the
     // position a negative request resolves to once realized on screen. The binding answers which is
     // which by value: a move that lands on the declaration is the declaration arriving, and a move
@@ -83,9 +83,9 @@ public fun SplitPane(
     // mirror without being reported. A move away from either is the user's, reported once, and every
     // later move is then measured against the resolved position.
     val onMoved: (Int) -> Unit = { moved ->
-        if (dividerLocation < 0 && applied.value == dividerLocation) {
-            applied.observed(moved)
-        } else if (applied.observed(moved)) {
+        if (dividerLocation < 0 && mirror.value == dividerLocation) {
+            mirror.observed(moved)
+        } else if (mirror.observed(moved)) {
             onDividerLocationChange(moved)
         }
     }
@@ -96,7 +96,7 @@ public fun SplitPane(
             },
         orientation = orientation,
         dividerLocation = dividerLocation,
-        applied = applied,
+        mirror = mirror,
         resizeWeight = resizeWeight,
         oneTouchExpandable = oneTouchExpandable,
         dividerSize = dividerSize,
@@ -145,12 +145,12 @@ public fun SplitPane(
     continuousLayout: Boolean? = null,
     content: @Composable SplitPaneScope.() -> Unit,
 ) {
-    val applied = rememberAppliedValue(dividerLocation)
+    val mirror = rememberMirrorState(dividerLocation)
     SplitPaneImpl(
         modifier = modifier.propertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY, dividerLocationListener),
         orientation = orientation,
         dividerLocation = dividerLocation,
-        applied = applied,
+        mirror = mirror,
         resizeWeight = resizeWeight,
         oneTouchExpandable = oneTouchExpandable,
         dividerSize = dividerSize,
@@ -165,7 +165,7 @@ private fun SplitPaneImpl(
     modifier: SwingModifier,
     @SplitOrientation orientation: Int,
     dividerLocation: Int,
-    applied: AppliedValue<Int>,
+    mirror: MirrorState<Int>,
     resizeWeight: Double,
     oneTouchExpandable: Boolean?,
     dividerSize: Int?,
@@ -199,11 +199,11 @@ private fun SplitPaneImpl(
             // position from the sides' preferred sizes rather than a position to hold, so a pass that
             // redeclares it must leave a divider the user has since dragged where it stands.
             // setDividerLocation fires its property change synchronously, so the write below reaches
-            // the attached listener exactly as a drag does; running it through applied is what marks it
+            // the attached listener exactly as a drag does; running it through mirror is what marks it
             // as the wrapper's own, leaving the listener to report the user's moves alone.
             set(dividerLocation) { location ->
                 if (this.dividerLocation != location) {
-                    applied.write { this.dividerLocation = location }
+                    mirror.write { this.dividerLocation = location }
                 }
             }
             update(oneTouchExpandable) { declared ->

@@ -5,14 +5,14 @@ import org.jetbrains.compose.swing.modifier.listener.CallbackRegistration
 import org.jetbrains.compose.swing.modifier.listener.DocumentMirror
 import org.jetbrains.compose.swing.modifier.listener.SETTLING_DOCUMENT
 import org.jetbrains.compose.swing.modifier.listener.listener
-import org.jetbrains.compose.swing.node.AppliedValue
+import org.jetbrains.compose.swing.node.MirrorState
 import javax.swing.event.DocumentEvent
 import javax.swing.text.Document
 import javax.swing.text.JTextComponent
 
 /**
- * Feeds [applied]'s mirror the text a component's document holds after every edit and reports nothing.
- * It is what a component driven by a caller's own raw listener settles against: the mirror keeps moving
+ * Feeds [mirror]'s mirror the text a component's document holds after every edit and reports nothing.
+ * It is what a component driven by a caller's own raw listener settles against: the mirror keeps up
  * with the document, so [declareText] compares against the text the component holds now with no callback
  * in the picture. The listener rides the document the component currently holds, leaving an outgoing
  * document for the incoming one.
@@ -21,12 +21,12 @@ import javax.swing.text.JTextComponent
  * component publishes its changes through its document, and there is no second model for a mirror to
  * ride the way a slider's rides its `BoundedRangeModel`.
  */
-internal fun SwingModifier.textMirror(applied: AppliedValue<String>): SwingModifier = listener(applied, TEXT_MIRRORS)
+internal fun SwingModifier.textMirror(mirror: MirrorState<String>): SwingModifier = listener(mirror, TEXT_MIRRORS)
 
 private val TEXT_MIRRORS =
-    documentMirrorRegistration<AppliedValue<String>>(
-        onEdit = { applied, document -> if (!applied.isWriting) applied.observed(document.fullText()) },
-        onAdopt = { applied, document -> applied.observed(document.fullText()) },
+    documentMirrorRegistration<MirrorState<String>>(
+        onEdit = { mirror, document -> if (!mirror.isWriting) mirror.observed(document.fullText()) },
+        onAdopt = { mirror, document -> mirror.observed(document.fullText()) },
     )
 
 /**

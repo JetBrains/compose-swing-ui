@@ -22,7 +22,7 @@ import kotlin.test.assertEquals
  * listener hears every value the slider takes - the writes the settle makes included.
  *
  * A move is published to the composition by the idle gate, which sends no frame of its own while the test
- * drives them, so the frame that follows is the apply pass that carries the move.
+ * drives them, so the frame that follows is the apply pass that carries the change.
  *
  * Each case states how many passes it cost and what each spent them on, because that is where a settle
  * can go wrong without the widget ever holding the wrong value. A settle that stopped recognizing its own
@@ -32,7 +32,7 @@ import kotlin.test.assertEquals
  */
 class SettleOncePerApplyPassTest : TracedTest() {
     @Test
-    fun aDeclarationAndAWidgetMoveArrivingInOneFrameAreSettledByOneWrite() = runComposeSwingTest {
+    fun aDeclarationAndAWidgetChangeArrivingInOneFrameAreSettledByOneWrite() = runComposeSwingTest {
         val values = mutableListOf<Int>()
         // Attached as-is and never rebuilt, so it stays on the slider across every pass below.
         val recorder = ChangeListener { event -> values += (event.source as JSlider).value }
@@ -51,16 +51,16 @@ class SettleOncePerApplyPassTest : TracedTest() {
             "the first pass settles the slider before it attaches the listener, so that write is not heard",
         )
 
-        // Both inputs move before the frame that carries them: the user's move and a declaration of its
+        // Both inputs change before the frame that carries them: the user's change and a declaration of its
         // own reach the slider in a single apply pass.
-        slider.value = MOVED
+        slider.value = CHANGED
         declared = REDECLARED
         tracer.clear()
         awaitIdle()
         mainClock.advanceTimeByFrame()
 
         assertEquals(
-            listOf(MOVED, REDECLARED),
+            listOf(CHANGED, REDECLARED),
             values,
             "the pass carrying both moves should write the declaration once",
         )
@@ -87,16 +87,16 @@ class SettleOncePerApplyPassTest : TracedTest() {
         val slider = onNodeOfType<JSlider>().fetch()
         assertEquals(DECLARED, slider.value, "the slider should open on what the composition declares")
 
-        // The user's move alone reaches the first pass, so it settles against the standing declaration.
-        slider.value = MOVED
+        // The user's change alone reaches the first pass, so it settles against the standing declaration.
+        slider.value = CHANGED
         tracer.clear()
         awaitIdle()
         mainClock.advanceTimeByFrame()
 
         assertEquals(
-            listOf(MOVED, DECLARED),
+            listOf(CHANGED, DECLARED),
             values,
-            "a move the declaration does not adopt should be written back by the pass that follows it",
+            "a change the declaration does not adopt should be written back by the pass that follows it",
         )
         assertEquals(DECLARED, slider.value, "the slider should be back on the declaration")
         assertEquals(
@@ -112,7 +112,7 @@ class SettleOncePerApplyPassTest : TracedTest() {
         mainClock.advanceTimeByFrame()
 
         assertEquals(
-            listOf(MOVED, DECLARED, REDECLARED),
+            listOf(CHANGED, DECLARED, REDECLARED),
             values,
             "each pass should settle the slider apiece, so the split move passes through the declaration",
         )
@@ -168,7 +168,7 @@ class SettleOncePerApplyPassTest : TracedTest() {
         const val DECLARED = 40
 
         /** Where the user leaves the slider, away from the declaration. */
-        const val MOVED = 70
+        const val CHANGED = 70
 
         /** The declaration that replaces [DECLARED]. */
         const val REDECLARED = 20

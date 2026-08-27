@@ -4,7 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.assertUnadoptedMoveIsPutBack
+import org.jetbrains.compose.swing.assertUnadoptedChangeIsPutBack
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.toolTip
 import org.jetbrains.compose.swing.runSwingTest
@@ -262,11 +262,11 @@ class RadioButtonBehaviorTest {
 
     @Test
     fun aSelectionTheCallerDoesNotAdoptComesOffWithinEventCycles() = runSwingTest {
-        assertUnadoptedMoveIsPutBack(
+        assertUnadoptedChangeIsPutBack(
             type = JRadioButton::class.java,
             declared = false,
             content = { RadioButton(text = "Nightly", selected = false, onSelectedChange = {}) },
-            move = { it.doClick(0) },
+            change = { it.doClick(0) },
             read = { it.isSelected },
         )
     }

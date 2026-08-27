@@ -71,7 +71,7 @@ class ApplySectionTest : TracedTest() {
 
     @Test
     fun aMenuChangePassIsReported() {
-        val applier = MenuApplier(JMenuBar())
+        val applier = MenuApplier(SwingNodeHolder(JMenuBar()).attachedTo(TestCompositionOwner.unobserved()))
 
         applier.onBeginChanges()
         applier.onEndChanges()
@@ -95,7 +95,7 @@ class ApplySectionTest : TracedTest() {
                     if (failing) error("refresh failed")
                 }
             }
-        val applier = MenuApplier(failing)
+        val applier = MenuApplier(SwingNodeHolder(failing).attachedTo(TestCompositionOwner.unobserved()))
         applier.onBeginChanges()
         // Removing nothing still marks the bar as a container the pass touched, which is all the
         // end-of-pass refresh needs to reach it.
@@ -122,7 +122,7 @@ class ApplySectionTest : TracedTest() {
         // The runtime tells the applier changes ended only where the pass ran to completion: a change
         // that throws - a node update block written by a caller - unwinds past that call, so the applier
         // is left with a pass it is never told about again.
-        val applier = MenuApplier(JMenuBar())
+        val applier = MenuApplier(SwingNodeHolder(JMenuBar()).attachedTo(TestCompositionOwner.unobserved()))
         applier.onBeginChanges()
         tracer.clear()
 

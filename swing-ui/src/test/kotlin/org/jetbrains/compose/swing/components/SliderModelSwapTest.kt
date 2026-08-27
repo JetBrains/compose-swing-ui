@@ -16,7 +16,7 @@ import kotlin.test.assertEquals
  * Behavioral coverage for a model-driven [Slider] declaring a new [BoundedRangeModel] instance: the
  * slider adopts the model in place and renders its value, announcing the swap as a property change
  * rather than as a change event, so the swap reaches neither `onValueChange`/`onValueSettled` nor a raw
- * `changeListener` as a move. A move the user makes on the model the swap left current reaches them all,
+ * `changeListener` as a change. A change the user makes on the model the swap left current reaches them all,
  * the slider having carried its change events over to it.
  */
 class SliderModelSwapTest {
@@ -46,7 +46,7 @@ class SliderModelSwapTest {
     }
 
     @Test
-    fun aMoveOnTheSwappedModelIsStillReported() = runComposeSwingTest {
+    fun aChangeOnTheSwappedModelIsStillReported() = runComposeSwingTest {
         var model by mutableStateOf(model(30))
         val changed = mutableListOf<Int>()
         val settled = mutableListOf<Int>()
@@ -67,12 +67,12 @@ class SliderModelSwapTest {
         slider.value = 55
         awaitIdle()
 
-        assertEquals(listOf(55), changed, "a move on the model current after the swap should reach onValueChange")
-        assertEquals(listOf(55), settled, "a move on the model current after the swap should reach onValueSettled")
+        assertEquals(listOf(55), changed, "a change on the model current after the swap should reach onValueChange")
+        assertEquals(listOf(55), settled, "a change on the model current after the swap should reach onValueSettled")
     }
 
     @Test
-    fun aRawChangeListenerHearsAMoveOnTheSwappedModel() = runComposeSwingTest {
+    fun aRawChangeListenerHearsAChangeOnTheSwappedModel() = runComposeSwingTest {
         var model by mutableStateOf(model(30))
         val heard = mutableListOf<Int>()
         val listener = ChangeListener { event -> heard += (event.source as JSlider).value }
@@ -92,7 +92,7 @@ class SliderModelSwapTest {
         assertEquals(
             listOf(55),
             heard,
-            "a listener attached to the component directly should hear a move on the model current after the swap",
+            "a listener attached to the component directly should hear a change on the model current after the swap",
         )
     }
 }

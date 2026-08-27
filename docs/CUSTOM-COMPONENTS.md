@@ -233,10 +233,10 @@ want kept in sync.
 A call is matched with the value it declared last pass by where it sits among the others, so an
 `update` block makes the same calls in the same order on every pass. A `set` inside a conditional is a
 bug - state the condition in the value, not in whether the call happens. The same holds for `declare`
-(see *Properties the user can also move*), which makes one such call of its own.
+(see *Properties the user can also change*), which makes one such call of its own.
 
 `set` compares this pass's declaration only against the last one, so it is the right tool for a property
-only the composition writes. See *Properties the user can also move* below for a property the widget
+only the composition writes. See *Properties the user can also change* below for a property the widget
 itself can also change.
 
 ### `update(value) { ... }` - for what the constructor already applied
@@ -286,7 +286,7 @@ SwingNode(
 needs a value `set`/`update` just computed, one the `factory` cannot see. The blocks run in the order
 the `update` lambda declares them, so declare `init` after the blocks whose values it reads.
 
-## Properties the user can also move
+## Properties the user can also change
 
 `set` and `update` both assume the composition is the property's only writer. Some widget properties have
 a second writer: the widget itself, through the user's own interaction - a checkbox the user clicks, a
@@ -296,21 +296,23 @@ that repeats the value it declared last pass is skipped, so the widget stays whe
 
 ### The mechanism
 
-Three pieces work together:
+These pieces work together. For why settling works this way, see
+[`ARCHITECTURE.md`](ARCHITECTURE.md).
 
-- `rememberAppliedValue(declared)` remembers an `AppliedValue<V>` seeded with the first declaration. It is
-  a `State<V>` mirroring what the widget currently holds, so reading `applied.value` while composing
-  depends on the user moving the widget the same way a read of any other state depends on that state.
-- `applied.observed(published)` is called from the widget's own listener with the value the widget just
+- `rememberMirrorState(declared)` remembers a `MirrorState<V>` seeded with the first declaration. It is
+  a `State<V>` mirroring what the widget currently holds, so reading `mirror.value` while composing
+  subscribes to the user changing the widget. Where a body needs that subscription but not the value,
+  call `mirror.subscribe()` instead of reading a value it discards.
+- `mirror.observed(published)` is called from the widget's own listener with the value the widget just
   published. It updates the mirror and answers whether the move is news for the caller - `true` for a
   move the user made, `false` for a value that only arrived because the wrapper's own write to the widget
   just produced it. Call it for every value the widget publishes, in the order it publishes them.
-- `declare(value, applied, read, write)` in the `update` block settles the widget on `value`: it writes
-  through `applied` wherever `read()` does not already answer with it, and keeps the mirror in step with
-  whatever the widget ends up holding. Unlike `set`, it also depends on the widget's mirrored value, so it
-  runs again on the pass that follows a move away from the declaration - the pass that settles the two
-  sides against each other.
-- `applied.settle { ... }` is for a write the widget does not simply accept. Installing a row filter makes
+- `declare(value, mirror, read, write)` in the `update` block settles the widget on `value`: it writes
+  through `mirror` wherever `read()` does not already answer with it, and keeps the mirror in step with
+  whatever the widget ends up holding. Unlike `set`, it runs again on the pass that follows a change
+  away from the declaration. Call it once per pass: it takes a slot whether or not anything is due, so a
+  `declare` inside a conditional shifts every later slot of the same `update` block.
+- `mirror.settle { ... }` is for a write the widget does not simply accept. Installing a row filter makes
   a table drop the selected rows it hides. Declaring a tree's open nodes and its selection separately
   lets the tree resolve the pair its own way, since a node is only selectable while its ancestors are
   open. In both, what the widget ends up holding is not what you wrote, and `declare` cannot see it: it
@@ -318,9 +320,9 @@ Three pieces work together:
   holding - `answered(value)` for a value you read back, or `unchanged()` where this property did not
   move. Saying neither throws. Say nothing at all and the mirror goes on claiming the widget holds what
   you asked for: the next pass finds no difference, nothing puts the declaration back, and the user's own
-  move of that property is never reported.
+  change to that property is never reported.
 
-The pieces belong to one node. Remember the `AppliedValue` in the component's own body, beside the
+The pieces belong to one node. Remember the `MirrorState` in the component's own body, beside the
 `SwingNode` it settles, and call `declare` exactly once per pass: what a declaration is compared against
 lives on the mirror rather than in the composition, so a mirror shared between nodes, or remembered above
 the node it settles, goes on answering for a widget that is no longer there - and the widget built in its
@@ -340,7 +342,7 @@ import org.jetbrains.compose.swing.node.declare
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.actionListener
-import org.jetbrains.compose.swing.node.rememberAppliedValue
+import org.jetbrains.compose.swing.node.rememberMirrorState
 import javax.swing.JCheckBox
 
 @Composable
@@ -351,14 +353,14 @@ fun MyCheckBox(
     onCheckedChange: (Boolean) -> Unit = {},
 ) {
     // The mirror this component settles `checked` through, seeded with the first declaration.
-    val applied = rememberAppliedValue(checked)
+    val mirror = rememberMirrorState(checked)
     SwingNode(
         factory = { JCheckBox() },
         update = {
             set(text) { this.text = it }
-            // Settles `checked` against the box whenever either side has moved, rather than only when
+            // Settles `checked` against the box whenever either side has changed, rather than only when
             // this pass's declaration differs from the last one.
-            declare(checked, applied, JCheckBox::isSelected, JCheckBox::setSelected)
+            declare(checked, mirror, JCheckBox::isSelected, JCheckBox::setSelected)
             // The box publishes its new value for every toggle, its own and the user's alike.
             // `observed` answers which is which by value: a toggle that lands on the declaration is
             // the declaration arriving, not a move to report. The lambda is read when the event
@@ -366,7 +368,7 @@ fun MyCheckBox(
             applyModifier(
                 modifier.actionListener { event ->
                     val selected = (event.source as JCheckBox).isSelected
-                    if (applied.observed(selected)) onCheckedChange(selected)
+                    if (mirror.observed(selected)) onCheckedChange(selected)
                 },
             )
         },
@@ -379,13 +381,12 @@ fun MyCheckBox(
 ### The component is fully controlled
 
 Once a property is bound this way, the component is **fully controlled**: a change the caller does not
-adopt never stands. Clicking the box flips `isSelected` immediately - that click is a real move, and the
-box shows it - and `observed` reports it as news. But if `onCheckedChange` does not feed a new `checked`
-back in, the mirror updating is itself what schedules the next pass, and on that pass `declare` finds the
-box holding a value other than the one this composition still declares and writes the declaration back
-over it, undoing the click. If the caller wants the user's move to stick, adopting it in the callback -
-folding it into whatever state `checked` is computed from - is what makes it stick; a caller that ignores
-the callback is choosing, on every single pass, to leave the widget wherever the composition likes.
+adopt never stands. Clicking the box flips `isSelected` immediately - that click is a real change, and
+the box shows it - and `observed` reports it as news. But if `onCheckedChange` does not feed a new
+`checked` back in, the next pass finds the box holding a value other than the one this composition still
+declares, and writes the declaration back over it, undoing the click. Adopting the change in the callback
+- folding
+it into whatever state `checked` is computed from - is what makes it stick.
 
 ### `onSettled` - when the widget answers a write with something else
 
@@ -410,7 +411,7 @@ user on every single recomposition, not only the one after they moved the divide
 
 For a property like this, apply on change instead of declaring it: compare against the widget's current
 value yourself, and make the write inside `applied.write { }` so it still marks itself as the wrapper's
-own and the listener does not mistake it for a move to report:
+own and the listener does not mistake it for a change to report:
 
 ```kotlin
 set(dividerLocation) { location ->
@@ -422,7 +423,7 @@ set(dividerLocation) { location ->
 
 <!--- CLEAR -->
 
-The `applied` here is the same `AppliedValue` its listener calls `observed` on - `write` is what lets the
+The `applied` here is the same `MirrorState` its listener calls `observed` on - `write` is what lets the
 two share one mirror without fighting the user the way re-asserting the declaration on every pass would.
 
 ## Writing a state holder
@@ -439,7 +440,7 @@ shape; what follows is what building one takes.
 A widget with a model of its own - a spinner's `SpinnerModel`, a text component's `Document`, a range
 widget's `BoundedRangeModel` - already holds the value and already announces every change to it. A
 holder over such a widget owns that model and hands it to the widget, and what it adds is the one thing
-the model does not have: a reader composing against it recomposes when the value moves. So the holder
+the model does not have: a reader composing against it recomposes when the value changes. So the holder
 keeps no second copy of the value to write and reconcile; it keeps whatever makes a read of the model
 into a snapshot read.
 
@@ -479,7 +480,7 @@ class RangeState internal constructor(
     val model: BoundedRangeModel,
 ) : RememberObserver {
     // The mirror: refreshed for every change the model announces, so reading `value` while composing
-    // subscribes to the user moving the widget as much as to a write made through this holder.
+    // subscribes to the user changing the widget as much as to a write made through this holder.
     private var observedValue by mutableStateOf(model.value)
 
     private val changeListener = ChangeListener { observedValue = model.value }
@@ -497,7 +498,7 @@ class RangeState internal constructor(
 
     override fun onRemembered() {
         model.addChangeListener(changeListener)
-        // The model may have moved between construction and this holder being remembered.
+        // The model may have changed between construction and this holder being remembered.
         observedValue = model.value
     }
 
@@ -536,7 +537,7 @@ settles some writes without announcing anything for the change listener to carry
 
 Where the value the model hands back is an object the model steps **in place** - the same instance,
 mutated - a structurally compared mirror cannot tell that from no change at all, and every reader
-stands on a value the model has already moved past. Declare the mirror
+stands on a value the model has already stepped past. Declare the mirror
 `mutableStateOf(model.value, neverEqualPolicy())` there and every refresh invalidates its readers
 regardless of what they would have compared to. A holder over a model the caller wrote has to reckon
 with that, since nothing constrains what such a model hands back or whether it steps that value in
@@ -563,7 +564,7 @@ rendering it.
 Writing a constraint is not writing the value, and what a tightened bound does to a value already
 outside it is the model's business rather than the holder's: write the bound and let the model answer.
 A `SpinnerNumberModel` leaves the value where it is, outside the range that was just declared, while a
-`DefaultBoundedRangeModel` pulls it into range and announces the move. Either way the mirror is
+`DefaultBoundedRangeModel` pulls it into range and announces the change. Either way the mirror is
 refreshed from what the model announced, so the holder reports whichever happened - which is the same
 rule as for a write, arriving from the other side.
 
@@ -576,7 +577,7 @@ delegate `onAbandoned` to `onForgotten`, so a holder created for a composition t
 go too.
 Without it a discarded holder stays reachable from the live model and its listener keeps firing, on
 state nothing reads any more. A listener attached in `onRemembered` also wants the value re-read
-there, since the model is free to move between the holder being constructed and being remembered.
+there, since the model is free to change between the holder being constructed and being remembered.
 
 Reaching the component that renders the holder is a separate binding, and `set` is the wrong channel
 for it: the binding has to end exactly when the component stops rendering the holder - the node
@@ -592,7 +593,7 @@ A holder keeps snapshot state for what it is told - the mirrored value, the metr
 widget - and for nothing that follows from those. Anything computable from them is computed when it is
 read. A getter that reads the state it derives from subscribes its reader to that state on every read,
 so it can neither go stale nor need keeping in sync; a second field written from the setter that fed
-the first can do both, and a reader of it never learns that its inputs moved. `ScrollState`'s `maxX` is
+the first can do both, and a reader of it never learns that its inputs changed. `ScrollState`'s `maxX` is
 that getter - the view's width less the visible extent, floored at zero - and it follows the pane with
 no third field to invalidate.
 

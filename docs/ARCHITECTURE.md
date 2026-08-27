@@ -307,6 +307,44 @@ For how a component of your own takes a value in and reports a change out, see
 
 ---
 
+## Settling a value the user can also change
+
+The first of those shapes needs a mechanism the other two do not. A declared value with a callback has
+two writers - the composition and the user - and a component has to reconcile them without either one
+winning by accident.
+
+The component keeps a mirror of what its widget currently holds. The widget's listener feeds every value
+it publishes into the mirror, and the mirror answers whether that value is news: a change the user made,
+rather than one the wrapper's own write to the widget just produced. Settling then compares what the
+composition declares against what the widget reads back as, and writes the declaration back wherever the
+widget has drifted from it.
+
+**Settling runs in a pass, not at the moment of the change.** The value to settle against is the
+declaration, and the declaration only exists while a pass is running. So a change is recorded when it
+happens and answered on the pass that follows. Swing has already queued the repaint the move provoked, so
+a widget can be painted once holding a value the caller rejected. The pass follows within a few
+event-dispatch cycles, inside one display refresh interval. That bounds how long the rejected value
+shows; it is not a guarantee that it never shows.
+
+What schedules that pass is the mirror itself. Reading the mirror while composing subscribes the reading
+scope to the widget changing, the same way any other state read does. A change the caller adopts would
+bring a pass anyway, through the state the caller adopted it into; a change the caller does not adopt
+touches no state anywhere, so without the mirror nothing would schedule the pass that puts the declaration back. A
+component that needs the news without the value subscribes explicitly, rather than reading a value it
+throws away.
+
+One kind of change is not news: the one a settle made and then read the widget's answer to. That change
+is where the declaration was already heading, and the pass that made it has already been told where it
+landed. Carrying it back would schedule a pass to answer a change that has been answered - a wasted frame
+after every settle.
+
+This is also why a widget settles in a pass while a window's geometry, described above, settles without
+one. A window is declared with observable state that the window system's own reports are written back
+into, so re-applying that declaration is idempotent and can run straight from an observer. A widget is
+declared with a value and a callback, and that value exists only while the pass that declared it runs.
+
+---
+
 ## A state change, end to end
 
 Consider a button whose label reflects a counter:
@@ -346,7 +384,7 @@ leaving it as one undifferentiated block of Swing time. Every section is opened 
 | `attach` | one node given its place in a container                                                |
 | `remove` | children taken out of a container                                                      |
 | `move`   | children reordered within a container                                                  |
-| `settle` | one mirror settling: a write to a widget property the user can also move, and the read-back that records what the widget was left holding |
+| `settle` | one mirror settling: a write to a widget property the user can also change, and the read-back that records what the widget was left holding |
 
 All five nest inside `apply`: the four node sections name each kind of churn the applier drives, and
 `settle` names a wrapper's own write and read-back. Nothing finer: the composition already names

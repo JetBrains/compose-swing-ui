@@ -11,9 +11,9 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.documentListener
 import org.jetbrains.compose.swing.modifier.listener.hyperlinkListener
-import org.jetbrains.compose.swing.node.AppliedValue
+import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
-import org.jetbrains.compose.swing.node.rememberAppliedValue
+import org.jetbrains.compose.swing.node.rememberMirrorState
 import java.net.URL
 import javax.swing.JEditorPane
 import javax.swing.JTextPane
@@ -230,11 +230,11 @@ public fun TextPane(
     modifier: SwingModifier = SwingModifier,
     editable: Boolean = true,
 ) {
-    val applied = rememberAppliedValue(value)
+    val mirror = rememberMirrorState(value)
     TextPaneNode(
         value = value,
-        applied = applied,
-        modifier = modifier.onTextEdit(applied, onValueChange),
+        mirror = mirror,
+        modifier = modifier.onTextEdit(mirror, onValueChange),
         editable = editable,
     )
 }
@@ -266,11 +266,11 @@ public fun TextPane(
     modifier: SwingModifier = SwingModifier,
     editable: Boolean = true,
 ) {
-    val applied = rememberAppliedValue(value)
+    val mirror = rememberMirrorState(value)
     TextPaneNode(
         value = value,
-        applied = applied,
-        modifier = modifier.documentListener(documentListener).textMirror(applied),
+        mirror = mirror,
+        modifier = modifier.documentListener(documentListener).textMirror(mirror),
         editable = editable,
     )
 }
@@ -281,14 +281,14 @@ public fun TextPane(
 @Composable
 private fun TextPaneNode(
     value: @Nls String,
-    applied: AppliedValue<String>,
+    mirror: MirrorState<String>,
     modifier: SwingModifier,
     editable: Boolean,
 ) {
     SwingNode(
         factory = { JTextPane() },
         update = {
-            declareText(value, applied)
+            declareText(value, mirror)
             set(editable) { this.isEditable = it }
             applyModifier(modifier)
         },

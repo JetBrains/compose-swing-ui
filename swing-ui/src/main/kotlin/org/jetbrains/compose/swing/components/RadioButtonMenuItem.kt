@@ -10,8 +10,8 @@ import org.jetbrains.compose.swing.components.button.rememberToggleMirroring
 import org.jetbrains.compose.swing.components.button.rememberToggleReporting
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
-import org.jetbrains.compose.swing.node.AppliedValue
 import org.jetbrains.compose.swing.node.MenuNode
+import org.jetbrains.compose.swing.node.MirrorState
 import java.awt.event.ActionListener
 import javax.swing.JRadioButtonMenuItem
 import javax.swing.KeyStroke
@@ -35,13 +35,13 @@ public fun RadioButtonMenuItem(
     modifier: SwingModifier = SwingModifier,
     accelerator: KeyStroke? = null,
 ) {
-    val (reporting, applied) = rememberToggleReporting(selected, onSelectedChange)
+    val (reporting, mirror) = rememberToggleReporting(selected, onSelectedChange)
     RadioButtonMenuItemNode(
         text = text,
         modifier = modifier.then(reporting),
         selected = selected,
         accelerator = accelerator,
-        applied = applied,
+        mirror = mirror,
     )
 }
 
@@ -66,19 +66,19 @@ public fun RadioButtonMenuItem(
     modifier: SwingModifier = SwingModifier,
     accelerator: KeyStroke? = null,
 ) {
-    val (mirroring, applied) = rememberToggleMirroring(selected, actionListener)
+    val (mirroring, mirror) = rememberToggleMirroring(selected, actionListener)
     RadioButtonMenuItemNode(
         text = text,
         modifier = modifier.then(mirroring),
         selected = selected,
         accelerator = accelerator,
-        applied = applied,
+        mirror = mirror,
     )
 }
 
 /**
  * The `JRadioButtonMenuItem` node both [RadioButtonMenuItem] overloads render. [selected] is settled
- * against the item through [applied] rather than applied on change: the user can move the item out from
+ * against the item through [mirror] rather than applied on change: the user can take the item out from
  * under the declaration, and a declaration equal to the last one still has to stand.
  */
 @Composable
@@ -87,13 +87,13 @@ private fun RadioButtonMenuItemNode(
     modifier: SwingModifier,
     selected: Boolean,
     accelerator: KeyStroke?,
-    applied: AppliedValue<Boolean>,
+    mirror: MirrorState<Boolean>,
 ) {
     MenuNode(
         factory = { JRadioButtonMenuItem() },
         update = {
             set(text) { this.text = it }
-            declareSelected(selected, applied)
+            declareSelected(selected, mirror)
             set(accelerator) { this.accelerator = it }
             applyModifier(modifier)
         },

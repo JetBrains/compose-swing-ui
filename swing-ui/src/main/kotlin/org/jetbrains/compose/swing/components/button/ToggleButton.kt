@@ -7,7 +7,7 @@ import androidx.compose.runtime.Composable
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
-import org.jetbrains.compose.swing.node.AppliedValue
+import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
 import java.awt.event.ActionListener
 import javax.swing.JToggleButton
@@ -36,12 +36,12 @@ public fun ToggleButton(
     onSelectedChange: (Boolean) -> Unit,
     modifier: SwingModifier = SwingModifier,
 ) {
-    val (reporting, applied) = rememberToggleReporting(selected, onSelectedChange)
+    val (reporting, mirror) = rememberToggleReporting(selected, onSelectedChange)
     ToggleButtonNode(
         text = text,
         modifier = modifier.then(reporting),
         selected = selected,
-        applied = applied,
+        mirror = mirror,
     )
 }
 
@@ -63,18 +63,18 @@ public fun ToggleButton(
     actionListener: ActionListener,
     modifier: SwingModifier = SwingModifier,
 ) {
-    val (mirroring, applied) = rememberToggleMirroring(selected, actionListener)
+    val (mirroring, mirror) = rememberToggleMirroring(selected, actionListener)
     ToggleButtonNode(
         text = text,
         modifier = modifier.then(mirroring),
         selected = selected,
-        applied = applied,
+        mirror = mirror,
     )
 }
 
 /**
  * The `JToggleButton` node both [ToggleButton] overloads render. [selected] is settled against the button
- * through [applied] rather than applied on change: the user can toggle the button out from under the
+ * through [mirror] rather than applied on change: the user can toggle the button out from under the
  * declaration, and a declaration equal to the last one still has to stand.
  */
 @Composable
@@ -82,13 +82,13 @@ private fun ToggleButtonNode(
     text: @Nls String,
     modifier: SwingModifier,
     selected: Boolean,
-    applied: AppliedValue<Boolean>,
+    mirror: MirrorState<Boolean>,
 ) {
     SwingNode(
         factory = { JToggleButton() },
         update = {
             set(text) { this.text = it }
-            declareSelected(selected, applied)
+            declareSelected(selected, mirror)
             applyModifier(modifier)
         },
     )

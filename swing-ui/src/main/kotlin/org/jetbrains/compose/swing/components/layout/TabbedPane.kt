@@ -12,10 +12,10 @@ import org.jetbrains.compose.swing.core.dispatchToCaller
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.changeListener
-import org.jetbrains.compose.swing.node.AppliedValue
 import org.jetbrains.compose.swing.node.ChildPlacement
+import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
-import org.jetbrains.compose.swing.node.rememberAppliedValue
+import org.jetbrains.compose.swing.node.rememberMirrorState
 import javax.swing.JTabbedPane
 import javax.swing.event.ChangeEvent
 import javax.swing.event.ChangeListener
@@ -124,23 +124,22 @@ private fun TabbedPaneImpl(
         "TabbedPane selectedIndex must be $NO_TAB for no selected tab or a non-negative tab index, " +
             "but was $selectedIndex"
     }
-    // A JTabbedPane moves its selection on its own whenever the strip changes: the first tab to arrive
-    // becomes the selection, and removing the selected tab falls back to a neighbor. Each of those moves
+    // A JTabbedPane changes its selection on its own whenever the strip changes: the first tab to arrive
+    // becomes the selection, and removing the selected tab falls back to a neighbor. Each of those changes
     // fires the very change event a click fires, so the writes that add and remove tabs run as this
     // wrapper's own, and the mirror is what tells that apart from the user's own selection.
-    val applied = rememberAppliedValue(selectedIndex)
-    // Reading the mirror here subscribes this composition to the user moving the pane's own selection, so
-    // a move away from the declaration invalidates on its own instead of waiting for an unrelated
-    // recomposition to notice it. The value itself is nothing this body needs: the settle below reads the
-    // selection off the pane.
-    applied.value
+    val mirror = rememberMirrorState(selectedIndex)
+    // Subscribed here so that a change away from the declaration invalidates on its own instead of waiting
+    // for an unrelated recomposition to notice it. What the pane is left on is nothing this body reads
+    // from the mirror: the settle below reads the selection off the pane.
+    mirror.subscribe()
     // Captured here in the composable body: a header cannot be an applier node of the pane (see
     // TabHeaderComposition in TabbedPaneScope), so this context is threaded to it explicitly instead of being
     // inherited through the node tree.
     val headerParentContext = rememberCompositionContext()
     // Remembered with the pane: a tab's declaration is built against these as that tab's modifier is
     // built, so both outlive the pass that declared it.
-    val scope = remember(applied, headerParentContext) { TabbedPaneScopeImpl(applied, headerParentContext) }
+    val scope = remember(mirror, headerParentContext) { TabbedPaneScopeImpl(mirror, headerParentContext) }
 
     // The tab the caller has been told the pane is on: the one it declared and the pane took, or the one
     // the pane was left on and the callback was handed. Every selection that reaches the caller is
@@ -148,10 +147,10 @@ private fun TabbedPaneImpl(
     val reportedSelection = remember { intArrayOf(NO_TAB) }
     val onUserSelection: (ChangeEvent) -> Unit = { event ->
         val current = (event.source as JTabbedPane).selectedIndex
-        // Only a move of the user's is theirs to be told about, and only one they were told about
-        // belongs in the record - a move the pane made under one of this wrapper's own writes is
+        // Only a change of the user's is theirs to be told about, and only one they were told about
+        // belongs in the record - a change the pane made under one of this wrapper's own writes is
         // settled below, which is where the record catches up with it.
-        if (applied.observed(current)) {
+        if (mirror.observed(current)) {
             reportedSelection[0] = current
             changeListener.stateChanged(event)
         }
@@ -171,7 +170,7 @@ private fun TabbedPaneImpl(
             // changes the strip: a tab arriving is what can turn a standing declaration into one the pane
             // can honor, and a tab leaving is what drops the pane onto a neighbor nobody declared.
             settleWithChildren {
-                settleSelection(this, selectedIndex, applied, reportedSelection, changeListener)
+                settleSelection(this, selectedIndex, mirror, reportedSelection, changeListener)
             }
         },
         // A pane holds every child as the page of a tab, through `insertTab` rather than by index, and
@@ -188,13 +187,13 @@ private const val NO_TAB = -1
  * Puts [pane] on the tab [selectedIndex] names, and tells [listener] which tab the pane is on instead
  * when that index names no tab of the strip.
  *
- * A declaration the pane can honor is written and read back as one settlement of [applied]'s, so neither
+ * A declaration the pane can honor is written and read back as one settlement of [mirror]'s, so neither
  * the caller nor the composition hears the wrapper's own write back: the caller does not get its own
- * declaration as an interaction, and the mirror does not schedule a pass to answer a move it just made.
+ * declaration as an interaction, and the mirror does not schedule a pass to answer a change it just made.
  * A declaration the pane cannot honor - an index past the strip, which is what dropping the declared tab
  * leaves behind - is a selection the caller believes stands while the pane sits on the neighbor it fell
  * back on. That tab is nothing the composition asked for, so the caller is handed it rather than left
- * with a selection the strip lost. This runs on every pass that moves the declaration or the strip, so
+ * with a selection the strip lost. This runs on every pass that changes the declaration or the strip, so
  * updating [reported] is what keeps a standing fallback from being reported again on every repeat settle
  * - a declaration the pane can honor already updates it to the pane's post-write value, so only this
  * separate, deliberately-lagging record catches the fallback case.
@@ -205,13 +204,13 @@ private const val NO_TAB = -1
 private fun settleSelection(
     pane: JTabbedPane,
     selectedIndex: Int,
-    applied: AppliedValue<Int>,
+    mirror: MirrorState<Int>,
     reported: IntArray,
     listener: ChangeListener,
 ) {
     if (selectedIndex == NO_TAB || selectedIndex in 0 until pane.tabCount) {
-        applied.settle {
-            if (pane.selectedIndex != selectedIndex) applied.write { pane.selectedIndex = selectedIndex }
+        mirror.settle {
+            if (pane.selectedIndex != selectedIndex) mirror.write { pane.selectedIndex = selectedIndex }
             answered(pane.selectedIndex)
         }
         reported[0] = pane.selectedIndex

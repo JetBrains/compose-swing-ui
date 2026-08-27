@@ -10,11 +10,11 @@ import org.jetbrains.compose.swing.constants.SelectionMode
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.listSelectionListener
-import org.jetbrains.compose.swing.node.AppliedValue
+import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
 import org.jetbrains.compose.swing.node.declare
-import org.jetbrains.compose.swing.node.rememberAppliedValue
+import org.jetbrains.compose.swing.node.rememberMirrorState
 import java.util.Vector
 import javax.swing.JList
 import javax.swing.ListModel
@@ -153,9 +153,9 @@ public fun <T> ListBox(
         fixedCellWidth = fixedCellWidth,
         fixedCellHeight = fixedCellHeight,
         itemContent = itemContent,
-    ) { applied ->
+    ) { mirror ->
         set(declaredItems) { newItems ->
-            installContent(applied, selectedIndices, listSelectionListener) { setListData(Vector(newItems)) }
+            installContent(mirror, selectedIndices, listSelectionListener) { setListData(Vector(newItems)) }
         }
     }
 }
@@ -280,9 +280,9 @@ public fun <T> ListBox(
         fixedCellWidth = fixedCellWidth,
         fixedCellHeight = fixedCellHeight,
         itemContent = itemContent,
-    ) { applied ->
+    ) { mirror ->
         set(model) { newModel ->
-            installContent(applied, selectedIndices, listSelectionListener) { this.model = newModel }
+            installContent(mirror, selectedIndices, listSelectionListener) { this.model = newModel }
         }
     }
 }
@@ -400,8 +400,8 @@ public fun <T> ListBox(
 /**
  * The `JList` node every [ListBox] overload renders: all of it but the content, which [installContent]
  * declares - a declarative items list in one family of overloads, the caller's own model in the other.
- * [installContent] is handed the [AppliedValue] mirroring the list's selection, since giving the list new
- * content is one of the writes that moves it.
+ * [installContent] is handed the [MirrorState] mirroring the list's selection, since giving the list new
+ * content is one of the writes that changes it.
  */
 @Composable
 private fun <T> ListBoxNode(
@@ -415,36 +415,36 @@ private fun <T> ListBoxNode(
     fixedCellWidth: Int,
     fixedCellHeight: Int,
     itemContent: (@Composable ListItemScope.(item: T) -> Unit)?,
-    installContent: SwingNodeUpdater<JList<T>>.(AppliedValue<Set<Int>?>) -> Unit,
+    installContent: SwingNodeUpdater<JList<T>>.(MirrorState<Set<Int>?>) -> Unit,
 ) {
     // The single conversion from itemContent to a JList cell renderer: one reused ComposingListCellRenderer
     // stamps a recycled composition per row. A null itemContent renders rows through the list's own renderer.
     val itemRenderer = itemContent?.let { rememberComposingListCellRenderer(it) }
-    val applied = rememberAppliedValue(selectedIndices)
+    val mirror = rememberMirrorState(selectedIndices)
     // A drag publishes one selection per row crossed before it settles, so only the settled value is worth
     // mirroring - mirroring an adjusting one would invalidate this composition, and re-assert the
     // declaration, before the user has let go. Forwarding to the caller's own listener follows the write
     // depth alone, exactly as it did without a mirror, so every adjusting event still reaches it.
     val onUserSelection: (ListSelectionEvent) -> Unit = { event ->
-        if (!event.valueIsAdjusting) applied.observed((event.source as JList<*>).selectedIndices.toSet())
-        if (!applied.isWriting) listSelectionListener.valueChanged(event)
+        if (!event.valueIsAdjusting) mirror.observed((event.source as JList<*>).selectedIndices.toSet())
+        if (!mirror.isWriting) listSelectionListener.valueChanged(event)
     }
     SwingNode(
         factory = { JList<T>() },
         update = {
             set(selectionMode) { mode ->
-                narrowSelection(applied, selectedIndices, listSelectionListener) { this.selectionMode = mode }
+                narrowSelection(mirror, selectedIndices, listSelectionListener) { this.selectionMode = mode }
             }
             set(visibleRowCount) { count -> this.visibleRowCount = count }
             set(layoutOrientation) { orientation -> this.layoutOrientation = orientation }
-            installContent(applied)
+            installContent(mirror)
             // Run on every pass regardless of whether a selection is declared, so the set calls this makes
             // always number the same and no later slot in this block shifts when one flips to the other.
             // An undeclared (null) selection settles to itself: applySelection leaves the list alone for a
             // null declaration, so the selection is never imposed, overwritten, or re-asserted for it.
             declare(
                 selectedIndices,
-                applied,
+                mirror,
                 { this.selectedIndices.toSet() },
                 { indices -> applySelection(this, indices) },
             )
@@ -484,12 +484,12 @@ private fun SwingModifier.onListSelection(onChange: (ListSelectionEvent) -> Unit
  * too short to hold. See [installNarrowing].
  */
 private fun JList<*>.installContent(
-    applied: AppliedValue<Set<Int>?>,
+    mirror: MirrorState<Set<Int>?>,
     declared: Set<Int>?,
     target: ListSelectionListener,
     install: () -> Unit,
 ): Unit =
-    applied.installNarrowing(
+    mirror.installNarrowing(
         declared = declared,
         selection = { selectedIndices.toSet() },
         apply = { rows -> applySelection(this, rows) },

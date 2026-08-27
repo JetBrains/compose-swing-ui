@@ -7,7 +7,7 @@ import androidx.compose.runtime.Composable
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
-import org.jetbrains.compose.swing.node.AppliedValue
+import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
 import java.awt.event.ActionListener
 import javax.swing.JCheckBox
@@ -28,12 +28,12 @@ public fun CheckBox(
     onCheckedChange: (Boolean) -> Unit,
     modifier: SwingModifier = SwingModifier,
 ) {
-    val (reporting, applied) = rememberToggleReporting(checked, onCheckedChange)
+    val (reporting, mirror) = rememberToggleReporting(checked, onCheckedChange)
     CheckBoxNode(
         text = text,
         modifier = modifier.then(reporting),
         checked = checked,
-        applied = applied,
+        mirror = mirror,
     )
 }
 
@@ -55,18 +55,18 @@ public fun CheckBox(
     actionListener: ActionListener,
     modifier: SwingModifier = SwingModifier,
 ) {
-    val (mirroring, applied) = rememberToggleMirroring(checked, actionListener)
+    val (mirroring, mirror) = rememberToggleMirroring(checked, actionListener)
     CheckBoxNode(
         text = text,
         modifier = modifier.then(mirroring),
         checked = checked,
-        applied = applied,
+        mirror = mirror,
     )
 }
 
 /**
  * The `JCheckBox` node both [CheckBox] overloads render. [checked] is settled against the box through
- * [applied] rather than applied on change: the user can toggle the box out from under the declaration, and
+ * [mirror] rather than applied on change: the user can toggle the box out from under the declaration, and
  * a declaration equal to the last one still has to stand.
  */
 @Composable
@@ -74,13 +74,13 @@ private fun CheckBoxNode(
     text: @Nls String,
     modifier: SwingModifier,
     checked: Boolean,
-    applied: AppliedValue<Boolean>,
+    mirror: MirrorState<Boolean>,
 ) {
     SwingNode(
         factory = { JCheckBox() },
         update = {
             set(text) { this.text = it }
-            declareSelected(checked, applied)
+            declareSelected(checked, mirror)
             applyModifier(modifier)
         },
     )

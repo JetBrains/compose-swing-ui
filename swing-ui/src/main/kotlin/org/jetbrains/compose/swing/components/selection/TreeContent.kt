@@ -94,7 +94,7 @@ internal data class TreeContent<T>(
         // A node that allows no children throws away the ones it holds, so it is widened before children
         // arrive and narrowed once the ones it had are gone, even when syncing them fails partway.
         if (branch) node.allowsChildren = true
-        val moved =
+        val changed =
             try {
                 syncChildren(model, node, childValues, walkEvery)
             } finally {
@@ -102,7 +102,7 @@ internal data class TreeContent<T>(
             }
         carried.carry(value, text)
         if (shown) model.nodeChanged(node)
-        return moved
+        return changed
     }
 
     /**
@@ -134,13 +134,13 @@ internal data class TreeContent<T>(
         val firstStale = head + reused
         val removed = removeChildren(model, node, firstStale, had - tail - firstStale)
         val inserted = insertChildren(model, node, firstStale, childValues.subList(firstStale, has - tail))
-        var moved = removed || inserted
+        var changed = removed || inserted
         for (index in 0 until has) {
             if (syncNode(model, node.getChildAt(index) as DefaultMutableTreeNode, childValues[index], walkEvery)) {
-                moved = true
+                changed = true
             }
         }
-        return moved
+        return changed
     }
 
     private fun removeChildren(

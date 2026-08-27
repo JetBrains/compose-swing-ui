@@ -55,12 +55,12 @@ public fun RadioGroup(
     BoxPanel(modifier = modifier, axis = axis) {
         scope.options.forEachIndexed { index, option ->
             val selected = index == selectedIndex
-            ButtonGroupOption(group, index, option.modifier, selected, onSelectionChange) { optionModifier, applied ->
+            ButtonGroupOption(group, index, option.modifier, selected, onSelectionChange) { optionModifier, mirror ->
                 SwingNode(
                     factory = { JRadioButton() },
                     update = {
                         set(option.text) { this.text = it }
-                        declare(selected, applied, { isSelected }, { applyGroupSelection(group, it) })
+                        declare(selected, mirror, { isSelected }, { applyGroupSelection(group, it) })
                         applyModifier(optionModifier)
                     },
                 )

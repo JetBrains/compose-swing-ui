@@ -3,7 +3,7 @@ package org.jetbrains.compose.swing.components.selection
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.ModelSwapAware
 import org.jetbrains.compose.swing.modifier.listener.SwappableModel
-import org.jetbrains.compose.swing.node.AppliedValue
+import org.jetbrains.compose.swing.node.MirrorState
 import javax.swing.JTable
 import javax.swing.ListSelectionModel
 import javax.swing.event.ListSelectionEvent
@@ -11,13 +11,13 @@ import javax.swing.event.ListSelectionListener
 
 /*
  * How a table's row selection travels in both directions: out to the caller's listener as the user moves
- * it, and into the [AppliedValue] mirroring what the table is left holding - plus the bridge that turns a
+ * it, and into the [MirrorState] mirroring what the table is left holding - plus the bridge that turns a
  * lambda-based overload's callback into the raw listener that plumbing takes.
  */
 
 /**
  * Installs a [ListSelectionListener] on a `JTable`'s `selectionModel` that mirrors every settled selection
- * into [applied] and forwards to [target] whatever arrives outside one of that mirror's own writes - the
+ * into [mirror] and forwards to [target] whatever arrives outside one of that mirror's own writes - the
  * adjusting events of a drag as well as the settled one, exactly as a caller's raw listener expects. Only
  * the settled value is worth mirroring: an adjusting one would invalidate this composition, and re-assert
  * the declaration, before the user has let go.
@@ -28,9 +28,9 @@ import javax.swing.event.ListSelectionListener
  * list's is read back from the list.
  */
 internal fun SwingModifier.userSelectionListener(
-    applied: AppliedValue<Set<Int>?>,
+    mirror: MirrorState<Set<Int>?>,
     target: ListSelectionListener,
-): SwingModifier = this then UserSelectionListenerElement(applied, target)
+): SwingModifier = this then UserSelectionListenerElement(mirror, target)
 
 // A table publishes its selection through the selection model it holds, which a caller can replace.
 private val TABLE_SELECTION =
@@ -51,32 +51,32 @@ private val TABLE_SELECTION =
  * would keep forwarding to the listener the caller replaced.
  */
 private class UserSelectionListenerElement(
-    val applied: AppliedValue<Set<Int>?>,
+    val mirror: MirrorState<Set<Int>?>,
     val target: ListSelectionListener,
 ) : SwingModifier.NodeElement<JTable, UserSelectionListenerElement.Node>() {
     override fun equals(other: Any?): Boolean =
-        other is UserSelectionListenerElement && applied === other.applied && target === other.target
+        other is UserSelectionListenerElement && mirror === other.mirror && target === other.target
 
-    override fun hashCode(): Int = 31 * System.identityHashCode(applied) + System.identityHashCode(target)
+    override fun hashCode(): Int = 31 * System.identityHashCode(mirror) + System.identityHashCode(target)
 
     override val targetType: Class<JTable> get() = JTable::class.java
     override val additive: Boolean get() = true
 
-    override fun create(): Node = Node(applied)
+    override fun create(): Node = Node(mirror)
 
     override fun update(node: Node) {
-        node.applied = applied
+        node.mirror = mirror
         node.target = target
     }
 
     /**
      * The node takes the mirror at creation because its listener settles against it while attaching,
      * before the first update lands. Both halves are pushed on every pass and read when an event fires,
-     * so a table mirrors into the [AppliedValue] and forwards to the listener the composition declares
+     * so a table mirrors into the [MirrorState] and forwards to the listener the composition declares
      * now.
      */
     class Node(
-        var applied: AppliedValue<Set<Int>?>,
+        var mirror: MirrorState<Set<Int>?>,
     ) : SwingModifier.Node<JTable>() {
         var target: ListSelectionListener = ListSelectionListener {}
 
@@ -84,8 +84,8 @@ private class UserSelectionListenerElement(
             object : ListSelectionListener, ModelSwapAware<ListSelectionModel> {
                 override fun valueChanged(event: ListSelectionEvent) {
                     val table = component
-                    if (!event.valueIsAdjusting) applied.observed(table.selectedModelRows())
-                    if (!applied.isWriting) {
+                    if (!event.valueIsAdjusting) mirror.observed(table.selectedModelRows())
+                    if (!mirror.isWriting) {
                         target.valueChanged(
                             ListSelectionEvent(table, event.firstIndex, event.lastIndex, event.valueIsAdjusting),
                         )
@@ -95,7 +95,7 @@ private class UserSelectionListenerElement(
                 // The rows a selection model holds are its own indices; the mirror describes the table's,
                 // so what it settles is read back through the table rather than off the incoming model.
                 override fun adoptModelSwap(model: ListSelectionModel) {
-                    applied.observed(component.selectedModelRows())
+                    mirror.observed(component.selectedModelRows())
                 }
             }
 

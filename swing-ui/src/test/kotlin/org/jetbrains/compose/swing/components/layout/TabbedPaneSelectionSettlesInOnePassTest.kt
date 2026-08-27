@@ -77,7 +77,7 @@ class TabbedPaneSelectionSettlesInOnePassTest : TracedTest() {
             emptyList(),
             tracer.passes(),
             "the pass that carried the declaration read the pane back inside its own settlement, so no " +
-                "successor pass is bought to answer the move it made: ${tracer.sections}",
+                "successor pass is bought to answer the change it made: ${tracer.sections}",
         )
     }
 

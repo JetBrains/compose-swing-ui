@@ -1,9 +1,9 @@
 package org.jetbrains.compose.swing.node
 
 import androidx.compose.runtime.AbstractApplier
-import androidx.compose.runtime.snapshots.SnapshotStateObserver
 import org.jetbrains.compose.swing.core.trace
 import org.jetbrains.compose.swing.util.DeferredAction
+import org.jetbrains.compose.swing.util.fastForEachIndexed
 import java.awt.Container
 import java.util.Collections
 import java.util.IdentityHashMap
@@ -13,10 +13,10 @@ import javax.swing.RootPaneContainer
  * The [androidx.compose.runtime.Applier] that [org.jetbrains.compose.swing.node.SwingNode] emits into, mutating
  * the Swing component tree as the composition changes.
  *
- * Construct one over a root [Container] and a [SnapshotStateObserver] owned by the surrounding
- * composition, and hand it to a `Composition` to host Compose-Swing content at the applier level; the
- * everyday entry points are the `setContent` functions, which build one internally and dispose the
- * observer with the composition. See `docs/CUSTOM-COMPONENTS.md` and `docs/ARCHITECTURE.md`.
+ * Construct one over a root node already attached to the surrounding composition, and hand it to a
+ * `Composition` to host Compose-Swing content at the applier level; the everyday entry points are the
+ * `setContent` functions, which build both internally. See `docs/CUSTOM-COMPONENTS.md` and
+ * `docs/ARCHITECTURE.md`.
  *
  * Placement of each child:
  * - Every host node declares how it holds its children, as its [SwingNodeHolder.childPlacement]. Under
@@ -48,20 +48,18 @@ import javax.swing.RootPaneContainer
  *
  * Internal implementation type; not public API.
  *
- * @param root the container the composition is rooted at.
- * @param ownerObserver the composition owner's shared snapshot observer, stamped onto every node.
+ * @param root the node this composition is rooted at, attached to the composition that owns it.
  * @param rootSlot installs the children composed directly under [root], which then shows the single
  *   top-level component that slot holds; `null` - the default - adds them to [root] by index.
  * @see org.jetbrains.compose.swing.node.SwingNode
  */
 @PublishedApi
 internal class SwingApplier internal constructor(
-    root: Container,
-    private val ownerObserver: SnapshotStateObserver,
+    root: SwingNodeHolder<Container>,
     private val rootSlot: SlotAttachment? = null,
-) : AbstractApplier<SwingNodeHolder<*>>(SwingNodeHolder(root)) {
-    /** The bookkeeping for the batch of component updates in flight. */
-    private val batch = ComponentUpdateBatch()
+) : AbstractApplier<SwingNodeHolder<*>>(root) {
+    /** The bookkeeping for the batch of component updates in flight, read off the root like any node. */
+    private val batch = root.requireOwner().updateBatch
 
     /** What the change pass in flight has said about where children go. */
     private val changes = ChangeRecord()
@@ -86,14 +84,9 @@ internal class SwingApplier internal constructor(
         instance: SwingNodeHolder<*>,
     ) {
         trace("insert") {
-            // Stamp the owner's shared snapshot observer onto the node here, on the top-down pass. This MUST
-            // happen on the down pass: a node's own update changes - which copy the observer onto a
-            // snapshot-observing component such as Canvas - run between the top-down and bottom-up passes, so
-            // a stamp deferred to insertBottomUp would not yet be visible when the node reads it, leaving that
-            // component permanently unobserved (and a Canvas blank). The actual Swing attachment is still done
-            // bottom-up (see insertBottomUp).
-            instance.ownerObserver = ownerObserver
-            instance.updateBatch = batch
+            // Attach the node to the composition its parent stands in. This MUST happen on the top-down
+            // pass - see SwingCompositionOwner.
+            instance.attachedTo(current.owner)
             changes.announceInsert(instance)
         }
     }
@@ -118,8 +111,8 @@ internal class SwingApplier internal constructor(
             return
         }
         trace("attach") {
-            // The owner's shared snapshot observer was already stamped onto this node on the top-down pass
-            // (see insertTopDown); here we only perform the Swing attachment.
+            // The node was already attached to its composition on the top-down pass (see insertTopDown);
+            // here we only perform the Swing attachment.
             val attachment = regions.attachmentOf(parent, instance)
             parent.checkPlacementOf(container, instance, fillsRegion = attachment != null)
             // The place the host is handed is the one among the children already attached to it, which is the
@@ -171,12 +164,8 @@ internal class SwingApplier internal constructor(
                 // A region-holding container: its children were installed through their slot attachments and
                 // are not direct AWT-array entries, so address them by composition index in the child list
                 // and run each holder's uninstall to release the host region (e.g. clear a JScrollPane
-                // region). Iterate the fixed sub-list and clear it in one shot.
-                val removed = parent.children.subList(index, index + count)
-                for (holder in removed) {
-                    holder.releaseInstalledSlot()
-                }
-                removed.clear()
+                // region).
+                parent.removeChildRun(index, count) { it.releaseInstalledSlot() }
                 batch.markChanged(container)
                 return
             }
@@ -186,9 +175,7 @@ internal class SwingApplier internal constructor(
             // child list is what says which children the pass drops, and each of them leaves the host by
             // component identity, which addresses the same child however the host has arranged them.
             val childHost = container.childHost
-            val removed = parent.children.subList(index, index + count)
-            for (holder in removed) childHost.remove(holder.component)
-            removed.clear()
+            parent.removeChildRun(index, count) { childHost.remove(it.component) }
             batch.markChanged(container)
         }
     }
@@ -204,44 +191,32 @@ internal class SwingApplier internal constructor(
 
         trace("move") {
             batch.holdForChildSettle(parent)
-            val children = parent.children
             if (parent.childPlacement.holdsRegions) {
                 with(regions) { parent.moveRegionChildren(container, from, to, count) }
                 return
             }
 
-            // Ordinary children: detach the moved run from the AWT array, which holds them, so it can be
-            // re-inserted at the mirrored target. The composition-order child list is what names the run,
-            // and each of its components leaves the host by identity, which is the same child whichever
-            // place in its own array the host has given it. A child the pass has yet to attach is in no
-            // array to leave, and the move is the whole of what it needs: it is attached at the place the
-            // list gives it once the pass has settled.
+            // Ordinary children are the AWT array's own entries, and each of them leaves the host by
+            // component identity, which addresses the same child whichever place in that array the host
+            // has given it.
             val childHost = container.childHost
-            val moved = ArrayList(children.subList(from, from + count))
-            for (holder in moved) childHost.remove(holder.component)
-            children.subList(from, from + count).clear()
-
-            // After removing `count` items starting at `from`, indices above `from` shifted down by
-            // `count`. Mirror Compose HTML DomNodeWrapper.move index math.
-            val targetBase = if (from > to) to else to - count
-            // Re-insert each moved component at the place the composition puts it, which is its position
-            // among the children the host holds already. Every add carries an explicit index: the 3-arg form
-            // (index + constraint) for constrained children so the layout region is restored, the 2-arg form
-            // for unconstrained children. Because each add specifies its own index, no running cursor is
-            // needed and the run lands contiguously regardless of constrained/unconstrained mix. The
-            // constraint is read off the holder now rather than remembered at insert, so a child whose
-            // constraint changed since keeps the current one.
-            children.addAll(targetBase, moved)
-            moved.forEachIndexed { offset, holder ->
-                if (!holder.attachedToHost) return@forEachIndexed
-                val constraint = holder.constraint
-                val targetIndex = parent.attachedSiblingsBefore(targetBase + offset)
-                if (constraint != null) {
-                    childHost.add(holder.component, constraint, targetIndex)
-                } else {
-                    childHost.add(holder.component, targetIndex)
-                }
-            }
+            parent.moveChildRun(
+                from,
+                to,
+                count,
+                detach = { childHost.remove(it.component) },
+                place = { holder, position ->
+                    // The constraint is read off the holder now rather than remembered at detach, so a
+                    // child whose constraint changed since keeps the current one, and the 3-arg add
+                    // restores the layout region it fills.
+                    val constraint = holder.constraint
+                    if (constraint != null) {
+                        childHost.add(holder.component, constraint, position)
+                    } else {
+                        childHost.add(holder.component, position)
+                    }
+                },
+            )
             batch.markChanged(container)
         }
     }
@@ -401,8 +376,8 @@ private class ChildRegions(
         // not one holds none and so has no region to move a child between.
         val container = component as? Container ?: return
         batch.holdForChildSettle(this)
-        children.forEachIndexed { index, child ->
-            if (!child.attachedToHost) return@forEachIndexed
+        children.fastForEachIndexed { index, child ->
+            if (!child.attachedToHost) return@fastForEachIndexed
             if (child.declaredSlot?.name != child.installedSlot?.name) {
                 child.releaseInstalledSlot()
                 batch.markChanged(container)
@@ -427,10 +402,8 @@ private class ChildRegions(
      * strip) the position within it *is* where the child is, so every moved child is released from the
      * region it fills and installed again at the position it is composed at now.
      *
-     * The whole run is released before any of it is installed again: an install addresses its position
-     * among the children that stay, and a run still holding its old positions would push each of them one
-     * place along. A child whose chain gives its region up in the same pass is released and then refused,
-     * the way one arriving at a region-holding host without a region is.
+     * A child whose chain gives its region up in the same pass is released and then refused, the way one
+     * arriving at a region-holding host without a region is.
      */
     fun SwingNodeHolder<*>.moveRegionChildren(
         container: Container,
@@ -438,28 +411,24 @@ private class ChildRegions(
         to: Int,
         count: Int,
     ) {
-        val ordered = childPlacement is ChildPlacement.OrderedSlots
-        val moved = ArrayList(children.subList(from, from + count))
-        if (ordered) {
-            for (child in moved) child.releaseInstalledSlot()
+        if (childPlacement !is ChildPlacement.OrderedSlots) {
+            moveChildRun(from, to, count)
+            return
         }
-        children.subList(from, from + count).clear()
-        // After taking `count` children out from `from`, the positions above `from` have shifted down by
-        // that many, which is the same mirroring the indexed branch spells out.
-        val targetBase = if (from > to) to else to - count
-        children.addAll(targetBase, moved)
-        if (!ordered) return
-        moved.forEachIndexed { offset, child ->
-            // A child the pass has yet to attach fills no region to be released from and names its
-            // region here only once the pass has settled, which is when it is installed.
-            if (!child.attachedToHost) return@forEachIndexed
-            val attachment = attachmentOf(this, child)
-            checkChildKind(container, child, fillsRegion = attachment != null)
-            if (attachment != null) {
-                val position = attachedSiblingsBefore(targetBase + offset)
-                child.installedThrough(attachment, attachment.install(container, child.component, position))
-            }
-        }
+        val host = this
+        moveChildRun(
+            from,
+            to,
+            count,
+            detach = { it.releaseInstalledSlot() },
+            place = { child, position ->
+                val attachment = attachmentOf(host, child)
+                checkChildKind(container, child, fillsRegion = attachment != null)
+                if (attachment != null) {
+                    child.installedThrough(attachment, attachment.install(container, child.component, position))
+                }
+            },
+        )
         batch.markChanged(container)
     }
 }

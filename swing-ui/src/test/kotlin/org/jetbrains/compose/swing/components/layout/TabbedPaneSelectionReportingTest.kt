@@ -6,7 +6,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.assertUnadoptedMoveIsPutBack
+import org.jetbrains.compose.swing.assertUnadoptedChangeIsPutBack
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
@@ -240,7 +240,7 @@ class TabbedPaneSelectionReportingTest {
 
     @Test
     fun anIndexBelowNoSelectionIsRejectedEvenOnAPaneWhoseStripNeverChanges() = runComposeSwingTest {
-        // No tab ever joins this strip, so nothing here ever moves the declaration, the mirror or the
+        // No tab ever joins this strip, so nothing here ever changes the declaration, the mirror or the
         // page count - the rejection has to come from the declaration itself, not from a settle it would
         // otherwise never trigger.
         assertFailsWith<IllegalArgumentException> {
@@ -617,7 +617,7 @@ class TabbedPaneSelectionReportingTest {
 
     @Test
     fun aSelectionTheCallerDoesNotAdoptComesOffWithinEventCycles() = runSwingTest {
-        assertUnadoptedMoveIsPutBack(
+        assertUnadoptedChangeIsPutBack(
             type = JTabbedPane::class.java,
             declared = 0,
             content = {
@@ -626,7 +626,7 @@ class TabbedPaneSelectionReportingTest {
                     Label("a", SwingModifier.tab("Advanced"))
                 }
             },
-            move = { it.selectedIndex = 1 },
+            change = { it.selectedIndex = 1 },
             read = { it.selectedIndex },
         )
     }

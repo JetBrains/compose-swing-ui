@@ -11,11 +11,11 @@ import org.jetbrains.compose.swing.constants.SelectionMode
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.propertyElement
-import org.jetbrains.compose.swing.node.AppliedValue
+import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
 import org.jetbrains.compose.swing.node.declare
-import org.jetbrains.compose.swing.node.rememberAppliedValue
+import org.jetbrains.compose.swing.node.rememberMirrorState
 import javax.swing.JTable
 import javax.swing.ListSelectionModel
 import javax.swing.RowFilter
@@ -76,7 +76,7 @@ import javax.swing.table.TableModel
  * reported through [onColumnLayoutChange]: dragging a column header sideways reorders the columns and
  * dragging the divider between two headers resizes them, and each reaches [onColumnLayoutChange] with the
  * layout the columns are then in. New columns rebuild the layout from the declarations, so a declared
- * layout is put back over them and survives, and a move the caller does not adopt is reported once and
+ * layout is put back over them and survives, and a change the caller does not adopt is reported once and
  * does not stand; an undeclared layout - the user's own - is carried across the rebuild as far as the new
  * columns can hold it, with [onColumnLayoutChange] reporting what is left of it where they cannot. A
  * column's own `minWidth` and `maxWidth` bound every width it can be left at, a drag's as much as a
@@ -226,7 +226,7 @@ public fun <R> Table(
         tableColumnModelListener = tableColumnModelListener,
         model = model,
         cellCompositions = cellCompositions,
-    ) { appliedSelection, appliedColumn, sortChannel, columnChannel ->
+    ) { selectionMirror, columnMirror, sortChannel, columnChannel ->
         // The refresh that gives the table this composition's model, rows, columns and cell renderers,
         // named step by step. The steps nest instead of running in sequence: each wraps the ones that can
         // undo what it is putting back, so its own restore runs only once those have already run - which
@@ -247,7 +247,7 @@ public fun <R> Table(
                 sortChannel.unbindFrom(table, model)
                 table.model = model
                 model.refresh(declaredRows, columns)
-                appliedColumn.write { table.applyDeclaredColumnWidths(columns) }
+                columnMirror.write { table.applyDeclaredColumnWidths(columns) }
             }
 
             // The sorter is built over the model the refresh leaves the table holding, so it is bound
@@ -259,7 +259,7 @@ public fun <R> Table(
             // the columns, and a wholesale data change covers every row - and taking a sorter on or off
             // empties it as well, so the selection that should stand is put back outside both.
             fun preservingSelection(refresh: () -> Unit) =
-                installContent(appliedSelection, selectedRowIndices, listSelectionListener, refresh)
+                installContent(selectionMirror, selectedRowIndices, listSelectionListener, refresh)
 
             // A structure change drops the order and the widths the columns were in, so the layout that
             // should stand is put back outside everything that provokes one - and outside the
@@ -269,7 +269,7 @@ public fun <R> Table(
 
             preservingColumnLayout { preservingSelection { preservingSortOrder { swapInDeclaredContent() } } }
         }
-        declareColumnLayout(appliedColumn, columnLayout, columnChannel)
+        declareColumnLayout(columnMirror, columnLayout, columnChannel)
     }
 }
 
@@ -316,9 +316,10 @@ public fun <R> Table(
  * reported through [onColumnLayoutChange]: dragging a column header sideways reorders the columns and
  * dragging the divider between two headers resizes them, and each reaches [onColumnLayoutChange] with the
  * layout the columns are then in. A new [model] rebuilds the columns from it, so a declared layout is put
- * back over them and survives the swap, and a move the caller does not adopt is reported once and does not
- * stand; an undeclared layout - the user's own - is carried across the swap as far as the new model's
- * columns can hold it, with [onColumnLayoutChange] reporting what is left of it where they cannot.
+ * back over them and survives the swap, and a change the caller does not adopt is reported once and
+ * does not stand; an undeclared layout - the user's own - is carried across the swap as far as the new
+ * model's columns can hold it, with [onColumnLayoutChange] reporting what is left of it where they
+ * cannot.
  *
  * @param model the table model to display; owned by the caller and never mutated by the library
  * @param modifier the [SwingModifier] applied to the underlying component
@@ -443,11 +444,11 @@ public fun Table(
         tableColumnModelListener = tableColumnModelListener,
         model = model,
         cellCompositions = null,
-    ) { appliedSelection, appliedColumn, sortChannel, columnChannel ->
+    ) { selectionMirror, columnMirror, sortChannel, columnChannel ->
         set(model) { newModel ->
             val table = this
             columnChannel.preserveAcross(columnModel, columnLayout) {
-                installContent(appliedSelection, selectedRowIndices, listSelectionListener) {
+                installContent(selectionMirror, selectedRowIndices, listSelectionListener) {
                     sortChannel.preserveAcross(table, sortable, sortKeys) {
                         sortChannel.unbindFrom(table, newModel)
                         table.model = newModel
@@ -460,11 +461,11 @@ public fun Table(
         // settles below.
         set(sortable) { enabled ->
             val table = this
-            installContent(appliedSelection, selectedRowIndices, listSelectionListener) {
+            installContent(selectionMirror, selectedRowIndices, listSelectionListener) {
                 sortChannel.preserveAcross(table, enabled, sortKeys)
             }
         }
-        declareColumnLayout(appliedColumn, columnLayout, columnChannel)
+        declareColumnLayout(columnMirror, columnLayout, columnChannel)
     }
 }
 
@@ -603,7 +604,7 @@ public fun Table(
 /**
  * The `JTable` node every [Table] overload renders: all of it but the content, which [installContent]
  * declares - a rows-and-columns refresh in one family of overloads, the caller's own model in the other.
- * [installContent] is handed the [AppliedValue]s mirroring the row selection and the column layout, and the
+ * [installContent] is handed the [MirrorState]s mirroring the row selection and the column layout, and the
  * [RowSortChannel] and [ColumnLayoutChannel] that carry the sort order and the column layout across
  * whatever change [installContent] makes, since giving the table new content is one of the changes that
  * unsettles all four.
@@ -624,41 +625,41 @@ private fun TableNode(
     model: TableModel,
     cellCompositions: TableCellCompositions<*>?,
     installContent: SwingNodeUpdater<JTable>.(
-        AppliedValue<Set<Int>?>,
-        AppliedValue<TableColumnLayout?>,
+        MirrorState<Set<Int>?>,
+        MirrorState<TableColumnLayout?>,
         RowSortChannel,
         ColumnLayoutChannel,
     ) -> Unit,
 ) {
     // The layout the columns are in is seeded null rather than from the declaration: a table has no columns
     // until it has a model, so there is no layout to mirror until the first refresh has built them.
-    val appliedColumn = rememberAppliedValue<TableColumnLayout?>(null)
-    val appliedSelection = rememberAppliedValue(selectedRowIndices)
-    val appliedSort = rememberAppliedValue(sortKeys)
-    val columnChannel = rememberColumnLayoutChannel(appliedColumn, tableColumnModelListener)
-    val sortChannel = rememberRowSortChannel(appliedSort, rowSorterListener)
+    val columnMirror = rememberMirrorState<TableColumnLayout?>(null)
+    val selectionMirror = rememberMirrorState(selectedRowIndices)
+    val sortMirror = rememberMirrorState(sortKeys)
+    val columnChannel = rememberColumnLayoutChannel(columnMirror, tableColumnModelListener)
+    val sortChannel = rememberRowSortChannel(sortMirror, rowSorterListener)
 
     SwingNode(
         factory = { JTable(model) },
         update = {
             set(selectionMode) { mode ->
-                narrowSelection(appliedSelection, selectedRowIndices, listSelectionListener) {
+                narrowSelection(selectionMirror, selectedRowIndices, listSelectionListener) {
                     applySelectionMode(mode)
                 }
             }
             set(autoResizeMode) { mode -> this.autoResizeMode = mode }
             set(fillsViewportHeight) { fills -> this.fillsViewportHeight = fills }
-            installContent(appliedSelection, appliedColumn, sortChannel, columnChannel)
-            declareRowFilter(sortChannel, rowFilter, appliedSelection, selectedRowIndices, listSelectionListener)
+            installContent(selectionMirror, columnMirror, sortChannel, columnChannel)
+            declareRowFilter(sortChannel, rowFilter, selectionMirror, selectedRowIndices, listSelectionListener)
             // Run on every pass regardless of whether a sort order or a selection is declared, so the set
             // calls these make always number the same and no later slot in this block shifts when one flips
             // to the other. An undeclared (null) value settles to itself: applySortKeys and applySelection
             // leave the table alone for a null declaration, so neither is imposed, overwritten, or
             // re-asserted for it.
-            declare(sortKeys, appliedSort, { sortChannel.sortKeys() }, { keys -> sortChannel.applySortKeys(keys) })
+            declare(sortKeys, sortMirror, { sortChannel.sortKeys() }, { keys -> sortChannel.applySortKeys(keys) })
             val tableModifier =
                 modifier
-                    .userSelectionListener(appliedSelection, listSelectionListener)
+                    .userSelectionListener(selectionMirror, listSelectionListener)
                     .tableColumnModelListener(columnChannel.listener)
                     .tableRowHeight(rowHeight)
             applyModifier(
@@ -700,12 +701,12 @@ private fun SwingModifier.tableRowHeight(rowHeight: Int?): SwingModifier =
  * too short to hold. See [installNarrowing].
  */
 internal fun JTable.installContent(
-    applied: AppliedValue<Set<Int>?>,
+    mirror: MirrorState<Set<Int>?>,
     declared: Set<Int>?,
     target: ListSelectionListener,
     install: () -> Unit,
 ): Unit =
-    applied.installNarrowing(
+    mirror.installNarrowing(
         declared = declared,
         selection = { selectedModelRows() },
         // A row event renumbers the table's own selection to follow the row it sits on, so where the

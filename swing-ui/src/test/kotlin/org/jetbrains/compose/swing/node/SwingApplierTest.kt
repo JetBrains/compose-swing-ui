@@ -1,6 +1,5 @@
 package org.jetbrains.compose.swing.node
 
-import androidx.compose.runtime.snapshots.SnapshotStateObserver
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifierDiff
 import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
@@ -160,7 +159,7 @@ class SwingApplierTest {
     private fun holder(component: Component): SwingNodeHolder<Component> = SwingNodeHolder(component)
 
     /** Observers created for the appliers under test, disposed in [disposeObservers]. */
-    private val observers = mutableListOf<SnapshotStateObserver>()
+    private val owners = mutableListOf<TestCompositionOwner>()
 
     /**
      * Builds a [SwingApplier] over [root] with a snapshot observer this test owns and disposes, so the
@@ -168,15 +167,15 @@ class SwingApplierTest {
      * leaked (the production path disposes it with the composition mount).
      */
     private fun applierFor(root: Container): SwingApplier {
-        val observer = SnapshotStateObserver { it() }.apply { start() }
-        observers += observer
-        return SwingApplier(root, observer)
+        val owner = TestCompositionOwner.observing()
+        owners += owner
+        return SwingApplier(SwingNodeHolder(root).attachedTo(owner))
     }
 
     @AfterTest
-    fun disposeObservers() {
-        observers.forEach { it.stop() }
-        observers.clear()
+    fun disposeOwners() {
+        owners.forEach { it.dispose() }
+        owners.clear()
     }
 
     private fun namedButton(name: String): JButton = JButton(name).apply { this.name = name }

@@ -5,7 +5,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.compose.swing.core.dispatchToCaller
-import org.jetbrains.compose.swing.node.AppliedValue
+import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
 import org.jetbrains.compose.swing.node.settleWhenDue
 import javax.swing.JTable
@@ -17,7 +17,7 @@ import javax.swing.table.TableColumnModel
 
 /**
  * One table's column-layout channel: the [listener] through which the user's own reorders and resizes
- * reach the caller's [target] listener, mirrored into [applied] the way every two-way property is.
+ * reach the caller's [target] listener, mirrored into [mirror] the way every two-way property is.
  *
  * A table publishes a margin change for every width it derives from its columns' preferred widths as well
  * as for a preferred width a resize drag changed, and it derives those widths afresh at every layout pass.
@@ -25,7 +25,7 @@ import javax.swing.table.TableColumnModel
  * which is what keeps a window resize, which changes every column's width and no column's layout, silent.
  */
 internal class ColumnLayoutChannel(
-    private val applied: AppliedValue<TableColumnLayout?>,
+    private val mirror: MirrorState<TableColumnLayout?>,
     private val target: State<TableColumnModelListener?>,
 ) {
     /**
@@ -36,10 +36,10 @@ internal class ColumnLayoutChannel(
     val listener: ColumnLayoutMirror =
         object : ColumnLayoutMirror {
             // A table handed another column model publishes whatever layout that model arrives in. It is
-            // the caller's own doing, so it is mirrored rather than reported back - and the mirror moving
+            // the caller's own doing, so it is mirrored rather than reported back - and the mirror changing
             // is what has the next pass put the declaration onto the model that arrived.
             override fun adoptModelSwap(model: TableColumnModel) {
-                applied.observed(model.readColumnLayout())
+                mirror.observed(model.readColumnLayout())
             }
 
             // A column added or removed is the table rebuilding its columns, never a user gesture: no
@@ -72,9 +72,9 @@ internal class ColumnLayoutChannel(
         columns: TableColumnModel,
         declared: TableColumnLayout?,
     ) {
-        applied.settle {
-            applied.write { columns.applyColumnLayout(declared) }
-            answered(columns.layoutHeld(applied.value))
+        mirror.settle {
+            mirror.write { columns.applyColumnLayout(declared) }
+            answered(columns.layoutHeld(mirror.value))
         }
     }
 
@@ -85,9 +85,9 @@ internal class ColumnLayoutChannel(
      * [installNarrowing] for the rule and what follows from it.
      *
      * A column that no longer exists cannot hold the part of the layout that named it, so restoring the
-     * layout must follow the rebuild that creates the columns and runs as [applied]'s own write.
+     * layout must follow the rebuild that creates the columns and runs as [mirror]'s own write.
      *
-     * [install] marks its own writes through [applied] too, so the losses it has to report itself still
+     * [install] marks its own writes through [mirror] too, so the losses it has to report itself still
      * reach the caller.
      */
     fun preserveAcross(
@@ -96,10 +96,10 @@ internal class ColumnLayoutChannel(
         install: () -> Unit,
     ) {
         val lost =
-            applied.settle {
-                val retained = declared ?: columns.layoutHeld(applied.value)
+            mirror.settle {
+                val retained = declared ?: columns.layoutHeld(mirror.value)
                 install()
-                applied.write { columns.applyColumnLayout(retained) }
+                mirror.write { columns.applyColumnLayout(retained) }
                 val settled = columns.layoutHeld(retained)
                 answered(settled)
                 declared == null && !settled.holds(retained)
@@ -118,8 +118,8 @@ internal class ColumnLayoutChannel(
         columns: TableColumnModel,
         deliver: (TableColumnModelListener) -> Unit,
     ) {
-        val settled = columns.layoutHeld(applied.value)
-        if (applied.observed(settled)) target.value?.let(deliver)
+        val settled = columns.layoutHeld(mirror.value)
+        if (mirror.observed(settled)) target.value?.let(deliver)
     }
 }
 
@@ -143,16 +143,17 @@ private fun TableColumnLayout.holdsInPlace(columns: TableColumnModel): Boolean =
 
 /**
  * Settles the table's columns on [columnLayout] whenever the declaration or the layout the columns are in
- * has moved since the pair this mirror last answered for, and does nothing at all on a pass where neither
+ * has changed since the pair this mirror last answered for, and does nothing at all on a pass where
+ * neither
  * did. Reading the mirror here is what subscribes the composition to a user's own reorder or resize, so a
- * declared layout is put back on the pass that follows their moving away from it.
+ * declared layout is put back on the pass that follows their changing away from it.
  */
 internal fun SwingNodeUpdater<JTable>.declareColumnLayout(
-    applied: AppliedValue<TableColumnLayout?>,
+    mirror: MirrorState<TableColumnLayout?>,
     columnLayout: TableColumnLayout?,
     channel: ColumnLayoutChannel,
 ) {
-    settleWhenDue(applied.redeclare(columnLayout), { ColumnLayoutSettlement(columnLayout) }) { due ->
+    settleWhenDue(mirror.redeclare(columnLayout), { ColumnLayoutSettlement(columnLayout) }) { due ->
         channel.settle(columnModel, due.layout)
     }
 }
@@ -165,11 +166,11 @@ private class ColumnLayoutSettlement(
 /** A [ColumnLayoutChannel] that keeps reporting to the latest [listener] without being rebuilt. */
 @Composable
 internal fun rememberColumnLayoutChannel(
-    applied: AppliedValue<TableColumnLayout?>,
+    mirror: MirrorState<TableColumnLayout?>,
     listener: TableColumnModelListener?,
 ): ColumnLayoutChannel {
     val target = rememberUpdatedState(listener)
-    return remember { ColumnLayoutChannel(applied, target) }
+    return remember { ColumnLayoutChannel(mirror, target) }
 }
 
 /**

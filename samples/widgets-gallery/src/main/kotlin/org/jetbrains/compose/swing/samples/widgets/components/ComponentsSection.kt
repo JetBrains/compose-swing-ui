@@ -54,7 +54,7 @@ internal fun ComponentsSection() {
         PasswordCard()
         PasswordStateCard()
         ToggleCard()
-        UnadoptedMoveCard()
+        UnadoptedChangeCard()
         ChoiceCard()
         RangeCard()
         ListBoxCard()
@@ -194,8 +194,8 @@ private fun ColumnScope.ToggleCard() {
 }
 
 @Composable
-private fun ColumnScope.UnadoptedMoveCard() {
-    ExampleCard("A move the caller does not adopt") {
+private fun ColumnScope.UnadoptedChangeCard() {
+    ExampleCard("A change the caller does not adopt") {
         var signedIn by remember { mutableStateOf(false) }
         var syncing by remember { mutableStateOf(false) }
         var refused by remember { mutableIntStateOf(0) }

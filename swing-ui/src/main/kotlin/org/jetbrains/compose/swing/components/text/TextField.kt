@@ -8,9 +8,9 @@ import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.documentListener
-import org.jetbrains.compose.swing.node.AppliedValue
+import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
-import org.jetbrains.compose.swing.node.rememberAppliedValue
+import org.jetbrains.compose.swing.node.rememberMirrorState
 import javax.swing.JTextField
 import javax.swing.event.DocumentListener
 
@@ -43,11 +43,11 @@ public fun TextField(
     columns: Int = 0,
     editable: Boolean = true,
 ) {
-    val applied = rememberAppliedValue(value)
+    val mirror = rememberMirrorState(value)
     TextFieldNode(
         value = value,
-        applied = applied,
-        modifier = modifier.onTextEdit(applied, onValueChange),
+        mirror = mirror,
+        modifier = modifier.onTextEdit(mirror, onValueChange),
         columns = columns,
         editable = editable,
     )
@@ -82,11 +82,11 @@ public fun TextField(
     columns: Int = 0,
     editable: Boolean = true,
 ) {
-    val applied = rememberAppliedValue(value)
+    val mirror = rememberMirrorState(value)
     TextFieldNode(
         value = value,
-        applied = applied,
-        modifier = modifier.documentListener(documentListener).textMirror(applied),
+        mirror = mirror,
+        modifier = modifier.documentListener(documentListener).textMirror(mirror),
         columns = columns,
         editable = editable,
     )
@@ -98,7 +98,7 @@ public fun TextField(
 @Composable
 private fun TextFieldNode(
     value: @Nls String,
-    applied: AppliedValue<String>,
+    mirror: MirrorState<String>,
     modifier: SwingModifier,
     columns: Int,
     editable: Boolean,
@@ -110,7 +110,7 @@ private fun TextFieldNode(
                 this.columns = it
                 revalidate()
             }
-            declareText(value, applied)
+            declareText(value, mirror)
             set(editable) { this.isEditable = it }
             applyModifier(modifier)
         },

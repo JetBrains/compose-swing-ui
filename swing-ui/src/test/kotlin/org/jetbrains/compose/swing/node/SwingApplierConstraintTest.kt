@@ -1,6 +1,5 @@
 package org.jetbrains.compose.swing.node
 
-import androidx.compose.runtime.snapshots.SnapshotStateObserver
 import java.awt.BorderLayout
 import java.awt.Component
 import java.awt.Container
@@ -36,22 +35,22 @@ class SwingApplierConstraintTest {
         constraint: Any,
     ): SwingNodeHolder<*> = SwingNodeHolder(component).also { it.applyConstraint(constraint) }
 
-    private val observers = mutableListOf<SnapshotStateObserver>()
+    private val owners = mutableListOf<TestCompositionOwner>()
 
     /**
-     * Builds a [SwingApplier] over [root]. Production disposes its snapshot observer when the
-     * composition unmounts; without a composition here, this test disposes it itself in [disposeObservers].
+     * Builds a [SwingApplier] over [root]. Production disposes the composition owner when the
+     * composition unmounts; without a composition here, this test disposes it itself in [disposeOwners].
      */
     private fun applierFor(root: Container): SwingApplier {
-        val observer = SnapshotStateObserver { it() }.apply { start() }
-        observers += observer
-        return SwingApplier(root, observer)
+        val owner = TestCompositionOwner.observing()
+        owners += owner
+        return SwingApplier(SwingNodeHolder(root).attachedTo(owner))
     }
 
     @AfterTest
-    fun disposeObservers() {
-        observers.forEach { it.stop() }
-        observers.clear()
+    fun disposeOwners() {
+        owners.forEach { it.dispose() }
+        owners.clear()
     }
 
     @Test

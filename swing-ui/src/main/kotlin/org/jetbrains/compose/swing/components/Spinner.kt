@@ -13,11 +13,11 @@ import org.jetbrains.compose.swing.constants.CalendarField
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.changeListener
-import org.jetbrains.compose.swing.node.AppliedValue
+import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
 import org.jetbrains.compose.swing.node.declare
-import org.jetbrains.compose.swing.node.rememberAppliedValue
+import org.jetbrains.compose.swing.node.rememberMirrorState
 import org.jetbrains.compose.swing.setContentAsInteropHost
 import java.awt.BorderLayout
 import java.util.Calendar
@@ -36,7 +36,7 @@ import javax.swing.text.DefaultFormatterFactory
 import javax.swing.text.DocumentFilter
 
 private class SpinnerValueChannel(
-    private val applied: AppliedValue<Any?>,
+    private val mirror: MirrorState<Any?>,
     private val onValueChange: (Any?) -> Unit,
 ) {
     fun settledOn(value: Any?) {
@@ -48,7 +48,7 @@ private class SpinnerValueChannel(
     val listener: ChangeListener =
         ChangeListener { event ->
             val current = (event.source as JSpinner).value
-            if (applied.observed(current) && current != null) {
+            if (mirror.observed(current) && current != null) {
                 onValueChange(current)
             }
         }
@@ -56,12 +56,12 @@ private class SpinnerValueChannel(
 
 @Composable
 private fun rememberSpinnerValueChannel(
-    applied: AppliedValue<Any?>,
+    mirror: MirrorState<Any?>,
     onValueChange: (Any?) -> Unit,
 ): SpinnerValueChannel {
     val callback = rememberUpdatedState(onValueChange)
-    return remember(applied) {
-        SpinnerValueChannel(applied) { callback.value(it) }
+    return remember(mirror) {
+        SpinnerValueChannel(mirror) { callback.value(it) }
     }
 }
 
@@ -103,8 +103,8 @@ public fun Spinner(
     format: String? = null,
     editor: (@Composable () -> Unit)? = null,
 ) {
-    val applied = rememberAppliedValue<Any?>(value)
-    val channel = rememberSpinnerValueChannel(applied) { onValueChange(it as Number) }
+    val mirror = rememberMirrorState<Any?>(value)
+    val channel = rememberSpinnerValueChannel(mirror) { onValueChange(it as Number) }
 
     // The general SpinnerNumberModel constructor takes Comparable minimum/maximum. Number is not itself
     // Comparable, but every concrete Number a caller passes (Int, Double, Long, ...) is Comparable at
@@ -117,10 +117,10 @@ public fun Spinner(
         format = format,
         editor = editor,
     ) {
-        set(min) { applied.write { model.minimum = it as Comparable<*>? } }
-        set(max) { applied.write { model.maximum = it as Comparable<*>? } }
-        set(step) { applied.write { model.stepSize = it } }
-        declare(value, applied, JSpinner::getValue, JSpinner::setValue) { settled -> channel.settledOn(settled) }
+        set(min) { mirror.write { model.minimum = it as Comparable<*>? } }
+        set(max) { mirror.write { model.maximum = it as Comparable<*>? } }
+        set(step) { mirror.write { model.stepSize = it } }
+        declare(value, mirror, JSpinner::getValue, JSpinner::setValue) { settled -> channel.settledOn(settled) }
     }
 }
 
@@ -163,8 +163,8 @@ public fun Spinner(
     format: String? = null,
     editor: (@Composable () -> Unit)? = null,
 ) {
-    val applied = rememberAppliedValue<Any?>(value)
-    val channel = rememberSpinnerValueChannel(applied) { onValueChange(it as Date) }
+    val mirror = rememberMirrorState<Any?>(value)
+    val channel = rememberSpinnerValueChannel(mirror) { onValueChange(it as Date) }
     val model = remember { SpinnerDateModel(value, start, end, calendarField) }
 
     SpinnerNode(
@@ -173,10 +173,10 @@ public fun Spinner(
         format = format,
         editor = editor,
     ) {
-        set(start) { applied.write { model.start = it } }
-        set(end) { applied.write { model.end = it } }
-        set(calendarField) { applied.write { model.calendarField = it } }
-        declare(value, applied, JSpinner::getValue, JSpinner::setValue) { settled -> channel.settledOn(settled) }
+        set(start) { mirror.write { model.start = it } }
+        set(end) { mirror.write { model.end = it } }
+        set(calendarField) { mirror.write { model.calendarField = it } }
+        declare(value, mirror, JSpinner::getValue, JSpinner::setValue) { settled -> channel.settledOn(settled) }
     }
 }
 
@@ -212,14 +212,14 @@ public fun <T : Any> Spinner(
     modifier: SwingModifier = SwingModifier,
     editor: (@Composable () -> Unit)? = null,
 ) {
-    val applied = rememberAppliedValue<Any?>(value)
+    val mirror = rememberMirrorState<Any?>(value)
     val declaredItems = rememberDeclaredList(items)
 
     // Every value the channel carries comes from the ListSpinnerModel below, which reports only what its
     // own items hold - the caller's List<T>, copied - so the model can hand back nothing that is not a T.
     // The type is lost only because Swing's SpinnerModel types its value as Any?.
     @Suppress("UNCHECKED_CAST")
-    val channel = rememberSpinnerValueChannel(applied) { onValueChange(it as T) }
+    val channel = rememberSpinnerValueChannel(mirror) { onValueChange(it as T) }
     val model = remember { ListSpinnerModel(declaredItems).also { it.setIfHeld(value) } }
 
     SpinnerNode(
@@ -228,10 +228,10 @@ public fun <T : Any> Spinner(
         format = null,
         editor = editor,
     ) {
-        set(declaredItems) { applied.write { model.items = it } }
+        set(declaredItems) { mirror.write { model.items = it } }
         declare(
             value,
-            applied,
+            mirror,
             JSpinner::getValue,
             write = { declared -> model.setIfHeld(declared) },
         ) { settled -> channel.settledOn(settled) }

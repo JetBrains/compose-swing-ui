@@ -8,9 +8,9 @@ import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.documentListener
-import org.jetbrains.compose.swing.node.AppliedValue
+import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
-import org.jetbrains.compose.swing.node.rememberAppliedValue
+import org.jetbrains.compose.swing.node.rememberMirrorState
 import javax.swing.JTextArea
 import javax.swing.event.DocumentListener
 
@@ -53,11 +53,11 @@ public fun TextArea(
     wrapStyleWord: Boolean = false,
     tabSize: Int = DEFAULT_TAB_SIZE,
 ) {
-    val applied = rememberAppliedValue(value)
+    val mirror = rememberMirrorState(value)
     TextAreaNode(
         value = value,
-        applied = applied,
-        modifier = modifier.onTextEdit(applied, onValueChange),
+        mirror = mirror,
+        modifier = modifier.onTextEdit(mirror, onValueChange),
         rows = rows,
         columns = columns,
         editable = editable,
@@ -106,11 +106,11 @@ public fun TextArea(
     wrapStyleWord: Boolean = false,
     tabSize: Int = DEFAULT_TAB_SIZE,
 ) {
-    val applied = rememberAppliedValue(value)
+    val mirror = rememberMirrorState(value)
     TextAreaNode(
         value = value,
-        applied = applied,
-        modifier = modifier.documentListener(documentListener).textMirror(applied),
+        mirror = mirror,
+        modifier = modifier.documentListener(documentListener).textMirror(mirror),
         rows = rows,
         columns = columns,
         editable = editable,
@@ -126,7 +126,7 @@ public fun TextArea(
 @Composable
 private fun TextAreaNode(
     value: @Nls String,
-    applied: AppliedValue<String>,
+    mirror: MirrorState<String>,
     modifier: SwingModifier,
     rows: Int,
     columns: Int,
@@ -146,7 +146,7 @@ private fun TextAreaNode(
                 this.columns = it
                 revalidate()
             }
-            declareText(value, applied)
+            declareText(value, mirror)
             set(editable) { this.isEditable = it }
             set(lineWrap) { this.lineWrap = it }
             set(wrapStyleWord) { this.wrapStyleWord = it }

@@ -53,7 +53,7 @@ class MenuApplierDeferredPackTest {
     @Test
     fun aDetachDispatchedAfterThePassIsCoveredByTheDeferredPack() {
         val popup = RecordingPopup()
-        val applier = MenuApplier(popup)
+        val applier = MenuApplier(SwingNodeHolder(popup).attachedTo(TestCompositionOwner.unobserved()))
         val first = SwingNodeHolder(JMenuItem("first"))
 
         SwingUtilities.invokeAndWait {
@@ -76,7 +76,7 @@ class MenuApplierDeferredPackTest {
     @Test
     fun passesAppliedInOneTurnShareOneDeferredPack() {
         val popup = RecordingPopup()
-        val applier = MenuApplier(popup)
+        val applier = MenuApplier(SwingNodeHolder(popup).attachedTo(TestCompositionOwner.unobserved()))
 
         SwingUtilities.invokeAndWait {
             applier.pass { insertBottomUp(0, SwingNodeHolder(JMenuItem("first"))) }
@@ -94,7 +94,7 @@ class MenuApplierDeferredPackTest {
     @Test
     fun aPassThatChangesNoContainerStillPacksTheShowingPopup() {
         val popup = RecordingPopup()
-        val applier = MenuApplier(popup)
+        val applier = MenuApplier(SwingNodeHolder(popup).attachedTo(TestCompositionOwner.unobserved()))
 
         SwingUtilities.invokeAndWait {
             applier.pass { insertBottomUp(0, SwingNodeHolder(JMenuItem("only"))) }
@@ -114,7 +114,7 @@ class MenuApplierDeferredPackTest {
     @Test
     fun thePackWalkReachesASubmenusOwnPopup() {
         val popup = RecordingPopup()
-        val applier = MenuApplier(popup)
+        val applier = MenuApplier(SwingNodeHolder(popup).attachedTo(TestCompositionOwner.unobserved()))
         val submenu = RecordingMenu()
         val menuHolder = SwingNodeHolder(submenu)
 

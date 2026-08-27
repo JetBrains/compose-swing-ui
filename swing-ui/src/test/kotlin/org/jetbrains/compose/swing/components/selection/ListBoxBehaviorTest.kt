@@ -3,7 +3,7 @@ package org.jetbrains.compose.swing.components.selection
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.assertUnadoptedMoveIsPutBack
+import org.jetbrains.compose.swing.assertUnadoptedChangeIsPutBack
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -158,7 +158,7 @@ class ListBoxBehaviorTest {
 
     @Test
     fun aSelectionTheCallerDoesNotAdoptComesOffWithinEventCycles() = runSwingTest {
-        assertUnadoptedMoveIsPutBack(
+        assertUnadoptedChangeIsPutBack(
             type = JList::class.java,
             declared = emptyList<Int>(),
             content = {
@@ -168,7 +168,7 @@ class ListBoxBehaviorTest {
                     onSelectionChange = {},
                 )
             },
-            move = { it.selectedIndex = 1 },
+            change = { it.selectedIndex = 1 },
             read = { it.selectedIndices.toList() },
         )
     }

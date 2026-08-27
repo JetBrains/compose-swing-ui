@@ -7,6 +7,8 @@ import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.ControlledComposition
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.runtime.snapshots.SnapshotStateObserver
+import org.jetbrains.compose.swing.node.ComponentUpdateBatch
+import org.jetbrains.compose.swing.node.SwingCompositionOwner
 import org.jetbrains.compose.swing.node.SwingNodeHolder
 import org.jetbrains.compose.swing.tooling.InspectedContent
 import org.jetbrains.compose.swing.tooling.InspectionGate
@@ -80,20 +82,44 @@ internal fun checkEventDispatchThread() {
  * Mounts a single composition [Composition] as a child of a [CompositionContext].
  *
  * The composition shares its parent's recomposition recomposer - the parent context owns the recomposer, clock
- * and scope. This mount owns only its [Composition] and, where the composition has one, its
- * [SnapshotStateObserver]; disposing it disposes just this composition, never the parent.
+ * and scope. This mount owns only its [Composition] and what that composition's nodes share; disposing
+ * it disposes just this composition, never the parent.
  *
- * A composition over an applier that observes snapshot state is the composition owner for the components
- * that do (`Canvas`, for example): it owns one [SnapshotStateObserver] shared by every such component,
- * each registered as its own scope. The applier stamps that observer onto every node it inserts, so a
- * component reaches it through its [org.jetbrains.compose.swing.node.SwingNodeHolder] instead of
- * resolving a `CompositionLocal`.
+ * It is that shared thing: it is the composition's [SwingCompositionOwner], holding the observer every
+ * snapshot-observing component in it registers with and the batch its updates are held in. Nodes see
+ * it through that interface alone, so a node reaches what its composition owns without reaching the
+ * composition's lifecycle. It attaches its applier's root, and every node below takes it from its
+ * parent as it is inserted.
  */
 internal class SwingContentComposition private constructor(
-    private val composition: Composition,
-    private val observer: SnapshotStateObserver?,
-    private val host: JComponent?,
-) {
+    parent: CompositionContext,
+    observed: Boolean,
+    applierFactory: (SwingCompositionOwner) -> AbstractApplier<SwingNodeHolder<*>>,
+) : SwingCompositionOwner {
+    /**
+     * The observer's callback runs directly, with no `invokeLater`: an ordinary write's notification
+     * already runs on the event dispatch thread (see [GlobalSnapshotManager]), and marshaling would only
+     * add a turn's latency to what the callback actually does - schedule a `repaint()`, which is
+     * thread-safe whatever thread calls it.
+     */
+    override val observer: SnapshotStateObserver? =
+        if (observed) SnapshotStateObserver { onChanged -> onChanged() }.apply { start() } else null
+
+    override val updateBatch: ComponentUpdateBatch = ComponentUpdateBatch()
+
+    // Built after everything a node reads through this owner, because the applier attaches its root to
+    // this owner as it is created and the composition inserts nodes against it from its first pass.
+    private val applier = applierFactory(this)
+
+    private val composition = Composition(applier, parent)
+
+    /**
+     * The component this composition is rooted at, when it is one that carries a client-property bag.
+     * This is the component the composition publishes its slot table on, and so the one an inspecting
+     * walk up from a declared component reaches.
+     */
+    private val host: JComponent? = applier.root.component as? JComponent
+
     /** Whether this composition records where it declared each component. */
     private val inspection = InspectionGate()
 
@@ -151,7 +177,7 @@ internal class SwingContentComposition private constructor(
     }
 
     /**
-     * Disposes this composition's [Composition] and stops the owner-level [SnapshotStateObserver] it owns.
+     * Disposes this content composition's [Composition] and the [SwingCompositionOwner] it owns.
      *
      * Must be called on the Event Dispatch Thread. A handle a caller holds can be disposed from
      * anywhere - a coroutine's completion, most of all - and this writes the Swing tree and the
@@ -166,53 +192,30 @@ internal class SwingContentComposition private constructor(
 
     companion object {
         /**
-         * Mounts a child composition of [parent]. [applierFactory] builds the applier over the
-         * owner's freshly started [SnapshotStateObserver], which
-         * [org.jetbrains.compose.swing.node.SwingApplier] stamps onto every node it inserts so a
-         * snapshot-observing component can adopt it.
+         * Mounts a child composition of [parent] whose nodes register their snapshot reads with an
+         * observer of its own, which is what a component that paints from observed reads adopts.
          */
         fun nested(
             parent: CompositionContext,
-            applierFactory: (SnapshotStateObserver) -> AbstractApplier<SwingNodeHolder<*>>,
-        ): SwingContentComposition {
-            GlobalSnapshotManager.ensureStarted()
-            // Shared by every snapshot-observing component (e.g. Canvas) in this owner. The callback runs
-            // directly, with no invokeLater: an ordinary write's notification already runs on the EDT
-            // (see GlobalSnapshotManager), and marshaling would only add a turn's latency to what the
-            // callback actually does here - schedule a repaint(), which is thread-safe regardless of what
-            // thread calls it, so nothing here depends on the notification having arrived on the EDT.
-            val observer = SnapshotStateObserver { onChanged -> onChanged() }.apply { start() }
-            val applier = applierFactory(observer)
-            return SwingContentComposition(
-                composition = Composition(applier, parent),
-                observer = observer,
-                host = applier.hostOrNull(),
-            )
-        }
+            applierFactory: (SwingCompositionOwner) -> AbstractApplier<SwingNodeHolder<*>>,
+        ): SwingContentComposition = mount(parent, observed = true, applierFactory)
 
         /**
-         * Mounts a child composition of [parent] over an applier that observes no snapshot state, so the
-         * composition owns no [SnapshotStateObserver] and registers none globally. A menu composition holds
-         * no component that paints from observed reads.
+         * Mounts a child composition of [parent] that observes no snapshot state and registers none
+         * globally. A menu composition holds no component that paints from observed reads.
          */
         fun nestedUnobserved(
             parent: CompositionContext,
-            applierFactory: () -> AbstractApplier<SwingNodeHolder<*>>,
+            applierFactory: (SwingCompositionOwner) -> AbstractApplier<SwingNodeHolder<*>>,
+        ): SwingContentComposition = mount(parent, observed = false, applierFactory)
+
+        private fun mount(
+            parent: CompositionContext,
+            observed: Boolean,
+            applierFactory: (SwingCompositionOwner) -> AbstractApplier<SwingNodeHolder<*>>,
         ): SwingContentComposition {
             GlobalSnapshotManager.ensureStarted()
-            val applier = applierFactory()
-            return SwingContentComposition(
-                composition = Composition(applier, parent),
-                observer = null,
-                host = applier.hostOrNull(),
-            )
+            return SwingContentComposition(parent, observed, applierFactory)
         }
-
-        /**
-         * The component an applier's composition is rooted at, when it is one that carries a
-         * client-property bag. This is the component a mount publishes its slot table on, and so the
-         * one an inspecting walk up from a declared component reaches.
-         */
-        private fun AbstractApplier<SwingNodeHolder<*>>.hostOrNull(): JComponent? = root.component as? JComponent
     }
 }

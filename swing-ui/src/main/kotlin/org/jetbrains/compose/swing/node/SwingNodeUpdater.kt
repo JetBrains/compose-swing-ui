@@ -128,7 +128,7 @@ public value class SwingNodeUpdater<T : Component>
         internal fun settleWithChildren(block: T.() -> Unit): Unit =
             updater.reconcile {
                 childSettle = { component.block() }
-                updateBatch?.holdForChildSettle(this)
+                requireOwner().updateBatch.holdForChildSettle(this)
             }
 
         /**
@@ -149,6 +149,6 @@ public value class SwingNodeUpdater<T : Component>
          */
         internal fun ownerObserver(block: T.(SnapshotStateObserver?) -> Unit): Unit =
             updater.reconcile {
-                component.block(ownerObserver)
+                component.block(owner?.observer)
             }
     }

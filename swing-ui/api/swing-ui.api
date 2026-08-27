@@ -816,23 +816,6 @@ public final class org/jetbrains/compose/swing/modifier/listener/ListenerRegistr
 	public fun hashCode ()I
 }
 
-public final class org/jetbrains/compose/swing/node/AppliedValue : androidx/compose/runtime/State {
-	public static final field $stable I
-	public fun <init> (Ljava/lang/Object;)V
-	public fun getValue ()Ljava/lang/Object;
-	public final fun isWriting ()Z
-	public final fun observed (Ljava/lang/Object;)Z
-	public final fun settle (Ljava/lang/Object;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;)V
-	public final fun settle (Lkotlin/jvm/functions/Function1;)Ljava/lang/Object;
-	public static synthetic fun settle$default (Lorg/jetbrains/compose/swing/node/AppliedValue;Ljava/lang/Object;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
-	public final fun write (Lkotlin/jvm/functions/Function0;)V
-}
-
-public abstract interface class org/jetbrains/compose/swing/node/AppliedValue$SettlementScope {
-	public abstract fun answered (Ljava/lang/Object;)V
-	public abstract fun unchanged ()V
-}
-
 public abstract interface class org/jetbrains/compose/swing/node/ChildPlacement {
 }
 
@@ -865,7 +848,7 @@ public final class org/jetbrains/compose/swing/node/ChildPlacement$Slots : org/j
 
 public final class org/jetbrains/compose/swing/node/MenuApplier : androidx/compose/runtime/AbstractApplier {
 	public static final field $stable I
-	public fun <init> (Ljavax/swing/JComponent;)V
+	public fun <init> (Lorg/jetbrains/compose/swing/node/SwingNodeHolder;)V
 	public synthetic fun insertBottomUp (ILjava/lang/Object;)V
 	public fun insertBottomUp (ILorg/jetbrains/compose/swing/node/SwingNodeHolder;)V
 	public synthetic fun insertTopDown (ILjava/lang/Object;)V
@@ -876,10 +859,28 @@ public final class org/jetbrains/compose/swing/node/MenuApplier : androidx/compo
 	public fun remove (II)V
 }
 
+public final class org/jetbrains/compose/swing/node/MirrorState : androidx/compose/runtime/State {
+	public static final field $stable I
+	public fun <init> (Ljava/lang/Object;)V
+	public fun getValue ()Ljava/lang/Object;
+	public final fun isWriting ()Z
+	public final fun observed (Ljava/lang/Object;)Z
+	public final fun settle (Ljava/lang/Object;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;)V
+	public final fun settle (Lkotlin/jvm/functions/Function1;)Ljava/lang/Object;
+	public static synthetic fun settle$default (Lorg/jetbrains/compose/swing/node/MirrorState;Ljava/lang/Object;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+	public final fun subscribe ()V
+	public final fun write (Lkotlin/jvm/functions/Function0;)V
+}
+
+public abstract interface class org/jetbrains/compose/swing/node/MirrorState$SettlementScope {
+	public abstract fun answered (Ljava/lang/Object;)V
+	public abstract fun unchanged ()V
+}
+
 public final class org/jetbrains/compose/swing/node/NodeKt {
-	public static final fun declare-aOxawFc (Landroidx/compose/runtime/Composer;Ljava/lang/Object;Lorg/jetbrains/compose/swing/node/AppliedValue;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;)V
-	public static synthetic fun declare-aOxawFc$default (Landroidx/compose/runtime/Composer;Ljava/lang/Object;Lorg/jetbrains/compose/swing/node/AppliedValue;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
-	public static final fun rememberAppliedValue (Ljava/lang/Object;Landroidx/compose/runtime/Composer;I)Lorg/jetbrains/compose/swing/node/AppliedValue;
+	public static final fun declare-aOxawFc (Landroidx/compose/runtime/Composer;Ljava/lang/Object;Lorg/jetbrains/compose/swing/node/MirrorState;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;)V
+	public static synthetic fun declare-aOxawFc$default (Landroidx/compose/runtime/Composer;Ljava/lang/Object;Lorg/jetbrains/compose/swing/node/MirrorState;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
+	public static final fun rememberMirrorState (Ljava/lang/Object;Landroidx/compose/runtime/Composer;I)Lorg/jetbrains/compose/swing/node/MirrorState;
 }
 
 public abstract interface class org/jetbrains/compose/swing/node/SlotAttachment {

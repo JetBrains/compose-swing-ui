@@ -7,7 +7,7 @@ import kotlinx.coroutines.DisposableHandle
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.slot
-import org.jetbrains.compose.swing.node.AppliedValue
+import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SlotAttachment
 import org.jetbrains.compose.swing.node.wrongSlotHost
 import org.jetbrains.compose.swing.setContentAsInteropHost
@@ -88,12 +88,12 @@ public sealed interface TabbedPaneScope {
 
 /**
  * The [TabbedPaneScope] one [TabbedPane] hands its content, holding what every tab of that pane is
- * declared against: the mirror [applied] the pane's selection is settled through, since joining and
- * leaving the strip both move it, and the composition [headerContext] a declared header renders as a
+ * declared against: the mirror [mirror] the pane's selection is settled through, since joining and
+ * leaving the strip both change it, and the composition [headerContext] a declared header renders as a
  * child of. It is remembered alongside the pane, so both outlive the pass that declared a tab.
  */
 internal class TabbedPaneScopeImpl(
-    private val applied: AppliedValue<Int>,
+    private val mirror: MirrorState<Int>,
     private val headerContext: CompositionContext,
 ) : TabbedPaneScope {
     @Suppress("LongParameterList")
@@ -123,7 +123,7 @@ internal class TabbedPaneScopeImpl(
         // The slot creates the tab and takes it away again; the element carries every later declaration to
         // the tab the slot created, and writes nothing for a tab redeclared unchanged.
         return this
-            .slot(TAB_SLOT_NAME, TabAttachment(metadata, header, headerContext, applied))
+            .slot(TAB_SLOT_NAME, TabAttachment(metadata, header, headerContext, mirror))
             .then(TabElement(metadata, header, headerContext))
     }
 }
@@ -193,8 +193,8 @@ private data class TabMetadata(
  * exists (see [TabElement]). A declared [header] is rendered by a composition installed as the tab's own
  * component, for the same reason.
  *
- * Joining and leaving the strip both move a pane's selection - the first tab to arrive becomes the
- * selection, and removing the selected tab falls back on a neighbor - so each runs as one of [applied]'s
+ * Joining and leaving the strip both change a pane's selection - the first tab to arrive becomes the
+ * selection, and removing the selected tab falls back on a neighbor - so each runs as one of [mirror]'s
  * own writes.
  *
  * A fresh instance is built for every pass, so the identity comparison
@@ -207,7 +207,7 @@ private class TabAttachment(
     val metadata: TabMetadata,
     val header: (@Composable () -> Unit)?,
     val headerContext: CompositionContext,
-    val applied: AppliedValue<Int>,
+    val mirror: MirrorState<Int>,
 ) : SlotAttachment {
     override fun install(
         host: Container,
@@ -215,14 +215,14 @@ private class TabAttachment(
         index: Int,
     ): () -> Unit {
         val pane = tabHost(host)
-        applied.write {
+        mirror.write {
             pane.insertTab(metadata.title, metadata.icon, component, metadata.tooltip, index)
             metadata.applyTo(pane, pane.indexOfComponent(component))
         }
         if (header != null) pane.renderTab(pane.indexOfComponent(component), header, headerContext)
         return {
             pane.releaseHeaderOf(component)
-            applied.write { pane.remove(component) }
+            mirror.write { pane.remove(component) }
         }
     }
 }
@@ -267,12 +267,12 @@ private class TabElement(
 }
 
 /**
- * The tab a component is the page of for as long as its chain declares one. It holds the composition a declared
- * header renders in, so withdrawing the declaration takes that composition back off the strip and the tab is
- * rendered by the pane itself again.
+ * The tab a component is the page of for as long as its chain declares one. It holds the composition a
+ * declared header renders in, so withdrawing the declaration takes that composition back off the strip and
+ * the tab is rendered by the pane itself again.
  */
 private class TabNode : SwingModifier.Node<Component>() {
-    private var composition: TabHeaderComposition? = null
+    private var rendering: TabHeaderComposition? = null
 
     /** Writes [metadata] and the [header] declaration onto this component's tab, where it has one. */
     fun declare(
@@ -288,9 +288,9 @@ private class TabNode : SwingModifier.Node<Component>() {
     }
 
     /**
-     * Renders the tab at [index] with [header], reusing the composition already rendering it - which is what
-     * re-renders a changed header in place - and taking that composition off the strip where the declaration
-     * names no header at all.
+     * Renders the tab at [index] with [header], reusing the composition already rendering it - which is
+     * what re-renders a changed header in place - and taking that composition off the strip where the
+     * declaration names no header at all.
      */
     private fun declareHeader(
         pane: JTabbedPane,
@@ -304,22 +304,22 @@ private class TabNode : SwingModifier.Node<Component>() {
                 it.dispose()
                 pane.setTabComponentAt(index, null)
             }
-            composition = null
+            rendering = null
             return
         }
-        composition = rendered?.also { it.render(header) } ?: pane.renderTab(index, header, headerContext)
+        rendering = rendered?.also { it.render(header) } ?: pane.renderTab(index, header, headerContext)
     }
 
     override fun onDetach() {
         val pane = component.parent as? JTabbedPane
         val index = pane?.indexOfComponent(component) ?: -1
         val rendered = if (index >= 0) pane?.tabCompositionAt(index) else null
-        // The composition the pane still renders where the tab is standing, and otherwise the one this node put
-        // there: a tab that has already left the strip took its own tab component with it, and the composition
-        // rendering it is disposed here rather than left composing.
-        (rendered ?: composition)?.dispose()
+        // The composition the pane still renders where the tab is standing, and otherwise the one this node
+        // put there: a tab that has already left the strip took its own tab component with it, and the
+        // composition rendering it is disposed here rather than left composing.
+        (rendered ?: rendering)?.dispose()
         if (rendered != null) pane?.setTabComponentAt(index, null)
-        composition = null
+        rendering = null
     }
 }
 
@@ -335,8 +335,8 @@ private fun JTabbedPane.tabCompositionAt(index: Int): TabHeaderComposition? =
     getTabComponentAt(index) as? TabHeaderComposition
 
 /**
- * Disposes the composition rendering the tab [component] is the page of, where that tab renders through one.
- * A tab releases its tab component along with its page, so this runs before the page is taken out.
+ * Disposes the composition rendering the tab [component] is the page of, where that tab renders through
+ * one. A tab releases its tab component along with its page, so this runs before the page is taken out.
  */
 private fun JTabbedPane.releaseHeaderOf(component: Component) {
     val index = indexOfComponent(component)
@@ -382,7 +382,7 @@ private class TabHeaderComposition(
         declared.value = header
     }
 
-    /** Disposes this composition's composition. Calling it again is a no-op. */
+    /** Disposes this composition. Calling it again is a no-op. */
     fun dispose() {
         mounted?.dispose()
         mounted = null

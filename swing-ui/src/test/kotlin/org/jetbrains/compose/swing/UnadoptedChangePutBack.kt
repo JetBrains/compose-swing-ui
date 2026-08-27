@@ -13,7 +13,7 @@ import kotlin.test.assertTrue
 import kotlin.test.fail
 
 /**
- * Mounts [content], moves the single widget it declares off [declared] as the user would, and asserts
+ * Mounts [content], takes the single widget it declares off [declared] as the user would, and asserts
  * the declaration is back on the widget within [PUT_BACK_CYCLES] event-dispatch cycles. The caller
  * adopts nothing, so every move made here is one the composition puts back.
  *
@@ -29,26 +29,26 @@ import kotlin.test.fail
  * @param type the class the widget under test is built as
  * @param declared the value [content] declares, which the widget must be holding again at the end
  * @param content the content under test, declaring exactly one component
- * @param move the user's move, made on the widget itself
+ * @param change the user's own change, made on the widget itself
  * @param read the widget property [declared] is measured against
  */
-internal suspend fun <C : Component> assertUnadoptedMoveIsPutBack(
+internal suspend fun <C : Component> assertUnadoptedChangeIsPutBack(
     type: Class<C>,
     declared: Any?,
     content: @Composable () -> Unit,
-    move: (C) -> Unit,
+    change: (C) -> Unit,
     read: (C) -> Any?,
 ) {
-    val island = JPanel()
-    val runtime = SwingRecomposer.create(island)
+    val composition = JPanel()
+    val recomposer = SwingRecomposer.create(composition)
     var mounted: DisposableHandle? = null
     try {
-        // setContent composes and applies before it returns, so the widget is on the island already and
+        // setContent composes and applies before it returns, so the widget is on the composition already and
         // there is nothing to wait for here.
-        mounted = island.setContent(parent = runtime.compositionContext, content = content)
+        mounted = composition.setContent(parent = recomposer.compositionContext, content = content)
         val child =
-            island.components.singleOrNull()
-                ?: fail("The content must declare exactly one component, and declared ${island.componentCount}")
+            composition.components.singleOrNull()
+                ?: fail("The content must declare exactly one component, and declared ${composition.componentCount}")
         assertTrue(
             type.isInstance(child),
             "The content must declare a ${type.simpleName}, and declared a ${child.javaClass.simpleName}",
@@ -56,7 +56,7 @@ internal suspend fun <C : Component> assertUnadoptedMoveIsPutBack(
         val widget = type.cast(child)
         assertEquals(declared, read(widget), "the widget must mount holding what the content declares")
 
-        move(widget)
+        change(widget)
         assertNotEquals(
             declared,
             read(widget),
@@ -66,29 +66,29 @@ internal suspend fun <C : Component> assertUnadoptedMoveIsPutBack(
         awaitWithin(PUT_BACK_CYCLES) {
             // Asserted on every cycle rather than once at the end: the timer stops itself as soon as
             // nothing awaits a frame, so a tick that came and went would leave nothing to find here.
-            assertNothingIsPaced(runtime)
+            assertNothingIsPaced(recomposer)
             read(widget) == declared
         }
             ?: fail(
-                "A move the caller does not adopt must come off the ${type.simpleName} on the cycles right " +
+                "A change the caller does not adopt must come off the ${type.simpleName} on the cycles right " +
                     "after the event that made it, not a frame interval later; it still held " +
                     "${read(widget)} after $PUT_BACK_CYCLES event-dispatch cycles",
             )
     } finally {
         mounted?.dispose()
-        runtime.dispose()
+        recomposer.dispose()
     }
 }
 
 /**
- * Fails if [runtime] has started the timer that paces frame-driven work.
+ * Fails if [recomposer] has started the timer that paces frame-driven work.
  *
  * A put-back travels the event queue, and the content under test awaits no frame, so that timer must
  * never run.
  */
-private fun assertNothingIsPaced(runtime: SwingRecomposer) {
+private fun assertNothingIsPaced(recomposer: SwingRecomposer) {
     assertFalse(
-        runtime.clock.isPacingFrameDrivenWork,
+        recomposer.clock.isPacingFrameDrivenWork,
         "a put-back must reach the widget on the event queue, and nothing here awaits a frame, so the " +
             "timer that paces frame-driven work must never start",
     )
@@ -123,7 +123,7 @@ private suspend fun awaitWithin(
  * The count is a property of the path the answer travels, which is the same for every widget:
  *
  * ```
- * cycle 0   the move          the widget reports it, and the mirror records it as snapshot state;
+ * cycle 0   the change        the widget reports it, and the mirror records it as snapshot state;
  *                             that write schedules an apply notification
  * cycle 1   the notification  the write is published to the composition, which invalidates the
  *                             component that reads the mirror and asks the clock for a frame

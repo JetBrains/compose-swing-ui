@@ -4,7 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import org.jetbrains.compose.swing.node.AppliedValue
+import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
 import org.jetbrains.compose.swing.node.settleWhenDue
 import javax.swing.JTable
@@ -26,11 +26,11 @@ import javax.swing.table.TableRowSorter
  * `JTable` is, and the sort order, the row filter and the columns' own sorting rules all reach the table
  * through that sorter, so they stand exactly while it does.
  *
- * [applied] mirrors the order the rows are in, which is what makes a header click an ordinary composition
+ * [mirror] mirrors the order the rows are in, which is what makes a header click an ordinary composition
  * dependency and what tells that click from the writes this channel makes itself.
  */
 internal class RowSortChannel(
-    private val applied: AppliedValue<List<SortKey>?>,
+    private val mirror: MirrorState<List<SortKey>?>,
     private val target: State<RowSorterListener?>,
 ) {
     private var sorter: TableRowSorter<TableModel>? = null
@@ -52,8 +52,8 @@ internal class RowSortChannel(
     /** Reports the user's own sort-order changes. Installed on every sorter this channel builds. */
     private val listener =
         RowSorterListener { event ->
-            if (event.type == RowSorterEvent.Type.SORT_ORDER_CHANGED) applied.observed(event.source.sortKeys.toList())
-            if (!applied.isWriting) target.value?.sorterChanged(event)
+            if (event.type == RowSorterEvent.Type.SORT_ORDER_CHANGED) mirror.observed(event.source.sortKeys.toList())
+            if (!mirror.isWriting) target.value?.sorterChanged(event)
         }
 
     /** The order the rows are in, or no order at all while sorting is off. */
@@ -103,8 +103,8 @@ internal class RowSortChannel(
         install: () -> Unit = {},
     ) {
         val retained = declared ?: sortKeys()
-        applied.settle {
-            applied.write {
+        mirror.settle {
+            mirror.write {
                 install()
                 bind(table, sortable)
                 sorter?.let { current ->
@@ -126,7 +126,7 @@ internal class RowSortChannel(
     fun applyRowFilter(rowFilter: RowFilter<in TableModel, in Int>?) {
         val current = sorter ?: return
         if (current.rowFilter === rowFilter) return
-        applied.write { current.rowFilter = rowFilter }
+        mirror.write { current.rowFilter = rowFilter }
     }
 
     /** Builds the sorter [table] is missing, or takes away the one it should no longer have. */
@@ -171,21 +171,22 @@ internal class RowSortChannel(
 internal fun SwingNodeUpdater<JTable>.declareRowFilter(
     sortChannel: RowSortChannel,
     rowFilter: RowFilter<in TableModel, in Int>?,
-    applied: AppliedValue<Set<Int>?>,
+    mirror: MirrorState<Set<Int>?>,
     declared: Set<Int>?,
     target: ListSelectionListener,
 ) {
-    // The filter, the declared selection put back around it, and the selection the table itself holds move
-    // independently, and one install answers for all three. The filter is compared by value; the selection
+    // The filter, the declared selection put back around it, and the selection the table itself holds
+    // change independently, and one install answers for all three. The filter is compared by value; the selection
     // is compared in place on its mirror, which holds the pairing the last install left the table on rather
-    // than the one this pass happened to read - so a move the user repeats is answered every time they make
+    // than the one this pass happened to read - so a change the user repeats is answered every time they
+    // make
     // it. Both are redeclared whatever either answers, so each records the pairing this pass makes. A filter
     // the sorter already has is not written again, so an install the selection alone asked for puts the
     // selection back and does nothing else.
-    val selectionMoved = applied.redeclare(declared)
-    val filterMoved = sortChannel.redeclareRowFilter(rowFilter)
-    settleWhenDue(selectionMoved || filterMoved, { RowFilterInstall(rowFilter) }) { due ->
-        installContent(applied, declared, target) { sortChannel.applyRowFilter(due.filter) }
+    val selectionChanged = mirror.redeclare(declared)
+    val filterChanged = sortChannel.redeclareRowFilter(rowFilter)
+    settleWhenDue(selectionChanged || filterChanged, { RowFilterInstall(rowFilter) }) { due ->
+        installContent(mirror, declared, target) { sortChannel.applyRowFilter(due.filter) }
     }
 }
 
@@ -197,11 +198,11 @@ private class RowFilterInstall(
 /** A [RowSortChannel] that keeps reporting to the latest [listener] without being rebuilt. */
 @Composable
 internal fun rememberRowSortChannel(
-    applied: AppliedValue<List<SortKey>?>,
+    mirror: MirrorState<List<SortKey>?>,
     listener: RowSorterListener?,
 ): RowSortChannel {
     val target = rememberUpdatedState(listener)
-    return remember { RowSortChannel(applied, target) }
+    return remember { RowSortChannel(mirror, target) }
 }
 
 /**

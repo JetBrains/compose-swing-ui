@@ -360,7 +360,7 @@ class SplitPaneBehaviorTest {
     }
 
     @Test
-    fun aNegativeDividerLocationResolvedByPaintingIsNotReportedAsAUserMove() = runComposeSwingTest {
+    fun aNegativeDividerLocationResolvedByPaintingIsNotReportedAsAUserChange() = runComposeSwingTest {
         val reported = mutableListOf<Int>()
         setContent {
             SplitPane(

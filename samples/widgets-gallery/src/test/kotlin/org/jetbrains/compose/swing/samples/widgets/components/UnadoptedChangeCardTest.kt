@@ -5,7 +5,7 @@ import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import kotlin.test.Test
 
-class UnadoptedMoveCardTest {
+class UnadoptedChangeCardTest {
     @Test
     fun aClickTheCardDoesNotAdoptLeavesTheBoxClear() =
         runComposeSwingTest {
