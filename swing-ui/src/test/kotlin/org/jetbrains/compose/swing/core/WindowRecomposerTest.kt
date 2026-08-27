@@ -51,7 +51,7 @@ class WindowRecomposerTest {
                 labelTextOrNull(islandA) == "a=v0" && labelTextOrNull(islandB) == "b=v0"
             }
 
-            val windowRecomposer = frame.recomposerOrNull()
+            val windowRecomposer = frame.swingRecomposerOrNull()
             assertNotNull(windowRecomposer, "mounting an island into a realized window must create its recomposer")
             assertSame(
                 windowRecomposer.recomposer,
@@ -79,7 +79,7 @@ class WindowRecomposerTest {
         val frame = realizedFrame()
         try {
             assertNull(
-                frame.recomposerOrNull(),
+                frame.swingRecomposerOrNull(),
                 "a window that nothing has mounted into must have no recomposer yet",
             )
 
@@ -88,12 +88,12 @@ class WindowRecomposerTest {
             assertSame(first, second, "getOrCreateRecomposer must memoize one runtime per window")
 
             // Also observable through the non-creating lookup.
-            val memoized = frame.recomposerOrNull()
+            val memoized = frame.swingRecomposerOrNull()
             assertNotNull(memoized, "the created recomposer must be memoized on the window")
             assertSame(
                 first.recomposer,
                 memoized.recomposer,
-                "recomposerOrNull must return the recomposer getOrCreateRecomposer created",
+                "swingRecomposerOrNull must return the recomposer getOrCreateRecomposer created",
             )
         } finally {
             frame.dispose()
@@ -107,15 +107,15 @@ class WindowRecomposerTest {
         try {
             frame.getOrCreateRecomposer()
             assertNotNull(
-                frame.recomposerOrNull(),
+                frame.swingRecomposerOrNull(),
                 "resolving the window must have created its recomposer",
             )
 
             // Disposing the window fires windowClosed, whose teardown clears the memoized slot.
             frame.dispose()
-            awaitUntil("the closed window clears its recomposer slot") { frame.recomposerOrNull() == null }
+            awaitUntil("the closed window clears its recomposer slot") { frame.swingRecomposerOrNull() == null }
             assertNull(
-                frame.recomposerOrNull(),
+                frame.swingRecomposerOrNull(),
                 "closing the window must clear its recomposer slot",
             )
         } finally {

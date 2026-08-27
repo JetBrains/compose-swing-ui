@@ -88,13 +88,17 @@ internal class InstalledSlot(
  *
  * The Compose runtime calls [onRelease], [onReuse] and [onDeactivate] on it. Components built with
  * [SwingNode] reach it through [SwingNodeUpdater].
+ *
+ * It is the node a group holds in the slot table, so it is what a tool walking a composition finds as a
+ * group's node. [SwingComponentNode] is the part of it such a tool may read.
  */
 @PublishedApi
 internal class SwingNodeHolder<out T : Component>
     @PublishedApi
     internal constructor(
-        @PublishedApi internal val component: T,
-    ) : ComposeNodeLifecycleCallback {
+        override val component: T,
+    ) : ComposeNodeLifecycleCallback,
+        SwingComponentNode {
         /**
          * The layout constraint the component is placed under, such as a `BorderLayout` region.
          * `null` means the component is placed by index only.

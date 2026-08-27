@@ -1,12 +1,15 @@
 package org.jetbrains.compose.swing.core
 
-import androidx.compose.runtime.Applier
+import androidx.compose.runtime.AbstractApplier
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Composition
 import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.ControlledComposition
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.runtime.snapshots.SnapshotStateObserver
+import org.jetbrains.compose.swing.node.SwingNodeHolder
+import org.jetbrains.compose.swing.tooling.InspectedContent
+import org.jetbrains.compose.swing.tooling.InspectionGate
 import java.awt.Component
 import javax.swing.JComponent
 import javax.swing.SwingUtilities
@@ -89,9 +92,13 @@ internal fun checkEventDispatchThread() {
 internal class SwingCompositionMount private constructor(
     private val composition: Composition,
     private val observer: SnapshotStateObserver?,
+    private val host: JComponent?,
 ) {
+    /** Whether this composition records where it declared each component. */
+    private val inspection = InspectionGate()
+
     fun setContent(content: @Composable () -> Unit) {
-        composition.setContent(content)
+        composition.setContent { InspectedContent(host, inspection.isRecording, content) }
     }
 
     /**
@@ -143,8 +150,15 @@ internal class SwingCompositionMount private constructor(
         }
     }
 
-    /** Disposes this island's [Composition] and stops the owner-level [SnapshotStateObserver] it owns. */
+    /**
+     * Disposes this island's [Composition] and stops the owner-level [SnapshotStateObserver] it owns.
+     *
+     * Must be called on the Event Dispatch Thread. A handle a caller holds can be disposed from
+     * anywhere - a coroutine's completion, most of all - and this writes the Swing tree and the
+     * library's record of what is mounted, so it fails loudly rather than corrupting either.
+     */
     fun dispose() {
+        checkEventDispatchThread()
         composition.dispose()
         observer?.stop()
         observer?.clear()
@@ -152,14 +166,14 @@ internal class SwingCompositionMount private constructor(
 
     companion object {
         /**
-         * Mounts a child composition of [parent]. [applierFactory] builds the [Applier] over the
+         * Mounts a child composition of [parent]. [applierFactory] builds the applier over the
          * owner's freshly started [SnapshotStateObserver], which
          * [org.jetbrains.compose.swing.node.SwingApplier] stamps onto every node it inserts so a
          * snapshot-observing component can adopt it.
          */
         fun nested(
             parent: CompositionContext,
-            applierFactory: (SnapshotStateObserver) -> Applier<*>,
+            applierFactory: (SnapshotStateObserver) -> AbstractApplier<SwingNodeHolder<*>>,
         ): SwingCompositionMount {
             GlobalSnapshotManager.ensureStarted()
             // Shared by every snapshot-observing component (e.g. Canvas) in this owner. The callback runs
@@ -168,9 +182,11 @@ internal class SwingCompositionMount private constructor(
             // callback actually does here - schedule a repaint(), which is thread-safe regardless of what
             // thread calls it, so nothing here depends on the notification having arrived on the EDT.
             val observer = SnapshotStateObserver { onChanged -> onChanged() }.apply { start() }
+            val applier = applierFactory(observer)
             return SwingCompositionMount(
-                composition = Composition(applierFactory(observer), parent),
+                composition = Composition(applier, parent),
                 observer = observer,
+                host = applier.hostOrNull(),
             )
         }
 
@@ -181,10 +197,22 @@ internal class SwingCompositionMount private constructor(
          */
         fun nestedUnobserved(
             parent: CompositionContext,
-            applierFactory: () -> Applier<*>,
+            applierFactory: () -> AbstractApplier<SwingNodeHolder<*>>,
         ): SwingCompositionMount {
             GlobalSnapshotManager.ensureStarted()
-            return SwingCompositionMount(composition = Composition(applierFactory(), parent), observer = null)
+            val applier = applierFactory()
+            return SwingCompositionMount(
+                composition = Composition(applier, parent),
+                observer = null,
+                host = applier.hostOrNull(),
+            )
         }
+
+        /**
+         * The component an applier's composition is rooted at, when it is one that carries a
+         * client-property bag. This is the component a mount publishes its slot table on, and so the
+         * one an inspecting walk up from a declared component reaches.
+         */
+        private fun AbstractApplier<SwingNodeHolder<*>>.hostOrNull(): JComponent? = root.component as? JComponent
     }
 }

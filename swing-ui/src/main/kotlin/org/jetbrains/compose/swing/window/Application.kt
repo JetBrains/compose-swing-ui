@@ -162,7 +162,7 @@ public suspend fun awaitApplication(content: @Composable ApplicationScope.() -> 
         try {
             var isOpen by mutableStateOf(true)
 
-            val applicationScope = ApplicationScopeImpl { isOpen = false }
+            val applicationScope = ApplicationScopeImpl(recomposer) { isOpen = false }
 
             coroutineScope {
                 launch(frameClock) {
@@ -202,9 +202,20 @@ public sealed interface ApplicationScope {
      * [androidx.compose.runtime.rememberCoroutineScope]).
      */
     public fun exitApplication()
+
+    /**
+     * The [Recomposer] driving this application's composition, and every window, dialog and tray
+     * declared in it.
+     *
+     * `Recomposer.observe(CompositionRegistrationObserver)` registers on it to be told as each of those
+     * compositions is registered and unregistered. A composition registers with the recomposer at the
+     * root of its context chain, so this one reports every island inside a declared window as well.
+     */
+    public val recomposer: Recomposer
 }
 
 private class ApplicationScopeImpl(
+    override val recomposer: Recomposer,
     private val exit: () -> Unit,
 ) : ApplicationScope {
     override fun exitApplication() {

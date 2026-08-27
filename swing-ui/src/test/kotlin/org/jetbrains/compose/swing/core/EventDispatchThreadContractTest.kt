@@ -1,11 +1,13 @@
 package org.jetbrains.compose.swing.core
 
+import kotlinx.coroutines.DisposableHandle
 import org.jetbrains.compose.swing.setContent
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.GraphicsEnvironment
 import javax.swing.JFrame
 import javax.swing.JMenuBar
 import javax.swing.JPanel
+import javax.swing.SwingUtilities
 import kotlin.test.Test
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
@@ -13,10 +15,10 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Pins the thread-confinement contract of the composition entry points: every `setContent` overload
- * must run on the Swing Event Dispatch Thread, and a call from any other thread fails immediately
- * with an [IllegalStateException] naming the offending thread - instead of mounting a composition
- * whose applier would then mutate Swing state off the EDT.
+ * Pins the thread-confinement contract of the composition entry points: every `setContent` overload,
+ * and the handle each one hands back, must run on the Swing Event Dispatch Thread, and a call from any
+ * other thread fails immediately with an [IllegalStateException] naming the offending thread - instead
+ * of mounting or tearing down a composition whose applier would then mutate Swing state off the EDT.
  *
  * Each case performs the call on a named worker thread and joins it, so the assertions run on the
  * test thread against the failure the worker actually observed.
@@ -43,6 +45,25 @@ class EventDispatchThreadContractTest {
     fun menuBarSetContentOffTheEventDispatchThreadFailsFast() {
         val menuBar = JMenuBar()
         assertRejectedOffEdt { menuBar.setContent { } }
+    }
+
+    @Test
+    fun disposingAMountedCompositionOffTheEventDispatchThreadFailsFast() {
+        val panel = JPanel()
+        lateinit var runtime: SwingRecomposer
+        lateinit var content: DisposableHandle
+        SwingUtilities.invokeAndWait {
+            runtime = SwingRecomposer.create(panel)
+            content = panel.setContent(parent = runtime.compositionContext) { }
+        }
+        try {
+            assertRejectedOffEdt { content.dispose() }
+        } finally {
+            SwingUtilities.invokeAndWait {
+                content.dispose()
+                runtime.dispose()
+            }
+        }
     }
 
     /**

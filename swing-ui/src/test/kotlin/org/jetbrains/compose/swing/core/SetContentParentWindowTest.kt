@@ -369,7 +369,7 @@ class SetContentParentWindowTest {
             // The window it left owns the recomposer it was mounted on; disposing that window cancels
             // it. Content that had joined the second window is driven by that one and carries on.
             first.dispose()
-            awaitUntil("the window it left releases its runtime") { first.recomposerOrNull() == null }
+            awaitUntil("the window it left releases its runtime") { first.swingRecomposerOrNull() == null }
 
             text = "outlived"
             awaitUntil("the island keeps recomposing once the window it left is disposed") {

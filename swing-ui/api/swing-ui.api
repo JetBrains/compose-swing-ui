@@ -519,6 +519,10 @@ public abstract interface annotation class org/jetbrains/compose/swing/constants
 public abstract interface annotation class org/jetbrains/compose/swing/constants/WindowExtendedState : java/lang/annotation/Annotation {
 }
 
+public final class org/jetbrains/compose/swing/core/ComponentRecomposerKt {
+	public static final fun findRecomposer (Ljava/awt/Component;)Landroidx/compose/runtime/Recomposer;
+}
+
 public abstract interface class org/jetbrains/compose/swing/modifier/SwingModifier {
 	public static final field Companion Lorg/jetbrains/compose/swing/modifier/SwingModifier$Companion;
 	public abstract fun foldIn (Ljava/lang/Object;Lkotlin/jvm/functions/Function2;)Ljava/lang/Object;
@@ -869,11 +873,15 @@ public final class org/jetbrains/compose/swing/node/SwingApplier : androidx/comp
 	public fun up ()V
 }
 
-public final class org/jetbrains/compose/swing/node/SwingNodeHolder : androidx/compose/runtime/ComposeNodeLifecycleCallback {
+public abstract interface class org/jetbrains/compose/swing/node/SwingComponentNode {
+	public abstract fun getComponent ()Ljava/awt/Component;
+}
+
+public final class org/jetbrains/compose/swing/node/SwingNodeHolder : androidx/compose/runtime/ComposeNodeLifecycleCallback, org/jetbrains/compose/swing/node/SwingComponentNode {
 	public static final field $stable I
 	public fun <init> (Ljava/awt/Component;)V
 	public final fun getChildPlacement ()Lorg/jetbrains/compose/swing/node/ChildPlacement;
-	public final fun getComponent ()Ljava/awt/Component;
+	public fun getComponent ()Ljava/awt/Component;
 	public final fun getReleaseBlock ()Lkotlin/jvm/functions/Function0;
 	public final fun hostSubcompositions (Landroidx/compose/runtime/CompositionContext;)V
 	public fun onDeactivate ()V
@@ -915,8 +923,17 @@ public final class org/jetbrains/compose/swing/text/TextRange {
 	public final synthetic fun unbox-impl ()J
 }
 
+public final class org/jetbrains/compose/swing/tooling/ToolingKt {
+	public static final fun attachComposeStackTrace (Ljava/awt/Component;Ljava/lang/Throwable;)Z
+	public static final fun findCompositionData (Ljava/awt/Component;)Landroidx/compose/runtime/tooling/CompositionData;
+	public static final fun findDeclaringGroup (Ljava/awt/Component;)Landroidx/compose/runtime/tooling/CompositionGroup;
+	public static final fun isDebugInspectorInfoEnabled ()Z
+	public static final fun setDebugInspectorInfoEnabled (Z)V
+}
+
 public abstract interface class org/jetbrains/compose/swing/window/ApplicationScope {
 	public abstract fun exitApplication ()V
+	public abstract fun getRecomposer ()Landroidx/compose/runtime/Recomposer;
 }
 
 public final class org/jetbrains/compose/swing/window/DialogState {

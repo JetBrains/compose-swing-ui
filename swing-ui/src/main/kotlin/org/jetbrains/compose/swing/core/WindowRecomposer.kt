@@ -1,7 +1,6 @@
 package org.jetbrains.compose.swing.core
 
 import androidx.compose.runtime.CompositionContext
-import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import java.awt.Window
 import java.awt.event.WindowAdapter
 import java.awt.event.WindowEvent
@@ -16,18 +15,36 @@ import javax.swing.RootPaneContainer
  * recomposition scope whose frame-driven work is paced by the display the window is on. The window owns
  * the context and tears it down when it is disposed.
  *
- * Pass it as the parent context of a mount to join this window's composition - which is what a mount
- * on a container already under this window resolves to on its own.
+ * Pass it as the parent context of a mount to join this window's composition - which is what a mount on
+ * a container already under this window resolves to on its own. Creating is what this is for: a caller
+ * asks in order to compose into the answer.
+ *
+ * A window whose content composes under a composition declared elsewhere drives none of its own and is
+ * refused here, because a context created for it would drive nothing: a window declared inside
+ * `application { }` runs as part of that application's composition, whose recomposer is
+ * [org.jetbrains.compose.swing.window.ApplicationScope.recomposer].
  *
  * Must be called on the Event Dispatch Thread.
- *
- * Marked [InternalSwingUiApi]; it may change without notice in any release.
  */
-@InternalSwingUiApi
-public fun Window.compositionContext(): CompositionContext {
+internal fun Window.compositionContext(): CompositionContext {
     checkEventDispatchThread()
+    swingRecomposerOrNull()?.let { return it.recomposer }
+    check(!composesUnderAForeignComposition()) {
+        "'${javaClass.name}' composes its content under a composition declared elsewhere, so it drives no " +
+            "composition of its own, and a context created here would drive nothing. A window declared " +
+            "inside application { } runs on the application's recomposer: ask ApplicationScope for it."
+    }
     return getOrCreateRecomposer().recomposer
 }
+
+/**
+ * Whether this window's content pane carries the [COMPOSITION_KEY] stamp of a composition that hosts
+ * this window - what a window declared inside `application { }` is given, so its content joins the
+ * composition that declared it. A window mounted with `setContent` carries no such stamp: its content
+ * resolves its parent from the window, and the window's own recomposer is stamped on the root pane.
+ */
+private fun Window.composesUnderAForeignComposition(): Boolean =
+    ((this as? RootPaneContainer)?.contentPane as? JComponent)?.get(COMPOSITION_KEY) != null
 
 /**
  * A window's [SwingRecomposer], held by the listener that tears it down when the window is
@@ -53,7 +70,7 @@ private class WindowRecomposerHolder(
  * Returns the [SwingRecomposer] already created for this window, or `null` if none exists yet.
  * Does NOT create one. EDT-only.
  */
-internal fun Window.recomposerOrNull(): SwingRecomposer? =
+internal fun Window.swingRecomposerOrNull(): SwingRecomposer? =
     windowListeners.firstNotNullOfOrNull { (it as? WindowRecomposerHolder)?.runtime }
 
 /**
@@ -65,7 +82,7 @@ internal fun Window.recomposerOrNull(): SwingRecomposer? =
  * themselves, so it costs a pass over the windows this application has open. EDT-only.
  */
 internal fun windowOwning(context: CompositionContext): Window? =
-    Window.getWindows().firstOrNull { it.recomposerOrNull()?.recomposer === context }
+    Window.getWindows().firstOrNull { it.swingRecomposerOrNull()?.recomposer === context }
 
 /**
  * Returns this window's single [SwingRecomposer], creating it (recomposer + frame clock +
@@ -82,7 +99,7 @@ internal fun windowOwning(context: CompositionContext): Window? =
  * EDT-only.
  */
 internal fun Window.getOrCreateRecomposer(): SwingRecomposer {
-    recomposerOrNull()?.let { return it }
+    swingRecomposerOrNull()?.let { return it }
 
     val created = SwingRecomposer.create(this)
     // The holder clears this stamp from the window's teardown, so it stands exactly as long as the

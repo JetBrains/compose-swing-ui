@@ -48,7 +48,7 @@ internal fun resolveParentOrNull(component: Component): MountParent? {
     return when {
         // A window stamps its own shared scope on its root pane, so the walk reaches a window's context
         // as readily as a host composition's; which of the two it found is what names the window.
-        host != null -> MountParent(host, window.takeIf { it?.recomposerOrNull()?.recomposer === host })
+        host != null -> MountParent(host, window.takeIf { it?.swingRecomposerOrNull()?.recomposer === host })
 
         window != null -> MountParent(window.getOrCreateRecomposer().recomposer, window)
 
