@@ -8,11 +8,14 @@ import androidx.compose.runtime.snapshots.SnapshotStateObserver
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.node.SwingNode
+import java.awt.Dimension
 import java.awt.Graphics
 import java.awt.Graphics2D
+import java.awt.Rectangle
 import javax.accessibility.AccessibleContext
 import javax.accessibility.AccessibleRole
 import javax.swing.JComponent
+import javax.swing.Scrollable
 
 /**
  * A composable that hands you the raw [Graphics2D] of a blank Swing surface so you can draw whatever
@@ -63,7 +66,9 @@ public fun Canvas(
  * The backing Swing surface for [Canvas]. Delegates painting to [onDraw] under the composition
  * owner's [SnapshotStateObserver]; see [Canvas] for the repaint contract.
  */
-private class CanvasComponent : JComponent() {
+private class CanvasComponent :
+    JComponent(),
+    Scrollable {
     var onDraw: (Graphics2D, Int, Int) -> Unit = { _, _, _ -> }
 
     /**
@@ -81,6 +86,24 @@ private class CanvasComponent : JComponent() {
         // Paints no background of its own: whatever sits behind shows through untouched pixels.
         isOpaque = false
     }
+
+    override fun getPreferredScrollableViewportSize(): Dimension = preferredSize
+
+    override fun getScrollableUnitIncrement(
+        visibleRect: Rectangle,
+        orientation: Int,
+        direction: Int,
+    ): Int = scrollableLine()
+
+    override fun getScrollableBlockIncrement(
+        visibleRect: Rectangle,
+        orientation: Int,
+        direction: Int,
+    ): Int = scrollablePage(visibleRect, orientation)
+
+    override fun getScrollableTracksViewportWidth(): Boolean = fillsViewport { it.width }
+
+    override fun getScrollableTracksViewportHeight(): Boolean = fillsViewport { it.height }
 
     override fun paintComponent(g: Graphics) {
         // Deliberately skips super.paintComponent: this component installs no UI delegate, so it would

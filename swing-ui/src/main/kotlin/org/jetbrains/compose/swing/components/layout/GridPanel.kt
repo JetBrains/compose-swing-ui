@@ -8,7 +8,6 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import java.awt.GridLayout
-import javax.swing.JPanel
 
 /**
  * A composable wrapper for JPanel with GridLayout.
@@ -35,7 +34,7 @@ public fun GridPanel(
     content: @Composable () -> Unit = {},
 ) {
     SwingNode(
-        factory = { JPanel(GridLayout(rows, cols, hgap, vgap)) },
+        factory = { ScrollablePanel(GridLayout(rows, cols, hgap, vgap)) },
         update = {
             updateLayout<GridLayout, _>(rows) { applyDimensions(it, cols) }
             updateLayout<GridLayout, _>(cols) { applyDimensions(rows, it) }

@@ -8,7 +8,6 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import java.awt.BorderLayout
-import javax.swing.JPanel
 
 /**
  * A composable wrapper for JPanel with BorderLayout, placing each child in the region that child names.
@@ -40,7 +39,7 @@ public fun BorderPanel(
     content: @Composable BorderPanelScope.() -> Unit,
 ) {
     SwingNode(
-        factory = { JPanel(BorderLayout(hgap, vgap)) },
+        factory = { ScrollablePanel(BorderLayout(hgap, vgap)) },
         update = {
             updateLayout<BorderLayout, _>(hgap) { this.hgap = it }
             updateLayout<BorderLayout, _>(vgap) { this.vgap = it }

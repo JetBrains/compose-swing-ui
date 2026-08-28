@@ -4,12 +4,12 @@
 package org.jetbrains.compose.swing.modifier.appearance
 
 import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
-import org.jetbrains.compose.swing.core.Key
-import org.jetbrains.compose.swing.core.get
-import org.jetbrains.compose.swing.core.set
 import org.jetbrains.compose.swing.modifier.PropertyElement
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.propertyElement
+import org.jetbrains.compose.swing.util.Key
+import org.jetbrains.compose.swing.util.get
+import org.jetbrains.compose.swing.util.set
 import java.awt.Component
 import javax.swing.JComponent
 

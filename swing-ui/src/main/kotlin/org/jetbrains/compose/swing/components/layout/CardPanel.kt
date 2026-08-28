@@ -64,7 +64,7 @@ public fun CardPanel(
 private class StateCardPanel(
     hgap: Int,
     vgap: Int,
-) : JPanel(CardDeckLayout(hgap, vgap)) {
+) : ScrollablePanel(CardDeckLayout(hgap, vgap)) {
     var targetCard: String? = null
         set(value) {
             field = value

@@ -4,11 +4,11 @@ import androidx.compose.runtime.ComposeNodeLifecycleCallback
 import androidx.compose.runtime.CompositionContext
 import org.jetbrains.annotations.VisibleForTesting
 import org.jetbrains.compose.swing.core.COMPOSITION_KEY
-import org.jetbrains.compose.swing.core.set
 import org.jetbrains.compose.swing.modifier.SwingModifierState
 import org.jetbrains.compose.swing.modifier.resetModifierState
 import org.jetbrains.compose.swing.util.fastForEach
 import org.jetbrains.compose.swing.util.fastForEachIndexed
+import org.jetbrains.compose.swing.util.set
 import java.awt.Component
 import java.awt.Container
 import java.awt.LayoutManager2

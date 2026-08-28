@@ -9,7 +9,6 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import java.awt.FlowLayout
-import javax.swing.JPanel
 
 /**
  * A composable wrapper for JPanel with FlowLayout.
@@ -31,7 +30,7 @@ public fun FlowPanel(
     content: @Composable () -> Unit = {},
 ) {
     SwingNode(
-        factory = { JPanel(FlowLayout(alignment, hgap, vgap)) },
+        factory = { ScrollablePanel(FlowLayout(alignment, hgap, vgap)) },
         update = {
             updateLayout<FlowLayout, _>(alignment) { this.alignment = it }
             updateLayout<FlowLayout, _>(hgap) { this.hgap = it }

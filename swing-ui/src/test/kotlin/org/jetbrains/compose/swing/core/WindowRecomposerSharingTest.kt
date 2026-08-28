@@ -15,6 +15,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.swing.Swing
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.setContent
+import org.jetbrains.compose.swing.util.set
 import java.awt.Container
 import java.awt.Dimension
 import javax.swing.JLabel
@@ -33,12 +34,12 @@ import kotlin.time.Duration.Companion.seconds
  * display; they exercise the resolution mechanism the window path is built on:
  *  - a window publishes ONE [Recomposer] as the [COMPOSITION_KEY] context on a
  *    [javax.swing.JComponent] ancestor of its content (its root pane), and
- *  - every composition under that ancestor resolves to it via the self-first
+ *  - every content composition under that ancestor resolves to it via the self-first
  *    [findParentCompositionContext] walk.
  *
  * A single ancestor stamped with one recomposer stands in for a window root pane, and two sibling
- * compositions beneath it model two in-window compositions. Driven on a controllable [BroadcastFrameClock] (no
- * sleeps, bounded frames).
+ * content compositions beneath it model two content compositions of one window. Driven on a
+ * controllable [BroadcastFrameClock] (no sleeps, bounded frames).
  */
 class WindowRecomposerSharingTest {
     private val clock = BroadcastFrameClock()
@@ -122,7 +123,7 @@ class WindowRecomposerSharingTest {
 
     @Test
     fun detachedContainerWithoutWindowAncestorDefersInsteadOfThrowing() {
-        // No window ancestor, no stamped context, no injected recomposer: the mount is deferred until
+        // No window ancestor, no stamped context, no injected recomposer: the content mounts only once
         // the container is attached to a window, and a usable handle comes back now.
         val orphan = onEdt { JPanel().apply { size = Dimension(SIZE, SIZE) } }
 
@@ -137,7 +138,7 @@ class WindowRecomposerSharingTest {
         assertEquals(
             0,
             onEdt { orphan.componentCount },
-            "a deferred mount must not add any child components before the container is attached",
+            "a deferred setContent must add no child components before the container is attached",
         )
 
         onEdt { handle.dispose() }

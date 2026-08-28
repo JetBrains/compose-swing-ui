@@ -8,7 +8,6 @@ import androidx.compose.runtime.remember
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.node.SwingNode
-import javax.swing.JPanel
 
 /**
  * A composable that arranges its [content] horizontally, along the panel's reading order.
@@ -48,7 +47,9 @@ public fun Row(
     val axisAlignment = VerticalAxisAlignment(verticalAlignment)
 
     SwingNode(
-        factory = { JPanel(LinearLayout(LayoutAxis.Horizontal, scope.placements, axisArrangement, axisAlignment)) },
+        factory = {
+            ScrollablePanel(LinearLayout(LayoutAxis.Horizontal, scope.placements, axisArrangement, axisAlignment))
+        },
         update = {
             updateLayout<LinearLayout, _>(scope.placements) { this.placements = it }
             updateLayout<LinearLayout, _>(axisArrangement) { this.arrangement = it }

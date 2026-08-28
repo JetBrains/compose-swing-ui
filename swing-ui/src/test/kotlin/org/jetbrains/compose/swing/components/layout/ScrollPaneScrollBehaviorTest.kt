@@ -4,16 +4,24 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.selection.ListBox
+import org.jetbrains.compose.swing.components.selection.Table
 import org.jetbrains.compose.swing.components.text.TextArea
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import java.awt.Dimension
 import java.awt.Rectangle
+import javax.swing.JComponent
+import javax.swing.JList
+import javax.swing.JPanel
 import javax.swing.JScrollPane
+import javax.swing.JTable
 import javax.swing.JTextArea
 import javax.swing.Scrollable
 import javax.swing.SwingConstants
+import javax.swing.table.DefaultTableModel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -113,8 +121,195 @@ class ScrollPaneScrollBehaviorTest {
             view.getScrollableBlockIncrement(visible, SwingConstants.HORIZONTAL, 1),
             "an undeclared block increment scrolls a full viewport page across",
         )
-        assertFalse(view.scrollableTracksViewportWidth, "an undeclared width answer leaves the content its own")
-        assertFalse(view.scrollableTracksViewportHeight, "an undeclared height answer leaves the content its own")
+        assertTrue(
+            view.scrollableTracksViewportWidth,
+            "an undeclared width answer widens the content to the viewport, which is wider than it asks to be",
+        )
+        assertFalse(
+            view.scrollableTracksViewportHeight,
+            "an undeclared height answer leaves the content the height it asks for, which overflows the viewport",
+        )
+    }
+
+    @Test
+    fun aContainerScrollsByALineOfItsOwnFontWithoutDeclaringOne() = runComposeSwingTest {
+        setContent {
+            ScrollPane(modifier = SwingModifier.preferredSize(PANE_WIDTH, PANE_HEIGHT)) {
+                Column(SwingModifier.viewport()) {
+                    Label(text = "Body", modifier = SwingModifier.preferredSize(CONTENT_SHORT_SIDE, CONTENT_LONG_SIDE))
+                }
+            }
+        }
+
+        val pane = onNodeOfType<JScrollPane>().fetch()
+        val column = assertIs<JComponent>(pane.viewport.view, "the container is the viewport's view as it stands")
+        val line = column.getFontMetrics(column.font).height
+        assertEquals(
+            line,
+            assertIs<Scrollable>(column).getScrollableUnitIncrement(visible, SwingConstants.VERTICAL, 1),
+            "a container answers a line of its own font, as the widgets that live in a scroll pane do",
+        )
+        assertEquals(
+            line,
+            pane.verticalScrollBar.getUnitIncrement(1),
+            "so an arrow button and a wheel unit scroll the pane by that line",
+        )
+    }
+
+    @Test
+    fun aDeclaredAnswerLeavesTheContentsOwnUndeclaredOnesAlone() = runComposeSwingTest {
+        setContent {
+            ScrollPane(modifier = SwingModifier.preferredSize(PANE_WIDTH, PANE_HEIGHT)) {
+                Column(SwingModifier.viewport(blockIncrement = BLOCK_INCREMENT)) {
+                    Label(text = "Body", modifier = SwingModifier.preferredSize(CONTENT_SHORT_SIDE, CONTENT_LONG_SIDE))
+                }
+            }
+        }
+
+        val pane = onNodeOfType<JScrollPane>().fetch()
+        val body = assertIs<ScrollableBody>(pane.viewport.view, "a declared answer hosts the container in a body")
+        val column = assertIs<JComponent>(body.components.single(), "the container sits under that body")
+        assertEquals(
+            BLOCK_INCREMENT,
+            body.getScrollableBlockIncrement(visible, SwingConstants.VERTICAL, 1),
+            "the declared page is the one given",
+        )
+        assertEquals(
+            column.getFontMetrics(column.font).height,
+            body.getScrollableUnitIncrement(visible, SwingConstants.VERTICAL, 1),
+            "declaring a page does not cost the container the line it scrolls by",
+        )
+    }
+
+    @Test
+    fun aDeclaredAnswerLeavesAWidgetTheLineItScrollsByItself() = runComposeSwingTest {
+        setContent {
+            ScrollPane(modifier = SwingModifier.preferredSize(PANE_WIDTH, PANE_HEIGHT)) {
+                TextArea(
+                    value = "line\n".repeat(LINE_COUNT),
+                    onValueChange = {},
+                    modifier = SwingModifier.viewport(tracksViewportWidth = true),
+                )
+            }
+        }
+
+        val pane = onNodeOfType<JScrollPane>().fetch()
+        val body = assertIs<ScrollableBody>(pane.viewport.view, "a declared answer hosts the area in a body")
+        assertEquals(
+            JTextArea().getScrollableUnitIncrement(visible, SwingConstants.VERTICAL, 1),
+            body.getScrollableUnitIncrement(visible, SwingConstants.VERTICAL, 1),
+            "the area keeps scrolling by the line it answers with, which the body hands on unchanged",
+        )
+        assertTrue(
+            body.scrollableTracksViewportWidth,
+            "and the declared width answer is the body's own to give",
+        )
+    }
+
+    @Test
+    fun aDeclaredAnswerLeavesAWidgetTheWidthItAsksTheViewportFor() = runComposeSwingTest {
+        val columns = arrayOf<Any>("one", "two", "three", "four")
+        val model = DefaultTableModel(arrayOf(arrayOf<Any>("a", "b", "c", "d")), columns)
+        setContent {
+            ScrollPane(modifier = SwingModifier.preferredSize(PANE_WIDTH, PANE_HEIGHT)) {
+                Table(model = model, modifier = SwingModifier.viewport(unitIncrement = FIRST_UNIT_INCREMENT))
+            }
+        }
+
+        val pane = onNodeOfType<JScrollPane>().fetch()
+        val body = assertIs<ScrollableBody>(pane.viewport.view, "a declared answer hosts the table in a body")
+        assertFalse(
+            pane.viewport.width > body.preferredSize.width,
+            "precondition: the viewport is no wider than the body asks to be, so the stretch a pane gives a " +
+                "view answering nothing is not what can make this content track",
+        )
+        assertEquals(
+            JTable(model).scrollableTracksViewportWidth,
+            body.scrollableTracksViewportWidth,
+            "a table that resizes its columns keeps taking the viewport's width, as it does unwrapped",
+        )
+    }
+
+    @Test
+    fun aDeclaredAnswerLeavesAWidgetTheViewportSizeItAsksFor() = runComposeSwingTest {
+        setContent {
+            ScrollPane {
+                ListBox(
+                    items = List(LINE_COUNT) { "row $it" },
+                    visibleRowCount = VISIBLE_ROWS,
+                    modifier = SwingModifier.viewport(unitIncrement = FIRST_UNIT_INCREMENT),
+                )
+            }
+        }
+
+        val pane = onNodeOfType<JScrollPane>().fetch()
+        val list = onNodeOfType<JList<*>>().fetch()
+        val body = assertIs<ScrollableBody>(pane.viewport.view, "a declared answer hosts the list in a body")
+        assertTrue(
+            list.preferredSize.height > list.preferredScrollableViewportSize.height,
+            "precondition: the list is longer than the rows it asks a viewport for",
+        )
+        assertEquals(
+            list.preferredScrollableViewportSize,
+            body.preferredScrollableViewportSize,
+            "the pane is still sized by the rows the list asks for, not by the whole of it",
+        )
+    }
+
+    @Test
+    fun contentThatTakesTheViewportsHeightWhileOverflowingItsWidthSettles() = runComposeSwingTest {
+        setContent {
+            ScrollPane(modifier = SwingModifier.preferredSize(PANE_WIDTH, PANE_HEIGHT)) {
+                Label(
+                    text = "Body",
+                    modifier =
+                        SwingModifier
+                            .preferredSize(CONTENT_LONG_SIDE, CONTENT_LONG_SIDE)
+                            .viewport(tracksViewportHeight = true),
+                )
+            }
+        }
+
+        val pane = onNodeOfType<JScrollPane>().fetch()
+        assertEquals(
+            pane.viewport.height,
+            pane.viewport.view.height,
+            "content that takes the viewport's height is laid out at it, however wide the content is",
+        )
+        assertFalse(
+            pane.verticalScrollBar.isVisible,
+            "so the pane shows no vertical scroll bar, which is what a pane that never settles keeps " +
+                "adding and dropping",
+        )
+        assertTrue(pane.horizontalScrollBar.isVisible, "and the width the content overflows by is scrolled")
+    }
+
+    @Test
+    fun contentThatDeclaresAnIncrementIsLaidOutAsARawPaneLaysOutAViewAnsweringNothing() = runComposeSwingTest {
+        setContent {
+            ScrollPane(modifier = SwingModifier.preferredSize(PANE_WIDTH, PANE_HEIGHT)) {
+                Label(
+                    text = "Body",
+                    modifier =
+                        SwingModifier
+                            .preferredSize(CONTENT_SHORT_SIDE, CONTENT_SHORT_SIDE)
+                            .viewport(unitIncrement = FIRST_UNIT_INCREMENT),
+                )
+            }
+        }
+
+        val pane = onNodeOfType<JScrollPane>().fetch()
+        val raw = JScrollPane(JPanel().also { it.preferredSize = Dimension(CONTENT_SHORT_SIDE, CONTENT_SHORT_SIDE) })
+        raw.size = pane.size
+        raw.doLayout()
+        raw.viewport.doLayout()
+
+        assertEquals(
+            raw.viewport.view.size,
+            pane.viewport.view.size,
+            "content declaring how far it scrolls is laid out at the size a raw pane lays out content of its " +
+                "size, rather than shrinking to its preferred size for having declared one",
+        )
     }
 
     @Test
@@ -213,21 +408,21 @@ class ScrollPaneScrollBehaviorTest {
                     text = "Body",
                     modifier =
                         SwingModifier
-                            .preferredSize(CONTENT_SHORT_SIDE, CONTENT_LONG_SIDE)
+                            .preferredSize(CONTENT_LONG_SIDE, CONTENT_SHORT_SIDE)
                             .viewport(unitIncrement = FIRST_UNIT_INCREMENT, tracksViewportWidth = tracks),
                 )
             }
         }
 
         val pane = onNodeOfType<JScrollPane>().fetch()
-        assertEquals(
-            CONTENT_SHORT_SIDE,
-            pane.viewport.view.width,
-            "content that leaves the width to itself is laid out at the width it asks for",
-        )
         assertTrue(
-            pane.viewport.width > CONTENT_SHORT_SIDE,
-            "precondition: the viewport is wider than the content asks to be",
+            CONTENT_LONG_SIDE > pane.viewport.width,
+            "precondition: the content asks to be wider than the viewport",
+        )
+        assertEquals(
+            CONTENT_LONG_SIDE,
+            pane.viewport.view.width,
+            "content that leaves the width to itself is laid out at the width it asks for, and scrolls sideways",
         )
 
         tracks = true
@@ -249,21 +444,21 @@ class ScrollPaneScrollBehaviorTest {
                     text = "Body",
                     modifier =
                         SwingModifier
-                            .preferredSize(CONTENT_LONG_SIDE, CONTENT_SHORT_SIDE)
+                            .preferredSize(CONTENT_SHORT_SIDE, CONTENT_LONG_SIDE)
                             .viewport(unitIncrement = FIRST_UNIT_INCREMENT, tracksViewportHeight = tracks),
                 )
             }
         }
 
         val pane = onNodeOfType<JScrollPane>().fetch()
-        assertEquals(
-            CONTENT_SHORT_SIDE,
-            pane.viewport.view.height,
-            "content that leaves the height to itself is laid out at the height it asks for",
-        )
         assertTrue(
-            pane.viewport.height > CONTENT_SHORT_SIDE,
-            "precondition: the viewport is taller than the content asks to be",
+            CONTENT_LONG_SIDE > pane.viewport.height,
+            "precondition: the content asks to be taller than the viewport",
+        )
+        assertEquals(
+            CONTENT_LONG_SIDE,
+            pane.viewport.view.height,
+            "content that leaves the height to itself is laid out at the height it asks for, and scrolls to reach it",
         )
 
         tracks = true
@@ -294,3 +489,6 @@ private const val FIRST_UNIT_INCREMENT: Int = 17
 private const val SECOND_UNIT_INCREMENT: Int = 33
 private const val BLOCK_INCREMENT: Int = 130
 private const val LINE_COUNT: Int = 40
+
+/** The rows a list asks a viewport for, fewer than it holds. */
+private const val VISIBLE_ROWS: Int = 4

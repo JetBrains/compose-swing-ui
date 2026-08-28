@@ -10,6 +10,9 @@ import androidx.lifecycle.LifecycleRegistry
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.DisposableHandle
 import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
+import org.jetbrains.compose.swing.util.Key
+import org.jetbrains.compose.swing.util.get
+import org.jetbrains.compose.swing.util.set
 import java.awt.Component
 import java.awt.Frame
 import java.awt.Window

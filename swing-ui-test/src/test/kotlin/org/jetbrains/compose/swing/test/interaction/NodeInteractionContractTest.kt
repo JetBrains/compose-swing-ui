@@ -168,9 +168,10 @@ class NodeInteractionContractTest {
             }
         }
 
+        val panel = onNodeWithText("child").fetch().parent
         val failure = assertFailsWith<AssertionError> { onNodeWithText("child").assertIsVisible() }
         assertTrue(
-            failure.message.orEmpty().contains("enclosing JPanel is hidden"),
+            failure.message.orEmpty().contains("enclosing ${panel.javaClass.simpleName} is hidden"),
             "the failure should name the ancestor that hides the node: ${failure.message}",
         )
         // The node's own flag is untouched: what makes it hidden is the walk up to the query root.

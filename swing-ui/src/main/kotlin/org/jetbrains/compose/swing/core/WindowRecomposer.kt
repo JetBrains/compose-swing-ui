@@ -2,6 +2,7 @@ package org.jetbrains.compose.swing.core
 
 import androidx.compose.runtime.CompositionContext
 import kotlinx.coroutines.DisposableHandle
+import org.jetbrains.compose.swing.util.get
 import java.awt.Component
 import java.awt.Container
 import java.awt.Window

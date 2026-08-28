@@ -40,23 +40,24 @@ public sealed interface ScrollPaneScope {
      * Installs the child as the scrollable content, shown in the pane's central viewport.
      *
      * The four answers state how the pane scrolls this content, each `null` - the default - leaving the
-     * answer to the content itself, which a widget that scrolls by its own rows or lines (a table, a
-     * list, a tree, a text area) gives and any other content leaves to the pane's own defaults. Declaring
-     * one hosts the content in a body that answers for it, so a widget that answers for itself is
-     * declared without them.
+     * answer to the content itself: a widget scrolls by its own rows or lines (a table, a list, a tree, a
+     * text area), a container of this library by a line of its font, and anything else by the pane's own
+     * defaults. Declaring an answer keeps every answer left undeclared.
      *
-     * @param unitIncrement the pixels one arrow-button click, or one line of the keyboard, scrolls by;
-     *   `null` scrolls by the single pixel a scroll bar carries of its own
+     * @param unitIncrement the pixels one arrow-button click, one keyboard line or one wheel unit
+     *   scrolls by; `null` scrolls by the content's own line or row, and by a single pixel where the
+     *   content answers nothing
      * @param blockIncrement the pixels one page - a click in the scroll bar's track, `Page Up`/`Page
-     *   Down` - scrolls by; `null` scrolls by a full page of the viewport
+     *   Down` - scrolls by; `null` scrolls by the content's own page, and by a full page of the viewport
+     *   where the content answers nothing
      * @param tracksViewportWidth whether the content takes the viewport's width in place of its
-     *   preferred one, which is what content that fills the pane and wraps within it is laid out by;
-     *   `null` - and `false`, which asks for the same layout - lays it out at its preferred width and
-     *   scrolls sideways to reach the rest
+     *   preferred one, which is what content that wraps within the pane is laid out by; `null` - and
+     *   `false`, which asks for the same layout - widens it to the viewport where the viewport is wider,
+     *   and scrolls sideways to reach the rest where it is not
      * @param tracksViewportHeight whether the content takes the viewport's height in place of its
      *   preferred one, which is what content that fills the pane top to bottom is laid out by; `null` -
-     *   and `false`, which asks for the same layout - lays it out at its preferred height and scrolls to
-     *   reach the rest
+     *   and `false`, which asks for the same layout - heightens it to the viewport where the viewport is
+     *   taller, and scrolls to reach the rest where it is not
      * @see javax.swing.JScrollPane.setViewportView
      */
     public fun SwingModifier.viewport(

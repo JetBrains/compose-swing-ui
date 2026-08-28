@@ -3,11 +3,11 @@
 
 package org.jetbrains.compose.swing.modifier.interaction
 
-import org.jetbrains.compose.swing.core.Key
-import org.jetbrains.compose.swing.core.get
-import org.jetbrains.compose.swing.core.set
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.propertyElement
+import org.jetbrains.compose.swing.util.Key
+import org.jetbrains.compose.swing.util.get
+import org.jetbrains.compose.swing.util.set
 import java.awt.Component
 import java.awt.Container
 import java.awt.FocusTraversalPolicy

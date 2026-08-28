@@ -1,4 +1,4 @@
-package org.jetbrains.compose.swing.core
+package org.jetbrains.compose.swing.util
 
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier

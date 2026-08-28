@@ -1,4 +1,4 @@
-package org.jetbrains.compose.swing.core
+package org.jetbrains.compose.swing.util
 
 import org.jetbrains.annotations.NonNls
 import javax.swing.JComponent

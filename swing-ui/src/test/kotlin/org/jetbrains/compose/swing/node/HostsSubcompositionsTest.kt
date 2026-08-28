@@ -8,9 +8,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.core.COMPOSITION_KEY
-import org.jetbrains.compose.swing.core.get
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.jetbrains.compose.swing.util.get
 import java.awt.Panel
 import javax.swing.JPanel
 import kotlin.test.Test

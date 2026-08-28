@@ -23,6 +23,7 @@ import org.jetbrains.compose.swing.core.SwingFrameClock.Companion.displayRefresh
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
+import org.jetbrains.compose.swing.util.get
 import org.jetbrains.compose.swing.window.LocalWindow
 import org.jetbrains.compose.swing.window.Window
 import org.jetbrains.compose.swing.window.awaitApplication
@@ -54,10 +55,10 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Behavioral tests for a composition recomposer hosted by a plain [java.awt.Component] - the recomposer a
- * caller creates for a component with [SwingRecomposer.create] and disposes itself - and for the
- * boundary between it and the recomposer a [java.awt.Window] owns - including the window that owns none,
- * because its content is part of an application composition declared elsewhere.
+ * Behavioral tests for a recomposer hosted by a plain [java.awt.Component] - the one a caller creates
+ * for a component with [SwingRecomposer.create] and disposes itself - and for the boundary between it
+ * and the recomposer a [java.awt.Window] owns - including the window that owns none, because its
+ * content is part of an application composition declared elsewhere.
  *
  * A component-hosted recomposer recomposes on the event queue, so the test body runs on the EDT and
  * yields it back between checks until a bounded deadline. The cases that need a window realize a real
@@ -82,8 +83,7 @@ class ComponentRecomposerTest {
 
             text = "v1"
             awaitUntil("the component-hosted recomposer recomposes on a state change") {
-                labelTextOrNull(composition) ==
-                    "v1"
+                labelTextOrNull(composition) == "v1"
             }
         } finally {
             content?.dispose()
@@ -190,9 +190,12 @@ class ComponentRecomposerTest {
             val compositionA = childOf(frame)
             val compositionB = childOf(frame)
             val compositions =
-                listOf(compositionA.setContent { Label(text = "a") }, compositionB.setContent { Label(text = "b") })
+                listOf(
+                    compositionA.setContent { Label(text = "a") },
+                    compositionB.setContent { Label(text = "b") },
+                )
             try {
-                awaitUntil("both compositions render") {
+                awaitUntil("both content compositions render") {
                     labelTextOrNull(compositionA) == "a" && labelTextOrNull(compositionB) == "b"
                 }
                 assertSame(context, compositionA.findParentCompositionContext(), "composition A joined another context")
@@ -201,9 +204,12 @@ class ComponentRecomposerTest {
                 compositions.forEach { it.dispose() }
             }
 
-            // The window owns what it handed out: closing it releases the recomposer with no caller involved.
-            frame.dispose()
-            awaitUntil("the closed window releases its recomposer") { frame.swingRecomposerOrNull() == null }
+            // The window owns what it handed out, and releases it with no caller involved: disposing the
+            // last content composition above emptied it, and a window's recomposer ends once nothing
+            // composes under it. The close below is not what does it here - it has nothing left to reap.
+            awaitUntil("emptying the window releases the recomposer it handed out") {
+                frame.swingRecomposerOrNull() == null
+            }
         } finally {
             frame.dispose()
         }
@@ -219,7 +225,7 @@ class ComponentRecomposerTest {
 
             val content = composition.setContent { Label(text = "in-window") }
             try {
-                awaitUntil("the in-window composition renders") { labelTextOrNull(composition) == "in-window" }
+                awaitUntil("the in-window content composition renders") { labelTextOrNull(composition) == "in-window" }
                 assertSame(
                     frame.compositionContext(),
                     composition.findParentCompositionContext(),
@@ -415,7 +421,7 @@ class ComponentRecomposerTest {
             val composition = childOf(frame)
             val content = composition.setContent { Label(text = "in-window") }
             try {
-                awaitUntil("the composition renders") { labelTextOrNull(composition) == "in-window" }
+                awaitUntil("the content composition renders") { labelTextOrNull(composition) == "in-window" }
                 val driving = assertNotNull(frame.swingRecomposerOrNull()).recomposer
 
                 assertSame(
@@ -467,7 +473,7 @@ class ComponentRecomposerTest {
                 )
 
                 nested = host.setContent { Label(text = "nested") }
-                awaitUntil("the nested composition composes") { labelTextOrNull(host) == "nested" }
+                awaitUntil("the nested content composes") { labelTextOrNull(host) == "nested" }
 
                 val driving = assertNotNull(frame.swingRecomposerOrNull()).recomposer
                 assertSame(
@@ -514,9 +520,9 @@ class ComponentRecomposerTest {
     }
 
     /**
-     * A recomposer a caller creates for a component is what that component's content composes on, so it is
-     * what the component answers with - the window it happens to hang under drives its own content and
-     * not this, and answers nothing here.
+     * A recomposer a caller creates for a component is what that component's content composes on, so it
+     * is what the component answers with - the window it happens to hang under drives its own content
+     * and not this, and answers nothing here.
      */
     @Test
     fun aComponentFindsTheRecomposerItsCallerCreatedForIt() = runSwingTest {
@@ -542,8 +548,8 @@ class ComponentRecomposerTest {
                 )
                 assertNull(
                     frame.swingRecomposerOrNull(),
-                    "naming a recomposer of one's own leaves the window driving nothing, so the answer can " +
-                        "only have come from the recomposer the caller created",
+                    "naming a recomposer of one's own leaves the window driving nothing, so the answer " +
+                        "can only have come from the recomposer the caller created",
                 )
             } finally {
                 content?.dispose()
@@ -637,7 +643,7 @@ class ComponentRecomposerTest {
         pack()
     }
 
-    /** Adds and returns a fresh composition container inside [frame]'s content pane. Must be on the EDT. */
+    /** Adds and returns a fresh child container inside [frame]'s content pane. Must be on the EDT. */
     private fun childOf(frame: JFrame): Container = JPanel().also { frame.contentPane.add(it) }
 
     /** The single [JLabel]'s text in [container]'s subtree, or `null` while none has mounted yet. */

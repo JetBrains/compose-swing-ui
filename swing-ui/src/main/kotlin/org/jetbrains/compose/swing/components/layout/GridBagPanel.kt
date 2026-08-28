@@ -8,7 +8,6 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import java.awt.GridBagLayout
-import javax.swing.JPanel
 
 /**
  * A composable wrapper for JPanel with GridBagLayout, placing each child in the grid cell that child's
@@ -42,7 +41,7 @@ public fun GridBagPanel(
     content: @Composable GridBagPanelScope.() -> Unit,
 ) {
     SwingNode(
-        factory = { JPanel(GridBagLayout()) },
+        factory = { ScrollablePanel(GridBagLayout()) },
         update = {
             applyModifier(modifier)
         },

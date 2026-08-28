@@ -12,6 +12,9 @@ import org.jetbrains.compose.swing.node.SwingCompositionOwner
 import org.jetbrains.compose.swing.node.SwingNodeHolder
 import org.jetbrains.compose.swing.tooling.InspectedContent
 import org.jetbrains.compose.swing.tooling.InspectionGate
+import org.jetbrains.compose.swing.util.Key
+import org.jetbrains.compose.swing.util.get
+import org.jetbrains.compose.swing.util.set
 import java.awt.Component
 import javax.swing.JComponent
 import javax.swing.SwingUtilities

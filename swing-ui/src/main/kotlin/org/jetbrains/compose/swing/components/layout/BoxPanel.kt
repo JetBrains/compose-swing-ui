@@ -9,7 +9,6 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import javax.swing.BoxLayout
-import javax.swing.JPanel
 
 /**
  * A composable wrapper for JPanel with BoxLayout.
@@ -29,7 +28,7 @@ public fun BoxPanel(
     content: @Composable () -> Unit = {},
 ) {
     SwingNode(
-        factory = { JPanel().apply { layout = BoxLayout(this, axis) } },
+        factory = { ScrollablePanel().apply { layout = BoxLayout(this, axis) } },
         update = {
             // A BoxLayout fixes its axis at construction and serves only the container it was built
             // for, so a new axis means a new instance for this panel. It holds no per-child data, so

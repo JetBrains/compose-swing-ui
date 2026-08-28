@@ -13,11 +13,11 @@ import androidx.compose.runtime.tooling.CompositionData
 import androidx.compose.runtime.tooling.CompositionErrorContext
 import androidx.compose.runtime.tooling.CompositionGroup
 import androidx.compose.runtime.tooling.LocalCompositionErrorContext
-import org.jetbrains.compose.swing.core.Key
 import org.jetbrains.compose.swing.core.checkEventDispatchThread
-import org.jetbrains.compose.swing.core.get
-import org.jetbrains.compose.swing.core.set
 import org.jetbrains.compose.swing.node.SwingComponentNode
+import org.jetbrains.compose.swing.util.Key
+import org.jetbrains.compose.swing.util.get
+import org.jetbrains.compose.swing.util.set
 import java.awt.Component
 import java.util.Collections
 import java.util.WeakHashMap
