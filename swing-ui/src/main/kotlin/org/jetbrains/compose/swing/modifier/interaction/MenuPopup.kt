@@ -6,7 +6,6 @@ import org.jetbrains.compose.swing.annotations.SwingMenuComposable
 import org.jetbrains.compose.swing.core.SwingContentComposition
 import org.jetbrains.compose.swing.node.MenuApplier
 import org.jetbrains.compose.swing.node.SwingNodeHolder
-import java.awt.Component
 import javax.swing.JPopupMenu
 import javax.swing.event.PopupMenuEvent
 import javax.swing.event.PopupMenuListener
@@ -28,7 +27,7 @@ internal class MenuPopup(
 ) {
     val popup: JPopupMenu = JPopupMenu()
 
-    private val mount =
+    private val composition =
         SwingContentComposition.nestedUnobserved(parentContext) { owner ->
             MenuApplier(SwingNodeHolder(popup).attachedTo(owner))
         }
@@ -45,7 +44,7 @@ internal class MenuPopup(
                 if (closed) return
                 closed = true
                 popup.removePopupMenuListener(this)
-                mount.dispose()
+                composition.dispose()
                 onClosed(this@MenuPopup)
             }
 
@@ -53,7 +52,7 @@ internal class MenuPopup(
         }
 
     init {
-        mount.setContent(content)
+        composition.setContent(content)
         popup.addPopupMenuListener(closeListener)
     }
 
@@ -67,17 +66,6 @@ internal class MenuPopup(
         if (closed) return
         closed = true
         popup.isVisible = false
-        mount.dispose()
+        composition.dispose()
     }
 }
-
-/**
- * Presents [popup] over [invoker] at (x, y) in the invoker's coordinates - the one place either menu
- * builder asks Swing to put a menu on screen.
- */
-internal fun showPopupAt(
-    popup: JPopupMenu,
-    invoker: Component,
-    x: Int,
-    y: Int,
-): Unit = popup.show(invoker, x, y)

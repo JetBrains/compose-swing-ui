@@ -34,8 +34,11 @@ import org.jetbrains.compose.swing.test.interaction.realizedWindowsTreeDump
 import java.awt.Component
 import java.awt.Container
 import java.awt.Dimension
+import java.awt.Toolkit
+import java.awt.event.InvocationEvent
 import javax.swing.JComponent
 import javax.swing.JPanel
+import javax.swing.SwingUtilities
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
@@ -662,10 +665,10 @@ private class ComposeSwingTestImpl(
      * keep the gate spinning even though they never revive the composition.
      */
     private fun noPendingInvocations(): Boolean =
-        java.awt.Toolkit
+        Toolkit
             .getDefaultToolkit()
             .systemEventQueue
-            .peekEvent(java.awt.event.InvocationEvent.INVOCATION_DEFAULT) == null
+            .peekEvent(InvocationEvent.INVOCATION_DEFAULT) == null
 
     private fun notSettled(gate: String): AssertionError =
         AssertionError(
@@ -808,14 +811,14 @@ private class ComposeSwingTestImpl(
      */
     private fun pumpEdtQueue(): Boolean {
         val loop =
-            java.awt.Toolkit
+            Toolkit
                 .getDefaultToolkit()
                 .systemEventQueue
                 .createSecondaryLoop()
         // Post the exit AFTER the recomposer's already-queued continuation, so the loop drains those
         // first. enter() blocks the current EDT dispatch until exit() runs, while still pumping events.
         val drained = booleanArrayOf(false)
-        javax.swing.SwingUtilities.invokeLater {
+        SwingUtilities.invokeLater {
             drained[0] = noPendingInvocations()
             loop.exit()
         }

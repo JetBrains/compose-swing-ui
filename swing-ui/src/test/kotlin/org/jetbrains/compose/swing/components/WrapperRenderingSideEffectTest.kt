@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.components
 
+import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.button.RadioButton
@@ -213,7 +214,7 @@ class WrapperRenderingSideEffectTest {
      * captures are pixel-identical.
      */
     private fun assertWrapperMatchesRaw(
-        content: @androidx.compose.runtime.Composable () -> Unit,
+        content: @Composable () -> Unit,
         find: ComposeSwingTest.() -> SwingNodeInteraction<Component>,
         buildRaw: () -> Component,
     ) = runComposeSwingTest {

@@ -156,9 +156,7 @@ class SwingApplierTest {
         insertTopDown(index, instance)
     }
 
-    private fun holder(component: Component): SwingNodeHolder<Component> = SwingNodeHolder(component)
-
-    /** Observers created for the appliers under test, disposed in [disposeObservers]. */
+    /** Owners created for the appliers under test, disposed in [disposeOwners]. */
     private val owners = mutableListOf<TestCompositionOwner>()
 
     /**
@@ -190,7 +188,7 @@ class SwingApplierTest {
 
         applier.onBeginChanges()
         applier.onContainer(applier.root) {
-            insertChild(0, holder(child))
+            insertChild(0, SwingNodeHolder(child))
         }
         applier.onEndChanges()
 
@@ -205,10 +203,10 @@ class SwingApplierTest {
 
         applier.onBeginChanges()
         applier.onContainer(applier.root) {
-            insertChild(0, holder(namedButton("a")))
-            insertChild(1, holder(namedButton("b")))
+            insertChild(0, SwingNodeHolder(namedButton("a")))
+            insertChild(1, SwingNodeHolder(namedButton("b")))
             // Insert "c" between a and b.
-            insertChild(1, holder(namedButton("c")))
+            insertChild(1, SwingNodeHolder(namedButton("c")))
         }
         applier.onEndChanges()
 
@@ -223,7 +221,7 @@ class SwingApplierTest {
         applier.onBeginChanges()
         applier.onContainer(applier.root) {
             listOf("a", "b", "c", "d").forEachIndexed { i, n ->
-                insertChild(i, holder(namedButton(n)))
+                insertChild(i, SwingNodeHolder(namedButton(n)))
             }
         }
         applier.onEndChanges()
@@ -246,7 +244,7 @@ class SwingApplierTest {
         applier.onBeginChanges()
         applier.onContainer(applier.root) {
             listOf("a", "b", "c", "d").forEachIndexed { i, n ->
-                insertChild(i, holder(namedButton(n)))
+                insertChild(i, SwingNodeHolder(namedButton(n)))
             }
         }
         applier.onEndChanges()
@@ -269,7 +267,7 @@ class SwingApplierTest {
         applier.onBeginChanges()
         applier.onContainer(applier.root) {
             listOf("a", "b", "c", "d").forEachIndexed { i, n ->
-                insertChild(i, holder(namedButton(n)))
+                insertChild(i, SwingNodeHolder(namedButton(n)))
             }
         }
         applier.onEndChanges()
@@ -292,7 +290,7 @@ class SwingApplierTest {
         applier.onBeginChanges()
         applier.onContainer(applier.root) {
             listOf("a", "b", "c", "d", "e").forEachIndexed { i, n ->
-                insertChild(i, holder(namedButton(n)))
+                insertChild(i, SwingNodeHolder(namedButton(n)))
             }
         }
         applier.onEndChanges()
@@ -315,7 +313,7 @@ class SwingApplierTest {
         applier.onBeginChanges()
         applier.onContainer(applier.root) {
             listOf("a", "b", "c", "d", "e").forEachIndexed { i, n ->
-                insertChild(i, holder(namedButton(n)))
+                insertChild(i, SwingNodeHolder(namedButton(n)))
             }
         }
         applier.onEndChanges()
@@ -338,7 +336,7 @@ class SwingApplierTest {
         applier.onBeginChanges()
         applier.onContainer(applier.root) {
             listOf("a", "b", "c").forEachIndexed { i, n ->
-                insertChild(i, holder(namedButton(n)))
+                insertChild(i, SwingNodeHolder(namedButton(n)))
             }
         }
         applier.onEndChanges()
@@ -368,7 +366,7 @@ class SwingApplierTest {
         applier.onBeginChanges()
         applier.onContainer(applier.root) {
             listOf("a", "b", "c").forEachIndexed { i, n ->
-                insertChild(i, holder(namedButton(n)))
+                insertChild(i, SwingNodeHolder(namedButton(n)))
             }
         }
         applier.onEndChanges()
@@ -387,8 +385,8 @@ class SwingApplierTest {
 
         applier.onBeginChanges()
         applier.onContainer(applier.root) {
-            insertChild(0, holder(namedButton("a")))
-            insertChild(1, holder(namedButton("b")))
+            insertChild(0, SwingNodeHolder(namedButton("a")))
+            insertChild(1, SwingNodeHolder(namedButton("b")))
         }
         val countBeforeEnd = root.revalidateCount
         applier.onEndChanges()
@@ -417,7 +415,7 @@ class SwingApplierTest {
         val applier = applierFor(root)
 
         applier.onBeginChanges()
-        applier.onContainer(applier.root) { insertChild(0, holder(namedButton("a"))) }
+        applier.onContainer(applier.root) { insertChild(0, SwingNodeHolder(namedButton("a"))) }
         // A pass that throws unwinds past the call the runtime would have ended it with, so the applier
         // is never told this one ended and the container it marked is never refreshed for it.
 
@@ -438,8 +436,8 @@ class SwingApplierTest {
         // Seed the container with two children in their own pass.
         applier.onBeginChanges()
         applier.onContainer(applier.root) {
-            insertChild(0, holder(namedButton("a")))
-            insertChild(1, holder(namedButton("b")))
+            insertChild(0, SwingNodeHolder(namedButton("a")))
+            insertChild(1, SwingNodeHolder(namedButton("b")))
         }
         applier.onEndChanges()
 
@@ -471,7 +469,7 @@ class SwingApplierTest {
 
         applier.onBeginChanges()
         applier.onContainer(applier.root) {
-            insertChild(0, holder(childPanel))
+            insertChild(0, SwingNodeHolder(childPanel))
         }
         applier.onEndChanges()
 
@@ -480,8 +478,8 @@ class SwingApplierTest {
 
         // Second pass: descend into the child container and add a leaf there.
         applier.onBeginChanges()
-        applier.onContainer(holder(childPanel)) {
-            insertChild(0, holder(JLabel("inner")))
+        applier.onContainer(SwingNodeHolder(childPanel)) {
+            insertChild(0, SwingNodeHolder(JLabel("inner")))
         }
         applier.onEndChanges()
 
@@ -509,11 +507,13 @@ class SwingApplierTest {
         component: Component,
         name: String = VIEWPORT_CALL,
         attachment: SlotAttachment = HoldsNothing,
-    ): SwingNodeHolder<Component> = holder(component).apply { applyModifierDiff(SwingModifier.slot(name, attachment)) }
+    ): SwingNodeHolder<Component> = SwingNodeHolder(component).apply {
+        applyModifierDiff(SwingModifier.slot(name, attachment))
+    }
 
     /** A `JSplitPane` holding its children on the two sides it offers, with neither side taken. */
     private fun splitHost(pane: JSplitPane): SwingNodeHolder<Component> =
-        holder(pane).apply { childPlacement = SplitSides }
+        SwingNodeHolder(pane).apply { childPlacement = SplitSides }
 
     @Test
     fun aChildFillingARegionIsRefusedByAHostThatAddsItsChildrenByIndex() = onEdt {
@@ -540,7 +540,8 @@ class SwingApplierTest {
         val applier = applierFor(JPanel())
         applier.root.childPlacement = ChildPlacement.Slots(VIEWPORT_CALL)
 
-        val failure = assertFailsWith<IllegalStateException> { applier.insertChild(0, holder(JLabel("by index"))) }
+        val failure =
+            assertFailsWith<IllegalStateException> { applier.insertChild(0, SwingNodeHolder(JLabel("by index"))) }
 
         val message = failure.message.orEmpty()
         assertTrue(
@@ -558,7 +559,7 @@ class SwingApplierTest {
         // A node's children are one index space, and the two kinds are reached through different Swing
         // calls, so the placement a host states holds for as long as that host holds children.
         val applier = applierFor(JPanel())
-        applier.insertChild(0, holder(JLabel("by index")))
+        applier.insertChild(0, SwingNodeHolder(JLabel("by index")))
 
         applier.root.childPlacement = ChildPlacement.Slots(VIEWPORT_CALL)
         val failure =
@@ -707,16 +708,16 @@ class SwingApplierTest {
     fun aRelocatedChildIsAttachedOnceTheChangePassHasSettled() = onEdt {
         val root = JPanel()
         val applier = applierFor(root)
-        val moved = holder(namedButton("moved"))
+        val moved = SwingNodeHolder(namedButton("moved"))
 
         // The relocated child stands between two freshly composed siblings, so the place it takes is one
         // the pass has to count rather than compose: while it waits, the sibling after it is attached at
         // the position the children already attached give it.
         applier.onBeginChanges()
         applier.onContainer(applier.root) {
-            insertChild(0, holder(namedButton("a")))
+            insertChild(0, SwingNodeHolder(namedButton("a")))
             relocateChild(1, moved)
-            insertChild(2, holder(namedButton("b")))
+            insertChild(2, SwingNodeHolder(namedButton("b")))
         }
 
         assertEquals(listOf("a", "b"), childNames(root), "a relocated child is not attached as it arrives")
@@ -787,7 +788,7 @@ class SwingApplierTest {
         applier.root.childPlacement = ChildPlacement.Slots(VIEWPORT_CALL)
 
         applier.onBeginChanges()
-        applier.onContainer(applier.root) { relocateChild(0, holder(JLabel("by index"))) }
+        applier.onContainer(applier.root) { relocateChild(0, SwingNodeHolder(JLabel("by index"))) }
         val failure = assertFailsWith<IllegalStateException> { applier.onEndChanges() }
 
         val message = failure.message.orEmpty()
@@ -805,7 +806,7 @@ class SwingApplierTest {
     fun aChainNamingBothARegionAndALayoutConstraintIsRefused() {
         // A parent holds a child by one of the two, so a chain declaring both says something no parent
         // can carry out, and neither placement is recorded.
-        val child = holder(JLabel("placed twice"))
+        val child = SwingNodeHolder(JLabel("placed twice"))
 
         val failure =
             assertFailsWith<IllegalStateException> {

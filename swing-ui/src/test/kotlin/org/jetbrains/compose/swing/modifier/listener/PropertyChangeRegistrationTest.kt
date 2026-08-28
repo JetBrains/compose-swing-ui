@@ -8,6 +8,7 @@ import org.jetbrains.compose.swing.components.layout.FlowPanel
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import java.awt.Color
 import java.beans.PropertyChangeListener
 import javax.swing.JButton
 import kotlin.test.Test
@@ -44,7 +45,7 @@ class PropertyChangeRegistrationTest {
         watched = "foreground"
         awaitIdle()
 
-        button.foreground = java.awt.Color.RED
+        button.foreground = Color.RED
         assertEquals(
             listOf("enabled", "foreground"),
             seen,

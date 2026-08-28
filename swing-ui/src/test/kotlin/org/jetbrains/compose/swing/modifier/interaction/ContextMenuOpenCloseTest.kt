@@ -40,7 +40,7 @@ class ContextMenuOpenCloseTest {
                     SwingModifier.contextMenu(
                         display = { popup, invoker, x, y ->
                             captured = popup
-                            showPopupAt(popup, invoker, x, y)
+                            popup.show(invoker, x, y)
                         },
                     ) {
                         MenuItem("Cut", onClick = { })

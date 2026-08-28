@@ -1,6 +1,5 @@
 package org.jetbrains.compose.swing.node
 
-import java.awt.Component
 import javax.swing.JMenu
 import javax.swing.JMenuBar
 import javax.swing.JMenuItem
@@ -22,8 +21,6 @@ import kotlin.test.assertSame
  * than by the shared test helper's `menuItemTexts()`, which reads a live menu on the EDT.
  */
 class MenuApplierTest {
-    private fun holder(component: Component): SwingNodeHolder<*> = SwingNodeHolder(component)
-
     /** Positions `current` on [node], runs [block], and returns to the previous node. */
     private fun MenuApplier.onNode(
         node: SwingNodeHolder<*>,
@@ -50,7 +47,7 @@ class MenuApplierTest {
 
         applier.onBeginChanges()
         applier.onNode(applier.root) {
-            insertBottomUp(0, holder(menu))
+            insertBottomUp(0, SwingNodeHolder(menu))
         }
         applier.onEndChanges()
 
@@ -63,15 +60,15 @@ class MenuApplierTest {
         val bar = JMenuBar()
         val applier = MenuApplier(SwingNodeHolder(bar).attachedTo(TestCompositionOwner.unobserved()))
         val menu = JMenu("File")
-        val menuHolder = holder(menu)
+        val menuHolder = SwingNodeHolder(menu)
 
         applier.onBeginChanges()
         applier.onNode(applier.root) { insertBottomUp(0, menuHolder) }
         applier.onNode(menuHolder) {
-            insertBottomUp(0, holder(namedItem("a")))
-            insertBottomUp(1, holder(namedItem("b")))
+            insertBottomUp(0, SwingNodeHolder(namedItem("a")))
+            insertBottomUp(1, SwingNodeHolder(namedItem("b")))
             // Insert "c" between a and b.
-            insertBottomUp(1, holder(namedItem("c")))
+            insertBottomUp(1, SwingNodeHolder(namedItem("c")))
         }
         applier.onEndChanges()
 
@@ -83,14 +80,14 @@ class MenuApplierTest {
         val bar = JMenuBar()
         val applier = MenuApplier(SwingNodeHolder(bar).attachedTo(TestCompositionOwner.unobserved()))
         val menu = JMenu("File")
-        val menuHolder = holder(menu)
+        val menuHolder = SwingNodeHolder(menu)
 
         applier.onBeginChanges()
         applier.onNode(applier.root) { insertBottomUp(0, menuHolder) }
         applier.onNode(menuHolder) {
-            insertBottomUp(0, holder(namedItem("a")))
-            insertBottomUp(1, holder(namedItem("b")))
-            insertBottomUp(2, holder(namedItem("c")))
+            insertBottomUp(0, SwingNodeHolder(namedItem("a")))
+            insertBottomUp(1, SwingNodeHolder(namedItem("b")))
+            insertBottomUp(2, SwingNodeHolder(namedItem("c")))
             remove(1, 1)
         }
         applier.onEndChanges()
@@ -103,14 +100,14 @@ class MenuApplierTest {
         val bar = JMenuBar()
         val applier = MenuApplier(SwingNodeHolder(bar).attachedTo(TestCompositionOwner.unobserved()))
         val menu = JMenu("File")
-        val menuHolder = holder(menu)
+        val menuHolder = SwingNodeHolder(menu)
 
         applier.onBeginChanges()
         applier.onNode(applier.root) { insertBottomUp(0, menuHolder) }
         applier.onNode(menuHolder) {
-            insertBottomUp(0, holder(namedItem("a")))
-            insertBottomUp(1, holder(namedItem("b")))
-            insertBottomUp(2, holder(namedItem("c")))
+            insertBottomUp(0, SwingNodeHolder(namedItem("a")))
+            insertBottomUp(1, SwingNodeHolder(namedItem("b")))
+            insertBottomUp(2, SwingNodeHolder(namedItem("c")))
             // Move the last item to the front.
             move(2, 0, 1)
         }
@@ -124,14 +121,14 @@ class MenuApplierTest {
         val bar = JMenuBar()
         val applier = MenuApplier(SwingNodeHolder(bar).attachedTo(TestCompositionOwner.unobserved()))
         val menu = JMenu("File")
-        val menuHolder = holder(menu)
+        val menuHolder = SwingNodeHolder(menu)
 
         applier.onBeginChanges()
         applier.onNode(applier.root) { insertBottomUp(0, menuHolder) }
         applier.onNode(menuHolder) {
-            insertBottomUp(0, holder(namedItem("a")))
-            insertBottomUp(1, holder(namedItem("b")))
-            insertBottomUp(2, holder(namedItem("c")))
+            insertBottomUp(0, SwingNodeHolder(namedItem("a")))
+            insertBottomUp(1, SwingNodeHolder(namedItem("b")))
+            insertBottomUp(2, SwingNodeHolder(namedItem("c")))
             // Move the first item forward past the other two; the target index addresses the list as
             // it looks before the move.
             move(0, 3, 1)
@@ -146,13 +143,13 @@ class MenuApplierTest {
         val bar = JMenuBar()
         val applier = MenuApplier(SwingNodeHolder(bar).attachedTo(TestCompositionOwner.unobserved()))
         val menu = JMenu("File")
-        val menuHolder = holder(menu)
+        val menuHolder = SwingNodeHolder(menu)
 
         applier.onBeginChanges()
         applier.onNode(applier.root) { insertBottomUp(0, menuHolder) }
         applier.onNode(menuHolder) {
-            insertBottomUp(0, holder(namedItem("a")))
-            insertBottomUp(1, holder(namedItem("b")))
+            insertBottomUp(0, SwingNodeHolder(namedItem("a")))
+            insertBottomUp(1, SwingNodeHolder(namedItem("b")))
             move(1, 1, 1)
         }
         applier.onEndChanges()
@@ -164,12 +161,12 @@ class MenuApplierTest {
     fun insertAfterAParkedSiblingLandsAfterTheSurvivor() {
         val popup = JPopupMenu()
         val applier = MenuApplier(SwingNodeHolder(popup).attachedTo(TestCompositionOwner.unobserved()))
-        val first = holder(namedItem("first"))
+        val first = SwingNodeHolder(namedItem("first"))
 
         applier.onBeginChanges()
         applier.onNode(applier.root) {
             insertBottomUp(0, first)
-            insertBottomUp(1, holder(namedItem("second")))
+            insertBottomUp(1, SwingNodeHolder(namedItem("second")))
         }
         applier.onEndChanges()
 
@@ -182,7 +179,7 @@ class MenuApplierTest {
         applier.onNode(applier.root) {
             // The runtime still counts the parked group, so the composition index is past the end of
             // what the popup holds.
-            insertBottomUp(2, holder(namedItem("third")))
+            insertBottomUp(2, SwingNodeHolder(namedItem("third")))
         }
         applier.onEndChanges()
 
@@ -197,12 +194,12 @@ class MenuApplierTest {
     fun removeOfAParkedHolderLeavesTheAttachedItemsAlone() {
         val popup = JPopupMenu()
         val applier = MenuApplier(SwingNodeHolder(popup).attachedTo(TestCompositionOwner.unobserved()))
-        val first = holder(namedItem("first"))
+        val first = SwingNodeHolder(namedItem("first"))
 
         applier.onBeginChanges()
         applier.onNode(applier.root) {
             insertBottomUp(0, first)
-            insertBottomUp(1, holder(namedItem("second")))
+            insertBottomUp(1, SwingNodeHolder(namedItem("second")))
         }
         applier.onEndChanges()
         first.onDeactivate()
@@ -212,7 +209,7 @@ class MenuApplierTest {
         applier.onBeginChanges()
         applier.onNode(applier.root) {
             remove(0, 1)
-            insertBottomUp(0, holder(namedItem("fresh")))
+            insertBottomUp(0, SwingNodeHolder(namedItem("fresh")))
         }
         applier.onEndChanges()
 
@@ -227,13 +224,13 @@ class MenuApplierTest {
     fun movingAcrossAParkedSiblingKeepsTheDeclaredOrder() {
         val popup = JPopupMenu()
         val applier = MenuApplier(SwingNodeHolder(popup).attachedTo(TestCompositionOwner.unobserved()))
-        val first = holder(namedItem("a"))
+        val first = SwingNodeHolder(namedItem("a"))
 
         applier.onBeginChanges()
         applier.onNode(applier.root) {
             insertBottomUp(0, first)
-            insertBottomUp(1, holder(namedItem("b")))
-            insertBottomUp(2, holder(namedItem("c")))
+            insertBottomUp(1, SwingNodeHolder(namedItem("b")))
+            insertBottomUp(2, SwingNodeHolder(namedItem("c")))
         }
         applier.onEndChanges()
 
@@ -258,13 +255,13 @@ class MenuApplierTest {
     fun movingARangeThatHoldsAParkedHolderLeavesItDetached() {
         val popup = JPopupMenu()
         val applier = MenuApplier(SwingNodeHolder(popup).attachedTo(TestCompositionOwner.unobserved()))
-        val first = holder(namedItem("a"))
+        val first = SwingNodeHolder(namedItem("a"))
 
         applier.onBeginChanges()
         applier.onNode(applier.root) {
             insertBottomUp(0, first)
-            insertBottomUp(1, holder(namedItem("b")))
-            insertBottomUp(2, holder(namedItem("c")))
+            insertBottomUp(1, SwingNodeHolder(namedItem("b")))
+            insertBottomUp(2, SwingNodeHolder(namedItem("c")))
         }
         applier.onEndChanges()
 
@@ -291,8 +288,8 @@ class MenuApplierTest {
 
         applier.onBeginChanges()
         applier.onNode(applier.root) {
-            insertBottomUp(0, holder(namedItem("cut")))
-            insertBottomUp(1, holder(namedItem("copy")))
+            insertBottomUp(0, SwingNodeHolder(namedItem("cut")))
+            insertBottomUp(1, SwingNodeHolder(namedItem("copy")))
         }
         applier.onEndChanges()
 
@@ -316,8 +313,8 @@ class MenuApplierTest {
 
         applier.onBeginChanges()
         applier.onNode(applier.root) {
-            insertBottomUp(0, holder(JMenu("File")))
-            insertBottomUp(1, holder(JMenu("Edit")))
+            insertBottomUp(0, SwingNodeHolder(JMenu("File")))
+            insertBottomUp(1, SwingNodeHolder(JMenu("Edit")))
         }
         applier.onEndChanges()
         assertEquals(2, bar.menuCount, "the bar should hold both menus before clearing")

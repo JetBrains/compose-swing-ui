@@ -37,6 +37,7 @@ import org.jetbrains.compose.swing.window.launchApplication
 import org.jetbrains.compose.swing.window.rememberDialogState
 import org.jetbrains.compose.swing.window.rememberWindowState
 import java.awt.Color
+import java.awt.Dialog.ModalityType
 import java.awt.Dimension
 import java.awt.Frame
 import java.awt.Image
@@ -195,7 +196,7 @@ private fun ColumnScope.ModalDialogCard() {
         var acknowledged by remember { mutableStateOf(false) }
         // Hoisted above the `if (open)` so the dialog reopens at whatever size it was last left.
         val state = rememberDialogState(size = Dimension(360, 200))
-        var modality by remember { mutableStateOf(java.awt.Dialog.ModalityType.APPLICATION_MODAL) }
+        var modality by remember { mutableStateOf(ModalityType.APPLICATION_MODAL) }
         val chrome = remember { DialogChromeState() }
         val icon = remember { windowIconImage() }
 
@@ -206,18 +207,18 @@ private fun ColumnScope.ModalDialogCard() {
         FlowPanel {
             RadioButton(
                 "Modeless",
-                selected = modality == java.awt.Dialog.ModalityType.MODELESS,
-                onSelectedChange = { modality = java.awt.Dialog.ModalityType.MODELESS },
+                selected = modality == ModalityType.MODELESS,
+                onSelectedChange = { modality = ModalityType.MODELESS },
             )
             RadioButton(
                 "Document modal",
-                selected = modality == java.awt.Dialog.ModalityType.DOCUMENT_MODAL,
-                onSelectedChange = { modality = java.awt.Dialog.ModalityType.DOCUMENT_MODAL },
+                selected = modality == ModalityType.DOCUMENT_MODAL,
+                onSelectedChange = { modality = ModalityType.DOCUMENT_MODAL },
             )
             RadioButton(
                 "Application modal",
-                selected = modality == java.awt.Dialog.ModalityType.APPLICATION_MODAL,
-                onSelectedChange = { modality = java.awt.Dialog.ModalityType.APPLICATION_MODAL },
+                selected = modality == ModalityType.APPLICATION_MODAL,
+                onSelectedChange = { modality = ModalityType.APPLICATION_MODAL },
             )
         }
         DialogChromeControls(chrome)

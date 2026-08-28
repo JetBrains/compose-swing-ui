@@ -13,6 +13,7 @@ import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.GraphicsEnvironment
+import java.awt.Window
 import javax.swing.JDialog
 import javax.swing.JPanel
 import kotlin.test.Test
@@ -131,7 +132,7 @@ private suspend fun settle(
     yield()
 }
 
-private fun realizedDialog(): JDialog? = java.awt.Window
+private fun realizedDialog(): JDialog? = Window
     .getWindows()
     .filterIsInstance<JDialog>()
     .firstOrNull { it.title == DIALOG_TITLE }

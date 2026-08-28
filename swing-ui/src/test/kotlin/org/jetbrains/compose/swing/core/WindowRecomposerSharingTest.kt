@@ -8,6 +8,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.Snapshot
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.DisposableHandle
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
@@ -43,7 +44,7 @@ class WindowRecomposerSharingTest {
     private val clock = BroadcastFrameClock()
     private val scope = CoroutineScope(Dispatchers.Swing + Job() + clock)
     private val recomposer = Recomposer(scope.coroutineContext)
-    private val handles = mutableListOf<kotlinx.coroutines.DisposableHandle>()
+    private val handles = mutableListOf<DisposableHandle>()
     private var frameTimeNanos = 0L
 
     init {

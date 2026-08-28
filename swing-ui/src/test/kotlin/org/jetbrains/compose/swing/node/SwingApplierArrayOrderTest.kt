@@ -37,8 +37,6 @@ class SwingApplierArrayOrderTest {
         constraint: Any,
     ): SwingNodeHolder<*> = SwingNodeHolder(component).also { it.applyConstraint(constraint) }
 
-    private fun holder(component: Component): SwingNodeHolder<*> = SwingNodeHolder(component)
-
     private val owners = mutableListOf<TestCompositionOwner>()
 
     /**
@@ -183,7 +181,7 @@ class SwingApplierArrayOrderTest {
         applier.onBeginChanges()
         applier.onContainer(applier.root) {
             insertBottomUp(0, constrainedHolder(namedButton("north"), BorderLayout.NORTH))
-            insertBottomUp(1, holder(namedButton("plain")))
+            insertBottomUp(1, SwingNodeHolder(namedButton("plain")))
             insertBottomUp(2, constrainedHolder(namedButton("south"), BorderLayout.SOUTH))
         }
         applier.onEndChanges()

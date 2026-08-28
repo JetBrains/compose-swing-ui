@@ -1,6 +1,8 @@
 package org.jetbrains.compose.swing.window
 
+import androidx.compose.runtime.Applier
 import androidx.compose.runtime.BroadcastFrameClock
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Composition
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -114,10 +116,10 @@ class WindowContentChildCompositionTest {
      * the effect), then mount [content] into the detached [host] as a child of that context.
      * Identical in shape to `Window`'s body.
      */
-    @androidx.compose.runtime.Composable
+    @Composable
     private fun HostDetachedContent(
         host: Container,
-        content: @androidx.compose.runtime.Composable () -> Unit,
+        content: @Composable () -> Unit,
     ) {
         val parentContext = rememberCompositionContext()
         DisposableEffect(Unit) {
@@ -175,7 +177,7 @@ class WindowContentChildCompositionTest {
     }
 
     /** A no-op applier, matching how the application composition has no Swing root of its own. */
-    private class NoOpApplier : androidx.compose.runtime.Applier<Any> {
+    private class NoOpApplier : Applier<Any> {
         override val current: Any = Unit
 
         override fun down(node: Any) = Unit

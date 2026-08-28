@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.tooling
 
+import java.lang.annotation.Retention
 import java.lang.annotation.RetentionPolicy
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -27,7 +28,7 @@ class PreviewTest {
 
     @Test
     fun theAnnotationIsReadableAtRuntime() {
-        val retention = Preview::class.java.getAnnotation(java.lang.annotation.Retention::class.java)
+        val retention = Preview::class.java.getAnnotation(Retention::class.java)
         assertNotNull(retention, "a renderer reads Preview off a loaded class, so it must survive to runtime")
         assertEquals(
             RetentionPolicy.RUNTIME,

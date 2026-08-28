@@ -139,7 +139,7 @@ class SpinnerEditorBehaviorTest {
         awaitIdle()
 
         assertSame(host, spinner.editor, "a step recomposes the editor composition rather than rebuilding it")
-        assertEquals("value 4", host.firstLabelText(), "and the composition renders the value it now reads")
+        assertEquals("value 4", host.firstLabelText(), "and that composition renders the value it now reads")
     }
 
     /** The text of the first [JLabel] anywhere beneath this component. */
@@ -245,10 +245,10 @@ class SpinnerEditorBehaviorTest {
 
     @Test
     fun swappingTheModelRebuildsTheEditorForItsKind() = runComposeSwingTest {
-        val number = javax.swing.SpinnerNumberModel(5, 0, 10, 1)
-        val dates = javax.swing.SpinnerDateModel()
+        val number = SpinnerNumberModel(5, 0, 10, 1)
+        val dates = SpinnerDateModel()
         var numeric by mutableStateOf(true)
-        setContent { Spinner(if (numeric) number else dates, changeListener = javax.swing.event.ChangeListener {}) }
+        setContent { Spinner(if (numeric) number else dates, changeListener = ChangeListener {}) }
         awaitIdle()
 
         val spinner = onNodeOfType<JSpinner>().fetch()

@@ -7,6 +7,7 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import java.awt.Color
 import javax.swing.BorderFactory
 import javax.swing.JScrollPane
 import javax.swing.border.Border
@@ -25,7 +26,7 @@ class ScrollPaneContainerPropertiesTest {
     @Test
     fun theViewportBorderFollowsEveryDeclaredValue() = runComposeSwingTest {
         val first: Border = BorderFactory.createEmptyBorder(1, 1, 1, 1)
-        val second: Border = BorderFactory.createLineBorder(java.awt.Color.RED)
+        val second: Border = BorderFactory.createLineBorder(Color.RED)
         var border by mutableStateOf<Border?>(first)
         setContent {
             ScrollPane(viewportBorder = border) {

@@ -60,7 +60,7 @@ public fun SwingModifier.popupMenu(
     popupMenu(
         expanded = expanded,
         onDismiss = onDismiss,
-        display = ::showPopupAt,
+        display = JPopupMenu::show,
         content = content,
     )
 
@@ -146,7 +146,7 @@ private class PopupMenuElement(
         var parentContext: CompositionContext,
     ) : SwingModifier.Node<Component>() {
         var onDismiss: () -> Unit = {}
-        var display: (popup: JPopupMenu, invoker: Component, x: Int, y: Int) -> Unit = ::showPopupAt
+        var display: (popup: JPopupMenu, invoker: Component, x: Int, y: Int) -> Unit = JPopupMenu::show
         var content:
             @Composable @SwingMenuComposable
             () -> Unit = {}

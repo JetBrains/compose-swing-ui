@@ -460,7 +460,7 @@ private fun <T> ListBoxNode(
             // and the composable cell is the one whose per-row measurement the caller is buying out.
             applyModifier(
                 modifier
-                    .onListSelection(onUserSelection)
+                    .listSelectionListener(onUserSelection)
                     .composableItemCells(itemRenderer)
                     .listCellSizing(prototypeCellValue, fixedCellWidth, fixedCellHeight),
             )
@@ -477,13 +477,6 @@ private fun settledSelectionListener(onSelectionChange: (Set<Int>) -> Unit): Lis
     ListSelectionListener { event ->
         if (!event.valueIsAdjusting) onSelectionChange((event.source as JList<*>).selectedIndices.toSet())
     }
-
-/**
- * Hands the list's own selection events to [onChange], which is read live: the registration is made once
- * per list, so a pass declaring another listener to forward to costs a field write and no re-attach.
- */
-private fun SwingModifier.onListSelection(onChange: (ListSelectionEvent) -> Unit): SwingModifier =
-    listSelectionListener(onChange)
 
 /**
  * Gives the list new content through [install], keeping the rows [declared] names selected - or, where the
