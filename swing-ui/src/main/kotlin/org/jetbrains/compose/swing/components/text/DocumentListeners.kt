@@ -92,6 +92,10 @@ private val TEXT_EDITS =
  * is written where the component does not already hold it, through [mirror] so the write does not echo
  * back as the user's own, and an edit the caller does not answer with a matching [value] is settled
  * back onto the declared text on the pass that carries their answer.
+ *
+ * Only the span that differs is written, so settling an edit back leaves the caret where it stands. It
+ * is diffed against the text the settlement has already read, so writing it back costs no second
+ * materialization of the document.
  */
 internal fun <C : JTextComponent> SwingNodeUpdater<C>.declareText(
     value: String,
@@ -101,6 +105,6 @@ internal fun <C : JTextComponent> SwingNodeUpdater<C>.declareText(
         value,
         mirror,
         read = { document.fullText() },
-        write = { document.replaceSpan(0, document.length, it) },
+        write = { held, declared -> document.replaceChangedSpan(held, declared) },
     )
 }

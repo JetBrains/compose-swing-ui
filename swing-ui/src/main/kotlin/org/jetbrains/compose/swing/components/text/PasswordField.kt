@@ -13,6 +13,7 @@ import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
 import org.jetbrains.compose.swing.node.declare
 import org.jetbrains.compose.swing.node.rememberMirrorState
+import java.nio.CharBuffer
 import javax.swing.JPasswordField
 import javax.swing.event.DocumentListener
 import javax.swing.text.Document
@@ -63,9 +64,8 @@ public fun PasswordField(
     PasswordFieldNode(
         value = value,
         mirror = mirror,
-        // Deliver the raw characters by reading the document into a char array via a Segment, keeping
-        // the password out of an unzeroable String. The array applied mirrors is retained as-is; the
-        // callback is handed a distinct copy of its own, free to zero without corrupting that mirror.
+        // Delivers the raw characters, read out of the document into a char array through a Segment,
+        // so the password never reaches a String the caller cannot zero. See PASSWORD_EDITS.
         modifier = modifier.listener(PasswordEdit(mirror, onValueChange), PASSWORD_EDITS),
         echoChar = echoChar,
         columns = columns,
@@ -169,10 +169,10 @@ private class PasswordChars(
 
 /**
  * Declares [value] as this password field's characters, keeping [mirror] in sync with them through
- * [declare]: they are written where the field does not already hold them, through [mirror] so the write
- * does not echo back as the user's own, and characters the field settles on that the caller does not
- * answer with a matching [value] are settled back onto the declared ones on the pass that carries their
- * answer.
+ * [declare]: they are written where the field does not already hold them, through [mirror] so
+ * the write does not echo back as the user's own, and characters the field settles on that the caller
+ * does not answer with a matching [value] are settled back onto the declared ones on the pass that
+ * carries their answer.
  *
  * `getPassword()` answers with a fresh array on every call and leaves zeroing it to whoever read it, and
  * a settlement reads one for each comparison it makes. Each read zeroes the array the read before it
@@ -191,7 +191,13 @@ private fun <C : JPasswordField> SwingNodeUpdater<C>.declarePassword(
             lastRead[0]?.fill('\u0000')
             PasswordChars(password).also { lastRead[0] = it.chars }
         },
-        write = { text = String(it.chars) },
+        // Diffed as a view over the two arrays, so the only characters reaching a String are the ones
+        // the declaration changes - and a settle putting a refused keystroke back changes none. What is
+        // diffed against is the array the settlement has already read, which the read after the write
+        // zeroes with every other one, so no further copy of the characters is made here.
+        write = { held, declared ->
+            document.replaceChangedSpan(CharBuffer.wrap(held.chars), CharBuffer.wrap(declared.chars))
+        },
     )
 }
 
@@ -292,8 +298,8 @@ private class PasswordEdit(
     val onValueChange: (CharArray) -> Unit,
 )
 
-// The array applied mirrors is retained as-is; the callback is handed a distinct copy of its own, free
-// to zero without corrupting that mirror.
+// The array the mirror retains is kept as it stands; the callback is handed a copy of its own, which it
+// is free to zero without corrupting that mirror.
 private val PASSWORD_EDITS =
     documentMirrorRegistration<PasswordEdit>(
         onEdit = { edit, document ->

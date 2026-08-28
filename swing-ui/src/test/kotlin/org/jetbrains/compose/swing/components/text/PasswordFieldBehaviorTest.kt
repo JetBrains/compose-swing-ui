@@ -130,6 +130,21 @@ class PasswordFieldBehaviorTest {
             read = { String(it.password) },
         )
     }
+
+    @Test
+    fun anUnadoptedEditPreservesTheCaretPosition() = runComposeSwingTest {
+        setContent { PasswordField(value = "abc".toCharArray(), onValueChange = {}) }
+
+        val field = onNodeOfType<JPasswordField>().fetch()
+        field.caretPosition = 1
+        awaitIdle()
+
+        field.type("x")
+        awaitIdle()
+
+        assertEquals("abc", String(field.password), "the declaration refuses the keystroke")
+        assertEquals(1, field.caretPosition, "the unadopted edit should be rolled back without collapsing the caret")
+    }
 }
 
 private fun noopDocumentListener(): DocumentListener = object : DocumentListener {

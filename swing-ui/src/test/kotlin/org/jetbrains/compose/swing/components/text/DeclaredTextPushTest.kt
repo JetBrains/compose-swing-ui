@@ -374,6 +374,21 @@ class DeclaredTextPushTest {
     }
 
     @Test
+    fun settlingAnEditBackLeavesTheCaretWhereTheRefusedKeystrokeWouldHaveGone() = runComposeSwingTest {
+        setContent { TextField(value = "hello", onValueChange = {}) }
+
+        // Settling rewrites only the span that differs, so the caret keeps standing against the text
+        // around it. Rewriting the whole document would collapse it to the end on every refused edit.
+        val field = onNodeOfType<JTextField>().fetch<JTextField>()
+        field.caretPosition = 2
+        field.document.insertString(2, "!", null)
+        awaitIdle()
+
+        onNodeOfType<JTextField>().assertTextEquals("hello")
+        assertEquals(2, field.caretPosition, "the caret stays where the refused keystroke was typed")
+    }
+
+    @Test
     fun aTextAreaEditTheCallerDoesNotAdoptIsSettledBack() = runComposeSwingTest {
         setContent { TextArea(value = "hello", onValueChange = {}) }
 

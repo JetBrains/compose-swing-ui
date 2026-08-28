@@ -133,10 +133,8 @@ owns the document outright.
 
 The `value` forms are strictly controlled, settled like every other
 [declared value](ARCHITECTURE.md#shapes-for-state-the-user-can-change). `FormattedTextField` holds its
-committed value the same way. For `TextField`, `TextArea` and `TextPane`, settling back rewrites the
-whole document, which leaves the caret at its end - a callback that filters a keystroke rather than
-adopting it sees the caret jump there on every rejected edit; a `DocumentState` has no un-adopted edit
-to settle and so no jump.
+committed value the same way. For `TextField`, `TextArea` and `TextPane`, a callback that filters a
+keystroke rather than adopting it leaves the caret where that keystroke would have gone.
 
 Reach for the hoisted `DocumentState` form where you do not need the text on every keystroke: the
 state owns the document, so there is no un-adopted edit to settle at all, and it is also what gives

@@ -23,9 +23,10 @@ import kotlin.test.assertEquals
  * settle makes included. An edit is published to the composition by the idle gate, which sends no frame of
  * its own while the test drives them, so the frame that follows is the apply pass that carries it.
  *
- * A settle writes the declared text as a single replace, which the document publishes as a removal of
- * everything it held followed by an insertion of the declaration; each entry below is the kind of change
- * and the document's length once it has been made.
+ * A settle writes only the span that differs, which the document publishes as a removal of that span
+ * and, where the declaration puts text in its place, an insertion; each entry below is the kind of
+ * change and the document's length once it has been made. Putting a typed character back is therefore
+ * a removal alone.
  */
 class TextSettlePassTimingTest {
     @Test
@@ -51,7 +52,7 @@ class TextSettlePassTimingTest {
         mainClock.advanceTimeByFrame()
 
         assertEquals(
-            listOf(EDIT, CLEARED, DECLARATION_WRITTEN),
+            listOf(EDIT, DECLARATION_RESTORED),
             changes,
             "the pass carrying the caller's answer should write the standing declaration back",
         )
@@ -114,7 +115,7 @@ class TextSettlePassTimingTest {
         mainClock.advanceTimeByFrame()
 
         assertEquals(
-            listOf(EDIT, CLEARED, ANSWER_WRITTEN),
+            listOf(EDIT, ANSWER_REPLACED, ANSWER_WRITTEN),
             changes,
             "the pass carrying the answer should write it, once",
         )
@@ -131,13 +132,13 @@ class TextSettlePassTimingTest {
         /** The user's keystroke, which the document publishes as an insertion. */
         const val EDIT = "insert@6"
 
-        /** The removal half of a settle's replace, which empties the document. */
-        const val CLEARED = "remove@0"
+        /** A settle putting [DECLARED] back, which takes the typed character off and adds nothing. */
+        const val DECLARATION_RESTORED = "remove@5"
 
-        /** The insertion half of a settle that puts [DECLARED] back. */
-        const val DECLARATION_WRITTEN = "insert@5"
+        /** The removal half of a settle onto an answer that differs from [EDITED] everywhere but its last character. */
+        const val ANSWER_REPLACED = "remove@1"
 
-        /** The insertion half of a settle onto an answer as long as [EDITED]. */
+        /** The insertion half of that settle, which leaves the document as long as [EDITED]. */
         const val ANSWER_WRITTEN = "insert@6"
     }
 }

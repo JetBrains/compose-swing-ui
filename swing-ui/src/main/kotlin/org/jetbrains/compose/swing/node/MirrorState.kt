@@ -231,7 +231,7 @@ public class MirrorState<V>
             write: (V) -> Unit,
             onSettled: (V) -> Unit = {},
         ) {
-            val settled = leftHolding(declared, read, write)
+            val settled = leftHolding(declared, read) { _, declaredValue -> write(declaredValue) }
             // Runs while the composition applies its changes; dispatchToCaller keeps a callback failure
             // from ending the composition.
             if (settled != declared) dispatchToCaller { onSettled(settled) }
@@ -245,15 +245,20 @@ public class MirrorState<V>
          * This is what a declaration settles through. The accessors a component declares are the same on
          * every pass, so handing them over with the component they read and write - rather than in blocks
          * built around it - is what leaves a settling pass with nothing to build.
+         *
+         * [write] is told what the widget holds as well as what is declared, so a write that is a
+         * transition rather than an assignment can write only the part that differs. The held value is
+         * the one this settlement has already read, so that write costs no second read of the widget.
          */
         internal fun <C> settleThrough(
             component: C,
             declared: V,
             read: C.() -> V,
-            write: C.(V) -> Unit,
+            write: C.(held: V, declared: V) -> Unit,
             onSettled: C.(V) -> Unit,
         ) {
-            val settled = leftHolding(declared, { component.read() }, { written -> component.write(written) })
+            val settled =
+                leftHolding(declared, { component.read() }) { held, written -> component.write(held, written) }
             if (settled != declared) dispatchToCaller { component.onSettled(settled) }
         }
 
@@ -276,7 +281,7 @@ public class MirrorState<V>
         private inline fun leftHolding(
             declared: V,
             read: () -> V,
-            crossinline write: (V) -> Unit,
+            crossinline write: (held: V, declared: V) -> Unit,
         ): V =
             bracketed {
                 val held = read()
@@ -284,7 +289,7 @@ public class MirrorState<V>
                     if (held == declared) {
                         held
                     } else {
-                        appliedWrite.write { write(declared) }
+                        appliedWrite.write { write(held, declared) }
                         read()
                     }
                 answered(current)
@@ -460,6 +465,33 @@ public fun <C : Component, V> SwingNodeUpdater<C>.declare(
     //
     // The accessors are handed to the mirror as they are, together with the component they read and write:
     // a settling pass builds the settlement itself and nothing besides.
+    settleWhenDue(
+        mirror.redeclare(value),
+        {
+            Settlement<C> { component ->
+                mirror.settleThrough(component, value, read, { _, written -> write(written) }, onSettled)
+            }
+        },
+    ) { settlement -> settlement.applyTo(this) }
+}
+
+/**
+ * Declares [value] onto a widget property whose write is a transition rather than an assignment: [write]
+ * is handed what the widget holds alongside what is declared, so it can write only the part that differs
+ * and leave what the rest of the value anchors standing - the caret inside a document, above all. The
+ * held value is the one the settlement has already read, so the write costs no second read.
+ *
+ * Everything the assigning overload says about when a settlement runs, and about calling it once per
+ * pass for one node, holds here too.
+ */
+public fun <C : Component, V> SwingNodeUpdater<C>.declare(
+    value: V,
+    mirror: MirrorState<V>,
+    read: C.() -> V,
+    write: C.(held: V, declared: V) -> Unit,
+    onSettled: C.(V) -> Unit = {},
+) {
+    applyMirror(mirror)
     settleWhenDue(
         mirror.redeclare(value),
         { Settlement<C> { component -> mirror.settleThrough(component, value, read, write, onSettled) } },

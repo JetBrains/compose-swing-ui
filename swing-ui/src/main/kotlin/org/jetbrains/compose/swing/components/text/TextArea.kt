@@ -19,9 +19,8 @@ import javax.swing.event.DocumentListener
  *
  * This area is strictly controlled: text the area settles on that [onValueChange] does not answer with
  * a matching [value] is settled back onto the declared value on the very next pass, so the area never
- * ends up holding text the caller has not adopted. Settling back rewrites the whole document, which
- * leaves the caret at its end - a callback that filters a keystroke rather than adopting it sees the
- * caret jump there on every rejected edit.
+ * ends up holding text the caller has not adopted. A callback that filters a keystroke rather than
+ * adopting it leaves the caret where that keystroke would have gone.
  *
  * For incremental editing over a shared `Document`, undo/redo, or observing the text as a flow, drive the
  * area with the [DocumentState] overload ([TextArea]) and a [DocumentState] from `rememberDocumentState`.

@@ -396,9 +396,12 @@ private fun JTextComponent.applySelection(range: TextRange): TextRange {
     return TextRange(caret.mark, caret.dot)
 }
 
-// Applies the minimal changed span between [current] and [next] through document.replace, so a small
-// edit to a large document rebuilds only the changed region rather than the whole gap buffer.
-private fun Document.replaceChangedSpan(
+/**
+ * Replaces only the span that differs between [current] and [next], so a small edit to a large document
+ * rebuilds only that region, and every position the document holds - the caret above all - survives it.
+ * Replacing the whole document would put the caret at its end on every write.
+ */
+internal fun Document.replaceChangedSpan(
     current: CharSequence,
     next: CharSequence,
 ) {

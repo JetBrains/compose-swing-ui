@@ -315,6 +315,10 @@ These pieces work together. For why settling works this way, see
   through `mirror` wherever `read()` does not already answer with it, and keeps the mirror in step with
   whatever the widget ends up holding. Unlike `set`, it runs again on the pass that follows a change
   away from the declaration.
+- `declare` also takes a `write` of two arguments, `(held, declared)`, where assigning the whole value
+  would destroy what the rest of it anchors: writing a document's text moves the caret to its end, so a
+  text component writes back only the span that changed. `held` is what the settlement already read, so
+  that write costs no second read.
 - `mirror.settle { ... }` is for a write the widget does not simply accept. Installing a row filter makes
   a table drop the selected rows it hides. Declaring a tree's open nodes and its selection separately
   lets the tree resolve the pair its own way, since a node is only selectable while its ancestors are
