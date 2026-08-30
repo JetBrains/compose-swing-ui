@@ -215,14 +215,16 @@ public fun <T> ComboBox(
  * [installContent] declares - a declarative items list in one family of overloads, the caller's own model
  * in the other. [modifier] already carries every listener the combo box needs, the caller's own raw
  * listener included where a raw overload is driving it.
+ *
+ * Inlined into its caller, so the two share one restart scope.
  */
 @Composable
-private fun <T> ComboBoxNode(
+private inline fun <T> ComboBoxNode(
     modifier: SwingModifier,
     editable: Boolean,
     maximumRowCount: Int,
-    itemContent: (@Composable ListItemScope.(item: T) -> Unit)?,
-    installContent: SwingNodeUpdater<JComboBox<T>>.() -> Unit,
+    noinline itemContent: (@Composable ListItemScope.(item: T) -> Unit)?,
+    crossinline installContent: SwingNodeUpdater<JComboBox<T>>.() -> Unit,
 ) {
     // The single conversion from itemContent to the combo box item renderer: one reused
     // ComposingListCellRenderer stamps a recycled composition per row. A null itemContent renders
@@ -308,14 +310,13 @@ private fun <V> SwingModifier.onSelectionAction(
     onSelectionChange: (V) -> Unit,
     onValueCommit: (@Nls String) -> Unit,
 ): SwingModifier =
-    actionListener { event ->
-        val comboBox = event.source as JComboBox<*>
-        val selection = comboBox.settled()
+    actionListener<JComboBox<*>> { event ->
+        val selection = settled()
         if (event.actionCommand == EDITOR_COMMITTED) {
             // An editor commit is the field's text channel, not a choice: mirrored without settling, the
             // way every other text edit is.
             mirror?.observed(selection)
-            onValueCommit(comboBox.selectedItem?.toString().orEmpty())
+            onValueCommit(selectedItem?.toString().orEmpty())
         } else if (mirror != null) {
             mirror.report(selection, onSelectionChange)
         } else {

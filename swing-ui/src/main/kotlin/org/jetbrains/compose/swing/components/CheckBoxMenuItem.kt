@@ -5,13 +5,14 @@ package org.jetbrains.compose.swing.components
 
 import androidx.compose.runtime.Composable
 import org.jetbrains.annotations.Nls
-import org.jetbrains.compose.swing.components.button.declareSelected
-import org.jetbrains.compose.swing.components.button.rememberToggleMirroring
-import org.jetbrains.compose.swing.components.button.rememberToggleReporting
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
+import org.jetbrains.compose.swing.modifier.listener.actionListener
+import org.jetbrains.compose.swing.modifier.listener.itemListener
 import org.jetbrains.compose.swing.node.MenuNode
 import org.jetbrains.compose.swing.node.MirrorState
+import org.jetbrains.compose.swing.node.declare
+import org.jetbrains.compose.swing.node.rememberMirrorState
 import java.awt.event.ActionListener
 import javax.swing.JCheckBoxMenuItem
 import javax.swing.KeyStroke
@@ -35,10 +36,13 @@ public fun CheckBoxMenuItem(
     modifier: SwingModifier = SwingModifier,
     accelerator: KeyStroke? = null,
 ) {
-    val (reporting, mirror) = rememberToggleReporting(checked, onCheckedChange)
+    val mirror = rememberMirrorState(checked)
     CheckBoxMenuItemNode(
         text = text,
-        modifier = modifier.then(reporting),
+        modifier =
+            modifier.actionListener<JCheckBoxMenuItem> {
+                mirror.report(isSelected, onCheckedChange)
+            },
         checked = checked,
         accelerator = accelerator,
         mirror = mirror,
@@ -66,10 +70,13 @@ public fun CheckBoxMenuItem(
     modifier: SwingModifier = SwingModifier,
     accelerator: KeyStroke? = null,
 ) {
-    val (mirroring, mirror) = rememberToggleMirroring(checked, actionListener)
+    val mirror = rememberMirrorState(checked)
     CheckBoxMenuItemNode(
         text = text,
-        modifier = modifier.then(mirroring),
+        modifier =
+            modifier
+                .actionListener(actionListener)
+                .itemListener<JCheckBoxMenuItem> { mirror.observed(isSelected) },
         checked = checked,
         accelerator = accelerator,
         mirror = mirror,
@@ -80,9 +87,12 @@ public fun CheckBoxMenuItem(
  * The `JCheckBoxMenuItem` node both [CheckBoxMenuItem] overloads render. [checked] is settled against the
  * item through [mirror] rather than applied on change: the user can toggle the item out from under the
  * declaration, and a declaration equal to the last one still has to stand.
+ *
+ * Inlined into its caller, so the two share one restart scope.
  */
+@Suppress("NOTHING_TO_INLINE")
 @Composable
-private fun CheckBoxMenuItemNode(
+private inline fun CheckBoxMenuItemNode(
     text: @Nls String,
     modifier: SwingModifier,
     checked: Boolean,
@@ -93,7 +103,7 @@ private fun CheckBoxMenuItemNode(
         factory = { JCheckBoxMenuItem() },
         update = {
             set(text) { this.text = it }
-            declareSelected(checked, mirror)
+            declare(checked, mirror, JCheckBoxMenuItem::isSelected, JCheckBoxMenuItem::setSelected)
             set(accelerator) { this.accelerator = it }
             applyModifier(modifier)
         },

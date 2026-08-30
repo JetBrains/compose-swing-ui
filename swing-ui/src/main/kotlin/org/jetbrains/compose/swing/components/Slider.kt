@@ -79,7 +79,7 @@ public fun Slider(
     val mirror = rememberMirrorState(value)
     val channel = rememberSliderValueChannel(mirror, mirror, value)
     SliderNode(
-        modifier = modifier.onSliderValue { slider -> channel.publish(slider, onValueChange, onValueSettled) },
+        modifier = modifier.changeListener<JSlider> { channel.publish(this, onValueChange, onValueSettled) },
         labelMin = min,
         labelMax = max,
         orientation = orientation,
@@ -103,10 +103,6 @@ public fun Slider(
         }
     }
 }
-
-/** Runs [report] with the slider each time it publishes a value. */
-private fun SwingModifier.onSliderValue(report: (JSlider) -> Unit): SwingModifier =
-    changeListener { event -> report(event.source as JSlider) }
 
 /**
  * A composable wrapper for JSlider driven by a raw [ChangeListener] instead of the `onValueChange` and
@@ -246,7 +242,7 @@ public fun Slider(
     val channel = rememberSliderValueChannel(null, model, model.value)
     ModelSliderNode(
         model = model,
-        modifier = modifier.onSliderValue { slider -> channel.publish(slider, onValueChange, onValueSettled) },
+        modifier = modifier.changeListener<JSlider> { channel.publish(this, onValueChange, onValueSettled) },
         orientation = orientation,
         inverted = inverted,
         majorTickSpacing = majorTickSpacing,

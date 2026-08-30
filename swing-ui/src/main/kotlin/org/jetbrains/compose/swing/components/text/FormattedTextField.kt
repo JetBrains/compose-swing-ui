@@ -241,10 +241,10 @@ private fun FormattedTextFieldNode(
  * pairs that are both non-null.
  */
 private fun SwingModifier.onValueCommit(onCommit: (Any?) -> Unit): SwingModifier =
-    propertyChangeListener("value") { event ->
+    propertyChangeListener<JFormattedTextField>("value") { event ->
         // The field republishes its value on every commit attempt; only a value that changed is one to
         // report.
-        if (event.oldValue != event.newValue) onCommit((event.source as JFormattedTextField).value)
+        if (event.oldValue != event.newValue) onCommit(value)
     }
 
 /**
@@ -253,12 +253,8 @@ private fun SwingModifier.onValueCommit(onCommit: (Any?) -> Unit): SwingModifier
  * nothing else observed.
  */
 private fun SwingModifier.valueMirror(mirror: MirrorState<Any?>): SwingModifier =
-    propertyChangeListener("value") { event ->
-        mirror.observed((event.source as JFormattedTextField).value)
-    }
+    propertyChangeListener<JFormattedTextField>("value") { mirror.observed(value) }
 
 /** Runs [onChange] with the field's edit validity each time the field reports it changed. */
 private fun SwingModifier.onEditValidity(onChange: (Boolean) -> Unit): SwingModifier =
-    propertyChangeListener("editValid") { event ->
-        onChange((event.source as JFormattedTextField).isEditValid)
-    }
+    propertyChangeListener<JFormattedTextField>("editValid") { onChange(isEditValid) }

@@ -38,7 +38,7 @@ import kotlin.test.assertTrue
  * does adopt is left standing, both by the time the click returns.
  *
  * A declared checked state is settled by the pass that declares it and no later one. The same
- * settle serves `RadioButton` and `ToggleButton`, which reach it through the shared `declareSelected`.
+ * settle serves `RadioButton` and `ToggleButton`, which reach it through `declare`.
  */
 class CheckBoxBehaviorTest {
     @Test

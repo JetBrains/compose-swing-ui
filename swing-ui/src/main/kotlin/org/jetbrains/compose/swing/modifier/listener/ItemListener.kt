@@ -8,6 +8,7 @@ import java.awt.Component
 import java.awt.ItemSelectable
 import java.awt.event.ItemEvent
 import java.awt.event.ItemListener
+import kotlin.reflect.KClass
 
 /**
  * Runs [onItemStateChange] on the item event of a component that fires one - the components
@@ -21,6 +22,27 @@ import java.awt.event.ItemListener
  */
 public fun SwingModifier.itemListener(onItemStateChange: (ItemEvent) -> Unit): SwingModifier =
     listener(onItemStateChange, ITEM_CALLBACKS)
+
+/**
+ * Runs [onItemStateChange] on the item event of a component of type [T] that fires one, with that
+ * component as `this`.
+ *
+ * @see java.awt.ItemSelectable.addItemListener
+ */
+public inline fun <reified T : Component> SwingModifier.itemListener(
+    noinline onItemStateChange: T.(ItemEvent) -> Unit,
+): SwingModifier = itemListener(T::class, onItemStateChange)
+
+/**
+ * Runs [onItemStateChange] on the item event of a component of type [targetType] that fires one, with
+ * that component as `this`. An event sourced anywhere else is refused; see [listener].
+ *
+ * @see java.awt.ItemSelectable.addItemListener
+ */
+public fun <T : Component> SwingModifier.itemListener(
+    targetType: KClass<T>,
+    onItemStateChange: T.(ItemEvent) -> Unit,
+): SwingModifier = listener(targetType, ITEM_CALLBACKS, onItemStateChange)
 
 /**
  * Attaches an [ItemListener] (`addItemListener`/`removeItemListener`) to a component that fires item

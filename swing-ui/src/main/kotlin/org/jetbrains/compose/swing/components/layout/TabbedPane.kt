@@ -65,7 +65,7 @@ public fun TabbedPane(
     @TabLayoutPolicy tabLayoutPolicy: Int = JTabbedPane.WRAP_TAB_LAYOUT,
     content: @Composable TabbedPaneScope.() -> Unit,
 ) {
-    TabbedPane(
+    TabbedPaneImpl(
         selectedIndex = selectedIndex,
         changeListener = { event -> onSelectedIndexChange((event.source as JTabbedPane).selectedIndex) },
         modifier = modifier,
@@ -109,6 +109,10 @@ public fun TabbedPane(
     )
 }
 
+/**
+ * The `JTabbedPane` every [TabbedPane] overload renders, with [changeListener] already carrying whichever
+ * selection channel the overload driving it uses.
+ */
 @Composable
 private fun TabbedPaneImpl(
     selectedIndex: Int,
@@ -145,11 +149,11 @@ private fun TabbedPaneImpl(
     // the pane was left on and the callback was handed. Every selection that reaches the caller is
     // recorded here, so a pane holding anything else is holding a selection the caller has not heard of.
     val reportedSelection = remember { intArrayOf(NO_TAB) }
-    val onUserSelection: (ChangeEvent) -> Unit = { event ->
+    val onUserSelection: JTabbedPane.(ChangeEvent) -> Unit = { event ->
         // Only a change of the user's is theirs to be told about, and only one they were told about
         // belongs in the record - a change the pane made under one of this wrapper's own writes is
         // settled below, which is where the record catches up with it.
-        mirror.report((event.source as JTabbedPane).selectedIndex) { current ->
+        mirror.report(this.selectedIndex) { current ->
             reportedSelection[0] = current
             changeListener.stateChanged(event)
         }
@@ -161,7 +165,7 @@ private fun TabbedPaneImpl(
             applyMirror(mirror)
             set(tabPlacement) { this.tabPlacement = it }
             set(tabLayoutPolicy) { this.tabLayoutPolicy = it }
-            applyModifier(modifier.changeListener(onUserSelection))
+            applyModifier(modifier.changeListener(JTabbedPane::class, onUserSelection))
 
             // A tab becomes a page of the pane only once the runtime has applied the content this block
             // declares, so a selection written here would be written against the strip the pass before it

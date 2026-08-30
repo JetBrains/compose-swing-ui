@@ -9,6 +9,7 @@ import org.jetbrains.compose.swing.modifier.listener.actionListener
 import org.jetbrains.compose.swing.modifier.listener.itemListener
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.rememberMirrorState
+import java.awt.event.ItemEvent
 import javax.swing.AbstractButton
 import javax.swing.ButtonGroup
 
@@ -57,9 +58,9 @@ internal fun ButtonGroupOption(
         val mirror = rememberMirrorState(selected)
         content(
             modifier
-                .actionListener { event ->
-                    if ((event.source as AbstractButton).isSelected) onSelectionChange(index)
-                }.itemListener { event -> mirror.observed((event.source as AbstractButton).isSelected) }
+                .actionListener<AbstractButton> {
+                    if (isSelected) onSelectionChange(index)
+                }.itemListener { event -> mirror.observed(event.stateChange == ItemEvent.SELECTED) }
                 .buttonGroup(group),
             mirror,
         )

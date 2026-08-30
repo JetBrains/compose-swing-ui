@@ -7,8 +7,12 @@ import androidx.compose.runtime.Composable
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
+import org.jetbrains.compose.swing.modifier.listener.actionListener
+import org.jetbrains.compose.swing.modifier.listener.itemListener
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.node.declare
+import org.jetbrains.compose.swing.node.rememberMirrorState
 import java.awt.event.ActionListener
 import javax.swing.JToggleButton
 
@@ -36,10 +40,13 @@ public fun ToggleButton(
     onSelectedChange: (Boolean) -> Unit,
     modifier: SwingModifier = SwingModifier,
 ) {
-    val (reporting, mirror) = rememberToggleReporting(selected, onSelectedChange)
+    val mirror = rememberMirrorState(selected)
     ToggleButtonNode(
         text = text,
-        modifier = modifier.then(reporting),
+        modifier =
+            modifier.actionListener<JToggleButton> {
+                mirror.report(isSelected, onSelectedChange)
+            },
         selected = selected,
         mirror = mirror,
     )
@@ -63,10 +70,13 @@ public fun ToggleButton(
     actionListener: ActionListener,
     modifier: SwingModifier = SwingModifier,
 ) {
-    val (mirroring, mirror) = rememberToggleMirroring(selected, actionListener)
+    val mirror = rememberMirrorState(selected)
     ToggleButtonNode(
         text = text,
-        modifier = modifier.then(mirroring),
+        modifier =
+            modifier
+                .actionListener(actionListener)
+                .itemListener<JToggleButton> { mirror.observed(isSelected) },
         selected = selected,
         mirror = mirror,
     )
@@ -76,9 +86,12 @@ public fun ToggleButton(
  * The `JToggleButton` node both [ToggleButton] overloads render. [selected] is settled against the button
  * through [mirror] rather than applied on change: the user can toggle the button out from under the
  * declaration, and a declaration equal to the last one still has to stand.
+ *
+ * Inlined into its caller, so the two share one restart scope.
  */
+@Suppress("NOTHING_TO_INLINE")
 @Composable
-private fun ToggleButtonNode(
+private inline fun ToggleButtonNode(
     text: @Nls String,
     modifier: SwingModifier,
     selected: Boolean,
@@ -88,7 +101,7 @@ private fun ToggleButtonNode(
         factory = { JToggleButton() },
         update = {
             set(text) { this.text = it }
-            declareSelected(selected, mirror)
+            declare(selected, mirror, JToggleButton::isSelected, JToggleButton::setSelected)
             applyModifier(modifier)
         },
     )

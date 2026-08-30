@@ -424,7 +424,7 @@ private fun <T> ListBoxNode(
     // A drag publishes one selection per row crossed before it settles, so only the settled value is worth
     // mirroring - mirroring an adjusting one would invalidate this composition, and re-assert the
     // declaration, before the user has let go, one row at a time.
-    val onUserSelection: (ListSelectionEvent) -> Unit = { event ->
+    val onUserSelection: JList<*>.(ListSelectionEvent) -> Unit = { event ->
         // The caller hears every event the list raises, gated on the write depth alone exactly as it was
         // without a mirror, and hears it before the settle, so a selection it adopts is the one settled
         // against. The report is owed either way: a caller's listener that throws has already left the
@@ -433,7 +433,7 @@ private fun <T> ListBoxNode(
         try {
             if (!mirror.isWriting) listSelectionListener.valueChanged(event)
         } finally {
-            if (!event.valueIsAdjusting) mirror.report((event.source as JList<*>).selectedIndices.toSet()) {}
+            if (!event.valueIsAdjusting) mirror.report(this.selectedIndices.toSet()) {}
         }
     }
     SwingNode(
@@ -460,7 +460,7 @@ private fun <T> ListBoxNode(
             // and the composable cell is the one whose per-row measurement the caller is buying out.
             applyModifier(
                 modifier
-                    .listSelectionListener(onUserSelection)
+                    .listSelectionListener(JList::class, onUserSelection)
                     .composableItemCells(itemRenderer)
                     .listCellSizing(prototypeCellValue, fixedCellWidth, fixedCellHeight),
             )

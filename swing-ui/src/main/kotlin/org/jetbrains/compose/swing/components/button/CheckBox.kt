@@ -7,8 +7,12 @@ import androidx.compose.runtime.Composable
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
+import org.jetbrains.compose.swing.modifier.listener.actionListener
+import org.jetbrains.compose.swing.modifier.listener.itemListener
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.node.declare
+import org.jetbrains.compose.swing.node.rememberMirrorState
 import java.awt.event.ActionListener
 import javax.swing.JCheckBox
 
@@ -28,10 +32,13 @@ public fun CheckBox(
     onCheckedChange: (Boolean) -> Unit,
     modifier: SwingModifier = SwingModifier,
 ) {
-    val (reporting, mirror) = rememberToggleReporting(checked, onCheckedChange)
+    val mirror = rememberMirrorState(checked)
     CheckBoxNode(
         text = text,
-        modifier = modifier.then(reporting),
+        modifier =
+            modifier.actionListener<JCheckBox> {
+                mirror.report(isSelected, onCheckedChange)
+            },
         checked = checked,
         mirror = mirror,
     )
@@ -55,10 +62,13 @@ public fun CheckBox(
     actionListener: ActionListener,
     modifier: SwingModifier = SwingModifier,
 ) {
-    val (mirroring, mirror) = rememberToggleMirroring(checked, actionListener)
+    val mirror = rememberMirrorState(checked)
     CheckBoxNode(
         text = text,
-        modifier = modifier.then(mirroring),
+        modifier =
+            modifier
+                .actionListener(actionListener)
+                .itemListener<JCheckBox> { mirror.observed(isSelected) },
         checked = checked,
         mirror = mirror,
     )
@@ -68,9 +78,12 @@ public fun CheckBox(
  * The `JCheckBox` node both [CheckBox] overloads render. [checked] is settled against the box through
  * [mirror] rather than applied on change: the user can toggle the box out from under the declaration, and
  * a declaration equal to the last one still has to stand.
+ *
+ * Inlined into its caller, so the two share one restart scope.
  */
+@Suppress("NOTHING_TO_INLINE")
 @Composable
-private fun CheckBoxNode(
+private inline fun CheckBoxNode(
     text: @Nls String,
     modifier: SwingModifier,
     checked: Boolean,
@@ -80,7 +93,7 @@ private fun CheckBoxNode(
         factory = { JCheckBox() },
         update = {
             set(text) { this.text = it }
-            declareSelected(checked, mirror)
+            declare(checked, mirror, JCheckBox::isSelected, JCheckBox::setSelected)
             applyModifier(modifier)
         },
     )

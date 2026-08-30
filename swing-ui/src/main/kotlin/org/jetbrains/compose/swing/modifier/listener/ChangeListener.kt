@@ -14,6 +14,7 @@ import javax.swing.JTabbedPane
 import javax.swing.JViewport
 import javax.swing.event.ChangeEvent
 import javax.swing.event.ChangeListener
+import kotlin.reflect.KClass
 
 /**
  * Runs [onChange] on the change event of a component that fires one - the widgets [changeListener]
@@ -26,6 +27,30 @@ import javax.swing.event.ChangeListener
  */
 public fun SwingModifier.changeListener(onChange: (ChangeEvent) -> Unit): SwingModifier =
     listener(onChange, CHANGE_CALLBACKS)
+
+/**
+ * Runs [onChange] on the change event of a component of type [T] that fires one, with that component as
+ * `this`.
+ *
+ * @see javax.swing.event.ChangeListener
+ */
+public inline fun <reified T : Component> SwingModifier.changeListener(
+    noinline onChange: T.(ChangeEvent) -> Unit,
+): SwingModifier = changeListener(T::class, onChange)
+
+/**
+ * Runs [onChange] on the change event of a component of type [targetType] that fires one, with that
+ * component as `this`. An event sourced anywhere else is refused; see [listener].
+ *
+ * A `JColorChooser` publishes through its selection model, so its change events name that model rather
+ * than the chooser and are not ones this overload can scope.
+ *
+ * @see javax.swing.event.ChangeListener
+ */
+public fun <T : Component> SwingModifier.changeListener(
+    targetType: KClass<T>,
+    onChange: T.(ChangeEvent) -> Unit,
+): SwingModifier = listener(targetType, CHANGE_CALLBACKS, onChange)
 
 /**
  * Attaches a [ChangeListener] (`addChangeListener`/`removeChangeListener`) to a component that fires

@@ -91,8 +91,8 @@ public fun SplitPane(
     }
     SplitPaneImpl(
         modifier =
-            modifier.propertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY) { event ->
-                onMoved((event.source as JSplitPane).dividerLocation)
+            modifier.propertyChangeListener<JSplitPane>(JSplitPane.DIVIDER_LOCATION_PROPERTY) {
+                onMoved(this.dividerLocation)
             },
         orientation = orientation,
         dividerLocation = dividerLocation,
@@ -159,7 +159,9 @@ public fun SplitPane(
     )
 }
 
-/** The `JSplitPane` node both public [SplitPane] overloads render. */
+/**
+ * The `JSplitPane` node both public [SplitPane] overloads render.
+ */
 @Composable
 private fun SplitPaneImpl(
     modifier: SwingModifier,

@@ -5,6 +5,7 @@ package org.jetbrains.compose.swing.modifier.listener
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import java.awt.Component
+import java.util.EventObject
 import kotlin.reflect.KClass
 
 /**
@@ -97,6 +98,45 @@ public fun <T : Component, C : Any, L : Any> SwingModifier.listener(
     callback: C,
     registration: CallbackRegistration<T, C, L>,
 ): SwingModifier = this then LiveCallbackListenerElement(targetType.java, callback, registration)
+
+/**
+ * Registers a listener built by [registration] that runs [onEvent] with the component the event names as
+ * its source as the receiver - the scoped counterpart of the callback overload above.
+ *
+ * A component this attaches to fires with itself as the source, so the receiver is the component the
+ * modifier is on. An event carrying any other source is one the scope cannot be given, and it is refused
+ * rather than dropped - the overload's whole contract is that receiver.
+ *
+ * Read the receiver's properties through `this` where the enclosing composable declares a parameter of
+ * the same name: an enclosing local shadows the receiver.
+ *
+ * @param targetType the component type the listener is scoped to, checked against the node as well.
+ * @param registration where the built listener is registered, and how it is built.
+ * @param onEvent what the built listener runs; refreshed on every pass.
+ */
+internal fun <T : Component, E : EventObject, L : Any> SwingModifier.listener(
+    targetType: KClass<T>,
+    registration: CallbackRegistration<*, (E) -> Unit, L>,
+    onEvent: T.(E) -> Unit,
+): SwingModifier {
+    // The element rejects a node that is not a T before the listener the registration builds is ever
+    // attached to it.
+    @Suppress("UNCHECKED_CAST")
+    val scoped = registration as CallbackRegistration<T, (E) -> Unit, L>
+    return listener(
+        targetType = targetType,
+        callback = { event: E ->
+            val source = event.source
+            check(targetType.isInstance(source)) {
+                "a ${event.javaClass.simpleName} sourced at $source is not scoped to ${targetType.simpleName}"
+            }
+            // The check above is the instance test the cast needs.
+            @Suppress("UNCHECKED_CAST")
+            (source as T).onEvent(event)
+        },
+        registration = scoped,
+    )
+}
 
 /**
  * The additive [SwingModifier.NodeElement] backing the instance overload of `listener` and every

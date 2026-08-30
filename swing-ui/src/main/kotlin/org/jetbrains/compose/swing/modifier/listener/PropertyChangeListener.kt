@@ -7,6 +7,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import java.awt.Component
 import java.beans.PropertyChangeEvent
 import java.beans.PropertyChangeListener
+import kotlin.reflect.KClass
 
 /**
  * Runs [onPropertyChange] on every bound property change of the component. For a single property,
@@ -32,6 +33,29 @@ public fun SwingModifier.propertyChangeListener(
     name: String,
     onPropertyChange: (PropertyChangeEvent) -> Unit,
 ): SwingModifier = listener(onPropertyChange, boundPropertyCallbackRegistration(name))
+
+/**
+ * Runs [onPropertyChange] on changes to the property [name] of a component of type [T], with that
+ * component as `this`.
+ *
+ * @see java.awt.Component.addPropertyChangeListener
+ */
+public inline fun <reified T : Component> SwingModifier.propertyChangeListener(
+    name: String,
+    noinline onPropertyChange: T.(PropertyChangeEvent) -> Unit,
+): SwingModifier = propertyChangeListener(name, T::class, onPropertyChange)
+
+/**
+ * Runs [onPropertyChange] on changes to the property [name] of a component of type [targetType], with
+ * that component as `this`. An event sourced anywhere else is refused; see [listener].
+ *
+ * @see java.awt.Component.addPropertyChangeListener
+ */
+public fun <T : Component> SwingModifier.propertyChangeListener(
+    name: String,
+    targetType: KClass<T>,
+    onPropertyChange: T.(PropertyChangeEvent) -> Unit,
+): SwingModifier = listener(targetType, boundPropertyCallbackRegistration(name), onPropertyChange)
 
 /**
  * Attaches an unbound [PropertyChangeListener] (`addPropertyChangeListener`), notified of every bound

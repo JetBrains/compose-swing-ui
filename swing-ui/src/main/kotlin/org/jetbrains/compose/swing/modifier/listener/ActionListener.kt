@@ -11,6 +11,7 @@ import javax.swing.AbstractButton
 import javax.swing.JComboBox
 import javax.swing.JFileChooser
 import javax.swing.JTextField
+import kotlin.reflect.KClass
 import java.awt.Button as AwtButton
 import java.awt.List as AwtList
 import java.awt.TextField as AwtTextField
@@ -26,6 +27,27 @@ import java.awt.TextField as AwtTextField
  */
 public fun SwingModifier.actionListener(onAction: (ActionEvent) -> Unit): SwingModifier =
     listener(onAction, ACTION_CALLBACKS)
+
+/**
+ * Runs [onAction] on the action event of a component of type [T] that fires one, with that component as
+ * `this`.
+ *
+ * @see java.awt.event.ActionListener
+ */
+public inline fun <reified T : Component> SwingModifier.actionListener(
+    noinline onAction: T.(ActionEvent) -> Unit,
+): SwingModifier = actionListener(T::class, onAction)
+
+/**
+ * Runs [onAction] on the action event of a component of type [targetType] that fires one, with that
+ * component as `this`. An event sourced anywhere else is refused; see [listener].
+ *
+ * @see java.awt.event.ActionListener
+ */
+public fun <T : Component> SwingModifier.actionListener(
+    targetType: KClass<T>,
+    onAction: T.(ActionEvent) -> Unit,
+): SwingModifier = listener(targetType, ACTION_CALLBACKS, onAction)
 
 /**
  * Attaches an [ActionListener] (`addActionListener`/`removeActionListener`) to a component that fires

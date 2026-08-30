@@ -10,6 +10,7 @@ import androidx.compose.runtime.tooling.CompositionData
 import androidx.compose.runtime.tooling.CompositionGroup
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
+import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.layout.BoxPanel
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
@@ -38,6 +39,7 @@ import kotlin.test.assertTrue
 private const val PANEL_TAG = "inspection-panel"
 internal const val LABEL_TAG = "inspection-label"
 private const val BUTTON_TAG = "inspection-button"
+private const val CHECKBOX_TAG = "inspection-checkbox"
 internal const val NESTED_TAG = "inspection-nested-label"
 
 /** The file these tests declare their content in, which is where a declaration trace has to lead back to. */
@@ -90,15 +92,26 @@ class ComponentInspectionTest {
             BoxPanel {
                 Label(text = "hello", modifier = SwingModifier.testTag(LABEL_TAG))
                 Button(text = "go", onClick = {}, modifier = SwingModifier.testTag(BUTTON_TAG))
+                CheckBox(
+                    text = "agree",
+                    checked = true,
+                    onCheckedChange = {},
+                    modifier = SwingModifier.testTag(CHECKBOX_TAG),
+                )
             }
         }
 
         assertDeclaredBy(onNodeWithTag(LABEL_TAG).fetch(), "Label.kt")
         assertDeclaredBy(onNodeWithTag(BUTTON_TAG).fetch(), "Button.kt")
+        assertDeclaredBy(onNodeWithTag(CHECKBOX_TAG).fetch(), "CheckBox.kt")
         assertTrue(
             declarationTraceOf(onNodeWithTag(LABEL_TAG).fetch()).contains(OWN_FILE),
             "the trace must reach the call site that declared the component, not only the library file " +
                 "the composable is defined in",
+        )
+        assertTrue(
+            declarationTraceOf(onNodeWithTag(CHECKBOX_TAG).fetch()).contains(OWN_FILE),
+            "the CheckBox trace must reach the call site that declared the component",
         )
     }
 
