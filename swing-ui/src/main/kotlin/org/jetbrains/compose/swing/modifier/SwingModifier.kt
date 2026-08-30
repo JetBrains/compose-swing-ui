@@ -354,6 +354,9 @@ public fun SwingNodeUpdater<out Component>.applyModifier(modifier: SwingModifier
  * whose state was reset - released, reused, parked - is in that same position and rebuilds from scratch.
  */
 private fun SwingNodeHolder<Component>.applyDeclaredModifier(modifier: SwingModifier) {
+    check(checkNotNull(owner).updateBatch.markModifierApplied(this)) {
+        "applyModifier may only be called once per SwingNode update block"
+    }
     val state = modifierState
     if (state != null && adoptDeclaration(state.applied, modifier, state.additiveRecords, 0) != DIVERGED) {
         state.applied = modifier
@@ -476,6 +479,9 @@ private fun <T : Component, N : SwingModifier.Node<T>> attachElement(
 ): ElementRecord<T, N> {
     val typed = checkedTarget(element, raw)
     val node = element.create()
+    check(node.attachedComponent == null) {
+        "A SwingModifier.Node instance may not be attached to multiple components simultaneously"
+    }
     node.attachedComponent = typed
     node.onAttach()
     element.update(node)

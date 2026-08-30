@@ -732,6 +732,12 @@ private inline fun TreeNode(
             set(isEditable) { editable -> this.isEditable = editable }
             set(visibleRowCount) { count -> this.visibleRowCount = count }
             set(toggleClickCount) { clicks -> this.toggleClickCount = clicks }
+            // The listeners go on before the content: installing the model applies the declared expansion,
+            // so a will-expand listener attached after it is never asked about the first pass - the one
+            // pass a caller cannot answer for by changing the declaration.
+            val treeModifier =
+                modifier.treeListeners(userSelectionListener, userExpansionListener, treeWillExpandListener)
+            applyModifier(treeModifier.uiOwnedProperties(showsRootHandles, rowHeight, nodeRenderer))
             installContent(mirrors)
             // Redeclaring each mirror subscribes this composition to the user changing the tree's own
             // selection or expansion, and answers whether that mirror or its declaration has changed since
@@ -760,9 +766,6 @@ private inline fun TreeNode(
             ) { declarations ->
                 settleSelection(declarations) { applyDeclarations(declarations, structureChanged = false) }
             }
-            val treeModifier =
-                modifier.treeListeners(userSelectionListener, userExpansionListener, treeWillExpandListener)
-            applyModifier(treeModifier.uiOwnedProperties(showsRootHandles, rowHeight, nodeRenderer))
         },
     )
 }

@@ -42,6 +42,32 @@ class TreeExpansionVetoTest {
         )
 
     @Test
+    fun aNodeUnderARefusedOneIsNeverAskedFor() = runComposeSwingTest {
+        val nested = Section("root", listOf(Section("fruit", listOf(Section("apple", listOf(Section("seed")))))))
+        val asked = mutableListOf<String>()
+        var expansion by mutableStateOf(setOf(emptyList<Int>()))
+        setContent {
+            Tree(
+                root = nested,
+                children = { it.children },
+                label = { it.name },
+                expandedPaths = expansion,
+                onWillExpand = { value, _ ->
+                    asked += value.name
+                    value.name != "fruit"
+                },
+            )
+        }
+
+        val tree = onNodeOfType<JTree>().fetch()
+        expansion = setOf(emptyList(), listOf(0), listOf(0, 0))
+        awaitIdle()
+        assertFalse(tree.isExpanded(tree.pathTo(0)), "the refused node stays closed")
+        assertEquals(1, asked.count { it == "fruit" }, "the refused node is asked once: $asked")
+        assertEquals(0, asked.count { it == "apple" }, "the node below it is never asked: $asked")
+    }
+
+    @Test
     fun aRefusedExpansionLeavesTheNodeClosed() = runComposeSwingTest {
         setContent {
             Tree(
@@ -100,6 +126,23 @@ class TreeExpansionVetoTest {
 
         assertTrue(tree.isExpanded(tree.pathTo(0)), "the declared node the callback allows opens")
         assertFalse(tree.isExpanded(tree.pathTo(1)), "the declared node it refuses stays closed")
+    }
+
+    @Test
+    fun anExpansionTheFirstPassDeclaresIsRefusedTheSameWay() = runComposeSwingTest {
+        setContent {
+            Tree(
+                root = sample,
+                children = { it.children },
+                label = { it.name },
+                expandedPaths = setOf(emptyList(), listOf(0), listOf(1)),
+                onWillExpand = { value, _ -> value.name != "veg" },
+            )
+        }
+
+        val tree = onNodeOfType<JTree>().fetch()
+        assertTrue(tree.isExpanded(tree.pathTo(0)), "the node the callback allows opens as the tree is built")
+        assertFalse(tree.isExpanded(tree.pathTo(1)), "the one it refuses stays closed from the start")
     }
 
     @Test

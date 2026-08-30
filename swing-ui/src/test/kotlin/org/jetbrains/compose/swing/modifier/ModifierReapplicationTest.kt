@@ -9,9 +9,11 @@ import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
 import org.jetbrains.compose.swing.modifier.listener.listener
+import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Color
+import java.awt.Component
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import java.awt.event.MouseListener
@@ -20,7 +22,9 @@ import javax.swing.JButton
 import javax.swing.JComponent
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotSame
+import kotlin.test.assertTrue
 
 /**
  * Every count here is taken through the public [SwingModifier.NodeElement] seam - an element counts its own
@@ -308,6 +312,55 @@ class ModifierReapplicationTest {
                 component.removeMouseListener(listener)
             }
         }
+    }
+
+    @Test
+    fun applyingModifiersMultipleTimesInSameUpdateBlockFailsLoudly() = runComposeSwingTest {
+        val failure =
+            assertFailsWith<IllegalStateException> {
+                setContent {
+                    SwingNode(
+                        factory = { JButton() },
+                        update = {
+                            applyModifier(SwingModifier.background(Color.RED))
+                            applyModifier(SwingModifier.background(Color.BLUE))
+                        },
+                    )
+                }
+            }
+        assertTrue(
+            failure.message.orEmpty().contains("applyModifier may only be called once"),
+            "duplicate applyModifier call must fail loudly, but was: ${failure.message}",
+        )
+    }
+
+    @Test
+    fun reusingNodeInstanceAcrossMultipleComponentsFailsLoudly() = runComposeSwingTest {
+        val sharedNode = object : SwingModifier.Node<Component>() {}
+        val sharedElement =
+            object : SwingModifier.NodeElement<Component, SwingModifier.Node<Component>>() {
+                override val targetType: Class<Component> get() = Component::class.java
+
+                override fun create(): SwingModifier.Node<Component> = sharedNode
+
+                override fun update(node: SwingModifier.Node<Component>) = Unit
+
+                override fun equals(other: Any?): Boolean = this === other
+
+                override fun hashCode(): Int = System.identityHashCode(this)
+            }
+
+        val failure =
+            assertFailsWith<IllegalStateException> {
+                setContent {
+                    Label(text = "A", modifier = sharedElement)
+                    Label(text = "B", modifier = sharedElement)
+                }
+            }
+        assertTrue(
+            failure.message.orEmpty().contains("may not be attached to multiple components"),
+            "Reusing a Node instance across components must fail loudly, but was: ${failure.message}",
+        )
     }
 
     private companion object {
