@@ -36,7 +36,7 @@ import javax.swing.text.DefaultFormatterFactory
 import javax.swing.text.DocumentFilter
 
 private class SpinnerValueChannel(
-    private val mirror: MirrorState<Any?>,
+    mirror: MirrorState<Any?>,
     private val onValueChange: (Any?) -> Unit,
 ) {
     fun settledOn(value: Any?) {

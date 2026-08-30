@@ -30,10 +30,11 @@ kotlin {
 // The in-process compiler harness loads this jar via -Xplugin so it runs the exact same Compose
 // @Composable/target inference as the real Gradle build. Kept out of the test compile/runtime classpath
 // on purpose: the harness wants the plugin as a standalone jar, not on the classpath.
-val composeCompilerPluginClasspath: Configuration by configurations.creating {
-    isCanBeConsumed = false
-    isCanBeResolved = true
-}
+val composeCompilerPluginClasspath =
+    configurations.create("composeCompilerPluginClasspath") {
+        isCanBeConsumed = false
+        isCanBeResolved = true
+    }
 
 dependencies {
     api(libs.composeRuntime)
@@ -75,7 +76,7 @@ configurations.matching { it.name.startsWith("test") }.configureEach {
 
 jacocoCoverage {
     lineMinimum.set("0.95".toBigDecimal())
-    branchMinimum.set("0.80".toBigDecimal())
+    branchMinimum.set("0.85".toBigDecimal())
 }
 
 // The tag carried by org.jetbrains.compose.swing.ExclusiveWindowSystem, whose KDoc says what the split
@@ -93,17 +94,18 @@ tasks.test {
     maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2).coerceAtLeast(1)
 }
 
-val exclusiveWindowSystemTest by tasks.registering(Test::class) {
-    description = "Runs the tests that need the window system's undivided attention, one at a time."
-    group = LifecycleBasePlugin.VERIFICATION_GROUP
-    val testSourceSet = sourceSets.test.get()
-    testClassesDirs = testSourceSet.output.classesDirs
-    classpath = testSourceSet.runtimeClasspath
-    useJUnitPlatform { includeTags(exclusiveWindowSystemTag) }
-    // Keeping the two apart is the window-system lock's doing; this only settles the order, so the fast
-    // parallel task is done showing windows before this one starts asserting on which window is focused.
-    shouldRunAfter(tasks.test)
-}
+val exclusiveWindowSystemTest =
+    tasks.register<Test>("exclusiveWindowSystemTest") {
+        description = "Runs the tests that need the window system's undivided attention, one at a time."
+        group = LifecycleBasePlugin.VERIFICATION_GROUP
+        val testSourceSet = sourceSets.test.get()
+        testClassesDirs = testSourceSet.output.classesDirs
+        classpath = testSourceSet.runtimeClasspath
+        useJUnitPlatform { includeTags(exclusiveWindowSystemTag) }
+        // Keeping the two apart is the window-system lock's doing; this only settles the order, so the fast
+        // parallel task is done showing windows before this one starts asserting on which window is focused.
+        shouldRunAfter(tasks.test)
+    }
 
 tasks.check {
     dependsOn(exclusiveWindowSystemTest)

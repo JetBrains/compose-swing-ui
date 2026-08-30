@@ -7,6 +7,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.milliseconds
 
 class CallerFailureContainmentTest {
     @Test
@@ -24,6 +25,28 @@ class CallerFailureContainmentTest {
         val failures = takeCallerFailures()
         assertEquals(1, failures.size)
         assertEquals("boom", failures.single().message)
+    }
+
+    @Test
+    fun aGateThatCannotSettleNamesTheContainedCallerFailures() = runComposeSwingTest {
+        val value = mutableStateOf(50)
+        setContent {
+            Slider(value = value.value, changeListener = ChangeListener { throw IllegalStateException("boom") })
+        }
+        value.value = 75
+        awaitIdle()
+
+        // A gate dumps the tree it could not settle, and that tree is unexplained unless the
+        // diagnostics name the callback that never finished.
+        val failure = assertFailsWith<AssertionError> { waitUntil(timeout = 100.milliseconds) { false } }
+        val message = failure.message.orEmpty()
+        assertTrue(
+            message.contains("callback(s) supplied by this test threw"),
+            "the gate should name the contained failures: $message",
+        )
+        assertTrue(message.contains("boom"), "and carry each one's own stack: $message")
+
+        takeCallerFailures()
     }
 
     @Test

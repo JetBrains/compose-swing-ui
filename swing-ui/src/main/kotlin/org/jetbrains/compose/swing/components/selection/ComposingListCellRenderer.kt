@@ -66,7 +66,7 @@ public sealed interface ListItemScope {
  */
 internal class ComposingListCellRenderer<T>(
     parentContext: CompositionContext,
-    private val currentItemContent: State<@Composable ListItemScope.(item: T) -> Unit>,
+    currentItemContent: State<@Composable ListItemScope.(item: T) -> Unit>,
 ) : ListCellRenderer<Any?> {
     // A single reused item cell keeps the size-1 pool the rubber-stamp model expects.
     private val itemState = mutableStateOf<Any?>(null)

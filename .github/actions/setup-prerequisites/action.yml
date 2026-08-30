@@ -16,7 +16,7 @@ runs:
         java-version: ${{ inputs.java-version }}
 
     - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v6.1.1
+      uses: gradle/actions/setup-gradle@v6
       with:
         # Only save Gradle User Home state for builds on the 'master' branch.
         # Builds on other branches will only read existing entries from the cache.
@@ -29,4 +29,4 @@ runs:
           caches/transforms-3
 
     - name: Validate Gradle Wrapper
-      uses: gradle/actions/wrapper-validation@v6.1.1
+      uses: gradle/actions/wrapper-validation@v6

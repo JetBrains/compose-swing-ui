@@ -48,8 +48,8 @@ dependencies {
 }
 
 jacocoCoverage {
-    lineMinimum.set("0.85".toBigDecimal())
-    branchMinimum.set("0.80".toBigDecimal())
+    lineMinimum.set("0.95".toBigDecimal())
+    branchMinimum.set("0.85".toBigDecimal())
 }
 
 publishing {

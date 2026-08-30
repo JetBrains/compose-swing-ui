@@ -139,23 +139,53 @@ class ScreenshotTest {
     }
 
     @Test
-    fun invalidGoldenIdentifierIsRejected() = runComposeSwingTest {
-        setContent { Label(text = "hi") }
-
-        val image = onNodeWithText("hi").captureToImage()
-        assertFailsWith<IllegalArgumentException> {
-            assertImageAgainstGolden(image, "bad name!")
+    fun blankImagesMatchAndOneWithContentDoesNot() = runComposeSwingTest {
+        val blank = filled(Color.WHITE)
+        val marked = filled(Color.WHITE)
+        marked.createGraphics().apply {
+            color = Color.BLACK
+            fillRect(0, 0, 4, 4)
+            dispose()
         }
+
+        // A region both images leave blank is not compared, so blank images match. Content in one of them
+        // still has to fail, or the skip would be hiding differences rather than ignoring blanks.
+        assertImageMatches(expected = blank, image = filled(Color.WHITE))
+        assertFailsWith<AssertionError> { assertImageMatches(expected = blank, image = marked) }
     }
 
     @Test
-    fun missingGoldenWithoutUpdateFails() = runComposeSwingTest {
-        setContent { Label(text = "hi") }
+    fun pixelPerfectAllowsNoMoreDifferingPixelsThanItIsGiven() = runComposeSwingTest {
+        val expected = renderWithElementAt(elementX = ELEMENT_X)
+        val oneOff = renderWithElementAt(elementX = ELEMENT_X).also { it.setRGB(0, 0, Color.RED.rgb) }
 
-        val image = onNodeWithText("hi").captureToImage()
-        assertFailsWith<AssertionError> {
-            assertImageAgainstGolden(image, "definitely-not-recorded-golden")
+        assertImagesPixelPerfect(expected, renderWithElementAt(elementX = ELEMENT_X))
+        assertImagesPixelPerfect(expected, oneOff, maxDifferentPixels = 1)
+
+        val failure = assertFailsWith<AssertionError> { assertImagesPixelPerfect(expected, oneOff) }
+        assertTrue(
+            failure.message.orEmpty().contains("Images differ in 1 pixel(s), more than the allowed 0"),
+            "the failure counts the pixels that differ against the tolerance: ${failure.message}",
+        )
+    }
+
+    @Test
+    fun pixelPerfectRefusesANegativeTolerance() = runComposeSwingTest {
+        val image = renderWithElementAt(elementX = ELEMENT_X)
+
+        assertFailsWith<IllegalArgumentException> {
+            assertImagesPixelPerfect(image, image, maxDifferentPixels = -1)
         }
+    }
+
+    /** An image of the scene size filled with [color] and nothing else. */
+    private fun filled(color: Color): BufferedImage {
+        val image = BufferedImage(SCENE_WIDTH, SCENE_HEIGHT, BufferedImage.TYPE_INT_ARGB)
+        val graphics = image.createGraphics()
+        graphics.color = color
+        graphics.fillRect(0, 0, SCENE_WIDTH, SCENE_HEIGHT)
+        graphics.dispose()
+        return image
     }
 
     /**

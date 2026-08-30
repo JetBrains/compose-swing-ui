@@ -31,7 +31,7 @@ import javax.swing.table.TableRowSorter
  */
 internal class RowSortChannel(
     private val mirror: MirrorState<List<SortKey>?>,
-    private val target: State<RowSorterListener?>,
+    target: State<RowSorterListener?>,
 ) {
     private var sorter: TableRowSorter<TableModel>? = null
 

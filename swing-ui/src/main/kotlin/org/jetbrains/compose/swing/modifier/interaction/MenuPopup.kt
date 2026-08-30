@@ -23,7 +23,7 @@ internal class MenuPopup(
     content:
         @Composable @SwingMenuComposable
         () -> Unit,
-    private val onClosed: (MenuPopup) -> Unit,
+    onClosed: (MenuPopup) -> Unit,
 ) {
     val popup: JPopupMenu = JPopupMenu()
 

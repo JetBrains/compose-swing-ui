@@ -95,7 +95,7 @@ internal class TreeNodeValue<T>(
  */
 internal class ComposingTreeCellRenderer<T>(
     parentContext: CompositionContext,
-    private val currentNodeContent: State<@Composable TreeNodeScope.(value: T) -> Unit>,
+    currentNodeContent: State<@Composable TreeNodeScope.(value: T) -> Unit>,
 ) : TreeCellRenderer {
     // A single reused node body (null before the first stamp) keeps the size-1 pool the rubber-stamp
     // model expects.

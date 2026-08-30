@@ -36,7 +36,7 @@ import java.awt.Container
  */
 internal class CellStampComposition(
     parentContext: CompositionContext,
-    private val singleComponentMessage: String,
+    singleComponentMessage: String,
     body: @Composable () -> Unit,
 ) {
     // The component the cell composed, taken as the slot is filled and given up as it is emptied. It is

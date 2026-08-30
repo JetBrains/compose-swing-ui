@@ -56,7 +56,7 @@ import javax.swing.RootPaneContainer
 @PublishedApi
 internal class SwingApplier internal constructor(
     root: SwingNodeHolder<Container>,
-    private val rootSlot: SlotAttachment? = null,
+    rootSlot: SlotAttachment? = null,
 ) : AbstractApplier<SwingNodeHolder<*>>(root) {
     /** The bookkeeping for the batch of component updates in flight, read off the root like any node. */
     private val batch = root.requireOwner().updateBatch
@@ -443,7 +443,7 @@ private const val ROOT_SLOT_NAME: String = "content"
  * hold the children the composition means it to.
  */
 private class DeferredRegionCheck(
-    private val check: (SwingNodeHolder<*>) -> Unit,
+    check: (SwingNodeHolder<*>) -> Unit,
 ) {
     private val hosts: MutableSet<SwingNodeHolder<*>> = Collections.newSetFromMap(IdentityHashMap())
     private val turn =
