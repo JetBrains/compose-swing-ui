@@ -308,9 +308,12 @@ public fun Slider(
 /**
  * The `JSlider` node the model-driven [Slider] overloads render, with [modifier] already carrying every
  * listener the slider needs.
+ *
+ * Inlined into its caller, so the two share one restart scope.
  */
+@Suppress("NOTHING_TO_INLINE")
 @Composable
-private fun ModelSliderNode(
+private inline fun ModelSliderNode(
     model: BoundedRangeModel,
     modifier: SwingModifier,
     @Orientation orientation: Int,
@@ -350,9 +353,11 @@ private fun ModelSliderNode(
  * A declared value is settled against the slider through a [MirrorState] rather than applied on change:
  * the user can drag the slider out from under the declaration, and a declaration equal to the last one
  * still has to stand.
+ *
+ * Inlined into its caller, so the two share one restart scope.
  */
 @Composable
-private fun SliderNode(
+private inline fun SliderNode(
     modifier: SwingModifier,
     labelMin: Int,
     labelMax: Int,
@@ -364,7 +369,7 @@ private fun SliderNode(
     paintLabels: Boolean,
     labels: Map<Int, @Nls String>?,
     snapToTicks: Boolean,
-    installRange: SwingNodeUpdater<JSlider>.() -> Unit,
+    crossinline installRange: SwingNodeUpdater<JSlider>.() -> Unit,
 ) {
     val declaredLabels = rememberDeclaredLabels(labels)
     SwingNode(

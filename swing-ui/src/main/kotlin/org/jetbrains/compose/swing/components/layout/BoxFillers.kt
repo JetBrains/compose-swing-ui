@@ -130,9 +130,12 @@ public fun Glue(
  *
  * A filler takes its sizes at construction, so they are written reactively through `changeShape`
  * instead - the call that both re-sizes it and asks for the layout pass a new size needs.
+ *
+ * Inlined into its caller, so the two share one restart scope.
  */
+@Suppress("NOTHING_TO_INLINE")
 @Composable
-private fun EmptySpace(
+private inline fun EmptySpace(
     minimum: Dimension,
     preferred: Dimension,
     maximum: Dimension,

@@ -127,7 +127,7 @@ public fun <R> Table(
     onColumnLayoutChange: (TableColumnLayout) -> Unit = {},
     block: TableScope<R>.() -> Unit,
 ) {
-    Table(
+    TableRowsImpl(
         rows = rows,
         listSelectionListener = settledRowSelectionListener(onSelectionChange),
         modifier = modifier,
@@ -202,6 +202,50 @@ public fun <R> Table(
     tableColumnModelListener: TableColumnModelListener? = null,
     block: TableScope<R>.() -> Unit,
 ) {
+    TableRowsImpl(
+        rows = rows,
+        listSelectionListener = listSelectionListener,
+        modifier = modifier,
+        selectedRowIndices = selectedRowIndices,
+        selectionMode = selectionMode,
+        sortable = sortable,
+        sortKeys = sortKeys,
+        rowSorterListener = rowSorterListener,
+        rowFilter = rowFilter,
+        rowHeight = rowHeight,
+        autoResizeMode = autoResizeMode,
+        fillsViewportHeight = fillsViewportHeight,
+        columnLayout = columnLayout,
+        tableColumnModelListener = tableColumnModelListener,
+        block = block,
+    )
+}
+
+/**
+ * The `JTable` both rows-driven [Table] overloads render, taking the listeners the lambda overload builds
+ * and the raw overload is handed.
+ *
+ * Inlined into its caller, so the two share one restart scope.
+ */
+@Suppress("NOTHING_TO_INLINE")
+@Composable
+private inline fun <R> TableRowsImpl(
+    rows: List<R>,
+    listSelectionListener: ListSelectionListener,
+    modifier: SwingModifier,
+    selectedRowIndices: Set<Int>?,
+    @SelectionMode selectionMode: Int,
+    sortable: Boolean,
+    sortKeys: List<SortKey>?,
+    rowSorterListener: RowSorterListener?,
+    rowFilter: RowFilter<in TableModel, in Int>?,
+    rowHeight: Int?,
+    @AutoResizeMode autoResizeMode: Int,
+    fillsViewportHeight: Boolean,
+    columnLayout: TableColumnLayout?,
+    tableColumnModelListener: TableColumnModelListener?,
+    noinline block: TableScope<R>.() -> Unit,
+) {
     val declaredRows = rememberDeclaredList(rows)
     val columns = TableScopeImpl<R>().apply(block).columns
     // The model this composition fills. It is handed to the factory so the table is built already
@@ -243,7 +287,7 @@ public fun <R> Table(
             // swap. The columns a structure change built are the ones the declarations describe, and a
             // width they clamp is a width the layout is put back into afterwards, so the declared widths
             // are applied here, ahead of that restore.
-            fun swapInDeclaredContent() {
+            val swapInDeclaredContent = {
                 sortChannel.unbindFrom(table, model)
                 table.model = model
                 model.refresh(declaredRows, columns)
@@ -252,20 +296,23 @@ public fun <R> Table(
 
             // The sorter is built over the model the refresh leaves the table holding, so it is bound
             // outside the swap rather than in it.
-            fun preservingSortOrder(refresh: () -> Unit) =
+            val preservingSortOrder = { refresh: () -> Unit ->
                 sortChannel.preserveAcross(table, sortable, sortKeys, columns, refresh)
+            }
 
             // A table drops its selection on a model event that spans it - a structure change rebuilds
             // the columns, and a wholesale data change covers every row - and taking a sorter on or off
             // empties it as well, so the selection that should stand is put back outside both.
-            fun preservingSelection(refresh: () -> Unit) =
+            val preservingSelection = { refresh: () -> Unit ->
                 installContent(selectionMirror, selectedRowIndices, listSelectionListener, refresh)
+            }
 
             // A structure change drops the order and the widths the columns were in, so the layout that
             // should stand is put back outside everything that provokes one - and outside the
             // declarations, whose widths bound the layout that is put back.
-            fun preservingColumnLayout(refresh: () -> Unit) =
+            val preservingColumnLayout = { refresh: () -> Unit ->
                 columnChannel.preserveAcross(columnModel, columnLayout, refresh)
+            }
 
             preservingColumnLayout { preservingSelection { preservingSortOrder { swapInDeclaredContent() } } }
         }
@@ -359,7 +406,7 @@ public fun Table(
     columnLayout: TableColumnLayout? = null,
     onColumnLayoutChange: (TableColumnLayout) -> Unit = {},
 ) {
-    Table(
+    TableImpl(
         model = model,
         listSelectionListener = settledRowSelectionListener(onSelectionChange),
         modifier = modifier,
@@ -429,6 +476,46 @@ public fun Table(
     fillsViewportHeight: Boolean = false,
     columnLayout: TableColumnLayout? = null,
     tableColumnModelListener: TableColumnModelListener? = null,
+) {
+    TableImpl(
+        model = model,
+        listSelectionListener = listSelectionListener,
+        modifier = modifier,
+        selectedRowIndices = selectedRowIndices,
+        selectionMode = selectionMode,
+        sortable = sortable,
+        sortKeys = sortKeys,
+        rowSorterListener = rowSorterListener,
+        rowFilter = rowFilter,
+        rowHeight = rowHeight,
+        autoResizeMode = autoResizeMode,
+        fillsViewportHeight = fillsViewportHeight,
+        columnLayout = columnLayout,
+        tableColumnModelListener = tableColumnModelListener,
+    )
+}
+
+/**
+ * The `JTable` both [Table] overloads render, taking the listeners the lambda overload builds and the
+ * raw overload is handed. Inlined into its caller, so the two share one restart scope.
+ */
+@Suppress("NOTHING_TO_INLINE")
+@Composable
+private inline fun TableImpl(
+    model: TableModel,
+    listSelectionListener: ListSelectionListener,
+    modifier: SwingModifier,
+    selectedRowIndices: Set<Int>?,
+    @SelectionMode selectionMode: Int,
+    sortable: Boolean,
+    sortKeys: List<SortKey>?,
+    rowSorterListener: RowSorterListener?,
+    rowFilter: RowFilter<in TableModel, in Int>?,
+    rowHeight: Int?,
+    @AutoResizeMode autoResizeMode: Int,
+    fillsViewportHeight: Boolean,
+    columnLayout: TableColumnLayout?,
+    tableColumnModelListener: TableColumnModelListener?,
 ) {
     TableNode(
         listSelectionListener = listSelectionListener,
@@ -522,21 +609,21 @@ public fun <R> Table(
     onColumnLayoutChange: (TableColumnLayout) -> Unit = {},
     block: TableScope<R>.() -> Unit,
 ) {
-    Table(
+    TableRowsImpl(
         rows = rows,
+        listSelectionListener = settledRowSelectionListener { indices -> state.selectedRowIndices = indices },
         modifier = modifier.tableStateBinding(state),
         selectedRowIndices = state.selectedRowIndices,
-        onSelectionChange = { indices -> state.selectedRowIndices = indices },
         selectionMode = selectionMode,
         sortable = sortable,
         sortKeys = sortKeys,
-        onSortChange = onSortChange,
+        rowSorterListener = rememberSortKeysListener(onSortChange),
         rowFilter = rowFilter,
         rowHeight = rowHeight,
         autoResizeMode = autoResizeMode,
         fillsViewportHeight = fillsViewportHeight,
         columnLayout = columnLayout,
-        onColumnLayoutChange = onColumnLayoutChange,
+        tableColumnModelListener = columnLayoutListener(onColumnLayoutChange),
         block = block,
     )
 }
@@ -583,21 +670,21 @@ public fun Table(
     columnLayout: TableColumnLayout? = null,
     onColumnLayoutChange: (TableColumnLayout) -> Unit = {},
 ) {
-    Table(
+    TableImpl(
         model = model,
+        listSelectionListener = settledRowSelectionListener { indices -> state.selectedRowIndices = indices },
         modifier = modifier.tableStateBinding(state),
         selectedRowIndices = state.selectedRowIndices,
-        onSelectionChange = { indices -> state.selectedRowIndices = indices },
         selectionMode = selectionMode,
         sortable = sortable,
         sortKeys = sortKeys,
-        onSortChange = onSortChange,
+        rowSorterListener = rememberSortKeysListener(onSortChange),
         rowFilter = rowFilter,
         rowHeight = rowHeight,
         autoResizeMode = autoResizeMode,
         fillsViewportHeight = fillsViewportHeight,
         columnLayout = columnLayout,
-        onColumnLayoutChange = onColumnLayoutChange,
+        tableColumnModelListener = columnLayoutListener(onColumnLayoutChange),
     )
 }
 
@@ -608,9 +695,11 @@ public fun Table(
  * [RowSortChannel] and [ColumnLayoutChannel] that carry the sort order and the column layout across
  * whatever change [installContent] makes, since giving the table new content is one of the changes that
  * unsettles all four.
+ *
+ * Inlined into its caller, so the two share one restart scope.
  */
 @Composable
-private fun TableNode(
+private inline fun TableNode(
     listSelectionListener: ListSelectionListener,
     modifier: SwingModifier,
     selectedRowIndices: Set<Int>?,
@@ -624,7 +713,7 @@ private fun TableNode(
     tableColumnModelListener: TableColumnModelListener?,
     model: TableModel,
     cellCompositions: TableCellCompositions<*>?,
-    installContent: SwingNodeUpdater<JTable>.(
+    crossinline installContent: SwingNodeUpdater<JTable>.(
         MirrorState<Set<Int>?>,
         MirrorState<TableColumnLayout?>,
         RowSortChannel,
@@ -695,48 +784,3 @@ private fun SwingModifier.tableRowHeight(rowHeight: Int?): SwingModifier =
                 write = { table, height -> table.rowHeight = height },
             )
     }
-
-/**
- * Gives the table new content through [install], keeping the rows [declared] names selected - or, where the
- * caller declared nothing, the rows the user had - and reporting to [target] the rows the new content is
- * too short to hold. See [installNarrowing].
- */
-internal fun JTable.installContent(
-    mirror: MirrorState<Set<Int>?>,
-    declared: Set<Int>?,
-    target: ListSelectionListener,
-    install: () -> Unit,
-): Unit =
-    mirror.installNarrowing(
-        declared = declared,
-        selection = { selectedModelRows() },
-        // A row event renumbers the table's own selection to follow the row it sits on, so where the
-        // caller declared nothing the table has already answered and the rows read before the install
-        // name the old numbering. They go back only where the install emptied the selection outright,
-        // which is what a wholesale or structure change does and what leaves nothing to follow.
-        apply = { indices -> if (declared != null || selectedRowCount == 0) applySelection(this, indices) },
-        report = { lost -> reportLostRows(target, lost) },
-        install = install,
-    )
-
-/**
- * Re-applies [indices] as the table's selected rows. The indices name rows of the model, so a row the model
- * no longer holds is dropped and a row the current filter hides has no screen row to select and is dropped
- * too; the rest are converted to the screen rows they sit on and selected there. A selection that already
- * matches is left alone, so a recomposition that changed nothing touches the table's selection model not at
- * all, and a `null` declaration leaves it alone entirely. See [selectExactly].
- */
-private fun applySelection(
-    table: JTable,
-    indices: Set<Int>?,
-) {
-    if (indices == null) return
-    val rowCount = table.model.rowCount
-    val valid =
-        indices.mapNotNullTo(sortedSetOf()) { index ->
-            if (index !in 0 until rowCount) null else table.convertRowIndexToView(index).takeIf { it >= 0 }
-        }
-    val standing = table.selectedRows
-    if (standing.holdsSelection(valid)) return
-    table.selectionModel.selectExactly(standing, valid)
-}

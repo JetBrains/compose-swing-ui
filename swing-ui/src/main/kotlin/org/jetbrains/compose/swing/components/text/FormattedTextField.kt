@@ -203,9 +203,12 @@ public fun FormattedTextField(
 /**
  * The `JFormattedTextField` node every [FormattedTextField] overload renders. [modifier] arrives
  * carrying the reporting each overload wires - the caller's own chain first.
+ *
+ * Inlined into its caller, so the two share one restart scope.
  */
+@Suppress("NOTHING_TO_INLINE")
 @Composable
-private fun FormattedTextFieldNode(
+private inline fun FormattedTextFieldNode(
     value: Any?,
     mirror: MirrorState<Any?>,
     modifier: SwingModifier,

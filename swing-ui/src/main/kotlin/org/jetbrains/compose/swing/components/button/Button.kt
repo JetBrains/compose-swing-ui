@@ -49,9 +49,14 @@ public fun Button(
     ButtonNode(text = text, modifier = modifier.actionListener(actionListener))
 }
 
-/** The `JButton` node both [Button] overloads render; [modifier] already carries the button's wiring. */
+/**
+ * The `JButton` node both [Button] overloads render; [modifier] already carries the button's wiring.
+ *
+ * Inlined into its caller, so the two share one restart scope.
+ */
+@Suppress("NOTHING_TO_INLINE")
 @Composable
-private fun ButtonNode(
+private inline fun ButtonNode(
     text: @Nls String,
     modifier: SwingModifier,
 ) {

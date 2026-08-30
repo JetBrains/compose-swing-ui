@@ -138,7 +138,7 @@ public fun <T> Tree(
     toggleClickCount: Int = 2,
     nodeContent: (@Composable TreeNodeScope.(value: T) -> Unit)? = null,
 ) {
-    Tree(
+    TreeValuesImpl(
         root = root,
         children = children,
         treeSelectionListener = rememberSelectionListener(onSelectionChange),
@@ -222,6 +222,58 @@ public fun <T> Tree(
     visibleRowCount: Int = 20,
     toggleClickCount: Int = 2,
     nodeContent: (@Composable TreeNodeScope.(value: T) -> Unit)? = null,
+) {
+    TreeValuesImpl(
+        root = root,
+        children = children,
+        treeSelectionListener = treeSelectionListener,
+        modifier = modifier,
+        label = label,
+        hasChildren = hasChildren,
+        selectedPaths = selectedPaths,
+        expandedPaths = expandedPaths,
+        treeExpansionListener = treeExpansionListener,
+        treeWillExpandListener = treeWillExpandListener,
+        isEditable = isEditable,
+        onNodeEdit = onNodeEdit,
+        selectionMode = selectionMode,
+        rootVisible = rootVisible,
+        showsRootHandles = showsRootHandles,
+        rowHeight = rowHeight,
+        visibleRowCount = visibleRowCount,
+        toggleClickCount = toggleClickCount,
+        nodeContent = nodeContent,
+    )
+}
+
+/**
+ * The `JTree` both value-walked [Tree] overloads render, taking the selection listener the lambda overload
+ * builds and the raw overload is handed.
+ *
+ * Inlined into its caller, so the two share one restart scope.
+ */
+@Suppress("NOTHING_TO_INLINE")
+@Composable
+private inline fun <T> TreeValuesImpl(
+    root: T,
+    noinline children: (T) -> List<T>,
+    treeSelectionListener: TreeSelectionListener,
+    modifier: SwingModifier,
+    noinline label: (T) -> @Nls String,
+    noinline hasChildren: ((T) -> Boolean)?,
+    selectedPaths: Set<List<Int>>?,
+    expandedPaths: Set<List<Int>>?,
+    treeExpansionListener: TreeExpansionListener?,
+    treeWillExpandListener: TreeWillExpandListener?,
+    isEditable: Boolean,
+    noinline onNodeEdit: (value: T, path: List<Int>, newValue: Any?) -> Unit,
+    @TreeSelectionMode selectionMode: Int,
+    rootVisible: Boolean,
+    showsRootHandles: Boolean?,
+    rowHeight: Int?,
+    visibleRowCount: Int,
+    toggleClickCount: Int,
+    noinline nodeContent: (@Composable TreeNodeScope.(value: T) -> Unit)?,
 ) {
     // The single conversion from nodeContent to a JTree cell renderer: one reused
     // ComposingTreeCellRenderer stamps a recycled composition per node. A null nodeContent renders the
@@ -335,7 +387,7 @@ public fun Tree(
     visibleRowCount: Int = 20,
     toggleClickCount: Int = 2,
 ) {
-    Tree(
+    TreeModelImpl(
         model = model,
         treeSelectionListener = rememberSelectionListener(onSelectionChange),
         modifier = modifier,
@@ -394,6 +446,44 @@ public fun Tree(
     rowHeight: Int? = null,
     visibleRowCount: Int = 20,
     toggleClickCount: Int = 2,
+) {
+    TreeModelImpl(
+        model = model,
+        treeSelectionListener = treeSelectionListener,
+        modifier = modifier,
+        selectedPaths = selectedPaths,
+        expandedPaths = expandedPaths,
+        treeExpansionListener = treeExpansionListener,
+        selectionMode = selectionMode,
+        rootVisible = rootVisible,
+        showsRootHandles = showsRootHandles,
+        rowHeight = rowHeight,
+        visibleRowCount = visibleRowCount,
+        toggleClickCount = toggleClickCount,
+    )
+}
+
+/**
+ * The `JTree` both model-driven [Tree] overloads render, taking the selection listener the lambda overload
+ * builds and the raw overload is handed.
+ *
+ * Inlined into its caller, so the two share one restart scope.
+ */
+@Suppress("NOTHING_TO_INLINE")
+@Composable
+private inline fun TreeModelImpl(
+    model: TreeModel,
+    treeSelectionListener: TreeSelectionListener,
+    modifier: SwingModifier,
+    selectedPaths: Set<List<Int>>?,
+    expandedPaths: Set<List<Int>>?,
+    treeExpansionListener: TreeExpansionListener?,
+    @TreeSelectionMode selectionMode: Int,
+    rootVisible: Boolean,
+    showsRootHandles: Boolean?,
+    rowHeight: Int?,
+    visibleRowCount: Int,
+    toggleClickCount: Int,
 ) {
     TreeNode(
         treeSelectionListener = treeSelectionListener,
@@ -485,17 +575,17 @@ public fun <T> Tree(
     toggleClickCount: Int = 2,
     nodeContent: (@Composable TreeNodeScope.(value: T) -> Unit)? = null,
 ) {
-    Tree(
+    TreeValuesImpl(
         root = root,
         children = children,
+        treeSelectionListener = rememberSelectionListener { paths -> state.selectedPaths = paths },
         modifier = modifier.treeStateBinding(state),
         label = label,
         hasChildren = hasChildren,
         selectedPaths = state.selectedPaths,
-        onSelectionChange = { paths -> state.selectedPaths = paths },
         expandedPaths = state.expandedPaths,
-        onExpansionChange = { paths -> state.expandedPaths = paths },
-        onWillExpand = onWillExpand,
+        treeExpansionListener = rememberExpansionListener { paths -> state.expandedPaths = paths },
+        treeWillExpandListener = rememberWillExpandListener(onWillExpand),
         isEditable = isEditable,
         onNodeEdit = onNodeEdit,
         selectionMode = selectionMode,
@@ -543,13 +633,13 @@ public fun Tree(
     visibleRowCount: Int = 20,
     toggleClickCount: Int = 2,
 ) {
-    Tree(
+    TreeModelImpl(
         model = model,
+        treeSelectionListener = rememberSelectionListener { paths -> state.selectedPaths = paths },
         modifier = modifier.treeStateBinding(state),
         selectedPaths = state.selectedPaths,
-        onSelectionChange = { paths -> state.selectedPaths = paths },
         expandedPaths = state.expandedPaths,
-        onExpansionChange = { paths -> state.expandedPaths = paths },
+        treeExpansionListener = rememberExpansionListener { paths -> state.expandedPaths = paths },
         selectionMode = selectionMode,
         rootVisible = rootVisible,
         showsRootHandles = showsRootHandles,
@@ -564,9 +654,11 @@ public fun Tree(
  * declares - values walked through child accessors in one family of overloads, the caller's own model in
  * the other. [installContent] is handed the tree's [TreeMirrors], since giving the tree a new structure is
  * one of the writes that changes both of the facets it settles.
+ *
+ * Inlined into its caller, so the two share one restart scope.
  */
 @Composable
-private fun TreeNode(
+private inline fun TreeNode(
     treeSelectionListener: TreeSelectionListener,
     modifier: SwingModifier,
     selectedPaths: Set<List<Int>>?,
@@ -581,7 +673,7 @@ private fun TreeNode(
     visibleRowCount: Int,
     toggleClickCount: Int,
     nodeRenderer: ComposingTreeCellRenderer<*>?,
-    installContent: SwingNodeUpdater<JTree>.(TreeMirrors) -> Unit,
+    crossinline installContent: SwingNodeUpdater<JTree>.(TreeMirrors) -> Unit,
 ) {
     val selectionMirror = rememberMirrorState(selectedPaths)
     val expansionMirror = rememberMirrorState(expandedPaths)

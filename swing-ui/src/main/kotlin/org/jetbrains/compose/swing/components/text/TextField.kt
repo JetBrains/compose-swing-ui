@@ -93,9 +93,12 @@ public fun TextField(
 
 /**
  * The `JTextField` node both [TextField] overloads render. [value] is settled through [declareText].
+ *
+ * Inlined into its caller, so the two share one restart scope.
  */
+@Suppress("NOTHING_TO_INLINE")
 @Composable
-private fun TextFieldNode(
+private inline fun TextFieldNode(
     value: @Nls String,
     mirror: MirrorState<String>,
     modifier: SwingModifier,

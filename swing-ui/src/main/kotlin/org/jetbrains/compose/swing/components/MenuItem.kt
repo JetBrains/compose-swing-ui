@@ -65,9 +65,12 @@ public fun MenuItem(
 /**
  * The `JMenuItem` node both [MenuItem] overloads render. [modifier] already carries the item's
  * activation channel, whichever of the two the overload driving it uses.
+ *
+ * Inlined into its caller, so the two share one restart scope.
  */
+@Suppress("NOTHING_TO_INLINE")
 @Composable
-private fun MenuItemNode(
+private inline fun MenuItemNode(
     text: @Nls String,
     accelerator: KeyStroke?,
     modifier: SwingModifier,

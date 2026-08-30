@@ -102,15 +102,17 @@ public fun ProgressBar(
  * The `JProgressBar` node both [ProgressBar] overloads render: all of it but the range, which
  * [installRange] declares - a value between a minimum and a maximum in one overload, the caller's own model
  * in the other.
+ *
+ * Inlined into its caller, so the two share one restart scope.
  */
 @Composable
-private fun ProgressBarNode(
+private inline fun ProgressBarNode(
     modifier: SwingModifier,
     indeterminate: Boolean,
     @Orientation orientation: Int,
     stringPainted: Boolean,
     string: @Nls String?,
-    installRange: SwingNodeUpdater<JProgressBar>.() -> Unit,
+    crossinline installRange: SwingNodeUpdater<JProgressBar>.() -> Unit,
 ) {
     SwingNode(
         factory = { JProgressBar() },

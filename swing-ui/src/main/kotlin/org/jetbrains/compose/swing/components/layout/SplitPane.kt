@@ -161,9 +161,12 @@ public fun SplitPane(
 
 /**
  * The `JSplitPane` node both public [SplitPane] overloads render.
+ *
+ * Inlined into its caller, so the two share one restart scope.
  */
+@Suppress("NOTHING_TO_INLINE")
 @Composable
-private fun SplitPaneImpl(
+private inline fun SplitPaneImpl(
     modifier: SwingModifier,
     @SplitOrientation orientation: Int,
     dividerLocation: Int,
@@ -172,7 +175,7 @@ private fun SplitPaneImpl(
     oneTouchExpandable: Boolean?,
     dividerSize: Int?,
     continuousLayout: Boolean?,
-    content: @Composable SplitPaneScope.() -> Unit,
+    noinline content: @Composable SplitPaneScope.() -> Unit,
 ) {
     // No UIManager default names oneTouchExpandable or continuousLayout - a look and feel that wants
     // either sets it directly in its own installUI - so both answers are read straight off the pane's

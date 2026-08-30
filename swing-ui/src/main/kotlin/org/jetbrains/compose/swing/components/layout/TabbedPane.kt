@@ -112,15 +112,18 @@ public fun TabbedPane(
 /**
  * The `JTabbedPane` every [TabbedPane] overload renders, with [changeListener] already carrying whichever
  * selection channel the overload driving it uses.
+ *
+ * Inlined into its caller, so the two share one restart scope.
  */
+@Suppress("NOTHING_TO_INLINE")
 @Composable
-private fun TabbedPaneImpl(
+private inline fun TabbedPaneImpl(
     selectedIndex: Int,
     modifier: SwingModifier,
     @TabPlacement tabPlacement: Int,
     @TabLayoutPolicy tabLayoutPolicy: Int,
     changeListener: ChangeListener,
-    content: @Composable TabbedPaneScope.() -> Unit,
+    noinline content: @Composable TabbedPaneScope.() -> Unit,
 ) {
     // Rejected against the declaration rather than against the strip: an index no pane could ever be on
     // is the caller's mistake to hear about on the pass that makes it, not once a tab happens to arrive.

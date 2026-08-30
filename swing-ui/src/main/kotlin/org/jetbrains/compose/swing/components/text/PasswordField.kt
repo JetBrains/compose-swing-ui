@@ -122,9 +122,12 @@ public fun PasswordField(
 /**
  * The `JPasswordField` node both character-array [PasswordField] overloads render. [value] is settled
  * through [declarePassword].
+ *
+ * Inlined into its caller, so the two share one restart scope.
  */
+@Suppress("NOTHING_TO_INLINE")
 @Composable
-private fun PasswordFieldNode(
+private inline fun PasswordFieldNode(
     value: CharArray,
     mirror: MirrorState<PasswordChars>,
     modifier: SwingModifier,
@@ -239,13 +242,15 @@ public fun PasswordField(
 /**
  * Shared scaffolding for the [PasswordField] overloads: constructs the field with [columns], keeps
  * [echoChar] and [editable] applied, and threads each overload's own binding through [update].
+ *
+ * Inlined into its caller, so the two share one restart scope.
  */
 @Composable
-private fun PasswordFieldImpl(
+private inline fun PasswordFieldImpl(
     echoChar: Char?,
     columns: Int,
     editable: Boolean,
-    update: SwingNodeUpdater<DefaultMaskPasswordField>.() -> Unit,
+    crossinline update: SwingNodeUpdater<DefaultMaskPasswordField>.() -> Unit,
 ) {
     SwingNode(
         factory = { DefaultMaskPasswordField(columns) },

@@ -121,9 +121,12 @@ public fun TextArea(
 
 /**
  * The `JTextArea` node both [TextArea] overloads render. [value] is settled through [declareText].
+ *
+ * Inlined into its caller, so the two share one restart scope.
  */
+@Suppress("NOTHING_TO_INLINE")
 @Composable
-private fun TextAreaNode(
+private inline fun TextAreaNode(
     value: @Nls String,
     mirror: MirrorState<String>,
     modifier: SwingModifier,

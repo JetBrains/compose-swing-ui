@@ -103,9 +103,12 @@ public fun EditorPane(
 /**
  * The `JEditorPane` node both rendering [EditorPane] overloads render; [modifier] already carries the
  * pane's link wiring.
+ *
+ * Inlined into its caller, so the two share one restart scope.
  */
+@Suppress("NOTHING_TO_INLINE")
 @Composable
-private fun RenderedPaneNode(
+private inline fun RenderedPaneNode(
     markup: @Nls String,
     modifier: SwingModifier,
     @ContentType contentType: String,
@@ -276,9 +279,12 @@ public fun TextPane(
 
 /**
  * The `JTextPane` node both [TextPane] overloads render. [value] is settled through [declareText].
+ *
+ * Inlined into its caller, so the two share one restart scope.
  */
+@Suppress("NOTHING_TO_INLINE")
 @Composable
-private fun TextPaneNode(
+private inline fun TextPaneNode(
     value: @Nls String,
     mirror: MirrorState<String>,
     modifier: SwingModifier,

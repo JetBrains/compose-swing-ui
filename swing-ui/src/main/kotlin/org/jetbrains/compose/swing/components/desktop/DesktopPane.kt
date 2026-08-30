@@ -385,24 +385,27 @@ private class PlacedFrameState(
 }
 
 /**
- * One `JInternalFrame` node: builds the frame visible, installs the declaration's window-event handling,
- * applies its title, controls, geometry and window state reactively, and writes the user's own moves,
- * resizes, iconifications and maximizations back into the declared state. Hosts the declared body as
- * composable content.
+ * The `JInternalFrame` node every [InternalFrame] overload renders: it builds the frame visible, installs
+ * the declaration's window-event handling, applies its title, controls, geometry and window state
+ * reactively, and writes the user's own moves, resizes, iconifications and maximizations back into the
+ * declared state. Hosts the declared body as composable content.
  *
  * Exactly one of [onClose]/[rawListener] is set: the `onClose` overloads supply the controlled close
  * callback, which a listener installed here delivers, and the raw overloads supply the listener instance
  * directly.
+ *
+ * Inlined into its caller, so the two share one restart scope.
  */
+@Suppress("NOTHING_TO_INLINE")
 @Composable
-private fun FrameNode(
+private inline fun FrameNode(
     title: @Nls String,
     declared: DeclaredFrameState,
     controls: InternalFrameControls,
-    onClose: (() -> Unit)?,
+    noinline onClose: (() -> Unit)?,
     rawListener: InternalFrameListener?,
     modifier: SwingModifier,
-    content: @Composable () -> Unit,
+    noinline content: @Composable () -> Unit,
 ) {
     // The onClose overload routes the close control through a listener that reads the declared callback
     // when the frame reports closing (the close operation stays do-nothing, so the frame is only closed

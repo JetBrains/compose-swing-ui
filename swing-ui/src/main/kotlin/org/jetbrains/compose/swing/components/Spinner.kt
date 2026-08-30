@@ -281,17 +281,19 @@ public fun Spinner(
 /**
  * The `JSpinner` node both [Spinner] overloads render. [modifier] already carries every listener the
  * spinner needs, the caller's own raw listener included where a raw overload is driving it.
+ *
+ * Inlined into its caller, so the two share one restart scope.
  */
 @Composable
-private fun SpinnerNode(
+private inline fun SpinnerNode(
     model: SpinnerModel,
     modifier: SwingModifier,
     format: String?,
-    editor: (
+    noinline editor: (
         @Composable
         () -> Unit
     )?,
-    updateBlock: SwingNodeUpdater<JSpinner>.() -> Unit = {},
+    crossinline updateBlock: SwingNodeUpdater<JSpinner>.() -> Unit = {},
 ) {
     // Both name the surface the spinner edits through, and a composed editor renders the value itself, so
     // a pass declaring both has no answer to which of them the spinner is to show.

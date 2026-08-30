@@ -88,7 +88,7 @@ public fun <T> ListBox(
     fixedCellHeight: Int = -1,
     itemContent: (@Composable ListItemScope.(item: T) -> Unit)? = null,
 ) {
-    ListBox(
+    ListBoxItemsImpl(
         items = items,
         listSelectionListener = settledSelectionListener(onSelectionChange),
         modifier = modifier,
@@ -140,6 +140,42 @@ public fun <T> ListBox(
     fixedCellWidth: Int = -1,
     fixedCellHeight: Int = -1,
     itemContent: (@Composable ListItemScope.(item: T) -> Unit)? = null,
+) {
+    ListBoxItemsImpl(
+        items = items,
+        listSelectionListener = listSelectionListener,
+        modifier = modifier,
+        selectedIndices = selectedIndices,
+        selectionMode = selectionMode,
+        visibleRowCount = visibleRowCount,
+        layoutOrientation = layoutOrientation,
+        prototypeCellValue = prototypeCellValue,
+        fixedCellWidth = fixedCellWidth,
+        fixedCellHeight = fixedCellHeight,
+        itemContent = itemContent,
+    )
+}
+
+/**
+ * The `JList` both items-driven [ListBox] overloads render, taking the selection listener the lambda overload builds
+ * and the raw overload is handed.
+ *
+ * Inlined into its caller, so the two share one restart scope.
+ */
+@Suppress("NOTHING_TO_INLINE")
+@Composable
+private inline fun <T> ListBoxItemsImpl(
+    items: List<T>,
+    listSelectionListener: ListSelectionListener,
+    modifier: SwingModifier,
+    selectedIndices: Set<Int>?,
+    @SelectionMode selectionMode: Int,
+    visibleRowCount: Int,
+    @ListLayoutOrientation layoutOrientation: Int,
+    prototypeCellValue: T?,
+    fixedCellWidth: Int,
+    fixedCellHeight: Int,
+    noinline itemContent: (@Composable ListItemScope.(item: T) -> Unit)?,
 ) {
     val declaredItems = rememberDeclaredList(items)
     ListBoxNode(
@@ -213,7 +249,7 @@ public fun <T> ListBox(
     fixedCellHeight: Int = -1,
     itemContent: (@Composable ListItemScope.(item: T) -> Unit)? = null,
 ) {
-    ListBox(
+    ListBoxModelImpl(
         model = model,
         listSelectionListener = settledSelectionListener(onSelectionChange),
         modifier = modifier,
@@ -268,6 +304,42 @@ public fun <T> ListBox(
     fixedCellWidth: Int = -1,
     fixedCellHeight: Int = -1,
     itemContent: (@Composable ListItemScope.(item: T) -> Unit)? = null,
+) {
+    ListBoxModelImpl(
+        model = model,
+        listSelectionListener = listSelectionListener,
+        modifier = modifier,
+        selectedIndices = selectedIndices,
+        selectionMode = selectionMode,
+        visibleRowCount = visibleRowCount,
+        layoutOrientation = layoutOrientation,
+        prototypeCellValue = prototypeCellValue,
+        fixedCellWidth = fixedCellWidth,
+        fixedCellHeight = fixedCellHeight,
+        itemContent = itemContent,
+    )
+}
+
+/**
+ * The `JList` both model-driven [ListBox] overloads render, taking the selection listener the lambda overload builds
+ * and the raw overload is handed.
+ *
+ * Inlined into its caller, so the two share one restart scope.
+ */
+@Suppress("NOTHING_TO_INLINE")
+@Composable
+private inline fun <T> ListBoxModelImpl(
+    model: ListModel<T>,
+    listSelectionListener: ListSelectionListener,
+    modifier: SwingModifier,
+    selectedIndices: Set<Int>?,
+    @SelectionMode selectionMode: Int,
+    visibleRowCount: Int,
+    @ListLayoutOrientation layoutOrientation: Int,
+    prototypeCellValue: T?,
+    fixedCellWidth: Int,
+    fixedCellHeight: Int,
+    noinline itemContent: (@Composable ListItemScope.(item: T) -> Unit)?,
 ) {
     ListBoxNode(
         listSelectionListener = listSelectionListener,
@@ -330,11 +402,11 @@ public fun <T> ListBox(
     fixedCellHeight: Int = -1,
     itemContent: (@Composable ListItemScope.(item: T) -> Unit)? = null,
 ) {
-    ListBox(
+    ListBoxItemsImpl(
         items = items,
+        listSelectionListener = settledSelectionListener { indices -> state.selectedIndices = indices },
         modifier = modifier.listStateBinding(state),
         selectedIndices = state.selectedIndices,
-        onSelectionChange = { indices -> state.selectedIndices = indices },
         selectionMode = selectionMode,
         visibleRowCount = visibleRowCount,
         layoutOrientation = layoutOrientation,
@@ -382,11 +454,11 @@ public fun <T> ListBox(
     fixedCellHeight: Int = -1,
     itemContent: (@Composable ListItemScope.(item: T) -> Unit)? = null,
 ) {
-    ListBox(
+    ListBoxModelImpl(
         model = model,
+        listSelectionListener = settledSelectionListener { indices -> state.selectedIndices = indices },
         modifier = modifier.listStateBinding(state),
         selectedIndices = state.selectedIndices,
-        onSelectionChange = { indices -> state.selectedIndices = indices },
         selectionMode = selectionMode,
         visibleRowCount = visibleRowCount,
         layoutOrientation = layoutOrientation,
@@ -402,9 +474,11 @@ public fun <T> ListBox(
  * declares - a declarative items list in one family of overloads, the caller's own model in the other.
  * [installContent] is handed the [MirrorState] mirroring the list's selection, since giving the list new
  * content is one of the writes that changes it.
+ *
+ * Inlined into its caller, so the two share one restart scope.
  */
 @Composable
-private fun <T> ListBoxNode(
+private inline fun <T> ListBoxNode(
     listSelectionListener: ListSelectionListener,
     modifier: SwingModifier,
     selectedIndices: Set<Int>?,
@@ -414,8 +488,8 @@ private fun <T> ListBoxNode(
     prototypeCellValue: T?,
     fixedCellWidth: Int,
     fixedCellHeight: Int,
-    itemContent: (@Composable ListItemScope.(item: T) -> Unit)?,
-    installContent: SwingNodeUpdater<JList<T>>.(MirrorState<Set<Int>?>) -> Unit,
+    noinline itemContent: (@Composable ListItemScope.(item: T) -> Unit)?,
+    crossinline installContent: SwingNodeUpdater<JList<T>>.(MirrorState<Set<Int>?>) -> Unit,
 ) {
     // The single conversion from itemContent to a JList cell renderer: one reused ComposingListCellRenderer
     // stamps a recycled composition per row. A null itemContent renders rows through the list's own renderer.
@@ -466,51 +540,4 @@ private fun <T> ListBoxNode(
             )
         },
     )
-}
-
-/**
- * Adapts an `onSelectionChange` lambda into the raw [ListSelectionListener] the model-agnostic
- * overloads delegate to, reporting one settled selection per change. A JList re-fires its selection
- * event with the list itself as the source, so the settled selection is read back from that list.
- */
-private fun settledSelectionListener(onSelectionChange: (Set<Int>) -> Unit): ListSelectionListener =
-    ListSelectionListener { event ->
-        if (!event.valueIsAdjusting) onSelectionChange((event.source as JList<*>).selectedIndices.toSet())
-    }
-
-/**
- * Gives the list new content through [install], keeping the rows [declared] names selected - or, where the
- * caller declared nothing, the rows the user had - and reporting to [target] the rows the new content is
- * too short to hold. See [installNarrowing].
- */
-private fun JList<*>.installContent(
-    mirror: MirrorState<Set<Int>?>,
-    declared: Set<Int>?,
-    target: ListSelectionListener,
-    install: () -> Unit,
-): Unit =
-    mirror.installNarrowing(
-        declared = declared,
-        selection = { selectedIndices.toSet() },
-        apply = { rows -> applySelection(this, rows) },
-        report = { lost -> reportLostRows(target, lost) },
-        install = install,
-    )
-
-/**
- * Re-applies [indices] as the list's selection, dropping any index the current item count no longer
- * covers. A selection that already matches is left alone, so a recomposition that changed nothing
- * touches the list's selection model not at all, and a `null` declaration leaves it alone entirely. See
- * [selectExactly].
- */
-private fun applySelection(
-    list: JList<*>,
-    indices: Set<Int>?,
-) {
-    if (indices == null) return
-    val itemCount = list.model.size
-    val valid = indices.filterTo(sortedSetOf()) { it in 0 until itemCount }
-    val standing = list.selectedIndices
-    if (standing.holdsSelection(valid)) return
-    list.selectionModel.selectExactly(standing, valid)
 }
