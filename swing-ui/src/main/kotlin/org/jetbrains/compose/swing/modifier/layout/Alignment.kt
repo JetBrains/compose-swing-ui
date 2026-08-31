@@ -20,7 +20,8 @@ import javax.swing.JComponent
 public fun SwingModifier.alignmentX(value: Float): SwingModifier =
     this then
         propertyElement<JComponent, Float>(
-            value,
+            name = "alignmentX",
+            value = value,
             read = { it.alignmentX },
             write = { component, alignment ->
                 component.alignmentX = alignment
@@ -41,7 +42,8 @@ public fun SwingModifier.alignmentX(value: Float): SwingModifier =
 public fun SwingModifier.alignmentY(value: Float): SwingModifier =
     this then
         propertyElement<JComponent, Float>(
-            value,
+            name = "alignmentY",
+            value = value,
             read = { it.alignmentY },
             write = { component, alignment ->
                 component.alignmentY = alignment

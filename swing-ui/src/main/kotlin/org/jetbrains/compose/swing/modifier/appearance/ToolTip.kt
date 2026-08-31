@@ -60,6 +60,9 @@ private class ToolTipElement(
     private val text: @Nls String?,
     private val textAt: ((event: MouseEvent) -> @Nls String?)?,
 ) : SwingModifier.NodeElement<JComponent, ToolTipElement.Node>() {
+    override val name: String get() = "toolTip"
+
+    override val declaredValues: Map<String, Any?> get() = mapOf("text" to text)
     override val targetType: Class<JComponent> get() = JComponent::class.java
 
     override fun create(): Node = Node()

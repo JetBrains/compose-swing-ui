@@ -9,7 +9,6 @@ import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
 import org.jetbrains.compose.swing.modifier.listener.listener
-import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Color
@@ -315,26 +314,6 @@ class ModifierReapplicationTest {
     }
 
     @Test
-    fun applyingModifiersMultipleTimesInSameUpdateBlockFailsLoudly() = runComposeSwingTest {
-        val failure =
-            assertFailsWith<IllegalStateException> {
-                setContent {
-                    SwingNode(
-                        factory = { JButton() },
-                        update = {
-                            applyModifier(SwingModifier.background(Color.RED))
-                            applyModifier(SwingModifier.background(Color.BLUE))
-                        },
-                    )
-                }
-            }
-        assertTrue(
-            failure.message.orEmpty().contains("applyModifier may only be called once"),
-            "duplicate applyModifier call must fail loudly, but was: ${failure.message}",
-        )
-    }
-
-    @Test
     fun reusingNodeInstanceAcrossMultipleComponentsFailsLoudly() = runComposeSwingTest {
         val sharedNode = object : SwingModifier.Node<Component>() {}
         val sharedElement =
@@ -370,6 +349,7 @@ class ModifierReapplicationTest {
          */
         val MOUSE_EVENTS =
             ListenerRegistration<JButton, MouseListener>(
+                name = "mouseListener",
                 { component, listener -> component.addMouseListener(listener) },
                 { component, listener -> component.removeMouseListener(listener) },
             )

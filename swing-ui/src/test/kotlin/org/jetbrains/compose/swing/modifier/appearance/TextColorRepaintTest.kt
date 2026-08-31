@@ -4,7 +4,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -97,7 +96,7 @@ class TextColorRepaintTest {
         var color by mutableStateOf(FirstColor)
 
         setContent {
-            SwingNode(factory = { field }, update = { applyModifier(declare(color)) })
+            SwingNode(factory = { field }, modifier = declare(color))
         }
 
         awaitIdle()

@@ -5,7 +5,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.layout.FlowPanel
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -28,7 +27,7 @@ class ColorSelectionModelSwapRegistrationTest {
             FlowPanel {
                 SwingNode(
                     factory = { JColorChooser() },
-                    update = { applyModifier(SwingModifier.changeListener { changes++ }) },
+                    modifier = SwingModifier.changeListener { changes++ },
                 )
             }
         }
@@ -50,11 +49,7 @@ class ColorSelectionModelSwapRegistrationTest {
             FlowPanel {
                 SwingNode(
                     factory = { JColorChooser() },
-                    update = {
-                        applyModifier(
-                            if (declared) SwingModifier.changeListener { changes++ } else SwingModifier,
-                        )
-                    },
+                    modifier = if (declared) SwingModifier.changeListener { changes++ } else SwingModifier,
                 )
             }
         }
@@ -83,11 +78,7 @@ class ColorSelectionModelSwapRegistrationTest {
             FlowPanel {
                 SwingNode(
                     factory = { JColorChooser() },
-                    update = {
-                        applyModifier(
-                            if (declared) SwingModifier.changeListener { } else SwingModifier,
-                        )
-                    },
+                    modifier = if (declared) SwingModifier.changeListener { } else SwingModifier,
                 )
             }
         }

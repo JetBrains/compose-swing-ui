@@ -22,6 +22,7 @@ import java.awt.Component
 public fun SwingModifier.initialFocus(): SwingModifier = this then InitialFocusElement
 
 private object InitialFocusElement : SwingModifier.NodeElement<Component, InitialFocusElement.Node>() {
+    override val name: String get() = "initialFocus"
     override val targetType: Class<Component> get() = Component::class.java
     override val additive: Boolean get() = true
 

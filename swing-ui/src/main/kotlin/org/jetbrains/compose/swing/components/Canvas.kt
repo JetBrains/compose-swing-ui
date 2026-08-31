@@ -6,7 +6,6 @@ package org.jetbrains.compose.swing.components
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.snapshots.SnapshotStateObserver
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import java.awt.Dimension
 import java.awt.Graphics
@@ -48,12 +47,12 @@ public fun Canvas(
 ) {
     SwingNode(
         factory = { CanvasComponent() },
+        modifier = modifier,
         update = {
             // The owner's shared observer, stamped onto this node's holder by the applier at insert and
             // shared by every Canvas in this composition. It is handed over before the surface is
             // attached, and stays for the surface's whole life.
             ownerObserver { this.snapshotObserver = it }
-            applyModifier(modifier)
             set(onDraw) {
                 this.onDraw = it
                 repaint()

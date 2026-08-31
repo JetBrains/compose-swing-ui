@@ -5,7 +5,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.toolTip
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -32,7 +31,7 @@ class CaretModifierTest {
         setContent {
             SwingNode(
                 factory = { JTextField(TEXT) },
-                update = { applyModifier(if (declared) SwingModifier.caret(caret) else SwingModifier) },
+                modifier = if (declared) SwingModifier.caret(caret) else SwingModifier,
             )
         }
         val field = onNodeOfType<JTextField>().fetch()
@@ -52,7 +51,7 @@ class CaretModifierTest {
     fun theDeclaredCaretIsTheOneTheFieldNavigatesWith() = runComposeSwingTest {
         val caret = DefaultCaret()
         setContent {
-            SwingNode(factory = { JTextField(TEXT) }, update = { applyModifier(SwingModifier.caret(caret)) })
+            SwingNode(factory = { JTextField(TEXT) }, modifier = SwingModifier.caret(caret))
         }
         val field = onNodeOfType<JTextField>().fetch()
 
@@ -69,7 +68,7 @@ class CaretModifierTest {
         setContent {
             SwingNode(
                 factory = { JTextField(TEXT) },
-                update = { applyModifier(SwingModifier.caret(caret).toolTip(tip)) },
+                modifier = SwingModifier.caret(caret).toolTip(tip),
             )
         }
         val field = onNodeOfType<JTextField>().fetch()
@@ -91,7 +90,7 @@ class CaretModifierTest {
         setContent {
             SwingNode(
                 factory = { JTextField(TEXT) },
-                update = { applyModifier(if (declared) SwingModifier.caretBlinkRate(0) else SwingModifier) },
+                modifier = if (declared) SwingModifier.caretBlinkRate(0) else SwingModifier,
             )
         }
         val field = onNodeOfType<JTextField>().fetch()
@@ -112,10 +111,10 @@ class CaretModifierTest {
         val silent = DefaultCaret()
         val blinking = DefaultCaret()
         setContent {
-            SwingNode(factory = { JTextField(TEXT) }, update = { applyModifier(SwingModifier.caret(silent)) })
+            SwingNode(factory = { JTextField(TEXT) }, modifier = SwingModifier.caret(silent))
             SwingNode(
                 factory = { JTextField(TEXT) },
-                update = { applyModifier(SwingModifier.caret(blinking).caretBlinkRate(BLINK_RATE)) },
+                modifier = SwingModifier.caret(blinking).caretBlinkRate(BLINK_RATE),
             )
         }
 

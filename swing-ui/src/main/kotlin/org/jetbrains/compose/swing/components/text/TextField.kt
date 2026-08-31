@@ -6,7 +6,6 @@ package org.jetbrains.compose.swing.components.text
 import androidx.compose.runtime.Composable
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.documentListener
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
@@ -110,6 +109,7 @@ private inline fun TextFieldNode(
 ) {
     SwingNode(
         factory = { JTextField(columns) },
+        modifier = modifier,
         update = {
             update(columns) {
                 this.columns = it
@@ -117,7 +117,6 @@ private inline fun TextFieldNode(
             }
             declareText(value, mirror)
             set(editable) { this.isEditable = it }
-            applyModifier(modifier)
         },
     )
 }
@@ -144,13 +143,13 @@ public fun TextField(
 ) {
     SwingNode(
         factory = { JTextField(columns) },
+        modifier = modifier.documentStateBinding(state),
         update = {
             update(columns) {
                 this.columns = it
                 revalidate()
             }
             set(editable) { this.isEditable = it }
-            applyModifier(modifier.documentStateBinding(state))
         },
     )
 }

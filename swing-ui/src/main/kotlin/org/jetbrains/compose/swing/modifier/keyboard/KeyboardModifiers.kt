@@ -107,6 +107,9 @@ private class KeyStrokeElement(
     @param:FocusCondition private val condition: Int,
     private val onAction: () -> Unit,
 ) : SwingModifier.NodeElement<JComponent, KeyStrokeElement.Node>() {
+    override val name: String get() = "onKeyStroke"
+
+    override val declaredValues: Map<String, Any?> get() = mapOf("keyStroke" to keyStroke, "condition" to condition)
     override val targetType: Class<JComponent> get() = JComponent::class.java
     override val additive: Boolean get() = true
 

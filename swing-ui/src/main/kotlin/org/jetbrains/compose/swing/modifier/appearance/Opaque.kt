@@ -18,7 +18,8 @@ import javax.swing.JComponent
 public fun SwingModifier.opaque(opaque: Boolean): SwingModifier =
     this then
         propertyElement<JComponent, Boolean>(
-            opaque,
+            name = "opaque",
+            value = opaque,
             read = { it.isOpaque },
             write = { component, value -> component.isOpaque = value },
         )

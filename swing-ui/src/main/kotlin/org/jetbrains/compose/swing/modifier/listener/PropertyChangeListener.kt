@@ -104,6 +104,7 @@ public fun SwingModifier.propertyChangeListener(
 
 private val PROPERTY_CHANGES =
     ListenerRegistration<Component, PropertyChangeListener>(
+        name = "propertyChangeListener",
         Component::addPropertyChangeListener,
         Component::removePropertyChangeListener,
     )
@@ -122,6 +123,7 @@ private val PROPERTY_CHANGE_CALLBACKS =
  */
 private fun boundPropertyRegistration(name: String): ListenerRegistration<Component, PropertyChangeListener> =
     ListenerRegistration(
+        name = "propertyChangeListener",
         { component, listener -> component.addPropertyChangeListener(name, listener) },
         { component, listener -> component.removePropertyChangeListener(name, listener) },
         key = BoundProperty(name),

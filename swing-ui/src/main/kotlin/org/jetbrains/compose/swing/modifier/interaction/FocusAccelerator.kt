@@ -27,7 +27,8 @@ import javax.swing.text.JTextComponent
 public fun SwingModifier.focusAccelerator(key: Char): SwingModifier =
     this then
         propertyElement<JTextComponent, Char>(
-            key,
+            name = "focusAccelerator",
+            value = key,
             read = { it.focusAccelerator },
             write = { component, value -> component.focusAccelerator = value },
         )

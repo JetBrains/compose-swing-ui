@@ -5,7 +5,6 @@ package org.jetbrains.compose.swing.components.layout
 
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import java.awt.GridBagLayout
 
@@ -43,9 +42,7 @@ public fun GridBagPanel(
 ) {
     SwingNode(
         factory = { ScrollablePanel(GridBagLayout()) },
-        update = {
-            applyModifier(modifier)
-        },
+        modifier = modifier,
         content = { GridBagPanelScopeImpl.content() },
     )
 }

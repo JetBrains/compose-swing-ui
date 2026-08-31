@@ -41,6 +41,9 @@ internal class PropertyNode<T : Component, V>(
  * client property keyed by its property key), subclass this and override [SwingModifier.NodeElement.key]
  * instead.
  *
+ * [name] is the property's name, under which the element reports itself and the [value] it declares. It
+ * labels the property and no more; [write] is what identifies the slot.
+ *
  * Two elements are equal when they are of the same class, take the same slot, carry the same [value],
  * and hold the *same* [read] and [write] instances - identity, because a lambda capturing anything is
  * a fresh instance on every pass and the two accessors it holds may then differ in what they capture
@@ -51,11 +54,14 @@ internal class PropertyNode<T : Component, V>(
  */
 internal open class PropertyElement<T : Component, V>(
     final override val targetType: Class<T>,
+    override val name: String,
     private val value: V,
     private val read: (component: T) -> V,
     private val write: (component: T, value: V) -> Unit,
 ) : SwingModifier.NodeElement<T, PropertyNode<T, V>>() {
     override val key: Any get() = write.javaClass
+
+    override val declaredValues: Map<String, Any?> get() = mapOf(name to value)
 
     final override fun create(): PropertyNode<T, V> = PropertyNode(read, write)
 
@@ -92,10 +98,12 @@ internal open class PropertyElement<T : Component, V>(
  * independent slot.
  *
  * [read] captures the property's pre-modifier value for restore; [write] applies a value. Both are
- * `noinline` - they are stored in the node, not invoked at the call site.
+ * `noinline` - they are stored in the node, not invoked at the call site. [name] is the Swing property
+ * being written, which is what an error about the element and a tool showing the chain both name it by.
  */
 internal inline fun <reified T : Component, V> propertyElement(
+    name: String,
     value: V,
     noinline read: (component: T) -> V,
     noinline write: (component: T, value: V) -> Unit,
-): SwingModifier.NodeElement<T, PropertyNode<T, V>> = PropertyElement(T::class.java, value, read, write)
+): SwingModifier.NodeElement<T, PropertyNode<T, V>> = PropertyElement(T::class.java, name, value, read, write)

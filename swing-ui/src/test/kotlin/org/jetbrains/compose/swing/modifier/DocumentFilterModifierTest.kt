@@ -177,9 +177,7 @@ class DocumentFilterModifierTest {
         setContent {
             SwingNode(
                 factory = { JTextField().apply { (document as AbstractDocument).documentFilter = UppercaseFilter } },
-                update = {
-                    applyModifier(if (filtering) SwingModifier.documentFilter(DigitsOnlyFilter) else SwingModifier)
-                },
+                modifier = if (filtering) SwingModifier.documentFilter(DigitsOnlyFilter) else SwingModifier,
             )
         }
         val field = onNodeOfType<JTextField>().fetch()

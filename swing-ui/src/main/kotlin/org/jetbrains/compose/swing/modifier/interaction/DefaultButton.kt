@@ -28,6 +28,9 @@ public fun SwingModifier.defaultButton(default: Boolean = true): SwingModifier =
 private class DefaultButtonElement(
     private val default: Boolean,
 ) : SwingModifier.NodeElement<JButton, DefaultButtonElement.Node>() {
+    override val name: String get() = "defaultButton"
+
+    override val declaredValues: Map<String, Any?> get() = mapOf("defaultButton" to default)
     override val targetType: Class<JButton> get() = JButton::class.java
 
     override fun create(): Node = Node()

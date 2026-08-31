@@ -3,12 +3,12 @@ package org.jetbrains.compose.swing.modifier.listener
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.ComboBox
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -17,15 +17,35 @@ import java.awt.Component
 import java.awt.GraphicsEnvironment
 import java.awt.event.ActionEvent
 import java.awt.event.ActionListener
+import java.awt.event.AdjustmentListener
+import java.awt.event.ComponentAdapter
+import java.awt.event.ContainerAdapter
+import java.awt.event.FocusAdapter
+import java.awt.event.HierarchyListener
+import java.awt.event.ItemListener
+import java.awt.event.KeyAdapter
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import java.awt.event.MouseListener
+import java.awt.event.MouseMotionAdapter
+import java.awt.event.MouseWheelListener
 import java.beans.PropertyChangeListener
 import javax.swing.JButton
 import javax.swing.JComboBox
 import javax.swing.JFileChooser
 import javax.swing.JLabel
 import javax.swing.JTextField
+import javax.swing.event.CaretListener
+import javax.swing.event.ChangeListener
+import javax.swing.event.DocumentEvent
+import javax.swing.event.DocumentListener
+import javax.swing.event.HyperlinkListener
+import javax.swing.event.InternalFrameAdapter
+import javax.swing.event.ListSelectionListener
+import javax.swing.event.TreeExpansionEvent
+import javax.swing.event.TreeExpansionListener
+import javax.swing.event.TreeSelectionListener
+import javax.swing.event.TreeWillExpandListener
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -255,9 +275,7 @@ class RawListenerModifierTest {
         setContent {
             SwingNode(
                 factory = { JFileChooser() },
-                update = {
-                    applyModifier(SwingModifier.actionListener(listener))
-                },
+                modifier = SwingModifier.actionListener(listener),
             )
         }
         val chooser = onNodeOfType<JFileChooser>().fetch()
@@ -278,15 +296,15 @@ class RawListenerModifierTest {
         setContent {
             SwingNode(
                 factory = { AwtButton() },
-                update = { applyModifier(SwingModifier.actionListener(buttonListener)) },
+                modifier = SwingModifier.actionListener(buttonListener),
             )
             SwingNode(
                 factory = { AwtTextField() },
-                update = { applyModifier(SwingModifier.actionListener(textFieldListener)) },
+                modifier = SwingModifier.actionListener(textFieldListener),
             )
             SwingNode(
                 factory = { AwtList() },
-                update = { applyModifier(SwingModifier.actionListener(listListener)) },
+                modifier = SwingModifier.actionListener(listListener),
             )
         }
         assertTrue(
@@ -302,4 +320,117 @@ class RawListenerModifierTest {
             "the instance should be registered on the AWT list",
         )
     }
+
+    @Test
+    fun everyLambdaListenerBuilderAppendsToTheChainWithoutRepeatingIt() {
+        assertDeclaredChainCarriedOnce { actionListener { } }
+        assertDeclaredChainCarriedOnce { actionListener<JButton> { } }
+        assertDeclaredChainCarriedOnce { actionListener(JButton::class) { } }
+        assertDeclaredChainCarriedOnce { adjustmentListener { } }
+        assertDeclaredChainCarriedOnce { caretListener { } }
+        assertDeclaredChainCarriedOnce { changeListener { } }
+        assertDeclaredChainCarriedOnce { changeListener<JButton> { } }
+        assertDeclaredChainCarriedOnce { changeListener(JButton::class) { } }
+        assertDeclaredChainCarriedOnce { componentListener { } }
+        assertDeclaredChainCarriedOnce { componentListener(onComponentResized = { }) }
+        assertDeclaredChainCarriedOnce { containerListener { } }
+        assertDeclaredChainCarriedOnce { containerListener(onComponentAdded = { }) }
+        assertDeclaredChainCarriedOnce { documentListener { } }
+        assertDeclaredChainCarriedOnce { documentListener(onInsert = { }) }
+        assertDeclaredChainCarriedOnce { focusListener { } }
+        assertDeclaredChainCarriedOnce { focusListener(onFocusGained = { }) }
+        assertDeclaredChainCarriedOnce { hierarchyListener { } }
+        assertDeclaredChainCarriedOnce { hyperlinkListener { } }
+        assertDeclaredChainCarriedOnce { internalFrameListener { } }
+        assertDeclaredChainCarriedOnce { internalFrameListener(onFrameOpened = { }) }
+        assertDeclaredChainCarriedOnce { itemListener { } }
+        assertDeclaredChainCarriedOnce { itemListener<JComboBox<String>> { } }
+        assertDeclaredChainCarriedOnce { itemListener(JButton::class) { } }
+        assertDeclaredChainCarriedOnce { keyListener { } }
+        assertDeclaredChainCarriedOnce { keyListener(onKeyTyped = { }) }
+        assertDeclaredChainCarriedOnce { listSelectionListener { } }
+        assertDeclaredChainCarriedOnce { mouseListener { } }
+        assertDeclaredChainCarriedOnce { mouseListener(onMouseClicked = { }) }
+        assertDeclaredChainCarriedOnce { mouseMotionListener { } }
+        assertDeclaredChainCarriedOnce { mouseMotionListener(onMouseDragged = { }) }
+        assertDeclaredChainCarriedOnce { mouseWheelListener { } }
+        assertDeclaredChainCarriedOnce { propertyChangeListener { } }
+        assertDeclaredChainCarriedOnce { propertyChangeListener("enabled") { } }
+        assertDeclaredChainCarriedOnce { propertyChangeListener<JButton>("enabled") { } }
+        assertDeclaredChainCarriedOnce { propertyChangeListener("enabled", JButton::class) { } }
+        assertDeclaredChainCarriedOnce { propertyChangeListener("enabled", PropertyChangeListener { }) }
+        assertDeclaredChainCarriedOnce { treeExpansionListener { } }
+        assertDeclaredChainCarriedOnce { treeExpansionListener(onTreeExpanded = { }) }
+        assertDeclaredChainCarriedOnce { treeSelectionListener { } }
+        assertDeclaredChainCarriedOnce { treeWillExpandListener { true } }
+        assertDeclaredChainCarriedOnce { treeWillExpandListener(onWillExpand = { true }) }
+    }
+
+    @Test
+    fun everyRawListenerBuilderAppendsToTheChainWithoutRepeatingIt() {
+        val registration =
+            ListenerRegistration<JButton, ActionListener>(
+                name = "actionListener",
+                { component, listener -> component.addActionListener(listener) },
+                { component, listener -> component.removeActionListener(listener) },
+            )
+        val callbacks =
+            CallbackRegistration<JButton, (ActionEvent) -> Unit, ActionListener>(
+                { current -> ActionListener { event -> current()(event) } },
+                registration,
+            )
+
+        assertDeclaredChainCarriedOnce { actionListener(ActionListener { }) }
+        assertDeclaredChainCarriedOnce { adjustmentListener(AdjustmentListener { }) }
+        assertDeclaredChainCarriedOnce { caretListener(CaretListener { }) }
+        assertDeclaredChainCarriedOnce { changeListener(ChangeListener { }) }
+        assertDeclaredChainCarriedOnce { componentListener(object : ComponentAdapter() {}) }
+        assertDeclaredChainCarriedOnce { containerListener(object : ContainerAdapter() {}) }
+        assertDeclaredChainCarriedOnce { documentListener(NoDocumentChange) }
+        assertDeclaredChainCarriedOnce { focusListener(object : FocusAdapter() {}) }
+        assertDeclaredChainCarriedOnce { hierarchyListener(HierarchyListener { }) }
+        assertDeclaredChainCarriedOnce { hyperlinkListener(HyperlinkListener { }) }
+        assertDeclaredChainCarriedOnce { internalFrameListener(object : InternalFrameAdapter() {}) }
+        assertDeclaredChainCarriedOnce { itemListener(ItemListener { }) }
+        assertDeclaredChainCarriedOnce { keyListener(object : KeyAdapter() {}) }
+        assertDeclaredChainCarriedOnce { listSelectionListener(ListSelectionListener { }) }
+        assertDeclaredChainCarriedOnce { listener(ActionListener { }, registration) }
+        assertDeclaredChainCarriedOnce { listener({ _: ActionEvent -> }, callbacks) }
+        assertDeclaredChainCarriedOnce { listener(JButton::class, ActionListener { }, registration) }
+        assertDeclaredChainCarriedOnce { listener(JButton::class, { _: ActionEvent -> }, callbacks) }
+        assertDeclaredChainCarriedOnce { mouseListener(object : MouseAdapter() {}) }
+        assertDeclaredChainCarriedOnce { mouseMotionListener(object : MouseMotionAdapter() {}) }
+        assertDeclaredChainCarriedOnce { mouseWheelListener(MouseWheelListener { }) }
+        assertDeclaredChainCarriedOnce { propertyChangeListener(PropertyChangeListener { }) }
+        assertDeclaredChainCarriedOnce { treeExpansionListener(NoTreeExpansion) }
+        assertDeclaredChainCarriedOnce { treeSelectionListener(TreeSelectionListener { }) }
+        assertDeclaredChainCarriedOnce { treeWillExpandListener(NoTreeWillExpand) }
+        assertDeclaredChainCarriedOnce { listener<JButton, ActionEvent, ActionListener>(JButton::class, callbacks) { } }
+    }
 }
+
+/** A [DocumentListener] that answers nothing, for a declaration whose only subject is the chain. */
+private val NoDocumentChange =
+    object : DocumentListener {
+        override fun insertUpdate(event: DocumentEvent) = Unit
+
+        override fun removeUpdate(event: DocumentEvent) = Unit
+
+        override fun changedUpdate(event: DocumentEvent) = Unit
+    }
+
+/** A [TreeExpansionListener] that answers nothing, for a declaration whose only subject is the chain. */
+private val NoTreeExpansion =
+    object : TreeExpansionListener {
+        override fun treeExpanded(event: TreeExpansionEvent) = Unit
+
+        override fun treeCollapsed(event: TreeExpansionEvent) = Unit
+    }
+
+/** A [TreeWillExpandListener] that vetoes nothing, for a declaration whose only subject is the chain. */
+private val NoTreeWillExpand =
+    object : TreeWillExpandListener {
+        override fun treeWillExpand(event: TreeExpansionEvent) = Unit
+
+        override fun treeWillCollapse(event: TreeExpansionEvent) = Unit
+    }

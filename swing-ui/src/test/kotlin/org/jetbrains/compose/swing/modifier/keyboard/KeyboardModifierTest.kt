@@ -4,6 +4,7 @@ import androidx.compose.runtime.ReusableContentHost
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -499,5 +500,12 @@ class KeyboardModifierTest {
 
         field.fetch<JTextField>().fireBinding(stroke)
         assertEquals(2, fired, "the binding must be re-installed after reuse")
+    }
+
+    @Test
+    fun everyKeyboardBuilderAppendsToTheChainWithoutRepeatingIt() {
+        assertDeclaredChainCarriedOnce { onKeyEvent { true } }
+        assertDeclaredChainCarriedOnce { onKeyStroke(KeyStroke.getKeyStroke("A")) { } }
+        assertDeclaredChainCarriedOnce { onKeyStroke("A") { } }
     }
 }

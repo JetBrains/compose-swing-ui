@@ -28,7 +28,8 @@ public fun SwingModifier.bounds(
 ): SwingModifier =
     this then
         propertyElement<Component, Rectangle>(
-            Rectangle(x, y, width, height),
+            name = "bounds",
+            value = Rectangle(x, y, width, height),
             read = { it.bounds },
             write = { component, value -> component.bounds = value },
         )
@@ -68,7 +69,8 @@ public fun SwingModifier.location(
 public fun SwingModifier.location(point: Point): SwingModifier =
     this then
         propertyElement<Component, Point>(
-            point,
+            name = "location",
+            value = point,
             read = { it.location },
             write = { component, value -> component.location = value },
         )
@@ -87,7 +89,8 @@ public fun SwingModifier.location(point: Point): SwingModifier =
 public fun SwingModifier.x(value: Int): SwingModifier =
     this then
         propertyElement<Component, Int>(
-            value,
+            name = "x",
+            value = value,
             read = { it.x },
             write = { component, x -> component.setLocation(x, component.y) },
         )
@@ -106,7 +109,8 @@ public fun SwingModifier.x(value: Int): SwingModifier =
 public fun SwingModifier.y(value: Int): SwingModifier =
     this then
         propertyElement<Component, Int>(
-            value,
+            name = "y",
+            value = value,
             read = { it.y },
             write = { component, y -> component.setLocation(component.x, y) },
         )

@@ -6,7 +6,6 @@ package org.jetbrains.compose.swing.components.text
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.constants.FocusLostBehavior
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.propertyChangeListener
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
@@ -226,6 +225,7 @@ private inline fun FormattedTextFieldNode(
 ) {
     SwingNode(
         factory = { JFormattedTextField() },
+        modifier = modifier,
         update = {
             set(columns) {
                 this.columns = it
@@ -238,7 +238,6 @@ private inline fun FormattedTextFieldNode(
             // typed since that commit survive a callback writing the committed value back.
             declare(value, mirror, read = { this.value }, write = { this.value = it })
             set(editable) { this.isEditable = it }
-            applyModifier(modifier)
         },
     )
 }

@@ -26,7 +26,8 @@ import javax.swing.LayoutFocusTraversalPolicy
 public fun SwingModifier.focusTraversalIndex(index: Int): SwingModifier =
     this then
         propertyElement<JComponent, Int?>(
-            index,
+            name = "focusTraversalIndex",
+            value = index,
             read = { it[FOCUS_TRAVERSAL_INDEX_KEY] },
             write = { component, value -> component[FOCUS_TRAVERSAL_INDEX_KEY] = value },
         )
@@ -53,6 +54,7 @@ private val FOCUS_TRAVERSAL_INDEX_KEY: Key<Int> = Key("org.jetbrains.compose.swi
 
 private object OrderedFocusTraversalElement :
     SwingModifier.NodeElement<JComponent, OrderedFocusTraversalElement.Node>() {
+    override val name: String get() = "orderedFocusTraversal"
     override val targetType: Class<JComponent> get() = JComponent::class.java
 
     override fun create(): Node = Node()

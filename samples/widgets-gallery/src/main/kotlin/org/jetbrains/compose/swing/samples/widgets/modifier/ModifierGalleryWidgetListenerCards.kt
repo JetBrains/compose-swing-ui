@@ -188,6 +188,7 @@ internal fun ColumnScope.KeyListenerCard() {
 // The registration the escape hatch uses, held once: it is what says where the listener sits.
 private val POPUP_MENU =
     ListenerRegistration<JComboBox<*>, PopupMenuListener>(
+        name = "popupMenuListener",
         { component, listener -> component.addPopupMenuListener(listener) },
         { component, listener -> component.removePopupMenuListener(listener) },
     )

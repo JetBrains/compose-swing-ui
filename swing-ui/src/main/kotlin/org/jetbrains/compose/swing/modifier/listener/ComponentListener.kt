@@ -80,6 +80,7 @@ private class ComponentCallbacks(
 
 private val COMPONENT =
     ListenerRegistration<Component, ComponentListener>(
+        name = "componentListener",
         Component::addComponentListener,
         Component::removeComponentListener,
     )

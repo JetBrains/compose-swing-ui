@@ -23,7 +23,8 @@ import java.awt.event.MouseEvent
 public fun SwingModifier.focusable(focusable: Boolean): SwingModifier =
     this then
         propertyElement<Component, Boolean>(
-            focusable,
+            name = "focusable",
+            value = focusable,
             read = { it.isFocusable },
             write = { component, value -> component.isFocusable = value },
         )
@@ -42,7 +43,8 @@ public fun SwingModifier.focusable(focusable: Boolean): SwingModifier =
 public fun SwingModifier.enabled(enabled: Boolean): SwingModifier =
     this then
         propertyElement<Component, Boolean>(
-            enabled,
+            name = "enabled",
+            value = enabled,
             read = { it.isEnabled },
             write = { component, value -> component.isEnabled = value },
         )

@@ -16,12 +16,16 @@ import java.awt.Component
  * instead: two registrations carrying equal keys are the same registration. Give the key a type of the
  * site's own, since it is compared against the keys of every other registration.
  *
+ * @property name the event source this registers on, which is what an error about a listener element and
+ *     a tool showing the chain a component carries both name it by. Display only: two registrations
+ *     sharing a name are still two registrations.
  * @property attach adds a listener to the component.
  * @property detach removes a listener from the component.
  * @param key what identifies this registration among registrations built at the same site; `null` where
  *     the registration is held in a `val` and is therefore identified by being that object.
  */
 public class ListenerRegistration<T : Component, L : Any>(
+    internal val name: String,
     internal val attach: (component: T, listener: L) -> Unit,
     internal val detach: (component: T, listener: L) -> Unit,
     private val key: Any? = null,
@@ -46,6 +50,9 @@ public class CallbackRegistration<T : Component, C : Any, L : Any>(
     internal val adapter: (current: () -> C) -> L,
     private val registration: ListenerRegistration<T, L>,
 ) {
+    /** The event source registered on, taken from [registration]. */
+    internal val name: String get() = registration.name
+
     internal fun attach(
         component: T,
         listener: L,

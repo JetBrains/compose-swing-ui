@@ -41,4 +41,4 @@ import javax.swing.ButtonGroup
  * @see javax.swing.ButtonGroup.add
  */
 public fun SwingModifier.buttonGroup(group: ButtonGroup): SwingModifier =
-    binding(AbstractButton::class.java, group, ButtonGroup::add, ButtonGroup::remove)
+    binding(AbstractButton::class.java, "buttonGroup", group, ButtonGroup::add, ButtonGroup::remove)

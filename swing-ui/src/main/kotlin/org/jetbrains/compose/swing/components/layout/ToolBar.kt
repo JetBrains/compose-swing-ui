@@ -9,7 +9,6 @@ import androidx.compose.runtime.remember
 import org.jetbrains.compose.swing.constants.Orientation
 import org.jetbrains.compose.swing.core.dispatchToCaller
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.hierarchyListener
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.rememberMirrorState
@@ -104,31 +103,30 @@ public fun ToolBar(
 
     SwingNode(
         factory = { JToolBar(orientation).also { bar -> rollover?.let { bar.isRollover = it } } },
+        // Nothing is written to the bar from the hierarchy event. Settling belongs to a composition
+        // pass, which is the one place the declaration to settle against exists - and writing to the
+        // hierarchy from inside a hierarchy event deadlocks, since the event arrives holding the AWT
+        // tree lock that the write needs the toolkit to take. A change made inside a write of this
+        // wrapper's own is the declaration taking effect, and neither the mirror nor the placement
+        // count takes it for the user's.
+        modifier =
+            modifier.hierarchyListener { event ->
+                if (event.changeFlags and HierarchyEvent.PARENT_CHANGED.toLong() == 0L) {
+                    return@hierarchyListener
+                }
+                val standing = (event.component as JToolBar).isFloating
+                if (refused[0] && !mirror.isWriting) placements.intValue++
+                if (mirror.observed(standing)) {
+                    reportedFloating[0] = standing
+                    onFloatingChange(standing)
+                }
+            },
         update = {
             set(orientation) { this.orientation = it }
             set(floatable) { this.isFloatable = it }
             update(rollover) { declared ->
                 isRollover = declared ?: UIManager.getBoolean(ROLLOVER_DEFAULT)
             }
-            // Nothing is written to the bar from the hierarchy event. Settling belongs to a composition
-            // pass, which is the one place the declaration to settle against exists - and writing to the
-            // hierarchy from inside a hierarchy event deadlocks, since the event arrives holding the AWT
-            // tree lock that the write needs the toolkit to take. A change made inside a write of this
-            // wrapper's own is the declaration taking effect, and neither the mirror nor the placement
-            // count takes it for the user's.
-            applyModifier(
-                modifier.hierarchyListener { event ->
-                    if (event.changeFlags and HierarchyEvent.PARENT_CHANGED.toLong() == 0L) {
-                        return@hierarchyListener
-                    }
-                    val standing = (event.component as JToolBar).isFloating
-                    if (refused[0] && !mirror.isWriting) placements.intValue++
-                    if (mirror.observed(standing)) {
-                        reportedFloating[0] = standing
-                        onFloatingChange(standing)
-                    }
-                },
-            )
 
             // A bar is declared before it is anywhere - the applier runs this node's update block between
             // its top-down and bottom-up passes - so a floating declaration written here would be written

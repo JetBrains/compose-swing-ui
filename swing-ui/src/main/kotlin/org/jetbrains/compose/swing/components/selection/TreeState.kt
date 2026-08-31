@@ -168,4 +168,4 @@ public fun rememberTreeState(
 
 /** Binds [state] to the composable's tree through the modifier chain; see [binding]. */
 internal fun SwingModifier.treeStateBinding(state: TreeState): SwingModifier =
-    binding(JTree::class.java, state, TreeState::bind, TreeState::unbind)
+    binding(JTree::class.java, "treeState", state, TreeState::bind, TreeState::unbind)

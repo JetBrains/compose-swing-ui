@@ -8,7 +8,6 @@ import androidx.compose.runtime.remember
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.constants.Orientation
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.CallbackRegistration
 import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
 import org.jetbrains.compose.swing.modifier.listener.ModelSwapAware
@@ -396,6 +395,7 @@ private inline fun SliderNode(
     val declaredLabels = rememberDeclaredLabels(labels)
     SwingNode(
         factory = { JSlider() },
+        modifier = modifier,
         update = {
             // Everything that snaps the value goes in before the range itself, so a recomposition that
             // moves both lands the new value on the new grid rather than the old.
@@ -408,7 +408,6 @@ private inline fun SliderNode(
             set(paintTicks) { this.paintTicks = it }
             declareLabels(declaredLabels, majorTickSpacing, labelMin, labelMax)
             set(paintLabels) { this.paintLabels = it }
-            applyModifier(modifier)
         },
     )
 }
@@ -489,6 +488,7 @@ private interface SliderValueMirror :
 
 private val SLIDER_VALUE_MIRRORS =
     ListenerRegistration<JSlider, SliderValueMirror>(
+        name = "sliderValueMirror",
         { slider, mirror -> SLIDER_RANGE.attachSettling(slider, mirror, mirror::adoptModelSwap) },
         SLIDER_RANGE::detach,
     )

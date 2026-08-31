@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.modifier.datatransfer
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -445,5 +446,12 @@ class DataTransferModifierTest {
         payload = "second"
         awaitIdle()
         assertEquals("second", exportNow(), "the drag source must export the latest value after recomposition")
+    }
+
+    @Test
+    fun everyDataTransferBuilderAppendsToTheChainWithoutRepeatingIt() {
+        assertDeclaredChainCarriedOnce { draggable(TransferHandler.COPY) { null } }
+        assertDeclaredChainCarriedOnce { dropTarget(TransferHandler.COPY, onDrop = { true }) }
+        assertDeclaredChainCarriedOnce { onExportDone { _, _ -> } }
     }
 }

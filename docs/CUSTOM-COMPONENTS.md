@@ -20,9 +20,13 @@ component once and let Compose keep it in sync with state:
 
 ```kotlin
 @Composable
-public fun MyWidget(/* state + callbacks */) {
+public fun MyWidget(
+    /* state + callbacks */
+    modifier: SwingModifier = SwingModifier,
+) {
     SwingNode(
         factory = { /* create the Swing component */ },
+        modifier = modifier,
         update = { /* reactively push state onto it */ },
         onRelease = { /* optional cleanup */ },
     )
@@ -107,6 +111,7 @@ There are two overloads. The leaf overload wraps a component that has no composa
 @SwingComposable
 public inline fun <reified T : Component> SwingNode(
     noinline factory: () -> T,
+    modifier: SwingModifier = SwingModifier,
     crossinline update: @DisallowComposableCalls SwingNodeUpdater<T>.() -> Unit = {},
     noinline onRelease: (T.() -> Unit)? = null,
     childPlacement: ChildPlacement = ChildPlacement.Indexed,
@@ -124,6 +129,7 @@ composables:
 @SwingComposable
 public inline fun <reified T : Component> SwingNode(
     noinline factory: () -> T,
+    modifier: SwingModifier = SwingModifier,
     crossinline update: @DisallowComposableCalls SwingNodeUpdater<T>.() -> Unit = {},
     noinline onRelease: (T.() -> Unit)? = null,
     childPlacement: ChildPlacement = ChildPlacement.Indexed,
@@ -181,7 +187,7 @@ public fun Banner(
 ) {
     SwingNode(
         factory = { BannerPanel() },
-        update = { applyModifier(modifier) },
+        modifier = modifier,
         childPlacement = ChildPlacement.Slots(HEADER_REGION, BODY_REGION),
         content = { BannerScope.content() },
     )
@@ -319,7 +325,6 @@ Here is a complete, compilable wrapper for `JSpinner`, mirroring how `TextField`
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.changeListener
 import javax.swing.JSpinner
 import javax.swing.SpinnerNumberModel
@@ -337,16 +342,16 @@ fun MySpinner(
 ) {
     SwingNode(
         factory = { JSpinner(SpinnerNumberModel()) },
+        // The component chains its own element onto the caller's modifier; the changeListener
+        // builder owns the listener's lifecycle. The typed overload hands the spinner over as the
+        // receiver, and `this` is needed because the composable's own `value` parameter shadows it.
+        modifier = modifier.changeListener<JSpinner> { onValueChange(this.value as Int) },
         update = {
             // Reactive property updates: each block re-runs only when its value changes.
             set(min) { numberModel.minimum = it }
             set(max) { numberModel.maximum = it }
             set(step) { numberModel.stepSize = it }
             set(value) { if (this.value != it) this.value = it }
-            // The component chains its own element onto the caller's modifier; the changeListener
-            // builder owns the listener's lifecycle. The typed overload hands the spinner over as the
-            // receiver, and `this` is needed because the composable's own `value` parameter shadows it.
-            applyModifier(modifier.changeListener<JSpinner> { onValueChange(this.value as Int) })
         },
     )
 }

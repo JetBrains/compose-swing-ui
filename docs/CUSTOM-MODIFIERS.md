@@ -15,8 +15,8 @@ import javax.swing.JComponent
 
 Visual and interaction concerns that are common across components - colors, fonts, borders, tooltips,
 focus, hover - are expressed as a `SwingModifier` chain rather than ad-hoc `set` calls. Give your
-component a `modifier: SwingModifier = SwingModifier` parameter and apply it **last** in `update` via
-`applyModifier`, so caller-supplied modifiers compose on top of your own defaults:
+component a `modifier: SwingModifier = SwingModifier` parameter and hand it to the node, which applies
+it after `update`, so caller-supplied modifiers compose on top of your own defaults:
 
 ```kotlin
 @Composable
@@ -26,9 +26,9 @@ public fun MyWidget(
 ) {
     SwingNode(
         factory = { /* ... */ },
+        modifier = modifier,
         update = {
             set(/* ... */) { /* ... */ }
-            applyModifier(modifier) // last
         },
     )
 }
@@ -36,10 +36,10 @@ public fun MyWidget(
 
 <!--- CLEAR -->
 
-The parameter and that call are not a courtesy to callers who want a border. Where a child sits in its
-parent - a `BorderLayout` region, a `GridBagConstraints`, a cell in a manager of your own - is declared
-on the child's own chain, and `applyModifier` is the channel through which that declaration reaches the
-node, before the applier attaches the component. A component whose `update` never applies its modifier
+The parameter is not a courtesy to callers who want a border. Where a child sits in its parent - a
+`BorderLayout` region, a `GridBagConstraints`, a cell in a manager of your own - is declared on the
+child's own chain, and the node's `modifier` is the channel through which that declaration reaches the
+node, before the applier attaches the component. A component that does not hand its chain to the node
 therefore cannot be placed at all: it goes into every container by index and no scope a container offers
 can move it.
 
@@ -141,6 +141,30 @@ overridden (a Kotlin function reference has one), so two objects the node treats
 compare equal, the element would skip, and the node would never swap the registration. The element's
 equality has to agree with what its node does on update.
 
+### Naming the element for a message and for a tool
+
+`name` is what the element is called, and `declaredValues` is what it declares, under the name each
+value is declared by. Both default to something usable - `name` to the element's class name and
+`declaredValues` to nothing - so an element that overrides neither still reads sensibly. Override them
+where the defaults are wrong or thin: an element built by a shared builder shares its class with every
+other property built the same way, and an element carrying a value has one worth showing.
+
+```kotlin
+override val name: String get() = "toolTip"
+
+override val declaredValues: Map<String, Any?> get() = mapOf("text" to text)
+```
+
+<!--- CLEAR -->
+
+The two are display only, read by a message about the element and by a tool showing the chain a
+component carries (see [`INSPECTING-COMPOSITIONS.md`](INSPECTING-COMPOSITIONS.md#reading-the-chain-a-component-carries)).
+They never decide which slot an element takes: `key` does that, so two elements sharing a name still
+occupy their own slots. Leave a callback out of `declaredValues` unless showing it says something - a
+lambda renders as its class.
+
+### Slots and keys
+
 A property element is **keyed and last-wins**: its `key` defaults to the element's class, so two
 elements of different types never collide. Leave `additive` at its default `false` for a property
 (one value wins); a listener instead sets `additive = true` so two of the same builder both install
@@ -190,6 +214,10 @@ private class ToolTipNode : SwingModifier.Node<JComponent>() {
 private data class ToolTipElement(
     private val text: String?,
 ) : SwingModifier.NodeElement<JComponent, ToolTipNode>() {
+    override val name: String get() = "toolTip"
+
+    override val declaredValues: Map<String, Any?> get() = mapOf("text" to text)
+
     override val targetType: Class<JComponent> get() = JComponent::class.java
 
     override fun create(): ToolTipNode = ToolTipNode()

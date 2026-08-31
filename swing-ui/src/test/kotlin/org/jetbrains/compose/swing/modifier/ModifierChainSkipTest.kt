@@ -194,9 +194,9 @@ class ModifierChainSkipTest {
         counts.passes.incrementAndGet()
         SwingNode(
             factory = { JPanel() },
+            modifier = modifier,
             update = {
                 set(tick) { pass -> name = "pass $pass" }
-                applyModifier(modifier)
             },
         )
     }

@@ -87,6 +87,7 @@ private fun Component.asItemSelectable(): ItemSelectable =
 
 private val ITEM =
     ListenerRegistration<Component, ItemListener>(
+        name = "itemListener",
         { component, listener -> component.asItemSelectable().addItemListener(listener) },
         { component, listener -> component.asItemSelectable().removeItemListener(listener) },
     )

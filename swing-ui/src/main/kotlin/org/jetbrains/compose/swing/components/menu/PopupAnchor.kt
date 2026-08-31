@@ -102,4 +102,4 @@ public fun rememberPopupAnchor(): PopupAnchor = remember { PopupAnchor() }
  * @return this chain with the binding declared on it.
  */
 public fun SwingModifier.popupAnchor(anchor: PopupAnchor): SwingModifier =
-    binding(Component::class.java, anchor, PopupAnchor::bind, PopupAnchor::unbind)
+    binding(Component::class.java, "popupAnchor", anchor, PopupAnchor::bind, PopupAnchor::unbind)

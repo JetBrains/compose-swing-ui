@@ -22,7 +22,8 @@ import javax.swing.text.JTextComponent
 public fun SwingModifier.caretColor(color: Color): SwingModifier =
     this then
         propertyElement<JTextComponent, Color>(
-            color,
+            name = "caretColor",
+            value = color,
             read = { it.caretColor },
             write = { component, value ->
                 component.caretColor = value
@@ -43,7 +44,8 @@ public fun SwingModifier.caretColor(color: Color): SwingModifier =
 public fun SwingModifier.selectionColor(color: Color): SwingModifier =
     this then
         propertyElement<JTextComponent, Color>(
-            color,
+            name = "selectionColor",
+            value = color,
             read = { it.selectionColor },
             write = { component, value ->
                 component.selectionColor = value
@@ -61,7 +63,8 @@ public fun SwingModifier.selectionColor(color: Color): SwingModifier =
 public fun SwingModifier.selectedTextColor(color: Color): SwingModifier =
     this then
         propertyElement<JTextComponent, Color>(
-            color,
+            name = "selectedTextColor",
+            value = color,
             read = { it.selectedTextColor },
             write = { component, value ->
                 component.selectedTextColor = value
@@ -80,7 +83,8 @@ public fun SwingModifier.selectedTextColor(color: Color): SwingModifier =
 public fun SwingModifier.disabledTextColor(color: Color): SwingModifier =
     this then
         propertyElement<JTextComponent, Color>(
-            color,
+            name = "disabledTextColor",
+            value = color,
             read = { it.disabledTextColor },
             write = { component, value ->
                 component.disabledTextColor = value

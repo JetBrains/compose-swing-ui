@@ -247,6 +247,9 @@ private class TabElement(
     val header: (@Composable () -> Unit)?,
     val headerContext: CompositionContext,
 ) : SwingModifier.NodeElement<Component, TabNode>() {
+    override val name: String get() = "tab"
+
+    override val declaredValues: Map<String, Any?> get() = mapOf("tab" to metadata)
     override val targetType: Class<Component> get() = Component::class.java
 
     override fun create(): TabNode = TabNode()

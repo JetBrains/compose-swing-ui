@@ -136,6 +136,9 @@ private sealed interface BorderSpec {
 private data class BorderElement(
     private val spec: BorderSpec,
 ) : SwingModifier.NodeElement<JComponent, BorderElement.Node>() {
+    override val name: String get() = "border"
+
+    override val declaredValues: Map<String, Any?> get() = mapOf("border" to spec)
     override val targetType: Class<JComponent> get() = JComponent::class.java
 
     override fun create(): Node = Node()

@@ -20,6 +20,9 @@ import javax.swing.JInternalFrame.JDesktopIcon
 import javax.swing.SwingConstants
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
@@ -351,6 +354,35 @@ class InternalFrameStateTest {
             Rectangle(0, 0, 100, 100),
             first.bounds,
             "the state that left the declaration should be left alone",
+        )
+    }
+
+    @Test
+    fun aRememberedStateOutlivesTheInitialValuesItWasBuiltFrom() = runComposeSwingTest {
+        var declared by mutableStateOf(Rectangle(10, 20, 300, 200))
+        var remembered: InternalFrameState? = null
+        setContent {
+            DesktopPane {
+                val state = rememberInternalFrameState(declared)
+                remembered = state
+                InternalFrame(title = "Editor", state = state, onClose = { }) { Label(text = "body") }
+            }
+        }
+
+        val built = assertNotNull(remembered, "the frame should have been declared with a remembered state")
+        assertEquals(Rectangle(10, 20, 300, 200), built.bounds, "the state opens on the bounds it was given")
+        assertFalse(built.iconified, "a state built without an iconified flag stands on the desktop")
+        assertFalse(built.maximized, "a state built without a maximized flag does not fill the desktop")
+
+        declared = Rectangle(40, 50, 120, 90)
+        awaitIdle()
+
+        assertSame(built, remembered, "the state survives the recomposition rather than being rebuilt")
+        assertEquals(Rectangle(10, 20, 300, 200), built.bounds, "a later initial value leaves the state alone")
+        assertEquals(
+            Rectangle(10, 20, 300, 200),
+            onNodeOfType<JInternalFrame>().fetch().bounds,
+            "and leaves the frame where the state put it",
         )
     }
 }

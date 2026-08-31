@@ -4,6 +4,7 @@ import androidx.compose.runtime.ComposeNodeLifecycleCallback
 import androidx.compose.runtime.CompositionContext
 import org.jetbrains.annotations.VisibleForTesting
 import org.jetbrains.compose.swing.core.COMPOSITION_KEY
+import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.SwingModifierState
 import org.jetbrains.compose.swing.modifier.resetModifierState
 import org.jetbrains.compose.swing.util.fastForEach
@@ -151,6 +152,9 @@ internal class SwingNodeHolder<out T : Component>
          * [org.jetbrains.compose.swing.modifier.applyModifier].
          */
         internal var modifierState: SwingModifierState? = null
+
+        override val modifier: SwingModifier
+            get() = modifierState?.applied ?: SwingModifier
 
         /**
          * The region this node's modifier chain declares, or `null` when the chain installs the

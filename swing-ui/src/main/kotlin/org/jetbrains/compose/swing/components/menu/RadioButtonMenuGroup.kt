@@ -9,7 +9,6 @@ import org.jetbrains.compose.swing.components.selection.ButtonGroupOption
 import org.jetbrains.compose.swing.components.selection.applyGroupSelection
 import org.jetbrains.compose.swing.components.selection.rememberButtonGroup
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.node.MenuNode
 import org.jetbrains.compose.swing.node.declare
 import javax.swing.JRadioButtonMenuItem
@@ -58,11 +57,11 @@ public fun RadioButtonMenuGroup(
         ButtonGroupOption(group, index, option.modifier, selected, onSelectionChange) { optionModifier, mirror ->
             MenuNode(
                 factory = { JRadioButtonMenuItem() },
+                modifier = optionModifier,
                 update = {
                     set(option.text) { this.text = it }
                     set(option.accelerator) { this.accelerator = it }
                     declare(selected, mirror, { isSelected }, { applyGroupSelection(group, it) })
-                    applyModifier(optionModifier)
                 },
             )
         }

@@ -3,11 +3,11 @@ package org.jetbrains.compose.swing.components.menu
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.menuItemTexts
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Canvas
@@ -51,7 +51,7 @@ class PopupAnchorTest {
                     // A popup menu is a JComponent property; a bare AWT component carries none.
                     SwingNode(
                         factory = { Canvas() },
-                        update = { applyModifier(SwingModifier.popupAnchor(anchor)) },
+                        modifier = SwingModifier.popupAnchor(anchor),
                     )
                     ContextMenu(anchor) { MenuItem("Cut", onClick = { }) }
                 }
@@ -107,5 +107,10 @@ class PopupAnchorTest {
     private companion object {
         const val FIRST = "first-target"
         const val SECOND = "second-target"
+    }
+
+    @Test
+    fun aPopupAnchorAppendsToTheChainWithoutRepeatingIt() {
+        assertDeclaredChainCarriedOnce { popupAnchor(PopupAnchor()) }
     }
 }

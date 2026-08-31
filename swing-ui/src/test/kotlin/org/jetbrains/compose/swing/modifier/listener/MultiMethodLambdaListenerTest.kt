@@ -2,7 +2,6 @@ package org.jetbrains.compose.swing.modifier.listener
 
 import org.jetbrains.compose.swing.components.layout.FlowPanel
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -34,7 +33,7 @@ class MultiMethodLambdaListenerTest {
             FlowPanel {
                 SwingNode(
                     factory = { JTextPane() },
-                    update = { applyModifier(SwingModifier.documentListener { calls++ }) },
+                    modifier = SwingModifier.documentListener { calls++ },
                 )
             }
         }
@@ -55,15 +54,12 @@ class MultiMethodLambdaListenerTest {
             FlowPanel {
                 SwingNode(
                     factory = { JTextPane() },
-                    update = {
-                        applyModifier(
-                            SwingModifier.documentListener(
-                                onInsert = { reported += "insert" },
-                                onRemove = { reported += "remove" },
-                                onChange = { reported += "change" },
-                            ),
-                        )
-                    },
+                    modifier =
+                        SwingModifier.documentListener(
+                            onInsert = { reported += "insert" },
+                            onRemove = { reported += "remove" },
+                            onChange = { reported += "change" },
+                        ),
                 )
             }
         }
@@ -88,7 +84,7 @@ class MultiMethodLambdaListenerTest {
             FlowPanel {
                 SwingNode(
                     factory = { JTextField() },
-                    update = { applyModifier(SwingModifier.documentListener(onInsert = { inserts++ })) },
+                    modifier = SwingModifier.documentListener(onInsert = { inserts++ }),
                 )
             }
         }
@@ -106,7 +102,7 @@ class MultiMethodLambdaListenerTest {
             FlowPanel {
                 SwingNode(
                     factory = { JTextField() },
-                    update = { applyModifier(SwingModifier.mouseListener { calls++ }) },
+                    modifier = SwingModifier.mouseListener { calls++ },
                 )
             }
         }
@@ -130,17 +126,14 @@ class MultiMethodLambdaListenerTest {
             FlowPanel {
                 SwingNode(
                     factory = { JTextField() },
-                    update = {
-                        applyModifier(
-                            SwingModifier.mouseListener(
-                                onMouseClicked = { reported += "clicked" },
-                                onMousePressed = { reported += "pressed" },
-                                onMouseReleased = { reported += "released" },
-                                onMouseEntered = { reported += "entered" },
-                                onMouseExited = { reported += "exited" },
-                            ),
-                        )
-                    },
+                    modifier =
+                        SwingModifier.mouseListener(
+                            onMouseClicked = { reported += "clicked" },
+                            onMousePressed = { reported += "pressed" },
+                            onMouseReleased = { reported += "released" },
+                            onMouseEntered = { reported += "entered" },
+                            onMouseExited = { reported += "exited" },
+                        ),
                 )
             }
         }
@@ -167,14 +160,11 @@ class MultiMethodLambdaListenerTest {
             FlowPanel {
                 SwingNode(
                     factory = { JTextField() },
-                    update = {
-                        applyModifier(
-                            SwingModifier.focusListener(
-                                onFocusGained = { reported += "gained" },
-                                onFocusLost = { reported += "lost" },
-                            ),
-                        )
-                    },
+                    modifier =
+                        SwingModifier.focusListener(
+                            onFocusGained = { reported += "gained" },
+                            onFocusLost = { reported += "lost" },
+                        ),
                 )
             }
         }
@@ -199,7 +189,7 @@ class MultiMethodLambdaListenerTest {
             FlowPanel {
                 SwingNode(
                     factory = { JTextField() },
-                    update = { applyModifier(SwingModifier.focusListener { calls++ }) },
+                    modifier = SwingModifier.focusListener { calls++ },
                 )
             }
         }
@@ -219,9 +209,7 @@ class MultiMethodLambdaListenerTest {
             FlowPanel {
                 SwingNode(
                     factory = { JTree() },
-                    update = {
-                        applyModifier(SwingModifier.treeWillExpandListener(onWillCollapse = { false }))
-                    },
+                    modifier = SwingModifier.treeWillExpandListener(onWillCollapse = { false }),
                 )
             }
         }
@@ -238,9 +226,7 @@ class MultiMethodLambdaListenerTest {
             FlowPanel {
                 SwingNode(
                     factory = { JTree() },
-                    update = {
-                        applyModifier(SwingModifier.treeWillExpandListener(onWillCollapse = { true }))
-                    },
+                    modifier = SwingModifier.treeWillExpandListener(onWillCollapse = { true }),
                 )
             }
         }
@@ -256,14 +242,11 @@ class MultiMethodLambdaListenerTest {
             FlowPanel {
                 SwingNode(
                     factory = { JTree() },
-                    update = {
-                        applyModifier(
-                            SwingModifier.treeWillExpandListener(
-                                onWillExpand = { false },
-                                onWillCollapse = { true },
-                            ),
-                        )
-                    },
+                    modifier =
+                        SwingModifier.treeWillExpandListener(
+                            onWillExpand = { false },
+                            onWillCollapse = { true },
+                        ),
                 )
             }
         }
@@ -282,14 +265,11 @@ class MultiMethodLambdaListenerTest {
             FlowPanel {
                 SwingNode(
                     factory = { JTree() },
-                    update = {
-                        applyModifier(
-                            SwingModifier.treeWillExpandListener(
-                                onWillExpand = { true },
-                                onWillCollapse = { false },
-                            ),
-                        )
-                    },
+                    modifier =
+                        SwingModifier.treeWillExpandListener(
+                            onWillExpand = { true },
+                            onWillCollapse = { false },
+                        ),
                 )
             }
         }
@@ -309,14 +289,11 @@ class MultiMethodLambdaListenerTest {
             FlowPanel {
                 SwingNode(
                     factory = { JTree() },
-                    update = {
-                        applyModifier(
-                            SwingModifier.treeWillExpandListener {
-                                calls++
-                                answer
-                            },
-                        )
-                    },
+                    modifier =
+                        SwingModifier.treeWillExpandListener {
+                            calls++
+                            answer
+                        },
                 )
             }
         }
@@ -341,15 +318,12 @@ class MultiMethodLambdaListenerTest {
             FlowPanel {
                 SwingNode(
                     factory = { JTextField() },
-                    update = {
-                        applyModifier(
-                            SwingModifier
-                                .mouseMotionListener(
-                                    onMouseDragged = { reported += "dragged" },
-                                    onMouseMoved = { reported += "moved" },
-                                ).mouseMotionListener { everything++ },
-                        )
-                    },
+                    modifier =
+                        SwingModifier
+                            .mouseMotionListener(
+                                onMouseDragged = { reported += "dragged" },
+                                onMouseMoved = { reported += "moved" },
+                            ).mouseMotionListener { everything++ },
                 )
             }
         }
@@ -377,15 +351,12 @@ class MultiMethodLambdaListenerTest {
             FlowPanel {
                 SwingNode(
                     factory = { JTextField() },
-                    update = {
-                        applyModifier(
-                            SwingModifier
-                                .keyListener(
-                                    onKeyPressed = { reported += "pressed" },
-                                    onKeyReleased = { reported += "released" },
-                                ).keyListener { everything++ },
-                        )
-                    },
+                    modifier =
+                        SwingModifier
+                            .keyListener(
+                                onKeyPressed = { reported += "pressed" },
+                                onKeyReleased = { reported += "released" },
+                            ).keyListener { everything++ },
                 )
             }
         }
@@ -419,17 +390,14 @@ class MultiMethodLambdaListenerTest {
             FlowPanel {
                 SwingNode(
                     factory = { JTextField() },
-                    update = {
-                        applyModifier(
-                            SwingModifier
-                                .componentListener(
-                                    onComponentResized = { reported += "resized" },
-                                    onComponentMoved = { reported += "moved" },
-                                    onComponentShown = { reported += "shown" },
-                                    onComponentHidden = { reported += "hidden" },
-                                ).componentListener { everything++ },
-                        )
-                    },
+                    modifier =
+                        SwingModifier
+                            .componentListener(
+                                onComponentResized = { reported += "resized" },
+                                onComponentMoved = { reported += "moved" },
+                                onComponentShown = { reported += "shown" },
+                                onComponentHidden = { reported += "hidden" },
+                            ).componentListener { everything++ },
                 )
             }
         }
@@ -475,15 +443,12 @@ class MultiMethodLambdaListenerTest {
             FlowPanel {
                 SwingNode(
                     factory = { JToolBar() },
-                    update = {
-                        applyModifier(
-                            SwingModifier
-                                .containerListener(
-                                    onComponentAdded = { reported += "added" },
-                                    onComponentRemoved = { reported += "removed" },
-                                ).containerListener { everything++ },
-                        )
-                    },
+                    modifier =
+                        SwingModifier
+                            .containerListener(
+                                onComponentAdded = { reported += "added" },
+                                onComponentRemoved = { reported += "removed" },
+                            ).containerListener { everything++ },
                 )
             }
         }
@@ -520,20 +485,17 @@ class MultiMethodLambdaListenerTest {
             FlowPanel {
                 SwingNode(
                     factory = { JInternalFrame("frame") },
-                    update = {
-                        applyModifier(
-                            SwingModifier
-                                .internalFrameListener(
-                                    onFrameOpened = { reported += "opened" },
-                                    onFrameClosing = { reported += "closing" },
-                                    onFrameClosed = { reported += "closed" },
-                                    onFrameIconified = { reported += "iconified" },
-                                    onFrameDeiconified = { reported += "deiconified" },
-                                    onFrameActivated = { reported += "activated" },
-                                    onFrameDeactivated = { reported += "deactivated" },
-                                ).internalFrameListener { everything++ },
-                        )
-                    },
+                    modifier =
+                        SwingModifier
+                            .internalFrameListener(
+                                onFrameOpened = { reported += "opened" },
+                                onFrameClosing = { reported += "closing" },
+                                onFrameClosed = { reported += "closed" },
+                                onFrameIconified = { reported += "iconified" },
+                                onFrameDeiconified = { reported += "deiconified" },
+                                onFrameActivated = { reported += "activated" },
+                                onFrameDeactivated = { reported += "deactivated" },
+                            ).internalFrameListener { everything++ },
                 )
             }
         }
@@ -569,15 +531,12 @@ class MultiMethodLambdaListenerTest {
             FlowPanel {
                 SwingNode(
                     factory = { JTree() },
-                    update = {
-                        applyModifier(
-                            SwingModifier
-                                .treeExpansionListener(
-                                    onTreeExpanded = { reported += "expanded" },
-                                    onTreeCollapsed = { reported += "collapsed" },
-                                ).treeExpansionListener { everything++ },
-                        )
-                    },
+                    modifier =
+                        SwingModifier
+                            .treeExpansionListener(
+                                onTreeExpanded = { reported += "expanded" },
+                                onTreeCollapsed = { reported += "collapsed" },
+                            ).treeExpansionListener { everything++ },
                 )
             }
         }

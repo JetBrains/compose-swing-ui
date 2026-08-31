@@ -6,7 +6,6 @@ package org.jetbrains.compose.swing.components.menu
 import androidx.compose.runtime.Composable
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
 import org.jetbrains.compose.swing.modifier.listener.actionListener
 import org.jetbrains.compose.swing.modifier.listener.listener
@@ -78,16 +77,17 @@ private inline fun MenuItemNode(
 ) {
     MenuNode(
         factory = { JMenuItem() },
+        modifier = modifier,
         update = {
             set(text) { this.text = it }
             set(accelerator) { this.accelerator = it }
-            applyModifier(modifier)
         },
     )
 }
 
 private val MENU_ITEM_ACTION =
     ListenerRegistration<JMenuItem, ActionListener>(
+        name = "actionListener",
         { component, listener -> component.addActionListener(listener) },
         { component, listener -> component.removeActionListener(listener) },
     )

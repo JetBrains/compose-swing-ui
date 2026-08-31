@@ -9,13 +9,10 @@ import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.constants.TreeSelectionMode
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.propertyElement
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
-import org.jetbrains.compose.swing.node.SwingNodeUpdater
 import org.jetbrains.compose.swing.node.rememberMirrorState
-import org.jetbrains.compose.swing.node.settleWhenDue
 import javax.swing.JTree
 import javax.swing.event.TreeExpansionEvent
 import javax.swing.event.TreeExpansionListener
@@ -297,6 +294,7 @@ private inline fun <T> TreeValuesImpl(
     // instead of replacing them. It is answered against the model the tree carries, so a node handed a tree
     // built elsewhere - or one whose composable state has been rebuilt - starts from a model of its own.
     val builtModel = remember { arrayOfNulls<DeclaredTreeModel<T>>(1) }
+    val content = TreeContent(root, children, label, hasChildren)
     TreeNode(
         treeSelectionListener = treeSelectionListener,
         modifier = modifier,
@@ -312,23 +310,15 @@ private inline fun <T> TreeValuesImpl(
         visibleRowCount = visibleRowCount,
         toggleClickCount = toggleClickCount,
         nodeRenderer = nodeRenderer,
-    ) { mirrors ->
-        set(TreeContent(root, children, label, hasChildren)) { content ->
-            val declarations =
-                TreeDeclarations(
-                    mirrors = mirrors,
-                    declaredSelection = selectedPaths,
-                    declaredExpansion = expandedPaths,
-                    target = treeSelectionListener,
-                )
-            val standing = builtModel[0]?.takeIf { it === model && it.accepts(content) }
-            if (standing != null) {
-                updateContent(declarations, standing, content)
-            } else {
-                val built = content.toModel(currentNodeEdit)
-                builtModel[0] = built
-                installModel(declarations, built)
-            }
+        content = content,
+    ) { declarations ->
+        val standing = builtModel[0]?.takeIf { it === model && it.accepts(content) }
+        if (standing != null) {
+            updateContent(declarations, standing, content)
+        } else {
+            val built = content.toModel(currentNodeEdit)
+            builtModel[0] = built
+            installModel(declarations, built)
         }
     }
 }
@@ -520,17 +510,12 @@ private inline fun TreeModelImpl(
         visibleRowCount = visibleRowCount,
         toggleClickCount = toggleClickCount,
         nodeRenderer = null,
-    ) { mirrors ->
-        set(model) { newModel ->
-            val declarations =
-                TreeDeclarations(
-                    mirrors = mirrors,
-                    declaredSelection = selectedPaths,
-                    declaredExpansion = expandedPaths,
-                    target = treeSelectionListener,
-                )
-            installModel(declarations, newModel)
-        }
+        content = model,
+    ) { declarations ->
+        // A chain that changes shape re-creates the element behind it and asks for the model the tree
+        // already holds; installing that again would clear the selection and the toggled paths setModel
+        // drops, for nothing.
+        if (model !== this.model) installModel(declarations, model)
     }
 }
 
@@ -681,8 +666,9 @@ public fun Tree(
 /**
  * The `JTree` node every [Tree] overload renders: all of it but the structure, which [installContent]
  * declares - values walked through child accessors in one family of overloads, the caller's own model in
- * the other. [installContent] is handed the tree's [TreeMirrors], since giving the tree a new structure is
- * one of the writes that changes both of the facets it settles.
+ * the other. It runs where [content], what the structure is keyed on, changes, handed the pass's
+ * [TreeDeclarations] to apply with it, since giving the tree a new structure is one of the writes that
+ * changes both of the facets they settle; see [TreeContentElement] for where in the pass that is.
  *
  * Inlined into its caller, so the two share one restart scope.
  */
@@ -702,7 +688,8 @@ private inline fun TreeNode(
     visibleRowCount: Int,
     toggleClickCount: Int,
     nodeRenderer: ComposingTreeCellRenderer<*>?,
-    crossinline installContent: SwingNodeUpdater<JTree>.(TreeMirrors) -> Unit,
+    content: Any,
+    crossinline installContent: JTree.(TreeDeclarations) -> Unit,
 ) {
     val selectionMirror = rememberMirrorState(selectedPaths)
     val expansionMirror = rememberMirrorState(expandedPaths)
@@ -742,11 +729,39 @@ private inline fun TreeNode(
             }
         }
 
+    // Redeclaring each mirror subscribes this composition to the user changing the tree's own selection or
+    // expansion, and answers whether that mirror or its declaration has changed since the last settling
+    // recorded the pair. Both are redeclared whatever either answers, so each records the pair this pass
+    // makes: a mirror left unrecorded would keep answering for a pass that is already over.
+    val selectionChanged = selectionMirror.redeclare(selectedPaths)
+    val expansionChanged = expansionMirror.redeclare(expandedPaths)
     SwingNode(
         // A tree starts on a rootless model, which the same pass replaces with the declared one. A tree
         // that has never had a root has no expansion of the user's to keep, which is how the first model
         // is told apart from a later one.
         factory = { JTree(DefaultTreeModel(null)) },
+        // The listeners go on before the content: installing the model applies the declared expansion, so a
+        // will-expand listener attached after it is never asked about the first pass - the one pass a
+        // caller cannot answer for by changing the declaration.
+        modifier =
+            modifier
+                .treeListeners(userSelectionListener, userExpansionListener, treeWillExpandListener)
+                .uiOwnedProperties(showsRootHandles, rowHeight, nodeRenderer)
+                .then(
+                    TreeContentElement(
+                        content = content,
+                        due = if (selectionChanged || expansionChanged) Any() else null,
+                        declarations = {
+                            TreeDeclarations(
+                                mirrors = mirrors,
+                                declaredSelection = selectedPaths,
+                                declaredExpansion = expandedPaths,
+                                target = treeSelectionListener,
+                            )
+                        },
+                        install = { installContent(it) },
+                    ),
+                ),
         update = {
             applyMirror(selectionMirror)
             applyMirror(expansionMirror)
@@ -761,42 +776,62 @@ private inline fun TreeNode(
             set(isEditable) { editable -> this.isEditable = editable }
             set(visibleRowCount) { count -> this.visibleRowCount = count }
             set(toggleClickCount) { clicks -> this.toggleClickCount = clicks }
-            // The listeners go on before the content: installing the model applies the declared expansion,
-            // so a will-expand listener attached after it is never asked about the first pass - the one
-            // pass a caller cannot answer for by changing the declaration.
-            val treeModifier =
-                modifier.treeListeners(userSelectionListener, userExpansionListener, treeWillExpandListener)
-            applyModifier(treeModifier.uiOwnedProperties(showsRootHandles, rowHeight, nodeRenderer))
-            installContent(mirrors)
-            // Redeclaring each mirror subscribes this composition to the user changing the tree's own
-            // selection or expansion, and answers whether that mirror or its declaration has changed since
-            // the last settling recorded the pair. Both are redeclared whatever either answers, so each
-            // records the pair this pass makes: a mirror left unrecorded would keep answering for a pass
-            // that is already over.
-            //
-            // The two are settled together rather than each through its own declare: what a tree shows is
-            // the two combined - a node is only selectable where its ancestors are open - so applying one
-            // without the other would leave the tree standing on a pairing neither declaration asked for.
-            // Each mirror still sees the write as its own, which is what the nesting is for.
-            val selectionChanged = selectionMirror.redeclare(selectedPaths)
-            val expansionChanged = expansionMirror.redeclare(expandedPaths)
-            // The mirrors hold what the settling left the tree on, so a change the user repeats is answered
-            // every time they make it.
-            settleWhenDue(
-                selectionChanged || expansionChanged,
-                {
-                    TreeDeclarations(
-                        mirrors = mirrors,
-                        declaredSelection = selectedPaths,
-                        declaredExpansion = expandedPaths,
-                        target = treeSelectionListener,
-                    )
-                },
-            ) { declarations ->
-                settleSelection(declarations) { applyDeclarations(declarations, structureChanged = false) }
-            }
         },
     )
+}
+
+/**
+ * Folds in the tree's structure, and the settling of its declarations, as one element behind the listeners
+ * the chain declares before it. The element is additive, since a chain diffs its keyed elements before its
+ * additive ones: only an additive element is applied after the listeners it follows in the chain.
+ *
+ * [content] is what the structure is keyed on: where it differs from the one the tree holds, [install] gives
+ * the tree the new structure and applies the declarations with it. [due] stands for a declaration, or the
+ * mirror it stands against, having changed on an unchanged structure, which re-asserts the declarations on
+ * the tree it holds; a fresh token the slot never holds, so a settle that is due always runs, and `null`
+ * where none is. The two are settled together rather than each through its own declare: what a tree shows
+ * is the two combined - a node is only selectable where its ancestors are open - so applying one without
+ * the other would leave the tree standing on a pairing neither declaration asked for. Each mirror still
+ * sees the write as its own, which is what the nesting inside [settleSelection] is for. The mirrors hold
+ * what the settling left the tree on, so a change the user repeats is answered every time they make it.
+ */
+private class TreeContentElement(
+    private val content: Any,
+    private val due: Any?,
+    private val declarations: () -> TreeDeclarations,
+    private val install: JTree.(TreeDeclarations) -> Unit,
+) : SwingModifier.NodeElement<JTree, TreeContentNode>() {
+    override val targetType: Class<JTree> get() = JTree::class.java
+
+    override val additive: Boolean get() = true
+
+    override fun create(): TreeContentNode = TreeContentNode()
+
+    override fun update(node: TreeContentNode) {
+        // An additive element is refreshed on every diff of its chain, so a pass with nothing to do here
+        // builds nothing.
+        val structureChanged = node.installed != content
+        if (!structureChanged && due == null) return
+        val declarations = declarations()
+        val tree = node.component
+        if (structureChanged) {
+            node.installed = content
+            tree.install(declarations)
+        }
+        if (due != null) {
+            tree.settleSelection(declarations) { applyDeclarations(declarations, structureChanged = false) }
+        }
+    }
+
+    override fun equals(other: Any?): Boolean =
+        other is TreeContentElement && content == other.content && due === other.due
+
+    override fun hashCode(): Int = 31 * content.hashCode() + (due?.hashCode() ?: 0)
+}
+
+/** Holds the structure the tree was last given, so an element keyed on the same one leaves it standing. */
+private class TreeContentNode : SwingModifier.Node<JTree>() {
+    var installed: Any? = null
 }
 
 /**
@@ -848,7 +883,8 @@ private fun SwingModifier.uiOwnedProperties(
         properties =
             properties then
             propertyElement<JTree, Boolean>(
-                showsRootHandles,
+                name = "showsRootHandles",
+                value = showsRootHandles,
                 read = { it.showsRootHandles },
                 write = { tree, value -> tree.showsRootHandles = value },
             )
@@ -857,7 +893,8 @@ private fun SwingModifier.uiOwnedProperties(
         properties =
             properties then
             propertyElement<JTree, Int>(
-                rowHeight,
+                name = "rowHeight",
+                value = rowHeight,
                 read = { it.rowHeight },
                 write = { tree, value -> tree.rowHeight = value },
             )
@@ -866,7 +903,8 @@ private fun SwingModifier.uiOwnedProperties(
         properties =
             properties then
             propertyElement<JTree, TreeCellRenderer?>(
-                nodeRenderer,
+                name = "cellRenderer",
+                value = nodeRenderer,
                 read = { it.cellRenderer as? ComposingTreeCellRenderer<*> },
                 write = { tree, value -> tree.cellRenderer = value },
             )

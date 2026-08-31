@@ -9,7 +9,6 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.listener.changeListener
 import org.jetbrains.compose.swing.node.SwingNode
@@ -501,9 +500,9 @@ class TabbedPaneSelectionReportingTest {
             TabbedPane(selectedIndex = 0, onSelectedIndexChange = { reported += it }, modifier = roomForTheStrip) {
                 SwingNode(
                     factory = { JPanel() },
+                    modifier = SwingModifier.tab("One"),
                     update = {
                         set(failing) { if (it) error("the apply of this node fails") }
-                        applyModifier(SwingModifier.tab("One"))
                     },
                 )
                 Label("2", SwingModifier.tab("Two"))

@@ -5,7 +5,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.layout.FlowPanel
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -35,7 +34,7 @@ class SamLambdaListenerOverloadTest {
             FlowPanel {
                 SwingNode(
                     factory = { JCheckBox() },
-                    update = { applyModifier(SwingModifier.itemListener { reports++ }) },
+                    modifier = SwingModifier.itemListener { reports++ },
                 )
             }
         }
@@ -50,7 +49,7 @@ class SamLambdaListenerOverloadTest {
             FlowPanel {
                 SwingNode(
                     factory = { JSlider() },
-                    update = { applyModifier(SwingModifier.changeListener { reports++ }) },
+                    modifier = SwingModifier.changeListener { reports++ },
                 )
             }
         }
@@ -65,7 +64,7 @@ class SamLambdaListenerOverloadTest {
             FlowPanel {
                 SwingNode(
                     factory = { JTextField() },
-                    update = { applyModifier(SwingModifier.caretListener { reports++ }) },
+                    modifier = SwingModifier.caretListener { reports++ },
                 )
             }
         }
@@ -80,7 +79,7 @@ class SamLambdaListenerOverloadTest {
             FlowPanel {
                 SwingNode(
                     factory = { JScrollBar() },
-                    update = { applyModifier(SwingModifier.adjustmentListener { reports++ }) },
+                    modifier = SwingModifier.adjustmentListener { reports++ },
                 )
             }
         }
@@ -95,7 +94,7 @@ class SamLambdaListenerOverloadTest {
             FlowPanel {
                 SwingNode(factory = {
                     JList(arrayOf("a", "b"))
-                }, update = { applyModifier(SwingModifier.listSelectionListener { reports++ }) })
+                }, modifier = SwingModifier.listSelectionListener { reports++ })
             }
         }
         onNodeOfType<JList<*>>().fetch<JList<*>>().selectedIndex = 1
@@ -109,7 +108,7 @@ class SamLambdaListenerOverloadTest {
             FlowPanel {
                 SwingNode(
                     factory = { JTree() },
-                    update = { applyModifier(SwingModifier.treeSelectionListener { reports++ }) },
+                    modifier = SwingModifier.treeSelectionListener { reports++ },
                 )
             }
         }
@@ -122,14 +121,10 @@ class SamLambdaListenerOverloadTest {
         val seen = mutableListOf<String>()
         setContent {
             FlowPanel {
-                SwingNode(factory = { JTextField() }, update = {
-                    applyModifier(
-                        SwingModifier.propertyChangeListener {
-                            seen +=
-                                it.propertyName
-                        },
-                    )
-                })
+                SwingNode(
+                    factory = { JTextField() },
+                    modifier = SwingModifier.propertyChangeListener { seen += it.propertyName },
+                )
             }
         }
         onNodeOfType<JTextField>().fetch<JTextField>().isEnabled = false
@@ -143,7 +138,7 @@ class SamLambdaListenerOverloadTest {
             FlowPanel {
                 SwingNode(
                     factory = { JEditorPane() },
-                    update = { applyModifier(SwingModifier.hyperlinkListener { seen += it }) },
+                    modifier = SwingModifier.hyperlinkListener { seen += it },
                 )
             }
         }
@@ -171,7 +166,7 @@ class SamLambdaListenerOverloadTest {
             FlowPanel {
                 SwingNode(
                     factory = { JTextField() },
-                    update = { applyModifier(SwingModifier.mouseWheelListener { turns += it.wheelRotation }) },
+                    modifier = SwingModifier.mouseWheelListener { turns += it.wheelRotation },
                 )
             }
         }
@@ -209,7 +204,7 @@ class SamLambdaListenerOverloadTest {
             FlowPanel {
                 SwingNode(
                     factory = { JTextField() },
-                    update = { applyModifier(SwingModifier.hierarchyListener { reports++ }) },
+                    modifier = SwingModifier.hierarchyListener { reports++ },
                 )
             }
         }
@@ -222,17 +217,15 @@ class SamLambdaListenerOverloadTest {
         var declared by mutableStateOf(1)
         setContent {
             FlowPanel {
+                // Captured while the chain is built, so the value each lambda reports is the one its own
+                // pass declared: a listener left holding the first lambda reports 1.
+                val captured = declared
                 SwingNode(
                     factory = { JSlider() },
-                    update = {
-                        // Read in the update block, so a new value recomposes this node and rebuilds the
-                        // chain with a lambda written afresh.
-                        set(declared) { toolTipText = it.toString() }
-                        // Captured while the chain is built, so the value each lambda reports is the one
-                        // its own pass declared: a listener left holding the first lambda reports 1.
-                        val captured = declared
-                        applyModifier(SwingModifier.changeListener { reports += captured })
-                    },
+                    modifier = SwingModifier.changeListener { reports += captured },
+                    // Read in the update block, so a new value recomposes this node and rebuilds the chain
+                    // with a lambda written afresh.
+                    update = { set(declared) { toolTipText = it.toString() } },
                 )
             }
         }

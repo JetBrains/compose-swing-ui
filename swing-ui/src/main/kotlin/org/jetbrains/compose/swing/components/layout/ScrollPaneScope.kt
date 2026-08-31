@@ -279,6 +279,9 @@ private class ScrollBehaviorElement(
     private val region: ViewportRegion,
     private val behavior: ScrollBehavior,
 ) : SwingModifier.NodeElement<Component, ScrollBehaviorNode>() {
+    override val name: String get() = "scrollBehavior"
+
+    override val declaredValues: Map<String, Any?> get() = mapOf("region" to region, "behavior" to behavior)
     override val targetType: Class<Component> get() = Component::class.java
 
     /**

@@ -24,7 +24,8 @@ import java.awt.ComponentOrientation
 public fun SwingModifier.componentOrientation(orientation: ComponentOrientation): SwingModifier =
     this then
         propertyElement<Component, ComponentOrientation>(
-            orientation,
+            name = "componentOrientation",
+            value = orientation,
             read = { it.componentOrientation },
             // Honest Swing semantics: set on this component only; do not recurse to children.
             // Orientation flips leading/trailing layout positions (BorderLayout lineStart/lineEnd,

@@ -270,7 +270,7 @@ public class DocumentState internal constructor(
  * component follows the binding; see [binding].
  */
 internal fun SwingModifier.documentStateBinding(state: DocumentState): SwingModifier =
-    binding(JTextComponent::class.java, state, DocumentState::bind, DocumentState::unbind)
+    binding(JTextComponent::class.java, "documentState", state, DocumentState::bind, DocumentState::unbind)
 
 /**
  * Creates and remembers a [DocumentState] over a fresh document in the language [contentType] names,

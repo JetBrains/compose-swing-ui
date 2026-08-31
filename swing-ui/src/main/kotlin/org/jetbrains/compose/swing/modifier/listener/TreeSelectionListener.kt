@@ -36,6 +36,7 @@ public fun SwingModifier.treeSelectionListener(listener: TreeSelectionListener):
 
 private val TREE_SELECTION =
     ListenerRegistration<SwingJTree, TreeSelectionListener>(
+        name = "treeSelectionListener",
         SwingJTree::addTreeSelectionListener,
         SwingJTree::removeTreeSelectionListener,
     )

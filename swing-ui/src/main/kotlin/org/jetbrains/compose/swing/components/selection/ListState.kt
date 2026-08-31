@@ -136,4 +136,4 @@ public fun rememberListState(initialSelectedIndices: Set<Int> = emptySet()): Lis
 
 /** Binds [state] to the composable's list through the modifier chain; see [binding]. */
 internal fun SwingModifier.listStateBinding(state: ListState): SwingModifier =
-    binding(JList::class.java, state, ListState::bind, ListState::unbind)
+    binding(JList::class.java, "listState", state, ListState::bind, ListState::unbind)

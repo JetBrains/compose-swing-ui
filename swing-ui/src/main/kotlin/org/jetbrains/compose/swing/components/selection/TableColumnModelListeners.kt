@@ -41,6 +41,7 @@ private val TABLE_COLUMNS =
 
 private val TABLE_COLUMN_LISTENERS =
     ListenerRegistration<JTable, ColumnLayoutMirror>(
+        name = "columnLayoutMirror",
         { table, mirror -> TABLE_COLUMNS.attachSettling(table, mirror, mirror::adoptModelSwap) },
         TABLE_COLUMNS::detach,
     )

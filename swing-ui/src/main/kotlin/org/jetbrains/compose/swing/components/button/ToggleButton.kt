@@ -6,7 +6,6 @@ package org.jetbrains.compose.swing.components.button
 import androidx.compose.runtime.Composable
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.actionListener
 import org.jetbrains.compose.swing.modifier.listener.itemListener
 import org.jetbrains.compose.swing.node.MirrorState
@@ -101,10 +100,10 @@ private inline fun ToggleButtonNode(
 ) {
     SwingNode(
         factory = { JToggleButton() },
+        modifier = modifier,
         update = {
             set(text) { this.text = it }
             declare(selected, mirror, JToggleButton::isSelected, JToggleButton::setSelected)
-            applyModifier(modifier)
         },
     )
 }

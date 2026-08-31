@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -35,6 +36,11 @@ import kotlin.test.assertTrue
  * or unbound as `bindKeys` changes). No native peer is required.
  */
 class ClipboardModifierTest {
+    @Test
+    fun clipboardAppendsToTheChainWithoutRepeatingIt() {
+        assertDeclaredChainCarriedOnce { clipboard(transferable = { null }, onPaste = { false }) }
+    }
+
     @Test
     fun clipboardCopyThenPasteRoundTripsAValue() = runComposeSwingTest {
         var pasted: String? = null

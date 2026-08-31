@@ -462,7 +462,10 @@ class ComponentRecomposerTest {
             val outer =
                 composition.setContent {
                     val parentContext = rememberCompositionContext()
-                    SwingNode(factory = { host }, update = { hostSubcompositions(parentContext) })
+                    SwingNode(
+                        factory = { host },
+                        update = { hostSubcompositions(parentContext) },
+                    )
                 }
             var nested: DisposableHandle? = null
             try {

@@ -67,6 +67,7 @@ private class MouseMotionCallbacks(
 
 private val MOUSE_MOTION =
     ListenerRegistration<Component, MouseMotionListener>(
+        name = "mouseMotionListener",
         Component::addMouseMotionListener,
         Component::removeMouseMotionListener,
     )

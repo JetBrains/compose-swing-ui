@@ -46,7 +46,7 @@ internal inline fun <reified T : Component, V> propertyCase(
  * served, so a caller learns the same thing they would from a target-type mismatch.
  */
 internal class MultiTargetProperty<V>(
-    private val name: String,
+    val name: String,
     private vararg val cases: PropertyCase<*, V>,
 ) {
     /**
@@ -82,6 +82,7 @@ internal class MultiTargetPropertyElement<V>(
     value: V,
 ) : PropertyElement<Component, V>(
         Component::class.java,
+        property.name,
         value,
         read = property.read,
         write = property.write,

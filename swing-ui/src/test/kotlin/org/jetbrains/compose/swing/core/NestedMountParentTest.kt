@@ -200,7 +200,9 @@ class NestedMountParentTest {
         var windowHandle: DisposableHandle? = null
         try {
             compositionHandle =
-                composition.setContent(parent = recomposer.compositionContext) { SwingNode(factory = { nested }) }
+                composition.setContent(parent = recomposer.compositionContext) {
+                    SwingNode(factory = { nested })
+                }
             windowHandle = windowComposition.setContent { Label(text = text) }
             awaitUntil("the content composition composes its nested container into place") {
                 nested.parent === composition
@@ -286,7 +288,10 @@ class NestedMountParentTest {
         var innerHandle: DisposableHandle? = null
         var windowHandle: DisposableHandle? = null
         try {
-            outerHandle = outer.setContent(parent = recomposer.compositionContext) { SwingNode(factory = { inner }) }
+            outerHandle =
+                outer.setContent(parent = recomposer.compositionContext) {
+                    SwingNode(factory = { inner })
+                }
             windowHandle = windowComposition.setContent { Label(text = text) }
             awaitUntil("the outer composition composes the nested container into place") { inner.parent === outer }
 

@@ -23,7 +23,8 @@ import javax.swing.AbstractButton
 public fun SwingModifier.actionCommand(command: String?): SwingModifier =
     this then
         propertyElement<AbstractButton, String?>(
-            command,
+            name = "actionCommand",
+            value = command,
             // A button's own getter substitutes its text when no command is set; the model holds the
             // real value, including null, so reading from the model is what lets `null` restore the default.
             read = { it.model.actionCommand },

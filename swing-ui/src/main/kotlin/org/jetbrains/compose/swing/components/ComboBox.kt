@@ -11,7 +11,6 @@ import org.jetbrains.compose.swing.components.selection.ListItemScope
 import org.jetbrains.compose.swing.components.selection.declaredListItemRenderer
 import org.jetbrains.compose.swing.components.selection.rememberListItemRenderer
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
 import org.jetbrains.compose.swing.modifier.listener.actionListener
 import org.jetbrains.compose.swing.modifier.listener.listener
@@ -230,11 +229,11 @@ private inline fun <T> ComboBoxNode(
     val cells = itemContent?.let { rememberListItemRenderer(null, it) }
     SwingNode(
         factory = { JComboBox<T>() },
+        modifier = modifier.declaredListItemRenderer(cells),
         update = {
             set(editable) { this.isEditable = it }
             set(maximumRowCount) { this.maximumRowCount = it }
             installContent()
-            applyModifier(modifier.declaredListItemRenderer(cells))
         },
     )
 }
@@ -343,6 +342,7 @@ private fun <T> applySelection(
 
 private val COMBO_ITEM_SELECTION =
     ListenerRegistration<JComboBox<*>, ItemListener>(
+        name = "itemListener",
         { component, listener -> component.addItemListener(listener) },
         { component, listener -> component.removeItemListener(listener) },
     )

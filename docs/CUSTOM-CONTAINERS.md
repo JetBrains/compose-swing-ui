@@ -15,7 +15,6 @@ import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.annotations.SwingComposable
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import java.awt.FlowLayout
 import javax.swing.JPanel
 import javax.swing.border.TitledBorder
@@ -30,10 +29,8 @@ fun TitledGroup(
 ) {
     SwingNode(
         factory = { JPanel(FlowLayout()).apply { border = TitledBorder("") } },
-        update = {
-            set(title) { (this.border as TitledBorder).title = it }
-            applyModifier(modifier)
-        },
+        modifier = modifier,
+        update = { set(title) { (this.border as TitledBorder).title = it } },
         content = content,
     )
 }
@@ -63,7 +60,6 @@ appends the value the manager understands with `layoutConstraint`:
 ```kotlin
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
 import org.jetbrains.compose.swing.node.SwingNode
 import javax.swing.JPanel
@@ -89,7 +85,7 @@ fun MosaicPanel(
 ) {
     SwingNode(
         factory = { JPanel(MosaicLayout()) },
-        update = { applyModifier(modifier) },
+        modifier = modifier,
         content = { MosaicScopeImpl.content() },
     )
 }
@@ -328,7 +324,6 @@ import org.jetbrains.compose.swing.components.selection.ListItemScope
 import org.jetbrains.compose.swing.components.selection.listItemRenderer
 import org.jetbrains.compose.swing.components.selection.rememberListItemRenderer
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import java.awt.Dimension
 import java.util.Vector
@@ -354,10 +349,8 @@ fun <T : Any> CustomComboBox(
     val declaredItems = items.toList()
     SwingNode(
         factory = { WideComboBox<T>() },
-        update = {
-            set(declaredItems) { model = DefaultComboBoxModel(Vector(it)) }
-            applyModifier(modifier.listItemRenderer(cells))
-        },
+        modifier = modifier.listItemRenderer(cells),
+        update = { set(declaredItems) { model = DefaultComboBoxModel(Vector(it)) } },
     )
 }
 ```

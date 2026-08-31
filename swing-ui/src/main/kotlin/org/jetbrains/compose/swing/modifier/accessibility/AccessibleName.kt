@@ -20,7 +20,8 @@ import java.awt.Component
 public fun SwingModifier.accessibleName(name: @Nls String?): SwingModifier =
     this then
         propertyElement<Component, String?>(
-            name,
+            name = "accessibleName",
+            value = name,
             read = { it.accessibleContext?.accessibleName },
             write = { component, value -> component.accessibleContext?.accessibleName = value },
         )

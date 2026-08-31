@@ -111,6 +111,7 @@ private class InternalFrameCallbacks(
 
 private val INTERNAL_FRAME =
     ListenerRegistration<JInternalFrame, InternalFrameListener>(
+        name = "internalFrameListener",
         JInternalFrame::addInternalFrameListener,
         JInternalFrame::removeInternalFrameListener,
     )

@@ -70,6 +70,7 @@ class InstanceRegistrationTest {
                 val counted =
                     remember {
                         ListenerRegistration<JButton, MouseAdapter>(
+                            name = "mouseAdapter",
                             { component, listener ->
                                 attachments++
                                 component.addMouseListener(listener)

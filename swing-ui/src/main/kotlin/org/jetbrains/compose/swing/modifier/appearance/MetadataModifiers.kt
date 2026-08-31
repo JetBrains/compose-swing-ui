@@ -29,7 +29,8 @@ import javax.swing.JComponent
 public fun SwingModifier.name(name: String?): SwingModifier =
     this then
         propertyElement<Component, String?>(
-            name,
+            name = "name",
+            value = name,
             read = { it.name },
             write = { component, value -> component.name = value },
         )
@@ -61,7 +62,8 @@ private class TestTagElement(
     tag: String?,
 ) : PropertyElement<JComponent, String?>(
         JComponent::class.java,
-        tag,
+        name = "testTag",
+        value = tag,
         read = { it[TEST_TAG_KEY] },
         write = { component, value -> component[TEST_TAG_KEY] = value },
     )
@@ -85,8 +87,9 @@ public fun SwingModifier.clientProperty(
     this then
         KeyedPropertyElement(
             JComponent::class.java,
-            key,
-            value,
+            name = "clientProperty",
+            slotKey = key,
+            value = value,
             read = { it.getClientProperty(key) },
             write = { component, declared -> component.putClientProperty(key, declared) },
         )
@@ -99,10 +102,14 @@ public fun SwingModifier.clientProperty(
  */
 private class KeyedPropertyElement<T : Component, V>(
     targetType: Class<T>,
+    name: String,
     private val slotKey: Any,
     value: V,
     read: (component: T) -> V,
     write: (component: T, value: V) -> Unit,
-) : PropertyElement<T, V>(targetType, value, read, write) {
+) : PropertyElement<T, V>(targetType, name, value, read, write) {
     override val key: Any get() = slotKey
+
+    /** The key names the entry written, so it stands beside the value written under it. */
+    override val declaredValues: Map<String, Any?> get() = mapOf("key" to slotKey) + super.declaredValues
 }

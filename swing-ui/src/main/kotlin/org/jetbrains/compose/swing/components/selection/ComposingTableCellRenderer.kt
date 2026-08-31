@@ -239,6 +239,7 @@ internal fun SwingModifier.composableColumnCells(cellCompositions: TableCellComp
 private class ColumnCellsElement(
     private val cellCompositions: TableCellCompositions<*>,
 ) : SwingModifier.NodeElement<JTable, ColumnCellsNode>() {
+    override val name: String get() = "columnCells"
     override val targetType: Class<JTable> get() = JTable::class.java
 
     override fun create(): ColumnCellsNode = ColumnCellsNode()

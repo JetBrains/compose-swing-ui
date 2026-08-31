@@ -30,6 +30,7 @@ class CallbackRegistrationTest {
         CallbackRegistration(
             builtTheSameWay,
             ListenerRegistration<JButton, PropertyChangeListener>(
+                name = "propertyChangeListener",
                 { component, listener -> component.addPropertyChangeListener("enabled", listener) },
                 { component, listener -> component.removePropertyChangeListener("enabled", listener) },
             ),
@@ -39,6 +40,7 @@ class CallbackRegistrationTest {
         CallbackRegistration(
             builtTheSameWay,
             ListenerRegistration<JButton, PropertyChangeListener>(
+                name = "propertyChangeListener",
                 { component, listener -> component.addPropertyChangeListener("background", listener) },
                 { component, listener -> component.removePropertyChangeListener("background", listener) },
             ),

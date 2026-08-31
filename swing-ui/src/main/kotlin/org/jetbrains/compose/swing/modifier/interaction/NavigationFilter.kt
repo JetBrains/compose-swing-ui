@@ -29,7 +29,8 @@ import javax.swing.text.NavigationFilter
 public fun SwingModifier.navigationFilter(filter: NavigationFilter?): SwingModifier =
     this then
         propertyElement<JTextComponent, NavigationFilter?>(
-            filter,
+            name = "navigationFilter",
+            value = filter,
             read = { it.navigationFilter },
             write = { component, value -> component.navigationFilter = value },
         )

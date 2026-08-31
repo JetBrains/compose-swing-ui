@@ -7,7 +7,6 @@ import androidx.compose.runtime.Composable
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.constants.Orientation
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
 import javax.swing.BoundedRangeModel
@@ -124,13 +123,13 @@ private inline fun ProgressBarNode(
 ) {
     SwingNode(
         factory = { JProgressBar() },
+        modifier = modifier,
         update = {
             installRange()
             set(indeterminate) { this.isIndeterminate = it }
             set(orientation) { this.orientation = it }
             set(string) { this.string = it }
             set(stringPainted) { this.isStringPainted = it }
-            applyModifier(modifier)
         },
     )
 }

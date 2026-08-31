@@ -159,6 +159,10 @@ private class InstanceListenerElement<T : Component, L : Any>(
 ) : SwingModifier.NodeElement<T, InstanceListenerNode<T, L>>() {
     override val additive: Boolean get() = true
 
+    override val name: String get() = registration.name
+
+    override val declaredValues: Map<String, Any?> get() = mapOf("listener" to instance)
+
     override fun create(): InstanceListenerNode<T, L> = InstanceListenerNode()
 
     override fun update(node: InstanceListenerNode<T, L>): Unit = node.swapTo(this)
@@ -230,6 +234,10 @@ private class LiveCallbackListenerElement<T : Component, C : Any, L : Any>(
     val registration: CallbackRegistration<T, C, L>,
 ) : SwingModifier.NodeElement<T, LiveCallbackListenerNode<T, C, L>>() {
     override val additive: Boolean get() = true
+
+    override val name: String get() = registration.name
+
+    override val declaredValues: Map<String, Any?> get() = mapOf("callback" to declared)
 
     override fun create(): LiveCallbackListenerNode<T, C, L> = LiveCallbackListenerNode(this)
 

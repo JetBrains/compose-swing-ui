@@ -6,7 +6,6 @@ package org.jetbrains.compose.swing.components.layout
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.node.SwingNode
 
 /**
@@ -52,11 +51,11 @@ public fun Column(
         factory = {
             ScrollablePanel(LinearLayout(LayoutAxis.Vertical, scope.placements, axisArrangement, axisAlignment))
         },
+        modifier = modifier,
         update = {
             updateLayout<LinearLayout, _>(scope.placements) { this.placements = it }
             updateLayout<LinearLayout, _>(axisArrangement) { this.arrangement = it }
             updateLayout<LinearLayout, _>(axisAlignment) { this.alignment = it }
-            applyModifier(modifier)
         },
         content = { scope.content() },
     )

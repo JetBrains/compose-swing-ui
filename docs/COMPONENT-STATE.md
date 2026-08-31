@@ -100,7 +100,6 @@ import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.declare
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.actionListener
 import org.jetbrains.compose.swing.node.rememberMirrorState
 import javax.swing.JCheckBox
@@ -118,21 +117,20 @@ fun MyCheckBox(
     val mirror = rememberMirrorState(checked)
     SwingNode(
         factory = { JCheckBox() },
+        // The box publishes its new value for every toggle, its own and the user's alike.
+        // `report` tells which is which by value - a toggle that lands on the declaration is the
+        // declaration arriving, not a change - and settles the composition once the caller has had
+        // it. The lambda is read when the event fires, so writing it here holds nothing
+        // across compositions.
+        modifier =
+            modifier.actionListener { event ->
+                mirror.report((event.source as JCheckBox).isSelected, onCheckedChange)
+            },
         update = {
             set(text) { this.text = it }
             // Settles `checked` against the box whenever either side has changed, rather than only when
             // this pass's declaration differs from the last one.
             declare(checked, mirror, JCheckBox::isSelected, JCheckBox::setSelected)
-            // The box publishes its new value for every toggle, its own and the user's alike.
-            // `report` tells which is which by value - a toggle that lands on the declaration is the
-            // declaration arriving, not a change - and settles the composition once the caller has had
-            // it. The lambda is read when the event fires, so writing it here holds nothing
-            // across compositions.
-            applyModifier(
-                modifier.actionListener { event ->
-                    mirror.report((event.source as JCheckBox).isSelected, onCheckedChange)
-                },
-            )
         },
     )
 }

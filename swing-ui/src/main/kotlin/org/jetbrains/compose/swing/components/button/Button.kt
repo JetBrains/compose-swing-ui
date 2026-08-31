@@ -6,7 +6,6 @@ package org.jetbrains.compose.swing.components.button
 import androidx.compose.runtime.Composable
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.actionListener
 import org.jetbrains.compose.swing.node.SwingNode
 import java.awt.event.ActionListener
@@ -63,9 +62,9 @@ private inline fun ButtonNode(
 ) {
     SwingNode(
         factory = { JButton() },
+        modifier = modifier,
         update = {
             set(text) { this.text = it }
-            applyModifier(modifier)
         },
     )
 }

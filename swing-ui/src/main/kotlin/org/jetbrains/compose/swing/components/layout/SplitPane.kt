@@ -10,7 +10,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.constants.SplitOrientation
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.propertyChangeListener
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
@@ -205,6 +204,7 @@ private inline fun SplitPaneImpl(
                 continuousLayout?.let { pane.isContinuousLayout = it }
             }
         },
+        modifier = modifier,
         update = {
             set(orientation) { this.orientation = it }
             set(resizeWeight) { this.resizeWeight = it }
@@ -234,7 +234,6 @@ private inline fun SplitPaneImpl(
                     isContinuousLayout = it
                 }
             }
-            applyModifier(modifier)
         },
         childPlacement = SplitPaneSides,
         content = { SplitPaneScopeImpl.content() },

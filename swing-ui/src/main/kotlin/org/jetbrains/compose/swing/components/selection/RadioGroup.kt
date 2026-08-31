@@ -8,7 +8,6 @@ import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.components.layout.BoxPanel
 import org.jetbrains.compose.swing.constants.BoxAxis
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.declare
 import javax.swing.BoxLayout
@@ -62,10 +61,10 @@ public fun RadioGroup(
             ButtonGroupOption(group, index, option.modifier, selected, onSelectionChange) { optionModifier, mirror ->
                 SwingNode(
                     factory = { JRadioButton() },
+                    modifier = optionModifier,
                     update = {
                         set(option.text) { this.text = it }
                         declare(selected, mirror, { isSelected }, { applyGroupSelection(group, it) })
-                        applyModifier(optionModifier)
                     },
                 )
             }

@@ -69,6 +69,7 @@ private class FocusCallbacks(
 
 private val FOCUS =
     ListenerRegistration<Component, FocusListener>(
+        name = "focusListener",
         Component::addFocusListener,
         Component::removeFocusListener,
     )

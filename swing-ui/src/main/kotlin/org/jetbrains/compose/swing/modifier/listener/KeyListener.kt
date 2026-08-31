@@ -74,6 +74,7 @@ private class KeyCallbacks(
 /** The registration a key listener sits on, shared by every builder over a component's keys. */
 internal val KEY =
     ListenerRegistration<Component, KeyListener>(
+        name = "keyListener",
         Component::addKeyListener,
         Component::removeKeyListener,
     )

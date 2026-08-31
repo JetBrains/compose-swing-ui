@@ -107,6 +107,7 @@ private fun actionListenerTargetError(component: Component): String =
 
 private val ACTION =
     ListenerRegistration<Component, ActionListener>(
+        name = "actionListener",
         { component, listener -> actionListenerRegistrar(component).add(listener) },
         { component, listener -> actionListenerRegistrar(component).remove(listener) },
     )

@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.components.layout
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.interaction.onParent
@@ -26,6 +27,21 @@ import kotlin.test.assertSame
  * constraint, and BorderLayout is what puts it in the center region.
  */
 class BorderPanelDslTest {
+    @Test
+    fun everyRegionAppendsToTheChainWithoutRepeatingIt() {
+        with(BorderPanelScopeImpl) {
+            assertDeclaredChainCarriedOnce { north() }
+            assertDeclaredChainCarriedOnce { south() }
+            assertDeclaredChainCarriedOnce { east() }
+            assertDeclaredChainCarriedOnce { west() }
+            assertDeclaredChainCarriedOnce { center() }
+            assertDeclaredChainCarriedOnce { pageStart() }
+            assertDeclaredChainCarriedOnce { pageEnd() }
+            assertDeclaredChainCarriedOnce { lineStart() }
+            assertDeclaredChainCarriedOnce { lineEnd() }
+        }
+    }
+
     @Test
     fun aChildNamingNoRegionOccupiesTheCenterWhileSiblingsKeepTheirRegions() = runComposeSwingTest {
         setContent {

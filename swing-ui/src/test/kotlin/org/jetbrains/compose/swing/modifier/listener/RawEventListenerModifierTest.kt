@@ -6,7 +6,6 @@ import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.components.selection.ListBox
 import org.jetbrains.compose.swing.components.selection.Tree
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -113,9 +112,7 @@ class RawEventListenerModifierTest {
         setContent {
             SwingNode(
                 factory = { JInternalFrame("F", true, true, true, true).also { it.isVisible = true } },
-                update = {
-                    applyModifier(SwingModifier.internalFrameListener(listener))
-                },
+                modifier = SwingModifier.internalFrameListener(listener),
             )
         }
         val frame = onNodeOfType<JInternalFrame>().fetch()
@@ -136,9 +133,7 @@ class RawEventListenerModifierTest {
         setContent {
             SwingNode(
                 factory = { JColorChooser() },
-                update = {
-                    applyModifier(SwingModifier.changeListener(listener))
-                },
+                modifier = SwingModifier.changeListener(listener),
             )
         }
         val chooser = onNodeOfType<JColorChooser>().fetch()

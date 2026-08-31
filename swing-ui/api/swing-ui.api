@@ -594,7 +594,9 @@ public abstract class org/jetbrains/compose/swing/modifier/SwingModifier$NodeEle
 	public abstract fun equals (Ljava/lang/Object;)Z
 	public final fun foldIn (Ljava/lang/Object;Lkotlin/jvm/functions/Function2;)Ljava/lang/Object;
 	public fun getAdditive ()Z
+	public fun getDeclaredValues ()Ljava/util/Map;
 	public fun getKey ()Ljava/lang/Object;
+	public fun getName ()Ljava/lang/String;
 	public abstract fun getTargetType ()Ljava/lang/Class;
 	public abstract fun hashCode ()I
 	public abstract fun update (Lorg/jetbrains/compose/swing/modifier/SwingModifier$Node;)V
@@ -826,8 +828,8 @@ public final class org/jetbrains/compose/swing/modifier/listener/ListenerModifie
 
 public final class org/jetbrains/compose/swing/modifier/listener/ListenerRegistration {
 	public static final field $stable I
-	public fun <init> (Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Ljava/lang/Object;)V
-	public synthetic fun <init> (Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Ljava/lang/Object;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ljava/lang/String;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Ljava/lang/Object;)V
+	public synthetic fun <init> (Ljava/lang/String;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function2;Ljava/lang/Object;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
 	public fun hashCode ()I
 }
@@ -921,6 +923,7 @@ public final class org/jetbrains/compose/swing/node/SwingApplier : androidx/comp
 
 public abstract interface class org/jetbrains/compose/swing/node/SwingComponentNode {
 	public abstract fun getComponent ()Ljava/awt/Component;
+	public abstract fun getModifier ()Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 }
 
 public final class org/jetbrains/compose/swing/node/SwingNodeHolder : androidx/compose/runtime/ComposeNodeLifecycleCallback, org/jetbrains/compose/swing/node/SwingComponentNode {
@@ -928,6 +931,7 @@ public final class org/jetbrains/compose/swing/node/SwingNodeHolder : androidx/c
 	public fun <init> (Ljava/awt/Component;)V
 	public final fun getChildPlacement ()Lorg/jetbrains/compose/swing/node/ChildPlacement;
 	public fun getComponent ()Ljava/awt/Component;
+	public fun getModifier ()Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public final fun getReleaseBlock ()Lkotlin/jvm/functions/Function0;
 	public fun onDeactivate ()V
 	public fun onRelease ()V

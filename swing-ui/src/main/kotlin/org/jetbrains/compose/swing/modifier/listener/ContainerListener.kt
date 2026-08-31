@@ -67,6 +67,7 @@ private class ContainerCallbacks(
 
 private val CONTAINER =
     ListenerRegistration<Container, ContainerListener>(
+        name = "containerListener",
         Container::addContainerListener,
         Container::removeContainerListener,
     )

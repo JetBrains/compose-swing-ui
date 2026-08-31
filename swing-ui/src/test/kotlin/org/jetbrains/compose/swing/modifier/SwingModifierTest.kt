@@ -4,25 +4,56 @@ import androidx.compose.runtime.ReusableContentHost
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.foreground
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.modifier.appearance.opaque
+import org.jetbrains.compose.swing.modifier.interaction.FocusRequester
+import org.jetbrains.compose.swing.modifier.interaction.actionCommand
+import org.jetbrains.compose.swing.modifier.interaction.buttonGroup
+import org.jetbrains.compose.swing.modifier.interaction.caret
+import org.jetbrains.compose.swing.modifier.interaction.caretBlinkRate
+import org.jetbrains.compose.swing.modifier.interaction.caretUpdatePolicy
+import org.jetbrains.compose.swing.modifier.interaction.defaultButton
+import org.jetbrains.compose.swing.modifier.interaction.documentFilter
 import org.jetbrains.compose.swing.modifier.interaction.enabled
+import org.jetbrains.compose.swing.modifier.interaction.focusAccelerator
+import org.jetbrains.compose.swing.modifier.interaction.focusRequester
+import org.jetbrains.compose.swing.modifier.interaction.focusTraversalIndex
+import org.jetbrains.compose.swing.modifier.interaction.focusable
+import org.jetbrains.compose.swing.modifier.interaction.initialFocus
+import org.jetbrains.compose.swing.modifier.interaction.inputVerifier
+import org.jetbrains.compose.swing.modifier.interaction.navigationFilter
+import org.jetbrains.compose.swing.modifier.interaction.onAccept
+import org.jetbrains.compose.swing.modifier.interaction.onFocus
 import org.jetbrains.compose.swing.modifier.interaction.onHover
 import org.jetbrains.compose.swing.modifier.interaction.onPointerEvent
+import org.jetbrains.compose.swing.modifier.interaction.orderedFocusTraversal
+import org.jetbrains.compose.swing.modifier.interaction.verifyInputWhenFocusTarget
 import org.jetbrains.compose.swing.modifier.layout.alignmentX
 import org.jetbrains.compose.swing.modifier.layout.alignmentY
+import org.jetbrains.compose.swing.modifier.layout.bounds
 import org.jetbrains.compose.swing.modifier.layout.componentOrientation
+import org.jetbrains.compose.swing.modifier.layout.height
+import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
+import org.jetbrains.compose.swing.modifier.layout.location
 import org.jetbrains.compose.swing.modifier.layout.maximumSize
 import org.jetbrains.compose.swing.modifier.layout.minimumSize
+import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.modifier.layout.size
+import org.jetbrains.compose.swing.modifier.layout.slot
 import org.jetbrains.compose.swing.modifier.layout.visible
+import org.jetbrains.compose.swing.modifier.layout.width
+import org.jetbrains.compose.swing.modifier.layout.x
+import org.jetbrains.compose.swing.modifier.layout.y
 import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
 import org.jetbrains.compose.swing.modifier.listener.listener
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
 import org.jetbrains.compose.swing.modifier.listener.mouseMotionListener
+import org.jetbrains.compose.swing.node.SlotAttachment
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -30,13 +61,16 @@ import java.awt.Color
 import java.awt.Component
 import java.awt.ComponentOrientation
 import java.awt.Dimension
+import java.awt.Point
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import java.awt.event.MouseListener
 import java.awt.event.MouseMotionListener
+import javax.swing.ButtonGroup
 import javax.swing.JButton
 import javax.swing.JComponent
 import javax.swing.JLabel
+import javax.swing.text.DefaultCaret
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -495,6 +529,7 @@ class SwingModifierTest {
         // listener sits, so a pass must hand the seam the same one.
         val counted =
             ListenerRegistration<JButton, MouseListener>(
+                name = "mouseListener",
                 { component, listener ->
                     attachCount++
                     component.addMouseListener(listener)
@@ -675,8 +710,66 @@ class SwingModifierTest {
         /** The mouse registration the declarations in these tests use. */
         val MOUSE_EVENTS =
             ListenerRegistration<JButton, MouseListener>(
+                name = "mouseListener",
                 { component, listener -> component.addMouseListener(listener) },
                 { component, listener -> component.removeMouseListener(listener) },
             )
+    }
+
+    @Test
+    fun everyLayoutBuilderAppendsToTheChainWithoutRepeatingIt() {
+        assertDeclaredChainCarriedOnce { alignmentX(0f) }
+        assertDeclaredChainCarriedOnce { alignmentY(0f) }
+        assertDeclaredChainCarriedOnce { componentOrientation(ComponentOrientation.LEFT_TO_RIGHT) }
+        assertDeclaredChainCarriedOnce { layoutConstraint("region") }
+        assertDeclaredChainCarriedOnce { slot("region", SlotAttachment { _, _, _ -> {} }) }
+        assertDeclaredChainCarriedOnce { bounds(0, 0, 1, 1) }
+        assertDeclaredChainCarriedOnce { location(0, 0) }
+        assertDeclaredChainCarriedOnce { location(Point(0, 0)) }
+        assertDeclaredChainCarriedOnce { x(0) }
+        assertDeclaredChainCarriedOnce { y(0) }
+        assertDeclaredChainCarriedOnce { preferredSize(null) }
+        assertDeclaredChainCarriedOnce { preferredSize(1, 1) }
+        assertDeclaredChainCarriedOnce { minimumSize(null) }
+        assertDeclaredChainCarriedOnce { minimumSize(1, 1) }
+        assertDeclaredChainCarriedOnce { maximumSize(null) }
+        assertDeclaredChainCarriedOnce { maximumSize(1, 1) }
+        assertDeclaredChainCarriedOnce { size(1, 1) }
+        assertDeclaredChainCarriedOnce { size(Dimension(1, 1)) }
+        assertDeclaredChainCarriedOnce { width(1) }
+        assertDeclaredChainCarriedOnce { height(1) }
+        assertDeclaredChainCarriedOnce { visible(true) }
+    }
+
+    @Test
+    fun everyInteractionBuilderAppendsToTheChainWithoutRepeatingIt() {
+        assertDeclaredChainCarriedOnce { actionCommand(null) }
+        assertDeclaredChainCarriedOnce { buttonGroup(ButtonGroup()) }
+        assertDeclaredChainCarriedOnce { caret(DefaultCaret()) }
+        assertDeclaredChainCarriedOnce { caretBlinkRate(1) }
+        assertDeclaredChainCarriedOnce { caretUpdatePolicy(DefaultCaret.NEVER_UPDATE) }
+        assertDeclaredChainCarriedOnce { defaultButton() }
+        assertDeclaredChainCarriedOnce { documentFilter(null) }
+        assertDeclaredChainCarriedOnce { focusAccelerator('a') }
+        assertDeclaredChainCarriedOnce { focusRequester(FocusRequester()) }
+        assertDeclaredChainCarriedOnce { focusTraversalIndex(0) }
+        assertDeclaredChainCarriedOnce { orderedFocusTraversal() }
+        assertDeclaredChainCarriedOnce { initialFocus() }
+        assertDeclaredChainCarriedOnce { inputVerifier { true } }
+        assertDeclaredChainCarriedOnce { verifyInputWhenFocusTarget(true) }
+        assertDeclaredChainCarriedOnce { focusable(true) }
+        assertDeclaredChainCarriedOnce { enabled(true) }
+        assertDeclaredChainCarriedOnce { onHover { } }
+        assertDeclaredChainCarriedOnce { onFocus { } }
+        assertDeclaredChainCarriedOnce { onPointerEvent { } }
+        assertDeclaredChainCarriedOnce { navigationFilter(null) }
+        assertDeclaredChainCarriedOnce { onAccept { } }
+    }
+
+    @Test
+    fun aBindingAppendsToTheChainWithoutRepeatingIt() {
+        assertDeclaredChainCarriedOnce {
+            binding(JComponent::class.java, "binding", "value", { _, _ -> }, { _, _ -> })
+        }
     }
 }

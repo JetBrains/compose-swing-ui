@@ -96,6 +96,9 @@ internal class WeightElement(
     private val placements: ChildPlacements,
     private val placement: WeightPlacement,
 ) : SwingModifier.NodeElement<Component, WeightNode>() {
+    override val name: String get() = "weight"
+
+    override val declaredValues: Map<String, Any?> get() = mapOf("weight" to placement)
     override val targetType: Class<Component> get() = Component::class.java
 
     override fun create(): WeightNode = WeightNode(placements)
@@ -135,6 +138,9 @@ internal class AlignElement(
     private val placements: ChildPlacements,
     private val alignment: AxisAlignment,
 ) : SwingModifier.NodeElement<Component, AlignNode>() {
+    override val name: String get() = "align"
+
+    override val declaredValues: Map<String, Any?> get() = mapOf("alignment" to alignment)
     override val targetType: Class<Component> get() = Component::class.java
 
     override fun create(): AlignNode = AlignNode(placements)
@@ -173,6 +179,7 @@ internal class FillNode(
 internal class FillElement(
     private val placements: ChildPlacements,
 ) : SwingModifier.NodeElement<Component, FillNode>() {
+    override val name: String get() = "fill"
     override val targetType: Class<Component> get() = Component::class.java
 
     override fun create(): FillNode = FillNode(placements)

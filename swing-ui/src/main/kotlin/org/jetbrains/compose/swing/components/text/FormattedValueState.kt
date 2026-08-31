@@ -128,4 +128,10 @@ public fun rememberFormattedValueState(initialValue: Any? = null): FormattedValu
 
 /** Binds [state] to the composable's field through the modifier chain; see [binding]. */
 internal fun SwingModifier.formattedValueStateBinding(state: FormattedValueState): SwingModifier =
-    binding(JFormattedTextField::class.java, state, FormattedValueState::bind, FormattedValueState::unbind)
+    binding(
+        JFormattedTextField::class.java,
+        "formattedValueState",
+        state,
+        FormattedValueState::bind,
+        FormattedValueState::unbind,
+    )

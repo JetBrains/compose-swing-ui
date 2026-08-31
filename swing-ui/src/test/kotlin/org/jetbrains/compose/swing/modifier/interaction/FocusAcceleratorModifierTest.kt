@@ -4,7 +4,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -57,9 +56,7 @@ class FocusAcceleratorModifierTest {
         setContent {
             SwingNode(
                 factory = { JTextField(TEXT) },
-                update = {
-                    applyModifier(if (declared()) SwingModifier.focusAccelerator(ACCELERATOR) else SwingModifier)
-                },
+                modifier = if (declared()) SwingModifier.focusAccelerator(ACCELERATOR) else SwingModifier,
             )
         }
         awaitIdle()

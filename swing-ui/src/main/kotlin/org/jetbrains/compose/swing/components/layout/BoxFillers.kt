@@ -6,7 +6,6 @@ package org.jetbrains.compose.swing.components.layout
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.constants.Orientation
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import java.awt.Dimension
 import javax.swing.Box
@@ -143,9 +142,9 @@ private inline fun EmptySpace(
 ) {
     SwingNode(
         factory = { Box.Filler(Dimension(), Dimension(), Dimension()) },
+        modifier = modifier,
         update = {
             set(Triple(minimum, preferred, maximum)) { (min, pref, max) -> changeShape(min, pref, max) }
-            applyModifier(modifier)
         },
     )
 }

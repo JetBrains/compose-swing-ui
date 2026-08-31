@@ -6,7 +6,6 @@ package org.jetbrains.compose.swing.components.menu
 import androidx.compose.runtime.Composable
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.actionListener
 import org.jetbrains.compose.swing.modifier.listener.itemListener
 import org.jetbrains.compose.swing.node.MenuNode
@@ -105,11 +104,11 @@ private inline fun CheckBoxMenuItemNode(
 ) {
     MenuNode(
         factory = { JCheckBoxMenuItem() },
+        modifier = modifier,
         update = {
             set(text) { this.text = it }
             declare(checked, mirror, JCheckBoxMenuItem::isSelected, JCheckBoxMenuItem::setSelected)
             set(accelerator) { this.accelerator = it }
-            applyModifier(modifier)
         },
     )
 }

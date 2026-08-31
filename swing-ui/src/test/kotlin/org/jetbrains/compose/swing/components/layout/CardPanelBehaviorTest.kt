@@ -6,6 +6,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.ComposeSwingTest
@@ -45,6 +46,11 @@ class CardPanelBehaviorTest {
     ) {
         onNodeWithText(shown).assertIsVisible()
         hidden.forEach { onNodeWithText(it).assertIsNotVisible() }
+    }
+
+    @Test
+    fun aCardAppendsToTheChainWithoutRepeatingIt() {
+        with(CardPanelScopeImpl) { assertDeclaredChainCarriedOnce { card("one") } }
     }
 
     @Test

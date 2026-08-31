@@ -11,7 +11,6 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.constants.HorizontalScrollbarPolicy
 import org.jetbrains.compose.swing.constants.VerticalScrollbarPolicy
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import java.awt.Component
 import javax.swing.JScrollPane
@@ -95,6 +94,7 @@ public fun ScrollPane(
                     viewportBorder?.let { pane.viewportBorder = it }
                 }
             },
+        modifier = modifier.scrollStateBinding(state),
         update = {
             set(verticalScrollbar) { verticalScrollBarPolicy = it }
             set(horizontalScrollbar) { horizontalScrollBarPolicy = it }
@@ -102,7 +102,6 @@ public fun ScrollPane(
             // Not settleOn: that helper reads a null answer as "no answer" and writes nothing, which a
             // nullable border needs to mean "give the look and feel's own null back".
             update(viewportBorder) { declared -> this.viewportBorder = declared ?: lookAndFeelViewportBorder }
-            applyModifier(modifier.scrollStateBinding(state))
         },
         childPlacement = ScrollPaneRegions,
         content = { scope.content() },

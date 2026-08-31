@@ -67,7 +67,8 @@ internal object LayeredPaneScopeImpl : LayeredPaneScope {
  */
 private fun layerDepth(layer: Int): SwingModifier =
     propertyElement<Component, Int>(
-        layer,
+        name = "layer",
+        value = layer,
         read = { component ->
             (component.parent as? JLayeredPane)?.getLayer(component) ?: JLayeredPane.DEFAULT_LAYER
         },

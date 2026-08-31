@@ -5,7 +5,6 @@ package org.jetbrains.compose.swing.components.layout
 
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.util.DeferredAction
 import java.awt.CardLayout
@@ -54,11 +53,11 @@ public fun CardPanel(
 ) {
     SwingNode<JPanel>(
         factory = { StateCardPanel(hgap, vgap) },
+        modifier = modifier,
         update = {
             set(selectedCard) { (this as StateCardPanel).targetCard = it }
             updateLayout<CardDeckLayout, _>(hgap) { this.hgap = it }
             updateLayout<CardDeckLayout, _>(vgap) { this.vgap = it }
-            applyModifier(modifier)
         },
         content = { CardPanelScopeImpl.content() },
     )

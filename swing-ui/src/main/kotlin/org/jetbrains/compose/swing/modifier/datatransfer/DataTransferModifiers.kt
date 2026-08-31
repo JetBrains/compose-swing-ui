@@ -145,7 +145,7 @@ public fun SwingModifier.clipboard(
     handle: ClipboardHandle? = null,
 ): SwingModifier =
     (this then ClipboardElement(transferable, onPaste, canImport, bindKeys))
-        .binding(JComponent::class.java, handle, ClipboardHandle::bind, ClipboardHandle::unbind)
+        .binding(JComponent::class.java, "clipboardHandle", handle, ClipboardHandle::bind, ClipboardHandle::unbind)
 
 /**
  * Registers a callback told the outcome of every export a [draggable] or [clipboard] source declared
@@ -273,6 +273,9 @@ private class DraggableElement(
     @param:TransferAction private val exportedActions: Int,
     private val transferable: () -> Transferable?,
 ) : SwingModifier.NodeElement<JComponent, DraggableElement.Node>() {
+    override val name: String get() = "draggable"
+
+    override val declaredValues: Map<String, Any?> get() = mapOf("exportedActions" to exportedActions)
     override val targetType: Class<JComponent> get() = JComponent::class.java
 
     override fun create(): Node = Node()
@@ -369,6 +372,9 @@ private class DropTargetElement(
     private val onDrop: (Transferable) -> Boolean,
     private val canImport: (List<DataFlavor>) -> Boolean,
 ) : SwingModifier.NodeElement<JComponent, DropTargetElement.Node>() {
+    override val name: String get() = "dropTarget"
+
+    override val declaredValues: Map<String, Any?> get() = mapOf("acceptedActions" to acceptedActions)
     override val targetType: Class<JComponent> get() = JComponent::class.java
 
     override fun create(): Node = Node()
@@ -408,6 +414,9 @@ private class ClipboardElement(
     private val canImport: (List<DataFlavor>) -> Boolean,
     private val bindKeys: Boolean,
 ) : SwingModifier.NodeElement<JComponent, ClipboardElement.Node>() {
+    override val name: String get() = "clipboard"
+
+    override val declaredValues: Map<String, Any?> get() = mapOf("bindKeys" to bindKeys)
     override val targetType: Class<JComponent> get() = JComponent::class.java
 
     override fun create(): Node = Node()
@@ -475,6 +484,7 @@ private class ClipboardElement(
 private class ExportDoneElement(
     private val onExportDone: (Transferable?, Int) -> Unit,
 ) : SwingModifier.NodeElement<JComponent, ExportDoneElement.Node>() {
+    override val name: String get() = "onExportDone"
     override val targetType: Class<JComponent> get() = JComponent::class.java
 
     override fun create(): Node = Node()

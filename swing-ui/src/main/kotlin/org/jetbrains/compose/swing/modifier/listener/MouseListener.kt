@@ -88,6 +88,7 @@ private class MouseCallbacks(
 
 private val MOUSE =
     ListenerRegistration<Component, MouseListener>(
+        name = "mouseListener",
         Component::addMouseListener,
         Component::removeMouseListener,
     )

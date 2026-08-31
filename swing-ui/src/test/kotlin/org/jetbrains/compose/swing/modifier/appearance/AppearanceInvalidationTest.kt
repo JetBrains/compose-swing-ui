@@ -3,11 +3,12 @@ package org.jetbrains.compose.swing.modifier.appearance
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import java.awt.Color
 import java.awt.Component
 import java.awt.Dimension
 import java.awt.FlowLayout
@@ -18,6 +19,7 @@ import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.JTextField
 import javax.swing.SwingConstants
+import javax.swing.text.DefaultHighlighter.DefaultHighlightPainter
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -111,11 +113,7 @@ class AppearanceInvalidationTest {
                 // The growing label gets a small font initially and a much larger one when `large` flips.
                 SwingNode(
                     factory = { growing },
-                    update = {
-                        applyModifier(
-                            SwingModifier.font(Font(Font.MONOSPACED, Font.PLAIN, if (large) 48 else 8)),
-                        )
-                    },
+                    modifier = SwingModifier.font(Font(Font.MONOSPACED, Font.PLAIN, if (large) 48 else 8)),
                 )
                 SwingNode(factory = { sibling })
             }
@@ -147,11 +145,7 @@ class AppearanceInvalidationTest {
         setContent {
             SwingNode(
                 factory = { target },
-                update = {
-                    applyModifier(
-                        SwingModifier.font(Font(Font.MONOSPACED, Font.PLAIN, if (large) 48 else 8)),
-                    )
-                },
+                modifier = SwingModifier.font(Font(Font.MONOSPACED, Font.PLAIN, if (large) 48 else 8)),
             )
         }
 
@@ -182,7 +176,7 @@ class AppearanceInvalidationTest {
         val field = CountingTextField()
 
         setContent {
-            SwingNode(factory = { field }, update = { applyModifier(SwingModifier.margin(margin)) })
+            SwingNode(factory = { field }, modifier = SwingModifier.margin(margin))
         }
 
         awaitIdle()
@@ -209,7 +203,7 @@ class AppearanceInvalidationTest {
         setContent {
             SwingNode(
                 factory = { label },
-                update = { applyModifier(SwingModifier.horizontalTextPosition(SwingConstants.RIGHT)) },
+                modifier = SwingModifier.horizontalTextPosition(SwingConstants.RIGHT),
             )
             // Read by this composable, so a change recomposes it and the label's modifier chain is
             // rebuilt declaring the very same position.
@@ -235,5 +229,46 @@ class AppearanceInvalidationTest {
             label.repaintCount,
             "re-applying the position a label already carries must ask for no further paint",
         )
+    }
+
+    @Test
+    fun everyAppearanceBuilderAppendsToTheChainWithoutRepeatingIt() {
+        assertDeclaredChainCarriedOnce { horizontalAlignment(SwingConstants.LEFT) }
+        assertDeclaredChainCarriedOnce { verticalAlignment(SwingConstants.TOP) }
+        assertDeclaredChainCarriedOnce { background(null) }
+        assertDeclaredChainCarriedOnce { border(null) }
+        assertDeclaredChainCarriedOnce { lineBorder(Color.RED) }
+        assertDeclaredChainCarriedOnce { emptyBorder(1) }
+        assertDeclaredChainCarriedOnce { emptyBorder(1, 1, 1, 1) }
+        assertDeclaredChainCarriedOnce { emptyBorder(Insets(1, 1, 1, 1)) }
+        assertDeclaredChainCarriedOnce { borderPainted(true) }
+        assertDeclaredChainCarriedOnce { contentAreaFilled(true) }
+        assertDeclaredChainCarriedOnce { rolloverEnabled(true) }
+        assertDeclaredChainCarriedOnce { focusPainted(true) }
+        assertDeclaredChainCarriedOnce { cursor(null) }
+        assertDeclaredChainCarriedOnce { font(null) }
+        assertDeclaredChainCarriedOnce { foreground(null) }
+        assertDeclaredChainCarriedOnce { icon(null) }
+        assertDeclaredChainCarriedOnce { pressedIcon(null) }
+        assertDeclaredChainCarriedOnce { selectedIcon(null) }
+        assertDeclaredChainCarriedOnce { disabledIcon(null) }
+        assertDeclaredChainCarriedOnce { disabledSelectedIcon(null) }
+        assertDeclaredChainCarriedOnce { rolloverIcon(null) }
+        assertDeclaredChainCarriedOnce { rolloverSelectedIcon(null) }
+        assertDeclaredChainCarriedOnce { margin(Insets(1, 1, 1, 1)) }
+        assertDeclaredChainCarriedOnce { name(null) }
+        assertDeclaredChainCarriedOnce { testTag("tag") }
+        assertDeclaredChainCarriedOnce { clientProperty("key", null) }
+        assertDeclaredChainCarriedOnce { opaque(true) }
+        assertDeclaredChainCarriedOnce { caretColor(Color.RED) }
+        assertDeclaredChainCarriedOnce { selectionColor(Color.RED) }
+        assertDeclaredChainCarriedOnce { selectedTextColor(Color.RED) }
+        assertDeclaredChainCarriedOnce { disabledTextColor(Color.RED) }
+        assertDeclaredChainCarriedOnce { highlights(emptyList(), DefaultHighlightPainter(Color.RED)) }
+        assertDeclaredChainCarriedOnce { horizontalTextPosition(SwingConstants.LEFT) }
+        assertDeclaredChainCarriedOnce { verticalTextPosition(SwingConstants.TOP) }
+        assertDeclaredChainCarriedOnce { iconTextGap(4) }
+        assertDeclaredChainCarriedOnce { toolTip("tip") }
+        assertDeclaredChainCarriedOnce { toolTip { null } }
     }
 }

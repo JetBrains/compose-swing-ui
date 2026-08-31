@@ -11,7 +11,6 @@ import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.compose.swing.constants.CalendarField
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.changeListener
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
@@ -320,6 +319,7 @@ private inline fun SpinnerNode(
     val editorPanel = if (editor != null) remember { JPanel(BorderLayout()).apply { isOpaque = false } } else null
     SwingNode<JSpinner>(
         factory = { SpinnerComponent(model) },
+        modifier = if (editorPanel != null) modifier.spinnerEditor(editorPanel) else modifier,
         update = {
             set(model) { this.model = it }
             // A `JSpinner` editor is built for the model it edits, so the model is part of what the
@@ -329,7 +329,6 @@ private inline fun SpinnerNode(
             set(EditorDeclaration(model, format, editor != null)) { declaration ->
                 if (!declaration.composed) (this as SpinnerComponent).showDeclaredEditor(declaration)
             }
-            applyModifier(if (editorPanel != null) modifier.spinnerEditor(editorPanel) else modifier)
             this.updateBlock()
         },
     )
@@ -573,6 +572,8 @@ private fun SwingModifier.spinnerEditor(panel: JPanel): SwingModifier = this the
 private class SpinnerEditorElement(
     private val panel: JPanel,
 ) : SwingModifier.NodeElement<SpinnerComponent, SpinnerEditorElement.Node>() {
+    override val name: String get() = "spinnerEditor"
+
     override fun equals(other: Any?): Boolean = other is SpinnerEditorElement && panel === other.panel
 
     override fun hashCode(): Int = System.identityHashCode(panel)

@@ -4,16 +4,23 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.ComboBox
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
+import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import javax.swing.DefaultListCellRenderer
 import javax.swing.DefaultListModel
 import javax.swing.JComboBox
 import javax.swing.JList
 import javax.swing.JTable
 import javax.swing.JTree
+import javax.swing.event.ListSelectionListener
+import javax.swing.event.TreeExpansionEvent
+import javax.swing.event.TreeExpansionListener
+import javax.swing.event.TreeSelectionListener
 import javax.swing.table.DefaultTableModel
 import javax.swing.tree.DefaultMutableTreeNode
 import javax.swing.tree.DefaultTreeModel
@@ -416,4 +423,31 @@ class SelectionDeclarationTest {
             "the one pass that declares the new node should already have moved the selection onto it",
         )
     }
+
+    @Test
+    fun everySelectionBuilderAppendsToTheChainWithoutRepeatingIt() {
+        assertDeclaredChainCarriedOnce { listItemRenderer(DefaultListCellRenderer()) }
+        assertDeclaredChainCarriedOnce { declaredListItemRenderer(DefaultListCellRenderer()) }
+        assertDeclaredChainCarriedOnce { listCellSizing(null, 1, 1) }
+        assertDeclaredChainCarriedOnce { listStateBinding(ListState()) }
+        assertDeclaredChainCarriedOnce { tableStateBinding(TableState()) }
+        assertDeclaredChainCarriedOnce { treeStateBinding(TreeState()) }
+        assertDeclaredChainCarriedOnce {
+            tableColumnModelListener(ColumnLayoutChannel(MirrorState(null), mutableStateOf(null)).listener)
+        }
+        assertDeclaredChainCarriedOnce {
+            userSelectionListener(MirrorState(null), ListSelectionListener { })
+        }
+        assertDeclaredChainCarriedOnce {
+            treeListeners(TreeSelectionListener { }, NoTreeExpansionChange, null)
+        }
+    }
 }
+
+/** A [TreeExpansionListener] that answers nothing, for a declaration whose only subject is the chain. */
+private val NoTreeExpansionChange =
+    object : TreeExpansionListener {
+        override fun treeExpanded(event: TreeExpansionEvent) = Unit
+
+        override fun treeCollapsed(event: TreeExpansionEvent) = Unit
+    }

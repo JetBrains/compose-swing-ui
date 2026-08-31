@@ -5,7 +5,6 @@ package org.jetbrains.compose.swing.components.layout
 
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import java.awt.GridLayout
 
@@ -38,12 +37,12 @@ public fun GridPanel(
 ) {
     SwingNode(
         factory = { ScrollablePanel(GridLayout(rows, cols, hgap, vgap)) },
+        modifier = modifier,
         update = {
             updateLayout<GridLayout, _>(rows) { applyDimensions(it, cols) }
             updateLayout<GridLayout, _>(cols) { applyDimensions(rows, it) }
             updateLayout<GridLayout, _>(hgap) { this.hgap = it }
             updateLayout<GridLayout, _>(vgap) { this.vgap = it }
-            applyModifier(modifier)
         },
         content = content,
     )

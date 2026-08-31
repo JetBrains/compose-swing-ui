@@ -6,7 +6,6 @@ package org.jetbrains.compose.swing.components.layout
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.constants.FlowAlignment
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import java.awt.FlowLayout
 
@@ -34,11 +33,11 @@ public fun FlowPanel(
 ) {
     SwingNode(
         factory = { ScrollablePanel(FlowLayout(alignment, hgap, vgap)) },
+        modifier = modifier,
         update = {
             updateLayout<FlowLayout, _>(alignment) { this.alignment = it }
             updateLayout<FlowLayout, _>(hgap) { this.hgap = it }
             updateLayout<FlowLayout, _>(vgap) { this.vgap = it }
-            applyModifier(modifier)
         },
         content = content,
     )

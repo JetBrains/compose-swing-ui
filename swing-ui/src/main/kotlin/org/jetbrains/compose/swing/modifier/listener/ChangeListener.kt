@@ -135,6 +135,7 @@ private fun changeListenerTargetError(component: Component): String =
 
 private val CHANGE =
     ListenerRegistration<Component, ChangeListener>(
+        name = "changeListener",
         { component, listener -> changeListenerRegistrar(component).add(listener) },
         { component, listener -> changeListenerRegistrar(component).remove(listener) },
     )

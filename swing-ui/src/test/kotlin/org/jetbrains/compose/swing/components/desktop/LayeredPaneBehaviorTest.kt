@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -32,6 +33,11 @@ import kotlin.test.assertTrue
  * (`getIndexOf`) - rather than any internal bookkeeping.
  */
 class LayeredPaneBehaviorTest {
+    @Test
+    fun aDepthAppendsToTheChainWithoutRepeatingIt() {
+        with(LayeredPaneScopeImpl) { assertDeclaredChainCarriedOnce { layer(JLayeredPane.PALETTE_LAYER) } }
+    }
+
     @Test
     fun eachDeclaredChildIsHostedOnTheLayeredPaneAtItsLayer() = runComposeSwingTest {
         setContent {

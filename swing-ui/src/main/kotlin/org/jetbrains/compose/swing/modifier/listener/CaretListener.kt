@@ -41,6 +41,7 @@ public fun SwingModifier.caretListener(listener: CaretListener): SwingModifier =
 
 private val CARET =
     ListenerRegistration<JTextComponent, CaretListener>(
+        name = "caretListener",
         JTextComponent::addCaretListener,
         JTextComponent::removeCaretListener,
     )

@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Slider
+import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JLabel
@@ -29,7 +30,7 @@ class DeclaredValueSettlesInOnePassTest {
     fun aDeclarationTheWidgetTakesIsSettledByOnePass() = runComposeSwingTest {
         val passes = intArrayOf(0)
         var declared by mutableIntStateOf(DECLARED)
-        setContent { DeclaringNode(declared) { passes[0]++ } }
+        setContent { DeclaringNode(declared, onPass = { passes[0]++ }) }
         awaitIdle()
 
         val settled = passes[0]
@@ -48,7 +49,7 @@ class DeclaredValueSettlesInOnePassTest {
     fun aDeclarationOntoASilentWidgetIsSettledByOnePass() = runComposeSwingTest {
         val passes = intArrayOf(0)
         var declared by mutableStateOf(FIRST_NAME)
-        setContent { SilentNode(declared) { passes[0]++ } }
+        setContent { SilentNode(declared, onPass = { passes[0]++ }) }
         awaitIdle()
 
         val settled = passes[0]
@@ -112,10 +113,12 @@ class DeclaredValueSettlesInOnePassTest {
     private fun DeclaringNode(
         declared: Int,
         onPass: () -> Unit,
+        modifier: SwingModifier = SwingModifier,
     ) {
         val mirror = rememberMirrorState(MIN)
         SwingNode(
             factory = { JSlider(MIN, MAX, MIN).apply { addChangeListener { mirror.observed(value) } } },
+            modifier = modifier,
             update = {
                 onPass()
                 declare(declared, mirror, JSlider::getValue, JSlider::setValue)
@@ -133,10 +136,12 @@ class DeclaredValueSettlesInOnePassTest {
     private fun SilentNode(
         declared: String,
         onPass: () -> Unit,
+        modifier: SwingModifier = SwingModifier,
     ) {
         val mirror = rememberMirrorState<String?>(null)
         SwingNode(
             factory = { JLabel() },
+            modifier = modifier,
             update = {
                 onPass()
                 declare(declared, mirror, { name }, { name = it })

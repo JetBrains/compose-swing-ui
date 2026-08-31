@@ -35,6 +35,7 @@ internal fun JTextComponent.detachSwappableDocumentListener(documentListener: Do
 /** Where a document listener is registered: whichever document the component holds now. */
 internal val SWAPPABLE_DOCUMENT =
     ListenerRegistration<JTextComponent, DocumentListener>(
+        name = "documentListener",
         JTextComponent::attachSwappableDocumentListener,
         JTextComponent::detachSwappableDocumentListener,
     )
@@ -42,6 +43,7 @@ internal val SWAPPABLE_DOCUMENT =
 /** [SWAPPABLE_DOCUMENT] for a listener that keeps state describing the document it sits on. */
 internal val SETTLING_DOCUMENT =
     ListenerRegistration<JTextComponent, DocumentMirror>(
+        name = "documentMirror",
         JTextComponent::attachSettlingDocumentListener,
         JTextComponent::detachSwappableDocumentListener,
     )

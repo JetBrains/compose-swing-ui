@@ -4,6 +4,8 @@ import androidx.compose.runtime.ReusableContentHost
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
+import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JPasswordField
@@ -13,6 +15,7 @@ import javax.swing.JTextPane
 import javax.swing.event.DocumentListener
 import javax.swing.text.AbstractDocument
 import javax.swing.text.Document
+import javax.swing.text.PlainDocument
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -110,6 +113,14 @@ class TextMirrorAttachmentTest {
         // Only a mirror that rejoined the reactivated field reports the edit as a change, which is what
         // brings the pass that writes the declared text back over it.
         field.assertTextEquals("hello")
+    }
+
+    @Test
+    fun everyTextBuilderAppendsToTheChainWithoutRepeatingIt() {
+        assertDeclaredChainCarriedOnce { textMirror(MirrorState("")) }
+        assertDeclaredChainCarriedOnce { onTextEdit(MirrorState("")) { } }
+        assertDeclaredChainCarriedOnce { documentStateBinding(DocumentState(PlainDocument())) }
+        assertDeclaredChainCarriedOnce { formattedValueStateBinding(FormattedValueState(null)) }
     }
 }
 

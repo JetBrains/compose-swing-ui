@@ -5,21 +5,25 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.test.interaction.onChildren
 import org.jetbrains.compose.swing.test.interaction.onParent
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import java.awt.Color
 import javax.swing.JLabel
 import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertSame
+import kotlin.test.assertTrue
 
 /**
  * Parameter-level coverage for the two [SwingNode] overloads - the primitive every wrapper is built
- * on. The component is built once from `factory` and then driven entirely by `update`, `onRelease`
- * runs the block that was declared last, and the container overload's `content` tracks the
- * declaration that produced it.
+ * on. The component is built once from `factory` and then driven by `update` and by the `modifier`
+ * chain applied after it, `onRelease` runs the block that was declared last, and the container
+ * overload's `content` tracks the declaration that produced it.
  *
  * Every assertion reads the live Swing component the node holds.
  */
@@ -44,6 +48,34 @@ class SwingNodeTest {
         text = "first"
         awaitIdle()
         label.assertTextEquals("first")
+    }
+
+    @Test
+    fun theModifierIsAppliedAfterTheUpdateBlockOnBothOverloads() = runComposeSwingTest {
+        var color by mutableStateOf(Color.BLUE)
+        setContent {
+            SwingNode(
+                factory = { JPanel() },
+                modifier = SwingModifier.background(color),
+                update = { set(Unit) { background = Color.RED } },
+            ) {
+                SwingNode(
+                    factory = { JLabel() },
+                    modifier = SwingModifier.background(color),
+                    update = { set(Unit) { background = Color.RED } },
+                )
+            }
+        }
+
+        val label = onNodeOfType<JLabel>().fetch<JLabel>()
+        val panel = label.parent as JPanel
+        assertEquals(Color.BLUE, panel.background, "the container's chain overrides what its update block wrote")
+        assertEquals(Color.BLUE, label.background, "the leaf's chain overrides what its update block wrote")
+
+        color = Color.GREEN
+        awaitIdle()
+        assertEquals(Color.GREEN, panel.background, "a changed chain reaches the container")
+        assertEquals(Color.GREEN, label.background, "a changed chain reaches the leaf")
     }
 
     @Test
@@ -277,4 +309,69 @@ class SwingNodeTest {
 
         assertEquals(2, inits, "a key change builds a fresh component and runs init again for it")
     }
+
+    @Test
+    fun theUpdateBlockSkipsTheCompositionThatBuiltTheComponent() = runComposeSwingTest {
+        var text by mutableStateOf("first")
+        val applied = mutableListOf<String>()
+        setContent {
+            SwingNode(
+                factory = { JLabel("first") },
+                update = {
+                    update(text) {
+                        applied += it
+                        this.text = it
+                    }
+                },
+            )
+        }
+
+        val label = onNodeOfType<JLabel>()
+        assertEquals(emptyList(), applied, "the factory already carried the first value, so nothing is applied")
+        label.assertTextEquals("first")
+
+        text = "second"
+        awaitIdle()
+
+        assertEquals(listOf("second"), applied, "a value that changed is applied")
+        label.assertTextEquals("second")
+    }
+
+    @Test
+    fun theReconcileBlockRunsOnEveryCompositionWhileASettledSetBlockDoesNot() = runComposeSwingTest {
+        var tick by mutableStateOf(0)
+        var reconciles = 0
+        var settledApplications = 0
+        var reconciledAgainst: JLabel? = null
+        setContent {
+            val declared = "tick $tick"
+            SwingNode(
+                factory = { JLabel() },
+                update = {
+                    set(declared) { this.toolTipText = it }
+                    set(SETTLED) { settledApplications++ }
+                    reconcile {
+                        reconciles++
+                        reconciledAgainst = this
+                    }
+                },
+            )
+        }
+
+        val label = onNodeOfType<JLabel>().fetch()
+        val reconciledAtMount = reconciles
+        assertTrue(reconciledAtMount > 0, "the block runs on the composition that built the component")
+        assertSame(label, reconciledAgainst, "the block runs against the typed component")
+        assertEquals(1, settledApplications, "a set block applies its value once")
+
+        tick = 1
+        awaitIdle()
+
+        assertEquals("tick 1", label.toolTipText, "the node recomposed")
+        assertEquals(1, settledApplications, "a set block whose value did not change is skipped")
+        assertTrue(reconciles > reconciledAtMount, "reconcile runs again, though nothing it reads changed")
+    }
 }
+
+/** A value a `set` block is declared on that never changes, so it settles after the first composition. */
+private const val SETTLED: String = "settled"

@@ -90,7 +90,11 @@ internal sealed class PlacementElement : SwingModifier.NodeElement<Component, Sw
 /** The layout constraint a node's parent container registers its component under. */
 internal data class LayoutConstraintElement(
     val constraint: Any,
-) : PlacementElement()
+) : PlacementElement() {
+    override val name: String get() = "layoutConstraint"
+
+    override val declaredValues: Map<String, Any?> get() = mapOf("constraint" to constraint)
+}
 
 /**
  * The host slot a node's component is installed into, and the name of the region it fills.
@@ -102,17 +106,21 @@ internal data class LayoutConstraintElement(
  * install into the host it has left.
  *
  * Re-applying costs the rewrite of the two fields the node records a declared region in. The component
- * itself is moved only where the [name] changes, since that is what names one region of a host among
+ * itself is moved only where the [regionName] changes, since that is what names one region of a host among
  * the others.
  */
 internal class SlotElement(
-    val name: String,
+    val regionName: String,
     val attachment: SlotAttachment,
 ) : PlacementElement() {
-    override fun equals(other: Any?): Boolean =
-        other is SlotElement && name == other.name && attachment === other.attachment
+    override val name: String get() = "slot"
 
-    override fun hashCode(): Int = 31 * name.hashCode() + System.identityHashCode(attachment)
+    override val declaredValues: Map<String, Any?> get() = mapOf("region" to regionName)
+
+    override fun equals(other: Any?): Boolean =
+        other is SlotElement && regionName == other.regionName && attachment === other.attachment
+
+    override fun hashCode(): Int = 31 * regionName.hashCode() + System.identityHashCode(attachment)
 }
 
 /**
@@ -144,8 +152,8 @@ internal fun checkOnePlacement(
     error(
         "A parent holds a child either under a layout constraint its layout manager registers the " +
             "component by, or in a region of its own reached through a setter written for that region, " +
-            "and this chain declares both: layoutConstraint($constraint) and ${slot.name}. Declare the " +
-            "one the enclosing container holds its children by, and drop the other.",
+            "and this chain declares both: layoutConstraint($constraint) and ${slot.regionName}. Declare " +
+            "the one the enclosing container holds its children by, and drop the other.",
     )
 }
 

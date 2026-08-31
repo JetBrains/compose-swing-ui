@@ -8,7 +8,6 @@ import org.jetbrains.compose.swing.components.rememberDeclaredList
 import org.jetbrains.compose.swing.constants.ListLayoutOrientation
 import org.jetbrains.compose.swing.constants.SelectionMode
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.listSelectionListener
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
@@ -541,6 +540,14 @@ private inline fun <T> ListBoxNode(
     }
     SwingNode(
         factory = { JList<T>() },
+        // The cell sizing follows the renderer in the chain, and the chain applies its elements in the
+        // order they are declared: a prototype is measured through whichever renderer is installed,
+        // and the composable cell is the one whose per-row measurement the caller is buying out.
+        modifier =
+            modifier
+                .listSelectionListener(JList::class, onUserSelection)
+                .declaredListItemRenderer(cells)
+                .listCellSizing(prototypeCellValue, fixedCellWidth, fixedCellHeight),
         update = {
             set(selectionMode) { mode ->
                 narrowSelection(mirror, selectedIndices, listSelectionListener) { this.selectionMode = mode }
@@ -557,15 +564,6 @@ private inline fun <T> ListBoxNode(
                 mirror,
                 { this.selectedIndices.toSet() },
                 { indices -> applySelection(this, indices) },
-            )
-            // The cell sizing follows the renderer in the chain, and the chain applies its elements in the
-            // order they are declared: a prototype is measured through whichever renderer is installed,
-            // and the composable cell is the one whose per-row measurement the caller is buying out.
-            applyModifier(
-                modifier
-                    .listSelectionListener(JList::class, onUserSelection)
-                    .declaredListItemRenderer(cells)
-                    .listCellSizing(prototypeCellValue, fixedCellWidth, fixedCellHeight),
             )
         },
     )

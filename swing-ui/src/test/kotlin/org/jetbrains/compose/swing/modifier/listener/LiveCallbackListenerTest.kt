@@ -39,6 +39,7 @@ class LiveCallbackListenerTest {
             adapter = { current -> ActionListener { current()() } },
             registration =
                 ListenerRegistration(
+                    name = "testListener",
                     { component, listener ->
                         attachments++
                         component.addActionListener(listener)

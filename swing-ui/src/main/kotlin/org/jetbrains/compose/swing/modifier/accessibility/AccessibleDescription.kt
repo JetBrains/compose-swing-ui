@@ -19,7 +19,8 @@ import java.awt.Component
 public fun SwingModifier.accessibleDescription(description: @Nls String?): SwingModifier =
     this then
         propertyElement<Component, String?>(
-            description,
+            name = "accessibleDescription",
+            value = description,
             read = { it.accessibleContext?.accessibleDescription },
             write = { component, value -> component.accessibleContext?.accessibleDescription = value },
         )

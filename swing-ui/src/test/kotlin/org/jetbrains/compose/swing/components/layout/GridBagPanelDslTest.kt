@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.components.layout
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.interaction.onChildren
@@ -22,6 +23,11 @@ import kotlin.test.Test
  * they are re-applied when the declarations change while the children stay.
  */
 class GridBagPanelDslTest {
+    @Test
+    fun anItemAppendsToTheChainWithoutRepeatingIt() {
+        with(GridBagPanelScopeImpl) { assertDeclaredChainCarriedOnce { item(gridx = 0, gridy = 0) } }
+    }
+
     @Test
     fun aChildDeclaringNoItemGetsTheDefaultConstraintsWhileSiblingsKeepTheirs() = runComposeSwingTest {
         setContent {

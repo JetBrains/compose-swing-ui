@@ -56,7 +56,8 @@ public fun SwingModifier.borderPainted(painted: Boolean): SwingModifier =
 public fun SwingModifier.contentAreaFilled(filled: Boolean): SwingModifier =
     this then
         propertyElement<AbstractButton, Boolean>(
-            filled,
+            name = "contentAreaFilled",
+            value = filled,
             read = { it.isContentAreaFilled },
             // Latched by the first write, as a button's border painting is.
             write = { component, value ->
@@ -80,7 +81,8 @@ public fun SwingModifier.contentAreaFilled(filled: Boolean): SwingModifier =
 public fun SwingModifier.rolloverEnabled(enabled: Boolean): SwingModifier =
     this then
         propertyElement<AbstractButton, Boolean>(
-            enabled,
+            name = "rolloverEnabled",
+            value = enabled,
             read = { it.isRolloverEnabled },
             // Latched by the first write, as a button's border painting is.
             write = { component, value ->
@@ -103,7 +105,8 @@ public fun SwingModifier.rolloverEnabled(enabled: Boolean): SwingModifier =
 public fun SwingModifier.focusPainted(painted: Boolean): SwingModifier =
     this then
         propertyElement<AbstractButton, Boolean>(
-            painted,
+            name = "focusPainted",
+            value = painted,
             read = { it.isFocusPainted },
             write = { component, value -> component.isFocusPainted = value },
         )

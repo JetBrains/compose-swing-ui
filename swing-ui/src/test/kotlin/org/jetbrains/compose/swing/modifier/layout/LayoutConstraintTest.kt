@@ -10,7 +10,6 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.BorderPanel
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.onChildAt
@@ -51,7 +50,7 @@ class LayoutConstraintTest {
     ) {
         SwingNode(
             factory = { JPanel(BorderLayout()) },
-            update = { applyModifier(modifier) },
+            modifier = modifier,
             content = content,
         )
     }
@@ -64,7 +63,7 @@ class LayoutConstraintTest {
     ) {
         SwingNode(
             factory = { JPanel(FlowLayout()) },
-            update = { applyModifier(modifier) },
+            modifier = modifier,
             content = content,
         )
     }
@@ -77,7 +76,7 @@ class LayoutConstraintTest {
     ) {
         SwingNode(
             factory = { JPanel(GridBagLayout()) },
-            update = { applyModifier(modifier) },
+            modifier = modifier,
             content = content,
         )
     }
@@ -86,9 +85,10 @@ class LayoutConstraintTest {
     @Composable
     private fun RecordingContainer(
         layout: RecordingLayout,
+        modifier: SwingModifier = SwingModifier,
         content: @Composable () -> Unit,
     ) {
-        SwingNode(factory = { JPanel(layout) }, content = content)
+        SwingNode(factory = { JPanel(layout) }, modifier = modifier, content = content)
     }
 
     /**
@@ -103,7 +103,7 @@ class LayoutConstraintTest {
     ) {
         SwingNode(
             factory = { JPanel(MosaicLayout()) },
-            update = { applyModifier(modifier) },
+            modifier = modifier,
             content = { MosaicScopeImpl.content() },
         )
     }

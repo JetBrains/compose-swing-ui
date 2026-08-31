@@ -36,6 +36,9 @@ private data class CellSizing(
 private data class CellSizingElement(
     private val sizing: CellSizing,
 ) : SwingModifier.NodeElement<JList<Any?>, CellSizingNode>() {
+    override val name: String get() = "listCellSizing"
+
+    override val declaredValues: Map<String, Any?> get() = mapOf("cellSizing" to sizing)
     override val targetType: Class<JList<Any?>> get() = listType()
 
     override fun create(): CellSizingNode = CellSizingNode()

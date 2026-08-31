@@ -20,7 +20,8 @@ import java.awt.Cursor
 public fun SwingModifier.cursor(cursor: Cursor?): SwingModifier =
     this then
         propertyElement<Component, Cursor?>(
-            cursor,
+            name = "cursor",
+            value = cursor,
             read = { it.cursor },
             write = { component, value -> component.cursor = value },
         )

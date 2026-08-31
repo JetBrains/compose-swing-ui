@@ -65,7 +65,8 @@ public fun SwingModifier.caret(caret: Caret): SwingModifier = this then CaretEle
 public fun SwingModifier.caretBlinkRate(rate: Int): SwingModifier =
     this then
         propertyElement<JTextComponent, Int>(
-            rate,
+            name = "caretBlinkRate",
+            value = rate,
             read = { it.caret.blinkRate },
             write = { component, value -> component.caret.blinkRate = value },
         )
@@ -94,7 +95,8 @@ public fun SwingModifier.caretUpdatePolicy(
 ): SwingModifier =
     this then
         propertyElement<JTextComponent, Int>(
-            policy,
+            name = "caretUpdatePolicy",
+            value = policy,
             read = { it.defaultCaret().updatePolicy },
             write = { component, value -> component.defaultCaret().updatePolicy = value },
         )
@@ -120,6 +122,9 @@ private fun JTextComponent.defaultCaret(): DefaultCaret {
 private class CaretElement(
     private val caret: Caret,
 ) : SwingModifier.NodeElement<JTextComponent, CaretElement.Node>() {
+    override val name: String get() = "caret"
+
+    override val declaredValues: Map<String, Any?> get() = mapOf("caret" to caret)
     override val targetType: Class<JTextComponent> get() = JTextComponent::class.java
 
     override fun create(): Node = Node()

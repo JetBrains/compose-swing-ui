@@ -69,4 +69,4 @@ public fun rememberFocusRequester(): FocusRequester = remember { FocusRequester(
  * @see java.awt.Component.requestFocusInWindow
  */
 public fun SwingModifier.focusRequester(focusRequester: FocusRequester): SwingModifier =
-    binding(Component::class.java, focusRequester, FocusRequester::bind, FocusRequester::unbind)
+    binding(Component::class.java, "focusRequester", focusRequester, FocusRequester::bind, FocusRequester::unbind)

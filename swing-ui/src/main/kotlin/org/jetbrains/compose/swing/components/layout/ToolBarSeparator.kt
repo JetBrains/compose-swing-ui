@@ -9,7 +9,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import java.awt.Dimension
 import javax.swing.JToolBar
@@ -48,6 +47,7 @@ public fun ToolBarSeparator(
                 size?.let { separator.separatorSize = it }
             }
         },
+        modifier = modifier,
         update = {
             update(size) { declared ->
                 if (declared != null) {
@@ -61,7 +61,6 @@ public fun ToolBarSeparator(
                 // Sizing only invalidates the separator; ask for the layout pass that applies it.
                 revalidate()
             }
-            applyModifier(modifier)
         },
     )
 }

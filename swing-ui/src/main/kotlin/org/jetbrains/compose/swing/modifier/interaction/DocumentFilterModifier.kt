@@ -50,6 +50,9 @@ public fun SwingModifier.documentFilter(filter: DocumentFilter?): SwingModifier 
 private class DocumentFilterElement(
     private val filter: DocumentFilter?,
 ) : SwingModifier.NodeElement<JTextComponent, DocumentFilterElement.Node>() {
+    override val name: String get() = "documentFilter"
+
+    override val declaredValues: Map<String, Any?> get() = mapOf("documentFilter" to filter)
     override val targetType: Class<JTextComponent> get() = JTextComponent::class.java
 
     override fun create(): Node = Node()

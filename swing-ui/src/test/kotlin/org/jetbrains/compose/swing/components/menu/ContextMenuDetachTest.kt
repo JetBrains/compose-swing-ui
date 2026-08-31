@@ -8,7 +8,6 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Column
 import org.jetbrains.compose.swing.menuItemTexts
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.publishClose
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -99,7 +98,7 @@ class ContextMenuDetachTest {
             Column(modifier = SwingModifier.popupAnchor(outer)) {
                 SwingNode(
                     factory = { JLabel("target").apply { inheritsPopupMenu = true } },
-                    update = { applyModifier(SwingModifier.popupAnchor(inner)) },
+                    modifier = SwingModifier.popupAnchor(inner),
                 )
                 if (withMenu) {
                     ContextMenu(inner) { MenuItem("Inner", onClick = { }) }
@@ -140,7 +139,7 @@ class ContextMenuDetachTest {
                             componentPopupMenu = own
                         }
                     },
-                    update = { applyModifier(SwingModifier.popupAnchor(inner)) },
+                    modifier = SwingModifier.popupAnchor(inner),
                 )
                 if (withMenu) {
                     ContextMenu(inner) { MenuItem("Inner", onClick = { }) }

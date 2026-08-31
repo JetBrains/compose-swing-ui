@@ -305,4 +305,4 @@ public fun rememberScrollState(
  * driving afterwards.
  */
 internal fun SwingModifier.scrollStateBinding(state: ScrollState): SwingModifier =
-    binding(JScrollPane::class.java, state, ScrollState::bind, ScrollState::unbind)
+    binding(JScrollPane::class.java, "scrollState", state, ScrollState::bind, ScrollState::unbind)

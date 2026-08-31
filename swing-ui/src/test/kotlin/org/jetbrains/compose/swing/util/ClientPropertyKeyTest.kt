@@ -5,7 +5,6 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.clientProperty
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.appearance.testTagOrNull
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.beans.PropertyChangeEvent
@@ -49,7 +48,7 @@ class ClientPropertyKeyTest {
         setContent {
             SwingNode(
                 factory = { JPanel().also { panel -> panel.addPropertyChangeListener { events += it } } },
-                update = { applyModifier(SwingModifier.testTag("the-tag")) },
+                modifier = SwingModifier.testTag("the-tag"),
             )
         }
 

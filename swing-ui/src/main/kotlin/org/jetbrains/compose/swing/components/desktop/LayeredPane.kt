@@ -5,7 +5,6 @@ package org.jetbrains.compose.swing.components.desktop
 
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import javax.swing.JLayeredPane
 
@@ -39,9 +38,7 @@ public fun LayeredPane(
 ) {
     SwingNode(
         factory = { JLayeredPane() },
-        update = {
-            applyModifier(modifier)
-        },
+        modifier = modifier,
         content = { LayeredPaneScopeImpl.content() },
     )
 }

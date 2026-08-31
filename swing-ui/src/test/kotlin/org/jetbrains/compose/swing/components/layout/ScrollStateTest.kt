@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
@@ -636,6 +637,11 @@ class ScrollStateTest {
             viewport().viewPosition,
             "a viewport with nothing to move stays where it is",
         )
+    }
+
+    @Test
+    fun aScrollStateBindingAppendsToTheChainWithoutRepeatingIt() {
+        assertDeclaredChainCarriedOnce { scrollStateBinding(ScrollState(0, 0)) }
     }
 }
 

@@ -21,7 +21,6 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.horizontalAlignment
 import org.jetbrains.compose.swing.modifier.appearance.opaque
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.listener.adjustmentListener
 import org.jetbrains.compose.swing.node.SwingNode
@@ -203,9 +202,7 @@ private fun ColumnScope.AdjustmentListenerCard() {
         val listener = remember { AdjustmentListener { event -> position = event.value } }
         SwingNode(
             factory = { JScrollBar(JScrollBar.HORIZONTAL, 0, 10, 0, 100) },
-            update = {
-                applyModifier(SwingModifier.preferredSize(Dimension(240, 18)).adjustmentListener(listener))
-            },
+            modifier = SwingModifier.preferredSize(Dimension(240, 18)).adjustmentListener(listener),
         )
         Label("Position: $position")
     }

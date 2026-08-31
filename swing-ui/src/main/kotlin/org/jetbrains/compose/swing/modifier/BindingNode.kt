@@ -34,11 +34,14 @@ internal class BindingNode<C : Component, B : Any>(
  */
 internal class BindingElement<C : Component, B : Any>(
     override val targetType: Class<C>,
+    override val name: String,
     private val value: B,
     private val attach: (value: B, component: C) -> Unit,
     private val detach: (value: B, component: C) -> Unit,
 ) : SwingModifier.NodeElement<C, BindingNode<C, B>>() {
     override val key: Any get() = attach.javaClass
+
+    override val declaredValues: Map<String, Any?> get() = mapOf(name to value)
 
     override fun create(): BindingNode<C, B> = BindingNode(attach, detach)
 
@@ -88,7 +91,8 @@ internal class BindingElement<C : Component, B : Any>(
  */
 internal fun <C : Component, B : Any> SwingModifier.binding(
     target: Class<C>,
+    name: String,
     value: B?,
     attach: (value: B, component: C) -> Unit,
     detach: (value: B, component: C) -> Unit,
-): SwingModifier = if (value == null) this else this then BindingElement(target, value, attach, detach)
+): SwingModifier = if (value == null) this else this then BindingElement(target, name, value, attach, detach)

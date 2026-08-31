@@ -3,11 +3,13 @@ package org.jetbrains.compose.swing.modifier
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.Canvas
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.text.TextField
+import org.jetbrains.compose.swing.modifier.accessibility.LabelTarget
 import org.jetbrains.compose.swing.modifier.accessibility.accessibleDescription
 import org.jetbrains.compose.swing.modifier.accessibility.accessibleName
 import org.jetbrains.compose.swing.modifier.accessibility.displayedMnemonicIndex
@@ -296,5 +298,16 @@ class AccessibilityModifierTest {
             onNodeOfType<JLabel>().fetch().displayedMnemonicIndex,
             "the declared index should reach a label",
         )
+    }
+
+    @Test
+    fun everyAccessibilityBuilderAppendsToTheChainWithoutRepeatingIt() {
+        assertDeclaredChainCarriedOnce { accessibleName(null) }
+        assertDeclaredChainCarriedOnce { accessibleDescription(null) }
+        assertDeclaredChainCarriedOnce { labelTarget(LabelTarget()) }
+        assertDeclaredChainCarriedOnce { labelFor(LabelTarget()) }
+        assertDeclaredChainCarriedOnce { mnemonic(KeyEvent.VK_A) }
+        assertDeclaredChainCarriedOnce { mnemonic('a') }
+        assertDeclaredChainCarriedOnce { displayedMnemonicIndex(0) }
     }
 }

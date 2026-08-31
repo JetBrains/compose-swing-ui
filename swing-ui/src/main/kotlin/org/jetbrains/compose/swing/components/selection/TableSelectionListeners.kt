@@ -54,6 +54,8 @@ private class UserSelectionListenerElement(
     val mirror: MirrorState<Set<Int>?>,
     val target: ListSelectionListener,
 ) : SwingModifier.NodeElement<JTable, UserSelectionListenerElement.Node>() {
+    override val name: String get() = "userSelectionListener"
+
     override fun equals(other: Any?): Boolean =
         other is UserSelectionListenerElement && mirror === other.mirror && target === other.target
 

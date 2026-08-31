@@ -5,7 +5,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -78,9 +77,7 @@ class InputVerifierModifierTest {
         setContent {
             SwingNode(
                 factory = { JTextField().apply { inputVerifier = carried } },
-                update = {
-                    applyModifier(if (gated) SwingModifier.inputVerifier { false } else SwingModifier)
-                },
+                modifier = if (gated) SwingModifier.inputVerifier { false } else SwingModifier,
             )
         }
         val field = onNodeOfType<JTextField>().fetch()

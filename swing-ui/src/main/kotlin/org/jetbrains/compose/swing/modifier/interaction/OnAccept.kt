@@ -30,6 +30,7 @@ public fun SwingModifier.onAccept(onAccept: () -> Unit): SwingModifier = listene
 
 private val ACCEPT =
     ListenerRegistration<JTextField, ActionListener>(
+        name = "actionListener",
         { field, listener -> field.addActionListener(listener) },
         { field, listener -> field.removeActionListener(listener) },
     )

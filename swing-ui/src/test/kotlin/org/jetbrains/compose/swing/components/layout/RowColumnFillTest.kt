@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.components.layout
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.emptyBorder
 import org.jetbrains.compose.swing.modifier.appearance.testTag
@@ -255,5 +256,19 @@ class RowColumnFillTest {
 
         // Wide enough on every side that a child placed through the border would be visibly off.
         const val BORDER = 10
+    }
+
+    @Test
+    fun everyRowAndColumnBuilderAppendsToTheChainWithoutRepeatingIt() {
+        with(RowScopeImpl()) {
+            assertDeclaredChainCarriedOnce { weight(1f) }
+            assertDeclaredChainCarriedOnce { align(Alignment.CenterVertically) }
+            assertDeclaredChainCarriedOnce { fillHeight() }
+        }
+        with(ColumnScopeImpl()) {
+            assertDeclaredChainCarriedOnce { weight(1f) }
+            assertDeclaredChainCarriedOnce { align(Alignment.CenterHorizontally) }
+            assertDeclaredChainCarriedOnce { fillWidth() }
+        }
     }
 }

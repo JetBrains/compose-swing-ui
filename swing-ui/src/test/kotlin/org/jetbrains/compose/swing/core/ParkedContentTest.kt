@@ -16,7 +16,6 @@ import org.jetbrains.compose.swing.components.selection.firstLabelText
 import org.jetbrains.compose.swing.components.selection.stampCell
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -113,7 +112,7 @@ class ParkedContentTest : TracedTest() {
                 ReusableContentHost(active = active) {
                     SwingNode(
                         factory = { JLabel("body").apply { isVisible = false } },
-                        update = { applyModifier(SwingModifier.testTag(BODY)) },
+                        modifier = SwingModifier.testTag(BODY),
                     )
                 }
             }

@@ -8,7 +8,6 @@ import androidx.compose.runtime.remember
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.constants.ContentType
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.documentListener
 import org.jetbrains.compose.swing.modifier.listener.hyperlinkListener
 import org.jetbrains.compose.swing.node.MirrorState
@@ -120,6 +119,7 @@ private inline fun RenderedPaneNode(
     val kit = remember(contentType) { editorKitFor(contentType) }
     SwingNode(
         factory = { JEditorPane() },
+        modifier = modifier,
         update = {
             // A JEditorPane publishes link events only while it is not editable, so this pane is fixed
             // non-editable.
@@ -132,7 +132,6 @@ private inline fun RenderedPaneNode(
                 (document as? HTMLDocument)?.base = source.baseUrl
                 this.text = source.markup
             }
-            applyModifier(modifier)
         },
     )
 }
@@ -189,6 +188,7 @@ public fun EditorPane(
 ) {
     SwingNode(
         factory = { JEditorPane() },
+        modifier = modifier.documentStateBinding(state),
         update = {
             // Install the kit before binding the document: a kit brings its own default document with
             // it, so whichever goes in second is what the pane is left holding. Update blocks run in
@@ -198,7 +198,6 @@ public fun EditorPane(
                 if (kit == null) this.contentType = "text/plain" else this.editorKit = kit
             }
             set(editable) { this.isEditable = it }
-            applyModifier(modifier.documentStateBinding(state))
         },
     )
 }
@@ -293,10 +292,10 @@ private inline fun TextPaneNode(
 ) {
     SwingNode(
         factory = { JTextPane() },
+        modifier = modifier,
         update = {
             declareText(value, mirror)
             set(editable) { this.isEditable = it }
-            applyModifier(modifier)
         },
     )
 }
@@ -323,9 +322,9 @@ public fun TextPane(
 ) {
     SwingNode(
         factory = { JTextPane() },
+        modifier = modifier.documentStateBinding(state),
         update = {
             set(editable) { this.isEditable = it }
-            applyModifier(modifier.documentStateBinding(state))
         },
     )
 }

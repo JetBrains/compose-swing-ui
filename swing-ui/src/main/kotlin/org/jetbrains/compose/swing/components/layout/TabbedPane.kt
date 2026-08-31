@@ -10,7 +10,6 @@ import org.jetbrains.compose.swing.constants.TabLayoutPolicy
 import org.jetbrains.compose.swing.constants.TabPlacement
 import org.jetbrains.compose.swing.core.dispatchToCaller
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.changeListener
 import org.jetbrains.compose.swing.node.ChildPlacement
 import org.jetbrains.compose.swing.node.MirrorState
@@ -172,11 +171,11 @@ private inline fun TabbedPaneImpl(
 
     SwingNode(
         factory = { JTabbedPane() },
+        modifier = modifier.changeListener(JTabbedPane::class, onUserSelection),
         update = {
             applyMirror(mirror)
             set(tabPlacement) { this.tabPlacement = it }
             set(tabLayoutPolicy) { this.tabLayoutPolicy = it }
-            applyModifier(modifier.changeListener(JTabbedPane::class, onUserSelection))
 
             // A tab becomes a page of the pane only once the runtime has applied the content this block
             // declares, so a selection written here would be written against the strip the pass before it

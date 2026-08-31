@@ -48,7 +48,8 @@ public fun SwingModifier.icon(icon: Icon?): SwingModifier = this then MultiTarge
 public fun SwingModifier.pressedIcon(icon: Icon?): SwingModifier =
     this then
         propertyElement<AbstractButton, Icon?>(
-            icon,
+            name = "pressedIcon",
+            value = icon,
             read = { it.pressedIcon },
             write = { component, value -> component.pressedIcon = value },
         )
@@ -65,7 +66,8 @@ public fun SwingModifier.pressedIcon(icon: Icon?): SwingModifier =
 public fun SwingModifier.selectedIcon(icon: Icon?): SwingModifier =
     this then
         propertyElement<AbstractButton, Icon?>(
-            icon,
+            name = "selectedIcon",
+            value = icon,
             read = { it.selectedIcon },
             write = { component, value -> component.selectedIcon = value },
         )
@@ -82,7 +84,8 @@ public fun SwingModifier.selectedIcon(icon: Icon?): SwingModifier =
 public fun SwingModifier.disabledIcon(icon: Icon?): SwingModifier =
     this then
         propertyElement<AbstractButton, Icon?>(
-            icon,
+            name = "disabledIcon",
+            value = icon,
             // Reading the property is what makes the look and feel derive its grayed icon, so what is
             // captured here may be that derived one. A derived icon is a UIResource, which the button
             // discards by itself the next time its base icon changes, so the fallback resumes.
@@ -102,7 +105,8 @@ public fun SwingModifier.disabledIcon(icon: Icon?): SwingModifier =
 public fun SwingModifier.disabledSelectedIcon(icon: Icon?): SwingModifier =
     this then
         propertyElement<AbstractButton, Icon?>(
-            icon,
+            name = "disabledSelectedIcon",
+            value = icon,
             read = { it.disabledSelectedIcon },
             write = { component, value -> component.disabledSelectedIcon = value },
         )
@@ -119,7 +123,8 @@ public fun SwingModifier.disabledSelectedIcon(icon: Icon?): SwingModifier =
 public fun SwingModifier.rolloverIcon(icon: Icon?): SwingModifier =
     this then
         propertyElement<AbstractButton, Icon?>(
-            icon,
+            name = "rolloverIcon",
+            value = icon,
             read = { it.rolloverIcon },
             write = { component, value -> component.rolloverIcon = value },
         )
@@ -135,7 +140,8 @@ public fun SwingModifier.rolloverIcon(icon: Icon?): SwingModifier =
 public fun SwingModifier.rolloverSelectedIcon(icon: Icon?): SwingModifier =
     this then
         propertyElement<AbstractButton, Icon?>(
-            icon,
+            name = "rolloverSelectedIcon",
+            value = icon,
             read = { it.rolloverSelectedIcon },
             write = { component, value -> component.rolloverSelectedIcon = value },
         )

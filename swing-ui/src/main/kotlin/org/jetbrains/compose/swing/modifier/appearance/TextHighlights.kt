@@ -62,6 +62,9 @@ private class HighlightsElement(
     private val ranges: List<TextRange>,
     private val painter: Highlighter.HighlightPainter,
 ) : SwingModifier.NodeElement<JTextComponent, HighlightsElement.Node>() {
+    override val name: String get() = "highlights"
+
+    override val declaredValues: Map<String, Any?> get() = mapOf("ranges" to ranges, "painter" to painter)
     override val targetType: Class<JTextComponent> get() = JTextComponent::class.java
 
     override fun equals(other: Any?): Boolean =

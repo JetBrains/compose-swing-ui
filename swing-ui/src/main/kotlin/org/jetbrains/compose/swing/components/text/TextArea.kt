@@ -5,8 +5,8 @@ package org.jetbrains.compose.swing.components.text
 
 import androidx.compose.runtime.Composable
 import org.jetbrains.annotations.Nls
+import org.jetbrains.compose.swing.modifier.PropertyElement
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.documentListener
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
@@ -144,6 +144,7 @@ private inline fun TextAreaNode(
 ) {
     SwingNode(
         factory = { JTextArea(rows, columns) },
+        modifier = modifier,
         update = {
             update(rows) {
                 this.rows = it
@@ -158,7 +159,6 @@ private inline fun TextAreaNode(
             set(lineWrap) { this.lineWrap = it }
             set(wrapStyleWord) { this.wrapStyleWord = it }
             set(tabSize) { this.tabSize = it }
-            applyModifier(modifier)
         },
     )
 }
@@ -196,6 +196,7 @@ public fun TextArea(
 ) {
     SwingNode(
         factory = { JTextArea(rows, columns) },
+        modifier = modifier.documentStateBinding(state).tabSize(state, tabSize),
         update = {
             update(rows) {
                 this.rows = it
@@ -208,15 +209,32 @@ public fun TextArea(
             set(editable) { this.isEditable = it }
             set(lineWrap) { this.lineWrap = it }
             set(wrapStyleWord) { this.wrapStyleWord = it }
-            applyModifier(modifier.documentStateBinding(state))
-            // A tab size is held by the document rather than by the area, so it is declared after the
-            // modifier has installed the state's own document: a size written before that swap stays
-            // behind on the document the swap discards. Keying it on the state as well re-declares it
-            // onto the document a later state brings.
-            set(state to tabSize) { (_, size) -> this.tabSize = size }
         },
     )
 }
 
 /** The tab width `JTextArea.getTabSize` reports by default, where the document names none. */
 private const val DEFAULT_TAB_SIZE = 8
+
+/**
+ * Declares the tab size behind the binding that puts [state]'s document into the area: a `JTextArea`
+ * holds its tab size on its document, so a size written before that swap stays behind on the document
+ * the swap discards. Keyed on the state as well, so the document a later state brings is written the
+ * size too.
+ */
+private fun SwingModifier.tabSize(
+    state: DocumentState,
+    size: Int,
+): SwingModifier = this then TabSizeElement(state, size)
+
+private class TabSizeElement(
+    private val state: DocumentState,
+    size: Int,
+) : PropertyElement<JTextArea, Int>(JTextArea::class.java, "tabSize", size, READ_TAB_SIZE, WRITE_TAB_SIZE) {
+    override fun equals(other: Any?): Boolean = super.equals(other) && state === (other as TabSizeElement).state
+
+    override fun hashCode(): Int = 31 * super.hashCode() + System.identityHashCode(state)
+}
+
+private val READ_TAB_SIZE: (JTextArea) -> Int = { it.tabSize }
+private val WRITE_TAB_SIZE: (JTextArea, Int) -> Unit = { area, size -> area.tabSize = size }

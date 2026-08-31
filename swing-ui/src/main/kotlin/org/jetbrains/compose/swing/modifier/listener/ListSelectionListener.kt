@@ -66,6 +66,7 @@ public fun SwingModifier.listSelectionListener(listener: ListSelectionListener):
 
 private val LIST_SELECTION =
     ListenerRegistration<JList<*>, ListSelectionListener>(
+        name = "listSelectionListener",
         JList<*>::addListSelectionListener,
         JList<*>::removeListSelectionListener,
     )

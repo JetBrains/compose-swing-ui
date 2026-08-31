@@ -52,6 +52,7 @@ private fun Component.asAdjustable(): Adjustable =
 
 private val ADJUSTMENT =
     ListenerRegistration<Component, AdjustmentListener>(
+        name = "adjustmentListener",
         { component, listener -> component.asAdjustable().addAdjustmentListener(listener) },
         { component, listener -> component.asAdjustable().removeAdjustmentListener(listener) },
     )

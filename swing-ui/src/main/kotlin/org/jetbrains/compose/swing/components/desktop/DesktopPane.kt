@@ -10,7 +10,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.layout.slot
 import org.jetbrains.compose.swing.modifier.listener.componentListener
 import org.jetbrains.compose.swing.modifier.listener.hierarchyListener
@@ -90,9 +89,7 @@ public fun DesktopPane(
 
     SwingNode(
         factory = { JDesktopPane() },
-        update = {
-            applyModifier(modifier)
-        },
+        modifier = modifier,
         // A desktop holds frames and nothing else, as many of them as the composition declares, in the
         // order it declares them - so anything else composed here is refused rather than left standing
         // on the desktop unseen.
@@ -435,6 +432,16 @@ private inline fun FrameNode(
     val iconWriteBack = remember { frameIconWriteBack(target) }
     val maximumWriteBack = remember { frameMaximumWriteBack(applied, target) }
     val attachSync = remember { frameStateAttachSync(applied, target) }
+    val stateChannels =
+        if (declared.source == null) {
+            SwingModifier
+        } else {
+            SwingModifier
+                .componentListener(geometryWriteBack)
+                .propertyChangeListener(JInternalFrame.IS_ICON_PROPERTY, iconWriteBack)
+                .propertyChangeListener(JInternalFrame.IS_MAXIMUM_PROPERTY, maximumWriteBack)
+                .hierarchyListener(attachSync)
+        }
 
     SwingNode(
         factory = {
@@ -455,6 +462,13 @@ private inline fun FrameNode(
                 isVisible = true
             }
         },
+        // The desktop attachment is declared last, so a frame stands on its desktop whatever placement
+        // the caller's own modifier names.
+        modifier =
+            modifier
+                .then(stateChannels)
+                .then(closeChannel)
+                .slot(FRAME_REGION, InternalFrameAttachment),
         update = {
             set(title) { this.title = it }
             set(controls.closable) { this.isClosable = it }
@@ -475,24 +489,6 @@ private inline fun FrameNode(
             // that restores to the whole desktop, as both declarations ask.
             set(declaredMaximized) { value -> applyMaximized(value, applied, target.value) }
             set(declaredIconified) { value -> applyIconified(value, applied, target.value) }
-            val stateChannels =
-                if (declared.source == null) {
-                    SwingModifier
-                } else {
-                    SwingModifier
-                        .componentListener(geometryWriteBack)
-                        .propertyChangeListener(JInternalFrame.IS_ICON_PROPERTY, iconWriteBack)
-                        .propertyChangeListener(JInternalFrame.IS_MAXIMUM_PROPERTY, maximumWriteBack)
-                        .hierarchyListener(attachSync)
-                }
-            // The desktop attachment is declared last, so a frame stands on its desktop whatever placement
-            // the caller's own modifier names.
-            applyModifier(
-                modifier
-                    .then(stateChannels)
-                    .then(closeChannel)
-                    .slot(FRAME_REGION, InternalFrameAttachment),
-            )
         },
         content = content,
     )

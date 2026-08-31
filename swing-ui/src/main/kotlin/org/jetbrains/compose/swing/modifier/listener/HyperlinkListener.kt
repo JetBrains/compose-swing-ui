@@ -43,6 +43,7 @@ public fun SwingModifier.hyperlinkListener(listener: HyperlinkListener): SwingMo
 
 private val HYPERLINK =
     ListenerRegistration<JEditorPane, HyperlinkListener>(
+        name = "hyperlinkListener",
         JEditorPane::addHyperlinkListener,
         JEditorPane::removeHyperlinkListener,
     )

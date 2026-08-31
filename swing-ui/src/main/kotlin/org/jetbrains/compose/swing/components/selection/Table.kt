@@ -9,7 +9,6 @@ import org.jetbrains.compose.swing.components.rememberDeclaredList
 import org.jetbrains.compose.swing.constants.AutoResizeMode
 import org.jetbrains.compose.swing.constants.SelectionMode
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.propertyElement
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
@@ -748,8 +747,15 @@ private inline fun TableNode(
     val columnChannel = rememberColumnLayoutChannel(columnMirror, tableColumnModelListener)
     val sortChannel = rememberRowSortChannel(sortMirror, rowSorterListener)
 
+    val tableModifier =
+        modifier
+            .userSelectionListener(selectionMirror, listSelectionListener)
+            .tableColumnModelListener(columnChannel.listener)
+            .tableRowHeight(rowHeight)
     SwingNode(
         factory = { JTable(model) },
+        modifier =
+            if (cellCompositions == null) tableModifier else tableModifier.composableColumnCells(cellCompositions),
         update = {
             applyMirror(selectionMirror)
             set(selectionMode) { mode ->
@@ -767,14 +773,6 @@ private inline fun TableNode(
             // leave the table alone for a null declaration, so neither is imposed, overwritten, or
             // re-asserted for it.
             declare(sortKeys, sortMirror, { sortChannel.sortKeys() }, { keys -> sortChannel.applySortKeys(keys) })
-            val tableModifier =
-                modifier
-                    .userSelectionListener(selectionMirror, listSelectionListener)
-                    .tableColumnModelListener(columnChannel.listener)
-                    .tableRowHeight(rowHeight)
-            applyModifier(
-                if (cellCompositions == null) tableModifier else tableModifier.composableColumnCells(cellCompositions),
-            )
         },
     )
 }
@@ -799,7 +797,8 @@ private fun SwingModifier.tableRowHeight(rowHeight: Int?): SwingModifier =
     } else {
         this then
             propertyElement<JTable, Int>(
-                rowHeight,
+                name = "rowHeight",
+                value = rowHeight,
                 read = { it.rowHeight },
                 write = { table, height -> table.rowHeight = height },
             )

@@ -7,6 +7,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ComposeNode
 import androidx.compose.runtime.DisallowComposableCalls
 import org.jetbrains.compose.swing.annotations.SwingComposable
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.applyModifier
 import java.awt.Component
 
 /**
@@ -20,8 +22,7 @@ import java.awt.Component
  * Where this node sits in its parent is declared on the node's own modifier chain: a layout constraint
  * the parent's layout manager understands (e.g. a `BorderLayout` region), or a slot of a host that
  * reaches its children through dedicated setters (e.g. a `JScrollPane` region). That placement reaches
- * the node through [org.jetbrains.compose.swing.modifier.applyModifier], so a component whose [update]
- * never applies a modifier cannot be placed at all.
+ * the node through [modifier].
  *
  * A node that parks - because the reusable content around it went inactive (see
  * [androidx.compose.runtime.ReusableContentHost]), or because it moved into a parked `movableContent`
@@ -35,6 +36,9 @@ import java.awt.Component
  * like any other property.
  *
  * @param factory builds the backing Swing component.
+ * @param modifier the [SwingModifier] applied to the component, after [update] has run, so a chain can
+ *   override what the component's own state declared. Forward the chain the enclosing composable took;
+ *   defaults to [SwingModifier], the empty chain.
  * @param update typed update block; see [SwingNodeUpdater]. Install listeners through the modifier
  *   mechanism - see [org.jetbrains.compose.swing.modifier.listener].
  * @param onRelease optional teardown run when the node leaves the composition for good.
@@ -45,6 +49,7 @@ import java.awt.Component
 @SwingComposable
 public inline fun <reified T : Component> SwingNode(
     noinline factory: () -> T,
+    modifier: SwingModifier = SwingModifier,
     crossinline update: @DisallowComposableCalls SwingNodeUpdater<T>.() -> Unit = {},
     noinline onRelease: (T.() -> Unit)? = null,
     childPlacement: ChildPlacement = ChildPlacement.Indexed,
@@ -53,7 +58,9 @@ public inline fun <reified T : Component> SwingNode(
         factory = { SwingNodeHolder(factory()) },
         update = {
             set(childPlacement) { this.childPlacement = it }
-            SwingNodeUpdater(this).update()
+            val updater = SwingNodeUpdater(this)
+            updater.update()
+            updater.applyModifier(modifier)
             set(onRelease) { release ->
                 releaseBlock =
                     if (release != null) {
@@ -94,6 +101,9 @@ public inline fun <reified T : Component> SwingNode(
  * the structure this composition declared and derive from all of it at measure or layout time.
  *
  * @param factory builds the backing Swing container.
+ * @param modifier the [SwingModifier] applied to the container, after [update] has run, so a chain can
+ *   override what the component's own state declared. Forward the chain the enclosing composable took;
+ *   defaults to [SwingModifier], the empty chain.
  * @param update typed update block; see [SwingNodeUpdater]. Install listeners through the modifier
  *   mechanism - see [org.jetbrains.compose.swing.modifier.listener].
  * @param onRelease optional teardown run when the node leaves the composition for good.
@@ -105,6 +115,7 @@ public inline fun <reified T : Component> SwingNode(
 @SwingComposable
 public inline fun <reified T : Component> SwingNode(
     noinline factory: () -> T,
+    modifier: SwingModifier = SwingModifier,
     crossinline update: @DisallowComposableCalls SwingNodeUpdater<T>.() -> Unit = {},
     noinline onRelease: (T.() -> Unit)? = null,
     childPlacement: ChildPlacement = ChildPlacement.Indexed,
@@ -116,7 +127,9 @@ public inline fun <reified T : Component> SwingNode(
         factory = { SwingNodeHolder(factory()) },
         update = {
             set(childPlacement) { this.childPlacement = it }
-            SwingNodeUpdater(this).update()
+            val updater = SwingNodeUpdater(this)
+            updater.update()
+            updater.applyModifier(modifier)
             set(onRelease) { release ->
                 releaseBlock =
                     if (release != null) {

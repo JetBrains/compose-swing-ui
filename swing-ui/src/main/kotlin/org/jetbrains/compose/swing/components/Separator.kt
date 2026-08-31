@@ -6,7 +6,6 @@ package org.jetbrains.compose.swing.components
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.constants.Orientation
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import javax.swing.JSeparator
 import javax.swing.SwingConstants
@@ -28,9 +27,9 @@ public fun Separator(
 ) {
     SwingNode(
         factory = { JSeparator(orientation) },
+        modifier = modifier,
         update = {
             set(orientation) { this.orientation = it }
-            applyModifier(modifier)
         },
     )
 }

@@ -36,6 +36,7 @@ public fun SwingModifier.mouseWheelListener(listener: MouseWheelListener): Swing
 
 private val MOUSE_WHEEL =
     ListenerRegistration<Component, MouseWheelListener>(
+        name = "mouseWheelListener",
         Component::addMouseWheelListener,
         Component::removeMouseWheelListener,
     )

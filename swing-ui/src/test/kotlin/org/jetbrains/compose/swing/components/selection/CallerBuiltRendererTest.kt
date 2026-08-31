@@ -7,7 +7,6 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.FlowPanel
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -110,9 +109,9 @@ class CallerBuiltRendererTest {
                     val cells = rememberListItemRenderer<String> { item -> Label(item) }
                     SwingNode(
                         factory = { WideList<Int>() },
+                        modifier = SwingModifier.listItemRenderer(cells),
                         update = {
                             set(listOf(1, 2)) { setListData(it.toTypedArray()) }
-                            applyModifier(SwingModifier.listItemRenderer(cells))
                         },
                     )
                 }
@@ -169,9 +168,9 @@ class CallerBuiltRendererTest {
                     val cells = rememberListItemRenderer<String> { item -> Label(item) }
                     SwingNode(
                         factory = { WideList<String?>() },
+                        modifier = SwingModifier.listItemRenderer(cells),
                         update = {
                             set(listOf("alpha", null)) { setListData(it.toTypedArray()) }
-                            applyModifier(SwingModifier.listItemRenderer(cells))
                         },
                     )
                 }
@@ -193,9 +192,9 @@ class CallerBuiltRendererTest {
         setContent {
             SwingNode(
                 factory = { WideList<Person>() },
+                modifier = SwingModifier.listItemRenderer(own),
                 update = {
                     set(listOf(Person("Ada", 36))) { setListData(it.toTypedArray()) }
-                    applyModifier(SwingModifier.listItemRenderer(own))
                 },
             )
         }
@@ -226,13 +225,14 @@ private class WideList<T> : JList<T>() {
 private fun <T : Any> TypedItemList(
     items: List<Any>,
     itemType: KClass<T>,
+    modifier: SwingModifier = SwingModifier,
 ) {
     val cells = rememberListItemRenderer(itemType) { item -> Label(item.toString()) }
     SwingNode(
         factory = { WideList<Any>() },
+        modifier = modifier.listItemRenderer(cells),
         update = {
             set(items) { setListData(it.toTypedArray()) }
-            applyModifier(SwingModifier.listItemRenderer(cells))
         },
     )
 }
@@ -244,14 +244,15 @@ private fun <T : Any> TypedItemList(
 @Composable
 private fun WideItemList(
     items: List<String>,
+    modifier: SwingModifier = SwingModifier,
     itemContent: @Composable ListItemScope.(item: String) -> Unit,
 ) {
     val cells = rememberListItemRenderer(itemContent)
     SwingNode(
         factory = { WideList<String>() },
+        modifier = modifier.listItemRenderer(cells),
         update = {
             set(items) { setListData(it.toTypedArray()) }
-            applyModifier(SwingModifier.listItemRenderer(cells))
         },
     )
 }

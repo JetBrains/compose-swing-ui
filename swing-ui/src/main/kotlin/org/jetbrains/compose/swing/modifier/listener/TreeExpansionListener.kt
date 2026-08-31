@@ -66,6 +66,7 @@ private class TreeExpansionCallbacks(
 
 private val TREE_EXPANSION =
     ListenerRegistration<SwingJTree, TreeExpansionListener>(
+        name = "treeExpansionListener",
         SwingJTree::addTreeExpansionListener,
         SwingJTree::removeTreeExpansionListener,
     )

@@ -52,13 +52,10 @@ class LayoutOrientationTest {
                         it.add(trailing, BorderLayout.LINE_END)
                     }
                 },
-                update = {
-                    applyModifier(
-                        SwingModifier.componentOrientation(
-                            if (rtl) ComponentOrientation.RIGHT_TO_LEFT else ComponentOrientation.LEFT_TO_RIGHT,
-                        ),
-                    )
-                },
+                modifier =
+                    SwingModifier.componentOrientation(
+                        if (rtl) ComponentOrientation.RIGHT_TO_LEFT else ComponentOrientation.LEFT_TO_RIGHT,
+                    ),
             )
         }
 

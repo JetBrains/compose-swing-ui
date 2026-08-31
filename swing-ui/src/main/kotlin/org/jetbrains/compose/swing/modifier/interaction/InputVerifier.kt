@@ -47,7 +47,8 @@ public fun SwingModifier.inputVerifier(verify: () -> Boolean): SwingModifier = t
 public fun SwingModifier.verifyInputWhenFocusTarget(verify: Boolean): SwingModifier =
     this then
         propertyElement<JComponent, Boolean>(
-            verify,
+            name = "verifyInputWhenFocusTarget",
+            value = verify,
             read = { it.verifyInputWhenFocusTarget },
             write = { component, value -> component.verifyInputWhenFocusTarget = value },
         )
@@ -63,6 +64,7 @@ public fun SwingModifier.verifyInputWhenFocusTarget(verify: Boolean): SwingModif
 private class InputVerifierElement(
     private val verify: () -> Boolean,
 ) : SwingModifier.NodeElement<JComponent, InputVerifierElement.Node>() {
+    override val name: String get() = "inputVerifier"
     override val targetType: Class<JComponent> get() = JComponent::class.java
 
     override fun create(): Node = Node()

@@ -20,7 +20,8 @@ import javax.swing.JComponent
 public fun SwingModifier.font(font: Font?): SwingModifier =
     this then
         propertyElement<Component, Font?>(
-            font,
+            name = "font",
+            value = font,
             read = { it.font },
             write = { component, value ->
                 component.font = value

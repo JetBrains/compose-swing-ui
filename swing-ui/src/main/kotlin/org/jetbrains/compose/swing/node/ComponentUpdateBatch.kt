@@ -29,9 +29,6 @@ internal class ComponentUpdateBatch {
     /** The nodes still to be settled against their children, in the order the batch held them. */
     private val heldForChildSettle: MutableList<SwingNodeHolder<*>> = ArrayList()
 
-    /** The nodes that have already applied a modifier during this batch pass. */
-    private val modifierAppliedNodes: MutableSet<SwingNodeHolder<*>> = Collections.newSetFromMap(IdentityHashMap())
-
     /**
      * Opens the section, first discarding what an earlier batch left behind. Called from the applier's
      * `onBeginChanges`.
@@ -45,7 +42,6 @@ internal class ComponentUpdateBatch {
     fun begin() {
         changedContainers.clear()
         heldForChildSettle.clear()
-        modifierAppliedNodes.clear()
         section?.close()
         section = beginSection("apply")
     }
@@ -82,17 +78,10 @@ internal class ComponentUpdateBatch {
         } finally {
             heldForChildSettle.clear()
             changedContainers.clear()
-            modifierAppliedNodes.clear()
             section?.close()
             section = null
         }
     }
-
-    /**
-     * Records that [node] applied its modifier in this batch pass. Returns `false` if [node]
-     * already applied a modifier in this batch pass.
-     */
-    fun markModifierApplied(node: SwingNodeHolder<*>): Boolean = modifierAppliedNodes.add(node)
 
     /**
      * Revalidates and repaints every container this batch changed.

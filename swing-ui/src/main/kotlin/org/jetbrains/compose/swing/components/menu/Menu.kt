@@ -7,7 +7,6 @@ import androidx.compose.runtime.Composable
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.annotations.SwingMenuComposable
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.node.MenuNode
 import javax.swing.JMenu
 
@@ -31,9 +30,9 @@ public fun Menu(
 ) {
     MenuNode(
         factory = { JMenu() },
+        modifier = modifier,
         update = {
             set(text) { this.text = it }
-            applyModifier(modifier)
         },
         content = content,
     )

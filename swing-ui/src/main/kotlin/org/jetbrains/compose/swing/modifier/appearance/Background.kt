@@ -20,7 +20,8 @@ import javax.swing.JComponent
 public fun SwingModifier.background(color: Color?): SwingModifier =
     this then
         propertyElement<Component, Color?>(
-            color,
+            name = "background",
+            value = color,
             read = { it.background },
             write = { component, value ->
                 component.background = value

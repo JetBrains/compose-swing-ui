@@ -11,7 +11,6 @@ import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.FlowPanel
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
 import org.jetbrains.compose.swing.node.SwingNode
@@ -102,13 +101,12 @@ private fun StarRating(
         }
     SwingNode(
         factory = { StarRatingComponent() },
+        modifier =
+            modifier
+                .mouseListener(listener)
+                .preferredSize(Dimension(MAX_STARS * STAR_BOX, STAR_BOX)),
         update = {
             set(rating) { this.rating = it }
-            applyModifier(
-                modifier
-                    .mouseListener(listener)
-                    .preferredSize(Dimension(MAX_STARS * STAR_BOX, STAR_BOX)),
-            )
         },
     )
 }

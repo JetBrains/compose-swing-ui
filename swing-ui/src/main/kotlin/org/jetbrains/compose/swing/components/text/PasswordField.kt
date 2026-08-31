@@ -5,7 +5,6 @@ package org.jetbrains.compose.swing.components.text
 
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.documentListener
 import org.jetbrains.compose.swing.modifier.listener.listener
 import org.jetbrains.compose.swing.node.MirrorState
@@ -143,10 +142,8 @@ private inline fun PasswordFieldNode(
         echoChar = echoChar,
         columns = columns,
         editable = editable,
-        update = {
-            declarePassword(value, mirror)
-            applyModifier(modifier)
-        },
+        modifier = modifier,
+        update = { declarePassword(value, mirror) },
     )
 }
 
@@ -237,9 +234,7 @@ public fun PasswordField(
         echoChar = echoChar,
         columns = columns,
         editable = editable,
-        update = {
-            applyModifier(modifier.documentStateBinding(state))
-        },
+        modifier = modifier.documentStateBinding(state),
     )
 }
 
@@ -254,10 +249,12 @@ private inline fun PasswordFieldImpl(
     echoChar: Char?,
     columns: Int,
     editable: Boolean,
-    crossinline update: SwingNodeUpdater<DefaultMaskPasswordField>.() -> Unit,
+    modifier: SwingModifier,
+    crossinline update: SwingNodeUpdater<DefaultMaskPasswordField>.() -> Unit = {},
 ) {
     SwingNode(
         factory = { DefaultMaskPasswordField(columns) },
+        modifier = modifier,
         update = {
             update(columns) {
                 this.columns = it

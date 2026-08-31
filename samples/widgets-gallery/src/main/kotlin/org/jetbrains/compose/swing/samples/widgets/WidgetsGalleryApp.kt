@@ -25,7 +25,6 @@ import org.jetbrains.compose.swing.components.selection.ListBox
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.accessibility.accessibleName
 import org.jetbrains.compose.swing.modifier.appearance.emptyBorder
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.interaction.enabled
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.listener.actionListener
@@ -90,9 +89,9 @@ internal fun ShowcaseMenuBar(onExit: () -> Unit) {
         val listener = remember { ActionListener { callback.value() } }
         MenuNode(
             factory = { JMenuItem() },
+            modifier = SwingModifier.actionListener(listener),
             update = {
                 set("Ping (raw MenuNode) - $pings") { this.text = it }
-                applyModifier(SwingModifier.actionListener(listener))
             },
         )
     }

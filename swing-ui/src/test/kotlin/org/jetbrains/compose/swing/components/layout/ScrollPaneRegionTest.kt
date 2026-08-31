@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -32,6 +33,16 @@ import kotlin.test.assertTrue
  */
 class ScrollPaneRegionTest {
     private fun labelTextOf(component: Component?): String? = (component as? JLabel)?.text
+
+    @Test
+    fun everyRegionAppendsToTheChainWithoutRepeatingIt() {
+        with(ScrollPaneScopeImpl()) {
+            assertDeclaredChainCarriedOnce { viewport(unitIncrement = UNIT_INCREMENT) }
+            assertDeclaredChainCarriedOnce { rowHeader() }
+            assertDeclaredChainCarriedOnce { columnHeader() }
+            assertDeclaredChainCarriedOnce { corner(JScrollPane.UPPER_LEADING_CORNER) }
+        }
+    }
 
     @Test
     fun contentReachesTheCentralViewport() = runComposeSwingTest {

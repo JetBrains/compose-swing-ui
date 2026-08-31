@@ -36,6 +36,7 @@ public fun SwingModifier.hierarchyListener(listener: HierarchyListener): SwingMo
 
 private val HIERARCHY =
     ListenerRegistration<Component, HierarchyListener>(
+        name = "hierarchyListener",
         Component::addHierarchyListener,
         Component::removeHierarchyListener,
     )

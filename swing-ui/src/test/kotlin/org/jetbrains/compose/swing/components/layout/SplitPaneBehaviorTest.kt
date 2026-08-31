@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
@@ -31,6 +32,14 @@ import kotlin.test.assertTrue
  * follow the look and feel until the caller declares them.
  */
 class SplitPaneBehaviorTest {
+    @Test
+    fun eitherSideAppendsToTheChainWithoutRepeatingIt() {
+        with(SplitPaneScopeImpl) {
+            assertDeclaredChainCarriedOnce { first() }
+            assertDeclaredChainCarriedOnce { second() }
+        }
+    }
+
     @Test
     fun anUndeclaredSplitPaneIsTheWidgetsOwn() = runComposeSwingTest {
         setContent { SplitPane {} }

@@ -68,7 +68,7 @@ public fun rememberLabelTarget(): LabelTarget = remember { LabelTarget() }
  * @see javax.swing.JLabel.setLabelFor
  */
 public fun SwingModifier.labelTarget(target: LabelTarget): SwingModifier =
-    binding(Component::class.java, target, LabelTarget::bindTarget, LabelTarget::unbindTarget)
+    binding(Component::class.java, "labelTarget", target, LabelTarget::bindTarget, LabelTarget::unbindTarget)
 
 /**
  * Marks this label as the caption for the component bound to [target] via the [labelTarget] modifier,
@@ -79,4 +79,4 @@ public fun SwingModifier.labelTarget(target: LabelTarget): SwingModifier =
  * @see javax.swing.JLabel.setLabelFor
  */
 public fun SwingModifier.labelFor(target: LabelTarget): SwingModifier =
-    binding(JLabel::class.java, target, LabelTarget::addLabel, LabelTarget::removeLabel)
+    binding(JLabel::class.java, "labelFor", target, LabelTarget::addLabel, LabelTarget::removeLabel)

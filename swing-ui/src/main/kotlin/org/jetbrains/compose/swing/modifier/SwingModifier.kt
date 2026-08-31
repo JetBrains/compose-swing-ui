@@ -156,6 +156,27 @@ public interface SwingModifier {
          */
         public open val additive: Boolean get() = false
 
+        /**
+         * What this element is called, for a message about it and for a tool showing the chain a
+         * component carries. Defaults to the element's class name, which serves an element declared as
+         * its own class; an element built by a shared builder shares that class with every other
+         * property built the same way, and names the property it writes instead.
+         *
+         * Display only. [key] is what tells one slot from another, so two elements sharing a name still
+         * occupy their own slots and neither replaces the other.
+         */
+        public open val name: String get() = javaClass.simpleName
+
+        /**
+         * What this element declares, under the name each value is declared by - the argument of a
+         * single-valued property under the property's own [name], and one entry per argument for an
+         * element carrying several. Empty for an element that carries nothing.
+         *
+         * A tool reads this to show what a component was built with. It is read on demand and never
+         * during an apply, so an element assembles it when asked rather than holding it.
+         */
+        public open val declaredValues: Map<String, Any?> get() = emptyMap()
+
         /** Creates the stateful node. Called once per slot, when the element first enters the chain. */
         public abstract fun create(): N
 
@@ -310,13 +331,14 @@ public class SwingModifierState internal constructor() {
     internal val additiveRecords: ArrayList<ElementRecord<*, *>> = ArrayList()
 
     /**
-     * The chain the records above were diffed from, and what the next pass compares its own
-     * declaration against. Only a pass that diffs replaces it; a pass whose declaration the chain here
-     * adopts leaves every slot as it stands.
+     * The chain last declared for this node, and what the next pass compares its own declaration
+     * against. Every pass replaces it with the chain it declared, whether the slots diffed that
+     * declaration or adopted it, so what stands here is what the composition declared last - which is
+     * what [org.jetbrains.compose.swing.node.SwingComponentNode.modifier] answers with.
      *
-     * A node therefore holds the elements of the chain it last diffed for as long as later chains are
-     * adopted rather than diffed, while the slots go on taking what those chains read live - one chain
-     * kept at a time, and the same one the records above stand on.
+     * Adopting decides what reaches the component, not what is held: a chain the slots adopt writes
+     * nothing, while this and each slot's own element still take the incoming declaration, releasing
+     * everything the elements they replace captured.
      */
     internal var applied: SwingModifier = SwingModifier
 
@@ -338,23 +360,22 @@ public class SwingModifierState internal constructor() {
  * [detached][SwingModifier.Node.onDetach] (restoring the value the component had before the modifier
  * first touched that property).
  *
- * Call it as the last statement of a component's `update` block, after the component's own `set`s,
- * so a modifier can override component defaults. A chain declaring what the one applied last declares
- * is skipped whole - a listener callback the pass rebuilt reaches the node that reads it without
- * counting as a change - and in a chain that did change, every element that did not is skipped with it.
- * Available on any node whose component is a [Component].
+ * Runs after the component's own `set`s, so a modifier can override component defaults. A chain
+ * declaring what the one applied last declares is skipped whole - a listener callback the pass rebuilt
+ * reaches the node that reads it without counting as a change - and in a chain that did change, every
+ * element that did not is skipped with it.
  *
  * A chain carrying a placement - [org.jetbrains.compose.swing.modifier.layout.layoutConstraint] or a host
- * slot - declares where the node is attached in its parent, and this call is the channel through which
- * that placement reaches the node: it is written onto the node here, before the applier attaches the
- * component. A component whose `update` never applies its modifier therefore cannot be placed at all,
- * and one whose chain declares both kinds of placement is refused here, since a parent holds a child by
+ * slot - declares where the node is attached in its parent, and this is the channel through which that
+ * placement reaches the node: it is written onto the node here, before the applier attaches the
+ * component. A chain declaring both kinds of placement is refused here, since a parent holds a child by
  * one of the two.
  *
  * @param modifier the chain to declare on the node; [SwingModifier] itself declares nothing, which
  *   detaches every element the previous pass installed.
  */
-public fun SwingNodeUpdater<out Component>.applyModifier(modifier: SwingModifier): Unit =
+@PublishedApi
+internal fun SwingNodeUpdater<out Component>.applyModifier(modifier: SwingModifier): Unit =
     updater.set(modifier) { applyDeclaredModifier(it) }
 
 /**
@@ -370,9 +391,6 @@ public fun SwingNodeUpdater<out Component>.applyModifier(modifier: SwingModifier
  * whose state was reset - released, reused, parked - is in that same position and rebuilds from scratch.
  */
 private fun SwingNodeHolder<Component>.applyDeclaredModifier(modifier: SwingModifier) {
-    check(checkNotNull(owner).updateBatch.markModifierApplied(this)) {
-        "applyModifier may only be called once per SwingNode update block"
-    }
     val state = modifierState
     if (state != null && adoptDeclaration(state.applied, modifier, state.additiveRecords, 0) != DIVERGED) {
         state.applied = modifier
@@ -469,7 +487,7 @@ internal fun SwingNodeHolder<Component>.applyModifierDiff(modifier: SwingModifie
     val slot = state.incomingKeyed.removeSlot()
     val constraint = state.incomingKeyed.removeLayoutConstraint()
     checkOnePlacement(slot, constraint)
-    declaredSlot = slot?.let { DeclaredSlot(it.attachment, it.name) }
+    declaredSlot = slot?.let { DeclaredSlot(it.attachment, it.regionName) }
     applyConstraint(constraint)
 
     diffKeyedElements(target, state.records, state.incomingKeyed)
@@ -521,7 +539,7 @@ private fun <T : Component, N : SwingModifier.Node<T>> refreshElement(
 
 /**
  * Narrows the node to an element's target type. A node that is not the required type is rejected with
- * a clear message naming the element ([SwingModifier.NodeElement.key]) and the required vs. actual type.
+ * a clear message naming the element ([SwingModifier.NodeElement.name]) and the required vs. actual type.
  */
 private fun <T : Component> checkedTarget(
     element: SwingModifier.NodeElement<T, *>,
@@ -530,7 +548,7 @@ private fun <T : Component> checkedTarget(
     val targetType = element.targetType
     if (!targetType.isInstance(raw)) {
         error(
-            "Modifier element ${element.key} requires a ${targetType.name} target, " +
+            "Modifier element ${element.name} requires a ${targetType.name} target, " +
                 "but the component is a ${raw.javaClass.name}",
         )
     }

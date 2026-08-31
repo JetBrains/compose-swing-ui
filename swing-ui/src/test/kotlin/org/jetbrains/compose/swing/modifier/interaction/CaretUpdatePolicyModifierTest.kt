@@ -4,7 +4,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -85,7 +84,7 @@ class CaretUpdatePolicyModifierTest {
         setContent {
             SwingNode(
                 factory = { JTextArea(TEXT) },
-                update = { applyModifier(SwingModifier.caretUpdatePolicy(policy)) },
+                modifier = SwingModifier.caretUpdatePolicy(policy),
             )
         }
         val area = onNodeOfType<JTextArea>().fetch()
@@ -113,11 +112,7 @@ class CaretUpdatePolicyModifierTest {
         setContent {
             SwingNode(
                 factory = { JTextArea(TEXT) },
-                update = {
-                    applyModifier(
-                        if (declared) SwingModifier.caretUpdatePolicy(DefaultCaret.NEVER_UPDATE) else SwingModifier,
-                    )
-                },
+                modifier = if (declared) SwingModifier.caretUpdatePolicy(DefaultCaret.NEVER_UPDATE) else SwingModifier,
             )
         }
         val area = onNodeOfType<JTextArea>().fetch()
@@ -142,7 +137,7 @@ class CaretUpdatePolicyModifierTest {
     /** Composes an area carrying [modifier] and returns the live component. */
     private suspend fun ComposeSwingTest.areaWith(modifier: SwingModifier): JTextArea {
         setContent {
-            SwingNode(factory = { JTextArea(TEXT) }, update = { applyModifier(modifier) })
+            SwingNode(factory = { JTextArea(TEXT) }, modifier = modifier)
         }
         awaitIdle()
         return onNodeOfType<JTextArea>().fetch()

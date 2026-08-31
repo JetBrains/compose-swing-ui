@@ -5,7 +5,6 @@ package org.jetbrains.compose.swing.components.layout
 
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import java.awt.BorderLayout
 
@@ -42,10 +41,10 @@ public fun BorderPanel(
 ) {
     SwingNode(
         factory = { ScrollablePanel(BorderLayout(hgap, vgap)) },
+        modifier = modifier,
         update = {
             updateLayout<BorderLayout, _>(hgap) { this.hgap = it }
             updateLayout<BorderLayout, _>(vgap) { this.vgap = it }
-            applyModifier(modifier)
         },
         content = { BorderPanelScopeImpl.content() },
     )

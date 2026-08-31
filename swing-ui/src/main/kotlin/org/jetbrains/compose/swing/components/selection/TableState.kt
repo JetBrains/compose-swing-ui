@@ -145,4 +145,4 @@ public fun rememberTableState(initialSelectedRowIndices: Set<Int> = emptySet()):
 
 /** Binds [state] to the composable's table through the modifier chain; see [binding]. */
 internal fun SwingModifier.tableStateBinding(state: TableState): SwingModifier =
-    binding(JTable::class.java, state, TableState::bind, TableState::unbind)
+    binding(JTable::class.java, "tableState", state, TableState::bind, TableState::unbind)

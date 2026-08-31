@@ -39,6 +39,7 @@ class SwingNodeHolderLifecycleTest {
      */
     private val counted =
         ListenerRegistration<JButton, Any>(
+            name = "any",
             { _, _ -> attach[0]++ },
             { _, _ -> detach[0]++ },
         )

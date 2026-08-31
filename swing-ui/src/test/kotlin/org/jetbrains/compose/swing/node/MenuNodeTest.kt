@@ -5,7 +5,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.composeMenu
 import org.jetbrains.compose.swing.menuItemTexts
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import java.awt.Color
 import javax.swing.JMenu
 import javax.swing.JMenuItem
 import kotlin.test.Test
@@ -14,8 +17,8 @@ import kotlin.test.assertSame
 
 /**
  * Parameter-level coverage for [MenuNode], the primitive the menu wrappers are built on: the widget is
- * built once from `factory` and then driven entirely by `update`, and `content` tracks the nested
- * declarations that produced it.
+ * built once from `factory` and then driven by `update` and by the `modifier` chain applied after it,
+ * and `content` tracks the nested declarations that produced it.
  *
  * The nodes are composed into a live popup-menu composition, the menu counterpart of the harness root,
  * and every assertion reads the `JMenuItem`s an observer of that menu sees.
@@ -24,7 +27,13 @@ class MenuNodeTest {
     @Test
     fun theUpdateBlockAppliesEveryStateChangeToTheWidget() = runComposeSwingTest {
         var text by mutableStateOf("Open")
-        val popup = composeMenu { MenuNode(factory = { JMenuItem() }, update = { set(text) { this.text = it } }) }
+        val popup =
+            composeMenu {
+                MenuNode(
+                    factory = { JMenuItem() },
+                    update = { set(text) { this.text = it } },
+                )
+            }
 
         val item = popup.getComponent(0) as JMenuItem
         assertEquals("Open", item.text, "the update block applies the initial value")
@@ -36,6 +45,37 @@ class MenuNodeTest {
         text = "Open"
         awaitIdle()
         assertEquals("Open", item.text, "the update block applies the value on the way back too")
+    }
+
+    @Test
+    fun theModifierIsAppliedAfterTheUpdateBlock() = runComposeSwingTest {
+        var color by mutableStateOf(Color.BLUE)
+        val popup =
+            composeMenu {
+                MenuNode(
+                    factory = { JMenuItem("Open") },
+                    modifier = SwingModifier.background(color),
+                    update = { set(Unit) { background = Color.RED } },
+                )
+            }
+
+        val item = popup.getComponent(0) as JMenuItem
+        assertEquals(Color.BLUE, item.background, "the chain overrides what the update block wrote")
+
+        color = Color.GREEN
+        awaitIdle()
+        assertEquals(Color.GREEN, item.background, "a changed chain reaches the widget")
+    }
+
+    @Test
+    fun aNodeDeclaringNoUpdateStillTakesItsModifier() = runComposeSwingTest {
+        val popup =
+            composeMenu {
+                MenuNode(factory = { JMenuItem("Open") }, modifier = SwingModifier.background(Color.BLUE))
+            }
+
+        val item = popup.getComponent(0) as JMenuItem
+        assertEquals(Color.BLUE, item.background, "the chain reaches a widget whose update declares nothing")
     }
 
     @Test
@@ -77,7 +117,9 @@ class MenuNodeTest {
             composeMenu {
                 MenuNode(factory = { JMenu("File") }, update = {}) {
                     MenuNode(factory = { JMenuItem("Open") }, update = {})
-                    if (recent) MenuNode(factory = { JMenuItem("Open recent") }, update = {})
+                    if (recent) {
+                        MenuNode(factory = { JMenuItem("Open recent") }, update = {})
+                    }
                 }
             }
 

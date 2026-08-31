@@ -5,7 +5,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -36,7 +35,7 @@ class AdjustmentListenerModifierTest {
         setContent {
             SwingNode(
                 factory = { JScrollBar(JScrollBar.VERTICAL, 0, 10, 0, 100) },
-                update = { applyModifier(SwingModifier.adjustmentListener(listener)) },
+                modifier = SwingModifier.adjustmentListener(listener),
             )
         }
         val bar = onNodeOfType<JScrollBar>().fetch()
@@ -56,7 +55,7 @@ class AdjustmentListenerModifierTest {
         setContent {
             SwingNode(
                 factory = { JScrollBar(JScrollBar.VERTICAL, 0, 10, 0, 100) },
-                update = { applyModifier(SwingModifier.adjustmentListener(listener)) },
+                modifier = SwingModifier.adjustmentListener(listener),
             )
         }
         val bar = onNodeOfType<JScrollBar>().fetch()
@@ -86,7 +85,7 @@ class AdjustmentListenerModifierTest {
         setContent {
             SwingNode(
                 factory = { Scrollbar(Scrollbar.HORIZONTAL) },
-                update = { applyModifier(SwingModifier.adjustmentListener(listener)) },
+                modifier = SwingModifier.adjustmentListener(listener),
             )
         }
         val bar = onNodeOfType<Scrollbar>().fetch()
@@ -112,9 +111,7 @@ class AdjustmentListenerModifierTest {
         setContent {
             SwingNode(
                 factory = { JScrollBar() },
-                update = {
-                    applyModifier(if (observed) SwingModifier.adjustmentListener(listener) else SwingModifier)
-                },
+                modifier = if (observed) SwingModifier.adjustmentListener(listener) else SwingModifier,
             )
         }
         val bar = onNodeOfType<JScrollBar>().fetch()

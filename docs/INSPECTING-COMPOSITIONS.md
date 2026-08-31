@@ -86,6 +86,39 @@ The component a group hands over is the live one, handed over for inspection: th
 every property a declared parameter governs, so writing one from a tool is replaced on the next pass that
 applies it. Read the tree; do not drive it.
 
+## Reading the chain a component carries
+
+A group's node is a `SwingComponentNode`, and `modifier` on it is the chain the composition last
+declared for the component:
+
+```kotlin
+val node = someButton.findDeclaringGroup()?.node as? SwingComponentNode
+val chain = node?.modifier?.foldIn(emptyList<String>()) { named, element -> named + element.name }
+```
+
+<!--- CLEAR -->
+
+Walk it with `SwingModifier.foldIn`, and read two things off each element:
+
+| What you want | Where to read it |
+|---------------|------------------|
+| What the element is called | `name`, such as `background` or `mouseListener` |
+| What it declares | `declaredValues`, the values under the names they are declared by |
+
+Both are display only. `key` is what tells one slot from another, so two elements reporting the same
+name still occupy their own slots.
+
+The chain is the whole declaration, placement included: an element saying where the component sits in
+its parent stands in it beside the ones saying what it looks like. It is what the composition declared
+last, whether or not that pass had anything to write, so it never lags the composition - and it holds
+what a caller passed followed by what the widget's own composable declared, in that order.
+
+Reaching the node is a slot table read and needs the switch above, but the chain itself is held on the
+node rather than in the table, so no re-insertion has to have happened for it to be complete.
+
+An element the library does not ship reports whatever it overrides `name` and `declaredValues` with;
+see [`CUSTOM-MODIFIERS.md`](CUSTOM-MODIFIERS.md#naming-the-element-for-a-message-and-for-a-tool).
+
 ## Attaching a composition stack trace to a throwable
 
 ```kotlin
@@ -164,6 +197,7 @@ import androidx.compose.runtime.tooling.CompositionRegistrationObserver
 import androidx.compose.runtime.tooling.ObservableComposition
 import androidx.compose.runtime.tooling.observe
 import org.jetbrains.compose.swing.core.findRecomposer
+import org.jetbrains.compose.swing.node.SwingComponentNode
 import org.jetbrains.compose.swing.tooling.attachComposeStackTrace
 import org.jetbrains.compose.swing.tooling.findDeclaringGroup
 import org.jetbrains.compose.swing.tooling.isDebugInspectorInfoEnabled
@@ -183,6 +217,14 @@ fun startInspecting() {
 /** The values [component] was built from, or `null` if no composition declared it. */
 fun argumentsOf(component: Component): List<Any?>? =
     component.findDeclaringGroup()?.data?.toList()
+
+/** What [component]'s modifier chain declares, by the name of each element that declares it. */
+fun chainOf(component: Component): Map<String, Map<String, Any?>> {
+    val node = component.findDeclaringGroup()?.node as? SwingComponentNode ?: return emptyMap()
+    return node.modifier.foldIn(emptyMap()) { declared, element ->
+        declared + (element.name to element.declaredValues)
+    }
+}
 
 /**
  * Where [component] was declared, rendered as the Compose runtime writes it, or `null` when no composition
