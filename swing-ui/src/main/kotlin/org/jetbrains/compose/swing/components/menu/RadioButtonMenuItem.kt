@@ -1,7 +1,7 @@
 @file:JvmMultifileClass
-@file:JvmName("ComponentsKt")
+@file:JvmName("MenuComponentsKt")
 
-package org.jetbrains.compose.swing.components
+package org.jetbrains.compose.swing.components.menu
 
 import androidx.compose.runtime.Composable
 import org.jetbrains.annotations.Nls

@@ -5,12 +5,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.components.CheckBoxMenuItem
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.components.Menu
-import org.jetbrains.compose.swing.components.MenuItem
-import org.jetbrains.compose.swing.components.MenuSeparator
 import org.jetbrains.compose.swing.components.layout.ColumnScope
+import org.jetbrains.compose.swing.components.menu.CheckBoxMenuItem
+import org.jetbrains.compose.swing.components.menu.Menu
+import org.jetbrains.compose.swing.components.menu.MenuItem
+import org.jetbrains.compose.swing.components.menu.MenuSeparator
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.interaction.contextMenu
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard

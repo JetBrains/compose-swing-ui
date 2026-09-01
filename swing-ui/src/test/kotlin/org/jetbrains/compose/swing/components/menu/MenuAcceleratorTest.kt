@@ -1,4 +1,4 @@
-package org.jetbrains.compose.swing.components
+package org.jetbrains.compose.swing.components.menu
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf

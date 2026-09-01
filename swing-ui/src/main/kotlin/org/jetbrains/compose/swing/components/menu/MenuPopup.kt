@@ -1,4 +1,4 @@
-package org.jetbrains.compose.swing.modifier.interaction
+package org.jetbrains.compose.swing.components.menu
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionContext

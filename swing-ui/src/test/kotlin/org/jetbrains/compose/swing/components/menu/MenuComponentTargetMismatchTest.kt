@@ -1,5 +1,6 @@
-package org.jetbrains.compose.swing.components
+package org.jetbrains.compose.swing.components.menu
 
+import org.jetbrains.compose.swing.components.InProcessCompilerHarness
 import org.jetbrains.compose.swing.components.InProcessCompilerHarness.CompilationResult
 import org.jetbrains.compose.swing.components.InProcessCompilerHarness.SourceSpec
 import org.jetbrains.kotlin.cli.common.ExitCode
@@ -11,7 +12,7 @@ import kotlin.test.assertTrue
 
 /**
  * Verifies that the Compose compiler flags accidental mixing of our menu composables
- * ([org.jetbrains.compose.swing.components.Menu] and friends, marked `@SwingMenuComposable`) with our
+ * ([org.jetbrains.compose.swing.components.menu.Menu] and friends, marked `@SwingMenuComposable`) with our
  * regular component composables ([org.jetbrains.compose.swing.components.layout.FlowPanel],
  * [org.jetbrains.compose.swing.components.button.Button], ... marked `@SwingComposable`).
  *
@@ -33,7 +34,7 @@ class MenuComponentTargetMismatchTest {
             compileSnippet(
                 """
                 import org.jetbrains.compose.swing.components.layout.FlowPanel
-                import org.jetbrains.compose.swing.components.MenuItem
+                import org.jetbrains.compose.swing.components.menu.MenuItem
 
                 @androidx.compose.runtime.Composable
                 fun Mixed() {
@@ -56,7 +57,7 @@ class MenuComponentTargetMismatchTest {
         val result =
             compileSnippet(
                 """
-                import org.jetbrains.compose.swing.components.Menu
+                import org.jetbrains.compose.swing.components.menu.Menu
                 import org.jetbrains.compose.swing.components.button.Button
 
                 @androidx.compose.runtime.Composable
@@ -83,8 +84,8 @@ class MenuComponentTargetMismatchTest {
                 """
                 import org.jetbrains.compose.swing.components.layout.FlowPanel
                 import org.jetbrains.compose.swing.components.button.Button
-                import org.jetbrains.compose.swing.components.Menu
-                import org.jetbrains.compose.swing.components.MenuItem
+                import org.jetbrains.compose.swing.components.menu.Menu
+                import org.jetbrains.compose.swing.components.menu.MenuItem
 
                 @androidx.compose.runtime.Composable
                 fun Components() {

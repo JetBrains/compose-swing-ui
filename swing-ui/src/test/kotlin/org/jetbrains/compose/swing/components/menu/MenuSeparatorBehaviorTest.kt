@@ -1,4 +1,4 @@
-package org.jetbrains.compose.swing.components
+package org.jetbrains.compose.swing.components.menu
 
 import org.jetbrains.compose.swing.composeMenu
 import org.jetbrains.compose.swing.menuItemTexts

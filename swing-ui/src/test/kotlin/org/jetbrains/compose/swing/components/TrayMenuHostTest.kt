@@ -4,6 +4,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.captureParentContext
+import org.jetbrains.compose.swing.components.menu.Menu
+import org.jetbrains.compose.swing.components.menu.MenuItem
+import org.jetbrains.compose.swing.components.menu.MenuSeparator
 import org.jetbrains.compose.swing.menuItemTexts
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JMenu

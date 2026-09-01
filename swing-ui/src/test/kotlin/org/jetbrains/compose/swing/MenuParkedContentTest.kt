@@ -4,7 +4,7 @@ import androidx.compose.runtime.ReusableContentHost
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.components.MenuItem
+import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import kotlin.test.Test
 import kotlin.test.assertEquals

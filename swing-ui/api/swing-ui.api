@@ -16,22 +16,13 @@ public abstract interface annotation class org/jetbrains/compose/swing/annotatio
 
 public final class org/jetbrains/compose/swing/components/ComponentsKt {
 	public static final fun Canvas (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
-	public static final fun CheckBoxMenuItem (Ljava/lang/String;ZLjava/awt/event/ActionListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljavax/swing/KeyStroke;Landroidx/compose/runtime/Composer;II)V
-	public static final fun CheckBoxMenuItem (Ljava/lang/String;ZLkotlin/jvm/functions/Function1;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljavax/swing/KeyStroke;Landroidx/compose/runtime/Composer;II)V
 	public static final fun ComboBox (Ljava/util/List;Ljava/lang/Object;Ljava/awt/event/ActionListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;ZILkotlin/jvm/functions/Function4;Landroidx/compose/runtime/Composer;II)V
 	public static final fun ComboBox (Ljava/util/List;Ljava/lang/Object;Lkotlin/jvm/functions/Function1;Lorg/jetbrains/compose/swing/modifier/SwingModifier;ZLkotlin/jvm/functions/Function1;ILkotlin/jvm/functions/Function4;Landroidx/compose/runtime/Composer;II)V
 	public static final fun ComboBox (Ljavax/swing/ComboBoxModel;Ljava/awt/event/ActionListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;ZILkotlin/jvm/functions/Function4;Landroidx/compose/runtime/Composer;II)V
 	public static final fun ComboBox (Ljavax/swing/ComboBoxModel;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;ZLkotlin/jvm/functions/Function1;ILkotlin/jvm/functions/Function4;Landroidx/compose/runtime/Composer;II)V
 	public static final fun Label (Ljava/lang/String;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Landroidx/compose/runtime/Composer;II)V
-	public static final fun Menu (Ljava/lang/String;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
-	public static final fun MenuItem (Ljava/lang/String;Ljava/awt/event/ActionListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljavax/swing/KeyStroke;Landroidx/compose/runtime/Composer;II)V
-	public static final fun MenuItem (Ljava/lang/String;Lkotlin/jvm/functions/Function0;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljavax/swing/KeyStroke;Landroidx/compose/runtime/Composer;II)V
-	public static final fun MenuSeparator (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Landroidx/compose/runtime/Composer;II)V
 	public static final fun ProgressBar (ILorg/jetbrains/compose/swing/modifier/SwingModifier;IIZIZLjava/lang/String;Landroidx/compose/runtime/Composer;II)V
 	public static final fun ProgressBar (Ljavax/swing/BoundedRangeModel;Lorg/jetbrains/compose/swing/modifier/SwingModifier;ZIZLjava/lang/String;Landroidx/compose/runtime/Composer;II)V
-	public static final fun RadioButtonMenuGroup (ILkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;I)V
-	public static final fun RadioButtonMenuItem (Ljava/lang/String;ZLjava/awt/event/ActionListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljavax/swing/KeyStroke;Landroidx/compose/runtime/Composer;II)V
-	public static final fun RadioButtonMenuItem (Ljava/lang/String;ZLkotlin/jvm/functions/Function1;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljavax/swing/KeyStroke;Landroidx/compose/runtime/Composer;II)V
 	public static final fun Separator (Lorg/jetbrains/compose/swing/modifier/SwingModifier;ILandroidx/compose/runtime/Composer;II)V
 	public static final fun Slider (ILjavax/swing/event/ChangeListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;IIIZIIZZLjava/util/Map;ZLandroidx/compose/runtime/Composer;III)V
 	public static final fun Slider (ILkotlin/jvm/functions/Function1;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;IIIZIIZZLjava/util/Map;ZLandroidx/compose/runtime/Composer;III)V
@@ -44,21 +35,10 @@ public final class org/jetbrains/compose/swing/components/ComponentsKt {
 	public static final fun Tray (Ljava/awt/Image;Lkotlin/jvm/functions/Function0;Ljava/lang/String;ZLkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
 }
 
-public final class org/jetbrains/compose/swing/components/ComposableSingletons$MenuKt {
-	public static final field INSTANCE Lorg/jetbrains/compose/swing/components/ComposableSingletons$MenuKt;
-	public fun <init> ()V
-	public final fun getLambda$1964208110$swing_ui ()Lkotlin/jvm/functions/Function2;
-}
-
 public final class org/jetbrains/compose/swing/components/ComposableSingletons$TrayKt {
 	public static final field INSTANCE Lorg/jetbrains/compose/swing/components/ComposableSingletons$TrayKt;
 	public fun <init> ()V
 	public final fun getLambda$-1905108586$swing_ui ()Lkotlin/jvm/functions/Function2;
-}
-
-public abstract interface class org/jetbrains/compose/swing/components/RadioButtonMenuGroupScope {
-	public abstract fun option (Ljava/lang/String;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljavax/swing/KeyStroke;)V
-	public static synthetic fun option$default (Lorg/jetbrains/compose/swing/components/RadioButtonMenuGroupScope;Ljava/lang/String;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljavax/swing/KeyStroke;ILjava/lang/Object;)V
 }
 
 public final class org/jetbrains/compose/swing/components/button/ButtonComponentsKt {
@@ -295,6 +275,29 @@ public abstract interface class org/jetbrains/compose/swing/components/layout/Sp
 public abstract interface class org/jetbrains/compose/swing/components/layout/TabbedPaneScope {
 	public abstract fun tab (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/lang/String;Ljavax/swing/Icon;Ljava/lang/String;ZILjava/lang/Integer;Ljava/awt/Color;Ljava/awt/Color;Lkotlin/jvm/functions/Function2;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static synthetic fun tab$default (Lorg/jetbrains/compose/swing/components/layout/TabbedPaneScope;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/lang/String;Ljavax/swing/Icon;Ljava/lang/String;ZILjava/lang/Integer;Ljava/awt/Color;Ljava/awt/Color;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+}
+
+public final class org/jetbrains/compose/swing/components/menu/ComposableSingletons$MenuKt {
+	public static final field INSTANCE Lorg/jetbrains/compose/swing/components/menu/ComposableSingletons$MenuKt;
+	public fun <init> ()V
+	public final fun getLambda$-1876829487$swing_ui ()Lkotlin/jvm/functions/Function2;
+}
+
+public final class org/jetbrains/compose/swing/components/menu/MenuComponentsKt {
+	public static final fun CheckBoxMenuItem (Ljava/lang/String;ZLjava/awt/event/ActionListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljavax/swing/KeyStroke;Landroidx/compose/runtime/Composer;II)V
+	public static final fun CheckBoxMenuItem (Ljava/lang/String;ZLkotlin/jvm/functions/Function1;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljavax/swing/KeyStroke;Landroidx/compose/runtime/Composer;II)V
+	public static final fun Menu (Ljava/lang/String;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;II)V
+	public static final fun MenuItem (Ljava/lang/String;Ljava/awt/event/ActionListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljavax/swing/KeyStroke;Landroidx/compose/runtime/Composer;II)V
+	public static final fun MenuItem (Ljava/lang/String;Lkotlin/jvm/functions/Function0;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljavax/swing/KeyStroke;Landroidx/compose/runtime/Composer;II)V
+	public static final fun MenuSeparator (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Landroidx/compose/runtime/Composer;II)V
+	public static final fun RadioButtonMenuGroup (ILkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;I)V
+	public static final fun RadioButtonMenuItem (Ljava/lang/String;ZLjava/awt/event/ActionListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljavax/swing/KeyStroke;Landroidx/compose/runtime/Composer;II)V
+	public static final fun RadioButtonMenuItem (Ljava/lang/String;ZLkotlin/jvm/functions/Function1;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljavax/swing/KeyStroke;Landroidx/compose/runtime/Composer;II)V
+}
+
+public abstract interface class org/jetbrains/compose/swing/components/menu/RadioButtonMenuGroupScope {
+	public abstract fun option (Ljava/lang/String;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljavax/swing/KeyStroke;)V
+	public static synthetic fun option$default (Lorg/jetbrains/compose/swing/components/menu/RadioButtonMenuGroupScope;Ljava/lang/String;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljavax/swing/KeyStroke;ILjava/lang/Object;)V
 }
 
 public abstract interface class org/jetbrains/compose/swing/components/selection/ListItemScope {

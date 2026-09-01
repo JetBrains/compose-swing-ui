@@ -5,8 +5,8 @@ import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.components.Menu
-import org.jetbrains.compose.swing.components.MenuItem
+import org.jetbrains.compose.swing.components.menu.Menu
+import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.components.selection.ListBox
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.runSwingTest

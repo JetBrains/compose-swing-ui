@@ -2,6 +2,7 @@ package org.jetbrains.compose.swing.components
 
 import androidx.compose.runtime.DisposableEffect
 import org.jetbrains.compose.swing.captureParentContext
+import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.publishClose
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JPopupMenu

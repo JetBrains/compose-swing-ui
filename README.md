@@ -124,9 +124,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.components.Menu
-import org.jetbrains.compose.swing.components.MenuItem
-import org.jetbrains.compose.swing.components.MenuSeparator
+import org.jetbrains.compose.swing.components.menu.Menu
+import org.jetbrains.compose.swing.components.menu.MenuItem
+import org.jetbrains.compose.swing.components.menu.MenuSeparator
 import org.jetbrains.compose.swing.window.MenuBar
 import org.jetbrains.compose.swing.window.Window
 import org.jetbrains.compose.swing.window.application

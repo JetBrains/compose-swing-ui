@@ -6,7 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.ExclusiveWindowSystem
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.components.MenuItem
+import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.onWindowWithTitle

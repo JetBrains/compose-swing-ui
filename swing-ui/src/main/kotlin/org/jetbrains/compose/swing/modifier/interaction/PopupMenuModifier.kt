@@ -8,6 +8,7 @@ import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.rememberCompositionContext
 import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import org.jetbrains.compose.swing.annotations.SwingMenuComposable
+import org.jetbrains.compose.swing.components.menu.MenuPopup
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import java.awt.Component
 import javax.swing.JPopupMenu

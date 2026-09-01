@@ -26,8 +26,8 @@ class MenuBarScopeCompilationTest {
         val result =
             compileSnippet(
                 """
-                import org.jetbrains.compose.swing.components.Menu
-                import org.jetbrains.compose.swing.components.MenuItem
+                import org.jetbrains.compose.swing.components.menu.Menu
+                import org.jetbrains.compose.swing.components.menu.MenuItem
                 import org.jetbrains.compose.swing.window.MenuBar
 
                 @androidx.compose.runtime.Composable
@@ -55,8 +55,8 @@ class MenuBarScopeCompilationTest {
         val result =
             compileSnippet(
                 """
-                import org.jetbrains.compose.swing.components.Menu
-                import org.jetbrains.compose.swing.components.MenuItem
+                import org.jetbrains.compose.swing.components.menu.Menu
+                import org.jetbrains.compose.swing.components.menu.MenuItem
                 import org.jetbrains.compose.swing.window.Dialog
                 import org.jetbrains.compose.swing.window.MenuBar
                 import org.jetbrains.compose.swing.window.Window

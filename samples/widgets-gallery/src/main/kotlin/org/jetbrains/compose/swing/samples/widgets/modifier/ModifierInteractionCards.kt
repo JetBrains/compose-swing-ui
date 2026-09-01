@@ -6,12 +6,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.components.MenuItem
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.button.RadioButton
 import org.jetbrains.compose.swing.components.layout.ColumnScope
 import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.accessibility.displayedMnemonicIndex
