@@ -42,6 +42,11 @@ class SpinnerEditorBehaviorTest {
                 "a number model is shown through the spinner's own number editor",
             )
         assertEquals(defaultNumberPattern(), editor.format.toPattern(), "the pattern is the spinner's own")
+        assertEquals(
+            (JSpinner(SpinnerNumberModel()).editor as JSpinner.NumberEditor).textField.horizontalAlignment,
+            editor.textField.horizontalAlignment,
+            "the field is aligned the way the look and feel aligns a spinner's own",
+        )
     }
 
     @Test
@@ -258,6 +263,26 @@ class SpinnerEditorBehaviorTest {
         awaitIdle()
 
         assertIs<JSpinner.DateEditor>(spinner.editor, "swapping in a date model rebuilds the editor around it")
+    }
+
+    @Test
+    fun swappingTheModelAfterClearingAFormatRebuildsTheEditor() = runComposeSwingTest {
+        val number = SpinnerNumberModel(5, 0, 10, 1)
+        val dates = SpinnerDateModel()
+        var format by mutableStateOf<String?>("#0.00")
+        var numeric by mutableStateOf(true)
+        setContent { Spinner(if (numeric) number else dates, changeListener = ChangeListener {}, format = format) }
+        awaitIdle()
+
+        val spinner = onNodeOfType<JSpinner>().fetch()
+        format = null
+        awaitIdle()
+        assertIs<JSpinner.NumberEditor>(spinner.editor, "clearing the pattern puts the spinner's own editor back")
+
+        numeric = false
+        awaitIdle()
+
+        assertIs<JSpinner.DateEditor>(spinner.editor, "swapping in a date model still rebuilds the editor around it")
     }
 
     @Test

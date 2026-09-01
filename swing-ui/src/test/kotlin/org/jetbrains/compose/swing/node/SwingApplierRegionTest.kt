@@ -461,6 +461,33 @@ class SwingApplierRegionTest {
     }
 
     @Test
+    fun aRegionHoldingOneChildIsInstalledAtIndexZeroWhicheverSiblingsFillOtherRegions() = onEdt {
+        val applier = applierFor(JPanel())
+        val pane = JSplitPane(JSplitPane.HORIZONTAL_SPLIT, false, null, null)
+        val host = splitHost(pane)
+        val indices = mutableListOf<Int>()
+        val recording =
+            SlotAttachment { container, component, index ->
+                indices += index
+                SecondSideAttachment.install(container, component, index)
+            }
+
+        applier.onBeginChanges()
+        applier.onContainer(applier.root) { insertChild(0, host) }
+        applier.onContainer(host) {
+            insertChild(0, slotHolder(namedButton("first"), FIRST_SIDE_CALL, FirstSideAttachment))
+            insertChild(1, slotHolder(namedButton("second"), SECOND_SIDE_CALL, recording))
+        }
+        applier.onEndChanges()
+
+        assertEquals(
+            listOf(0),
+            indices,
+            "a region holding one child is installed at index 0, whatever siblings fill the host's other regions",
+        )
+    }
+
+    @Test
     fun aRelocatedChildAddedByIndexIsRefusedByAHostThatHoldsItsChildrenInRegions() = onEdt {
         // The host reaches every child through a setter of its own, so one that ends the pass naming no
         // region would be held by the host and laid out by nobody, whichever way it arrived.

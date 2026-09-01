@@ -51,8 +51,7 @@ public sealed interface LayeredPaneScope {
  * own chain, so the scope carries nothing of its own and one instance serves every pane.
  */
 internal object LayeredPaneScopeImpl : LayeredPaneScope {
-    override fun SwingModifier.layer(layer: Int): SwingModifier =
-        this then layerDepth(layer) then layoutConstraint(layer)
+    override fun SwingModifier.layer(layer: Int): SwingModifier = this.then(layerDepth(layer)).layoutConstraint(layer)
 }
 
 /**

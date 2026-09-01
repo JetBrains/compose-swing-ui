@@ -94,7 +94,7 @@ internal class MenuApplier(
             to,
             count,
             detach = { container.remove(it.component) },
-            place = { holder, position -> container.add(holder.component, position) },
+            place = { holder, index -> container.add(holder.component, parent.attachedSiblingsBefore(index)) },
         )
         batch.markChanged(container)
     }

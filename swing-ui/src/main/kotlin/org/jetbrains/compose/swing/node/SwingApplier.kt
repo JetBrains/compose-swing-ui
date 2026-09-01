@@ -3,10 +3,12 @@ package org.jetbrains.compose.swing.node
 import androidx.compose.runtime.AbstractApplier
 import org.jetbrains.compose.swing.core.trace
 import org.jetbrains.compose.swing.util.DeferredAction
+import org.jetbrains.compose.swing.util.fastForEach
 import org.jetbrains.compose.swing.util.fastForEachIndexed
 import java.awt.Container
 import java.util.Collections
 import java.util.IdentityHashMap
+import javax.swing.JLayeredPane
 import javax.swing.RootPaneContainer
 
 /**
@@ -115,9 +117,6 @@ internal class SwingApplier internal constructor(
             // here we only perform the Swing attachment.
             val attachment = regions.attachmentOf(parent, instance)
             parent.checkPlacementOf(container, instance, fillsRegion = attachment != null)
-            // The place the host is handed is the one among the children already attached to it, which is the
-            // composition index unless the pass has taken a relocated sibling in and not attached it yet.
-            val position = parent.attachedSiblingsBefore(index)
             if (attachment != null) {
                 // This node fills a named region of `container` reached through a dedicated Swing setter
                 // (e.g. a JScrollPane region via setViewportView/setRowHeaderView/...), not the generic
@@ -126,27 +125,14 @@ internal class SwingApplier internal constructor(
                 // composition-ordered child list so remove/move can address it by index and release the
                 // region. Mark the container dirty so the new content gets laid out, and the host for the
                 // one-child-per-region check this pass ends with.
-                instance.installedThrough(attachment, attachment.install(container, instance.component, position))
+                val slotIndex = parent.slotIndexOf(index)
+                instance.installedThrough(attachment, attachment.install(container, instance.component, slotIndex))
                 parent.children.add(index, instance)
                 if (parent.childPlacement is ChildPlacement.Slots) changes.recordSlotFilled(parent)
                 batch.markChanged(container)
                 return
             }
-            val constraint = instance.constraint
-            // Always hand the host the position the child takes, whether or not it carries a layout
-            // constraint. `Container.add(Component, Object)` IGNORES the index and appends, while a
-            // constrained layout (e.g. BorderLayout) stores the component by its region - so the 2-arg form
-            // would tell a constrained child's host nothing about where the composition puts it, and a plain
-            // container would then paint the children in the order they happened to arrive. The 3-arg
-            // `add(Component, Object, int)` states the position AND applies the constraint. What the host
-            // makes of that position is its own: a plain container holds its children in exactly the order
-            // given, a `JLayeredPane` reads it as a position within the depth the constraint names.
-            val childHost = container.childHost
-            if (constraint != null) {
-                childHost.add(instance.component, constraint, position)
-            } else {
-                childHost.add(instance.component, position)
-            }
+            parent.addToHost(container, instance, index)
             parent.children.add(index, instance)
             batch.markChanged(container)
         }
@@ -205,17 +191,7 @@ internal class SwingApplier internal constructor(
                 to,
                 count,
                 detach = { childHost.remove(it.component) },
-                place = { holder, position ->
-                    // The constraint is read off the holder now rather than remembered at detach, so a
-                    // child whose constraint changed since keeps the current one, and the 3-arg add
-                    // restores the layout region it fills.
-                    val constraint = holder.constraint
-                    if (constraint != null) {
-                        childHost.add(holder.component, constraint, position)
-                    } else {
-                        childHost.add(holder.component, position)
-                    }
-                },
+                place = { holder, index -> parent.addToHost(container, holder, index) },
             )
             batch.markChanged(container)
         }
@@ -334,23 +310,15 @@ private class ChildRegions(
         val container = component as? Container ?: return
         val attachment = attachmentOf(this, child)
         checkPlacementOf(container, child, fillsRegion = attachment != null)
-        // The position handed over is the one among the children already attached, so a pass attaching
-        // several of them lands the run contiguously and in composition order. The child counts as one of
-        // them from here on; the check above is made while it still stands apart, since a child that is
-        // not attached answers for no sibling's placement.
-        val position = attachedSiblingsBefore(index)
+        // The child counts as attached from here on, so a pass attaching several of them lands the run
+        // contiguously and in composition order; the check above is made while it still stands apart, since
+        // a child that is not attached answers for no sibling's placement.
         child.awaitingAttachment = false
         if (attachment != null) {
-            child.installedThrough(attachment, attachment.install(container, child.component, position))
+            child.installedThrough(attachment, attachment.install(container, child.component, slotIndexOf(index)))
             if (childPlacement is ChildPlacement.Slots) changes.recordSlotFilled(this)
         } else {
-            val childHost = container.childHost
-            val constraint = child.constraint
-            if (constraint != null) {
-                childHost.add(child.component, constraint, position)
-            } else {
-                childHost.add(child.component, position)
-            }
+            addToHost(container, child, index)
         }
         batch.markChanged(container)
     }
@@ -384,7 +352,8 @@ private class ChildRegions(
                 val attachment = attachmentOf(this, child)
                 checkChildKind(container, child, fillsRegion = attachment != null)
                 if (attachment != null) {
-                    child.installedThrough(attachment, attachment.install(container, child.component, index))
+                    val slotIndex = slotIndexOf(index)
+                    child.installedThrough(attachment, attachment.install(container, child.component, slotIndex))
                     if (childPlacement is ChildPlacement.Slots) changes.recordSlotFilled(this)
                 }
             }
@@ -421,11 +390,12 @@ private class ChildRegions(
             to,
             count,
             detach = { it.releaseInstalledSlot() },
-            place = { child, position ->
+            place = { child, index ->
                 val attachment = attachmentOf(host, child)
                 checkChildKind(container, child, fillsRegion = attachment != null)
                 if (attachment != null) {
-                    child.installedThrough(attachment, attachment.install(container, child.component, position))
+                    val slotIndex = slotIndexOf(index)
+                    child.installedThrough(attachment, attachment.install(container, child.component, slotIndex))
                 }
             },
         )
@@ -579,6 +549,64 @@ private fun SwingNodeHolder<*>.containerFor(action: String): Container =
  */
 internal val Container.childHost: Container
     get() = (this as? RootPaneContainer)?.contentPane ?: this
+
+/**
+ * Adds [child], composed at [index], to [container]'s child host at the place the host reads a position at.
+ *
+ * The host is always handed a position, whether or not the child carries a layout constraint:
+ * `Container.add(Component, Object)` ignores the index and appends, while a constrained layout such as
+ * `BorderLayout` stores the component by its region, so the two-argument form would tell a constrained
+ * child's host nothing about where the composition puts it. What the host makes of the position is its
+ * own. A plain container holds its children in exactly the order given, so it is handed the place among
+ * the children already attached. A `JLayeredPane` reads the position as one within the depth the
+ * constraint names, so it is handed the place among the attached siblings on that depth - a count over
+ * every sibling would put the child one place lower within its depth for each sibling on another depth
+ * ahead of it, or at the depth's bottom once the count ran past its end.
+ */
+private fun SwingNodeHolder<*>.addToHost(
+    container: Container,
+    child: SwingNodeHolder<*>,
+    index: Int,
+) {
+    val childHost = container.childHost
+    val position =
+        if (childHost is JLayeredPane) {
+            attachedSiblingsOnDepthBefore(childHost, child, index)
+        } else {
+            attachedSiblingsBefore(index)
+        }
+    val constraint = child.constraint
+    if (constraint != null) {
+        childHost.add(child.component, constraint, position)
+    } else {
+        childHost.add(child.component, position)
+    }
+}
+
+/**
+ * The place within its depth on [pane] that [child], composed at [index], takes: the attached siblings
+ * ahead of it that sit on the same depth. A child's depth is the constraint its chain declares, or else
+ * the layer `JLayeredPane.getLayer` reads for it.
+ */
+private fun SwingNodeHolder<*>.attachedSiblingsOnDepthBefore(
+    pane: JLayeredPane,
+    child: SwingNodeHolder<*>,
+    index: Int,
+): Int {
+    val depth = child.depthOn(pane)
+    var attached = 0
+    children.fastForEach(0 until index) { if (it.attachedToHost && it.depthOn(pane) == depth) attached++ }
+    return attached
+}
+
+private fun SwingNodeHolder<*>.depthOn(pane: JLayeredPane): Int = constraint as? Int ?: pane.getLayer(component)
+
+/**
+ * The index a region's attachment is handed for the child composed at [index]: `0` where the host's regions
+ * hold one child each, and the place among the attached siblings where the host holds many in order.
+ */
+private fun SwingNodeHolder<*>.slotIndexOf(index: Int): Int =
+    if (childPlacement is ChildPlacement.Slots) 0 else attachedSiblingsBefore(index)
 
 /** Whether a node declaring this placement holds its children in named regions rather than by index. */
 internal val ChildPlacement.holdsRegions: Boolean

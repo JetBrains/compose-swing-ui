@@ -9,10 +9,13 @@ import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.toolTip
 import org.jetbrains.compose.swing.modifier.layout.bounds
+import org.jetbrains.compose.swing.modifier.listener.actionListener
 import org.jetbrains.compose.swing.test.interaction.onChildren
+import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Rectangle
+import java.awt.event.ActionListener
 import javax.swing.JButton
 import javax.swing.JComponent
 import javax.swing.JLabel
@@ -151,6 +154,32 @@ class LayeredPaneBehaviorTest {
             onNodeOfType<JLayeredPane>().fetch().getComponentCountInLayer(JLayeredPane.PALETTE_LAYER),
             "both children declaring one depth stand on that layer",
         )
+    }
+
+    @Test
+    fun aDepthLeavesTheChainItWasDeclaredOnCarriedOnce() = runComposeSwingTest {
+        var reports = 0
+        val listener = ActionListener { reports++ }
+        setContent {
+            LayeredPane {
+                Button(
+                    text = "once",
+                    onClick = {},
+                    modifier =
+                        SwingModifier
+                            .actionListener(listener)
+                            .layer(JLayeredPane.PALETTE_LAYER)
+                            .bounds(0, 0, 80, 24),
+                )
+            }
+        }
+
+        onNodeOfType<JButton>().performClick()
+
+        // A depth chains onto the chain it is given. Joining it with `then` to a factory that takes
+        // that chain implicitly puts everything declared before the depth into the chain twice, and
+        // this listener, installed once per appearance, then reports every click twice.
+        assertEquals(1, reports, "a click should reach a listener declared before the depth once")
     }
 
     @Test
@@ -365,5 +394,34 @@ class LayeredPaneBehaviorTest {
 
         onNodeOfType<JLayeredPane>().assertDoesNotExist()
         onNodeWithText("child").assertDoesNotExist()
+    }
+
+    @Test
+    fun aChildALayerGainsBetweenTwoSiblingsStacksBetweenThemWhateverOtherLayersHold() = runComposeSwingTest {
+        var showMiddle by mutableStateOf(false)
+        setContent {
+            LayeredPane {
+                Label(text = "tool", modifier = SwingModifier.layer(JLayeredPane.PALETTE_LAYER))
+                Label(text = "back", modifier = SwingModifier.layer(JLayeredPane.DEFAULT_LAYER))
+                if (showMiddle) {
+                    Label(text = "middle", modifier = SwingModifier.layer(JLayeredPane.DEFAULT_LAYER))
+                }
+                Label(text = "front", modifier = SwingModifier.layer(JLayeredPane.DEFAULT_LAYER))
+            }
+        }
+
+        showMiddle = true
+        awaitIdle()
+
+        // The pane reads a position as one within the child's own layer, so a sibling on another layer
+        // must not count toward it - counted in, "middle" lands past the end of its layer, below "front".
+        val pane = onNodeOfType<JLayeredPane>().fetch()
+        val back = pane.getIndexOf(onNodeWithText("back").fetch<JComponent>())
+        val middle = pane.getIndexOf(onNodeWithText("middle").fetch<JComponent>())
+        val front = pane.getIndexOf(onNodeWithText("front").fetch<JComponent>())
+        assertTrue(
+            back < middle && middle < front,
+            "a child the layer gains between two siblings stacks between them: back=$back middle=$middle front=$front",
+        )
     }
 }

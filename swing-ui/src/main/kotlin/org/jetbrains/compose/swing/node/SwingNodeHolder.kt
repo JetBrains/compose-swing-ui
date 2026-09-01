@@ -422,8 +422,8 @@ internal inline fun SwingNodeHolder<*>.removeChildRun(
 
 /**
  * Moves the run of [count] children at [from] to [to] in this host's composition-order child list, hands
- * each moved child to [detach], and then hands back the ones attached to this host with the position
- * each of them takes among its attached siblings.
+ * each moved child to [detach], and then hands back the ones attached to this host with the index each
+ * of them stands at, for the caller to turn into the place its host reads.
  *
  * A child the pass has yet to attach is passed over: it stands nowhere to be placed, and takes the
  * position the list gives it once the pass has settled.
@@ -433,14 +433,14 @@ internal inline fun SwingNodeHolder<*>.moveChildRun(
     to: Int,
     count: Int,
     crossinline detach: (child: SwingNodeHolder<*>) -> Unit,
-    crossinline place: (child: SwingNodeHolder<*>, position: Int) -> Unit,
+    crossinline place: (child: SwingNodeHolder<*>, index: Int) -> Unit,
 ) {
     val target = moveChildRun(from, to, count)
     // The whole run leaves its host before any of it goes back: a place addresses the position among the
     // children that stay, and a run still standing where it was would push each of them one along.
     children.fastForEach(target until target + count) { detach(it) }
-    children.fastForEachIndexed(target until target + count) { position, child ->
-        if (child.attachedToHost) place(child, attachedSiblingsBefore(position))
+    children.fastForEachIndexed(target until target + count) { index, child ->
+        if (child.attachedToHost) place(child, index)
     }
 }
 

@@ -1,10 +1,20 @@
 package org.jetbrains.compose.swing.core
 
 import androidx.compose.runtime.Recomposer
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.DisposableHandle
 import kotlinx.coroutines.swing.Swing
+import kotlinx.coroutines.yield
+import org.jetbrains.compose.swing.deliverEvent
 import org.jetbrains.compose.swing.runSwingTest
+import org.jetbrains.compose.swing.setContent
 import java.awt.AWTEvent
+import java.awt.Component
+import java.awt.event.InputEvent
+import java.awt.event.MouseEvent
 import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -90,4 +100,46 @@ class EventDispatchHookTest {
             recomposer.dispose()
         }
     }
+
+    @Test
+    fun aDragStepQueuesASettlementAndAPlainMoveDoesNot() = runSwingTest {
+        val composition = JPanel()
+        val recomposer = SwingRecomposer.create(composition)
+        var mounted: DisposableHandle? = null
+        try {
+            var declared by mutableStateOf("mounted")
+            var composedWith = ""
+            mounted = composition.setContent(parent = recomposer.compositionContext) { composedWith = declared }
+
+            declared = "moved"
+            composition.deliverEvent(composition.mouseEvent(MouseEvent.MOUSE_MOVED, 0))
+            yield()
+
+            assertEquals(
+                "mounted",
+                composedWith,
+                "a plain move changes no declared value, so nothing may be queued for it: a write it " +
+                    "coincides with settles on the pass that follows, not from a settlement of its own",
+            )
+            awaitUntil("the write the move coincided with has settled on its own pass") { composedWith == "moved" }
+
+            declared = "dragged"
+            composition.deliverEvent(composition.mouseEvent(MouseEvent.MOUSE_DRAGGED, InputEvent.BUTTON1_DOWN_MASK))
+            yield()
+
+            assertEquals(
+                "dragged",
+                composedWith,
+                "a drag step is settled from the settlement queued behind it, ahead of the repaint it provokes",
+            )
+        } finally {
+            mounted?.dispose()
+            recomposer.dispose()
+        }
+    }
+
+    private fun Component.mouseEvent(
+        id: Int,
+        modifiersEx: Int,
+    ): MouseEvent = MouseEvent(this, id, System.currentTimeMillis(), modifiersEx, 1, 1, 0, false, MouseEvent.NOBUTTON)
 }

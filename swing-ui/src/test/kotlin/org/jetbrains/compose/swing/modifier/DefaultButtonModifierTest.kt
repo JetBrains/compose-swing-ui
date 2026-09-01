@@ -20,6 +20,7 @@ import org.jetbrains.compose.swing.setContent
 import java.awt.Component
 import java.awt.Container
 import javax.swing.JButton
+import javax.swing.JPanel
 import javax.swing.JRootPane
 import javax.swing.SwingUtilities
 import kotlin.test.AfterTest
@@ -115,13 +116,39 @@ class DefaultButtonModifierTest {
         assertNull(onEdt { rootPane.defaultButton }, "removing the modifier should release the root pane default")
     }
 
+    @Test
+    fun defaultButtonFollowsTheButtonToAnotherRootPane() {
+        val host = onEdt { JPanel().also(root::add) }
+        onEdt {
+            handle =
+                host.setContent(parent = recomposer) {
+                    Button("OK", onClick = { }, modifier = SwingModifier.defaultButton())
+                }
+        }
+        waitForIdle()
+        val button = theButton()
+        assertSame(button, onEdt { rootPane.defaultButton }, "the button should start as the root pane default")
+
+        val otherRootPane = onEdt { JRootPane() }
+        onEdt {
+            root.remove(host)
+            otherRootPane.contentPane.add(host)
+        }
+        assertSame(
+            button,
+            onEdt { otherRootPane.defaultButton },
+            "the default should follow the button to the root pane it moved to",
+        )
+        assertNull(onEdt { rootPane.defaultButton }, "the root pane the button left should hold no default")
+    }
+
     private fun waitForIdle() {
         var iterations = 0
         while (true) {
             onEdt { Snapshot.sendApplyNotifications() }
             frameTimeNanos += FRAME_INTERVAL_NANOS
             clock.sendFrame(frameTimeNanos)
-            // invokeAndWait drains the EDT queue, running the modifier's deferred root-pane resolution.
+            // The recomposer applies on Dispatchers.Swing; draining the EDT queue lets that apply land.
             SwingUtilities.invokeAndWait { }
             if (!recomposer.hasPendingWork && !Snapshot.current.hasPendingChanges()) return
             if (++iterations >= MAX_IDLE_FRAMES) {

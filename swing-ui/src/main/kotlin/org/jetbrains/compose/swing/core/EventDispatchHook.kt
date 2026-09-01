@@ -6,6 +6,7 @@ import java.awt.AWTEvent
 import java.awt.Component
 import java.awt.Toolkit
 import java.awt.event.AWTEventListener
+import java.awt.event.MouseEvent
 import javax.swing.SwingUtilities
 
 /**
@@ -31,7 +32,8 @@ import javax.swing.SwingUtilities
  * `JFormattedTextField.processFocusEvent` commits the text it was edited with. A drag is included even
  * though it is a continuous gesture, because a drag step the caller does not adopt is painted like any
  * other change, and a step costs no pass the recomposer was not already going to run - only one queued
- * settlement, and only where one is not queued already.
+ * settlement, and only where one is not queued already. A plain move, which the same mask delivers,
+ * changes no declared value and queues nothing.
  *
  * A temporary focus loss - what a window deactivation raises - commits nothing, so the settlement queued
  * for it finds nothing to settle.
@@ -102,7 +104,8 @@ internal object EventDispatchHook : AWTEventListener {
         // The toolkit the component reports is the one it was subscribed under, so the event reaches the
         // clocks standing behind it and no others. A focus event names the component losing or gaining
         // focus, like every other event here.
-        val toolkit = (event.source as? Component)?.toolkit ?: return
+        val toolkit = (event.source as? Component)?.toolkit
+        if (toolkit == null || event.id == MouseEvent.MOUSE_MOVED) return
         val settling = subscribers[toolkit].orEmpty().filterNot { it.settlementOwedForEvent }
         if (settling.isEmpty()) return
         settling.forEach { it.settlementOwedForEvent = true }
@@ -117,7 +120,7 @@ internal object EventDispatchHook : AWTEventListener {
         }
     }
 
-    /** The events a settlement is queued behind: the ones a widget changes its declared value on. */
+    /** The events a settlement is queued from. */
     private const val SETTLED_EVENTS: Long =
         AWTEvent.KEY_EVENT_MASK or
             AWTEvent.MOUSE_EVENT_MASK or

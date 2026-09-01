@@ -322,7 +322,7 @@ private inline fun SpinnerNode(
             // where the format stands. A composed editor is not derived from any of them and is
             // installed by the editor composition instead, so it withholds the write here.
             set(EditorDeclaration(model, format, editor != null)) { declaration ->
-                if (!declaration.composed) this.editor = (this as SpinnerComponent).declaredEditor(declaration)
+                if (!declaration.composed) (this as SpinnerComponent).showDeclaredEditor(declaration)
             }
             applyModifier(if (editorPanel != null) modifier.spinnerEditor(editorPanel) else modifier)
             this.updateBlock()
@@ -533,17 +533,23 @@ private data class EditorDeclaration(
 )
 
 /**
- * The editor [declaration] names for this spinner: its own built around a declared pattern, or - with no
+ * Shows the editor [declaration] names: this spinner's own built around a declared pattern, or - with no
  * pattern - the one it builds for its model unaided. A pattern is only ever declared over a number or a
  * date model, whose standard editors are the two that read one.
+ *
+ * A declaration naming no pattern over a spinner already showing its own editor writes nothing: handing
+ * the spinner an equivalent editor is a visible change, since only the editor `BasicSpinnerUI` installs
+ * for itself is given the look and feel's editor alignment.
  */
-private fun SpinnerComponent.declaredEditor(declaration: EditorDeclaration): JComponent {
+private fun SpinnerComponent.showDeclaredEditor(declaration: EditorDeclaration) {
     val format = declaration.format
-    return when {
-        format == null -> defaultEditor()
-        declaration.model is SpinnerDateModel -> JSpinner.DateEditor(this, format)
-        else -> JSpinner.NumberEditor(this, format)
-    }
+    if (format == null && showsOwnEditor) return
+    editor =
+        when {
+            format == null -> defaultEditor()
+            declaration.model is SpinnerDateModel -> JSpinner.DateEditor(this, format)
+            else -> JSpinner.NumberEditor(this, format)
+        }
 }
 
 /**
@@ -593,15 +599,33 @@ private class SpinnerEditorElement(
 
 /**
  * A `JSpinner` that hands out the editor it builds for its own model, so a spinner that has been shown
- * through an editor of someone else's can be given that one back.
+ * through an editor of someone else's can be given that one back, and that reports whether it is showing
+ * that editor still.
+ *
+ * A spinner is not indifferent to being handed the editor it already has: `BasicSpinnerUI` applies the
+ * look and feel's editor alignment to the editor it installs for itself, and gives one arriving through
+ * `setEditor` no such pass. Replacing an untouched editor with an equivalent one therefore leaves the
+ * field aligned as its own constructor left it rather than as the look and feel wants it.
  */
 private class SpinnerComponent(
     model: SpinnerModel,
 ) : JSpinner(model) {
+    // Assigned by createEditor below, which JSpinner's own constructor calls before anything can read
+    // these.
+    private lateinit var ownEditor: JComponent
+    private lateinit var ownEditorModel: SpinnerModel
+
+    /** Whether the spinner is showing the editor it built for the model it now holds. */
+    val showsOwnEditor: Boolean get() = editor === ownEditor && ownEditorModel === model
+
     fun defaultEditor(): JComponent = createEditor(this.model)
 
     // JSpinner falls back to a read-only field for a model it does not recognize, which a
     // ListSpinnerModel is: it stands in for javax.swing.SpinnerListModel without being one.
     override fun createEditor(model: SpinnerModel): JComponent =
-        if (model is ListSpinnerModel<*>) ItemsEditor(this) else super.createEditor(model)
+        (if (model is ListSpinnerModel<*>) ItemsEditor(this) else super.createEditor(model))
+            .also {
+                ownEditor = it
+                ownEditorModel = model
+            }
 }

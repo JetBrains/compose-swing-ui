@@ -209,13 +209,16 @@ internal fun CompositionOwnedWindowHost(
  */
 private class ObservedPeerApply : RememberObserver {
     /**
-     * Marshals a change onto the composition's Swing dispatcher. Unlike an ordinary write - guaranteed
-     * to notify on the EDT, see [org.jetbrains.compose.swing.core.GlobalSnapshotManager] - a write made
-     * through an explicit snapshot notifies on whatever thread applied it, and sizing, packing and
-     * placing a window are the event dispatch thread's alone: this marshals every notification rather
-     * than trust that the state read here was written the ordinary way.
+     * Runs a change's notification on the event dispatch thread. An ordinary write notifies there
+     * already (see [org.jetbrains.compose.swing.core.GlobalSnapshotManager]), and the declaration is
+     * applied to the peer inside that same notification. Only a write applied through an explicit
+     * snapshot can notify off the event dispatch thread, and a notification arriving there is marshaled
+     * onto it, because sizing, packing and placing a window are the event dispatch thread's alone.
      */
-    private val observer = SnapshotStateObserver { notify -> SwingUtilities.invokeLater(notify) }
+    private val observer =
+        SnapshotStateObserver { notify ->
+            if (SwingUtilities.isEventDispatchThread()) notify() else SwingUtilities.invokeLater(notify)
+        }
 
     /**
      * The single callback instance the observer is handed: it keeps one scope map for the apply rather
@@ -235,8 +238,10 @@ private class ObservedPeerApply : RememberObserver {
     }
 
     private fun reapply() {
-        // A change notified before this peer left the composition is delivered after it, and applying
-        // to a released peer would realize a fresh one carrying no content and no listeners.
+        // A change notified off the event dispatch thread is marshaled onto a later turn, and this peer
+        // can leave the composition before that turn: releasing drops the observed reads but not a
+        // scope already invalidated, and applying to a released peer would realize a fresh one
+        // carrying no content and no listeners.
         if (released) return
         declaration?.let(::observe)
     }

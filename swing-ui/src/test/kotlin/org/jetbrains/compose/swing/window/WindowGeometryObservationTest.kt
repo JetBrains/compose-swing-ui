@@ -1,6 +1,7 @@
 package org.jetbrains.compose.swing.window
 
 import androidx.compose.runtime.Recomposer
+import androidx.compose.runtime.snapshots.Snapshot
 import org.jetbrains.compose.swing.components.layout.FlowPanel
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Assumptions.assumeFalse
@@ -71,6 +72,30 @@ class WindowGeometryObservationTest {
             REDECLARED_PLACEMENT,
             frame.location,
             "a declared position must reach the window without a frame of the composition",
+        )
+    }
+
+    @Test
+    fun aDeclaredWindowPositionIsAppliedInsideTheNotificationOfItsWrite() = runComposeSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        val state = WindowState(position = WindowPosition.Absolute(140, 90), size = DECLARED_SIZE)
+        lateinit var frame: JFrame
+        setContent {
+            Window(onCloseRequest = {}, state = state, title = "geometry-observed-window-inline", visible = false) {
+                frame = LocalWindow.current as JFrame
+                FlowPanel()
+            }
+        }
+
+        // The test body runs on the event dispatch thread, so the write, the notification and the
+        // assertion below share one turn of the event queue: nothing suspends between them.
+        state.position = WindowPosition.Absolute(REDECLARED_PLACEMENT.x, REDECLARED_PLACEMENT.y)
+        Snapshot.sendApplyNotifications()
+
+        assertEquals(
+            REDECLARED_PLACEMENT,
+            frame.location,
+            "a declared position must reach the window inside the notification of its write",
         )
     }
 
