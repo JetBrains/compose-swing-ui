@@ -1,4 +1,4 @@
-package org.jetbrains.compose.swing.modifier.interaction
+package org.jetbrains.compose.swing.components.menu
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -7,10 +7,6 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.components.menu.CheckBoxMenuItem
-import org.jetbrains.compose.swing.components.menu.Menu
-import org.jetbrains.compose.swing.components.menu.MenuItem
-import org.jetbrains.compose.swing.components.menu.MenuSeparator
 import org.jetbrains.compose.swing.menuItemTexts
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.publishClose
@@ -33,10 +29,10 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * Behavioral tests for the `popupMenu` modifier - the menu an application opens itself, as opposed to
- * the one the platform's popup gesture opens. They assert what an observer of the live Swing components
- * sees: a [JPopupMenu] whose items mirror the composed menu tree, item callbacks that run, the anchor
- * the menu is presented at, and a menu composition released when the menu closes.
+ * Behavioral tests for [PopupMenu] - the menu an application opens itself, as opposed to the one the
+ * platform's popup gesture opens. They assert what an observer of the live Swing components sees: a
+ * [JPopupMenu] whose items mirror the composed menu tree, item callbacks that run, the anchor the menu
+ * is presented at, and a menu composition released when the menu closes.
  *
  * A menu is anchored to its invoker, so it opens only once the invoker is on screen: the content is
  * hosted in a real window, which needs a display to realize. The menu is then presented through the
@@ -45,26 +41,25 @@ import kotlin.test.assertTrue
  * the user. A close is driven the way the popup itself publishes one, through its `PopupMenuListener`
  * contract, so the user's dismissal travels its production path.
  */
-class PopupMenuModifierTest {
+class PopupMenuTest {
     @Test
     fun anExpandedMenuComposesTheDeclaredItems() = runComposeSwingTest {
         var captured: JPopupMenu? = null
         var expanded by mutableStateOf(false)
         setWindowContent {
-            Label(
-                "target",
-                modifier =
-                    SwingModifier.popupMenu(
-                        expanded = expanded,
-                        onDismiss = { expanded = false },
-                        display = { popup, _, _, _ -> captured = popup },
-                    ) {
-                        MenuItem("Cut", onClick = { })
-                        MenuItem("Copy", onClick = { })
-                        MenuSeparator()
-                        Menu("More") { MenuItem("Nested", onClick = { }) }
-                    },
-            )
+            val anchor = rememberPopupAnchor()
+            Label("target", modifier = SwingModifier.popupAnchor(anchor))
+            PopupMenu(
+                anchor,
+                expanded = expanded,
+                display = { popup, _, _, _ -> captured = popup },
+                onDismiss = { expanded = false },
+            ) {
+                MenuItem("Cut", onClick = { })
+                MenuItem("Copy", onClick = { })
+                MenuSeparator()
+                Menu("More") { MenuItem("Nested", onClick = { }) }
+            }
         }
         assertNull(captured, "no menu opens while the declaration is closed")
 
@@ -86,24 +81,23 @@ class PopupMenuModifierTest {
 
     @Test
     fun theMenuIsAnchoredUnderTheComponent() = runComposeSwingTest {
-        var anchor: Pair<Int, Int>? = null
+        var anchorPoint: Pair<Int, Int>? = null
         var invoker: JLabel? = null
         var expanded by mutableStateOf(false)
         setWindowContent {
-            Label(
-                "target",
-                modifier =
-                    SwingModifier.popupMenu(
-                        expanded = expanded,
-                        onDismiss = { expanded = false },
-                        display = { _, target, x, y ->
-                            invoker = target as JLabel
-                            anchor = x to y
-                        },
-                    ) {
-                        MenuItem("Cut", onClick = { })
-                    },
-            )
+            val anchor = rememberPopupAnchor()
+            Label("target", modifier = SwingModifier.popupAnchor(anchor))
+            PopupMenu(
+                anchor,
+                expanded = expanded,
+                display = { _, target, x, y ->
+                    invoker = target as JLabel
+                    anchorPoint = x to y
+                },
+                onDismiss = { expanded = false },
+            ) {
+                MenuItem("Cut", onClick = { })
+            }
         }
         expanded = true
         awaitIdle()
@@ -111,7 +105,7 @@ class PopupMenuModifierTest {
         val label = invoker ?: error("the menu did not open")
         assertEquals(
             0 to label.height,
-            anchor,
+            anchorPoint,
             "the menu must be presented at the component's leading edge, just below it",
         )
         assertTrue(label.height > 0, "the anchor must be measured on a component with a real height")
@@ -123,22 +117,51 @@ class PopupMenuModifierTest {
         var expanded by mutableStateOf(true)
         var exported = 0
         setWindowContent {
-            Label(
-                "target",
-                modifier =
-                    SwingModifier.popupMenu(
-                        expanded = expanded,
-                        onDismiss = { expanded = false },
-                        display = { popup, _, _, _ -> captured = popup },
-                    ) {
-                        MenuItem("As CSV", onClick = { exported++ })
-                    },
-            )
+            val anchor = rememberPopupAnchor()
+            Label("target", modifier = SwingModifier.popupAnchor(anchor))
+            PopupMenu(
+                anchor,
+                expanded = expanded,
+                display = { popup, _, _, _ -> captured = popup },
+                onDismiss = { expanded = false },
+            ) {
+                MenuItem("As CSV", onClick = { exported++ })
+            }
         }
 
         val item = (captured ?: error("the menu did not open")).getComponent(0) as JMenuItem
         item.doClick()
         assertEquals(1, exported, "selecting the item must run its onClick callback")
+    }
+
+    @Test
+    fun aSelectionRunsItsCallbackThoughTheMenuIsAlreadyClosing() = runComposeSwingTest {
+        var captured: JPopupMenu? = null
+        var expanded by mutableStateOf(true)
+        var exported = 0
+        setWindowContent {
+            val anchor = rememberPopupAnchor()
+            Label("target", modifier = SwingModifier.popupAnchor(anchor))
+            PopupMenu(
+                anchor,
+                expanded = expanded,
+                display = { popup, _, _, _ -> captured = popup },
+                onDismiss = { expanded = false },
+            ) {
+                MenuItem("As CSV", onClick = { exported++ })
+            }
+        }
+        val popup = captured ?: error("the menu did not open")
+        val item = popup.getComponent(0) as JMenuItem
+
+        // The look and feel clears the selection path before it clicks the item, so the dismissal and
+        // everything it drives - here the declaration going false - run first, and the selection lands
+        // on a menu already on its way out.
+        publishClose(popup)
+        item.doClick()
+        awaitIdle()
+
+        assertEquals(1, exported, "the selection must run its callback though the menu is closing")
     }
 
     @Test
@@ -148,21 +171,20 @@ class PopupMenuModifierTest {
         var dismissals = 0
         var released = 0
         setWindowContent {
-            Label(
-                "target",
-                modifier =
-                    SwingModifier.popupMenu(
-                        expanded = expanded,
-                        onDismiss = {
-                            dismissals++
-                            expanded = false
-                        },
-                        display = { popup, _, _, _ -> captured = popup },
-                    ) {
-                        DisposableEffect(Unit) { onDispose { released++ } }
-                        MenuItem("Cut", onClick = { })
-                    },
-            )
+            val anchor = rememberPopupAnchor()
+            Label("target", modifier = SwingModifier.popupAnchor(anchor))
+            PopupMenu(
+                anchor,
+                expanded = expanded,
+                display = { popup, _, _, _ -> captured = popup },
+                onDismiss = {
+                    dismissals++
+                    expanded = false
+                },
+            ) {
+                DisposableEffect(Unit) { onDispose { released++ } }
+                MenuItem("Cut", onClick = { })
+            }
         }
         expanded = true
         awaitIdle()
@@ -185,18 +207,17 @@ class PopupMenuModifierTest {
         var captured: JPopupMenu? = null
         var label by mutableStateOf("target")
         setWindowContent {
-            Label(
-                label,
-                // The declaration stays open: the caller hears the close and leaves its state alone.
-                modifier =
-                    SwingModifier.popupMenu(
-                        expanded = true,
-                        onDismiss = {},
-                        display = { popup, _, _, _ -> captured = popup },
-                    ) {
-                        MenuItem("Cut", onClick = { })
-                    },
-            )
+            val anchor = rememberPopupAnchor()
+            Label(label, modifier = SwingModifier.popupAnchor(anchor))
+            // The declaration stays open: the caller hears the close and leaves its state alone.
+            PopupMenu(
+                anchor,
+                expanded = true,
+                display = { popup, _, _, _ -> captured = popup },
+                onDismiss = {},
+            ) {
+                MenuItem("Cut", onClick = { })
+            }
         }
         publishClose(captured ?: error("the menu did not open"))
 
@@ -217,18 +238,17 @@ class PopupMenuModifierTest {
         var dismissals = 0
         var released = 0
         setWindowContent {
-            Label(
-                "target",
-                modifier =
-                    SwingModifier.popupMenu(
-                        expanded = expanded,
-                        onDismiss = { dismissals++ },
-                        display = { popup, _, _, _ -> captured = popup },
-                    ) {
-                        DisposableEffect(Unit) { onDispose { released++ } }
-                        MenuItem("Cut", onClick = { })
-                    },
-            )
+            val anchor = rememberPopupAnchor()
+            Label("target", modifier = SwingModifier.popupAnchor(anchor))
+            PopupMenu(
+                anchor,
+                expanded = expanded,
+                display = { popup, _, _, _ -> captured = popup },
+                onDismiss = { dismissals++ },
+            ) {
+                DisposableEffect(Unit) { onDispose { released++ } }
+                MenuItem("Cut", onClick = { })
+            }
         }
         val popup = captured ?: error("the menu did not open")
         assertEquals(listOf("Cut"), popup.menuItemTexts(), "the menu opens with what was declared")
@@ -251,19 +271,18 @@ class PopupMenuModifierTest {
         var present by mutableStateOf(true)
         var released = 0
         setWindowContent {
+            val anchor = rememberPopupAnchor()
             if (present) {
-                Label(
-                    "target",
-                    modifier =
-                        SwingModifier.popupMenu(
-                            expanded = true,
-                            onDismiss = {},
-                            display = { _, _, _, _ -> },
-                        ) {
-                            DisposableEffect(Unit) { onDispose { released++ } }
-                            MenuItem("Cut", onClick = { })
-                        },
-                )
+                Label("target", modifier = SwingModifier.popupAnchor(anchor))
+            }
+            PopupMenu(
+                anchor,
+                expanded = true,
+                display = { _, _, _, _ -> },
+                onDismiss = {},
+            ) {
+                DisposableEffect(Unit) { onDispose { released++ } }
+                MenuItem("Cut", onClick = { })
             }
         }
         assertEquals(0, released, "the open menu is alive while its component is")
@@ -285,17 +304,16 @@ class PopupMenuModifierTest {
         var handled = 0
         setWindowContent {
             val declared = generation
-            Label(
-                "target",
-                modifier =
-                    SwingModifier.popupMenu(
-                        expanded = expanded,
-                        onDismiss = { expanded = false },
-                        display = { popup, _, _, _ -> captured = popup },
-                    ) {
-                        MenuItem("Item $declared", onClick = { handled = declared })
-                    },
-            )
+            val anchor = rememberPopupAnchor()
+            Label("target", modifier = SwingModifier.popupAnchor(anchor))
+            PopupMenu(
+                anchor,
+                expanded = expanded,
+                display = { popup, _, _, _ -> captured = popup },
+                onDismiss = { expanded = false },
+            ) {
+                MenuItem("Item $declared", onClick = { handled = declared })
+            }
         }
 
         generation = 2
@@ -314,17 +332,16 @@ class PopupMenuModifierTest {
         var captured: JPopupMenu? = null
         var wrap by mutableStateOf(true)
         setWindowContent {
-            Label(
-                "target",
-                modifier =
-                    SwingModifier.popupMenu(
-                        expanded = true,
-                        onDismiss = {},
-                        display = { popup, _, _, _ -> captured = popup },
-                    ) {
-                        CheckBoxMenuItem("Wrap", checked = wrap, onCheckedChange = { wrap = it })
-                    },
-            )
+            val anchor = rememberPopupAnchor()
+            Label("target", modifier = SwingModifier.popupAnchor(anchor))
+            PopupMenu(
+                anchor,
+                expanded = true,
+                display = { popup, _, _, _ -> captured = popup },
+                onDismiss = {},
+            ) {
+                CheckBoxMenuItem("Wrap", checked = wrap, onCheckedChange = { wrap = it })
+            }
         }
         val item = (captured ?: error("the menu did not open")).getComponent(0) as JCheckBoxMenuItem
         assertTrue(item.isSelected, "the item reflects the state it was composed with")
@@ -342,18 +359,17 @@ class PopupMenuModifierTest {
         var expanded by mutableStateOf(true)
         var extra by mutableStateOf(false)
         setWindowContent {
-            Label(
-                "target",
-                modifier =
-                    SwingModifier.popupMenu(
-                        expanded = expanded,
-                        onDismiss = { expanded = false },
-                        display = { popup, _, _, _ -> captured = popup },
-                    ) {
-                        MenuItem("Always", onClick = { })
-                        if (extra) MenuItem("Extra", onClick = { })
-                    },
-            )
+            val anchor = rememberPopupAnchor()
+            Label("target", modifier = SwingModifier.popupAnchor(anchor))
+            PopupMenu(
+                anchor,
+                expanded = expanded,
+                display = { popup, _, _, _ -> captured = popup },
+                onDismiss = { expanded = false },
+            ) {
+                MenuItem("Always", onClick = { })
+                if (extra) MenuItem("Extra", onClick = { })
+            }
         }
         assertEquals(listOf("Always"), (captured ?: error("the menu did not open")).menuItemTexts())
 
@@ -372,24 +388,27 @@ class PopupMenuModifierTest {
     }
 
     @Test
-    fun twoMenusOnOneChainEachOpenTheirOwn() = runComposeSwingTest {
+    fun twoMenusOnOneAnchorEachOpenTheirOwn() = runComposeSwingTest {
         val opened = mutableListOf<List<String?>>()
         setWindowContent {
-            Label(
-                "target",
-                modifier =
-                    SwingModifier
-                        .popupMenu(
-                            expanded = true,
-                            onDismiss = {},
-                            display = { popup, _, _, _ -> opened += popup.menuItemTexts() },
-                        ) { MenuItem("First", onClick = { }) }
-                        .popupMenu(
-                            expanded = true,
-                            onDismiss = {},
-                            display = { popup, _, _, _ -> opened += popup.menuItemTexts() },
-                        ) { MenuItem("Second", onClick = { }) },
-            )
+            val anchor = rememberPopupAnchor()
+            Label("target", modifier = SwingModifier.popupAnchor(anchor))
+            PopupMenu(
+                anchor,
+                expanded = true,
+                display = { popup, _, _, _ -> opened += popup.menuItemTexts() },
+                onDismiss = {},
+            ) {
+                MenuItem("First", onClick = { })
+            }
+            PopupMenu(
+                anchor,
+                expanded = true,
+                display = { popup, _, _, _ -> opened += popup.menuItemTexts() },
+                onDismiss = {},
+            ) {
+                MenuItem("Second", onClick = { })
+            }
         }
 
         assertEquals(
@@ -406,17 +425,16 @@ class PopupMenuModifierTest {
         var shown by mutableStateOf(false)
         setContent {
             Window(onCloseRequest = {}, title = "popup-menu-deferred-test", visible = shown) {
-                Label(
-                    "target",
-                    modifier =
-                        SwingModifier.popupMenu(
-                            expanded = true,
-                            onDismiss = {},
-                            display = { popup, _, _, _ -> captured = popup },
-                        ) {
-                            MenuItem("Cut", onClick = { })
-                        },
-                )
+                val anchor = rememberPopupAnchor()
+                Label("target", modifier = SwingModifier.popupAnchor(anchor))
+                PopupMenu(
+                    anchor,
+                    expanded = true,
+                    display = { popup, _, _, _ -> captured = popup },
+                    onDismiss = {},
+                ) {
+                    MenuItem("Cut", onClick = { })
+                }
             }
         }
         awaitIdle()
@@ -438,10 +456,9 @@ class PopupMenuModifierTest {
         // that survives the pass with its content intact is a menu that reached the screen rather than
         // one that tore the pass down on its way there.
         setWindowContent {
-            Label(
-                "target",
-                modifier = SwingModifier.popupMenu(expanded = true, onDismiss = {}) { MenuItem("Cut", onClick = { }) },
-            )
+            val anchor = rememberPopupAnchor()
+            Label("target", modifier = SwingModifier.popupAnchor(anchor))
+            PopupMenu(anchor, expanded = true, onDismiss = {}) { MenuItem("Cut", onClick = { }) }
         }
 
         val window = onWindowWithTitle(WINDOW_TITLE)
@@ -457,17 +474,16 @@ class PopupMenuModifierTest {
         var shown by mutableStateOf(false)
         setContent {
             Window(onCloseRequest = {}, title = "popup-menu-withdrawn-test", visible = shown) {
-                Label(
-                    "target",
-                    modifier =
-                        SwingModifier.popupMenu(
-                            expanded = expanded,
-                            onDismiss = {},
-                            display = { popup, _, _, _ -> captured = popup },
-                        ) {
-                            MenuItem("Cut", onClick = { })
-                        },
-                )
+                val anchor = rememberPopupAnchor()
+                Label("target", modifier = SwingModifier.popupAnchor(anchor))
+                PopupMenu(
+                    anchor,
+                    expanded = expanded,
+                    display = { popup, _, _, _ -> captured = popup },
+                    onDismiss = {},
+                ) {
+                    MenuItem("Cut", onClick = { })
+                }
             }
         }
         awaitIdle()
@@ -488,11 +504,10 @@ class PopupMenuModifierTest {
     @Test
     fun theComponentIsUntouchedByAClosedMenu() = runComposeSwingTest {
         setContent {
-            Label(
-                "target",
-                // The overload without the presentation seam, the one production uses.
-                modifier = SwingModifier.popupMenu(expanded = false, onDismiss = {}) { MenuItem("Cut", onClick = { }) },
-            )
+            val anchor = rememberPopupAnchor()
+            Label("target", modifier = SwingModifier.popupAnchor(anchor))
+            // The overload without the presentation seam, the one production uses.
+            PopupMenu(anchor, expanded = false, onDismiss = {}) { MenuItem("Cut", onClick = { }) }
         }
 
         val label = onNodeOfType<JLabel>().fetch()

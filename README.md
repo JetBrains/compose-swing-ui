@@ -149,7 +149,7 @@ fun main() = application {
 
 <!--- KNIT example-readme-03.kt -->
 
-The same tree fills a context menu through `SwingModifier.contextMenu { ... }` and a tray icon's menu
+The same tree fills a context menu through `ContextMenu(anchor) { ... }` and a tray icon's menu
 through `Tray(menu = { ... })`. On a `JMenuBar` the application builds itself, `JMenuBar.setContent { ... }`
 takes it too.
 

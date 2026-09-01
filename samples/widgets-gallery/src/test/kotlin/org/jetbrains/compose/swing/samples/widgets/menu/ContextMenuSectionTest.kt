@@ -1,4 +1,4 @@
-package org.jetbrains.compose.swing.samples.widgets.modifier
+package org.jetbrains.compose.swing.samples.widgets.menu
 
 import org.jetbrains.compose.swing.samples.widgets.openSection
 import org.jetbrains.compose.swing.test.runComposeSwingTest

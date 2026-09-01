@@ -1,4 +1,4 @@
-package org.jetbrains.compose.swing.modifier.interaction
+package org.jetbrains.compose.swing.components.menu
 
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -6,7 +6,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Column
-import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.menuItemTexts
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
@@ -20,42 +19,42 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertSame
 
 /**
- * What dropping the `contextMenu` modifier from the chain releases: the trigger and popup menu it
- * installed on the component, and the composition of any menu still open.
+ * What withdrawing a [ContextMenu] declaration releases: the trigger and popup menu it installed on the
+ * anchored component, and the composition of any menu still open.
  */
 class ContextMenuDetachTest {
     @Test
-    fun droppingTheModifierRemovesThePopupTrigger() = runComposeSwingTest {
+    fun droppingTheDeclarationRemovesThePopupTrigger() = runComposeSwingTest {
         var captured: JPopupMenu? = null
         var withMenu by mutableStateOf(true)
         setContent {
-            val modifier =
-                if (withMenu) {
-                    SwingModifier.contextMenu(
-                        display = { popup, _, _, _ -> captured = popup },
-                    ) {
-                        MenuItem("Cut", onClick = { })
-                    }
-                } else {
-                    SwingModifier
+            val anchor = rememberPopupAnchor()
+            Label("target", modifier = SwingModifier.popupAnchor(anchor))
+            if (withMenu) {
+                ContextMenu(
+                    anchor,
+                    display = { popup, _, _, _ -> captured = popup },
+                ) {
+                    MenuItem("Cut", onClick = { })
                 }
-            Label("target", modifier = modifier)
+            }
         }
         val target = onNodeOfType<JLabel>().fetch()
         target.dispatchEvent(popupTrigger(target))
         assertEquals(
             listOf("Cut"),
             (captured ?: error("no popup")).menuItemTexts(),
-            "the composed menu must open while the modifier is in the chain",
+            "the composed menu must open while the declaration stands",
         )
 
         withMenu = false
         awaitIdle()
         captured = null
         target.dispatchEvent(popupTrigger(target))
-        assertNull(captured, "a popup gesture must build no menu once the modifier leaves the chain")
+        assertNull(captured, "a popup gesture must build no menu once the declaration goes")
 
         withMenu = true
         awaitIdle()
@@ -63,26 +62,24 @@ class ContextMenuDetachTest {
         assertEquals(
             listOf("Cut"),
             (captured ?: error("no popup")).menuItemTexts(),
-            "the menu must open again once the modifier returns to the chain",
+            "the menu must open again once the declaration comes back",
         )
     }
 
     @Test
-    fun droppingTheModifierRestoresTheComponentsPopupMenu() = runComposeSwingTest {
+    fun droppingTheDeclarationRestoresTheComponentsPopupMenu() = runComposeSwingTest {
         var withMenu by mutableStateOf(true)
         setContent {
-            val modifier =
-                if (withMenu) {
-                    SwingModifier.contextMenu { MenuItem("Cut", onClick = { }) }
-                } else {
-                    SwingModifier
-                }
-            Label("target", modifier = modifier)
+            val anchor = rememberPopupAnchor()
+            Label("target", modifier = SwingModifier.popupAnchor(anchor))
+            if (withMenu) {
+                ContextMenu(anchor) { MenuItem("Cut", onClick = { }) }
+            }
         }
         val target = onNodeOfType<JLabel>().fetch()
         assertNotNull(
             target.componentPopupMenu,
-            "the declared menu must be the component's popup menu while the modifier is in the chain",
+            "the declared menu must be the component's popup menu while the declaration stands",
         )
 
         withMenu = false
@@ -94,26 +91,26 @@ class ContextMenuDetachTest {
     }
 
     @Test
-    fun droppingTheModifierClearsTheOwnMenuRatherThanPinningAnInheritedOne() = runComposeSwingTest {
+    fun droppingTheDeclarationClearsTheOwnMenuRatherThanPinningAnInheritedOne() = runComposeSwingTest {
         var withMenu by mutableStateOf(true)
         setContent {
-            Column(modifier = SwingModifier.contextMenu { MenuItem("Outer", onClick = { }) }) {
-                val inner =
-                    if (withMenu) {
-                        SwingModifier.contextMenu { MenuItem("Inner", onClick = { }) }
-                    } else {
-                        SwingModifier
-                    }
+            val outer = rememberPopupAnchor()
+            val inner = rememberPopupAnchor()
+            Column(modifier = SwingModifier.popupAnchor(outer)) {
                 SwingNode(
                     factory = { JLabel("target").apply { inheritsPopupMenu = true } },
-                    update = { applyModifier(inner) },
+                    update = { applyModifier(SwingModifier.popupAnchor(inner)) },
                 )
+                if (withMenu) {
+                    ContextMenu(inner) { MenuItem("Inner", onClick = { }) }
+                }
             }
+            ContextMenu(outer) { MenuItem("Outer", onClick = { }) }
         }
         val target = onNodeOfType<JLabel>().fetch()
         assertNotNull(
             target.componentPopupMenu,
-            "the declared inner menu must be the component's popup menu while the modifier is in the chain",
+            "the declared inner menu must be the component's popup menu while the declaration stands",
         )
 
         withMenu = false
@@ -129,25 +126,59 @@ class ContextMenuDetachTest {
     }
 
     @Test
-    fun droppingTheModifierReleasesAnOpenMenusComposition() = runComposeSwingTest {
+    fun droppingTheDeclarationGivesBackAnOwnMenuTheComponentAlsoInherits() = runComposeSwingTest {
+        val own = JPopupMenu()
+        var withMenu by mutableStateOf(true)
+        setContent {
+            val outer = rememberPopupAnchor()
+            val inner = rememberPopupAnchor()
+            Column(modifier = SwingModifier.popupAnchor(outer)) {
+                SwingNode(
+                    factory = {
+                        JLabel("target").apply {
+                            inheritsPopupMenu = true
+                            componentPopupMenu = own
+                        }
+                    },
+                    update = { applyModifier(SwingModifier.popupAnchor(inner)) },
+                )
+                if (withMenu) {
+                    ContextMenu(inner) { MenuItem("Inner", onClick = { }) }
+                }
+            }
+            ContextMenu(outer) { MenuItem("Outer", onClick = { }) }
+        }
+        val target = onNodeOfType<JLabel>().fetch()
+
+        withMenu = false
+        awaitIdle()
+
+        assertSame(
+            own,
+            target.componentPopupMenu,
+            "a component that inherits a menu and also carries one of its own must get its own back",
+        )
+    }
+
+    @Test
+    fun droppingTheDeclarationReleasesAnOpenMenusComposition() = runComposeSwingTest {
         var captured: JPopupMenu? = null
         var withMenu by mutableStateOf(true)
         var released = 0
         var closes = 0
         setContent {
-            val modifier =
-                if (withMenu) {
-                    SwingModifier.contextMenu(
-                        onClose = { closes++ },
-                        display = { popup, _, _, _ -> captured = popup },
-                    ) {
-                        DisposableEffect(Unit) { onDispose { released++ } }
-                        MenuItem("Cut", onClick = { })
-                    }
-                } else {
-                    SwingModifier
+            val anchor = rememberPopupAnchor()
+            Label("target", modifier = SwingModifier.popupAnchor(anchor))
+            if (withMenu) {
+                ContextMenu(
+                    anchor,
+                    onClose = { closes++ },
+                    display = { popup, _, _, _ -> captured = popup },
+                ) {
+                    DisposableEffect(Unit) { onDispose { released++ } }
+                    MenuItem("Cut", onClick = { })
                 }
-            Label("target", modifier = modifier)
+            }
         }
         val target = onNodeOfType<JLabel>().fetch()
         target.dispatchEvent(popupTrigger(target))
@@ -157,7 +188,11 @@ class ContextMenuDetachTest {
         withMenu = false
         awaitIdle()
 
-        assertEquals(1, released, "the open menu's composition must be released when its declaration leaves the chain")
+        assertEquals(
+            1,
+            released,
+            "the open menu's composition must be released when its declaration leaves the composition",
+        )
         assertEquals(0, closes, "taking the menu away is the composition's own doing, not the user's close")
 
         // The close Swing publishes as the taken-away popup goes invisible finds the menu already
@@ -168,25 +203,24 @@ class ContextMenuDetachTest {
     }
 
     @Test
-    fun droppingTheModifierClosesAMenuThatReplacedAnOpenOne() = runComposeSwingTest {
+    fun droppingTheDeclarationClosesAMenuThatReplacedAnOpenOne() = runComposeSwingTest {
         val captured = mutableListOf<JPopupMenu>()
         var withMenu by mutableStateOf(true)
         var released = 0
         var closes = 0
         setContent {
-            val modifier =
-                if (withMenu) {
-                    SwingModifier.contextMenu(
-                        onClose = { closes++ },
-                        display = { popup, _, _, _ -> captured += popup },
-                    ) {
-                        DisposableEffect(Unit) { onDispose { released++ } }
-                        MenuItem("Cut", onClick = { })
-                    }
-                } else {
-                    SwingModifier
+            val anchor = rememberPopupAnchor()
+            Label("target", modifier = SwingModifier.popupAnchor(anchor))
+            if (withMenu) {
+                ContextMenu(
+                    anchor,
+                    onClose = { closes++ },
+                    display = { popup, _, _, _ -> captured += popup },
+                ) {
+                    DisposableEffect(Unit) { onDispose { released++ } }
+                    MenuItem("Cut", onClick = { })
                 }
-            Label("target", modifier = modifier)
+            }
         }
         val target = onNodeOfType<JLabel>().fetch()
         target.dispatchEvent(popupTrigger(target))

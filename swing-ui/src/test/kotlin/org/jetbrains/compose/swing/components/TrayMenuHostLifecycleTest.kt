@@ -140,6 +140,8 @@ class TrayMenuHostLifecycleTest {
         val popup = captured ?: error("showMenu did not build a popup")
 
         publishClose(popup)
+        // A dismissed menu is released on the next turn.
+        awaitIdle()
         assertEquals(1, disposals, "a natural dismissal must dispose the shown menu composition")
 
         host.closeMenu()

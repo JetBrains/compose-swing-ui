@@ -1,11 +1,10 @@
-package org.jetbrains.compose.swing.modifier.interaction
+package org.jetbrains.compose.swing.components.menu
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.ExclusiveWindowSystem
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.menuItemTexts
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -36,21 +35,20 @@ class PopupMenuOpenResizeTest {
         var extra by mutableStateOf(false)
         setContent {
             Window(onCloseRequest = {}, title = "popup-menu-open-resize-test") {
-                Label(
-                    "target",
-                    modifier =
-                        SwingModifier.popupMenu(
-                            expanded = true,
-                            onDismiss = {},
-                            display = { popup, invoker, x, y ->
-                                captured = popup
-                                popup.show(invoker, x, y)
-                            },
-                        ) {
-                            MenuItem("Always", onClick = {})
-                            if (extra) MenuItem("Added while open", onClick = {})
-                        },
-                )
+                val anchor = rememberPopupAnchor()
+                Label("target", modifier = SwingModifier.popupAnchor(anchor))
+                PopupMenu(
+                    anchor,
+                    expanded = true,
+                    display = { popup, invoker, x, y ->
+                        captured = popup
+                        popup.show(invoker, x, y)
+                    },
+                    onDismiss = {},
+                ) {
+                    MenuItem("Always", onClick = {})
+                    if (extra) MenuItem("Added while open", onClick = {})
+                }
             }
         }
         awaitIdle()

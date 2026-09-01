@@ -491,9 +491,7 @@ private inline fun <T> ListBoxNode(
     noinline itemContent: (@Composable ListItemScope.(item: T) -> Unit)?,
     crossinline installContent: SwingNodeUpdater<JList<T>>.(MirrorState<Set<Int>?>) -> Unit,
 ) {
-    // The single conversion from itemContent to a JList cell renderer: one reused ComposingListCellRenderer
-    // stamps a recycled composition per row. A null itemContent renders rows through the list's own renderer.
-    val itemRenderer = itemContent?.let { rememberComposingListCellRenderer(it) }
+    val cells = itemContent?.let { rememberListItemRenderer(null, it) }
     val mirror = rememberMirrorState(selectedIndices)
     // A drag publishes one selection per row crossed before it settles, so only the settled value is worth
     // mirroring - mirroring an adjusting one would invalidate this composition, and re-assert the
@@ -535,7 +533,7 @@ private inline fun <T> ListBoxNode(
             applyModifier(
                 modifier
                     .listSelectionListener(JList::class, onUserSelection)
-                    .composableItemCells(itemRenderer)
+                    .declaredListItemRenderer(cells)
                     .listCellSizing(prototypeCellValue, fixedCellWidth, fixedCellHeight),
             )
         },

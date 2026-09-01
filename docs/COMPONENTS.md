@@ -946,13 +946,17 @@ Row {
 | `RadioButtonMenuGroup` | A set of mutually exclusive menu items, selected by index.                          |
 | `MenuSeparator`        | A divider between menu items, over `JPopupMenu.Separator`.                          |
 | `MenuBar`              | The menu bar of a window, declared in that window's content.                        |
+| `ContextMenu`          | A menu the platform's popup gesture opens over an anchored component.               |
+| `PopupMenu`            | A menu the application opens and dismisses through state.                           |
 
 Menu content is composed like any other content: `MenuBar { }` in the content of a `Window` or a
 `Dialog` declares that window's menu bar, `JMenuBar.setContent { }` composes a bar you own yourself,
-and the same tree serves a context menu (the `contextMenu` modifier) and a [`Tray`](#system-tray)
-popup. A `contextMenu` becomes the component's own popup menu, so the pointer gesture and the keyboard
-binding a look and feel gives a context menu both open it; the target must therefore be a `JComponent`,
-and the last `contextMenu` in a chain owns it. An item's label, checked flag and enabled state follow
+and the same tree serves a `ContextMenu`, a `PopupMenu` and a [`Tray`](#system-tray) popup. Both menus
+name the component they open over through a `PopupAnchor`, bound with the `popupAnchor` modifier. A
+`ContextMenu` becomes that component's own popup menu, so the pointer gesture and the keyboard binding a
+look and feel gives a context menu both open it; the anchored component must therefore be a
+`JComponent`, and one anchor carries one context menu. A `PopupMenu` opens and closes on the state the
+caller gives it. An item's label, checked flag and enabled state follow
 composition state like any other component's, and a checkable item takes its state the way the
 two-state controls do: what the composition declares is what the item shows, so a choice the caller
 does not adopt goes back where it was. An `accelerator` is a `KeyStroke` that fires the item without

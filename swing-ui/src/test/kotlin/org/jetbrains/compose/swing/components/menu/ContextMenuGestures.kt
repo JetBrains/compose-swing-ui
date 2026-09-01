@@ -1,4 +1,4 @@
-package org.jetbrains.compose.swing.modifier.interaction
+package org.jetbrains.compose.swing.components.menu
 
 import java.awt.Component
 import java.awt.event.MouseEvent

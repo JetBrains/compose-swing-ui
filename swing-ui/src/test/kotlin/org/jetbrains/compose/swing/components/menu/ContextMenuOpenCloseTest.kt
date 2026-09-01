@@ -1,4 +1,4 @@
-package org.jetbrains.compose.swing.modifier.interaction
+package org.jetbrains.compose.swing.components.menu
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -6,7 +6,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.ExclusiveWindowSystem
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.onWindowWithTitle
@@ -22,8 +21,8 @@ import kotlin.test.assertTrue
 
 /**
  * A context menu the toolkit has realized on screen must come down when its declaration leaves the
- * chain - the transition [JPopupMenu.isVisible] shows only for a popup shown the production way, over
- * an invoker in a real window.
+ * composition - the transition [JPopupMenu.isVisible] shows only for a popup shown the production way,
+ * over an invoker in a real window.
  *
  * An open popup is closed by the toolkit as soon as its window is deactivated, which is why this class
  * needs the window system's undivided attention.
@@ -31,24 +30,23 @@ import kotlin.test.assertTrue
 @ExclusiveWindowSystem
 class ContextMenuOpenCloseTest {
     @Test
-    fun droppingTheModifierClosesAnOpenMenu() = runComposeSwingTest {
+    fun droppingTheDeclarationClosesAnOpenMenu() = runComposeSwingTest {
         var captured: JPopupMenu? = null
         var withMenu by mutableStateOf(true)
         setWindowContent {
-            val modifier =
-                if (withMenu) {
-                    SwingModifier.contextMenu(
-                        display = { popup, invoker, x, y ->
-                            captured = popup
-                            popup.show(invoker, x, y)
-                        },
-                    ) {
-                        MenuItem("Cut", onClick = { })
-                    }
-                } else {
-                    SwingModifier
+            val anchor = rememberPopupAnchor()
+            Label("target", modifier = SwingModifier.popupAnchor(anchor))
+            if (withMenu) {
+                ContextMenu(
+                    anchor,
+                    display = { popup, invoker, x, y ->
+                        captured = popup
+                        popup.show(invoker, x, y)
+                    },
+                ) {
+                    MenuItem("Cut", onClick = { })
                 }
-            Label("target", modifier = modifier)
+            }
         }
         val target = onWindowWithTitle(WINDOW_TITLE).onNodeWithText("target").fetch<JLabel>()
 
@@ -59,7 +57,10 @@ class ContextMenuOpenCloseTest {
         withMenu = false
         awaitIdle()
 
-        assertFalse(popup.isVisible, "a menu on screen must come down when its declaration leaves the chain")
+        assertFalse(
+            popup.isVisible,
+            "a menu on screen must come down when its declaration leaves the composition",
+        )
     }
 }
 

@@ -5,6 +5,7 @@ package org.jetbrains.compose.swing.modifier.interaction
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.annotation.RememberInComposition
 import androidx.compose.runtime.remember
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.binding
@@ -25,28 +26,30 @@ import java.awt.Component
  * first unbound.
  */
 @Stable
-public class FocusRequester internal constructor() {
-    // The bound component, or null when unbound. Written only by the binding node, whose lifecycle owns
-    // this relationship.
-    private var target: Component? = null
+public class FocusRequester
+    @RememberInComposition
+    internal constructor() {
+        // The bound component, or null when unbound. Written only by the binding node, whose lifecycle owns
+        // this relationship.
+        private var target: Component? = null
 
-    /**
-     * Moves keyboard focus to the bound component, returning whether the request could be made. Returns
-     * `false` when no component is bound; otherwise delegates to the bound component's own
-     * `requestFocusInWindow`.
-     *
-     * @see java.awt.Component.requestFocusInWindow
-     */
-    public fun requestFocus(): Boolean = target?.requestFocusInWindow() ?: false
+        /**
+         * Moves keyboard focus to the bound component, returning whether the request could be made. Returns
+         * `false` when no component is bound; otherwise delegates to the bound component's own
+         * `requestFocusInWindow`.
+         *
+         * @see java.awt.Component.requestFocusInWindow
+         */
+        public fun requestFocus(): Boolean = target?.requestFocusInWindow() ?: false
 
-    internal fun bind(component: Component) {
-        target = component
+        internal fun bind(component: Component) {
+            target = component
+        }
+
+        internal fun unbind(component: Component) {
+            if (target === component) target = null
+        }
     }
-
-    internal fun unbind(component: Component) {
-        if (target === component) target = null
-    }
-}
 
 /** Creates and remembers a [FocusRequester] for the composition it is called in. */
 @Composable

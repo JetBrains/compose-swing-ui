@@ -21,8 +21,8 @@ import org.jetbrains.compose.swing.samples.widgets.layout.LayoutsSection
 import org.jetbrains.compose.swing.samples.widgets.layout.ScrollPaneSection
 import org.jetbrains.compose.swing.samples.widgets.layout.SplitToolBarSection
 import org.jetbrains.compose.swing.samples.widgets.layout.TabsSection
+import org.jetbrains.compose.swing.samples.widgets.menu.ContextMenuSection
 import org.jetbrains.compose.swing.samples.widgets.modifier.AccessibilitySection
-import org.jetbrains.compose.swing.samples.widgets.modifier.ContextMenuSection
 import org.jetbrains.compose.swing.samples.widgets.modifier.DataTransferSection
 import org.jetbrains.compose.swing.samples.widgets.modifier.ModifierGallery
 import org.jetbrains.compose.swing.samples.widgets.runtime.AnimationSection

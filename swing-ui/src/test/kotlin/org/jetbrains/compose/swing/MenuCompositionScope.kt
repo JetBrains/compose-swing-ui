@@ -45,16 +45,13 @@ internal suspend fun ComposeSwingTest.composeMenu(
  */
 internal fun ComposeSwingTest.captureParentContext(): CompositionContext {
     var context: CompositionContext? = null
-    setContent { context = captureContext() }
+    setContent {
+        // Compose something so the harness root settles, while capturing the surrounding context the
+        // menu nests into.
+        Label("host")
+        context = rememberCompositionContext()
+    }
     return context ?: error("no context")
-}
-
-@Composable
-private fun captureContext(): CompositionContext {
-    // Compose something so the harness root settles, while capturing the surrounding context the menu
-    // nests into.
-    Label("host")
-    return rememberCompositionContext()
 }
 
 /**

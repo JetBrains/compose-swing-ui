@@ -6,6 +6,7 @@ import org.jetbrains.compose.swing.annotations.SwingMenuComposable
 import org.jetbrains.compose.swing.core.SwingContentComposition
 import org.jetbrains.compose.swing.node.MenuApplier
 import org.jetbrains.compose.swing.node.SwingNodeHolder
+import org.jetbrains.compose.swing.util.DeferredAction
 import javax.swing.JPopupMenu
 import javax.swing.event.PopupMenuEvent
 import javax.swing.event.PopupMenuListener
@@ -14,9 +15,10 @@ import javax.swing.event.PopupMenuListener
  * A [JPopupMenu] whose items are a composition of their own, nested in the composition that declared
  * them, so the menu sees the same state and composition locals as its declaration site.
  *
- * The menu composition is released as soon as the popup closes, however it closed, so nothing that
- * declared a menu keeps one alive: [onClosed] reports the popup closing on its own, handing over the
- * menu that closed, and [close] takes the menu away without reporting anything.
+ * The menu composition is released when the popup closes, so nothing that declared a menu keeps one
+ * alive: [onClosed] reports the popup closing on its own, handing over the menu that closed, and the
+ * release follows on the next turn of the event queue; [close] takes the menu away without reporting
+ * anything and releases at once.
  */
 internal class MenuPopup(
     parentContext: CompositionContext,
@@ -36,6 +38,11 @@ internal class MenuPopup(
     // still fires the listener, so this flag stops that from being reported as a close of its own.
     private var closed = false
 
+    // The look and feel clears the selection path and then clicks the item, both within one event
+    // dispatch, so a close the popup publishes may still have a click to come. Releasing on that close
+    // would take the item off the popup and its listeners with it, and the click would reach nothing.
+    private val deferredRelease = DeferredAction(composition::dispose)
+
     private val closeListener =
         object : PopupMenuListener {
             override fun popupMenuWillBecomeVisible(event: PopupMenuEvent) = Unit
@@ -44,7 +51,7 @@ internal class MenuPopup(
                 if (closed) return
                 closed = true
                 popup.removePopupMenuListener(this)
-                composition.dispose()
+                deferredRelease.schedule()
                 onClosed(this@MenuPopup)
             }
 

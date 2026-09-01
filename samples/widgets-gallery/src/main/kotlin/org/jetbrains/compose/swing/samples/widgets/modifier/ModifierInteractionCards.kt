@@ -12,6 +12,9 @@ import org.jetbrains.compose.swing.components.button.RadioButton
 import org.jetbrains.compose.swing.components.layout.ColumnScope
 import org.jetbrains.compose.swing.components.layout.FlowPanel
 import org.jetbrains.compose.swing.components.menu.MenuItem
+import org.jetbrains.compose.swing.components.menu.PopupMenu
+import org.jetbrains.compose.swing.components.menu.popupAnchor
+import org.jetbrains.compose.swing.components.menu.rememberPopupAnchor
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.accessibility.displayedMnemonicIndex
@@ -22,7 +25,6 @@ import org.jetbrains.compose.swing.modifier.interaction.enabled
 import org.jetbrains.compose.swing.modifier.interaction.focusRequester
 import org.jetbrains.compose.swing.modifier.interaction.focusable
 import org.jetbrains.compose.swing.modifier.interaction.initialFocus
-import org.jetbrains.compose.swing.modifier.interaction.popupMenu
 import org.jetbrains.compose.swing.modifier.interaction.rememberFocusRequester
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.WrappedCaption
@@ -160,19 +162,16 @@ internal fun ColumnScope.ActionCommandCard() {
 
 @Composable
 internal fun ColumnScope.PopupMenuCard() {
-    ExampleCard("popupMenu") {
+    ExampleCard("popupAnchor + PopupMenu") {
         var expanded by remember { mutableStateOf(false) }
         var lastAction by remember { mutableStateOf("none") }
+        val anchor = rememberPopupAnchor()
         FlowPanel {
-            Button(
-                "Export",
-                onClick = { expanded = true },
-                modifier =
-                    SwingModifier.popupMenu(expanded, onDismiss = { expanded = false }) {
-                        MenuItem("As CSV", onClick = { lastAction = "As CSV" })
-                        MenuItem("As JSON", onClick = { lastAction = "As JSON" })
-                    },
-            )
+            Button("Export", onClick = { expanded = true }, modifier = SwingModifier.popupAnchor(anchor))
+        }
+        PopupMenu(anchor, expanded, onDismiss = { expanded = false }) {
+            MenuItem("As CSV", onClick = { lastAction = "As CSV" })
+            MenuItem("As JSON", onClick = { lastAction = "As JSON" })
         }
         Label("Last export: $lastAction")
     }

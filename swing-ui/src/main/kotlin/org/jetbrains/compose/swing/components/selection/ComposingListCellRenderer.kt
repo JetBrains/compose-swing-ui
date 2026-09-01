@@ -1,3 +1,6 @@
+@file:JvmMultifileClass
+@file:JvmName("SelectionComponentsKt")
+
 package org.jetbrains.compose.swing.components.selection
 
 import androidx.compose.runtime.Composable
@@ -18,11 +21,14 @@ import java.awt.Component
 import javax.swing.JComboBox
 import javax.swing.JList
 import javax.swing.ListCellRenderer
+import kotlin.reflect.KClass
 
 /**
- * The receiver a [ListBox]/`ComboBox` item cell composes against: the three values the widget hands a
- * `ListCellRenderer` for the row being stamped, exposed as read-only composition state so the cell can
- * lay itself out by index, selection, and focus.
+ * The receiver of the composable cell body a `ListCellRenderer` stamps a row through: the three values
+ * the widget hands a `ListCellRenderer` for the row being stamped, exposed as read-only composition
+ * state so the cell can lay itself out by index, selection, and focus. A [ListBox] or `ComboBox` item
+ * cell is one such body, as is one a caller writes over their own `JList` or `JComboBox` with
+ * [rememberListItemRenderer].
  *
  * Mirrors the arguments of
  * [javax.swing.ListCellRenderer.getListCellRendererComponent]: [index] is the row, [isSelected] whether
@@ -53,19 +59,21 @@ public sealed interface ListItemScope {
  * the cell composes decides its own size, spacing and alignment, through the layout of whatever it
  * composes.
  *
- * The renderer is declared over `Any?` because it is installed through a modifier element, which names
- * one component type for every widget it serves. The item a stamp hands over is an item of the model
- * the composable that built this renderer installed, so it is the cell body's own element type.
+ * The renderer is declared over `Any?`: a stamp hands over whatever the component's own model holds,
+ * which is why [itemType] is checked rather than assumed.
  *
  * The [currentItemContent] is read through a [State] so a recomposition that supplies a fresh cell
  * lambda is honored without rebuilding the renderer or its cell composition.
  *
  * @param parentContext the enclosing composition this renderer's cell composition joins.
+ * @param itemType the item type the cell body is written over and every stamp is checked against, or
+ *   `null` where the caller never stated one.
  * @param currentItemContent the always-current composable cell body, invoked with the [ListItemScope]
  *   and item.
  */
 internal class ComposingListCellRenderer<T>(
     parentContext: CompositionContext,
+    private val itemType: Class<*>?,
     currentItemContent: State<@Composable ListItemScope.(item: T) -> Unit>,
 ) : ListCellRenderer<Any?> {
     // A single reused item cell keeps the size-1 pool the rubber-stamp model expects.
@@ -87,15 +95,28 @@ internal class ComposingListCellRenderer<T>(
         index: Int,
         isSelected: Boolean,
         cellHasFocus: Boolean,
-    ): Component =
+    ): Component {
         // Every row the widget paints names the item it holds, `null` among them. A combo box's display
         // area is the one stamp made for no row at all, and with nothing selected it names no item either.
-        cellComposition.stamp(hasCell = index >= 0 || value != null) {
+        val hasCell = index >= 0 || value != null
+        // The cast a cell body's item goes through is unchecked, so a model holding something else would
+        // otherwise surface as a ClassCastException, or a null under a non-null item type as a
+        // NullPointerException, inside the paint that stamped the row.
+        if (hasCell && itemType != null) {
+            check(itemType.isInstance(value)) {
+                val handed = value?.let { "a ${it.javaClass.name}" } ?: "null"
+                val where = if (index >= 0) "at row $index" else "for the selected-value display area"
+                "A composable cell written over ${itemType.name} was handed $handed $where. The " +
+                    "cell body's item type must be the one the component's model holds."
+            }
+        }
+        return cellComposition.stamp(hasCell) {
             itemState.value = value
             scope.index = index
             scope.isSelected = isSelected
             scope.cellHasFocus = cellHasFocus
         }
+    }
 
     /** Disposes this renderer's cell composition; see [CellStampComposition.dispose]. */
     fun dispose(): Unit = cellComposition.dispose()
@@ -112,8 +133,8 @@ private fun <T> Cell(
     scope: ListItemScope,
     itemContent: State<@Composable ListItemScope.(item: T) -> Unit>,
 ) {
-    // A widget stamps the items of the model the composable that installed this renderer gave it, so
-    // the item is of the element type that composable declares its cell body over.
+    // A stated item type was checked in getListCellRendererComponent before the stamp, and where none was
+    // stated the model was built out of the same items this body is written over.
     @Suppress("UNCHECKED_CAST")
     val item = itemState.value as T
     scope.(itemContent.value)(item)
@@ -127,22 +148,69 @@ private class MutableListItemScope : ListItemScope {
 }
 
 /**
- * Remembers a single [ComposingListCellRenderer] for [itemContent], captured against the enclosing
- * composition so the cell body joins it. The renderer is stable across recompositions - the current
- * [itemContent] flows in through [rememberUpdatedState], so a recomposed cell lambda is honored
- * without rebuilding the renderer - and is disposed when it leaves the composition.
+ * Remembers the renderer that stamps [content] for every item of a component it is installed on,
+ * captured against the enclosing composition so the cell sees the state and
+ * [androidx.compose.runtime.CompositionLocal]s around this call.
  *
- * Call from a `@Composable` scope that folds the returned renderer into the modifier chain of a
- * `JList`/`JComboBox` through [composableItemCells].
+ * The renderer is stable across recompositions - a fresh [content] lambda each pass is honored without
+ * rebuilding anything - and it stamps nothing once the composition that remembered it is disposed, so
+ * install it on a component whose own declaration stands in that composition rather than holding it
+ * past one.
+ *
+ * One reused composition stamps every row, so a cell is display-only: it composes a single component,
+ * and state remembered inside it belongs to no particular row.
+ *
+ * An item the component's model holds that is not a [T] throws `IllegalStateException` naming both
+ * types, out of the widget's own layout rather than out of composition. Nothing ties [T] to the model,
+ * so the two are the caller's to keep in step.
+ *
+ * A call site that cannot reify [T] names the item type through the overload that takes it.
+ *
+ * @param content the composable cell body, invoked with the [ListItemScope] and the item.
+ * @return the renderer, to install on a component with [listItemRenderer].
  */
 @Composable
-internal fun <T> rememberComposingListCellRenderer(
-    itemContent:
+public inline fun <reified T : Any> rememberListItemRenderer(
+    noinline content:
         @Composable ListItemScope.(item: T) -> Unit,
-): ComposingListCellRenderer<T> {
+): ListCellRenderer<*> = rememberListItemRenderer(T::class, content)
+
+/**
+ * Remembers the renderer that stamps [content] for every item of a component it is installed on, for a
+ * caller who names [itemType] rather than letting the call site reify it - a generic component of their
+ * own, whose item type is a type parameter and so is erased by the time this call is compiled.
+ *
+ * Otherwise as [rememberListItemRenderer] taking only a cell body.
+ *
+ * @param itemType the item type [content] is written over, which every item a stamp hands over is
+ *   checked against.
+ * @param content the composable cell body, invoked with the [ListItemScope] and the item.
+ * @return the renderer, to install on a component with [listItemRenderer].
+ */
+@Composable
+public fun <T : Any> rememberListItemRenderer(
+    itemType: KClass<T>,
+    content: @Composable ListItemScope.(item: T) -> Unit,
+): ListCellRenderer<*> = rememberListItemRenderer(itemType.javaObjectType, content)
+
+/**
+ * The shared body of the two [rememberListItemRenderer] overloads, over the erased item type each stamp
+ * is checked against. A `null` item type is one the caller never stated - this library's own wrappers,
+ * which build the model out of the same items the cell body is written over - and nothing is checked.
+ *
+ * @param itemType the item type [content] takes, or `null` where it was never stated.
+ * @param content the composable cell body.
+ * @return the renderer.
+ */
+@Composable
+internal fun <T> rememberListItemRenderer(
+    itemType: Class<*>?,
+    content: @Composable ListItemScope.(item: T) -> Unit,
+): ListCellRenderer<*> {
     val parentContext = rememberCompositionContext()
-    val current = rememberUpdatedState(itemContent)
-    val renderer = remember(parentContext) { ComposingListCellRenderer(parentContext, current) }
+    val current = rememberUpdatedState(content)
+    val renderer =
+        remember(parentContext, itemType) { ComposingListCellRenderer(parentContext, itemType, current) }
     DisposableEffect(renderer) {
         onDispose { renderer.dispose() }
     }
@@ -150,34 +218,41 @@ internal fun <T> rememberComposingListCellRenderer(
 }
 
 /**
- * Folds [itemRenderer] into the chain as the renderer the widget stamps its items through, and drops it
- * where the caller declares no composable cell.
+ * Renders the items of the component this chain applies to through [renderer].
  *
- * A widget's item renderer is not a value it carries but one its UI delegate builds on demand and takes
- * back on a look-and-feel change, so it is restored the way every modifier property is: the value the
- * widget carried before a composable cell displaced it is captured as the element attaches, and written
- * back as it detaches. Detaching on release, reuse and deactivate as well as on withdrawal is what gives
- * the widget its own renderer back at the very moment the composition behind the composable cell is
- * disposed - the widget may still be asked to size or render a row directly even once parking has
- * detached it from the Swing tree, and a renderer over a disposed composition paints nothing.
+ * Takes a renderer the caller already has, written against the Swing interface, or one
+ * [rememberListItemRenderer] built from a composable cell body. As in Swing, the renderer is handed
+ * whatever the component's own model holds.
  *
- * A `JList` and a `JComboBox` each declare this property for themselves, with no supertype declaring it
- * between them, which is what makes it a [MultiTargetProperty] rather than a property element of one
- * target type.
+ * The renderer the component carried before this element is written back when the element detaches.
+ * The element serves a component that renders a flat list of items through one cell renderer: a `JList`
+ * or a `JComboBox`. Any other component is refused as the element attaches.
+ *
+ * Anything measured through the renderer - a prototype cell - is declared after this.
+ *
+ * @param renderer the renderer the component stamps its items through.
+ * @return this chain with the renderer declared on it.
+ * @see javax.swing.ListCellRenderer
  */
-internal fun SwingModifier.composableItemCells(itemRenderer: ComposingListCellRenderer<*>?): SwingModifier =
-    if (itemRenderer == null) this else this then MultiTargetPropertyElement(ITEM_RENDERER, itemRenderer)
+public fun SwingModifier.listItemRenderer(renderer: ListCellRenderer<*>): SwingModifier {
+    // JList.setCellRenderer takes a ListCellRenderer<? super E>, and this element names one component
+    // type for every widget it serves.
+    @Suppress("UNCHECKED_CAST")
+    val erased = renderer as ListCellRenderer<in Any?>
+    return this then MultiTargetPropertyElement(LIST_CELL_RENDERER, erased)
+}
+
+/** As [listItemRenderer]; a `null` renderer is no cell body declared, and the widget keeps the one it has. */
+internal fun SwingModifier.declaredListItemRenderer(renderer: ListCellRenderer<*>?): SwingModifier =
+    if (renderer == null) this else listItemRenderer(renderer)
 
 /**
  * The renderer a `JList` renders its rows through and the one a `JComboBox` renders its items through:
  * one property, reached through the accessor of whichever widget carries it.
- *
- * Both are read and written through a widget of items of `Any?`, the element type every composable cell
- * renderer is declared over: a renderer either widget carries renders whatever its own model holds.
  */
-private val ITEM_RENDERER =
-    MultiTargetProperty<ListCellRenderer<in Any?>?>(
-        "itemRenderer",
+private val LIST_CELL_RENDERER =
+    MultiTargetProperty(
+        "listItemRenderer",
         propertyCase<JList<Any?>, ListCellRenderer<in Any?>?>(
             read = { it.cellRenderer },
             write = { list, renderer -> list.cellRenderer = renderer },

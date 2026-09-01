@@ -8,8 +8,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.components.selection.ListItemScope
-import org.jetbrains.compose.swing.components.selection.composableItemCells
-import org.jetbrains.compose.swing.components.selection.rememberComposingListCellRenderer
+import org.jetbrains.compose.swing.components.selection.declaredListItemRenderer
+import org.jetbrains.compose.swing.components.selection.rememberListItemRenderer
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifier
 import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
@@ -226,17 +226,14 @@ private inline fun <T> ComboBoxNode(
     noinline itemContent: (@Composable ListItemScope.(item: T) -> Unit)?,
     crossinline installContent: SwingNodeUpdater<JComboBox<T>>.() -> Unit,
 ) {
-    // The single conversion from itemContent to the combo box item renderer: one reused
-    // ComposingListCellRenderer stamps a recycled composition per row. A null itemContent renders
-    // items through the combo box's own renderer.
-    val itemRenderer = itemContent?.let { rememberComposingListCellRenderer(it) }
+    val cells = itemContent?.let { rememberListItemRenderer(null, it) }
     SwingNode(
         factory = { JComboBox<T>() },
         update = {
             set(editable) { this.isEditable = it }
             set(maximumRowCount) { this.maximumRowCount = it }
             installContent()
-            applyModifier(modifier.composableItemCells(itemRenderer))
+            applyModifier(modifier.declaredListItemRenderer(cells))
         },
     )
 }

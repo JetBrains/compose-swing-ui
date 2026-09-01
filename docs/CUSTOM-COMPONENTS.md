@@ -695,13 +695,15 @@ Built-in modifier builders are extension functions on `SwingModifier`, grouped b
   text component.
 - **Layout** - `preferredSize`, `minimumSize`, `maximumSize`, `size`, `width`, `height`, `location`,
   `x`, `y`, `bounds`, `alignmentX`, `alignmentY`, `visible`, `componentOrientation`.
+- **Items** - `listItemRenderer`, which renders the items of a component that has a cell renderer, either
+  through a composable cell or through a renderer the caller already has.
 - **Metadata** - `name`, `toolTip`, `clientProperty`, `testTag`.
 - **Interaction** - `enabled`, `focusable`, `focusTraversalIndex`, `orderedFocusTraversal`,
   `defaultButton`, `onHover`, `onFocus`, `onPointerEvent`, `onAccept`, `focusRequester`, `initialFocus`,
   `inputVerifier`, `verifyInputWhenFocusTarget`, `documentFilter`, `caretUpdatePolicy` (requires a
-  `JTextComponent` whose caret is a `DefaultCaret`), and `contextMenu` and `popupMenu`
-  (a composed menu opened by the platform popup gesture and by state respectively), plus the listener
-  builders (`mouseListener`, `keyListener`, ...; see *Attaching a listener* below).
+  `JTextComponent` whose caret is a `DefaultCaret`), and `popupAnchor`, which names the component a
+  `ContextMenu` or `PopupMenu` declared beside it opens over, plus the listener builders
+  (`mouseListener`, `keyListener`, ...; see *Attaching a listener* below).
 - **Keyboard** - `onKeyEvent`, `onKeyStroke`.
 - **Data transfer** - `draggable`, `dropTarget`, `onExportDone`, `clipboard`.
 - **Accessibility** - `accessibleName`, `accessibleDescription`, `mnemonic`, and the `labelFor` /
@@ -713,6 +715,13 @@ value** of any element that is removed from the chain.
 
 When your component contributes its own elements (for example, the binding listener that drives its
 callback), chain them **onto** the caller's `modifier` - `modifier.yourElement(...)`.
+
+A modifier builder is a plain function, never `@Composable`. A chain is data: the caller builds it,
+hoists it, passes it on, and holds it across passes, none of which a composable value can do. Where a
+builder needs something remembered - a handle, a renderer, a listener that carries state - split it in
+two: a `remember*` composable that creates the value, and a plain builder that takes it.
+`rememberPopupAnchor()` with `popupAnchor(anchor)`, and `rememberListItemRenderer { }` with
+`listItemRenderer(renderer)`, are both that pair.
 
 ## Writing a custom property element
 
@@ -956,7 +965,7 @@ than the seam below:
   read the callback **live**, so a fresh lambda on every recomposition costs nothing and needs no
   `remember`;
 - the declaration modifiers, for behavior that is not a callback at all: `focusable`,
-  `focusRequester`, `initialFocus`, `verifyInputWhenFocusTarget`, `documentFilter` and `contextMenu`.
+  `focusRequester`, `initialFocus`, `verifyInputWhenFocusTarget`, `documentFilter` and `popupAnchor`.
 
 **Where the seam is genuinely right:** you hold a listener **object** for an event source that has no
 builder. A lambda for such a source goes to the callback overload above; this overload takes the
@@ -1374,6 +1383,82 @@ Pass `null` to host nothing, which is what a node that never declares it does.
 
 The component **must** be a `javax.swing.JComponent`; a bare `java.awt.Component` host throws
 `IllegalStateException` at apply.
+
+## Rendering items with a composable cell
+
+A component that shows a list of items asks a `ListCellRenderer` for one row at a time.
+`rememberListItemRenderer` builds a renderer that stamps a composable there and
+`SwingModifier.listItemRenderer` installs it: one reused composition is stamped for every row, and the
+component it composes is painted and measured as the row.
+
+<!--- CLEAR -->
+<!--- INCLUDE .*custom-05.*
+import androidx.compose.runtime.Composable
+import org.jetbrains.compose.swing.components.selection.ListItemScope
+import org.jetbrains.compose.swing.components.selection.listItemRenderer
+import org.jetbrains.compose.swing.components.selection.rememberListItemRenderer
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.applyModifier
+import org.jetbrains.compose.swing.node.SwingNode
+import java.awt.Dimension
+import java.util.Vector
+import javax.swing.DefaultComboBoxModel
+import javax.swing.JComboBox
+import kotlin.reflect.KClass
+-->
+
+```kotlin
+// A combo box that never shrinks below its preferred width, so a long item is not clipped.
+class WideComboBox<T> : JComboBox<T>() {
+    override fun getMinimumSize(): Dimension = preferredSize
+}
+
+@Composable
+fun <T : Any> CustomComboBox(
+    items: List<T>,
+    itemType: KClass<T>,
+    modifier: SwingModifier = SwingModifier,
+    itemContent: @Composable ListItemScope.(item: T) -> Unit,
+) {
+    val cells = rememberListItemRenderer(itemType, itemContent)
+    val declaredItems = items.toList()
+    SwingNode(
+        factory = { WideComboBox<T>() },
+        update = {
+            set(declaredItems) { model = DefaultComboBoxModel(Vector(it)) }
+            applyModifier(modifier.listItemRenderer(cells))
+        },
+    )
+}
+```
+
+<!--- KNIT example-custom-05.kt -->
+
+The component is the caller's own, so a subclass with rendering or sizing behavior the built-in
+`ComboBox` does not have is a wrapper of your own rather than a parameter on the library's.
+
+The item type is a parameter because this wrapper is generic. Written directly -
+`rememberListItemRenderer<Person> { }` - the call site supplies that type on its own; inside a generic
+function it is erased by then, which is what the overload taking it is for.
+
+The items are copied in the composable body rather than handed to `set` as they are. `set` compares
+what it is given against what the last pass gave it, and a list the caller mutates in place compares
+equal to itself, so such a mutation would re-apply nothing. The copy gives each pass its own value to
+compare against, and reading the items while composing is what makes this composition one of their
+readers - so an in-place mutation of a snapshot list invalidates it.
+
+A selection this component reports and accepts is the two-way property of *Properties the user can also
+change* above, declared with `rememberMirrorState` and `declare` exactly as it is there.
+
+The scope a cell composes against - [`ListItemScope`](../swing-ui/src/main/kotlin/org/jetbrains/compose/swing/components/selection/ComposingListCellRenderer.kt) -
+names the row: `index`, `isSelected` and `cellHasFocus`, the three values a `ListCellRenderer` is handed.
+
+A cell is display-only. One composition serves every row, so state remembered inside it belongs to no
+particular row, and a cell that composes more than one component is refused - put them in a panel and
+compose that.
+
+`listItemRenderer` also takes a renderer written against the Swing interface:
+`modifier.listItemRenderer(MyExistingRenderer())`.
 
 ## `onRelease` for cleanup
 
