@@ -25,6 +25,7 @@ public sealed interface RowScope {
      *
      * @param weight the share claimed, greater than zero
      * @param fill whether the child occupies the whole width it is granted; `true` by default
+     * @return this chain with the width share declared on it.
      */
     public fun SwingModifier.weight(
         weight: Float,
@@ -36,6 +37,7 @@ public sealed interface RowScope {
      * `verticalAlignment`.
      *
      * @param alignment where the child sits across the row
+     * @return this chain with the child's vertical alignment declared on it.
      */
     public fun SwingModifier.align(alignment: Alignment.Vertical): SwingModifier
 

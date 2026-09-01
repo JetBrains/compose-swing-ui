@@ -18,7 +18,12 @@ import javax.swing.JRadioButtonMenuItem
 import javax.swing.KeyStroke
 
 /**
- * A composable wrapper for JRadioButtonMenuItem.
+ * A menu item carrying a radio mark: a `JRadioButtonMenuItem` that shows [selected] and reports the
+ * user's activation through [onSelectedChange]. The item stands on its own, so activating it toggles the
+ * mark; for a set of items where at most one is marked, use [RadioButtonMenuGroup].
+ *
+ * A change the caller does not answer with a matching [selected] is settled back onto the declared
+ * value, so the mark on screen is the one the composition holds.
  *
  * @param text the text of the menu item
  * @param selected whether the menu item is selected

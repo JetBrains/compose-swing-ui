@@ -12,6 +12,9 @@ import javax.swing.JComponent
  * `1.0` aligns to the right. A parent that honors alignment - a vertical `BoxLayout` - lines its
  * children up by this value, so siblings given the same alignment stay in one column.
  *
+ * @param value the fraction of the component's width the parent lines its children up on; Swing clamps a
+ *   value outside `0.0..1.0` into that range rather than rejecting it.
+ * @return this chain with the horizontal alignment declared on it.
  * @see javax.swing.JComponent.setAlignmentX
  */
 public fun SwingModifier.alignmentX(value: Float): SwingModifier =
@@ -30,6 +33,9 @@ public fun SwingModifier.alignmentX(value: Float): SwingModifier =
  * `1.0` aligns to the bottom. A parent that honors alignment - a horizontal `BoxLayout` - lines its
  * children up by this value, so siblings given the same alignment stay on one row.
  *
+ * @param value the fraction of the component's height the parent lines its children up on; Swing clamps a
+ *   value outside `0.0..1.0` into that range rather than rejecting it.
+ * @return this chain with the vertical alignment declared on it.
  * @see javax.swing.JComponent.setAlignmentY
  */
 public fun SwingModifier.alignmentY(value: Float): SwingModifier =

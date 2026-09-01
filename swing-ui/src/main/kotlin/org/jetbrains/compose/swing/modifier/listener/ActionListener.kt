@@ -23,6 +23,9 @@ import java.awt.TextField as AwtTextField
  * [onAction] is read when the event fires, so writing a fresh lambda on every recomposition registers
  * nothing again.
  *
+ * @param onAction receives the event, whose `actionCommand` is the command string the component was
+ *   given, falling back to a button's text or a text field's contents.
+ * @return this chain with the action callback declared on it.
  * @see java.awt.event.ActionListener
  */
 public fun SwingModifier.actionListener(onAction: (ActionEvent) -> Unit): SwingModifier =
@@ -32,6 +35,11 @@ public fun SwingModifier.actionListener(onAction: (ActionEvent) -> Unit): SwingM
  * Runs [onAction] on the action event of a component of type [T] that fires one, with that component as
  * `this`.
  *
+ * @param onAction read when the event fires. A parameter of the enclosing composable shadows the
+ *   receiver, so reach it through `this`.
+ *   Read the component's state through the receiver; writing a property the composition declares
+ *   through it makes the second manager [listener] describes.
+ * @return this chain with the action callback declared on it.
  * @see java.awt.event.ActionListener
  */
 public inline fun <reified T : Component> SwingModifier.actionListener(
@@ -42,6 +50,9 @@ public inline fun <reified T : Component> SwingModifier.actionListener(
  * Runs [onAction] on the action event of a component of type [targetType] that fires one, with that
  * component as `this`. An event sourced anywhere else is refused; see [listener].
  *
+ * @param targetType the component type the node and every event's source are both checked against.
+ * @param onAction read when the event fires.
+ * @return this chain with the action callback declared on it.
  * @see java.awt.event.ActionListener
  */
 public fun <T : Component> SwingModifier.actionListener(
@@ -58,6 +69,9 @@ public fun <T : Component> SwingModifier.actionListener(
  * interaction family's `onAccept` reports. That has a registration of its own, narrowed to
  * `JTextField`, so declaring both attaches two listeners rather than moving one.
  *
+ * @param listener attached by identity, so a remembered instance stays put while a fresh one on every
+ *   pass is detached and re-added.
+ * @return this chain with the action listener declared on it.
  * @see java.awt.event.ActionListener
  */
 public fun SwingModifier.actionListener(listener: ActionListener): SwingModifier = listener(listener, ACTION)

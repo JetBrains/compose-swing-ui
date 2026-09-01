@@ -27,7 +27,9 @@ import javax.swing.event.ChangeEvent
 import javax.swing.event.ChangeListener
 
 /**
- * A composable wrapper for JSlider.
+ * A `JSlider`: the user picks a whole number between [min] and [max] by dragging a knob along a track.
+ * A value the user leaves the knob on and the caller does not answer with a matching [value] is settled
+ * back onto the declared one once the drag is released, so the knob ends where the composition says.
  *
  * A drag is published a value at a time: the slider passes through every value between the one it was
  * grabbed at and the one it is let go on, and each of them reaches [onValueChange] as the user reaches it,
@@ -45,18 +47,23 @@ import javax.swing.event.ChangeListener
  * @param onValueSettled callback invoked with the value the slider settles on: the one a drag is released
  *   on, one the user reaches outside a drag, and the value the slider is left on where it cannot hold
  *   [value]
- * @param min the minimum value
- * @param max the maximum value
- * @param orientation the orientation of the slider (an [Orientation] `SwingConstants` value)
- * @param inverted whether the value axis runs backwards, with the maximum at the left or bottom end
- * @param majorTickSpacing the value distance between major tick marks, `0` for none
- * @param minorTickSpacing the value distance between minor tick marks, `0` for none
- * @param paintTicks whether the tick marks are painted
- * @param paintLabels whether the value labels are painted
+ * @param min the smallest value the slider can hold; `0` by default
+ * @param max the largest value the slider can hold; `100` by default
+ * @param orientation the orientation of the slider (an [Orientation] `SwingConstants` value);
+ *   `HORIZONTAL` by default, which runs the track across the width the slider is given
+ * @param inverted whether the value axis runs backwards, with the maximum at the left or bottom end;
+ *   `false` by default, which puts the minimum at that end instead
+ * @param majorTickSpacing the value distance between major tick marks, `0` for none - the default
+ * @param minorTickSpacing the value distance between minor tick marks, `0` for none - the default
+ * @param paintTicks whether the tick marks are painted; `false` by default, which draws a bare track
+ * @param paintLabels whether the value labels are painted; `false` by default, which draws no text
+ *   along the track
  * @param labels the text to draw at each value, keyed by the value the label sits at. `null` leaves the
  *   labels to Swing, which draws one at every major tick mark when [paintLabels] is `true` and
  *   [majorTickSpacing] is positive
- * @param snapToTicks whether a value the user picks resolves to the closest tick mark
+ * @param snapToTicks whether a value the user picks resolves to the closest tick mark; `false` by
+ *   default, which lets the knob rest on any value in the range. The grid is [minorTickSpacing] where it
+ *   is positive and [majorTickSpacing] otherwise, so with neither declared there is no grid to snap to
  * @see javax.swing.JSlider
  */
 @Composable
@@ -105,9 +112,9 @@ public fun Slider(
 }
 
 /**
- * A composable wrapper for JSlider driven by a raw [ChangeListener] instead of the `onValueChange` and
- * `onValueSettled` lambdas. The [changeListener] is attached as-is and removed on the same instance; pass a
- * stable instance (e.g. `remember {}`) to avoid a detach/re-attach on every recomposition. Being attached
+ * A `Slider` driven by a raw [ChangeListener] instead of the `onValueChange` and `onValueSettled`
+ * lambdas. The [changeListener] is attached as-is and removed on the same instance; pass a stable
+ * instance (e.g. `remember {}`) to avoid a detach/re-attach on every recomposition. Being attached
  * as-is, it is notified of every change to the slider's value - the values a drag passes through as well as
  * the one it settles on, and the change that applies [value] included - and reads `getValueIsAdjusting` off
  * the slider to tell them apart.
@@ -115,18 +122,23 @@ public fun Slider(
  * @param value the current value
  * @param changeListener the listener notified when the value changes
  * @param modifier the [SwingModifier] applied to the underlying component
- * @param min the minimum value
- * @param max the maximum value
- * @param orientation the orientation of the slider (an [Orientation] `SwingConstants` value)
- * @param inverted whether the value axis runs backwards, with the maximum at the left or bottom end
- * @param majorTickSpacing the value distance between major tick marks, `0` for none
- * @param minorTickSpacing the value distance between minor tick marks, `0` for none
- * @param paintTicks whether the tick marks are painted
- * @param paintLabels whether the value labels are painted
+ * @param min the smallest value the slider can hold; `0` by default
+ * @param max the largest value the slider can hold; `100` by default
+ * @param orientation the orientation of the slider (an [Orientation] `SwingConstants` value);
+ *   `HORIZONTAL` by default, which runs the track across the width the slider is given
+ * @param inverted whether the value axis runs backwards, with the maximum at the left or bottom end;
+ *   `false` by default, which puts the minimum at that end instead
+ * @param majorTickSpacing the value distance between major tick marks, `0` for none - the default
+ * @param minorTickSpacing the value distance between minor tick marks, `0` for none - the default
+ * @param paintTicks whether the tick marks are painted; `false` by default, which draws a bare track
+ * @param paintLabels whether the value labels are painted; `false` by default, which draws no text
+ *   along the track
  * @param labels the text to draw at each value, keyed by the value the label sits at. `null` leaves the
  *   labels to Swing, which draws one at every major tick mark when [paintLabels] is `true` and
  *   [majorTickSpacing] is positive
- * @param snapToTicks whether a value the user picks resolves to the closest tick mark
+ * @param snapToTicks whether a value the user picks resolves to the closest tick mark; `false` by
+ *   default, which lets the knob rest on any value in the range. The grid is [minorTickSpacing] where it
+ *   is positive and [majorTickSpacing] otherwise, so with neither declared there is no grid to snap to
  * @see javax.swing.JSlider
  */
 @Composable
@@ -186,10 +198,10 @@ private val SLIDER_RANGE =
     )
 
 /**
- * A composable wrapper for JSlider driven by a caller-owned [BoundedRangeModel]. The model owns the value
- * and the range, so nothing is declared over it: the slider renders whatever the model holds, the library
- * never writes to it, and a model the caller mutates repaints the slider without a recomposition. Supplying
- * a new [model] instance installs it on recomposition.
+ * A `Slider` over a caller-owned [BoundedRangeModel]. The model owns the value and the range, so nothing
+ * is declared over it: the slider renders whatever the model holds, the library never writes to it, and
+ * a model the caller mutates repaints the slider without a recomposition. Supplying a new [model]
+ * instance installs it on recomposition.
  *
  * This is what lets one range drive several widgets - a slider and the [ProgressBar] reading it out, or two
  * views of the same position - since each of them renders the model as-is:
@@ -210,16 +222,21 @@ private val SLIDER_RANGE =
  *   through included
  * @param onValueSettled callback invoked with the value the slider settles on: the one a drag is released
  *   on, and one the value reaches outside a drag
- * @param orientation the orientation of the slider (an [Orientation] `SwingConstants` value)
- * @param inverted whether the value axis runs backwards, with the maximum at the left or bottom end
- * @param majorTickSpacing the value distance between major tick marks, `0` for none
- * @param minorTickSpacing the value distance between minor tick marks, `0` for none
- * @param paintTicks whether the tick marks are painted
- * @param paintLabels whether the value labels are painted
+ * @param orientation the orientation of the slider (an [Orientation] `SwingConstants` value);
+ *   `HORIZONTAL` by default, which runs the track across the width the slider is given
+ * @param inverted whether the value axis runs backwards, with the maximum at the left or bottom end;
+ *   `false` by default, which puts the minimum at that end instead
+ * @param majorTickSpacing the value distance between major tick marks, `0` for none - the default
+ * @param minorTickSpacing the value distance between minor tick marks, `0` for none - the default
+ * @param paintTicks whether the tick marks are painted; `false` by default, which draws a bare track
+ * @param paintLabels whether the value labels are painted; `false` by default, which draws no text
+ *   along the track
  * @param labels the text to draw at each value, keyed by the value the label sits at. `null` leaves the
  *   labels to Swing, which draws one at every major tick mark when [paintLabels] is `true` and
  *   [majorTickSpacing] is positive
- * @param snapToTicks whether a value the user picks resolves to the closest tick mark
+ * @param snapToTicks whether a value the user picks resolves to the closest tick mark; `false` by
+ *   default, which lets the knob rest on any value in the range. The grid is [minorTickSpacing] where it
+ *   is positive and [majorTickSpacing] otherwise, so with neither declared there is no grid to snap to
  * @see javax.swing.JSlider
  */
 @Composable
@@ -265,16 +282,21 @@ public fun Slider(
  *   by the library
  * @param changeListener the listener notified when the value changes
  * @param modifier the [SwingModifier] applied to the underlying component
- * @param orientation the orientation of the slider (an [Orientation] `SwingConstants` value)
- * @param inverted whether the value axis runs backwards, with the maximum at the left or bottom end
- * @param majorTickSpacing the value distance between major tick marks, `0` for none
- * @param minorTickSpacing the value distance between minor tick marks, `0` for none
- * @param paintTicks whether the tick marks are painted
- * @param paintLabels whether the value labels are painted
+ * @param orientation the orientation of the slider (an [Orientation] `SwingConstants` value);
+ *   `HORIZONTAL` by default, which runs the track across the width the slider is given
+ * @param inverted whether the value axis runs backwards, with the maximum at the left or bottom end;
+ *   `false` by default, which puts the minimum at that end instead
+ * @param majorTickSpacing the value distance between major tick marks, `0` for none - the default
+ * @param minorTickSpacing the value distance between minor tick marks, `0` for none - the default
+ * @param paintTicks whether the tick marks are painted; `false` by default, which draws a bare track
+ * @param paintLabels whether the value labels are painted; `false` by default, which draws no text
+ *   along the track
  * @param labels the text to draw at each value, keyed by the value the label sits at. `null` leaves the
  *   labels to Swing, which draws one at every major tick mark when [paintLabels] is `true` and
  *   [majorTickSpacing] is positive
- * @param snapToTicks whether a value the user picks resolves to the closest tick mark
+ * @param snapToTicks whether a value the user picks resolves to the closest tick mark; `false` by
+ *   default, which lets the knob rest on any value in the range. The grid is [minorTickSpacing] where it
+ *   is positive and [majorTickSpacing] otherwise, so with neither declared there is no grid to snap to
  * @see javax.swing.JSlider
  */
 @Composable

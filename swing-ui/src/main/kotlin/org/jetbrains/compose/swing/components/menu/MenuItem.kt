@@ -16,7 +16,8 @@ import javax.swing.JMenuItem
 import javax.swing.KeyStroke
 
 /**
- * A composable wrapper for JMenuItem.
+ * An item that performs an action when the user picks it: a `JMenuItem` reporting the pick through
+ * [onClick].
  *
  * @param text the text of the menu item
  * @param onClick callback to be invoked when the menu item is clicked

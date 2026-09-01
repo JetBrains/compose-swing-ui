@@ -15,6 +15,10 @@ import java.awt.event.HierarchyListener
  * [onHierarchyChange] is read when the event fires, so writing a fresh lambda on every recomposition
  * registers nothing again.
  *
+ * @param onHierarchyChange receives the event; its `changeFlags` hold the `HierarchyEvent.*_CHANGED`
+ *   bits, and `changed` is the component the change happened to - this component itself or one of its
+ *   ancestors.
+ * @return this chain with the hierarchy callback declared on it.
  * @see java.awt.Component.addHierarchyListener
  */
 public fun SwingModifier.hierarchyListener(onHierarchyChange: (HierarchyEvent) -> Unit): SwingModifier =
@@ -23,6 +27,9 @@ public fun SwingModifier.hierarchyListener(onHierarchyChange: (HierarchyEvent) -
 /**
  * Attaches a [HierarchyListener] (`addHierarchyListener`/`removeHierarchyListener`).
  *
+ * @param listener attached by identity, so a remembered instance stays put while a fresh one on every
+ *   pass is detached and re-added.
+ * @return this chain with the hierarchy listener declared on it.
  * @see java.awt.Component.addHierarchyListener
  */
 public fun SwingModifier.hierarchyListener(listener: HierarchyListener): SwingModifier = listener(listener, HIERARCHY)

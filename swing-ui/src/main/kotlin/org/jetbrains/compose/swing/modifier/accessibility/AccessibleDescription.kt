@@ -13,6 +13,7 @@ import java.awt.Component
  * can read after the name. `null` clears any description this modifier set.
  *
  * @param description the accessible description to advertise, or `null` to clear it.
+ * @return this chain with the accessible description declared on it.
  * @see javax.accessibility.AccessibleContext.setAccessibleDescription
  */
 public fun SwingModifier.accessibleDescription(description: @Nls String?): SwingModifier =

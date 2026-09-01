@@ -101,6 +101,9 @@ public class ListState
          * such row. `true` means the list was asked to show it, which scrolls the pane the list is in; a list
          * in no scroll pane has nowhere to scroll.
          *
+         * @param index the row to bring into view, as its position among the items declared for the list -
+         *   the same index [selectedIndices] names a row by.
+         * @return whether the list holds that row and was scrolled to it.
          * @see javax.swing.JList.ensureIndexIsVisible
          */
         public fun revealIndex(index: Int): Boolean {

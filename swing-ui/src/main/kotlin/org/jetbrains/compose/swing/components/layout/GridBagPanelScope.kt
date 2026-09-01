@@ -45,12 +45,13 @@ public sealed interface GridBagPanelScope {
      *   receives none
      * @param anchor where the child sits within its display area when the area is larger
      * @param fill whether and along which axes the child is resized to fill its display area
-     * @param insets the external padding, the minimum space between the child and the edges of its
-     *   display area
+     * @param insets the external padding - the room held clear around the child inside its display
+     *   area
      * @param ipadx the internal horizontal padding: the child is at least its minimum width plus this
      *   many pixels wide
      * @param ipady the internal vertical padding: the child is at least its minimum height plus this
      *   many pixels tall
+     * @return this chain with the placement declared on it.
      * @see java.awt.GridBagConstraints
      */
     @Suppress("LongParameterList")

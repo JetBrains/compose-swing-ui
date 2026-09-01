@@ -13,26 +13,30 @@ and painted by the platform look-and-feel; Compose drives state and composition.
 Inspired by [Compose HTML](https://github.com/JetBrains/compose-multiplatform) (DOM target) and
 [Mosaic](https://github.com/JakeWharton/mosaic) (terminal target).
 
+<!--- INCLUDE .*readme.*
+import androidx.compose.runtime.*
+import org.jetbrains.compose.swing.components.*
+import org.jetbrains.compose.swing.components.button.*
+import org.jetbrains.compose.swing.components.layout.*
+import org.jetbrains.compose.swing.components.menu.*
+import org.jetbrains.compose.swing.modifier.*
+import org.jetbrains.compose.swing.modifier.appearance.*
+import org.jetbrains.compose.swing.modifier.interaction.*
+import org.jetbrains.compose.swing.setContent
+import org.jetbrains.compose.swing.window.*
+import java.awt.Color
+import java.awt.Dimension
+import javax.swing.JFrame
+import javax.swing.SwingConstants
+import javax.swing.SwingUtilities
+-->
+
 ## Quick start
 
 A minimal app using the `application` entry point, a `Window`, a couple of components, and
 `BorderPanel`'s regions:
 
 ```kotlin
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.components.layout.BorderPanel
-import org.jetbrains.compose.swing.components.button.Button
-import org.jetbrains.compose.swing.components.layout.FlowPanel
-import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.horizontalAlignment
-import org.jetbrains.compose.swing.window.Window
-import org.jetbrains.compose.swing.window.application
-import javax.swing.SwingConstants
-
 fun main() = application {
     Window(onCloseRequest = ::exitApplication, title = "Counter") {
         var count by remember { mutableIntStateOf(0) }
@@ -75,18 +79,6 @@ You can also drive composition into any container without the `application`/`Win
 `import org.jetbrains.compose.swing.setContent` resolves all of them:
 
 ```kotlin
-import org.jetbrains.compose.swing.components.button.Button
-import org.jetbrains.compose.swing.components.layout.FlowPanel
-import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.setContent // Container/Window/JMenuBar.setContent
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import java.awt.Dimension
-import javax.swing.JFrame
-import javax.swing.SwingUtilities
-
 fun main() {
     SwingUtilities.invokeLater {
         val frame = JFrame("My App")
@@ -119,18 +111,6 @@ content reads. It is declared on the window scope a `Window` and a `Dialog` give
 menu bar with no window to carry it does not compile:
 
 ```kotlin
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.components.menu.Menu
-import org.jetbrains.compose.swing.components.menu.MenuItem
-import org.jetbrains.compose.swing.components.menu.MenuSeparator
-import org.jetbrains.compose.swing.window.MenuBar
-import org.jetbrains.compose.swing.window.Window
-import org.jetbrains.compose.swing.window.application
-
 fun main() = application {
     var opened by remember { mutableStateOf("nothing") }
     Window(onCloseRequest = ::exitApplication, title = "Editor") {
@@ -160,18 +140,6 @@ interaction concerns - colors, fonts, borders, tooltips, focus, hover. Build a c
 extension builders:
 
 ```kotlin
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.components.button.Button
-import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.foreground
-import org.jetbrains.compose.swing.modifier.appearance.lineBorder
-import org.jetbrains.compose.swing.modifier.interaction.onHover
-import java.awt.Color
-
 @Composable
 fun SaveButton(onSave: () -> Unit) {
     var hovered by remember { mutableStateOf(false) }
@@ -195,8 +163,7 @@ Hoist the other value objects a chain carries - a `Font` or an `Icon` - into `re
 Domain callbacks like `onClick` and `onValueChange` stay ordinary parameters; only cross-cutting
 styling and interaction flow through `modifier`. Builders are grouped by concern, one package each:
 appearance, layout, interaction, listener, keyboard, data transfer, and accessibility. See
-[`docs/CUSTOM-COMPONENTS.md`](docs/CUSTOM-COMPONENTS.md) for what an unhoisted instance costs, and
-for writing your own modifier elements and listeners.
+[`docs/CUSTOM-MODIFIERS.md`](docs/CUSTOM-MODIFIERS.md) for what an unhoisted instance costs.
 
 ## Bring your own Swing component
 
@@ -204,6 +171,18 @@ Any Swing `Component` can be hosted directly with `SwingNode` - a first-class, s
 custom Swing components into a composition. Every built-in wrapper is built on `SwingNode` the same
 way. See [`docs/CUSTOM-COMPONENTS.md`](docs/CUSTOM-COMPONENTS.md) for a step-by-step guide, and
 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for how the composition drives the Swing tree.
+
+Three further guides carry the rest:
+
+- [`docs/COMPONENT-STATE.md`](docs/COMPONENT-STATE.md) - a property the user can change as well as
+  the composition, and the state holders that carry what a declared value cannot.
+- [`docs/CUSTOM-MODIFIERS.md`](docs/CUSTOM-MODIFIERS.md) - the `modifier` parameter, writing a
+  property element of your own, and attaching listeners.
+- [`docs/CUSTOM-CONTAINERS.md`](docs/CUSTOM-CONTAINERS.md) - containers, the placements they offer
+  their children, and rendering items with a composable cell.
+
+To ask a mounted composition what it holds for a component and where that component was declared,
+see [`docs/INSPECTING-COMPOSITIONS.md`](docs/INSPECTING-COMPOSITIONS.md).
 
 ## Animation
 

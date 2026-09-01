@@ -22,7 +22,12 @@ public class SwingWindowInteractionCollection internal constructor(
     internal val matcherDescription: String
         get() = matcher.description
 
-    /** Asserts that exactly [expected] realized windows match. */
+    /**
+     * Asserts that exactly [expected] realized windows match.
+     *
+     * @param expected the number of matches required; the failure lists every realized window.
+     * @return this collection, for chaining a further assertion.
+     */
     public fun assertCountEquals(expected: Int): SwingWindowInteractionCollection {
         val actual = resolveAll().size
         if (actual != expected) {

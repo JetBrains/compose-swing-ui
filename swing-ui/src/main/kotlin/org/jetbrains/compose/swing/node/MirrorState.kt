@@ -46,6 +46,8 @@ import java.awt.Component
  * where something else is waiting for one.
  *
  * Runs on the event dispatch thread.
+ *
+ * @param initial the value the widget holds before any declaration has been settled onto it.
  */
 public class MirrorState<V>
     @RememberInComposition
@@ -139,6 +141,11 @@ public class MirrorState<V>
          * this wrapper's own.
          *
          * Call this for every value the widget publishes, in the order it publishes them.
+         *
+         * @param published the value the widget now holds; it is mirrored whether or not the change is
+         *   the user's.
+         * @return `true` where the user changed the value, `false` both for a value this wrapper wrote
+         *   through [write] and for one that repeats what the mirror already held.
          */
         public fun observed(published: V): Boolean {
             val changed = published != observedValue
@@ -167,6 +174,11 @@ public class MirrorState<V>
          * caller is about to change.
          *
          * Runs on the event dispatch thread.
+         *
+         * @param published the value the widget now holds, mirrored through [observed] even where it is
+         *   no change of the user's.
+         * @param onChanged handed [published] where the change is the user's, and not called at all
+         *   where it is not.
          */
         public fun report(
             published: V,
@@ -195,6 +207,9 @@ public class MirrorState<V>
         /**
          * Runs [block] as the wrapper's own write to its widget, so the events it raises are recognizable as
          * such rather than as something the user did.
+         *
+         * @param block the write to make. A failure raised by a listener it provokes is contained rather
+         *   than ending the composition, and a [write] nested inside another counts as part of it.
          */
         public fun write(block: () -> Unit): Unit = appliedWrite.write(block)
 
@@ -224,6 +239,14 @@ public class MirrorState<V>
          * A widget can settle on a different value than [declared] - an index outside its items, a number
          * off the grid it snaps to. When it does, [onSettled] is handed what the widget was left holding,
          * once the widget has been left alone, so what it reports is final.
+         *
+         * @param declared the value this pass declares for the property.
+         * @param read answers with the value the widget holds. Called once before the write, and a
+         *   second time only where a write was made.
+         * @param write puts a value onto the widget, marked as this wrapper's own so the events it
+         *   raises are not taken for the user's.
+         * @param onSettled handed what the widget was left holding, where that differs from [declared].
+         *   Defaults to doing nothing.
          */
         public fun settle(
             declared: V,
@@ -329,6 +352,10 @@ public class MirrorState<V>
          * writing some other property, leaving a standing declaration lying where the widget dropped it,
          * does still owe it: that is news, and its [observed] stays outside, where the change it records
          * is what brings the pass that puts the declaration back.
+         *
+         * @param block makes the write and closes the settlement on its [SettlementScope] receiver.
+         *   A change it makes to this mirror's property needs no pass of its own.
+         * @return whatever [block] returned, once the settlement has closed.
          */
         public fun <R> settle(block: SettlementScope<V>.() -> R): R {
             val scope = RecordingScope(this)
@@ -366,7 +393,12 @@ public class MirrorState<V>
          * leaves the widget standing where the write left it with no later pass due to correct it.
          */
         public sealed interface SettlementScope<in V> {
-            /** Records [value] - what this settlement read the widget back as - as the answer to what it wrote. */
+            /**
+             * Records [value] - what this settlement read the widget back as - as the answer to what it wrote.
+             *
+             * @param value what the widget was left holding, which the next pass measures its declaration
+             *   against.
+             */
             public fun answered(value: V)
 
             /**
@@ -421,6 +453,10 @@ public class MirrorState<V>
  * nodes, or remembered above the node it settles, goes on answering for a widget that is no longer there
  * - and the widget built in its place keeps the value its constructor gave it instead of the standing
  * declaration.
+ *
+ * @param initial what the widget holds before anything is declared onto it, read once when the record is
+ *   created.
+ * @return the record to hand [declare] for every pass of the node it belongs to.
  */
 @Composable
 public fun <V> rememberMirrorState(initial: V): MirrorState<V> = remember { MirrorState(initial) }
@@ -442,14 +478,20 @@ public fun <V> rememberMirrorState(initial: V): MirrorState<V> = remember { Mirr
  * Pass blocks instead where the write is more than a plain assignment - one that coerces its argument,
  * or that must be skipped for a value the widget already holds.
  *
- * [onSettled] receives the value when the widget answers the write with one of its own. A widget that
- * can hold every declaration it is given never calls it, so the default does nothing.
- *
  * Call this exactly once per pass, for one node, against a [mirror] remembered in that node's own group.
  * It calls [SwingNodeUpdater.set], so a [declare] inside a conditional shifts every later slot in the
  * `update` block; and what a declaration is compared against lives on [mirror] rather than in the
  * composition, so a [mirror] that outlives its node answers for a widget that is no longer there. State
  * a condition in [value], not in whether the call happens.
+ *
+ * @param value the declaration for the property, settled on every pass either side changes.
+ * @param mirror the record this declaration and the widget's value are compared against.
+ * @param read answers with the value the widget holds. Called once before the write, and a second time
+ *   only where a write was made.
+ * @param write puts a value onto the widget, marked as the library's own so the events it raises are
+ *   not taken for the user's.
+ * @param onSettled handed what the widget was left holding, where that differs from [value]. Defaults
+ *   to doing nothing.
  */
 public fun <C : Component, V> SwingNodeUpdater<C>.declare(
     value: V,
@@ -483,6 +525,15 @@ public fun <C : Component, V> SwingNodeUpdater<C>.declare(
  *
  * Everything the assigning overload says about when a settlement runs, and about calling it once per
  * pass for one node, holds here too.
+ *
+ * @param value the declaration for the property, settled on every pass either side changes.
+ * @param mirror the record this declaration and the widget's value are compared against.
+ * @param read answers with the value the widget holds. Called once before the write, and a second time
+ *   only where a write was made.
+ * @param write moves the widget from the value it holds to the one declared, marked as the library's
+ *   own so the events it raises are not taken for the user's.
+ * @param onSettled handed what the widget was left holding, where that differs from [value]. Defaults
+ *   to doing nothing.
  */
 public fun <C : Component, V> SwingNodeUpdater<C>.declare(
     value: V,

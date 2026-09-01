@@ -155,7 +155,7 @@ Registering on a recomposer reports the content compositions nested inside its o
 Turning inspection on, naming the composable that declared a component, and watching a window's
 compositions come and go:
 
-```kotlin
+<!--- INCLUDE .*inspecting-01.*
 import androidx.compose.runtime.Composer
 import androidx.compose.runtime.ExperimentalComposeRuntimeApi
 import androidx.compose.runtime.tooling.ComposeStackTraceMode
@@ -171,7 +171,9 @@ import java.awt.Component
 import java.awt.Window
 import java.io.PrintWriter
 import java.io.StringWriter
+-->
 
+```kotlin
 /** Records where every composition declares its components, for the rest of the process. */
 fun startInspecting() {
     Composer.setDiagnosticStackTraceMode(ComposeStackTraceMode.SourceInformation)

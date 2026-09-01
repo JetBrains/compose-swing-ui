@@ -15,7 +15,8 @@ import javax.swing.JTextField
 import javax.swing.event.DocumentListener
 
 /**
- * A composable wrapper for JTextField.
+ * A single line of editable plain text. The `JTextField` shows the text [value] declares, and every
+ * edit reports the field's whole text through [onValueChange].
  *
  * This field is strictly controlled: if [onValueChange] does not answer with a matching [value], the
  * field is settled back onto the declared value on the very next pass. It never ends up holding text
@@ -29,8 +30,9 @@ import javax.swing.event.DocumentListener
  * @param onValueChange callback invoked with the field's new text when the field is edited; applying
  *   [value] is not itself reported
  * @param modifier the [SwingModifier] applied to the underlying component
- * @param columns the number of columns
- * @param editable whether the user can edit the text
+ * @param columns the preferred width in columns; `0` by default, taking the width from the text the
+ *   field holds
+ * @param editable whether the user can type into the field; `true` by default
  * @see TextField the [DocumentState]-driven overload for large or complex editors
  * @see javax.swing.JTextField
  */
@@ -53,10 +55,10 @@ public fun TextField(
 }
 
 /**
- * A composable wrapper for JTextField driven by a raw [DocumentListener] instead of an `onValueChange`
- * lambda. The [documentListener] is attached to the field's document as-is and removed on the same
- * instance; pass a stable instance (e.g. `remember {}`) to avoid churn. It observes every change to
- * that document, including the one that applies [value].
+ * A [TextField] driven by a raw [DocumentListener] instead of an `onValueChange` lambda. The
+ * [documentListener] is attached to the field's document as-is and removed on the same instance; pass
+ * a stable instance (e.g. `remember {}`) to avoid churn. It observes every change to that document,
+ * including the one that applies [value].
  *
  * This field is strictly controlled: if text the field settles on is not followed by [value] moving to
  * match, it is settled back onto the declared value on the very next pass. It never ends up holding
@@ -68,8 +70,9 @@ public fun TextField(
  * @param value the current text value
  * @param documentListener the listener notified of document edits
  * @param modifier the [SwingModifier] applied to the underlying component
- * @param columns the number of columns
- * @param editable whether the user can edit the text
+ * @param columns the preferred width in columns; `0` by default, taking the width from the text the
+ *   field holds
+ * @param editable whether the user can type into the field; `true` by default
  * @see TextField the [DocumentState]-driven overload for large or complex editors
  * @see javax.swing.JTextField
  */
@@ -120,15 +123,16 @@ private inline fun TextFieldNode(
 }
 
 /**
- * A composable wrapper for JTextField driven by a [DocumentState]. The field renders the state's
- * own document, so text typed into the field and edits made through the state are the same content, and
- * the caret is kept two-way with [DocumentState.selection]. The state is the single source of
- * truth; there is no `onValueChange`.
+ * A [TextField] driven by a [DocumentState]. The field renders the state's own document, so text
+ * typed into the field and edits made through the state are the same content, and the caret is kept
+ * two-way with [DocumentState.selection]. The state is the single source of truth; there is no
+ * `onValueChange`.
  *
  * @param state the hoistable text state the field renders and drives.
  * @param modifier the [SwingModifier] applied to the underlying component
- * @param columns the number of columns
- * @param editable whether the user can edit the text
+ * @param columns the preferred width in columns; `0` by default, taking the width from the text the
+ *   field holds
+ * @param editable whether the user can type into the field; `true` by default
  * @see javax.swing.JTextField
  */
 @Composable

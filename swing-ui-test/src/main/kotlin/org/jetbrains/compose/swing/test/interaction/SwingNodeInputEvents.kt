@@ -31,6 +31,9 @@ import javax.swing.text.JTextComponent
  * }
  * ```
  *
+ * @param event builds the single event this call delivers; a gesture of several events is several
+ *   calls, each an event-queue cycle apart.
+ * @return this interaction, for chaining a further gesture or assertion.
  * @throws AssertionError if the query does not resolve to a single node.
  */
 public suspend fun <T : Component> SwingNodeInteraction<T>.performEvent(
@@ -42,6 +45,10 @@ public suspend fun <T : Component> SwingNodeInteraction<T>.performEvent(
  * [position] defaults to the middle of the node, in the node's own coordinates.
  *
  * The button stays down: nothing releases it until [performMouseRelease] does.
+ *
+ * @param position where the button goes down; the release takes its own, and nothing carries this
+ *   one over to it.
+ * @return this interaction, for chaining a further gesture or assertion.
  */
 public suspend fun <T : Component> SwingNodeInteraction<T>.performMousePress(
     position: Point? = null,
@@ -52,6 +59,10 @@ public suspend fun <T : Component> SwingNodeInteraction<T>.performMousePress(
  * [position] defaults to the middle of the node, in the node's own coordinates.
  *
  * No `MOUSE_CLICKED` follows - [performClick] is the whole gesture.
+ *
+ * @param position where the button comes up, which need not be where it went down - a release
+ *   elsewhere is how a drag ends.
+ * @return this interaction, for chaining a further gesture or assertion.
  */
 public suspend fun <T : Component> SwingNodeInteraction<T>.performMouseRelease(
     position: Point? = null,
@@ -73,6 +84,13 @@ public suspend fun <T : Component> SwingNodeInteraction<T>.performMouseRelease(
  *
  * A click lands where a user's click would land. Aimed outside the node's bounds, or at a node that has
  * no size because nothing laid it out, the UI resolves it to nothing and the node does not react.
+ *
+ * @param position the point every event of the click carries, so press, release and click all land
+ *   together.
+ * @param button a `MouseEvent.BUTTON*` constant; the primary button by default.
+ * @param clicks the number of clicks in the gesture, one by default; fewer than one is rejected.
+ * @param modifiers a mask of `InputEvent.*_DOWN_MASK` values, none by default.
+ * @return this interaction, for chaining a further gesture or assertion.
  */
 public suspend fun <T : Component> SwingNodeInteraction<T>.performClick(
     position: Point? = null,
@@ -94,6 +112,9 @@ public suspend fun <T : Component> SwingNodeInteraction<T>.performClick(
  * The gesture is a secondary-button click carrying the popup trigger on the one event the host platform
  * carries it on: the release on Windows, the press everywhere else. A component reading
  * `isPopupTrigger` off both events is asked once, the way the toolkit asks it.
+ *
+ * @param position where the gesture lands, which is the point a menu opened from it is placed at.
+ * @return this interaction, for chaining a further gesture or assertion.
  */
 public suspend fun <T : Component> SwingNodeInteraction<T>.performContextClick(
     position: Point? = null,
@@ -115,6 +136,10 @@ public suspend fun <T : Component> SwingNodeInteraction<T>.performContextClick(
  *
  * One `MOUSE_MOVED` with no button held, which is what a rollover state and a tooltip follow. Arriving
  * over the node and leaving it are [performMouseEnter] and [performMouseExit].
+ *
+ * @param position the point the move is reported at; no pointer position is kept between calls, so
+ *   every gesture carries its own.
+ * @return this interaction, for chaining a further gesture or assertion.
  */
 public suspend fun <T : Component> SwingNodeInteraction<T>.performMouseMove(position: Point): SwingNodeInteraction<T> =
     settleAfter { node -> node.deliverMouseMove(position) }
@@ -122,6 +147,9 @@ public suspend fun <T : Component> SwingNodeInteraction<T>.performMouseMove(posi
 /**
  * Brings the pointer onto the matched node at [position] and settles the composition. [position]
  * defaults to the middle of the node, in the node's own coordinates.
+ *
+ * @param position the point the pointer arrives at, which a UI takes its rollover state from.
+ * @return this interaction, for chaining a further gesture or assertion.
  */
 public suspend fun <T : Component> SwingNodeInteraction<T>.performMouseEnter(
     position: Point? = null,
@@ -130,6 +158,10 @@ public suspend fun <T : Component> SwingNodeInteraction<T>.performMouseEnter(
 /**
  * Takes the pointer off the matched node at [position] and settles the composition. [position] defaults
  * to the middle of the node, in the node's own coordinates.
+ *
+ * @param position the point the pointer leaves from; a UI clearing a rollover state does so
+ *   wherever this lands.
+ * @return this interaction, for chaining a further gesture or assertion.
  */
 public suspend fun <T : Component> SwingNodeInteraction<T>.performMouseExit(
     position: Point? = null,
@@ -139,6 +171,11 @@ public suspend fun <T : Component> SwingNodeInteraction<T>.performMouseExit(
  * Turns the mouse wheel over the matched node by [rotation] notches - negative away from the user,
  * positive toward them - then settles the composition. [position] defaults to the middle of the node, in
  * the node's own coordinates.
+ *
+ * @param rotation how many notches the wheel turns; the event scrolls by units, so every notch
+ *   moves the same amount.
+ * @param position where the wheel turns, which decides what a UI resolves under the pointer.
+ * @return this interaction, for chaining a further gesture or assertion.
  */
 public suspend fun <T : Component> SwingNodeInteraction<T>.performMouseWheel(
     rotation: Int,
@@ -180,6 +217,10 @@ private suspend fun Component.clickTimes(
  * The pointer is reported at [to] in one step. A UI that samples intermediate positions, rather than
  * acting on the position it is given, sees only the endpoint; deliver the intermediate steps yourself
  * with [performEvent] where that matters.
+ *
+ * @param from where the button goes down, which is where a UI that grabs on the press takes hold.
+ * @param to the endpoint; a UI acting on the distance from [from] sees the whole drag in one step.
+ * @return this interaction, for chaining a further gesture or assertion.
  */
 public suspend fun <T : Component> SwingNodeInteraction<T>.performMouseDrag(
     from: Point,
@@ -206,6 +247,11 @@ public suspend fun <T : Component> SwingNodeInteraction<T>.performMouseDrag(
  *
  * The events are delivered to the node as though it owned the focus; see [deliverKeyPressed] for what
  * that does and does not mean off a realized window.
+ *
+ * @param keyCode the code both events carry, which is what an input map matches a key stroke on.
+ * @param modifiers the mask held across both events; the modifier keys themselves are not
+ *   delivered, only reported as held.
+ * @return this interaction, for chaining a further gesture or assertion.
  */
 public suspend fun <T : Component> SwingNodeInteraction<T>.performKeyPress(
     keyCode: Int,
@@ -236,6 +282,10 @@ public suspend fun <T : Component> SwingNodeInteraction<T>.performKeyPress(
  *
  * This delivers only keystrokes, so it does not exercise a component that reads committed text off an
  * `InputMethodEvent`.
+ *
+ * @param text typed character by character; an empty text delivers no key event and only settles
+ *   the composition.
+ * @return this interaction, for chaining a further gesture or assertion.
  */
 public suspend fun <T : Component> SwingNodeInteraction<T>.performTyping(text: @Nls String): SwingNodeInteraction<T> =
     settleAfter { node -> node.type(text) }
@@ -275,6 +325,10 @@ private suspend fun <T : Component> SwingNodeInteraction<T>.settleAfter(
  * through the component's own key handling - so the edit passes its document filter and its editor
  * actions, and a character the component refuses is refused here too. [performTyping] types at
  * wherever the caret already stands instead.
+ *
+ * @param text typed at the end of the existing content; what the document refuses never reaches it,
+ *   so the node can end up holding less than this.
+ * @return this interaction, for chaining a further gesture or assertion.
  */
 public suspend fun <T : Component> SwingNodeInteraction<T>.performTextInput(
     text: @Nls String,
@@ -293,6 +347,9 @@ public suspend fun <T : Component> SwingNodeInteraction<T>.performTextInput(
  * content with; see [performTextInput] for what typing passes through. Replacing with an empty
  * [text] is the selection deleted by the first keystroke of nothing, so it leaves the content
  * selected rather than cleared - type a backspace with [performKeyPress] to clear it.
+ *
+ * @param text typed over the selected content, so its first character replaces the whole of it.
+ * @return this interaction, for chaining a further gesture or assertion.
  */
 public suspend fun <T : Component> SwingNodeInteraction<T>.performTextReplacement(
     text: @Nls String,
@@ -316,6 +373,10 @@ public suspend fun <T : Component> SwingNodeInteraction<T>.performTextReplacemen
  * pasted newline with a space.
  *
  * Fails where the component has no `TransferHandler`, or where the handler refuses the text.
+ *
+ * @param text handed to the handler as plain text, so no formatting a real clipboard could carry is
+ *   part of it.
+ * @return this interaction, for chaining a further gesture or assertion.
  */
 public suspend fun <T : Component> SwingNodeInteraction<T>.performTextPaste(
     text: @Nls String,
@@ -353,11 +414,15 @@ private fun SwingNodeInteraction<*>.textComponent(): JTextComponent {
  * would never see it.
  *
  * This does **not** transfer focus: the node does not become the focus owner, and
- * [assertIsFocusOwner] still fails afterwards. Ownership is a windowing-system fact that needs a
- * realized, focused window, which the harness root never has; the notification is delivered to the
- * node regardless of that, which is precisely why focus-driven behavior can be tested off-screen.
+ * [SwingNodeInteraction.assertIsFocusOwner] still fails afterwards. Ownership is a windowing-system fact
+ * that needs a realized, focused window, which the harness root never has; the notification is delivered
+ * to the node regardless of that, which is precisely why focus-driven behavior can be tested off-screen.
  *
  * A [temporary] notification is one the widget may treat as a focus change it should not act on.
+ *
+ * @param temporary marks the notification temporary; `false` by default, which is the permanent
+ *   notification a widget treats as really having the focus.
+ * @return this interaction, for chaining a further gesture or assertion.
  */
 public suspend fun <T : Component> SwingNodeInteraction<T>.performFocusGained(
     temporary: Boolean = false,
@@ -369,6 +434,10 @@ public suspend fun <T : Component> SwingNodeInteraction<T>.performFocusGained(
  * The node processes a real [FocusEvent] of id [FocusEvent.FOCUS_LOST]; see [performFocusGained]
  * for what is delivered, what a [temporary] notification means, and why this is not a focus
  * transfer.
+ *
+ * @param temporary `false` by default; a formatted field commits its value on a permanent loss and
+ *   leaves it alone on a temporary one.
+ * @return this interaction, for chaining a further gesture or assertion.
  */
 public suspend fun <T : Component> SwingNodeInteraction<T>.performFocusLost(
     temporary: Boolean = false,
@@ -396,6 +465,9 @@ private suspend fun <T : Component> SwingNodeInteraction<T>.deliverFocusEvent(
  * Clicking does nothing where a user's click would also do nothing: on a tab of a disabled pane, or
  * on a disabled tab. The strip stays where it was and the callbacks hear nothing.
  *
+ * @param index the tab's index in the pane, which a strip laid out in several runs may not show in
+ *   that order.
+ * @return this interaction, for chaining a further gesture or assertion.
  * @throws AssertionError if the query does not resolve to a single node, if that node is not a
  * [JTabbedPane], if it has no tab at [index], or if the strip does not currently show that tab - a
  * click aimed at a tab with no position on the strip would land on nothing.

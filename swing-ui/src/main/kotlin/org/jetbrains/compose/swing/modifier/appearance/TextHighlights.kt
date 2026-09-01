@@ -34,15 +34,16 @@ import javax.swing.text.JTextComponent
  *
  * Requires a [JTextComponent] target.
  *
+ * @param ranges the spans to mark, as offsets into the document. They are read as the chain is built, so a
+ *   snapshot list mutated in place invalidates the composition that declared it.
+ * @param painter draws every one of the marks; a single painter serves the whole set.
+ * @return this chain with the highlights declared on it.
  * @see javax.swing.text.Highlighter.addHighlight
  */
 public fun SwingModifier.highlights(
     ranges: List<TextRange>,
     painter: Highlighter.HighlightPainter,
-): SwingModifier =
-    // Reading the ranges here is what makes the composition declaring this chain one of their readers, so
-    // a caller that keeps them in a snapshot list and mutates it in place invalidates that composition.
-    this then HighlightsElement(ranges.toList(), painter)
+): SwingModifier = this then HighlightsElement(ranges.toList(), painter)
 
 /**
  * Re-paints a text component's highlighter with the declared ranges whenever the declaration changes,

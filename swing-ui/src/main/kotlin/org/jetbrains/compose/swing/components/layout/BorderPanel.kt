@@ -10,7 +10,9 @@ import org.jetbrains.compose.swing.node.SwingNode
 import java.awt.BorderLayout
 
 /**
- * A composable wrapper for JPanel with BorderLayout, placing each child in the region that child names.
+ * A `JPanel` under a `BorderLayout`, placing each child in the region that child names: the four edges
+ * and the center. An edge child keeps the thickness it prefers and spans its edge, and the center child
+ * takes whatever the edges leave.
  *
  * A child names its region on its own modifier, through [BorderPanelScope]:
  * ```
@@ -26,8 +28,8 @@ import java.awt.BorderLayout
  * an edge no child names holds nothing.
  *
  * @param modifier the [SwingModifier] applied to the panel
- * @param hgap the horizontal gap between regions
- * @param vgap the vertical gap between regions
+ * @param hgap the horizontal gap between regions; `0` by default, so they touch
+ * @param vgap the vertical gap between regions; `0` by default, so they touch
  * @param content the composable content of the panel; see [BorderPanelScope]
  * @see java.awt.BorderLayout
  */

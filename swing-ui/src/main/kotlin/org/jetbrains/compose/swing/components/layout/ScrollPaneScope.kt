@@ -58,6 +58,7 @@ public sealed interface ScrollPaneScope {
      *   preferred one, which is what content that fills the pane top to bottom is laid out by; `null` -
      *   and `false`, which asks for the same layout - heightens it to the viewport where the viewport is
      *   taller, and scrolls to reach the rest where it is not
+     * @return this chain with the viewport region declared on it.
      * @see javax.swing.JScrollPane.setViewportView
      */
     public fun SwingModifier.viewport(
@@ -93,6 +94,7 @@ public sealed interface ScrollPaneScope {
      * them, as `setCorner` does for any caller.
      *
      * @param corner the [ScrollPaneCorner] `JScrollPane` corner key naming the slot
+     * @return this chain with the corner region declared on it.
      * @see javax.swing.JScrollPane.setCorner
      */
     public fun SwingModifier.corner(

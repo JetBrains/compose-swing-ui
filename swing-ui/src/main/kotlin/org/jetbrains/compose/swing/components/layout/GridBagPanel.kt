@@ -10,8 +10,9 @@ import org.jetbrains.compose.swing.node.SwingNode
 import java.awt.GridBagLayout
 
 /**
- * A composable wrapper for JPanel with GridBagLayout, placing each child in the grid cell that child's
- * own constraints describe.
+ * A `JPanel` under a `GridBagLayout`, placing each child in the grid cell that child's own constraints
+ * describe - the row and column it starts at, the cells it spans, its share of the leftover extent, and
+ * how it fills the cell it is given.
  *
  * A child names its cell with `item`, through [GridBagPanelScope]:
  *

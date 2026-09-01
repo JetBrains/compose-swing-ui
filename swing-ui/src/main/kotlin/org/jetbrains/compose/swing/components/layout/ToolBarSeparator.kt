@@ -15,8 +15,9 @@ import java.awt.Dimension
 import javax.swing.JToolBar
 
 /**
- * A composable wrapper for JToolBar.Separator, the divider that belongs inside a [ToolBar]. To divide
- * anything else, use [org.jetbrains.compose.swing.components.Separator].
+ * The divider that groups a [ToolBar]'s items - `JToolBar.Separator`. It takes its orientation from the
+ * bar holding it, so it lies across the bar's own axis and turns with it. To divide anything else, use
+ * [org.jetbrains.compose.swing.components.Separator].
  *
  * The separator takes its place among the tool bar's items in declaration order:
  * ```

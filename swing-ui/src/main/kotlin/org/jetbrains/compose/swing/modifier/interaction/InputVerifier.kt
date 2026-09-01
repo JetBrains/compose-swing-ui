@@ -28,6 +28,8 @@ import javax.swing.JComponent
  * field holds - declares [verifyInputWhenFocusTarget] `false` instead. Removing this modifier puts back
  * the verifier the component carried before it was applied.
  *
+ * @param verify read live, so a fresh lambda each recomposition takes effect immediately.
+ * @return this chain with the focus gate declared on it.
  * @see javax.swing.JComponent.setInputVerifier
  */
 public fun SwingModifier.inputVerifier(verify: () -> Boolean): SwingModifier = this then InputVerifierElement(verify)
@@ -37,6 +39,9 @@ public fun SwingModifier.inputVerifier(verify: () -> Boolean): SwingModifier = t
  * focus moves to *this* component. Swing's own value is `true`; declare `false` on a control that must
  * act regardless of what the focused field holds, such as a Cancel button or a scrollbar.
  *
+ * @param verify `false` skips the focused component's verifier for every focus transfer into this component;
+ *   the verifier stays where it was declared and goes on gating transfers to other targets.
+ * @return this chain with the focus-target verification declared on it.
  * @see javax.swing.JComponent.setVerifyInputWhenFocusTarget
  */
 public fun SwingModifier.verifyInputWhenFocusTarget(verify: Boolean): SwingModifier =

@@ -15,6 +15,8 @@ import java.awt.event.ComponentListener
  * [onComponentChange] is read when the event fires, so writing a fresh lambda on every recomposition
  * registers nothing again.
  *
+ * @param onComponentChange receives the event, whose `id` tells the four apart.
+ * @return this chain with the component callback declared on it.
  * @see java.awt.Component.addComponentListener
  */
 public fun SwingModifier.componentListener(onComponentChange: (ComponentEvent) -> Unit): SwingModifier =
@@ -33,6 +35,12 @@ public fun SwingModifier.componentListener(onComponentChange: (ComponentEvent) -
  *
  * Declaring none at all is refused.
  *
+ * @param onComponentResized runs after the size changed, so the component already reports the new one.
+ * @param onComponentMoved runs after the position changed, which is stated in the parent's coordinates.
+ * @param onComponentShown runs when the component itself is made visible; a parent being shown does
+ *   not reach it.
+ * @param onComponentHidden runs when the component itself is made invisible.
+ * @return this chain with the component callbacks declared on it.
  * @see java.awt.Component.addComponentListener
  */
 public fun SwingModifier.componentListener(
@@ -55,6 +63,9 @@ public fun SwingModifier.componentListener(
 /**
  * Attaches a [ComponentListener] (`addComponentListener`/`removeComponentListener`).
  *
+ * @param listener attached by identity, so a remembered instance stays put while a fresh one on every
+ *   pass is detached and re-added.
+ * @return this chain with the component listener declared on it.
  * @see java.awt.Component.addComponentListener
  */
 public fun SwingModifier.componentListener(listener: ComponentListener): SwingModifier = listener(listener, COMPONENT)

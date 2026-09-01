@@ -23,7 +23,8 @@ import javax.swing.event.ListSelectionEvent
 import javax.swing.event.ListSelectionListener
 
 /**
- * A composable wrapper for `JList`.
+ * A column of rows the user picks from: a `JList` showing one row per item, reporting what the user
+ * selects.
  *
  * Items are declarative data. By default each row renders its item's `toString`; supply [itemContent]
  * to render an arbitrary composable cell per row (a `Row` of an icon, labels, ...). Selection is declared
@@ -61,9 +62,14 @@ import javax.swing.event.ListSelectionListener
  * @param selectedIndices the selected row indices the caller declares; `null` - the default - leaves the
  *   selection to the user
  * @param onSelectionChange callback invoked when the user settles on a new selection
- * @param selectionMode how many rows/ranges may be selected
- * @param visibleRowCount preferred number of visible rows (`JList.setVisibleRowCount`)
- * @param layoutOrientation whether the cells form a single column or wrap into columns or rows
+ * @param selectionMode how many rows/ranges may be selected; `MULTIPLE_INTERVAL_SELECTION` - the
+ *   default - lets the user select any number of ranges
+ * @param visibleRowCount how many rows the list asks a viewport to make room for; `8` is the default.
+ *   Under `VERTICAL_WRAP` it is the number of rows a column holds before the cells wrap into the next
+ *   one. Under `HORIZONTAL_WRAP` the list takes its column count from it and then fits the items into as
+ *   few rows as those columns need, which can come out below the count asked for
+ * @param layoutOrientation whether the cells form a single column or wrap into columns or rows;
+ *   `VERTICAL` - the default - is the single column
  * @param prototypeCellValue an item measured once, through the same renderer the rows use, to size every
  *   cell; `null` - the default - measures each row for itself
  * @param fixedCellWidth the width in pixels of every cell; `-1` - the default - takes the width from
@@ -114,9 +120,14 @@ public fun <T> ListBox(
  * @param modifier the [SwingModifier] applied to the underlying component
  * @param selectedIndices the selected row indices the caller declares; `null` - the default - leaves the
  *   selection to the user
- * @param selectionMode how many rows/ranges may be selected
- * @param visibleRowCount preferred number of visible rows (`JList.setVisibleRowCount`)
- * @param layoutOrientation whether the cells form a single column or wrap into columns or rows
+ * @param selectionMode how many rows/ranges may be selected; `MULTIPLE_INTERVAL_SELECTION` - the
+ *   default - lets the user select any number of ranges
+ * @param visibleRowCount how many rows the list asks a viewport to make room for; `8` is the default.
+ *   Under `VERTICAL_WRAP` it is the number of rows a column holds before the cells wrap into the next
+ *   one. Under `HORIZONTAL_WRAP` the list takes its column count from it and then fits the items into as
+ *   few rows as those columns need, which can come out below the count asked for
+ * @param layoutOrientation whether the cells form a single column or wrap into columns or rows;
+ *   `VERTICAL` - the default - is the single column
  * @param prototypeCellValue an item measured once, through the same renderer the rows use, to size every
  *   cell; `null` - the default - measures each row for itself
  * @param fixedCellWidth the width in pixels of every cell; `-1` - the default - takes the width from
@@ -222,9 +233,14 @@ private inline fun <T> ListBoxItemsImpl(
  * @param selectedIndices the selected row indices the caller declares; `null` - the default - leaves the
  *   selection to the user
  * @param onSelectionChange callback invoked when the user settles on a new selection
- * @param selectionMode how many rows/ranges may be selected
- * @param visibleRowCount preferred number of visible rows (`JList.setVisibleRowCount`)
- * @param layoutOrientation whether the cells form a single column or wrap into columns or rows
+ * @param selectionMode how many rows/ranges may be selected; `MULTIPLE_INTERVAL_SELECTION` - the
+ *   default - lets the user select any number of ranges
+ * @param visibleRowCount how many rows the list asks a viewport to make room for; `8` is the default.
+ *   Under `VERTICAL_WRAP` it is the number of rows a column holds before the cells wrap into the next
+ *   one. Under `HORIZONTAL_WRAP` the list takes its column count from it and then fits the items into as
+ *   few rows as those columns need, which can come out below the count asked for
+ * @param layoutOrientation whether the cells form a single column or wrap into columns or rows;
+ *   `VERTICAL` - the default - is the single column
  * @param prototypeCellValue an item measured once, through the same renderer the rows use, to size every
  *   cell; `null` - the default - measures each row for itself
  * @param fixedCellWidth the width in pixels of every cell; `-1` - the default - takes the width from
@@ -278,9 +294,14 @@ public fun <T> ListBox(
  * @param modifier the [SwingModifier] applied to the underlying component
  * @param selectedIndices the selected row indices the caller declares; `null` - the default - leaves the
  *   selection to the user
- * @param selectionMode how many rows/ranges may be selected
- * @param visibleRowCount preferred number of visible rows (`JList.setVisibleRowCount`)
- * @param layoutOrientation whether the cells form a single column or wrap into columns or rows
+ * @param selectionMode how many rows/ranges may be selected; `MULTIPLE_INTERVAL_SELECTION` - the
+ *   default - lets the user select any number of ranges
+ * @param visibleRowCount how many rows the list asks a viewport to make room for; `8` is the default.
+ *   Under `VERTICAL_WRAP` it is the number of rows a column holds before the cells wrap into the next
+ *   one. Under `HORIZONTAL_WRAP` the list takes its column count from it and then fits the items into as
+ *   few rows as those columns need, which can come out below the count asked for
+ * @param layoutOrientation whether the cells form a single column or wrap into columns or rows;
+ *   `VERTICAL` - the default - is the single column
  * @param prototypeCellValue an item measured once, through the same renderer the rows use, to size every
  *   cell; `null` - the default - measures each row for itself
  * @param fixedCellWidth the width in pixels of every cell; `-1` - the default - takes the width from
@@ -376,9 +397,14 @@ private inline fun <T> ListBoxModelImpl(
  * @param items the items to display
  * @param state the hoistable selection state the list applies and reports into; see [ListState]
  * @param modifier the [SwingModifier] applied to the underlying component
- * @param selectionMode how many rows/ranges may be selected
- * @param visibleRowCount preferred number of visible rows (`JList.setVisibleRowCount`)
- * @param layoutOrientation whether the cells form a single column or wrap into columns or rows
+ * @param selectionMode how many rows/ranges may be selected; `MULTIPLE_INTERVAL_SELECTION` - the
+ *   default - lets the user select any number of ranges
+ * @param visibleRowCount how many rows the list asks a viewport to make room for; `8` is the default.
+ *   Under `VERTICAL_WRAP` it is the number of rows a column holds before the cells wrap into the next
+ *   one. Under `HORIZONTAL_WRAP` the list takes its column count from it and then fits the items into as
+ *   few rows as those columns need, which can come out below the count asked for
+ * @param layoutOrientation whether the cells form a single column or wrap into columns or rows;
+ *   `VERTICAL` - the default - is the single column
  * @param prototypeCellValue an item measured once, through the same renderer the rows use, to size every
  *   cell; `null` - the default - measures each row for itself
  * @param fixedCellWidth the width in pixels of every cell; `-1` - the default - takes the width from
@@ -428,9 +454,14 @@ public fun <T> ListBox(
  * @param model the caller-owned list model to display; installed as-is and never mutated
  * @param state the hoistable selection state the list applies and reports into; see [ListState]
  * @param modifier the [SwingModifier] applied to the underlying component
- * @param selectionMode how many rows/ranges may be selected
- * @param visibleRowCount preferred number of visible rows (`JList.setVisibleRowCount`)
- * @param layoutOrientation whether the cells form a single column or wrap into columns or rows
+ * @param selectionMode how many rows/ranges may be selected; `MULTIPLE_INTERVAL_SELECTION` - the
+ *   default - lets the user select any number of ranges
+ * @param visibleRowCount how many rows the list asks a viewport to make room for; `8` is the default.
+ *   Under `VERTICAL_WRAP` it is the number of rows a column holds before the cells wrap into the next
+ *   one. Under `HORIZONTAL_WRAP` the list takes its column count from it and then fits the items into as
+ *   few rows as those columns need, which can come out below the count asked for
+ * @param layoutOrientation whether the cells form a single column or wrap into columns or rows;
+ *   `VERTICAL` - the default - is the single column
  * @param prototypeCellValue an item measured once, through the same renderer the rows use, to size every
  *   cell; `null` - the default - measures each row for itself
  * @param fixedCellWidth the width in pixels of every cell; `-1` - the default - takes the width from

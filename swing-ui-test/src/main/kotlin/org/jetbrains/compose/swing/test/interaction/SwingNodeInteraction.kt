@@ -144,6 +144,9 @@ public class SwingNodeInteraction<out T : Component> internal constructor(
      * ```
      * onNodeWithTag("agree").assert(SwingMatcher.isSelected())
      * ```
+     *
+     * @param matcher the condition the node must satisfy; its description is what the failure names.
+     * @return this interaction, for chaining a further assertion.
      */
     public fun assert(matcher: SwingMatcher): SwingNodeInteraction<T> {
         val component = resolve()
@@ -156,7 +159,13 @@ public class SwingNodeInteraction<out T : Component> internal constructor(
         return this
     }
 
-    /** Asserts the matched node's text equals [expected]. */
+    /**
+     * Asserts the matched node's text equals [expected].
+     *
+     * @param expected the whole text the node must carry; a node whose type carries no text fails
+     *   against any expectation.
+     * @return this interaction, for chaining a further assertion.
+     */
     public fun assertTextEquals(expected: @Nls String): SwingNodeInteraction<T> {
         val actual = resolve().textOrNull()
         if (actual != expected) {
@@ -298,6 +307,9 @@ public class SwingNodeInteraction<out T : Component> internal constructor(
      * A parent laid out by any other manager fails naming that manager. That includes a
      * [java.awt.CardLayout], which reports nothing about the child behind a card name; a deck is
      * asserted on through the card it shows, with [assertIsVisible] and [assertIsNotVisible].
+     *
+     * @param expected the placement the parent's layout manager must report for this child.
+     * @return this interaction, for chaining a further assertion.
      */
     public fun assertLayoutConstraint(expected: Any): SwingNodeInteraction<T> {
         layoutConstraintMismatch(description, resolve(), expected)?.let { throw AssertionError(it) }

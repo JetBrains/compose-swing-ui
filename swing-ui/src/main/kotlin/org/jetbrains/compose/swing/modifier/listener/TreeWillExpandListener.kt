@@ -13,6 +13,9 @@ import javax.swing.JTree as SwingJTree
  * Asks [onWillChange] before a node of the tree opens or closes whether it may: answering false leaves
  * the node as it was and no expansion event follows. Requires a [javax.swing.JTree] target.
  *
+ * @param onWillChange answers for the node the event's `path` names; it is read when the event fires,
+ *   so a fresh lambda on every recomposition registers nothing again.
+ * @return this chain with the veto callback declared on it.
  * @see javax.swing.JTree.addTreeWillExpandListener
  */
 public fun SwingModifier.treeWillExpandListener(onWillChange: (TreeExpansionEvent) -> Boolean): SwingModifier =
@@ -31,6 +34,11 @@ public fun SwingModifier.treeWillExpandListener(onWillChange: (TreeExpansionEven
  *
  * Declaring none at all is refused.
  *
+ * @param onWillExpand answers before the node opens; `false` reaches the tree as the veto that keeps
+ *   it closed.
+ * @param onWillCollapse answers before the node closes; `false` reaches the tree as the veto that
+ *   keeps it open.
+ * @return this chain with the veto callbacks declared on it.
  * @see javax.swing.JTree.addTreeWillExpandListener
  */
 public fun SwingModifier.treeWillExpandListener(
@@ -49,6 +57,9 @@ public fun SwingModifier.treeWillExpandListener(
  * The listener answers a change it refuses with a [javax.swing.tree.ExpandVetoException], which is what
  * a `JTree` reads as a veto: the node is left as it was and no expansion event follows.
  *
+ * @param listener attached by identity, so a remembered instance stays put while a fresh one on every
+ *   pass is detached and re-added.
+ * @return this chain with the veto listener declared on it.
  * @see javax.swing.JTree.addTreeWillExpandListener
  */
 public fun SwingModifier.treeWillExpandListener(listener: TreeWillExpandListener): SwingModifier =

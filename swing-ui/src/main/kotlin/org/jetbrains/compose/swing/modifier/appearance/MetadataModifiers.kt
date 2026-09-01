@@ -21,6 +21,9 @@ import javax.swing.JComponent
 /**
  * Sets `name` - the key components are looked up by in tests and automation; `null` clears it.
  *
+ * @param name a label the component carries for lookup alone: Swing never displays it and never requires
+ *   it to be unique.
+ * @return this chain with the name declared on it.
  * @see java.awt.Component.setName
  */
 public fun SwingModifier.name(name: String?): SwingModifier =
@@ -35,6 +38,7 @@ public fun SwingModifier.name(name: String?): SwingModifier =
  * Tags the component with [tag] so it can be located in tests independently of its name.
  *
  * @param tag the identifier used to find the component.
+ * @return this chain with the test tag declared on it.
  */
 public fun SwingModifier.testTag(tag: String): SwingModifier = this then TestTagElement(tag)
 
@@ -64,9 +68,14 @@ private class TestTagElement(
 
 /**
  * Sets a `putClientProperty` entry - the escape hatch for look-and-feel styling keys (e.g. FlatLaf)
- * and accessibility hints. Each distinct [key] is an independent modifier slot; `null` restores the
- * value the component had before. Requires a `JComponent` target.
+ * and accessibility hints. Each distinct [key] is an independent modifier slot; `null` removes the
+ * entry, and removing the declaration puts back the value the component carried before. Requires a
+ * `JComponent` target.
  *
+ * @param key the property key, matched by equality.
+ * @param value the value stored under [key]; a look and feel acts on the change the write announces, not
+ *   on later changes made inside the value itself.
+ * @return this chain with the client property declared on it.
  * @see javax.swing.JComponent.putClientProperty
  */
 public fun SwingModifier.clientProperty(

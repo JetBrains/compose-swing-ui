@@ -10,7 +10,8 @@ import org.jetbrains.compose.swing.node.SwingNode
 import javax.swing.JLayeredPane
 
 /**
- * A composable wrapper for `JLayeredPane` that stacks its [content] on integer depth layers.
+ * A container that stacks its [content] on integer depth layers rather than laying it out, realized as
+ * a `JLayeredPane`.
  *
  * A child declares the depth it sits on with `layer`, through [LayeredPaneScope]; a child declaring none
  * stands on `JLayeredPane.DEFAULT_LAYER`. Within one layer, the children stack in the order the

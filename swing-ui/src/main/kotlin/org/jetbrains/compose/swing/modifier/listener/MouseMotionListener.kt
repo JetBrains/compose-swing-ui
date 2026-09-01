@@ -15,6 +15,9 @@ import java.awt.event.MouseMotionListener
  * [onMouseMove] is read when the event fires, so writing a fresh lambda on every recomposition
  * registers nothing again.
  *
+ * @param onMouseMove receives the event, whose `x` and `y` are in the component's own coordinates and
+ *   can fall outside it while a drag that began here continues.
+ * @return this chain with the mouse motion callback declared on it.
  * @see java.awt.Component.addMouseMotionListener
  */
 public fun SwingModifier.mouseMotionListener(onMouseMove: (MouseEvent) -> Unit): SwingModifier =
@@ -32,6 +35,10 @@ public fun SwingModifier.mouseMotionListener(onMouseMove: (MouseEvent) -> Unit):
  *
  * Declaring none at all is refused.
  *
+ * @param onMouseDragged keeps reporting after the pointer leaves the component, until the button is
+ *   released.
+ * @param onMouseMoved stops as soon as the pointer leaves.
+ * @return this chain with the mouse motion callbacks declared on it.
  * @see java.awt.Component.addMouseMotionListener
  */
 public fun SwingModifier.mouseMotionListener(
@@ -45,6 +52,9 @@ public fun SwingModifier.mouseMotionListener(
 /**
  * Attaches a [MouseMotionListener] (`addMouseMotionListener`/`removeMouseMotionListener`).
  *
+ * @param listener attached by identity, so a remembered instance stays put while a fresh one on every
+ *   pass is detached and re-added.
+ * @return this chain with the mouse motion listener declared on it.
  * @see java.awt.Component.addMouseMotionListener
  */
 public fun SwingModifier.mouseMotionListener(listener: MouseMotionListener): SwingModifier =

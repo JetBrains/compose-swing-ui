@@ -27,6 +27,9 @@ import javax.swing.JLabel
  *
  * Applies to labels and to every kind of button.
  *
+ * @param icon the icon drawn beside the text; its size counts toward the component's preferred size, so
+ *   swapping in a differently sized one re-lays the component out.
+ * @return this chain with the icon declared on it.
  * @see javax.swing.JLabel.setIcon
  * @see javax.swing.AbstractButton.setIcon
  */
@@ -36,6 +39,10 @@ public fun SwingModifier.icon(icon: Icon?): SwingModifier = this then MultiTarge
  * Sets the icon a button displays while it is held down; `null` falls back to the base icon. Applies
  * to every kind of button.
  *
+ * @param icon the icon drawn while the button is both pressed and armed; dragging the pointer off the
+ *   button with the mouse button still down disarms it and puts the base icon back until the pointer
+ *   returns.
+ * @return this chain with the pressed icon declared on it.
  * @see javax.swing.AbstractButton.setPressedIcon
  */
 public fun SwingModifier.pressedIcon(icon: Icon?): SwingModifier =
@@ -50,6 +57,9 @@ public fun SwingModifier.pressedIcon(icon: Icon?): SwingModifier =
  * Sets the icon a button displays while it is selected - a checked check box, an on toggle button;
  * `null` falls back to the base icon. Applies to every kind of button.
  *
+ * @param icon the icon drawn while the button reports itself selected, whether the user or the code
+ *   selected it.
+ * @return this chain with the selected icon declared on it.
  * @see javax.swing.AbstractButton.setSelectedIcon
  */
 public fun SwingModifier.selectedIcon(icon: Icon?): SwingModifier =
@@ -64,6 +74,9 @@ public fun SwingModifier.selectedIcon(icon: Icon?): SwingModifier =
  * Sets the icon a button displays while it is disabled; `null` hands the state back to the look and
  * feel, which grays the base icon for it. Applies to every kind of button.
  *
+ * @param icon the icon drawn while the button is disabled, in place of the graying the look and feel
+ *   would derive.
+ * @return this chain with the disabled icon declared on it.
  * @see javax.swing.AbstractButton.setDisabledIcon
  */
 public fun SwingModifier.disabledIcon(icon: Icon?): SwingModifier =
@@ -79,8 +92,11 @@ public fun SwingModifier.disabledIcon(icon: Icon?): SwingModifier =
 
 /**
  * Sets the icon a button displays while it is both disabled and selected; `null` hands the state back
- * to the look and feel, which grays [selectedIcon] for it. Applies to every kind of button.
+ * to the look and feel, which grays [selectedIcon] for it, or falls back to the disabled icon where the
+ * button carries no selected icon. Applies to every kind of button.
  *
+ * @param icon the icon drawn while both states hold at once - a checked check box on a disabled form.
+ * @return this chain with the disabled selected icon declared on it.
  * @see javax.swing.AbstractButton.setDisabledSelectedIcon
  */
 public fun SwingModifier.disabledSelectedIcon(icon: Icon?): SwingModifier =
@@ -95,6 +111,9 @@ public fun SwingModifier.disabledSelectedIcon(icon: Icon?): SwingModifier =
  * Sets the icon a button displays while the pointer is over it; `null` falls back to the base icon.
  * Declaring it switches [rolloverEnabled] on. Applies to every kind of button.
  *
+ * @param icon the icon drawn while the button reports a rollover - the pointer entered it with the left
+ *   mouse button up, and the button is neither disabled nor pressed.
+ * @return this chain with the rollover icon declared on it.
  * @see javax.swing.AbstractButton.setRolloverIcon
  */
 public fun SwingModifier.rolloverIcon(icon: Icon?): SwingModifier =
@@ -109,6 +128,8 @@ public fun SwingModifier.rolloverIcon(icon: Icon?): SwingModifier =
  * Sets the icon a button displays while the pointer is over it and it is selected; `null` falls back to
  * [selectedIcon]. Declaring it switches [rolloverEnabled] on. Applies to every kind of button.
  *
+ * @param icon the icon drawn while the pointer is over a button that is already selected.
+ * @return this chain with the rollover selected icon declared on it.
  * @see javax.swing.AbstractButton.setRolloverSelectedIcon
  */
 public fun SwingModifier.rolloverSelectedIcon(icon: Icon?): SwingModifier =

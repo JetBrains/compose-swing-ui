@@ -13,7 +13,8 @@ import java.awt.Component
 import javax.swing.JPanel
 
 /**
- * A composable wrapper for JPanel with CardLayout: a deck of cards of which exactly one is shown.
+ * A `JPanel` under a `CardLayout`: a deck of cards of which exactly one is shown. The deck asks for
+ * room enough for its largest card, so showing another card does not resize it.
  *
  * Each child names the card it is placed on through [CardPanelScope], and [selectedCard] picks the card
  * the deck shows:
@@ -36,8 +37,10 @@ import javax.swing.JPanel
  *
  * @param selectedCard the key of the card to show
  * @param modifier the [SwingModifier] applied to the panel
- * @param hgap the horizontal gap between the panel's left/right edges and the shown card
- * @param vgap the vertical gap between the panel's top/bottom edges and the shown card
+ * @param hgap the horizontal gap between the panel's left/right edges and the shown card; `0` by
+ *   default, so the card reaches those edges
+ * @param vgap the vertical gap between the panel's top/bottom edges and the shown card; `0` by
+ *   default, so the card reaches those edges
  * @param content the composable content of the deck; see [CardPanelScope]
  * @see java.awt.CardLayout
  */

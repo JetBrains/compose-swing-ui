@@ -15,6 +15,10 @@ import java.awt.event.FocusListener
  * [onFocusChange] is read when the event fires, so writing a fresh lambda on every recomposition
  * registers nothing again.
  *
+ * @param onFocusChange receives the event, whose `oppositeComponent` is the other side of the
+ *   transfer and whose `isTemporary` marks a loss the component gets back, such as its window being
+ *   deactivated.
+ * @return this chain with the focus callback declared on it.
  * @see java.awt.Component.addFocusListener
  */
 public fun SwingModifier.focusListener(onFocusChange: (FocusEvent) -> Unit): SwingModifier =
@@ -32,6 +36,11 @@ public fun SwingModifier.focusListener(onFocusChange: (FocusEvent) -> Unit): Swi
  *
  * Declaring none at all is refused.
  *
+ * @param onFocusGained runs once the component is the focus owner, so `isFocusOwner` already answers
+ *   `true`.
+ * @param onFocusLost runs once the focus has gone; a temporary loss, such as a window deactivating,
+ *   reports here too.
+ * @return this chain with the focus callbacks declared on it.
  * @see java.awt.Component.addFocusListener
  */
 public fun SwingModifier.focusListener(
@@ -45,6 +54,9 @@ public fun SwingModifier.focusListener(
 /**
  * Attaches a [FocusListener] (`addFocusListener`/`removeFocusListener`).
  *
+ * @param listener attached by identity, so a remembered instance stays put while a fresh one on every
+ *   pass is detached and re-added.
+ * @return this chain with the focus listener declared on it.
  * @see java.awt.Component.addFocusListener
  */
 public fun SwingModifier.focusListener(listener: FocusListener): SwingModifier = listener(listener, FOCUS)

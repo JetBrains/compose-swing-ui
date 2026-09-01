@@ -56,6 +56,11 @@ import kotlin.math.abs
  * target, and clipboard-enabled at once. [transferable] and [exportedActions] are read on each drag,
  * so passing fresh values across recompositions takes effect immediately.
  *
+ * @param exportedActions the operations this source offers, as a [TransferAction] mask;
+ *   `TransferHandler.NONE` leaves the gesture recognized but starts no drag.
+ * @param transferable produces the exported data; the same value answers a clipboard copy or cut whose
+ *   operation [exportedActions] offers, so one exporter drives both directions.
+ * @return this chain with the drag source declared on it.
  * @see javax.swing.TransferHandler.createTransferable
  */
 public fun SwingModifier.draggable(
@@ -81,6 +86,13 @@ public fun SwingModifier.draggable(
  * [onDrop], [canImport], and [acceptedActions] are read on each drop, so passing fresh values across
  * recompositions takes effect immediately.
  *
+ * @param acceptedActions the operations the target accepts, as a [TransferAction] mask; a clipboard
+ *   paste carries no operation and clears this gate whatever it declares.
+ * @param onDrop imports the dropped data; returning `false` reports the transfer as failed, so a
+ *   source that offered `MOVE` removes nothing.
+ * @param canImport gates the drop by the flavors offered; it is asked repeatedly as the pointer moves
+ *   over the component, not only on the drop, so keep it cheap.
+ * @return this chain with the drop target declared on it.
  * @see javax.swing.TransferHandler.importData
  */
 public fun SwingModifier.dropTarget(
@@ -114,6 +126,15 @@ public fun SwingModifier.dropTarget(
  * [ClipboardHandle.cut] and [ClipboardHandle.paste] drive these same operations from an event handler
  * (e.g. a menu item) without the caller ever touching the [JComponent].
  *
+ * @param transferable produces the value a copy or a cut puts on the clipboard; `null` puts nothing
+ *   there and leaves the previous contents standing.
+ * @param onPaste imports the clipboard contents; its result is what [ClipboardHandle.paste] returns.
+ * @param canImport gates a paste by the flavors the clipboard offers.
+ * @param bindKeys whether the platform copy/cut/paste keystrokes are bound on the component;
+ *   toggling it binds or unbinds them in place.
+ * @param handle a programmatic trigger bound to this component for as long as the modifier applies,
+ *   or `null` to declare none.
+ * @return this chain with clipboard support declared on it.
  * @see javax.swing.TransferHandler.exportToClipboard
  */
 public fun SwingModifier.clipboard(
@@ -149,6 +170,9 @@ public fun SwingModifier.clipboard(
  * produces, regardless of which modifier declared that source. [onExportDone] is read on each export,
  * so passing a fresh value across recompositions takes effect immediately.
  *
+ * @param onExportDone receives the exported data - `null` where the export produced none - and the
+ *   [TransferAction] that completed, which is where a source implementing `MOVE` removes the data.
+ * @return this chain with the export-completion callback declared on it.
  * @see javax.swing.TransferHandler.exportDone
  */
 public fun SwingModifier.onExportDone(onExportDone: (data: Transferable?, action: Int) -> Unit): SwingModifier =

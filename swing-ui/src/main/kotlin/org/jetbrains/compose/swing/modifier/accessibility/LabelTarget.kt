@@ -64,6 +64,7 @@ public fun rememberLabelTarget(): LabelTarget = remember { LabelTarget() }
  * the same [target] wires its `JLabel.setLabelFor` to this component.
  *
  * @param target the label-target reference this component is bound to.
+ * @return this chain with the label target declared on it.
  * @see javax.swing.JLabel.setLabelFor
  */
 public fun SwingModifier.labelTarget(target: LabelTarget): SwingModifier =
@@ -74,6 +75,7 @@ public fun SwingModifier.labelTarget(target: LabelTarget): SwingModifier =
  * wiring `JLabel.setLabelFor` to that component. Requires a `JLabel` target.
  *
  * @param target the label-target reference identifying the captioned component.
+ * @return this chain with the caption binding declared on it.
  * @see javax.swing.JLabel.setLabelFor
  */
 public fun SwingModifier.labelFor(target: LabelTarget): SwingModifier =

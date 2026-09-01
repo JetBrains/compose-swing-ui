@@ -14,7 +14,12 @@ import javax.swing.JFrame
 import javax.swing.WindowConstants
 
 /**
- * Composes a Window (JFrame) with the given content.
+ * A top-level application window, realized as a `JFrame`: it shows [content], holds its geometry and
+ * extended state in [state], and reports the user's attempt to close it to [onCloseRequest].
+ *
+ * The close gesture is controlled: it invokes [onCloseRequest] and closes nothing, so the window stays
+ * on screen until the caller answers - by declaring [visible] `false`, or by stopping declaring the
+ * window at all, which is what releases its peer.
  *
  * The window content runs as part of the enclosing application composition, and keeps recomposing while
  * the window is shown.
@@ -38,17 +43,23 @@ import javax.swing.WindowConstants
  *
  * @param onCloseRequest callback to be called when the user attempts to close the window
  * @param state the hoistable, observable geometry (position and size) and extended state of the
- *   window
- * @param title the title of the window
- * @param visible whether the window should be visible
- * @param resizable whether the window can be resized
+ *   window; by default one this window keeps to itself, which leaves the placement to the platform,
+ *   sizes the window to its content, and starts it neither maximized nor minimized
+ * @param title the title of the window, empty by default, matching a freshly constructed `JFrame`
+ * @param visible whether the window should be visible; `true` by default, so declaring a window shows
+ *   it, and `false` hides the window while keeping its content composed
+ * @param resizable whether the window can be resized; `true` by default, matching a freshly
+ *   constructed `JFrame`
  * @param alwaysOnTop whether the window stays above other windows; ignored on platforms that do not
- *   support an always-on-top window
- * @param iconImage the image shown as the window's icon, or null for the platform default
+ *   support an always-on-top window, and `false` by default, so the window takes its turn in the
+ *   platform's stacking order
+ * @param iconImage the image shown as the window's icon, or null for the platform default; the
+ *   windowing system may show it in several places at sizes of its own, or show none at all
  * @param minimumSize the smallest size the window can take, or null to leave the floor to the window's
- *   layout; a declared or user-driven size below the floor is raised to it
+ *   layout; a declared size below the floor is raised to it, while holding the user's own resizing to
+ *   the floor is platform-dependent
  * @param undecorated whether the window is shown without its platform decorations (title bar and
- *   border)
+ *   border); `false` by default, so the window is shown with them
  * @param content the composable content of the window, receiving the window as its [WindowScope]
  * @see javax.swing.JFrame
  */

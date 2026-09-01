@@ -24,8 +24,8 @@ import javax.swing.text.EditorKit
 import javax.swing.text.html.HTMLDocument
 
 /**
- * A composable wrapper for `JEditorPane` rendering [markup], source written in the language
- * [contentType] names. The kit registered for that content type parses it, so
+ * Rendered markup: [markup] is source written in the language [contentType] names, and the
+ * `JEditorPane` shows what the kit registered for that content type makes of it, so
  * `EditorPane("<h1>Report</h1>", { href -> open(href) }, contentType = "text/html")` renders a
  * heading rather than the characters that spell one.
  *
@@ -43,8 +43,8 @@ import javax.swing.text.html.HTMLDocument
  * @param onLinkActivate callback invoked with the raw `href` of a link the user activates
  * @param modifier the [SwingModifier] applied to the underlying component
  * @param contentType the MIME type naming the kit that parses and renders [markup] (a [ContentType]
- *   MIME string)
- * @param baseUrl the location relative references in HTML [markup] resolve against
+ *   MIME string); `text/plain` by default, which shows the source as written
+ * @param baseUrl the location relative references in HTML [markup] resolve against; `null` by default
  * @throws IllegalArgumentException if no editor kit is registered for [contentType].
  * @see EditorPane the [DocumentState]-driven overload, for text the user authors
  * @see javax.swing.JEditorPane
@@ -78,8 +78,8 @@ public fun EditorPane(
  * @param hyperlinkListener the listener notified of link events
  * @param modifier the [SwingModifier] applied to the underlying component
  * @param contentType the MIME type naming the kit that parses and renders [markup] (a [ContentType]
- *   MIME string)
- * @param baseUrl the location relative references in HTML [markup] resolve against
+ *   MIME string); `text/plain` by default, which shows the source as written
+ * @param baseUrl the location relative references in HTML [markup] resolve against; `null` by default
  * @throws IllegalArgumentException if no editor kit is registered for [contentType].
  * @see EditorPane the [DocumentState]-driven overload, for text the user authors
  * @see javax.swing.JEditorPane
@@ -160,10 +160,10 @@ private class RenderedSource(
 }
 
 /**
- * A composable wrapper for `JEditorPane` driven by a [DocumentState]. The pane renders the state's
- * own document, so text typed into the pane and edits made through the state are the same content, and
- * the caret is kept two-way with [DocumentState.selection]. The state is the single source of
- * truth; there is no `onValueChange`.
+ * An [EditorPane] driven by a [DocumentState]. The pane renders the state's own document, so text
+ * typed into the pane and edits made through the state are the same content, and the caret is kept
+ * two-way with [DocumentState.selection]. The state is the single source of truth; there is no
+ * `onValueChange`.
  *
  * The pane renders the state's document through the editor kit the state was built with, so markup is
  * rendered rather than shown as the characters that spell it:
@@ -178,7 +178,7 @@ private class RenderedSource(
  *
  * @param state the hoistable text state the pane renders and drives.
  * @param modifier the [SwingModifier] applied to the underlying component
- * @param editable whether the user can edit the text
+ * @param editable whether the user can type into the pane; `true` by default
  * @see javax.swing.JEditorPane
  */
 @Composable
@@ -204,7 +204,8 @@ public fun EditorPane(
 }
 
 /**
- * A composable wrapper for `JTextPane`, an editor over a styled document.
+ * Editable text carrying graphical attributes - fonts, colors, embedded icons and components - over
+ * the styled document a `JTextPane` holds.
  *
  * The binding is reactive in both directions - [value] is pushed onto the pane, and edits the user
  * makes are reported through [onValueChange].
@@ -221,7 +222,7 @@ public fun EditorPane(
  * @param onValueChange callback invoked with the pane's new text when the pane is edited; applying
  *   [value] is not itself reported
  * @param modifier the [SwingModifier] applied to the underlying component
- * @param editable whether the user can edit the text
+ * @param editable whether the user can type into the pane; `true` by default
  * @see TextPane the [DocumentState]-driven overload for large or complex editors
  * @see javax.swing.JTextPane
  */
@@ -257,7 +258,7 @@ public fun TextPane(
  * @param value the current text
  * @param documentListener the listener notified of document edits
  * @param modifier the [SwingModifier] applied to the underlying component
- * @param editable whether the user can edit the text
+ * @param editable whether the user can type into the pane; `true` by default
  * @see TextPane the [DocumentState]-driven overload for large or complex editors
  * @see javax.swing.JTextPane
  */
@@ -301,17 +302,17 @@ private inline fun TextPaneNode(
 }
 
 /**
- * A composable wrapper for `JTextPane` driven by a [DocumentState]. The pane renders the state's
- * own document, so text typed into the pane and edits made through the state are the same content, and
- * the caret is kept two-way with [DocumentState.selection]. The state is the single source of
- * truth; there is no `onValueChange`.
+ * A [TextPane] driven by a [DocumentState]. The pane renders the state's own document, so text typed
+ * into the pane and edits made through the state are the same content, and the caret is kept two-way
+ * with [DocumentState.selection]. The state is the single source of truth; there is no
+ * `onValueChange`.
  *
  * A `JTextPane` renders a styled document, so [state] must wrap a `StyledDocument` - the model
  * `rememberDocumentState(contentType = "text/rtf")` builds.
  *
  * @param state the hoistable text state, over a `StyledDocument`, the pane renders and drives.
  * @param modifier the [SwingModifier] applied to the underlying component
- * @param editable whether the user can edit the text
+ * @param editable whether the user can type into the pane; `true` by default
  * @see javax.swing.JTextPane
  */
 @Composable

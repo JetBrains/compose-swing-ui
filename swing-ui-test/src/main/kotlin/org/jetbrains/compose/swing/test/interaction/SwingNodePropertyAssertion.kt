@@ -22,6 +22,10 @@ import java.awt.Component
  * Use this for a property the assertion vocabulary does not cover. A property with its own
  * assertion or matcher reads better through that. Reading several properties of one node reads
  * better through a single [SwingNodeInteraction.fetch].
+ *
+ * @param expected the value [actual] must return, compared with `equals`.
+ * @param message appended to the failure after both values; `null` by default.
+ * @param actual the property to read, evaluated against the node the query resolves at this call.
  */
 public fun <T : Component, V> SwingNodeInteraction<T>.assertProperty(
     expected: V,

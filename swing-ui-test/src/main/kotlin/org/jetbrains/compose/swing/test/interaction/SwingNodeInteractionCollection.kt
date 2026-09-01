@@ -51,6 +51,9 @@ public class SwingNodeInteractionCollection<out T : Component> internal construc
      * ```
      * onAllNodesOfType<JLabel>().filter(SwingMatcher.hasAnyAncestor(SwingMatcher.hasTestTag("editor")))
      * ```
+     *
+     * @param matcher narrows the match set, keeping the order the tree yields its matches in.
+     * @return a handle to the narrowed match set, empty rather than failing when nothing survives.
      */
     public fun filter(matcher: SwingMatcher): SwingNodeInteractionCollection<T> =
         SwingNodeInteractionCollection(
@@ -67,6 +70,10 @@ public class SwingNodeInteractionCollection<out T : Component> internal construc
      * ```
      * onAllNodesOfType<JCheckBox>().filterToOne(SwingMatcher.isSelected()).assertExists()
      * ```
+     *
+     * @param matcher must leave exactly one match; it is applied on each use, so which node
+     *   survives can change across recomposition.
+     * @return a handle that fails on use unless exactly one match survives.
      */
     public fun filterToOne(matcher: SwingMatcher): SwingNodeInteraction<T> =
         SwingNodeInteraction(
@@ -85,6 +92,10 @@ public class SwingNodeInteractionCollection<out T : Component> internal construc
      * ```
      * onAllNodesWithText("row")[1].assertIsEnabled()
      * ```
+     *
+     * @param index the position within the match set, which is not the node's index among its
+     *   parent's children.
+     * @return a handle that fails on use unless at least `index + 1` nodes match.
      */
     public operator fun get(index: Int): SwingNodeInteraction<T> =
         SwingNodeInteraction(
@@ -110,7 +121,13 @@ public class SwingNodeInteractionCollection<out T : Component> internal construc
     public fun onLast(): SwingNodeInteraction<T> =
         SwingNodeInteraction(test, "$description.onLast()", root, NodePick.Last, asNode, ::resolveAll)
 
-    /** Asserts that exactly [expected] nodes match. */
+    /**
+     * Asserts that exactly [expected] nodes match.
+     *
+     * @param expected the number of matches required; the failure names the count found and dumps
+     *   the tree.
+     * @return this collection, for chaining a further assertion.
+     */
     public fun assertCountEquals(expected: Int): SwingNodeInteractionCollection<T> {
         val actual = resolveAll().size
         if (actual != expected) {
@@ -126,6 +143,10 @@ public class SwingNodeInteractionCollection<out T : Component> internal construc
      * Asserts that every matched node satisfies [matcher]. An empty match set satisfies this, as
      * there is no node that violates the matcher; pin the size with [assertCountEquals] where that
      * matters.
+     *
+     * @param matcher the condition every match must satisfy; the failure describes each node that
+     *   does not.
+     * @return this collection, for chaining a further assertion.
      */
     public fun assertAll(matcher: SwingMatcher): SwingNodeInteractionCollection<T> {
         val nodes = resolveAll()
@@ -139,7 +160,13 @@ public class SwingNodeInteractionCollection<out T : Component> internal construc
         return this
     }
 
-    /** Asserts that at least one matched node satisfies [matcher]. An empty match set fails. */
+    /**
+     * Asserts that at least one matched node satisfies [matcher]. An empty match set fails.
+     *
+     * @param matcher the condition one match is enough to satisfy; the failure describes every node
+     *   that was checked.
+     * @return this collection, for chaining a further assertion.
+     */
     public fun assertAny(matcher: SwingMatcher): SwingNodeInteractionCollection<T> {
         val nodes = resolveAll()
         if (nodes.isEmpty()) {

@@ -14,13 +14,22 @@ import javax.swing.JPopupMenu
 import javax.swing.JProgressBar
 import javax.swing.JToolBar
 
+/*
+ * Button painting SwingModifiers - what a button paints around and behind its content. Each of these is
+ * a request to the look and feel: one that does not implement the state ignores the declaration and
+ * paints the button its own way.
+ */
+
 /**
  * Sets whether a component paints its border. Applies to everything built on a button, including menu
  * items, and to progress bars, tool bars, menu bars and popup menus.
  *
  * Switching this off, together with [contentAreaFilled] and [focusPainted], is what leaves a button
- * drawing only its own content - the shape a tool bar or a link-like button usually wants.
+ * drawing only its own content - the shape a tool bar or a link-like button wants.
  *
+ * @param painted `false` leaves the border area blank while the border keeps taking up its space, so the
+ *   content stays where it is.
+ * @return this chain with border painting declared on it.
  * @see javax.swing.AbstractButton.setBorderPainted
  * @see javax.swing.JProgressBar.setBorderPainted
  * @see javax.swing.JToolBar.setBorderPainted
@@ -36,6 +45,12 @@ public fun SwingModifier.borderPainted(painted: Boolean): SwingModifier =
  * A button stops taking this from the look and feel once the property is set, and Swing offers no way to
  * hand it back.
  *
+ * This, rather than [opaque]`(false)`, is how a button is made transparent: a look and feel's button
+ * listener writes the button's opaque flag from this property as soon as it changes.
+ *
+ * @param filled `false` leaves the area behind the text and icon unpainted, so whatever is behind the
+ *   button shows through it.
+ * @return this chain with content-area painting declared on it.
  * @see javax.swing.AbstractButton.setContentAreaFilled
  */
 public fun SwingModifier.contentAreaFilled(filled: Boolean): SwingModifier =
@@ -57,6 +72,9 @@ public fun SwingModifier.contentAreaFilled(filled: Boolean): SwingModifier =
  * Declaring a [rolloverIcon] or a [rolloverSelectedIcon] switches it on by itself; declare it here to
  * paint a rollover a look and feel would not, or to suppress one it would.
  *
+ * @param enabled `false` keeps the button looking the same under the pointer, and keeps a declared
+ *   [rolloverIcon] from being drawn.
+ * @return this chain with rollover painting declared on it.
  * @see javax.swing.AbstractButton.setRolloverEnabled
  */
 public fun SwingModifier.rolloverEnabled(enabled: Boolean): SwingModifier =
@@ -77,6 +95,9 @@ public fun SwingModifier.rolloverEnabled(enabled: Boolean): SwingModifier =
  * Switching it off removes the indicator, not the focus: the button still takes focus and still
  * answers the keyboard.
  *
+ * @param painted `false` hides the outline a look and feel draws inside the button's border while it holds
+ *   focus.
+ * @return this chain with focus painting declared on it.
  * @see javax.swing.AbstractButton.setFocusPainted
  */
 public fun SwingModifier.focusPainted(painted: Boolean): SwingModifier =

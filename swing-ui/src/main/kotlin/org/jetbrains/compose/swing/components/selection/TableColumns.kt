@@ -23,10 +23,26 @@ public sealed interface TableScope<R> {
      * what a declaration leaves out.
      *
      * Marked [InternalSwingUiApi]; it may change without notice in any release.
+     *
+     * [column] carries the guidance on choosing each parameter.
+     *
+     * @param header the column's header text.
+     * @param columnClass the class the table renders and edits this column's cells as.
+     * @param isEditable whether the column's cells can be edited in place at all.
+     * @param isCellEditable decides that per row while it is declared, or `null` to leave the answer to
+     *   [isEditable].
+     * @param isSortable whether a click on the header sorts by this column, while the table sorts at all.
+     * @param comparator orders this column's values, or `null` to order them as a `TableRowSorter` orders
+     *   a column of [columnClass].
+     * @param minWidth the narrowest this column may be dragged or squeezed to, in pixels.
+     * @param maxWidth the widest this column may be dragged or stretched to, in pixels.
+     * @param onCellEdit invoked with the row, its index and the committed value when a cell is edited.
+     * @param cellContent renders the cells through a composable body, or `null` to render them through
+     *   the renderer the table picks by [columnClass].
+     * @param value extracts the value to show for a row.
      */
     @InternalSwingUiApi
     @Suppress("LongParameterList")
-    // The declaration this appends, parameter for parameter; see column for what each one means.
     public fun addColumn(
         header: @Nls String,
         columnClass: Class<*>,
@@ -66,8 +82,10 @@ public sealed interface TableScope<R> {
  *   lets it, while the table sorts at all
  * @param comparator orders this column's cell values, or `null` (the default) to order them the way a
  *   `TableRowSorter` orders a column of [V]; applies while the table sorts at all
- * @param minWidth the narrowest this column may be dragged or squeezed to, in pixels
- * @param maxWidth the widest this column may be dragged or stretched to, in pixels
+ * @param minWidth the narrowest this column may be dragged or squeezed to, in pixels; `15` by default,
+ *   the minimum a `TableColumn` sets for itself
+ * @param maxWidth the widest this column may be dragged or stretched to, in pixels; `Int.MAX_VALUE` -
+ *   the default - leaves it unbounded
  * @param onCellEdit invoked when a cell in this column is edited and the edit is committed, receiving the
  *   row, the row index, and the newly entered value; pair it with an [isEditable] of `true` and update the
  *   backing state from here so the next composition reflects the edit
@@ -127,8 +145,10 @@ public inline fun <R, reified V : Any> TableScope<R>.column(
  *   lets it, while the table sorts at all
  * @param comparator orders this column's cell values, or `null` (the default) to order them the way a
  *   `TableRowSorter` orders a column of [columnClass]; applies while the table sorts at all
- * @param minWidth the narrowest this column may be dragged or squeezed to, in pixels
- * @param maxWidth the widest this column may be dragged or stretched to, in pixels
+ * @param minWidth the narrowest this column may be dragged or squeezed to, in pixels; `15` by default,
+ *   the minimum a `TableColumn` sets for itself
+ * @param maxWidth the widest this column may be dragged or stretched to, in pixels; `Int.MAX_VALUE` -
+ *   the default - leaves it unbounded
  * @param onCellEdit invoked when a cell in this column is edited and the edit is committed, receiving the
  *   row, the row index, and the newly entered value; pair it with an [isEditable] of `true` and update the
  *   backing state from here so the next composition reflects the edit

@@ -12,11 +12,13 @@ import javax.swing.JSeparator
 import javax.swing.SwingConstants
 
 /**
- * A composable wrapper for JSeparator, dividing the items of any container. A tool bar takes its own
- * divider - see [org.jetbrains.compose.swing.components.layout.ToolBarSeparator].
+ * A `JSeparator`: the divider line that breaks the items of any container into groups. A tool bar takes
+ * its own divider - see [org.jetbrains.compose.swing.components.layout.ToolBarSeparator].
  *
  * @param modifier the [SwingModifier] applied to the underlying component
- * @param orientation the orientation of the separator (an [Orientation] `SwingConstants` value)
+ * @param orientation the orientation of the separator (an [Orientation] `SwingConstants` value);
+ *   `HORIZONTAL` by default, which draws the line across the width it is given, dividing items stacked
+ *   one above the other
  * @see javax.swing.JSeparator
  */
 @Composable

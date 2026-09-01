@@ -17,7 +17,14 @@ import java.awt.event.ActionListener
 import javax.swing.JRadioButton
 
 /**
- * A composable wrapper for JRadioButton.
+ * A `JRadioButton`, a labeled button showing whether it is chosen. The button shows whatever [selected]
+ * holds, and every activation the user makes is reported through [onSelectedChange]. Standing alone it
+ * clears itself on a second click; making several buttons one choice takes a `ButtonGroup`.
+ * [buttonGroup][org.jetbrains.compose.swing.modifier.interaction.buttonGroup] enrolls a button in one,
+ * and [RadioGroup][org.jetbrains.compose.swing.components.selection.RadioGroup] declares a whole choice.
+ *
+ * An activation the caller does not answer with a matching [selected] does not stand: the button is back
+ * on the declared state before the click is painted.
  *
  * @param text the text to display next to the radio button
  * @param selected whether the radio button is selected
@@ -45,9 +52,9 @@ public fun RadioButton(
 }
 
 /**
- * A composable wrapper for JRadioButton driven by a raw [ActionListener] instead of an
- * `onSelectedChange` lambda. The [actionListener] is attached as-is and removed on the same instance;
- * pass a stable instance (e.g. `remember {}`) to avoid churn.
+ * A [RadioButton] driven by a raw [ActionListener] instead of an `onSelectedChange` lambda. The
+ * [actionListener] is attached as-is and removed on the same instance; pass a stable instance
+ * (e.g. `remember {}`) to avoid churn.
  *
  * @param text the text to display next to the radio button
  * @param selected whether the radio button is selected

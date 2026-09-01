@@ -17,6 +17,9 @@ import javax.swing.text.JTextComponent
  * [onDocumentChange] is read when the event fires, so writing a fresh lambda on every recomposition
  * registers nothing again. To tell the three changes apart, declare them one by one instead.
  *
+ * @param onDocumentChange receives the event, whose `offset` and `length` bound the affected range;
+ *   writing to the document from it is refused while the change is being reported.
+ * @return this chain with the document callback declared on it.
  * @see javax.swing.text.Document.addDocumentListener
  */
 public fun SwingModifier.documentListener(onDocumentChange: (DocumentEvent) -> Unit): SwingModifier =
@@ -36,6 +39,10 @@ public fun SwingModifier.documentListener(onDocumentChange: (DocumentEvent) -> U
  *
  * Declaring none at all is refused.
  *
+ * @param onInsert runs once the text is in the document.
+ * @param onRemove runs once the text is gone, so the range the event bounds is the one it occupied.
+ * @param onChange runs when the attributes over a range change, not when the text itself does.
+ * @return this chain with the document callbacks declared on it.
  * @see javax.swing.text.Document.addDocumentListener
  */
 public fun SwingModifier.documentListener(
@@ -52,6 +59,9 @@ public fun SwingModifier.documentListener(
  * Requires a [JTextComponent] target (`JTextField`, `JTextArea`, ...). The listener observes the
  * `document` the component currently holds, following it when the component swaps one in.
  *
+ * @param listener attached by identity, so a remembered instance stays put while a fresh one on every
+ *   pass is detached and re-added.
+ * @return this chain with the document listener declared on it.
  * @see javax.swing.text.Document.addDocumentListener
  */
 public fun SwingModifier.documentListener(listener: DocumentListener): SwingModifier =

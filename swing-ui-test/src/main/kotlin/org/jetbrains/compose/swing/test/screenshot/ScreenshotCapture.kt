@@ -13,8 +13,8 @@ import java.awt.image.BufferedImage
  * Renders the matched component, together with everything drawn inside it, to an off-screen image.
  *
  * The component must be displayed (laid out with a non-zero size); this is the same contract as
- * [assertIsDisplayed]. Call after the composition has settled so the captured image reflects the
- * latest state.
+ * [SwingNodeInteraction.assertIsDisplayed]. Call after the composition has settled so the captured
+ * image reflects the latest state.
  *
  * @return an image whose width and height match the component's laid-out size.
  * @throws AssertionError if the component is not displayed.

@@ -52,7 +52,7 @@ this library's. A parameter with no single correct default - `CheckBox`'s `check
 Cross-cutting configuration - colors, fonts, borders, sizes, tooltips, accessibility, keyboard
 bindings, data transfer, raw listeners - arrives as a `SwingModifier` chain passed as `modifier`,
 described in
-[`CUSTOM-COMPONENTS.md`](CUSTOM-COMPONENTS.md#styling-with-a-modifier-swingmodifier-parameter).
+[`CUSTOM-MODIFIERS.md`](CUSTOM-MODIFIERS.md#styling-with-a-modifier-swingmodifier-parameter).
 
 ---
 
@@ -791,7 +791,7 @@ DesktopPane {
 
 To place children under a layout manager of your own, `layoutConstraint` is the builder a container you
 write yourself names its own placements over - see
-[`CUSTOM-COMPONENTS.md`](CUSTOM-COMPONENTS.md#placing-children-under-constraints).
+[`CUSTOM-CONTAINERS.md`](CUSTOM-CONTAINERS.md#placing-children-under-constraints).
 
 ---
 
@@ -1271,5 +1271,6 @@ state drives one tree at a time.
 
 The catalog is not the boundary of what you can compose. Any Swing `Component` can be hosted
 directly with `SwingNode`, any menu component with `MenuNode`, and a property no builder covers can be
-written as a modifier element of your own. [`CUSTOM-COMPONENTS.md`](CUSTOM-COMPONENTS.md) is the guide
-to all three.
+written as a modifier element of your own. Hosting a component is
+[`CUSTOM-COMPONENTS.md`](CUSTOM-COMPONENTS.md); writing a modifier element is
+[`CUSTOM-MODIFIERS.md`](CUSTOM-MODIFIERS.md).

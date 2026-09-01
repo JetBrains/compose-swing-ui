@@ -30,6 +30,12 @@ extensions.configure<JavaPluginExtension> {
 
 dokka {
     moduleName.set(project.name)
+    // The module's own README becomes its page in the API reference, which otherwise opens on a bare
+    // member list. Dokka reads an included file as sections headed `# Module <name>`, which is why
+    // each README carries that as its title.
+    dokkaSourceSets.configureEach {
+        includes.from(layout.projectDirectory.file("README.md"))
+    }
 }
 
 publishing {

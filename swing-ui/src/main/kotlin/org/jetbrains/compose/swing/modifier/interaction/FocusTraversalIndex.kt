@@ -20,7 +20,8 @@ import javax.swing.LayoutFocusTraversalPolicy
  * composition-order policy via [orderedFocusTraversal]; components without an index follow the indexed
  * ones in their natural order.
  *
- * @param index the traversal position; lower is earlier.
+ * @param index the traversal position.
+ * @return this chain with the traversal position declared on it.
  */
 public fun SwingModifier.focusTraversalIndex(index: Int): SwingModifier =
     this then

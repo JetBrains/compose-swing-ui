@@ -25,6 +25,7 @@ public sealed interface ColumnScope {
      *
      * @param weight the share claimed, greater than zero
      * @param fill whether the child occupies the whole height it is granted; `true` by default
+     * @return this chain with the height share declared on it.
      */
     public fun SwingModifier.weight(
         weight: Float,
@@ -36,6 +37,7 @@ public sealed interface ColumnScope {
      * `horizontalAlignment`.
      *
      * @param alignment where the child sits across the column
+     * @return this chain with the child's horizontal alignment declared on it.
      */
     public fun SwingModifier.align(alignment: Alignment.Horizontal): SwingModifier
 

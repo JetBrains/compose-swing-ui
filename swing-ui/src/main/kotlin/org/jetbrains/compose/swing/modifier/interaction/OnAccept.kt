@@ -22,6 +22,8 @@ import javax.swing.JTextField
  * Multiple applications all fire, and [onAccept] is read live, so passing a fresh lambda each
  * recomposition is fine.
  *
+ * @param onAccept takes no argument: the accepted value is the one the composition already declared.
+ * @return this chain with the accept handler declared on it.
  * @see javax.swing.JTextField.addActionListener
  */
 public fun SwingModifier.onAccept(onAccept: () -> Unit): SwingModifier = listener(onAccept, ACCEPTS)

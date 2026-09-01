@@ -12,8 +12,8 @@ import javax.swing.AbstractButton
 import javax.swing.JLabel
 
 /*
- * Mnemonic SwingModifiers - the underlined letter that activates a component when pressed with the
- * platform menu modifier (typically Alt), and which occurrence of that letter is underlined.
+ * Mnemonic SwingModifiers - the underlined letter that activates a component when pressed with Alt -
+ * Ctrl+Alt on macOS - and which occurrence of that letter is underlined.
  *
  * All of them require an `AbstractButton` (Button, CheckBox, RadioButton, menu item, ...) or a `JLabel`
  * target. On a button the mnemonic activates the button; on a label it moves focus to the label's
@@ -28,6 +28,7 @@ import javax.swing.JLabel
  * a character mnemonic resolves to.
  *
  * @param keyCode the `KeyEvent.VK_*` code of the key that activates the component.
+ * @return this chain with the mnemonic declared on it.
  * @see javax.swing.AbstractButton.setMnemonic
  * @see javax.swing.JLabel.setDisplayedMnemonic
  */
@@ -36,10 +37,11 @@ public fun SwingModifier.mnemonic(keyCode: Int): SwingModifier =
 
 /**
  * Sets the keyboard mnemonic to the key that types [mnemonic], resolved with
- * `KeyEvent.getExtendedKeyCodeForChar` - so `'s'` and `'S'` both declare the S key. A character no key
- * on the current layout types resolves to `KeyEvent.VK_UNDEFINED`, declaring no mnemonic.
+ * `KeyEvent.getExtendedKeyCodeForChar` - so `'s'` and `'S'` both declare the S key. A character that
+ * appears on no known keyboard layout resolves to `KeyEvent.VK_UNDEFINED`, declaring no mnemonic.
  *
  * @param mnemonic the character to use as the mnemonic.
+ * @return this chain with the mnemonic declared on it.
  * @see javax.swing.AbstractButton.setMnemonic
  * @see javax.swing.JLabel.setDisplayedMnemonic
  */
@@ -58,6 +60,7 @@ public fun SwingModifier.mnemonic(mnemonic: Char): SwingModifier =
  *
  * @param index the zero-based index into the text of the character to underline, or `-1` to underline
  *   none of them.
+ * @return this chain with the underlined index declared on it.
  * @see javax.swing.AbstractButton.setDisplayedMnemonicIndex
  * @see javax.swing.JLabel.setDisplayedMnemonicIndex
  */

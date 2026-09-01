@@ -21,6 +21,7 @@ import javax.swing.text.JTextComponent
  * ```
  *
  * @param key the character that focuses the component, or [Char.MIN_VALUE] for no accelerator.
+ * @return this chain with the focus accelerator declared on it.
  * @see javax.swing.text.JTextComponent.setFocusAccelerator
  */
 public fun SwingModifier.focusAccelerator(key: Char): SwingModifier =

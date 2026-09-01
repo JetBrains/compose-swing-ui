@@ -23,6 +23,9 @@ import kotlin.reflect.KClass
  * [onChange] is read when the event fires, so writing a fresh lambda on every recomposition registers
  * nothing again.
  *
+ * @param onChange receives the event, which carries nothing but its source: read the new state off
+ *   the component itself.
+ * @return this chain with the change callback declared on it.
  * @see javax.swing.event.ChangeListener
  */
 public fun SwingModifier.changeListener(onChange: (ChangeEvent) -> Unit): SwingModifier =
@@ -32,6 +35,11 @@ public fun SwingModifier.changeListener(onChange: (ChangeEvent) -> Unit): SwingM
  * Runs [onChange] on the change event of a component of type [T] that fires one, with that component as
  * `this`.
  *
+ * @param onChange read when the event fires. A parameter of the enclosing composable shadows the
+ *   receiver, so reach it through `this`.
+ *   Read the component's state through the receiver; writing a property the composition declares
+ *   through it makes the second manager [listener] describes.
+ * @return this chain with the change callback declared on it.
  * @see javax.swing.event.ChangeListener
  */
 public inline fun <reified T : Component> SwingModifier.changeListener(
@@ -45,6 +53,9 @@ public inline fun <reified T : Component> SwingModifier.changeListener(
  * A `JColorChooser` publishes through its selection model, so its change events name that model rather
  * than the chooser and are not ones this overload can scope.
  *
+ * @param targetType the component type the node and every event's source are both checked against.
+ * @param onChange read when the event fires.
+ * @return this chain with the change callback declared on it.
  * @see javax.swing.event.ChangeListener
  */
 public fun <T : Component> SwingModifier.changeListener(
@@ -58,6 +69,9 @@ public fun <T : Component> SwingModifier.changeListener(
  * `JColorChooser`). A color chooser publishes its change events through its `selectionModel`, and the
  * registration follows that model when the chooser is given another one.
  *
+ * @param listener attached by identity, so a remembered instance stays put while a fresh one on every
+ *   pass is detached and re-added.
+ * @return this chain with the change listener declared on it.
  * @see javax.swing.event.ChangeListener
  */
 public fun SwingModifier.changeListener(listener: ChangeListener): SwingModifier = listener(listener, CHANGE)

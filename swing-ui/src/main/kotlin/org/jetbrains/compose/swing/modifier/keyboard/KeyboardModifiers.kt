@@ -37,6 +37,9 @@ import javax.swing.SwingUtilities
  * Multiple `onKeyEvent` applications all fire. [onKeyEvent] is read live, so passing a fresh lambda
  * each recomposition is fine.
  *
+ * @param onKeyEvent invoked for each key event before the component's key bindings see it, so
+ *   consuming an event also keeps an [onKeyStroke] binding on the same component from firing.
+ * @return this chain with the key listener declared on it.
  * @see java.awt.Component.addKeyListener
  */
 public fun SwingModifier.onKeyEvent(onKeyEvent: (KeyEvent) -> Boolean): SwingModifier =
@@ -52,6 +55,13 @@ public fun SwingModifier.onKeyEvent(onKeyEvent: (KeyEvent) -> Boolean): SwingMod
  * their keystrokes in one pass are unaffected. [onAction] is read live, so passing a fresh lambda each
  * recomposition is fine. Requires a [JComponent] target.
  *
+ * @param keyStroke the stroke that triggers [onAction]; a press and a release of the same key are
+ *   distinct strokes and bind independently.
+ * @param condition the focus scope the binding is live in: [JComponent.WHEN_FOCUSED] only while the
+ *   component itself holds focus, [JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT] while the component
+ *   itself or a descendant does, [JComponent.WHEN_IN_FOCUSED_WINDOW] anywhere in the component's window.
+ * @param onAction invoked on the event dispatch thread each time the stroke fires in scope.
+ * @return this chain with the key-stroke binding declared on it.
  * @see javax.swing.JComponent.getInputMap
  */
 public fun SwingModifier.onKeyStroke(
@@ -65,6 +75,11 @@ public fun SwingModifier.onKeyStroke(
  * (e.g. `"ctrl S"`, `"meta shift Z"`). Throws at install if the string is not a valid key-stroke
  * descriptor.
  *
+ * @param keyStroke the key-stroke descriptor; it names a key press unless it says `released` or
+ *   `typed`.
+ * @param condition the focus scope the binding is live in, one of the `JComponent.WHEN_*` values.
+ * @param onAction invoked on the event dispatch thread each time the stroke fires in scope.
+ * @return this chain with the key-stroke binding declared on it.
  * @see javax.swing.JComponent.getInputMap
  * @see javax.swing.KeyStroke.getKeyStroke
  */

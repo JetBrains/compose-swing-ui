@@ -29,7 +29,8 @@ import javax.swing.DefaultComboBoxModel
 import javax.swing.JComboBox
 
 /**
- * A composable wrapper for `JComboBox`.
+ * A `JComboBox` over [items]: it shows the item that is selected and drops the full list down in a
+ * popup for the user to choose from.
  *
  * The selection is controlled via [selectedItem] + [onSelectionChange], with `null` meaning no
  * selection. [onSelectionChange] reports the user's choices only: a declared [selectedItem] is the
@@ -45,7 +46,7 @@ import javax.swing.JComboBox
  * @param editable whether the user can type a value into the combo box's editor; `false` by default
  * @param onValueCommit callback invoked with the editor's text when an [editable] combo box's editor is
  *   committed; a text that matches no item is reported here and nowhere else, since [selectedItem]
- *   can only name an item
+ *   can only name an item. Left out, such a text goes unreported
  * @param maximumRowCount the maximum number of items the popup shows before it scrolls; `8` by default
  * @param itemContent optional composable cell rendered per item against a [ListItemScope]; `null` keeps
  *   the default `toString` rendering

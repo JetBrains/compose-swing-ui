@@ -35,6 +35,14 @@ public object Arrangement {
          *
          * Both arrays belong to the container laying out and are reused by its next pass: read and write
          * them within this call, and keep neither.
+         *
+         * @param totalSize the container's width inside its insets, the gaps this arrangement holds
+         *   included.
+         * @param sizes the widths already granted, which an arrangement reads and never changes.
+         * @param orientation the container's reading order; a right-to-left one mirrors the placement,
+         *   so [Arrangement.Start] packs against the right edge.
+         * @param outPositions arrives zeroed, so an entry an arrangement leaves alone places that child
+         *   at the container's left edge, whatever [orientation] says.
          */
         public fun arrange(
             totalSize: Int,
@@ -56,6 +64,12 @@ public object Arrangement {
          *
          * Both arrays belong to the container laying out and are reused by its next pass: read and write
          * them within this call, and keep neither.
+         *
+         * @param totalSize the container's height inside its insets, the gaps this arrangement holds
+         *   included.
+         * @param sizes the heights already granted, which an arrangement reads and never changes.
+         * @param outPositions arrives zeroed, so an entry an arrangement leaves alone places that child
+         *   at the container's top edge.
          */
         public fun arrange(
             totalSize: Int,
@@ -209,6 +223,10 @@ public object Arrangement {
     /**
      * Holds [space] pixels between two adjacent children and packs the group against the leading edge.
      * A negative [space] overlaps them.
+     *
+     * @param space the gap between adjacent children only, never at the group's edges.
+     * @return an arrangement that reads the same on either axis, so one value serves a [Row] and a
+     *   [Column].
      */
     @Stable
     public fun spacedBy(space: Int): HorizontalOrVertical =
@@ -217,6 +235,12 @@ public object Arrangement {
     /**
      * Holds [space] pixels between two adjacent children and places the group as a whole at [alignment]
      * along the row. A negative [space] overlaps them.
+     *
+     * @param space the gap between adjacent children only, never at the group's edges.
+     * @param alignment where the group goes in the width left over; the gaps between the children are
+     *   unchanged.
+     * @return an arrangement that stacks a run of children longer than the row up at its trailing edge
+     *   rather than running it past.
      */
     @Stable
     public fun spacedBy(
@@ -227,6 +251,12 @@ public object Arrangement {
     /**
      * Holds [space] pixels between two adjacent children and places the group as a whole at [alignment]
      * along the column. A negative [space] overlaps them.
+     *
+     * @param space the gap between adjacent children only, never at the group's edges.
+     * @param alignment where the group goes in the height left over; the gaps between the children are
+     *   unchanged.
+     * @return an arrangement that stacks a run of children longer than the column up at its bottom edge
+     *   rather than running it past.
      */
     @Stable
     public fun spacedBy(
@@ -234,12 +264,24 @@ public object Arrangement {
         alignment: Alignment.Vertical,
     ): Vertical = SpacedAligned(space, mirrored = false, alignment = VerticalAxisAlignment(alignment))
 
-    /** Keeps the children together and places the group as a whole at [alignment] along the row. */
+    /**
+     * Keeps the children together and places the group as a whole at [alignment] along the row.
+     *
+     * @param alignment where the group goes in the width left over, resolved against the row's
+     *   `ComponentOrientation`.
+     * @return an arrangement whose `spacing` is zero, so the row reserves no gap when it measures.
+     */
     @Stable
     public fun aligned(alignment: Alignment.Horizontal): Horizontal =
         SpacedAligned(space = 0, mirrored = true, alignment = HorizontalAxisAlignment(alignment))
 
-    /** Keeps the children together and places the group as a whole at [alignment] along the column. */
+    /**
+     * Keeps the children together and places the group as a whole at [alignment] along the column.
+     *
+     * @param alignment where the group goes in the height left over; a vertical axis reads the same
+     *   under either component orientation.
+     * @return an arrangement whose `spacing` is zero, so the column reserves no gap when it measures.
+     */
     @Stable
     public fun aligned(alignment: Alignment.Vertical): Vertical =
         SpacedAligned(space = 0, mirrored = false, alignment = VerticalAxisAlignment(alignment))

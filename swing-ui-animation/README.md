@@ -1,4 +1,4 @@
-# swing-ui-animation
+# Module swing-ui-animation
 
 The animation engine for Compose Swing UI. It provides the familiar Compose animation APIs -
 `animate*AsState`, `Animatable`, `updateTransition` / `Transition`, `rememberInfiniteTransition`,
@@ -23,5 +23,5 @@ For value types beyond `Float` / `Int`, supply a `TwoWayConverter` (e.g. to anim
 
 ## Related
 
-- [`../README.md`](../README.md) - project overview and quick start.
-- [`../swing-ui/README.md`](../swing-ui/README.md) - the core library.
+- [`README.md`](../README.md) - project overview and quick start.
+- [`swing-ui/README.md`](../swing-ui/README.md) - the core library.

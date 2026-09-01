@@ -57,6 +57,9 @@ public sealed interface MainTestClock {
      * advanced by at least [duration] - so the final step can land past the target by less than a
      * frame. Set [ignoreFrameDuration] to deliver the whole [duration] in a single frame instead.
      *
+     * @param duration the composition time to add; nothing waits in real time for it to pass.
+     * @param ignoreFrameDuration `true` delivers [duration] as a single frame, which lands
+     *   [currentTime] exactly on the target rather than up to a frame past it; `false` by default.
      * @throws IllegalArgumentException if [duration] is negative or not finite. Composition time only
      * moves forward by a duration frames can actually step through: the frames a composition is sent
      * carry a monotonically rising time, and [Duration.INFINITE] (or a `NaN` duration) has no frame
@@ -70,6 +73,8 @@ public sealed interface MainTestClock {
     /**
      * Sends frames, one at a time, until [condition] returns `true`.
      *
+     * @param timeout the composition time this may spend, one second by default.
+     * @param condition checked before the first frame and again after each one, on the calling thread.
      * @throws AssertionError if [condition] is still not met once [currentTime] has advanced by
      * [timeout].
      */

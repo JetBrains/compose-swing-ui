@@ -23,6 +23,7 @@ import javax.swing.text.NavigationFilter
  * ```
  *
  * @param filter the [NavigationFilter] to apply, or `null` to leave caret movement unrestricted.
+ * @return this chain with the navigation filter declared on it.
  * @see javax.swing.text.JTextComponent.setNavigationFilter
  */
 public fun SwingModifier.navigationFilter(filter: NavigationFilter?): SwingModifier =

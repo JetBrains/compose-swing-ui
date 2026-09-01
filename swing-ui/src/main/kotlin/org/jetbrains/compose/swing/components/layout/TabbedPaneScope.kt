@@ -68,6 +68,7 @@ public sealed interface TabbedPaneScope {
      * @param foreground the color the tab's title is drawn in, or `null` for the pane's own
      * @param header the composable rendered in the tab strip in place of [title] and [icon], or `null`
      *   to let the tab strip render them itself
+     * @return this chain with the tab declared on it.
      * @see javax.swing.JTabbedPane.insertTab
      */
     @Suppress("LongParameterList")

@@ -109,6 +109,9 @@ public class TableState
          * was asked to show it, which scrolls the pane the table is in; a table in no scroll pane has
          * nowhere to scroll.
          *
+         * @param rowIndex the row to bring into view, named the way [selectedRowIndices] names one - by its
+         *   index into the table's rows, not the position it is drawn at.
+         * @return whether the table shows that row and was scrolled to it.
          * @see javax.swing.JTable.scrollRectToVisible
          */
         public fun revealRow(rowIndex: Int): Boolean {

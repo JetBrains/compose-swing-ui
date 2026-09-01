@@ -27,7 +27,8 @@ import javax.swing.tree.TreeModel
 import javax.swing.tree.TreeSelectionModel
 
 /**
- * A composable wrapper for `JTree`.
+ * A hierarchy the user opens and selects in: a `JTree` built from data, reporting what the user
+ * selects, opens, and edits.
  *
  * The tree is described as data: [root] is the root value and [children] yields each value's child values,
  * walked recursively to build the displayed structure; [label] renders each value's row text (its
@@ -86,7 +87,7 @@ import javax.swing.tree.TreeSelectionModel
  * @param root the root value of the tree
  * @param children yields the child values of a value, in display order
  * @param modifier the [SwingModifier] applied to the underlying component
- * @param label renders a value's row text
+ * @param label renders a value's row text; a value's `toString` by default
  * @param hasChildren whether a value is a branch, asked for a value [children] yields none for; a value
  *   with children is a branch either way. `null` - the default - makes a childless value a leaf
  * @param selectedPaths the selected nodes as index paths from the root; `null` - the default - leaves the
@@ -100,18 +101,23 @@ import javax.swing.tree.TreeSelectionModel
  * @param onWillExpand asked before a node opens - whether the user opened it or a declared expansion did
  *   - with the value and the index path of that node, and vetoes the expansion by returning `false`;
  *   `null` - the default - lets every expansion through
- * @param isEditable whether the user can edit a node's text in place
+ * @param isEditable whether the user can edit a node's text in place; `false` - the default - leaves
+ *   the nodes read-only
  * @param onNodeEdit callback invoked when an edit is committed, receiving the value edited, its index
  *   path, and the value entered; update the backing data from here so the next composition shows the edit
- * @param selectionMode how many nodes may be selected
- * @param rootVisible whether the root node is shown
+ * @param selectionMode how many nodes may be selected; `DISCONTIGUOUS_TREE_SELECTION` - the default -
+ *   lets the user select any number of them
+ * @param rootVisible whether the root node is shown; `true` - the default - shows it, and hiding it
+ *   leaves its children as the top-level rows
  * @param showsRootHandles whether expand/collapse handles are shown for the top-level nodes;
  *   `null` leaves the choice to the installed look and feel
  * @param rowHeight the height of every row in pixels; `0` asks each node's rendering how tall it wants
  *   to be, which is what lets a composable node size itself. `null` - the default - leaves the height to
  *   the installed look and feel
- * @param visibleRowCount preferred number of visible rows (`JTree.setVisibleRowCount`)
- * @param toggleClickCount how many clicks on a node expand or collapse it; `0` for neither
+ * @param visibleRowCount how many rows the tree asks a viewport to make room for; `20` is the default,
+ *   and it has no effect outside a scroll pane
+ * @param toggleClickCount how many clicks on a node expand or collapse it; `2` - the default - is a
+ *   double click, and `0` takes that gesture away
  * @param nodeContent optional composable node rendered per row against a [TreeNodeScope]; `null` - the
  *   default - renders each node's [label] through the renderer the tree carries
  * @see javax.swing.JTree
@@ -173,7 +179,7 @@ public fun <T> Tree(
  * @param children yields the child values of a value, in display order
  * @param treeSelectionListener the listener notified of the user's selection changes
  * @param modifier the [SwingModifier] applied to the underlying component
- * @param label renders a value's row text
+ * @param label renders a value's row text; a value's `toString` by default
  * @param hasChildren whether a value is a branch, asked for a value [children] yields none for; a value
  *   with children is a branch either way. `null` - the default - makes a childless value a leaf
  * @param selectedPaths the selected nodes as index paths from the root; `null` - the default - leaves the
@@ -185,18 +191,23 @@ public fun <T> Tree(
  *   installs none
  * @param treeWillExpandListener the listener announced each expansion and collapse before it happens;
  *   `null` installs none
- * @param isEditable whether the user can edit a node's text in place
+ * @param isEditable whether the user can edit a node's text in place; `false` - the default - leaves
+ *   the nodes read-only
  * @param onNodeEdit callback invoked when an edit is committed, receiving the value edited, its index
  *   path, and the value entered; update the backing data from here so the next composition shows the edit
- * @param selectionMode how many nodes may be selected
- * @param rootVisible whether the root node is shown
+ * @param selectionMode how many nodes may be selected; `DISCONTIGUOUS_TREE_SELECTION` - the default -
+ *   lets the user select any number of them
+ * @param rootVisible whether the root node is shown; `true` - the default - shows it, and hiding it
+ *   leaves its children as the top-level rows
  * @param showsRootHandles whether expand/collapse handles are shown for the top-level nodes;
  *   `null` leaves the choice to the installed look and feel
  * @param rowHeight the height of every row in pixels; `0` asks each node's rendering how tall it wants
  *   to be, which is what lets a composable node size itself. `null` - the default - leaves the height to
  *   the installed look and feel
- * @param visibleRowCount preferred number of visible rows (`JTree.setVisibleRowCount`)
- * @param toggleClickCount how many clicks on a node expand or collapse it; `0` for neither
+ * @param visibleRowCount how many rows the tree asks a viewport to make room for; `20` is the default,
+ *   and it has no effect outside a scroll pane
+ * @param toggleClickCount how many clicks on a node expand or collapse it; `2` - the default - is a
+ *   double click, and `0` takes that gesture away
  * @param nodeContent optional composable node rendered per row against a [TreeNodeScope]; `null` - the
  *   default - renders each node's [label] through the renderer the tree carries
  * @see javax.swing.JTree
@@ -323,7 +334,8 @@ private inline fun <T> TreeValuesImpl(
 }
 
 /**
- * A composable wrapper for `JTree` driven by a caller-owned [TreeModel].
+ * A hierarchy the user opens and selects in, over a [TreeModel] the caller owns: a `JTree` reporting
+ * what the user selects and opens.
  *
  * The [model] is displayed as-is: its own nodes and structure drive the tree, and the library never
  * mutates it. Supplying a new [model] instance swaps it into the tree on recomposition. Selection is
@@ -362,14 +374,18 @@ private inline fun <T> TreeValuesImpl(
  *   default - leaves expansion to the tree and to the user
  * @param onExpansionChange callback invoked when the user expands or collapses a node, receiving every
  *   node that is then expanded
- * @param selectionMode how many nodes may be selected
- * @param rootVisible whether the root node is shown
+ * @param selectionMode how many nodes may be selected; `DISCONTIGUOUS_TREE_SELECTION` - the default -
+ *   lets the user select any number of them
+ * @param rootVisible whether the root node is shown; `true` - the default - shows it, and hiding it
+ *   leaves its children as the top-level rows
  * @param showsRootHandles whether expand/collapse handles are shown for the top-level nodes;
  *   `null` leaves the choice to the installed look and feel
  * @param rowHeight the height of every row in pixels; `0` asks each node's rendering how tall it wants
  *   to be. `null` - the default - leaves the height to the installed look and feel
- * @param visibleRowCount preferred number of visible rows (`JTree.setVisibleRowCount`)
- * @param toggleClickCount how many clicks on a node expand or collapse it; `0` for neither
+ * @param visibleRowCount how many rows the tree asks a viewport to make room for; `20` is the default,
+ *   and it has no effect outside a scroll pane
+ * @param toggleClickCount how many clicks on a node expand or collapse it; `2` - the default - is a
+ *   double click, and `0` takes that gesture away
  * @see javax.swing.JTree
  */
 @Composable
@@ -422,14 +438,18 @@ public fun Tree(
  *   default - leaves expansion to the tree and to the user
  * @param treeExpansionListener the listener notified of the user's expansions and collapses; `null`
  *   installs none
- * @param selectionMode how many nodes may be selected
- * @param rootVisible whether the root node is shown
+ * @param selectionMode how many nodes may be selected; `DISCONTIGUOUS_TREE_SELECTION` - the default -
+ *   lets the user select any number of them
+ * @param rootVisible whether the root node is shown; `true` - the default - shows it, and hiding it
+ *   leaves its children as the top-level rows
  * @param showsRootHandles whether expand/collapse handles are shown for the top-level nodes;
  *   `null` leaves the choice to the installed look and feel
  * @param rowHeight the height of every row in pixels; `0` asks each node's rendering how tall it wants
  *   to be. `null` - the default - leaves the height to the installed look and feel
- * @param visibleRowCount preferred number of visible rows (`JTree.setVisibleRowCount`)
- * @param toggleClickCount how many clicks on a node expand or collapse it; `0` for neither
+ * @param visibleRowCount how many rows the tree asks a viewport to make room for; `20` is the default,
+ *   and it has no effect outside a scroll pane
+ * @param toggleClickCount how many clicks on a node expand or collapse it; `2` - the default - is a
+ *   double click, and `0` takes that gesture away
  * @see javax.swing.JTree
  */
 @Composable
@@ -534,24 +554,29 @@ private inline fun TreeModelImpl(
  * @param state the hoistable selection and expansion state the tree applies and reports into; see
  *   [TreeState]
  * @param modifier the [SwingModifier] applied to the underlying component
- * @param label renders a value's row text
+ * @param label renders a value's row text; a value's `toString` by default
  * @param hasChildren whether a value is a branch, asked for a value [children] yields none for; a value
  *   with children is a branch either way. `null` - the default - makes a childless value a leaf
  * @param onWillExpand asked before a node opens - whether the user opened it or the state's expansion did
  *   - with the value and the index path of that node, and vetoes the expansion by returning `false`;
  *   `null` - the default - lets every expansion through
- * @param isEditable whether the user can edit a node's text in place
+ * @param isEditable whether the user can edit a node's text in place; `false` - the default - leaves
+ *   the nodes read-only
  * @param onNodeEdit callback invoked when an edit is committed, receiving the value edited, its index
  *   path, and the value entered; update the backing data from here so the next composition shows the edit
- * @param selectionMode how many nodes may be selected
- * @param rootVisible whether the root node is shown
+ * @param selectionMode how many nodes may be selected; `DISCONTIGUOUS_TREE_SELECTION` - the default -
+ *   lets the user select any number of them
+ * @param rootVisible whether the root node is shown; `true` - the default - shows it, and hiding it
+ *   leaves its children as the top-level rows
  * @param showsRootHandles whether expand/collapse handles are shown for the top-level nodes;
  *   `null` leaves the choice to the installed look and feel
  * @param rowHeight the height of every row in pixels; `0` asks each node's rendering how tall it wants
  *   to be, which is what lets a composable node size itself. `null` - the default - leaves the height to
  *   the installed look and feel
- * @param visibleRowCount preferred number of visible rows (`JTree.setVisibleRowCount`)
- * @param toggleClickCount how many clicks on a node expand or collapse it; `0` for neither
+ * @param visibleRowCount how many rows the tree asks a viewport to make room for; `20` is the default,
+ *   and it has no effect outside a scroll pane
+ * @param toggleClickCount how many clicks on a node expand or collapse it; `2` - the default - is a
+ *   double click, and `0` takes that gesture away
  * @param nodeContent optional composable node rendered per row against a [TreeNodeScope]; `null` - the
  *   default - renders each node's [label] through the renderer the tree carries
  * @see javax.swing.JTree
@@ -611,14 +636,18 @@ public fun <T> Tree(
  * @param state the hoistable selection and expansion state the tree applies and reports into; see
  *   [TreeState]
  * @param modifier the [SwingModifier] applied to the underlying component
- * @param selectionMode how many nodes may be selected
- * @param rootVisible whether the root node is shown
+ * @param selectionMode how many nodes may be selected; `DISCONTIGUOUS_TREE_SELECTION` - the default -
+ *   lets the user select any number of them
+ * @param rootVisible whether the root node is shown; `true` - the default - shows it, and hiding it
+ *   leaves its children as the top-level rows
  * @param showsRootHandles whether expand/collapse handles are shown for the top-level nodes;
  *   `null` leaves the choice to the installed look and feel
  * @param rowHeight the height of every row in pixels; `0` asks each node's rendering how tall it wants
  *   to be. `null` - the default - leaves the height to the installed look and feel
- * @param visibleRowCount preferred number of visible rows (`JTree.setVisibleRowCount`)
- * @param toggleClickCount how many clicks on a node expand or collapse it; `0` for neither
+ * @param visibleRowCount how many rows the tree asks a viewport to make room for; `20` is the default,
+ *   and it has no effect outside a scroll pane
+ * @param toggleClickCount how many clicks on a node expand or collapse it; `2` - the default - is a
+ *   double click, and `0` takes that gesture away
  * @see javax.swing.JTree
  */
 @Composable

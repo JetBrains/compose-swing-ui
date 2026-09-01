@@ -14,6 +14,7 @@ import java.awt.Component
  * `semantics { contentDescription = ... }`.
  *
  * @param name the accessible name to advertise, or `null` to clear it.
+ * @return this chain with the accessible name declared on it.
  * @see javax.accessibility.AccessibleContext.setAccessibleName
  */
 public fun SwingModifier.accessibleName(name: @Nls String?): SwingModifier =

@@ -27,6 +27,7 @@ public sealed interface CardPanelScope {
      * and a card named twice is reported by its name.
      *
      * @param key names the card this child is placed on, non-empty
+     * @return this chain with the card declared on it.
      * @see java.awt.CardLayout.show
      */
     public fun SwingModifier.card(key: String): SwingModifier

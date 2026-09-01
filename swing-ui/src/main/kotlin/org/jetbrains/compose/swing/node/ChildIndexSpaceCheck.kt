@@ -10,10 +10,9 @@ import java.util.IdentityHashMap
  * real Swing state it stands for, one turn after every change pass - see [checkChildIndexSpace] for
  * what it asserts.
  *
- * Off by default, where a pass pays only the cost of reading this flag.
- * [org.jetbrains.compose.swing.test.ComposeSwingTest] turns it on for the duration of a test; a
- * violation then reaches the event dispatch thread's uncaught-exception handler exactly like any other
- * failure the library raises there.
+ * Off by default, where a pass pays only the cost of reading this flag. The test harness turns it on for
+ * the duration of a test; a violation then reaches the event dispatch thread's uncaught-exception handler
+ * exactly like any other failure the library raises there.
  *
  * Marked [InternalSwingUiApi]; it may change or be removed without notice in any release.
  */

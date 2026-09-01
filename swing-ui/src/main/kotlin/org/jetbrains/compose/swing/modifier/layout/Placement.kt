@@ -29,6 +29,7 @@ import java.awt.Component
  * that takes no constraints places the component by index.
  *
  * @param constraint the placement the parent container's layout manager registers the component under.
+ * @return this chain with the placement declared on it.
  * @see java.awt.Container.add
  */
 public fun SwingModifier.layoutConstraint(constraint: Any): SwingModifier =
@@ -61,6 +62,7 @@ public fun SwingModifier.layoutConstraint(constraint: Any): SwingModifier =
  *   the host's own, and it is what an error about that region prints, so a caller acts on that text by
  *   typing it.
  * @param attachment installs the component into the host and returns its uninstall action.
+ * @return this chain with the region declared on it.
  */
 public fun SwingModifier.slot(
     name: String,

@@ -18,6 +18,9 @@ import kotlin.reflect.KClass
  * [onItemStateChange] is read when the event fires, so writing a fresh lambda on every recomposition
  * registers nothing again.
  *
+ * @param onItemStateChange receives the event, whose `stateChange` is `ItemEvent.SELECTED` or
+ *   `ItemEvent.DESELECTED` and whose `item` is the value it happened to.
+ * @return this chain with the item callback declared on it.
  * @see java.awt.ItemSelectable.addItemListener
  */
 public fun SwingModifier.itemListener(onItemStateChange: (ItemEvent) -> Unit): SwingModifier =
@@ -27,6 +30,11 @@ public fun SwingModifier.itemListener(onItemStateChange: (ItemEvent) -> Unit): S
  * Runs [onItemStateChange] on the item event of a component of type [T] that fires one, with that
  * component as `this`.
  *
+ * @param onItemStateChange read when the event fires. A parameter of the enclosing composable shadows
+ *   the receiver, so reach it through `this`.
+ *   Read the component's state through the receiver; writing a property the composition declares
+ *   through it makes the second manager [listener] describes.
+ * @return this chain with the item callback declared on it.
  * @see java.awt.ItemSelectable.addItemListener
  */
 public inline fun <reified T : Component> SwingModifier.itemListener(
@@ -37,6 +45,9 @@ public inline fun <reified T : Component> SwingModifier.itemListener(
  * Runs [onItemStateChange] on the item event of a component of type [targetType] that fires one, with
  * that component as `this`. An event sourced anywhere else is refused; see [listener].
  *
+ * @param targetType the component type the node and every event's source are both checked against.
+ * @param onItemStateChange read when the event fires.
+ * @return this chain with the item callback declared on it.
  * @see java.awt.ItemSelectable.addItemListener
  */
 public fun <T : Component> SwingModifier.itemListener(
@@ -54,6 +65,9 @@ public fun <T : Component> SwingModifier.itemListener(
  * member was picked never fires an action event, so the item listener is the only one deselection
  * reaches.
  *
+ * @param listener attached by identity, so a remembered instance stays put while a fresh one on every
+ *   pass is detached and re-added.
+ * @return this chain with the item listener declared on it.
  * @see java.awt.ItemSelectable.addItemListener
  */
 public fun SwingModifier.itemListener(listener: ItemListener): SwingModifier = listener(listener, ITEM)

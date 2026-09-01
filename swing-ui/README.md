@@ -1,4 +1,4 @@
-# swing-ui
+# Module swing-ui
 
 The core library: Jetpack Compose's composition runtime wired to Swing, plus composable wrappers
 over Swing components and layouts. Your UI is real `JButton`/`JLabel`/`JPanel` widgets, laid out by
@@ -37,12 +37,12 @@ fun main() = SwingUtilities.invokeLater {
 
 Styling and interaction flow through a `modifier: SwingModifier = SwingModifier` parameter; domain
 callbacks like `onClick` stay ordinary parameters. To wrap your own Swing component, use the public
-`SwingNode` API — see [`../docs/CUSTOM-COMPONENTS.md`](../docs/CUSTOM-COMPONENTS.md).
+`SwingNode` API — see [`docs/CUSTOM-COMPONENTS.md`](../docs/CUSTOM-COMPONENTS.md).
 
 The complete component, layout, modifier, window, dialog, and menu API is documented in KDoc.
 
 ## Related
 
-- [`../README.md`](../README.md) — project overview and quick start.
-- [`../docs/CUSTOM-COMPONENTS.md`](../docs/CUSTOM-COMPONENTS.md) — building your own components.
-- [`../swing-ui-test/README.md`](../swing-ui-test/README.md) — testing your components.
+- [`README.md`](../README.md) — project overview and quick start.
+- [`docs/CUSTOM-COMPONENTS.md`](../docs/CUSTOM-COMPONENTS.md) — building your own components.
+- [`swing-ui-test/README.md`](../swing-ui-test/README.md) — testing your components.

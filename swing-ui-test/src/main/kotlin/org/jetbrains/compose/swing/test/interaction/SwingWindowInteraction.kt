@@ -133,6 +133,10 @@ public class SwingWindowInteraction internal constructor(
     /**
      * Finds the single node matching [matcher] inside this window's content pane. Both the window
      * and the node are resolved lazily when the returned interaction is first used.
+     *
+     * @param matcher applied to the content pane and everything under it, never to the window
+     *   itself; the window is what this interaction's own query matched.
+     * @return a handle that fails on use unless exactly one node in this window matches.
      */
     public fun onNode(matcher: SwingMatcher): SwingNodeInteraction<Component> =
         SwingNodeInteraction(
@@ -146,19 +150,41 @@ public class SwingWindowInteraction internal constructor(
     /**
      * Finds the single node inside this window's content pane whose text equals [text] (or contains
      * it when [substring] is `true`).
+     *
+     * @param text matched against a label's, button's or text component's own text.
+     * @param substring `true` matches text that merely contains [text]; `false` by default.
+     * @return a handle that fails on use unless exactly one node in this window matches.
      */
     public fun onNodeWithText(
         text: @Nls String,
         substring: Boolean = false,
     ): SwingNodeInteraction<Component> = onNode(SwingMatcher.hasText(text, substring))
 
-    /** Finds the single node inside this window's content pane whose [java.awt.Component.getName] equals [name]. */
+    /**
+     * Finds the single node inside this window's content pane whose [java.awt.Component.getName]
+     * equals [name].
+     *
+     * @param name the name to match, as [SwingMatcher.hasName] matches it.
+     * @return a handle that fails on use unless exactly one node in this window matches.
+     */
     public fun onNodeWithName(name: String): SwingNodeInteraction<Component> = onNode(SwingMatcher.hasName(name))
 
-    /** Finds the single node inside this window's content pane tagged with [tag] via `SwingModifier.testTag`. */
+    /**
+     * Finds the single node inside this window's content pane tagged with [tag] via
+     * `SwingModifier.testTag`.
+     *
+     * @param tag the tag declared on the node; several nodes of this window sharing one are reached
+     *   with [onAllNodesWithTag].
+     * @return a handle that fails on use unless exactly one node in this window matches.
+     */
     public fun onNodeWithTag(tag: String): SwingNodeInteraction<Component> = onNode(SwingMatcher.hasTestTag(tag))
 
-    /** Finds all nodes matching [matcher] inside this window's content pane. */
+    /**
+     * Finds all nodes matching [matcher] inside this window's content pane.
+     *
+     * @param matcher applied to every component under the content pane, in depth-first pre-order.
+     * @return a handle to the match set, empty rather than failing when nothing matches.
+     */
     public fun onAllNodes(matcher: SwingMatcher): SwingNodeInteractionCollection<Component> =
         SwingNodeInteractionCollection(
             test,
@@ -170,13 +196,23 @@ public class SwingWindowInteraction internal constructor(
     /**
      * Finds all nodes inside this window's content pane whose text equals [text] (or contains it
      * when [substring] is `true`).
+     *
+     * @param text matched against each candidate's own text, as [onNodeWithText] matches it.
+     * @param substring `true` widens the match to text containing [text]; `false` by default.
+     * @return a handle to the match set, empty rather than failing when nothing matches.
      */
     public fun onAllNodesWithText(
         text: @Nls String,
         substring: Boolean = false,
     ): SwingNodeInteractionCollection<Component> = onAllNodes(SwingMatcher.hasText(text, substring))
 
-    /** Finds all nodes inside this window's content pane tagged with [tag] via `SwingModifier.testTag`. */
+    /**
+     * Finds all nodes inside this window's content pane tagged with [tag] via
+     * `SwingModifier.testTag`.
+     *
+     * @param tag the tag declared on the nodes; every node of this window carrying it matches.
+     * @return a handle to the match set, empty rather than failing when nothing matches.
+     */
     public fun onAllNodesWithTag(tag: String): SwingNodeInteractionCollection<Component> =
         onAllNodes(SwingMatcher.hasTestTag(tag))
 

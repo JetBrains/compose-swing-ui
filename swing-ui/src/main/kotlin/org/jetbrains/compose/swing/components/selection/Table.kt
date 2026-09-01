@@ -26,7 +26,8 @@ import javax.swing.event.TableColumnModelListener
 import javax.swing.table.TableModel
 
 /**
- * A composable wrapper for `JTable` with declarative, data-driven rows and columns.
+ * A grid the user reads, sorts, and selects in: a `JTable` reporting the selection, the sort order, and
+ * the column layout the user leaves it in.
  *
  * [rows] are the row data; declare each column in [block] with its header, a value extractor, and
  * (optionally) in-place editing. Rows and columns are **data**: changing [rows] or the declared
@@ -92,7 +93,8 @@ import javax.swing.table.TableModel
  * @param selectedRowIndices the indices into [rows] of the selected rows the caller declares; `null` - the
  *   default - leaves the selection to the user
  * @param onSelectionChange callback invoked with the indices into [rows] the user settles on
- * @param selectionMode how many rows/ranges may be selected
+ * @param selectionMode how many rows/ranges may be selected; `MULTIPLE_INTERVAL_SELECTION` - the
+ *   default - lets the user select any number of ranges
  * @param sortable whether the table sorts and filters its rows; `false` - the default - leaves them in the
  *   order [rows] declares and its column headers inert
  * @param sortKeys the sort order the caller declares; `null` - the default - leaves the order to the user
@@ -100,9 +102,11 @@ import javax.swing.table.TableModel
  * @param rowFilter which of the rows the table shows, or `null` - the default - to show all of them; a
  *   filter is adopted by identity, so pass a stable one (e.g. `remember {}`) to avoid churn
  * @param rowHeight the height in pixels of every row; `null` - the default - leaves it to the look and feel
- * @param autoResizeMode how the columns share out a change to the table's width
+ * @param autoResizeMode how the columns share out a change to the table's width;
+ *   `AUTO_RESIZE_SUBSEQUENT_COLUMNS` - the default - takes the change out of the columns right of the
+ *   one resized, while `AUTO_RESIZE_OFF` leaves every column its width and scrolls instead
  * @param fillsViewportHeight whether the table stretches to the full height of the viewport showing it,
- *   rather than to the height of the rows it holds
+ *   rather than to the height of the rows it holds; `false` - the default - leaves it as tall as its rows
  * @param columnLayout the column order and widths the caller declares; `null` - the default - leaves the
  *   column layout to the user
  * @param onColumnLayoutChange callback invoked when the user reorders or resizes the columns
@@ -165,7 +169,8 @@ public fun <R> Table(
  * @param modifier the [SwingModifier] applied to the underlying component
  * @param selectedRowIndices the indices into [rows] of the selected rows the caller declares; `null` - the
  *   default - leaves the selection to the user
- * @param selectionMode how many rows/ranges may be selected
+ * @param selectionMode how many rows/ranges may be selected; `MULTIPLE_INTERVAL_SELECTION` - the
+ *   default - lets the user select any number of ranges
  * @param sortable whether the table sorts and filters its rows; `false` - the default - leaves them in the
  *   order [rows] declares and its column headers inert
  * @param sortKeys the sort order the caller declares; `null` - the default - leaves the order to the user
@@ -174,9 +179,11 @@ public fun <R> Table(
  * @param rowFilter which of the rows the table shows, or `null` - the default - to show all of them; a
  *   filter is adopted by identity, so pass a stable one (e.g. `remember {}`) to avoid churn
  * @param rowHeight the height in pixels of every row; `null` - the default - leaves it to the look and feel
- * @param autoResizeMode how the columns share out a change to the table's width
+ * @param autoResizeMode how the columns share out a change to the table's width;
+ *   `AUTO_RESIZE_SUBSEQUENT_COLUMNS` - the default - takes the change out of the columns right of the
+ *   one resized, while `AUTO_RESIZE_OFF` leaves every column its width and scrolls instead
  * @param fillsViewportHeight whether the table stretches to the full height of the viewport showing it,
- *   rather than to the height of the rows it holds
+ *   rather than to the height of the rows it holds; `false` - the default - leaves it as tall as its rows
  * @param columnLayout the column order and widths the caller declares; `null` - the default - leaves the
  *   column layout to the user
  * @param tableColumnModelListener the listener notified of the user's column reorders and resizes; `null`
@@ -321,7 +328,8 @@ private inline fun <R> TableRowsImpl(
 }
 
 /**
- * A composable wrapper for `JTable` driven by a caller-owned [TableModel].
+ * A grid the user reads, sorts, and selects in, over a [TableModel] the caller owns: a `JTable`
+ * reporting the selection, the sort order, and the column layout the user leaves it in.
  *
  * The [model] is displayed as-is: its own columns, values, and editability drive the table, and the
  * library never mutates it. Supplying a new [model] instance swaps it into the table on recomposition.
@@ -373,7 +381,8 @@ private inline fun <R> TableRowsImpl(
  * @param selectedRowIndices the indices in [model] of the selected rows the caller declares; `null` - the
  *   default - leaves the selection to the user
  * @param onSelectionChange callback invoked with the indices in [model] the user settles on
- * @param selectionMode how many rows/ranges may be selected
+ * @param selectionMode how many rows/ranges may be selected; `MULTIPLE_INTERVAL_SELECTION` - the
+ *   default - lets the user select any number of ranges
  * @param sortable whether the table sorts and filters its rows; `false` - the default - leaves them in the
  *   order [model] holds them in and its column headers inert
  * @param sortKeys the sort order the caller declares; `null` - the default - leaves the order to the user
@@ -381,9 +390,11 @@ private inline fun <R> TableRowsImpl(
  * @param rowFilter which of the rows the table shows, or `null` - the default - to show all of them; a
  *   filter is adopted by identity, so pass a stable one (e.g. `remember {}`) to avoid churn
  * @param rowHeight the height in pixels of every row; `null` - the default - leaves it to the look and feel
- * @param autoResizeMode how the columns share out a change to the table's width
+ * @param autoResizeMode how the columns share out a change to the table's width;
+ *   `AUTO_RESIZE_SUBSEQUENT_COLUMNS` - the default - takes the change out of the columns right of the
+ *   one resized, while `AUTO_RESIZE_OFF` leaves every column its width and scrolls instead
  * @param fillsViewportHeight whether the table stretches to the full height of the viewport showing it,
- *   rather than to the height of the rows it holds
+ *   rather than to the height of the rows it holds; `false` - the default - leaves it as tall as its rows
  * @param columnLayout the column order and widths the caller declares; `null` - the default - leaves the
  *   column layout to the user
  * @param onColumnLayoutChange callback invoked when the user reorders or resizes the columns
@@ -442,7 +453,8 @@ public fun Table(
  * @param modifier the [SwingModifier] applied to the underlying component
  * @param selectedRowIndices the indices in [model] of the selected rows the caller declares; `null` - the
  *   default - leaves the selection to the user
- * @param selectionMode how many rows/ranges may be selected
+ * @param selectionMode how many rows/ranges may be selected; `MULTIPLE_INTERVAL_SELECTION` - the
+ *   default - lets the user select any number of ranges
  * @param sortable whether the table sorts and filters its rows; `false` - the default - leaves them in the
  *   order [model] holds them in and its column headers inert
  * @param sortKeys the sort order the caller declares; `null` - the default - leaves the order to the user
@@ -451,9 +463,11 @@ public fun Table(
  * @param rowFilter which of the rows the table shows, or `null` - the default - to show all of them; a
  *   filter is adopted by identity, so pass a stable one (e.g. `remember {}`) to avoid churn
  * @param rowHeight the height in pixels of every row; `null` - the default - leaves it to the look and feel
- * @param autoResizeMode how the columns share out a change to the table's width
+ * @param autoResizeMode how the columns share out a change to the table's width;
+ *   `AUTO_RESIZE_SUBSEQUENT_COLUMNS` - the default - takes the change out of the columns right of the
+ *   one resized, while `AUTO_RESIZE_OFF` leaves every column its width and scrolls instead
  * @param fillsViewportHeight whether the table stretches to the full height of the viewport showing it,
- *   rather than to the height of the rows it holds
+ *   rather than to the height of the rows it holds; `false` - the default - leaves it as tall as its rows
  * @param columnLayout the column order and widths the caller declares; `null` - the default - leaves the
  *   column layout to the user
  * @param tableColumnModelListener the listener notified of the user's column reorders and resizes; `null`
@@ -575,7 +589,8 @@ private inline fun TableImpl(
  * @param rows the row data to display
  * @param state the hoistable selection state the table applies and reports into; see [TableState]
  * @param modifier the [SwingModifier] applied to the underlying component
- * @param selectionMode how many rows/ranges may be selected
+ * @param selectionMode how many rows/ranges may be selected; `MULTIPLE_INTERVAL_SELECTION` - the
+ *   default - lets the user select any number of ranges
  * @param sortable whether the table sorts and filters its rows; `false` - the default - leaves them in the
  *   order [rows] declares and its column headers inert
  * @param sortKeys the sort order the caller declares; `null` - the default - leaves the order to the user
@@ -583,9 +598,11 @@ private inline fun TableImpl(
  * @param rowFilter which of the rows the table shows, or `null` - the default - to show all of them; a
  *   filter is adopted by identity, so pass a stable one (e.g. `remember {}`) to avoid churn
  * @param rowHeight the height in pixels of every row; `null` - the default - leaves it to the look and feel
- * @param autoResizeMode how the columns share out a change to the table's width
+ * @param autoResizeMode how the columns share out a change to the table's width;
+ *   `AUTO_RESIZE_SUBSEQUENT_COLUMNS` - the default - takes the change out of the columns right of the
+ *   one resized, while `AUTO_RESIZE_OFF` leaves every column its width and scrolls instead
  * @param fillsViewportHeight whether the table stretches to the full height of the viewport showing it,
- *   rather than to the height of the rows it holds
+ *   rather than to the height of the rows it holds; `false` - the default - leaves it as tall as its rows
  * @param columnLayout the column order and widths the caller declares; `null` - the default - leaves the
  *   column layout to the user
  * @param onColumnLayoutChange callback invoked when the user reorders or resizes the columns
@@ -638,7 +655,8 @@ public fun <R> Table(
  * @param model the table model to display; owned by the caller and never mutated by the library
  * @param state the hoistable selection state the table applies and reports into; see [TableState]
  * @param modifier the [SwingModifier] applied to the underlying component
- * @param selectionMode how many rows/ranges may be selected
+ * @param selectionMode how many rows/ranges may be selected; `MULTIPLE_INTERVAL_SELECTION` - the
+ *   default - lets the user select any number of ranges
  * @param sortable whether the table sorts and filters its rows; `false` - the default - leaves them in the
  *   order [model] holds them in and its column headers inert
  * @param sortKeys the sort order the caller declares; `null` - the default - leaves the order to the user
@@ -646,9 +664,11 @@ public fun <R> Table(
  * @param rowFilter which of the rows the table shows, or `null` - the default - to show all of them; a
  *   filter is adopted by identity, so pass a stable one (e.g. `remember {}`) to avoid churn
  * @param rowHeight the height in pixels of every row; `null` - the default - leaves it to the look and feel
- * @param autoResizeMode how the columns share out a change to the table's width
+ * @param autoResizeMode how the columns share out a change to the table's width;
+ *   `AUTO_RESIZE_SUBSEQUENT_COLUMNS` - the default - takes the change out of the columns right of the
+ *   one resized, while `AUTO_RESIZE_OFF` leaves every column its width and scrolls instead
  * @param fillsViewportHeight whether the table stretches to the full height of the viewport showing it,
- *   rather than to the height of the rows it holds
+ *   rather than to the height of the rows it holds; `false` - the default - leaves it as tall as its rows
  * @param columnLayout the column order and widths the caller declares; `null` - the default - leaves the
  *   column layout to the user
  * @param onColumnLayoutChange callback invoked when the user reorders or resizes the columns

@@ -15,7 +15,8 @@ import javax.swing.JTextArea
 import javax.swing.event.DocumentListener
 
 /**
- * A composable wrapper for JTextArea.
+ * Multiple lines of editable plain text. The `JTextArea` shows the text [value] declares, and every
+ * edit reports the area's whole text through [onValueChange].
  *
  * This area is strictly controlled: text the area settles on that [onValueChange] does not answer with
  * a matching [value] is settled back onto the declared value on the very next pass, so the area never
@@ -29,9 +30,11 @@ import javax.swing.event.DocumentListener
  * @param onValueChange callback invoked with the area's new text when the area is edited; applying
  *   [value] is not itself reported
  * @param modifier the [SwingModifier] applied to the underlying component
- * @param rows the number of rows
- * @param columns the number of columns
- * @param editable whether the user can edit the text
+ * @param rows the preferred height in rows; the area is at least this tall, and `0`, the default,
+ *   takes the height from the text it holds
+ * @param columns the preferred width in columns; the area is at least this wide, and `0`, the default,
+ *   takes the width from the text it holds
+ * @param editable whether the user can type into the area; `true` by default
  * @param lineWrap whether lines too long for the area's width are wrapped onto the next line; `false`
  *   by default, so long lines run past the width
  * @param wrapStyleWord whether wrapped lines break at word boundaries rather than at character
@@ -67,10 +70,10 @@ public fun TextArea(
 }
 
 /**
- * A composable wrapper for JTextArea driven by a raw [DocumentListener] instead of an `onValueChange`
- * lambda. The [documentListener] is attached to the area's document as-is and removed on the same
- * instance; pass a stable instance (e.g. `remember {}`) to avoid churn. Being attached as-is, it
- * observes every change to that document, including the one that applies [value].
+ * A [TextArea] driven by a raw [DocumentListener] instead of an `onValueChange` lambda. The
+ * [documentListener] is attached to the area's document as-is and removed on the same instance; pass
+ * a stable instance (e.g. `remember {}`) to avoid churn. Being attached as-is, it observes every
+ * change to that document, including the one that applies [value].
  *
  * This area is strictly controlled: text the area settles on that is not followed by [value] moving to
  * match is settled back onto the declared value on the very next pass, so the area never ends up
@@ -82,9 +85,11 @@ public fun TextArea(
  * @param value the current text value
  * @param documentListener the listener notified of document edits
  * @param modifier the [SwingModifier] applied to the underlying component
- * @param rows the number of rows
- * @param columns the number of columns
- * @param editable whether the user can edit the text
+ * @param rows the preferred height in rows; the area is at least this tall, and `0`, the default,
+ *   takes the height from the text it holds
+ * @param columns the preferred width in columns; the area is at least this wide, and `0`, the default,
+ *   takes the width from the text it holds
+ * @param editable whether the user can type into the area; `true` by default
  * @param lineWrap whether lines too long for the area's width are wrapped onto the next line; `false`
  *   by default, so long lines run past the width
  * @param wrapStyleWord whether wrapped lines break at word boundaries rather than at character
@@ -159,16 +164,18 @@ private inline fun TextAreaNode(
 }
 
 /**
- * A composable wrapper for JTextArea driven by a [DocumentState]. The area renders the state's own
- * document, so text typed into the area and edits made through the state are the same content, and the
- * caret is kept two-way with [DocumentState.selection]. The state is the single source of truth;
- * there is no `onValueChange`.
+ * A [TextArea] driven by a [DocumentState]. The area renders the state's own document, so text typed
+ * into the area and edits made through the state are the same content, and the caret is kept two-way
+ * with [DocumentState.selection]. The state is the single source of truth; there is no
+ * `onValueChange`.
  *
  * @param state the hoistable text state the area renders and drives.
  * @param modifier the [SwingModifier] applied to the underlying component
- * @param rows the number of rows
- * @param columns the number of columns
- * @param editable whether the user can edit the text
+ * @param rows the preferred height in rows; the area is at least this tall, and `0`, the default,
+ *   takes the height from the text it holds
+ * @param columns the preferred width in columns; the area is at least this wide, and `0`, the default,
+ *   takes the width from the text it holds
+ * @param editable whether the user can type into the area; `true` by default
  * @param lineWrap whether lines too long for the area's width are wrapped onto the next line; `false`
  *   by default, so long lines run past the width
  * @param wrapStyleWord whether wrapped lines break at word boundaries rather than at character

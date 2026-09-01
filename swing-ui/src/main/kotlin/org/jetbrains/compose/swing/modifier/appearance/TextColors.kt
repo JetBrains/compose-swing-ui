@@ -15,6 +15,8 @@ import javax.swing.text.JTextComponent
  * once one is set here, it holds until the modifier leaves the chain, which puts back the color the
  * look and feel had supplied.
  *
+ * @param color the color the blinking insertion caret is drawn in.
+ * @return this chain with the caret color declared on it.
  * @see javax.swing.text.JTextComponent.setCaretColor
  */
 public fun SwingModifier.caretColor(color: Color): SwingModifier =
@@ -34,6 +36,8 @@ public fun SwingModifier.caretColor(color: Color): SwingModifier =
 /**
  * Sets the background painted behind selected text in a text component.
  *
+ * @param color the color filled behind the selected span; the characters over it take [selectedTextColor].
+ * @return this chain with the selection color declared on it.
  * @see javax.swing.text.JTextComponent.setSelectionColor
  */
 public fun SwingModifier.selectionColor(color: Color): SwingModifier =
@@ -50,6 +54,8 @@ public fun SwingModifier.selectionColor(color: Color): SwingModifier =
 /**
  * Sets the color selected text is drawn in.
  *
+ * @param color the color the characters inside the selection take, in place of the component's foreground.
+ * @return this chain with the selected text color declared on it.
  * @see javax.swing.text.JTextComponent.setSelectedTextColor
  */
 public fun SwingModifier.selectedTextColor(color: Color): SwingModifier =
@@ -66,6 +72,9 @@ public fun SwingModifier.selectedTextColor(color: Color): SwingModifier =
 /**
  * Sets the color text is drawn in while the component is disabled.
  *
+ * @param color the color the whole text takes once the component is disabled; a component that is only
+ *   non-editable keeps its foreground.
+ * @return this chain with the disabled text color declared on it.
  * @see javax.swing.text.JTextComponent.setDisabledTextColor
  */
 public fun SwingModifier.disabledTextColor(color: Color): SwingModifier =

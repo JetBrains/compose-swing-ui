@@ -12,6 +12,9 @@ import javax.swing.JTree as SwingJTree
  * Runs [onExpansionChange] whenever a node of the tree opens or closes. Requires a
  * [javax.swing.JTree] target.
  *
+ * @param onExpansionChange receives the event, whose `path` is the node that opened or closed; it is
+ *   read when the event fires.
+ * @return this chain with the expansion callback declared on it.
  * @see javax.swing.JTree.addTreeExpansionListener
  */
 public fun SwingModifier.treeExpansionListener(onExpansionChange: (TreeExpansionEvent) -> Unit): SwingModifier =
@@ -29,6 +32,10 @@ public fun SwingModifier.treeExpansionListener(onExpansionChange: (TreeExpansion
  *
  * Declaring none at all is refused.
  *
+ * @param onTreeExpanded runs once the node's children are showing.
+ * @param onTreeCollapsed runs once they are hidden; the subtree keeps the expansion it had, and shows
+ *   it again when the node reopens.
+ * @return this chain with the expansion callbacks declared on it.
  * @see javax.swing.JTree.addTreeExpansionListener
  */
 public fun SwingModifier.treeExpansionListener(
@@ -43,6 +50,9 @@ public fun SwingModifier.treeExpansionListener(
  * Attaches a [TreeExpansionListener]
  * (`addTreeExpansionListener`/`removeTreeExpansionListener`). Requires a [javax.swing.JTree] target.
  *
+ * @param listener attached by identity, so a remembered instance stays put while a fresh one on every
+ *   pass is detached and re-added.
+ * @return this chain with the expansion listener declared on it.
  * @see javax.swing.JTree.addTreeExpansionListener
  */
 public fun SwingModifier.treeExpansionListener(listener: TreeExpansionListener): SwingModifier =

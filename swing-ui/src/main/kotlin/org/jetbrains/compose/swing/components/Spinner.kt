@@ -66,8 +66,10 @@ private fun rememberSpinnerValueChannel(
 }
 
 /**
- * A composable wrapper for JSpinner stepping through numbers, over a `SpinnerNumberModel` built from
- * [min], [max] and [step].
+ * A `JSpinner` over numbers: it shows [value] in an editable field beside a pair of arrows that step it
+ * by [step], through a `SpinnerNumberModel` built from [min], [max] and [step]. A value the user leaves
+ * the spinner on and the caller does not answer with a matching [value] is settled back onto the
+ * declared one, so the spinner shows what the composition holds.
  *
  * A `null` [min] or [max] leaves that side unbounded. Tightening either past the current [value] does
  * not move the value, so the spinner can hold one outside its own range until the next value it takes.
@@ -79,7 +81,7 @@ private fun rememberSpinnerValueChannel(
  * @param modifier the [SwingModifier] applied to the underlying component.
  * @param min the smallest selectable value, or `null` for none.
  * @param max the largest selectable value, or `null` for none.
- * @param step the amount a step changes the value by.
+ * @param step the amount a step changes the value by; `1` by default.
  * @param format the pattern the spinner formats and parses its value with - a `DecimalFormat` pattern;
  *   `null` formats it the way the locale does. A new pattern rebuilds the spinner's own editor around
  *   it.
@@ -125,8 +127,8 @@ public fun Spinner(
 }
 
 /**
- * A composable wrapper for JSpinner stepping through dates by [calendarField], over a
- * `SpinnerDateModel` built from [start] and [end].
+ * A `JSpinner` over dates: it shows [value] in an editable field beside a pair of arrows that step it
+ * by one [calendarField], through a `SpinnerDateModel` built from [start] and [end].
  *
  * A `null` [start] or [end] leaves that side unbounded. Tightening either past the current [value]
  * does not move the value, so the spinner can hold one outside its own range until the next value it
@@ -139,7 +141,8 @@ public fun Spinner(
  * @param modifier the [SwingModifier] applied to the underlying component.
  * @param start the earliest selectable date, or `null` for none.
  * @param end the latest selectable date, or `null` for none.
- * @param calendarField the `Calendar` field a step moves the value by.
+ * @param calendarField the `Calendar` field a step moves the value by; `DAY_OF_MONTH` by default, so a
+ *   step moves the date by one day.
  * @param format the pattern the spinner formats and parses its value with - a `SimpleDateFormat`
  *   pattern; `null` formats it the way the locale does. A new pattern rebuilds the spinner's own
  *   editor around it.
@@ -181,8 +184,10 @@ public fun Spinner(
 }
 
 /**
- * A composable wrapper for JSpinner stepping through [items], one to the next without wrapping at
- * either end.
+ * A `JSpinner` over [items]: it shows the one selected value in an editable field beside a pair of
+ * arrows that step from one item to the next, without wrapping at either end. Text typed at the end of
+ * the field is completed to the next item starting with it, so a distinguishing prefix is enough to
+ * commit one.
  *
  * An empty [items] is allowed: the spinner then holds no value and steps neither forward nor back
  * until items arrive. Assigning a new [items] moves the selection to its head.
@@ -399,9 +404,9 @@ private class ListSpinnerModel<T>(
 }
 
 /**
- * Writes [value] to this model, or - given `null` over a non-empty [items] - the head, which is what a
+ * Writes [value] to this model, or - given `null` over non-empty `items` - the head, which is what a
  * spinner over items always shows once it has any: `null` only ever means no selection has been declared,
- * never that the spinner is to show nothing while items sit right there. A [value] neither [items] nor
+ * never that the spinner is to show nothing while items sit right there. A [value] neither `items` nor
  * that fallback holds is left alone: [setValue] throws for one, so a caller that can offer only what a
  * pass declares checks first rather than catching the model's own exception.
  */

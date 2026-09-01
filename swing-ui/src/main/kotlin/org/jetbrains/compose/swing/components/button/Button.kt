@@ -13,7 +13,8 @@ import java.awt.event.ActionListener
 import javax.swing.JButton
 
 /**
- * A composable wrapper for JButton.
+ * A `JButton` push button labeled [text], which calls [onClick] each time the button is activated.
+ * Activation is an event and nothing more: the button carries no value for the caller to hold.
  *
  * @param text the text to display on the button
  * @param onClick callback to be invoked when the button is clicked
@@ -30,7 +31,7 @@ public fun Button(
 }
 
 /**
- * A composable wrapper for JButton driven by a raw [ActionListener] instead of an `onClick` lambda.
+ * A [Button] driven by a raw [ActionListener] instead of an `onClick` lambda.
  *
  * The [actionListener] is attached as-is and removed on the same instance; pass a stable instance
  * (e.g. `remember {}`) to avoid a detach/re-attach on every recomposition.

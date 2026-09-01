@@ -27,7 +27,8 @@ import javax.swing.SwingUtilities
 import kotlin.system.exitProcess
 
 /**
- * An entry point for the Compose application. See [awaitApplication] for more information.
+ * An entry point for the Compose application that blocks the calling thread until the application
+ * ends, and by default exits the process. See [awaitApplication] for more information.
  *
  * Usually this entry point is used inside the `main()` function:
  * ```
@@ -129,6 +130,9 @@ private fun checkNotEventDispatchThread() {
  * function without waiting for it to end: it does not block the main thread, so the application
  * process may stop before any window appears.
  *
+ * @param content the application's content, composed against an [ApplicationScope] inside the launched
+ *   job.
+ * @return the [Job] running the application, which completes once no active composition is left.
  * @see [awaitApplication]
  */
 public fun CoroutineScope.launchApplication(content: @Composable ApplicationScope.() -> Unit): Job =
@@ -137,7 +141,8 @@ public fun CoroutineScope.launchApplication(content: @Composable ApplicationScop
     }
 
 /**
- * An entry point for the Compose application.
+ * An entry point for the Compose application that suspends until the application ends, leaving the
+ * thread it was awaited on free.
  *
  * The application can launch background tasks using [androidx.compose.runtime.LaunchedEffect]
  * or create [Window], [Dialog], or [org.jetbrains.compose.swing.components.Tray] in a declarative
@@ -176,6 +181,9 @@ public fun CoroutineScope.launchApplication(content: @Composable ApplicationScop
  * [Window] and [Dialog] created inside [content] run as part of this application composition:
  * application-scope state and any [androidx.compose.runtime.CompositionLocal] provided in [content]
  * flow into their content.
+ *
+ * @param content the application's content, composed against an [ApplicationScope] on the Event
+ *   Dispatch Thread, whatever thread this is awaited on.
  */
 public suspend fun awaitApplication(content: @Composable ApplicationScope.() -> Unit) {
     withContext(Dispatchers.Swing) {

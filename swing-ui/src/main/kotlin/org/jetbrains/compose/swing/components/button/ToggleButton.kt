@@ -17,11 +17,13 @@ import java.awt.event.ActionListener
 import javax.swing.JToggleButton
 
 /**
- * A composable wrapper for `JToggleButton`, a two-state button that stays in until clicked again.
+ * A `JToggleButton`, a two-state button that stays in until clicked again.
  *
  * The selected state is controlled via [selected] + [onSelectedChange]: the button shows whatever
  * [selected] holds, and a click toggles it, reporting the new state through [onSelectedChange]. A state
- * the caller pushes in is reflected without echoing back through the callback.
+ * the caller pushes in is reflected without echoing back through the callback. A toggle the caller does
+ * not answer with a matching [selected] does not stand: the button is back on the declared state before
+ * the click is painted.
  *
  * ```
  * ToggleButton(text = "Bold", selected = bold, onSelectedChange = { bold = it })

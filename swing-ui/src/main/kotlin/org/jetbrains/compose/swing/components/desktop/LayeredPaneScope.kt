@@ -34,13 +34,14 @@ public sealed interface LayeredPaneScope {
      * A depth is the layout constraint the pane places the child under, so the last placement a chain
      * declares wins, and a chain declaring none leaves the child on `JLayeredPane.DEFAULT_LAYER`. Within
      * one layer the children stack in the order the composition declares them, the first of them on top.
-     * Declaring a different depth moves the child to the top of the layer it names, keeping what it
-     * remembers and the component it is realized as.
+     * Declaring a different depth moves the child to position 0 - the topmost position within a layer -
+     * of the layer it names, keeping what it remembers and the component it is realized as.
      *
      * The child positions itself within the pane through `SwingModifier.bounds(...)`, since a layered
      * pane lays no child out.
      *
      * @param layer the depth the child is placed at
+     * @return this chain with the depth declared on it.
      * @see javax.swing.JLayeredPane.setLayer
      */
     public fun SwingModifier.layer(layer: Int): SwingModifier

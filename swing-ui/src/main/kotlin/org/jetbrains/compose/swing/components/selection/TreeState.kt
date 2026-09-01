@@ -106,6 +106,8 @@ public class TreeState
          * Whether the tree shows the children of the node [path] names below it. `false` for a node no
          * structure the tree currently shows has, for a node under a closed one, and while no tree is bound.
          *
+         * @param path the node to answer for, named the way [expandedPaths] names one.
+         * @return `true` while the tree shows the node's children.
          * @see javax.swing.JTree.isExpanded
          */
         public fun isExpanded(path: List<Int>): Boolean {
@@ -128,6 +130,9 @@ public class TreeState
          * no such node. `true` means the tree was asked to show it, which scrolls the pane the tree is in;
          * a tree in no scroll pane has nowhere to scroll and is left with the node's ancestors open.
          *
+         * @param path the node to bring into view, named the way [expandedPaths] names one; the indices are
+         *   positional, so a path held across a change of structure names whatever now stands at them.
+         * @return whether the tree holds that node and was scrolled to it.
          * @see javax.swing.JTree.scrollPathToVisible
          */
         public fun revealPath(path: List<Int>): Boolean {

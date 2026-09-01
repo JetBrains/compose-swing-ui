@@ -150,6 +150,10 @@ public class TrayMenuHost(
     /**
      * Composes [menu] into a fresh [JPopupMenu] and presents it through [display] at ([x], [y]),
      * closing the previously shown menu first.
+     *
+     * @param x the horizontal coordinate the menu's top-left corner is placed at, in the space
+     *   [display] reads - screen pixels under the production default.
+     * @param y the vertical coordinate that corner is placed at, in the same space as [x].
      */
     public fun showMenu(
         x: Int,

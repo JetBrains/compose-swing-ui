@@ -16,6 +16,9 @@ import javax.swing.event.InternalFrameListener
  * [onFrameChange] is read when the event fires, so writing a fresh lambda on every recomposition
  * registers nothing again.
  *
+ * @param onFrameChange receives the event, whose `id` tells the seven apart and whose `internalFrame`
+ *   is the frame that changed.
+ * @return this chain with the internal frame callback declared on it.
  * @see javax.swing.JInternalFrame.addInternalFrameListener
  */
 public fun SwingModifier.internalFrameListener(onFrameChange: (InternalFrameEvent) -> Unit): SwingModifier =
@@ -38,6 +41,16 @@ public fun SwingModifier.internalFrameListener(onFrameChange: (InternalFrameEven
  *
  * Declaring none at all is refused.
  *
+ * @param onFrameOpened runs once, the first time the frame is shown.
+ * @param onFrameClosing runs before the close takes effect - from the close control and from
+ *   `setClosed(true)` alike.
+ * @param onFrameClosed runs when the frame is disposed; a close operation that only hides it never
+ *   reports here.
+ * @param onFrameIconified runs when the frame is minimized within the desktop.
+ * @param onFrameDeiconified runs when the frame is restored from being minimized.
+ * @param onFrameActivated runs when the frame becomes the selected one on the desktop.
+ * @param onFrameDeactivated runs when another frame takes that selection.
+ * @return this chain with the internal frame callbacks declared on it.
  * @see javax.swing.JInternalFrame.addInternalFrameListener
  */
 @Suppress("LongParameterList")
@@ -75,6 +88,9 @@ public fun SwingModifier.internalFrameListener(
  * Attaches an [InternalFrameListener]
  * (`addInternalFrameListener`/`removeInternalFrameListener`). Requires a [JInternalFrame] target.
  *
+ * @param listener attached by identity, so a remembered instance stays put while a fresh one on every
+ *   pass is detached and re-added.
+ * @return this chain with the internal frame listener declared on it.
  * @see javax.swing.JInternalFrame.addInternalFrameListener
  */
 public fun SwingModifier.internalFrameListener(listener: InternalFrameListener): SwingModifier =

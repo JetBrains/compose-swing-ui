@@ -21,7 +21,8 @@ import javax.swing.event.ChangeEvent
 import javax.swing.event.ChangeListener
 
 /**
- * A composable wrapper for `JTabbedPane` with declarative, dynamic tabs.
+ * A stack of pages of which one shows at a time, picked from a strip of tabs - a `JTabbedPane`. The
+ * pane holds which tab is selected and reports the tab the user clicks.
  *
  * A pane holds each child as the page of a tab rather than as an indexed child of a layout, so every child
  * of [content] declares the tab it is the body of on its own modifier, with `SwingModifier.tab(...)` - the
@@ -31,8 +32,9 @@ import javax.swing.event.ChangeListener
  *
  * Tabs are **dynamic**: emitting or dropping a child adds or removes the tab it is the body of, and a tab's
  * title/icon/tooltip/enabled update on recomposition. The selected tab is controlled via [selectedIndex],
- * and [onSelectedIndexChange] reports the tab the user selects. A tab may also carry a `header` composable
- * that renders the tab in the strip in place of its title and icon.
+ * and [onSelectedIndexChange] reports the tab the user selects; a click the caller does not answer with a
+ * matching [selectedIndex] is settled back, so the pane returns to the declared tab. A tab may also carry
+ * a `header` composable that renders the tab in the strip in place of its title and icon.
  *
  * [selectedIndex] is `-1` for no selected tab, the value a `JTabbedPane` itself holds while none is
  * selected. Any other value has to name a tab that is there: where it names none - dropping the selected
@@ -47,12 +49,15 @@ import javax.swing.event.ChangeListener
  * }
  * ```
  *
- * @param selectedIndex the index of the selected tab, or `-1` for none (controlled)
+ * @param selectedIndex the index of the selected tab, or `-1` for none (controlled); `-1` while the
+ *   pane holds tabs leaves the strip with no tab selected and no page shown
  * @param onSelectedIndexChange callback invoked with the index of the tab the user selects, and with the
  *   tab the pane is left on where [selectedIndex] names no tab of the strip
  * @param modifier the [SwingModifier] applied to the underlying `JTabbedPane`
- * @param tabPlacement where the tab strip is drawn
- * @param tabLayoutPolicy how the tab strip handles overflow
+ * @param tabPlacement where the tab strip is drawn; `TOP` by default
+ * @param tabLayoutPolicy how the tab strip handles overflow; the default `WRAP_TAB_LAYOUT` wraps the
+ *   tabs that do not fit onto further runs of the strip, and a look and feel supporting only one of the
+ *   policies ignores it
  * @param content the composable content of the pane, one child per tab; see [TabbedPaneScope]
  * @see javax.swing.JTabbedPane
  */
@@ -81,12 +86,15 @@ public fun TabbedPane(
  * [selectedIndex] names no tab of the strip, reading the new selection off the event's source pane; the
  * latest declared instance is the one notified, so the listener may be declared inline.
  *
- * @param selectedIndex the index of the selected tab, or `-1` for none (controlled)
+ * @param selectedIndex the index of the selected tab, or `-1` for none (controlled); `-1` while the
+ *   pane holds tabs leaves the strip with no tab selected and no page shown
  * @param changeListener the listener notified when the user selects another tab, and when the pane is
  *   left on a tab [selectedIndex] does not name
  * @param modifier the [SwingModifier] applied to the underlying `JTabbedPane`
- * @param tabPlacement where the tab strip is drawn
- * @param tabLayoutPolicy how the tab strip handles overflow
+ * @param tabPlacement where the tab strip is drawn; `TOP` by default
+ * @param tabLayoutPolicy how the tab strip handles overflow; the default `WRAP_TAB_LAYOUT` wraps the
+ *   tabs that do not fit onto further runs of the strip, and a look and feel supporting only one of the
+ *   policies ignores it
  * @param content the composable content of the pane, one child per tab; see [TabbedPaneScope]
  * @see javax.swing.JTabbedPane
  */

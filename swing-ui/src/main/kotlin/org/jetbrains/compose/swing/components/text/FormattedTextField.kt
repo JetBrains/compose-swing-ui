@@ -17,7 +17,9 @@ import javax.swing.JFormattedTextField
 import javax.swing.JFormattedTextField.AbstractFormatterFactory
 
 /**
- * A composable wrapper for `JFormattedTextField`, for number, date, or masked input.
+ * A single line of text standing for a typed value: a number, a date, or input matching a fixed mask.
+ * The `JFormattedTextField` renders the value as formatted text and parses what the user types back
+ * into a value of that type.
  *
  * The field parses and formats through [formatterFactory], which produces the formatter that maps
  * between the typed [value] and the displayed text (e.g. a `NumberFormatter`, a `DateFormatter`, or a
@@ -63,11 +65,13 @@ import javax.swing.JFormattedTextField.AbstractFormatterFactory
  *   applying [value] is not itself reported
  * @param modifier the [SwingModifier] applied to the underlying component
  * @param formatterFactory the factory producing the field's formatter, or `null` for the default
- * @param onEditValidChange callback invoked with whether the text now parses, each time that changes
+ * @param onEditValidChange callback invoked with whether the text now parses, each time that changes;
+ *   nothing is reported by default
  * @param focusLostBehavior what to do with a partial edit when the field loses focus (a
- *   [FocusLostBehavior] `JFormattedTextField` constant)
- * @param columns the preferred width in columns; `0` sizes to the content
- * @param editable whether the user can edit the text
+ *   [FocusLostBehavior] `JFormattedTextField` constant); `COMMIT_OR_REVERT` by default, which commits
+ *   an edit that parses and discards one that does not, restoring the last committed value
+ * @param columns the preferred width in columns; `0` by default, sizing to the content
+ * @param editable whether the user can type into the field; `true` by default
  * @see FormattedTextField the [FormattedValueState]-driven overload
  * @see javax.swing.JFormattedTextField
  */
@@ -116,11 +120,13 @@ public fun FormattedTextField(
  * @param valuePropertyChangeListener the listener notified when the committed `value` changes
  * @param modifier the [SwingModifier] applied to the underlying component
  * @param formatterFactory the factory producing the field's formatter, or `null` for the default
- * @param onEditValidChange callback invoked with whether the text now parses, each time that changes
+ * @param onEditValidChange callback invoked with whether the text now parses, each time that changes;
+ *   nothing is reported by default
  * @param focusLostBehavior what to do with a partial edit when the field loses focus (a
- *   [FocusLostBehavior] `JFormattedTextField` constant)
- * @param columns the preferred width in columns; `0` sizes to the content
- * @param editable whether the user can edit the text
+ *   [FocusLostBehavior] `JFormattedTextField` constant); `COMMIT_OR_REVERT` by default, which commits
+ *   an edit that parses and discards one that does not, restoring the last committed value
+ * @param columns the preferred width in columns; `0` by default, sizing to the content
+ * @param editable whether the user can type into the field; `true` by default
  * @see FormattedTextField the [FormattedValueState]-driven overload
  * @see javax.swing.JFormattedTextField
  */
@@ -171,9 +177,10 @@ public fun FormattedTextField(
  * @param modifier the [SwingModifier] applied to the underlying component
  * @param formatterFactory the factory producing the field's formatter, or `null` for the default
  * @param focusLostBehavior what to do with a partial edit when the field loses focus (a
- *   [FocusLostBehavior] `JFormattedTextField` constant)
- * @param columns the preferred width in columns; `0` sizes to the content
- * @param editable whether the user can edit the text
+ *   [FocusLostBehavior] `JFormattedTextField` constant); `COMMIT_OR_REVERT` by default, which commits
+ *   an edit that parses and discards one that does not, restoring the last committed value
+ * @param columns the preferred width in columns; `0` by default, sizing to the content
+ * @param editable whether the user can type into the field; `true` by default
  * @see javax.swing.JFormattedTextField
  */
 @Composable

@@ -20,7 +20,9 @@ import javax.swing.text.Document
 import javax.swing.text.Segment
 
 /**
- * A composable wrapper for JPasswordField.
+ * A single line of editable text the `JPasswordField` shows as masking characters rather than as what
+ * was typed. It holds the characters [value] declares and reports every edit as the field's whole
+ * contents.
  *
  * The value is a [CharArray] of raw characters rather than a `String`, so [value], [onValueChange] and
  * the comparison this wrapper makes against the field's characters need no extra, unzeroable `String`
@@ -44,10 +46,11 @@ import javax.swing.text.Segment
  * @param onValueChange callback invoked with the field's new characters when the field is edited;
  *   applying [value] is not itself reported
  * @param modifier the [SwingModifier] applied to the underlying component
- * @param echoChar the masking character; `null` applies the look-and-feel's installed echo character,
- *   and the NUL character (U+0000) shows the text in clear text
- * @param columns the number of columns
- * @param editable whether the user can edit the text
+ * @param echoChar the masking character; `null`, the default, applies the look-and-feel's installed
+ *   echo character, and the NUL character (U+0000) shows the text in clear text
+ * @param columns the preferred width in columns; `0` by default, taking the width from the characters
+ *   the field holds
+ * @param editable whether the user can type into the field; `true` by default
  * @see PasswordField the [DocumentState]-driven overload for large or complex editors
  * @see javax.swing.JPasswordField
  */
@@ -74,10 +77,10 @@ public fun PasswordField(
 }
 
 /**
- * A composable wrapper for JPasswordField driven by a raw [DocumentListener] instead of an
- * `onValueChange` lambda. The [documentListener] is attached to the field's document as-is and removed
- * on the same instance; pass a stable instance (e.g. `remember {}`) to avoid churn. Being attached
- * as-is, it observes every change to that document, including the one that applies [value].
+ * A [PasswordField] driven by a raw [DocumentListener] instead of an `onValueChange` lambda. The
+ * [documentListener] is attached to the field's document as-is and removed on the same instance; pass
+ * a stable instance (e.g. `remember {}`) to avoid churn. Being attached as-is, it observes every
+ * change to that document, including the one that applies [value].
  *
  * This field is strictly controlled: characters the field settles on that are not followed by [value]
  * moving to match are settled back onto the declared value on the very next pass, so the field never
@@ -92,10 +95,11 @@ public fun PasswordField(
  * @param value the current text value, as raw characters
  * @param documentListener the listener notified of document edits
  * @param modifier the [SwingModifier] applied to the underlying component
- * @param echoChar the masking character; `null` applies the look-and-feel's installed echo character,
- *   and the NUL character (U+0000) shows the text in clear text
- * @param columns the number of columns
- * @param editable whether the user can edit the text
+ * @param echoChar the masking character; `null`, the default, applies the look-and-feel's installed
+ *   echo character, and the NUL character (U+0000) shows the text in clear text
+ * @param columns the preferred width in columns; `0` by default, taking the width from the characters
+ *   the field holds
+ * @param editable whether the user can type into the field; `true` by default
  * @see PasswordField the [DocumentState]-driven overload for large or complex editors
  * @see javax.swing.JPasswordField
  */
@@ -205,20 +209,20 @@ private fun <C : JPasswordField> SwingNodeUpdater<C>.declarePassword(
 }
 
 /**
- * A composable wrapper for JPasswordField driven by a [DocumentState]. The field renders the
- * state's own document, so masked text typed into the field and edits made through the state are the
- * same content, and the caret is kept two-way with [DocumentState.selection]. The state is the
- * single source of truth.
+ * A [PasswordField] driven by a [DocumentState]. The field renders the state's own document, so
+ * masked text typed into the field and edits made through the state are the same content, and the
+ * caret is kept two-way with [DocumentState.selection]. The state is the single source of truth.
  *
  * The state models plain text: [DocumentState.text] materializes the password as an ordinary
  * `String`, which the caller cannot zero and which persists on the heap until garbage-collected.
  *
  * @param state the hoistable text state the field renders and drives.
  * @param modifier the [SwingModifier] applied to the underlying component
- * @param echoChar the masking character; `null` applies the look-and-feel's installed echo character,
- *   and the NUL character (U+0000) shows the text in clear text
- * @param columns the number of columns
- * @param editable whether the user can edit the text
+ * @param echoChar the masking character; `null`, the default, applies the look-and-feel's installed
+ *   echo character, and the NUL character (U+0000) shows the text in clear text
+ * @param columns the preferred width in columns; `0` by default, taking the width from the characters
+ *   the field holds
+ * @param editable whether the user can type into the field; `true` by default
  * @see javax.swing.JPasswordField
  */
 @Composable

@@ -68,6 +68,8 @@ internal fun PublishLifecycleOwner(component: Component) {
  * that resolves it neither drives it nor ends it. Clear it from the same teardown that ends it.
  *
  * Marked [InternalSwingUiApi]; it may change or be removed without notice in any release.
+ *
+ * @param owner the [LifecycleOwner] to set, or `null` to clear the one set here.
  */
 @InternalSwingUiApi
 public fun JComponent.setLifecycleOwner(owner: LifecycleOwner?) {

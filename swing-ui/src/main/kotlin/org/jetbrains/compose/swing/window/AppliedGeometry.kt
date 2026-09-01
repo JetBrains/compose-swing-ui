@@ -62,7 +62,7 @@ internal class AppliedGeometry {
  * An unspecified size (a 0x0 [width] by [height]) sizes the window to its content's preferred size via
  * [java.awt.Window.pack]; the realized size then flows back into the state through the geometry
  * write-back listener, so declaring 0x0 again fits the window to whatever its content has become. A
- * size of any other value is applied verbatim through [setSize].
+ * size of any other value is applied verbatim through [java.awt.Component.setSize].
  *
  * A [WindowPosition.PlatformDefault] position is left to the platform, while a centering position
  * resolves against the screen, the owning window or a named window. The position is applied after

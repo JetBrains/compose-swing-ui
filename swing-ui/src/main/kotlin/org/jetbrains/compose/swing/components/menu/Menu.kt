@@ -12,11 +12,13 @@ import org.jetbrains.compose.swing.node.MenuNode
 import javax.swing.JMenu
 
 /**
- * A composable wrapper for JMenu.
+ * An item that opens onto other items instead of acting itself: a `JMenu`, a pull-down in a menu bar or
+ * a submenu of another menu.
  *
  * @param text the text of the menu
  * @param modifier the [SwingModifier] applied to the underlying component
- * @param content the composable content of the menu (menu items)
+ * @param content the composable content of the menu (menu items); empty by default, which leaves a menu
+ *   that opens onto nothing
  * @see javax.swing.JMenu
  */
 @Composable

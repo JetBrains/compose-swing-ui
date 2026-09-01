@@ -334,9 +334,9 @@ private class ChildRegions(
      * the way a child arriving at a region-holding host without one is - it would be held by the host and
      * laid out by nobody.
      *
-     * A parked child is skipped: it gave its region up in [SwingNodeHolder.onDeactivate] and keeps its
-     * stale [SwingNodeHolder.declaredSlot] for as long as it stands in [children], so its declared and
-     * installed regions never agree again - reinstalling it here would put a component the composition no
+     * A parked child is skipped: it gave its region up in [SwingNodeHolder.onDeactivate] and keeps its stale
+     * [SwingNodeHolder.declaredSlot] for as long as it stands in [SwingNodeHolder.children], so its declared
+     * and installed regions never agree again - reinstalling it here would put a component the composition no
      * longer drives back into a region a live sibling may since have taken.
      */
     private fun SwingNodeHolder<*>.moveRestatedChildren() {

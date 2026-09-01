@@ -36,6 +36,8 @@ import javax.swing.ButtonGroup
  * it selected. A choice declared as an index, the empty choice included, is what
  * [RadioGroup][org.jetbrains.compose.swing.components.selection.RadioGroup] takes.
  *
+ * @param group the group this button joins; its members need not be siblings, so one exclusion can span containers.
+ * @return this chain with the group membership declared on it.
  * @see javax.swing.ButtonGroup.add
  */
 public fun SwingModifier.buttonGroup(group: ButtonGroup): SwingModifier =

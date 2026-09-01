@@ -15,8 +15,8 @@ import javax.swing.BoxLayout
 import javax.swing.JRadioButton
 
 /**
- * A composable wrapper for a group of mutually exclusive radio buttons backed by a shared
- * `ButtonGroup`, so at most one option is selected at a time.
+ * A set of mutually exclusive choices, backed by a shared `ButtonGroup`, so at most one option is
+ * selected at a time.
  *
  * Declare the choices in [content]; each `option(...)` becomes a `JRadioButton` laid out in the group's
  * panel in call order. The selected option is controlled via [selectedIndex] (the zero-based position
@@ -32,11 +32,15 @@ import javax.swing.JRadioButton
  * }
  * ```
  *
+ * A pick the caller does not answer with a matching [selectedIndex] is settled back onto the declared
+ * one, so the option shown selected is the one the composition holds.
+ *
  * @param selectedIndex the index of the selected option (controlled); an out-of-range value, such as
  *   `-1`, leaves every option unselected
  * @param onSelectionChange callback invoked with the option's index when the user selects it
  * @param modifier the [SwingModifier] applied to the group's panel
- * @param axis the axis along which the options are arranged (a [BoxAxis] `BoxLayout` value)
+ * @param axis the axis along which the options are arranged (a [BoxAxis] `BoxLayout` value);
+ *   `Y_AXIS` - the default - stacks them in a column
  * @param content declares the options; see [RadioGroupScope]
  * @see javax.swing.ButtonGroup
  */

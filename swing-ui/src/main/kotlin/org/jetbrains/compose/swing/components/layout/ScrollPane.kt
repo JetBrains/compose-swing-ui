@@ -18,7 +18,8 @@ import javax.swing.JScrollPane
 import javax.swing.border.Border
 
 /**
- * A composable wrapper for `JScrollPane` with declarative content, header, and corner regions.
+ * A scrolling view onto content larger than the room it has - a `JScrollPane`, with the viewport it
+ * scrolls and the headers and corners that stay put beside it declared as content.
  *
  * The pane holds each of its children in one of its own regions - the viewport, the row header, the
  * column header, and each of the four corners - rather than as an indexed child. So every child names
@@ -51,13 +52,16 @@ import javax.swing.border.Border
  * viewport's own width or height, are the content's to declare - see [ScrollPaneScope.viewport].
  *
  * @param modifier the [SwingModifier] applied to the underlying `JScrollPane`
- * @param state the pane's two-way scroll position; see [ScrollState]
- * @param verticalScrollbar the vertical scrollbar policy
- * @param horizontalScrollbar the horizontal scrollbar policy
+ * @param state the pane's two-way scroll position; see [ScrollState]. Left out, the pane gets a state
+ *   of its own, which nothing outside it reads or drives
+ * @param verticalScrollbar the vertical scrollbar policy; by default the bar is there only while the
+ *   content is taller than the viewport
+ * @param horizontalScrollbar the horizontal scrollbar policy; by default the bar is there only while
+ *   the content is wider than the viewport
  * @param viewportBorder the border drawn around the viewport, inside the pane's own border and outside
  *   the scrolled content; `null` leaves the border to the installed look and feel, and a border
  *   withdrawn after being declared settles at its answer for good
- * @param wheelScrollingEnabled whether the mouse wheel scrolls the pane
+ * @param wheelScrollingEnabled whether the mouse wheel scrolls the pane; `true` by default
  * @param content the composable content of the pane; see [ScrollPaneScope]
  * @see javax.swing.JScrollPane
  */

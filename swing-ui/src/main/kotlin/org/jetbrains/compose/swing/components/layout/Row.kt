@@ -29,8 +29,11 @@ import org.jetbrains.compose.swing.node.SwingNode
  * ```
  *
  * @param modifier the [SwingModifier] applied to the panel
- * @param horizontalArrangement where the children, and the width left over, go along the row
- * @param verticalAlignment where each child sits across the row
+ * @param horizontalArrangement where the children, and the width left over, go along the row; the
+ *   default [Arrangement.Start] packs them against the leading edge and leaves the rest of the width
+ *   after them
+ * @param verticalAlignment where each child sits across the row; the default [Alignment.Top] puts each
+ *   at the top of the height available to it
  * @param content the composable content of the row; see [RowScope]
  */
 @Composable

@@ -39,7 +39,7 @@ Then write a plain `@Test` method whose body is a `runComposeSwingTest { … }` 
 call `setContent { … }` to mount your composable, and the harness, finders, assertions, and actions
 are all in scope.
 
-```kotlin
+<!--- INCLUDE .*testing-01.*
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.components.button.Button
@@ -47,7 +47,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import kotlin.test.Test
+-->
 
+```kotlin
 class CounterTest {
     @Test
     fun clickingIncrements() = runComposeSwingTest {
@@ -77,7 +79,7 @@ Single-node finders return a `SwingNodeInteraction`:
 - `onNodeOfType<T>()` — match the single component of a given Swing type.
 - `onRoot()` — the composition root.
 - `onNode(matcher)` — match with a `SwingMatcher` (e.g. `hasText`, `hasTestTag`, `hasName`,
-  `isEnabled`, `isSelected`, `isEditable`, composed with `and`, `or` and `!`).
+  `hasAccessibleName`, `isEnabled`, `isSelected`, `isEditable`, composed with `and`, `or` and `!`).
 
 Multi-node finders return a `SwingNodeInteractionCollection`:
 
@@ -95,6 +97,13 @@ onAllNodesOfType<JCheckBox>().assertAll(SwingMatcher.isEnabled())
 ```
 
 <!--- KNIT example-testing-fragment-01.kt -->
+
+`hasAccessibleName(name)` matches the name a component reports through its accessible context — the
+name assistive technology reads. A widget derives it from its own text unless
+`SwingModifier.accessibleName` declares one, so it is the handle for a component that carries no
+displayed text of its own, and the matcher for a test whose subject is the accessible contract itself.
+`hasName` is the unrelated `Component.getName`, which stays unset unless the `name` modifier or the
+test sets it.
 
 ### Structure
 
@@ -190,6 +199,23 @@ assertEquals(2, list.selectedIndex, "the declared selection is the one the widge
 
 <!--- CLEAR -->
 
+`fetchAll()` does the same for a collection: every match, as the type the query named, in depth-first
+pre-order. Reach for it where the subject is the whole set rather than one component — the texts every
+row settled on, the order they are in — which a single `fetch<T>()` cannot answer. A query that named
+no type of its own, or a wider one than the components to be driven, names the type at the call
+instead, `fetchAll<T>()`, and fails if any match is not a `T`:
+
+```kotlin
+import javax.swing.JLabel
+
+val rows = onAllNodesWithTag("row").fetchAll<JLabel>()
+assertEquals(listOf("first", "second"), rows.map { it.text })
+```
+
+<!--- CLEAR -->
+
+A window collection has the typed form too, returning the realized windows in creation order.
+
 Prefer an assertion or a matcher wherever one covers the property, and reach for `fetch<T>()` where
 the Swing side of the contract is itself the subject.
 
@@ -225,8 +251,9 @@ user, and a widget that refuses an edit refuses it here too.
   position is given. `clicks = 2` is a double click, delivered as the toolkit delivers one: two clicks
   carrying their running count. `button` and `modifiers` are what make a middle-button click or a
   shift-click that extends a selection.
-- `performContextClick(position)` — the platform's context-menu gesture: a secondary click whose press
-  and release both report themselves as the popup trigger, since platforms differ over which carries it.
+- `performContextClick(position)` — the platform's context-menu gesture: a secondary click carrying the
+  popup trigger on the one event the host platform carries it on, the release on Windows and the press
+  elsewhere.
 - `performMousePress(position)` / `performMouseRelease(position)` — half a click each, for a gesture a
   test holds open.
 - `performMouseDrag(from, to)` — press, one drag step, release.
@@ -340,12 +367,14 @@ A `SwingWindowInteraction` offers `assertExists()` / `assertDoesNotExist()`, `as
 `assertIsNotVisible()`, the typed `fetch<T>()` for the realized `JFrame`/`JDialog`, and the node
 finders scoped to that window's content pane:
 
-```kotlin
+<!--- INCLUDE .*testing-case-02.*
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.window.Window
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.GraphicsEnvironment
+-->
 
+```kotlin
 @Test
 fun settingsWindowShowsItsContent() = runComposeSwingTest {
     assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
@@ -449,6 +478,30 @@ collection's other accessors:
 ```kotlin
 val images = onAllNodesOfType<JButton>().captureToImages()
 ```
+
+### Recording goldens
+
+The golden of a comparison is read from the test resources at `golden/<goldenIdentifier>.png`, and
+recording is governed by the system property `SCREENSHOT_TEST_UPDATE_GOLDENS` on the test JVM, which
+takes effect only where its value is exactly `true`. A Gradle test task passes it through with
+`systemProperty("SCREENSHOT_TEST_UPDATE_GOLDENS", …)`.
+
+With it set, a golden that does not exist yet is written to
+`src/test/resources/golden/<goldenIdentifier>.png` and the assertion passes, and a golden the capture
+already matches is rewritten from that capture. A golden the capture does *not* match is left alone:
+the captured, expected and difference images are written to `build/screenshot-test-results` and the
+assertion still fails, so a regression is never recorded as the new baseline. Reviewing that diff and
+re-running is what accepts a real visual change.
+
+### Comparing two images exactly
+
+`assertImagesPixelPerfect(expected, image)` compares two already-captured images pixel for pixel,
+allowing at most `maxDifferentPixels` differing pixels — none by default — and failing outright when
+their sizes differ. Reach for it instead of `assertImageMatches` where the images should be identical
+rather than merely alike: structural similarity averages over 10x10 windows to tolerate antialiasing
+and font-rasterization drift, which a small localized difference — a stray border, a margin, a
+one-pixel shift — can pass. It is what proves two components rendered by different routes rasterize
+the same.
 
 ## Related
 

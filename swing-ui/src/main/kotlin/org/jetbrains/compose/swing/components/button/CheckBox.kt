@@ -17,11 +17,16 @@ import java.awt.event.ActionListener
 import javax.swing.JCheckBox
 
 /**
- * A composable wrapper for JCheckBox.
+ * A `JCheckBox`, a labeled box the user turns on and off. The box shows whatever [checked] holds, and
+ * every toggle the user makes is reported through [onCheckedChange]. Boxes are independent of one
+ * another, so any number of them can be checked at once.
+ *
+ * A toggle the caller does not answer with a matching [checked] does not stand: the box is back on the
+ * declared state before the toggle is painted.
  *
  * @param text the text to display next to the checkbox
- * @param checked whether the checkbox is checked
- * @param onCheckedChange callback invoked when the checked state changes
+ * @param checked the checked state the box is held at
+ * @param onCheckedChange callback invoked with the new checked state when the user toggles the box
  * @param modifier the [SwingModifier] applied to the underlying component
  * @see javax.swing.JCheckBox
  */
@@ -45,12 +50,12 @@ public fun CheckBox(
 }
 
 /**
- * A composable wrapper for JCheckBox driven by a raw [ActionListener] instead of an `onCheckedChange`
- * lambda. The [actionListener] is attached as-is and removed on the same instance; pass a stable
- * instance (e.g. `remember {}`) to avoid churn.
+ * A [CheckBox] driven by a raw [ActionListener] instead of an `onCheckedChange` lambda. The
+ * [actionListener] is attached as-is and removed on the same instance; pass a stable instance
+ * (e.g. `remember {}`) to avoid churn.
  *
  * @param text the text to display next to the checkbox
- * @param checked whether the checkbox is checked
+ * @param checked the checked state the box is held at
  * @param actionListener the listener notified when the checkbox is toggled
  * @param modifier the [SwingModifier] applied to the underlying component
  * @see javax.swing.JCheckBox

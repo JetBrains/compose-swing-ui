@@ -18,6 +18,9 @@ import javax.swing.ToolTipManager
  * declared it. For a tooltip that belongs to a place within the component - the cell, the node or the
  * shape under the pointer - declare the per-location form instead.
  *
+ * @param text the tooltip for the whole component; `ToolTipManager` decides when it appears and how long
+ *   it stays.
+ * @return this chain with the tooltip declared on it.
  * @see javax.swing.JComponent.setToolTipText
  */
 public fun SwingModifier.toolTip(text: @Nls String?): SwingModifier =
@@ -36,6 +39,9 @@ public fun SwingModifier.toolTip(text: @Nls String?): SwingModifier =
  * The component is kept under `ToolTipManager` for as long as this declaration is in the chain, so a
  * component whose tooltip is declared this way alone shows one all the same.
  *
+ * @param text answers the tooltip of the place the event points at; it runs on the event dispatch thread,
+ *   so it has to answer without blocking.
+ * @return this chain with the per-location tooltip declared on it.
  * @see javax.swing.JComponent.setToolTipText
  */
 public fun SwingModifier.toolTip(text: (event: MouseEvent) -> @Nls String?): SwingModifier =

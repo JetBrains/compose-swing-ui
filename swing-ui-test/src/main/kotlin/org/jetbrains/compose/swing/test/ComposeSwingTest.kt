@@ -100,6 +100,8 @@ public interface ComposeSwingTest {
      * animation started from initial composition, for instance - stays parked until the test calls
      * [MainTestClock.advanceTimeByFrame] or [MainTestClock.advanceTimeBy] itself.
      *
+     * @param content composed into [root] on the event dispatch thread, under this test's
+     *   [lifecycleState].
      * @throws IllegalStateException if called more than once per test.
      */
     public fun setContent(content: @Composable () -> Unit)
@@ -197,6 +199,10 @@ public interface ComposeSwingTest {
     /**
      * Finds the single node whose text equals [text] (or contains it when [substring] is `true`).
      * The match is resolved lazily when the returned interaction is first used.
+     *
+     * @param text matched against a label's, button's or text component's own text.
+     * @param substring `true` matches text that merely contains [text]; `false` by default.
+     * @return a handle that fails on use unless exactly one node matches.
      */
     public fun onNodeWithText(
         text: @Nls String,
@@ -205,22 +211,36 @@ public interface ComposeSwingTest {
 
     /**
      * Finds the single node whose [Component.getName] equals [name].
+     *
+     * @param name the name to match, as [SwingMatcher.hasName] matches it.
+     * @return a handle that resolves lazily, failing on use unless exactly one node matches.
      */
     public fun onNodeWithName(name: String): SwingNodeInteraction<Component>
 
     /**
      * Finds the single node tagged with [tag] via `SwingModifier.testTag`.
+     *
+     * @param tag the tag declared on the node; several nodes sharing one are reached with
+     *   [onAllNodesWithTag].
+     * @return a handle that resolves lazily, failing on use unless exactly one node matches.
      */
     public fun onNodeWithTag(tag: String): SwingNodeInteraction<Component>
 
     /**
-     * Finds the single node matching [matcher]. The match is resolved lazily when the returned
-     * interaction is first used, and resolution fails if zero or more than one node matches.
+     * Finds the single node matching [matcher].
+     *
+     * @param matcher the condition the node must satisfy, and the description a failure names the
+     *   query by.
+     * @return a handle that resolves lazily, failing on use unless exactly one node matches.
      */
     public fun onNode(matcher: SwingMatcher): SwingNodeInteraction<Component>
 
     /**
      * Finds all nodes whose text equals [text] (or contains it when [substring] is `true`).
+     *
+     * @param text matched against each candidate's own text, as [onNodeWithText] matches it.
+     * @param substring `true` widens the match to text containing [text]; `false` by default.
+     * @return a handle to the match set, empty rather than failing when nothing matches.
      */
     public fun onAllNodesWithText(
         text: @Nls String,
@@ -229,11 +249,17 @@ public interface ComposeSwingTest {
 
     /**
      * Finds all nodes tagged with [tag] via `SwingModifier.testTag`.
+     *
+     * @param tag the tag declared on the nodes; every node carrying it matches, however deep it sits.
+     * @return a handle to the match set, empty rather than failing when nothing matches.
      */
     public fun onAllNodesWithTag(tag: String): SwingNodeInteractionCollection<Component>
 
     /**
      * Finds all nodes matching [matcher].
+     *
+     * @param matcher applied to every component under [root], in depth-first pre-order.
+     * @return a handle to the match set, empty rather than failing when nothing matches.
      */
     public fun onAllNodes(matcher: SwingMatcher): SwingNodeInteractionCollection<Component>
 
@@ -254,11 +280,18 @@ public interface ComposeSwingTest {
      * setContent { Window(onCloseRequest = {}, title = "Settings") { ... } }
      * onWindow(SwingMatcher.hasTitle("Settings")).assertIsVisible()
      * ```
+     *
+     * @param matcher applied to the window itself - its title, its type - rather than to anything
+     *   in its content.
+     * @return a handle that fails on use unless exactly one realized window matches.
      */
     public fun onWindow(matcher: SwingMatcher): SwingWindowInteraction
 
     /**
      * Finds all currently realized windows matching [matcher] (see [onWindow] for the match set).
+     *
+     * @param matcher applied to every realized window, whether or not it is shown.
+     * @return a handle to the matching realized windows, empty rather than failing when none match.
      */
     public fun onAllWindows(matcher: SwingMatcher): SwingWindowInteractionCollection
 }
@@ -303,6 +336,9 @@ public fun ComposeSwingTest.onWindow(): SwingWindowInteraction = onWindow(SwingM
 /**
  * Finds the single realized window titled [title]. Convenience for
  * `onWindow(SwingMatcher.hasTitle(title))`.
+ *
+ * @param title the exact title, as a frame or dialog reports it.
+ * @return a handle that fails on use unless exactly one realized window carries the title.
  */
 public fun ComposeSwingTest.onWindowWithTitle(title: @Nls String): SwingWindowInteraction =
     onWindow(SwingMatcher.hasTitle(title))

@@ -16,8 +16,8 @@ import javax.swing.JRadioButtonMenuItem
 import javax.swing.KeyStroke
 
 /**
- * A composable wrapper for a group of mutually exclusive radio button menu items backed by a shared
- * `ButtonGroup`, so at most one option is selected at a time.
+ * A set of mutually exclusive choices in a menu, backed by a shared `ButtonGroup`, so at most one option
+ * is selected at a time.
  *
  * Declare the choices in [content]; each `option(...)` becomes a `JRadioButtonMenuItem` placed in the
  * surrounding menu in call order, among whatever other items that menu declares. The selected option
@@ -33,6 +33,9 @@ import javax.swing.KeyStroke
  *     }
  * }
  * ```
+ *
+ * A pick the caller does not answer with a matching [selectedIndex] is settled back onto the declared
+ * one, so the option shown selected is the one the composition holds.
  *
  * @param selectedIndex the index of the selected option (controlled); an out-of-range value, such as
  *   `-1`, leaves every option unselected

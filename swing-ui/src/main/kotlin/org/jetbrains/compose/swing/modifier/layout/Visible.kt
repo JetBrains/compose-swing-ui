@@ -14,6 +14,11 @@ import java.awt.Component
  * position, focus history, model), so toggling it back on recreates nothing. Reach for `visible` when
  * you only need to hide a component that already exists.
  *
+ * @param visible `false` stops the component painting, taking focus and receiving events, and hides its
+ *   children with it; most layout managers skip it as well, though `GridLayout` and `OverlayLayout` still
+ *   reserve its place. A component starts out visible unless its own constructor hides it - a window and a
+ *   `JInternalFrame` both start hidden.
+ * @return this chain with the visibility declared on it.
  * @see java.awt.Component.setVisible
  */
 public fun SwingModifier.visible(visible: Boolean): SwingModifier =

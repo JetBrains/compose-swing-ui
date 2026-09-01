@@ -10,7 +10,8 @@ import org.jetbrains.compose.swing.node.MenuNode
 import javax.swing.JPopupMenu
 
 /**
- * A composable wrapper for JPopupMenu.Separator, the separator a menu draws between its items.
+ * The rule a menu draws between groups of items: a `JPopupMenu.Separator`, which shows no text and is
+ * not one of the items the menu's navigation moves through.
  *
  * @param modifier the [SwingModifier] applied to the underlying component
  * @see javax.swing.JPopupMenu.Separator

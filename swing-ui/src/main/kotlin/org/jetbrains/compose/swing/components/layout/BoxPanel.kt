@@ -11,14 +11,16 @@ import org.jetbrains.compose.swing.node.SwingNode
 import javax.swing.BoxLayout
 
 /**
- * A composable wrapper for JPanel with BoxLayout.
+ * A `JPanel` under a `BoxLayout`: the children are laid out one after another along a single axis, in
+ * declaration order.
  *
  * A `BoxLayout` puts no space between children on its own. Declare gaps as content: [RigidArea] and
  * [Strut] for a fixed gap, [Glue] for empty space that takes the largest share of what is left over.
  *
  * @param modifier the [SwingModifier] applied to the panel
- * @param axis the axis along which children are arranged (a [BoxAxis] `BoxLayout` value)
- * @param content the composable content of the panel
+ * @param axis the axis along which children are arranged (a [BoxAxis] `BoxLayout` value); the default
+ *   `Y_AXIS` stacks them top to bottom
+ * @param content the composable content of the panel; empty by default
  * @see javax.swing.BoxLayout
  */
 @Composable

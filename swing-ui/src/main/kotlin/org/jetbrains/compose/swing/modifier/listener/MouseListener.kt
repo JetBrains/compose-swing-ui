@@ -16,6 +16,9 @@ import java.awt.event.MouseListener
  * [onMouseEvent] is read when the event fires, so writing a fresh lambda on every recomposition
  * registers nothing again.
  *
+ * @param onMouseEvent receives the event, whose `id` tells the five apart; a disabled component
+ *   reports them too, since it is Swing's own listeners that check `isEnabled`.
+ * @return this chain with the mouse callback declared on it.
  * @see java.awt.Component.addMouseListener
  */
 public fun SwingModifier.mouseListener(onMouseEvent: (MouseEvent) -> Unit): SwingModifier =
@@ -36,6 +39,15 @@ public fun SwingModifier.mouseListener(onMouseEvent: (MouseEvent) -> Unit): Swin
  *
  * Declaring none at all is refused.
  *
+ * @param onMouseClicked runs on a release over the component the press went to; a drag in between can
+ *   suppress it. `clickCount` is 2 on the second event of a double click.
+ * @param onMousePressed runs when a button goes down; read `isPopupTrigger` here and on the release,
+ *   since the platform decides which of the two carries it.
+ * @param onMouseReleased runs when the button comes back up, wherever the pointer is by then.
+ * @param onMouseEntered runs when the pointer moves onto the component.
+ * @param onMouseExited runs as soon as the pointer leaves, a drag that began here included; the drag
+ *   itself keeps reporting through [mouseMotionListener] until the button comes up.
+ * @return this chain with the mouse callbacks declared on it.
  * @see java.awt.Component.addMouseListener
  */
 public fun SwingModifier.mouseListener(
@@ -59,6 +71,9 @@ public fun SwingModifier.mouseListener(
 /**
  * Attaches a [MouseListener] (`addMouseListener`/`removeMouseListener`).
  *
+ * @param listener attached by identity, so a remembered instance stays put while a fresh one on every
+ *   pass is detached and re-added.
+ * @return this chain with the mouse listener declared on it.
  * @see java.awt.Component.addMouseListener
  */
 public fun SwingModifier.mouseListener(listener: MouseListener): SwingModifier = listener(listener, MOUSE)

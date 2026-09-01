@@ -85,7 +85,7 @@ public class ScrollState internal constructor(
         }
 
     /**
-     * The view coordinate shown at the viewport's leading edge.
+     * The view coordinate shown at the viewport's left edge.
      *
      * @see javax.swing.JViewport.setViewPosition
      */
@@ -109,28 +109,31 @@ public class ScrollState internal constructor(
         }
 
     /**
-     * The width of the visible part of the content, in pixels; `0` while no pane renders this state.
+     * The width of the visible part of the content, in view coordinates; `0` while no pane renders
+     * this state.
      *
      * @see javax.swing.JViewport.getExtentSize
      */
     public val extentWidth: Int get() = extentWidthState
 
     /**
-     * The height of the visible part of the content, in pixels; `0` while no pane renders this state.
+     * The height of the visible part of the content, in view coordinates; `0` while no pane renders
+     * this state.
      *
      * @see javax.swing.JViewport.getExtentSize
      */
     public val extentHeight: Int get() = extentHeightState
 
     /**
-     * The full width of the scrolled content, in pixels; `0` while no pane renders this state.
+     * The full width of the scrolled content, in view coordinates; `0` while no pane renders this state.
      *
      * @see javax.swing.JViewport.getViewSize
      */
     public val viewWidth: Int get() = viewWidthState
 
     /**
-     * The full height of the scrolled content, in pixels; `0` while no pane renders this state.
+     * The full height of the scrolled content, in view coordinates; `0` while no pane renders this
+     * state.
      *
      * @see javax.swing.JViewport.getViewSize
      */
@@ -180,6 +183,8 @@ public class ScrollState internal constructor(
      * reaches: a region larger than the viewport is shown from its leading edge, and one already in view
      * leaves the pane where it stands.
      *
+     * @param rect the region asked for, read during the call and neither kept nor modified.
+     * @return whether the pane was asked to show the region.
      * @see javax.swing.JViewport.scrollRectToVisible
      */
     public fun revealRect(rect: Rectangle): Boolean {
@@ -285,7 +290,7 @@ public class ScrollState internal constructor(
  * A later change to [x] or [y] neither recreates the state nor moves the pane; scroll it afterwards
  * through the returned state's [ScrollState.x] and [ScrollState.y].
  *
- * @param x the view coordinate to show at the viewport's leading edge.
+ * @param x the view coordinate to show at the viewport's left edge.
  * @param y the view coordinate to show at the viewport's top edge.
  */
 @Composable

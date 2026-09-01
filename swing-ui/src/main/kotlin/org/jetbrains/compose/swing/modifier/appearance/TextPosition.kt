@@ -16,7 +16,9 @@ import javax.swing.JLabel
  * Sets which side of the icon the text is drawn on. Applies to labels and to everything built on a
  * button; a component with no icon lays out the same either way.
  *
- * @param position a [HorizontalAlignment] `SwingConstants` value.
+ * @param position a [HorizontalAlignment] `SwingConstants` value; `LEADING` and `TRAILING` resolve
+ *   against the component's orientation. Any other value is refused with an `IllegalArgumentException`.
+ * @return this chain with the horizontal text position declared on it.
  * @see javax.swing.JLabel.setHorizontalTextPosition
  * @see javax.swing.AbstractButton.setHorizontalTextPosition
  */
@@ -28,7 +30,9 @@ public fun SwingModifier.horizontalTextPosition(
  * Sets whether the text is drawn above, across or below the icon. Applies to labels and to everything
  * built on a button; a component with no icon lays out the same either way.
  *
- * @param position a [VerticalAlignment] `SwingConstants` value.
+ * @param position a [VerticalAlignment] `SwingConstants` value; any other value is refused with an
+ *   `IllegalArgumentException`.
+ * @return this chain with the vertical text position declared on it.
  * @see javax.swing.JLabel.setVerticalTextPosition
  * @see javax.swing.AbstractButton.setVerticalTextPosition
  */
@@ -43,6 +47,8 @@ public fun SwingModifier.verticalTextPosition(
  * A button stops taking this from the look and feel once set, and Swing offers no way to hand it back.
  * A label has no such latch.
  *
+ * @param gap the pixels between the icon and the text, on whichever side of the icon the text sits.
+ * @return this chain with the icon-text gap declared on it.
  * @see javax.swing.JLabel.setIconTextGap
  * @see javax.swing.AbstractButton.setIconTextGap
  */

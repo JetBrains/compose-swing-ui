@@ -169,6 +169,9 @@ public class DocumentState internal constructor(
      * deletions made on the [DocumentEditScope] are committed together, then the caret is placed as the
      * block requested (its default rests after the last insertion).
      *
+     * @param block the edits, made on a [DocumentEditScope] over this state's document. Do not retain
+     *   the scope beyond the call: an edit made on it afterwards lands on the document as a change of
+     *   its own, outside this compound one and outside the caret placement.
      * @see javax.swing.undo.CompoundEdit
      */
     public fun edit(block: DocumentEditScope.() -> Unit) {

@@ -24,6 +24,9 @@ public value class SwingNodeUpdater<T : Component>
          * `this` and [value] as its argument, on the first composition and again only when [value]
          * changes between recompositions.
          *
+         * @param value the declaration to apply, compared against the previous pass's with `equals`.
+         * @param block applies [value] to the component. It runs while the composition applies its
+         *   changes, not while composing.
          * @see Updater.set
          */
         public inline fun <V> set(
@@ -39,6 +42,8 @@ public value class SwingNodeUpdater<T : Component>
          * composition. Use it when the [factory][SwingNode] already initialized the component with
          * [value] (e.g. a constructor argument).
          *
+         * @param value the declaration to apply, compared against the previous pass's as in [set].
+         * @param block applies [value] to the component, from the first recomposition that changes it.
          * @see Updater.update
          */
         public inline fun <V> update(
@@ -59,6 +64,8 @@ public value class SwingNodeUpdater<T : Component>
          * The blocks run in the order the `update` lambda declares them, so an [init] that needs what
          * another block writes is declared after it.
          *
+         * @param block the setup to run against the freshly built component. A node released and built
+         *   again runs it against the new component.
          * @see Updater.init
          */
         public inline fun init(crossinline block: T.() -> Unit): Unit =
@@ -91,6 +98,9 @@ public value class SwingNodeUpdater<T : Component>
          *
          * The component must be a [javax.swing.JComponent], which is what carries the client property a
          * descendant `setContent` walks up to find; anything else throws [IllegalStateException].
+         *
+         * @param context the composition a `setContent` below this component joins. Applied through
+         *   [set], so it takes a slot in the `update` block whether or not it is `null`.
          */
         public fun hostSubcompositions(context: CompositionContext?): Unit =
             updater.set(context) {
@@ -102,6 +112,7 @@ public value class SwingNodeUpdater<T : Component>
          * Prefer [set]/[update] when a single changing value drives the update; reach for [reconcile]
          * only when those are insufficient.
          *
+         * @param block runs against the component while the composition applies its changes.
          * @see Updater.reconcile
          */
         public inline fun reconcile(crossinline block: T.() -> Unit): Unit =
@@ -142,6 +153,9 @@ public value class SwingNodeUpdater<T : Component>
          *
          * Runs once, on the pass that creates the node: the composition a node stands in is the same for
          * its whole life.
+         *
+         * @param mirror the record whose reports settle in this node's composition. Remember it in this
+         *   node's own group, so it is released with the node it answers for.
          */
         public fun applyMirror(mirror: MirrorState<*>): Unit = updater.init(mirror) { it.owner = owner }
 

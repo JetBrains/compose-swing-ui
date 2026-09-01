@@ -44,6 +44,8 @@ public class DocumentEditScope internal constructor(
     /**
      * Inserts [text] at [offset], shifting following content right.
      *
+     * @param offset the buffer position the text lands at, from `0` through the current [length].
+     * @param text the characters inserted; the run carries no attributes of its own.
      * @see javax.swing.text.Document.insertString
      */
     public fun insert(
@@ -56,6 +58,9 @@ public class DocumentEditScope internal constructor(
     /**
      * Inserts [text] carrying [attributes] at [offset], shifting following content right.
      *
+     * @param offset the buffer position the text lands at, from `0` through the current [length].
+     * @param text the characters inserted, as one run.
+     * @param attributes the attributes that run carries.
      * @see javax.swing.text.Document.insertString
      */
     public fun insert(
@@ -69,6 +74,10 @@ public class DocumentEditScope internal constructor(
     /**
      * Replaces the characters in `[start, end)` with [text].
      *
+     * @param start the offset of the first character replaced.
+     * @param end the offset just past the replaced span; equal to [start] it deletes nothing and the
+     *   text is inserted there.
+     * @param text the characters written in the span's place; empty text deletes the span.
      * @see javax.swing.text.AbstractDocument.replace
      */
     public fun replace(
@@ -82,6 +91,11 @@ public class DocumentEditScope internal constructor(
     /**
      * Replaces the characters in `[start, end)` with [text] carrying [attributes].
      *
+     * @param start the offset of the first character replaced.
+     * @param end the offset just past the replaced span; equal to [start] it deletes nothing and the
+     *   text is inserted there.
+     * @param text the characters written in the span's place, as one run; empty text deletes the span.
+     * @param attributes the attributes that run carries.
      * @see javax.swing.text.AbstractDocument.replace
      */
     public fun replace(
@@ -96,6 +110,8 @@ public class DocumentEditScope internal constructor(
     /**
      * Deletes the characters in `[start, end)`.
      *
+     * @param start the offset of the first character deleted.
+     * @param end the offset just past the last deleted character; equal to [start] it deletes nothing.
      * @see javax.swing.text.Document.remove
      */
     public fun delete(
@@ -108,6 +124,7 @@ public class DocumentEditScope internal constructor(
     /**
      * Appends [text] to the end of the buffer.
      *
+     * @param text the added characters; the run carries no attributes of its own.
      * @see javax.swing.text.Document.insertString
      */
     public fun append(text: @Nls CharSequence) {
@@ -117,6 +134,8 @@ public class DocumentEditScope internal constructor(
     /**
      * Appends [text] carrying [attributes] to the end of the buffer.
      *
+     * @param text the added characters, as one run.
+     * @param attributes the attributes that run carries.
      * @see javax.swing.text.Document.insertString
      */
     public fun append(
@@ -129,6 +148,7 @@ public class DocumentEditScope internal constructor(
     /**
      * Replaces the whole buffer with [text].
      *
+     * @param text the buffer's new content, carrying no attributes of its own; empty text clears it.
      * @see javax.swing.text.AbstractDocument.replace
      */
     public fun setText(text: @Nls CharSequence) {
@@ -138,6 +158,8 @@ public class DocumentEditScope internal constructor(
     /**
      * Replaces the whole buffer with [text] carrying [attributes].
      *
+     * @param text the buffer's new content, as one run; empty text clears it.
+     * @param attributes the attributes that run carries.
      * @see javax.swing.text.AbstractDocument.replace
      */
     public fun setText(

@@ -12,12 +12,15 @@ import javax.swing.JRootPane
 import javax.swing.SwingUtilities
 
 /**
- * Makes this button the default button of the window it is in - the one activated by pressing Enter
- * regardless of which component holds focus. The association follows the button when it moves to
- * another window, and is released when [default] is `false` or the modifier leaves. Requires a `JButton`
- * target.
+ * Makes this button the default button of the window it is in - the one the look and feel's
+ * activation keystroke, Enter in the look and feels the JDK ships, activates wherever the focus sits,
+ * as long as the button is an enabled descendant of the root pane at that moment. A component that
+ * consumes the activation event itself, a text pane among them, keeps it. The association follows the
+ * button when it moves to another window, and is released when [default] is `false` or the modifier
+ * leaves. Requires a `JButton` target.
  *
  * @param default whether this button is the window's default button.
+ * @return this chain with the default-button association declared on it.
  * @see javax.swing.JRootPane.setDefaultButton
  */
 public fun SwingModifier.defaultButton(default: Boolean = true): SwingModifier = this then DefaultButtonElement(default)

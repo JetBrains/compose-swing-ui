@@ -15,15 +15,22 @@ import javax.swing.SwingUtilities
 import javax.swing.WindowConstants
 
 /**
- * Composes a Dialog (JDialog) with the given content.
+ * A dialog window, realized as a `JDialog`: it shows [content], holds its geometry in [state], blocks
+ * input to the top-level windows in its [modality]'s scope of blocking, and reports the user's attempt
+ * to close it to [onCloseRequest].
+ *
+ * The close gesture is controlled: it invokes [onCloseRequest] and closes nothing, so the dialog stays
+ * on screen - and a modal one goes on blocking - until the caller answers, by declaring [visible]
+ * `false` or by stopping declaring the dialog at all.
  *
  * The declarative control surface mirrors [Window] (`visible` + `onCloseRequest`, no imperative
  * handle), adding owner resolution and AWT [modality]. The dialog is owned by [owner], which defaults
- * to the nearest enclosing [Window] read from [LocalWindow]. The owner is the window a modal dialog
- * blocks and the one a [WindowPosition.CenteredOnOwner] position centers the dialog on. A dialog with
- * no [owner] under a bare `application { }` scope, which creates no window, is ownerless: modal
- * blocking takes effect where there is an owning window, and centering on the owner resolves against
- * the screen.
+ * to the nearest enclosing [Window] read from [LocalWindow]. The owner is one of the windows a modal
+ * dialog blocks, and the one a [WindowPosition.CenteredOnOwner] position centers the dialog on. A
+ * dialog with no [owner] under a bare `application { }` scope, which creates no window, is ownerless:
+ * an ownerless document-modal dialog is its own document root, so its scope of blocking is empty and it
+ * behaves as a modeless one, while application- and toolkit-modal blocking does not depend on an owner.
+ * Centering on the owner then resolves against the screen.
  *
  * The dialog content runs as part of the enclosing (application or window) composition: state from
  * that scope and any [androidx.compose.runtime.CompositionLocal] provided above the dialog flow into
@@ -49,21 +56,30 @@ import javax.swing.WindowConstants
  * them on the replacement too, whatever [undecorated] declares.
  *
  * @param onCloseRequest callback to be called when the user attempts to close the dialog
- * @param state the hoistable, observable geometry (position and size) of the dialog
+ * @param state the hoistable, observable geometry (position and size) of the dialog; by default one
+ *   this dialog keeps to itself, which leaves the placement to the platform and sizes the dialog to
+ *   its content
  * @param owner the window that owns the dialog, or null to take the nearest enclosing [Window] from
  *   [LocalWindow]
- * @param title the title of the dialog
+ * @param title the title of the dialog, empty by default, matching a freshly constructed `JDialog`
  * @param modality the AWT modality of the dialog, defaulting to [Dialog.ModalityType.MODELESS] (the
- *   JDialog default); a modality type the toolkit does not support leaves the dialog modeless
- * @param visible whether the dialog should be visible
- * @param resizable whether the dialog can be resized
+ *   JDialog default), which blocks nothing; each other type names its own scope of blocking, which
+ *   never covers the dialog's own child hierarchy, and a modality type the toolkit does not support
+ *   leaves the dialog modeless
+ * @param visible whether the dialog should be visible; `true` by default, so declaring a dialog shows
+ *   it, and `false` hides the dialog while keeping its content composed
+ * @param resizable whether the dialog can be resized; `true` by default, matching a freshly
+ *   constructed `JDialog`
  * @param alwaysOnTop whether the dialog stays above other windows; ignored on platforms that do not
- *   support an always-on-top window
- * @param iconImage the image shown as the dialog's icon, or null for the platform default
+ *   support an always-on-top window, and `false` by default, so the dialog takes its turn in the
+ *   platform's stacking order
+ * @param iconImage the image shown as the dialog's icon, or null for the platform default; the
+ *   windowing system may show it in several places at sizes of its own, or show none at all
  * @param minimumSize the smallest size the dialog can take, or null to leave the floor to the dialog's
- *   layout; a declared or user-driven size below the floor is raised to it
+ *   layout; a declared size below the floor is raised to it, while holding the user's own resizing to
+ *   the floor is platform-dependent
  * @param undecorated whether the dialog is shown without its platform decorations (title bar and
- *   border)
+ *   border); `false` by default, so the dialog is shown with them
  * @param content the composable content of the dialog, receiving the dialog as its [WindowScope]
  * @see javax.swing.JDialog
  */

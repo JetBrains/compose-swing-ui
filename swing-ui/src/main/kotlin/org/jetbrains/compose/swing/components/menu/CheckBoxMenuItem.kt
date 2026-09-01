@@ -18,10 +18,14 @@ import javax.swing.JCheckBoxMenuItem
 import javax.swing.KeyStroke
 
 /**
- * A composable wrapper for JCheckBoxMenuItem.
+ * A menu item carrying a checkmark: a `JCheckBoxMenuItem` that shows [checked] and reports the user's
+ * toggle through [onCheckedChange].
+ *
+ * A toggle the caller does not answer with a matching [checked] is settled back onto the declared value,
+ * so the mark on screen is the one the composition holds.
  *
  * @param text the text of the menu item
- * @param checked whether the menu item is checked
+ * @param checked whether the item shows its checkmark
  * @param onCheckedChange callback invoked when the checked state changes
  * @param modifier the [SwingModifier] applied to the underlying component
  * @param accelerator the key combination that activates the item without navigating the menu

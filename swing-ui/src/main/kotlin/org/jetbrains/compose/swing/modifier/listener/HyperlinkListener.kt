@@ -15,6 +15,9 @@ import javax.swing.event.HyperlinkListener
  * [onHyperlinkUpdate] is read when the event fires, so writing a fresh lambda on every recomposition
  * registers nothing again.
  *
+ * @param onHyperlinkUpdate receives the event, whose `eventType` tells entering, leaving and
+ *   activating apart; the link arrives as the `description` and the resolved `url`.
+ * @return this chain with the hyperlink callback declared on it.
  * @see javax.swing.JEditorPane.addHyperlinkListener
  */
 public fun SwingModifier.hyperlinkListener(onHyperlinkUpdate: (HyperlinkEvent) -> Unit): SwingModifier =
@@ -31,6 +34,9 @@ public fun SwingModifier.hyperlinkListener(onHyperlinkUpdate: (HyperlinkEvent) -
  * A pane fires these events only while it is not editable: an editable pane is an editor, in which a
  * click places the caret rather than following a link.
  *
+ * @param listener attached by identity, so a remembered instance stays put while a fresh one on every
+ *   pass is detached and re-added.
+ * @return this chain with the hyperlink listener declared on it.
  * @see javax.swing.JEditorPane.addHyperlinkListener
  */
 public fun SwingModifier.hyperlinkListener(listener: HyperlinkListener): SwingModifier = listener(listener, HYPERLINK)

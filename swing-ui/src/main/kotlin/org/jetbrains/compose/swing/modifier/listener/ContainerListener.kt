@@ -15,6 +15,9 @@ import java.awt.event.ContainerListener
  * [onChildrenChange] is read when the event fires, so writing a fresh lambda on every recomposition
  * registers nothing again.
  *
+ * @param onChildrenChange receives the event, whose `child` is the component that joined or left; the
+ *   composition's own inserts and removals report here too.
+ * @return this chain with the container callback declared on it.
  * @see java.awt.Container.addContainerListener
  */
 public fun SwingModifier.containerListener(onChildrenChange: (ContainerEvent) -> Unit): SwingModifier =
@@ -32,6 +35,9 @@ public fun SwingModifier.containerListener(onChildrenChange: (ContainerEvent) ->
  *
  * Declaring none at all is refused.
  *
+ * @param onComponentAdded runs once the child is in the container, so its index is already the new one.
+ * @param onComponentRemoved runs once the child is out, so its `parent` is already `null`.
+ * @return this chain with the container callbacks declared on it.
  * @see java.awt.Container.addContainerListener
  */
 public fun SwingModifier.containerListener(
@@ -46,6 +52,9 @@ public fun SwingModifier.containerListener(
  * Attaches a [ContainerListener] (`addContainerListener`/`removeContainerListener`). Requires a
  * [Container] target.
  *
+ * @param listener attached by identity, so a remembered instance stays put while a fresh one on every
+ *   pass is detached and re-added.
+ * @return this chain with the container listener declared on it.
  * @see java.awt.Container.addContainerListener
  */
 public fun SwingModifier.containerListener(listener: ContainerListener): SwingModifier = listener(listener, CONTAINER)

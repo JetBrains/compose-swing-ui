@@ -152,6 +152,10 @@ public class SwingRecomposer private constructor(
          * drives is torn down. Content that belongs to a window joins that window's own instead.
          *
          * Must be called on the Event Dispatch Thread.
+         *
+         * @param component the component whose display sets the frame cadence. A listener is installed
+         *   on it to retime the clock as it moves between displays, and [dispose] removes that listener.
+         * @return the started recomposer.
          */
         public fun create(component: Component): SwingRecomposer =
             start(component, disposeOnceUnused = false, onDisposed = {})

@@ -32,7 +32,8 @@ import javax.swing.JInternalFrame
 import javax.swing.event.InternalFrameListener
 
 /**
- * A composable wrapper for `JDesktopPane` hosting internal-frame children declared in [content].
+ * The desktop of a multi-document application, realized as a `JDesktopPane`: the surface the internal
+ * frames [content] declares float on.
  *
  * Declare the frames you need; each `InternalFrame(...)` becomes a `JInternalFrame` floating on the
  * desktop with its own title, position, size, and window controls. Frames are **dynamic**: adding or
@@ -104,7 +105,7 @@ public fun DesktopPane(
  * Which window controls an internal frame shows. Every control defaults to off, matching a freshly
  * constructed `JInternalFrame`.
  *
- * @property closable whether the frame shows a close control
+ * @property closable whether the frame can be closed by a user action
  * @property resizable whether the frame can be resized
  * @property maximizable whether the frame can be maximized
  * @property iconifiable whether the frame can be iconified
@@ -140,14 +141,18 @@ public class InternalFrameControls(
  */
 public sealed interface DesktopPaneScope {
     /**
-     * Declares one internal frame.
+     * Declares one internal frame, placed on plain [bounds].
+     *
+     * The frame is put on [bounds] and then left there: a move or a resize of the user's stands, nothing
+     * reports it, and the declaration reaches the frame again only when [bounds] itself changes. Declare
+     * the frame with an [InternalFrameState] instead to observe where the user leaves it.
      *
      * @param title the text shown in the frame's title bar
      * @param bounds the frame's position and size within the desktop
      * @param onClose callback invoked when the user activates the frame's close control; remove the
      *   frame from the composition in response to actually close it
      * @param modifier the [SwingModifier] applied to the frame
-     * @param controls which window controls the frame shows
+     * @param controls which window controls the frame shows; none by default
      * @param content the composable shown in the frame's body
      * @see javax.swing.JInternalFrame
      */
@@ -172,7 +177,7 @@ public sealed interface DesktopPaneScope {
      * @param bounds the frame's position and size within the desktop
      * @param internalFrameListener the listener notified of the frame's window events
      * @param modifier the [SwingModifier] applied to the frame
-     * @param controls which window controls the frame shows
+     * @param controls which window controls the frame shows; none by default
      * @param content the composable shown in the frame's body
      * @see javax.swing.JInternalFrame
      */
@@ -200,7 +205,7 @@ public sealed interface DesktopPaneScope {
      * @param onClose callback invoked when the user activates the frame's close control; remove the
      *   frame from the composition in response to actually close it
      * @param modifier the [SwingModifier] applied to the frame
-     * @param controls which window controls the frame shows
+     * @param controls which window controls the frame shows; none by default
      * @param content the composable shown in the frame's body
      * @see javax.swing.JInternalFrame
      */
@@ -225,7 +230,7 @@ public sealed interface DesktopPaneScope {
      *   alone
      * @param internalFrameListener the listener notified of the frame's window events
      * @param modifier the [SwingModifier] applied to the frame
-     * @param controls which window controls the frame shows
+     * @param controls which window controls the frame shows; none by default
      * @param content the composable shown in the frame's body
      * @see javax.swing.JInternalFrame
      */
@@ -385,10 +390,10 @@ private class PlacedFrameState(
 }
 
 /**
- * The `JInternalFrame` node every [InternalFrame] overload renders: it builds the frame visible, installs
- * the declaration's window-event handling, applies its title, controls, geometry and window state
- * reactively, and writes the user's own moves, resizes, iconifications and maximizations back into the
- * declared state. Hosts the declared body as composable content.
+ * The `JInternalFrame` node every [DesktopPaneScope.InternalFrame] overload renders: it builds the frame
+ * visible, installs the declaration's window-event handling, applies its title, controls, geometry and
+ * window state reactively, and writes the user's own moves, resizes, iconifications and maximizations back
+ * into the declared state. Hosts the declared body as composable content.
  *
  * Exactly one of [onClose]/[rawListener] is set: the `onClose` overloads supply the controlled close
  * callback, which a listener installed here delivers, and the raw overloads supply the listener instance

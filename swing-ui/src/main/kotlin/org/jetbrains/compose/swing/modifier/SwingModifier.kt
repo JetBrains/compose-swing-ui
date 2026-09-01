@@ -46,6 +46,11 @@ public interface SwingModifier {
     /**
      * Accumulates a value across the chain's elements in declaration (application) order. Rarely
      * needed directly.
+     *
+     * @param initial the value handed to the first element of the chain.
+     * @param operation combines the value accumulated so far with one element and yields the value the
+     *   next element is handed.
+     * @return the accumulated value; [initial] where the chain has no elements.
      */
     public fun <R> foldIn(
         initial: R,
@@ -56,6 +61,8 @@ public interface SwingModifier {
      * Returns a modifier that applies this chain and then [other]. For two non-[additive][NodeElement.additive]
      * elements sharing a [NodeElement.key], the later one wins; two [additive][NodeElement.additive] elements
      * each keep their own slot and both stay installed.
+     *
+     * @return the two chains joined; this chain itself where [other] is the empty modifier.
      */
     public infix fun then(other: SwingModifier): SwingModifier =
         if (other === SwingModifier) this else CombinedSwingModifier(this, other)
@@ -152,7 +159,13 @@ public interface SwingModifier {
         /** Creates the stateful node. Called once per slot, when the element first enters the chain. */
         public abstract fun create(): N
 
-        /** Pushes this element's latest data onto [node]. Called on add and on every chain change. */
+        /**
+         * Pushes this element's latest data onto [node]. Called on add, and on a chain change that hands
+         * this slot an element unequal to the one it holds.
+         *
+         * @param node the node [create] returned for this slot, already attached and past
+         *   [Node.onAttach], so [Node.component] is readable from here.
+         */
         public abstract fun update(node: N)
 
         abstract override fun equals(other: Any?): Boolean
@@ -337,6 +350,9 @@ public class SwingModifierState internal constructor() {
  * component. A component whose `update` never applies its modifier therefore cannot be placed at all,
  * and one whose chain declares both kinds of placement is refused here, since a parent holds a child by
  * one of the two.
+ *
+ * @param modifier the chain to declare on the node; [SwingModifier] itself declares nothing, which
+ *   detaches every element the previous pass installed.
  */
 public fun SwingNodeUpdater<out Component>.applyModifier(modifier: SwingModifier): Unit =
     updater.set(modifier) { applyDeclaredModifier(it) }

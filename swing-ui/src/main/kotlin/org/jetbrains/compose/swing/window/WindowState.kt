@@ -91,9 +91,12 @@ public class WindowState
             }
 
         /**
-         * The current extended state of the window, a [WindowExtendedState] constant:
+         * The current extended state of the window, a [WindowExtendedState] bit mask:
          * [Frame.MAXIMIZED_BOTH] maximizes the window, [Frame.ICONIFIED] minimizes it, and
          * [Frame.NORMAL] restores it.
+         *
+         * A state the platform does not support is not applied, and the window goes on reporting the
+         * state it holds.
          *
          * @see java.awt.Frame.setExtendedState
          */

@@ -17,6 +17,7 @@ import javax.swing.AbstractButton
  * every kind of menu item. Requires an `AbstractButton` target.
  *
  * @param command the command string carried by the button's action events.
+ * @return this chain with the action command declared on it.
  * @see javax.swing.AbstractButton.setActionCommand
  */
 public fun SwingModifier.actionCommand(command: String?): SwingModifier =

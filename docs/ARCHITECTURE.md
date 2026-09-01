@@ -17,6 +17,18 @@ A composition is mounted onto an existing Swing container with `container.setCon
 There are matching entry points for windows and for menu bars, and a high-level `application`
 entry point that owns a whole app lifecycle.
 
+```mermaid
+flowchart TD
+    call["setContent"] --> named{"Parent named?"}
+    named -- yes --> under["Composes now, under it"]
+    named -- no --> above{"Composition above<br>in the Swing tree?"}
+    above -- yes --> join["Joins it"]
+    above -- no --> window{"In a window?"}
+    window -- yes --> shared["Joins the window's composition"]
+    window -- no --> wait["Waits"]
+    wait -. added to a window .-> above
+```
+
 Mounting always happens on the EDT, because composition and the AWT mutations it drives must run
 on that thread. A mount looks for a composition already hosted above it in the Swing tree, starting
 with the container itself, and joins that one, sharing its scope and `CompositionLocal`s. Failing
@@ -298,7 +310,7 @@ is decides which one a component uses.
   scrolls, and a `FormattedValueState` commits an edit the user typed but never entered.
 
 For how a component of your own takes a value in and reports a change out, see
-[`CUSTOM-COMPONENTS.md`](CUSTOM-COMPONENTS.md).
+[`COMPONENT-STATE.md`](COMPONENT-STATE.md).
 
 ---
 
@@ -313,6 +325,25 @@ it publishes into the mirror, and the mirror answers whether that value is news:
 rather than one the wrapper's own write to the widget just produced. Settling then compares what the
 composition declares against what the widget reads back as, and writes the declaration back wherever the
 widget has drifted from it.
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant W as Widget
+    participant M as Mirror
+    participant C as Composition
+
+    User->>W: moves it
+    W->>M: publishes the value
+    M->>C: news, not our own write
+    Note over C: the pass that follows
+    alt the caller adopted it
+        Note over C,W: nothing to write
+    else the caller did not
+        C->>W: writes the declaration back
+        W-->>M: what the widget was left holding
+    end
+```
 
 **Settling runs in a pass, not at the moment of the change.** The value to settle against is the
 declaration, and the declaration only exists while a pass is running. So a change is recorded when it
@@ -392,6 +423,23 @@ Consider a button whose label reflects a counter:
 ```kotlin
 var count by remember { mutableStateOf(0) }
 Button(text = "Clicks: $count", onClick = { count++ })
+```
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant B as Button
+    participant C as Composition
+    participant P as Container
+
+    User->>B: click
+    B->>B: onClick writes count
+    B-->>User: returns, still the old label
+    Note over C: a few event-dispatch cycles later
+    C->>C: recomposes the scope that read count
+    C->>B: applies the new label
+    C->>P: marks for layout
+    P-->>User: one layout and repaint
 ```
 
 1. The user clicks. Swing fires the button's listener on the EDT and the current `onClick` runs

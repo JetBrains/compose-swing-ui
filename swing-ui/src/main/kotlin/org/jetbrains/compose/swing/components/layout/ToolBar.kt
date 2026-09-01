@@ -21,7 +21,9 @@ import javax.swing.UIManager
 import javax.swing.plaf.basic.BasicToolBarUI
 
 /**
- * A composable wrapper for `JToolBar`, hosting a row or column of items.
+ * A strip of items - buttons, toggles, separators - the user reaches without opening a menu, held by a
+ * `JToolBar`. The bar holds whether it stands docked or in a window of its own, and reports the drags
+ * that move it between the two.
  *
  * The items declared in [content] become the tool bar's children in declaration order:
  * ```
@@ -41,6 +43,8 @@ import javax.swing.plaf.basic.BasicToolBarUI
  * look and feel gives it no dragging, whose [floatable] is `false`, or that is not in a window yet has
  * none to open. Where the bar cannot take the declaration it stays docked, and [onFloatingChange] is
  * handed that answer; a bar that comes to stand in a window later takes the standing declaration then.
+ * A drag the caller does not answer with a matching [floating] is settled back, so the bar returns to
+ * the state the composition declares.
  *
  * A floating bar is held by that window instead of the container it was declared in, and its items keep
  * composing there. The composition still counts the bar among the children of the container it left, so
@@ -48,16 +52,19 @@ import javax.swing.plaf.basic.BasicToolBarUI
  * composition while floating takes its window with it.
  *
  * @param modifier the [SwingModifier] applied to the underlying `JToolBar`
- * @param orientation the axis along which items are laid out (an [Orientation] `SwingConstants` value)
- * @param floatable whether the user can drag the tool bar out into a floating window
+ * @param orientation the axis along which items are laid out (an [Orientation] `SwingConstants` value);
+ *   the default `HORIZONTAL` lays them out along the bar's reading order
+ * @param floatable whether the user can drag the tool bar out into a window of its own, and, while it
+ *   is docked, to another edge of the container holding it; `true` by default, and a look and feel that
+ *   implements no floating ignores it
  * @param floating whether the tool bar stands in a window of its own rather than in the container it was
- *   declared in (controlled)
+ *   declared in (controlled); `false` by default, so the bar starts docked where it was declared
  * @param onFloatingChange callback invoked with the state the user drags the bar into, or with the docked
  *   state the bar settles for when it cannot take [floating]
  * @param rollover whether the look and feel draws an item's border only while the pointer is over it,
- *   or `null` to leave that choice to the look and feel; a choice withdrawn after being declared
- *   settles at its answer for good
- * @param content the items hosted by the tool bar
+ *   or `null` to leave the choice to it; a choice withdrawn after being declared settles at its answer
+ *   for good, and a look and feel may ignore the request
+ * @param content the items hosted by the tool bar; empty by default
  * @see javax.swing.JToolBar
  */
 @Composable

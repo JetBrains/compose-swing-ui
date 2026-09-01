@@ -25,6 +25,9 @@ import javax.swing.border.Border
  * may draw over or ignore one declared here; put such a component in a panel and declare the border
  * on the panel instead.
  *
+ * @param border the border drawn around the content and counted into the component's insets, so declaring
+ *   one leaves the content less room than the component's bounds.
+ * @return this chain with the border declared on it.
  * @see javax.swing.JComponent.setBorder
  */
 public fun SwingModifier.border(border: Border?): SwingModifier = this then BorderElement(BorderSpec.Instance(border))
@@ -34,6 +37,9 @@ public fun SwingModifier.border(border: Border?): SwingModifier = this then Bord
  * [thickness] changes, so a chain that recomposes often leaves the component's border alone. See
  * [border] for the one border a chain declares.
  *
+ * @param color the color of the line drawn just inside the component's edges.
+ * @param thickness how many pixels the line takes from each side, 1 by default.
+ * @return this chain with the line border declared on it.
  * @see javax.swing.BorderFactory.createLineBorder
  */
 public fun SwingModifier.lineBorder(
@@ -44,6 +50,9 @@ public fun SwingModifier.lineBorder(
 /**
  * Sets an invisible border [all] pixels wide on every side. See [emptyBorder] (the four-side form).
  *
+ * @param all the pixels reserved on each of the four sides, taken out of the area the content is laid out
+ *   in.
+ * @return this chain with the empty border declared on it.
  * @see javax.swing.BorderFactory.createEmptyBorder
  */
 public fun SwingModifier.emptyBorder(all: Int): SwingModifier = emptyBorder(all, all, all, all)
@@ -54,6 +63,11 @@ public fun SwingModifier.emptyBorder(all: Int): SwingModifier = emptyBorder(all,
  * border is rebuilt only when those pixel counts change. See [border] for the one border a chain
  * declares.
  *
+ * @param top the pixels reserved above the content.
+ * @param left the pixels reserved to the left of the content.
+ * @param bottom the pixels reserved below the content.
+ * @param right the pixels reserved to the right of the content.
+ * @return this chain with the empty border declared on it.
  * @see javax.swing.BorderFactory.createEmptyBorder
  */
 public fun SwingModifier.emptyBorder(
@@ -66,6 +80,8 @@ public fun SwingModifier.emptyBorder(
 /**
  * Sets an invisible border occupying [insets]. See [emptyBorder] (the four-side form).
  *
+ * @param insets the four pixel counts to reserve, read out of the object as the chain is built.
+ * @return this chain with the empty border declared on it.
  * @see javax.swing.BorderFactory.createEmptyBorder
  */
 public fun SwingModifier.emptyBorder(insets: Insets): SwingModifier =

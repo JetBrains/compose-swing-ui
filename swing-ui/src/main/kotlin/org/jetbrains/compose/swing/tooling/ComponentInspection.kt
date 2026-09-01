@@ -230,10 +230,14 @@ public fun Component.findCompositionData(): CompositionData? {
  * - the composition's content provides no [androidx.compose.runtime.CompositionLocal], so the runtime
  *   recorded no scope for it and there is nothing to build a trace from.
  *
- * Read the trace off [throwable] only after a `true` return. A failure raised while the trace is being
- * built is suppressed onto [throwable] in the trace's place, and the return stays `false`.
+ * A failure raised while the trace is being built is suppressed onto [throwable] in the trace's place,
+ * and the return stays `false`.
  *
  * Must be called on the Event Dispatch Thread.
+ *
+ * @param throwable the throwable the trace is suppressed onto, in flight or newly built - it is the one
+ *   the trace travels with, so attach to what is thrown rather than to a copy.
+ * @return whether this call attached a trace.
  */
 public fun Component.attachComposeStackTrace(throwable: Throwable): Boolean {
     checkEventDispatchThread()

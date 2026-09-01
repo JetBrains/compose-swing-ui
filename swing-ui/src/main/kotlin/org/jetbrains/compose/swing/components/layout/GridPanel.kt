@@ -10,17 +10,20 @@ import org.jetbrains.compose.swing.node.SwingNode
 import java.awt.GridLayout
 
 /**
- * A composable wrapper for JPanel with GridLayout.
+ * A `JPanel` under a `GridLayout`: the panel is divided into equally sized cells and the children fill
+ * them one per cell, row by row in the panel's reading order.
  *
  * A zero [rows] means as many rows as the children need, and a zero [cols] as many columns; one of
  * the two may be zero, never both.
  *
  * @param modifier the [SwingModifier] applied to the panel
- * @param rows the number of rows, or 0 for as many as the children need
- * @param cols the number of columns, or 0 for as many as the children need
- * @param hgap the horizontal gap between components
- * @param vgap the vertical gap between components
- * @param content the composable content of the panel
+ * @param rows the number of rows, or 0 for as many as the children need; the default `1` puts every
+ *   child in one row
+ * @param cols the number of columns, or 0 for as many as the children need; a non-zero [rows] takes
+ *   precedence, and the column count then follows from the row count and the number of children
+ * @param hgap the horizontal gap between components; `0` by default, so columns touch
+ * @param vgap the vertical gap between components; `0` by default, so rows touch
+ * @param content the composable content of the panel; empty by default
  * @throws IllegalArgumentException if both [rows] and [cols] are zero
  * @see java.awt.GridLayout
  */

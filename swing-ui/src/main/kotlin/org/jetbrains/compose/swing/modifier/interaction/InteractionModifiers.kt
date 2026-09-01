@@ -16,6 +16,8 @@ import java.awt.event.MouseEvent
 /**
  * Sets `isFocusable`, declaring whether this component can receive keyboard focus.
  *
+ * @param focusable `false` takes the component out of the Tab cycle as well as refusing it a click's focus.
+ * @return this chain with the focusability declared on it.
  * @see java.awt.Component.setFocusable
  */
 public fun SwingModifier.focusable(focusable: Boolean): SwingModifier =
@@ -31,6 +33,10 @@ public fun SwingModifier.focusable(focusable: Boolean): SwingModifier =
  * enabled state. Disabling a container does not disable the components inside it, so disable each child
  * you want disabled.
  *
+ * @param enabled `false` keeps the component out of the Tab cycle and stops its key bindings firing. A
+ *   lightweight component still receives mouse events while disabled, so the listeners declared on it go
+ *   on reporting; it is the widget's own listeners that read the enabled state before acting on one.
+ * @return this chain with the enabled state declared on it.
  * @see java.awt.Component.setEnabled
  */
 public fun SwingModifier.enabled(enabled: Boolean): SwingModifier =
@@ -46,6 +52,11 @@ public fun SwingModifier.enabled(enabled: Boolean): SwingModifier =
  *
  * A callback left undeclared reports nowhere, and declaring neither is refused.
  *
+ * @param onEnter runs when the pointer arrives over the component, a return from a child of its own that
+ *   listens for mouse events included.
+ * @param onExit runs when the pointer leaves it, a move onto such a child included; a child listening for no
+ *   mouse event of its own never takes the pointer, so passing over it reports neither.
+ * @return this chain with the hover handlers declared on it.
  * @see java.awt.Component.addMouseListener
  */
 public fun SwingModifier.onHover(
@@ -61,6 +72,10 @@ public fun SwingModifier.onHover(
  *
  * A callback left undeclared reports nowhere, and declaring neither is refused.
  *
+ * @param onGained runs when the component becomes the focus owner, its window regaining activation included.
+ * @param onLost runs when it stops being the focus owner, the temporary loss while another window is active
+ *   included.
+ * @return this chain with the focus handlers declared on it.
  * @see java.awt.Component.addFocusListener
  */
 public fun SwingModifier.onFocus(
@@ -82,6 +97,13 @@ public fun SwingModifier.onFocus(
  *
  * A callback left undeclared reports nowhere, and declaring none is refused.
  *
+ * @param onPress the platform decides whether a popup gesture is reported on the press or on the release, so
+ *   check `isPopupTrigger` in both.
+ * @param onRelease still runs when the pointer has been dragged off the component, since the press holds the
+ *   grab.
+ * @param onClick skipped when the pointer is dragged between press and release - on Windows and macOS for
+ *   any movement at all, on Linux only once the drag leaves a few pixels around the press point.
+ * @return this chain with the pointer handlers declared on it.
  * @see java.awt.Component.addMouseListener
  */
 public fun SwingModifier.onPointerEvent(

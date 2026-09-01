@@ -12,6 +12,9 @@ import javax.swing.JComponent
 /**
  * Sets `font`; `null` restores the default.
  *
+ * @param font the font the component draws its text in, inherited by children that have none of their own;
+ *   a change of size re-lays the component out.
+ * @return this chain with the font declared on it.
  * @see java.awt.Component.setFont
  */
 public fun SwingModifier.font(font: Font?): SwingModifier =

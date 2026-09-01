@@ -35,6 +35,9 @@ public fun SwingNodeInteraction<*>.onChild(): SwingNodeInteraction<Component> =
 /**
  * Returns a handle to the matched node's direct child at [index]. Convenience for
  * [onChildren]`()[index]`.
+ *
+ * @param index the position among the node's direct children, in their container's order.
+ * @return a handle that fails on use when the node holds no child at [index].
  */
 public fun SwingNodeInteraction<*>.onChildAt(index: Int): SwingNodeInteraction<Component> = onChildren()[index]
 

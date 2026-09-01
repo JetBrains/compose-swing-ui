@@ -11,7 +11,8 @@ import org.jetbrains.compose.swing.node.SwingNode
 import javax.swing.JLabel
 
 /**
- * A composable wrapper for JLabel.
+ * A `JLabel` showing [text]: non-interactive text, which the Tab focus cycle skips, though a focus
+ * request still lands on it.
  *
  * @param text the text to display
  * @param modifier the [SwingModifier] applied to the underlying component

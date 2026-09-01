@@ -45,6 +45,7 @@ import javax.swing.text.JTextComponent
  * mode - is reachable through a [SwingModifier.NodeElement] of your own; see `docs/CUSTOM-COMPONENTS.md`.
  *
  * @param caret the caret the component navigates and selects with.
+ * @return this chain with [caret] declared on it.
  * @see javax.swing.text.JTextComponent.setCaret
  */
 public fun SwingModifier.caret(caret: Caret): SwingModifier = this then CaretElement(caret)
@@ -58,6 +59,7 @@ public fun SwingModifier.caret(caret: Caret): SwingModifier = this then CaretEle
  * declared first reaches the caret that is about to be replaced.
  *
  * @param rate the delay in milliseconds between blinks, or `0` for a caret that does not blink.
+ * @return this chain with the blink rate declared on it.
  * @see javax.swing.text.Caret.setBlinkRate
  */
 public fun SwingModifier.caretBlinkRate(rate: Int): SwingModifier =
@@ -71,15 +73,20 @@ public fun SwingModifier.caretBlinkRate(rate: Int): SwingModifier =
 /**
  * Sets what the caret does when the document is edited somewhere other than where the caret sits.
  *
- * [DefaultCaret.ALWAYS_UPDATE] carries the caret along with every edit whichever thread makes it - the
- * policy a log view sits at the end of, so appended lines scroll into sight. [DefaultCaret.NEVER_UPDATE]
- * leaves the caret at the offset it holds, so a view stays where the reader put it while text arrives
- * above. [DefaultCaret.UPDATE_WHEN_ON_EDT], a caret's own policy, carries the caret along with edits
- * made on the event dispatch thread and leaves it alone for edits made off it.
+ * [DefaultCaret.ALWAYS_UPDATE] carries the caret along with every edit whichever thread makes it, and
+ * keeps the caret visible - the policy a log view sits at the end of, so appended lines scroll into
+ * sight. [DefaultCaret.NEVER_UPDATE] leaves the caret at the offset it holds and does not scroll to keep
+ * it visible, so a view stays where the reader put it while text arrives above; a removal that shortens
+ * the document past that offset moves the caret to the end. [DefaultCaret.UPDATE_WHEN_ON_EDT], the
+ * default, carries the caret along with edits made on the event dispatch thread and leaves it alone for
+ * edits made off it.
  *
  * Requires a [JTextComponent] whose caret is a [DefaultCaret] - the caret a look and feel installs.
  * Removing the declaration puts back the policy the caret carried before.
  *
+ * @param policy the update constant written to the caret the component carries when the chain is applied, so
+ *   declare it after any [caret] of your own.
+ * @return this chain with the caret update policy declared on it.
  * @see javax.swing.text.DefaultCaret.setUpdatePolicy
  */
 public fun SwingModifier.caretUpdatePolicy(

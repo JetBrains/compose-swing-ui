@@ -92,6 +92,14 @@ public inline fun <reified T : Component> SwingNode(
  * The component's own child array holds the indexed children in the order [content] emits them, whatever
  * layout constraint each of them declares, so a layout manager of your own can read `getComponents` as
  * the structure this composition declared and derive from all of it at measure or layout time.
+ *
+ * @param factory builds the backing Swing container.
+ * @param update typed update block; see [SwingNodeUpdater]. Install listeners through the modifier
+ *   mechanism - see [org.jetbrains.compose.swing.modifier.listener].
+ * @param onRelease optional teardown run when the node leaves the composition for good.
+ * @param childPlacement how children composed under this node are held; see [ChildPlacement]. Defaults
+ *   to [ChildPlacement.Indexed].
+ * @param content the composables this component holds as its children.
  */
 @Composable
 @SwingComposable

@@ -166,7 +166,8 @@ internal class RowSortChannel(
  * gone for good and is handed to [target] once.
  *
  * This settles the table's row selection as well - putting the selection back is the whole of what
- * [declare] would do for it - so a table declares its selection through this call and not a second time.
+ * [org.jetbrains.compose.swing.node.declare] would do for it - so a table declares its selection through
+ * this call and not a second time.
  */
 internal fun SwingNodeUpdater<JTable>.declareRowFilter(
     sortChannel: RowSortChannel,

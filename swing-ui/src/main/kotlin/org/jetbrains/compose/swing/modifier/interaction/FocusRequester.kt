@@ -63,6 +63,9 @@ public fun rememberFocusRequester(): FocusRequester = remember { FocusRequester(
  *
  * One component takes one requester: declaring two on the same chain binds the last one.
  *
+ * @param focusRequester the handle focus is requested through; hold it across recompositions with
+ *   [rememberFocusRequester].
+ * @return this chain with the focus binding declared on it.
  * @see java.awt.Component.requestFocusInWindow
  */
 public fun SwingModifier.focusRequester(focusRequester: FocusRequester): SwingModifier =

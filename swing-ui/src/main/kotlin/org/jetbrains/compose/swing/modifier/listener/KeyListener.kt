@@ -16,6 +16,9 @@ import java.awt.event.KeyListener
  * [onKeyEvent] is read when the event fires, so writing a fresh lambda on every recomposition
  * registers nothing again.
  *
+ * @param onKeyEvent receives the event, which reports only while the component holds the keyboard
+ *   focus.
+ * @return this chain with the key callback declared on it.
  * @see java.awt.Component.addKeyListener
  */
 public fun SwingModifier.keyListener(onKeyEvent: (KeyEvent) -> Unit): SwingModifier =
@@ -34,6 +37,13 @@ public fun SwingModifier.keyListener(onKeyEvent: (KeyEvent) -> Unit): SwingModif
  *
  * Declaring none at all is refused.
  *
+ * @param onKeyTyped runs for the character a keystroke produces, carrying a `keyChar` and
+ *   `VK_UNDEFINED` for its `keyCode`; a key that produces no Unicode character, such as an arrow,
+ *   never reaches it.
+ * @param onKeyPressed runs when the key goes down; whether holding it repeats, and in what order the
+ *   events then arrive, the platform decides.
+ * @param onKeyReleased runs when the key comes back up.
+ * @return this chain with the key callbacks declared on it.
  * @see java.awt.Component.addKeyListener
  */
 public fun SwingModifier.keyListener(
@@ -48,6 +58,9 @@ public fun SwingModifier.keyListener(
 /**
  * Attaches a [KeyListener] (`addKeyListener`/`removeKeyListener`).
  *
+ * @param listener attached by identity, so a remembered instance stays put while a fresh one on every
+ *   pass is detached and re-added.
+ * @return this chain with the key listener declared on it.
  * @see java.awt.Component.addKeyListener
  */
 public fun SwingModifier.keyListener(listener: KeyListener): SwingModifier = listener(listener, KEY)

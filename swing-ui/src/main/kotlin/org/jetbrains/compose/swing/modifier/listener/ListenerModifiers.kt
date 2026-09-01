@@ -29,11 +29,12 @@ import kotlin.reflect.KClass
  * builder or a callback modifier covers the ordinary cases. Adding and removing a listener through the
  * component it hands you is safe, which is what the seam exists for. Using that component to write a
  * property the composition declares, or to add or remove children, makes a second manager of something
- * the composition already owns. The write is undone by the next recomposition, or the two managers
- * corrupt each other's bookkeeping.
+ * the composition already owns. The widget then holds a value nothing declares until the next write or
+ * settlement overwrites it, or the two managers corrupt each other's bookkeeping.
  *
  * @param instance the Swing/AWT listener (or model listener) object to install.
  * @param registration where [instance] is registered.
+ * @return this chain with [instance] declared on it.
  */
 public inline fun <reified T : Component, L : Any> SwingModifier.listener(
     instance: L,
@@ -59,6 +60,7 @@ public inline fun <reified T : Component, L : Any> SwingModifier.listener(
  *
  * @param callback what the built listener reads when an event fires; refreshed on every pass.
  * @param registration where the built listener is registered, and how it is built.
+ * @return this chain with the built listener declared on it.
  */
 public inline fun <reified T : Component, C : Any, L : Any> SwingModifier.listener(
     callback: C,
@@ -75,6 +77,7 @@ public inline fun <reified T : Component, C : Any, L : Any> SwingModifier.listen
  *     apply with a clear error.
  * @param instance the Swing/AWT listener (or model listener) object to install.
  * @param registration where [instance] is registered.
+ * @return this chain with [instance] declared on it.
  */
 public fun <T : Component, L : Any> SwingModifier.listener(
     targetType: KClass<T>,
@@ -92,6 +95,7 @@ public fun <T : Component, L : Any> SwingModifier.listener(
  * @param targetType the component type [registration] receives.
  * @param callback what the built listener reads when an event fires; refreshed on every pass.
  * @param registration where the built listener is registered, and how it is built.
+ * @return this chain with the built listener declared on it.
  */
 public fun <T : Component, C : Any, L : Any> SwingModifier.listener(
     targetType: KClass<T>,

@@ -25,8 +25,13 @@ knit {
 // compiler.
 val knitOutputDir = layout.buildDirectory.dir("generated/knit")
 
+// Knit never removes the example a guide has stopped declaring, and the source set compiles whatever
+// the directory holds, so it is emptied first.
+val clearKnitOutput = tasks.register<Delete>("clearKnitOutput") { delete(knitOutputDir) }
+
 val knitTask =
     tasks.named("knit") {
+        dependsOn(clearKnitOutput)
         outputs.dir(knitOutputDir)
     }
 
