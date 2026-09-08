@@ -2,6 +2,17 @@ public final class org/jetbrains/compose/swing/foundation/CanvasKt {
 	public static final fun Canvas (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
 }
 
+public final class org/jetbrains/compose/swing/foundation/graphics/BlurEffect : org/jetbrains/compose/swing/foundation/graphics/RenderEffect {
+	public static final field $stable I
+	public synthetic fun <init> (FFIILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (FFILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun createOp (D)Ljava/awt/image/BufferedImageOp;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun outsets (D)Ljava/awt/Insets;
+	public fun toString ()Ljava/lang/String;
+}
+
 public abstract interface class org/jetbrains/compose/swing/foundation/graphics/Decoratable : org/jetbrains/compose/swing/modifier/DeclaredNodesListener {
 	public abstract fun getDecoration ()Lorg/jetbrains/compose/swing/foundation/graphics/Decoration;
 	public fun needsNodesAfterWrite (Lorg/jetbrains/compose/swing/modifier/SwingModifier$Node;)Z
@@ -38,8 +49,68 @@ public abstract interface class org/jetbrains/compose/swing/foundation/graphics/
 }
 
 public final class org/jetbrains/compose/swing/foundation/graphics/GraphicsKt {
+	public static final fun asRenderEffect (Ljava/awt/image/BufferedImageOp;)Lorg/jetbrains/compose/swing/foundation/graphics/RenderEffect;
 	public static final fun decoration (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/foundation/graphics/Decorator;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun decoration (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/modifier/SwingModifier$NodeElement;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun rememberImageLayer (Landroidx/compose/runtime/Composer;I)Lorg/jetbrains/compose/swing/foundation/graphics/ImageLayer;
+}
+
+public final class org/jetbrains/compose/swing/foundation/graphics/ImageLayer {
+	public static final field $stable I
+	public fun <init> ()V
+	public final fun draw (Ljava/awt/Graphics2D;II)V
+	public static synthetic fun draw$default (Lorg/jetbrains/compose/swing/foundation/graphics/ImageLayer;Ljava/awt/Graphics2D;IIILjava/lang/Object;)V
+	public final fun filter (Ljava/awt/image/BufferedImageOp;)V
+	public final fun getAlpha ()F
+	public final fun getHasContent ()Z
+	public final fun getPivotOffset ()Ljava/awt/geom/Point2D;
+	public final fun getRenderEffect ()Lorg/jetbrains/compose/swing/foundation/graphics/RenderEffect;
+	public final fun getRotationZ ()F
+	public final fun getScaleX ()F
+	public final fun getScaleY ()F
+	public final fun getSize ()Ljava/awt/Dimension;
+	public final fun getTranslationX ()F
+	public final fun getTranslationY ()F
+	public final fun record (IIDLkotlin/jvm/functions/Function1;)V
+	public final fun record (Ljava/awt/Graphics2D;IILkotlin/jvm/functions/Function1;)V
+	public final fun record (Ljavax/swing/JComponent;D)V
+	public static synthetic fun record$default (Lorg/jetbrains/compose/swing/foundation/graphics/ImageLayer;IIDLkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+	public static synthetic fun record$default (Lorg/jetbrains/compose/swing/foundation/graphics/ImageLayer;Ljavax/swing/JComponent;DILjava/lang/Object;)V
+	public final fun release ()V
+	public final fun setAlpha (F)V
+	public final fun setPivotOffset (Ljava/awt/geom/Point2D;)V
+	public final fun setRenderEffect (Lorg/jetbrains/compose/swing/foundation/graphics/RenderEffect;)V
+	public final fun setRotationZ (F)V
+	public final fun setScaleX (F)V
+	public final fun setScaleY (F)V
+	public final fun setTranslationX (F)V
+	public final fun setTranslationY (F)V
+	public final fun toBufferedImage ()Ljava/awt/image/BufferedImage;
+}
+
+public abstract interface class org/jetbrains/compose/swing/foundation/graphics/RenderEffect {
+	public abstract fun createOp (D)Ljava/awt/image/BufferedImageOp;
+	public fun outsets (D)Ljava/awt/Insets;
+}
+
+public final class org/jetbrains/compose/swing/foundation/graphics/TileMode {
+	public static final field Companion Lorg/jetbrains/compose/swing/foundation/graphics/TileMode$Companion;
+	public static final synthetic fun box-impl (I)Lorg/jetbrains/compose/swing/foundation/graphics/TileMode;
+	public fun equals (Ljava/lang/Object;)Z
+	public static fun equals-impl (ILjava/lang/Object;)Z
+	public static final fun equals-impl0 (II)Z
+	public static final fun getClamp-0BiVDiQ ()I
+	public static final fun getDecal-0BiVDiQ ()I
+	public fun hashCode ()I
+	public static fun hashCode-impl (I)I
+	public fun toString ()Ljava/lang/String;
+	public static fun toString-impl (I)Ljava/lang/String;
+	public final synthetic fun unbox-impl ()I
+}
+
+public final class org/jetbrains/compose/swing/foundation/graphics/TileMode$Companion {
+	public final fun getClamp-0BiVDiQ ()I
+	public final fun getDecal-0BiVDiQ ()I
 }
 
 public final class org/jetbrains/compose/swing/foundation/layout/AbsoluteAlignment {

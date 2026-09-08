@@ -289,6 +289,12 @@ A step that keeps state across paints extends `DecorationModifierNode` and decla
 `decoration` member. The library gathers a step's `isOpaque` after each modifier pass, so an element's `update`
 needs no call for it. Between passes, a node calls `invalidateDecoration()` where its `isOpaque` changed.
 
+`ImageLayer` is an offscreen raster: `record` replaces its recording, `draw` draws it, and `filter` post-processes
+it. `alpha`, `scaleX`, `scaleY`, `translationX`, `translationY`, `rotationZ`, `pivotOffset` and `renderEffect` are
+androidx's `GraphicsLayer` properties of the same names and defaults, and apply at the next `draw`; `BlurEffect` is
+a `RenderEffect`. Create a layer with `rememberImageLayer()` in composition, which releases it when the composition
+leaves, or call `release()` on one you construct.
+
 ### Making a component decoratable
 
 To make a component of your own decoratable, implement `Decoratable`. The library writes its `decoration`, and the

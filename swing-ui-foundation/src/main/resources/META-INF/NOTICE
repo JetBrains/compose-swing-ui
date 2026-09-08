@@ -11,6 +11,10 @@ Project's Jetpack Compose libraries, redistributed under the Apache License, Ver
             (androidx commit 963bf914f78b389bdddef0da7f36bee19d897274)
   Copyright The Android Open Source Project
 
+  Original: androidx.compose.ui:ui-graphics 1.12.0
+            (androidx commit 963bf914f78b389bdddef0da7f36bee19d897274)
+  Copyright The Android Open Source Project
+
   Original: androidx.compose.ui:ui-util 1.12.0
             (androidx commit 963bf914f78b389bdddef0da7f36bee19d897274)
   Copyright The Android Open Source Project
@@ -18,7 +22,8 @@ Project's Jetpack Compose libraries, redistributed under the Apache License, Ver
 Adaptations: compose-ui's Modifier, IntrinsicMeasurable, LayoutCoordinates and packed Constraints
 were replaced with this project's LayoutModifier, Measurable, SwingModifier and Constraints over
 Swing component sizes; measurement, alignment, arrangement and placement were adapted to Swing's
-ComponentOrientation and integer coordinate system. See per-file headers for which upstream file
+ComponentOrientation and integer coordinate system; graphics types were adapted to Java2D and
+Swing painting. See per-file headers for which upstream file
 each source or test was adapted from, and for original copyright years.
 
 A copy of the Apache License 2.0 is in the repository root LICENSE file.

@@ -27,8 +27,9 @@ public fun interface Decorator {
      * @param width the width of the area this decorator paints in.
      * @param height the height of the area this decorator paints in.
      * @param content paints everything inside this decorator into the graphics it is handed, which must be
-     *   clipped. Call it once, more than once, or not at all. The size it is given reaches the decorators
-     *   inside this one; the component itself paints at its own bounds whatever size it is given.
+     *   clipped; an [ImageLayer] recording is. Call it once, more than once, or not at all. The size it is given
+     *   reaches the decorators inside this one; the component itself paints at its own bounds whatever size it is
+     *   given.
      */
     public fun paint(
         graphics: Graphics2D,
