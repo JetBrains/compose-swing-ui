@@ -3,7 +3,7 @@ package org.jetbrains.compose.swing.modifier.listener
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.text.PasswordField
 import org.jetbrains.compose.swing.components.text.TextArea
 import org.jetbrains.compose.swing.components.text.TextField
@@ -43,7 +43,7 @@ class TextSwapBaselineTest {
     fun aValueDrivenFieldIsMeasuredAgainstTheDocumentItWasGiven() = runComposeSwingTest {
         val seen = mutableListOf<String>()
         var declared by mutableStateOf("first")
-        setContent { FlowPanel { TextField(value = declared, onValueChange = { seen += it }) } }
+        setContent { Panel { TextField(value = declared, onValueChange = { seen += it }) } }
         val field = onNodeOfType<JTextField>().fetch<JTextField>()
         assertEquals("first", field.text, "the field starts on the declared text")
 
@@ -60,7 +60,7 @@ class TextSwapBaselineTest {
     @Test
     fun aValueDrivenAreaIsMeasuredAgainstTheDocumentItWasGiven() = runComposeSwingTest {
         var declared by mutableStateOf("first")
-        setContent { FlowPanel { TextArea(value = declared, onValueChange = { declared = it }) } }
+        setContent { Panel { TextArea(value = declared, onValueChange = { declared = it }) } }
         val area = onNodeOfType<JTextArea>().fetch<JTextArea>()
 
         area.document = document("stale")
@@ -73,7 +73,7 @@ class TextSwapBaselineTest {
         val seen = mutableListOf<String>()
         val declared = "hello".toCharArray()
         setContent {
-            FlowPanel { PasswordField(value = declared, onValueChange = { seen += String(it) }) }
+            Panel { PasswordField(value = declared, onValueChange = { seen += String(it) }) }
         }
         val field = onNodeOfType<JPasswordField>().fetch<JPasswordField>()
         assertEquals("hello", String(field.password), "the field starts on the declared password")
@@ -88,7 +88,7 @@ class TextSwapBaselineTest {
     fun aListenerDrivenPasswordFieldIsMeasuredAgainstTheDocumentItWasGiven() = runComposeSwingTest {
         val declared = "hello".toCharArray()
         setContent {
-            FlowPanel { PasswordField(value = declared, documentListener = DocumentChangeListener()) }
+            Panel { PasswordField(value = declared, documentListener = DocumentChangeListener()) }
         }
         val field = onNodeOfType<JPasswordField>().fetch<JPasswordField>()
 

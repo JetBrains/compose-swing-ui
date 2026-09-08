@@ -11,7 +11,7 @@ import org.jetbrains.compose.swing.components.ComboBox
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.Spinner
 import org.jetbrains.compose.swing.components.layout.ColumnScope
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
@@ -23,7 +23,7 @@ import java.util.Locale
 internal fun ColumnScope.IntSpinnerCard() {
     ExampleCard("Spinner (Int)") {
         var count by remember { mutableIntStateOf(3) }
-        FlowPanel {
+        Panel {
             Label("Count:")
             Spinner(count, onValueChange = { count = it.toInt() }, min = 0, max = 10, step = 1)
         }
@@ -35,7 +35,7 @@ internal fun ColumnScope.IntSpinnerCard() {
 internal fun ColumnScope.DoubleSpinnerCard() {
     ExampleCard("Spinner (Double)") {
         var rate by remember { mutableDoubleStateOf(1.5) }
-        FlowPanel {
+        Panel {
             Label("Rate:")
             Spinner(
                 rate,
@@ -57,7 +57,7 @@ internal fun ColumnScope.ListSpinnerCard() {
     ExampleCard("Spinner (list)") {
         val sizes = listOf("S", "M", "L", "XL")
         var size by remember { mutableStateOf(sizes[1]) }
-        FlowPanel {
+        Panel {
             Label("Size:")
             Spinner(items = sizes, value = size, onValueChange = { size = it })
         }
@@ -73,7 +73,7 @@ internal fun ColumnScope.DateSpinnerCard() {
         val calendarField = steps.first { it.first == step }.second
         val today = remember { Calendar.getInstance().time }
         var date by remember { mutableStateOf(today) }
-        FlowPanel {
+        Panel {
             Label("Step by:")
             ComboBox(
                 items = steps.map { it.first },
@@ -81,7 +81,7 @@ internal fun ColumnScope.DateSpinnerCard() {
                 onSelectionChange = { step = it ?: steps.first().first },
             )
         }
-        FlowPanel {
+        Panel {
             Label("Date:")
             Spinner(date, onValueChange = { date = it }, calendarField = calendarField)
         }
@@ -93,7 +93,7 @@ internal fun ColumnScope.DateSpinnerCard() {
 internal fun ColumnScope.FormatSpinnerCard() {
     ExampleCard("Spinner (format)") {
         var amount by remember { mutableIntStateOf(1_000_000) }
-        FlowPanel {
+        Panel {
             Label("Amount:")
             Spinner(
                 amount,
@@ -112,7 +112,7 @@ internal fun ColumnScope.FormatSpinnerCard() {
 internal fun ColumnScope.EditorSpinnerCard() {
     ExampleCard("Spinner (composed editor)") {
         var weight by remember { mutableDoubleStateOf(70.0) }
-        FlowPanel {
+        Panel {
             Label("Weight:")
             // The editor composition is part of this one, so it reads the same state the card does and
             // renders the unit beside the value it qualifies.
@@ -123,7 +123,7 @@ internal fun ColumnScope.EditorSpinnerCard() {
                 max = 200.0,
                 step = 0.5,
             ) {
-                FlowPanel {
+                Panel {
                     Label(String.format(Locale.getDefault(), "%,.1f", weight))
                     Label("kg")
                 }

@@ -13,8 +13,8 @@ import androidx.navigation3.runtime.rememberDecoratedNavEntries
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
-import org.jetbrains.compose.swing.components.layout.BorderPanel
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.components.menu.CheckBoxMenuItem
 import org.jetbrains.compose.swing.components.menu.Menu
@@ -116,9 +116,7 @@ internal fun ShowcaseShell() {
                 },
         )
     val current = backStack.last().title
-    BorderPanel(
-        modifier = SwingModifier.emptyBorder(12),
-    ) {
+    Panel(PanelLayout.Border(), modifier = SwingModifier.emptyBorder(12)) {
         ScrollPane(modifier = SwingModifier.west().preferredSize(Dimension(180, 0))) {
             ListBox(
                 items = showcaseSections.map { it.title },
@@ -135,7 +133,7 @@ internal fun ShowcaseShell() {
         }
         // The entry names no region, so BorderLayout gives it the center by default.
         entries.last().Content()
-        FlowPanel(modifier = SwingModifier.south(), alignment = FlowLayout.LEADING) {
+        Panel(PanelLayout.Flow(alignment = FlowLayout.LEADING), modifier = SwingModifier.south()) {
             Button(
                 text = "Back",
                 onClick = { backStack.removeLastOrNull() },

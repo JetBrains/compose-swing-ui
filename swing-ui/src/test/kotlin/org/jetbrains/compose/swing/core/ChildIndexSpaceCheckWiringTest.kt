@@ -4,7 +4,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.components.layout.BoxPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -24,7 +25,7 @@ class ChildIndexSpaceCheckWiringTest {
     fun aDivergenceOpenedBehindTheApplierIsReportedToTheTest() = runComposeSwingTest {
         var caption by mutableStateOf("first")
         setContent {
-            BoxPanel(modifier = SwingModifier.testTag(HOST)) {
+            Panel(PanelLayout.Box(), modifier = SwingModifier.testTag(HOST)) {
                 Label("held")
                 Label(caption)
             }

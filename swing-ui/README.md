@@ -11,7 +11,7 @@ entry points:
 
 ```kotlin
 import org.jetbrains.compose.swing.components.button.Button
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.setContent
 import androidx.compose.runtime.getValue
@@ -25,7 +25,7 @@ fun main() = SwingUtilities.invokeLater {
     val frame = JFrame("Counter").apply { defaultCloseOperation = JFrame.EXIT_ON_CLOSE }
     frame.setContent {
         var count by remember { mutableIntStateOf(0) }
-        FlowPanel {
+        Panel {
             Label("Count: $count")
             Button("Increment", onClick = { count++ })
         }

@@ -8,7 +8,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.ColumnScope
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.text.FormattedTextField
 import org.jetbrains.compose.swing.components.text.rememberFormattedValueState
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
@@ -29,7 +29,7 @@ internal fun ColumnScope.NumberFieldCard() {
                 formatter.valueClass = Int::class.javaObjectType
                 DefaultFormatterFactory(formatter)
             }
-        FlowPanel {
+        Panel {
             Label("Quantity:")
             FormattedTextField(
                 value = quantity,
@@ -55,7 +55,7 @@ internal fun ColumnScope.FormattedValueStateCard() {
                 formatter.valueClass = Int::class.javaObjectType
                 DefaultFormatterFactory(formatter)
             }
-        FlowPanel {
+        Panel {
             Label("Amount:")
             FormattedTextField(
                 state = amount,
@@ -79,7 +79,7 @@ internal fun ColumnScope.MaskFieldCard() {
                 mask.placeholderCharacter = '_'
                 DefaultFormatterFactory(mask)
             }
-        FlowPanel {
+        Panel {
             Label("Phone:")
             FormattedTextField(
                 value = phone,

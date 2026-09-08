@@ -4,7 +4,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.components.layout.BoxPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.SplitPane
 import org.jetbrains.compose.swing.core.TracedTest
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -86,7 +87,8 @@ class DeferredChildIndexSpaceTimingTest : TracedTest() {
         var onFirstSide by mutableStateOf(true)
         setContent {
             SplitPane {
-                BoxPanel(
+                Panel(
+                    PanelLayout.Box(),
                     modifier = (if (onFirstSide) SwingModifier.first() else SwingModifier.second()).testTag(HOST),
                 ) {
                     Label(text = "held")

@@ -6,7 +6,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.interaction.enabled
@@ -70,7 +71,7 @@ class FocusTraversalModifierTest {
     fun orderedFocusTraversalVisitsChildrenByIndex() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         setFormContent {
-            FlowPanel(modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
+            Panel(PanelLayout.Flow(), modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
                 TextField("third", onValueChange = {}, modifier = SwingModifier.focusTraversalIndex(30))
                 TextField("first", onValueChange = {}, modifier = SwingModifier.focusTraversalIndex(10))
                 TextField("second", onValueChange = {}, modifier = SwingModifier.focusTraversalIndex(20))
@@ -93,7 +94,8 @@ class FocusTraversalModifierTest {
     fun orderedFocusTraversalRestoresPolicyOnRemoval() = runComposeSwingTest {
         var ordered by mutableStateOf(true)
         setContent {
-            FlowPanel(
+            Panel(
+                PanelLayout.Flow(),
                 modifier =
                     SwingModifier.testTag(PANEL_TAG).let {
                         if (ordered) it.orderedFocusTraversal() else it
@@ -102,7 +104,7 @@ class FocusTraversalModifierTest {
                 TextField("", onValueChange = {})
             }
         }
-        // A bare FlowPanel is not a focus cycle root and inherits its container's policy; the modifier
+        // A bare panel is not a focus cycle root and inherits its container's policy; the modifier
         // makes it one and installs the composition-order policy.
         val before = onNodeWithTag(PANEL_TAG).fetch<JPanel>()
         assertTrue(before.isFocusCycleRoot, "the modifier should make the panel a focus cycle root")
@@ -156,7 +158,7 @@ class FocusTraversalModifierTest {
     @Test
     fun aFormWithNoPeerHasNoTraversalOrder() = runComposeSwingTest {
         setContent {
-            FlowPanel(modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
+            Panel(PanelLayout.Flow(), modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
                 TextField("", onValueChange = {})
             }
         }
@@ -176,7 +178,7 @@ class FocusTraversalModifierTest {
     fun orderedFocusTraversalWrapsAroundInBothDirections() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         setFormContent {
-            FlowPanel(modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
+            Panel(PanelLayout.Flow(), modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
                 TextField("first", onValueChange = {}, modifier = SwingModifier.focusTraversalIndex(10))
                 TextField("second", onValueChange = {}, modifier = SwingModifier.focusTraversalIndex(20))
             }
@@ -196,7 +198,7 @@ class FocusTraversalModifierTest {
     fun unindexedChildrenFollowIndexedOnesInDeclarationOrder() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         setFormContent {
-            FlowPanel(modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
+            Panel(PanelLayout.Flow(), modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
                 TextField("plainA", onValueChange = {})
                 TextField("indexed", onValueChange = {}, modifier = SwingModifier.focusTraversalIndex(5))
                 TextField("plainB", onValueChange = {})
@@ -218,7 +220,7 @@ class FocusTraversalModifierTest {
     fun disabledAndInvisibleChildrenAreSkipped() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         setFormContent {
-            FlowPanel(modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
+            Panel(PanelLayout.Flow(), modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
                 TextField("off", onValueChange = {}, modifier = SwingModifier.enabled(false).focusTraversalIndex(10))
                 TextField("hidden", onValueChange = {}, modifier = SwingModifier.visible(false).focusTraversalIndex(20))
                 TextField("live", onValueChange = {}, modifier = SwingModifier.focusTraversalIndex(30))
@@ -241,7 +243,7 @@ class FocusTraversalModifierTest {
         val heavyweight = AwtPanel().apply { isEnabled = false }
         val nested = JTextField(5)
         setFormContent {
-            FlowPanel(modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
+            Panel(PanelLayout.Flow(), modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
                 SwingNode(factory = { heavyweight }) {
                     SwingNode(factory = { nested })
                 }
@@ -266,7 +268,7 @@ class FocusTraversalModifierTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val raw = AwtButton("raw")
         setFormContent {
-            FlowPanel(modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
+            Panel(PanelLayout.Flow(), modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
                 SwingNode(factory = { raw })
                 Button("OK", onClick = { })
             }
@@ -286,9 +288,9 @@ class FocusTraversalModifierTest {
     fun descendantsOfNestedContainersJoinTheOrder() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         setFormContent {
-            FlowPanel(modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
+            Panel(PanelLayout.Flow(), modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
                 TextField("outer", onValueChange = {}, modifier = SwingModifier.focusTraversalIndex(20))
-                FlowPanel {
+                Panel {
                     TextField("nested", onValueChange = {}, modifier = SwingModifier.focusTraversalIndex(10))
                 }
             }
@@ -307,9 +309,9 @@ class FocusTraversalModifierTest {
     fun aNestedCycleRootIsEnteredAsAWhole() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         setFormContent {
-            FlowPanel(modifier = SwingModifier.testTag("outerPanel").orderedFocusTraversal()) {
+            Panel(PanelLayout.Flow(), modifier = SwingModifier.testTag("outerPanel").orderedFocusTraversal()) {
                 TextField("outer", onValueChange = {}, modifier = SwingModifier.focusTraversalIndex(20))
-                FlowPanel(modifier = SwingModifier.testTag("innerPanel").orderedFocusTraversal()) {
+                Panel(PanelLayout.Flow(), modifier = SwingModifier.testTag("innerPanel").orderedFocusTraversal()) {
                     TextField("inner", onValueChange = {}, modifier = SwingModifier.focusTraversalIndex(10))
                 }
             }
@@ -337,7 +339,7 @@ class FocusTraversalModifierTest {
     fun aContainerWithoutFocusableChildrenHasNoTraversalOrder() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         setFormContent {
-            FlowPanel(modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
+            Panel(PanelLayout.Flow(), modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
                 Label("caption", modifier = SwingModifier.focusable(false))
             }
         }
@@ -355,7 +357,7 @@ class FocusTraversalModifierTest {
     fun focusableModifierLeavesComponentReachableForTraversal() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         setFormContent {
-            FlowPanel(modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
+            Panel(PanelLayout.Flow(), modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
                 Button("A", onClick = { }, modifier = SwingModifier.focusable(true).focusTraversalIndex(1))
             }
         }
@@ -372,9 +374,9 @@ class FocusTraversalModifierTest {
     fun captionsAndLayoutContainersAreNotTraversalStops() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         setFormContent {
-            FlowPanel(modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
+            Panel(PanelLayout.Flow(), modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
                 Label("Name:")
-                FlowPanel {
+                Panel {
                     TextField("name", onValueChange = {})
                 }
                 Button("OK", onClick = { })
@@ -396,7 +398,7 @@ class FocusTraversalModifierTest {
     fun declaredFocusabilityOverridesTheDefaultJudgement() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         setFormContent {
-            FlowPanel(modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
+            Panel(PanelLayout.Flow(), modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
                 Label("Legend", modifier = SwingModifier.focusable(true))
                 Button("Skipped", onClick = { }, modifier = SwingModifier.focusable(false))
                 Button("OK", onClick = { })
@@ -416,7 +418,7 @@ class FocusTraversalModifierTest {
     fun aDeclaredFocusableChildStillHasToBeAbleToTakeFocus() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         setFormContent {
-            FlowPanel(modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
+            Panel(PanelLayout.Flow(), modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
                 Label("Legend", modifier = SwingModifier.focusable(true).enabled(false))
                 Button("OK", onClick = { })
             }
@@ -435,7 +437,7 @@ class FocusTraversalModifierTest {
     fun disabledAndInvisibleControlsAreSkipped() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         setFormContent {
-            FlowPanel(modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
+            Panel(PanelLayout.Flow(), modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
                 Button("A", onClick = { })
                 Button("B", onClick = { }, modifier = SwingModifier.enabled(false))
                 Button("C", onClick = { }, modifier = SwingModifier.visible(false))
@@ -460,7 +462,7 @@ class FocusTraversalModifierTest {
         val firstOption = JRadioButton("first")
         val secondOption = JRadioButton("second")
         setFormContent {
-            FlowPanel(modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
+            Panel(PanelLayout.Flow(), modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
                 SwingNode(factory = { push.also(group::add) })
                 SwingNode(factory = { firstOption.also(group::add) })
                 SwingNode(factory = { secondOption.also(group::add) })
@@ -481,11 +483,11 @@ class FocusTraversalModifierTest {
     fun steppingBackwardFromAComponentOutsideTheOrderContinuesFromItsEnd() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         setFormContent {
-            FlowPanel(modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
+            Panel(PanelLayout.Flow(), modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
                 Button("A", onClick = { })
                 Button("B", onClick = { })
                 Button("C", onClick = { })
-                FlowPanel(modifier = SwingModifier.testTag("group"))
+                Panel(PanelLayout.Flow(), modifier = SwingModifier.testTag("group")) {}
             }
         }
         val panel = formContainer(PANEL_TAG).fetch<JPanel>()

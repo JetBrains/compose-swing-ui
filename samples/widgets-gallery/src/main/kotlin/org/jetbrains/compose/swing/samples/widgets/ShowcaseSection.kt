@@ -5,7 +5,8 @@ import androidx.compose.runtime.remember
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Column
 import org.jetbrains.compose.swing.components.layout.ColumnScope
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.border
@@ -116,7 +117,7 @@ internal fun SectionColumn(cards: @Composable ColumnScope.() -> Unit) {
 
 @Composable
 internal fun SectionHeading(text: String) {
-    FlowPanel(alignment = FlowLayout.LEADING) {
+    Panel(PanelLayout.Flow(alignment = FlowLayout.LEADING)) {
         Label(
             text = text,
             modifier =

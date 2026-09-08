@@ -11,7 +11,8 @@ import org.jetbrains.compose.swing.components.Spinner
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.layout.ColumnScope
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.components.selection.RadioGroup
 import org.jetbrains.compose.swing.components.selection.Tree
@@ -94,7 +95,7 @@ private fun ColumnScope.SelectableTreeCard() {
         var toggleClicks by remember { mutableIntStateOf(2) }
         var rowHeight by remember { mutableIntStateOf(18) }
 
-        FlowPanel {
+        Panel {
             Label("Selection mode:")
             RadioGroup(
                 selectedIndex = selectionModeIndex,
@@ -104,7 +105,7 @@ private fun ColumnScope.SelectableTreeCard() {
                 selectionModes.forEach { (label, _) -> option(label) }
             }
         }
-        FlowPanel {
+        Panel {
             CheckBox(text = "Root visible", checked = rootVisible, onCheckedChange = { rootVisible = it })
             CheckBox(
                 text = "Show root handles",
@@ -142,7 +143,7 @@ private fun ColumnScope.ExpansionTreeCard() {
         val state = rememberTreeState(initialExpandedPaths = setOf(emptyList()))
         var lockDocs by remember { mutableStateOf(false) }
 
-        FlowPanel {
+        Panel {
             Button("Expand all", onClick = { state.expandedPaths = allPaths(sampleTree) })
             Button("Collapse all", onClick = { state.expandedPaths = emptySet() })
             Button("Reveal TreeTest.kt", onClick = { state.revealPath(listOf(0, 0, 1)) })
@@ -186,7 +187,10 @@ private fun ColumnScope.EditableTreeCard() {
                 isEditable = true,
                 onNodeEdit = { value, _, newValue -> renamed = renamed + (value to newValue.toString()) },
             ) { value ->
-                FlowPanel(modifier = SwingModifier.opaque(false), alignment = FlowLayout.LEADING, vgap = 0) {
+                Panel(
+                    PanelLayout.Flow(alignment = FlowLayout.LEADING, vgap = 0),
+                    modifier = SwingModifier.opaque(false),
+                ) {
                     // The look-and-feel's own file icons, so a node reads the same on every platform.
                     val icon = UIManager.getIcon(if (isLeaf) "FileView.fileIcon" else "FileView.directoryIcon")
                     Label("", modifier = SwingModifier.icon(icon))

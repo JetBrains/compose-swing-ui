@@ -24,10 +24,13 @@ import javax.swing.JLabel
 import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotSame
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
- * Behavioral coverage for the panel composables. Each test asserts the observable Swing facts: the
+ * Behavioral coverage for [Panel] and the layouts it is built under. Each test asserts the observable
+ * Swing facts: the
  * panel is a [JPanel] carrying the expected [java.awt.LayoutManager], it hosts its declared children
  * as real AWT descendants, and add/remove of children across recomposition is reflected in the live
  * component tree (count and order).
@@ -35,25 +38,50 @@ import kotlin.test.assertTrue
 class PanelLayoutTest {
     @Test
     fun anUndeclaredBorderPanelIsTheWidgetsOwn() = runComposeSwingTest {
-        setContent { BorderPanel { Label("a") } }
+        setContent { Panel(PanelLayout.Border()) { Label("a") } }
         onNodeWithText("a").onParent().assertTreeMatches(JPanel(BorderLayout()).apply { add(JLabel("a")) })
     }
 
     @Test
     fun anUndeclaredFlowPanelIsTheWidgetsOwn() = runComposeSwingTest {
-        setContent { FlowPanel { Label("a") } }
+        setContent { Panel(PanelLayout.Flow()) { Label("a") } }
         onNodeWithText("a").onParent().assertTreeMatches(JPanel(FlowLayout()).apply { add(JLabel("a")) })
     }
 
     @Test
+    fun aPanelSkipsAPassThatDeclaresAnEqualLayout() = runComposeSwingTest {
+        var tick by mutableStateOf(0)
+        PanelContentPasses.count = 0
+        setContent {
+            Label("tick $tick")
+            Panel(PanelLayout.Flow()) {
+                PanelContentPasses.count++
+                Label("child")
+            }
+        }
+        assertEquals(1, PanelContentPasses.count, "the pass that builds the panel")
+
+        tick++
+        awaitIdle()
+
+        assertEquals(1, PanelContentPasses.count, "a pass declaring an equal layout again")
+    }
+
+    @Test
+    fun aPanelUnderNoLayoutIsTheWidgetsOwn() = runComposeSwingTest {
+        setContent { Panel { Label("a") } }
+        onNodeWithText("a").onParent().assertTreeMatches(JPanel().apply { add(JLabel("a")) })
+    }
+
+    @Test
     fun anUndeclaredGridPanelIsTheWidgetsOwn() = runComposeSwingTest {
-        setContent { GridPanel { Label("a") } }
+        setContent { Panel(PanelLayout.Grid()) { Label("a") } }
         onNodeWithText("a").onParent().assertTreeMatches(JPanel(GridLayout()).apply { add(JLabel("a")) })
     }
 
     @Test
     fun anUndeclaredBoxPanelIsTheWidgetsOwn() = runComposeSwingTest {
-        setContent { BoxPanel { Label("a") } }
+        setContent { Panel(PanelLayout.Box()) { Label("a") } }
         val reference =
             JPanel().apply {
                 layout = BoxLayout(this, BoxLayout.Y_AXIS)
@@ -64,14 +92,14 @@ class PanelLayoutTest {
 
     @Test
     fun anUndeclaredGridBagPanelIsTheWidgetsOwn() = runComposeSwingTest {
-        setContent { GridBagPanel {} }
+        setContent { Panel(PanelLayout.GridBag) {} }
         onRoot().onChild().assertTreeMatches(JPanel(GridBagLayout()))
     }
 
     @Test
     fun borderPanelUsesBorderLayoutAndHostsChildren() = runComposeSwingTest {
         setContent {
-            BorderPanel {
+            Panel(PanelLayout.Border()) {
                 Label("only", SwingModifier.center())
             }
         }
@@ -85,7 +113,7 @@ class PanelLayoutTest {
     @Test
     fun flowPanelUsesFlowLayoutAndHostsChildrenInOrder() = runComposeSwingTest {
         setContent {
-            FlowPanel {
+            Panel(PanelLayout.Flow()) {
                 Label("a")
                 Label("b")
             }
@@ -98,9 +126,9 @@ class PanelLayoutTest {
     }
 
     @Test
-    fun boxPanelUsesBoxLayout() = runComposeSwingTest {
+    fun linearPanelUsesBoxLayout() = runComposeSwingTest {
         setContent {
-            BoxPanel(axis = BoxLayout.X_AXIS) {
+            Panel(PanelLayout.Box(axis = BoxLayout.X_AXIS)) {
                 Label("a")
             }
         }
@@ -173,7 +201,7 @@ class PanelLayoutTest {
     @Test
     fun gridPanelUsesGridLayout() = runComposeSwingTest {
         setContent {
-            GridPanel(rows = 2, cols = 2) {
+            Panel(PanelLayout.Grid(rows = 2, cols = 2)) {
                 Label("a")
                 Label("b")
             }
@@ -188,7 +216,7 @@ class PanelLayoutTest {
     @Test
     fun gridBagPanelUsesGridBagLayout() = runComposeSwingTest {
         setContent {
-            GridBagPanel {
+            Panel(PanelLayout.GridBag) {
                 Label("a", SwingModifier.item(gridx = 0, gridy = 0))
             }
         }
@@ -210,7 +238,7 @@ class PanelLayoutTest {
     @Test
     fun cardPanelUsesCardLayout() = runComposeSwingTest {
         setContent {
-            CardPanel(selectedCard = "only") {
+            Panel(PanelLayout.Card(selectedCard = "only")) {
                 Label("a", SwingModifier.card("only"))
             }
         }
@@ -225,7 +253,7 @@ class PanelLayoutTest {
     fun panelAddsAndRemovesChildrenAcrossRecomposition() = runComposeSwingTest {
         var showSecond by mutableStateOf(false)
         setContent {
-            FlowPanel {
+            Panel {
                 Label("first")
                 if (showSecond) Label("second")
             }
@@ -251,8 +279,8 @@ class PanelLayoutTest {
     @Test
     fun nestedPanelsHostTheirOwnChildren() = runComposeSwingTest {
         setContent {
-            BoxPanel(axis = BoxLayout.Y_AXIS) {
-                FlowPanel {
+            Panel(PanelLayout.Box(axis = BoxLayout.Y_AXIS)) {
+                Panel {
                     Label("leaf")
                 }
             }
@@ -266,4 +294,46 @@ class PanelLayoutTest {
         outer.onChildren().assertCountEquals(1)
         outer.onChildren().assertAll(SwingMatcher.isOfType<JPanel>())
     }
+
+    @Test
+    fun aNewLayoutKindBuildsANewPanel() = runComposeSwingTest {
+        var flow by mutableStateOf(false)
+        setContent {
+            Panel(if (flow) PanelLayout.Flow() else PanelLayout.Grid()) { Label("a") }
+        }
+        val grid = onNodeWithText("a").onParent().fetch<JPanel>()
+        assertTrue(grid.layout is GridLayout, "the panel should start under the layout declared first")
+
+        flow = true
+        awaitIdle()
+
+        val flowed = onNodeWithText("a").onParent().fetch<JPanel>()
+        assertNotSame(grid, flowed, "a new layout kind should build a new panel")
+        assertTrue(flowed.layout is FlowLayout, "the new panel should hold the layout declared for it")
+    }
+
+    @Test
+    fun aNewSelectedCardKeepsTheDeckStanding() = runComposeSwingTest {
+        var selected by mutableStateOf("first")
+        setContent {
+            Panel(PanelLayout.Card(selectedCard = selected)) {
+                Label("first", SwingModifier.card("first"))
+                Label("second", SwingModifier.card("second"))
+            }
+        }
+        val deck = onNodeWithText("first").onParent().fetch<JPanel>()
+
+        selected = "second"
+        awaitIdle()
+
+        assertSame(deck, onNodeWithText("second").onParent().fetch(), "a card flip should keep the deck")
+    }
+}
+
+/**
+ * How many passes reached a panel's content, counted through an object rather than a captured variable
+ * so that the content lambda captures nothing and the pass a panel skips is decided by its layout alone.
+ */
+private object PanelContentPasses {
+    var count: Int = 0
 }

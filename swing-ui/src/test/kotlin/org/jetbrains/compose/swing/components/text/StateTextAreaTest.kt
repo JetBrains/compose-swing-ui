@@ -1,7 +1,8 @@
 package org.jetbrains.compose.swing.components.text
 
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.components.layout.BoxPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.test.interaction.performTextReplacement
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -106,7 +107,7 @@ class StateTextAreaTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState("hi")
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 TextArea(state = state)
                 Label(text = "Echo: ${state.text}")
             }

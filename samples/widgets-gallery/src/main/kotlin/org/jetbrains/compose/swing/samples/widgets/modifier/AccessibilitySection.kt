@@ -10,7 +10,7 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.Column
 import org.jetbrains.compose.swing.components.layout.ColumnScope
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.accessibility.accessibleDescription
@@ -66,7 +66,7 @@ private fun ColumnScope.LabelForCard() {
     ExampleCard("labelFor (label captions a field)") {
         var name by remember { mutableStateOf("") }
         val usernameField = rememberLabelTarget()
-        FlowPanel {
+        Panel {
             Label(
                 "Username:",
                 modifier = SwingModifier.labelFor(usernameField).mnemonic('U'),
@@ -85,7 +85,7 @@ private fun ColumnScope.LabelForCard() {
 private fun ColumnScope.MnemonicCard() {
     ExampleCard("mnemonic (Alt+S activates Save)") {
         var saves by remember { mutableIntStateOf(0) }
-        FlowPanel {
+        Panel {
             Button(
                 "Save",
                 onClick = { saves++ },
@@ -100,7 +100,7 @@ private fun ColumnScope.MnemonicCard() {
 private fun ColumnScope.DefaultButtonCard() {
     ExampleCard("defaultButton (Enter activates Submit)") {
         var submits by remember { mutableIntStateOf(0) }
-        FlowPanel {
+        Panel {
             Button(
                 "Submit",
                 onClick = { submits++ },

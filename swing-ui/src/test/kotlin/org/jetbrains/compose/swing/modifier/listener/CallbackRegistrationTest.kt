@@ -4,7 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.button.Button
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -51,7 +51,7 @@ class CallbackRegistrationTest {
         var onBackgroundNow by mutableStateOf(false)
         val seen = mutableListOf<String>()
         setContent {
-            FlowPanel {
+            Panel {
                 Button(
                     text = "declared",
                     onClick = { },
@@ -90,7 +90,7 @@ class CallbackRegistrationTest {
     fun aFreshCallbackOnTheSameRegistrationLeavesTheListenerWhereItIs() = runComposeSwingTest {
         var label by mutableStateOf("first")
         setContent {
-            FlowPanel {
+            Panel {
                 // A lambda written here is a new object on every pass; the registration is not, and it
                 // is the registration that says where the listener sits.
                 Button(
@@ -117,7 +117,7 @@ class CallbackRegistrationTest {
     fun oneRegistrationServesEveryDeclarationOfTheSameBoundProperty() = runComposeSwingTest {
         var label by mutableStateOf("first")
         setContent {
-            FlowPanel {
+            Panel {
                 Button(text = label, onClick = { }, modifier = SwingModifier.propertyChangeListener("enabled") { })
             }
         }
@@ -138,7 +138,7 @@ class CallbackRegistrationTest {
     fun aCallbackDeclaredOnAnotherBoundPropertyIsRegisteredThere() = runComposeSwingTest {
         var onBackgroundNow by mutableStateOf(false)
         setContent {
-            FlowPanel {
+            Panel {
                 Button(
                     text = "declared",
                     onClick = { },

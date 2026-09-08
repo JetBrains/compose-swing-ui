@@ -2,7 +2,8 @@ package org.jetbrains.compose.swing.components.selection
 
 import org.jetbrains.compose.swing.components.ComboBox
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.test.onAllNodesOfType
@@ -47,7 +48,7 @@ class ComposableCellLayoutTest {
     fun aRowIsMeasuredByTheCellsOwnComponent() = runComposeSwingTest {
         setContent {
             ListBox(items = listOf("alpha")) { item ->
-                FlowPanel { Label(item) }
+                Panel { Label(item) }
             }
         }
 
@@ -66,7 +67,7 @@ class ComposableCellLayoutTest {
         // than by the cell would come out shorter.
         setContent {
             ComboBox(items = listOf("Kotlin", "Java"), selectedItem = "Kotlin", onSelectionChange = {}) { item ->
-                FlowPanel(modifier = SwingModifier.preferredSize(80, 90)) { Label(item) }
+                Panel(PanelLayout.Flow(), modifier = SwingModifier.preferredSize(80, 90)) { Label(item) }
             }
         }
 
@@ -83,7 +84,7 @@ class ComposableCellLayoutTest {
     fun theSameComponentIsRestampedForEveryRow() = runComposeSwingTest {
         setContent {
             ListBox(items = listOf("alpha", "beta")) { item ->
-                FlowPanel { Label(item) }
+                Panel { Label(item) }
             }
         }
 
@@ -97,8 +98,8 @@ class ComposableCellLayoutTest {
     @Test
     fun cellsOfDifferentWidgetsRenderIndependently() = runComposeSwingTest {
         setContent {
-            ListBox(items = listOf("alpha")) { item -> FlowPanel { Label(item) } }
-            ListBox(items = listOf("beta")) { item -> FlowPanel { Label(item) } }
+            ListBox(items = listOf("alpha")) { item -> Panel { Label(item) } }
+            ListBox(items = listOf("beta")) { item -> Panel { Label(item) } }
         }
 
         // Every cell composition is rooted at the same empty container, so two widgets rendering composable

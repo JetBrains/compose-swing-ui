@@ -6,7 +6,8 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.button.CheckBox
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.composeMenu
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -169,7 +170,7 @@ class IconModifierTest {
         val failure =
             assertFailsWith<IllegalStateException> {
                 runComposeSwingTest {
-                    setContent { FlowPanel(modifier = SwingModifier.icon(icon())) }
+                    setContent { Panel(PanelLayout.Flow(), modifier = SwingModifier.icon(icon())) {} }
                 }
             }
 

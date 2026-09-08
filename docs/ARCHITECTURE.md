@@ -158,15 +158,16 @@ already on the node by the time the child is added to its parent, so the child a
 it declares rather than being added and then moved there.
 
 A container supplies the layout manager and a scope naming the placements that manager understands.
-`BorderPanel` is the canonical one: its regions are modifier builders declared on its scope, callable
-only inside a `BorderPanel`'s content, each appending the `BorderLayout` constraint it names. Emitting
-a child adds it in the region it declares, dropping the child removes it, and declaring a different
-region moves it. A child that declares no region is a center child. The same mechanism extends to
-other constraint-based layouts, and to hosts whose children are installed through dedicated setters
-(such as a scroll pane's viewport, headers, and corners) rather than a generic add.
+A `PanelLayout.Border` panel is the canonical one: its regions are modifier builders declared on
+`BorderPanelScope`, callable only inside that panel's content, each appending the `BorderLayout`
+constraint it names. Emitting a child adds it in the region it declares, dropping the child removes
+it, and declaring a different region moves it. A child that declares no region is a center child. The
+same mechanism extends to other constraint-based layouts, and to hosts whose children are installed
+through dedicated setters (such as a scroll pane's viewport, headers, and corners) rather than a
+generic add.
 
 `layoutConstraint` is public, which is what makes a container over a layout manager the library does
-not wrap possible at all: the container supplies the manager and hosts arbitrary content, and each
+not model possible at all: the container supplies the manager and hosts arbitrary content, and each
 child it holds names its own place in it. The value is untyped, matching what a container takes; a
 manager's author names it in a scope of typed builders for their own callers.
 
@@ -456,9 +457,9 @@ sequenceDiagram
 5. Once the change pass completes, that container is laid out and repainted once, and the new label
    is on screen.
 
-If a child had appeared or disappeared instead - a conditional inside `BorderPanel` - the applied
-change would be an insert or remove in the region that child declares, and the layout-and-repaint pass
-is what makes the structural change visible.
+If a child had appeared or disappeared instead - a conditional inside a `PanelLayout.Border` panel -
+the applied change would be an insert or remove in the region that child declares, and the
+layout-and-repaint pass is what makes the structural change visible.
 
 ---
 

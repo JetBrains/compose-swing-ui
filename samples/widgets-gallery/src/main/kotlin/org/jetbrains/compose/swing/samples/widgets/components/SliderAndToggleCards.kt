@@ -11,7 +11,7 @@ import org.jetbrains.compose.swing.components.ProgressBar
 import org.jetbrains.compose.swing.components.Slider
 import org.jetbrains.compose.swing.components.button.ToggleButton
 import org.jetbrains.compose.swing.components.layout.ColumnScope
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import javax.swing.DefaultBoundedRangeModel
 
@@ -22,7 +22,7 @@ internal fun ColumnScope.SharedRangeModelCard() {
         // recomposition, since the bar renders the model it was handed rather than a value declared over it.
         val range = remember { DefaultBoundedRangeModel(30, 0, 0, 100) }
         var value by remember { mutableIntStateOf(range.value) }
-        FlowPanel {
+        Panel {
             Label("Value:")
             Slider(model = range, onValueChange = { value = it })
         }

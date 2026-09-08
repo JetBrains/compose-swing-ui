@@ -3,7 +3,8 @@ package org.jetbrains.compose.swing.window
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.test.onWindow
@@ -31,7 +32,7 @@ class WindowPackToContentTest {
         val state = WindowState()
         setContent {
             Window(onCloseRequest = {}, state = state, title = "window-pack-test") {
-                FlowPanel(modifier = SwingModifier.preferredSize(CONTENT_WIDTH, CONTENT_HEIGHT))
+                Panel(PanelLayout.Flow(), modifier = SwingModifier.preferredSize(CONTENT_WIDTH, CONTENT_HEIGHT)) {}
             }
         }
         val frame = onWindow().fetch<JFrame>()
@@ -54,7 +55,7 @@ class WindowPackToContentTest {
         val state = DialogState()
         setContent {
             Dialog(onCloseRequest = {}, state = state, title = "dialog-pack-test") {
-                FlowPanel(modifier = SwingModifier.preferredSize(CONTENT_WIDTH, CONTENT_HEIGHT))
+                Panel(PanelLayout.Flow(), modifier = SwingModifier.preferredSize(CONTENT_WIDTH, CONTENT_HEIGHT)) {}
             }
         }
         val dialog = onWindow().fetch<JDialog>()
@@ -77,7 +78,7 @@ class WindowPackToContentTest {
         val state = WindowState(size = Dimension(420, 300))
         setContent {
             Window(onCloseRequest = {}, state = state, title = "window-explicit-size-test") {
-                FlowPanel(modifier = SwingModifier.preferredSize(CONTENT_WIDTH, CONTENT_HEIGHT))
+                Panel(PanelLayout.Flow(), modifier = SwingModifier.preferredSize(CONTENT_WIDTH, CONTENT_HEIGHT)) {}
             }
         }
         val frame = onWindow().fetch<JFrame>()
@@ -93,7 +94,7 @@ class WindowPackToContentTest {
         val state = DialogState(size = Dimension(360, 240))
         setContent {
             Dialog(onCloseRequest = {}, state = state, title = "dialog-explicit-size-test") {
-                FlowPanel(modifier = SwingModifier.preferredSize(CONTENT_WIDTH, CONTENT_HEIGHT))
+                Panel(PanelLayout.Flow(), modifier = SwingModifier.preferredSize(CONTENT_WIDTH, CONTENT_HEIGHT)) {}
             }
         }
         val dialog = onWindow().fetch<JDialog>()
@@ -109,7 +110,7 @@ class WindowPackToContentTest {
         val state = WindowState()
         setContent {
             Window(onCloseRequest = {}, state = state, title = "window-pack-writeback-test") {
-                FlowPanel(modifier = SwingModifier.preferredSize(CONTENT_WIDTH, CONTENT_HEIGHT))
+                Panel(PanelLayout.Flow(), modifier = SwingModifier.preferredSize(CONTENT_WIDTH, CONTENT_HEIGHT)) {}
             }
         }
         val frame = onWindow().fetch<JFrame>()
@@ -128,7 +129,7 @@ class WindowPackToContentTest {
         val state = WindowState()
         setContent {
             Window(onCloseRequest = {}, state = state, title = "window-repack-test") {
-                FlowPanel(modifier = SwingModifier.preferredSize(CONTENT_WIDTH, CONTENT_HEIGHT))
+                Panel(PanelLayout.Flow(), modifier = SwingModifier.preferredSize(CONTENT_WIDTH, CONTENT_HEIGHT)) {}
             }
         }
         val frame = onWindow().fetch<JFrame>()
@@ -158,7 +159,7 @@ class WindowPackToContentTest {
         var windowTitle by mutableStateOf("window-repack-noop-test")
         setContent {
             Window(onCloseRequest = {}, state = state, title = windowTitle) {
-                FlowPanel(modifier = SwingModifier.preferredSize(CONTENT_WIDTH, CONTENT_HEIGHT))
+                Panel(PanelLayout.Flow(), modifier = SwingModifier.preferredSize(CONTENT_WIDTH, CONTENT_HEIGHT)) {}
             }
         }
         val frame = onWindow().fetch<JFrame>()

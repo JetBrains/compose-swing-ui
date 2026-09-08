@@ -5,7 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.button.Button
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -25,7 +25,7 @@ class InstanceRegistrationTest {
     fun theSameInstanceDeclaredOnAnotherRegistrationIsAddedThere() = runComposeSwingTest {
         var motion by mutableStateOf(false)
         setContent {
-            FlowPanel {
+            Panel {
                 val handler = remember { object : MouseAdapter() {} }
                 Button(
                     text = if (motion) "motion" else "plain",
@@ -63,7 +63,7 @@ class InstanceRegistrationTest {
         var removals = 0
         var label by mutableStateOf("first")
         setContent {
-            FlowPanel {
+            Panel {
                 val handler = remember { object : MouseAdapter() {} }
                 // Remembered, so every pass hands the seam the same registration and only the instance
                 // could differ.

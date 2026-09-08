@@ -25,7 +25,7 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
- * Behavioral tests for [CardPanel] and the cards its children name for themselves.
+ * Behavioral tests for [PanelLayout.Card] and the cards its children name for themselves.
  *
  * Every child is a real child of the panel; which one is on top is Swing's own visibility state, so each
  * test asserts on the panel's children for what is attached and on each child's visibility for what is
@@ -55,14 +55,14 @@ class CardPanelBehaviorTest {
 
     @Test
     fun anUndeclaredCardPanelIsTheWidgetsOwn() = runComposeSwingTest {
-        setContent { CardPanel(selectedCard = "a") { Label("a", SwingModifier.card("a")) } }
+        setContent { Panel(PanelLayout.Card(selectedCard = "a")) { Label("a", SwingModifier.card("a")) } }
         onNodeWithText("a").onParent().assertTreeMatches(JPanel(CardLayout()).apply { add(JLabel("a"), "a") })
     }
 
     @Test
     fun onlyTheSelectedCardIsShown() = runComposeSwingTest {
         setContent {
-            CardPanel(selectedCard = "second") {
+            Panel(PanelLayout.Card(selectedCard = "second")) {
                 Label("first", SwingModifier.card("first"))
                 Label("second", SwingModifier.card("second"))
                 Label("third", SwingModifier.card("third"))
@@ -77,7 +77,7 @@ class CardPanelBehaviorTest {
     fun changingTheSelectedCardSwapsTheShownChild() = runComposeSwingTest {
         var selected by mutableStateOf("first")
         setContent {
-            CardPanel(selectedCard = selected) {
+            Panel(PanelLayout.Card(selectedCard = selected)) {
                 Label("first", SwingModifier.card("first"))
                 Label("second", SwingModifier.card("second"))
             }
@@ -99,7 +99,7 @@ class CardPanelBehaviorTest {
     fun aCardAndTheSelectionNamingItAreSettledByThePassThatDeclaresBoth() = runComposeSwingTest {
         var grown by mutableStateOf(false)
         setContent {
-            CardPanel(selectedCard = if (grown) "third" else "first") {
+            Panel(PanelLayout.Card(selectedCard = if (grown) "third" else "first")) {
                 Label("first", SwingModifier.card("first"))
                 Label("second", SwingModifier.card("second"))
                 if (grown) Label("third", SwingModifier.card("third"))
@@ -123,7 +123,7 @@ class CardPanelBehaviorTest {
     fun aKeyMatchingNoCardLeavesTheShownCardInPlace() = runComposeSwingTest {
         var selected by mutableStateOf("second")
         setContent {
-            CardPanel(selectedCard = selected) {
+            Panel(PanelLayout.Card(selectedCard = selected)) {
                 Label("first", SwingModifier.card("first"))
                 Label("second", SwingModifier.card("second"))
             }
@@ -141,7 +141,7 @@ class CardPanelBehaviorTest {
     fun droppingACardRemovesItAndLeavesTheRestIntact() = runComposeSwingTest {
         var showSecond by mutableStateOf(true)
         setContent {
-            CardPanel(selectedCard = "third") {
+            Panel(PanelLayout.Card(selectedCard = "third")) {
                 Label("first", SwingModifier.card("first"))
                 if (showSecond) {
                     Label("second", SwingModifier.card("second"))
@@ -166,7 +166,7 @@ class CardPanelBehaviorTest {
         var named by mutableStateOf("alpha")
         var selected by mutableStateOf("alpha")
         setContent {
-            CardPanel(selectedCard = selected) {
+            Panel(PanelLayout.Card(selectedCard = selected)) {
                 Label("body", SwingModifier.card(named))
                 Label("other", SwingModifier.card("other"))
             }
@@ -196,7 +196,7 @@ class CardPanelBehaviorTest {
         var placed by mutableStateOf(true)
         var selected by mutableStateOf("first")
         setContent {
-            CardPanel(selectedCard = selected) {
+            Panel(PanelLayout.Card(selectedCard = selected)) {
                 Label("first", SwingModifier.card("first"))
                 Label("second", if (placed) SwingModifier.card("second") else SwingModifier)
             }
@@ -224,7 +224,7 @@ class CardPanelBehaviorTest {
     fun aCardsContentFollowsItsDeclaration() = runComposeSwingTest {
         var caption by mutableStateOf("first")
         setContent {
-            CardPanel(selectedCard = "only") {
+            Panel(PanelLayout.Card(selectedCard = "only")) {
                 Label(caption, SwingModifier.card("only"))
             }
         }
@@ -246,7 +246,7 @@ class CardPanelBehaviorTest {
             // One call site declares every card, so `key` around each declaration is what distinguishes
             // it from its siblings. Each body names the declaration that created its state and the order
             // that state was created in, so a body that outlives its declaration keeps that name.
-            CardPanel(selectedCard = "one") {
+            Panel(PanelLayout.Card(selectedCard = "one")) {
                 val declared = if (leading) listOf("added", "one", "two") else listOf("one", "two")
                 declared.forEach { cardKey ->
                     key(cardKey) { Label(remember { "$cardKey#${++created[0]}" }, SwingModifier.card(cardKey)) }
@@ -270,7 +270,7 @@ class CardPanelBehaviorTest {
         val failure =
             assertFailsWith<IllegalArgumentException> {
                 setContent {
-                    CardPanel(selectedCard = "shared") {
+                    Panel(PanelLayout.Card(selectedCard = "shared")) {
                         Label("first", SwingModifier.card("shared"))
                         Label("second", SwingModifier.card("shared"))
                     }
@@ -290,7 +290,7 @@ class CardPanelBehaviorTest {
         val failure =
             assertFailsWith<IllegalArgumentException> {
                 setContent {
-                    CardPanel(selectedCard = "") {
+                    Panel(PanelLayout.Card(selectedCard = "")) {
                         Label("first")
                         Label("second")
                     }
@@ -308,7 +308,7 @@ class CardPanelBehaviorTest {
     fun aParkedChildYieldsItsCardToTheOneReplacingIt() = runComposeSwingTest {
         var parked by mutableStateOf(false)
         setContent {
-            CardPanel(selectedCard = "shared") {
+            Panel(PanelLayout.Card(selectedCard = "shared")) {
                 // A parked child gives up its card as the applier releases it, which is part of the same
                 // pass that puts the incoming child on the deck. The card is held twice while that pass
                 // runs, and by one child once it has been dispatched whole - which is when it is counted.
@@ -332,7 +332,7 @@ class CardPanelBehaviorTest {
     fun theChildThatNamesNoCardIsShownByTheEmptyKey() = runComposeSwingTest {
         var selected by mutableStateOf("named")
         setContent {
-            CardPanel(selectedCard = selected) {
+            Panel(PanelLayout.Card(selectedCard = selected)) {
                 Label("unnamed")
                 Label("named", SwingModifier.card("named"))
             }
@@ -350,10 +350,29 @@ class CardPanelBehaviorTest {
     }
 
     @Test
+    fun anUnnamedCardAddedAfterTheSelectedEmptyCardIsShown() = runComposeSwingTest {
+        setContent {
+            Panel(PanelLayout.Card(selectedCard = "")) {
+                Label("named", SwingModifier.card("named"))
+                Label("unnamed")
+            }
+        }
+
+        assertTrue(
+            onNodeWithText("unnamed").fetch<JLabel>().isVisible,
+            "the later child with no card name should be shown for selectedCard=\"\"",
+        )
+        assertTrue(
+            !onNodeWithText("named").fetch<JLabel>().isVisible,
+            "a named card should stay hidden when the selected card is the empty key",
+        )
+    }
+
+    @Test
     fun aCardCannotBeNamedByTheEmptyKey() = runComposeSwingTest {
         assertFailsWith<IllegalArgumentException> {
             setContent {
-                CardPanel(selectedCard = "only") {
+                Panel(PanelLayout.Card(selectedCard = "only")) {
                     Label("only", SwingModifier.card(""))
                 }
             }
@@ -363,7 +382,7 @@ class CardPanelBehaviorTest {
     @Test
     fun theDeclaredGapsReachTheLayout() = runComposeSwingTest {
         setContent {
-            CardPanel(selectedCard = "only", hgap = HGAP, vgap = VGAP) {
+            Panel(PanelLayout.Card(selectedCard = "only", hgap = HGAP, vgap = VGAP)) {
                 Label("only", SwingModifier.card("only"))
             }
         }

@@ -3,7 +3,8 @@ package org.jetbrains.compose.swing.window
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.test.onWindow
@@ -242,7 +243,7 @@ class WindowReactivityTest {
                 title = "minimum-size-pack-test",
                 minimumSize = Dimension(320, 240),
             ) {
-                FlowPanel(modifier = SwingModifier.preferredSize(40, 30))
+                Panel(PanelLayout.Flow(), modifier = SwingModifier.preferredSize(40, 30)) {}
             }
         }
         val frame = onWindow().fetch<JFrame>()

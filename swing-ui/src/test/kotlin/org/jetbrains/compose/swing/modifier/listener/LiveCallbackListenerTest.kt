@@ -4,7 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.button.Button
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.toolTip
 import org.jetbrains.compose.swing.test.interaction.performClick
@@ -56,7 +56,7 @@ class LiveCallbackListenerTest {
         var reported = ""
         var declared by mutableStateOf("first")
         setContent {
-            FlowPanel {
+            Panel {
                 // Captured while the chain is built, so each lambda reports the value its own pass
                 // declared. A value read when the click fires is the latest one whichever pass wrote
                 // the lambda, which cannot tell a stale callback from a live one.
@@ -86,7 +86,7 @@ class LiveCallbackListenerTest {
         val pressed = mutableListOf<String>()
         var declared by mutableStateOf("first")
         setContent {
-            FlowPanel {
+            Panel {
                 Button(
                     text = "press",
                     onClick = { },
@@ -113,7 +113,7 @@ class LiveCallbackListenerTest {
         val second = mutableListOf<String>()
         var declared by mutableStateOf("one")
         setContent {
-            FlowPanel {
+            Panel {
                 val captured = declared
                 Button(
                     text = "press",
@@ -144,7 +144,7 @@ class LiveCallbackListenerTest {
         val fired = mutableMapOf<String, MutableList<String>>()
         var declared by mutableStateOf("one")
         setContent {
-            FlowPanel {
+            Panel {
                 // Read where the chain is built, so a slot left holding an earlier pass's callback
                 // reports that pass's value instead of the one declared now.
                 val captured = declared
@@ -207,7 +207,7 @@ class LiveCallbackListenerTest {
         val second = mutableListOf<String>()
         var declared by mutableStateOf("one")
         setContent {
-            FlowPanel {
+            Panel {
                 val captured = declared
                 Button(
                     text = "press",
@@ -239,7 +239,7 @@ class LiveCallbackListenerTest {
         val second = mutableListOf<String>()
         var declared by mutableStateOf("one")
         setContent {
-            FlowPanel {
+            Panel {
                 val captured = declared
                 Button(
                     text = "press",
@@ -270,7 +270,7 @@ class LiveCallbackListenerTest {
         val pressed = mutableListOf<String>()
         var declared by mutableStateOf("first")
         setContent {
-            FlowPanel {
+            Panel {
                 Button(
                     text = "press",
                     onClick = { },
@@ -307,7 +307,7 @@ class LiveCallbackListenerTest {
         // another chain takes its new callback with it rather than writing it into this one.
         val shared = SwingModifier.actionListener { hoisted += "hoisted" }
         setContent {
-            FlowPanel {
+            Panel {
                 Button(
                     text = "mover",
                     onClick = { },
@@ -331,7 +331,7 @@ class LiveCallbackListenerTest {
         val pressed = mutableListOf<String>()
         var listening by mutableStateOf(true)
         setContent {
-            FlowPanel {
+            Panel {
                 Button(
                     text = "press",
                     onClick = { },

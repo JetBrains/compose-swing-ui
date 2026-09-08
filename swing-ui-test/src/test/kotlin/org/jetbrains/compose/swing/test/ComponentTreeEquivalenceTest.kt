@@ -2,7 +2,8 @@ package org.jetbrains.compose.swing.test
 
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
-import org.jetbrains.compose.swing.components.layout.BorderPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.interaction.onParent
 import java.awt.BorderLayout
@@ -523,7 +524,7 @@ class ComponentTreeEquivalenceTest {
 
     @Test
     fun theReferenceIsToldOfTheResizeItWasLaidOutAt() = runComposeSwingTest {
-        setContent { BorderPanel { Label("a") } }
+        setContent { Panel(PanelLayout.Border()) { Label("a") } }
         var announced: Dimension? = null
         var announcements = 0
         val label =

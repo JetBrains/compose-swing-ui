@@ -1,6 +1,6 @@
 package org.jetbrains.compose.swing.window
 
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.Dimension
@@ -38,7 +38,7 @@ class WindowPlacementWriteBackTest {
         setContent {
             Window(onCloseRequest = {}, state = state, title = "placement-declared", visible = false) {
                 frame = LocalWindow.current as JFrame
-                FlowPanel()
+                Panel {}
             }
         }
 
@@ -60,7 +60,7 @@ class WindowPlacementWriteBackTest {
         setContent {
             Window(onCloseRequest = {}, state = state, title = "placement-platform-default", visible = false) {
                 frame = LocalWindow.current as JFrame
-                FlowPanel()
+                Panel {}
             }
         }
 
@@ -82,7 +82,7 @@ class WindowPlacementWriteBackTest {
         setContent {
             Window(onCloseRequest = {}, state = state, title = "placement-after-resolution", visible = false) {
                 frame = LocalWindow.current as JFrame
-                FlowPanel()
+                Panel {}
             }
         }
         // The window system settles the position that names no coordinates on its own placement, and
@@ -123,7 +123,7 @@ class WindowPlacementWriteBackTest {
         setContent {
             Window(onCloseRequest = {}, state = state, title = "placement-after-user-move", visible = false) {
                 frame = LocalWindow.current as JFrame
-                FlowPanel()
+                Panel {}
             }
         }
         // The window system reports the declared placement performed, and then has the window on
@@ -166,7 +166,7 @@ class WindowPlacementWriteBackTest {
         setContent {
             Window(onCloseRequest = {}, state = state, title = "placement-superseded-by-user", visible = false) {
                 frame = LocalWindow.current as JFrame
-                FlowPanel()
+                Panel {}
             }
         }
         // The window system reports the declared placement performed, and then has the window on
@@ -215,7 +215,7 @@ class WindowPlacementWriteBackTest {
         setContent {
             Dialog(onCloseRequest = {}, state = state, title = "placement-declared-dialog", visible = false) {
                 dialog = LocalWindow.current as JDialog
-                FlowPanel()
+                Panel {}
             }
         }
 

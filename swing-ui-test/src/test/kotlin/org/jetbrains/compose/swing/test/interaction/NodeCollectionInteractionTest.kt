@@ -5,8 +5,8 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
-import org.jetbrains.compose.swing.components.layout.BoxPanel
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.modifier.interaction.enabled
@@ -33,7 +33,7 @@ class NodeCollectionInteractionTest {
     @Test
     fun countAndFetchSizeAgreeForACollection() = runComposeSwingTest {
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 Label(text = "row")
                 Label(text = "row")
                 Label(text = "row")
@@ -55,7 +55,7 @@ class NodeCollectionInteractionTest {
     @Test
     fun assertCountEqualsReturnsTheSameCollectionForChaining() = runComposeSwingTest {
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 Label(text = "row")
                 Label(text = "row")
             }
@@ -69,7 +69,7 @@ class NodeCollectionInteractionTest {
     @Test
     fun aWrongCountAssertionFails() = runComposeSwingTest {
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 Label(text = "row")
                 Label(text = "row")
             }
@@ -80,7 +80,7 @@ class NodeCollectionInteractionTest {
     @Test
     fun fetchAllReturnsEveryMatchingComponentTypedAndInTreeOrder() = runComposeSwingTest {
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 Label(text = "alpha")
                 Label(text = "beta")
                 Button(text = "go", onClick = { })
@@ -93,7 +93,7 @@ class NodeCollectionInteractionTest {
     @Test
     fun fetchAllFailsWhenAMatchedNodeIsNotTheRequestedType() = runComposeSwingTest {
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 Label(text = "alpha")
                 Button(text = "go", onClick = { })
             }
@@ -105,8 +105,8 @@ class NodeCollectionInteractionTest {
     @Test
     fun filteringOnAnAncestorNarrowsAQueryToThatSubtree() = runComposeSwingTest {
         setContent {
-            BoxPanel {
-                FlowPanel(modifier = SwingModifier.name("inside")) {
+            Panel(PanelLayout.Box()) {
+                Panel(PanelLayout.Flow(), modifier = SwingModifier.name("inside")) {
                     Label(text = "alpha")
                     Label(text = "beta")
                 }
@@ -129,7 +129,7 @@ class NodeCollectionInteractionTest {
     fun filterAndFilterToOneReResolveAgainstTheLiveTree() = runComposeSwingTest {
         var rows by mutableIntStateOf(1)
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 repeat(rows) { index -> Label(text = "row", modifier = SwingModifier.name("row-$index")) }
             }
         }
@@ -149,7 +149,7 @@ class NodeCollectionInteractionTest {
     @Test
     fun filterToOneFailsWhenTheFilterLeavesMoreThanOneNode() = runComposeSwingTest {
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 Label(text = "row")
                 Label(text = "row")
             }
@@ -169,7 +169,7 @@ class NodeCollectionInteractionTest {
     @Test
     fun assertAllHoldsForEveryMatchAndNamesTheNodesThatViolateIt() = runComposeSwingTest {
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 Button(text = "on", onClick = {})
                 Button(text = "off", onClick = {}, modifier = SwingModifier.enabled(false))
             }
@@ -189,7 +189,7 @@ class NodeCollectionInteractionTest {
     @Test
     fun assertAnyHoldsForOneMatchAndFailsReadablyOtherwise() = runComposeSwingTest {
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 Label(text = "alpha")
                 Label(text = "beta")
             }
@@ -215,7 +215,7 @@ class NodeCollectionInteractionTest {
     @Test
     fun getTargetsTheMatchAtTheGivenIndex() = runComposeSwingTest {
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 Label(text = "row", modifier = SwingModifier.name("row-0"))
                 Label(text = "row", modifier = SwingModifier.name("row-1"))
                 Label(text = "row", modifier = SwingModifier.name("row-2"))
@@ -230,7 +230,7 @@ class NodeCollectionInteractionTest {
     @Test
     fun getFailsOnUseWhenTheIndexIsOutOfBounds() = runComposeSwingTest {
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 Label(text = "row")
                 Label(text = "row")
             }
@@ -247,7 +247,7 @@ class NodeCollectionInteractionTest {
     fun onFirstAndOnLastTargetTheEndsAndTrackRecomposition() = runComposeSwingTest {
         var rows by mutableIntStateOf(2)
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 repeat(rows) { index -> Label(text = "row", modifier = SwingModifier.name("row-$index")) }
             }
         }
@@ -272,9 +272,9 @@ class NodeCollectionInteractionTest {
     @Test
     fun getIndexesTheFilteredMatchSet() = runComposeSwingTest {
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 Label(text = "before")
-                FlowPanel(modifier = SwingModifier.name("inside")) {
+                Panel(PanelLayout.Flow(), modifier = SwingModifier.name("inside")) {
                     Label(text = "alpha")
                     Label(text = "beta")
                 }
@@ -290,7 +290,7 @@ class NodeCollectionInteractionTest {
     fun aHeldCollectionReResolvesAsRecompositionAddsAndRemovesMatches() = runComposeSwingTest {
         var rows by mutableIntStateOf(1)
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 repeat(rows) { Label(text = "row") }
             }
         }

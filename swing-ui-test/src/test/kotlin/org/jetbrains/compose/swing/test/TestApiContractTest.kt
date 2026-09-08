@@ -6,8 +6,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
-import org.jetbrains.compose.swing.components.layout.BorderPanel
-import org.jetbrains.compose.swing.components.layout.BoxPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.interaction.enabled
@@ -36,7 +36,7 @@ class TestApiContractTest {
     @Test
     fun uniqueFinderVsCollectionCount() = runComposeSwingTest {
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 Label(text = "dup")
                 Label(text = "dup")
                 Label(text = "solo")
@@ -54,7 +54,7 @@ class TestApiContractTest {
     @Test
     fun layoutConstraintAcrossAllRegions() = runComposeSwingTest {
         setContent {
-            BorderPanel {
+            Panel(PanelLayout.Border()) {
                 Label(text = "N", modifier = SwingModifier.north())
                 Label(text = "C", modifier = SwingModifier.center())
                 Label(text = "S", modifier = SwingModifier.south())
@@ -105,7 +105,7 @@ class TestApiContractTest {
     @Test
     fun byNameFinderLocatesComponent() = runComposeSwingTest {
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 Label(text = "noname")
                 SwingNode(
                     factory = { JLabel() },
@@ -125,7 +125,7 @@ class TestApiContractTest {
     fun assertExistsChainsAndActionsReturnInteraction() = runComposeSwingTest {
         var clicks by mutableIntStateOf(0)
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 Button(text = "click me", onClick = { clicks++ })
                 Label(text = "clicks=$clicks")
             }
@@ -167,7 +167,7 @@ class TestApiContractTest {
     @Test
     fun genericMatcherFindersResolveByType() = runComposeSwingTest {
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 Label(text = "a")
                 Button(text = "b", onClick = {})
                 Button(text = "c", onClick = {})
@@ -183,7 +183,7 @@ class TestApiContractTest {
     @Test
     fun reifiedTypeFindersAreConvenienceForMatcherFinders() = runComposeSwingTest {
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 TextField(value = "field", onValueChange = { })
                 Button(text = "btn", onClick = {})
             }

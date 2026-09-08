@@ -9,7 +9,8 @@ import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.button.RadioButton
 import org.jetbrains.compose.swing.components.button.ToggleButton
 import org.jetbrains.compose.swing.components.desktop.DesktopPane
-import org.jetbrains.compose.swing.components.layout.BoxPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.SplitPane
 import org.jetbrains.compose.swing.components.layout.TabbedPane
 import org.jetbrains.compose.swing.components.selection.ListBox
@@ -153,7 +154,7 @@ class RestartScopeCountTest {
 
     @Test
     fun aBoxPanelOpensNoScopeBeyondItsContent() = runComposeSwingTest {
-        assertRestartScopeCount(2) { BoxPanel { } }
+        assertRestartScopeCount(2) { Panel(PanelLayout.Box()) { } }
     }
 
     // A state-driven overload reaches the same node as the lambda one; it declares no scope of its own on

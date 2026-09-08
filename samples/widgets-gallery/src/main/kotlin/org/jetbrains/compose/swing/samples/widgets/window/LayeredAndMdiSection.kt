@@ -13,9 +13,9 @@ import org.jetbrains.compose.swing.components.desktop.DesktopPane
 import org.jetbrains.compose.swing.components.desktop.InternalFrameControls
 import org.jetbrains.compose.swing.components.desktop.LayeredPane
 import org.jetbrains.compose.swing.components.desktop.rememberInternalFrameState
-import org.jetbrains.compose.swing.components.layout.BorderPanel
 import org.jetbrains.compose.swing.components.layout.ColumnScope
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.opaque
@@ -50,7 +50,8 @@ internal fun LayeredAndMdiSection() {
 private fun ColumnScope.LayeredPaneCard() {
     ExampleCard("LayeredPane (depth layers)") {
         LayeredPane(modifier = SwingModifier.preferredSize(Dimension(240, 160))) {
-            BorderPanel(
+            Panel(
+                PanelLayout.Border(),
                 modifier =
                     SwingModifier
                         .layer(JLayeredPane.DEFAULT_LAYER)
@@ -60,7 +61,8 @@ private fun ColumnScope.LayeredPaneCard() {
             ) {
                 Label("Default layer", SwingModifier.north())
             }
-            BorderPanel(
+            Panel(
+                PanelLayout.Border(),
                 modifier =
                     SwingModifier
                         .layer(JLayeredPane.PALETTE_LAYER)
@@ -70,7 +72,8 @@ private fun ColumnScope.LayeredPaneCard() {
             ) {
                 Label("Palette layer", SwingModifier.north())
             }
-            BorderPanel(
+            Panel(
+                PanelLayout.Border(),
                 modifier =
                     SwingModifier
                         .layer(JLayeredPane.DRAG_LAYER)
@@ -90,7 +93,7 @@ private fun ColumnScope.DesktopPaneCard() {
         var extraOpen by remember { mutableStateOf(false) }
         var closedCount by remember { mutableIntStateOf(0) }
 
-        FlowPanel {
+        Panel {
             Button(
                 text = if (extraOpen) "Remove frame" else "Add frame",
                 onClick = { extraOpen = !extraOpen },
@@ -161,7 +164,7 @@ private fun ColumnScope.HoistedInternalFrameCard() {
                 }
             }
 
-        FlowPanel {
+        Panel {
             Button(
                 "Move",
                 onClick = {

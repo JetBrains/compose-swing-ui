@@ -11,7 +11,8 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.layout.ColumnScope
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.TabbedPane
 import org.jetbrains.compose.swing.components.selection.RadioGroup
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -40,7 +41,7 @@ internal fun TabsSection() {
             var advancedEnabled by remember { mutableStateOf(false) }
             var extraTab by remember { mutableStateOf(false) }
 
-            FlowPanel {
+            Panel {
                 Button("Select first", onClick = { selected = 0 })
                 Button("Select last", onClick = { selected = if (extraTab) 2 else 1 })
                 CheckBox(
@@ -62,10 +63,11 @@ internal fun TabsSection() {
                 modifier = SwingModifier.preferredSize(Dimension(420, 160)),
                 tabPlacement = JTabbedPane.TOP,
             ) {
-                FlowPanel(SwingModifier.tab("General")) {
+                Panel(PanelLayout.Flow(), SwingModifier.tab("General")) {
                     Label("General settings live here.")
                 }
-                FlowPanel(
+                Panel(
+                    PanelLayout.Flow(),
                     SwingModifier.tab(
                         "Advanced",
                         tooltip = "Toggle the checkbox to enable",
@@ -78,7 +80,7 @@ internal fun TabsSection() {
                     // Keyed so the tab keeps its own identity - and whatever its content remembers -
                     // wherever it is redeclared, rather than by the position it happens to appear at.
                     key("extra") {
-                        FlowPanel(SwingModifier.tab("Extra")) {
+                        Panel(PanelLayout.Flow(), SwingModifier.tab("Extra")) {
                             Label("This tab appears and disappears with the checkbox.")
                         }
                     }
@@ -124,10 +126,11 @@ private fun ColumnScope.TabPlacementCard() {
             tabPlacement = placements[placementIndex].second,
             tabLayoutPolicy = if (scrollLayout) JTabbedPane.SCROLL_TAB_LAYOUT else JTabbedPane.WRAP_TAB_LAYOUT,
         ) {
-            FlowPanel(SwingModifier.tab("Info", icon = infoIcon)) {
+            Panel(PanelLayout.Flow(), SwingModifier.tab("Info", icon = infoIcon)) {
                 Label("A tab carrying an icon.")
             }
-            FlowPanel(
+            Panel(
+                PanelLayout.Flow(),
                 SwingModifier.tab(
                     "Styled",
                     background = Color(0xFF, 0xF9, 0xC4),
@@ -136,14 +139,14 @@ private fun ColumnScope.TabPlacementCard() {
             ) {
                 Label("A tab with its own background and title color.")
             }
-            FlowPanel(SwingModifier.tab("Data", mnemonic = KeyEvent.VK_D, displayedMnemonicIndex = 0)) {
+            Panel(PanelLayout.Flow(), SwingModifier.tab("Data", mnemonic = KeyEvent.VK_D, displayedMnemonicIndex = 0)) {
                 Label("Alt+D (or the platform's mouseless modifier) selects this tab.")
             }
-            FlowPanel(SwingModifier.tab("Custom", header = { Label("★ Custom") })) {
+            Panel(PanelLayout.Flow(), SwingModifier.tab("Custom", header = { Label("★ Custom") })) {
                 Label("This tab's strip entry is a header composable, not its title.")
             }
             repeat(EXTRA_TABS) { index ->
-                FlowPanel(SwingModifier.tab("More ${index + 1}")) {
+                Panel(PanelLayout.Flow(), SwingModifier.tab("More ${index + 1}")) {
                     Label("Extra tab ${index + 1}, here to force overflow.")
                 }
             }

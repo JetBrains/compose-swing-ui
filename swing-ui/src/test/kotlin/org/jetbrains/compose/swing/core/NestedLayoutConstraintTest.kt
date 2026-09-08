@@ -4,9 +4,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.components.layout.BorderPanel
-import org.jetbrains.compose.swing.components.layout.GridBagPanel
-import org.jetbrains.compose.swing.components.layout.GridPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.SwingMatcher.Companion.hasAnySibling
@@ -19,19 +18,19 @@ import java.awt.GridBagConstraints
 import kotlin.test.Test
 
 /**
- * A container placed in a [BorderPanel] region takes that region for itself alone: a placement reaches
+ * A container placed in a [PanelLayout.Border] region takes that region for itself alone: a placement reaches
  * only the node whose own chain declares it, so each child of the inner panel is placed by that panel's
  * layout manager under the constraint that child declares.
  *
- * The stakes are more than a misplacement: a [GridBagPanel] handed a `"Center"` string rejects the
+ * The stakes are more than a misplacement: a [PanelLayout.GridBag] panel handed a `"Center"` string rejects the
  * child outright, so a region reaching down into a nested panel would fail the composition itself.
  */
 class NestedLayoutConstraintTest {
     @Test
-    fun gridBagPanelInsideBorderPanelCenterPlacesItsChildrenByItsOwnLayout() = runComposeSwingTest {
+    fun aGridBagPanelInsideABorderPanelCenterPlacesItsChildrenByItsOwnLayout() = runComposeSwingTest {
         setContent {
-            BorderPanel {
-                GridBagPanel(modifier = SwingModifier.center()) {
+            Panel(PanelLayout.Border()) {
+                Panel(PanelLayout.GridBag, modifier = SwingModifier.center()) {
                     Label(text = "one", modifier = SwingModifier.item(gridx = 0, gridy = 0))
                     Label(text = "two", modifier = SwingModifier.item(gridx = 0, gridy = 1))
                 }
@@ -48,12 +47,12 @@ class NestedLayoutConstraintTest {
 
     @Test
     fun switchingTheCenterChildBetweenALeafAndANestedPanelPlacesWhicheverOneStands() = runComposeSwingTest {
-        // The CENTER region toggles between a leaf Label and a nested GridBagPanel.
+        // The CENTER region toggles between a leaf Label and a nested grid-bag panel.
         var nested by mutableStateOf(false)
         setContent {
-            BorderPanel {
+            Panel(PanelLayout.Border()) {
                 if (nested) {
-                    GridBagPanel(modifier = SwingModifier.center()) {
+                    Panel(PanelLayout.GridBag, modifier = SwingModifier.center()) {
                         Label(text = "nestedChild", modifier = SwingModifier.item(gridx = 0, gridy = 0))
                     }
                 } else {
@@ -88,12 +87,12 @@ class NestedLayoutConstraintTest {
     @Test
     fun panelsInBorderRegionsPlaceTheirOwnChildrenByTheirOwnLayout() = runComposeSwingTest {
         setContent {
-            BorderPanel {
-                GridPanel(modifier = SwingModifier.north(), rows = 1, cols = 2) {
+            Panel(PanelLayout.Border()) {
+                Panel(PanelLayout.Grid(rows = 1, cols = 2), modifier = SwingModifier.north()) {
                     Label(text = "g1")
                     Label(text = "g2")
                 }
-                GridBagPanel(modifier = SwingModifier.center()) {
+                Panel(PanelLayout.GridBag, modifier = SwingModifier.center()) {
                     Label(text = "b1", modifier = SwingModifier.item(gridx = 0, gridy = 0))
                     Label(text = "b2", modifier = SwingModifier.item(gridx = 0, gridy = 1))
                 }

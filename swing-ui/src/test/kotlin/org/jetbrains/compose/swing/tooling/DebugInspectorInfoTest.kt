@@ -10,7 +10,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.tooling.ComposeStackTraceMode
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.Slider
-import org.jetbrains.compose.swing.components.layout.BoxPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.TabbedPane
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.core.SwingContentComposition
@@ -110,7 +111,7 @@ class DebugInspectorInfoTest {
 
         setContent {
             remember { buildsOfTheContent++ }
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 TextField(value = typed, onValueChange = { typed = it })
                 Slider(value = sliderValue, onValueChange = { sliderValue = it })
                 TabbedPane(selectedIndex = selectedTab, onSelectedIndexChange = { selectedTab = it }) {

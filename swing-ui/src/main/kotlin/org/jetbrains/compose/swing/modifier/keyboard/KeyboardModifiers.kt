@@ -197,7 +197,7 @@ private class KeyStrokeElement(
 
         /**
          * Asks for the ownership check of every live [KeyStrokeElement.Node] on this component, a turn
-         * after the event queue processes the change pass in flight, mirroring `CardPanel`'s deferred
+         * after the event queue processes the change pass in flight, mirroring `PanelLayout.Card`'s deferred
          * card check: two bindings that exchange key-strokes in one pass each release their old stroke
          * and take their new one while the other still holds it, so reading ownership mid-pass would
          * flag a legal swap. Deferring also keeps the refusal off the apply phase, where a throw would

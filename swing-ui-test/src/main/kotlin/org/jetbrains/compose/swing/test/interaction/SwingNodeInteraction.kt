@@ -235,7 +235,7 @@ public class SwingNodeInteraction<out T : Component> internal constructor(
     /**
      * Asserts the matched node is visible: neither it nor any ancestor up to the query's root has been
      * hidden with [java.awt.Component.setVisible]. That is the state a container's own layout drives
-     * when it shows one child at a time - a `CardPanel` shows a card by hiding the others - so it is
+     * when it shows one child at a time - a card deck shows a card by hiding the others - so it is
      * what to assert on for anything a layout switches between.
      *
      * Distinct from [assertIsDisplayed], which asks whether the layout gave the node real bounds: a

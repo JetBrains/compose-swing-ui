@@ -1,6 +1,6 @@
 package org.jetbrains.compose.swing.modifier.listener
 
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -30,7 +30,7 @@ class MultiMethodLambdaListenerTest {
     fun aCatchAllLambdaRunsForEveryMethodOfTheInterface() = runComposeSwingTest {
         var calls = 0
         setContent {
-            FlowPanel {
+            Panel {
                 SwingNode(
                     factory = { JTextPane() },
                     modifier = SwingModifier.documentListener { calls++ },
@@ -51,7 +51,7 @@ class MultiMethodLambdaListenerTest {
         // method, since each of them runs exactly once.
         val reported = mutableListOf<String>()
         setContent {
-            FlowPanel {
+            Panel {
                 SwingNode(
                     factory = { JTextPane() },
                     modifier =
@@ -81,7 +81,7 @@ class MultiMethodLambdaListenerTest {
     fun anUndeclaredMethodReportsNowhere() = runComposeSwingTest {
         var inserts = 0
         setContent {
-            FlowPanel {
+            Panel {
                 SwingNode(
                     factory = { JTextField() },
                     modifier = SwingModifier.documentListener(onInsert = { inserts++ }),
@@ -99,7 +99,7 @@ class MultiMethodLambdaListenerTest {
     fun aCatchAllMouseLambdaRunsForEachOfTheInterfacesMethods() = runComposeSwingTest {
         var calls = 0
         setContent {
-            FlowPanel {
+            Panel {
                 SwingNode(
                     factory = { JTextField() },
                     modifier = SwingModifier.mouseListener { calls++ },
@@ -123,7 +123,7 @@ class MultiMethodLambdaListenerTest {
     fun aNamedMouseLambdaRunsOnlyForItsOwnMethod() = runComposeSwingTest {
         val reported = mutableListOf<String>()
         setContent {
-            FlowPanel {
+            Panel {
                 SwingNode(
                     factory = { JTextField() },
                     modifier =
@@ -157,7 +157,7 @@ class MultiMethodLambdaListenerTest {
     fun aFocusLambdaTellsTheTwoDirectionsApart() = runComposeSwingTest {
         val reported = mutableListOf<String>()
         setContent {
-            FlowPanel {
+            Panel {
                 SwingNode(
                     factory = { JTextField() },
                     modifier =
@@ -186,7 +186,7 @@ class MultiMethodLambdaListenerTest {
     fun aCatchAllFocusLambdaRunsForBothDirections() = runComposeSwingTest {
         var calls = 0
         setContent {
-            FlowPanel {
+            Panel {
                 SwingNode(
                     factory = { JTextField() },
                     modifier = SwingModifier.focusListener { calls++ },
@@ -206,7 +206,7 @@ class MultiMethodLambdaListenerTest {
     @Test
     fun aWillCollapseLambdaAnsweringFalseLeavesTheNodeOpen() = runComposeSwingTest {
         setContent {
-            FlowPanel {
+            Panel {
                 SwingNode(
                     factory = { JTree() },
                     modifier = SwingModifier.treeWillExpandListener(onWillCollapse = { false }),
@@ -223,7 +223,7 @@ class MultiMethodLambdaListenerTest {
     @Test
     fun aWillCollapseLambdaAnsweringTrueLetsTheNodeClose() = runComposeSwingTest {
         setContent {
-            FlowPanel {
+            Panel {
                 SwingNode(
                     factory = { JTree() },
                     modifier = SwingModifier.treeWillExpandListener(onWillCollapse = { true }),
@@ -239,7 +239,7 @@ class MultiMethodLambdaListenerTest {
     @Test
     fun aWillExpandLambdaAnsweringFalseLeavesTheNodeClosed() = runComposeSwingTest {
         setContent {
-            FlowPanel {
+            Panel {
                 SwingNode(
                     factory = { JTree() },
                     modifier =
@@ -262,7 +262,7 @@ class MultiMethodLambdaListenerTest {
     @Test
     fun aWillExpandLambdaAnsweringTrueLetsTheNodeOpen() = runComposeSwingTest {
         setContent {
-            FlowPanel {
+            Panel {
                 SwingNode(
                     factory = { JTree() },
                     modifier =
@@ -286,7 +286,7 @@ class MultiMethodLambdaListenerTest {
         var calls = 0
         var answer = true
         setContent {
-            FlowPanel {
+            Panel {
                 SwingNode(
                     factory = { JTree() },
                     modifier =
@@ -315,7 +315,7 @@ class MultiMethodLambdaListenerTest {
         val reported = mutableListOf<String>()
         var everything = 0
         setContent {
-            FlowPanel {
+            Panel {
                 SwingNode(
                     factory = { JTextField() },
                     modifier =
@@ -348,7 +348,7 @@ class MultiMethodLambdaListenerTest {
         val reported = mutableListOf<String>()
         var everything = 0
         setContent {
-            FlowPanel {
+            Panel {
                 SwingNode(
                     factory = { JTextField() },
                     modifier =
@@ -387,7 +387,7 @@ class MultiMethodLambdaListenerTest {
         val reported = mutableListOf<String>()
         var everything = 0
         setContent {
-            FlowPanel {
+            Panel {
                 SwingNode(
                     factory = { JTextField() },
                     modifier =
@@ -440,7 +440,7 @@ class MultiMethodLambdaListenerTest {
         val reported = mutableListOf<String>()
         var everything = 0
         setContent {
-            FlowPanel {
+            Panel {
                 SwingNode(
                     factory = { JToolBar() },
                     modifier =
@@ -482,7 +482,7 @@ class MultiMethodLambdaListenerTest {
         val reported = mutableListOf<String>()
         var everything = 0
         setContent {
-            FlowPanel {
+            Panel {
                 SwingNode(
                     factory = { JInternalFrame("frame") },
                     modifier =
@@ -528,7 +528,7 @@ class MultiMethodLambdaListenerTest {
         val reported = mutableListOf<String>()
         var everything = 0
         setContent {
-            FlowPanel {
+            Panel {
                 SwingNode(
                     factory = { JTree() },
                     modifier =

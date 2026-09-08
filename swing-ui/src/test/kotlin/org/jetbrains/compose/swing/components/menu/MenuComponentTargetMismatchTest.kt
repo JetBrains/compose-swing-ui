@@ -13,7 +13,7 @@ import kotlin.test.assertTrue
 /**
  * Verifies that the Compose compiler flags accidental mixing of our menu composables
  * ([org.jetbrains.compose.swing.components.menu.Menu] and friends, marked `@SwingMenuComposable`) with our
- * regular component composables ([org.jetbrains.compose.swing.components.layout.FlowPanel],
+ * regular component composables ([org.jetbrains.compose.swing.components.layout.Panel],
  * [org.jetbrains.compose.swing.components.button.Button], ... marked `@SwingComposable`).
  *
  * The applier/target-mismatch diagnostic is intentionally a **warning**, not an error: mixed code still
@@ -33,12 +33,13 @@ class MenuComponentTargetMismatchTest {
         val result =
             compileSnippet(
                 """
-                import org.jetbrains.compose.swing.components.layout.FlowPanel
+                import org.jetbrains.compose.swing.components.layout.Panel
+                import org.jetbrains.compose.swing.components.layout.PanelLayout
                 import org.jetbrains.compose.swing.components.menu.MenuItem
 
                 @androidx.compose.runtime.Composable
                 fun Mixed() {
-                    FlowPanel {
+                    Panel {
                         MenuItem(text = "x", onClick = {})
                     }
                 }
@@ -82,14 +83,15 @@ class MenuComponentTargetMismatchTest {
         val result =
             compileSnippet(
                 """
-                import org.jetbrains.compose.swing.components.layout.FlowPanel
+                import org.jetbrains.compose.swing.components.layout.Panel
+                import org.jetbrains.compose.swing.components.layout.PanelLayout
                 import org.jetbrains.compose.swing.components.button.Button
                 import org.jetbrains.compose.swing.components.menu.Menu
                 import org.jetbrains.compose.swing.components.menu.MenuItem
 
                 @androidx.compose.runtime.Composable
                 fun Components() {
-                    FlowPanel {
+                    Panel {
                         Button(text = "b", onClick = {})
                     }
                 }

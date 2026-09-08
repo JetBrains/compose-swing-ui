@@ -4,7 +4,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.components.layout.BoxPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.test.interaction.performTextInput
 import org.jetbrains.compose.swing.test.interaction.performTextReplacement
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -22,7 +23,7 @@ class TextInputDrivesStateTest {
     fun textReplacementUpdatesBoundLabel() = runComposeSwingTest {
         var value by mutableStateOf("seed")
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 TextField(value = value, onValueChange = { value = it })
                 Label(text = "Echo: $value")
             }
@@ -45,7 +46,7 @@ class TextInputDrivesStateTest {
     fun incrementalTextInputAccumulatesIntoState() = runComposeSwingTest {
         var value by mutableStateOf("ab")
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 TextField(value = value, onValueChange = { value = it })
                 Label(text = "Echo: $value")
             }

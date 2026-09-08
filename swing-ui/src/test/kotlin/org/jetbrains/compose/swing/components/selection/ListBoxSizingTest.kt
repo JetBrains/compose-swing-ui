@@ -4,7 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -70,7 +70,7 @@ class ListBoxSizingTest {
     fun aPrototypeSizesEveryCellFromOneMeasurementOfTheComposableCell() = runComposeSwingTest {
         setContent {
             ListBox(items = items, prototypeCellValue = prototype) { item ->
-                FlowPanel { Label(item) }
+                Panel { Label(item) }
             }
         }
 
@@ -85,7 +85,7 @@ class ListBoxSizingTest {
     fun aDeclaredWidthStandsOverThePrototypesMeasurement() = runComposeSwingTest {
         setContent {
             ListBox(items = items, prototypeCellValue = prototype, fixedCellWidth = 300) { item ->
-                FlowPanel { Label(item) }
+                Panel { Label(item) }
             }
         }
 
@@ -103,7 +103,7 @@ class ListBoxSizingTest {
         var fixedCellWidth by mutableStateOf(300)
         setContent {
             ListBox(items = items, prototypeCellValue = prototype, fixedCellWidth = fixedCellWidth) { item ->
-                FlowPanel { Label(item) }
+                Panel { Label(item) }
             }
         }
 
@@ -124,7 +124,7 @@ class ListBoxSizingTest {
         var prototypeCellValue: String? by mutableStateOf(prototype)
         setContent {
             ListBox(items = items, prototypeCellValue = prototypeCellValue) { item ->
-                FlowPanel { Label(item) }
+                Panel { Label(item) }
             }
         }
 

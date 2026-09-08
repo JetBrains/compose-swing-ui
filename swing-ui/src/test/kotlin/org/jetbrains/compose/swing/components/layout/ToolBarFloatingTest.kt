@@ -45,7 +45,7 @@ class ToolBarFloatingTest {
     fun aBarWithNoWindowStaysDockedAndReportsThat() = runComposeSwingTest {
         val reported = mutableListOf<Boolean>()
         setContent {
-            BorderPanel {
+            Panel(PanelLayout.Border()) {
                 ToolBar(floating = true, onFloatingChange = { reported += it }) {
                     Button(text = "New", onClick = {})
                 }

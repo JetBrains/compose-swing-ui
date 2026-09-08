@@ -8,7 +8,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.layout.ColumnScope
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.selection.RadioGroup
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -31,19 +31,19 @@ internal fun ColumnScope.TextColorsCard() {
         var disabledText by remember { mutableStateOf(TEXT_COLOR_SWATCHES[4]) }
         var enabled by remember { mutableStateOf(true) }
 
-        FlowPanel {
+        Panel {
             Label("Caret:")
             ColorSwatchPicker(caret) { caret = it }
         }
-        FlowPanel {
+        Panel {
             Label("Selection:")
             ColorSwatchPicker(selection) { selection = it }
         }
-        FlowPanel {
+        Panel {
             Label("Selected text:")
             ColorSwatchPicker(selectedText) { selectedText = it }
         }
-        FlowPanel {
+        Panel {
             Label("Disabled text:")
             ColorSwatchPicker(disabledText) { disabledText = it }
         }

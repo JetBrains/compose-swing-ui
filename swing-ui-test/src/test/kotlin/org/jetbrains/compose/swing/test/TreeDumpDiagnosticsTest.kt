@@ -2,8 +2,8 @@ package org.jetbrains.compose.swing.test
 
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
-import org.jetbrains.compose.swing.components.layout.BoxPanel
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.interaction.enabled
 import org.jetbrains.compose.swing.node.SwingNode
@@ -25,7 +25,7 @@ class TreeDumpDiagnosticsTest {
     @Test
     fun theDumpDescribesEachNodeByItsMatchableAttributes() = runComposeSwingTest {
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 SwingNode(
                     factory = { JLabel() },
                     update = {
@@ -59,11 +59,11 @@ class TreeDumpDiagnosticsTest {
     @Test
     fun theDumpStopsAtItsDepthBoundAndSaysSo() = runComposeSwingTest {
         setContent {
-            FlowPanel {
-                FlowPanel {
-                    FlowPanel {
-                        FlowPanel {
-                            FlowPanel {
+            Panel {
+                Panel {
+                    Panel {
+                        Panel {
+                            Panel {
                                 Label(text = "buried")
                             }
                         }
@@ -87,7 +87,7 @@ class TreeDumpDiagnosticsTest {
     @Test
     fun theDumpStopsAtItsLineBoundAndSaysSo() = runComposeSwingTest {
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 repeat(WIDE_FANOUT) { index -> Label(text = "row-$index") }
             }
         }

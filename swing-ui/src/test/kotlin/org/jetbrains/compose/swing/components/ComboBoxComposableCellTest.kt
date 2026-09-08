@@ -4,7 +4,7 @@ import androidx.compose.runtime.ReusableContentHost
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.selection.firstLabelText
 import org.jetbrains.compose.swing.components.selection.stampCell
 import org.jetbrains.compose.swing.components.selection.stampDisplayArea
@@ -39,7 +39,7 @@ class ComboBoxComposableCellTest {
     fun itemContentRealizesAComposableCellPerItem() = runComposeSwingTest {
         setContent {
             ComboBox(items = listOf("red", "green", "blue"), selectedItem = "red", onSelectionChange = {}) { item ->
-                FlowPanel { Label(item) }
+                Panel { Label(item) }
             }
         }
 
@@ -165,7 +165,7 @@ class ComboBoxComposableCellTest {
                 onSelectionChange = {},
                 itemContent =
                     if (composableCells) {
-                        { item -> FlowPanel { Label(item) } }
+                        { item -> Panel { Label(item) } }
                     } else {
                         null
                     },
@@ -202,7 +202,7 @@ class ComboBoxComposableCellTest {
                 onSelectionChange = {},
                 itemContent =
                     if (composableCells) {
-                        { item -> FlowPanel { Label(item) } }
+                        { item -> Panel { Label(item) } }
                     } else {
                         null
                     },

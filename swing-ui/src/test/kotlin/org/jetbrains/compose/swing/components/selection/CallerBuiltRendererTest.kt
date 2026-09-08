@@ -5,7 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -38,7 +38,7 @@ class CallerBuiltRendererTest {
     fun aCallerBuiltListRendersItsRowsThroughTheComposableCell() = runComposeSwingTest {
         setContent {
             WideItemList(items = listOf("alpha", "beta")) { item ->
-                FlowPanel { Label(item) }
+                Panel { Label(item) }
             }
         }
 
@@ -54,7 +54,7 @@ class CallerBuiltRendererTest {
         var badge by mutableStateOf("draft")
         setContent {
             WideItemList(items = listOf("alpha")) { item ->
-                FlowPanel { Label("$item ($badge)") }
+                Panel { Label("$item ($badge)") }
             }
         }
 
@@ -81,7 +81,7 @@ class CallerBuiltRendererTest {
         setContent {
             if (showList) {
                 WideItemList(items = listOf("alpha", "beta")) { item ->
-                    FlowPanel { Label(item) }
+                    Panel { Label(item) }
                 }
             }
         }

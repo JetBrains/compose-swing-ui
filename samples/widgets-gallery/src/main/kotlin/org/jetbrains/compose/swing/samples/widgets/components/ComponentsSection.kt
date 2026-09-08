@@ -15,9 +15,9 @@ import org.jetbrains.compose.swing.components.Spinner
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.button.RadioButton
-import org.jetbrains.compose.swing.components.layout.BorderPanel
 import org.jetbrains.compose.swing.components.layout.ColumnScope
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.Row
 import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.components.text.PasswordField
@@ -70,7 +70,7 @@ internal fun ComponentsSection() {
 private fun ColumnScope.ButtonAndLabelCard() {
     ExampleCard("Button & Label") {
         var counter by remember { mutableIntStateOf(0) }
-        FlowPanel {
+        Panel {
             Label("Counter: $counter")
             Button("Increment", onClick = { counter++ })
             Button("Decrement", onClick = { counter-- })
@@ -85,12 +85,12 @@ private fun ColumnScope.TextInputCard() {
     ExampleCard("TextField & TextArea") {
         var line by remember { mutableStateOf("Edit me") }
         var notes by remember { mutableStateOf("Multi-line\ntext area") }
-        FlowPanel {
+        Panel {
             Label("TextField:")
             TextField(value = line, onValueChange = { line = it }, columns = 24)
         }
         Label("Echo: $line")
-        FlowPanel {
+        Panel {
             Label("TextArea:")
             TextArea(value = notes, onValueChange = { notes = it }, rows = 3, columns = 30)
         }
@@ -111,7 +111,7 @@ private fun ColumnScope.TextAreaOptionsCard() {
         var editable by remember { mutableStateOf(true) }
         var tabSize by remember { mutableIntStateOf(8) }
 
-        FlowPanel {
+        Panel {
             CheckBox(text = "Line wrap", checked = lineWrap, onCheckedChange = { lineWrap = it })
             CheckBox(
                 text = "Wrap at word boundaries",
@@ -120,7 +120,7 @@ private fun ColumnScope.TextAreaOptionsCard() {
             )
             CheckBox(text = "Editable", checked = editable, onCheckedChange = { editable = it })
         }
-        FlowPanel {
+        Panel {
             Label("Tab size:")
             Spinner(tabSize, onValueChange = { tabSize = it.toInt() }, min = 1, max = 16, step = 1)
         }
@@ -145,7 +145,7 @@ private fun ColumnScope.PasswordCard() {
     ExampleCard("PasswordField (CharArray, echoChar)") {
         var secret by remember { mutableStateOf(CharArray(0)) }
         var reveal by remember { mutableStateOf(false) }
-        FlowPanel {
+        Panel {
             Label("Password:")
             PasswordField(
                 value = secret,
@@ -163,7 +163,7 @@ private fun ColumnScope.PasswordCard() {
 private fun ColumnScope.PasswordStateCard() {
     ExampleCard("PasswordField (DocumentState)") {
         val state = rememberDocumentState("hunter2")
-        FlowPanel {
+        Panel {
             Label("Password:")
             PasswordField(state = state, columns = 20)
             Button("Undo", onClick = state::undo, modifier = SwingModifier.enabled(state.canUndo))
@@ -186,7 +186,7 @@ private fun ColumnScope.ToggleCard() {
         // Not in a ButtonGroup, so clicking the selected option clears it: onSelectedChange must read
         // the Boolean it reports, or the click that clears the button re-selects it instead.
         var choice by remember { mutableIntStateOf(0) }
-        FlowPanel {
+        Panel {
             RadioButton(text = "Low", selected = choice == 0, onSelectedChange = { if (it) choice = 0 })
             RadioButton(text = "Medium", selected = choice == 1, onSelectedChange = { if (it) choice = 1 })
             RadioButton(text = "High", selected = choice == 2, onSelectedChange = { if (it) choice = 2 })
@@ -253,12 +253,12 @@ private fun ColumnScope.ChoiceCard() {
         var typed by remember { mutableStateOf("") }
         var maxRowCount by remember { mutableIntStateOf(8) }
 
-        FlowPanel {
+        Panel {
             CheckBox(text = "Editable", checked = editable, onCheckedChange = { editable = it })
             Label("Max rows shown:")
             Spinner(maxRowCount, onValueChange = { maxRowCount = it.toInt() }, min = 1, max = 8, step = 1)
         }
-        FlowPanel {
+        Panel {
             Label("Language:")
             ComboBox(
                 items = options,
@@ -272,7 +272,7 @@ private fun ColumnScope.ChoiceCard() {
                 // holds a slot of its own on the leading edge, so every name starts in the same place
                 // whatever glyph precedes it, and the name takes the room that is left.
                 val swatch = rememberDotIcon(language.swatch)
-                BorderPanel(modifier = SwingModifier.opaque(false)) {
+                Panel(PanelLayout.Border(), modifier = SwingModifier.opaque(false)) {
                     Label(
                         "",
                         modifier =
@@ -311,11 +311,11 @@ private fun ColumnScope.RangeCard() {
         val labels = mapOf(0 to "Low", 50 to "Mid", 100 to "High")
         val orientation = if (vertical) SwingConstants.VERTICAL else SwingConstants.HORIZONTAL
 
-        FlowPanel {
+        Panel {
             CheckBox(text = "Vertical", checked = vertical, onCheckedChange = { vertical = it })
             CheckBox(text = "Inverted", checked = inverted, onCheckedChange = { inverted = it })
         }
-        FlowPanel {
+        Panel {
             CheckBox(text = "Paint ticks", checked = paintTicks, onCheckedChange = { paintTicks = it })
             CheckBox(text = "Paint labels", checked = paintLabels, onCheckedChange = { paintLabels = it })
             CheckBox(text = "Snap to ticks", checked = snapToTicks, onCheckedChange = { snapToTicks = it })

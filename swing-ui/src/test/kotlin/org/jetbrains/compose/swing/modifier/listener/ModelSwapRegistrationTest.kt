@@ -1,7 +1,7 @@
 package org.jetbrains.compose.swing.modifier.listener
 
 import org.jetbrains.compose.swing.components.Slider
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.selection.Table
 import org.jetbrains.compose.swing.components.selection.TableColumnLayout
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -27,7 +27,7 @@ class ModelSwapRegistrationTest {
     @Test
     fun aSliderMirrorRidesARangeModelSwap() = runComposeSwingTest {
         setContent {
-            FlowPanel {
+            Panel {
                 Slider(value = 10, changeListener = { }, min = 0, max = 100)
             }
         }
@@ -52,7 +52,7 @@ class ModelSwapRegistrationTest {
     fun aTableSelectionRegistrationRidesASelectionModelSwap() = runComposeSwingTest {
         val seen = mutableListOf<Set<Int>>()
         setContent {
-            FlowPanel {
+            Panel {
                 Table(
                     model = DefaultTableModel(arrayOf(arrayOf("a"), arrayOf("b"), arrayOf("c")), arrayOf("col")),
                     selectedRowIndices = emptySet(),
@@ -77,7 +77,7 @@ class ModelSwapRegistrationTest {
     fun aTableColumnRegistrationRidesAColumnModelSwap() = runComposeSwingTest {
         val layouts = mutableListOf<TableColumnLayout>()
         setContent {
-            FlowPanel {
+            Panel {
                 Table(
                     model = DefaultTableModel(arrayOf(arrayOf("a", "b")), arrayOf("one", "two")),
                     selectedRowIndices = emptySet(),

@@ -7,7 +7,8 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
-import org.jetbrains.compose.swing.components.layout.BoxPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.foreground
 import org.jetbrains.compose.swing.modifier.appearance.name
@@ -317,7 +318,7 @@ class SwingModifierTest {
     fun alignmentXModifierRestoresTheLayoutDerivedAlignmentOnRemoval() = runComposeSwingTest {
         var declared by mutableStateOf(true)
         setContent {
-            BoxPanel(modifier = if (declared) SwingModifier.alignmentX(0.5f) else SwingModifier) {
+            Panel(PanelLayout.Box(), modifier = if (declared) SwingModifier.alignmentX(0.5f) else SwingModifier) {
                 Label("child", modifier = SwingModifier.alignmentX(1.0f))
             }
         }
@@ -339,9 +340,9 @@ class SwingModifierTest {
     fun alignmentYModifierRestoresTheLayoutDerivedAlignmentOnRemoval() = runComposeSwingTest {
         var declared by mutableStateOf(true)
         setContent {
-            BoxPanel(
+            Panel(
+                PanelLayout.Box(axis = BoxLayout.X_AXIS),
                 modifier = if (declared) SwingModifier.alignmentY(0.5f) else SwingModifier,
-                axis = BoxLayout.X_AXIS,
             ) {
                 Label("child", modifier = SwingModifier.alignmentY(1.0f))
             }

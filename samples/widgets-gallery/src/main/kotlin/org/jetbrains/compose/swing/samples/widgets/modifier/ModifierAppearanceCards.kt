@@ -12,7 +12,8 @@ import org.jetbrains.compose.swing.components.Spinner
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.layout.ColumnScope
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.selection.RadioGroup
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -120,7 +121,7 @@ internal fun ColumnScope.TextPositionCard() {
         var vertical by remember { mutableIntStateOf(0) }
         var gap by remember { mutableIntStateOf(4) }
         val dot = rememberDotIcon(Color(0x1E, 0x88, 0xE5), size = 18)
-        FlowPanel {
+        Panel {
             Label("Text side:")
             RadioGroup(selectedIndex = horizontal, onSelectionChange = { horizontal = it }, axis = BoxLayout.X_AXIS) {
                 option("Left")
@@ -128,7 +129,7 @@ internal fun ColumnScope.TextPositionCard() {
                 option("Right")
             }
         }
-        FlowPanel {
+        Panel {
             Label("Text row:")
             RadioGroup(selectedIndex = vertical, onSelectionChange = { vertical = it }, axis = BoxLayout.X_AXIS) {
                 option("Top")
@@ -136,13 +137,13 @@ internal fun ColumnScope.TextPositionCard() {
                 option("Bottom")
             }
         }
-        FlowPanel {
+        Panel {
             Label("Gap:")
             Spinner(gap, onValueChange = { gap = it.toInt() }, min = 0, max = 20, step = 1)
         }
         val textSide = intArrayOf(SwingConstants.LEFT, SwingConstants.CENTER, SwingConstants.RIGHT)[horizontal]
         val textRow = intArrayOf(SwingConstants.TOP, SwingConstants.CENTER, SwingConstants.BOTTOM)[vertical]
-        FlowPanel(modifier = SwingModifier.preferredSize(Dimension(260, 90))) {
+        Panel(PanelLayout.Flow(), modifier = SwingModifier.preferredSize(Dimension(260, 90))) {
             Button(
                 "Labeled",
                 onClick = { },
@@ -173,7 +174,7 @@ internal fun ColumnScope.ButtonPaintingCard() {
         CheckBox(text = "rolloverEnabled", checked = isRolloverEnabled, onCheckedChange = { isRolloverEnabled = it })
         CheckBox(text = "focusPainted", checked = isFocusPainted, onCheckedChange = { isFocusPainted = it })
         WrappedCaption("Hover or Tab to this button to see rolloverEnabled and focusPainted take effect.")
-        FlowPanel {
+        Panel {
             Button(
                 "Hover, focus or click me",
                 onClick = { },
@@ -246,7 +247,7 @@ internal fun ColumnScope.ClientPropertyCard() {
             "Carries clientProperty \"role\" = $tag",
             modifier = SwingModifier.clientProperty("role", tag),
         )
-        FlowPanel {
+        Panel {
             Button("role = alpha", onClick = { tag = "alpha" })
             Button("role = beta", onClick = { tag = "beta" })
         }
@@ -257,7 +258,7 @@ internal fun ColumnScope.ClientPropertyCard() {
 internal fun ColumnScope.NameCard() {
     ExampleCard("name") {
         var componentName by remember { mutableStateOf("search-field") }
-        FlowPanel {
+        Panel {
             Label("Component name:")
             TextField(value = componentName, onValueChange = { componentName = it }, columns = 16)
         }

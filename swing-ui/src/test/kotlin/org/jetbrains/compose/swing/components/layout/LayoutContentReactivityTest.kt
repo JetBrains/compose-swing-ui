@@ -63,7 +63,7 @@ class LayoutContentReactivityTest {
 
     @Test
     fun aBoxPanelFollowsItsContent() = runComposeSwingTest {
-        assertTheContentIsFollowed { content -> BoxPanel(content = content) }
+        assertTheContentIsFollowed { content -> Panel(PanelLayout.Box()) { content() } }
     }
 
     @Test
@@ -78,12 +78,12 @@ class LayoutContentReactivityTest {
 
     @Test
     fun aFlowPanelFollowsItsContent() = runComposeSwingTest {
-        assertTheContentIsFollowed { content -> FlowPanel(content = content) }
+        assertTheContentIsFollowed { content -> Panel(PanelLayout.Flow()) { content() } }
     }
 
     @Test
     fun aGridPanelFollowsItsContent() = runComposeSwingTest {
-        assertTheContentIsFollowed { content -> GridPanel(content = content) }
+        assertTheContentIsFollowed { content -> Panel(PanelLayout.Grid()) { content() } }
     }
 
     @Test

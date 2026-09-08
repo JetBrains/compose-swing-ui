@@ -6,7 +6,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
@@ -44,11 +45,11 @@ class MovableContentPlacementTest : TracedTest() {
         var inPane by mutableStateOf(true)
         setContent {
             val content = remember { movableContentOf<SwingModifier> { modifier -> Label("body", modifier) } }
-            FlowPanel {
+            Panel {
                 ScrollPane(modifier = SwingModifier.testTag("pane")) {
                     if (inPane) content(SwingModifier.viewport())
                 }
-                FlowPanel(modifier = SwingModifier.testTag("panel")) {
+                Panel(PanelLayout.Flow(), modifier = SwingModifier.testTag("panel")) {
                     if (!inPane) content(SwingModifier)
                 }
             }
@@ -94,11 +95,11 @@ class MovableContentPlacementTest : TracedTest() {
         var inPane by mutableStateOf(false)
         setContent {
             val content = remember { movableContentOf<SwingModifier> { modifier -> Label("body", modifier) } }
-            FlowPanel {
+            Panel {
                 ScrollPane(modifier = SwingModifier.testTag("pane")) {
                     if (inPane) content(SwingModifier.viewport())
                 }
-                FlowPanel(modifier = SwingModifier.testTag("panel")) {
+                Panel(PanelLayout.Flow(), modifier = SwingModifier.testTag("panel")) {
                     if (!inPane) content(SwingModifier)
                 }
             }
@@ -122,7 +123,7 @@ class MovableContentPlacementTest : TracedTest() {
         var inSecond by mutableStateOf(false)
         setContent {
             val content = remember { movableContentOf<SwingModifier> { modifier -> Label("body", modifier) } }
-            FlowPanel {
+            Panel {
                 ScrollPane(modifier = SwingModifier.testTag("first")) {
                     if (!inSecond) content(SwingModifier.viewport())
                 }
@@ -152,7 +153,7 @@ class MovableContentPlacementTest : TracedTest() {
         var tracksWidth by mutableStateOf(false)
         setContent {
             val content = remember { movableContentOf<SwingModifier> { modifier -> Label("body", modifier) } }
-            FlowPanel {
+            Panel {
                 ScrollPane(modifier = SwingModifier.testTag("first")) {
                     if (!inSecond) {
                         content(

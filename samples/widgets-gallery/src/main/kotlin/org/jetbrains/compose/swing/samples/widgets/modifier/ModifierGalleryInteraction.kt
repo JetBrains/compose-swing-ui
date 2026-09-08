@@ -10,7 +10,7 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.layout.ColumnScope
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.background
@@ -34,7 +34,7 @@ import java.awt.event.KeyEvent
 internal fun ColumnScope.HoverFocusCard() {
     ExampleCard("onHover / onFocus") {
         var status by remember { mutableStateOf("idle") }
-        FlowPanel {
+        Panel {
             Button(
                 "Hover or focus me",
                 onClick = { },

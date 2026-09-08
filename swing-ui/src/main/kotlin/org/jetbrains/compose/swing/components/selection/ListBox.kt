@@ -35,7 +35,7 @@ import javax.swing.event.ListSelectionListener
  * ScrollPane {
  *     content {
  *         ListBox(items = rows, selectedIndices = sel, onSelectionChange = { sel = it }) { row ->
- *             FlowPanel { Label(row.icon); Label(row.name) }
+ *             Panel { Label(row.icon); Label(row.name) }
  *         }
  *     }
  * }

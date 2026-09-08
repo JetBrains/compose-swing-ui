@@ -5,7 +5,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.components.layout.BoxPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.test.interaction.performTextReplacement
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -56,7 +57,7 @@ class StateTextFieldTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState("hi")
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 TextField(state = state)
                 Label(text = "Echo: ${state.text}")
             }
@@ -79,7 +80,7 @@ class StateTextFieldTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState(document = document)
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 TextField(state = state)
                 Label(text = "Echo: ${state.text}")
             }
@@ -101,7 +102,7 @@ class StateTextFieldTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState("hello world")
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 TextField(state = state)
                 Label(text = "Range: ${state.selection.start}-${state.selection.end}")
             }
@@ -124,7 +125,7 @@ class StateTextFieldTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState("base")
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 TextField(state = state)
                 Label(text = "undo=${state.canUndo} redo=${state.canRedo}")
             }
@@ -151,7 +152,7 @@ class StateTextFieldTest {
         lateinit var state: DocumentState
         setContent {
             state = rememberDocumentState("stateful")
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 TextField(value = controlled, onValueChange = { controlled = it })
                 TextField(state = state)
             }
@@ -233,7 +234,7 @@ class StateTextFieldTest {
         var mounted by mutableStateOf(true)
         setContent {
             state = rememberDocumentState("hello world")
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 if (mounted) TextField(state = state)
             }
         }

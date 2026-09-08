@@ -25,7 +25,7 @@ class GridBagItemReactivityTest {
     fun everyConstraintFieldOfAnItemFollowsItsDeclaration() = runComposeSwingTest {
         var stretched by mutableStateOf(false)
         setContent {
-            GridBagPanel {
+            Panel(PanelLayout.GridBag) {
                 Label(
                     text = "cell",
                     modifier =
@@ -89,7 +89,7 @@ class GridBagItemReactivityTest {
     fun aChildFollowsItsDeclarationWhileItsConstraintsStay() = runComposeSwingTest {
         var caption by mutableStateOf("first")
         setContent {
-            GridBagPanel {
+            Panel(PanelLayout.GridBag) {
                 Label(text = caption, modifier = SwingModifier.item(gridx = 1, gridy = 1, ipadx = 12))
             }
         }
@@ -113,7 +113,7 @@ class GridBagItemReactivityTest {
     fun aChildDeclaringNoPlacementDoesNotShiftItsSiblings() = runComposeSwingTest {
         var column by mutableStateOf(4)
         setContent {
-            GridBagPanel {
+            Panel(PanelLayout.GridBag) {
                 Label(text = "head", modifier = SwingModifier.item(gridx = 0))
                 // A child is free to declare no placement of its own, so it takes the cell the layout
                 // manager gives a component it holds no constraints for, and the children around it

@@ -69,7 +69,8 @@ import javax.swing.plaf.basic.BasicToolBarUI
  *   is docked, to another edge of the container holding it, or `null` to leave the choice the bar
  *   already carries, which a bar carries as draggable; a look and feel that implements no floating
  *   ignores it. A bar the user can drag out has to stand in a container laid out by a `BorderLayout` -
- *   a [BorderPanel], or a window's own content - which is the only place a look and feel docks it back
+ *   a panel under [PanelLayout.Border], or a window's own content - which is the only place a look and
+ *   feel docks it back
  *   into the region it came from; anywhere else the bar is refused as it is composed, so declare
  *   `false` there
  * @param floating whether the tool bar stands in a window of its own rather than in the container it was
@@ -280,10 +281,11 @@ private fun JToolBar.checkStandsWhereItCanDock() {
     require(parent.layout is BorderLayout) {
         val manager = parent.layout?.let { "a ${it.javaClass.simpleName}" } ?: "no layout manager"
         "A tool bar the user can drag out has to stand in a container laid out by a BorderLayout - a " +
-            "BorderPanel, or a window's own content - which is the only place its look and feel docks " +
-            "it back into the region it came from, but the $declaredName declared here stands in a " +
+            "panel under PanelLayout.Border, or a window's own content - which is the only place its " +
+            "look and feel docks it back into the region it came from, but the $declaredName " +
+            "declared here stands in a " +
             "${parent.declaredName} laid out by $manager. " +
-            "Declare floatable = false, or hold the bar in a BorderPanel."
+            "Declare floatable = false, or hold the bar in a panel under PanelLayout.Border."
     }
 }
 

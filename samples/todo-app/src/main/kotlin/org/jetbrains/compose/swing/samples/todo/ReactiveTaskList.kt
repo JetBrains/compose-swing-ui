@@ -16,9 +16,10 @@ import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.layout.Alignment
 import org.jetbrains.compose.swing.components.layout.Arrangement
-import org.jetbrains.compose.swing.components.layout.BorderPanel
 import org.jetbrains.compose.swing.components.layout.Column
 import org.jetbrains.compose.swing.components.layout.ColumnScope
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.Row
 import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.components.text.TextField
@@ -39,7 +40,7 @@ internal fun ReactiveTaskList(modifier: SwingModifier = SwingModifier) {
     val total by remember { derivedStateOf { tasks.size } }
     val done by remember { derivedStateOf { tasks.count { it.done } } }
 
-    BorderPanel(modifier = modifier, hgap = 0, vgap = ROW_GAP) {
+    Panel(PanelLayout.Border(hgap = 0, vgap = ROW_GAP), modifier = modifier) {
         Column(SwingModifier.north(), verticalArrangement = Arrangement.spacedBy(ROW_GAP)) {
             SampleTitle("Reactive task list")
             Caption(

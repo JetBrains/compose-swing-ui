@@ -3,7 +3,7 @@ package org.jetbrains.compose.swing.modifier.listener
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -23,7 +23,7 @@ class DocumentSwapRegistrationTest {
     fun aDocumentListenerFollowsTheComponentAcrossADocumentSwap() = runComposeSwingTest {
         var inserts = 0
         setContent {
-            FlowPanel {
+            Panel {
                 TextField(
                     value = "",
                     onValueChange = {},
@@ -46,7 +46,7 @@ class DocumentSwapRegistrationTest {
         var inserts = 0
         var declared by mutableStateOf(true)
         setContent {
-            FlowPanel {
+            Panel {
                 TextField(
                     value = "",
                     onValueChange = {},
@@ -81,7 +81,7 @@ class DocumentSwapRegistrationTest {
     fun aDocumentListenerLeavesNoSwapListenerBehind() = runComposeSwingTest {
         var declared by mutableStateOf(false)
         setContent {
-            FlowPanel {
+            Panel {
                 TextField(
                     value = "",
                     onValueChange = {},

@@ -24,11 +24,11 @@ class RowColumnSurplusTest {
     @Test
     fun aTallColumnLeavesTheHeightItsChildrenDidNotAskForEmpty() = runComposeSwingTest {
         setContent {
-            BorderPanel(modifier = SwingModifier.preferredSize(IMPOSED_CROSS, IMPOSED_MAIN)) {
+            Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(IMPOSED_CROSS, IMPOSED_MAIN)) {
                 Column(modifier = SwingModifier.center().testTag(CONTAINER_TAG)) {
-                    FlowPanel(modifier = SwingModifier.preferredSize(CROSS_EXTENT, FIRST_EXTENT))
-                    GridBagPanel(modifier = SwingModifier.preferredSize(CROSS_EXTENT, SECOND_EXTENT)) {}
-                    BorderPanel(modifier = SwingModifier.preferredSize(CROSS_EXTENT, THIRD_EXTENT)) {}
+                    Panel(PanelLayout.Flow(), modifier = SwingModifier.preferredSize(CROSS_EXTENT, FIRST_EXTENT)) {}
+                    Panel(PanelLayout.GridBag, modifier = SwingModifier.preferredSize(CROSS_EXTENT, SECOND_EXTENT)) {}
+                    Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(CROSS_EXTENT, THIRD_EXTENT)) {}
                 }
             }
         }
@@ -52,11 +52,11 @@ class RowColumnSurplusTest {
     @Test
     fun aWideRowLeavesTheWidthItsChildrenDidNotAskForEmpty() = runComposeSwingTest {
         setContent {
-            BorderPanel(modifier = SwingModifier.preferredSize(IMPOSED_MAIN, IMPOSED_CROSS)) {
+            Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(IMPOSED_MAIN, IMPOSED_CROSS)) {
                 Row(modifier = SwingModifier.center().testTag(CONTAINER_TAG)) {
-                    FlowPanel(modifier = SwingModifier.preferredSize(FIRST_EXTENT, CROSS_EXTENT))
-                    GridBagPanel(modifier = SwingModifier.preferredSize(SECOND_EXTENT, CROSS_EXTENT)) {}
-                    BorderPanel(modifier = SwingModifier.preferredSize(THIRD_EXTENT, CROSS_EXTENT)) {}
+                    Panel(PanelLayout.Flow(), modifier = SwingModifier.preferredSize(FIRST_EXTENT, CROSS_EXTENT)) {}
+                    Panel(PanelLayout.GridBag, modifier = SwingModifier.preferredSize(SECOND_EXTENT, CROSS_EXTENT)) {}
+                    Panel(PanelLayout.Border(), modifier = SwingModifier.preferredSize(THIRD_EXTENT, CROSS_EXTENT)) {}
                 }
             }
         }

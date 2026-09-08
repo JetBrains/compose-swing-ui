@@ -16,12 +16,12 @@ import kotlin.test.assertSame
 /**
  * A parked [ReusableContentHost] child detaches its panel, and reactivation builds a fresh one from the
  * node's own factory. What a container writes to its component from *outside* that node - a
- * [CardPanel]'s card flip, for one - therefore has to address the component the node currently holds
+ * [PanelLayout.Card]'s card flip, for one - therefore has to address the component the node currently holds
  * rather than one the composable made for itself once, or the two drift apart and every later
  * declaration lands on a component no longer in the tree.
  */
 class PanelNodeReuseTest {
-    /** Asserts the [CardPanel] shows the card labeled [shown] and keeps the one labeled [hidden] down. */
+    /** Asserts the [PanelLayout.Card] deck shows the card labeled [shown] and keeps the one labeled [hidden] down. */
     private fun ComposeSwingTest.assertShownCard(
         shown: String,
         hidden: String,
@@ -36,7 +36,7 @@ class PanelNodeReuseTest {
         var selected by mutableStateOf("first")
         setContent {
             ReusableContentHost(active = active) {
-                CardPanel(selectedCard = selected) {
+                Panel(PanelLayout.Card(selectedCard = selected)) {
                     Label("first", SwingModifier.card("first"))
                     Label("second", SwingModifier.card("second"))
                 }

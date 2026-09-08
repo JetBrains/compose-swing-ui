@@ -2,7 +2,8 @@ package org.jetbrains.compose.swing.test.interaction
 
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
-import org.jetbrains.compose.swing.components.layout.BoxPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.test.SwingMatcher
@@ -80,7 +81,7 @@ class NodeTypedInteractionTest {
     @Test
     fun navigationTargetsANodeOfAnyType() = runComposeSwingTest {
         setContent {
-            BoxPanel(modifier = SwingModifier.name("box")) {
+            Panel(PanelLayout.Box(), modifier = SwingModifier.name("box")) {
                 Label(text = "child")
             }
         }
@@ -97,7 +98,7 @@ class NodeTypedInteractionTest {
     @Test
     fun aTypedCollectionFetchesItsOwnTypeWithoutNamingItAgain() = runComposeSwingTest {
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 Label(text = "first")
                 Label(text = "second")
             }
@@ -111,7 +112,7 @@ class NodeTypedInteractionTest {
     @Test
     fun aTypedCollectionHandsItsTypeToEverySingleNodeStep() = runComposeSwingTest {
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 Label(text = "first")
                 Label(text = "second")
             }
@@ -133,7 +134,7 @@ class NodeTypedInteractionTest {
     @Test
     fun anUntypedCollectionFetchesTheTypeNamedAtTheFetch() = runComposeSwingTest {
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 Label(text = "row")
                 Label(text = "row")
             }

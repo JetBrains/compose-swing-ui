@@ -19,7 +19,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * A [GridBagPanel] child is registered with the panel's layout manager only when the placement it
+ * A [PanelLayout.GridBag] panel's child is registered with the panel's layout manager only when the placement it
  * declares changes. A pass that rebuilds a child's chain under the same arguments leaves the layout
  * manager alone, so a form does not pay a remove/re-add and a revalidation per child for every state
  * change its panel reads.
@@ -56,7 +56,7 @@ class GridBagConstraintGatingTest {
         var caption by mutableStateOf("first")
         var column by mutableIntStateOf(0)
         setContent {
-            GridBagPanel {
+            Panel(PanelLayout.GridBag) {
                 // Editing the caption recomposes the child and builds its chain from scratch - which is
                 // what puts a freshly built constraint in front of the gate.
                 Label(text = caption, modifier = SwingModifier.item(gridx = column, gridy = 0, ipadx = 3))
@@ -79,10 +79,35 @@ class GridBagConstraintGatingTest {
     }
 
     @Test
+    fun mutatingInsetsReplacesTheChildWithTheNewValues() = runComposeSwingTest {
+        var caption by mutableStateOf("first")
+        val insets = Insets(0, 0, 0, 0)
+        setContent {
+            Panel(PanelLayout.GridBag) {
+                Label(text = caption, modifier = SwingModifier.item(insets = insets))
+            }
+        }
+
+        val child = onNodeOfType<JLabel>().fetch()
+        val layout = onNodeOfType<JLabel>().onParent().fetch<JPanel>().layout as GridBagLayout
+        assertEquals(0, layout.getConstraints(child).insets.left, "the initial left inset should reach the layout")
+
+        insets.left = 7
+        caption = "second"
+        awaitIdle()
+
+        assertEquals(
+            7,
+            layout.getConstraints(child).insets.left,
+            "mutating a caller-owned Insets should update the layout on the next recomposition",
+        )
+    }
+
+    @Test
     fun editingAnySingleFieldOfAnItemRePlacesItsChild() = runComposeSwingTest {
         var edited by mutableStateOf<String?>(null)
         setContent {
-            GridBagPanel {
+            Panel(PanelLayout.GridBag) {
                 Label(
                     text = "cell",
                     modifier =

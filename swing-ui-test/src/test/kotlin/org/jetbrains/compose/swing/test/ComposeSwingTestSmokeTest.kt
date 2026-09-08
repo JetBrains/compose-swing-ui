@@ -4,7 +4,8 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
-import org.jetbrains.compose.swing.components.layout.BorderPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.interaction.performClick
@@ -51,7 +52,7 @@ class ComposeSwingTestSmokeTest {
     @Test
     fun bordersExposeConstraints() = runComposeSwingTest {
         setContent {
-            BorderPanel {
+            Panel(PanelLayout.Border()) {
                 Label(text = "N", modifier = SwingModifier.north())
                 Label(text = "C", modifier = SwingModifier.center())
             }

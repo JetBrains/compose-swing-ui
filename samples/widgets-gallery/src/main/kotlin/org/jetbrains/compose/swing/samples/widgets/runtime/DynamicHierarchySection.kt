@@ -10,9 +10,9 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.Slider
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.button.CheckBox
-import org.jetbrains.compose.swing.components.layout.BorderPanel
 import org.jetbrains.compose.swing.components.layout.ColumnScope
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.visible
@@ -49,13 +49,13 @@ private fun ColumnScope.StructuralToggleCard() {
         if (showDetails) {
             var name by remember { mutableStateOf("Ada") }
             var level by remember { mutableIntStateOf(3) }
-            BorderPanel(hgap = 8, vgap = 8) {
+            Panel(PanelLayout.Border(hgap = 8, vgap = 8)) {
                 Label("Details (this entire subtree was just inserted)", SwingModifier.north())
-                FlowPanel(SwingModifier.center()) {
+                Panel(PanelLayout.Flow(), SwingModifier.center()) {
                     Label("Name:")
                     TextField(value = name, onValueChange = { name = it }, columns = 16)
                 }
-                FlowPanel(SwingModifier.south()) {
+                Panel(PanelLayout.Flow(), SwingModifier.south()) {
                     Label("Level: $level")
                     Slider(value = level, onValueChange = { level = it }, min = 0, max = 10)
                 }
@@ -79,9 +79,9 @@ private fun ColumnScope.VisibleContrastCard() {
         )
 
         var clicks by remember { mutableIntStateOf(0) }
-        BorderPanel(modifier = SwingModifier.visible(shown), hgap = 8, vgap = 8) {
+        Panel(PanelLayout.Border(hgap = 8, vgap = 8), modifier = SwingModifier.visible(shown)) {
             Label("This panel is always composed; only its visibility changes.", SwingModifier.north())
-            FlowPanel(SwingModifier.center()) {
+            Panel(PanelLayout.Flow(), SwingModifier.center()) {
                 Button("Clicked $clicks time(s)", onClick = { clicks++ })
             }
         }

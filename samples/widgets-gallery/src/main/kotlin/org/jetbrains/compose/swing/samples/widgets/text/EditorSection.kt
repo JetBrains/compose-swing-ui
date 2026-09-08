@@ -10,7 +10,8 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.Spinner
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.ColumnScope
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.components.selection.RadioGroup
 import org.jetbrains.compose.swing.components.text.TextArea
@@ -86,7 +87,7 @@ private fun ColumnScope.DocumentEditorCard() {
 
         // canUndo / canRedo are snapshot-observable, so the buttons enable and disable themselves as
         // history changes - no listener, no state mirror to keep in sync.
-        FlowPanel(alignment = FlowLayout.LEADING) {
+        Panel(PanelLayout.Flow(alignment = FlowLayout.LEADING)) {
             Button(text = "Undo", onClick = state::undo, modifier = SwingModifier.enabled(state.canUndo))
             Button(text = "Redo", onClick = state::redo, modifier = SwingModifier.enabled(state.canRedo))
         }
@@ -106,7 +107,7 @@ private fun ColumnScope.ScriptedEditCard() {
         // Every button drives one DocumentEditScope member. Each call inside edit { } lands as part of
         // one compound change, and the trailing selectAll/placeCaretAtEnd calls place the caret without
         // editing the text.
-        FlowPanel(alignment = FlowLayout.LEADING) {
+        Panel(PanelLayout.Flow(alignment = FlowLayout.LEADING)) {
             Button("insert", onClick = { state.edit { insert(0, "NEW ") } })
             Button("append", onClick = { state.edit { append(" MORE") } })
             Button("replace", onClick = { state.edit { replace(0, minOf(3, length), "XXX") } })
@@ -131,7 +132,7 @@ private fun ColumnScope.SelectionCard() {
         // with the mouse or the keyboard as well as one applied through the spinners below.
         TextArea(state = state, rows = 3, columns = 50)
         Label("Selection: ${state.selection.start} – ${state.selection.end}")
-        FlowPanel {
+        Panel {
             Label("Start:")
             Spinner(start, onValueChange = { start = it.toInt() }, min = 0, max = 200, step = 1)
             Label("End:")
@@ -156,7 +157,7 @@ private fun ColumnScope.HighlightCard() {
         val painter = remember { DefaultHighlighter.DefaultHighlightPainter(Color(0xFF, 0xF1, 0x8A)) }
         val matches = remember(source, query) { findMatches(source, query) }
 
-        FlowPanel(alignment = FlowLayout.LEADING) {
+        Panel(PanelLayout.Flow(alignment = FlowLayout.LEADING)) {
             Label("Search:")
             TextField(value = query, onValueChange = { query = it }, columns = 16)
         }

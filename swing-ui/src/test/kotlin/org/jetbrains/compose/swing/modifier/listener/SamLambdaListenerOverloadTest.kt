@@ -3,7 +3,7 @@ package org.jetbrains.compose.swing.modifier.listener
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -31,7 +31,7 @@ class SamLambdaListenerOverloadTest {
     fun anItemLambdaReportsAToggle() = runComposeSwingTest {
         var reports = 0
         setContent {
-            FlowPanel {
+            Panel {
                 SwingNode(
                     factory = { JCheckBox() },
                     modifier = SwingModifier.itemListener { reports++ },
@@ -46,7 +46,7 @@ class SamLambdaListenerOverloadTest {
     fun aChangeLambdaReportsASliderMove() = runComposeSwingTest {
         var reports = 0
         setContent {
-            FlowPanel {
+            Panel {
                 SwingNode(
                     factory = { JSlider() },
                     modifier = SwingModifier.changeListener { reports++ },
@@ -61,7 +61,7 @@ class SamLambdaListenerOverloadTest {
     fun aCaretLambdaReportsAnEdit() = runComposeSwingTest {
         var reports = 0
         setContent {
-            FlowPanel {
+            Panel {
                 SwingNode(
                     factory = { JTextField() },
                     modifier = SwingModifier.caretListener { reports++ },
@@ -76,7 +76,7 @@ class SamLambdaListenerOverloadTest {
     fun anAdjustmentLambdaReportsAScroll() = runComposeSwingTest {
         var reports = 0
         setContent {
-            FlowPanel {
+            Panel {
                 SwingNode(
                     factory = { JScrollBar() },
                     modifier = SwingModifier.adjustmentListener { reports++ },
@@ -91,7 +91,7 @@ class SamLambdaListenerOverloadTest {
     fun aListSelectionLambdaReportsASelection() = runComposeSwingTest {
         var reports = 0
         setContent {
-            FlowPanel {
+            Panel {
                 SwingNode(factory = {
                     JList(arrayOf("a", "b"))
                 }, modifier = SwingModifier.listSelectionListener { reports++ })
@@ -105,7 +105,7 @@ class SamLambdaListenerOverloadTest {
     fun aTreeSelectionLambdaReportsASelection() = runComposeSwingTest {
         var reports = 0
         setContent {
-            FlowPanel {
+            Panel {
                 SwingNode(
                     factory = { JTree() },
                     modifier = SwingModifier.treeSelectionListener { reports++ },
@@ -120,7 +120,7 @@ class SamLambdaListenerOverloadTest {
     fun aPropertyChangeLambdaReportsEveryBoundProperty() = runComposeSwingTest {
         val seen = mutableListOf<String>()
         setContent {
-            FlowPanel {
+            Panel {
                 SwingNode(
                     factory = { JTextField() },
                     modifier = SwingModifier.propertyChangeListener { seen += it.propertyName },
@@ -135,7 +135,7 @@ class SamLambdaListenerOverloadTest {
     fun aHyperlinkLambdaHearsTheLinkEventTheEditorPanePublishes() = runComposeSwingTest {
         val seen = mutableListOf<HyperlinkEvent>()
         setContent {
-            FlowPanel {
+            Panel {
                 SwingNode(
                     factory = { JEditorPane() },
                     modifier = SwingModifier.hyperlinkListener { seen += it },
@@ -163,7 +163,7 @@ class SamLambdaListenerOverloadTest {
     fun aMouseWheelLambdaHearsTheTurnTheEventCarries() = runComposeSwingTest {
         val turns = mutableListOf<Int>()
         setContent {
-            FlowPanel {
+            Panel {
                 SwingNode(
                     factory = { JTextField() },
                     modifier = SwingModifier.mouseWheelListener { turns += it.wheelRotation },
@@ -201,7 +201,7 @@ class SamLambdaListenerOverloadTest {
     fun aHierarchyLambdaHearsTheComponentReachItsParent() = runComposeSwingTest {
         var reports = 0
         setContent {
-            FlowPanel {
+            Panel {
                 SwingNode(
                     factory = { JTextField() },
                     modifier = SwingModifier.hierarchyListener { reports++ },
@@ -216,7 +216,7 @@ class SamLambdaListenerOverloadTest {
         var reports = 0
         var declared by mutableStateOf(1)
         setContent {
-            FlowPanel {
+            Panel {
                 // Captured while the chain is built, so the value each lambda reports is the one its own
                 // pass declared: a listener left holding the first lambda reports 1.
                 val captured = declared

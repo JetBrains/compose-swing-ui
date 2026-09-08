@@ -10,7 +10,8 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.layout.ColumnScope
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.opaque
@@ -85,7 +86,7 @@ internal fun ColumnScope.ComponentAndHierarchyListenerCard() {
             }
         val hierarchyWatcher = remember { HierarchyListener { hierarchyEvents++ } }
         CheckBox(text = "Shown", checked = shown, onCheckedChange = { shown = it })
-        FlowPanel(modifier = SwingModifier.preferredSize(Dimension(180, 40)), hgap = 0, vgap = 0) {
+        Panel(PanelLayout.Flow(hgap = 0, vgap = 0), modifier = SwingModifier.preferredSize(Dimension(180, 40))) {
             Button(
                 "Watched button",
                 onClick = { },
@@ -119,7 +120,7 @@ internal fun ColumnScope.ContainerListenerCard() {
                 }
             }
         CheckBox(text = "Add a child", checked = childPresent, onCheckedChange = { childPresent = it })
-        FlowPanel(modifier = SwingModifier.containerListener(listener)) {
+        Panel(PanelLayout.Flow(), modifier = SwingModifier.containerListener(listener)) {
             if (childPresent) Label("I was just added")
         }
         Label("Added: $added, removed: $removed")

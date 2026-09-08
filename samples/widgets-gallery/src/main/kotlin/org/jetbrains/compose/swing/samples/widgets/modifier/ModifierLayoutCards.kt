@@ -11,9 +11,9 @@ import org.jetbrains.compose.swing.components.Spinner
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.desktop.LayeredPane
-import org.jetbrains.compose.swing.components.layout.BoxPanel
 import org.jetbrains.compose.swing.components.layout.ColumnScope
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.Row
 import org.jetbrains.compose.swing.components.selection.RadioGroup
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -51,7 +51,7 @@ internal fun ColumnScope.SizeAndVisibilityCard() {
     ExampleCard("preferredSize / visible") {
         var shown by remember { mutableStateOf(true) }
         CheckBox(text = "Show the second button", checked = shown, onCheckedChange = { shown = it })
-        FlowPanel {
+        Panel {
             Button(
                 "Wide button",
                 onClick = { },
@@ -60,10 +60,9 @@ internal fun ColumnScope.SizeAndVisibilityCard() {
             // The slot's footprint is reserved by the wrapping panel's preferredSize, so visible(false)
             // hides the button but keeps it attached and the row does not collapse - unlike conditional
             // composition (if (shown) Button(...)), which drops the child and lets the layout reflow.
-            FlowPanel(
+            Panel(
+                PanelLayout.Flow(hgap = 0, vgap = 0),
                 modifier = SwingModifier.preferredSize(Dimension(120, BUTTON_HEIGHT)),
-                hgap = 0,
-                vgap = 0,
             ) {
                 Button("Toggle me", onClick = { }, modifier = SwingModifier.visible(shown))
             }
@@ -103,11 +102,11 @@ internal fun ColumnScope.GeometryCard() {
             "These set a component's actual bounds directly, so they take effect only outside a managed " +
                 "layout - here, a LayeredPane, which positions each child itself.",
         )
-        FlowPanel {
+        Panel {
             GeometrySpinner("x:", frameX, { frameX = it }, min = 0, max = 200)
             GeometrySpinner("y:", frameY, { frameY = it }, min = 0, max = 140)
         }
-        FlowPanel {
+        Panel {
             GeometrySpinner("width:", frameWidth, { frameWidth = it }, min = 40, max = 240)
             GeometrySpinner("height:", frameHeight, { frameHeight = it }, min = 30, max = 100)
         }
@@ -154,9 +153,9 @@ internal fun ColumnScope.AlignmentCard() {
     ExampleCard("alignmentX / alignmentY") {
         var aligned by remember { mutableStateOf(true) }
         CheckBox(text = "Align the narrow button left", checked = aligned, onCheckedChange = { aligned = it })
-        // alignmentX is the property a BoxLayout lines its children up by, so a BoxPanel is what makes
+        // alignmentX is the property a BoxLayout lines its children up by, so a linear panel is what makes
         // it visible: a left-aligned child and a centered one sit at different offsets.
-        BoxPanel(axis = BoxLayout.Y_AXIS) {
+        Panel(PanelLayout.Box(axis = BoxLayout.Y_AXIS)) {
             Button(
                 "Wide row button",
                 onClick = { },
@@ -171,7 +170,7 @@ internal fun ColumnScope.AlignmentCard() {
                     ),
             )
         }
-        BoxPanel(axis = BoxLayout.X_AXIS) {
+        Panel(PanelLayout.Box(axis = BoxLayout.X_AXIS)) {
             Label("Tall ↕", modifier = SwingModifier.preferredSize(Dimension(60, 40)))
             Label("top", modifier = SwingModifier.alignmentY(0.0f))
             Label("bottom", modifier = SwingModifier.alignmentY(1.0f))
@@ -183,7 +182,7 @@ internal fun ColumnScope.AlignmentCard() {
 internal fun ColumnScope.VerticalAlignmentCard() {
     ExampleCard("verticalAlignment") {
         var choice by remember { mutableIntStateOf(1) }
-        FlowPanel {
+        Panel {
             Label("Align:")
             RadioGroup(selectedIndex = choice, onSelectionChange = { choice = it }, axis = BoxLayout.X_AXIS) {
                 option("Top")
@@ -192,7 +191,7 @@ internal fun ColumnScope.VerticalAlignmentCard() {
             }
         }
         val alignment = intArrayOf(SwingConstants.TOP, SwingConstants.CENTER, SwingConstants.BOTTOM)[choice]
-        FlowPanel {
+        Panel {
             Label(
                 "Tall content ↕",
                 modifier =
@@ -210,7 +209,7 @@ internal fun ColumnScope.VerticalAlignmentCard() {
 internal fun ColumnScope.MarginCard() {
     ExampleCard("margin") {
         var inset by remember { mutableIntStateOf(4) }
-        FlowPanel {
+        Panel {
             Label("Margin:")
             Spinner(
                 inset,
@@ -222,7 +221,7 @@ internal fun ColumnScope.MarginCard() {
             )
         }
         val padding = inset
-        FlowPanel(modifier = SwingModifier.lineBorder(Color.GRAY, 1)) {
+        Panel(PanelLayout.Flow(), modifier = SwingModifier.lineBorder(Color.GRAY, 1)) {
             Button(
                 "Padded button",
                 onClick = { },

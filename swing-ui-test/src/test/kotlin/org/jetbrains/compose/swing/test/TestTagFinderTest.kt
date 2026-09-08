@@ -4,7 +4,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.components.layout.BoxPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.modifier.appearance.testTag
@@ -22,7 +23,7 @@ class TestTagFinderTest {
     @Test
     fun onNodeWithTagResolvesTheTaggedNode() = runComposeSwingTest {
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 Label(text = "first", modifier = SwingModifier.testTag("target"))
                 Label(text = "second")
             }
@@ -48,7 +49,7 @@ class TestTagFinderTest {
     @Test
     fun onAllNodesWithTagMatchesEveryTaggedNode() = runComposeSwingTest {
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 Label(text = "a", modifier = SwingModifier.testTag("row"))
                 Label(text = "b", modifier = SwingModifier.testTag("row"))
                 Label(text = "c", modifier = SwingModifier.testTag("other"))

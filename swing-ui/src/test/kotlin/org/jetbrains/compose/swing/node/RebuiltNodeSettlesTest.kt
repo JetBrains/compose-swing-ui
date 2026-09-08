@@ -7,7 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Slider
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JSlider
@@ -53,7 +53,7 @@ class RebuiltNodeSettlesTest {
         setContent {
             val content =
                 remember { movableContentOf { Slider(value = DECLARED, onValueChange = {}, min = MIN, max = MAX) } }
-            FlowPanel {
+            Panel {
                 if (!parked) content()
             }
         }

@@ -1,8 +1,8 @@
 package org.jetbrains.compose.swing.test
 
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.components.layout.BoxPanel
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
 import javax.swing.JLabel
@@ -28,12 +28,12 @@ class StructuralMatcherTest {
      */
     private fun ComposeSwingTest.setNestedContent() {
         setContent {
-            BoxPanel(modifier = SwingModifier.name("box")) {
-                FlowPanel(modifier = SwingModifier.name("left")) {
+            Panel(PanelLayout.Box(), modifier = SwingModifier.name("box")) {
+                Panel(PanelLayout.Flow(), modifier = SwingModifier.name("left")) {
                     Label(text = "alpha")
                     Label(text = "beta")
                 }
-                FlowPanel(modifier = SwingModifier.name("right")) {
+                Panel(PanelLayout.Flow(), modifier = SwingModifier.name("right")) {
                     Label(text = "gamma")
                 }
             }

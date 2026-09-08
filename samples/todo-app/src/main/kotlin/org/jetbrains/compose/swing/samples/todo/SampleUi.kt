@@ -3,9 +3,10 @@ package org.jetbrains.compose.swing.samples.todo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.components.layout.BorderPanel
 import org.jetbrains.compose.swing.components.layout.Column
 import org.jetbrains.compose.swing.components.layout.ColumnScope
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.border
 import org.jetbrains.compose.swing.modifier.appearance.emptyBorder
@@ -27,9 +28,7 @@ internal const val ROW_GAP: Int = 8
 // The whole screen wrapped in a uniform body inset. main composes exactly this; so does the test.
 @Composable
 internal fun ReactiveTaskListScreen() {
-    BorderPanel(
-        modifier = SwingModifier.emptyBorder(16),
-    ) {
+    Panel(PanelLayout.Border(), modifier = SwingModifier.emptyBorder(16)) {
         ReactiveTaskList(SwingModifier.center())
     }
 }

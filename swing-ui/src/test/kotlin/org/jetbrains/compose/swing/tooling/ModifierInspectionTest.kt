@@ -10,9 +10,10 @@ import org.jetbrains.compose.swing.components.Slider
 import org.jetbrains.compose.swing.components.Spinner
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.Alignment
-import org.jetbrains.compose.swing.components.layout.BorderPanel
 import org.jetbrains.compose.swing.components.layout.Column
 import org.jetbrains.compose.swing.components.layout.HorizontalAxisAlignment
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.ScrollBehavior
 import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.components.layout.TabbedPane
@@ -169,7 +170,7 @@ class ModifierInspectionTest {
     fun aPlacementStandsInTheChainAlongsideWhatItLooksLike() = runComposeSwingTest {
         isDebugInspectorInfoEnabled = true
         setContent {
-            BorderPanel {
+            Panel(PanelLayout.Border()) {
                 Label(
                     text = "hello",
                     modifier =

@@ -1,9 +1,8 @@
 package org.jetbrains.compose.swing.test.interaction
 
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.components.layout.BoxPanel
-import org.jetbrains.compose.swing.components.layout.CardPanel
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.components.text.rememberDocumentState
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -35,7 +34,7 @@ class NodeInteractionContractTest {
     @Test
     fun assertDoesNotExistFailsWhenTheQueryIsAmbiguous() = runComposeSwingTest {
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 Label(text = "dup")
                 Label(text = "dup")
             }
@@ -74,7 +73,7 @@ class NodeInteractionContractTest {
     @Test
     fun anIndexedQueryPastTheMatchSetReportsHowManyMatched() = runComposeSwingTest {
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 Label(text = "row")
                 Label(text = "row")
             }
@@ -103,7 +102,7 @@ class NodeInteractionContractTest {
     @Test
     fun assertIsDisplayedHoldsForALaidOutNode() = runComposeSwingTest {
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 Label(text = "laid out")
             }
         }
@@ -116,7 +115,7 @@ class NodeInteractionContractTest {
     @Test
     fun assertIsDisplayedFailsForANodeCollapsedToZeroSize() = runComposeSwingTest {
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 SwingNode(
                     factory = { JLabel() },
                     update = {
@@ -140,7 +139,7 @@ class NodeInteractionContractTest {
     @Test
     fun aHiddenCardIsStillDisplayedAndOnlyTheVisibilityAssertionTellsThemApart() = runComposeSwingTest {
         setContent {
-            CardPanel(selectedCard = "front") {
+            Panel(PanelLayout.Card(selectedCard = "front")) {
                 Label(text = "front", modifier = SwingModifier.card("front"))
                 Label(text = "back", modifier = SwingModifier.card("back"))
             }
@@ -163,7 +162,7 @@ class NodeInteractionContractTest {
     @Test
     fun assertIsVisibleFailsForANodeHiddenByAnAncestorAndNamesIt() = runComposeSwingTest {
         setContent {
-            FlowPanel(modifier = SwingModifier.visible(false)) {
+            Panel(PanelLayout.Flow(), modifier = SwingModifier.visible(false)) {
                 Label(text = "child")
             }
         }
@@ -259,8 +258,8 @@ class NodeInteractionContractTest {
     @Test
     fun onDescendantsExcludesTheNodeItself() = runComposeSwingTest {
         setContent {
-            FlowPanel(modifier = SwingModifier.name("outer")) {
-                FlowPanel(modifier = SwingModifier.name("inner")) {
+            Panel(PanelLayout.Flow(), modifier = SwingModifier.name("outer")) {
+                Panel(PanelLayout.Flow(), modifier = SwingModifier.name("inner")) {
                     Label(text = "leaf")
                 }
             }

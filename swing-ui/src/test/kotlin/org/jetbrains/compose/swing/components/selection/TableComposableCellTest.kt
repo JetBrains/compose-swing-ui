@@ -4,7 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.onAllNodesOfType
@@ -55,7 +55,7 @@ class TableComposableCellTest {
                 column("Name") { it.name }
                 column(
                     header = "Age",
-                    cellContent = { row -> FlowPanel { Label("${row.name}: ${row.age}") } },
+                    cellContent = { row -> Panel { Label("${row.name}: ${row.age}") } },
                 ) { it.age }
             }
         }
@@ -176,7 +176,7 @@ class TableComposableCellTest {
         setContent {
             ScrollPane {
                 Table(rows = people, modifier = SwingModifier.viewport(), selectedRowIndices = setOf(0)) {
-                    column("Name", cellContent = { row -> FlowPanel { Label(row.name) } }) { it.name }
+                    column("Name", cellContent = { row -> Panel { Label(row.name) } }) { it.name }
                 }
             }
         }
@@ -217,7 +217,7 @@ class TableComposableCellTest {
                     header = "Name",
                     cellContent =
                         if (composableCells) {
-                            { row -> FlowPanel { Label(row.name) } }
+                            { row -> Panel { Label(row.name) } }
                         } else {
                             null
                         },

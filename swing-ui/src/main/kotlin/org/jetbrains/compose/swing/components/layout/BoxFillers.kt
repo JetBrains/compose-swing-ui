@@ -15,11 +15,11 @@ import javax.swing.SwingConstants
 /**
  * Empty space of a fixed size, [width] by [height] pixels - the rigid area of `Box.createRigidArea`.
  *
- * Its minimum, preferred and maximum size are all that size, so a [BoxPanel] or a [ToolBar] holds it
+ * Its minimum, preferred and maximum size are all that size, so a [PanelLayout.Box] panel or a [ToolBar] holds it
  * at exactly that size - which is what makes it the gap between two items:
  *
  * ```
- * BoxPanel(axis = BoxLayout.X_AXIS) {
+ * Panel(PanelLayout.Box(axis = BoxLayout.X_AXIS)) {
  *     Button(text = "Cancel", onClick = { ... })
  *     RigidArea(width = 8, height = 0)
  *     Button(text = "OK", onClick = { ... })
@@ -66,7 +66,7 @@ public fun Spacer(
  * strut holds a width and takes whatever height it is given, a vertical one holds a height and takes
  * whatever width.
  *
- * In a [BoxPanel] or a [ToolBar] laid out along [orientation] it is a fixed gap between two items,
+ * In a [PanelLayout.Box] panel or a [ToolBar] laid out along [orientation] it is a fixed gap between two items,
  * spanning the box across that axis. In one laid out across [orientation] it holds the box to [size]
  * along the other axis and takes a share of the leftover extent the way [Glue] does.
  *
@@ -89,7 +89,7 @@ public fun Strut(
 
 /**
  * Empty space that asks for nothing and grows without bound - the glue of `Box.createGlue`,
- * `Box.createHorizontalGlue` and `Box.createVerticalGlue`. A [BoxPanel] or a [ToolBar] shares the
+ * `Box.createHorizontalGlue` and `Box.createVerticalGlue`. A [PanelLayout.Box] panel or a [ToolBar] shares the
  * extent it has left over among its children in proportion to the room each has between its preferred
  * and its maximum size; glue prefers nothing and has no ceiling, so its share is the largest. That
  * share is the whole of the leftover extent where every sibling's maximum size is the size it prefers,
@@ -97,7 +97,7 @@ public fun Strut(
  * is set on it:
  *
  * ```
- * BoxPanel(axis = BoxLayout.X_AXIS) {
+ * Panel(PanelLayout.Box(axis = BoxLayout.X_AXIS)) {
  *     Label(text = "Status")
  *     Glue()
  *     Button(text = "Details", onClick = { ... })

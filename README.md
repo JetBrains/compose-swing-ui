@@ -33,20 +33,20 @@ import javax.swing.SwingUtilities
 
 ## Quick start
 
-A minimal app using the `application` entry point, a `Window`, a couple of components, and
-`BorderPanel`'s regions:
+A minimal app using the `application` entry point, a `Window`, a couple of components, and the
+`BorderLayout` regions a `Panel` under `PanelLayout.Border` offers:
 
 ```kotlin
 fun main() = application {
     Window(onCloseRequest = ::exitApplication, title = "Counter") {
         var count by remember { mutableIntStateOf(0) }
 
-        BorderPanel {
+        Panel(PanelLayout.Border()) {
             Label(
                 "Compose Swing UI",
                 modifier = SwingModifier.north().horizontalAlignment(SwingConstants.CENTER),
             )
-            FlowPanel {
+            Panel {
                 Label("Count: $count")
                 Button("Increment", onClick = { count++ })
                 Button("Decrement", onClick = { count-- })
@@ -62,9 +62,9 @@ fun main() = application {
 
 <!--- KNIT example-readme-01.kt -->
 
-A child of `BorderPanel` names its `BorderLayout` region on its own modifier: `north()`, `south()`,
-`center()`, and the rest of `BorderLayout`'s. A child that names no region occupies the center, so
-the panel's main content is written plainly.
+A child of a `PanelLayout.Border` panel names its `BorderLayout` region on its own modifier:
+`north()`, `south()`, `center()`, and the rest of `BorderLayout`'s. A child that names no region
+occupies the center, so the panel's main content is written plainly.
 
 Every component family the library ships - text inputs, buttons, selection, layout containers,
 windows, dialogs and menus - is cataloged with the parameters that decide how it behaves in
@@ -87,7 +87,7 @@ fun main() {
 
         frame.setContent {
             var count by remember { mutableIntStateOf(0) }
-            FlowPanel {
+            Panel {
                 Label("Count: $count")
                 Button("Increment", onClick = { count++ })
             }

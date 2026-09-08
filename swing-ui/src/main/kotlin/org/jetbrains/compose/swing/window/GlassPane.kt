@@ -30,7 +30,7 @@ import javax.swing.JRootPane
  * Window(onCloseRequest = ::exitApplication) {
  *     if (loading) {
  *         GlassPane {
- *             GridBagPanel {
+ *             Panel(PanelLayout.GridBag) {
  *                 item { ProgressBar(value = 0, indeterminate = true) }
  *             }
  *         }

@@ -15,7 +15,7 @@ import kotlin.test.assertTrue
 
 class LayoutSectionsTest {
     @Test
-    fun theCardPanelSwitchesTheVisibleCard() =
+    fun theCardDeckSwitchesTheVisibleCard() =
         runComposeSwingTest {
             openSection("Layouts")
 

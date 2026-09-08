@@ -12,7 +12,7 @@ import org.jetbrains.compose.swing.components.Spinner
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.layout.ColumnScope
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.components.selection.RadioGroup
 import org.jetbrains.compose.swing.components.selection.Table
@@ -157,7 +157,7 @@ private fun SelectionModeControl(
     selectedIndex: Int,
     onSelectedIndexChange: (Int) -> Unit,
 ) {
-    FlowPanel {
+    Panel {
         Label("Selection mode:")
         RadioGroup(
             selectedIndex = selectedIndex,
@@ -240,7 +240,7 @@ private fun SortFilterControls(
     filterText: String,
     onFilterTextChange: (String) -> Unit,
 ) {
-    FlowPanel {
+    Panel {
         CheckBox(text = "Sortable", checked = sortableEnabled, onCheckedChange = onSortableChange)
         Label("Filter (title/author):")
         TextField(
@@ -262,7 +262,7 @@ private class TableLayoutState {
 
 @Composable
 private fun TableLayoutControls(state: TableLayoutState) {
-    FlowPanel {
+    Panel {
         Label("Auto-resize:")
         ComboBox(
             items = tableResizeModes.map { it.first },
@@ -304,7 +304,7 @@ private fun ColumnScope.ModelBackedTableCard() {
         var nextScore by remember { mutableIntStateOf(80) }
         var rowCount by remember { mutableIntStateOf(model.rowCount) }
 
-        FlowPanel {
+        Panel {
             Button(
                 "Add row",
                 onClick = {

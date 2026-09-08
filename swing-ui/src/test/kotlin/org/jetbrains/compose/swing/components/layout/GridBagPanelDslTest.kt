@@ -15,7 +15,7 @@ import java.awt.Insets
 import kotlin.test.Test
 
 /**
- * Behavioral tests for the [GridBagPanel] placement DSL.
+ * Behavioral tests for the [PanelLayout.GridBag] placement DSL.
  *
  * Every assertion reads the constraints Swing actually holds for a child
  * ([GridBagLayout.getConstraints]) rather than any internal bookkeeping, so the tests cover both halves
@@ -31,7 +31,7 @@ class GridBagPanelDslTest {
     @Test
     fun aChildDeclaringNoItemGetsTheDefaultConstraintsWhileSiblingsKeepTheirs() = runComposeSwingTest {
         setContent {
-            GridBagPanel {
+            Panel(PanelLayout.GridBag) {
                 Label(text = "placed", modifier = SwingModifier.item(gridx = 2, gridy = 1, ipadx = 9))
                 Label(text = "loose")
             }
@@ -47,7 +47,7 @@ class GridBagPanelDslTest {
     @Test
     fun eachChildIsPlacedWithItsDeclaredConstraints() = runComposeSwingTest {
         setContent {
-            GridBagPanel {
+            Panel(PanelLayout.GridBag) {
                 Label(
                     text = "spelled out",
                     modifier =
@@ -100,7 +100,7 @@ class GridBagPanelDslTest {
     @Test
     fun omittedFieldsFallBackToTheGridBagConstraintsDefaults() = runComposeSwingTest {
         setContent {
-            GridBagPanel {
+            Panel(PanelLayout.GridBag) {
                 // Only ipadx is declared. Reading it back non-zero proves this child's own constraints
                 // reached the layout, so every other field is the parameter default, not the fallback
                 // GridBagLayout invents for a child it was never given constraints for.
@@ -115,7 +115,7 @@ class GridBagPanelDslTest {
     fun changingAChildsConstraintsReAppliesThem() = runComposeSwingTest {
         var stretch by mutableStateOf(false)
         setContent {
-            GridBagPanel {
+            Panel(PanelLayout.GridBag) {
                 Label(
                     text = "cell",
                     modifier = SwingModifier.item(gridx = 0, gridy = 0, weightx = if (stretch) 1.0 else 0.0),
@@ -135,7 +135,7 @@ class GridBagPanelDslTest {
     fun aPlacementLeavingTheChainUnplacesItsChild() = runComposeSwingTest {
         var placed by mutableStateOf(true)
         setContent {
-            GridBagPanel {
+            Panel(PanelLayout.GridBag) {
                 Label(
                     text = "cell",
                     modifier = if (placed) SwingModifier.item(gridx = 3, gridy = 1, ipadx = 5) else SwingModifier,
@@ -157,7 +157,7 @@ class GridBagPanelDslTest {
     fun droppingAChildRemovesItAndLeavesTheRestPlaced() = runComposeSwingTest {
         var showMiddle by mutableStateOf(true)
         setContent {
-            GridBagPanel {
+            Panel(PanelLayout.GridBag) {
                 Label(text = "first", modifier = SwingModifier.item(gridx = 0, gridy = 0))
                 if (showMiddle) {
                     Label(text = "middle", modifier = SwingModifier.item(gridx = 1, gridy = 0))
@@ -183,7 +183,7 @@ class GridBagPanelDslTest {
     fun reorderingChildrenKeepsEachOnesConstraints() = runComposeSwingTest {
         var reversed by mutableStateOf(false)
         setContent {
-            GridBagPanel {
+            Panel(PanelLayout.GridBag) {
                 if (reversed) {
                     Label(text = "beta", modifier = SwingModifier.item(gridx = 1, gridy = 0, ipadx = 20))
                     Label(text = "alpha", modifier = SwingModifier.item(gridx = 0, gridy = 0, ipadx = 10))

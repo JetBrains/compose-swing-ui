@@ -16,7 +16,8 @@ import kotlin.test.assertNull
 import kotlin.test.assertSame
 
 /**
- * Behavioral tests for the regions a [BorderPanelScope] gives a [BorderPanel]'s children.
+ * Behavioral tests for the regions a [BorderPanelScope] gives the children of a [Panel] under
+ * [PanelLayout.Border].
  *
  * Every assertion reads the real AWT tree: a child that names a region must be attached to the panel's
  * [BorderLayout] under the matching constraint. The two families - absolute compass
@@ -45,7 +46,7 @@ class BorderPanelDslTest {
     @Test
     fun aChildNamingNoRegionOccupiesTheCenterWhileSiblingsKeepTheirRegions() = runComposeSwingTest {
         setContent {
-            BorderPanel {
+            Panel(PanelLayout.Border()) {
                 Label(text = "header", modifier = SwingModifier.north())
                 Label(text = "body")
             }
@@ -66,7 +67,7 @@ class BorderPanelDslTest {
     @Test
     fun eachCompassRegionPlacesItsChildAtTheMatchingConstraint() = runComposeSwingTest {
         setContent {
-            BorderPanel {
+            Panel(PanelLayout.Border()) {
                 Label(text = "N", modifier = SwingModifier.north())
                 Label(text = "S", modifier = SwingModifier.south())
                 Label(text = "E", modifier = SwingModifier.east())
@@ -85,7 +86,7 @@ class BorderPanelDslTest {
     @Test
     fun eachOrientationAwareRegionPlacesItsChildAtTheMatchingConstraint() = runComposeSwingTest {
         setContent {
-            BorderPanel {
+            Panel(PanelLayout.Border()) {
                 Label(text = "PS", modifier = SwingModifier.pageStart())
                 Label(text = "PE", modifier = SwingModifier.pageEnd())
                 Label(text = "LS", modifier = SwingModifier.lineStart())
@@ -104,7 +105,7 @@ class BorderPanelDslTest {
     @Test
     fun theLastRegionNamedInAChainIsTheOneTheChildOccupies() = runComposeSwingTest {
         setContent {
-            BorderPanel {
+            Panel(PanelLayout.Border()) {
                 Label(text = "child", modifier = SwingModifier.north().south())
             }
         }
@@ -124,7 +125,7 @@ class BorderPanelDslTest {
     fun droppingAChildClearsItsRegionWhileSiblingsKeepTheirConstraints() = runComposeSwingTest {
         var showNorth by mutableStateOf(true)
         setContent {
-            BorderPanel {
+            Panel(PanelLayout.Border()) {
                 if (showNorth) {
                     Label(text = "N", modifier = SwingModifier.north())
                 }
@@ -152,7 +153,7 @@ class BorderPanelDslTest {
     fun aRegionNamedConditionallyIsReleasedWhenItLeavesTheChain() = runComposeSwingTest {
         var placeNorth by mutableStateOf(true)
         setContent {
-            BorderPanel {
+            Panel(PanelLayout.Border()) {
                 Label(text = "child", modifier = if (placeNorth) SwingModifier.north() else SwingModifier)
                 Label(text = "S", modifier = SwingModifier.south())
             }
@@ -179,7 +180,7 @@ class BorderPanelDslTest {
     fun swappingARegionsChildKeepsItAttachedAtTheSameConstraint() = runComposeSwingTest {
         var flag by mutableStateOf(true)
         setContent {
-            BorderPanel {
+            Panel(PanelLayout.Border()) {
                 if (flag) {
                     Label(text = "First", modifier = SwingModifier.center())
                 } else {

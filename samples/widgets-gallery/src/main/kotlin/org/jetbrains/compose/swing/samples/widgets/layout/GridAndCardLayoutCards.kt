@@ -7,11 +7,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
-import org.jetbrains.compose.swing.components.layout.CardPanel
 import org.jetbrains.compose.swing.components.layout.ColumnScope
-import org.jetbrains.compose.swing.components.layout.FlowPanel
-import org.jetbrains.compose.swing.components.layout.GridBagPanel
-import org.jetbrains.compose.swing.components.layout.GridPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
@@ -21,18 +19,18 @@ import java.awt.GridBagConstraints
 import java.awt.Insets
 
 @Composable
-internal fun ColumnScope.GridPanelCard() {
-    ExampleCard("GridPanel (2x3)") {
-        GridPanel(rows = 2, cols = 3, hgap = 6, vgap = 6) {
+internal fun ColumnScope.GridLayoutCard() {
+    ExampleCard("PanelLayout.Grid (2x3)") {
+        Panel(PanelLayout.Grid(rows = 2, cols = 3, hgap = 6, vgap = 6)) {
             repeat(6) { index -> Button("Cell ${index + 1}", onClick = { }) }
         }
     }
 }
 
 @Composable
-internal fun ColumnScope.GridBagPanelCard() {
-    ExampleCard("GridBagPanel") {
-        GridBagPanel {
+internal fun ColumnScope.GridBagLayoutCard() {
+    ExampleCard("PanelLayout.GridBag") {
+        Panel(PanelLayout.GridBag) {
             Label(
                 "Name",
                 SwingModifier.item(
@@ -63,15 +61,15 @@ internal fun ColumnScope.GridBagPanelCard() {
 }
 
 @Composable
-internal fun ColumnScope.CardPanelCard() {
-    ExampleCard("CardPanel") {
+internal fun ColumnScope.CardDeckCard() {
+    ExampleCard("PanelLayout.Card") {
         var shown by remember { mutableStateOf("A") }
-        FlowPanel {
+        Panel {
             Button("Show A", onClick = { shown = "A" })
             Button("Show B", onClick = { shown = "B" })
             Button("Show C", onClick = { shown = "C" })
         }
-        CardPanel(selectedCard = shown, modifier = SwingModifier.preferredSize(Dimension(320, 60))) {
+        Panel(PanelLayout.Card(selectedCard = shown), modifier = SwingModifier.preferredSize(Dimension(320, 60))) {
             RegionLabel("Card A", Color(0xBB, 0xDE, 0xFB), SwingModifier.card("A"))
             RegionLabel("Card B", Color(0xC8, 0xE6, 0xC9), SwingModifier.card("B"))
             RegionLabel("Card C", Color(0xFF, 0xE0, 0xB2), SwingModifier.card("C"))

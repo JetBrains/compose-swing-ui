@@ -9,8 +9,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.ComboBox
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.components.layout.BoxPanel
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.components.selection.firstLabelText
 import org.jetbrains.compose.swing.components.selection.stampCell
@@ -57,7 +57,7 @@ class ParkedContentTest : TracedTest() {
     fun parkingDetachesTheComponentAndReactivatingBuildsAFreshOne() = runComposeSwingTest {
         var active by mutableStateOf(true)
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 Label(text = "anchor")
                 ReusableContentHost(active = active) {
                     Label(text = "body", modifier = SwingModifier.testTag(BODY))
@@ -107,7 +107,7 @@ class ParkedContentTest : TracedTest() {
     fun aReactivatedNodeShowsWhatItsFreshFactoryBuilds() = runComposeSwingTest {
         var active by mutableStateOf(true)
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 Label(text = "anchor")
                 ReusableContentHost(active = active) {
                     SwingNode(
@@ -137,7 +137,7 @@ class ParkedContentTest : TracedTest() {
     fun aKeyChangeBuildsAFreshComponentThatIsShown() = runComposeSwingTest {
         var reuseKey by mutableStateOf(0)
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 Label(text = "anchor")
                 ReusableContent(reuseKey) {
                     Label(text = "body $reuseKey", modifier = SwingModifier.testTag(BODY))
@@ -160,7 +160,7 @@ class ParkedContentTest : TracedTest() {
         var active by mutableStateOf(true)
         var reuseKey by mutableStateOf(0)
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 Label(text = "anchor")
                 ReusableContentHost(active = active) {
                     ReusableContent(reuseKey) {
@@ -190,11 +190,11 @@ class ParkedContentTest : TracedTest() {
         var inFirst by mutableStateOf(true)
         setContent {
             val content = remember { movableContentOf { Label(text = "body", modifier = SwingModifier.testTag(BODY)) } }
-            BoxPanel {
-                FlowPanel(modifier = SwingModifier.testTag(FIRST)) {
+            Panel(PanelLayout.Box()) {
+                Panel(PanelLayout.Flow(), modifier = SwingModifier.testTag(FIRST)) {
                     if (inFirst) content()
                 }
-                FlowPanel(modifier = SwingModifier.testTag(SECOND)) {
+                Panel(PanelLayout.Flow(), modifier = SwingModifier.testTag(SECOND)) {
                     if (!inFirst) content()
                 }
             }
@@ -219,7 +219,7 @@ class ParkedContentTest : TracedTest() {
     fun aReactivatedIndexedHostShowsExactlyWhatTheCompositionDeclares() = runComposeSwingTest {
         var active by mutableStateOf(true)
         setContent {
-            BoxPanel(modifier = SwingModifier.testTag(HOST)) {
+            Panel(PanelLayout.Box(), modifier = SwingModifier.testTag(HOST)) {
                 Label(text = "anchor")
                 ReusableContentHost(active = active) {
                     Label(text = "parked")
@@ -281,7 +281,7 @@ class ParkedContentTest : TracedTest() {
         var parked by mutableStateOf(false)
         var extra by mutableStateOf(false)
         setContent {
-            BoxPanel(modifier = SwingModifier.testTag(HOST)) {
+            Panel(PanelLayout.Box(), modifier = SwingModifier.testTag(HOST)) {
                 ReusableContentHost(active = !parked) { Label(BODY) }
                 if (extra) Label(FIRST)
             }
@@ -309,7 +309,7 @@ class ParkedContentTest : TracedTest() {
         var inTarget by mutableStateOf(false)
         setContent {
             val moved = remember { movableContentOf<SwingModifier> { modifier -> Label("moved", modifier) } }
-            FlowPanel {
+            Panel {
                 ScrollPane(modifier = SwingModifier.testTag(TARGET)) {
                     ReusableContentHost(active = !parked) { Label("parked", SwingModifier.viewport()) }
                     if (inTarget) moved(SwingModifier.viewport())

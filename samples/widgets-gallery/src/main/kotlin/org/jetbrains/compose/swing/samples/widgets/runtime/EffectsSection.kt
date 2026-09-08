@@ -15,7 +15,7 @@ import org.jetbrains.compose.swing.components.Slider
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.layout.ColumnScope
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
@@ -51,7 +51,7 @@ private fun ColumnScope.TickerCard() {
         }
 
         Label("Elapsed seconds: $ticks")
-        FlowPanel {
+        Panel {
             Button(if (running) "Pause" else "Resume", onClick = { running = !running })
             Button("Reset", onClick = { ticks = 0 })
         }
@@ -100,7 +100,7 @@ private fun ColumnScope.DerivedStateCard() {
             }
         }
 
-        FlowPanel {
+        Panel {
             Label("Amount: $amount")
             Slider(value = amount, onValueChange = { amount = it }, min = 0, max = 100)
         }

@@ -4,10 +4,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.components.layout.BorderPanel
-import org.jetbrains.compose.swing.components.layout.BoxPanel
-import org.jetbrains.compose.swing.components.layout.CardPanel
-import org.jetbrains.compose.swing.components.layout.GridBagPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -29,7 +27,7 @@ class LayoutConstraintAssertionTest {
     @Test
     fun borderRegionsMatchAndAWrongRegionNamesBoth() = runComposeSwingTest {
         setContent {
-            BorderPanel {
+            Panel(PanelLayout.Border()) {
                 Label(text = "N", modifier = SwingModifier.north())
                 Label(text = "C", modifier = SwingModifier.center())
                 Label(text = "S", modifier = SwingModifier.south())
@@ -53,7 +51,7 @@ class LayoutConstraintAssertionTest {
     @Test
     fun gridBagCellsMatchFieldByFieldAndAWrongCellRendersBoth() = runComposeSwingTest {
         setContent {
-            GridBagPanel {
+            Panel(PanelLayout.GridBag) {
                 Label(text = "origin", modifier = SwingModifier.item(gridx = 0, gridy = 0))
                 Label(
                     text = "spanning",
@@ -104,7 +102,7 @@ class LayoutConstraintAssertionTest {
     @Test
     fun gridBagRejectsAnExpectationThatIsNotCellConstraints() = runComposeSwingTest {
         setContent {
-            GridBagPanel {
+            Panel(PanelLayout.GridBag) {
                 Label(text = "origin", modifier = SwingModifier.item(gridx = 0, gridy = 0))
             }
         }
@@ -121,7 +119,7 @@ class LayoutConstraintAssertionTest {
     fun aCardDeckReportsNoConstraintAndIsAssertedThroughTheCardItShows() = runComposeSwingTest {
         var selected by mutableStateOf("second")
         setContent {
-            CardPanel(selectedCard = selected) {
+            Panel(PanelLayout.Card(selectedCard = selected)) {
                 Label(text = "one", modifier = SwingModifier.card("first"))
                 Label(text = "two", modifier = SwingModifier.card("second"))
             }
@@ -151,7 +149,7 @@ class LayoutConstraintAssertionTest {
     @Test
     fun aManagerThatKeepsNoConstraintIsNamedAsSuch() = runComposeSwingTest {
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 Label(text = "boxed")
             }
         }

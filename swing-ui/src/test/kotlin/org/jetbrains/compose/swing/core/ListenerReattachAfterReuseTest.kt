@@ -10,7 +10,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
-import org.jetbrains.compose.swing.components.layout.BorderPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -47,7 +48,7 @@ class ListenerReattachAfterReuseTest {
                         Button(text = "Move me", onClick = { counter++ }, modifier = modifier)
                     }
                 }
-            BorderPanel {
+            Panel(PanelLayout.Border()) {
                 if (inNorth) button(SwingModifier.north()) else button(SwingModifier.south())
                 Label(text = "anchor", modifier = SwingModifier.center())
             }
@@ -77,7 +78,7 @@ class ListenerReattachAfterReuseTest {
         var active by mutableStateOf(true)
 
         setContent {
-            BorderPanel {
+            Panel(PanelLayout.Border()) {
                 ReusableContentHost(active = active) {
                     Button(text = "Reusable", onClick = { counter++ }, modifier = SwingModifier.center())
                 }
@@ -110,7 +111,7 @@ class ListenerReattachAfterReuseTest {
         var useA by mutableStateOf(true)
 
         setContent {
-            BorderPanel {
+            Panel(PanelLayout.Border()) {
                 KeyedButton(
                     key = if (useA) "A" else "B",
                     onClick = { if (useA) counterA++ else counterB++ },

@@ -9,7 +9,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import org.jetbrains.compose.swing.components.ComboBox
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.foreground
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
@@ -39,7 +39,7 @@ internal fun CompositionLocalsSection() {
                     "Purple" to Color(0x6A, 0x1B, 0x9A),
                 )
             var accent by remember { mutableStateOf(choices.first()) }
-            FlowPanel {
+            Panel {
                 Label("Accent:")
                 ComboBox(
                     items = choices,
@@ -57,7 +57,7 @@ internal fun CompositionLocalsSection() {
 
 @Composable
 private fun OuterPanel() {
-    FlowPanel {
+    Panel {
         Label("Outer level (does not read the local)")
     }
     MiddlePanel()
@@ -65,7 +65,7 @@ private fun OuterPanel() {
 
 @Composable
 private fun MiddlePanel() {
-    FlowPanel {
+    Panel {
         AccentedLabel("Middle-level accented label")
     }
     InnerPanel()
@@ -73,7 +73,7 @@ private fun MiddlePanel() {
 
 @Composable
 private fun InnerPanel() {
-    FlowPanel {
+    Panel {
         AccentedLabel("Inner-level accented label")
     }
 }

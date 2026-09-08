@@ -6,7 +6,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.components.layout.BoxPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
@@ -142,7 +143,7 @@ class CanvasTest {
         var present by mutableStateOf(false)
         var lastDrawn = Int.MIN_VALUE
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 Label(text = "anchor")
                 if (present) {
                     Canvas(modifier = SwingModifier.testTag(CANVAS).preferredSize(SIZE)) { _, _, _ ->
@@ -187,7 +188,7 @@ class CanvasTest {
         var active by mutableStateOf(false)
         var lastDrawn = Int.MIN_VALUE
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 Label(text = "anchor")
                 ReusableContentHost(active = active) {
                     Canvas(modifier = SwingModifier.testTag(CANVAS).preferredSize(SIZE)) { _, _, _ ->
@@ -227,7 +228,7 @@ class CanvasTest {
         var present by mutableStateOf(true)
         var drawCount = 0
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 Label(text = "anchor")
                 if (present) {
                     Canvas(modifier = SwingModifier.testTag(CANVAS).preferredSize(SIZE)) { _, _, _ ->
@@ -274,7 +275,7 @@ class CanvasTest {
         var drawCount = 0
         var lastDrawn = Int.MIN_VALUE
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 Label(text = "anchor")
                 ReusableContentHost(active = active) {
                     Canvas(modifier = SwingModifier.testTag(CANVAS).preferredSize(SIZE)) { _, _, _ ->
@@ -326,7 +327,7 @@ class CanvasTest {
         var active by mutableStateOf(true)
         var drawCount = 0
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 Label(text = "anchor")
                 ReusableContentHost(active = active) {
                     Canvas(modifier = SwingModifier.testTag(CANVAS).preferredSize(SIZE)) { _, _, _ ->
@@ -367,7 +368,7 @@ class CanvasTest {
         var active by mutableStateOf(true)
         var lastDrawn = Int.MIN_VALUE
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 Label(text = "anchor")
                 ReusableContentHost(active = active) {
                     Canvas(modifier = SwingModifier.testTag(CANVAS).preferredSize(SIZE)) { _, _, _ ->
@@ -416,7 +417,7 @@ class CanvasTest {
         val readByNewContent = mutableIntStateOf(1)
         var reuseKey by mutableStateOf(0)
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 Label(text = "anchor")
                 ReusableContent(reuseKey) {
                     val observed = if (reuseKey == 0) readByOldContent else readByNewContent
@@ -473,7 +474,7 @@ class CanvasTest {
         val value = mutableIntStateOf(7)
         var firstPresent by mutableStateOf(true)
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 if (firstPresent) {
                     Canvas(modifier = SwingModifier.testTag(FIRST).preferredSize(SIZE)) { _, _, _ ->
                         value.intValue

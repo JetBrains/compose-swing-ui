@@ -3,7 +3,7 @@ package org.jetbrains.compose.swing.modifier.listener
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -24,7 +24,7 @@ class ColorSelectionModelSwapRegistrationTest {
     fun aChangeListenerFollowsTheChooserAcrossASelectionModelSwap() = runComposeSwingTest {
         var changes = 0
         setContent {
-            FlowPanel {
+            Panel {
                 SwingNode(
                     factory = { JColorChooser() },
                     modifier = SwingModifier.changeListener { changes++ },
@@ -46,7 +46,7 @@ class ColorSelectionModelSwapRegistrationTest {
         var changes = 0
         var declared by mutableStateOf(true)
         setContent {
-            FlowPanel {
+            Panel {
                 SwingNode(
                     factory = { JColorChooser() },
                     modifier = if (declared) SwingModifier.changeListener { changes++ } else SwingModifier,
@@ -75,7 +75,7 @@ class ColorSelectionModelSwapRegistrationTest {
     fun aChangeListenerLeavesNoSwapListenerBehind() = runComposeSwingTest {
         var declared by mutableStateOf(false)
         setContent {
-            FlowPanel {
+            Panel {
                 SwingNode(
                     factory = { JColorChooser() },
                     modifier = if (declared) SwingModifier.changeListener { } else SwingModifier,

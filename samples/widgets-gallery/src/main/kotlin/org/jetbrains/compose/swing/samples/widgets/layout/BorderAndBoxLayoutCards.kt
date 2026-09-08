@@ -8,11 +8,10 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.button.CheckBox
-import org.jetbrains.compose.swing.components.layout.BorderPanel
-import org.jetbrains.compose.swing.components.layout.BoxPanel
 import org.jetbrains.compose.swing.components.layout.ColumnScope
-import org.jetbrains.compose.swing.components.layout.FlowPanel
 import org.jetbrains.compose.swing.components.layout.Glue
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.RigidArea
 import org.jetbrains.compose.swing.components.layout.Spacer
 import org.jetbrains.compose.swing.components.layout.Strut
@@ -31,9 +30,9 @@ import javax.swing.BoxLayout
 import javax.swing.SwingConstants
 
 @Composable
-internal fun ColumnScope.FlowPanelCard() {
-    ExampleCard("FlowPanel") {
-        FlowPanel(alignment = FlowLayout.LEADING, hgap = 12, vgap = 4) {
+internal fun ColumnScope.FlowLayoutCard() {
+    ExampleCard("PanelLayout.Flow") {
+        Panel(PanelLayout.Flow(alignment = FlowLayout.LEADING, hgap = 12, vgap = 4)) {
             Button("One", onClick = { })
             Button("Two", onClick = { })
             Button("Three", onClick = { })
@@ -43,8 +42,8 @@ internal fun ColumnScope.FlowPanelCard() {
 
 @Composable
 internal fun ColumnScope.BorderCompassCard() {
-    ExampleCard("BorderPanel (compass regions)") {
-        BorderPanel(modifier = SwingModifier.preferredSize(Dimension(360, 140)), hgap = 4, vgap = 4) {
+    ExampleCard("PanelLayout.Border (compass regions)") {
+        Panel(PanelLayout.Border(hgap = 4, vgap = 4), modifier = SwingModifier.preferredSize(Dimension(360, 140))) {
             RegionLabel("north", Color(0xBB, 0xDE, 0xFB), SwingModifier.north())
             RegionLabel("south", Color(0xC8, 0xE6, 0xC9), SwingModifier.south())
             RegionLabel("west", Color(0xFF, 0xE0, 0xB2), SwingModifier.west(), width = EDGE_WIDTH)
@@ -58,22 +57,21 @@ internal fun ColumnScope.BorderCompassCard() {
 // and the right edge under RTL, so the two edge children move live between the leading and trailing sides.
 @Composable
 internal fun ColumnScope.BorderOrientationCard() {
-    ExampleCard("BorderPanel (orientation-aware)") {
+    ExampleCard("PanelLayout.Border (orientation-aware)") {
         var rtl by remember { mutableStateOf(false) }
         CheckBox(
             text = "Right-to-left orientation",
             checked = rtl,
             onCheckedChange = { rtl = it },
         )
-        BorderPanel(
+        Panel(
+            PanelLayout.Border(hgap = 4, vgap = 4),
             modifier =
                 SwingModifier
                     .preferredSize(Dimension(360, 120))
                     .componentOrientation(
                         if (rtl) ComponentOrientation.RIGHT_TO_LEFT else ComponentOrientation.LEFT_TO_RIGHT,
                     ),
-            hgap = 4,
-            vgap = 4,
         ) {
             RegionLabel("pageStart", Color(0xBB, 0xDE, 0xFB), SwingModifier.pageStart())
             RegionLabel("pageEnd", Color(0xC8, 0xE6, 0xC9), SwingModifier.pageEnd())
@@ -85,9 +83,9 @@ internal fun ColumnScope.BorderOrientationCard() {
 }
 
 @Composable
-internal fun ColumnScope.BoxPanelCard() {
-    ExampleCard("BoxPanel (Y axis)") {
-        BoxPanel(axis = BoxLayout.Y_AXIS) {
+internal fun ColumnScope.LinearLayoutCard() {
+    ExampleCard("PanelLayout.Box (Y axis)") {
+        Panel(PanelLayout.Box(axis = BoxLayout.Y_AXIS)) {
             Label("First")
             Label("Second")
             Label("Third")
@@ -100,7 +98,7 @@ internal fun ColumnScope.BoxPanelCard() {
 @Composable
 internal fun ColumnScope.BoxFillersCard() {
     ExampleCard("Box fillers (RigidArea, Spacer, Strut, Glue)") {
-        BoxPanel(modifier = SwingModifier.fillWidth(), axis = BoxLayout.X_AXIS) {
+        Panel(PanelLayout.Box(axis = BoxLayout.X_AXIS), modifier = SwingModifier.fillWidth()) {
             Label("Start")
             RigidArea(width = 24, height = 0)
             Label("+24px RigidArea")

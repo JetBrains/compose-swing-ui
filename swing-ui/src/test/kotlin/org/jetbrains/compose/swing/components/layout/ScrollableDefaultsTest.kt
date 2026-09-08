@@ -37,23 +37,25 @@ class ScrollableDefaultsTest {
     fun aColumnScrollsByALineOfItsOwnFont() = assertScrollsByALineOfItsOwnFont { Column(it) {} }
 
     @Test
-    fun aBoxPanelScrollsByALineOfItsOwnFont() = assertScrollsByALineOfItsOwnFont { BoxPanel(it) {} }
+    fun aBoxPanelScrollsByALineOfItsOwnFont() = assertScrollsByALineOfItsOwnFont { Panel(PanelLayout.Box(), it) {} }
 
     @Test
-    fun aFlowPanelScrollsByALineOfItsOwnFont() = assertScrollsByALineOfItsOwnFont { FlowPanel(it) {} }
+    fun aFlowPanelScrollsByALineOfItsOwnFont() = assertScrollsByALineOfItsOwnFont { Panel(PanelLayout.Flow(), it) {} }
 
     @Test
-    fun aGridPanelScrollsByALineOfItsOwnFont() = assertScrollsByALineOfItsOwnFont { GridPanel(it) {} }
+    fun aGridPanelScrollsByALineOfItsOwnFont() = assertScrollsByALineOfItsOwnFont { Panel(PanelLayout.Grid(), it) {} }
 
     @Test
-    fun aGridBagPanelScrollsByALineOfItsOwnFont() = assertScrollsByALineOfItsOwnFont { GridBagPanel(it) {} }
+    fun aGridBagPanelScrollsByALineOfItsOwnFont() =
+        assertScrollsByALineOfItsOwnFont { Panel(PanelLayout.GridBag, it) {} }
 
     @Test
-    fun aBorderPanelScrollsByALineOfItsOwnFont() = assertScrollsByALineOfItsOwnFont { BorderPanel(it) {} }
+    fun aBorderPanelScrollsByALineOfItsOwnFont() =
+        assertScrollsByALineOfItsOwnFont { Panel(PanelLayout.Border(), it) {} }
 
     @Test
     fun aCardPanelScrollsByALineOfItsOwnFont() =
-        assertScrollsByALineOfItsOwnFont { CardPanel(selectedCard = "only", modifier = it) {} }
+        assertScrollsByALineOfItsOwnFont { Panel(PanelLayout.Card(selectedCard = "only"), modifier = it) {} }
 
     @Test
     fun aCanvasScrollsByALineOfItsOwnFont() =

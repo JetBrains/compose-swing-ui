@@ -7,6 +7,10 @@ composable cell. Building a leaf component is [`CUSTOM-COMPONENTS.md`](CUSTOM-CO
 
 ## A container example
 
+`Panel` takes its layout manager from the closed set `PanelLayout` names, so a manager outside that
+set - one of Swing's that the library does not model, or one of your own - is a container of your own.
+That is what this document describes, and it is the whole route to such a manager.
+
 For a custom container, use the `content` overload and create a `Container` in the factory; children
 emitted by `content` are added by the framework's applier:
 
@@ -39,8 +43,9 @@ fun TitledGroup(
 <!--- KNIT example-custom-container-01.kt -->
 
 A container takes a `modifier` and applies it for the same reason a leaf does, and for one more: a
-container is itself a child of whatever holds it, so the group above is placed in a `BorderPanel`
-region or a `GridBagPanel` cell only because its `update` block ends where it does.
+container is itself a child of whatever holds it, so the group above is placed in a
+`PanelLayout.Border` region or a `PanelLayout.GridBag` cell only because its `update` block ends where
+it does.
 
 ## Placing children under constraints
 
@@ -106,7 +111,7 @@ that costs is the manager's, not the framework's: a `LayoutManager2` that keeps 
 the placements it has been handed - a grid, a set of measured column widths, a row cache - discards and
 rebuilds it each time, because a re-registration reaches it as the same
 `removeLayoutComponent`/`addLayoutComponent` pair a real structural change does. Give a placement of
-your own a value `equals`, as `GridBagPanel` does for the constraints its items declare.
+your own a value `equals`, as `GridBagPanelScope.item` does for the constraints it declares.
 
 Derive that value from the declaration rather than from a running count of the children before it,
 too: a placement computed from how many siblings came first changes for every later child the moment
@@ -115,8 +120,8 @@ The `key` a child is declared under is a separate question, answered in *What th
 in [`CUSTOM-COMPONENTS.md`](CUSTOM-COMPONENTS.md).
 
 A scope like this keeps the constraint's type inside your container - `MosaicScope` is the whole
-placement API your callers see, and `BorderPanel`'s regions and `GridBagPanel`'s items are the same
-shape over a fixed, nameable set of placements.
+placement API your callers see, and `BorderPanelScope`'s regions and `GridBagPanelScope`'s items are
+the same shape over a fixed, nameable set of placements.
 
 A scope is worth writing only where the placements are worth naming. Where a layout manager answers
 for a child that declares nothing - `BorderLayout` places one at `CENTER`, `JLayeredPane` on
@@ -155,9 +160,9 @@ follows all three:
   framework, which holds a `ChildPlacement.Slots` host to one child per region once the pass settles, as
   `SplitPane` does for its two sides; one placing them under constraints runs its own check on the
   event-dispatch turn after the change pass, once a parked node's deactivation has run too, as
-  `CardPanel` does over the cards its deck holds. Either way the set a check runs against is what the
-  container actually holds - its own children, its layout's own records - rather than a list a block
-  gathered.
+  a `PanelLayout.Card` panel does over the cards its deck holds. Either way the set a check runs
+  against is what the container actually holds - its own children, its layout's own records - rather
+  than a list a block gathered.
 
 A scope's members are `SwingModifier` builders wherever the child is the caller's own component. Where
 the container is what realizes the child instead - `DesktopPane`, whose every child is a
@@ -243,7 +248,7 @@ fun Framed(
     content: @Composable FramedScope.() -> Unit,
 ) {
     val border = remember(title) { TitledBorder(title) }
-    BorderPanel(modifier = modifier.border(border)) {
+    Panel(PanelLayout.Border(), modifier = modifier.border(border)) {
         FramedScopeImpl.content()
     }
 }
@@ -257,9 +262,9 @@ Framed(title = "Payment") {
 
 The composite owns no node of its own, and it does not have to. A placement rides the child's chain
 until the container actually holding that child reads it, so the `BorderLayout` constraint
-`FramedScopeImpl` builds is honored by the `BorderPanel` inside `Framed` although the caller never sees
-that panel. That is what makes a composite of built-in containers a plain composable function rather
-than a wrapper that has to forward anything.
+`FramedScopeImpl` builds is honored by the `Panel` inside `Framed` although the caller never sees that
+panel. That is what makes a composite of built-in containers a plain composable function rather than a
+wrapper that has to forward anything.
 
 Four things make a composite of this shape behave:
 
@@ -277,8 +282,8 @@ Four things make a composite of this shape behave:
   a no-op. A value with structural equality - a `Font`, `Color`, `Insets` - needs no `remember`: an
   equal instance already compares equal to the chain element applied last time and the write is skipped.
 - **Let each container place its own children.** Nothing carries a placement past the node that
-  declared it, so a composite nests inside another - a `GridBagPanel` in the `body` region above - with
-  neither knowing about the other.
+  declared it, so a composite nests inside another - a `PanelLayout.GridBag` panel in the `body`
+  region above - with neither knowing about the other.
 
 Reach for `SwingNode` here only when the Swing container itself is yours; a composite assembled from
 built-in containers is an ordinary composable function.

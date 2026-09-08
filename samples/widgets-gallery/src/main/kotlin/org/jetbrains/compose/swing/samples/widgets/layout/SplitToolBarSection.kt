@@ -11,9 +11,9 @@ import org.jetbrains.compose.swing.components.Spinner
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.button.ToggleButton
-import org.jetbrains.compose.swing.components.layout.BorderPanel
 import org.jetbrains.compose.swing.components.layout.ColumnScope
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.SplitPane
 import org.jetbrains.compose.swing.components.layout.ToolBar
 import org.jetbrains.compose.swing.components.layout.ToolBarSeparator
@@ -53,11 +53,11 @@ private fun ColumnScope.ControlledSplitCard() {
         var continuous by remember { mutableStateOf(true) }
         var dividerSize by remember { mutableIntStateOf(8) }
         Label("Divider location: $divider px")
-        FlowPanel {
+        Panel {
             Button("Move left", onClick = { divider = (divider - 40).coerceAtLeast(0) })
             Button("Move right", onClick = { divider += 40 })
         }
-        FlowPanel {
+        Panel {
             CheckBox(text = "One-touch expandable", checked = oneTouch, onCheckedChange = { oneTouch = it })
             CheckBox(text = "Continuous layout", checked = continuous, onCheckedChange = { continuous = it })
             Label("Divider size:")
@@ -121,15 +121,15 @@ private fun ColumnScope.ToolBarCard() {
         var bold by remember { mutableStateOf(false) }
         var clicks by remember { mutableIntStateOf(0) }
 
-        FlowPanel {
+        Panel {
             CheckBox(text = "Vertical", checked = vertical, onCheckedChange = { vertical = it })
             CheckBox(text = "Floatable", checked = floatable, onCheckedChange = { floatable = it })
             CheckBox(text = "Floating", checked = floating, onCheckedChange = { floating = it })
             CheckBox(text = "Rollover", checked = rollover, onCheckedChange = { rollover = it })
         }
         Label("New clicks: $clicks   Bold: ${if (bold) "on" else "off"}   Floating: $floating")
-        // A bar the user can drag out stands in a BorderPanel, on the edge it faces along.
-        BorderPanel {
+        // A bar the user can drag out stands in a panel under PanelLayout.Border, on the edge it faces along.
+        Panel(PanelLayout.Border()) {
             ToolBar(
                 modifier = if (vertical) SwingModifier.west() else SwingModifier.north(),
                 orientation = if (vertical) SwingConstants.VERTICAL else SwingConstants.HORIZONTAL,

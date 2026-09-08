@@ -67,7 +67,7 @@ public sealed interface TableScope<R> {
  * ```
  * column("Name") { it.name }
  * column("Done", isEditable = true, onCellEdit = { row, _, done -> setDone(row, done) }) { it.isDone }
- * column("Owner", cellContent = { row -> FlowPanel { Label(row.owner) } }) { it.owner }
+ * column("Owner", cellContent = { row -> Panel { Label(row.owner) } }) { it.owner }
  * ```
  *
  * Where the class is not the extractor's own, declare the column with the overload that takes it.

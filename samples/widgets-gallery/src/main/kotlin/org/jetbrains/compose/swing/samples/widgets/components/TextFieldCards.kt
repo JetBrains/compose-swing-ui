@@ -8,7 +8,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.ColumnScope
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.components.text.rememberDocumentState
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -25,7 +25,7 @@ import javax.swing.text.DocumentFilter
 internal fun ColumnScope.DigitsOnlyCard() {
     ExampleCard("TextField + documentFilter (digits only)") {
         var pin by remember { mutableStateOf("0000") }
-        FlowPanel {
+        Panel {
             Label("PIN:")
             TextField(
                 value = pin,
@@ -43,7 +43,7 @@ internal fun ColumnScope.AcceptCard() {
     ExampleCard("onAccept (Enter commits a field)") {
         var typed by remember { mutableStateOf("Type, then press Enter") }
         var committed by remember { mutableStateOf("nothing yet") }
-        FlowPanel {
+        Panel {
             Label("Command:")
             TextField(
                 value = typed,
@@ -61,7 +61,7 @@ internal fun ColumnScope.InputVerifierCard() {
     ExampleCard("inputVerifier & verifyInputWhenFocusTarget") {
         var port by remember { mutableStateOf("8080") }
         val portValid = port.toIntOrNull() in 1..65535
-        FlowPanel {
+        Panel {
             Label("Port (1-65535):")
             TextField(
                 value = port,
@@ -87,7 +87,7 @@ internal fun ColumnScope.DocumentStateCard() {
         // The state and the field share one document, so there is no value to hoist: the Label's
         // length readout and the Undo button both read straight from the state the field edits.
         val state = rememberDocumentState("hello")
-        FlowPanel {
+        Panel {
             Label("Text:")
             TextField(state = state, columns = 16)
             Button("Undo", onClick = state::undo, modifier = SwingModifier.enabled(state.canUndo))

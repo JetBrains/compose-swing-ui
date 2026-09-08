@@ -33,7 +33,7 @@ import kotlin.test.assertTrue
  * orientation, floatable and rollover map through, and items added or removed in the composition
  * appear and disappear from the tool bar.
  *
- * A bar the user can drag out has to stand in a [BorderPanel], so a case that leaves the floatable
+ * A bar the user can drag out has to stand in a [PanelLayout.Border] panel, so a case that leaves the floatable
  * choice to the bar holds it in one. Every other case declares `floatable = false`.
  */
 class ToolBarBehaviorTest {
@@ -54,7 +54,7 @@ class ToolBarBehaviorTest {
 
     @Test
     fun anUndeclaredToolBarIsTheWidgetsOwn() = runComposeSwingTest {
-        setContent { BorderPanel { ToolBar() } }
+        setContent { Panel(PanelLayout.Border()) { ToolBar() } }
         onNodeOfType<JToolBar>().assertTreeMatches(JToolBar())
     }
 
@@ -89,7 +89,7 @@ class ToolBarBehaviorTest {
     fun floatableMapsThrough() = runComposeSwingTest {
         var floatable by mutableStateOf(true)
         setContent {
-            BorderPanel {
+            Panel(PanelLayout.Border()) {
                 ToolBar(floatable = floatable) {
                     Label(text = "Item")
                 }
@@ -285,7 +285,7 @@ class ToolBarBehaviorTest {
         // border, and a departing floatable declaration answers for every property its own write landed
         // on - that border among them.
         setContent {
-            BorderPanel {
+            Panel(PanelLayout.Border()) {
                 ToolBar(orientation = orientation) {
                     ToolBarSeparator()
                 }
@@ -335,7 +335,7 @@ class ToolBarBehaviorTest {
     fun aWithdrawnFloatableChoiceGoesBackToTheChoiceTheToolBarCarried() = runComposeSwingTest {
         var floatable by mutableStateOf<Boolean?>(null)
         setContent {
-            BorderPanel {
+            Panel(PanelLayout.Border()) {
                 ToolBar(floatable = floatable) {
                     Label(text = "Item")
                 }

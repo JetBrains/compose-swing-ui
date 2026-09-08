@@ -1,7 +1,8 @@
 package org.jetbrains.compose.swing.test.interaction
 
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.components.layout.BoxPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
@@ -62,7 +63,7 @@ class NodePropertyAssertionTest {
 
     @Test
     fun anAbsentNodeFailsAsAnUnresolvedQuery() = runComposeSwingTest {
-        setContent { BoxPanel { } }
+        setContent { Panel(PanelLayout.Box()) { } }
 
         // The property is read off a resolved node, so a query that resolves to nothing fails the way
         // every other use of that query does, with a tree dump, rather than as a value mismatch.

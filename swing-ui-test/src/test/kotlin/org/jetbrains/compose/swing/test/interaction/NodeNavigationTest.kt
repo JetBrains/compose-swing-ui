@@ -4,8 +4,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.components.layout.BoxPanel
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.menu.Menu
 import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -47,8 +47,8 @@ class NodeNavigationTest {
      */
     private fun ComposeSwingTest.setNestedContent() {
         setContent {
-            BoxPanel(modifier = SwingModifier.name("box")) {
-                FlowPanel(modifier = SwingModifier.name("left")) {
+            Panel(PanelLayout.Box(), modifier = SwingModifier.name("box")) {
+                Panel(PanelLayout.Flow(), modifier = SwingModifier.name("left")) {
                     Label(text = "alpha")
                     Label(text = "beta")
                 }
@@ -156,7 +156,7 @@ class NodeNavigationTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         setContent {
             Window(onCloseRequest = {}, title = "scoped", visible = true) {
-                FlowPanel(modifier = SwingModifier.name("in-window")) {
+                Panel(PanelLayout.Flow(), modifier = SwingModifier.name("in-window")) {
                     Label(text = "inside")
                 }
             }
@@ -214,8 +214,8 @@ class NodeNavigationTest {
     fun aHeldNavigationStepReResolvesAfterRecomposition() = runComposeSwingTest {
         var rows by mutableIntStateOf(1)
         setContent {
-            BoxPanel {
-                FlowPanel(modifier = SwingModifier.name("left")) {
+            Panel(PanelLayout.Box()) {
+                Panel(PanelLayout.Flow(), modifier = SwingModifier.name("left")) {
                     repeat(rows) { index -> Label(text = "row-$index") }
                 }
             }
@@ -243,7 +243,7 @@ class NodeNavigationTest {
     fun aNavigationStepFailsWhenItsOriginNoLongerResolves() = runComposeSwingTest {
         var present by mutableIntStateOf(1)
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 repeat(present) { Label(text = "leaf") }
             }
         }

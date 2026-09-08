@@ -5,7 +5,8 @@ package org.jetbrains.compose.swing.components.selection
 
 import androidx.compose.runtime.Composable
 import org.jetbrains.annotations.Nls
-import org.jetbrains.compose.swing.components.layout.BoxPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.constants.BoxAxis
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
@@ -55,7 +56,7 @@ public fun RadioGroup(
     val scope = RadioGroupScopeImpl().apply(content)
     val group = rememberButtonGroup()
 
-    BoxPanel(modifier = modifier, axis = axis) {
+    Panel(PanelLayout.Box(axis = axis), modifier = modifier) {
         scope.options.forEachIndexed { index, option ->
             val selected = index == selectedIndex
             ButtonGroupOption(group, index, option.modifier, selected, onSelectionChange) { optionModifier, mirror ->

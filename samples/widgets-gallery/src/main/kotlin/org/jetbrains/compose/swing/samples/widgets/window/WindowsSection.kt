@@ -11,9 +11,9 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.button.RadioButton
-import org.jetbrains.compose.swing.components.layout.BorderPanel
 import org.jetbrains.compose.swing.components.layout.ColumnScope
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.menu.CheckBoxMenuItem
 import org.jetbrains.compose.swing.components.menu.Menu
 import org.jetbrains.compose.swing.components.menu.MenuItem
@@ -72,17 +72,17 @@ private fun ColumnScope.SecondaryWindowCard() {
         var busy by remember { mutableStateOf(false) }
         val icon = remember { windowIconImage() }
 
-        FlowPanel {
+        Panel {
             Button(if (open) "Close window" else "Open window", onClick = { open = !open })
             Label("Window is ${if (open) "open" else "closed"}")
         }
         // Geometry is two-way: these labels show what the window writes back as the user drags or
         // resizes it, and the buttons below drive the very same properties in the other direction.
-        FlowPanel {
+        Panel {
             Label("Position: ${state.position}")
             Label("Size: ${state.width} x ${state.height}")
         }
-        FlowPanel {
+        Panel {
             Button("Center on screen", onClick = { state.position = WindowPosition.CenteredOnScreen })
             Button("Widen by 40", onClick = { state.width += 40 })
             Button("Maximize", onClick = { state.extendedState = Frame.MAXIMIZED_BOTH })
@@ -129,12 +129,12 @@ private class WindowChromeState {
 
 @Composable
 private fun WindowChromeControls(state: WindowChromeState) {
-    FlowPanel {
+    Panel {
         CheckBox("Resizable", checked = state.resizable, onCheckedChange = { state.resizable = it })
         CheckBox("Always on top", checked = state.alwaysOnTop, onCheckedChange = { state.alwaysOnTop = it })
         CheckBox("Undecorated", checked = state.undecorated, onCheckedChange = { state.undecorated = it })
     }
-    FlowPanel {
+    Panel {
         CheckBox("Custom icon", checked = state.customIcon, onCheckedChange = { state.customIcon = it })
         CheckBox(
             "Minimum size 240x160",
@@ -166,12 +166,12 @@ private fun WindowScope.SecondaryWindowContent(
             MenuItem("Close window", onClick = onClose)
         }
     }
-    BorderPanel {
+    Panel(PanelLayout.Border()) {
         Label(
             "A second top-level window, composed declaratively.",
             modifier = SwingModifier.center().horizontalAlignment(SwingConstants.CENTER),
         )
-        FlowPanel(SwingModifier.south()) {
+        Panel(PanelLayout.Flow(), SwingModifier.south()) {
             Button("Dismiss", onClick = onClose)
             Button("Show busy overlay", onClick = { onBusyChange(true) })
         }
@@ -181,8 +181,8 @@ private fun WindowScope.SecondaryWindowContent(
     // shown here behind the same `if` that drives every other overlay in the gallery.
     if (busy) {
         GlassPane {
-            BorderPanel(modifier = SwingModifier.opaque(true).background(Color(0xE8EAF6))) {
-                FlowPanel(SwingModifier.center()) {
+            Panel(PanelLayout.Border(), modifier = SwingModifier.opaque(true).background(Color(0xE8EAF6))) {
+                Panel(PanelLayout.Flow(), SwingModifier.center()) {
                     Label("Busy...")
                     Button("Dismiss overlay", onClick = { onBusyChange(false) })
                 }
@@ -202,11 +202,11 @@ private fun ColumnScope.ModalDialogCard() {
         val chrome = remember { DialogChromeState() }
         val icon = remember { windowIconImage() }
 
-        FlowPanel {
+        Panel {
             Button("Open modal dialog", onClick = { open = true })
             Label(if (acknowledged) "Last dialog: acknowledged" else "No dialog acknowledged yet")
         }
-        FlowPanel {
+        Panel {
             RadioButton(
                 "Modeless",
                 selected = modality == ModalityType.MODELESS,
@@ -262,7 +262,7 @@ private class DialogChromeState {
 
 @Composable
 private fun DialogChromeControls(state: DialogChromeState) {
-    FlowPanel {
+    Panel {
         CheckBox("Resizable", checked = state.resizable, onCheckedChange = { state.resizable = it })
         CheckBox("Always on top", checked = state.alwaysOnTop, onCheckedChange = { state.alwaysOnTop = it })
         CheckBox("Undecorated", checked = state.undecorated, onCheckedChange = { state.undecorated = it })
@@ -281,14 +281,14 @@ private fun ModalDialogContent(
     onAcknowledge: () -> Unit,
     onClose: () -> Unit,
 ) {
-    BorderPanel {
+    Panel(PanelLayout.Border()) {
         Label(
             "The modality selected above decides whether this dialog blocks its owner.",
             modifier = SwingModifier.center().horizontalAlignment(SwingConstants.CENTER),
         )
         // The readout and the grow button live inside the dialog because a modal dialog blocks its
         // owner, so its own content is the only place a control can reach it.
-        FlowPanel(SwingModifier.south()) {
+        Panel(PanelLayout.Flow(), SwingModifier.south()) {
             Label("Dialog is ${state.width} x ${state.height}")
             Button("Grow", onClick = { state.size = Dimension(state.width + 40, state.height + 20) })
             Button("OK", onClick = onAcknowledge)
@@ -307,7 +307,7 @@ private fun ColumnScope.ApplicationEntryPointCard() {
         // section, until exitApplication() is called from inside it.
         var launches by remember { mutableIntStateOf(0) }
 
-        FlowPanel {
+        Panel {
             Button(
                 "Launch application { }",
                 onClick = {
@@ -315,12 +315,12 @@ private fun ColumnScope.ApplicationEntryPointCard() {
                     MainScope().launchApplication {
                         var clicks by remember { mutableIntStateOf(0) }
                         Window(onCloseRequest = ::exitApplication, title = "application { } demo") {
-                            BorderPanel {
+                            Panel(PanelLayout.Border()) {
                                 Label(
                                     "Its own composition, closed by its own exitApplication().",
                                     modifier = SwingModifier.center().horizontalAlignment(SwingConstants.CENTER),
                                 )
-                                FlowPanel(SwingModifier.south()) {
+                                Panel(PanelLayout.Flow(), SwingModifier.south()) {
                                     Label("Clicks: $clicks")
                                     Button("Click", onClick = { clicks++ })
                                     Button("exitApplication()", onClick = ::exitApplication)

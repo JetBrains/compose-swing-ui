@@ -7,7 +7,8 @@ import org.jetbrains.compose.swing.components.ComboBox
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.button.CheckBox
-import org.jetbrains.compose.swing.components.layout.BoxPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
@@ -32,7 +33,7 @@ class MatcherContractTest {
     @Test
     fun hasTextMatchesExactlyAndBySubstring() = runComposeSwingTest {
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 Label(text = "alpha beta")
                 Button(text = "gamma", onClick = {})
             }
@@ -49,7 +50,7 @@ class MatcherContractTest {
     @Test
     fun hasNameMatchesTheComponentName() = runComposeSwingTest {
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 Label(text = "named", modifier = SwingModifier.name("the-name"))
                 Label(text = "unnamed")
             }
@@ -62,7 +63,7 @@ class MatcherContractTest {
     @Test
     fun accessibleMatchersReadTheAccessibleContext() = runComposeSwingTest {
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 SwingNode(
                     factory = { JLabel() },
                     update = {
@@ -111,7 +112,7 @@ class MatcherContractTest {
     @Test
     fun isEnabledMatchesTheRequestedState() = runComposeSwingTest {
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 Button(text = "on", onClick = {})
                 Button(text = "off", onClick = {}, modifier = SwingModifier.enabled(false))
             }
@@ -143,7 +144,7 @@ class MatcherContractTest {
     @Test
     fun hasTestTagIgnoresNonSwingComponents() = runComposeSwingTest {
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 Label(text = "swing")
                 SwingNode(factory = { Canvas() })
             }
@@ -158,7 +159,7 @@ class MatcherContractTest {
     @Test
     fun orAdmitsEitherOperandAndNotInvertsTheMatcher() = runComposeSwingTest {
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 Label(text = "alpha")
                 Button(text = "beta", onClick = {})
                 Label(text = "gamma")
@@ -184,7 +185,7 @@ class MatcherContractTest {
     fun isSelectedReadsTheSelectedStateOfAButton() = runComposeSwingTest {
         var checked by mutableStateOf(false)
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 CheckBox(text = "agree", checked = checked, onCheckedChange = { })
                 Label(text = "plain")
             }
@@ -208,7 +209,7 @@ class MatcherContractTest {
     fun isEditableReadsTheEditableStateOfTextComponentsAndComboBoxes() = runComposeSwingTest {
         var editable by mutableStateOf(true)
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 TextField(value = "typed", onValueChange = { }, editable = editable)
                 ComboBox(items = listOf("one", "two"), selectedItem = null, onSelectionChange = { }, editable = false)
                 Label(text = "plain")

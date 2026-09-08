@@ -1,10 +1,13 @@
 package org.jetbrains.compose.swing.components.layout
 
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.layout.maximumSize
+import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.test.interaction.onChild
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -17,6 +20,7 @@ import java.awt.Dimension
 import java.awt.FlowLayout
 import java.awt.GraphicsEnvironment
 import java.awt.GridLayout
+import java.awt.Point
 import javax.swing.BoxLayout
 import javax.swing.JLabel
 import javax.swing.JPanel
@@ -28,9 +32,11 @@ import kotlin.test.assertTrue
 /**
  * A panel's layout parameters are composition state like any other, so the layout manager the panel
  * runs follows the values it is given rather than keeping whatever it was built with. Each test
- * changes a parameter after the first composition, reads the property back off the live layout, and
- * declares the first value again to confirm the panel keeps following. The manager is updated in
- * place: it records where each child goes, so a panel that swapped it out would lose that record.
+ * changes a parameter after the first composition, reads back what that parameter governs - the
+ * property on the live layout, or, where the parameter reaches the children only through a manager
+ * built anew, where those children were put - and declares the first value again to confirm the panel
+ * keeps following. A manager that can take the change is updated in place: it records where each child
+ * goes, so a panel that swapped it out would lose that record.
  */
 class PanelLayoutReactivityTest {
     @Test
@@ -41,11 +47,7 @@ class PanelLayoutReactivityTest {
         var hgap by mutableIntStateOf(FIRST_GAP)
         var vgap by mutableIntStateOf(FIRST_GAP)
         setContent {
-            FlowPanel(
-                alignment = alignment,
-                hgap = hgap,
-                vgap = vgap,
-            ) {
+            Panel(PanelLayout.Flow(alignment = alignment, hgap = hgap, vgap = vgap)) {
                 Label("child")
             }
         }
@@ -89,7 +91,7 @@ class PanelLayoutReactivityTest {
         var hgap by mutableIntStateOf(FIRST_GAP)
         var vgap by mutableIntStateOf(FIRST_GAP)
         setContent {
-            BorderPanel(hgap = hgap, vgap = vgap) {
+            Panel(PanelLayout.Border(hgap = hgap, vgap = vgap)) {
                 Label("child", SwingModifier.center())
             }
         }
@@ -129,27 +131,30 @@ class PanelLayoutReactivityTest {
     fun aBoxPanelFollowsItsAxis() = runComposeSwingTest {
         var axis by mutableIntStateOf(BoxLayout.Y_AXIS)
         setContent {
-            BoxPanel(axis = axis) {
-                Label("child")
+            Panel(PanelLayout.Box(axis = axis)) {
+                BoxChild(0)
+                BoxChild(1)
             }
         }
 
         val panel = onRoot().onChild().fetch<JPanel>()
-        assertEquals(BoxLayout.Y_AXIS, (panel.layout as BoxLayout).axis, "the declared axis")
+        val stacked = listOf(Point(0, 0), Point(0, BOX_CHILD_HEIGHT))
+        val linedUp = listOf(Point(0, 0), Point(BOX_CHILD_WIDTH, 0))
+
+        assertEquals(stacked, panel.childLocations(), "a Y_AXIS box should stack the children")
 
         axis = BoxLayout.X_AXIS
         awaitIdle()
 
-        // A BoxLayout cannot change axis, so the panel must be running a different instance, and that
-        // instance must target this very panel or it refuses to lay it out.
-        assertEquals(BoxLayout.X_AXIS, (panel.layout as BoxLayout).axis, "the new axis")
-        assertEquals(1, panel.componentCount, "the child survives the layout swap")
+        // A BoxLayout fixes its axis at construction, so the new axis reaches the children only through
+        // a manager built anew - and built for this very panel, since one built for another refuses to
+        // lay this panel out.
+        assertEquals(linedUp, panel.childLocations(), "an X_AXIS box should line the children up")
 
         axis = BoxLayout.Y_AXIS
         awaitIdle()
 
-        assertEquals(BoxLayout.Y_AXIS, (panel.layout as BoxLayout).axis, "the axis declared again")
-        assertEquals(1, panel.componentCount, "the child survives the second layout swap")
+        assertEquals(stacked, panel.childLocations(), "and the axis declared again should stack them once more")
     }
 
     @Test
@@ -159,12 +164,7 @@ class PanelLayoutReactivityTest {
         var hgap by mutableIntStateOf(FIRST_GAP)
         var vgap by mutableIntStateOf(FIRST_GAP)
         setContent {
-            GridPanel(
-                rows = rows,
-                cols = cols,
-                hgap = hgap,
-                vgap = vgap,
-            ) {
+            Panel(PanelLayout.Grid(rows = rows, cols = cols, hgap = hgap, vgap = vgap)) {
                 Label("child")
             }
         }
@@ -212,7 +212,7 @@ class PanelLayoutReactivityTest {
         var hgap by mutableIntStateOf(FIRST_GAP)
         var vgap by mutableIntStateOf(FIRST_GAP)
         setContent {
-            CardPanel(selectedCard = "only", hgap = hgap, vgap = vgap) {
+            Panel(PanelLayout.Card(selectedCard = "only", hgap = hgap, vgap = vgap)) {
                 Label("child", SwingModifier.card("only"))
             }
         }
@@ -255,7 +255,7 @@ class PanelLayoutReactivityTest {
             // settles the geometry it would produce, and only the relayout the write asks for turns
             // that into the bounds the children actually get.
             Window(onCloseRequest = {}, state = state, title = "grid-relayout") {
-                GridPanel(rows = rows, cols = cols) {
+                Panel(PanelLayout.Grid(rows = rows, cols = cols)) {
                     Label("left")
                     Label("right")
                 }
@@ -278,8 +278,69 @@ class PanelLayoutReactivityTest {
         )
     }
 
+    @Test
+    fun aChangedAxisLaysTheBoxsChildrenOutAgain() = runComposeSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        var axis by mutableIntStateOf(BoxLayout.Y_AXIS)
+        val state = WindowState(size = Dimension(320, 240))
+        setContent {
+            // A box cannot change the axis of the manager it runs, so the new axis arrives as a new
+            // manager built for this very panel - and only the relayout that write asks for moves the
+            // children the previous manager had already placed.
+            Window(onCloseRequest = {}, state = state, title = "box-relayout") {
+                Panel(PanelLayout.Box(axis = axis)) {
+                    Label("first")
+                    Label("second")
+                }
+            }
+        }
+
+        val window = onWindowWithTitle("box-relayout")
+        val first = window.onNodeWithText("first").fetch<JLabel>()
+        val second = window.onNodeWithText("second").fetch<JLabel>()
+        assertTrue(
+            second.y >= first.y + first.height,
+            "a Y_AXIS box should stack the children, and they are at y=${first.y} and ${second.y}",
+        )
+
+        axis = BoxLayout.X_AXIS
+        awaitIdle()
+
+        assertEquals(
+            first.y,
+            second.y,
+            "an X_AXIS box should put both children on one line, and they are at y=" +
+                "${first.y} and ${second.y}, so no layout pass followed the change",
+        )
+        assertTrue(
+            second.x >= first.x + first.width,
+            "an X_AXIS box should line the children up, and they are at x=${first.x} and ${second.x}",
+        )
+    }
+
     private companion object {
         const val FIRST_GAP = 2
         const val SECOND_GAP = 17
     }
 }
+
+/** The size every child of a box under test occupies, so the place the box put it is exact. */
+private const val BOX_CHILD_WIDTH = 60
+private const val BOX_CHILD_HEIGHT = 20
+
+/**
+ * A child of a box under test. A box holds a child to the maximum size that child declares, and a label
+ * reports the size its text needs as its own, so the maximum is declared here along with the preference.
+ */
+@Composable
+private fun BoxChild(index: Int) {
+    Label(
+        "child $index",
+        SwingModifier
+            .preferredSize(BOX_CHILD_WIDTH, BOX_CHILD_HEIGHT)
+            .maximumSize(BOX_CHILD_WIDTH, BOX_CHILD_HEIGHT),
+    )
+}
+
+/** Where a panel placed each of its children, in declaration order. */
+private fun JPanel.childLocations(): List<Point> = components.map { it.location }

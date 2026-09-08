@@ -4,7 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -91,7 +91,7 @@ class TreeComposableNodeTest {
                 label = { it.name },
                 expandedPaths = setOf(emptyList()),
             ) { value ->
-                FlowPanel { Label("${value.name} (${value.children.size})") }
+                Panel { Label("${value.name} (${value.children.size})") }
             }
         }
 
@@ -281,7 +281,7 @@ class TreeComposableNodeTest {
                     label = { it.name },
                     selectedPaths = setOf(emptyList()),
                 ) { value ->
-                    FlowPanel { Label(value.name) }
+                    Panel { Label(value.name) }
                 }
             }
         }
@@ -304,7 +304,7 @@ class TreeComposableNodeTest {
                 label = { it.name },
                 nodeContent =
                     if (composableNodes) {
-                        { value -> FlowPanel { Label(value.name) } }
+                        { value -> Panel { Label(value.name) } }
                     } else {
                         null
                     },

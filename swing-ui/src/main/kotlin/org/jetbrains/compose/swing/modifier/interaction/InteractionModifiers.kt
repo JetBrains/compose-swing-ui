@@ -92,7 +92,7 @@ public fun SwingModifier.onFocus(
  * Installs mouse press/release/click handlers. [onPress] fires on `MOUSE_PRESSED`, [onRelease] on
  * `MOUSE_RELEASED`, and [onClick] on a completed click; each receives the [MouseEvent] (button, click
  * count, point, modifiers). This is the low-level complement to a widget's domain `onClick`: use it
- * for arbitrary components (a Label, a FlowPanel) or for right/middle-button handling.
+ * for arbitrary components (a Label, a Panel) or for right/middle-button handling.
  *
  * Multiple `onPointerEvent` applications all fire. Callbacks are read live, so passing fresh lambdas
  * each recomposition is fine.

@@ -10,7 +10,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
  * ```
  * Row {
  *     Label(text = "Status")
- *     FlowPanel(modifier = SwingModifier.weight(1f)) { Details() }
+ *     Panel(PanelLayout.Flow(), modifier = SwingModifier.weight(1f)) { Details() }
  *     Button(text = "Close", onClick = ::close, modifier = SwingModifier.align(Alignment.Bottom))
  * }
  * ```

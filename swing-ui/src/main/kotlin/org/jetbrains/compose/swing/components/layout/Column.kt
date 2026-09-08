@@ -21,7 +21,7 @@ import org.jetbrains.compose.swing.node.SwingNode
  * ```
  * Column(verticalArrangement = Arrangement.spacedBy(8), horizontalAlignment = Alignment.CenterHorizontally) {
  *     Label(text = "Title")
- *     FlowPanel(modifier = SwingModifier.weight(1f)) { Body() }
+ *     Panel(PanelLayout.Flow(), modifier = SwingModifier.weight(1f)) { Body() }
  *     Button(text = "Close", onClick = ::close)
  * }
  * ```

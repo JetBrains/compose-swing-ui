@@ -5,7 +5,8 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -154,7 +155,7 @@ class ContentPlacementModifierTest {
         val failure =
             assertFailsWith<IllegalStateException> {
                 runComposeSwingTest {
-                    setContent { FlowPanel(modifier = SwingModifier.iconTextGap(GAP)) }
+                    setContent { Panel(PanelLayout.Flow(), modifier = SwingModifier.iconTextGap(GAP)) {} }
                 }
             }
 

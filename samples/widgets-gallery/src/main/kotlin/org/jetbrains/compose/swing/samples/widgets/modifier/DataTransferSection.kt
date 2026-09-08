@@ -8,7 +8,8 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.ColumnScope
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.border
@@ -52,7 +53,7 @@ private fun ColumnScope.DragAndDropCard() {
         // recomposition and would be written to the label each time.
         val dashed = remember { BorderFactory.createDashedBorder(Color.GRAY) }
 
-        FlowPanel {
+        Panel {
             Label(
                 text = payload,
                 modifier =
@@ -61,8 +62,9 @@ private fun ColumnScope.DragAndDropCard() {
                         .draggable(exportedActions = TransferHandler.COPY) { StringSelection(payload) },
             )
         }
-        FlowPanel {
-            FlowPanel(
+        Panel {
+            Panel(
+                PanelLayout.Flow(),
                 modifier =
                     SwingModifier
                         .preferredSize(Dimension(240, 60))
@@ -89,7 +91,7 @@ private fun ColumnScope.ClipboardCard() {
         var status by remember { mutableStateOf("") }
         val clipboard = rememberClipboardHandle()
 
-        FlowPanel {
+        Panel {
             TextField(
                 value = text,
                 onValueChange = { text = it },
@@ -108,7 +110,7 @@ private fun ColumnScope.ClipboardCard() {
                     ),
             )
         }
-        FlowPanel {
+        Panel {
             Button("Copy", onClick = { clipboard.copy() })
             Button("Paste", onClick = { status = if (clipboard.paste()) "Pasted" else "Nothing to paste" })
             Label(status)
@@ -123,7 +125,7 @@ private fun ColumnScope.OnExportDoneCard() {
         var lastOutcome by remember { mutableStateOf("none yet") }
         val dashed = remember { BorderFactory.createDashedBorder(Color.GRAY) }
 
-        FlowPanel {
+        Panel {
             Label(
                 text = payload,
                 modifier =
@@ -140,8 +142,9 @@ private fun ColumnScope.OnExportDoneCard() {
                         },
             )
         }
-        FlowPanel {
-            FlowPanel(
+        Panel {
+            Panel(
+                PanelLayout.Flow(),
                 modifier =
                     SwingModifier
                         .preferredSize(Dimension(240, 60))

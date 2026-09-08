@@ -6,7 +6,8 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.components.layout.BoxPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.onAllNodesOfType
@@ -84,7 +85,7 @@ class RecompositionBasicsTest : TracedTest() {
     fun conditionalChildIsAddedAndRemoved() = runComposeSwingTest {
         var visible by mutableStateOf(false)
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 Label(text = "always")
                 if (visible) Label(text = "conditional")
             }
@@ -124,7 +125,7 @@ class RecompositionBasicsTest : TracedTest() {
     fun keyedListReordersWithoutLosingComponents() = runComposeSwingTest {
         val items = mutableStateListOf("a", "b", "c")
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 for (item in items) {
                     key(item) { Label(text = item) }
                 }
@@ -167,7 +168,7 @@ class RecompositionBasicsTest : TracedTest() {
     fun addingListItemKeepsExistingComponentIdentity() = runComposeSwingTest {
         val items = mutableStateListOf("x", "y")
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 for (item in items) {
                     key(item) { Label(text = item) }
                 }
@@ -197,7 +198,7 @@ class RecompositionBasicsTest : TracedTest() {
     fun removingAListItemLeavesTheKeyedSiblingsAroundItInPlace() = runComposeSwingTest {
         val items = mutableStateListOf("x", "y", "z")
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 for (item in items) {
                     key(item) { Label(text = item) }
                 }

@@ -23,7 +23,7 @@ import org.jetbrains.compose.swing.components.ProgressBar
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.button.ToggleButton
 import org.jetbrains.compose.swing.components.layout.ColumnScope
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.lineBorder
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
@@ -70,7 +70,7 @@ private fun ColumnScope.AnimatedProgressCard() {
             min = 0,
             max = 100,
         )
-        FlowPanel {
+        Panel {
             Label("Target: $target")
             Button("0%", onClick = { target = 0 })
             Button("50%", onClick = { target = 50 })
@@ -114,7 +114,7 @@ private fun ColumnScope.SpringMarkerCard() {
             g.color = Color(0x42, 0x85, 0xF4)
             g.fill(Ellipse2D.Double(cx - radius, cy - radius, radius * 2, radius * 2))
         }
-        FlowPanel {
+        Panel {
             Button(if (atEnd) "Spring left" else "Spring right", onClick = { atEnd = !atEnd })
         }
     }
@@ -136,7 +136,7 @@ private fun ColumnScope.InfinitePulseCard() {
         } else {
             StaticDisc()
         }
-        FlowPanel {
+        Panel {
             ToggleButton(text = "Running", selected = running, onSelectedChange = { running = it })
         }
     }

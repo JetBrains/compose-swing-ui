@@ -2,7 +2,8 @@ package org.jetbrains.compose.swing.test.screenshot
 
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
-import org.jetbrains.compose.swing.components.layout.BoxPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Color
@@ -44,7 +45,7 @@ class ScreenshotTest {
     @Test
     fun captureToImagesProducesOneImagePerMatchedComponent() = runComposeSwingTest {
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 Button(text = "First", onClick = {})
                 Button(text = "Second longer label", onClick = {})
             }

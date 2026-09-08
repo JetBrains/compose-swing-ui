@@ -4,7 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.onAllNodesOfType
@@ -42,7 +42,7 @@ class ListBoxComposableCellTest {
     fun itemContentRealizesAComposableCellPerRow() = runComposeSwingTest {
         setContent {
             ListBox(items = listOf("alpha", "beta", "gamma")) { item ->
-                FlowPanel { Label(item) }
+                Panel { Label(item) }
             }
         }
 
@@ -145,7 +145,7 @@ class ListBoxComposableCellTest {
                     modifier = SwingModifier.viewport(),
                     selectedIndices = setOf(0),
                 ) { item ->
-                    FlowPanel { Label(item) }
+                    Panel { Label(item) }
                 }
             }
         }
@@ -203,7 +203,7 @@ class ListBoxComposableCellTest {
                 items = listOf("alpha", "beta"),
                 itemContent =
                     if (composableCells) {
-                        { item -> FlowPanel { Label(item) } }
+                        { item -> Panel { Label(item) } }
                     } else {
                         null
                     },
@@ -243,7 +243,7 @@ class ListBoxComposableCellTest {
                 model = model,
                 itemContent =
                     if (composableCells) {
-                        { item -> FlowPanel { Label(item) } }
+                        { item -> Panel { Label(item) } }
                     } else {
                         null
                     },

@@ -4,7 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Slider
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.selection.Table
 import org.jetbrains.compose.swing.components.selection.TableColumnLayout
 import org.jetbrains.compose.swing.components.text.TextField
@@ -43,7 +43,7 @@ class ModelSwapBaselineTest {
     fun aColumnLayoutIsMeasuredAgainstTheModelTheTableWasGiven() = runComposeSwingTest {
         val layouts = mutableListOf<TableColumnLayout>()
         setContent {
-            FlowPanel {
+            Panel {
                 Table(model = table(), selectedRowIndices = emptySet(), onColumnLayoutChange = { layouts += it })
             }
         }
@@ -65,7 +65,7 @@ class ModelSwapBaselineTest {
         val seen = mutableListOf<Set<Int>>()
         var declared by mutableStateOf(setOf(1))
         setContent {
-            FlowPanel {
+            Panel {
                 Table(model = table(), selectedRowIndices = declared, onSelectionChange = { seen += it })
             }
         }
@@ -93,7 +93,7 @@ class ModelSwapBaselineTest {
     fun textIsMeasuredAgainstTheDocumentTheComponentWasGiven() = runComposeSwingTest {
         var declared by mutableStateOf("first")
         setContent {
-            FlowPanel {
+            Panel {
                 TextField(value = declared, documentListener = documentChangeListener { })
             }
         }
@@ -114,7 +114,7 @@ class ModelSwapBaselineTest {
     fun aSliderValueIsMeasuredAgainstTheModelItWasGiven() = runComposeSwingTest {
         var declared by mutableStateOf(10)
         setContent {
-            FlowPanel {
+            Panel {
                 Slider(value = declared, changeListener = { }, max = 100)
             }
         }

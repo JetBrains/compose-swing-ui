@@ -11,7 +11,8 @@ import androidx.compose.runtime.tooling.CompositionGroup
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.button.CheckBox
-import org.jetbrains.compose.swing.components.layout.BoxPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingComponentNode
@@ -89,7 +90,7 @@ class ComponentInspectionTest {
     fun inspectionOnBeforeTheMountLeadsFromEachComponentToWhereItWasDeclared() = runComposeSwingTest {
         isDebugInspectorInfoEnabled = true
         setContent {
-            BoxPanel {
+            Panel(PanelLayout.Box()) {
                 Label(text = "hello", modifier = SwingModifier.testTag(LABEL_TAG))
                 Button(text = "go", onClick = {}, modifier = SwingModifier.testTag(BUTTON_TAG))
                 CheckBox(
@@ -134,7 +135,7 @@ class ComponentInspectionTest {
     fun aDeclaredComponentIsAnsweredWithItsOwnGroupAndTheWholeCompositionIsReachableFromIt() = runComposeSwingTest {
         isDebugInspectorInfoEnabled = true
         setContent {
-            BoxPanel(modifier = SwingModifier.testTag(PANEL_TAG)) {
+            Panel(PanelLayout.Box(), modifier = SwingModifier.testTag(PANEL_TAG)) {
                 Label(text = "hello", modifier = SwingModifier.testTag(LABEL_TAG))
                 Button(text = "go", onClick = {}, modifier = SwingModifier.testTag(BUTTON_TAG))
             }

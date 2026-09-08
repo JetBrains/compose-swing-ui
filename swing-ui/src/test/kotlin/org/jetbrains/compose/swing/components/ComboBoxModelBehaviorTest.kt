@@ -3,7 +3,7 @@ package org.jetbrains.compose.swing.components
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.selection.firstLabelText
 import org.jetbrains.compose.swing.components.selection.stampCell
 import org.jetbrains.compose.swing.test.SwingMatcher
@@ -98,7 +98,7 @@ class ComboBoxModelBehaviorTest {
         val model = DefaultComboBoxModel(arrayOf("Red", "Green", "Blue"))
         setContent {
             ComboBox(model = model) { item ->
-                FlowPanel { Label(item) }
+                Panel { Label(item) }
             }
         }
 
@@ -129,7 +129,7 @@ class ComboBoxModelBehaviorTest {
                 model = model,
                 itemContent =
                     if (composableCells) {
-                        { item -> FlowPanel { Label(item) } }
+                        { item -> Panel { Label(item) } }
                     } else {
                         null
                     },
@@ -160,7 +160,7 @@ class ComboBoxModelBehaviorTest {
         val replacement = DefaultComboBoxModel(arrayOf("One", "Two", "Three"))
         setContent {
             ComboBox(model = model) { item ->
-                FlowPanel { Label(item) }
+                Panel { Label(item) }
             }
         }
 

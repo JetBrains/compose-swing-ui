@@ -8,7 +8,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.components.layout.BorderPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.ComposeSwingTest
@@ -249,11 +250,11 @@ class LayoutConstraintTest {
     fun aChildMovingBetweenContainersIsPlacedByItsNewOne() = runComposeSwingTest {
         var inRegion by mutableStateOf(false)
         setContent {
-            // One child, composed either as a region of the enclosing BorderPanel or under a constraint
+            // One child, composed either as a region of the enclosing border panel or under a constraint
             // it declares inside an inner container. Movable content carries the same node between the
             // two, so the child changes which container places it without being recreated.
             val child = remember { movableContentOf<SwingModifier> { modifier -> Label("mover", modifier) } }
-            BorderPanel {
+            Panel(PanelLayout.Border()) {
                 if (inRegion) {
                     child(SwingModifier.north())
                 } else {

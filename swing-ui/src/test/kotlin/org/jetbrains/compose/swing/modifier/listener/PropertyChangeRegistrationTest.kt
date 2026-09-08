@@ -4,7 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.button.Button
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -29,7 +29,7 @@ class PropertyChangeRegistrationTest {
         val instance = PropertyChangeListener { event -> seen += event.propertyName }
         var watched by mutableStateOf("enabled")
         setContent {
-            FlowPanel {
+            Panel {
                 Button(
                     text = "press",
                     onClick = { },
@@ -66,7 +66,7 @@ class PropertyChangeRegistrationTest {
         val composed = PropertyChangeListener { order += "composed" }
         var label by mutableStateOf("first")
         setContent {
-            FlowPanel {
+            Panel {
                 Button(
                     text = label,
                     onClick = { },

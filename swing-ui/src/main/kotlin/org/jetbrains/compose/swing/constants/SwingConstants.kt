@@ -174,7 +174,7 @@ public annotation class HorizontalAlignment
 public annotation class VerticalAlignment
 
 /**
- * A `FlowLayout` alignment (`LEFT`/`CENTER`/`RIGHT`/`LEADING`/`TRAILING`), as used by `FlowPanel`.
+ * A `FlowLayout` alignment (`LEFT`/`CENTER`/`RIGHT`/`LEADING`/`TRAILING`), as used by `PanelLayout.Flow`.
  * `FlowLayout`'s constants are a separate numbering from `SwingConstants`, so this is distinct from
  * [HorizontalAlignment].
  */

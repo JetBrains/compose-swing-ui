@@ -4,7 +4,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.components.layout.BorderPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.interaction.onChildAt
 import org.jetbrains.compose.swing.test.interaction.onChildren
@@ -16,7 +17,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertSame
 
 /**
- * A [BorderPanel] whose NORTH child is conditional, alongside stable CENTER and SOUTH children. A child
+ * A [PanelLayout.Border] panel whose NORTH child is conditional, alongside stable CENTER and SOUTH children. A child
  * appearing or disappearing shifts the composition indices of its siblings, and the applier addresses
  * the AWT component array by that index, so a stable sibling has to come through the toggle as the
  * same component in the same region - both when the conditional child arrives and when it leaves.
@@ -37,7 +38,7 @@ class ConditionalSlotToggleTest : TracedTest() {
     fun togglingNorthOnThenOffLeavesSiblingsIntactAndNorthGone() = runComposeSwingTest {
         var showNorth by mutableStateOf(false)
         setContent {
-            BorderPanel {
+            Panel(PanelLayout.Border()) {
                 if (showNorth) {
                     Label(text = NORTH_TEXT, modifier = SwingModifier.north())
                 }
@@ -92,7 +93,7 @@ class ConditionalSlotToggleTest : TracedTest() {
     fun togglingNorthOnPlacesItCorrectlyWithoutDisturbingSiblings() = runComposeSwingTest {
         var showNorth by mutableStateOf(false)
         setContent {
-            BorderPanel {
+            Panel(PanelLayout.Border()) {
                 if (showNorth) {
                     Label(text = NORTH_TEXT, modifier = SwingModifier.north())
                 }

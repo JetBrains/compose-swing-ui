@@ -97,7 +97,7 @@ compose-swing-internal:
 
 naming:
   FunctionNaming:
-    # @Composable functions use PascalCase by Compose convention (e.g. Button, BorderPanel).
+    # @Composable functions use PascalCase by Compose convention (e.g. Button, Panel).
     ignoreAnnotated: ["Composable"]
 
 style:

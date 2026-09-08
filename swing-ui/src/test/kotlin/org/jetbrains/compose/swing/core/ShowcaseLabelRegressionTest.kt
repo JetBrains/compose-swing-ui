@@ -6,7 +6,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
-import org.jetbrains.compose.swing.components.layout.BorderPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.BorderLayout
@@ -14,7 +15,7 @@ import kotlin.test.Test
 import kotlin.test.assertSame
 
 /**
- * A [BorderPanel] with a stable NORTH title and a stable SOUTH status bar, and a CENTER body that
+ * A [PanelLayout.Border] panel with a stable NORTH title and a stable SOUTH status bar, and a CENTER body that
  * comes and goes. The panel composes its children NORTH, CENTER, SOUTH, so the body occupies composition
  * index 1 - *between* its two stable siblings - and each toggle shifts the index the status bar sits
  * at. The applier addresses the AWT component array by that index, so this is the arrangement in
@@ -36,7 +37,7 @@ class ShowcaseLabelRegressionTest {
         var showBody by mutableStateOf(false)
         var clicks by mutableIntStateOf(0)
         setContent {
-            BorderPanel {
+            Panel(PanelLayout.Border()) {
                 Label(text = TITLE, modifier = SwingModifier.north())
                 if (showBody) {
                     Button(text = BODY, onClick = { clicks++ }, modifier = SwingModifier.center())
@@ -78,7 +79,7 @@ class ShowcaseLabelRegressionTest {
     fun repeatedBodyTogglesKeepTitleAndStatusStable() = runComposeSwingTest {
         var showBody by mutableStateOf(false)
         setContent {
-            BorderPanel {
+            Panel(PanelLayout.Border()) {
                 Label(text = TITLE, modifier = SwingModifier.north())
                 if (showBody) {
                     Label(text = BODY, modifier = SwingModifier.center())

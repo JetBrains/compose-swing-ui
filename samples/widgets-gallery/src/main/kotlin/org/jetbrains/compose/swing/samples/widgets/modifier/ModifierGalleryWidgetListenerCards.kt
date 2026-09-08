@@ -12,7 +12,7 @@ import org.jetbrains.compose.swing.components.Slider
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.layout.ColumnScope
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
@@ -58,7 +58,7 @@ internal fun ColumnScope.ChangeListenerCard() {
         var value by remember { mutableIntStateOf(0) }
         var changes by remember { mutableIntStateOf(0) }
         val listener = remember { ChangeListener { changes++ } }
-        FlowPanel {
+        Panel {
             Label("Value: $value")
             Slider(
                 value = value,
@@ -89,7 +89,7 @@ internal fun ColumnScope.ListenerEscapeHatchCard() {
                 }
             }
         var language by remember { mutableStateOf("Kotlin") }
-        FlowPanel {
+        Panel {
             Label("Open the dropdown:")
             ComboBox(
                 items = listOf("Kotlin", "Java", "Scala"),
@@ -155,7 +155,7 @@ internal fun ColumnScope.PropertyChangeListenerCard() {
         var changes by remember { mutableIntStateOf(0) }
         val listener = remember { PropertyChangeListener { changes++ } }
         Label(text, modifier = SwingModifier.propertyChangeListener("text", listener))
-        FlowPanel {
+        Panel {
             Button("Change text", onClick = { text = if (text == "Edit me") "Changed!" else "Edit me" })
             Label("\"text\" changed $changes time(s)")
         }

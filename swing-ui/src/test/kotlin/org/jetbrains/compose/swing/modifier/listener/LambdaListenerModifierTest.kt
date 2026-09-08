@@ -6,7 +6,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Slider
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.button.CheckBox
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.interaction.enabled
 import org.jetbrains.compose.swing.test.interaction.performClick
@@ -32,7 +32,7 @@ class LambdaListenerModifierTest {
         var reported = ""
         var declared by mutableStateOf("first")
         setContent {
-            FlowPanel {
+            Panel {
                 // Read during composition, so declaring a new value recomposes the button and rebuilds
                 // its modifier chain with a freshly written lambda. The lambda reports the value this
                 // pass captured rather than reading the state again when the click fires: a value read
@@ -66,7 +66,7 @@ class LambdaListenerModifierTest {
         val seen = mutableListOf<String>()
         var watched by mutableStateOf("enabled")
         setContent {
-            FlowPanel {
+            Panel {
                 // Captured during composition and reported beside the event's own name: moving the
                 // registration builds the listener afresh, and the captured name is what says the
                 // rebuilt listener reads the lambda of the pass that moved it.

@@ -4,7 +4,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.button.Button
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.interaction.onParent
@@ -107,7 +108,7 @@ class RawListenerBuilderAttachmentTest {
     fun containerListenerInstanceIsRegisteredOnAPanel() = runComposeSwingTest {
         val listener: ContainerListener = object : ContainerAdapter() {}
         setContent {
-            FlowPanel(modifier = SwingModifier.containerListener(listener)) {
+            Panel(PanelLayout.Flow(), modifier = SwingModifier.containerListener(listener)) {
                 Button("child", onClick = { })
             }
         }

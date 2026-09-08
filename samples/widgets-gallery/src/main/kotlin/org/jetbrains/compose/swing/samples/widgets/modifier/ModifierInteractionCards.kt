@@ -10,7 +10,7 @@ import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.button.RadioButton
 import org.jetbrains.compose.swing.components.layout.ColumnScope
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.components.menu.PopupMenu
 import org.jetbrains.compose.swing.components.menu.popupAnchor
@@ -54,7 +54,7 @@ internal fun ColumnScope.FocusableCard() {
     ExampleCard("focusable") {
         var canFocus by remember { mutableStateOf(true) }
         CheckBox(text = "Button is focusable", checked = canFocus, onCheckedChange = { canFocus = it })
-        FlowPanel {
+        Panel {
             Button("Tab reaches me only when focusable", onClick = { }, modifier = SwingModifier.focusable(canFocus))
         }
     }
@@ -65,7 +65,7 @@ internal fun ColumnScope.FocusCard() {
     ExampleCard("rememberFocusRequester + focusRequester") {
         val requester = rememberFocusRequester()
         var text by remember { mutableStateOf("") }
-        FlowPanel {
+        Panel {
             Button("Focus the field", onClick = { requester.requestFocus() })
             TextField(
                 value = text,
@@ -96,7 +96,7 @@ internal fun ColumnScope.ButtonGroupCard() {
     ExampleCard("buttonGroup (hand-placed RadioButtons)") {
         val group = remember { ButtonGroup() }
         var choice by remember { mutableStateOf("Small") }
-        FlowPanel {
+        Panel {
             RadioButton(
                 text = "Small",
                 selected = choice == "Small",
@@ -130,7 +130,7 @@ internal fun ColumnScope.DisplayedMnemonicIndexCard() {
             checked = underlineAs,
             onCheckedChange = { underlineAs = it },
         )
-        FlowPanel {
+        Panel {
             Button(
                 "Save As",
                 onClick = { },
@@ -148,7 +148,7 @@ internal fun ColumnScope.ActionCommandCard() {
     ExampleCard("actionCommand") {
         var lastCommand by remember { mutableStateOf("none") }
         val listener = remember { ActionListener { event -> lastCommand = event.actionCommand } }
-        FlowPanel {
+        Panel {
             Button("Print", actionListener = listener, modifier = SwingModifier.actionCommand("print-doc"))
             Button(
                 "Print Preview",
@@ -166,7 +166,7 @@ internal fun ColumnScope.PopupMenuCard() {
         var expanded by remember { mutableStateOf(false) }
         var lastAction by remember { mutableStateOf("none") }
         val anchor = rememberPopupAnchor()
-        FlowPanel {
+        Panel {
             Button("Export", onClick = { expanded = true }, modifier = SwingModifier.popupAnchor(anchor))
         }
         PopupMenu(anchor, expanded, onDismiss = { expanded = false }) {

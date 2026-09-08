@@ -8,7 +8,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Canvas
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.Slider
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.lineBorder
 import org.jetbrains.compose.swing.modifier.appearance.testTag
@@ -47,7 +47,7 @@ internal fun CanvasSection() {
 
             var petals by remember { mutableIntStateOf(8) }
             var sweep by remember { mutableIntStateOf(70) }
-            FlowPanel {
+            Panel {
                 Label("Petals: $petals")
                 Slider(value = petals, onValueChange = { petals = it }, min = 3, max = 16)
                 Label("Sweep: $sweep%")

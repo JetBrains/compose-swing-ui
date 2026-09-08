@@ -38,7 +38,7 @@ import kotlin.test.assertTrue
  * back under the one its own modifier declares. A bar docked on a side edge is turned to face along it,
  * and is turned back to the orientation declared.
  *
- * The host is a [BorderPanel] throughout, which is what `BasicToolBarUI` is written against: it names
+ * The host is a [PanelLayout.Border] panel throughout, which is what `BasicToolBarUI` is written against: it names
  * the region it docks under itself, and falls back to `BorderLayout.NORTH` for a container whose manager
  * reads no such thing. A bar the user can drag out of any other container is refused as it is composed.
  *
@@ -50,7 +50,7 @@ class ToolBarDockingTest {
     fun aBarMountingIntoItsPanelIsPlacedOnce() = runComposeSwingTest {
         val ownMoves = mutableListOf<Container?>()
         setContent {
-            BorderPanel {
+            Panel(PanelLayout.Border()) {
                 ToolBar(
                     modifier =
                         SwingModifier.north().hierarchyListener { event ->
@@ -80,7 +80,7 @@ class ToolBarDockingTest {
             var floating by mutableStateOf(false)
             setContent {
                 Window(onCloseRequest = {}, title = USER_DOCK_WINDOW_TITLE, visible = false) {
-                    BorderPanel {
+                    Panel(PanelLayout.Border()) {
                         ToolBar(
                             modifier = SwingModifier.north(),
                             floating = floating,
@@ -123,7 +123,7 @@ class ToolBarDockingTest {
                 // Composed `visible = false`: sizing to content realizes the peer, which is all the bar
                 // needs to have a window to open its own beside.
                 Window(onCloseRequest = {}, title = WINDOW_TITLE, visible = false) {
-                    BorderPanel {
+                    Panel(PanelLayout.Border()) {
                         ToolBar(modifier = SwingModifier.north(), floating = floating) {
                             Button(text = "New", onClick = {})
                         }
@@ -163,7 +163,7 @@ class ToolBarDockingTest {
             var floating by mutableStateOf(false)
             setContent {
                 Window(onCloseRequest = {}, title = SIBLING_WINDOW_TITLE, visible = false) {
-                    BorderPanel {
+                    Panel(PanelLayout.Border()) {
                         ToolBar(modifier = SwingModifier.north(), floating = floating) {
                             Button(text = "Cut", onClick = {})
                         }
@@ -215,7 +215,7 @@ class ToolBarDockingTest {
 
         val message = refusal.message.orEmpty()
         assertTrue(
-            "JToolBar" in message && "floatable = false" in message && "BorderPanel" in message,
+            "JToolBar" in message && "floatable = false" in message && "PanelLayout.Border" in message,
             "the refusal should name the bar and both ways out of it, but read: $message",
         )
     }
@@ -226,7 +226,7 @@ class ToolBarDockingTest {
             assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
             setContent {
                 Window(onCloseRequest = {}, title = EDGE_WINDOW_TITLE, visible = false) {
-                    BorderPanel {
+                    Panel(PanelLayout.Border()) {
                         ToolBar(modifier = SwingModifier.north(), orientation = SwingConstants.HORIZONTAL) {
                             Button(text = "New", onClick = {})
                         }
@@ -287,7 +287,7 @@ class ToolBarDockingTest {
     fun aFloatRefusedForWantOfAWindowLeavesAnEarlierUnansweredMoveStanding() = runComposeSwingTest {
         var floating by mutableStateOf(false)
         setContent {
-            BorderPanel {
+            Panel(PanelLayout.Border()) {
                 ToolBar(modifier = SwingModifier.north(), floating = floating, onFloatingChange = {}) {
                     Button(text = "New", onClick = {})
                 }

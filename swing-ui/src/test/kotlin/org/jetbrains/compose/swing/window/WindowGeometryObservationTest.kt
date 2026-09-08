@@ -2,7 +2,7 @@ package org.jetbrains.compose.swing.window
 
 import androidx.compose.runtime.Recomposer
 import androidx.compose.runtime.snapshots.Snapshot
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.Dimension
@@ -37,7 +37,7 @@ class WindowGeometryObservationTest {
         setContent {
             Window(onCloseRequest = {}, state = state, title = "geometry-observed-window-size", visible = false) {
                 frame = LocalWindow.current as JFrame
-                FlowPanel()
+                Panel {}
             }
         }
 
@@ -60,7 +60,7 @@ class WindowGeometryObservationTest {
         setContent {
             Window(onCloseRequest = {}, state = state, title = "geometry-observed-window-position", visible = false) {
                 frame = LocalWindow.current as JFrame
-                FlowPanel()
+                Panel {}
             }
         }
 
@@ -83,7 +83,7 @@ class WindowGeometryObservationTest {
         setContent {
             Window(onCloseRequest = {}, state = state, title = "geometry-observed-window-inline", visible = false) {
                 frame = LocalWindow.current as JFrame
-                FlowPanel()
+                Panel {}
             }
         }
 
@@ -107,7 +107,7 @@ class WindowGeometryObservationTest {
         setContent {
             Dialog(onCloseRequest = {}, state = state, title = "geometry-observed-dialog-size", visible = false) {
                 dialog = LocalWindow.current as JDialog
-                FlowPanel()
+                Panel {}
             }
         }
 
@@ -130,7 +130,7 @@ class WindowGeometryObservationTest {
         setContent {
             Window(onCloseRequest = {}, state = state, title = "geometry-observed-window-resize", visible = false) {
                 frame = LocalWindow.current as JFrame
-                FlowPanel()
+                Panel {}
             }
         }
         awaitIdle()
@@ -155,7 +155,7 @@ class WindowGeometryObservationTest {
         setContent {
             Window(onCloseRequest = {}, state = state, title = "geometry-observed-window-move", visible = false) {
                 frame = LocalWindow.current as JFrame
-                FlowPanel()
+                Panel {}
             }
         }
         // The window system reports the declared placement performed, and then has the window on
@@ -188,7 +188,7 @@ class WindowGeometryObservationTest {
         setContent {
             Dialog(onCloseRequest = {}, state = state, title = "geometry-observed-dialog-resize", visible = false) {
                 dialog = LocalWindow.current as JDialog
-                FlowPanel()
+                Panel {}
             }
         }
         awaitIdle()
@@ -213,7 +213,7 @@ class WindowGeometryObservationTest {
         setContent {
             Window(onCloseRequest = {}, state = state, title = "geometry-observed-window-settles", visible = false) {
                 frame = LocalWindow.current as JFrame
-                FlowPanel()
+                Panel {}
             }
         }
 

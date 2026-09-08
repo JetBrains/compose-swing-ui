@@ -8,7 +8,8 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
-import org.jetbrains.compose.swing.components.layout.FlowPanel
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
@@ -48,7 +49,7 @@ internal fun CustomComponentSection() {
 
             var rating by remember { mutableIntStateOf(3) }
 
-            FlowPanel(alignment = FlowLayout.LEADING) {
+            Panel(PanelLayout.Flow(alignment = FlowLayout.LEADING)) {
                 StarRating(
                     rating = rating,
                     onRatingChange = { rating = it },
@@ -77,7 +78,7 @@ internal fun CustomComponentSection() {
 @Preview
 @Composable
 internal fun StarRatingPreview() {
-    FlowPanel(alignment = FlowLayout.LEADING) {
+    Panel(PanelLayout.Flow(alignment = FlowLayout.LEADING)) {
         StarRating(rating = 3, onRatingChange = {})
     }
 }
