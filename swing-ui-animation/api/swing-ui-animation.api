@@ -1,3 +1,143 @@
+public final class org/jetbrains/compose/swing/animation/AnimatedVisibilityKt {
+	public static final fun AnimatedVisibility (Lorg/jetbrains/compose/swing/animation/core/MutableTransitionState;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/animation/EnterTransition;Lorg/jetbrains/compose/swing/animation/ExitTransition;Ljava/lang/String;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+	public static final fun AnimatedVisibility (Lorg/jetbrains/compose/swing/foundation/layout/ColumnScope;Lorg/jetbrains/compose/swing/animation/core/MutableTransitionState;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/animation/EnterTransition;Lorg/jetbrains/compose/swing/animation/ExitTransition;Ljava/lang/String;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+	public static final fun AnimatedVisibility (Lorg/jetbrains/compose/swing/foundation/layout/ColumnScope;ZLorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/animation/EnterTransition;Lorg/jetbrains/compose/swing/animation/ExitTransition;Ljava/lang/String;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+	public static final fun AnimatedVisibility (Lorg/jetbrains/compose/swing/foundation/layout/ConstrainedScope;Lorg/jetbrains/compose/swing/animation/core/MutableTransitionState;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/animation/EnterTransition;Lorg/jetbrains/compose/swing/animation/ExitTransition;Ljava/lang/String;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+	public static final fun AnimatedVisibility (Lorg/jetbrains/compose/swing/foundation/layout/ConstrainedScope;Lorg/jetbrains/compose/swing/animation/core/Transition;Lkotlin/jvm/functions/Function1;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/animation/EnterTransition;Lorg/jetbrains/compose/swing/animation/ExitTransition;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+	public static final fun AnimatedVisibility (Lorg/jetbrains/compose/swing/foundation/layout/ConstrainedScope;ZLorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/animation/EnterTransition;Lorg/jetbrains/compose/swing/animation/ExitTransition;Ljava/lang/String;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+	public static final fun AnimatedVisibility (Lorg/jetbrains/compose/swing/foundation/layout/RowScope;Lorg/jetbrains/compose/swing/animation/core/MutableTransitionState;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/animation/EnterTransition;Lorg/jetbrains/compose/swing/animation/ExitTransition;Ljava/lang/String;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+	public static final fun AnimatedVisibility (Lorg/jetbrains/compose/swing/foundation/layout/RowScope;ZLorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/animation/EnterTransition;Lorg/jetbrains/compose/swing/animation/ExitTransition;Ljava/lang/String;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+	public static final fun AnimatedVisibility (ZLorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/animation/EnterTransition;Lorg/jetbrains/compose/swing/animation/ExitTransition;Ljava/lang/String;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+	public static final fun DeferredAnimatedVisibility (Lorg/jetbrains/compose/swing/foundation/layout/ConstrainedScope;Lorg/jetbrains/compose/swing/animation/core/DeferredTransition;Lkotlin/jvm/functions/Function1;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/animation/EnterTransition;Lorg/jetbrains/compose/swing/animation/ExitTransition;Lorg/jetbrains/compose/swing/animation/MutableTransform;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+}
+
+public abstract interface class org/jetbrains/compose/swing/animation/AnimatedVisibilityScope : org/jetbrains/compose/swing/foundation/layout/ConstrainedScope {
+	public fun animateEnterExit (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/animation/EnterTransition;Lorg/jetbrains/compose/swing/animation/ExitTransition;Ljava/lang/String;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static synthetic fun animateEnterExit$default (Lorg/jetbrains/compose/swing/animation/AnimatedVisibilityScope;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/animation/EnterTransition;Lorg/jetbrains/compose/swing/animation/ExitTransition;Ljava/lang/String;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public abstract fun getTransition ()Lorg/jetbrains/compose/swing/animation/core/Transition;
+}
+
+public final class org/jetbrains/compose/swing/animation/ColorVectorConverterKt {
+	public static final fun getColorToVector ()Lorg/jetbrains/compose/swing/animation/core/TwoWayConverter;
+}
+
+public final class org/jetbrains/compose/swing/animation/EnterExitState : java/lang/Enum {
+	public static final field PostExit Lorg/jetbrains/compose/swing/animation/EnterExitState;
+	public static final field PreEnter Lorg/jetbrains/compose/swing/animation/EnterExitState;
+	public static final field Visible Lorg/jetbrains/compose/swing/animation/EnterExitState;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lorg/jetbrains/compose/swing/animation/EnterExitState;
+	public static fun values ()[Lorg/jetbrains/compose/swing/animation/EnterExitState;
+}
+
+public abstract class org/jetbrains/compose/swing/animation/EnterTransition {
+	public static final field $stable I
+	public static final field Companion Lorg/jetbrains/compose/swing/animation/EnterTransition$Companion;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public final fun plus (Lorg/jetbrains/compose/swing/animation/EnterTransition;)Lorg/jetbrains/compose/swing/animation/EnterTransition;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class org/jetbrains/compose/swing/animation/EnterTransition$Companion {
+	public final fun getNone ()Lorg/jetbrains/compose/swing/animation/EnterTransition;
+}
+
+public abstract class org/jetbrains/compose/swing/animation/ExitTransition {
+	public static final field $stable I
+	public static final field Companion Lorg/jetbrains/compose/swing/animation/ExitTransition$Companion;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public final fun plus (Lorg/jetbrains/compose/swing/animation/ExitTransition;)Lorg/jetbrains/compose/swing/animation/ExitTransition;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class org/jetbrains/compose/swing/animation/ExitTransition$Companion {
+	public final fun getNone ()Lorg/jetbrains/compose/swing/animation/ExitTransition;
+}
+
+public final class org/jetbrains/compose/swing/animation/ExpandShrinkKt {
+	public static final fun expandHorizontally (Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;Lorg/jetbrains/compose/swing/foundation/layout/Alignment$Horizontal;ZLkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/animation/EnterTransition;
+	public static synthetic fun expandHorizontally$default (Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;Lorg/jetbrains/compose/swing/foundation/layout/Alignment$Horizontal;ZLkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/animation/EnterTransition;
+	public static final fun expandIn (Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;Lorg/jetbrains/compose/swing/foundation/layout/Alignment;ZLkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/animation/EnterTransition;
+	public static synthetic fun expandIn$default (Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;Lorg/jetbrains/compose/swing/foundation/layout/Alignment;ZLkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/animation/EnterTransition;
+	public static final fun expandVertically (Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;Lorg/jetbrains/compose/swing/foundation/layout/Alignment$Vertical;ZLkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/animation/EnterTransition;
+	public static synthetic fun expandVertically$default (Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;Lorg/jetbrains/compose/swing/foundation/layout/Alignment$Vertical;ZLkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/animation/EnterTransition;
+	public static final fun shrinkHorizontally (Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;Lorg/jetbrains/compose/swing/foundation/layout/Alignment$Horizontal;ZLkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/animation/ExitTransition;
+	public static synthetic fun shrinkHorizontally$default (Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;Lorg/jetbrains/compose/swing/foundation/layout/Alignment$Horizontal;ZLkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/animation/ExitTransition;
+	public static final fun shrinkOut (Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;Lorg/jetbrains/compose/swing/foundation/layout/Alignment;ZLkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/animation/ExitTransition;
+	public static synthetic fun shrinkOut$default (Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;Lorg/jetbrains/compose/swing/foundation/layout/Alignment;ZLkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/animation/ExitTransition;
+	public static final fun shrinkVertically (Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;Lorg/jetbrains/compose/swing/foundation/layout/Alignment$Vertical;ZLkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/animation/ExitTransition;
+	public static synthetic fun shrinkVertically$default (Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;Lorg/jetbrains/compose/swing/foundation/layout/Alignment$Vertical;ZLkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/animation/ExitTransition;
+}
+
+public abstract interface annotation class org/jetbrains/compose/swing/animation/ExperimentalAnimationApi : java/lang/annotation/Annotation {
+}
+
+public final class org/jetbrains/compose/swing/animation/FadeKt {
+	public static final fun fadeIn (Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;F)Lorg/jetbrains/compose/swing/animation/EnterTransition;
+	public static synthetic fun fadeIn$default (Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;FILjava/lang/Object;)Lorg/jetbrains/compose/swing/animation/EnterTransition;
+	public static final fun fadeOut (Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;F)Lorg/jetbrains/compose/swing/animation/ExitTransition;
+	public static synthetic fun fadeOut$default (Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;FILjava/lang/Object;)Lorg/jetbrains/compose/swing/animation/ExitTransition;
+}
+
+public final class org/jetbrains/compose/swing/animation/MutableTransform {
+	public static final field $stable I
+	public fun <init> ()V
+	public fun <init> (ZLkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function2;)V
+	public synthetic fun <init> (ZLkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function2;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun update (Lkotlin/jvm/functions/Function2;)V
+}
+
+public final class org/jetbrains/compose/swing/animation/ScaleKt {
+	public static final fun scaleIn (Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;FLorg/jetbrains/compose/swing/foundation/graphics/TransformOrigin;)Lorg/jetbrains/compose/swing/animation/EnterTransition;
+	public static synthetic fun scaleIn$default (Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;FLorg/jetbrains/compose/swing/foundation/graphics/TransformOrigin;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/animation/EnterTransition;
+	public static final fun scaleOut (Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;FLorg/jetbrains/compose/swing/foundation/graphics/TransformOrigin;)Lorg/jetbrains/compose/swing/animation/ExitTransition;
+	public static synthetic fun scaleOut$default (Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;FLorg/jetbrains/compose/swing/foundation/graphics/TransformOrigin;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/animation/ExitTransition;
+}
+
+public final class org/jetbrains/compose/swing/animation/SlideKt {
+	public static final fun slideIn (Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;Lkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/animation/EnterTransition;
+	public static synthetic fun slideIn$default (Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/animation/EnterTransition;
+	public static final fun slideInHorizontally (Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;Lkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/animation/EnterTransition;
+	public static synthetic fun slideInHorizontally$default (Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/animation/EnterTransition;
+	public static final fun slideInVertically (Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;Lkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/animation/EnterTransition;
+	public static synthetic fun slideInVertically$default (Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/animation/EnterTransition;
+	public static final fun slideOut (Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;Lkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/animation/ExitTransition;
+	public static synthetic fun slideOut$default (Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/animation/ExitTransition;
+	public static final fun slideOutHorizontally (Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;Lkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/animation/ExitTransition;
+	public static synthetic fun slideOutHorizontally$default (Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/animation/ExitTransition;
+	public static final fun slideOutVertically (Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;Lkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/animation/ExitTransition;
+	public static synthetic fun slideOutVertically$default (Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/animation/ExitTransition;
+}
+
+public abstract interface class org/jetbrains/compose/swing/animation/TransformScope {
+	public abstract fun getAlpha ()F
+	public abstract fun getOffset ()Ljava/awt/Point;
+	public abstract fun getScale ()F
+	public abstract fun getTransformOrigin ()Lorg/jetbrains/compose/swing/foundation/graphics/TransformOrigin;
+	public abstract fun getVeil ()Ljava/awt/Color;
+	public abstract fun setAlpha (F)V
+	public abstract fun setOffset (Ljava/awt/Point;)V
+	public abstract fun setScale (F)V
+	public abstract fun setTransformOrigin (Lorg/jetbrains/compose/swing/foundation/graphics/TransformOrigin;)V
+	public abstract fun setVeil (Ljava/awt/Color;)V
+}
+
+public final class org/jetbrains/compose/swing/animation/VectorConvertersKt {
+	public static final fun dimensionVisibilityThreshold ()Ljava/awt/Dimension;
+	public static final fun getDimensionToVector ()Lorg/jetbrains/compose/swing/animation/core/TwoWayConverter;
+	public static final fun getPointToVector ()Lorg/jetbrains/compose/swing/animation/core/TwoWayConverter;
+	public static final fun pointVisibilityThreshold ()Ljava/awt/Point;
+}
+
+public final class org/jetbrains/compose/swing/animation/VeilKt {
+	public static final fun unveilIn (Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;Ljava/awt/Color;Z)Lorg/jetbrains/compose/swing/animation/EnterTransition;
+	public static synthetic fun unveilIn$default (Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;Ljava/awt/Color;ZILjava/lang/Object;)Lorg/jetbrains/compose/swing/animation/EnterTransition;
+	public static final fun veilOut (Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;Ljava/awt/Color;Z)Lorg/jetbrains/compose/swing/animation/ExitTransition;
+	public static synthetic fun veilOut$default (Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;Ljava/awt/Color;ZILjava/lang/Object;)Lorg/jetbrains/compose/swing/animation/ExitTransition;
+}
+
 public final class org/jetbrains/compose/swing/animation/core/Animatable {
 	public static final field $stable I
 	public synthetic fun <init> (Ljava/lang/Object;Lorg/jetbrains/compose/swing/animation/core/TwoWayConverter;Ljava/lang/Object;)V

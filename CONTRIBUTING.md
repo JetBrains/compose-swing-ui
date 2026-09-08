@@ -75,9 +75,10 @@ See [`docs/TESTING-COMPONENTS.md`](docs/TESTING-COMPONENTS.md) for the harness g
 
 `build` runs every module's `check` - compilation, ktlint, detekt, the Compose lint checks, tests,
 the coverage gates and `checkKotlinAbi` - plus `assemble`. Which of those a module carries depends on
-the convention plugins it applies: the vendored `swing-ui-animation` fork is exempt from ktlint,
-detekt and the lint checks, and `samples/docs`, which holds generated code, carries none of them
-beyond compilation. One gate sits outside `build`: `buildSrc` is an included build the
+the convention plugins it applies: the vendored engine package under `swing-ui-animation` is
+exempt from ktlint, detekt and Compose lint checks; the hand-written animation APIs and containers
+remain under those gates. `samples/docs`, which holds generated code, carries none beyond compilation.
+One gate sits outside `build`: `buildSrc` is an included build the
 root-level tasks do not reach. So the full gate is two commands, and they are what to run locally
 before pushing:
 

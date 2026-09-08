@@ -31,6 +31,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
+import org.jetbrains.compose.swing.animation.DimensionToVector
+import org.jetbrains.compose.swing.animation.dimensionVisibilityThreshold
+import java.awt.Dimension
 
 class AnimatableTest {
     @Test
@@ -268,6 +271,47 @@ class AnimatableTest {
         // Snap to value out of bounds
         animatable.snapTo(animatable.lowerBound!! - 100f)
         assertEquals(animatable.lowerBound!!, animatable.value)
+    }
+
+    @Test
+    fun testDimension_alwaysWithinValidBounds() = runTest {
+        val animatable =
+            Animatable(
+                initialValue = Dimension(10, 10),
+                typeConverter = DimensionToVector,
+                visibilityThreshold = dimensionVisibilityThreshold(),
+            )
+
+        val values = mutableListOf<Dimension>()
+
+        val clock = SuspendAnimationTest.TestFrameClock()
+
+        // Add frames to evaluate at
+        clock.frame(0L)
+        clock.frame(25L * 1_000_000L)
+        clock.frame(75L * 1_000_000L)
+        clock.frame(100L * 1_000_000L)
+
+        withContext(clock) {
+            // Animate linearly from -100 to 100
+            animatable.animateTo(
+                Dimension(100, 100),
+                keyframes {
+                    durationMillis = 100
+                    Dimension(-100, -100) at 0 using LinearEasing
+                },
+            ) {
+                values.add(value)
+            }
+        }
+
+        // The internal animation is expected to be: -100, -50, 50, 100. But a Dimension does not
+        // carry negative extents, so it is floored at zero.
+        assertEquals(4, values.size)
+        assertEquals(Dimension(0, 0), values[0])
+        assertEquals(Dimension(0, 0), values[1])
+        assertEquals(Dimension(50, 50), values[2])
+        assertEquals(Dimension(100, 100), values[3])
     }
 
     @Test

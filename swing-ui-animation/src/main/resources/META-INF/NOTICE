@@ -1,10 +1,12 @@
 compose-swing-ui :: swing-ui-animation
 
 This module contains source code copied and adapted from the Android Open Source
-Project's Jetpack Compose animation-core library, redistributed under the Apache
-License, Version 2.0.
+Project's Jetpack Compose animation-core and animation libraries, redistributed
+under the Apache License, Version 2.0.
 
   Original: androidx.compose.animation:animation-core 1.12.0
+            (AndroidX commit 963bf914f78b389bdddef0da7f36bee19d897274)
+  Original: androidx.compose.animation:animation 1.12.0
             (AndroidX commit 963bf914f78b389bdddef0da7f36bee19d897274)
   Copyright The Android Open Source Project
 
@@ -15,7 +17,12 @@ and Path-based easing were removed; the cubic Bezier easing helpers and the
 ui-util fast math, list and Float packing helpers were vendored from
 androidx.compose.ui. Animations that never end use the InfiniteAnimationPolicy
 of this project's swing-ui module, and motion is scaled by the
-MotionDurationScale declared there. See per-file headers for original copyright
-years.
+MotionDurationScale declared there. The code taken from
+animation lays out, places and paints through this project's Swing layout and
+decoration mechanisms, without its lookahead and shared-element parts, and with
+java.awt types in place of Compose's geometry and color types. A deferred
+transition's handoff carries only the offset velocity its caller supplies, where
+the original also measures the scale and offset velocities itself. See per-file
+headers for original copyright years.
 
 A copy of the Apache License 2.0 is in the repository root LICENSE file.

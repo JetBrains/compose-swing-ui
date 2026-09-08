@@ -1,9 +1,10 @@
 # Module swing-ui-animation
 
-The animation engine for Compose Swing UI. It provides the familiar Compose animation APIs -
-`animate*AsState`, `Animatable`, `updateTransition` / `Transition`, `rememberInfiniteTransition`,
-easing curves (including `CubicBezierEasing`), and the `spring` / `tween` / `keyframes` specs - for
-the `Float`, `Int`, and generic (`TwoWayConverter`) value types.
+The animation engine for Compose Swing UI, and the containers that animate a composable in, out and
+between states. It provides the familiar Compose animation APIs - `animate*AsState`, `Animatable`,
+`updateTransition` / `Transition`, `rememberInfiniteTransition`, easing curves (including
+`CubicBezierEasing`), and the `spring` / `tween` / `keyframes` specs - for the `Float`, `Int`,
+and generic (`TwoWayConverter`) value types.
 
 ## Usage
 
@@ -18,8 +19,24 @@ import androidx.compose.runtime.getValue
 val alpha by animateFloatAsState(if (visible) 1f else 0f)
 ```
 
-For value types beyond `Float` / `Int`, supply a `TwoWayConverter` (e.g. to animate
-`java.awt.Color`). The animation APIs are documented in KDoc.
+For value types beyond `Float` / `Int`, supply a `TwoWayConverter`. The animation APIs are documented in
+KDoc.
+
+## Animating a composable
+
+`AnimatedVisibility` runs content through an enter and an exit transition as a boolean flips.
+Transitions combine with `+`.
+
+```kotlin
+AnimatedVisibility(visible = expanded, enter = fadeIn() + expandVertically()) {
+    Label(text = "details")
+}
+```
+
+The content is laid out by a Foundation layout, so it takes `fillMaxWidth` or `fillMaxHeight` to fill
+the container. `SwingModifier.animateEnterExit` gives one part of the content an enter and an exit of its
+own, on the same transition, so the container waits for it. The part must be `Decoratable` and under a
+Foundation layout parent; `Box` is one example.
 
 ## Related
 

@@ -2,7 +2,8 @@
 <!--
   Directory-scoped Android Lint configuration for the vendored Compose animation-core engine.
 
-  This package is a verbatim AOSP fork, kept byte-identical so an upstream re-sync stays a clean diff.
+  This package is upstream-derived AOSP code with documented adoption edits, kept close to the original so an
+  upstream re-sync stays a small diff.
   Like the ktlint filter and the detekt excludes in the module's build file, the exemption is by path:
   it reaches this directory and nothing else, so the hand-written animation package one level up is
   still checked. The entries below are the checks upstream's own code does not satisfy.
