@@ -15,7 +15,7 @@
  */
 
 // Flattened from the Kotlin Multiplatform expect/actual pair to the JVM actual.
-// Sourced from compose-multiplatform-core.
+// Sourced from AndroidX (Jetpack Compose 1.12.0).
 
 package org.jetbrains.compose.swing.animation.core.internal
 

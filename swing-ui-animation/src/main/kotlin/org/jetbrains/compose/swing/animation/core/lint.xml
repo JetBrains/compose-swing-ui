@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Directory-scoped Android Lint configuration for the vendored Compose animation-core engine.
+
+  This package is a verbatim AOSP fork, kept byte-identical so an upstream re-sync stays a clean diff.
+  Like the ktlint filter and the detekt excludes in the module's build file, the exemption is by path:
+  it reaches this directory and nothing else, so the hand-written animation package one level up is
+  still checked. The entries below are the checks upstream's own code does not satisfy.
+-->
+<lint>
+    <!-- updateTransition/rememberInfiniteTransition: upstream's lowercase factory names. -->
+    <issue id="ComposeNamingUppercase" severity="ignore" />
+    <!-- Transition.Segment content lambdas invoked from more than one branch. -->
+    <issue id="SlotReused" severity="ignore" />
+    <!-- @Composable kept on declarations that read no composition state, for upstream's call shape. -->
+    <issue id="ComposeRedundantComposable" severity="ignore" />
+</lint>

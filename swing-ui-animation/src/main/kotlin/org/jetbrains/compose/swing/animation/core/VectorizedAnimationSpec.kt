@@ -20,10 +20,11 @@ import androidx.collection.IntList
 import androidx.collection.IntObjectMap
 import androidx.collection.MutableIntList
 import androidx.collection.MutableIntObjectMap
-import org.jetbrains.compose.swing.animation.core.AnimationConstants.DefaultDurationMillis
-import org.jetbrains.compose.swing.animation.core.internal.JvmDefaultWithCompatibility
 import kotlin.jvm.JvmInline
 import kotlin.math.min
+import org.jetbrains.compose.swing.animation.core.AnimationConstants.DefaultDurationMillis
+import org.jetbrains.compose.swing.animation.core.internal.JvmDefaultWithCompatibility
+import org.jetbrains.compose.swing.animation.core.internal.fastCoerceIn
 
 /**
  * [VectorizedAnimationSpec]s are stateless vector based animation specifications. They do not
@@ -97,11 +98,7 @@ public interface VectorizedAnimationSpec<V : AnimationVector> {
      * @param initialVelocity start velocity of the animation
      */
     @Suppress("MethodNameUnits")
-    public fun getDurationNanos(
-        initialValue: V,
-        targetValue: V,
-        initialVelocity: V,
-    ): Long
+    public fun getDurationNanos(initialValue: V, targetValue: V, initialVelocity: V): Long
 
     /**
      * Calculates the end velocity of the animation with the provided start/end values, and start
@@ -113,11 +110,7 @@ public interface VectorizedAnimationSpec<V : AnimationVector> {
      * @param targetValue end value of the animation
      * @param initialVelocity start velocity of the animation
      */
-    public fun getEndVelocity(
-        initialValue: V,
-        targetValue: V,
-        initialVelocity: V,
-    ): V =
+    public fun getEndVelocity(initialValue: V, targetValue: V, initialVelocity: V): V =
         getVelocityFromNanos(
             getDurationNanos(initialValue, targetValue, initialVelocity),
             initialValue,
@@ -173,7 +166,8 @@ public interface VectorizedFiniteAnimationSpec<V : AnimationVector> : Vectorized
 
 /** Base class for [VectorizedAnimationSpec]s that are based on a fixed [durationMillis]. */
 @JvmDefaultWithCompatibility
-public interface VectorizedDurationBasedAnimationSpec<V : AnimationVector> : VectorizedFiniteAnimationSpec<V> {
+public interface VectorizedDurationBasedAnimationSpec<V : AnimationVector> :
+    VectorizedFiniteAnimationSpec<V> {
     /** duration is the amount of time while animation is not yet finished. */
     public val durationMillis: Int
 
@@ -181,19 +175,17 @@ public interface VectorizedDurationBasedAnimationSpec<V : AnimationVector> : Vec
     public val delayMillis: Int
 
     @Suppress("MethodNameUnits")
-    override fun getDurationNanos(
-        initialValue: V,
-        targetValue: V,
-        initialVelocity: V,
-    ): Long = (delayMillis + durationMillis) * MillisToNanos
+    override fun getDurationNanos(initialValue: V, targetValue: V, initialVelocity: V): Long =
+        (delayMillis + durationMillis) * MillisToNanos
 }
 
 /**
  * Clamps the input [playTime] to the duration range of the given
  * [VectorizedDurationBasedAnimationSpec].
  */
-internal fun VectorizedDurationBasedAnimationSpec<*>.clampPlayTime(playTime: Long): Long =
-    (playTime - delayMillis).coerceIn(0, durationMillis.toLong())
+internal fun VectorizedDurationBasedAnimationSpec<*>.clampPlayTime(playTime: Long): Long {
+    return (playTime - delayMillis).fastCoerceIn(0, durationMillis.toLong())
+}
 
 /**
  * [VectorizedKeyframesSpec] class manages the animation based on the values defined at different
@@ -222,298 +214,290 @@ internal fun VectorizedDurationBasedAnimationSpec<*>.clampPlayTime(playTime: Lon
  * @see [KeyframesSpec]
  */
 public class VectorizedKeyframesSpec<V : AnimationVector>
-    internal constructor(
-        // List of all timestamps. Must include start (time = 0), end (time = durationMillis) and all
-        // other timestamps found in [keyframes].
-        private val timestamps: IntList,
-        private val keyframes: IntObjectMap<VectorizedKeyframeSpecElementInfo<V>>,
-        override val durationMillis: Int,
-        override val delayMillis: Int,
-        // Easing used for any segment of time not covered by [keyframes].
-        private val defaultEasing: Easing,
-        // The [ArcMode] used from time `0` until the first keyframe. So, it applies
-        // for the entire duration if [keyframes] is empty.
-        private val initialArcMode: ArcMode,
-    ) : VectorizedDurationBasedAnimationSpec<V> {
-        /**
-         * @param keyframes a map from time to a value/easing function pair. The value in each entry
-         *   defines the animation value at that time, and the easing curve is used in the interval
-         *   starting from that time.
-         * @param durationMillis total duration of the animation
-         * @param delayMillis the amount of the time the animation should wait before it starts.
-         *   Defaults to 0.
-         */
-        public constructor(
-            keyframes: Map<Int, Pair<V, Easing>>,
-            durationMillis: Int,
-            delayMillis: Int = 0,
-        ) : this(
-            timestamps =
-                kotlin.run {
-                    val times = MutableIntList(keyframes.size + 2)
-                    keyframes.forEach { (t, _) -> times.add(t) }
-                    if (!keyframes.containsKey(0)) {
-                        times.add(0, 0)
+internal constructor(
+    // List of all timestamps. Must include start (time = 0), end (time = durationMillis) and all
+    // other timestamps found in [keyframes].
+    private val timestamps: IntList,
+    private val keyframes: IntObjectMap<VectorizedKeyframeSpecElementInfo<V>>,
+    override val durationMillis: Int,
+    override val delayMillis: Int,
+    // Easing used for any segment of time not covered by [keyframes].
+    private val defaultEasing: Easing,
+    // The [ArcMode] used from time `0` until the first keyframe. So, it applies
+    // for the entire duration if [keyframes] is empty.
+    private val initialArcMode: ArcMode,
+) : VectorizedDurationBasedAnimationSpec<V> {
+    /**
+     * @param keyframes a map from time to a value/easing function pair. The value in each entry
+     *   defines the animation value at that time, and the easing curve is used in the interval
+     *   starting from that time.
+     * @param durationMillis total duration of the animation
+     * @param delayMillis the amount of the time the animation should wait before it starts.
+     *   Defaults to 0.
+     */
+    public constructor(
+        keyframes: Map<Int, Pair<V, Easing>>,
+        durationMillis: Int,
+        delayMillis: Int = 0,
+    ) : this(
+        timestamps =
+            kotlin.run {
+                val times = MutableIntList(keyframes.size + 2)
+                keyframes.forEach { (t, _) -> times.add(t) }
+                if (!keyframes.containsKey(0)) {
+                    times.add(0, 0)
+                }
+                if (!keyframes.containsKey(durationMillis)) {
+                    times.add(durationMillis)
+                }
+                times.sort()
+                return@run times
+            },
+        keyframes =
+            kotlin.run {
+                val timeToInfoMap = MutableIntObjectMap<VectorizedKeyframeSpecElementInfo<V>>()
+                keyframes.forEach { (time, valueEasing) ->
+                    timeToInfoMap[time] =
+                        VectorizedKeyframeSpecElementInfo(
+                            vectorValue = valueEasing.first,
+                            easing = valueEasing.second,
+                            arcMode = ArcMode.ArcLinear,
+                        )
+                }
+
+                return@run timeToInfoMap
+            },
+        durationMillis = durationMillis,
+        delayMillis = delayMillis,
+        defaultEasing = LinearEasing,
+        initialArcMode = ArcMode.ArcLinear,
+    )
+
+    /**
+     * List of time range for the given keyframes.
+     *
+     * This will be used to do a faster lookup for the corresponding Easing curves.
+     */
+    private var modes: IntArray = EmptyIntArray
+    private var times: FloatArray = EmptyFloatArray
+    private var valueVector: V? = null
+    private var velocityVector: V? = null
+
+    // Objects for ArcSpline
+    private var lastInitialValue: V? = null
+    private var lastTargetValue: V? = null
+    private var posArray: FloatArray = EmptyFloatArray
+    private var slopeArray: FloatArray = EmptyFloatArray
+    private var arcSpline: ArcSpline = EmptyArcSpline
+
+    private fun init(initialValue: V, targetValue: V, initialVelocity: V) {
+        var requiresArcSpline = arcSpline !== EmptyArcSpline
+
+        // Only need to initialize once
+        if (valueVector == null) {
+            valueVector = initialValue.newInstance()
+            velocityVector = initialVelocity.newInstance()
+
+            times = FloatArray(timestamps.size) { timestamps[it].toFloat() / SecondsToMillis }
+
+            modes =
+                IntArray(timestamps.size) {
+                    val mode = (keyframes[timestamps[it]]?.arcMode ?: initialArcMode)
+                    if (mode != ArcMode.ArcLinear) {
+                        requiresArcSpline = true
                     }
-                    if (!keyframes.containsKey(durationMillis)) {
-                        times.add(durationMillis)
-                    }
-                    times.sort()
-                    return@run times
-                },
-            keyframes =
-                kotlin.run {
-                    val timeToInfoMap = MutableIntObjectMap<VectorizedKeyframeSpecElementInfo<V>>()
-                    keyframes.forEach { (time, valueEasing) ->
-                        timeToInfoMap[time] =
-                            VectorizedKeyframeSpecElementInfo(
-                                vectorValue = valueEasing.first,
-                                easing = valueEasing.second,
-                                arcMode = ArcMode.ArcLinear,
-                            )
-                    }
 
-                    return@run timeToInfoMap
-                },
-            durationMillis = durationMillis,
-            delayMillis = delayMillis,
-            defaultEasing = LinearEasing,
-            initialArcMode = ArcMode.ArcLinear,
-        )
-
-        /**
-         * List of time range for the given keyframes.
-         *
-         * This will be used to do a faster lookup for the corresponding Easing curves.
-         */
-        private var modes: IntArray = EmptyIntArray
-        private var times: FloatArray = EmptyFloatArray
-        private var valueVector: V? = null
-        private var velocityVector: V? = null
-
-        // Objects for ArcSpline
-        private var lastInitialValue: V? = null
-        private var lastTargetValue: V? = null
-        private var posArray: FloatArray = EmptyFloatArray
-        private var slopeArray: FloatArray = EmptyFloatArray
-        private var arcSpline: ArcSpline = EmptyArcSpline
-
-        private fun init(
-            initialValue: V,
-            targetValue: V,
-            initialVelocity: V,
-        ) {
-            var requiresArcSpline = arcSpline !== EmptyArcSpline
-
-            // Only need to initialize once
-            if (valueVector == null) {
-                valueVector = initialValue.newInstance()
-                velocityVector = initialVelocity.newInstance()
-
-                times = FloatArray(timestamps.size) { timestamps[it].toFloat() / SecondsToMillis }
-
-                modes =
-                    IntArray(timestamps.size) {
-                        val mode = (keyframes[timestamps[it]]?.arcMode ?: initialArcMode)
-                        if (mode != ArcMode.ArcLinear) {
-                            requiresArcSpline = true
-                        }
-
-                        mode.value
-                    }
-            }
-
-            if (!requiresArcSpline) {
-                return
-            }
-
-            // Initialize variables dependent on initial and/or target value
-            if (
-                arcSpline === EmptyArcSpline ||
-                lastInitialValue != initialValue ||
-                lastTargetValue != targetValue
-            ) {
-                lastInitialValue = initialValue
-                lastTargetValue = targetValue
-
-                // Force to the next even dimension
-                val dimensionCount = initialValue.size % 2 + initialValue.size
-                posArray = FloatArray(dimensionCount)
-                slopeArray = FloatArray(dimensionCount)
-
-                // TODO(b/299477780): Re-use objects, after the first pass, only the initial and target
-                //  may change, and only if the keyframes does not overwrite it
-                val values =
-                    Array(timestamps.size) {
-                        val timestamp = timestamps[it]
-                        val info = keyframes[timestamp]
-                        // Start (zero) and end (durationMillis) may not have been declared in
-                        // keyframes
-                        if (timestamp == 0 && info == null) {
-                            FloatArray(dimensionCount) { i -> initialValue[i] }
-                        } else if (timestamp == durationMillis && info == null) {
-                            FloatArray(dimensionCount) { i -> targetValue[i] }
-                        } else {
-                            // All other values are guaranteed to exist
-                            val vectorValue = info!!.vectorValue
-                            FloatArray(dimensionCount) { i -> vectorValue[i] }
-                        }
-                    }
-                arcSpline = ArcSpline(arcModes = modes, timePoints = times, y = values)
-            }
+                    mode.value
+                }
         }
 
-        /**
-         * @Throws IllegalStateException When the initial or final value to animate within a keyframe is
-         *   missing.
-         */
-        override fun getValueFromNanos(
-            playTimeNanos: Long,
-            initialValue: V,
-            targetValue: V,
-            initialVelocity: V,
-        ): V {
-            val playTimeMillis = playTimeNanos / MillisToNanos
-            val clampedPlayTime = clampPlayTime(playTimeMillis).toInt()
+        if (!requiresArcSpline) {
+            return
+        }
 
-            // If there is a key frame defined with the given time stamp, return that value
-            val keyframe = keyframes[clampedPlayTime]
-            if (keyframe != null) {
-                return keyframe.vectorValue
-            }
+        // Initialize variables dependent on initial and/or target value
+        if (
+            arcSpline === EmptyArcSpline ||
+                lastInitialValue != initialValue ||
+                lastTargetValue != targetValue
+        ) {
+            lastInitialValue = initialValue
+            lastTargetValue = targetValue
 
-            if (clampedPlayTime >= durationMillis) {
-                return targetValue
-            } else if (clampedPlayTime <= 0) {
-                return initialValue
-            }
+            // Force to the next even dimension
+            val dimensionCount = initialValue.size % 2 + initialValue.size
+            posArray = FloatArray(dimensionCount)
+            slopeArray = FloatArray(dimensionCount)
 
-            init(initialValue, targetValue, initialVelocity)
-
-            // Cannot be null after calling init()
-            val valueVector = valueVector!!
-
-            // ArcSpline is only initialized when necessary
-            if (arcSpline !== EmptyArcSpline) {
-                // ArcSpline requires eased play time in seconds
-                val easedTime = getEasedTime(clampedPlayTime)
-
-                val posArray = posArray
-                arcSpline.getPos(time = easedTime, v = posArray)
-                for (i in posArray.indices) {
-                    valueVector[i] = posArray[i]
+            // TODO(b/299477780): Re-use objects, after the first pass, only the initial and target
+            //  may change, and only if the keyframes does not overwrite it
+            val values =
+                Array(timestamps.size) {
+                    val timestamp = timestamps[it]
+                    val info = keyframes[timestamp]
+                    // Start (zero) and end (durationMillis) may not have been declared in
+                    // keyframes
+                    if (timestamp == 0 && info == null) {
+                        FloatArray(dimensionCount) { i -> initialValue[i] }
+                    } else if (timestamp == durationMillis && info == null) {
+                        FloatArray(dimensionCount) { i -> targetValue[i] }
+                    } else {
+                        // All other values are guaranteed to exist
+                        val vectorValue = info!!.vectorValue
+                        FloatArray(dimensionCount) { i -> vectorValue[i] }
+                    }
                 }
-                return valueVector
-            }
+            arcSpline = ArcSpline(arcModes = modes, timePoints = times, y = values)
+        }
+    }
 
-            // If ArcSpline is not required we do a simple linear interpolation
-            val index = findEntryForTimeMillis(clampedPlayTime)
+    /**
+     * @Throws IllegalStateException When the initial or final value to animate within a keyframe is
+     *   missing.
+     */
+    override fun getValueFromNanos(
+        playTimeNanos: Long,
+        initialValue: V,
+        targetValue: V,
+        initialVelocity: V,
+    ): V {
+        val playTimeMillis = playTimeNanos / MillisToNanos
+        val clampedPlayTime = clampPlayTime(playTimeMillis).toInt()
 
-            // For the `lerp` method we need the eased time as a fraction
-            val easedTime = getEasedTimeFromIndex(index, clampedPlayTime, true)
+        // If there is a key frame defined with the given time stamp, return that value
+        val keyframe = keyframes[clampedPlayTime]
+        if (keyframe != null) {
+            return keyframe.vectorValue
+        }
 
-            val timestampStart = timestamps[index]
-            val startKeyframe = keyframes[timestampStart]
-            // Use initial value if it wasn't overwritten by the user
-            // This is always the correct fallback assuming timestamps and keyframes were populated
-            // as expected
-            val startValue: V = startKeyframe?.vectorValue ?: initialValue
+        if (clampedPlayTime >= durationMillis) {
+            return targetValue
+        } else if (clampedPlayTime <= 0) {
+            return initialValue
+        }
 
-            val timestampEnd = timestamps[index + 1]
-            val endKeyframe = keyframes[timestampEnd]
-            // Use target value if it wasn't overwritten by the user
-            // This is always the correct fallback assuming timestamps and keyframes were populated
-            // as expected
-            val endValue: V = endKeyframe?.vectorValue ?: targetValue
+        init(initialValue, targetValue, initialVelocity)
 
-            for (i in 0 until valueVector.size) {
-                valueVector[i] = lerp(startValue[i], endValue[i], easedTime)
+        // Cannot be null after calling init()
+        val valueVector = valueVector!!
+
+        // ArcSpline is only initialized when necessary
+        if (arcSpline !== EmptyArcSpline) {
+            // ArcSpline requires eased play time in seconds
+            val easedTime = getEasedTime(clampedPlayTime)
+
+            val posArray = posArray
+            arcSpline.getPos(time = easedTime, v = posArray)
+            for (i in posArray.indices) {
+                valueVector[i] = posArray[i]
             }
             return valueVector
         }
 
-        override fun getVelocityFromNanos(
-            playTimeNanos: Long,
-            initialValue: V,
-            targetValue: V,
-            initialVelocity: V,
-        ): V {
-            val playTimeMillis = playTimeNanos / MillisToNanos
-            val clampedPlayTime = clampPlayTime(playTimeMillis)
-            if (clampedPlayTime < 0L) {
-                return initialVelocity
-            }
+        // If ArcSpline is not required we do a simple linear interpolation
+        val index = findEntryForTimeMillis(clampedPlayTime)
 
-            init(initialValue, targetValue, initialVelocity)
+        // For the `lerp` method we need the eased time as a fraction
+        val easedTime = getEasedTimeFromIndex(index, clampedPlayTime, true)
 
-            // Cannot be null after calling init()
-            val velocityVector = velocityVector!!
+        val timestampStart = timestamps[index]
+        val startKeyframe = keyframes[timestampStart]
+        // Use initial value if it wasn't overwritten by the user
+        // This is always the correct fallback assuming timestamps and keyframes were populated
+        // as expected
+        val startValue: V = startKeyframe?.vectorValue ?: initialValue
 
-            // ArcSpline is only initialized when necessary
-            if (arcSpline !== EmptyArcSpline) {
-                val easedTime = getEasedTime(clampedPlayTime.toInt())
-                val slopeArray = slopeArray
-                arcSpline.getSlope(time = easedTime, v = slopeArray)
-                for (i in slopeArray.indices) {
-                    velocityVector[i] = slopeArray[i]
-                }
-                return velocityVector
-            }
+        val timestampEnd = timestamps[index + 1]
+        val endKeyframe = keyframes[timestampEnd]
+        // Use target value if it wasn't overwritten by the user
+        // This is always the correct fallback assuming timestamps and keyframes were populated
+        // as expected
+        val endValue: V = endKeyframe?.vectorValue ?: targetValue
 
-            // Velocity calculation when ArcSpline is not used
-            val startNum =
-                getValueFromMillis(clampedPlayTime - 1, initialValue, targetValue, initialVelocity)
-            val endNum = getValueFromMillis(clampedPlayTime, initialValue, targetValue, initialVelocity)
-            for (i in 0 until startNum.size) {
-                velocityVector[i] = (startNum[i] - endNum[i]) * 1000f
+        for (i in 0 until valueVector.size) {
+            valueVector[i] = lerp(startValue[i], endValue[i], easedTime)
+        }
+        return valueVector
+    }
+
+    override fun getVelocityFromNanos(
+        playTimeNanos: Long,
+        initialValue: V,
+        targetValue: V,
+        initialVelocity: V,
+    ): V {
+        val playTimeMillis = playTimeNanos / MillisToNanos
+        val clampedPlayTime = clampPlayTime(playTimeMillis)
+        if (clampedPlayTime < 0L) {
+            return initialVelocity
+        }
+
+        init(initialValue, targetValue, initialVelocity)
+
+        // Cannot be null after calling init()
+        val velocityVector = velocityVector!!
+
+        // ArcSpline is only initialized when necessary
+        if (arcSpline !== EmptyArcSpline) {
+            val easedTime = getEasedTime(clampedPlayTime.toInt())
+            val slopeArray = slopeArray
+            arcSpline.getSlope(time = easedTime, v = slopeArray)
+            for (i in slopeArray.indices) {
+                velocityVector[i] = slopeArray[i]
             }
             return velocityVector
         }
 
-        private fun getEasedTime(timeMillis: Int): Float {
-            // There's no promise on the nature of the given time, so we need to search for the correct
-            // time range at every call
-            val index = findEntryForTimeMillis(timeMillis)
-            return getEasedTimeFromIndex(index, timeMillis, false)
+        // Velocity calculation when ArcSpline is not used
+        val startNum =
+            getValueFromMillis(clampedPlayTime - 1, initialValue, targetValue, initialVelocity)
+        val endNum = getValueFromMillis(clampedPlayTime, initialValue, targetValue, initialVelocity)
+        for (i in 0 until startNum.size) {
+            velocityVector[i] = (startNum[i] - endNum[i]) * 1000f
         }
-
-        private fun getEasedTimeFromIndex(
-            index: Int,
-            timeMillis: Int,
-            asFraction: Boolean,
-        ): Float {
-            if (index >= timestamps.lastIndex) {
-                // Return the same value. This may only happen at the end of the animation.
-                return timeMillis.toFloat() / SecondsToMillis
-            }
-            val timeMin = timestamps[index]
-            val timeMax = timestamps[index + 1]
-
-            if (timeMillis == timeMin) {
-                return timeMin.toFloat() / SecondsToMillis
-            }
-
-            val timeRange = timeMax - timeMin
-            val easing = keyframes[timeMin]?.easing ?: defaultEasing
-            val rawFraction = (timeMillis - timeMin).toFloat() / timeRange
-            val easedFraction = easing.transform(rawFraction)
-
-            if (asFraction) {
-                return easedFraction
-            }
-            return (timeRange * easedFraction + timeMin) / SecondsToMillis
-        }
-
-        /**
-         * Returns the entry index such that:
-         *
-         * [timeMillis] >= Entry(i).key && [timeMillis] < Entry(i+1).key
-         */
-        private fun findEntryForTimeMillis(timeMillis: Int): Int {
-            val index = timestamps.binarySearch(timeMillis)
-            return if (index < -1) -(index + 2) else index
-        }
+        return velocityVector
     }
+
+    private fun getEasedTime(timeMillis: Int): Float {
+        // There's no promise on the nature of the given time, so we need to search for the correct
+        // time range at every call
+        val index = findEntryForTimeMillis(timeMillis)
+        return getEasedTimeFromIndex(index, timeMillis, false)
+    }
+
+    private fun getEasedTimeFromIndex(index: Int, timeMillis: Int, asFraction: Boolean): Float {
+        if (index >= timestamps.lastIndex) {
+            // Return the same value. This may only happen at the end of the animation.
+            return timeMillis.toFloat() / SecondsToMillis
+        }
+        val timeMin = timestamps[index]
+        val timeMax = timestamps[index + 1]
+
+        if (timeMillis == timeMin) {
+            return timeMin.toFloat() / SecondsToMillis
+        }
+
+        val timeRange = timeMax - timeMin
+        val easing = keyframes[timeMin]?.easing ?: defaultEasing
+        val rawFraction = (timeMillis - timeMin).toFloat() / timeRange
+        val easedFraction = easing.transform(rawFraction)
+
+        if (asFraction) {
+            return easedFraction
+        }
+        return (timeRange * easedFraction + timeMin) / SecondsToMillis
+    }
+
+    /**
+     * Returns the entry index such that:
+     *
+     * [timeMillis] >= Entry(i).key && [timeMillis] < Entry(i+1).key
+     */
+    private fun findEntryForTimeMillis(timeMillis: Int): Int {
+        val index = timestamps.binarySearch(timeMillis)
+        return if (index < -1) -(index + 2) else index
+    }
+}
 
 internal data class VectorizedKeyframeSpecElementInfo<V : AnimationVector>(
     val vectorValue: V,
@@ -530,9 +514,8 @@ internal data class VectorizedKeyframeSpecElementInfo<V : AnimationVector>(
  * @see ArcAnimationSpec
  */
 @JvmInline
-public value class ArcMode internal constructor(
-    internal val value: Int,
-) {
+public value class ArcMode internal constructor(internal val value: Int) {
+
     public companion object {
         /**
          * Interpolates using a quarter of an Ellipse where the curve is "above" the center of the
@@ -561,27 +544,30 @@ public value class ArcMode internal constructor(
  * @param delayMillis the amount of time (in milliseconds) that the animation should wait before it
  *   starts. Defaults to 0.
  */
-public class VectorizedSnapSpec<V : AnimationVector>(
-    override val delayMillis: Int = 0,
-) : VectorizedDurationBasedAnimationSpec<V> {
+public class VectorizedSnapSpec<V : AnimationVector>(override val delayMillis: Int = 0) :
+    VectorizedDurationBasedAnimationSpec<V> {
+
     override fun getValueFromNanos(
         playTimeNanos: Long,
         initialValue: V,
         targetValue: V,
         initialVelocity: V,
-    ): V =
-        if (playTimeNanos < delayMillis * MillisToNanos) {
+    ): V {
+        return if (playTimeNanos < delayMillis * MillisToNanos) {
             initialValue
         } else {
             targetValue
         }
+    }
 
     override fun getVelocityFromNanos(
         playTimeNanos: Long,
         initialValue: V,
         targetValue: V,
         initialVelocity: V,
-    ): V = initialVelocity
+    ): V {
+        return initialVelocity
+    }
 
     override val durationMillis: Int
         get() = 0
@@ -663,33 +649,32 @@ public class VectorizedInfiniteRepeatableSpec<V : AnimationVector>(
         initialValue: V,
         targetValue: V,
         initialVelocity: V,
-    ): V =
-        animation.getValueFromNanos(
+    ): V {
+        return animation.getValueFromNanos(
             repetitionPlayTimeNanos(playTimeNanos),
             initialValue,
             targetValue,
             repetitionStartVelocity(playTimeNanos, initialValue, initialVelocity, targetValue),
         )
+    }
 
     override fun getVelocityFromNanos(
         playTimeNanos: Long,
         initialValue: V,
         targetValue: V,
         initialVelocity: V,
-    ): V =
-        animation.getVelocityFromNanos(
+    ): V {
+        return animation.getVelocityFromNanos(
             repetitionPlayTimeNanos(playTimeNanos),
             initialValue,
             targetValue,
             repetitionStartVelocity(playTimeNanos, initialValue, initialVelocity, targetValue),
         )
+    }
 
     @Suppress("MethodNameUnits")
-    override fun getDurationNanos(
-        initialValue: V,
-        targetValue: V,
-        initialVelocity: V,
-    ): Long = Long.MAX_VALUE
+    override fun getDurationNanos(initialValue: V, targetValue: V, initialVelocity: V): Long =
+        Long.MAX_VALUE
 }
 
 /**
@@ -766,42 +751,40 @@ public class VectorizedRepeatableSpec<V : AnimationVector>(
             // Start velocity of the 2nd and subsequent iteration will be the velocity at the end
             // of the first iteration, instead of the initial velocity.
             getVelocityFromNanos(durationNanos - initialOffsetNanos, start, startVelocity, end)
-        } else {
-            startVelocity
-        }
+        } else startVelocity
 
     override fun getValueFromNanos(
         playTimeNanos: Long,
         initialValue: V,
         targetValue: V,
         initialVelocity: V,
-    ): V =
-        animation.getValueFromNanos(
+    ): V {
+        return animation.getValueFromNanos(
             repetitionPlayTimeNanos(playTimeNanos),
             initialValue,
             targetValue,
             repetitionStartVelocity(playTimeNanos, initialValue, initialVelocity, targetValue),
         )
+    }
 
     override fun getVelocityFromNanos(
         playTimeNanos: Long,
         initialValue: V,
         targetValue: V,
         initialVelocity: V,
-    ): V =
-        animation.getVelocityFromNanos(
+    ): V {
+        return animation.getVelocityFromNanos(
             repetitionPlayTimeNanos(playTimeNanos),
             initialValue,
             targetValue,
             repetitionStartVelocity(playTimeNanos, initialValue, initialVelocity, targetValue),
         )
+    }
 
     @Suppress("MethodNameUnits")
-    override fun getDurationNanos(
-        initialValue: V,
-        targetValue: V,
-        initialVelocity: V,
-    ): Long = iterations * durationNanos - initialOffsetNanos
+    override fun getDurationNanos(initialValue: V, targetValue: V, initialVelocity: V): Long {
+        return iterations * durationNanos - initialOffsetNanos
+    }
 }
 
 /** Physics class contains a number of recommended configurations for physics animations. */
@@ -865,31 +848,32 @@ internal interface Animations {
  * [VectorizedSpringSpec] uses spring animations to animate (each dimension of) [AnimationVector]s.
  */
 public class VectorizedSpringSpec<V : AnimationVector>
-    private constructor(
-        public val dampingRatio: Float,
-        public val stiffness: Float,
-        anims: Animations,
-    ) : VectorizedFiniteAnimationSpec<V> by VectorizedFloatAnimationSpec(anims) {
-        /**
-         * Creates a [VectorizedSpringSpec] that uses the same spring constants (i.e. [dampingRatio] and
-         * [stiffness] on all dimensions. The optional [visibilityThreshold] defines when the animation
-         * should be considered to be visually close enough to target to stop. By default,
-         * [Spring.DefaultDisplacementThreshold] is used on all dimensions of the [AnimationVector].
-         *
-         * @param dampingRatio damping ratio of the spring. [Spring.DampingRatioNoBouncy] by default.
-         * @param stiffness stiffness of the spring. [Spring.StiffnessMedium] by default.
-         * @param visibilityThreshold specifies the visibility threshold for each dimension.
-         */
-        public constructor(
-            dampingRatio: Float = Spring.DampingRatioNoBouncy,
-            stiffness: Float = Spring.StiffnessMedium,
-            visibilityThreshold: V? = null,
-        ) : this(
-            dampingRatio,
-            stiffness,
-            createSpringAnimations(visibilityThreshold, dampingRatio, stiffness),
-        )
-    }
+private constructor(
+    public val dampingRatio: Float,
+    public val stiffness: Float,
+    anims: Animations,
+) : VectorizedFiniteAnimationSpec<V> by VectorizedFloatAnimationSpec(anims) {
+
+    /**
+     * Creates a [VectorizedSpringSpec] that uses the same spring constants (i.e. [dampingRatio] and
+     * [stiffness] on all dimensions. The optional [visibilityThreshold] defines when the animation
+     * should be considered to be visually close enough to target to stop. By default,
+     * [Spring.DefaultDisplacementThreshold] is used on all dimensions of the [AnimationVector].
+     *
+     * @param dampingRatio damping ratio of the spring. [Spring.DampingRatioNoBouncy] by default.
+     * @param stiffness stiffness of the spring. [Spring.StiffnessMedium] by default.
+     * @param visibilityThreshold specifies the visibility threshold for each dimension.
+     */
+    public constructor(
+        dampingRatio: Float = Spring.DampingRatioNoBouncy,
+        stiffness: Float = Spring.StiffnessMedium,
+        visibilityThreshold: V? = null,
+    ) : this(
+        dampingRatio,
+        stiffness,
+        createSpringAnimations(visibilityThreshold, dampingRatio, stiffness),
+    )
+}
 
 // Cache default spring parameters to reduce allocations for the default case.
 private object DefaultSpringAnimations : Animations {
@@ -905,8 +889,8 @@ private fun <V : AnimationVector> createSpringAnimations(
 ): Animations {
     if (
         visibilityThreshold == null &&
-        dampingRatio == Spring.DampingRatioNoBouncy &&
-        stiffness == Spring.StiffnessMedium
+            dampingRatio == Spring.DampingRatioNoBouncy &&
+            stiffness == Spring.StiffnessMedium
     ) {
         return DefaultSpringAnimations
     }
@@ -944,6 +928,7 @@ public class VectorizedTweenSpec<V : AnimationVector>(
     override val delayMillis: Int = 0,
     public val easing: Easing = FastOutSlowInEasing,
 ) : VectorizedDurationBasedAnimationSpec<V> {
+
     private val anim =
         VectorizedFloatAnimationSpec<V>(FloatTweenSpec(durationMillis, delayMillis, easing))
 
@@ -952,14 +937,18 @@ public class VectorizedTweenSpec<V : AnimationVector>(
         initialValue: V,
         targetValue: V,
         initialVelocity: V,
-    ): V = anim.getValueFromNanos(playTimeNanos, initialValue, targetValue, initialVelocity)
+    ): V {
+        return anim.getValueFromNanos(playTimeNanos, initialValue, targetValue, initialVelocity)
+    }
 
     override fun getVelocityFromNanos(
         playTimeNanos: Long,
         initialValue: V,
         targetValue: V,
         initialVelocity: V,
-    ): V = anim.getVelocityFromNanos(playTimeNanos, initialValue, targetValue, initialVelocity)
+    ): V {
+        return anim.getVelocityFromNanos(playTimeNanos, initialValue, targetValue, initialVelocity)
+    }
 }
 
 /**
@@ -968,101 +957,93 @@ public class VectorizedTweenSpec<V : AnimationVector>(
  * on each dimension of the [AnimationVector] that is being animated.
  */
 public class VectorizedFloatAnimationSpec<V : AnimationVector>
-    internal constructor(
-        private val anims: Animations,
-    ) : VectorizedFiniteAnimationSpec<V> {
-        private lateinit var valueVector: V
-        private lateinit var velocityVector: V
-        private lateinit var endVelocityVector: V
+internal constructor(private val anims: Animations) : VectorizedFiniteAnimationSpec<V> {
+    private lateinit var valueVector: V
+    private lateinit var velocityVector: V
+    private lateinit var endVelocityVector: V
 
-        /**
-         * Creates a [VectorizedAnimationSpec] from a [FloatAnimationSpec]. The given
-         * [FloatAnimationSpec] will be used to animate every dimension of the [AnimationVector].
-         *
-         * @param anim the animation spec for animating each dimension of the [AnimationVector]
-         */
-        public constructor(
-            anim: FloatAnimationSpec,
-        ) : this(
-            object : Animations {
-                override fun get(index: Int): FloatAnimationSpec = anim
-            },
-        )
-
-        override fun getValueFromNanos(
-            playTimeNanos: Long,
-            initialValue: V,
-            targetValue: V,
-            initialVelocity: V,
-        ): V {
-            if (!::valueVector.isInitialized) {
-                valueVector = initialValue.newInstance()
+    /**
+     * Creates a [VectorizedAnimationSpec] from a [FloatAnimationSpec]. The given
+     * [FloatAnimationSpec] will be used to animate every dimension of the [AnimationVector].
+     *
+     * @param anim the animation spec for animating each dimension of the [AnimationVector]
+     */
+    public constructor(
+        anim: FloatAnimationSpec
+    ) : this(
+        object : Animations {
+            override fun get(index: Int): FloatAnimationSpec {
+                return anim
             }
-            for (i in 0 until valueVector.size) {
-                valueVector[i] =
-                    anims[i].getValueFromNanos(
-                        playTimeNanos,
-                        initialValue[i],
-                        targetValue[i],
-                        initialVelocity[i],
-                    )
-            }
-            return valueVector
         }
+    )
 
-        override fun getVelocityFromNanos(
-            playTimeNanos: Long,
-            initialValue: V,
-            targetValue: V,
-            initialVelocity: V,
-        ): V {
-            if (!::velocityVector.isInitialized) {
-                velocityVector = initialVelocity.newInstance()
-            }
-            for (i in 0 until velocityVector.size) {
-                velocityVector[i] =
-                    anims[i].getVelocityFromNanos(
-                        playTimeNanos,
-                        initialValue[i],
-                        targetValue[i],
-                        initialVelocity[i],
-                    )
-            }
-            return velocityVector
+    override fun getValueFromNanos(
+        playTimeNanos: Long,
+        initialValue: V,
+        targetValue: V,
+        initialVelocity: V,
+    ): V {
+        if (!::valueVector.isInitialized) {
+            valueVector = initialValue.newInstance()
         }
-
-        override fun getEndVelocity(
-            initialValue: V,
-            targetValue: V,
-            initialVelocity: V,
-        ): V {
-            if (!::endVelocityVector.isInitialized) {
-                endVelocityVector = initialVelocity.newInstance()
-            }
-            for (i in 0 until endVelocityVector.size) {
-                endVelocityVector[i] =
-                    anims[i].getEndVelocity(initialValue[i], targetValue[i], initialVelocity[i])
-            }
-            return endVelocityVector
+        for (i in 0 until valueVector.size) {
+            valueVector[i] =
+                anims[i].getValueFromNanos(
+                    playTimeNanos,
+                    initialValue[i],
+                    targetValue[i],
+                    initialVelocity[i],
+                )
         }
-
-        @Suppress("MethodNameUnits")
-        override fun getDurationNanos(
-            initialValue: V,
-            targetValue: V,
-            initialVelocity: V,
-        ): Long {
-            var maxDuration = 0L
-            for (i in 0 until initialValue.size) {
-                maxDuration =
-                    maxOf(
-                        maxDuration,
-                        anims[i].getDurationNanos(initialValue[i], targetValue[i], initialVelocity[i]),
-                    )
-            }
-            return maxDuration
-        }
+        return valueVector
     }
+
+    override fun getVelocityFromNanos(
+        playTimeNanos: Long,
+        initialValue: V,
+        targetValue: V,
+        initialVelocity: V,
+    ): V {
+        if (!::velocityVector.isInitialized) {
+            velocityVector = initialVelocity.newInstance()
+        }
+        for (i in 0 until velocityVector.size) {
+            velocityVector[i] =
+                anims[i].getVelocityFromNanos(
+                    playTimeNanos,
+                    initialValue[i],
+                    targetValue[i],
+                    initialVelocity[i],
+                )
+        }
+        return velocityVector
+    }
+
+    override fun getEndVelocity(initialValue: V, targetValue: V, initialVelocity: V): V {
+        if (!::endVelocityVector.isInitialized) {
+            endVelocityVector = initialVelocity.newInstance()
+        }
+        for (i in 0 until endVelocityVector.size) {
+            endVelocityVector[i] =
+                anims[i].getEndVelocity(initialValue[i], targetValue[i], initialVelocity[i])
+        }
+        return endVelocityVector
+    }
+
+    @Suppress("MethodNameUnits")
+    override fun getDurationNanos(initialValue: V, targetValue: V, initialVelocity: V): Long {
+        var maxDuration = 0L
+        for (i in 0 until initialValue.size) {
+            maxDuration =
+                maxOf(
+                    maxDuration,
+                    anims[i].getDurationNanos(initialValue[i], targetValue[i], initialVelocity[i]),
+                )
+        }
+        return maxDuration
+    }
+}
 
 private val EmptyIntArray: IntArray = IntArray(0)
 private val EmptyFloatArray: FloatArray = FloatArray(0)

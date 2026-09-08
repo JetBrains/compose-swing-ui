@@ -17,6 +17,7 @@
 package org.jetbrains.compose.swing.animation.core
 
 import kotlin.math.hypot
+import org.jetbrains.compose.swing.animation.core.internal.fastCoerceIn
 
 private const val MonoSplineIsExtrapolate = true
 
@@ -24,11 +25,7 @@ private const val MonoSplineIsExtrapolate = true
  * This performs a spline interpolation in multiple dimensions time is an array of all positions and
  * y is a list of arrays each with the values at each point
  */
-internal class MonoSpline(
-    time: FloatArray,
-    y: Array<FloatArray>,
-    periodicBias: Float,
-) {
+internal class MonoSpline(time: FloatArray, y: Array<FloatArray>, periodicBias: Float) {
     private val timePoints: FloatArray
     private val values: Array<FloatArray>
     private val tangents: Array<FloatArray>
@@ -89,16 +86,10 @@ internal class MonoSpline(
      * @param a number of arrays
      * @param b dimension of Float arrays
      */
-    private fun makeFloatArray(
-        a: Int,
-        b: Int,
-    ): Array<FloatArray> = Array(a) { FloatArray(b) }
+    private fun makeFloatArray(a: Int, b: Int): Array<FloatArray> = Array(a) { FloatArray(b) }
 
     /** get the value of the j'th spline at time t */
-    fun getPos(
-        t: Float,
-        j: Int,
-    ): Float {
+    fun getPos(t: Float, j: Int): Float {
         val values = values
         val tangents = tangents
         val n = timePoints.size
@@ -135,11 +126,7 @@ internal class MonoSpline(
      *
      * You may provide [index] to simplify searching for the correct keyframe for the given [time].
      */
-    fun getPos(
-        time: Float,
-        v: AnimationVector,
-        index: Int = 0,
-    ) {
+    fun getPos(time: Float, v: AnimationVector, index: Int = 0) {
         val n = timePoints.size
         val dim = values[0].size
         val k = if (time <= timePoints[0]) 0 else (if (time >= timePoints[n - 1]) n - 1 else -1)
@@ -183,13 +170,10 @@ internal class MonoSpline(
     }
 
     /** Get the differential of the value at time fill an array of slopes for each spline */
-    private fun getSlope(
-        time: Float,
-        v: FloatArray,
-    ) {
+    private fun getSlope(time: Float, v: FloatArray) {
         val dim = values[0].size
         val n = timePoints.size
-        val t = time.coerceIn(timePoints[0], timePoints[n - 1])
+        val t = time.fastCoerceIn(timePoints[0], timePoints[n - 1])
 
         if (v.size < dim) return
         for (i in 0 until n - 1) {
@@ -214,11 +198,7 @@ internal class MonoSpline(
      *
      * You may provide [index] to simplify searching for the correct keyframe for the given [time].
      */
-    fun getSlope(
-        time: Float,
-        v: AnimationVector,
-        index: Int = 0,
-    ) {
+    fun getSlope(time: Float, v: AnimationVector, index: Int = 0) {
         val timePoints = timePoints
         val values = values
         val tangents = tangents
@@ -256,15 +236,12 @@ internal class MonoSpline(
         }
     }
 
-    private fun getSlope(
-        time: Float,
-        j: Int,
-    ): Float {
+    private fun getSlope(time: Float, j: Int): Float {
         val timePoints = timePoints
         val values = values
         val tangents = tangents
         val n = timePoints.size
-        val t = time.coerceIn(timePoints[0], timePoints[n - 1])
+        val t = time.fastCoerceIn(timePoints[0], timePoints[n - 1])
         for (i in 0 until n - 1) {
             if (t <= timePoints[i + 1]) {
                 val y1 = values[i][j]

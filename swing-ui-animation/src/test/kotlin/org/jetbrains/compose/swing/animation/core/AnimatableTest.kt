@@ -106,7 +106,12 @@ class AnimatableTest {
         val from = Point2D(666f, 321f)
         val to = Point2D(919f, 864f)
         val anim =
-            TargetBasedAnimation(tween(500), Point2DVectorConverter, initialValue = from, targetValue = to)
+            TargetBasedAnimation(
+                tween(500),
+                Point2DVectorConverter,
+                initialValue = from,
+                targetValue = to,
+            )
         val clock = SuspendAnimationTest.TestFrameClock()
         val interval = 50
         val animatable = Animatable(initialValue = from, typeConverter = Point2DVectorConverter)

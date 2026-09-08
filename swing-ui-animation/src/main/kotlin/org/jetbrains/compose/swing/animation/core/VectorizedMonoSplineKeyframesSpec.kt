@@ -36,17 +36,12 @@ internal class VectorizedMonoSplineKeyframesSpec<V : AnimationVector>(
 
     // Objects for MonoSpline
     private var monoSpline: MonoSpline? = null
-
     // [values] are not modified by MonoSpline so we can safely re-use it to re-instantiate it
     private var values: Array<FloatArray>? = null
     private var lastInitialValue: V? = null
     private var lastTargetValue: V? = null
 
-    private fun init(
-        initialValue: V,
-        targetValue: V,
-        initialVelocity: V,
-    ) {
+    private fun init(initialValue: V, targetValue: V, initialVelocity: V) {
         // Only need to initialize once
         if (valueVector == null) {
             valueVector = initialValue.newInstance()
@@ -162,10 +157,7 @@ internal class VectorizedMonoSplineKeyframesSpec<V : AnimationVector>(
         return keyframes[timestamp]?.second ?: LinearEasing
     }
 
-    private fun getEasedTimeFromIndex(
-        index: Int,
-        timeMillis: Int,
-    ): Float {
+    private fun getEasedTimeFromIndex(index: Int, timeMillis: Int): Float {
         if (index >= timestamps.lastIndex) {
             // Return the same value. This may only happen at the end of the animation.
             return timeMillis.toFloat() / SecondsToMillis

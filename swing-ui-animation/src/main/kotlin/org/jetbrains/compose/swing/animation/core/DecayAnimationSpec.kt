@@ -33,6 +33,7 @@ import androidx.annotation.FloatRange
  * (such as when the target changes during the animation).
  */
 public interface DecayAnimationSpec<T> {
+
     /**
      * Creates a [VectorizedDecayAnimationSpec] with the given [TwoWayConverter].
      *
@@ -42,7 +43,9 @@ public interface DecayAnimationSpec<T> {
      *
      * @param typeConverter converts the type [T] from and to [AnimationVector] type
      */
-    public fun <V : AnimationVector> vectorize(typeConverter: TwoWayConverter<T, V>): VectorizedDecayAnimationSpec<V>
+    public fun <V : AnimationVector> vectorize(
+        typeConverter: TwoWayConverter<T, V>
+    ): VectorizedDecayAnimationSpec<V>
 }
 
 /**
@@ -107,30 +110,26 @@ public fun <T> exponentialDecay(
  * Creates a [DecayAnimationSpec] from a [FloatDecayAnimationSpec] by applying the given
  * [FloatDecayAnimationSpec] on every dimension of the [AnimationVector] that [T] converts to.
  */
-public fun <T> FloatDecayAnimationSpec.generateDecayAnimationSpec(): DecayAnimationSpec<T> =
-    DecayAnimationSpecImpl(this)
+public fun <T> FloatDecayAnimationSpec.generateDecayAnimationSpec(): DecayAnimationSpec<T> {
+    return DecayAnimationSpecImpl(this)
+}
 
-private class DecayAnimationSpecImpl<T>(
-    private val floatDecaySpec: FloatDecayAnimationSpec,
-) : DecayAnimationSpec<T> {
+private class DecayAnimationSpecImpl<T>(private val floatDecaySpec: FloatDecayAnimationSpec) :
+    DecayAnimationSpec<T> {
     override fun <V : AnimationVector> vectorize(
-        typeConverter: TwoWayConverter<T, V>,
+        typeConverter: TwoWayConverter<T, V>
     ): VectorizedDecayAnimationSpec<V> = VectorizedFloatDecaySpec(floatDecaySpec)
 }
 
 private class VectorizedFloatDecaySpec<V : AnimationVector>(
-    val floatDecaySpec: FloatDecayAnimationSpec,
+    val floatDecaySpec: FloatDecayAnimationSpec
 ) : VectorizedDecayAnimationSpec<V> {
     private lateinit var valueVector: V
     private lateinit var velocityVector: V
     private lateinit var targetVector: V
     override val absVelocityThreshold: Float = floatDecaySpec.absVelocityThreshold
 
-    override fun getValueFromNanos(
-        playTimeNanos: Long,
-        initialValue: V,
-        initialVelocity: V,
-    ): V {
+    override fun getValueFromNanos(playTimeNanos: Long, initialValue: V, initialVelocity: V): V {
         if (!::valueVector.isInitialized) {
             valueVector = initialValue.newInstance()
         }
@@ -141,10 +140,7 @@ private class VectorizedFloatDecaySpec<V : AnimationVector>(
         return valueVector
     }
 
-    override fun getDurationNanos(
-        initialValue: V,
-        initialVelocity: V,
-    ): Long {
+    override fun getDurationNanos(initialValue: V, initialVelocity: V): Long {
         var maxDuration = 0L
         if (!::velocityVector.isInitialized) {
             velocityVector = initialValue.newInstance()
@@ -159,11 +155,7 @@ private class VectorizedFloatDecaySpec<V : AnimationVector>(
         return maxDuration
     }
 
-    override fun getVelocityFromNanos(
-        playTimeNanos: Long,
-        initialValue: V,
-        initialVelocity: V,
-    ): V {
+    override fun getVelocityFromNanos(playTimeNanos: Long, initialValue: V, initialVelocity: V): V {
         if (!::velocityVector.isInitialized) {
             velocityVector = initialValue.newInstance()
         }
@@ -178,10 +170,7 @@ private class VectorizedFloatDecaySpec<V : AnimationVector>(
         return velocityVector
     }
 
-    override fun getTargetValue(
-        initialValue: V,
-        initialVelocity: V,
-    ): V {
+    override fun getTargetValue(initialValue: V, initialVelocity: V): V {
         if (!::targetVector.isInitialized) {
             targetVector = initialValue.newInstance()
         }

@@ -22,12 +22,6 @@ import androidx.compose.runtime.setValue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
-@RequiresOptIn(
-    message = "This is an experimental animation API for Transition. It may change in the future.",
-)
-@Retention(AnnotationRetention.BINARY)
-public annotation class ExperimentalAnimatableApi
-
 /**
  * [DeferredTargetAnimation] is intended for animations where the target is unknown at the time of
  * instantiation. Such use cases include, but are not limited to, size or position animations
@@ -37,11 +31,9 @@ public annotation class ExperimentalAnimatableApi
  * [DeferredTargetAnimation] offers a declarative [updateTarget] function, which requires a target
  * to either set up the animation or update the animation, and to read the current value of the
  * animation.
- *
  */
-@ExperimentalAnimatableApi
 public class DeferredTargetAnimation<T, V : AnimationVector>(
-    private val vectorConverter: TwoWayConverter<T, V>,
+    private val vectorConverter: TwoWayConverter<T, V>
 ) {
     /** Returns the target value from the most recent [updateTarget] call. */
     public val pendingTarget: T?

@@ -15,7 +15,7 @@
  */
 
 // Flattened from the Kotlin Multiplatform expect/actual pair to the JVM actual.
-// Sourced from compose-multiplatform-core.
+// Sourced from AndroidX (Jetpack Compose 1.12.0).
 
 package org.jetbrains.compose.swing.animation.core.internal
 
@@ -23,9 +23,8 @@ import kotlinx.coroutines.CancellationException
 
 private val EmptyStackTraceElements = emptyArray<StackTraceElement>()
 
-internal abstract class PlatformOptimizedCancellationException(
-    message: String? = null,
-) : CancellationException(message) {
+internal abstract class PlatformOptimizedCancellationException(message: String? = null) :
+    CancellationException(message) {
     override fun fillInStackTrace(): Throwable {
         // Avoid null.clone() on Android <= 6.0 when accessing stackTrace
         stackTrace = EmptyStackTraceElements

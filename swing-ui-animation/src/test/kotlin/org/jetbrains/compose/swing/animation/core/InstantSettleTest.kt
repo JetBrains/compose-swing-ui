@@ -17,12 +17,12 @@
 package org.jetbrains.compose.swing.animation.core
 
 import androidx.compose.runtime.BroadcastFrameClock
-import kotlinx.coroutines.async
-import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.yield
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlinx.coroutines.async
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.yield
 
 /**
  * Degenerate-spec behavior: zero-duration tween/keyframes and an already-settled spring must reach
@@ -41,32 +41,36 @@ class InstantSettleTest {
             )
 
         assertEquals(0L, animation.durationNanos, "a zero-duration tween has no runtime")
-        assertEquals(100f, animation.getValueFromNanos(0L), "value is the target on the first frame")
-        assertTrue(animation.isFinishedFromNanos(0L), "a zero-duration tween is finished immediately")
+        assertEquals(
+            100f,
+            animation.getValueFromNanos(0L),
+            "value is the target on the first frame",
+        )
+        assertTrue(
+            animation.isFinishedFromNanos(0L),
+            "a zero-duration tween is finished immediately",
+        )
     }
 
     @Test
-    fun zeroDurationTweenSettlesAnimatableImmediately() =
-        runTest {
-            val clock = BroadcastFrameClock()
-            val animatable = Animatable(0f)
-            val deferred =
-                async(clock) {
-                    animatable.animateTo(100f, tween(durationMillis = 0))
-                }
+    fun zeroDurationTweenSettlesAnimatableImmediately() = runTest {
+        val clock = BroadcastFrameClock()
+        val animatable = Animatable(0f)
+        val deferred = async(clock) { animatable.animateTo(100f, tween(durationMillis = 0)) }
 
-            // A single frame is enough for a zero-duration spec to settle on its target.
-            yield()
-            clock.sendFrame(0L)
-            val result = deferred.await()
+        // A single frame is enough for a zero-duration spec to settle on its target.
+        yield()
+        clock.sendFrame(0L)
+        val result = deferred.await()
 
-            assertEquals(100f, animatable.value, "animateTo lands on the target on the first frame")
-            assertEquals(AnimationEndReason.Finished, result.endReason)
-        }
+        assertEquals(100f, animatable.value, "animateTo lands on the target on the first frame")
+        assertEquals(AnimationEndReason.Finished, result.endReason)
+    }
 
     @Test
     fun alreadySettledSpringIsAtTargetOnTheFirstFrame() {
-        // Start already at the target with no velocity: a spring has nothing to do and settles at once.
+        // Start already at the target with no velocity: a spring has nothing to do and settles at
+        // once.
         val animation =
             TargetBasedAnimation(
                 animationSpec = spring<Float>(),
@@ -75,9 +79,20 @@ class InstantSettleTest {
                 targetValue = 100f,
             )
 
-        assertEquals(0L, animation.durationNanos, "a spring with zero displacement settles instantly")
-        assertEquals(100f, animation.getValueFromNanos(0L), "value is the target on the first frame")
-        assertTrue(animation.isFinishedFromNanos(0L), "an already-settled spring is finished immediately")
+        assertEquals(
+            0L,
+            animation.durationNanos,
+            "a spring with zero displacement settles instantly",
+        )
+        assertEquals(
+            100f,
+            animation.getValueFromNanos(0L),
+            "value is the target on the first frame",
+        )
+        assertTrue(
+            animation.isFinishedFromNanos(0L),
+            "an already-settled spring is finished immediately",
+        )
     }
 
     @Test
@@ -95,7 +110,11 @@ class InstantSettleTest {
             )
 
         assertEquals(0L, animation.durationNanos, "a zero-duration keyframes spec has no runtime")
-        assertEquals(100f, animation.getValueFromNanos(0L), "value is the target on the first frame")
+        assertEquals(
+            100f,
+            animation.getValueFromNanos(0L),
+            "value is the target on the first frame",
+        )
         assertTrue(animation.isFinishedFromNanos(0L), "a zero-duration keyframes spec is finished")
     }
 }

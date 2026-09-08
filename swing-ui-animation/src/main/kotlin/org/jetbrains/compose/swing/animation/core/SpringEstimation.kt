@@ -22,6 +22,7 @@ import kotlin.math.exp
 import kotlin.math.ln
 import kotlin.math.max
 import kotlin.math.sqrt
+import org.jetbrains.compose.swing.animation.core.internal.fastIsFinite
 
 /**
  * Maximum duration in Milliseconds.
@@ -249,7 +250,6 @@ private fun estimateOverDamped(
 
     // Calculate the inflection time. This is important if the inflection is in t > 0
     val tInflection = ln((c1 * r1) / (-c2 * r2)) / (r2 - r1)
-
     fun xInflection() = c1 * exp(r1 * tInflection) + c2 * exp(r2 * tInflection)
 
     // For inflection that does not exist in real time, we always solve for x(t)=delta. Note
@@ -318,13 +318,10 @@ private fun estimateDurationInternal(
     val v0 = if (initialPosition < 0) -initialVelocity else initialVelocity
     val p0 = abs(initialPosition)
 
-    return (
-        when {
-            dampingRatio > 1.0 -> {
+    return (when {
+            dampingRatio > 1.0 ->
                 estimateOverDamped(firstRootReal, secondRootReal, p0 = p0, v0 = v0, delta = delta)
-            }
-
-            dampingRatio < 1.0 -> {
+            dampingRatio < 1.0 ->
                 estimateUnderDamped(
                     firstRootReal,
                     firstRootImaginary,
@@ -332,20 +329,18 @@ private fun estimateDurationInternal(
                     p0 = p0,
                     delta = delta,
                 )
-            }
-
-            else -> {
-                estimateCriticallyDamped(firstRootReal, p0 = p0, v0 = v0, delta = delta)
-            }
-        } * 1000.0
-    ).toLong()
+            else -> estimateCriticallyDamped(firstRootReal, p0 = p0, v0 = v0, delta = delta)
+        } * 1000.0)
+        .toLong()
 }
 
 private inline fun iterateNewtonsMethod(
     x: Double,
     fn: (Double) -> Double,
     fnPrime: (Double) -> Double,
-): Double = x - fn(x) / fnPrime(x)
+): Double {
+    return x - fn(x) / fnPrime(x)
+}
 
-@Suppress("NOTHING_TO_INLINE")
-private inline fun Double.isNotFinite() = !isFinite()
+@Suppress("NOTHING_TO_INLINE") // This primitive helper stays inline in the numerical solver's hot loop.
+private inline fun Double.isNotFinite() = !fastIsFinite()

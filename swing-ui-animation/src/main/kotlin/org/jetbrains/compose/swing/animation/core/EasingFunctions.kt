@@ -203,110 +203,88 @@ public val EaseInOutBack: Easing = CubicBezierEasing(0.68f, -0.6f, 0.32f, 1.6f)
  * ![EaseInElastic
  * Curve](https://developer.android.com/images/reference/androidx/compose/animation-core/ease_in_elastic.gif)
  */
-public val EaseInElastic: Easing =
-    Easing { fraction: Float ->
-        val c4 = (2f * PI) / 3f
+public val EaseInElastic: Easing = Easing { fraction: Float ->
+    val c4 = (2f * PI) / 3f
 
-        return@Easing when (fraction) {
-            0f -> {
-                0f
-            }
-
-            1f -> {
-                1f
-            }
-
-            else -> {
-                (-(2.0f).pow(10f * fraction - 10.0f) * sin((fraction * 10f - 10.75f) * c4)).toFloat()
-            }
-        }
+    return@Easing when (fraction) {
+        0f -> 0f
+        1f -> 1f
+        else ->
+            (-(2.0f).pow(10f * fraction - 10.0f) * sin((fraction * 10f - 10.75f) * c4)).toFloat()
     }
+}
 
 /**
  * ![EaseOutElastic
  * Curve](https://developer.android.com/images/reference/androidx/compose/animation-core/ease_out_elastic.gif)
  */
-public val EaseOutElastic: Easing =
-    Easing { fraction ->
-        val c4 = (2f * PI) / 3f
+public val EaseOutElastic: Easing = Easing { fraction ->
+    val c4 = (2f * PI) / 3f
 
-        return@Easing when (fraction) {
-            0f -> 0f
-            1f -> 1f
-            else -> ((2.0f).pow(-10.0f * fraction) * sin((fraction * 10f - 0.75f) * c4) + 1f).toFloat()
-        }
+    return@Easing when (fraction) {
+        0f -> 0f
+        1f -> 1f
+        else -> ((2.0f).pow(-10.0f * fraction) * sin((fraction * 10f - 0.75f) * c4) + 1f).toFloat()
     }
+}
 
 /**
  * ![EaseInOutElastic
  * Curve](https://developer.android.com/images/reference/androidx/compose/animation-core/ease_in_out_elastic.gif)
  */
-public val EaseInOutElastic: Easing =
-    Easing { fraction ->
-        val c5 = (2f * PI) / 4.5f
-        return@Easing when (fraction) {
-            0f -> {
-                0f
-            }
-
-            1f -> {
-                1f
-            }
-
-            in 0f..0.5f -> {
-                (-(2.0f.pow(20.0f * fraction - 10.0f) * sin((20.0f * fraction - 11.125f) * c5)) / 2.0f)
-                    .toFloat()
-            }
-
-            else -> {
-                ((2.0f.pow(-20.0f * fraction + 10.0f) * sin((fraction * 20f - 11.125f) * c5)) / 2f)
-                    .toFloat() + 1f
-            }
-        }
+public val EaseInOutElastic: Easing = Easing { fraction ->
+    val c5 = (2f * PI) / 4.5f
+    return@Easing when (fraction) {
+        0f -> 0f
+        1f -> 1f
+        in 0f..0.5f ->
+            (-(2.0f.pow(20.0f * fraction - 10.0f) * sin((20.0f * fraction - 11.125f) * c5)) / 2.0f)
+                .toFloat()
+        else ->
+            ((2.0f.pow(-20.0f * fraction + 10.0f) * sin((fraction * 20f - 11.125f) * c5)) / 2f)
+                .toFloat() + 1f
     }
+}
 
 /**
  * ![EaseOutBounce
  * Curve](https://developer.android.com/images/reference/androidx/compose/animation-core/ease_out_bounce.gif)
  */
-public val EaseOutBounce: Easing =
-    Easing { fraction ->
-        val n1 = 7.5625f
-        val d1 = 2.75f
-        var newFraction = fraction
+public val EaseOutBounce: Easing = Easing { fraction ->
+    val n1 = 7.5625f
+    val d1 = 2.75f
+    var newFraction = fraction
 
-        return@Easing if (newFraction < 1f / d1) {
-            n1 * newFraction * newFraction
-        } else if (newFraction < 2f / d1) {
-            newFraction -= 1.5f / d1
-            n1 * newFraction * newFraction + 0.75f
-        } else if (newFraction < 2.5f / d1) {
-            newFraction -= 2.25f / d1
-            n1 * newFraction * newFraction + 0.9375f
-        } else {
-            newFraction -= 2.625f / d1
-            n1 * newFraction * newFraction + 0.984375f
-        }
+    return@Easing if (newFraction < 1f / d1) {
+        n1 * newFraction * newFraction
+    } else if (newFraction < 2f / d1) {
+        newFraction -= 1.5f / d1
+        n1 * newFraction * newFraction + 0.75f
+    } else if (newFraction < 2.5f / d1) {
+        newFraction -= 2.25f / d1
+        n1 * newFraction * newFraction + 0.9375f
+    } else {
+        newFraction -= 2.625f / d1
+        n1 * newFraction * newFraction + 0.984375f
     }
+}
 
 /**
  * ![EaseInBounce
  * Curve](https://developer.android.com/images/reference/androidx/compose/animation-core/ease_in_bounce.gif)
  */
-public val EaseInBounce: Easing =
-    Easing { fraction ->
-        return@Easing 1 - EaseOutBounce.transform(1f - fraction)
-    }
+public val EaseInBounce: Easing = Easing { fraction ->
+    return@Easing 1 - EaseOutBounce.transform(1f - fraction)
+}
 
 /**
  * ![EaseInOutBounce
  * Curve](https://developer.android.com/images/reference/androidx/compose/animation-core/ease_in_out_bounce.gif)
  */
-public val EaseInOutBounce: Easing =
-    Easing { fraction ->
-        return@Easing if (fraction < 0.5) {
-            (1 - EaseOutBounce.transform(1f - 2f * fraction)) / 2f
-        } else {
-            (1 + EaseOutBounce.transform((2f * fraction - 1f))) / 2f
-        }
+public val EaseInOutBounce: Easing = Easing { fraction ->
+    return@Easing if (fraction < 0.5) {
+        (1 - EaseOutBounce.transform(1f - 2f * fraction)) / 2f
+    } else {
+        (1 + EaseOutBounce.transform((2f * fraction - 1f))) / 2f
     }
+}

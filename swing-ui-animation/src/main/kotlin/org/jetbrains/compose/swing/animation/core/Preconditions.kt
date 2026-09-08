@@ -22,7 +22,9 @@ import kotlin.contracts.contract
 // This function exists so we do *not* inline the throw. It keeps
 // the call site much smaller and since it's the slow path anyway,
 // we don't mind the extra function call
-internal fun throwIllegalArgumentException(message: String): Unit = throw IllegalArgumentException(message)
+internal fun throwIllegalArgumentException(message: String) {
+    throw IllegalArgumentException(message)
+}
 
 // Like Kotlin's require() but without the .toString() call
 @Suppress("BanInlineOptIn") // same opt-in as using Kotlin's require()
@@ -35,9 +37,13 @@ internal inline fun requirePrecondition(value: Boolean, lazyMessage: () -> Strin
 }
 
 // See above
-internal fun throwIllegalStateException(message: String): Unit = throw IllegalStateException(message)
+internal fun throwIllegalStateException(message: String) {
+    throw IllegalStateException(message)
+}
 
-internal fun throwIllegalStateExceptionForNullCheck(message: String): Nothing = throw IllegalStateException(message)
+internal fun throwIllegalStateExceptionForNullCheck(message: String): Nothing {
+    throw IllegalStateException(message)
+}
 
 // Like Kotlin's check() but without the .toString() call
 @Suppress("BanInlineOptIn") // same opt-in as using Kotlin's check()

@@ -71,7 +71,8 @@ class EasingAndSpecTest {
                 targetValue = 1f,
             )
         val atMid = animation.getValueFromNanos(50_000_000L)
-        // The default tween easing is FastOutSlowIn, so the midpoint value tracks that curve, not 0.5.
+        // The default tween easing is FastOutSlowIn, so the midpoint value tracks that curve, not
+        // 0.5.
         assertEquals(FastOutSlowInEasing.transform(0.5f), atMid, 1e-3f)
     }
 
@@ -79,13 +80,19 @@ class EasingAndSpecTest {
     fun tweenHonorsDelay() {
         val animation =
             TargetBasedAnimation(
-                animationSpec = tween(durationMillis = 100, delayMillis = 100, easing = LinearEasing),
+                animationSpec =
+                    tween(durationMillis = 100, delayMillis = 100, easing = LinearEasing),
                 typeConverter = Float.VectorConverter,
                 initialValue = 0f,
                 targetValue = 100f,
             )
         assertEquals(0f, animation.getValueFromNanos(50_000_000L), "still in the delay window")
-        assertEquals(50f, animation.getValueFromNanos(150_000_000L), 1e-3f, "halfway after the delay")
+        assertEquals(
+            50f,
+            animation.getValueFromNanos(150_000_000L),
+            1e-3f,
+            "halfway after the delay",
+        )
         assertEquals(100f, animation.getValueFromNanos(200_000_000L))
     }
 
@@ -98,7 +105,11 @@ class EasingAndSpecTest {
                 initialValue = 0f,
                 targetValue = 42f,
             )
-        assertEquals(42f, animation.getValueFromNanos(0L), "snap reaches the target on the first frame")
+        assertEquals(
+            42f,
+            animation.getValueFromNanos(0L),
+            "snap reaches the target on the first frame",
+        )
         assertTrue(animation.isFinishedFromNanos(0L))
     }
 

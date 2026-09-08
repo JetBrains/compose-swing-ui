@@ -54,10 +54,7 @@ public interface FloatDecayAnimationSpec {
      * @param initialVelocity start velocity of the animation
      */
     @Suppress("MethodNameUnits")
-    public fun getDurationNanos(
-        initialValue: Float,
-        initialVelocity: Float,
-    ): Long
+    public fun getDurationNanos(initialValue: Float, initialVelocity: Float): Long
 
     /**
      * Returns the velocity of the animation at the given time.
@@ -79,10 +76,7 @@ public interface FloatDecayAnimationSpec {
      * @param initialValue The start value of the animation
      * @param initialVelocity The start velocity of the animation
      */
-    public fun getTargetValue(
-        initialValue: Float,
-        initialVelocity: Float,
-    ): Float
+    public fun getTargetValue(initialValue: Float, initialVelocity: Float): Float
 }
 
 private const val ExponentialDecayFriction = -4.2f
@@ -103,6 +97,7 @@ public class FloatExponentialDecaySpec(
     @FloatRange(from = 0.0, fromInclusive = false) frictionMultiplier: Float = 1f,
     @FloatRange(from = 0.0, fromInclusive = false) absVelocityThreshold: Float = 0.1f,
 ) : FloatDecayAnimationSpec {
+
     override val absVelocityThreshold: Float = max(0.0000001f, abs(absVelocityThreshold))
     private val friction: Float = ExponentialDecayFriction * max(0.0001f, frictionMultiplier)
 
@@ -128,19 +123,13 @@ public class FloatExponentialDecaySpec(
     }
 
     @Suppress("MethodNameUnits")
-    override fun getDurationNanos(
-        initialValue: Float,
-        initialVelocity: Float,
-    ): Long {
+    override fun getDurationNanos(initialValue: Float, initialVelocity: Float): Long {
         // Inverse of getVelocity
         return (1000f * ln(absVelocityThreshold / abs(initialVelocity)) / friction).toLong() *
             MillisToNanos
     }
 
-    override fun getTargetValue(
-        initialValue: Float,
-        initialVelocity: Float,
-    ): Float {
+    override fun getTargetValue(initialValue: Float, initialVelocity: Float): Float {
         if (abs(initialVelocity) <= absVelocityThreshold) {
             return initialValue
         }
@@ -162,4 +151,6 @@ public class FloatExponentialDecaySpec(
 internal fun FloatDecayAnimationSpec.createAnimation(
     startValue: Float,
     startVelocity: Float = 0f,
-): Animation<Float, AnimationVector1D> = DecayAnimation(this, startValue, startVelocity)
+): Animation<Float, AnimationVector1D> {
+    return DecayAnimation(this, startValue, startVelocity)
+}

@@ -4,18 +4,18 @@ This module contains source code copied and adapted from the Android Open Source
 Project's Jetpack Compose animation-core library, redistributed under the Apache
 License, Version 2.0.
 
-  Original: androidx.compose.animation:animation-core
-  Source:   compose-multiplatform-core (JetBrains fork of androidx),
-            commit 23cbd8eedf318b9a8a85b58eedb058dbc2d9c252
+  Original: androidx.compose.animation:animation-core 1.12.0
+            (AndroidX commit 963bf914f78b389bdddef0da7f36bee19d897274)
   Copyright The Android Open Source Project
 
 Adaptations: flattened from Kotlin Multiplatform (expect/actual) to a single JVM
 source set; the package was relocated from androidx.compose.animation.core to
 org.jetbrains.compose.swing.animation.core; compose-ui geometry/unit converters
-and Path-based easing were removed; the cubic Bezier easing helpers and the Float
-packing helpers were vendored from androidx.compose.ui. Animations that never end
-use the InfiniteAnimationPolicy, and motion is scaled by MotionDurationScale, both
-declared by this project's swing-ui module. See per-file headers for original
-copyright years.
+and Path-based easing were removed; the cubic Bezier easing helpers and the
+ui-util fast math, list and Float packing helpers were vendored from
+androidx.compose.ui. Animations that never end use the InfiniteAnimationPolicy
+of this project's swing-ui module, and motion is scaled by the
+MotionDurationScale declared there. See per-file headers for original copyright
+years.
 
 A copy of the Apache License 2.0 is in the repository root LICENSE file.

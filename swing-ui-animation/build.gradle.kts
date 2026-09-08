@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     id("buildsrc.convention.kotlin-jvm")
@@ -23,14 +24,28 @@ dependencies {
     // public declarations, mirroring upstream animation-core's api dependency.
     api(libs.androidxAnnotation)
     implementation(libs.androidxCollection)
-    // The Swing dispatcher and frame clock live in :swing-ui, whose InfiniteAnimationPolicy and
-    // MotionDurationScale this engine consults; neither type appears in this module's own public
-    // signatures, so the dependency stays implementation.
-    implementation(project(":swing-ui"))
+    // The Swing dispatcher and frame clock live in :swing-ui, which also owns the InfiniteAnimationPolicy
+    // this engine honors, as upstream animation-core takes its policy type from compose-ui.
+    api(project(":swing-ui"))
     implementation(libs.kotlinxCoroutinesCore)
 
+    // The ported Transition suite hosts its composition in the shipped harness rather than a
+    // second one. :swing-ui-test takes this module as a testImplementation in turn, which is not a
+    // cycle: each test compilation needs only the other's main jar, and neither main compilation
+    // depends on the other.
+    testImplementation(project(":swing-ui-test"))
     testImplementation(kotlin("test"))
     testImplementation(libs.kotlinxCoroutinesTest)
+}
+
+// Upstream's tests use these markers without opting in because they live in the declaring module.
+tasks.named<KotlinCompile>("compileTestKotlin") {
+    compilerOptions.optIn.addAll(
+        "org.jetbrains.compose.swing.animation.core.ExperimentalTransitionApi",
+        "org.jetbrains.compose.swing.animation.core.ExperimentalDeferredTransitionApi",
+        "org.jetbrains.compose.swing.animation.core.ExperimentalAnimationSpecApi",
+        "org.jetbrains.compose.swing.animation.core.InternalAnimationApi",
+    )
 }
 
 // Regression ratchet: this module's floor tracks the vendored engine's achieved ratio to within about

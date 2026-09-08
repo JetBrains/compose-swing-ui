@@ -16,6 +16,10 @@
 
 package org.jetbrains.compose.swing.animation.core
 
+import kotlin.time.Duration.Companion.milliseconds
+import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.MainTestClock
+
 internal fun VectorizedAnimationSpec<AnimationVector1D>.at(time: Long): Float =
     getValueFromMillis(time, AnimationVector1D(0f), AnimationVector1D(1f), AnimationVector1D(0f))
         .value
@@ -166,10 +170,10 @@ internal inline fun <reified V : AnimationVector> createFilledVector(value: Floa
         as V
 
 /**
- * Minimal two-dimensional point standing in for `androidx.compose.ui.geometry.Offset` in tests
- * that exercise two-dimensional keyframe/spline/arc animation algebra. This module has no
- * dependency on compose-ui, so tests use this value type plus [Point2DVectorConverter] wherever
- * upstream uses `Offset` and `Offset.VectorConverter`.
+ * Minimal two-dimensional point standing in for `androidx.compose.ui.geometry.Offset` in tests that
+ * exercise two-dimensional keyframe/spline/arc animation algebra. This module has no dependency on
+ * compose-ui, so tests use this value type plus [Point2DVectorConverter] wherever upstream uses
+ * `Offset` and `Offset.VectorConverter`.
  */
 internal data class Point2D(val x: Float, val y: Float) {
     companion object {
@@ -182,3 +186,34 @@ internal val Point2DVectorConverter: TwoWayConverter<Point2D, AnimationVector2D>
         convertToVector = { AnimationVector2D(it.x, it.y) },
         convertFromVector = { Point2D(it.v1, it.v2) },
     )
+
+/**
+ * The frame length AndroidX's own `MainTestClock` steps by, which the values upstream's
+ * frame-stepped tests assert are computed from. The harness clock steps one frame of a 60Hz display
+ * (16.67ms) instead, so a ported test drives frames of this length through
+ * [MainTestClock.advanceTimeBy] rather than through [MainTestClock.advanceTimeByFrame].
+ */
+internal const val UpstreamFrameMillis: Int = 16
+
+/**
+ * Sends one upstream-length frame, the port of `rule.mainClock.advanceTimeByFrame()`.
+ *
+ * The [ComposeSwingTest.awaitIdle] first is what makes the frame land on the work a preceding write
+ * from the test body queued: with `mainClock.autoAdvance` off, a snapshot write reaches the
+ * recomposer only once the event dispatch thread has been drained, and a frame sent before that
+ * drain finds nothing waiting on it and is spent for nothing.
+ */
+internal suspend fun ComposeSwingTest.advanceTimeByFrame() {
+    advanceTimeBy(UpstreamFrameMillis)
+}
+
+/**
+ * Sends upstream-length frames until [millis] of composition time have passed, the port of
+ * `rule.mainClock.advanceTimeBy(millis)`.
+ */
+internal suspend fun ComposeSwingTest.advanceTimeBy(millis: Int) {
+    awaitIdle()
+    repeat((millis + UpstreamFrameMillis - 1) / UpstreamFrameMillis) {
+        mainClock.advanceTimeBy(UpstreamFrameMillis.milliseconds, ignoreFrameDuration = true)
+    }
+}

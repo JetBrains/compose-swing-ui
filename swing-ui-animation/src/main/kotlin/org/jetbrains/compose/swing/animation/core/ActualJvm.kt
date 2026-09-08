@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-// Flattened from the Kotlin Multiplatform expect/actual pair (Expect.kt + ActualJvm.jvmAndAndroid.kt)
-// to the JVM actuals. Sourced from compose-multiplatform-core.
+// Flattened from the Kotlin Multiplatform expect/actual pair (Expect.kt +
+// ActualJvm.jvmAndAndroid.kt)
+// to the JVM actuals. Sourced from AndroidX (Jetpack Compose 1.12.0).
 
 package org.jetbrains.compose.swing.animation.core
 

@@ -352,9 +352,6 @@ public final class org/jetbrains/compose/swing/animation/core/EasingKt {
 	public static final fun getLinearOutSlowInEasing ()Lorg/jetbrains/compose/swing/animation/core/Easing;
 }
 
-public abstract interface annotation class org/jetbrains/compose/swing/animation/core/ExperimentalAnimatableApi : java/lang/annotation/Annotation {
-}
-
 public abstract interface annotation class org/jetbrains/compose/swing/animation/core/ExperimentalAnimationSpecApi : java/lang/annotation/Annotation {
 }
 

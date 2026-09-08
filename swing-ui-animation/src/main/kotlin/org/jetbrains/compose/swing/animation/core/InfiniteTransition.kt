@@ -36,7 +36,7 @@ import kotlinx.coroutines.flow.first
  * start running as soon as they enter the composition, and will not stop until they are removed
  * from the composition.
  *
- * @param label A label for differentiating this animation from others in android studio.
+ * @param label A label for differentiating this animation from others.
  */
 @Composable
 public fun rememberInfiniteTransition(label: String = "InfiniteTransition"): InfiniteTransition {
@@ -52,92 +52,90 @@ public fun rememberInfiniteTransition(label: String = "InfiniteTransition"): Inf
  * start running as soon as they enter the composition, and will not stop until they are removed
  * from the composition.
  *
- * @param label A label for differentiating this animation from others in android studio.
+ * @param label A label for differentiating this animation from others.
  */
-public class InfiniteTransition internal constructor(
-    public val label: String,
-) {
+public class InfiniteTransition internal constructor(public val label: String) {
+
     /**
      * Each animation created using
      * [InfiniteTransition.animateColor][androidx.compose.animation.animateColor],
      * [InfiniteTransition.animateFloat], or [InfiniteTransition.animateValue] is represented as a
      * [TransitionAnimationState] in [InfiniteTransition]. [typeConverter] converts the animation
-     * value from/to an [AnimationVector]. [label] differentiates this animation from others in
-     * android studio.
+     * value from/to an [AnimationVector]. [label] differentiates this animation from others.
      */
     public inner class TransitionAnimationState<T, V : AnimationVector>
-        internal constructor(
-            internal var initialValue: T,
-            internal var targetValue: T,
-            public val typeConverter: TwoWayConverter<T, V>,
+    internal constructor(
+        internal var initialValue: T,
+        internal var targetValue: T,
+        public val typeConverter: TwoWayConverter<T, V>,
+        animationSpec: AnimationSpec<T>,
+        public val label: String,
+    ) : State<T> {
+        override var value: T by mutableStateOf(initialValue)
+            internal set
+
+        /** [AnimationSpec] that is used for current animation run. */
+        public var animationSpec: AnimationSpec<T> = animationSpec
+            private set
+
+        /**
+         * All the animation configurations including initial value/velocity & target value for
+         * animating from [initialValue] to [targetValue] are captured in [animation].
+         */
+        public var animation: TargetBasedAnimation<T, V> =
+            TargetBasedAnimation(this.animationSpec, typeConverter, initialValue, targetValue)
+            internal set
+
+        // This is used to signal parent for less work in a normal running mode, but in seeking
+        // this is ignored since time can go both ways.
+        internal var isFinished = false
+
+        // If animation is refreshed during the run, start the new animation in the next frame
+        private var startOnTheNextFrame = false
+
+        // When the animation changes, it needs to start from playtime 0 again, offsetting from
+        // parent's playtime to achieve that.
+        private var playTimeNanosOffset = 0L
+
+        // This gets called when the initial/target value changes, which should be a rare case.
+        internal fun updateValues(
+            initialValue: T,
+            targetValue: T,
             animationSpec: AnimationSpec<T>,
-            public val label: String,
-        ) : State<T> {
-            override var value: T by mutableStateOf(initialValue)
-                internal set
-
-            /** [AnimationSpec] that is used for current animation run. */
-            public var animationSpec: AnimationSpec<T> = animationSpec
-                private set
-
-            /**
-             * All the animation configurations including initial value/velocity & target value for
-             * animating from [initialValue] to [targetValue] are captured in [animation].
-             */
-            public var animation: TargetBasedAnimation<T, V> =
-                TargetBasedAnimation(this.animationSpec, typeConverter, initialValue, targetValue)
-                internal set
-
-            // This is used to signal parent for less work in a normal running mode, but in seeking
-            // this is ignored since time can go both ways.
-            internal var isFinished = false
-
-            // If animation is refreshed during the run, start the new animation in the next frame
-            private var startOnTheNextFrame = false
-
-            // When the animation changes, it needs to start from playtime 0 again, offsetting from
-            // parent's playtime to achieve that.
-            private var playTimeNanosOffset = 0L
-
-            // This gets called when the initial/target value changes, which should be a rare case.
-            internal fun updateValues(
-                initialValue: T,
-                targetValue: T,
-                animationSpec: AnimationSpec<T>,
-            ) {
-                this.initialValue = initialValue
-                this.targetValue = targetValue
-                this.animationSpec = animationSpec
-                // Create a new animation if anything (i.e. initial/target) has changed
-                // TODO: Consider providing some continuity maybe?
-                animation =
-                    TargetBasedAnimation(animationSpec, typeConverter, initialValue, targetValue)
-                refreshChildNeeded = true
-                isFinished = false
-                startOnTheNextFrame = true
-            }
-
-            /** Set play time for the [animation]. */
-            internal fun onPlayTimeChanged(playTimeNanos: Long) {
-                refreshChildNeeded = false
-                if (startOnTheNextFrame) {
-                    startOnTheNextFrame = false
-                    playTimeNanosOffset = playTimeNanos
-                }
-                val playTime = playTimeNanos - playTimeNanosOffset
-                value = animation.getValueFromNanos(playTime)
-                isFinished = animation.isFinishedFromNanos(playTime)
-            }
-
-            internal fun skipToEnd() {
-                value = animation.targetValue
-                startOnTheNextFrame = true
-            }
-
-            internal fun reset() {
-                startOnTheNextFrame = true
-            }
+        ) {
+            this.initialValue = initialValue
+            this.targetValue = targetValue
+            this.animationSpec = animationSpec
+            // Create a new animation if anything (i.e. initial/target) has changed
+            // TODO: Consider providing some continuity maybe?
+            animation =
+                TargetBasedAnimation(animationSpec, typeConverter, initialValue, targetValue)
+            refreshChildNeeded = true
+            isFinished = false
+            startOnTheNextFrame = true
         }
+
+        /** Set play time for the [animation]. */
+        internal fun onPlayTimeChanged(playTimeNanos: Long) {
+            refreshChildNeeded = false
+            if (startOnTheNextFrame) {
+                startOnTheNextFrame = false
+                playTimeNanosOffset = playTimeNanos
+            }
+            val playTime = playTimeNanos - playTimeNanosOffset
+            value = animation.getValueFromNanos(playTime)
+            isFinished = animation.isFinishedFromNanos(playTime)
+        }
+
+        internal fun skipToEnd() {
+            value = animation.targetValue
+            startOnTheNextFrame = true
+        }
+
+        internal fun reset() {
+            startOnTheNextFrame = true
+        }
+    }
 
     private val _animations = mutableVectorOf<TransitionAnimationState<*, *>>()
     private var refreshChildNeeded by mutableStateOf(false)
@@ -170,7 +168,7 @@ public class InfiniteTransition internal constructor(
                         val currentTimeNanos = toolingOverride.value?.value ?: it
                         if (
                             startTimeNanos == AnimationConstants.UnspecifiedTime ||
-                            durationScale != coroutineContext.durationScale
+                                durationScale != coroutineContext.durationScale
                         ) {
                             startTimeNanos = it
                             _animations.forEach { it.reset() }
@@ -226,7 +224,7 @@ public class InfiniteTransition internal constructor(
  * will be restarted with the new [initialValue] and [targetValue]. __Note__: this means continuity
  * will *not* be preserved.
  *
- * A [label] for differentiating this animation from others in android studio.
+ * A [label] for differentiating this animation from others.
  *
  * @see [InfiniteTransition.animateFloat]
  * @see [androidx.compose.animation.animateColor]
@@ -239,15 +237,14 @@ public fun <T, V : AnimationVector> InfiniteTransition.animateValue(
     animationSpec: InfiniteRepeatableSpec<T>,
     label: String = "ValueAnimation",
 ): State<T> {
-    val transitionAnimation =
-        remember {
-            TransitionAnimationState(initialValue, targetValue, typeConverter, animationSpec, label)
-        }
+    val transitionAnimation = remember {
+        TransitionAnimationState(initialValue, targetValue, typeConverter, animationSpec, label)
+    }
 
     SideEffect {
         if (
             initialValue != transitionAnimation.initialValue ||
-            targetValue != transitionAnimation.targetValue
+                targetValue != transitionAnimation.targetValue
         ) {
             transitionAnimation.updateValues(
                 initialValue = initialValue,
@@ -277,7 +274,7 @@ public fun <T, V : AnimationVector> InfiniteTransition.animateValue(
  * will be restarted with the new [initialValue] and [targetValue]. __Note__: this means continuity
  * will *not* be preserved.
  *
- * A [label] for differentiating this animation from others in android studio.
+ * A [label] for differentiating this animation from others.
  *
  * @see [InfiniteTransition.animateValue]
  * @see [androidx.compose.animation.animateColor]
@@ -288,14 +285,17 @@ public fun InfiniteTransition.animateFloat(
     targetValue: Float,
     animationSpec: InfiniteRepeatableSpec<Float>,
     label: String = "FloatAnimation",
-): State<Float> = animateValue(initialValue, targetValue, Float.VectorConverter, animationSpec, label)
+): State<Float> =
+    animateValue(initialValue, targetValue, Float.VectorConverter, animationSpec, label)
 
 @Deprecated(
     "rememberInfiniteTransition APIs now have a new label parameter added.",
     level = DeprecationLevel.HIDDEN,
 )
 @Composable
-public fun rememberInfiniteTransition(): InfiniteTransition = rememberInfiniteTransition("InfiniteTransition")
+public fun rememberInfiniteTransition(): InfiniteTransition {
+    return rememberInfiniteTransition("InfiniteTransition")
+}
 
 @Deprecated(
     "animateValue APIs now have a new label parameter added.",
@@ -307,14 +307,15 @@ public fun <T, V : AnimationVector> InfiniteTransition.animateValue(
     targetValue: T,
     typeConverter: TwoWayConverter<T, V>,
     animationSpec: InfiniteRepeatableSpec<T>,
-): State<T> =
-    animateValue(
+): State<T> {
+    return animateValue(
         initialValue = initialValue,
         targetValue = targetValue,
         typeConverter = typeConverter,
         animationSpec = animationSpec,
         label = "ValueAnimation",
     )
+}
 
 @Deprecated(
     "animateFloat APIs now have a new label parameter added.",
@@ -325,10 +326,11 @@ public fun InfiniteTransition.animateFloat(
     initialValue: Float,
     targetValue: Float,
     animationSpec: InfiniteRepeatableSpec<Float>,
-): State<Float> =
-    animateFloat(
+): State<Float> {
+    return animateFloat(
         initialValue = initialValue,
         targetValue = targetValue,
         animationSpec = animationSpec,
         label = "FloatAnimation",
     )
+}

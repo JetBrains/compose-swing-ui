@@ -109,14 +109,15 @@ public fun animateIntAsState(
     animationSpec: AnimationSpec<Int> = intDefaultSpring,
     label: String = "IntAnimation",
     finishedListener: ((Int) -> Unit)? = null,
-): State<Int> =
-    animateValueAsState(
+): State<Int> {
+    return animateValueAsState(
         targetValue,
         Int.VectorConverter,
         animationSpec,
         label = label,
         finishedListener = finishedListener,
     )
+}
 
 private val intDefaultSpring = spring(visibilityThreshold = Int.VisibilityThreshold)
 
@@ -151,6 +152,7 @@ public fun <T, V : AnimationVector> animateValueAsState(
     label: String = "ValueAnimation",
     finishedListener: ((T) -> Unit)? = null,
 ): State<T> {
+
     val toolingOverride = remember { mutableStateOf<State<T>?>(null) }
     val animatable = remember { Animatable(targetValue, typeConverter, visibilityThreshold, label) }
     val listener by rememberUpdatedState(finishedListener)
@@ -159,14 +161,14 @@ public fun <T, V : AnimationVector> animateValueAsState(
             animationSpec.run {
                 if (
                     visibilityThreshold != null &&
-                    this is SpringSpec &&
-                    this.visibilityThreshold != visibilityThreshold
+                        this is SpringSpec &&
+                        this.visibilityThreshold != visibilityThreshold
                 ) {
                     spring(dampingRatio, stiffness, visibilityThreshold)
                 } else {
                     this
                 }
-            },
+            }
         )
     val channel = remember { Channel<T>(Channel.CONFLATED) }
     SideEffect { channel.trySend(targetValue) }
@@ -216,13 +218,14 @@ public fun animateIntAsState(
     targetValue: Int,
     animationSpec: AnimationSpec<Int> = intDefaultSpring,
     finishedListener: ((Int) -> Unit)? = null,
-): State<Int> =
-    animateValueAsState(
+): State<Int> {
+    return animateValueAsState(
         targetValue,
         Int.VectorConverter,
         animationSpec,
         finishedListener = finishedListener,
     )
+}
 
 @Deprecated(
     "animate*AsState APIs now have a new label parameter added.",

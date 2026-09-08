@@ -17,9 +17,9 @@
 package org.jetbrains.compose.swing.animation.core
 
 import androidx.compose.runtime.withFrameNanos
-import kotlinx.coroutines.CancellationException
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.coroutineContext
+import kotlinx.coroutines.CancellationException
 import org.jetbrains.compose.swing.core.MotionDurationScale
 
 /**
@@ -229,52 +229,54 @@ internal suspend fun <T, V : AnimationVector> AnimationState<T, V>.animate(
             animation.callWithFrameNanos {
                 lateInitScope =
                     AnimationScope(
+                            initialValue = initialValue,
+                            typeConverter = animation.typeConverter,
+                            initialVelocityVector = initialVelocityVector,
+                            lastFrameTimeNanos = it,
+                            targetValue = animation.targetValue,
+                            startTimeNanos = it,
+                            isRunning = true,
+                            onCancel = { isRunning = false },
+                        )
+                        .apply {
+                            // First frame
+                            doAnimationFrameWithScale(
+                                it,
+                                durationScale,
+                                animation,
+                                this@animate,
+                                block,
+                            )
+                        }
+            }
+        } else {
+            lateInitScope =
+                AnimationScope(
                         initialValue = initialValue,
                         typeConverter = animation.typeConverter,
                         initialVelocityVector = initialVelocityVector,
-                        lastFrameTimeNanos = it,
+                        lastFrameTimeNanos = startTimeNanos,
                         targetValue = animation.targetValue,
-                        startTimeNanos = it,
+                        startTimeNanos = startTimeNanos,
                         isRunning = true,
                         onCancel = { isRunning = false },
-                    ).apply {
+                    )
+                    .apply {
                         // First frame
                         doAnimationFrameWithScale(
-                            it,
-                            durationScale,
+                            startTimeNanos,
+                            coroutineContext.durationScale,
                             animation,
                             this@animate,
                             block,
                         )
                     }
-            }
-        } else {
-            lateInitScope =
-                AnimationScope(
-                    initialValue = initialValue,
-                    typeConverter = animation.typeConverter,
-                    initialVelocityVector = initialVelocityVector,
-                    lastFrameTimeNanos = startTimeNanos,
-                    targetValue = animation.targetValue,
-                    startTimeNanos = startTimeNanos,
-                    isRunning = true,
-                    onCancel = { isRunning = false },
-                ).apply {
-                    // First frame
-                    doAnimationFrameWithScale(
-                        startTimeNanos,
-                        coroutineContext.durationScale,
-                        animation,
-                        this@animate,
-                        block,
-                    )
-                }
         }
         // Subsequent frames
         while (lateInitScope!!.isRunning) {
             val durationScale = coroutineContext.durationScale
             animation.callWithFrameNanos {
-                lateInitScope.doAnimationFrameWithScale(it, durationScale, animation, this, block)
+                lateInitScope!!.doAnimationFrameWithScale(it, durationScale, animation, this, block)
             }
         }
         // End of animation
@@ -293,13 +295,14 @@ internal suspend fun <T, V : AnimationVector> AnimationState<T, V>.animate(
  * `withFrameNanos`, depending on the value of [Animation.isInfinite].
  */
 private suspend fun <R, T, V : AnimationVector> Animation<T, V>.callWithFrameNanos(
-    onFrame: (frameTimeNanos: Long) -> R,
-): R =
-    if (isInfinite) {
+    onFrame: (frameTimeNanos: Long) -> R
+): R {
+    return if (isInfinite) {
         withInfiniteAnimationFrameNanos(onFrame)
     } else {
         withFrameNanos { onFrame.invoke(it / AnimationDebugDurationScale) }
     }
+}
 
 internal val CoroutineContext.durationScale: Float
     get() {
@@ -308,7 +311,9 @@ internal val CoroutineContext.durationScale: Float
         return scale
     }
 
-internal fun <T, V : AnimationVector> AnimationScope<T, V>.updateState(state: AnimationState<T, V>) {
+internal fun <T, V : AnimationVector> AnimationScope<T, V>.updateState(
+    state: AnimationState<T, V>
+) {
     state.value = value
     state.velocityVector.copyFrom(velocityVector)
     state.finishedTimeNanos = finishedTimeNanos

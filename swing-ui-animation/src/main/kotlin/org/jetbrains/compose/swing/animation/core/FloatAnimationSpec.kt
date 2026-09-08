@@ -20,6 +20,7 @@ package org.jetbrains.compose.swing.animation.core
 
 import org.jetbrains.compose.swing.animation.core.AnimationConstants.DefaultDurationMillis
 import org.jetbrains.compose.swing.animation.core.internal.JvmDefaultWithCompatibility
+import org.jetbrains.compose.swing.animation.core.internal.fastCoerceIn
 
 /**
  * [FloatAnimationSpec] interface is similar to [VectorizedAnimationSpec], except it deals
@@ -116,7 +117,7 @@ public interface FloatAnimationSpec : AnimationSpec<Float> {
      * given [FloatAnimationSpec].
      */
     override fun <V : AnimationVector> vectorize(
-        converter: TwoWayConverter<Float, V>,
+        converter: TwoWayConverter<Float, V>
     ): VectorizedFloatAnimationSpec<V> = VectorizedFloatAnimationSpec<V>(this)
 }
 
@@ -134,6 +135,7 @@ public class FloatSpringSpec(
     public val stiffness: Float = Spring.StiffnessMedium,
     private val visibilityThreshold: Float = Spring.DefaultDisplacementThreshold,
 ) : FloatAnimationSpec {
+
     private val spring =
         SpringSimulation(1f).also {
             it.dampingRatio = dampingRatio
@@ -217,15 +219,18 @@ public class FloatTweenSpec(
         return lerp(initialValue, targetValue, fraction)
     }
 
-    private inline fun clampPlayTimeNanos(playTimeNanos: Long): Long =
-        (playTimeNanos - delayNanos).coerceIn(0, durationNanos)
+    private inline fun clampPlayTimeNanos(playTimeNanos: Long): Long {
+        return (playTimeNanos - delayNanos).fastCoerceIn(0, durationNanos)
+    }
 
     @Suppress("MethodNameUnits")
     override fun getDurationNanos(
         initialValue: Float,
         targetValue: Float,
         initialVelocity: Float,
-    ): Long = delayNanos + durationNanos
+    ): Long {
+        return delayNanos + durationNanos
+    }
 
     // Calculate velocity by difference between the current value and the value 1 ms ago. This is a
     // preliminary way of calculating velocity used by easing curve based animations, and keyframe

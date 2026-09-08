@@ -32,10 +32,7 @@ public sealed class AnimationVector {
 
     internal abstract operator fun get(index: Int): Float
 
-    internal abstract operator fun set(
-        index: Int,
-        value: Float,
-    )
+    internal abstract operator fun set(index: Int, value: Float)
 
     internal abstract val size: Int
 }
@@ -53,10 +50,7 @@ public fun AnimationVector(v1: Float): AnimationVector1D = AnimationVector1D(v1)
  * @param v1 value to set on the first dimension
  * @param v2 value to set on the second dimension
  */
-public fun AnimationVector(
-    v1: Float,
-    v2: Float,
-): AnimationVector2D = AnimationVector2D(v1, v2)
+public fun AnimationVector(v1: Float, v2: Float): AnimationVector2D = AnimationVector2D(v1, v2)
 
 /**
  * Factory method to create an [AnimationVector3D]
@@ -65,11 +59,8 @@ public fun AnimationVector(
  * @param v2 value to set on the second dimension
  * @param v3 value to set on the third dimension
  */
-public fun AnimationVector(
-    v1: Float,
-    v2: Float,
-    v3: Float,
-): AnimationVector3D = AnimationVector3D(v1, v2, v3)
+public fun AnimationVector(v1: Float, v2: Float, v3: Float): AnimationVector3D =
+    AnimationVector3D(v1, v2, v3)
 
 /**
  * Factory method to create an [AnimationVector4D]
@@ -79,12 +70,8 @@ public fun AnimationVector(
  * @param v3 value to set on the third dimension
  * @param v4 value to set on the fourth dimension
  */
-public fun AnimationVector(
-    v1: Float,
-    v2: Float,
-    v3: Float,
-    v4: Float,
-): AnimationVector4D = AnimationVector4D(v1, v2, v3, v4)
+public fun AnimationVector(v1: Float, v2: Float, v3: Float, v4: Float): AnimationVector4D =
+    AnimationVector4D(v1, v2, v3, v4)
 
 internal fun <T : AnimationVector> T.newInstance(): T {
     @Suppress("UNCHECKED_CAST")
@@ -111,9 +98,7 @@ internal fun <T : AnimationVector> T.copyFrom(source: T) {
  *
  * @param initVal initial value to set the [value] field to.
  */
-public class AnimationVector1D(
-    initVal: Float,
-) : AnimationVector() {
+public class AnimationVector1D(initVal: Float) : AnimationVector() {
     /** This field holds the only Float value in this [AnimationVector1D] object. */
     public var value: Float = initVal
         internal set
@@ -133,10 +118,7 @@ public class AnimationVector1D(
         }
     }
 
-    override fun set(
-        index: Int,
-        value: Float,
-    ) {
+    override fun set(index: Int, value: Float) {
         if (index == 0) {
             this.value = value
         }
@@ -144,7 +126,9 @@ public class AnimationVector1D(
 
     override val size: Int = 1
 
-    override fun toString(): String = "AnimationVector1D: value = $value"
+    override fun toString(): String {
+        return "AnimationVector1D: value = $value"
+    }
 
     override fun equals(other: Any?): Boolean = other is AnimationVector1D && other.value == value
 
@@ -157,10 +141,7 @@ public class AnimationVector1D(
  * @param v1 initial value to set on the first dimension
  * @param v2 initial value to set on the second dimension
  */
-public class AnimationVector2D(
-    v1: Float,
-    v2: Float,
-) : AnimationVector() {
+public class AnimationVector2D(v1: Float, v2: Float) : AnimationVector() {
     /** Float value field for the first dimension of the 2D vector. */
     public var v1: Float = v1
         internal set
@@ -177,17 +158,15 @@ public class AnimationVector2D(
 
     override fun newVector(): AnimationVector2D = AnimationVector2D(0f, 0f)
 
-    override fun get(index: Int): Float =
-        when (index) {
+    override fun get(index: Int): Float {
+        return when (index) {
             0 -> v1
             1 -> v2
             else -> 0f
         }
+    }
 
-    override fun set(
-        index: Int,
-        value: Float,
-    ) {
+    override fun set(index: Int, value: Float) {
         when (index) {
             0 -> v1 = value
             1 -> v2 = value
@@ -196,9 +175,12 @@ public class AnimationVector2D(
 
     override val size: Int = 2
 
-    override fun toString(): String = "AnimationVector2D: v1 = $v1, v2 = $v2"
+    override fun toString(): String {
+        return "AnimationVector2D: v1 = $v1, v2 = $v2"
+    }
 
-    override fun equals(other: Any?): Boolean = other is AnimationVector2D && other.v1 == v1 && other.v2 == v2
+    override fun equals(other: Any?): Boolean =
+        other is AnimationVector2D && other.v1 == v1 && other.v2 == v2
 
     override fun hashCode(): Int = v1.hashCode() * 31 + v2.hashCode()
 }
@@ -210,11 +192,7 @@ public class AnimationVector2D(
  * @param v2 initial value to set on the second dimension
  * @param v3 initial value to set on the third dimension
  */
-public class AnimationVector3D(
-    v1: Float,
-    v2: Float,
-    v3: Float,
-) : AnimationVector() {
+public class AnimationVector3D(v1: Float, v2: Float, v3: Float) : AnimationVector() {
     // Internally mutable, so we don't have to create a number of small objects per anim frame
     /** Float value field for the first dimension of the 3D vector. */
     public var v1: Float = v1
@@ -237,18 +215,16 @@ public class AnimationVector3D(
 
     override fun newVector(): AnimationVector3D = AnimationVector3D(0f, 0f, 0f)
 
-    override fun get(index: Int): Float =
-        when (index) {
+    override fun get(index: Int): Float {
+        return when (index) {
             0 -> v1
             1 -> v2
             2 -> v3
             else -> 0f
         }
+    }
 
-    override fun set(
-        index: Int,
-        value: Float,
-    ) {
+    override fun set(index: Int, value: Float) {
         when (index) {
             0 -> v1 = value
             1 -> v2 = value
@@ -258,7 +234,9 @@ public class AnimationVector3D(
 
     override val size: Int = 3
 
-    override fun toString(): String = "AnimationVector3D: v1 = $v1, v2 = $v2, v3 = $v3"
+    override fun toString(): String {
+        return "AnimationVector3D: v1 = $v1, v2 = $v2, v3 = $v3"
+    }
 
     override fun equals(other: Any?): Boolean =
         other is AnimationVector3D && other.v1 == v1 && other.v2 == v2 && other.v3 == v3
@@ -274,12 +252,7 @@ public class AnimationVector3D(
  * @param v3 initial value to set on the third dimension
  * @param v4 initial value to set on the fourth dimension
  */
-public class AnimationVector4D(
-    v1: Float,
-    v2: Float,
-    v3: Float,
-    v4: Float,
-) : AnimationVector() {
+public class AnimationVector4D(v1: Float, v2: Float, v3: Float, v4: Float) : AnimationVector() {
     // Internally mutable, so we don't have to create a number of small objects per anim frame
     /** Float value field for the first dimension of the 4D vector. */
     public var v1: Float = v1
@@ -306,19 +279,17 @@ public class AnimationVector4D(
 
     override fun newVector(): AnimationVector4D = AnimationVector4D(0f, 0f, 0f, 0f)
 
-    override fun get(index: Int): Float =
-        when (index) {
+    override fun get(index: Int): Float {
+        return when (index) {
             0 -> v1
             1 -> v2
             2 -> v3
             3 -> v4
             else -> 0f
         }
+    }
 
-    override fun set(
-        index: Int,
-        value: Float,
-    ) {
+    override fun set(index: Int, value: Float) {
         when (index) {
             0 -> v1 = value
             1 -> v2 = value
@@ -329,7 +300,9 @@ public class AnimationVector4D(
 
     override val size: Int = 4
 
-    override fun toString(): String = "AnimationVector4D: v1 = $v1, v2 = $v2, v3 = $v3, v4 = $v4"
+    override fun toString(): String {
+        return "AnimationVector4D: v1 = $v1, v2 = $v2, v3 = $v3, v4 = $v4"
+    }
 
     override fun equals(other: Any?): Boolean =
         other is AnimationVector4D &&
@@ -338,5 +311,6 @@ public class AnimationVector4D(
             other.v3 == v3 &&
             other.v4 == v4
 
-    override fun hashCode(): Int = ((v1.hashCode() * 31 + v2.hashCode()) * 31 + v3.hashCode()) * 31 + v4.hashCode()
+    override fun hashCode(): Int =
+        ((v1.hashCode() * 31 + v2.hashCode()) * 31 + v3.hashCode()) * 31 + v4.hashCode()
 }

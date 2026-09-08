@@ -25,7 +25,6 @@ import kotlinx.coroutines.sync.withLock
 import org.jetbrains.compose.swing.animation.core.internal.PlatformOptimizedCancellationException
 
 /** * This is an internal copy of androidx.compose.foundation.MutatorMutex. Do not modify. ** */
-
 /**
  * Priorities for performing mutation on state.
  *
@@ -60,7 +59,8 @@ internal enum class MutatePriority {
  * lookups to build the exception message and stack trace collection. Remove if these are changed in
  * kotlinx.coroutines.
  */
-internal class MutationInterruptedException : PlatformOptimizedCancellationException("Mutation interrupted")
+internal class MutationInterruptedException :
+    PlatformOptimizedCancellationException("Mutation interrupted")
 
 /**
  * Mutual exclusion for UI state mutation over time.
@@ -77,10 +77,7 @@ internal class MutationInterruptedException : PlatformOptimizedCancellationExcep
  */
 @Stable
 internal class MutatorMutex {
-    private class Mutator(
-        val priority: MutatePriority,
-        val job: Job,
-    ) {
+    private class Mutator(val priority: MutatePriority, val job: Job) {
         fun canInterrupt(other: Mutator) = priority >= other.priority
 
         fun cancel() = job.cancel(MutationInterruptedException())
@@ -97,9 +94,7 @@ internal class MutatorMutex {
                     oldMutator?.cancel()
                     break
                 }
-            } else {
-                throw CancellationException("Current mutation had a higher priority")
-            }
+            } else throw CancellationException("Current mutation had a higher priority")
         }
     }
 

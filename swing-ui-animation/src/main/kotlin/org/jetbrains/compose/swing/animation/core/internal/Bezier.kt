@@ -14,19 +14,18 @@
  * limitations under the License.
  */
 
-// Extracted subset of androidx.compose.ui.graphics.Bezier (the cubic root/bounds float helpers used by
-// CubicBezierEasing) for compose-swing-ui's vendored animation-core. Sourced from
-// compose-multiplatform-core. The PathSegment-based overloads are omitted; ui-util fast helpers are
-// replaced with stdlib equivalents (fastCbrt -> kotlin.math.cbrt, fastCoerceIn -> coerceIn).
+// Extracted subset of androidx.compose.ui.graphics.Bezier (the cubic root/bounds float helpers
+// used by CubicBezierEasing) for compose-swing-ui's vendored animation-core. Sourced from AndroidX
+// (Jetpack Compose 1.12.0). The PathSegment-based overloads are omitted.
 
 @file:Suppress("NOTHING_TO_INLINE")
 
 package org.jetbrains.compose.swing.animation.core.internal
 
+import androidx.collection.FloatFloatPair
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.acos
-import kotlin.math.cbrt
 import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.min
@@ -36,17 +35,12 @@ private const val Tau = PI * 2.0
 private const val Epsilon = 1e-7
 
 // We use a fairly high epsilon here because it's post double->float conversion
-// and because cube roots lose some precision. The epsilon we use here is
-// slightly larger than 1f.ulp at 1.0f but smaller than 1.0f.ulp * 10.
+// and because we use a fast approximation of cbrt(). The epsilon we use here is
+// slightly larger than the max error of fastCbrt() in the -1f..1f range
+// (8.3446500e-7f) but smaller than 1.0f.ulp * 10.
 private const val FloatEpsilon = 1.05e-6f
 
-private fun evaluateCubic(
-    p0: Float,
-    p1: Float,
-    p2: Float,
-    p3: Float,
-    t: Float,
-): Float {
+private fun evaluateCubic(p0: Float, p1: Float, p2: Float, p3: Float, t: Float): Float {
     val a = p3 + 3.0f * (p1 - p2) - p0
     val b = 3.0f * (p2 - 2.0f * p1 + p0)
     val c = 3.0f * (p1 - p0)
@@ -59,11 +53,7 @@ private fun evaluateCubic(
  * [p2].
  */
 @Suppress("UnnecessaryVariable")
-internal fun evaluateCubic(
-    p1: Float,
-    p2: Float,
-    t: Float,
-): Float {
+internal fun evaluateCubic(p1: Float, p2: Float, t: Float): Float {
     val a = 1.0f / 3.0f + (p1 - p2)
     val b = (p2 - 2.0f * p1)
     val c = p1
@@ -79,12 +69,7 @@ internal fun evaluateCubic(
  *
  * If no root can be found, this method returns [Float.NaN].
  */
-internal fun findFirstCubicRoot(
-    p0: Float,
-    p1: Float,
-    p2: Float,
-    p3: Float,
-): Float {
+internal fun findFirstCubicRoot(p0: Float, p1: Float, p2: Float, p3: Float): Float {
     // This function implements Cardano's algorithm as described in "A Primer on Bézier Curves":
     // https://pomax.github.io/bezierinfo/#yforx
     //
@@ -129,9 +114,9 @@ internal fun findFirstCubicRoot(
         val mp33 = -(o3 * o3 * o3)
         val r = sqrt(mp33)
         val t = -q2 / r
-        val cosPhi = t.coerceIn(-1.0, 1.0)
+        val cosPhi = t.fastCoerceIn(-1.0, 1.0)
         val phi = acos(cosPhi)
-        val t1 = 2.0f * cbrt(r.toFloat())
+        val t1 = 2.0f * fastCbrt(r.toFloat())
 
         var root = clampValidRootInUnitRange((t1 * cos(phi / 3.0) - a3).toFloat())
         if (!root.isNaN()) return root
@@ -141,7 +126,7 @@ internal fun findFirstCubicRoot(
 
         return clampValidRootInUnitRange((t1 * cos((phi + 2.0 * Tau) / 3.0) - a3).toFloat())
     } else if (discriminant == 0.0) {
-        val u1 = -cbrt(q2.toFloat())
+        val u1 = -fastCbrt(q2.toFloat())
 
         val root = clampValidRootInUnitRange(2.0f * u1 - a3.toFloat())
         if (!root.isNaN()) return root
@@ -150,8 +135,8 @@ internal fun findFirstCubicRoot(
     }
 
     val sd = sqrt(discriminant)
-    val u1 = cbrt((-q2 + sd).toFloat())
-    val v1 = cbrt((q2 + sd).toFloat())
+    val u1 = fastCbrt((-q2 + sd).toFloat())
+    val v1 = fastCbrt((q2 + sd).toFloat())
 
     return clampValidRootInUnitRange((u1 - v1 - a3).toFloat())
 }
@@ -161,12 +146,8 @@ internal fun findFirstCubicRoot(
  * points. The root, if any, is written in the [roots] array at [index]. Returns 1 if a root was
  * found, 0 otherwise.
  */
-private inline fun findLineRoot(
-    p0: Float,
-    p1: Float,
-    roots: FloatArray,
-    index: Int = 0,
-) = writeValidRootInUnitRange(-p0 / (p1 - p0), roots, index)
+private inline fun findLineRoot(p0: Float, p1: Float, roots: FloatArray, index: Int = 0) =
+    writeValidRootInUnitRange(-p0 / (p1 - p0), roots, index)
 
 /**
  * Finds the real roots of a quadratic Bézier curve. To find the roots, only the X coordinates of
@@ -226,7 +207,7 @@ internal fun computeCubicVerticalBounds(
     p3y: Float,
     roots: FloatArray,
     index: Int = 0,
-): FloatPair {
+): FloatFloatPair {
     // Quadratic derivative of a cubic function
     // We do the computation inline to avoid using arrays of other data
     // structures to return the result
@@ -250,7 +231,7 @@ internal fun computeCubicVerticalBounds(
         maxY = max(maxY, y)
     }
 
-    return FloatPair(minY, maxY)
+    return FloatFloatPair(minY, maxY)
 }
 
 private inline fun Double.closeTo(b: Double) = abs(this - b) < Epsilon
@@ -261,7 +242,15 @@ private inline fun Double.closeTo(b: Double) = abs(this - b) < Epsilon
  * to be in the [0..1] range and clamped appropriately.
  */
 private inline fun clampValidRootInUnitRange(r: Float): Float {
-    val s = r.coerceIn(0f, 1f)
+    // The code below is a branchless version of:
+    // if (r < 0.0f) {
+    //     if (r >= -FloatEpsilon) 0.0f else Float.NaN
+    // } else if (r > 1.0f) {
+    //     if (r <= 1.0f + FloatEpsilon) 1.0f else Float.NaN
+    // } else {
+    //     r
+    // }
+    val s = r.fastCoerceIn(0f, 1f)
     return if (abs(s - r) > FloatEpsilon) Float.NaN else s
 }
 
@@ -271,21 +260,8 @@ private inline fun clampValidRootInUnitRange(r: Float): Float {
  * to be in the [0..1] range and clamped appropriately. Returns 0 if no value was written, 1
  * otherwise.
  */
-private fun writeValidRootInUnitRange(
-    r: Float,
-    roots: FloatArray,
-    index: Int,
-): Int {
+private fun writeValidRootInUnitRange(r: Float, roots: FloatArray, index: Int): Int {
     val v = clampValidRootInUnitRange(r)
     roots[index] = v
     return if (v.isNaN()) 0 else 1
 }
-
-/**
- * A minimal pair of floats returned from [computeCubicVerticalBounds], replacing the
- * `androidx.collection.FloatFloatPair` used by the original Bezier helpers.
- */
-internal class FloatPair(
-    val first: Float,
-    val second: Float,
-)

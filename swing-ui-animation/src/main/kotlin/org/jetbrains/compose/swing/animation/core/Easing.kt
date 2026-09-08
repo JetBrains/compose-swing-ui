@@ -18,10 +18,11 @@ package org.jetbrains.compose.swing.animation.core
 
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
+import kotlin.math.max
 import org.jetbrains.compose.swing.animation.core.internal.computeCubicVerticalBounds
 import org.jetbrains.compose.swing.animation.core.internal.evaluateCubic
+import org.jetbrains.compose.swing.animation.core.internal.fastCoerceIn
 import org.jetbrains.compose.swing.animation.core.internal.findFirstCubicRoot
-import kotlin.math.max
 
 /**
  * Easing is a way to adjust an animation’s fraction. Easing allows transitioning elements to speed
@@ -127,8 +128,8 @@ public class CubicBezierEasing(
      *
      * @throws IllegalArgumentException If the cubic Bézier curve cannot be solved
      */
-    override fun transform(fraction: Float): Float =
-        if (fraction > 0f && fraction < 1f) {
+    override fun transform(fraction: Float): Float {
+        return if (fraction > 0f && fraction < 1f) {
             // We translate the coordinates by the fraction when calling findFirstCubicRoot,
             // but we need to make sure the translation can be done at 1.0f so we take at
             // least 1 ulp at 1.0f
@@ -143,24 +144,29 @@ public class CubicBezierEasing(
             // Don't clamp the values since the curve might be used to over- or under-shoot
             // The test above that checks if fraction is in ]0..1[ will ensure we start and
             // end at 0 and 1 respectively
-            evaluateCubic(b, d, t).coerceIn(min, max)
+            evaluateCubic(b, d, t).fastCoerceIn(min, max)
         } else {
             fraction
         }
+    }
 
-    private fun throwNoSolution(fraction: Float): Unit =
+    private fun throwNoSolution(fraction: Float) {
         throw IllegalArgumentException(
-            "The cubic curve with parameters ($a, $b, $c, $d) has no solution at $fraction",
+            "The cubic curve with parameters ($a, $b, $c, $d) has no solution at $fraction"
         )
+    }
 
-    override fun equals(other: Any?): Boolean =
-        other is CubicBezierEasing &&
+    override fun equals(other: Any?): Boolean {
+        return other is CubicBezierEasing &&
             a == other.a &&
             b == other.b &&
             c == other.c &&
             d == other.d
+    }
 
-    override fun hashCode(): Int = ((a.hashCode() * 31 + b.hashCode()) * 31 + c.hashCode()) * 31 + d.hashCode()
+    override fun hashCode(): Int {
+        return ((a.hashCode() * 31 + b.hashCode()) * 31 + c.hashCode()) * 31 + d.hashCode()
+    }
 
     override fun toString(): String = "CubicBezierEasing(a=$a, b=$b, c=$c, d=$d)"
 }

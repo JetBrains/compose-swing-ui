@@ -18,18 +18,16 @@
 
 package org.jetbrains.compose.swing.animation.core
 
-import org.jetbrains.compose.swing.animation.core.internal.packFloats
-import org.jetbrains.compose.swing.animation.core.internal.unpackFloat1
-import org.jetbrains.compose.swing.animation.core.internal.unpackFloat2
 import kotlin.math.cos
 import kotlin.math.exp
 import kotlin.math.sin
 import kotlin.math.sqrt
+import org.jetbrains.compose.swing.animation.core.internal.packFloats
+import org.jetbrains.compose.swing.animation.core.internal.unpackFloat1
+import org.jetbrains.compose.swing.animation.core.internal.unpackFloat2
 
 @kotlin.jvm.JvmInline
-internal value class Motion(
-    val packedValue: Long,
-) {
+internal value class Motion(val packedValue: Long) {
     inline val value: Float
         get() = unpackFloat1(packedValue)
 
@@ -37,10 +35,7 @@ internal value class Motion(
         get() = unpackFloat2(packedValue)
 }
 
-internal inline fun Motion(
-    value: Float,
-    velocity: Float,
-) = Motion(packFloats(value, velocity))
+internal inline fun Motion(value: Float, velocity: Float) = Motion(packFloats(value, velocity))
 
 /**
  * Spring Simulation simulates spring physics, and allows you to query the motion (i.e. value and
@@ -57,9 +52,7 @@ internal inline fun Motion(
  * under-damped), the mass tends to overshoot, and return, and overshoot again. Without any damping
  * (i.e. damping ratio = 0), the mass will oscillate forever.
  */
-internal class SpringSimulation(
-    var finalPosition: Float,
-) {
+internal class SpringSimulation(var finalPosition: Float) {
     // Natural frequency
     private var naturalFreq = sqrt(Spring.StiffnessVeryLow.toDouble())
 
@@ -89,10 +82,7 @@ internal class SpringSimulation(
         }
 
     /** ********************* Below are private APIs */
-    fun getAcceleration(
-        lastDisplacement: Float,
-        lastVelocity: Float,
-    ): Float {
+    fun getAcceleration(lastDisplacement: Float, lastVelocity: Float): Float {
         val adjustedDisplacement = lastDisplacement - finalPosition
 
         val k = naturalFreq * naturalFreq
@@ -130,10 +120,8 @@ internal class SpringSimulation(
             val coeffA = adjustedDisplacement - coeffB
             displacement = (coeffA * exp(gammaMinus * deltaT) + coeffB * exp(gammaPlus * deltaT))
             currentVelocity =
-                (
-                    coeffA * gammaMinus * exp(gammaMinus * deltaT) +
-                        coeffB * gammaPlus * exp(gammaPlus * deltaT)
-                )
+                (coeffA * gammaMinus * exp(gammaMinus * deltaT) +
+                    coeffB * gammaPlus * exp(gammaPlus * deltaT))
         } else if (dampingRatio == 1.0f) {
             // Critically damped
             val coeffA = adjustedDisplacement
@@ -150,13 +138,9 @@ internal class SpringSimulation(
             val dFdT = dampedFreq * deltaT
             displacement = (exp(r * deltaT) * ((cosCoeff * cos(dFdT) + sinCoeff * sin(dFdT))))
             currentVelocity =
-                (
-                    displacement * r +
-                        (
-                            exp(r * deltaT) *
-                                ((-dampedFreq * cosCoeff * sin(dFdT) + dampedFreq * sinCoeff * cos(dFdT)))
-                        )
-                )
+                (displacement * r +
+                    (exp(r * deltaT) *
+                        ((-dampedFreq * cosCoeff * sin(dFdT) + dampedFreq * sinCoeff * cos(dFdT)))))
         }
 
         val newValue = (displacement + finalPosition).toFloat()

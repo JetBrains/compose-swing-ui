@@ -30,7 +30,6 @@ public interface TwoWayConverter<T, V : AnimationVector> {
      * type T).
      */
     public val convertToVector: (T) -> V
-
     /**
      * Defines how to convert a Vector type (i.e. [AnimationVector1D], [AnimationVector2D],
      * [AnimationVector3D] or [AnimationVector4D], depends on the dimensions of type T) back to type
@@ -57,11 +56,8 @@ private class TwoWayConverterImpl<T, V : AnimationVector>(
     override val convertFromVector: (V) -> T,
 ) : TwoWayConverter<T, V>
 
-internal inline fun lerp(
-    start: Float,
-    stop: Float,
-    fraction: Float,
-) = (start * (1 - fraction) + stop * fraction)
+internal inline fun lerp(start: Float, stop: Float, fraction: Float) =
+    (start * (1 - fraction) + stop * fraction)
 
 /** A [TwoWayConverter] that converts [Float] from and to [AnimationVector1D] */
 public val Float.Companion.VectorConverter: TwoWayConverter<Float, AnimationVector1D>

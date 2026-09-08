@@ -14,22 +14,21 @@
  * limitations under the License.
  */
 
-// Adapted from androidx.compose.animation.core.InfiniteAnimationPolicy for compose-swing-ui's vendored
-// animation-core: the policy looked up is swing-ui's InfiniteAnimationPolicy rather than compose-ui's.
-// Sourced from compose-multiplatform-core.
+// Adapted from androidx.compose.animation.core.InfiniteAnimationPolicy for compose-swing-ui's
+// vendored animation-core: the policy looked up is swing-ui's InfiniteAnimationPolicy rather than
+// compose-ui's. Sourced from AndroidX (Jetpack Compose 1.12.0).
 
 package org.jetbrains.compose.swing.animation.core
 
 import androidx.compose.runtime.withFrameMillis
 import androidx.compose.runtime.withFrameNanos
+import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.coroutineContext
 import org.jetbrains.compose.swing.core.InfiniteAnimationPolicy
 
 /**
- * Runs [onFrame] on the next animation frame, suspending on the frame clock of the calling coroutine
- * context (in compose-swing-ui that is the per-window Swing frame clock). Behaves like
- * [withFrameNanos], except that it applies the [InfiniteAnimationPolicy] the calling context carries,
- * if it carries one. This is the entry point used by infinite animations.
+ * Like [withFrameNanos], but applies the [InfiniteAnimationPolicy] from the calling
+ * [CoroutineContext] if there is one.
  */
 public suspend fun <R> withInfiniteAnimationFrameNanos(onFrame: (frameTimeNanos: Long) -> R): R =
     when (val policy = coroutineContext[InfiniteAnimationPolicy]) {
@@ -38,9 +37,10 @@ public suspend fun <R> withInfiniteAnimationFrameNanos(onFrame: (frameTimeNanos:
     }
 
 /**
- * Like [withInfiniteAnimationFrameNanos], but with the frame time expressed in milliseconds. Behaves
- * like [withFrameMillis].
+ * Like [withFrameMillis], but applies the [InfiniteAnimationPolicy] from the calling
+ * [CoroutineContext] if there is one.
  */
 @Suppress("UnnecessaryLambdaCreation")
-public suspend inline fun <R> withInfiniteAnimationFrameMillis(crossinline onFrame: (frameTimeMillis: Long) -> R): R =
-    withInfiniteAnimationFrameNanos { onFrame(it / 1_000_000L) }
+public suspend inline fun <R> withInfiniteAnimationFrameMillis(
+    crossinline onFrame: (frameTimeMillis: Long) -> R
+): R = withInfiniteAnimationFrameNanos { onFrame(it / 1_000_000L) }

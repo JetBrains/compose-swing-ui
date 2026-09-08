@@ -232,9 +232,12 @@ class PhysicsAnimationTest {
             VectorizedSpringSpec<AnimationVector3D>(
                 visibilityThreshold = converter.convertToVector(ClassToAnimate(1f, 2f, 3f))
             )
-        val floatAnimation1 = VectorizedSpringSpec<AnimationVector1D>(visibilityThreshold = AnimationVector(1f))
-        val floatAnimation2 = VectorizedSpringSpec<AnimationVector1D>(visibilityThreshold = AnimationVector(2f))
-        val floatAnimation3 = VectorizedSpringSpec<AnimationVector1D>(visibilityThreshold = AnimationVector(3f))
+        val floatAnimation1 =
+            VectorizedSpringSpec<AnimationVector1D>(visibilityThreshold = AnimationVector(1f))
+        val floatAnimation2 =
+            VectorizedSpringSpec<AnimationVector1D>(visibilityThreshold = AnimationVector(2f))
+        val floatAnimation3 =
+            VectorizedSpringSpec<AnimationVector1D>(visibilityThreshold = AnimationVector(3f))
 
         val duration =
             springVectorAnimation.getDurationMillis(

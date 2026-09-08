@@ -27,7 +27,6 @@ public enum class AnimationEndReason {
      * remaining velocity can be obtained via [AnimationResult].
      */
     BoundReached,
-
     /** Animation has finished successfully without any interruption. */
     Finished,
 }

@@ -16,13 +16,13 @@
 
 package org.jetbrains.compose.swing.animation.core
 
-import org.jetbrains.compose.swing.animation.core.ArcMode.Companion.ArcAbove
-import org.jetbrains.compose.swing.animation.core.ArcMode.Companion.ArcBelow
-import org.jetbrains.compose.swing.animation.core.ArcMode.Companion.ArcLinear
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
+import org.jetbrains.compose.swing.animation.core.ArcMode.Companion.ArcAbove
+import org.jetbrains.compose.swing.animation.core.ArcMode.Companion.ArcBelow
+import org.jetbrains.compose.swing.animation.core.ArcMode.Companion.ArcLinear
 
 /** Mostly tests some mathematical assumptions about arcs. */
 @Suppress("JoinDeclarationAndAssignment") // Looks kinda messy

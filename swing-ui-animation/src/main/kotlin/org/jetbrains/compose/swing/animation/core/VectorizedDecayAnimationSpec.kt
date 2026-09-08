@@ -48,11 +48,7 @@ public interface VectorizedDecayAnimationSpec<V : AnimationVector> {
      * @param initialValue The initialValue value of the animation
      * @param initialVelocity The initialValue velocity of the animation
      */
-    public fun getValueFromNanos(
-        playTimeNanos: Long,
-        initialValue: V,
-        initialVelocity: V,
-    ): V
+    public fun getValueFromNanos(playTimeNanos: Long, initialValue: V, initialVelocity: V): V
 
     /**
      * Returns the duration of the decay animation, in nanoseconds.
@@ -61,10 +57,7 @@ public interface VectorizedDecayAnimationSpec<V : AnimationVector> {
      * @param initialVelocity initialValue velocity of the animation
      */
     @Suppress("MethodNameUnits")
-    public fun getDurationNanos(
-        initialValue: V,
-        initialVelocity: V,
-    ): Long
+    public fun getDurationNanos(initialValue: V, initialVelocity: V): Long
 
     /**
      * Returns the velocity of the animation at the given time.
@@ -73,11 +66,7 @@ public interface VectorizedDecayAnimationSpec<V : AnimationVector> {
      * @param initialValue The initialValue value of the animation
      * @param initialVelocity The initialValue velocity of the animation
      */
-    public fun getVelocityFromNanos(
-        playTimeNanos: Long,
-        initialValue: V,
-        initialVelocity: V,
-    ): V
+    public fun getVelocityFromNanos(playTimeNanos: Long, initialValue: V, initialVelocity: V): V
 
     /**
      * Returns the target value of the animation based on the initial condition of the animation (
@@ -86,8 +75,5 @@ public interface VectorizedDecayAnimationSpec<V : AnimationVector> {
      * @param initialValue The initial value of the animation
      * @param initialVelocity The initial velocity of the animation
      */
-    public fun getTargetValue(
-        initialValue: V,
-        initialVelocity: V,
-    ): V
+    public fun getTargetValue(initialValue: V, initialVelocity: V): V
 }

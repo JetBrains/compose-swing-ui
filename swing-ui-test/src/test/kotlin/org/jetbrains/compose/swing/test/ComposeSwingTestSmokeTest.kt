@@ -10,6 +10,8 @@ import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.text.TextField
+import org.jetbrains.compose.swing.core.MotionDurationScale
+import org.jetbrains.compose.swing.core.SwingUiSettings
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.interaction.performTextReplacement
@@ -22,6 +24,7 @@ import javax.swing.SwingUtilities
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 class ComposeSwingTestSmokeTest {
@@ -158,4 +161,33 @@ class ComposeSwingTestSmokeTest {
             }
         }
     }
+
+    @Test
+    fun effectsInheritTheProcessMotionDurationScale() = runComposeSwingTest {
+        var observed: MotionDurationScale? = null
+        setContent {
+            LaunchedEffect(Unit) { observed = coroutineContext[MotionDurationScale] }
+        }
+        awaitIdle()
+
+        assertSame(SwingUiSettings.motionDurationScale, observed)
+    }
+
+    @Test
+    fun effectContextMotionDurationScaleOverridesTheProcessSetting() {
+        val override = FixedMotionDurationScale(0f)
+        var observed: MotionDurationScale? = null
+        runComposeSwingTest(effectContext = override) {
+            setContent {
+                LaunchedEffect(Unit) { observed = coroutineContext[MotionDurationScale] }
+            }
+            awaitIdle()
+
+            assertSame(override, observed)
+        }
+    }
 }
+
+private class FixedMotionDurationScale(
+    override val scaleFactor: Float,
+) : MotionDurationScale

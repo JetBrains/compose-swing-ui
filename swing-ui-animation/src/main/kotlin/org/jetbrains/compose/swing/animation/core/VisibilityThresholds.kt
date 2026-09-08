@@ -24,12 +24,6 @@ package org.jetbrains.compose.swing.animation.core
 public val Int.Companion.VisibilityThreshold: Int
     get() = 1
 
-// The floats coming out of this map are fed to APIs that expect objects (generics), so it's
-// better to store them as boxed floats here instead of causing unboxing/boxing every time
-// the values are read out and forwarded to other APIs
 @Suppress("PrimitiveInCollection")
 internal val VisibilityThresholdMap: Map<TwoWayConverter<*, *>, Float> =
-    mapOf(
-        Int.VectorConverter to 1f,
-        Float.VectorConverter to 0.01f,
-    )
+    mapOf(Int.VectorConverter to 1f, Float.VectorConverter to 0.01f)
