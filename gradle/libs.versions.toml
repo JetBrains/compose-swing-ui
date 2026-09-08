@@ -27,6 +27,7 @@ androidxTracing = { module = "androidx.tracing:tracing", version.ref = "androidx
 composeRuntimeLint = { module = "androidx.compose.runtime:runtime-lint", version.ref = "compose" }
 composeRulesDetekt = { module = "io.nlopez.compose.rules:detekt", version.ref = "composeRules" }
 composeRuntime = { module = "androidx.compose.runtime:runtime", version.ref = "compose" }
+composeRuntimeSaveable = { module = "androidx.compose.runtime:runtime-saveable", version.ref = "compose" }
 detekt-api = { module = "dev.detekt:detekt-api", version.ref = "detekt" }
 detekt-gradle-plugin = { module = "dev.detekt:detekt-gradle-plugin", version.ref = "detekt" }
 detekt-test = { module = "dev.detekt:detekt-test", version.ref = "detekt" }

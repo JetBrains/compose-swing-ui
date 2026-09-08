@@ -122,7 +122,8 @@ public sealed class ExitTransition {
 
     /**
      * Combines this transition with [exit] into one that runs both at the same time. When both define
-     * the same effect, such as two fades, [exit]'s configuration wins.
+     * the same effect, such as two fades, [exit]'s configuration wins. Combining with
+     * `KeepUntilTransitionsFinished` holds in either order.
      *
      * @param exit the transition to run alongside this one.
      * @return the combined transition.
@@ -163,8 +164,8 @@ public sealed class ExitTransition {
  * @property scale how the content is scaled within the space it is given, or `null` where it is not.
  * @property veil how the scrim over the content is colored, or `null` where there is none.
  * @property hold whether the content stays composed after its own exit ends, until the whole transition
- *     has finished. Only a container that swaps between contents honors it; `false` for every enter and
- *     every factory-built exit.
+ *     has finished. Only an [AnimatedContent] honors it; `false` for every enter and every factory-built
+ *     exit.
  */
 @Immutable
 internal class EnterExitTransitionConfig(

@@ -49,6 +49,7 @@ dependencies {
     testImplementation(testFixtures(project(":swing-ui")))
     testImplementation(kotlin("test"))
     testImplementation(libs.kotlinxCoroutinesTest)
+    testImplementation(libs.composeRuntimeSaveable)
 }
 
 // Upstream's tests use these markers without opting in because they live in the declaring module.

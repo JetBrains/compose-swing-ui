@@ -64,6 +64,7 @@ import java.awt.geom.Point2D
  * @property block how the content is transformed, which [update] replaces; `null` by default, which leaves
  *     every property to the transition.
  * @see DeferredAnimatedVisibility
+ * @see MutableContentTransform
  */
 @ExperimentalDeferredTransitionApi
 public class MutableTransform(
@@ -223,8 +224,9 @@ internal class SharedMutableTransformState {
         }
 
     /**
-     * The last transform that drove a phase, which the handoff reads its velocity from: the container
-     * drops [mutableData] when the phase ends, one composition before the next transition is set up.
+     * The last transform that drove a phase, which the handoff reads its velocity from: an
+     * [AnimatedContent] drops [mutableData] when the phase ends, one composition before the next
+     * transition is set up.
      */
     private var lastMutableData: MutableTransform? = null
 

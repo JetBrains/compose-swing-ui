@@ -25,13 +25,19 @@ KDoc.
 ## Animating a composable
 
 `AnimatedVisibility` runs content through an enter and an exit transition as a boolean flips.
-Transitions combine with `+`.
+`AnimatedContent` settles on a target state, running the content it leaves out while the content it
+moves to runs in, and traveling between their sizes. `Crossfade` fades between the contents of its
+states and animates no size. Transitions combine with `+`.
 
 ```kotlin
 AnimatedVisibility(visible = expanded, enter = fadeIn() + expandVertically()) {
     Label(text = "details")
 }
 ```
+
+`AnimatedContent` and `Crossfade` compose each visible state's content separately. Use the state passed
+to the content lambda to choose what to show, so outgoing content keeps its own state while it leaves.
+For `AnimatedContent`, `contentKey` identifies states that should reuse the same content.
 
 The content is laid out by a Foundation layout, so it takes `fillMaxWidth` or `fillMaxHeight` to fill
 the container. `SwingModifier.animateEnterExit` gives one part of the content an enter and an exit of its

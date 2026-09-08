@@ -30,8 +30,8 @@ import org.jetbrains.compose.swing.foundation.graphics.TransformOrigin
  *
  * A scale changes how the content is painted, not its layout size. Combine it with [expandIn] to animate the
  * layout size too. Under a Foundation parent, content scaled above `1f` paints past the container unless the
- * transition also changes its size with an [expandIn] or [shrinkOut] that clips. Under any other parent, the
- * container's bounds clip it.
+ * transition also changes its size with an [expandIn] or [shrinkOut] that clips, or an [AnimatedContent] clips it
+ * with its [SizeTransform]. Under any other parent, the container's bounds clip it.
  *
  * @param animationSpec how the scale travels, a medium-low stiffness spring by default.
  * @param initialScale the scale the content starts at, `0f` by default. Any value is accepted; a
