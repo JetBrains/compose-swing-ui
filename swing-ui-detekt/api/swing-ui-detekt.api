@@ -57,3 +57,15 @@ public final class org/jetbrains/compose/swing/detekt/UnheldColumnComparator : d
 	public fun visitCallExpression (Lorg/jetbrains/kotlin/psi/KtCallExpression;)V
 }
 
+public final class org/jetbrains/compose/swing/detekt/UnusedAnimatedContentTargetState : dev/detekt/api/Rule {
+	public fun <init> (Ldev/detekt/api/Config;)V
+	public fun getRuleName ()Ldev/detekt/api/RuleName;
+	public fun visitCallExpression (Lorg/jetbrains/kotlin/psi/KtCallExpression;)V
+}
+
+public final class org/jetbrains/compose/swing/detekt/UnusedTransitionTargetState : dev/detekt/api/Rule {
+	public fun <init> (Ldev/detekt/api/Config;)V
+	public fun getRuleName ()Ldev/detekt/api/RuleName;
+	public fun visitCallExpression (Lorg/jetbrains/kotlin/psi/KtCallExpression;)V
+}
+

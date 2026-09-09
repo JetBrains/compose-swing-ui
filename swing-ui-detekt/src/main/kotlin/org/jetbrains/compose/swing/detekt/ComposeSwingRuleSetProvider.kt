@@ -8,7 +8,8 @@ import dev.detekt.api.RuleSetProvider
 
 /**
  * The rules this library contributes to detekt: how a `SwingModifier` is declared, taken and passed on,
- * and what a declaration hands a component that adopts it by identity.
+ * what a declaration hands a component that adopts it by identity, and whether animation lambdas use
+ * their target state.
  */
 public class ComposeSwingRuleSetProvider : RuleSetProvider {
     override val ruleSetId: RuleSetId = RuleSetId("compose-swing")
@@ -41,6 +42,12 @@ public class ComposeSwingRuleSetProvider : RuleSetProvider {
                     },
                     RuleName("UnheldColumnComparator") to { config: Config ->
                         UnheldColumnComparator(config)
+                    },
+                    RuleName("UnusedAnimatedContentTargetState") to { config: Config ->
+                        UnusedAnimatedContentTargetState(config)
+                    },
+                    RuleName("UnusedTransitionTargetState") to { config: Config ->
+                        UnusedTransitionTargetState(config)
                     },
                 ),
         )

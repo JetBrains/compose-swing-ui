@@ -16,6 +16,8 @@ adds one line rather than two.
 | `SwingModifierUnreferencedReceiver` | a factory that builds a fresh chain and never reaches the one it was given |
 | `SwingModifierThen` | `then` handed a factory that takes its receiver implicitly, chaining it twice |
 | `UnheldColumnComparator` | a table column given a comparator built where the column is declared, which sorts the rows again on every pass |
+| `UnusedTransitionTargetState` | the state-to-value lambda of `animateValue`, `animateFloat`, `animateInt` or `animateColor` that never reads the state it is handed, so every state animates toward one value |
+| `UnusedAnimatedContentTargetState` | an `AnimatedContent` or `Crossfade` content or content-key lambda that never reads the state it is handed, so the two states share content |
 
 `ModifierNodeInspectableProperties` is ported from Android Lint's
 `ModifierNodeInspectablePropertiesDetector` and redistributed under the Apache License, Version 2.0,

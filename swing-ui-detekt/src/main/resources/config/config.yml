@@ -25,6 +25,10 @@ compose-swing:
     active: true
   UnheldColumnComparator:
     active: true
+  UnusedAnimatedContentTargetState:
+    active: true
+  UnusedTransitionTargetState:
+    active: true
 
 compose-swing-internal:
   PreferImportsOverFqn:
