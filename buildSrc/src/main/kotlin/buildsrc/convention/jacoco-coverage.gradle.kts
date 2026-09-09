@@ -36,6 +36,7 @@ tasks.named("test") {
 
 tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
     dependsOn(tasks.named("jacocoTestReport"))
+    executionData.setFrom(testExecutionData)
     violationRules {
         rule {
             limit {

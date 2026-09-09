@@ -5,8 +5,8 @@ package org.jetbrains.compose.swing.components.layout
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import org.jetbrains.compose.swing.constants.HorizontalScrollbarPolicy
-import org.jetbrains.compose.swing.constants.VerticalScrollbarPolicy
+import org.jetbrains.compose.swing.annotations.HorizontalScrollbarPolicy
+import org.jetbrains.compose.swing.annotations.VerticalScrollbarPolicy
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.property
 import org.jetbrains.compose.swing.node.SwingNode

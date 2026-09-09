@@ -1,7 +1,6 @@
 package org.jetbrains.compose.swing.components.layout
 
 import androidx.compose.runtime.Composable
-import org.jetbrains.compose.swing.components.Canvas
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
@@ -10,6 +9,7 @@ import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
 import java.awt.Dimension
+import javax.swing.BoxLayout
 import javax.swing.JComponent
 import javax.swing.JPanel
 import javax.swing.JScrollPane
@@ -31,10 +31,12 @@ import kotlin.test.assertTrue
  */
 class ScrollableDefaultsTest {
     @Test
-    fun aRowScrollsByALineOfItsOwnFont() = assertScrollsByALineOfItsOwnFont { Row(it) {} }
+    fun aRowScrollsByALineOfItsOwnFont() = assertScrollsByALineOfItsOwnFont {
+        Panel(PanelLayout.Box(axis = BoxLayout.X_AXIS), it) {}
+    }
 
     @Test
-    fun aColumnScrollsByALineOfItsOwnFont() = assertScrollsByALineOfItsOwnFont { Column(it) {} }
+    fun aColumnScrollsByALineOfItsOwnFont() = assertScrollsByALineOfItsOwnFont { Panel(PanelLayout.Box(), it) {} }
 
     @Test
     fun aBoxPanelScrollsByALineOfItsOwnFont() = assertScrollsByALineOfItsOwnFont { Panel(PanelLayout.Box(), it) {} }
@@ -62,7 +64,7 @@ class ScrollableDefaultsTest {
         assertScrollsByALineOfItsOwnFont { Canvas(modifier = it, onDraw = { _, _, _ -> }) }
 
     @Test
-    fun aColumnScrollsByAViewportPagePerBlock() = assertScrollsByAViewportPage { Column(it) {} }
+    fun aColumnScrollsByAViewportPagePerBlock() = assertScrollsByAViewportPage { Panel(PanelLayout.Box(), it) {} }
 
     @Test
     fun aCanvasScrollsByAViewportPagePerBlock() =
@@ -91,7 +93,7 @@ class ScrollableDefaultsTest {
     fun aWheelNotchOverAContainerScrollsWholeLines() = runComposeSwingTest {
         setContent {
             ScrollPane(modifier = SwingModifier.preferredSize(PANE_WIDTH, PANE_HEIGHT)) {
-                Column(SwingModifier.viewport().preferredSize(CONTENT_NARROW, CONTENT_LONG)) {}
+                Panel(PanelLayout.Box(), SwingModifier.viewport().preferredSize(CONTENT_NARROW, CONTENT_LONG)) {}
             }
         }
 
@@ -118,8 +120,11 @@ class ScrollableDefaultsTest {
     @Test
     fun aContainerOutsideAViewportTracksNothing() = runComposeSwingTest {
         setContent {
-            Column {
-                Row(SwingModifier.preferredSize(CONTENT_NARROW, CONTENT_NARROW)) {
+            Panel(PanelLayout.Box()) {
+                Panel(
+                    PanelLayout.Box(axis = BoxLayout.X_AXIS),
+                    SwingModifier.preferredSize(CONTENT_NARROW, CONTENT_NARROW),
+                ) {
                     Label(text = "child")
                 }
             }
@@ -187,7 +192,10 @@ class ScrollableDefaultsTest {
     private fun assertLaidOutAsARawPaneWould(contentSize: Dimension) = runComposeSwingTest {
         setContent {
             ScrollPane(modifier = SwingModifier.preferredSize(PANE_WIDTH, PANE_HEIGHT)) {
-                Column(SwingModifier.viewport().preferredSize(contentSize.width, contentSize.height)) {}
+                Panel(
+                    PanelLayout.Box(),
+                    SwingModifier.viewport().preferredSize(contentSize.width, contentSize.height),
+                ) {}
             }
         }
 

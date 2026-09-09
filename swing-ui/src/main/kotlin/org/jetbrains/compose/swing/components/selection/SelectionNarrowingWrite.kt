@@ -1,6 +1,6 @@
 package org.jetbrains.compose.swing.components.selection
 
-import org.jetbrains.compose.swing.constants.SelectionMode
+import org.jetbrains.compose.swing.annotations.SelectionMode
 import org.jetbrains.compose.swing.core.dispatchToCaller
 import org.jetbrains.compose.swing.node.MirrorState
 import javax.swing.JList

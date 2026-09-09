@@ -9,7 +9,7 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.button.RadioButton
 import org.jetbrains.compose.swing.components.button.ToggleButton
-import org.jetbrains.compose.swing.components.layout.Column
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.menu.CheckBoxMenuItem
 import org.jetbrains.compose.swing.components.menu.RadioButtonMenuItem
 import org.jetbrains.compose.swing.composeMenu
@@ -47,7 +47,7 @@ class ButtonGroupModifierTest {
         lateinit var group: ButtonGroup
         setContent {
             group = remember { ButtonGroup() }
-            Column(modifier = SwingModifier.name(label)) {
+            Panel(modifier = SwingModifier.name(label)) {
                 listOf("Small", "Medium", "Large").forEachIndexed { index, text ->
                     RadioButton(
                         text = text,
@@ -80,7 +80,7 @@ class ButtonGroupModifierTest {
     fun aPickTheCallerDoesNotAdoptDoesNotStand() = runComposeSwingTest {
         setContent {
             val group = remember { ButtonGroup() }
-            Column {
+            Panel {
                 RadioButton(
                     text = "A",
                     selected = true,
@@ -111,7 +111,7 @@ class ButtonGroupModifierTest {
         var choice by mutableStateOf("A")
         setContent {
             val group = remember { ButtonGroup() }
-            Column {
+            Panel {
                 RadioButton(
                     text = "A",
                     selected = choice == "A",
@@ -145,7 +145,7 @@ class ButtonGroupModifierTest {
         val reports = mutableListOf<Pair<String, Boolean>>()
         setContent {
             val group = remember { ButtonGroup() }
-            Column {
+            Panel {
                 listOf("A", "B").forEach { text ->
                     RadioButton(
                         text = text,
@@ -190,7 +190,7 @@ class ButtonGroupModifierTest {
         val reports = mutableListOf<Pair<String, Boolean>>()
         setContent {
             val group = remember { ButtonGroup() }
-            Column {
+            Panel {
                 listOf("Metric", "Imperial").forEach { text ->
                     CheckBox(
                         text = text,
@@ -315,7 +315,7 @@ class ButtonGroupModifierTest {
         val reports = mutableListOf<Pair<String, Boolean>>()
         setContent {
             val group = remember { ButtonGroup() }
-            Column {
+            Panel {
                 ToggleButton(
                     text = "Bold",
                     selected = true,
@@ -354,7 +354,7 @@ class ButtonGroupModifierTest {
         setContent {
             val leftGroup = remember { ButtonGroup() }
             val rightGroup = remember { ButtonGroup() }
-            Column {
+            Panel {
                 listOf("L0", "L1").forEachIndexed { index, text ->
                     RadioButton(
                         text = text,
@@ -392,7 +392,7 @@ class ButtonGroupModifierTest {
         setContent {
             first = remember { ButtonGroup() }
             second = remember { ButtonGroup() }
-            Column {
+            Panel {
                 RadioButton(
                     text = "A",
                     selected = false,
@@ -428,7 +428,7 @@ class ButtonGroupModifierTest {
         lateinit var group: ButtonGroup
         setContent {
             group = remember { ButtonGroup() }
-            Column {
+            Panel {
                 RadioButton(
                     text = "Kept",
                     selected = false,

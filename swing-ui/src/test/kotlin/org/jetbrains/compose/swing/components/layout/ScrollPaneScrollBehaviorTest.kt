@@ -135,7 +135,7 @@ class ScrollPaneScrollBehaviorTest {
     fun aContainerScrollsByALineOfItsOwnFontWithoutDeclaringOne() = runComposeSwingTest {
         setContent {
             ScrollPane(modifier = SwingModifier.preferredSize(PANE_WIDTH, PANE_HEIGHT)) {
-                Column(SwingModifier.viewport()) {
+                Panel(PanelLayout.Box(), SwingModifier.viewport()) {
                     Label(text = "Body", modifier = SwingModifier.preferredSize(CONTENT_SHORT_SIDE, CONTENT_LONG_SIDE))
                 }
             }
@@ -160,7 +160,7 @@ class ScrollPaneScrollBehaviorTest {
     fun aDeclaredAnswerLeavesTheContentsOwnUndeclaredOnesAlone() = runComposeSwingTest {
         setContent {
             ScrollPane(modifier = SwingModifier.preferredSize(PANE_WIDTH, PANE_HEIGHT)) {
-                Column(SwingModifier.viewport(blockIncrement = BLOCK_INCREMENT)) {
+                Panel(PanelLayout.Box(), SwingModifier.viewport(blockIncrement = BLOCK_INCREMENT)) {
                     Label(text = "Body", modifier = SwingModifier.preferredSize(CONTENT_SHORT_SIDE, CONTENT_LONG_SIDE))
                 }
             }

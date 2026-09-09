@@ -4,7 +4,7 @@
 package org.jetbrains.compose.swing.components.text
 
 import androidx.compose.runtime.Composable
-import org.jetbrains.compose.swing.constants.FocusLostBehavior
+import org.jetbrains.compose.swing.annotations.FocusLostBehavior
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.propertyChangeListener
 import org.jetbrains.compose.swing.node.MirrorState

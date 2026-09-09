@@ -27,6 +27,7 @@
             <option value="$PROJECT_DIR$/swing-ui" />
             <option value="$PROJECT_DIR$/swing-ui-animation" />
             <option value="$PROJECT_DIR$/swing-ui-detekt" />
+            <option value="$PROJECT_DIR$/swing-ui-foundation" />
             <option value="$PROJECT_DIR$/swing-ui-test" />
           </set>
         </option>

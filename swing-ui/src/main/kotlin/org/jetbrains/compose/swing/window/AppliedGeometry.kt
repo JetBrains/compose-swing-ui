@@ -1,6 +1,6 @@
 package org.jetbrains.compose.swing.window
 
-import org.jetbrains.compose.swing.constants.WindowExtendedState
+import org.jetbrains.compose.swing.annotations.WindowExtendedState
 import java.awt.Frame
 import java.awt.Point
 import java.awt.Window

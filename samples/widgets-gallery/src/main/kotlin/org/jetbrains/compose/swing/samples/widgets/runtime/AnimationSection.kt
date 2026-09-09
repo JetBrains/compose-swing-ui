@@ -17,13 +17,13 @@ import org.jetbrains.compose.swing.animation.core.infiniteRepeatable
 import org.jetbrains.compose.swing.animation.core.rememberInfiniteTransition
 import org.jetbrains.compose.swing.animation.core.spring
 import org.jetbrains.compose.swing.animation.core.tween
-import org.jetbrains.compose.swing.components.Canvas
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.ProgressBar
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.button.ToggleButton
-import org.jetbrains.compose.swing.components.layout.ColumnScope
 import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.foundation.Canvas
+import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.lineBorder
 import org.jetbrains.compose.swing.modifier.layout.preferredSize

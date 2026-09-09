@@ -3,7 +3,7 @@
 
 package org.jetbrains.compose.swing.modifier.interaction
 
-import org.jetbrains.compose.swing.constants.CaretUpdatePolicy
+import org.jetbrains.compose.swing.annotations.CaretUpdatePolicy
 import org.jetbrains.compose.swing.modifier.RestorePolicy
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import java.beans.PropertyChangeEvent

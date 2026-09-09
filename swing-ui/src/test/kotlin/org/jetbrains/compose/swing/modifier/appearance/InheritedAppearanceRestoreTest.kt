@@ -3,9 +3,9 @@ package org.jetbrains.compose.swing.modifier.appearance
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.components.Canvas
-import org.jetbrains.compose.swing.components.layout.Column
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Color
 import java.awt.Cursor
@@ -28,15 +28,16 @@ class InheritedAppearanceRestoreTest {
         val inherited = Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR)
         var styled by mutableStateOf(false)
         setContent {
-            Column(modifier = SwingModifier.cursor(inherited)) {
-                Canvas(
+            Panel(modifier = SwingModifier.cursor(inherited)) {
+                SwingNode(
+                    factory = { object : JComponent() {} },
                     modifier =
                         if (styled) {
                             SwingModifier.testTag("surface").cursor(declared)
                         } else {
                             SwingModifier.testTag("surface")
                         },
-                ) { _, _, _ -> }
+                )
             }
         }
         val surface = onNodeWithTag("surface")
@@ -59,15 +60,16 @@ class InheritedAppearanceRestoreTest {
         val inherited = Font("Serif", Font.PLAIN, 15)
         var styled by mutableStateOf(false)
         setContent {
-            Column(modifier = SwingModifier.font(inherited)) {
-                Canvas(
+            Panel(modifier = SwingModifier.font(inherited)) {
+                SwingNode(
+                    factory = { object : JComponent() {} },
                     modifier =
                         if (styled) {
                             SwingModifier.testTag("surface").font(declared)
                         } else {
                             SwingModifier.testTag("surface")
                         },
-                ) { _, _, _ -> }
+                )
             }
         }
         val surface = onNodeWithTag("surface")
@@ -87,15 +89,16 @@ class InheritedAppearanceRestoreTest {
         val inherited = Color(200, 180, 160)
         var styled by mutableStateOf(false)
         setContent {
-            Column(modifier = SwingModifier.background(inherited)) {
-                Canvas(
+            Panel(modifier = SwingModifier.background(inherited)) {
+                SwingNode(
+                    factory = { object : JComponent() {} },
                     modifier =
                         if (styled) {
                             SwingModifier.testTag("surface").background(declared)
                         } else {
                             SwingModifier.testTag("surface")
                         },
-                ) { _, _, _ -> }
+                )
             }
         }
         val surface = onNodeWithTag("surface")
@@ -122,15 +125,16 @@ class InheritedAppearanceRestoreTest {
         val inherited = Color(200, 180, 160)
         var styled by mutableStateOf(false)
         setContent {
-            Column(modifier = SwingModifier.foreground(inherited)) {
-                Canvas(
+            Panel(modifier = SwingModifier.foreground(inherited)) {
+                SwingNode(
+                    factory = { object : JComponent() {} },
                     modifier =
                         if (styled) {
                             SwingModifier.testTag("surface").foreground(declared)
                         } else {
                             SwingModifier.testTag("surface")
                         },
-                ) { _, _, _ -> }
+                )
             }
         }
         val surface = onNodeWithTag("surface")

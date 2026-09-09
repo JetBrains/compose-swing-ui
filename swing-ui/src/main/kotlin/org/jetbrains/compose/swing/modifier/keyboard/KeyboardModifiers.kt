@@ -1,6 +1,6 @@
 package org.jetbrains.compose.swing.modifier.keyboard
 
-import org.jetbrains.compose.swing.constants.FocusCondition
+import org.jetbrains.compose.swing.annotations.FocusCondition
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.CallbackRegistration
 import org.jetbrains.compose.swing.modifier.listener.KEY

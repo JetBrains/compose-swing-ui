@@ -4,7 +4,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
-import org.jetbrains.compose.swing.components.Canvas
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.button.CheckBox
@@ -18,14 +17,11 @@ import org.jetbrains.compose.swing.modifier.accessibility.labelTarget
 import org.jetbrains.compose.swing.modifier.accessibility.mnemonic
 import org.jetbrains.compose.swing.modifier.accessibility.rememberLabelTarget
 import org.jetbrains.compose.swing.modifier.appearance.toolTip
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
-import java.awt.Dimension
 import java.awt.event.KeyEvent
-import javax.accessibility.AccessibleRole
 import javax.swing.JButton
 import javax.swing.JCheckBox
 import javax.swing.JLabel
@@ -230,15 +226,6 @@ class AccessibilityModifierTest {
         onNode(SwingMatcher.hasAccessibleName("Coordinate")).assert(SwingMatcher.isOfType<JLabel>())
         onNode(SwingMatcher.hasAccessibleDescription("The horizontal position"))
             .assert(SwingMatcher.isOfType<JLabel>())
-    }
-
-    @Test
-    fun canvasReportsIntrinsicCanvasRole() = runComposeSwingTest {
-        setContent {
-            Canvas(modifier = SwingModifier.preferredSize(Dimension(40, 40))) { _, _, _ -> }
-        }
-        // A drawing surface reports CANVAS by construction; a plain JComponent reports SWING_COMPONENT.
-        onAllNodes(SwingMatcher.hasAccessibleRole(AccessibleRole.CANVAS)).assertCountEquals(1)
     }
 
     @Test

@@ -1,6 +1,6 @@
 package org.jetbrains.compose.swing.components.layout
 
-import org.jetbrains.compose.swing.constants.ScrollPaneCorner
+import org.jetbrains.compose.swing.annotations.ScrollPaneCorner
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.slot
 import org.jetbrains.compose.swing.node.ChildPlacement

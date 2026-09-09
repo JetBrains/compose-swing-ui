@@ -6,6 +6,7 @@ plugins {
 
 dependencies {
     implementation(project(":swing-ui"))
+    implementation(project(":swing-ui-foundation"))
     implementation(project(":swing-ui-animation"))
     implementation(libs.androidxNavigation3Runtime)
 

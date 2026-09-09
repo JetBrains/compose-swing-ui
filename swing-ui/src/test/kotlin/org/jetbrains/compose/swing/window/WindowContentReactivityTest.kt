@@ -4,7 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.components.layout.Column
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Assumptions.assumeFalse
@@ -48,7 +48,7 @@ class WindowContentReactivityTest {
         var withExtra by mutableStateOf(false)
         setContent {
             Window(onCloseRequest = {}, title = "window-content-structure-test", visible = false) {
-                Column {
+                Panel {
                     Label(text = "window-always")
                     if (withExtra) Label(text = "window-extra")
                 }
@@ -95,7 +95,7 @@ class WindowContentReactivityTest {
         var withExtra by mutableStateOf(false)
         setContent {
             Dialog(onCloseRequest = {}, title = "dialog-content-structure-test", visible = false) {
-                Column {
+                Panel {
                     Label(text = "dialog-always")
                     if (withExtra) Label(text = "dialog-extra")
                 }

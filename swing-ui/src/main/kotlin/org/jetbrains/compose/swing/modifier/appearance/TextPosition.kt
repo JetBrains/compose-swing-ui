@@ -3,8 +3,8 @@
 
 package org.jetbrains.compose.swing.modifier.appearance
 
-import org.jetbrains.compose.swing.constants.HorizontalAlignment
-import org.jetbrains.compose.swing.constants.VerticalAlignment
+import org.jetbrains.compose.swing.annotations.HorizontalAlignment
+import org.jetbrains.compose.swing.annotations.VerticalAlignment
 import org.jetbrains.compose.swing.modifier.MultiTargetProperty
 import org.jetbrains.compose.swing.modifier.MultiTargetPropertyElement
 import org.jetbrains.compose.swing.modifier.SwingModifier

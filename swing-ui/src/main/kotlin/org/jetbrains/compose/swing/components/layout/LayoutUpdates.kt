@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.components.layout
 
+import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
 import java.awt.LayoutManager
 import javax.swing.JPanel
@@ -25,7 +26,8 @@ internal inline fun <reified L : LayoutManager, V> SwingNodeUpdater<out JPanel>.
  * Writes [value] to the panel's layout manager as [setOnLayout] does, but skips the pass that builds the
  * panel. Use it when the factory already built the manager from the same value.
  */
-internal inline fun <reified L : LayoutManager, V> SwingNodeUpdater<out JPanel>.updateLayout(
+@InternalSwingUiApi
+public inline fun <reified L : LayoutManager, V> SwingNodeUpdater<out JPanel>.updateLayout(
     value: V,
     crossinline block: L.(V) -> Unit,
 ): Unit =

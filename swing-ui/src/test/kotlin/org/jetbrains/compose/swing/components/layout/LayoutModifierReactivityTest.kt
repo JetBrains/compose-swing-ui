@@ -11,6 +11,7 @@ import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.onChild
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import javax.swing.BoxLayout
 import javax.swing.JComponent
 import javax.swing.JToolBar
 import kotlin.test.Test
@@ -57,6 +58,13 @@ class LayoutModifierReactivityTest {
     }
 
     @Test
+    fun aBoxFollowsItsModifier() = runComposeSwingTest {
+        assertTheModifierIsFollowed("Box") { modifier ->
+            Panel(PanelLayout.Box(), modifier = modifier) { Label("child") }
+        }
+    }
+
+    @Test
     fun aBoxPanelFollowsItsModifier() = runComposeSwingTest {
         assertTheModifierIsFollowed("PanelLayout.Box") { modifier ->
             Panel(PanelLayout.Box(), modifier = modifier) { Label("child") }
@@ -66,14 +74,14 @@ class LayoutModifierReactivityTest {
     @Test
     fun aColumnFollowsItsModifier() = runComposeSwingTest {
         assertTheModifierIsFollowed("Column") { modifier ->
-            Column(modifier = modifier) { Label("child") }
+            Panel(PanelLayout.Box(), modifier = modifier) { Label("child") }
         }
     }
 
     @Test
     fun aRowFollowsItsModifier() = runComposeSwingTest {
         assertTheModifierIsFollowed("Row") { modifier ->
-            Row(modifier = modifier) { Label("child") }
+            Panel(PanelLayout.Box(axis = BoxLayout.X_AXIS), modifier = modifier) { Label("child") }
         }
     }
 

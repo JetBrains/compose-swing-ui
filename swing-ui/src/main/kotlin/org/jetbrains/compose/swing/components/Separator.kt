@@ -4,7 +4,7 @@
 package org.jetbrains.compose.swing.components
 
 import androidx.compose.runtime.Composable
-import org.jetbrains.compose.swing.constants.Orientation
+import org.jetbrains.compose.swing.annotations.Orientation
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import javax.swing.JSeparator

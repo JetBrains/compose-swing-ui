@@ -18,6 +18,7 @@ import androidx.compose.runtime.*
 import org.jetbrains.compose.swing.components.*
 import org.jetbrains.compose.swing.components.button.*
 import org.jetbrains.compose.swing.components.layout.*
+import org.jetbrains.compose.swing.foundation.layout.*
 import org.jetbrains.compose.swing.components.menu.*
 import org.jetbrains.compose.swing.modifier.*
 import org.jetbrains.compose.swing.modifier.appearance.*
@@ -238,6 +239,7 @@ consume the libraries.
 
 Licensed under the Apache License, Version 2.0 - see [LICENSE](LICENSE).
 
-`swing-ui-animation` redistributes source code from the Android Open Source Project's Jetpack Compose
-`animation-core` under the same license, and `swing-ui-detekt` one of that project's Android Lint
-checks; see each module's `META-INF/NOTICE` and the per-file headers for attribution.
+`swing-ui-foundation` redistributes source code from the Android Open Source Project's Jetpack Compose
+`foundation-layout`, `swing-ui-animation` its `animation-core`, and `swing-ui-detekt` one of that
+project's Android Lint checks, all under the same license. See each module's `META-INF/NOTICE` and
+the per-file headers for attribution.

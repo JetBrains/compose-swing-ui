@@ -54,6 +54,7 @@ tasks.named("check") {
 
 dependencies {
     implementation(project(":swing-ui"))
+    implementation(project(":swing-ui-foundation"))
     implementation(project(":swing-ui-animation"))
     implementation(project(":swing-ui-test"))
     // The generated examples live in the main source set, where nothing runs them; the harness snippets

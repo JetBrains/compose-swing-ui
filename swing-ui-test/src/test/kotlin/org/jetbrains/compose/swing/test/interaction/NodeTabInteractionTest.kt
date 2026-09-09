@@ -4,7 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.components.layout.Column
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.TabbedPane
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.interaction.enabled
@@ -138,7 +138,7 @@ class NodeTabInteractionTest {
     fun aClickDrivesTheDeclaredSelectionThroughTheCaller() = runComposeSwingTest {
         var selected by mutableIntStateOf(0)
         setContent {
-            Column {
+            Panel {
                 // Rendered from the caller's state alone, so its text can only be the text of a frame
                 // the click settled: the strip's own index reads the same with or without one.
                 Label(text = "showing tab $selected")

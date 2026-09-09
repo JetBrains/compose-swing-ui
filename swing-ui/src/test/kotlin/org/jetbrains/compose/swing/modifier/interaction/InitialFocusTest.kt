@@ -6,7 +6,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.ExclusiveWindowSystem
 import org.jetbrains.compose.swing.assumeKeyboardFocusIsPossible
 import org.jetbrains.compose.swing.assumeWindowBecomesFocused
-import org.jetbrains.compose.swing.components.layout.Column
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
@@ -69,7 +69,7 @@ class InitialFocusTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         setContent {
             Window(onCloseRequest = {}, title = "initial-focus-routing-test") {
-                Column {
+                Panel {
                     TextField("first", onValueChange = {})
                     TextField("second", onValueChange = {}, modifier = SwingModifier.initialFocus())
                 }
@@ -89,7 +89,7 @@ class InitialFocusTest {
         runComposeSwingTest {
             setContent {
                 Window(onCloseRequest = {}, title = "initial-focus-test") {
-                    Column {
+                    Panel {
                         TextField("first", onValueChange = {})
                         TextField("second", onValueChange = {}, modifier = SwingModifier.initialFocus())
                     }
@@ -110,7 +110,7 @@ class InitialFocusTest {
         lateinit var moveToFirst: FocusRequester
         setContent {
             Window(onCloseRequest = {}, title = "initial-focus-reshow-test") {
-                Column {
+                Panel {
                     moveToFirst = rememberFocusRequester()
                     TextField("first", onValueChange = {}, modifier = SwingModifier.focusRequester(moveToFirst))
                     TextField("second", onValueChange = {}, modifier = SwingModifier.visible(shown).initialFocus())
@@ -147,7 +147,7 @@ class InitialFocusTest {
         lateinit var moveToFirst: FocusRequester
         setContent {
             Window(onCloseRequest = {}, title = "initial-focus-withdrawn-test") {
-                Column {
+                Panel {
                     moveToFirst = rememberFocusRequester()
                     TextField("first", onValueChange = {}, modifier = SwingModifier.focusRequester(moveToFirst))
                     // The declaration is made while the component is hidden, so it is still waiting for
@@ -188,7 +188,7 @@ class InitialFocusTest {
         lateinit var moveToFirst: FocusRequester
         setContent {
             Window(onCloseRequest = {}, title = "initial-focus-once-test") {
-                Column {
+                Panel {
                     moveToFirst = rememberFocusRequester()
                     TextField("first", onValueChange = {}, modifier = SwingModifier.focusRequester(moveToFirst))
                     // The declaring component's own chain carries the changing value, so the
@@ -223,7 +223,7 @@ class InitialFocusTest {
         var shown by mutableStateOf(false)
         setContent {
             Window(onCloseRequest = {}, title = "initial-focus-late-show-test") {
-                Column {
+                Panel {
                     TextField("first", onValueChange = {})
                     // Declared while hidden, so the declaration is still waiting for the component when
                     // the window opens: the focus it takes is taken on the component's own first showing

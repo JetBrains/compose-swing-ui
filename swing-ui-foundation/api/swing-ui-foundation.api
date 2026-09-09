@@ -1,0 +1,74 @@
+public final class org/jetbrains/compose/swing/foundation/FoundationKt {
+	public static final fun Canvas (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+}
+
+public final class org/jetbrains/compose/swing/foundation/layout/Alignment {
+	public static final field $stable I
+	public static final field INSTANCE Lorg/jetbrains/compose/swing/foundation/layout/Alignment;
+	public final fun getBottom ()Lorg/jetbrains/compose/swing/foundation/layout/Alignment$Vertical;
+	public final fun getCenterHorizontally ()Lorg/jetbrains/compose/swing/foundation/layout/Alignment$Horizontal;
+	public final fun getCenterVertically ()Lorg/jetbrains/compose/swing/foundation/layout/Alignment$Vertical;
+	public final fun getEnd ()Lorg/jetbrains/compose/swing/foundation/layout/Alignment$Horizontal;
+	public final fun getStart ()Lorg/jetbrains/compose/swing/foundation/layout/Alignment$Horizontal;
+	public final fun getTop ()Lorg/jetbrains/compose/swing/foundation/layout/Alignment$Vertical;
+}
+
+public abstract interface class org/jetbrains/compose/swing/foundation/layout/Alignment$Horizontal {
+	public abstract fun align (IILjava/awt/ComponentOrientation;)I
+}
+
+public abstract interface class org/jetbrains/compose/swing/foundation/layout/Alignment$Vertical {
+	public abstract fun align (II)I
+}
+
+public final class org/jetbrains/compose/swing/foundation/layout/Arrangement {
+	public static final field $stable I
+	public static final field INSTANCE Lorg/jetbrains/compose/swing/foundation/layout/Arrangement;
+	public final fun aligned (Lorg/jetbrains/compose/swing/foundation/layout/Alignment$Horizontal;)Lorg/jetbrains/compose/swing/foundation/layout/Arrangement$Horizontal;
+	public final fun aligned (Lorg/jetbrains/compose/swing/foundation/layout/Alignment$Vertical;)Lorg/jetbrains/compose/swing/foundation/layout/Arrangement$Vertical;
+	public final fun getBottom ()Lorg/jetbrains/compose/swing/foundation/layout/Arrangement$Vertical;
+	public final fun getCenter ()Lorg/jetbrains/compose/swing/foundation/layout/Arrangement$HorizontalOrVertical;
+	public final fun getEnd ()Lorg/jetbrains/compose/swing/foundation/layout/Arrangement$Horizontal;
+	public final fun getSpaceAround ()Lorg/jetbrains/compose/swing/foundation/layout/Arrangement$HorizontalOrVertical;
+	public final fun getSpaceBetween ()Lorg/jetbrains/compose/swing/foundation/layout/Arrangement$HorizontalOrVertical;
+	public final fun getSpaceEvenly ()Lorg/jetbrains/compose/swing/foundation/layout/Arrangement$HorizontalOrVertical;
+	public final fun getStart ()Lorg/jetbrains/compose/swing/foundation/layout/Arrangement$Horizontal;
+	public final fun getTop ()Lorg/jetbrains/compose/swing/foundation/layout/Arrangement$Vertical;
+	public final fun spacedBy (I)Lorg/jetbrains/compose/swing/foundation/layout/Arrangement$HorizontalOrVertical;
+	public final fun spacedBy (ILorg/jetbrains/compose/swing/foundation/layout/Alignment$Horizontal;)Lorg/jetbrains/compose/swing/foundation/layout/Arrangement$Horizontal;
+	public final fun spacedBy (ILorg/jetbrains/compose/swing/foundation/layout/Alignment$Vertical;)Lorg/jetbrains/compose/swing/foundation/layout/Arrangement$Vertical;
+}
+
+public abstract interface class org/jetbrains/compose/swing/foundation/layout/Arrangement$Horizontal {
+	public abstract fun arrange (I[ILjava/awt/ComponentOrientation;[I)V
+	public fun getSpacing ()I
+}
+
+public abstract interface class org/jetbrains/compose/swing/foundation/layout/Arrangement$HorizontalOrVertical : org/jetbrains/compose/swing/foundation/layout/Arrangement$Horizontal, org/jetbrains/compose/swing/foundation/layout/Arrangement$Vertical {
+	public fun getSpacing ()I
+}
+
+public abstract interface class org/jetbrains/compose/swing/foundation/layout/Arrangement$Vertical {
+	public abstract fun arrange (I[I[I)V
+	public fun getSpacing ()I
+}
+
+public abstract interface class org/jetbrains/compose/swing/foundation/layout/ColumnScope {
+	public abstract fun align (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/foundation/layout/Alignment$Horizontal;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public abstract fun fillWidth (Lorg/jetbrains/compose/swing/modifier/SwingModifier;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public abstract fun weight (Lorg/jetbrains/compose/swing/modifier/SwingModifier;FZ)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static synthetic fun weight$default (Lorg/jetbrains/compose/swing/foundation/layout/ColumnScope;Lorg/jetbrains/compose/swing/modifier/SwingModifier;FZILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+}
+
+public final class org/jetbrains/compose/swing/foundation/layout/FoundationLayoutKt {
+	public static final fun Column (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/foundation/layout/Arrangement$Vertical;Lorg/jetbrains/compose/swing/foundation/layout/Alignment$Horizontal;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+	public static final fun Row (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/foundation/layout/Arrangement$Horizontal;Lorg/jetbrains/compose/swing/foundation/layout/Alignment$Vertical;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+}
+
+public abstract interface class org/jetbrains/compose/swing/foundation/layout/RowScope {
+	public abstract fun align (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/foundation/layout/Alignment$Vertical;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public abstract fun fillHeight (Lorg/jetbrains/compose/swing/modifier/SwingModifier;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public abstract fun weight (Lorg/jetbrains/compose/swing/modifier/SwingModifier;FZ)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static synthetic fun weight$default (Lorg/jetbrains/compose/swing/foundation/layout/RowScope;Lorg/jetbrains/compose/swing/modifier/SwingModifier;FZILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+}
+

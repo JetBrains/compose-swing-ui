@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.components.layout
 
+import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import org.jetbrains.compose.swing.components.fillsViewport
 import org.jetbrains.compose.swing.components.scrollableLine
 import org.jetbrains.compose.swing.components.scrollablePage
@@ -10,7 +11,8 @@ import javax.swing.JPanel
 import javax.swing.Scrollable
 
 /** The panel behind every composable container: it answers a scroll pane for itself, see [scrollableLine]. */
-internal open class ScrollablePanel(
+@InternalSwingUiApi
+public open class ScrollablePanel(
     layout: LayoutManager? = null,
 ) : JPanel(layout),
     Scrollable {

@@ -9,7 +9,7 @@ import org.jetbrains.compose.swing.components.ComboBox
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.button.RadioButton
-import org.jetbrains.compose.swing.components.layout.Column
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.interaction.buttonGroup
 import org.jetbrains.compose.swing.test.interaction.performClick
@@ -73,7 +73,7 @@ class ItemListenerModifierTest {
             val group = remember { ButtonGroup() }
             val first = remember { ItemListener { reported += "A" to it.stateChange } }
             val second = remember { ItemListener { reported += "B" to it.stateChange } }
-            Column {
+            Panel {
                 RadioButton(
                     text = "A",
                     selected = choice == 0,

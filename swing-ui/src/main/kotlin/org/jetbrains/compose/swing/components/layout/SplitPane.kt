@@ -4,7 +4,7 @@
 package org.jetbrains.compose.swing.components.layout
 
 import androidx.compose.runtime.Composable
-import org.jetbrains.compose.swing.constants.SplitOrientation
+import org.jetbrains.compose.swing.annotations.SplitOrientation
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.propertyChangeListener
 import org.jetbrains.compose.swing.modifier.property

@@ -13,9 +13,9 @@ import org.jetbrains.compose.swing.components.desktop.DesktopPane
 import org.jetbrains.compose.swing.components.desktop.InternalFrameControls
 import org.jetbrains.compose.swing.components.desktop.LayeredPane
 import org.jetbrains.compose.swing.components.desktop.rememberInternalFrameState
-import org.jetbrains.compose.swing.components.layout.ColumnScope
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
+import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.opaque

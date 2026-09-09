@@ -13,12 +13,42 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Discover Test Report Modules
+      id: discover
+      shell: bash
+      run: |
+        MODULES=$(find . -path "*/build/*-results/*" -name "*.xml" \
+          | sed -E 's|^\./(.*)/build/.*-results/.*|\1|' \
+          | sort -u)
+
+        if [ -z "$MODULES" ]; then
+          echo "check_names=JUnit Test Report" >> "$GITHUB_OUTPUT"
+          echo "report_paths=**/build/**/*-results/**/*.xml" >> "$GITHUB_OUTPUT"
+        else
+          {
+            echo "check_names<<EOF"
+            while IFS= read -r m; do
+              [ -n "$m" ] && echo ":${m//\//:}"
+            done <<< "$MODULES"
+            echo "EOF"
+
+            echo "report_paths<<EOF"
+            while IFS= read -r m; do
+              [ -n "$m" ] && echo "$m/build/*-results/**/*.xml"
+            done <<< "$MODULES"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+        fi
+
     - name: Publish JUnit Report
       uses: mikepenz/action-junit-report@v6
       with:
-        report_paths: "**/build/**/*-results/**/*.xml"
+        check_name: ${{ steps.discover.outputs.check_names }}
+        report_paths: ${{ steps.discover.outputs.report_paths }}
         detailed_summary: true
+        verbose_summary: false
         fail_on_failure: false
+        annotate_only: true
 
     - name: Publish Coverage Report
       uses: madrapps/jacoco-report@v1

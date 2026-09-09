@@ -6,6 +6,7 @@ plugins {
 
 dependencies {
     implementation(project(":swing-ui"))
+    implementation(project(":swing-ui-foundation"))
 
     testImplementation(kotlin("test"))
     testImplementation(project(":swing-ui-test"))

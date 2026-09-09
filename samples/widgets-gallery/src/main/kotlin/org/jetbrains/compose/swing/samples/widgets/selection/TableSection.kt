@@ -11,7 +11,6 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.Spinner
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.button.CheckBox
-import org.jetbrains.compose.swing.components.layout.ColumnScope
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.components.selection.RadioGroup
@@ -19,6 +18,7 @@ import org.jetbrains.compose.swing.components.selection.Table
 import org.jetbrains.compose.swing.components.selection.TableColumnLayout
 import org.jetbrains.compose.swing.components.selection.column
 import org.jetbrains.compose.swing.components.text.TextField
+import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize

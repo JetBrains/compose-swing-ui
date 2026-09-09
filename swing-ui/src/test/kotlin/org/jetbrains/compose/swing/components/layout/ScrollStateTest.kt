@@ -252,7 +252,7 @@ class ScrollStateTest {
             val fromSecond = rememberScrollState()
             declaredOnFirst = fromFirst
             declaredOnSecond = fromSecond
-            Column {
+            Panel(PanelLayout.Box()) {
                 ScrollPane(
                     modifier = SwingModifier.preferredSize(100, 50),
                     state = if (swapped) fromSecond else fromFirst,
@@ -335,7 +335,7 @@ class ScrollStateTest {
                     Label("staying", modifier = SwingModifier.preferredSize(300, 400).viewport())
                 }
             }
-            Column {
+            Panel(PanelLayout.Box()) {
                 if (leavingDeclaredLast) {
                     declareStaying()
                     declareLeaving()
@@ -371,7 +371,7 @@ class ScrollStateTest {
             val shared = rememberScrollState()
             val own = rememberScrollState()
             declaredOnBoth = shared
-            Column {
+            Panel(PanelLayout.Box()) {
                 ScrollPane(modifier = SwingModifier.preferredSize(100, 50), state = shared) {
                     Label("first", modifier = SwingModifier.preferredSize(300, 400).viewport())
                 }

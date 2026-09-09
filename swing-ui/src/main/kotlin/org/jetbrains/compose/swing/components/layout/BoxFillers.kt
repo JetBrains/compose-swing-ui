@@ -5,7 +5,7 @@ package org.jetbrains.compose.swing.components.layout
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.NonRestartableComposable
-import org.jetbrains.compose.swing.constants.Orientation
+import org.jetbrains.compose.swing.annotations.Orientation
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import java.awt.Dimension
@@ -25,8 +25,6 @@ import javax.swing.SwingConstants
  *     Button(text = "OK", onClick = { ... })
  * }
  * ```
- *
- * A [Row] and a [Column] gap their children through their arrangement, [Arrangement.spacedBy].
  *
  * @param width the horizontal size in pixels
  * @param height the vertical size in pixels

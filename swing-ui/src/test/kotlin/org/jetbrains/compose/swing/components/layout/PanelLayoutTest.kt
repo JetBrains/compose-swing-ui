@@ -140,11 +140,11 @@ class PanelLayoutTest {
     @Test
     fun aColumnStacksItsContentAndARowLinesItUp() = runComposeSwingTest {
         setContent {
-            Column {
+            Panel(PanelLayout.Box()) {
                 Label("a")
                 Label("b")
             }
-            Row {
+            Panel(PanelLayout.Box(axis = BoxLayout.X_AXIS)) {
                 Label("c")
                 Label("d")
             }
@@ -177,7 +177,7 @@ class PanelLayoutTest {
     fun aColumnFollowsTheChildrenItDeclares() = runComposeSwingTest {
         var showSecond by mutableStateOf(false)
         setContent {
-            Column {
+            Panel(PanelLayout.Box()) {
                 Label("first")
                 if (showSecond) Label("second")
             }

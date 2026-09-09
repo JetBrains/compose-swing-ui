@@ -6,10 +6,11 @@ package org.jetbrains.compose.swing.components.layout
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.key
-import org.jetbrains.compose.swing.constants.BoxAxis
-import org.jetbrains.compose.swing.constants.FlowAlignment
-import org.jetbrains.compose.swing.constants.GridBagAnchor
-import org.jetbrains.compose.swing.constants.GridBagFill
+import org.jetbrains.compose.swing.annotations.BoxAxis
+import org.jetbrains.compose.swing.annotations.FlowAlignment
+import org.jetbrains.compose.swing.annotations.GridBagAnchor
+import org.jetbrains.compose.swing.annotations.GridBagFill
+import org.jetbrains.compose.swing.layout.LayoutScopeMarker
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
 import org.jetbrains.compose.swing.node.SwingNode
@@ -301,7 +302,12 @@ public sealed class PanelLayout<S : PanelScope> private constructor(
  * The receiver of a [Panel]'s content. Each [PanelLayout] names the scope it hands its children, through
  * which they declare their own placement under that layout; a layout that places children by declaration
  * order alone hands this one, which offers nothing.
+ *
+ * It is the innermost scope inside a panel's content, so a declaration meant for an enclosing row or
+ * column does not resolve there: the panel's layout manager would never read it. Such a declaration
+ * belongs on the panel's own modifier, outside the content lambda.
  */
+@LayoutScopeMarker
 public sealed interface PanelScope
 
 /** The [PanelScope] handed to the content of a layout that places children by declaration order alone. */

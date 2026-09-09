@@ -6,7 +6,7 @@ import androidx.compose.runtime.setValue
 import kotlinx.coroutines.delay
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
-import org.jetbrains.compose.swing.components.layout.Column
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.interaction.onFocus
@@ -122,7 +122,7 @@ class NodeFocusInteractionTest {
     fun aFocusNotificationSettlesWhatTheCallerDeclares() = runComposeSwingTest {
         var focus by mutableStateOf("none")
         setContent {
-            Column {
+            Panel {
                 // Rendered from the caller's state alone, so its text can only be the text of a frame the
                 // action settled; the listener's own write reaches the tree no other way.
                 Label(text = "focus: $focus")
@@ -148,7 +148,7 @@ class NodeFocusInteractionTest {
     @Test
     fun aNodeUnderTheHarnessRootNeverOwnsFocus() = runComposeSwingTest {
         setContent {
-            Column {
+            Panel {
                 Button(text = "X", onClick = { })
                 // A sibling the query never names, so only the dump can account for it.
                 Label(text = "sibling")

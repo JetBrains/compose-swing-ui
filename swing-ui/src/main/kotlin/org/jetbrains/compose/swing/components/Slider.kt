@@ -6,7 +6,7 @@ package org.jetbrains.compose.swing.components
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import org.jetbrains.annotations.Nls
-import org.jetbrains.compose.swing.constants.Orientation
+import org.jetbrains.compose.swing.annotations.Orientation
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.CallbackRegistration
 import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration

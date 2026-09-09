@@ -60,7 +60,7 @@ public class ListState
     ) {
         /**
          * The selected row indices, expressed as the general multi-select shape so one state covers every
-         * one of [org.jetbrains.compose.swing.constants.SelectionMode]'s modes.
+         * one of [org.jetbrains.compose.swing.annotations.SelectionMode]'s modes.
          *
          * @see javax.swing.JList.setSelectedIndices
          */

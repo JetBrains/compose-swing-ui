@@ -20,6 +20,7 @@ include(":samples:widgets-gallery")
 include(":swing-ui")
 include(":swing-ui-animation")
 include(":swing-ui-detekt")
+include(":swing-ui-foundation")
 include(":swing-ui-test")
 
 rootProject.name = "compose-swing-ui"

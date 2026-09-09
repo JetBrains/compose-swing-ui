@@ -9,15 +9,9 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.Slider
 import org.jetbrains.compose.swing.components.Spinner
 import org.jetbrains.compose.swing.components.button.Button
-import org.jetbrains.compose.swing.components.layout.Alignment
-import org.jetbrains.compose.swing.components.layout.Column
-import org.jetbrains.compose.swing.components.layout.HorizontalAxisAlignment
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
-import org.jetbrains.compose.swing.components.layout.ScrollBehavior
-import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.components.layout.TabbedPane
-import org.jetbrains.compose.swing.components.layout.WeightPlacement
 import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.components.selection.ListBox
 import org.jetbrains.compose.swing.components.selection.Table
@@ -218,7 +212,7 @@ class ModifierInspectionTest {
         // once, the way every builder a test can call is held to it directly.
         isDebugInspectorInfoEnabled = true
         setContent {
-            Column {
+            Panel {
                 ComboBox(
                     items = listOf("a"),
                     selectedItem = "a",
@@ -270,7 +264,7 @@ class ModifierInspectionTest {
         val painter = DefaultHighlighter.DefaultHighlightPainter(Color.YELLOW)
         val ranges = listOf(TextRange(0, 2))
         setContent {
-            Column {
+            Panel {
                 Label("hello", modifier = SwingModifier.testTag("hinted").toolTip("What this does"))
                 TextArea(
                     state = rememberDocumentState("hello"),
@@ -330,7 +324,7 @@ class ModifierInspectionTest {
     fun aFocusOrKeyboardElementNamesTheBehaviorItInstalls() = runComposeSwingTest {
         isDebugInspectorInfoEnabled = true
         setContent {
-            Column(modifier = SwingModifier.testTag("form").orderedFocusTraversal()) {
+            Panel(modifier = SwingModifier.testTag("form").orderedFocusTraversal()) {
                 Button(
                     text = "OK",
                     onClick = {},
@@ -371,7 +365,7 @@ class ModifierInspectionTest {
     fun aDataTransferElementNamesTheDirectionItDeclares() = runComposeSwingTest {
         isDebugInspectorInfoEnabled = true
         setContent {
-            Column {
+            Panel {
                 Label(
                     "drag",
                     modifier =
@@ -420,62 +414,10 @@ class ModifierInspectionTest {
     }
 
     @Test
-    fun aChildDeclaresItsPlacementToTheContainerItSitsIn() = runComposeSwingTest {
-        isDebugInspectorInfoEnabled = true
-        setContent {
-            Column {
-                Label("a", modifier = SwingModifier.testTag("weighted").weight(2f))
-                Label("b", modifier = SwingModifier.testTag("aligned").align(Alignment.CenterHorizontally))
-                Label("c", modifier = SwingModifier.testTag("filled").fillWidth())
-                ScrollPane {
-                    Label("d", modifier = SwingModifier.testTag("scrolled").viewport(unitIncrement = 8))
-                }
-            }
-        }
-
-        assertEquals(
-            mapOf("weight" to WeightPlacement(2f, fill = true)),
-            declaredBy("weighted", "weight"),
-            "a weight declares the share of the leftover space the child claims",
-        )
-        assertEquals(
-            mapOf("alignment" to HorizontalAxisAlignment(Alignment.CenterHorizontally)),
-            declaredBy("aligned", "align"),
-            "an alignment declares where across the axis the child sits",
-        )
-        assertEquals(
-            emptyMap(),
-            declaredBy("filled", "fill"),
-            "a cross-axis fill is the whole declaration and carries no values",
-        )
-        assertEquals(
-            mapOf("region" to "SwingModifier.viewport()"),
-            declaredBy("scrolled", "slot"),
-            "a slot declares the region of its host by the call that fills it",
-        )
-        val scrolling = declaredBy("scrolled", "scrollBehavior")
-        assertEquals(
-            setOf("region", "behavior"),
-            scrolling.keys,
-            "scroll behavior is declared to one pane's viewport, so it names both",
-        )
-        assertEquals(
-            ScrollBehavior(
-                unitIncrement = 8,
-                blockIncrement = null,
-                tracksViewportWidth = null,
-                tracksViewportHeight = null,
-            ),
-            scrolling["behavior"],
-            "the content declares the answers it gave and leaves the rest to the pane",
-        )
-    }
-
-    @Test
     fun aWidgetsOwnSeamsStandInTheChainItBuilds() = runComposeSwingTest {
         isDebugInspectorInfoEnabled = true
         setContent {
-            Column {
+            Panel {
                 Table(rows = listOf("a"), modifier = SwingModifier.testTag("table"), rowHeight = 20) {
                     column("c", cellContent = { Label("cell") }) { it }
                 }
@@ -505,7 +447,7 @@ class ModifierInspectionTest {
         val border = LineBorder(Color.RED)
         val otherBorder = LineBorder(Color.BLUE)
         setContent {
-            Column {
+            Panel {
                 Label("a", modifier = SwingModifier.testTag("border-one").border(border))
                 Label("b", modifier = SwingModifier.testTag("border-two").border(border))
                 Label("c", modifier = SwingModifier.testTag("border-other").border(otherBorder))

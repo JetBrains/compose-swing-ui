@@ -3,6 +3,7 @@
 
 package org.jetbrains.compose.swing.modifier.layout
 
+import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SlotAttachment
 
@@ -76,7 +77,8 @@ public fun SwingModifier.slot(
  * The walk resolves the last of each kind: a slot keeps the one declared last, and the constraint
  * elements fold together, since the parts of one constraint are declared one at a time.
  */
-internal interface PlacementElement :
+@InternalSwingUiApi
+public interface PlacementElement :
     SwingModifier.Element,
     SwingModifier.InspectableElement
 
@@ -85,19 +87,20 @@ internal interface PlacementElement :
  * declares one: the [constraint] a caller names outright, or the one a container's own scope builds from
  * what the child declares to it.
  */
-internal interface ConstraintElement : PlacementElement {
+@InternalSwingUiApi
+public interface ConstraintElement : PlacementElement {
     /**
      * Folds what this element declares into [carried] - what the modifier has declared before it - and
      * answers the constraint standing after it. The modifier is folded in declaration order, so an element
      * that states the whole constraint replaces what came before and one that states a part adds to it.
      */
-    fun foldInto(carried: Any?): Any
+    public fun foldInto(carried: Any?): Any
 
     /**
      * Whether this element states the whole constraint rather than a part of it. A modifier mixing the two
      * declares a placement in a parent that holds its children the other way, and is refused.
      */
-    val statesWholeConstraint: Boolean get() = false
+    public val statesWholeConstraint: Boolean get() = false
 }
 
 /** The layout constraint a caller names outright, through [layoutConstraint]. */

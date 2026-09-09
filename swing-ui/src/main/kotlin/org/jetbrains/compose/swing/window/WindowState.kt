@@ -11,7 +11,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.constants.WindowExtendedState
+import org.jetbrains.compose.swing.annotations.WindowExtendedState
 import java.awt.Dimension
 import java.awt.Frame
 

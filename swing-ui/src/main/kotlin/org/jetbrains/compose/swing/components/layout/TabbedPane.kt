@@ -6,8 +6,8 @@ package org.jetbrains.compose.swing.components.layout
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
-import org.jetbrains.compose.swing.constants.TabLayoutPolicy
-import org.jetbrains.compose.swing.constants.TabPlacement
+import org.jetbrains.compose.swing.annotations.TabLayoutPolicy
+import org.jetbrains.compose.swing.annotations.TabPlacement
 import org.jetbrains.compose.swing.core.dispatchToCaller
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.changeListener

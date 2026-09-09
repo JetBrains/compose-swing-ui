@@ -4,7 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
 import org.jetbrains.annotations.VisibleForTesting
-import org.jetbrains.compose.swing.constants.TransferAction
+import org.jetbrains.compose.swing.annotations.TransferAction
 import org.jetbrains.compose.swing.modifier.RestorePolicy
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.binding

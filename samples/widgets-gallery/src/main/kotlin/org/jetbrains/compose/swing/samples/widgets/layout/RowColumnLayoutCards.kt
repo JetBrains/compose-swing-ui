@@ -7,12 +7,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
-import org.jetbrains.compose.swing.components.layout.Alignment
-import org.jetbrains.compose.swing.components.layout.Arrangement
-import org.jetbrains.compose.swing.components.layout.Column
-import org.jetbrains.compose.swing.components.layout.ColumnScope
-import org.jetbrains.compose.swing.components.layout.Row
 import org.jetbrains.compose.swing.components.selection.RadioGroup
+import org.jetbrains.compose.swing.foundation.layout.Alignment
+import org.jetbrains.compose.swing.foundation.layout.Arrangement
+import org.jetbrains.compose.swing.foundation.layout.Column
+import org.jetbrains.compose.swing.foundation.layout.ColumnScope
+import org.jetbrains.compose.swing.foundation.layout.Row
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard

@@ -69,7 +69,7 @@ public class TableState
     ) {
         /**
          * The selected rows as indices into the table's rows, expressed as the general multi-select shape
-         * so one state covers every one of [org.jetbrains.compose.swing.constants.SelectionMode]'s modes.
+         * so one state covers every one of [org.jetbrains.compose.swing.annotations.SelectionMode]'s modes.
          *
          * @see javax.swing.JTable.setRowSelectionInterval
          */

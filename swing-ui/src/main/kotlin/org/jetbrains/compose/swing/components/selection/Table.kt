@@ -5,9 +5,9 @@ package org.jetbrains.compose.swing.components.selection
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import org.jetbrains.compose.swing.annotations.AutoResizeMode
+import org.jetbrains.compose.swing.annotations.SelectionMode
 import org.jetbrains.compose.swing.components.rememberDeclaredList
-import org.jetbrains.compose.swing.constants.AutoResizeMode
-import org.jetbrains.compose.swing.constants.SelectionMode
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.property
 import org.jetbrains.compose.swing.node.MirrorState

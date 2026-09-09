@@ -10,8 +10,8 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.ProgressBar
 import org.jetbrains.compose.swing.components.Slider
 import org.jetbrains.compose.swing.components.button.ToggleButton
-import org.jetbrains.compose.swing.components.layout.ColumnScope
 import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import javax.swing.DefaultBoundedRangeModel
 

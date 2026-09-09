@@ -4,9 +4,9 @@
 package org.jetbrains.compose.swing.components.selection
 
 import androidx.compose.runtime.Composable
+import org.jetbrains.compose.swing.annotations.ListLayoutOrientation
+import org.jetbrains.compose.swing.annotations.SelectionMode
 import org.jetbrains.compose.swing.components.rememberDeclaredList
-import org.jetbrains.compose.swing.constants.ListLayoutOrientation
-import org.jetbrains.compose.swing.constants.SelectionMode
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.listSelectionListener
 import org.jetbrains.compose.swing.node.MirrorState

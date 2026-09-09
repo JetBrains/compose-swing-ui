@@ -5,7 +5,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.components.layout.Column
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.menuItemTexts
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
@@ -95,7 +96,7 @@ class ContextMenuDetachTest {
         setContent {
             val outer = rememberPopupAnchor()
             val inner = rememberPopupAnchor()
-            Column(modifier = SwingModifier.popupAnchor(outer)) {
+            Panel(PanelLayout.Box(), modifier = SwingModifier.popupAnchor(outer)) {
                 SwingNode(
                     factory = { JLabel("target").apply { inheritsPopupMenu = true } },
                     modifier = SwingModifier.popupAnchor(inner),
@@ -131,7 +132,7 @@ class ContextMenuDetachTest {
         setContent {
             val outer = rememberPopupAnchor()
             val inner = rememberPopupAnchor()
-            Column(modifier = SwingModifier.popupAnchor(outer)) {
+            Panel(PanelLayout.Box(), modifier = SwingModifier.popupAnchor(outer)) {
                 SwingNode(
                     factory = {
                         JLabel("target").apply {

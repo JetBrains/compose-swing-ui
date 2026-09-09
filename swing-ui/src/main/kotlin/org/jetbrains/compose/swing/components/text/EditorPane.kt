@@ -6,7 +6,7 @@ package org.jetbrains.compose.swing.components.text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import org.jetbrains.annotations.Nls
-import org.jetbrains.compose.swing.constants.ContentType
+import org.jetbrains.compose.swing.annotations.ContentType
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.documentListener
 import org.jetbrains.compose.swing.modifier.listener.hyperlinkListener

@@ -7,7 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableIntState
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
-import org.jetbrains.compose.swing.constants.Orientation
+import org.jetbrains.compose.swing.annotations.Orientation
 import org.jetbrains.compose.swing.core.dispatchToCaller
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.hierarchyListener

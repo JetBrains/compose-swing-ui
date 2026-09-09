@@ -7,7 +7,8 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.ExclusiveWindowSystem
 import org.jetbrains.compose.swing.assumeKeyboardFocusIsPossible
 import org.jetbrains.compose.swing.assumeWindowBecomesFocused
-import org.jetbrains.compose.swing.components.layout.Column
+import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.interaction.FocusRequester
 import org.jetbrains.compose.swing.modifier.interaction.focusRequester
@@ -52,7 +53,7 @@ class FormattedTextFieldFocusTest {
             lateinit var away: FocusRequester
             setContent {
                 Window(onCloseRequest = {}, title = "formatted-focus-commit-test") {
-                    Column {
+                    Panel(PanelLayout.Box()) {
                         toField = rememberFocusRequester()
                         FormattedTextField(
                             value = value,
@@ -99,7 +100,7 @@ class FormattedTextFieldFocusTest {
             lateinit var away: FocusRequester
             setContent {
                 Window(onCloseRequest = {}, title = "formatted-focus-retake-test") {
-                    Column {
+                    Panel(PanelLayout.Box()) {
                         toField = rememberFocusRequester()
                         FormattedTextField(
                             value = value,

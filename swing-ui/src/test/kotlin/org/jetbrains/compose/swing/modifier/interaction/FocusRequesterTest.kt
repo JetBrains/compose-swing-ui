@@ -8,7 +8,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.ExclusiveWindowSystem
 import org.jetbrains.compose.swing.assumeKeyboardFocusIsPossible
 import org.jetbrains.compose.swing.assumeWindowBecomesFocused
-import org.jetbrains.compose.swing.components.layout.Column
+import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
@@ -64,7 +64,7 @@ class FocusRequesterTest {
         lateinit var requester: FocusRequester
         setContent {
             Window(onCloseRequest = {}, title = "focus-requester-routing-test") {
-                Column {
+                Panel {
                     TextField("first", onValueChange = {})
                     requester = rememberFocusRequester()
                     TextField("second", onValueChange = {}, modifier = SwingModifier.focusRequester(requester))
@@ -87,7 +87,7 @@ class FocusRequesterTest {
             lateinit var requester: FocusRequester
             setContent {
                 Window(onCloseRequest = {}, title = "focus-requester-test") {
-                    Column {
+                    Panel {
                         TextField("first", onValueChange = {})
                         requester = rememberFocusRequester()
                         TextField("second", onValueChange = {}, modifier = SwingModifier.focusRequester(requester))
@@ -111,7 +111,7 @@ class FocusRequesterTest {
         lateinit var requester: FocusRequester
         setContent {
             Window(onCloseRequest = {}, title = "focus-requester-unbind-test") {
-                Column {
+                Panel {
                     anchor = rememberFocusRequester()
                     TextField("anchor", onValueChange = {}, modifier = SwingModifier.focusRequester(anchor))
                     requester = rememberFocusRequester()
@@ -156,7 +156,7 @@ class FocusRequesterTest {
         lateinit var second: FocusRequester
         setContent {
             Window(onCloseRequest = {}, title = "focus-requester-swap-test") {
-                Column {
+                Panel {
                     anchor = rememberFocusRequester()
                     TextField("anchor", onValueChange = {}, modifier = SwingModifier.focusRequester(anchor))
                     first = rememberFocusRequester()
@@ -211,7 +211,7 @@ class FocusRequesterTest {
         lateinit var shared: FocusRequester
         setContent {
             Window(onCloseRequest = {}, title = "focus-requester-shared-test") {
-                Column {
+                Panel {
                     anchor = rememberFocusRequester()
                     TextField("anchor", onValueChange = {}, modifier = SwingModifier.focusRequester(anchor))
                     shared = rememberFocusRequester()
