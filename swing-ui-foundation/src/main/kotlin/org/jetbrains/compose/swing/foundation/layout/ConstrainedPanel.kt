@@ -32,12 +32,6 @@ internal open class ScrollablePanel(
     override fun getScrollableTracksViewportWidth(): Boolean = fillsViewport { it.width }
 
     override fun getScrollableTracksViewportHeight(): Boolean = fillsViewport { it.height }
-
-    /** Whether a viewport is larger than this panel's preferred size on [side]'s axis. */
-    private fun fillsViewport(side: (Dimension) -> Int): Boolean {
-        val viewport = parent as? JViewport ?: return false
-        return side(viewport.size) > side(preferredSize)
-    }
 }
 
 /**
@@ -112,4 +106,10 @@ internal open class ConstrainedPanel(
     final override fun measure(constraints: Constraints) {
         measured = if (isPreferredSizeSet) preferredSize else policyLayout.measurables.measuredSize(this, constraints)
     }
+}
+
+/** Whether this component's viewport is larger than its preferred size on [side]'s axis; `false` outside one. */
+internal inline fun Component.fillsViewport(side: (Dimension) -> Int): Boolean {
+    val viewport = parent as? JViewport ?: return false
+    return side(viewport.size) > side(preferredSize)
 }

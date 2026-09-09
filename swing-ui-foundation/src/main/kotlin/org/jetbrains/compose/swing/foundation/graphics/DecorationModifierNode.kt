@@ -89,7 +89,7 @@ internal fun publishSteps(
     val held = decoratable.decoration
     val isOpaque = steps.isOpaque
     if (held.steps == steps && held.hasOpaqueSteps == isOpaque) return false
-    decoratable.decoration = if (steps.isEmpty) Decoration.None else Decoration(steps, isOpaque)
+    decoratable.decoration = if (steps.isEmpty) Decoration.None else Decoration(steps, NoPaintOutsets, isOpaque)
     component.repaint()
     return true
 }

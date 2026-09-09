@@ -22,15 +22,15 @@ class CanvasScrollableTest {
         runComposeSwingTest {
             setContent {
                 Canvas(
-                    modifier = SwingModifier.testTag(CANVAS).preferredSize(SIZE),
-                    onDraw = { _, _, _ -> },
+                    modifier = SwingModifier.testTag("canvas").preferredSize(100, 80),
+                    onDraw = {},
                 )
             }
 
-            val component = onNodeWithTag(CANVAS).fetch()
+            val component = onNodeWithTag("canvas").fetch()
             val scrollable = assertIs<Scrollable>(component)
 
-            assertEquals(SIZE, scrollable.preferredScrollableViewportSize)
+            assertEquals(Dimension(100, 80), scrollable.preferredScrollableViewportSize)
             assertEquals(
                 component.getFontMetrics(component.font).height,
                 scrollable.getScrollableUnitIncrement(Rectangle(0, 0, 10, 10), SwingConstants.VERTICAL, 1),
@@ -66,9 +66,4 @@ class CanvasScrollableTest {
             assertFalse(scrollable.scrollableTracksViewportWidth)
             assertFalse(scrollable.scrollableTracksViewportHeight)
         }
-
-    private companion object {
-        const val CANVAS = "canvas-under-test"
-        val SIZE = Dimension(100, 80)
-    }
 }

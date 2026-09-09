@@ -1,5 +1,6 @@
 public final class org/jetbrains/compose/swing/foundation/CanvasKt {
-	public static final fun Canvas (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+	public static final fun Canvas (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/util/Map;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
+	public static final fun getDefaultCanvasRenderingHints ()Ljava/util/Map;
 }
 
 public final class org/jetbrains/compose/swing/foundation/graphics/BlurEffect : org/jetbrains/compose/swing/foundation/graphics/RenderEffect {
@@ -10,6 +11,26 @@ public final class org/jetbrains/compose/swing/foundation/graphics/BlurEffect : 
 	public fun equals (Ljava/lang/Object;)Z
 	public fun hashCode ()I
 	public fun outsets (D)Ljava/awt/Insets;
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class org/jetbrains/compose/swing/foundation/graphics/Brush {
+	public static final field Companion Lorg/jetbrains/compose/swing/foundation/graphics/Brush$Companion;
+	public abstract fun paint (II)Ljava/awt/Paint;
+}
+
+public final class org/jetbrains/compose/swing/foundation/graphics/Brush$Companion {
+	public final fun horizontalGradient ([Lkotlin/Pair;)Lorg/jetbrains/compose/swing/foundation/graphics/Brush;
+	public final fun linearGradient ([Lkotlin/Pair;Ljava/awt/geom/Point2D;Ljava/awt/geom/Point2D;)Lorg/jetbrains/compose/swing/foundation/graphics/Brush;
+	public final fun of (Ljava/awt/Paint;)Lorg/jetbrains/compose/swing/foundation/graphics/Brush;
+	public final fun radialGradient ([Lkotlin/Pair;)Lorg/jetbrains/compose/swing/foundation/graphics/Brush;
+	public final fun verticalGradient ([Lkotlin/Pair;)Lorg/jetbrains/compose/swing/foundation/graphics/Brush;
+}
+
+public final class org/jetbrains/compose/swing/foundation/graphics/CircleShape : org/jetbrains/compose/swing/foundation/graphics/Shape {
+	public static final field $stable I
+	public static final field INSTANCE Lorg/jetbrains/compose/swing/foundation/graphics/CircleShape;
+	public fun outline (II)Ljava/awt/Shape;
 	public fun toString ()Ljava/lang/String;
 }
 
@@ -48,10 +69,23 @@ public abstract interface class org/jetbrains/compose/swing/foundation/graphics/
 	public abstract fun paint (Ljava/awt/Graphics2D;IILkotlin/jvm/functions/Function3;)V
 }
 
+public abstract class org/jetbrains/compose/swing/foundation/graphics/DrawModifierNode : org/jetbrains/compose/swing/foundation/graphics/DecorationModifierNode {
+	public static final field $stable I
+	public fun <init> ()V
+	public abstract fun draw (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/ContentDrawScope;)V
+	public final fun isOpaque ()Z
+	public fun onMeasureResultChanged ()V
+	protected final fun onRemovedFromDecoration ()V
+	public final fun paint (Ljava/awt/Graphics2D;IILkotlin/jvm/functions/Function3;)V
+}
+
 public final class org/jetbrains/compose/swing/foundation/graphics/GraphicsKt {
 	public static final fun asRenderEffect (Ljava/awt/image/BufferedImageOp;)Lorg/jetbrains/compose/swing/foundation/graphics/RenderEffect;
 	public static final fun decoration (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/foundation/graphics/Decorator;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun decoration (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/modifier/SwingModifier$NodeElement;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun drawBehind (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun drawWithContent (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun invalidateDraw (Lorg/jetbrains/compose/swing/foundation/graphics/DrawModifierNode;)V
 	public static final fun rememberImageLayer (Landroidx/compose/runtime/Composer;I)Lorg/jetbrains/compose/swing/foundation/graphics/ImageLayer;
 }
 
@@ -88,9 +122,35 @@ public final class org/jetbrains/compose/swing/foundation/graphics/ImageLayer {
 	public final fun toBufferedImage ()Ljava/awt/image/BufferedImage;
 }
 
+public final class org/jetbrains/compose/swing/foundation/graphics/RectangleShape : org/jetbrains/compose/swing/foundation/graphics/Shape {
+	public static final field $stable I
+	public static final field INSTANCE Lorg/jetbrains/compose/swing/foundation/graphics/RectangleShape;
+	public fun outline (II)Ljava/awt/Shape;
+	public fun toString ()Ljava/lang/String;
+}
+
 public abstract interface class org/jetbrains/compose/swing/foundation/graphics/RenderEffect {
 	public abstract fun createOp (D)Ljava/awt/image/BufferedImageOp;
 	public fun outsets (D)Ljava/awt/Insets;
+}
+
+public final class org/jetbrains/compose/swing/foundation/graphics/RoundedCornerShape : org/jetbrains/compose/swing/foundation/graphics/Shape {
+	public static final field $stable I
+	public fun <init> (F)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getSize ()F
+	public fun hashCode ()I
+	public fun outline (II)Ljava/awt/Shape;
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class org/jetbrains/compose/swing/foundation/graphics/Shape {
+	public static final field Companion Lorg/jetbrains/compose/swing/foundation/graphics/Shape$Companion;
+	public abstract fun outline (II)Ljava/awt/Shape;
+}
+
+public final class org/jetbrains/compose/swing/foundation/graphics/Shape$Companion {
+	public final fun of (Ljava/awt/Shape;)Lorg/jetbrains/compose/swing/foundation/graphics/Shape;
 }
 
 public final class org/jetbrains/compose/swing/foundation/graphics/TileMode {
@@ -111,6 +171,131 @@ public final class org/jetbrains/compose/swing/foundation/graphics/TileMode {
 public final class org/jetbrains/compose/swing/foundation/graphics/TileMode$Companion {
 	public final fun getClamp-0BiVDiQ ()I
 	public final fun getDecal-0BiVDiQ ()I
+}
+
+public abstract interface class org/jetbrains/compose/swing/foundation/graphics/drawscope/ContentDrawScope : org/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope {
+	public abstract fun drawContent ()V
+}
+
+public abstract interface class org/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope {
+	public abstract fun drawArc (Ljava/awt/Paint;FFZFFFFLorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawStyle;F)V
+	public static synthetic fun drawArc$default (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;Ljava/awt/Paint;FFZFFFFLorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawStyle;FILjava/lang/Object;)V
+	public abstract fun drawCircle (Ljava/awt/Paint;FFFLorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawStyle;F)V
+	public static synthetic fun drawCircle$default (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;Ljava/awt/Paint;FFFLorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawStyle;FILjava/lang/Object;)V
+	public abstract fun drawImage (Ljava/awt/Image;FFF)V
+	public abstract fun drawImage (Ljava/awt/Image;FFFFF)V
+	public static synthetic fun drawImage$default (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;Ljava/awt/Image;FFFFFILjava/lang/Object;)V
+	public static synthetic fun drawImage$default (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;Ljava/awt/Image;FFFILjava/lang/Object;)V
+	public abstract fun drawLine (Ljava/awt/Paint;FFFFLjava/awt/Stroke;F)V
+	public static synthetic fun drawLine$default (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;Ljava/awt/Paint;FFFFLjava/awt/Stroke;FILjava/lang/Object;)V
+	public abstract fun drawOval (Ljava/awt/Paint;FFFFLorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawStyle;F)V
+	public static synthetic fun drawOval$default (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;Ljava/awt/Paint;FFFFLorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawStyle;FILjava/lang/Object;)V
+	public abstract fun drawPath (Ljava/awt/Shape;Ljava/awt/Paint;Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawStyle;F)V
+	public static synthetic fun drawPath$default (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;Ljava/awt/Shape;Ljava/awt/Paint;Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawStyle;FILjava/lang/Object;)V
+	public abstract fun drawRect (Ljava/awt/Paint;FFFFLorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawStyle;F)V
+	public static synthetic fun drawRect$default (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;Ljava/awt/Paint;FFFFLorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawStyle;FILjava/lang/Object;)V
+	public abstract fun drawRoundRect (Ljava/awt/Paint;FFFFFFLorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawStyle;F)V
+	public static synthetic fun drawRoundRect$default (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;Ljava/awt/Paint;FFFFFFLorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawStyle;FILjava/lang/Object;)V
+	public abstract fun drawText (Ljava/awt/font/TextLayout;FFLjava/awt/Paint;F)V
+	public static synthetic fun drawText$default (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;Ljava/awt/font/TextLayout;FFLjava/awt/Paint;FILjava/lang/Object;)V
+	public fun getCenter ()Ljava/awt/geom/Point2D;
+	public abstract fun getGraphics ()Ljava/awt/Graphics2D;
+	public fun getHeight ()I
+	public abstract fun getSize ()Ljava/awt/Dimension;
+	public fun getWidth ()I
+}
+
+public abstract interface annotation class org/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScopeMarker : java/lang/annotation/Annotation {
+}
+
+public abstract interface class org/jetbrains/compose/swing/foundation/graphics/drawscope/DrawStyle {
+	public static final field Companion Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawStyle$Companion;
+}
+
+public final class org/jetbrains/compose/swing/foundation/graphics/drawscope/DrawStyle$Companion {
+	public final fun getDefaultStroke ()Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawStyle$Stroke;
+}
+
+public final class org/jetbrains/compose/swing/foundation/graphics/drawscope/DrawStyle$Fill : org/jetbrains/compose/swing/foundation/graphics/drawscope/DrawStyle {
+	public static final field $stable I
+	public static final field INSTANCE Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawStyle$Fill;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class org/jetbrains/compose/swing/foundation/graphics/drawscope/DrawStyle$Stroke : org/jetbrains/compose/swing/foundation/graphics/drawscope/DrawStyle {
+	public static final field $stable I
+	public fun <init> (FIIF[FF)V
+	public synthetic fun <init> (FIIF[FFILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ljava/awt/Stroke;)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getStroke ()Ljava/awt/Stroke;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class org/jetbrains/compose/swing/foundation/graphics/drawscope/DrawTransform {
+	public abstract fun clipPath (Ljava/awt/Shape;)V
+	public abstract fun clipRect (FFFF)V
+	public abstract fun rotate (FFF)V
+	public abstract fun scale (FFFF)V
+	public abstract fun translate (FF)V
+}
+
+public final class org/jetbrains/compose/swing/foundation/graphics/drawscope/DrawTransformImpl : org/jetbrains/compose/swing/foundation/graphics/drawscope/DrawTransform {
+	public static final field $stable I
+	public fun <init> (Ljava/awt/Graphics2D;)V
+	public fun clipPath (Ljava/awt/Shape;)V
+	public fun clipRect (FFFF)V
+	public fun rotate (FFF)V
+	public fun scale (FFFF)V
+	public fun translate (FF)V
+}
+
+public final class org/jetbrains/compose/swing/foundation/graphics/drawscope/GraphicsDrawScopeKt {
+	public static final fun clipPath (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;Ljava/awt/Shape;Lkotlin/jvm/functions/Function1;)V
+	public static final fun clipRect (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;FFFFLkotlin/jvm/functions/Function1;)V
+	public static final fun clipRect (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;Ljava/awt/geom/Point2D;Ljava/awt/geom/Dimension2D;Lkotlin/jvm/functions/Function1;)V
+	public static synthetic fun clipRect$default (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;FFFFLkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+	public static final fun deviceClip (Ljava/awt/Graphics2D;Ljava/awt/geom/AffineTransform;)Ljava/awt/Shape;
+	public static final fun drawArc (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;Ljava/awt/Paint;FFZLjava/awt/geom/Point2D;Ljava/awt/geom/Dimension2D;Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawStyle;F)V
+	public static synthetic fun drawArc$default (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;Ljava/awt/Paint;FFZLjava/awt/geom/Point2D;Ljava/awt/geom/Dimension2D;Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawStyle;FILjava/lang/Object;)V
+	public static final fun drawCircle (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;Ljava/awt/Paint;FLjava/awt/geom/Point2D;Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawStyle;F)V
+	public static synthetic fun drawCircle$default (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;Ljava/awt/Paint;FLjava/awt/geom/Point2D;Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawStyle;FILjava/lang/Object;)V
+	public static final fun drawImage (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;Ljava/awt/Image;Ljava/awt/geom/Point2D;Ljava/awt/geom/Dimension2D;F)V
+	public static synthetic fun drawImage$default (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;Ljava/awt/Image;Ljava/awt/geom/Point2D;Ljava/awt/geom/Dimension2D;FILjava/lang/Object;)V
+	public static final fun drawLine (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;Ljava/awt/Paint;FFFFFF)V
+	public static final fun drawLine (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;Ljava/awt/Paint;Ljava/awt/geom/Point2D;Ljava/awt/geom/Point2D;Ljava/awt/Stroke;F)V
+	public static synthetic fun drawLine$default (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;Ljava/awt/Paint;FFFFFFILjava/lang/Object;)V
+	public static synthetic fun drawLine$default (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;Ljava/awt/Paint;Ljava/awt/geom/Point2D;Ljava/awt/geom/Point2D;Ljava/awt/Stroke;FILjava/lang/Object;)V
+	public static final fun drawOval (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;Ljava/awt/Paint;Ljava/awt/geom/Point2D;Ljava/awt/geom/Dimension2D;Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawStyle;F)V
+	public static synthetic fun drawOval$default (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;Ljava/awt/Paint;Ljava/awt/geom/Point2D;Ljava/awt/geom/Dimension2D;Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawStyle;FILjava/lang/Object;)V
+	public static final fun drawRect (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;Ljava/awt/Paint;Ljava/awt/geom/Point2D;Ljava/awt/geom/Dimension2D;Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawStyle;F)V
+	public static synthetic fun drawRect$default (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;Ljava/awt/Paint;Ljava/awt/geom/Point2D;Ljava/awt/geom/Dimension2D;Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawStyle;FILjava/lang/Object;)V
+	public static final fun drawRoundRect (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;Ljava/awt/Paint;Ljava/awt/geom/Point2D;Ljava/awt/geom/Dimension2D;FFLorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawStyle;F)V
+	public static synthetic fun drawRoundRect$default (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;Ljava/awt/Paint;Ljava/awt/geom/Point2D;Ljava/awt/geom/Dimension2D;FFLorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawStyle;FILjava/lang/Object;)V
+	public static final fun drawText (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;Ljava/awt/font/TextLayout;Ljava/awt/geom/Point2D;Ljava/awt/Paint;F)V
+	public static final fun drawText (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;Ljava/lang/String;FFLjava/awt/Paint;Ljava/awt/Font;F)V
+	public static final fun drawText (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;Ljava/lang/String;Ljava/awt/geom/Point2D;Ljava/awt/Paint;Ljava/awt/Font;F)V
+	public static synthetic fun drawText$default (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;Ljava/awt/font/TextLayout;Ljava/awt/geom/Point2D;Ljava/awt/Paint;FILjava/lang/Object;)V
+	public static synthetic fun drawText$default (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;Ljava/lang/String;FFLjava/awt/Paint;Ljava/awt/Font;FILjava/lang/Object;)V
+	public static synthetic fun drawText$default (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;Ljava/lang/String;Ljava/awt/geom/Point2D;Ljava/awt/Paint;Ljava/awt/Font;FILjava/lang/Object;)V
+	public static final fun inset (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;FFFFLkotlin/jvm/functions/Function1;)V
+	public static final fun inset (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;FFLkotlin/jvm/functions/Function1;)V
+	public static final fun inset (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;FLkotlin/jvm/functions/Function1;)V
+	public static synthetic fun inset$default (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;FFLkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+	public static final fun measureText (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;Ljava/lang/String;Ljava/awt/Font;)Ljava/awt/font/TextLayout;
+	public static synthetic fun measureText$default (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;Ljava/lang/String;Ljava/awt/Font;ILjava/lang/Object;)Ljava/awt/font/TextLayout;
+	public static final fun record (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;Lorg/jetbrains/compose/swing/foundation/graphics/ImageLayer;Lkotlin/jvm/functions/Function1;)V
+	public static final fun resize (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;Ljava/awt/Dimension;)V
+	public static final fun restoreTransformAndClip (Ljava/awt/Graphics2D;Ljava/awt/geom/AffineTransform;Ljava/awt/Shape;)V
+	public static final fun rotate (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;FFFLkotlin/jvm/functions/Function1;)V
+	public static synthetic fun rotate$default (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;FFFLkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+	public static final fun scale (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;FFFFLkotlin/jvm/functions/Function1;)V
+	public static synthetic fun scale$default (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;FFFFLkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+	public static final fun translate (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;FFLkotlin/jvm/functions/Function1;)V
+	public static final fun withTransform (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;)V
 }
 
 public final class org/jetbrains/compose/swing/foundation/layout/AbsoluteAlignment {

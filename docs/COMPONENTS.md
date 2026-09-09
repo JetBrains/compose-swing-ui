@@ -19,7 +19,9 @@ import org.jetbrains.compose.swing.components.text.*
 import org.jetbrains.compose.swing.modifier.*
 import org.jetbrains.compose.swing.modifier.interaction.*
 import org.jetbrains.compose.swing.modifier.layout.*
+import org.jetbrains.compose.swing.foundation.graphics.drawscope.*
 import org.jetbrains.compose.swing.window.*
+import java.awt.Color
 import java.awt.Dimension
 import java.awt.GridBagConstraints
 import java.awt.Insets
@@ -1076,16 +1078,15 @@ Window(onCloseRequest = ::exitApplication) {
 
 ## Drawing
 
-`Canvas` hands you the raw `Graphics2D` of a blank surface, plus its current width and height in
-user-space coordinates.
-Snapshot state read inside the draw lambda, at paint time, is observed: when it changes the surface
-repaints. Size the surface with the preferred-size modifier.
+`Canvas` hands you a `DrawScope` over a blank surface, with declarative drawing primitives and direct
+access to the underlying `Graphics2D`. See [Foundation](FOUNDATION.md) for the drawing and decoration guide. Snapshot state read inside the draw lambda, at paint time, is observed:
+when it changes the surface repaints. Size the surface with the preferred-size modifier.
 
 ```kotlin
 var radius by remember { mutableStateOf(24) }
 Panel(PanelLayout.Border()) {
-    Canvas(modifier = SwingModifier.preferredSize(Dimension(200, 200))) { g, width, height ->
-        g.fillOval(width / 2 - radius, height / 2 - radius, radius * 2, radius * 2)
+    Canvas(modifier = SwingModifier.preferredSize(Dimension(200, 200))) {
+        drawCircle(Color.BLUE, radius = radius.toFloat())
     }
     Slider(value = radius, onValueChange = { radius = it }, min = 4, max = 80, modifier = SwingModifier.south())
 }

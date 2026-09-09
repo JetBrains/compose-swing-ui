@@ -60,7 +60,8 @@ internal fun CanvasSection() {
                         .testTag(CANVAS_TAG)
                         .preferredSize(Dimension(260, 260))
                         .lineBorder(Color.GRAY),
-            ) { g, width, height ->
+            ) {
+                val g = graphics
                 g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
                 g.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE)
 

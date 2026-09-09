@@ -230,8 +230,8 @@ samples and documentation snippets are kept in `samples/`.
 `swing-ui` and `swing-ui-foundation` split along what Swing itself can already do: `swing-ui` wraps a
 Swing/AWT capability that already exists (a component, a listener, a `LayoutManager`) in a declarative
 API; `swing-ui-foundation` mimics the part of Compose UI/Foundation's own API surface that Swing has no
-equivalent for at all (weighted two-pass measurement, `Row`/`Column`/`Box`), and had to be built from
-scratch to do it.
+equivalent for at all (weighted two-pass measurement, `Row`/`Column`/`Box`, draw scopes, brushes and
+shapes), and had to be built from scratch to do it.
 
 ## Stability
 
@@ -243,7 +243,7 @@ consume the libraries. Below Kotlin 2.4, calling the Foundation layout modifiers
 Licensed under the Apache License, Version 2.0 - see [LICENSE](LICENSE).
 
 `swing-ui` redistributes source code from the Android Open Source Project's Jetpack Compose `compose.ui:ui` and
-`ui-util`, `swing-ui-foundation` its `foundation-layout`, `compose.ui:ui` and `ui-util`, `swing-ui-animation` its
-`animation-core`, and `swing-ui-detekt` one of that project's Android Lint checks, all under the same license. See
-each module's `META-INF/NOTICE`
+`ui-util`, `swing-ui-foundation` its `foundation-layout`, `compose.ui:ui`, `ui-graphics` and `ui-util`,
+`swing-ui-animation` its `animation-core`, and `swing-ui-detekt` one of that project's Android Lint checks, all
+under the same license. See each module's `META-INF/NOTICE`
 and the per-file headers for attribution.

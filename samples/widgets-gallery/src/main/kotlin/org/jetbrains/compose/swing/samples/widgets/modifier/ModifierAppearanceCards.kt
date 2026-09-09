@@ -225,11 +225,10 @@ internal fun ColumnScope.PerLocationToolTipCard() {
                         val width = event.component.width.coerceAtLeast(1)
                         bands.getOrNull(event.x * bands.size / width)?.first
                     },
-        ) { g, width, height ->
+        ) {
             val band = width / bands.size
             bands.forEachIndexed { index, (_, color) ->
-                g.color = color
-                g.fillRect(index * band, 0, band, height)
+                drawRect(color, x = (index * band).toFloat(), y = 0f, width = band.toFloat(), height = height.toFloat())
             }
         }
         WrappedCaption(

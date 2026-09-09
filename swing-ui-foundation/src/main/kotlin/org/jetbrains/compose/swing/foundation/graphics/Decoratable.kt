@@ -13,8 +13,9 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
  * - `isOpaque` answers `super.isOpaque() && decoration.isOpaque(this)`;
  * - a component with children also answers `isPaintingOrigin` with [Decoration.isDecorated].
  *
- * Its size getters answer as for any Swing component, and its decoration is clipped at its bounds. See "Making a
- * component decoratable" in `docs/FOUNDATION.md`.
+ * Its size getters answer as for any Swing component: a size worked out from its content includes `getInsets()`, and
+ * a set size answers as set. Its decoration is clipped at its bounds. See "Making a component decoratable" in
+ * `docs/FOUNDATION.md`.
  */
 public interface Decoratable : DeclaredNodesListener {
     /**
@@ -35,8 +36,10 @@ public interface Decoratable : DeclaredNodesListener {
     }
 
     /**
-     * Takes a written [DecorationModifierNode], whose element may have changed its `isOpaque`, and declines any other
-     * node. Not to be overridden.
+     * Takes a written [DecorationModifierNode] other than a [DrawModifierNode], since its element may have changed
+     * the node's `isOpaque`, and declines every other node. A draw node's `isOpaque` never changes, and it repaints
+     * its own change. Not to be overridden.
      */
-    override fun needsNodesAfterWrite(node: SwingModifier.Node): Boolean = node is DecorationModifierNode<*>
+    override fun needsNodesAfterWrite(node: SwingModifier.Node): Boolean =
+        node is DecorationModifierNode<*> && node !is DrawModifierNode<*>
 }

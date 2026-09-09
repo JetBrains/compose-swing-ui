@@ -176,7 +176,7 @@ receives that list after each modifier pass that attaches, detaches or moves one
 one with a new element that its `needsNodesAfterWrite` takes, and after a composition-local refresh that
 rewrites such a node, so it can paint or lay itself out through those nodes.
 `swing-ui-foundation` paints a component through such nodes; see
-[Writing a decorator](FOUNDATION.md#writing-a-decorator).
+[Writing a decorator or draw node](FOUNDATION.md#writing-a-decorator-or-draw-node).
 
 ## Failure
 

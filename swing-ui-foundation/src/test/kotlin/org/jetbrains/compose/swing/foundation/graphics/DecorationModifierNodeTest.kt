@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertAskedToRepaint
+import org.jetbrains.compose.swing.foundation.graphics.drawscope.ContentDrawScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
@@ -206,6 +207,18 @@ class DecorationModifierNodeTest {
             assertEquals(Decoration.None, panel.decoration, "The deactivated component holds no decoration.")
             assertEquals(undecorated, panel.isOpaque, "and answers isOpaque as it did before the step.")
         }
+
+    @Test
+    fun aDecoratableNeedsAStepAfterAWriteButNotADrawNode() {
+        val panel = DecoratedPanel()
+
+        assertTrue(panel.needsNodesAfterWrite(StepNode()), "A step's write may change its opacity.")
+        assertFalse(
+            panel.needsNodesAfterWrite(DrawingNode()),
+            "A draw node's opacity never changes, and it repaints its own change.",
+        )
+        assertFalse(panel.needsNodesAfterWrite(PlainNode()), "A node that is no decoration step changes nothing.")
+    }
 
     @Test
     fun aStepCreatedByAPropertyElementIsRefused() =
@@ -486,4 +499,9 @@ private class ComponentReadingNode : DecorationModifierNode<Component>() {
         graphics.fillRect(0, 0, width, height)
         content(graphics, width, height)
     }
+}
+
+/** A draw node drawing nothing but its content. */
+private class DrawingNode : DrawModifierNode<Component>() {
+    override fun ContentDrawScope.draw() = drawContent()
 }

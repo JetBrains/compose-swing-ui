@@ -287,11 +287,11 @@ ProvideComponentDefaults(
             modifier = SwingModifier.background(accentColor), // explicit modifier wins
             onClick = {},
         )
-        Canvas { graphics -> graphics.color = background }
+        Canvas { drawRect(background) }
 
         ProvideComponentDefaults(DefaultCardSurface provides null) {
             val maskedBackground = DefaultCardSurface.current ?: Color.WHITE
-            Canvas { graphics -> graphics.color = maskedBackground }
+            Canvas { drawRect(maskedBackground) }
             ToolBar { /* The surface is absent; the outer orientation remains. */ }
         }
     }
@@ -335,11 +335,11 @@ what to emit, and re-running the whole scope to redo them would be the wrong uni
 binding records the reads against the block itself. A change to state the block read re-runs that
 block - a repaint, a re-apply - and recomposes nothing.
 
-`Canvas` is the component in the library that works this way: state the drawing lambda reads at paint
-time is tracked, and a later change repaints that one surface and re-invokes the same lambda with the
-new values. On the same terms as a listener, a component's tracked reads are dropped when its node is
-released or deactivated, so a parked node reacts to nothing; the fresh component a reactivated node's
-factory builds registers its own reads the next time it paints.
+A draw node (`DrawModifierNode`) works this way, and so do `Canvas`, which is one, and `Layer`'s
+`onPaint`: state the drawing lambda reads at paint time is tracked, and a later change repaints that one
+component and re-invokes the same lambda with the new values. On the same terms as a listener, a draw
+node's tracked reads are dropped when its node is released or deactivated, so a parked node reacts to
+nothing, and a reactivated node records its reads again the next time its component paints.
 
 A window's geometry is observed separately: a snapshot's apply notification arrives on whichever
 thread applied the snapshot, while sizing, packing and placing a window is the EDT's alone, so that

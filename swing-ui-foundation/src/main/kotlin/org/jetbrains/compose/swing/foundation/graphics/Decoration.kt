@@ -3,17 +3,21 @@ package org.jetbrains.compose.swing.foundation.graphics
 import java.awt.Component
 import java.awt.Graphics
 import java.awt.Graphics2D
+import java.awt.Insets
 
 /**
  * What a [Decoratable] component paints through: the steps its modifier declares. The library creates each value for
  * one component and writes it to [Decoratable.decoration]; a value never changes, and a change is a new value.
  *
- * Each step is a [Decorator], the first outermost: it paints at the component's *layout bounds*, which are its bounds,
- * and what it paints past them is clipped.
+ * Each step is a [Decorator], the first outermost: it paints at the layout bounds. The *layout bounds* are the box
+ * measurement, placement, alignment, `onPlaced`, `onSizeChanged` and hit testing see. The component has no paint
+ * outsets, so its layout bounds are its *bounds*, Swing's rectangle.
  */
 public class Decoration internal constructor(
     /** The steps the component's modifier declares. */
     internal val steps: DecorationSteps,
+    /** The paint outsets: [NoPaintOutsets]; never modified. */
+    internal val heldPaintOutsets: Insets,
     /** Whether every step answered [Decorator.isOpaque] with `true` when the library last gathered the steps. */
     internal val hasOpaqueSteps: Boolean,
 ) {
@@ -48,9 +52,13 @@ public class Decoration internal constructor(
         val decorated = graphics.create() as Graphics2D
         try {
             if (decorated.clip == null) decorated.clipRect(0, 0, component.width, component.height)
-            steps.paint(decorated, component.width, component.height) { inner, _, _ ->
+            val originX = heldPaintOutsets.left
+            val originY = heldPaintOutsets.top
+            decorated.translate(originX, originY)
+            steps.paint(decorated, layoutWidth(component), layoutHeight(component)) { inner, _, _ ->
                 val swing = inner.create()
                 try {
+                    swing.translate(-originX, -originY)
                     content(swing)
                 } finally {
                     swing.dispose()
@@ -66,11 +74,23 @@ public class Decoration internal constructor(
         component: Component,
         x: Int,
         y: Int,
-    ): Boolean = x in 0 until component.width && y in 0 until component.height
+    ): Boolean {
+        val boxX = x - heldPaintOutsets.left
+        val boxY = y - heldPaintOutsets.top
+        return boxX in 0 until layoutWidth(component) && boxY in 0 until layoutHeight(component)
+    }
+
+    /** The width of [component]'s layout bounds: its width less the paint outsets. */
+    internal fun layoutWidth(component: Component): Int =
+        (component.width - heldPaintOutsets.left - heldPaintOutsets.right).coerceAtLeast(0)
+
+    /** The height of [component]'s layout bounds: its height less the paint outsets. */
+    internal fun layoutHeight(component: Component): Int =
+        (component.height - heldPaintOutsets.top - heldPaintOutsets.bottom).coerceAtLeast(0)
 
     /** Holds [None]. */
     public companion object {
-        /** No decoration: what a component holds until the library writes one. */
-        public val None: Decoration = Decoration(DecorationSteps.None, hasOpaqueSteps = true)
+        /** No decoration and no paint outsets: what a component holds until the library writes one. */
+        public val None: Decoration = Decoration(DecorationSteps.None, NoPaintOutsets, hasOpaqueSteps = true)
     }
 }

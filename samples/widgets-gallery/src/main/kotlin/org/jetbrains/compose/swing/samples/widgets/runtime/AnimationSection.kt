@@ -34,8 +34,6 @@ import org.jetbrains.compose.swing.samples.widgets.WrappedCaption
 import org.jetbrains.compose.swing.tooling.Preview
 import java.awt.Color
 import java.awt.Dimension
-import java.awt.RenderingHints
-import java.awt.geom.Ellipse2D
 
 // The animation engine driving real Swing rendering over the window's frame clock: an eased
 // animateIntAsState, a physical spring, and an infinite looping transition. In every case the target
@@ -102,17 +100,14 @@ private fun ColumnScope.SpringMarkerCard() {
                 SwingModifier
                     .preferredSize(Dimension(360, 48))
                     .lineBorder(Color.GRAY),
-        ) { g, width, height ->
-            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
-            g.color = Color(0xE3, 0xF2, 0xFD)
-            g.fillRect(0, 0, width, height)
+        ) {
+            drawRect(Color(0xE3, 0xF2, 0xFD))
 
-            val radius = height / 2.0 - 4.0
-            val travel = width - 2 * (radius + 4.0)
-            val cx = radius + 4.0 + travel * fraction
-            val cy = height / 2.0
-            g.color = Color(0x42, 0x85, 0xF4)
-            g.fill(Ellipse2D.Double(cx - radius, cy - radius, radius * 2, radius * 2))
+            val radius = height / 2.0f - 4.0f
+            val travel = width - 2 * (radius + 4.0f)
+            val cx = radius + 4.0f + travel * fraction
+            val cy = height / 2.0f
+            drawCircle(Color(0x42, 0x85, 0xF4), radius = radius, centerX = cx, centerY = cy)
         }
         Panel {
             Button(if (atEnd) "Spring left" else "Spring right", onClick = { atEnd = !atEnd })
@@ -171,11 +166,9 @@ private fun Disc(scale: Float) {
             SwingModifier
                 .preferredSize(Dimension(120, 120))
                 .lineBorder(Color.GRAY),
-    ) { g, width, height ->
-        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
-        val radius = minOf(width, height) / 2.0 * scale
-        g.color = Color(0x42, 0x85, 0xF4)
-        g.fill(Ellipse2D.Double(width / 2.0 - radius, height / 2.0 - radius, radius * 2, radius * 2))
+    ) {
+        val radius = minOf(width, height) / 2.0f * scale
+        drawCircle(Color(0x42, 0x85, 0xF4), radius = radius)
     }
 }
 

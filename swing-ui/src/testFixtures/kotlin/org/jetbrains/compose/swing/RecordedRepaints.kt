@@ -2,6 +2,7 @@ package org.jetbrains.compose.swing
 
 import java.awt.Dimension
 import java.awt.Rectangle
+import java.util.concurrent.CopyOnWriteArrayList
 import javax.swing.JComponent
 import javax.swing.RepaintManager
 import kotlin.test.assertEquals
@@ -30,7 +31,8 @@ public class RecordedRepaints(
     /** The components asked for a layout pass, in the order they asked. */
     public val relayouts: MutableList<JComponent> = mutableListOf()
 
-    private val dirtyRegions: MutableList<DirtyRegion> = mutableListOf()
+    // JComponent.repaint may be called off the event dispatch thread, as an image observer does.
+    private val dirtyRegions: MutableList<DirtyRegion> = CopyOnWriteArrayList()
 
     private var awaitingService = false
 

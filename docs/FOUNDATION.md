@@ -266,7 +266,80 @@ it builds on `ConstrainedScope`'s own modifiers the same way theirs do.
 
 ## Graphics
 
-### Writing a decorator
+`Canvas`, `DrawScope`, brushes and shapes draw through Java2D in the same user space as layout. The underlying
+`Graphics2D` stays available for whatever the declarative helpers do not cover.
+
+<!--- INCLUDE .*foundation-graphics-content.*
+import androidx.compose.runtime.Composable
+import org.jetbrains.compose.swing.foundation.Canvas
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import java.awt.Color
+import java.awt.Dimension
+
+@Composable
+fun FoundationGraphicsContentExample() {
+----- SUFFIX .*foundation-graphics-content.*
+}
+-->
+
+### Drawing with `Canvas` and `DrawScope`
+
+`Canvas` is a real Swing component. Its trailing block runs on the EDT while the component paints,
+with a `DrawScope` receiver. The scope supplies the current `size`, `width`, `height` and `center`,
+declarative primitives such as `drawLine`, `drawRect`, `drawCircle`, `drawPath`, `drawImage` and
+`drawText`, plus the underlying `Graphics2D` as `graphics`. Primitives take `Float` coordinates; the
+positioned ones also take a `Point2D`, and the sized ones a `Dimension2D`.
+
+```kotlin
+@Composable
+fun CanvasExample() {
+    Canvas(modifier = SwingModifier.preferredSize(Dimension(120, 120))) {
+        drawCircle(
+            Color.BLUE,
+            radius = minOf(width, height) / 4f,
+            centerX = width / 2f,
+            centerY = height / 2f,
+        )
+    }
+}
+```
+
+<!--- KNIT example-foundation-graphics-content-01.kt -->
+
+State read directly in the draw block is observed. Changing it repaints this component without
+recomposing or laying it out again. Drawing happens inside the area left after the component's
+border.
+
+The scope takes Java2D values: `Color` and other `Paint` implementations supply fills, `Stroke` supplies line
+style, `java.awt.Shape` supplies paths, and `TextLayout` supplies measured text. Use `graphics` directly for
+operations specific to Java2D.
+
+### Drawing modifiers
+
+`SwingModifier.drawBehind { ... }` paints into a decorated component before the content declared after
+the modifier, without reserving space. `SwingModifier.drawWithContent { ... }` exposes `drawContent()`
+so the block can choose where that content is painted. Both observe state read by the drawing block and
+require `Decoratable`.
+
+### Brushes and shapes
+
+`Brush` is a size-aware fill. Use `Brush.of(paint)` for a fixed Java2D `Paint`, or use one of the
+gradient factories: `horizontalGradient`, `verticalGradient`, `linearGradient` and
+`radialGradient`. The first two span the decorated box; `linearGradient` places its points relative to
+the decorated box's top-left corner, and `radialGradient` spreads from its center.
+
+Brushes compare their value inputs structurally. A caller-owned `Paint` passed to `Brush.of` is
+compared by identity, so remember or otherwise hoist it when rebuilding a modifier during
+recomposition.
+
+`Shape` is the corresponding size-aware outline. Foundation
+provides `RectangleShape`, `CircleShape` and `RoundedCornerShape`; `Shape.of(awtShape)` adapts a
+caller-owned `java.awt.Shape` whose coordinates do not change with the component's size. A custom
+shape implements `outline(width, height)` and returns an outline relative to the decorated box's
+top-left corner.
+
+### Writing a decorator or draw node
 
 A `Decorator` paints one step of a decoration: write it as a `data class`, call the continuation to paint the
 content, and declare it with `decoration`:
@@ -285,15 +358,20 @@ fun SwingModifier.outlined(outline: Decorator): SwingModifier = decoration(outli
 
 An effect that reads the content's pixels calls the continuation inside `ImageLayer.record` and draws the layer.
 
-A step that keeps state across paints extends `DecorationModifierNode` and declares its element through the same
-`decoration` member. The library gathers a step's `isOpaque` after each modifier pass, so an element's `update`
-needs no call for it. Between passes, a node calls `invalidateDecoration()` where its `isOpaque` changed.
+A step that keeps state across paints extends `DecorationModifierNode`, or `DrawModifierNode` to draw through a
+`ContentDrawScope`, and declares its element through the same `decoration` member. State read in `draw()` is
+observed, and a change repaints the component without laying it out again. The library gathers a step's
+`isOpaque` after each modifier pass, so an element's `update` needs no call for it. Between passes, a node that
+changes a plain field it paints from calls `invalidateDraw()`, or `invalidateDecoration()` when its outsets or `isOpaque`
+change.
 
 `ImageLayer` is an offscreen raster: `record` replaces its recording, `draw` draws it, and `filter` post-processes
 it. `alpha`, `scaleX`, `scaleY`, `translationX`, `translationY`, `rotationZ`, `pivotOffset` and `renderEffect` are
 androidx's `GraphicsLayer` properties of the same names and defaults, and apply at the next `draw`; `BlurEffect` is
-a `RenderEffect`. Create a layer with `rememberImageLayer()` in composition, which releases it when the composition
-leaves, or call `release()` on one you construct.
+a `RenderEffect`. `DrawScope.record(layer) { ... }` records drawing aligned to the device pixels the scope draws on,
+so inside `drawWithContent`, `record(layer) { this@drawWithContent.drawContent() }` records the content, which the
+block can then filter or blur and draw as one image. Create a layer with `rememberImageLayer()` in composition,
+which releases it when the composition leaves, or call `release()` on one you construct.
 
 ### Making a component decoratable
 
