@@ -1,4 +1,4 @@
-package org.jetbrains.compose.swing.samples.widgets.runtime
+package org.jetbrains.compose.swing.samples.widgets.animation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.NonRestartableComposable
@@ -36,8 +36,9 @@ import java.awt.Color
 import java.awt.Dimension
 
 // The animation engine driving real Swing rendering over the window's frame clock: an eased
-// animateIntAsState, a physical spring, and an infinite looping transition. In every case the target
-// is plain hoisted Compose state and the animation interpolates toward it - no timers, no manual frames.
+// animateIntAsState, a physical spring, an infinite looping transition, and a background that travels
+// between colors. In every case the target is plain hoisted Compose state and the animation interpolates
+// toward it - no timers, no manual frames.
 @Preview
 @Composable
 internal fun AnimationSection() {
@@ -46,6 +47,7 @@ internal fun AnimationSection() {
         AnimatedProgressCard()
         SpringMarkerCard()
         InfinitePulseCard()
+        AnimatedColorCard()
     }
 }
 

@@ -1,4 +1,4 @@
-package org.jetbrains.compose.swing.samples.widgets.runtime
+package org.jetbrains.compose.swing.samples.widgets.animation
 
 import org.jetbrains.compose.swing.samples.widgets.openSection
 import org.jetbrains.compose.swing.test.interaction.performClick

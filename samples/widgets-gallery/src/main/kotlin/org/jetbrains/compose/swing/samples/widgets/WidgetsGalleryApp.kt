@@ -11,6 +11,9 @@ import androidx.compose.runtime.setValue
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberDecoratedNavEntries
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
+import org.jetbrains.compose.swing.animation.AnimatedVisibility
+import org.jetbrains.compose.swing.animation.expandHorizontally
+import org.jetbrains.compose.swing.animation.shrinkHorizontally
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.Panel
@@ -22,6 +25,7 @@ import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.components.menu.MenuSeparator
 import org.jetbrains.compose.swing.components.menu.RadioButtonMenuGroup
 import org.jetbrains.compose.swing.components.selection.ListBox
+import org.jetbrains.compose.swing.foundation.layout.fillMaxHeight
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.accessibility.accessibleName
 import org.jetbrains.compose.swing.modifier.appearance.emptyBorder
@@ -31,7 +35,6 @@ import org.jetbrains.compose.swing.modifier.listener.actionListener
 import org.jetbrains.compose.swing.node.MenuNode
 import org.jetbrains.compose.swing.samples.widgets.text.setEditorText
 import org.jetbrains.compose.swing.window.LocalWindow
-import java.awt.Dimension
 import java.awt.FlowLayout
 import java.awt.Toolkit
 import java.awt.event.ActionListener
@@ -106,6 +109,7 @@ internal fun ShowcaseMenuBar(onExit: () -> Unit) {
 @Composable
 internal fun ShowcaseShell() {
     val backStack = remember { mutableStateListOf(SectionKey(showcaseSections.first().title)) }
+    var sidebarShown by remember { mutableStateOf(true) }
     val entries =
         rememberDecoratedNavEntries(
             backStack = backStack,
@@ -117,19 +121,27 @@ internal fun ShowcaseShell() {
         )
     val current = backStack.last().title
     Panel(PanelLayout.Border(), modifier = SwingModifier.emptyBorder(12)) {
-        ScrollPane(modifier = SwingModifier.west().preferredSize(Dimension(180, 0))) {
-            ListBox(
-                items = showcaseSections.map { it.title },
-                selectedIndices = setOf(showcaseSections.indexOfFirst { it.title == current }),
-                // Driving the selection from the back stack does not re-enter this callback, so a pop
-                // moves the highlight without pushing the row it lands on.
-                onSelectionChange = { indices ->
-                    indices.firstOrNull()?.let { backStack += SectionKey(showcaseSections[it].title) }
-                },
-                selectionMode = ListSelectionModel.SINGLE_SELECTION,
-                visibleRowCount = showcaseSections.size,
-                modifier = SwingModifier.viewport().accessibleName("Sections"),
-            )
+        AnimatedVisibility(
+            visible = sidebarShown,
+            modifier = SwingModifier.west(),
+            enter = expandHorizontally(),
+            exit = shrinkHorizontally(),
+        ) {
+            // fillMaxHeight gives the sidebar the region's height, which it cannot ask for itself.
+            ScrollPane(modifier = SwingModifier.fillMaxHeight().preferredSize(180, 0)) {
+                ListBox(
+                    items = showcaseSections.map { it.title },
+                    selectedIndices = setOf(showcaseSections.indexOfFirst { it.title == current }),
+                    // Driving the selection from the back stack does not re-enter this callback, so a pop
+                    // moves the highlight without pushing the row it lands on.
+                    onSelectionChange = { indices ->
+                        indices.firstOrNull()?.let { backStack += SectionKey(showcaseSections[it].title) }
+                    },
+                    selectionMode = ListSelectionModel.SINGLE_SELECTION,
+                    visibleRowCount = showcaseSections.size,
+                    modifier = SwingModifier.viewport().accessibleName("Sections"),
+                )
+            }
         }
         // The entry names no region, so BorderLayout gives it the center by default.
         entries.last().Content()
@@ -138,6 +150,10 @@ internal fun ShowcaseShell() {
                 text = "Back",
                 onClick = { backStack.removeLastOrNull() },
                 modifier = SwingModifier.enabled(backStack.size > 1),
+            )
+            Button(
+                text = if (sidebarShown) "Hide sidebar" else "Show sidebar",
+                onClick = { sidebarShown = !sidebarShown },
             )
             Label("Section: $current")
         }

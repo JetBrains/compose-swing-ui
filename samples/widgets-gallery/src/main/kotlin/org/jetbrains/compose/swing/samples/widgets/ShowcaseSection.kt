@@ -16,6 +16,8 @@ import org.jetbrains.compose.swing.modifier.appearance.font
 import org.jetbrains.compose.swing.modifier.appearance.foreground
 import org.jetbrains.compose.swing.modifier.appearance.horizontalAlignment
 import org.jetbrains.compose.swing.modifier.appearance.opaque
+import org.jetbrains.compose.swing.samples.widgets.animation.AnimatedContainersSection
+import org.jetbrains.compose.swing.samples.widgets.animation.AnimationSection
 import org.jetbrains.compose.swing.samples.widgets.components.ComponentsSection
 import org.jetbrains.compose.swing.samples.widgets.components.FormInputsSection
 import org.jetbrains.compose.swing.samples.widgets.components.RadioGroupSection
@@ -33,7 +35,6 @@ import org.jetbrains.compose.swing.samples.widgets.menu.ContextMenuSection
 import org.jetbrains.compose.swing.samples.widgets.modifier.AccessibilitySection
 import org.jetbrains.compose.swing.samples.widgets.modifier.DataTransferSection
 import org.jetbrains.compose.swing.samples.widgets.modifier.ModifierGallery
-import org.jetbrains.compose.swing.samples.widgets.runtime.AnimationSection
 import org.jetbrains.compose.swing.samples.widgets.runtime.CompositionLocalsSection
 import org.jetbrains.compose.swing.samples.widgets.runtime.DynamicHierarchySection
 import org.jetbrains.compose.swing.samples.widgets.runtime.EffectsSection
@@ -88,6 +89,7 @@ internal val showcaseSections: List<ShowcaseSection> =
         ShowcaseSection("Composition locals") { CompositionLocalsSection() },
         ShowcaseSection("Effects") { EffectsSection() },
         ShowcaseSection("Animation") { AnimationSection() },
+        ShowcaseSection("Animated containers") { AnimatedContainersSection() },
         ShowcaseSection("Modifier gallery") { ModifierGallery() },
     )
 
