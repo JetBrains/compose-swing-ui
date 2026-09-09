@@ -4,7 +4,7 @@ The animation engine for Compose Swing UI, and the containers that animate a com
 between states. It provides the familiar Compose animation APIs - `animate*AsState`, `Animatable`,
 `updateTransition` / `Transition`, `rememberInfiniteTransition`, easing curves (including
 `CubicBezierEasing`), and the `spring` / `tween` / `keyframes` specs - for the `Float`, `Int`,
-and generic (`TwoWayConverter`) value types.
+`java.awt.Color`, and generic (`TwoWayConverter`) value types.
 
 ## Usage
 
@@ -19,15 +19,17 @@ import androidx.compose.runtime.getValue
 val alpha by animateFloatAsState(if (visible) 1f else 0f)
 ```
 
-For value types beyond `Float` / `Int`, supply a `TwoWayConverter`. The animation APIs are documented in
-KDoc.
+A `java.awt.Color` animates through `animateColorAsState`, which interpolates in Oklab and returns an
+sRGB color. For value types beyond those, supply a `TwoWayConverter`. The animation APIs are
+documented in KDoc.
 
 ## Animating a composable
 
 `AnimatedVisibility` runs content through an enter and an exit transition as a boolean flips.
 `AnimatedContent` settles on a target state, running the content it leaves out while the content it
 moves to runs in, and traveling between their sizes. `Crossfade` fades between the contents of its
-states and animates no size. Transitions combine with `+`.
+states and animates no size. `SwingModifier.animateContentSize` leaves a layout's content alone and
+animates only the size the content asks for. Transitions combine with `+`.
 
 ```kotlin
 AnimatedVisibility(visible = expanded, enter = fadeIn() + expandVertically()) {

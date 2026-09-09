@@ -191,8 +191,9 @@ see [`docs/INSPECTING-COMPOSITIONS.md`](docs/INSPECTING-COMPOSITIONS.md).
 
 `swing-ui-animation` provides androidx Compose's animation-core APIs - `animate*AsState`, `Animatable`,
 `updateTransition`, easing curves, and the `spring` / `tween` / `keyframes` specs - for `Float`,
-`Int`, and any type you supply a `TwoWayConverter` for. It also provides `AnimatedVisibility`,
-`AnimatedContent` and `Crossfade`, which animate content as it appears, disappears or is replaced. See
+`Int`, `java.awt.Color`, and any type you supply a `TwoWayConverter` for. It also provides
+`AnimatedVisibility`, `AnimatedContent` and `Crossfade`, which animate content as it appears, disappears
+or is replaced, and `animateContentSize`, which animates a layout's size as its content changes. See
 [`swing-ui-animation/README.md`](swing-ui-animation/README.md).
 
 ## Testing

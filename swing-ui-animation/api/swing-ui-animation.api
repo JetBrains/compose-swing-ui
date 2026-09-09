@@ -1,3 +1,15 @@
+public final class org/jetbrains/compose/swing/animation/AnimateColorAsStateKt {
+	public static final fun Animatable (Ljava/awt/Color;)Lorg/jetbrains/compose/swing/animation/core/Animatable;
+	public static final fun animateColor (Lorg/jetbrains/compose/swing/animation/core/InfiniteTransition;Ljava/awt/Color;Ljava/awt/Color;Lorg/jetbrains/compose/swing/animation/core/InfiniteRepeatableSpec;Ljava/lang/String;Landroidx/compose/runtime/Composer;II)Landroidx/compose/runtime/State;
+	public static final fun animateColor (Lorg/jetbrains/compose/swing/animation/core/Transition;Lkotlin/jvm/functions/Function3;Ljava/lang/String;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)Landroidx/compose/runtime/State;
+	public static final fun animateColorAsState (Ljava/awt/Color;Lorg/jetbrains/compose/swing/animation/core/AnimationSpec;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)Landroidx/compose/runtime/State;
+}
+
+public final class org/jetbrains/compose/swing/animation/AnimateContentSizeKt {
+	public static final fun animateContentSize (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;Lorg/jetbrains/compose/swing/foundation/layout/Alignment;Lkotlin/jvm/functions/Function2;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static synthetic fun animateContentSize$default (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/animation/core/FiniteAnimationSpec;Lorg/jetbrains/compose/swing/foundation/layout/Alignment;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+}
+
 public final class org/jetbrains/compose/swing/animation/AnimatedContentKt {
 	public static final fun AnimatedContent (Ljava/lang/Object;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;Lorg/jetbrains/compose/swing/foundation/layout/Alignment;Ljava/lang/String;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function4;Landroidx/compose/runtime/Composer;II)V
 	public static final fun AnimatedContent (Lorg/jetbrains/compose/swing/animation/core/Transition;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;Lorg/jetbrains/compose/swing/foundation/layout/Alignment;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function4;Landroidx/compose/runtime/Composer;II)V

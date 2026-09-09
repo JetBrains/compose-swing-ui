@@ -9,8 +9,7 @@ import kotlin.test.assertTrue
 
 /**
  * What the color converter carries: a color survives the trip into a vector and back, a ramp is
- * interpolated perceptually rather than component by component, an overshoot clamps, and an animated
- * color reaches the component it is declared on.
+ * interpolated perceptually rather than component by component, and an overshoot clamps.
  */
 class ColorConverterTest {
     @Test
