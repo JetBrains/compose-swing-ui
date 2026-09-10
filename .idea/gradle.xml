@@ -34,6 +34,7 @@
             <option value="$PROJECT_DIR$/swing-ui-core" />
             <option value="$PROJECT_DIR$/swing-ui-detekt" />
             <option value="$PROJECT_DIR$/swing-ui-foundation" />
+            <option value="$PROJECT_DIR$/swing-ui-svg" />
             <option value="$PROJECT_DIR$/swing-ui-test" />
           </set>
         </option>

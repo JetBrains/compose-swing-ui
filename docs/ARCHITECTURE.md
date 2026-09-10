@@ -2,7 +2,7 @@
 
 Compose Swing UI is a Compose-runtime binding over Swing. Layout, measurement, and painting stay with Swing for standard wrappers: your composition produces real `java.awt.Component`s, sized and placed by Swing's layout pass and painted by the look-and-feel. The `swing-ui-foundation` artifact adds Foundation Canvas and a Compose-style measurement and placement pass for constraint-based containers; layout still ends in real Swing component bounds. What the library adds is androidx Compose's composition model - composition and recomposition, snapshot state, effects, and a frame clock - driving a live AWT component tree on the Event Dispatch Thread (EDT).
 
-The modules have separate responsibilities. `swing-ui-core` owns the composition runtime, Swing applier, `SwingNode`, windowing, and generic modifiers. `swing-ui-components` owns the Swing widget catalog and widget-specific modifiers, building against core's public API. `swing-ui-foundation` depends on core and owns Foundation drawing, decorations and constraint-based layout. `swing-ui` is the umbrella dependency over all four.
+The modules have separate responsibilities. `swing-ui-core` owns the composition runtime, Swing applier, `SwingNode`, windowing, and generic modifiers. `swing-ui-components` owns the Swing widget catalog and widget-specific modifiers, building against core's public API. `swing-ui-foundation` depends on core and owns Foundation drawing, decorations and constraint-based layout. `swing-ui-svg` draws SVG documents through JSVG. `swing-ui` is the umbrella dependency over all of them.
 
 This document describes the concepts that shape the binding. The KDoc on the public API is the reference for individual functions.
 

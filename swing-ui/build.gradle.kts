@@ -10,6 +10,7 @@ dependencies {
     api(project(":swing-ui-components"))
     api(project(":swing-ui-foundation"))
     api(project(":swing-ui-animation"))
+    api(project(":swing-ui-svg"))
 }
 
 publishing {
@@ -17,7 +18,7 @@ publishing {
         pom {
             name.set("compose-swing-ui")
             description.set(
-                "Umbrella artifact for compose-swing-ui: core, components, foundation, and animation.",
+                "Umbrella artifact for compose-swing-ui: core, components, foundation, animation, and SVG.",
             )
         }
     }

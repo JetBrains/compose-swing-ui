@@ -27,6 +27,7 @@ include(":swing-ui-components")
 include(":swing-ui-core")
 include(":swing-ui-detekt")
 include(":swing-ui-foundation")
+include(":swing-ui-svg")
 include(":swing-ui-test")
 
 rootProject.name = "compose-swing-ui"
