@@ -37,6 +37,7 @@ import org.jetbrains.compose.swing.samples.widgets.runtime.DynamicHierarchySecti
 import org.jetbrains.compose.swing.samples.widgets.runtime.EffectsSection
 import org.jetbrains.compose.swing.samples.widgets.selection.TableSection
 import org.jetbrains.compose.swing.samples.widgets.selection.TreeSection
+import org.jetbrains.compose.swing.samples.widgets.svg.SvgSection
 import org.jetbrains.compose.swing.samples.widgets.text.EditorSection
 import org.jetbrains.compose.swing.samples.widgets.text.RichTextSection
 import org.jetbrains.compose.swing.samples.widgets.window.LayeredAndMdiSection
@@ -82,6 +83,7 @@ internal val showcaseSections: List<ShowcaseSection> =
         ShowcaseSection("ScrollPane") { ScrollPaneSection() },
         ShowcaseSection("Tabs") { TabsSection() },
         ShowcaseSection("Foundation graphics") { FoundationGraphicsSection() },
+        ShowcaseSection("SVG") { SvgSection() },
         ShowcaseSection("Custom component") { CustomComponentSection() },
         ShowcaseSection("Layer") { LayerSection() },
         ShowcaseSection("Context menu") { ContextMenuSection() },

@@ -1,0 +1,182 @@
+<!-- Day/night switch artwork, written in the part of SMIL that JSVG both applies and paints correctly.
+
+     Nothing animates a color. A shape that changes color is drawn twice - in its daytime color, with
+     its night self fading in over the top - because an animated fill is painted with stray blocks of
+     the picture scattered over it on the macOS Metal pipeline. The copy underneath keeps full opacity,
+     so the pair stays opaque rather than thinning out halfway. The moon's shadow is likewise two paths
+     crossfading rather than one path morphing, because JSVG does not animate `d` at all. Easing belongs
+     to whatever drives the timeline, since JSVG ignores `calcMode`, `keySplines` and `keyTimes` and
+     always interpolates linearly. And the transition runs once and freezes: rendering the exact moment
+     a repeating timeline turns over shows its first frame, which reads as a flash of daylight. -->
+<svg xmlns="http://www.w3.org/2000/svg" fill="none" height="100%" width="100%" viewBox="0 0 80 40">
+  <defs>
+    <clipPath id="i0">
+      <rect height="40" width="80" y="0" x="0" />
+    </clipPath>
+  </defs>
+  <g transform="translate(41,21) translate(-40,-20)">
+    <path d="M78,19C78,19,78,19,78,19C78,29.488,69.264,38,58.5,38C58.5,38,19.5,38,19.5,38C8.736,38,0,29.488,0,19C0,19,0,19,0,19C0,8.512,8.736,0,19.5,0C19.5,0,58.5,0,58.5,0C69.264,0,78,8.512,78,19Z" stroke-width="2" stroke="#2985b9" fill="#00a3ff" />
+    <path d="M78,19C78,19,78,19,78,19C78,29.488,69.264,38,58.5,38C58.5,38,19.5,38,19.5,38C8.736,38,0,29.488,0,19C0,19,0,19,0,19C0,8.512,8.736,0,19.5,0C19.5,0,58.5,0,58.5,0C69.264,0,78,8.512,78,19Z" stroke-width="2" stroke="#38466b" fill="#001448" fill-opacity="0" stroke-opacity="0">
+      <animate attributeName="fill-opacity" dur="0.5s" fill="freeze" from="0" to="1" />
+      <animate attributeName="stroke-opacity" dur="0.5s" fill="freeze" from="0" to="1" />
+    </path>
+  </g>
+  <g transform="translate(19,20)">
+    <animateTransform type="translate" attributeName="transform" dur="0.5s" fill="freeze" from="19 20" to="61 20" />
+    <g transform="rotate(-90)">
+      <animateTransform type="rotate" attributeName="transform" dur="0.5s" fill="freeze" from="-90" to="0" />
+      <g clip-path="url(#i0)" transform="translate(-15,-15)">
+        <g transform="translate(15,15) translate(-15,-15)">
+          <path d="M30,15C30,23.28,23.28,30,15,30C6.72,30,0,23.28,0,15C0,6.72,6.72,0,15,0C23.28,0,30,6.72,30,15C30,15,30,15,30,15Z" fill="#ffdf71" />
+          <path d="M30,15C30,23.28,23.28,30,15,30C6.72,30,0,23.28,0,15C0,6.72,6.72,0,15,0C23.28,0,30,6.72,30,15C30,15,30,15,30,15Z" fill="#e6e8ee" fill-opacity="0">
+            <animate attributeName="fill-opacity" dur="0.5s" fill="freeze" from="0" to="1" />
+          </path>
+        </g>
+      </g>
+    </g>
+  </g>
+  <g transform="translate(13.42,22.25)">
+    <animateTransform type="translate" attributeName="transform" dur="0.5s" fill="freeze" from="13.42 22.25" to="57.74 21.8" />
+    <g transform="translate(-8.42,-10.54)">
+      <animateTransform type="translate" attributeName="transform" dur="0.5s" fill="freeze" from="-8.42 -10.54" to="-11.74 -13.2" />
+      <path d="M16.83,20.06C16.07,20.21,15.3,20.29,14.5,20.29C7.6,20.29,2,14.47,2,7.29C2,4.59,2.79,2.08,4.15,0C1.61,2.2,0,5.45,0,9.07C0,15.7,5.37,21.07,12,21.07C13.72,21.07,15.35,20.71,16.83,20.06C16.83,20.06,16.83,20.06,16.83,20.06Z" fill-rule="evenodd" fill="#ffca62">
+        <animate attributeName="fill-opacity" dur="0.5s" fill="freeze" from="1" to="0" />
+      </path>
+      <path d="M23.49,23.77C21.98,24.27,20.36,24.54,18.69,24.54C10,24.54,2.95,17.32,2.95,8.41C2.95,5.33,3.8,2.45,5.26,0C2.04,2.75,0,6.84,0,11.41C0,19.69,6.72,26.41,15,26.41C18.15,26.41,21.08,25.43,23.49,23.77C23.49,23.77,23.49,23.77,23.49,23.77Z" fill-rule="evenodd" fill="#a7afc7" fill-opacity="0">
+        <animate attributeName="fill-opacity" dur="0.5s" fill="freeze" from="0" to="1" />
+      </path>
+    </g>
+  </g>
+  <g transform="translate(52.5,19.5)">
+    <animateTransform type="translate" attributeName="transform" dur="0.5s" fill="freeze" from="52.5 19.5" to="24.5 18.5" />
+    <g clip-path="url(#i0)" transform="translate(-16.5,-14.5)">
+      <path d="M10.5,0C8.01,0,6,2.01,6,4.5C6,4.5,6,5.5,6,5.5C6,6.03,6.09,6.53,6.26,7C6.26,7,5,7,5,7C2.24,7,0,9.24,0,12C0,14.76,2.24,17,5,17C5,17,23,17,23,17C25.76,17,28,14.76,28,12C28,9.24,25.76,7,23,7C23,7,21.97,7,21.97,7C21.72,4.75,19.82,3,17.5,3C16.55,3,15.68,3.3,14.95,3.8C14.61,1.65,12.75,0,10.5,0C10.5,0,10.5,0,10.5,0Z" fill-rule="evenodd" fill="#ffffff" transform="translate(14,20.5) translate(-14,-8.5)">
+        <animate attributeName="fill-opacity" dur="0.5s" fill="freeze" from="1" to="0.01" />
+      </path>
+      <path d="M11.5,0C12.18,0,12.75,0.44,12.94,1.06C13.42,1.2,13.8,1.58,13.94,2.06C14.56,2.25,15,2.82,15,3.5C15,4.33,14.33,5,13.5,5C13.3,5,13.12,4.96,12.95,4.89C12.78,5.53,12.19,6,11.5,6C11.12,6,10.77,5.86,10.5,5.62C10.23,5.86,9.88,6,9.5,6C9.12,6,8.77,5.86,8.5,5.62C8.23,5.86,7.88,6,7.5,6C6.85,6,6.3,5.58,6.09,5C6.09,5,5.91,5,5.91,5C5.7,5.58,5.15,6,4.5,6C3.82,6,3.25,5.56,3.06,4.94C2.85,4.88,2.66,4.76,2.5,4.62C2.23,4.86,1.88,5,1.5,5C0.67,5,0,4.33,0,3.5C0,2.67,0.67,2,1.5,2C1.7,2,1.88,2.04,2.05,2.11C2.22,1.47,2.81,1,3.5,1C3.7,1,3.88,1.04,4.05,1.11C4.22,0.47,4.81,0,5.5,0C6.15,0,6.7,0.42,6.91,1C6.91,1,7.09,1,7.09,1C7.3,0.42,7.85,0,8.5,0C9.15,0,9.7,0.42,9.91,1C9.91,1,10.09,1,10.09,1C10.3,0.42,10.85,0,11.5,0C11.5,0,11.5,0,11.5,0Z" fill-rule="evenodd" fill="#ffffff" transform="translate(25.5,3) translate(-7.5,-3)">
+        <animate attributeName="fill-opacity" dur="0.5s" fill="freeze" from="1" to="0.01" />
+      </path>
+    </g>
+  </g>
+  <g transform="translate(19,20.5)">
+    <animateTransform type="translate" attributeName="transform" dur="0.5s" fill="freeze" from="19 20.5" to="61 19.5" />
+    <g clip-path="url(#i0)" transform="translate(-11,-10.5)">
+      <path d="M2,1C2,1.55,1.55,2,1,2C0.45,2,0,1.55,0,1C0,0.45,0.45,0,1,0C1.55,0,2,0.45,2,1C2,1,2,1,2,1Z" fill="#a7afc7" fill-opacity="0.01" transform="translate(6,18) translate(-1,-1)">
+        <animate attributeName="fill-opacity" dur="0.5s" fill="freeze" from="0.01" to="1" />
+      </path>
+      <path d="M2,1C2,1.55,1.55,2,1,2C0.45,2,0,1.55,0,1C0,0.45,0.45,0,1,0C1.55,0,2,0.45,2,1C2,1,2,1,2,1Z" fill="#a7afc7" fill-opacity="0.01" transform="translate(11,14) translate(-1,-1)">
+        <animate attributeName="fill-opacity" dur="0.5s" fill="freeze" from="0.01" to="1" />
+      </path>
+      <path d="M2,1C2,1.55,1.55,2,1,2C0.45,2,0,1.55,0,1C0,0.45,0.45,0,1,0C1.55,0,2,0.45,2,1C2,1,2,1,2,1Z" fill="#a7afc7" fill-opacity="0.01" transform="translate(1,8) translate(-1,-1)">
+        <animate attributeName="fill-opacity" dur="0.5s" fill="freeze" from="0.01" to="1" />
+      </path>
+      <path d="M2,1C2,1.55,1.55,2,1,2C0.45,2,0,1.55,0,1C0,0.45,0.45,0,1,0C1.55,0,2,0.45,2,1C2,1,2,1,2,1Z" fill="#a7afc7" fill-opacity="0.01" transform="translate(8,1) translate(-1,-1)">
+        <animate attributeName="fill-opacity" dur="0.5s" fill="freeze" from="0.01" to="1" />
+      </path>
+      <path d="M2,1C2,1.55,1.55,2,1,2C0.45,2,0,1.55,0,1C0,0.45,0.45,0,1,0C1.55,0,2,0.45,2,1C2,1,2,1,2,1Z" fill="#a7afc7" fill-opacity="0.01" transform="translate(21,12) translate(-1,-1)">
+        <animate attributeName="fill-opacity" dur="0.5s" fill="freeze" from="0.01" to="1" />
+      </path>
+      <path d="M2,1C2,1.55,1.55,2,1,2C0.45,2,0,1.55,0,1C0,0.45,0.45,0,1,0C1.55,0,2,0.45,2,1C2,1,2,1,2,1Z" fill="#a7afc7" fill-opacity="0.01" transform="translate(15,2) translate(-1,-1)">
+        <animate attributeName="fill-opacity" dur="0.5s" fill="freeze" from="0.01" to="1" />
+      </path>
+      <path d="M2,1C2,1.55,1.55,2,1,2C0.45,2,0,1.55,0,1C0,0.45,0.45,0,1,0C1.55,0,2,0.45,2,1C2,1,2,1,2,1Z" fill="#a7afc7" fill-opacity="0.01" transform="translate(15,9) translate(-1,-1)">
+        <animate attributeName="fill-opacity" dur="0.5s" fill="freeze" from="0.01" to="1" />
+      </path>
+      <path d="M3,1.5C3,2.33,2.33,3,1.5,3C0.67,3,0,2.33,0,1.5C0,0.67,0.67,0,1.5,0C2.33,0,3,0.67,3,1.5C3,1.5,3,1.5,3,1.5Z" fill="#a7afc7" fill-opacity="0.01" transform="translate(8.5,6.5) translate(-1.5,-1.5)">
+        <animate attributeName="fill-opacity" dur="0.5s" fill="freeze" from="0.01" to="1" />
+      </path>
+      <path d="M3,1.5C3,2.33,2.33,3,1.5,3C0.67,3,0,2.33,0,1.5C0,0.67,0.67,0,1.5,0C2.33,0,3,0.67,3,1.5C3,1.5,3,1.5,3,1.5Z" fill="#a7afc7" fill-opacity="0.01" transform="translate(19.5,5.5) translate(-1.5,-1.5)">
+        <animate attributeName="fill-opacity" dur="0.5s" fill="freeze" from="0.01" to="1" />
+      </path>
+      <path d="M3,1.5C3,2.33,2.33,3,1.5,3C0.67,3,0,2.33,0,1.5C0,0.67,0.67,0,1.5,0C2.33,0,3,0.67,3,1.5C3,1.5,3,1.5,3,1.5Z" fill="#a7afc7" fill-opacity="0.01" transform="translate(17.5,19.5) translate(-1.5,-1.5)">
+        <animate attributeName="fill-opacity" dur="0.5s" fill="freeze" from="0.01" to="1" />
+      </path>
+    </g>
+  </g>
+  <g transform="translate(47.5,18.5)">
+    <animateTransform type="translate" attributeName="transform" dur="0.5s" fill="freeze" from="47.5 18.5" to="26 20" />
+    <g transform="translate(-15.5,-12.5)">
+      <animateTransform type="translate" attributeName="transform" dur="0.5s" fill="freeze" from="-15.5 -12.5" to="-20 -16" />
+      <g clip-path="url(#i0)">
+        <g transform="translate(14.5,7)">
+          <animateTransform type="translate" attributeName="transform" dur="0.5s" fill="freeze" from="14.5 7" to="23.5 16" />
+          <path d="M2.5,0C2.5,0,2.85,2.58,2.85,2.58C2.85,2.58,5,3,5,3C5,3,2.85,3.42,2.85,3.42C2.85,3.42,2.5,6,2.5,6C2.5,6,2.15,3.42,2.15,3.42C2.15,3.42,0,3,0,3C0,3,2.15,2.58,2.15,2.58C2.15,2.58,2.5,0,2.5,0C2.5,0,2.5,0,2.5,0Z" fill="#d9d9d9" fill-opacity="0.01" transform="translate(-2.5,-3)">
+            <animate attributeName="fill-opacity" dur="0.5s" fill="freeze" from="0.01" to="1" />
+          </path>
+        </g>
+        <g transform="translate(13,20)">
+          <animateTransform type="translate" attributeName="transform" dur="0.5s" fill="freeze" from="13 20" to="2 21" />
+          <path d="M2,0C2,0,2.28,1.72,2.28,1.72C2.28,1.72,4,2,4,2C4,2,2.28,2.28,2.28,2.28C2.28,2.28,2,4,2,4C2,4,1.72,2.28,1.72,2.28C1.72,2.28,0,2,0,2C0,2,1.72,1.72,1.72,1.72C1.72,1.72,2,0,2,0C2,0,2,0,2,0Z" fill="#d9d9d9" fill-opacity="0.01" transform="translate(-2,-2)">
+            <animate attributeName="fill-opacity" dur="0.5s" fill="freeze" from="0.01" to="1" />
+          </path>
+        </g>
+        <g transform="translate(26.5,5.5)">
+          <animateTransform type="translate" attributeName="transform" dur="0.5s" fill="freeze" from="26.5 5.5" to="37.5 1.5" />
+          <path d="M1.5,0C1.5,0,1.71,1.29,1.71,1.29C1.71,1.29,3,1.5,3,1.5C3,1.5,1.71,1.71,1.71,1.71C1.71,1.71,1.5,3,1.5,3C1.5,3,1.29,1.71,1.29,1.71C1.29,1.71,0,1.5,0,1.5C0,1.5,1.29,1.29,1.29,1.29C1.29,1.29,1.5,0,1.5,0C1.5,0,1.5,0,1.5,0Z" fill="#d9d9d9" fill-opacity="0.01" transform="translate(-1.5,-1.5)">
+            <animate attributeName="fill-opacity" dur="0.5s" fill="freeze" from="0.01" to="1" />
+          </path>
+        </g>
+        <g transform="translate(1.5,2.5)">
+          <animateTransform type="translate" attributeName="transform" dur="0.5s" fill="freeze" from="1.5 2.5" to="9.5 7.5" />
+          <path d="M1.5,0C1.5,0,1.71,1.29,1.71,1.29C1.71,1.29,3,1.5,3,1.5C3,1.5,1.71,1.71,1.71,1.71C1.71,1.71,1.5,3,1.5,3C1.5,3,1.29,1.71,1.29,1.71C1.29,1.71,0,1.5,0,1.5C0,1.5,1.29,1.29,1.29,1.29C1.29,1.29,1.5,0,1.5,0C1.5,0,1.5,0,1.5,0Z" fill="#d9d9d9" fill-opacity="0.01" transform="translate(-1.5,-1.5)">
+            <animate attributeName="fill-opacity" dur="0.5s" fill="freeze" from="0.01" to="1" />
+          </path>
+        </g>
+        <g transform="translate(22,13)">
+          <animateTransform type="translate" attributeName="transform" dur="0.5s" fill="freeze" from="22 13" to="31 26" />
+          <path d="M1,0C1,0,1.14,0.86,1.14,0.86C1.14,0.86,2,1,2,1C2,1,1.14,1.14,1.14,1.14C1.14,1.14,1,2,1,2C1,2,0.86,1.14,0.86,1.14C0.86,1.14,0,1,0,1C0,1,0.86,0.86,0.86,0.86C0.86,0.86,1,0,1,0C1,0,1,0,1,0Z" fill="#d9d9d9" fill-opacity="0.01" transform="translate(-1,-1)">
+            <animate attributeName="fill-opacity" dur="0.5s" fill="freeze" from="0.01" to="1" />
+          </path>
+        </g>
+        <g transform="translate(17,15)">
+          <animateTransform type="translate" attributeName="transform" dur="0.5s" fill="freeze" from="17 15" to="27 5" />
+          <path d="M1,0C1,0,1.14,0.86,1.14,0.86C1.14,0.86,2,1,2,1C2,1,1.14,1.14,1.14,1.14C1.14,1.14,1,2,1,2C1,2,0.86,1.14,0.86,1.14C0.86,1.14,0,1,0,1C0,1,0.86,0.86,0.86,0.86C0.86,0.86,1,0,1,0C1,0,1,0,1,0Z" fill="#d9d9d9" fill-opacity="0.01" transform="translate(-1,-1)">
+            <animate attributeName="fill-opacity" dur="0.5s" fill="freeze" from="0.01" to="1" />
+          </path>
+        </g>
+        <g transform="translate(24.5,19.5)">
+          <animateTransform type="translate" attributeName="transform" dur="0.5s" fill="freeze" from="24.5 19.5" to="39.5 27.5" />
+          <path d="M1,0.5C1,0.78,0.78,1,0.5,1C0.22,1,0,0.78,0,0.5C0,0.22,0.22,0,0.5,0C0.78,0,1,0.22,1,0.5C1,0.5,1,0.5,1,0.5Z" fill="#d9d9d9" fill-opacity="0.01" transform="translate(-0.5,-0.5)">
+            <animate attributeName="fill-opacity" dur="0.5s" fill="freeze" from="0.01" to="1" />
+          </path>
+        </g>
+        <g transform="translate(7.5,17.5)">
+          <animateTransform type="translate" attributeName="transform" dur="0.5s" fill="freeze" from="7.5 17.5" to="12.5 19.5" />
+          <path d="M1,0.5C1,0.78,0.78,1,0.5,1C0.22,1,0,0.78,0,0.5C0,0.22,0.22,0,0.5,0C0.78,0,1,0.22,1,0.5C1,0.5,1,0.5,1,0.5Z" fill="#d9d9d9" fill-opacity="0.01" transform="translate(-0.5,-0.5)">
+            <animate attributeName="fill-opacity" dur="0.5s" fill="freeze" from="0.01" to="1" />
+          </path>
+        </g>
+        <g transform="translate(30,9)">
+          <animateTransform type="translate" attributeName="transform" dur="0.5s" fill="freeze" from="30 9" to="35 11" />
+          <path d="M2,1C2,1.55,1.55,2,1,2C0.45,2,0,1.55,0,1C0,0.45,0.45,0,1,0C1.55,0,2,0.45,2,1C2,1,2,1,2,1Z" fill="#d9d9d9" fill-opacity="0.01" transform="translate(-1,-1)">
+            <animate attributeName="fill-opacity" dur="0.5s" fill="freeze" from="0.01" to="1" />
+          </path>
+        </g>
+        <g transform="translate(1.5,22.5)">
+          <animateTransform type="translate" attributeName="transform" dur="0.5s" fill="freeze" from="1.5 22.5" to="15.5 27.5" />
+          <path d="M3,1.5C3,2.33,2.33,3,1.5,3C0.67,3,0,2.33,0,1.5C0,0.67,0.67,0,1.5,0C2.33,0,3,0.67,3,1.5C3,1.5,3,1.5,3,1.5Z" fill="#d9d9d9" fill-opacity="0.01" transform="translate(-1.5,-1.5)">
+            <animate attributeName="fill-opacity" dur="0.5s" fill="freeze" from="0.01" to="1" />
+          </path>
+        </g>
+        <g transform="translate(19,24)">
+          <animateTransform type="translate" attributeName="transform" dur="0.5s" fill="freeze" from="19 24" to="24 31" />
+          <path d="M2,1C2,1.55,1.55,2,1,2C0.45,2,0,1.55,0,1C0,0.45,0.45,0,1,0C1.55,0,2,0.45,2,1C2,1,2,1,2,1Z" fill="#d9d9d9" fill-opacity="0.01" transform="translate(-1,-1)">
+            <animate attributeName="fill-opacity" dur="0.5s" fill="freeze" from="0.01" to="1" />
+          </path>
+        </g>
+        <g transform="translate(6.5,9.5)">
+          <animateTransform type="translate" attributeName="transform" dur="0.5s" fill="freeze" from="6.5 9.5" to="2.5 15.5" />
+          <path d="M1,0.5C1,0.78,0.78,1,0.5,1C0.22,1,0,0.78,0,0.5C0,0.22,0.22,0,0.5,0C0.78,0,1,0.22,1,0.5C1,0.5,1,0.5,1,0.5Z" fill="#d9d9d9" fill-opacity="0.01" transform="translate(-0.5,-0.5)">
+            <animate attributeName="fill-opacity" dur="0.5s" fill="freeze" from="0.01" to="1" />
+          </path>
+        </g>
+        <g transform="translate(7,1)">
+          <animateTransform type="translate" attributeName="transform" dur="0.5s" fill="freeze" from="7 1" to="14 2" />
+          <path d="M2,1C2,1.55,1.55,2,1,2C0.45,2,0,1.55,0,1C0,0.45,0.45,0,1,0C1.55,0,2,0.45,2,1C2,1,2,1,2,1Z" fill="#d9d9d9" fill-opacity="0.01" transform="translate(-1,-1)">
+            <animate attributeName="fill-opacity" dur="0.5s" fill="freeze" from="0.01" to="1" />
+          </path>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>
