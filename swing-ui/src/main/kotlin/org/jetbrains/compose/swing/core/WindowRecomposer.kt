@@ -44,13 +44,19 @@ internal fun Window.compositionContext(): CompositionContext {
 }
 
 /**
+ * The [JComponent] content pane of this window when it is a [RootPaneContainer] whose content pane is a
+ * [JComponent], or `null` otherwise.
+ */
+internal val Window.contentPaneOrNull: JComponent?
+    get() = (this as? RootPaneContainer)?.contentPane as? JComponent
+
+/**
  * Whether this window's content pane carries the [COMPOSITION_KEY] stamp of a composition that hosts
  * this window - what a window declared inside `application { }` is given, so its content joins the
  * composition that declared it. A window mounted with `setContent` carries no such stamp: its content
  * resolves its parent from the window, and the window's own recomposer is stamped on the root pane.
  */
-private fun Window.composesUnderAForeignComposition(): Boolean =
-    ((this as? RootPaneContainer)?.contentPane as? JComponent)?.get(COMPOSITION_KEY) != null
+private fun Window.composesUnderAForeignComposition(): Boolean = contentPaneOrNull?.get(COMPOSITION_KEY) != null
 
 /**
  * A window's [SwingRecomposer], held by the listener that reaps its content when the window is disposed.

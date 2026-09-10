@@ -1,6 +1,7 @@
 package org.jetbrains.compose.swing.core
 
 import androidx.compose.runtime.CompositionContext
+import androidx.compose.runtime.Recomposer
 import kotlinx.coroutines.CoroutineDispatcher
 import javax.swing.SwingUtilities
 import kotlin.coroutines.ContinuationInterceptor
@@ -106,3 +107,15 @@ internal class SwingUiDispatcher : CoroutineDispatcher() {
  */
 internal fun CompositionContext.swingFrameClock(): SwingFrameClock? =
     (effectCoroutineContext[ContinuationInterceptor] as? SwingUiDispatcher)?.frameClock
+
+/**
+ * The [Recomposer] a composition mounted under this context recomposes on, or `null` where its recomposer
+ * is not this library's.
+ *
+ * A context taken from inside a live composition - what `rememberCompositionContext()` hands out - is no
+ * [Recomposer] itself and names none: it stands for the composition that published it, which the runtime
+ * keeps to itself. It carries that composition's effect context, though, so the clock pacing the scope
+ * behind it is reached the same way [swingFrameClock] reaches it, and the clock names the recomposer.
+ */
+internal fun CompositionContext.drivingRecomposer(): Recomposer? =
+    this as? Recomposer ?: swingFrameClock()?.pacedRecomposer

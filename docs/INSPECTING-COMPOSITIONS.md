@@ -178,11 +178,15 @@ what is already there and starts nothing, so it may be asked of any component wi
 
 - Content mounted by `setContent` on a window, or on any container inside it, is driven by that
   window's recomposer, and every component below the window answers with it.
-- Content mounted under a recomposer its caller created and passed as the `parent` of a `setContent`
-  answers with that recomposer, whether or not the container hangs under a window.
+- Content mounted under a context its caller passed as the `parent` of a `setContent` answers with the
+  recomposer driving that context, whether or not the container hangs under a window - the recomposer
+  itself where the caller created one, and the one behind it where the caller captured the context with
+  `rememberCompositionContext()`.
 - A window, dialog or tray declared inside `application { }` joins the **application's** composition
-  rather than driving one of its own, and `ApplicationScope.recomposer` is the one to register on.
-  `findRecomposer()` answers `null` there, as it does for a component no composed content reaches.
+  rather than driving one of its own, and answers with the application's recomposer - the same one
+  `ApplicationScope.recomposer` hands out.
+- `null` is a component no composed content reaches, and one whose content composes on a recomposer
+  that is not this library's.
 
 Registering on a recomposer reports the content compositions nested inside its own as well.
 

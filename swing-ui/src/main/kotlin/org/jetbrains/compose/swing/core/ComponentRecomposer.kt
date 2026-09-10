@@ -12,14 +12,13 @@ import javax.swing.JComponent
  *
  * The search starts at this component and walks up its Swing ancestors as far as the window holding
  * it, so a container carrying a content composition answers for that composition, and anything nested
- * inside one answers for the scope around it. A [Window] answers with the recomposer it owns, and a
- * window owned by another answers for itself rather than for its owner. It reads what is already there
- * and starts nothing.
+ * inside one answers for the scope around it. A [Window] answers for the content standing in it,
+ * whether that content composes on a recomposer the window owns or under a context a caller named -
+ * which is what a window declared inside `application { }` composes under. A window owned by another
+ * answers for itself rather than for its owner. It reads what is already there and starts nothing.
  *
  * `null` covers a component nothing above it answers for: one no composed content stands in, and one
- * whose content composes under a context a caller captured with `rememberCompositionContext()`. A
- * window declared inside `application { }` is the latter: its content is part of the application's
- * composition, whose recomposer is [org.jetbrains.compose.swing.window.ApplicationScope.recomposer].
+ * whose content composes under a recomposer that is not this library's.
  *
  * Must be called on the Event Dispatch Thread.
  */
@@ -29,20 +28,26 @@ public fun Component.findRecomposer(): Recomposer? {
     // link: content in an owned window composes on that window's own recomposer, or on a context its
     // caller named, which the walk meets before the window itself. So the walk ends at the first window.
     return generateSequence(this) { if (it is Window) null else it.parent }
-        .firstNotNullOfOrNull { it.publishedRecomposer() }
+        .firstNotNullOfOrNull { it.recomposerOrNull() }
 }
 
 /**
- * The [Recomposer] published on this component itself, reading nothing above it: the context stamped on
- * it, the recomposer a window holds, or the context a content composition composing into it runs under.
- *
- * A window is asked for the recomposer it holds rather than for a stamp, because a window publishes its
- * own on its root pane - a child of the window, which a walk towards the ancestors never reaches.
- *
- * A context that is no [Recomposer] was published by a live composition and hides the scope behind it,
- * so the caller passes over it and carries on up.
+ * The [Recomposer] directly associated with this component, reading nothing above it: a host's stamp,
+ * a content composition running on it, or a window's shared recomposer.
  */
-private fun Component.publishedRecomposer(): Recomposer? =
-    (this as? JComponent)?.get(COMPOSITION_KEY) as? Recomposer
-        ?: (this as? Window)?.swingRecomposerOrNull()?.recomposer
-        ?: contentCompositionContextOrNull() as? Recomposer
+private fun Component.recomposerOrNull(): Recomposer? =
+    when (this) {
+        is JComponent -> {
+            get(COMPOSITION_KEY)?.drivingRecomposer()
+                ?: contentCompositionContextOrNull()?.drivingRecomposer()
+        }
+
+        is Window -> {
+            swingRecomposerOrNull()?.recomposer
+                ?: contentPaneOrNull?.recomposerOrNull()
+        }
+
+        else -> {
+            null
+        }
+    }

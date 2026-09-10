@@ -52,6 +52,10 @@ internal class SwingFrameClock(
 ) : MonotonicFrameClock {
     /** The [Recomposer] this clock paces, named by [pace]. */
     private lateinit var recomposer: Recomposer
+
+    /** The [Recomposer] this clock paces, or `null` before [pace] names one. */
+    val pacedRecomposer: Recomposer?
+        get() = if (this::recomposer.isInitialized) recomposer else null
     private val timer: Timer = Timer(delayMillisFor(framesPerSecond), null)
 
     /** The timer's current cadence, in milliseconds: the interval frame-driven work advances on. */
