@@ -88,11 +88,8 @@ applies it. Read the tree; do not drive it.
 
 ## Reading the chain a component carries
 
-A group's node is a `SwingComponentNode`, and `modifier` on it is the chain the composition last
-declared for the component:
-
 ```kotlin
-val node = someButton.findDeclaringGroup()?.node as? SwingComponentNode
+val node = someButton.composedNode()
 val named = node?.modifier?.foldIn(emptyList<String>()) { names, element ->
     if (element is SwingModifier.InspectableElement) names + element.name else names
 }
@@ -100,8 +97,20 @@ val named = node?.modifier?.foldIn(emptyList<String>()) { names, element ->
 
 <!--- CLEAR -->
 
-Walk it with `SwingModifier.foldIn`. Each entry is a `SwingModifier.Element`; one that describes itself
-is a `SwingModifier.InspectableElement`, which is where the two readable things are:
+`JComponent.composedNode()` answers with the `SwingComponentNode` a composition stamped on this exact
+component, or `null` where none did - it reads the component alone, with no slot table to walk. The same
+node is also what a group's own `node` holds, so `findDeclaringGroup()?.node as? SwingComponentNode`
+answers the same object while descending a composition; `composedNode()` is the shorter way to it from a
+component you already have in hand. The stamp is a client property, so a composition that declares a raw
+`java.awt.Component` stamps nothing and `findDeclaringGroup()` is the route to its node.
+
+It answers only for a component a composition stamped while the switch above was on when that component
+was inserted, and stops answering once the node that stamped it is released - a component the composition
+removed, or one the switch re-inserted unstamped by turning off.
+
+`modifier` on the node is the chain the composition last declared for the component. Walk it with
+`SwingModifier.foldIn`. Each entry is a `SwingModifier.Element`; one that describes itself is a
+`SwingModifier.InspectableElement`, which is where the two readable things are:
 
 | What you want | Where to read it |
 |---------------|------------------|
@@ -115,9 +124,6 @@ The chain is the whole declaration, placement included: an element saying where 
 its parent stands in it beside the ones saying what it looks like. It is what the composition declared
 last, whether or not that pass had anything to write, so it never lags the composition - and it holds
 what a caller passed followed by what the widget's own composable declared, in that order.
-
-Reaching the node is a slot table read and needs the switch above, but the chain itself is held on the
-node rather than in the table, so no re-insertion has to have happened for it to be complete.
 
 An element the library does not ship reports whatever it overrides `name` and `declaredValues` with;
 see [`CUSTOM-MODIFIERS.md`](CUSTOM-MODIFIERS.md#naming-the-element-for-a-message-and-for-a-tool).
@@ -159,13 +165,14 @@ The rendered text is the whole of the payload. The exception carrying it is a Co
 
 ## What it costs
 
-Before the switch is ever turned on, a mounted composition costs one read of it per pass, and nothing per
-component. Nothing is published on any component, nothing is recorded, and no composition's slot table is
-held alive by inspection.
+Before the switch is ever turned on, a mounted composition costs one read of it per pass, and one read of
+it per component inserted, and nothing else per component. Nothing is published on any component, nothing
+is recorded, and no composition's slot table is held alive by inspection.
 
 Once the switch has been turned on, recording source and parameter information costs composition time and
-memory in every composition in the process, and turning it on rebuilds the content of everything already
-mounted. It is a tool's switch, not an application's.
+memory in every composition in the process, every component inserted carries its node as a client
+property for as long as it stands in the composition, and turning it on rebuilds the content of everything
+already mounted. It is a tool's switch, not an application's.
 
 ## Being told when compositions start and end
 
@@ -207,14 +214,15 @@ import androidx.compose.runtime.tooling.ObservableComposition
 import androidx.compose.runtime.tooling.observe
 import org.jetbrains.compose.swing.core.findRecomposer
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.node.SwingComponentNode
 import org.jetbrains.compose.swing.tooling.attachComposeStackTrace
+import org.jetbrains.compose.swing.tooling.composedNode
 import org.jetbrains.compose.swing.tooling.findDeclaringGroup
 import org.jetbrains.compose.swing.tooling.isDebugInspectorInfoEnabled
 import java.awt.Component
 import java.awt.Window
 import java.io.PrintWriter
 import java.io.StringWriter
+import javax.swing.JComponent
 -->
 
 ```kotlin
@@ -229,8 +237,8 @@ fun argumentsOf(component: Component): List<Any?>? =
     component.findDeclaringGroup()?.data?.toList()
 
 /** What [component]'s modifier chain declares, by the name of each element that declares it. */
-fun chainOf(component: Component): Map<String, Map<String, Any?>> {
-    val node = component.findDeclaringGroup()?.node as? SwingComponentNode ?: return emptyMap()
+fun chainOf(component: JComponent): Map<String, Map<String, Any?>> {
+    val node = component.composedNode() ?: return emptyMap()
     return node.modifier.foldIn(emptyMap()) { declared, element ->
         if (element is SwingModifier.InspectableElement) {
             declared + (element.name to element.declaredValues)

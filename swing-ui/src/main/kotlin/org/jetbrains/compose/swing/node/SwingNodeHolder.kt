@@ -10,8 +10,11 @@ import org.jetbrains.compose.swing.layout.SlotAttachment
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.SwingModifierState
 import org.jetbrains.compose.swing.modifier.resetModifierState
+import org.jetbrains.compose.swing.tooling.NODE_KEY
+import org.jetbrains.compose.swing.tooling.isDebugInspectorInfoEnabled
 import org.jetbrains.compose.swing.util.fastForEach
 import org.jetbrains.compose.swing.util.fastForEachIndexed
+import org.jetbrains.compose.swing.util.get
 import org.jetbrains.compose.swing.util.set
 import java.awt.Component
 import java.util.Collections
@@ -252,21 +255,22 @@ internal class SwingNodeHolder<out T : Component>
         /**
          * Puts the node back to the state a new node starts from.
          *
-         * It removes the subcomposition stamp, detaches the listeners the modifier chain installed,
-         * restores the properties the modifier changed, drops the settle held against this node's children,
-         * and drops the component's tracked reads from the owner's observer. A settle left standing would
-         * be run against a declaration the composition no longer makes; an update that still declares one
-         * hands it over again on the pass that follows. The detach covers every modifier-installed
-         * listener, including the built-in domain listener of the component. A stamp left behind would be
-         * found by a `setContent` call on a component below. That call would then nest into a composition
-         * that no longer runs. The shared observer itself keeps running for every other node. It is
-         * disposed with the composition.
+         * It removes the subcomposition stamp and the node stamp a tool reads, detaches the listeners
+         * the modifier chain installed, restores the properties the modifier changed, drops the settle
+         * held against this node's children, and drops the component's tracked reads from the owner's
+         * observer. A settle left standing would be run against a declaration the composition no longer
+         * makes; an update that still declares one hands it over again on the pass that follows. The
+         * detach covers every modifier-installed listener, including the built-in domain listener of the
+         * component. A stamp left behind would be found by a `setContent` call on a component below. That
+         * call would then nest into a composition that no longer runs. The shared observer itself keeps
+         * running for every other node. It is disposed with the composition.
          *
          * It does not change where the component lives: [ParentDeclaration.parentData], [declaredSlot]
          * and [childPlacement] all survive.
          */
         private fun reset() {
             clearSubcompositionStamp()
+            clearInspectionStamp()
             resetModifierState()
             childSettle = null
             owner?.observer?.clear(component)
@@ -324,6 +328,30 @@ internal class SwingNodeHolder<out T : Component>
             releaseBlock = null
         }
     }
+
+/**
+ * Publishes this node on its own component, if [isDebugInspectorInfoEnabled] is on and the component is
+ * a [JComponent]. Called by the applier's `insertTopDown`, on the node's way into the composition - not
+ * from [SwingNodeHolder.attachedTo], whose caller for the composition's root node never runs it through
+ * the applier, so a stamp written there would never be cleared.
+ */
+internal fun SwingNodeHolder<*>.stampForInspection() {
+    if (!isDebugInspectorInfoEnabled) return
+    val host = component as? JComponent ?: return
+    host[NODE_KEY] = this
+}
+
+/**
+ * Removes the node stamp this node published, leaving another node's standing.
+ *
+ * Two nodes can hold one component - a `factory` that hands back the same instance - and the applier
+ * stamps the node coming in before the runtime releases the one going out, so the stamp a released node
+ * finds may be the live node's.
+ */
+private fun SwingNodeHolder<*>.clearInspectionStamp() {
+    val host = component as? JComponent ?: return
+    if (host[NODE_KEY] === this) host[NODE_KEY] = null
+}
 
 /**
  * Whether the applier has attached this child to its host and not parked it since. A child the pass has

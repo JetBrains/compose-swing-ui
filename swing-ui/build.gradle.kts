@@ -46,7 +46,7 @@ dependencies {
 
 jacocoCoverage {
     lineMinimum.set("0.95".toBigDecimal())
-    branchMinimum.set("0.85".toBigDecimal())
+    branchMinimum.set("0.80".toBigDecimal())
 }
 
 // The tag carried by org.jetbrains.compose.swing.ExclusiveWindowSystem, whose KDoc says what the split

@@ -92,6 +92,7 @@ internal class SwingApplier internal constructor(
             // Attach the node to the composition its parent stands in. This MUST happen on the top-down
             // pass - see SwingCompositionOwner.
             instance.attachedTo(current.owner)
+            instance.stampForInspection()
             changes.announceInsert(instance)
         }
     }

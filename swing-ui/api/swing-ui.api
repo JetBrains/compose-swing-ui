@@ -1044,6 +1044,7 @@ public abstract interface class org/jetbrains/compose/swing/tooling/PreviewEnvir
 
 public final class org/jetbrains/compose/swing/tooling/ToolingKt {
 	public static final fun attachComposeStackTrace (Ljava/awt/Component;Ljava/lang/Throwable;)Z
+	public static final fun composedNode (Ljavax/swing/JComponent;)Lorg/jetbrains/compose/swing/node/SwingComponentNode;
 	public static final fun findCompositionData (Ljava/awt/Component;)Landroidx/compose/runtime/tooling/CompositionData;
 	public static final fun findDeclaringGroup (Ljava/awt/Component;)Landroidx/compose/runtime/tooling/CompositionGroup;
 	public static final fun isDebugInspectorInfoEnabled ()Z

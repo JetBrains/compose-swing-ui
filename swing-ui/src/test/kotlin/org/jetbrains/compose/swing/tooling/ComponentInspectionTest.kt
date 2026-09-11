@@ -1,6 +1,7 @@
 package org.jetbrains.compose.swing.tooling
 
 import androidx.compose.runtime.Composer
+import androidx.compose.runtime.ReusableContentHost
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -13,16 +14,20 @@ import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
+import org.jetbrains.compose.swing.components.menu.MenuItem
+import org.jetbrains.compose.swing.composeMenu
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingComponentNode
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.setContent
+import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
 import java.io.PrintWriter
 import java.io.StringWriter
 import javax.swing.JComponent
+import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.SwingUtilities
 import kotlin.test.AfterTest
@@ -75,7 +80,7 @@ class ComponentInspectionTest {
         isDebugInspectorInfoEnabled = true
         setContent { Label(text = "hello", modifier = SwingModifier.testTag(LABEL_TAG)) }
 
-        val label = onNodeWithTag(LABEL_TAG).fetch()
+        val label = taggedLabel()
         assertNotNull(
             label.findDeclaringGroup(),
             "the composition answers for what it declared whatever the application set",
@@ -102,11 +107,11 @@ class ComponentInspectionTest {
             }
         }
 
-        assertDeclaredBy(onNodeWithTag(LABEL_TAG).fetch(), "Label.kt")
+        assertDeclaredBy(taggedLabel(), "Label.kt")
         assertDeclaredBy(onNodeWithTag(BUTTON_TAG).fetch(), "Button.kt")
         assertDeclaredBy(onNodeWithTag(CHECKBOX_TAG).fetch(), "CheckBox.kt")
         assertTrue(
-            declarationTraceOf(onNodeWithTag(LABEL_TAG).fetch()).contains(OWN_FILE),
+            declarationTraceOf(taggedLabel()).contains(OWN_FILE),
             "the trace must reach the call site that declared the component, not only the library file " +
                 "the composable is defined in",
         )
@@ -121,7 +126,7 @@ class ComponentInspectionTest {
         isDebugInspectorInfoEnabled = true
         setContent { Label(text = "hello", modifier = SwingModifier.testTag(LABEL_TAG)) }
 
-        val label = onNodeWithTag(LABEL_TAG).fetch()
+        val label = taggedLabel()
         val throwable = RuntimeException("a failure raised outside composition")
         assertTrue(label.attachComposeStackTrace(throwable), "the first attach names where it was declared")
         assertFalse(
@@ -141,7 +146,7 @@ class ComponentInspectionTest {
             }
         }
         val panel = onNodeWithTag(PANEL_TAG).fetch()
-        val label = onNodeWithTag(LABEL_TAG).fetch()
+        val label = taggedLabel()
         val button = onNodeWithTag(BUTTON_TAG).fetch()
 
         for (component in listOf(panel, label, button)) {
@@ -210,7 +215,7 @@ class ComponentInspectionTest {
             remember { buildsOfTheContent++ }
             Label(text = shown, modifier = SwingModifier.testTag(LABEL_TAG))
         }
-        val label = onNodeWithTag(LABEL_TAG).fetch()
+        val label = taggedLabel()
         val anchor =
             assertNotNull(
                 assertNotNull(label.findDeclaringGroup()).identity,
@@ -222,7 +227,7 @@ class ComponentInspectionTest {
 
         assertEquals(1, buildsOfTheContent, "a recomposition does not build the content afresh")
         onNodeWithTag(LABEL_TAG).assertTextEquals("second")
-        assertSame(label, onNodeWithTag(LABEL_TAG).fetch(), "the recomposed pass keeps the same component")
+        assertSame(label, taggedLabel(), "the recomposed pass keeps the same component")
         assertSame(
             anchor,
             assertNotNull(label.findDeclaringGroup()).identity,
@@ -249,7 +254,7 @@ class ComponentInspectionTest {
         try {
             awaitIdle()
 
-            assertDeclaredBy(onNodeWithTag(LABEL_TAG).fetch(), "Label.kt")
+            assertDeclaredBy(taggedLabel(), "Label.kt")
             val nested = onNodeWithTag(NESTED_TAG).fetch()
             assertDeclaredBy(nested, "Label.kt")
             assertSame(
@@ -298,6 +303,131 @@ class ComponentInspectionTest {
     }
 
     @Test
+    fun withInspectionOffAComponentsOwnNodeAnswersNull() = runComposeSwingTest {
+        setContent { Label(text = "hello", modifier = SwingModifier.testTag(LABEL_TAG)) }
+
+        assertNull(
+            taggedLabel().composedNode(),
+            "off is the default, so no node was ever stamped",
+        )
+    }
+
+    @Test
+    fun withInspectionOnADeclaredComponentAnswersWithTheNodeItsGroupHolds() = runComposeSwingTest {
+        isDebugInspectorInfoEnabled = true
+        setContent { Label(text = "hello", modifier = SwingModifier.testTag(LABEL_TAG)) }
+
+        val label = taggedLabel()
+        val node = assertNotNull(label.composedNode(), "the component was declared while inspection was on")
+        assertSame(label, node.component, "the node holds the very component it was read off")
+        assertSame(
+            assertNotNull(label.findDeclaringGroup()).node,
+            node,
+            "it is the same node a slot table walk would find on the declaring group",
+        )
+    }
+
+    @Test
+    fun aComponentRemovedFromTheContentStopsAnsweringWithItsNode() = runComposeSwingTest {
+        isDebugInspectorInfoEnabled = true
+        var shown by mutableStateOf(true)
+        setContent { if (shown) Label(text = "hello", modifier = SwingModifier.testTag(LABEL_TAG)) }
+        val label = taggedLabel()
+        assertNotNull(label.composedNode(), "the component is declared while it stands in the content")
+
+        shown = false
+        awaitIdle()
+
+        assertNull(label.composedNode(), "the node that stamped it was released along with it")
+    }
+
+    @Test
+    fun aComponentTwoNodesShareAnswersWithTheNodeDeclaringItNow() = runComposeSwingTest {
+        isDebugInspectorInfoEnabled = true
+        var nested by mutableStateOf(false)
+        lateinit var shared: JLabel
+        // One component declared by a node in either arm: the node going out is released after the node
+        // coming in has stamped it.
+        setContent {
+            val label = remember { JLabel("shared") }
+            shared = label
+            if (nested) {
+                Panel(PanelLayout.Box()) { SwingNode(factory = { label }) }
+            } else {
+                SwingNode(factory = { label })
+            }
+        }
+        val declaredFirst = assertNotNull(shared.composedNode(), "the component is declared where it stands")
+
+        nested = true
+        awaitIdle()
+
+        val declaringNow = assertNotNull(shared.composedNode(), "the node declaring it now must answer")
+        assertNotSame(declaredFirst, declaringNow, "and it is the node the other arm declared")
+        assertSame(
+            declaringNow,
+            shared.findDeclaringGroup()?.node,
+            "which is the node the composition itself answers with",
+        )
+    }
+
+    @Test
+    fun aParkedComponentStopsAnsweringWithTheNodeParkedWithIt() = runComposeSwingTest {
+        isDebugInspectorInfoEnabled = true
+        var active by mutableStateOf(true)
+        setContent {
+            Panel(PanelLayout.Box()) {
+                Label(text = "anchor")
+                ReusableContentHost(active = active) {
+                    Label(text = "parked", modifier = SwingModifier.testTag(LABEL_TAG))
+                }
+            }
+        }
+        // Fetched while the composition still drives it: a parked component is out of the tree a tag
+        // lookup walks.
+        val label = taggedLabel()
+        assertNotNull(label.composedNode(), "the component is declared while the content is active")
+
+        active = false
+        awaitIdle()
+
+        assertNull(label.parent, "parking takes the component out of the Swing tree")
+        assertNull(label.composedNode(), "and a parked node is no declaration for the component it left on")
+    }
+
+    @Test
+    fun withInspectionOnADeclaredMenuItemAnswersWithTheNodeItsGroupHolds() = runComposeSwingTest {
+        // A menu tree is composed by an applier of its own, so the stamp has to be written on that way
+        // in too: a menu item is asked for its node exactly as a component is.
+        isDebugInspectorInfoEnabled = true
+        val popup = composeMenu { MenuItem("Cut", onClick = { }) }
+
+        val item = popup.getComponent(0) as JComponent
+        val node = assertNotNull(item.composedNode(), "the menu item was declared while inspection was on")
+        assertSame(item, node.component, "the node holds the very item it was read off")
+        assertSame(
+            assertNotNull(item.findDeclaringGroup()).node,
+            node,
+            "it is the same node a slot table walk would find on the declaring group",
+        )
+    }
+
+    @Test
+    fun turningInspectionOffMakesEveryComponentAnswerNullAgain() = runComposeSwingTest {
+        isDebugInspectorInfoEnabled = true
+        setContent { Label(text = "hello", modifier = SwingModifier.testTag(LABEL_TAG)) }
+        assertNotNull(taggedLabel().composedNode())
+
+        isDebugInspectorInfoEnabled = false
+        awaitIdle()
+
+        assertNull(
+            taggedLabel().composedNode(),
+            "the switch going off re-inserts the content into a fresh, unstamped component",
+        )
+    }
+
+    @Test
     fun theAnswersMustBeReadOnTheEventDispatchThread() {
         val component = JPanel()
 
@@ -317,8 +447,41 @@ class ComponentInspectionTest {
             traceFailure.message.orEmpty().contains("Event Dispatch Thread"),
             "and so must attaching a trace, but was: ${traceFailure.message}",
         )
+        val nodeFailure = assertFailsWith<IllegalStateException> { component.composedNode() }
+        assertTrue(
+            nodeFailure.message.orEmpty().contains("Event Dispatch Thread"),
+            "and so must reading a component's own node, but was: ${nodeFailure.message}",
+        )
+    }
+
+    @Test
+    fun aComponentWhoseAncestorChainContainsNonJComponentsIsAnsweredForByNothing() = runComposeSwingTest {
+        // publishedCompositionData walks getParent() on each ancestor. The mapNotNull skips any
+        // ancestor that is not a JComponent. This exercises both the non-JComponent cast branch and
+        // the sequence-termination branch when the walk reaches a root component with no parent.
+        isDebugInspectorInfoEnabled = true
+        setContent { Label(text = "hello", modifier = SwingModifier.testTag(LABEL_TAG)) }
+
+        // Add a raw AWT Panel (not a JComponent) between the composition root and a detached child.
+        val rawContainer = java.awt.Panel()
+        val child = JPanel()
+        rawContainer.add(child)
+
+        // child is detached from any window and from any composition: no JComponent ancestor carries
+        // published composition data, and the walk reaches the raw Panel (skipped) then null (stops).
+        assertNull(
+            child.findCompositionData(),
+            "a component whose only ancestors are non-JComponents and null is answered for by nothing",
+        )
+        assertNull(
+            child.findDeclaringGroup(),
+            "and no group declared it either",
+        )
     }
 }
+
+/** The tagged [JLabel] in the harness content, typed for the reads a component's own node needs. */
+private fun ComposeSwingTest.taggedLabel(): JLabel = onNodeWithTag(LABEL_TAG).fetch() as JLabel
 
 /**
  * Asserts [component] is answered for with its own node group, and that the trace of where it was

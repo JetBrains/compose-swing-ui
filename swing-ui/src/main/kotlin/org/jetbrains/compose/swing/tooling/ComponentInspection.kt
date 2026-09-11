@@ -1,3 +1,4 @@
+@file:JvmMultifileClass
 @file:JvmName("ToolingKt")
 
 package org.jetbrains.compose.swing.tooling

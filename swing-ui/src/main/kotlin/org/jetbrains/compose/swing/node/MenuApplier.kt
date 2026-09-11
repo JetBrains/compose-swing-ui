@@ -52,6 +52,7 @@ internal class MenuApplier(
         instance: SwingNodeHolder<*>,
     ) {
         instance.attachedTo(current.owner)
+        instance.stampForInspection()
     }
 
     override fun insertBottomUp(
