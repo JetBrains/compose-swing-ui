@@ -309,6 +309,10 @@ public abstract interface class org/jetbrains/compose/swing/components/layout/Sc
 	public static synthetic fun viewport$default (Lorg/jetbrains/compose/swing/components/layout/ScrollPaneScope;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/lang/Integer;Ljava/lang/Integer;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 }
 
+public abstract interface class org/jetbrains/compose/swing/components/layout/ScrollScope {
+	public abstract fun scrollTo (II)V
+}
+
 public final class org/jetbrains/compose/swing/components/layout/ScrollState {
 	public static final field $stable I
 	public final fun getCanScrollBackwardX ()Z
@@ -323,7 +327,9 @@ public final class org/jetbrains/compose/swing/components/layout/ScrollState {
 	public final fun getViewWidth ()I
 	public final fun getX ()I
 	public final fun getY ()I
+	public final fun isScrollInProgress ()Z
 	public final fun revealRect (Ljava/awt/Rectangle;)Z
+	public final fun scroll (Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun setX (I)V
 	public final fun setY (I)V
 }

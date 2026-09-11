@@ -8,9 +8,16 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.structuralEqualityPolicy
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.job
+import kotlinx.coroutines.withContext
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.binding
 import java.awt.Point
@@ -19,7 +26,11 @@ import java.awt.event.ContainerAdapter
 import java.awt.event.ContainerEvent
 import javax.swing.JScrollPane
 import javax.swing.JViewport
+import javax.swing.SwingUtilities
 import javax.swing.event.ChangeListener
+import kotlin.coroutines.CoroutineContext
+
+private val handoverWaiters = mutableMapOf<ScrollState, ScrollState>()
 
 /**
  * A hoistable state holder for the scroll position of a [ScrollPane].
@@ -39,6 +50,11 @@ import javax.swing.event.ChangeListener
  *
  * [revealRect] scrolls to a region of the content instead of to a coordinate, for a caller that knows
  * where something is but not where the pane has to stand to show it.
+ *
+ * [scroll] runs a block that holds the position for as long as it lasts, for a caller that moves the
+ * pane over time - a step per frame - rather than in one write. Whatever else moves the position ends
+ * the block, so a scroll in progress gives way to the user; [isScrollInProgress] answers whether one is
+ * running.
  *
  * A position outside the content is not refused, exactly as the widget does not refuse one: the pane
  * takes it, and its next layout pass corrects it and reports the corrected value back here. The
@@ -64,6 +80,37 @@ public class ScrollState internal constructor(
     // The viewport this state drives and observes, or null while unbound.
     private var viewport: JViewport? = null
 
+    // The job of the scroll block holding the position, or null while no block runs. A plain field
+    // rather than snapshot state: every write to this state happens on the event dispatch thread, so
+    // reading the job a block holds and writing one's own in its place has nothing to interleave with.
+    private var running: Job? = null
+
+    private var scrollInProgressState by mutableStateOf(false)
+
+    // Raised across the write a scroll block makes and lowered again after it. The write coerces both
+    // mirrors before delivering them, so syncFrom's position comparison already excludes it; what the
+    // flag alone guards is the scroll bar clamping that write back through the viewport, against metrics
+    // newer than the ones it was coerced against.
+    private var movingFromBlock = false
+
+    private inner class ScrollScopeImpl : ScrollScope {
+        private var active = true
+
+        fun invalidate() {
+            active = false
+        }
+
+        override fun scrollTo(
+            x: Int,
+            y: Int,
+        ) {
+            check(active) {
+                "ScrollScope cannot be called after its scroll block has ended."
+            }
+            this@ScrollState.scrollTo(x, y)
+        }
+    }
+
     // Every pane whose declaration of this state is live, each once, oldest declaration first: the last is
     // the pane the state drives, and a pane giving its declaration up hands the binding back to the one
     // before it. A pane is dropped the moment it stops declaring this state, so no entry outlives a
@@ -87,11 +134,14 @@ public class ScrollState internal constructor(
     /**
      * The view coordinate shown at the viewport's left edge.
      *
+     * Assigning it while a [scroll] block runs ends that block, as any other move of the position does.
+     *
      * @see javax.swing.JViewport.setViewPosition
      */
     public var x: Int
         get() = xState
         set(value) {
+            preempt()
             xState = value
             deliverPosition()
         }
@@ -99,11 +149,14 @@ public class ScrollState internal constructor(
     /**
      * The view coordinate shown at the viewport's top edge.
      *
+     * Assigning it while a [scroll] block runs ends that block, as any other move of the position does.
+     *
      * @see javax.swing.JViewport.setViewPosition
      */
     public var y: Int
         get() = yState
         set(value) {
+            preempt()
             yState = value
             deliverPosition()
         }
@@ -170,13 +223,25 @@ public class ScrollState internal constructor(
     public val canScrollBackwardY: Boolean by derivedStateOf(structuralEqualityPolicy()) { yState > 0 }
 
     /**
+     * Whether a [scroll] block currently holds the position, for a caller that shows or disables
+     * something while the pane is traveling.
+     *
+     * It is `true` from the moment a block takes the position - a step before the block's first line,
+     * since it waits there for the block it took the position from to unwind - until that block returns
+     * or is ended. It answers that and nothing more: the user's own scrolling arrives as discrete wheel
+     * and keyboard events with neither a start nor an end, so it is not an interval to report.
+     */
+    public val isScrollInProgress: Boolean get() = scrollInProgressState
+
+    /**
      * Brings the region [rect] names of the pane's content into view - in the content's own coordinates,
      * where its top left corner is the origin, whatever the pane is currently scrolled to - and returns
      * whether it was reached.
      *
      * Revealing is a gesture rather than a declaration: it scrolls where it is called and leaves nothing
      * behind, so no later pass scrolls back and where the user scrolls afterwards stands. Wherever it
-     * lands is reported back through [x] and [y], like the user's own scrolling.
+     * lands is reported back through [x] and [y], like the user's own scrolling, and a landing that
+     * moves the pane while a [scroll] block runs ends that block.
      *
      * `false` means nothing was revealed: no pane renders this state, or the pane holds no content to
      * scroll. `true` means the pane was asked to show that region, which scrolls it as far as the content
@@ -194,6 +259,132 @@ public class ScrollState internal constructor(
         // offset, negated - translates the content's into.
         target.scrollRectToVisible(Rectangle(rect.x + view.x, rect.y + view.y, rect.width, rect.height))
         return true
+    }
+
+    private fun wouldCycle(
+        waiter: ScrollState,
+        target: ScrollState,
+    ): Boolean {
+        var current: ScrollState? = target
+        while (current != null) {
+            if (current === waiter) return true
+            current = handoverWaiters[current]
+        }
+        return false
+    }
+
+    /**
+     * Runs [block] with this state's position to itself, for a caller that moves the pane over time -
+     * a step per frame - rather than in one write.
+     *
+     * ```
+     * val scope = rememberCoroutineScope()
+     * scope.launch { state.scroll { scrollTo(0, state.maxY) } }
+     * ```
+     *
+     * The block moves the pane through [ScrollScope.scrollTo] and holds the position until it returns.
+     * Whatever else moves the position ends it - the user scrolling the pane, a write to [x] or [y], a
+     * [revealRect], a layout pass correcting a position that no longer shows content - and so does a
+     * later [scroll], which takes the position, ends the block holding it and waits for that block to
+     * unwind before running its own. Last caller wins. A block ended either way is cancelled, so
+     * `CancellationException` reaches this call and the statements after it in the caller's coroutine do
+     * not run.
+     *
+     * Runs on the Event Dispatch Thread, like every other write to this state: launch it from
+     * `rememberCoroutineScope()`, or from a scope dispatched there.
+     *
+     * @param block the moves to make, run with a [ScrollScope] that writes this state's position.
+     * @throws IllegalStateException if called off the Event Dispatch Thread, from inside a [scroll]
+     *   block of this same state, or if waiting for a predecessor would form a circular scroll handover.
+     */
+    public suspend fun scroll(block: suspend ScrollScope.() -> Unit): Unit =
+        coroutineScope {
+            check(SwingUtilities.isEventDispatchThread()) {
+                "ScrollState.scroll must be called on the Event Dispatch Thread, but was called on " +
+                    "'${Thread.currentThread().name}'. Launch it from rememberCoroutineScope(), or from " +
+                    "a scope dispatched on Dispatchers.Swing."
+            }
+            val contextMarker = coroutineContext[ScrollBlockMarker]
+            val inherited = contextMarker?.states.orEmpty()
+            check(this@ScrollState !in inherited) {
+                "ScrollState.scroll cannot be called from inside a scroll block of the same state: the " +
+                    "call would take the position from the block it was called from and then wait for " +
+                    "that block - its own caller - to unwind."
+            }
+            val marker = ScrollBlockMarker(inherited + this@ScrollState, current = this@ScrollState)
+            val mine = coroutineContext.job
+            val scope = ScrollScopeImpl()
+            val previous = running
+            val caller = contextMarker?.current
+            if (previous != null && previous.isActive && caller != null) {
+                check(!wouldCycle(caller, this@ScrollState)) {
+                    "Circular scroll handover detected: a scroll block cannot wait for a predecessor that " +
+                        "is already waiting for it."
+                }
+            }
+            running = mine
+            scrollInProgressState = true
+            try {
+                // Claimed above and ended here, in that order: a third call arriving while this one waits
+                // finds this job to end rather than the one already unwinding, where cancelling before
+                // claiming would leave both of them to run their blocks. A call cancelled while it waits
+                // still finishes the wait and fails on the line below, before its block runs, so that each
+                // block completing implies every block before it has - a claimant joins only the one it
+                // took the position from, and that one may still be waiting for its own predecessor to
+                // finish writing. The refusal above is what keeps this wait off the caller's own block,
+                // which nothing would ever end.
+                if (previous != null && previous.isActive) {
+                    if (caller != null) handoverWaiters[caller] = this@ScrollState
+                    try {
+                        withContext(NonCancellable) { previous.cancelAndJoin() }
+                    } finally {
+                        if (caller != null) handoverWaiters.remove(caller)
+                    }
+                }
+                withContext(marker) { scope.block() }
+            } finally {
+                scope.invalidate()
+                if (running === mine) {
+                    running = null
+                    scrollInProgressState = false
+                }
+            }
+        }
+
+    /**
+     * Moves the position on behalf of the running block, coerced to what the content reaches while a pane
+     * renders this state and taken verbatim while none does - there being no content to coerce against.
+     *
+     * Both coordinates are written and delivered in one go, rather than through the two setters in turn,
+     * so no pane paints an intermediate position with one axis moved and the other still behind. The
+     * move is marked as the block's own, so it does not end the block that made it.
+     */
+    internal fun scrollTo(
+        x: Int,
+        y: Int,
+    ) {
+        movingFromBlock = true
+        try {
+            if (viewport == null) {
+                xState = x
+                yState = y
+            } else {
+                xState = x.coerceIn(0, maxX)
+                yState = y.coerceIn(0, maxY)
+            }
+            deliverPosition()
+        } finally {
+            movingFromBlock = false
+        }
+    }
+
+    // Ends the running block, if any, because the position is moving by something that is not that
+    // block's own move: only a move made from inside a block is the block's, and every other one
+    // overrules it. The block's own coroutineScope job is what is cancelled, so the
+    // CancellationException surfaces where scroll() was called.
+    private fun preempt() {
+        if (movingFromBlock) return
+        running?.cancel()
     }
 
     /**
@@ -269,6 +460,9 @@ public class ScrollState internal constructor(
         // whatever content comes next.
         if (target.view == null) return
         val position = target.viewPosition
+        // A position standing where this state already holds it is no move at all, so metrics changing
+        // under a running block - content resizing without scrolling - leaves that block running.
+        if (position.x != xState || position.y != yState) preempt()
         xState = position.x
         yState = position.y
     }
@@ -306,3 +500,23 @@ public fun rememberScrollState(
  */
 internal fun SwingModifier.scrollStateBinding(state: ScrollState): SwingModifier =
     binding(JScrollPane::class.java, "scrollState", state, ScrollState::bind, ScrollState::unbind)
+
+/**
+ * Names every [ScrollState] whose block the caller is inside, carried on the running block's coroutine
+ * context: each [ScrollState.scroll] adds its own state to the set it inherited.
+ *
+ * It is what a [ScrollState.scroll] called from inside a block of the same state finds, and refuses on:
+ * such a call would take the position from the block it was called from and then wait for that block -
+ * its own caller - to unwind, which nothing would ever end. The set is what makes the refusal reach past
+ * the innermost block: a context element is keyed, so a second state's marker installed inside the
+ * first's replaces it, and one state per element would leave the first state's block invisible.
+ */
+internal class ScrollBlockMarker(
+    val states: Set<ScrollState>,
+    val current: ScrollState,
+) : CoroutineContext.Element {
+    override val key: CoroutineContext.Key<*> get() = Key
+
+    /** The context key a [ScrollBlockMarker] is installed and looked up under. */
+    companion object Key : CoroutineContext.Key<ScrollBlockMarker>
+}

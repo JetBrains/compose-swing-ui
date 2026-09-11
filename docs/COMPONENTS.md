@@ -1261,6 +1261,15 @@ coordinates, whatever the pane is currently scrolled to, and the call answers wh
 was there to scroll. Wherever it lands is reported back through `x` and `y`, like the user's own
 scrolling.
 
+`scroll { }` runs a block that holds the position for as long as it lasts, for a caller that moves the
+pane over time - a step per frame - rather than in one write: `state.scroll { scrollTo(0, state.maxY) }`,
+launched from a `rememberCoroutineScope()`. The block moves the pane through `scrollTo(x, y)`, and
+whatever else moves the position - the user scrolling, a write to `x` or `y`, a `revealRect`, a later
+`scroll` taking the position for itself - ends the block with a `CancellationException` at the call, so a
+scroll in progress gives way to the user. `isScrollInProgress` is `true` from the moment a block takes
+the position until it returns or is ended, for a caller that shows or disables something while the pane
+is traveling.
+
 ### `ListState`
 
 Owns what one `ListBox` has selected. `selectedIndices` is two-way: assigning it selects those rows,
