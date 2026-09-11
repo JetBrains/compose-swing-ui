@@ -22,7 +22,14 @@ import org.jetbrains.compose.swing.foundation.layout.MeasureScope
 import org.jetbrains.compose.swing.foundation.layout.Placeable
 import org.jetbrains.compose.swing.foundation.layout.Row
 import org.jetbrains.compose.swing.foundation.layout.RowScope
+import org.jetbrains.compose.swing.foundation.layout.absoluteOffset
+import org.jetbrains.compose.swing.foundation.layout.absolutePadding
+import org.jetbrains.compose.swing.foundation.layout.aspectRatio
+import org.jetbrains.compose.swing.foundation.layout.defaultMinSize
+import org.jetbrains.compose.swing.foundation.layout.fillMaxWidth
+import org.jetbrains.compose.swing.foundation.layout.offset
 import org.jetbrains.compose.swing.foundation.layout.onPlaced
+import org.jetbrains.compose.swing.foundation.layout.padding
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.accessibility.accessibleName
 import org.jetbrains.compose.swing.modifier.appearance.toolTip

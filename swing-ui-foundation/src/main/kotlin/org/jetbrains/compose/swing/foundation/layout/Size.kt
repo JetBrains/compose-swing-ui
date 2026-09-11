@@ -18,12 +18,286 @@
  * the FillNode/WrapContentNode/UnspecifiedConstraintsNode family, are upstream's.
  */
 
-// Every size modifier's element stays in this one file, as androidx foundation-layout's Size.kt keeps them, so
-// the two read side by side.
+// Every size modifier stays in this one file, as androidx foundation-layout's Size.kt keeps them, so the two
+// read side by side.
+@file:Suppress("TooManyFunctions")
+@file:JvmMultifileClass
+@file:JvmName("LayoutKt")
+
 package org.jetbrains.compose.swing.foundation.layout
 
+import org.jetbrains.compose.swing.modifier.SwingModifier
 import java.awt.Dimension
 import kotlin.math.roundToInt
+
+/**
+ * Prefers an exact [width], while still allowing the constraints the parent offers to override it.
+ *
+ * @return this modifier with the preferred width declared on it.
+ */
+context(scope: ConstrainedScope)
+public fun SwingModifier.width(width: Int): SwingModifier =
+    this then SizeElement(minWidth = width, maxWidth = width, enforceIncoming = true, name = "width")
+
+/**
+ * Prefers an exact [height], while still allowing the constraints the parent offers to override it.
+ *
+ * @return this modifier with the preferred height declared on it.
+ */
+context(scope: ConstrainedScope)
+public fun SwingModifier.height(height: Int): SwingModifier =
+    this then SizeElement(minHeight = height, maxHeight = height, enforceIncoming = true, name = "height")
+
+/**
+ * Prefers an exact square [size], while still allowing the constraints the parent offers to override it.
+ *
+ * @return this modifier with the preferred size declared on it.
+ */
+context(scope: ConstrainedScope)
+public fun SwingModifier.size(size: Int): SwingModifier = size(size, size)
+
+/**
+ * Prefers an exact [width] by [height], while still allowing the constraints the parent offers to
+ * override either extent.
+ *
+ * @return this modifier with the preferred size declared on it.
+ */
+context(scope: ConstrainedScope)
+public fun SwingModifier.size(
+    width: Int,
+    height: Int,
+): SwingModifier =
+    this then
+        SizeElement(
+            minWidth = width,
+            minHeight = height,
+            maxWidth = width,
+            maxHeight = height,
+            enforceIncoming = true,
+            name = "size",
+        )
+
+/**
+ * Prefers a width between [min] and [max], with either bound absent when it is `null`.
+ * The constraints the parent offers still take precedence.
+ *
+ * @return this modifier with the preferred width range declared on it.
+ */
+context(scope: ConstrainedScope)
+public fun SwingModifier.widthIn(
+    min: Int? = null,
+    max: Int? = null,
+): SwingModifier = this then SizeElement(minWidth = min, maxWidth = max, enforceIncoming = true, name = "widthIn")
+
+/**
+ * Prefers a height between [min] and [max], with either bound absent when it is `null`.
+ * The constraints the parent offers still take precedence.
+ *
+ * @return this modifier with the preferred height range declared on it.
+ */
+context(scope: ConstrainedScope)
+public fun SwingModifier.heightIn(
+    min: Int? = null,
+    max: Int? = null,
+): SwingModifier = this then SizeElement(minHeight = min, maxHeight = max, enforceIncoming = true, name = "heightIn")
+
+/**
+ * Prefers a size inside the bounds named here, with any `null` bound absent. The constraints the
+ * parent offers still take precedence.
+ *
+ * @return this modifier with the preferred size range declared on it.
+ */
+context(scope: ConstrainedScope)
+public fun SwingModifier.sizeIn(
+    minWidth: Int? = null,
+    minHeight: Int? = null,
+    maxWidth: Int? = null,
+    maxHeight: Int? = null,
+): SwingModifier =
+    this then
+        SizeElement(
+            minWidth = minWidth,
+            minHeight = minHeight,
+            maxWidth = maxWidth,
+            maxHeight = maxHeight,
+            enforceIncoming = true,
+            name = "sizeIn",
+        )
+
+/**
+ * Requires an exact [width], even where it is outside the constraints the parent offers.
+ *
+ * @return this modifier with the required width declared on it.
+ */
+context(scope: ConstrainedScope)
+public fun SwingModifier.requiredWidth(width: Int): SwingModifier =
+    this then SizeElement(minWidth = width, maxWidth = width, enforceIncoming = false, name = "requiredWidth")
+
+/**
+ * Requires an exact [height], even where it is outside the constraints the parent offers.
+ *
+ * @return this modifier with the required height declared on it.
+ */
+context(scope: ConstrainedScope)
+public fun SwingModifier.requiredHeight(height: Int): SwingModifier =
+    this then SizeElement(minHeight = height, maxHeight = height, enforceIncoming = false, name = "requiredHeight")
+
+/**
+ * Requires an exact square [size], even where it is outside the constraints the parent offers.
+ *
+ * @return this modifier with the required size declared on it.
+ */
+context(scope: ConstrainedScope)
+public fun SwingModifier.requiredSize(size: Int): SwingModifier = requiredSize(size, size)
+
+/**
+ * Requires an exact [width] by [height], even where either is outside the constraints the parent offers.
+ *
+ * @return this modifier with the required size declared on it.
+ */
+context(scope: ConstrainedScope)
+public fun SwingModifier.requiredSize(
+    width: Int,
+    height: Int,
+): SwingModifier =
+    this then
+        SizeElement(
+            minWidth = width,
+            minHeight = height,
+            maxWidth = width,
+            maxHeight = height,
+            enforceIncoming = false,
+            name = "requiredSize",
+        )
+
+/**
+ * Requires a width inside the bounds named here, with either bound absent when it is `null`.
+ *
+ * @return this modifier with the required width range declared on it.
+ */
+context(scope: ConstrainedScope)
+public fun SwingModifier.requiredWidthIn(
+    min: Int? = null,
+    max: Int? = null,
+): SwingModifier =
+    this then SizeElement(minWidth = min, maxWidth = max, enforceIncoming = false, name = "requiredWidthIn")
+
+/**
+ * Requires a height inside the bounds named here, with either bound absent when it is `null`.
+ *
+ * @return this modifier with the required height range declared on it.
+ */
+context(scope: ConstrainedScope)
+public fun SwingModifier.requiredHeightIn(
+    min: Int? = null,
+    max: Int? = null,
+): SwingModifier =
+    this then SizeElement(minHeight = min, maxHeight = max, enforceIncoming = false, name = "requiredHeightIn")
+
+/**
+ * Requires a size inside the bounds named here, with any `null` bound absent.
+ *
+ * @return this modifier with the required size range declared on it.
+ */
+context(scope: ConstrainedScope)
+public fun SwingModifier.requiredSizeIn(
+    minWidth: Int? = null,
+    minHeight: Int? = null,
+    maxWidth: Int? = null,
+    maxHeight: Int? = null,
+): SwingModifier =
+    this then
+        SizeElement(
+            minWidth = minWidth,
+            minHeight = minHeight,
+            maxWidth = maxWidth,
+            maxHeight = maxHeight,
+            enforceIncoming = false,
+            name = "requiredSizeIn",
+        )
+
+/**
+ * Makes the child occupy [fraction] of the greatest bounded width its parent offers it. The result
+ * is held between the offered minimum and maximum width. An unbounded width is left unchanged.
+ *
+ * @param fraction the fraction of the offered maximum width to occupy, from zero through one
+ * @throws IllegalArgumentException if [fraction] is outside `0f..1f`
+ * @return this modifier with the width fill declared on it.
+ */
+context(scope: ConstrainedScope)
+public fun SwingModifier.fillMaxWidth(fraction: Float = 1f): SwingModifier = this then FillMaxElement.width(fraction)
+
+/**
+ * Makes the child occupy [fraction] of the greatest bounded height its parent offers it. The result
+ * is held between the offered minimum and maximum height. An unbounded height is left unchanged.
+ *
+ * @param fraction the fraction of the offered maximum height to occupy, from zero through one
+ * @throws IllegalArgumentException if [fraction] is outside `0f..1f`
+ * @return this modifier with the height fill declared on it.
+ */
+context(scope: ConstrainedScope)
+public fun SwingModifier.fillMaxHeight(fraction: Float = 1f): SwingModifier = this then FillMaxElement.height(fraction)
+
+/**
+ * Makes the child occupy [fraction] of the greatest bounded width and height its parent offers it.
+ * Either unbounded axis is left unchanged.
+ *
+ * @param fraction the fraction of each offered maximum extent to occupy, from zero through one
+ * @throws IllegalArgumentException if [fraction] is outside `0f..1f`
+ * @return this modifier with the width and height fill declared on it.
+ */
+context(scope: ConstrainedScope)
+public fun SwingModifier.fillMaxSize(fraction: Float = 1f): SwingModifier = this then FillMaxElement.size(fraction)
+
+/**
+ * Lets the child choose its width without the offered minimum and, where [unbounded], maximum;
+ * it is placed within the resulting wrapper by [align].
+ *
+ * @return this modifier with the wrapped width declared on it.
+ */
+context(scope: ConstrainedScope)
+public fun SwingModifier.wrapContentWidth(
+    align: Alignment.Horizontal = Alignment.CenterHorizontally,
+    unbounded: Boolean = false,
+): SwingModifier = this then WrapContentElement.width(align, unbounded)
+
+/**
+ * Lets the child choose its height without the offered minimum and, where [unbounded], maximum;
+ * it is placed within the resulting wrapper by [align].
+ *
+ * @return this modifier with the wrapped height declared on it.
+ */
+context(scope: ConstrainedScope)
+public fun SwingModifier.wrapContentHeight(
+    align: Alignment.Vertical = Alignment.CenterVertically,
+    unbounded: Boolean = false,
+): SwingModifier = this then WrapContentElement.height(align, unbounded)
+
+/**
+ * Lets the child choose both extents without the offered minima and, where [unbounded], maxima;
+ * it is placed within the resulting wrapper by [align].
+ *
+ * @return this modifier with the wrapped size declared on it.
+ */
+context(scope: ConstrainedScope)
+public fun SwingModifier.wrapContentSize(
+    align: Alignment = Alignment.Center,
+    unbounded: Boolean = false,
+): SwingModifier = this then WrapContentElement.size(align, unbounded)
+
+/**
+ * Raises the child's minimum size to [minWidth] by [minHeight] along whichever axis its incoming
+ * constraints leave a minimum of zero on. An axis already claiming a minimum is left as it is,
+ * and the minimum raised to is held between nothing and the space the child was offered, so a
+ * child in a container smaller than the minimum takes the container.
+ *
+ * @return this modifier with the default minimum size declared on it.
+ */
+context(scope: ConstrainedScope)
+public fun SwingModifier.defaultMinSize(
+    minWidth: Int? = null,
+    minHeight: Int? = null,
+): SwingModifier = this then DefaultMinSizeElement(minWidth, minHeight)
 
 /** Which bounded axes a [FillMaxElement] fixes to a fraction of the maximum it receives. */
 internal enum class FillDirection {

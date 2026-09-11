@@ -251,9 +251,34 @@ cannot declare the row's `weight`. The content of `setContent` and of a Swing co
 that content reads none of them. A modifier that reaches a container unable to honor it is refused when it is
 applied.
 
-A modifier of your own, for a container you also write, goes in a scope of your own extending
-`ConstrainedScope`, as the `StackScope` example in [`CUSTOM-CONTAINERS.md`](CUSTOM-CONTAINERS.md) shows;
-it builds on `ConstrainedScope`'s own modifiers the same way theirs do.
+A modifier of your own declares the same scope as a context parameter, and resolves wherever the scope's own
+modifiers do. It builds on those modifiers:
+
+<!--- INCLUDE .*foundation-scoped.*
+import org.jetbrains.compose.swing.foundation.layout.*
+import org.jetbrains.compose.swing.modifier.*
+
+-->
+
+```kotlin
+context(scope: ConstrainedScope)
+fun SwingModifier.gutter(): SwingModifier = padding(horizontal = 12, vertical = 4).fillMaxWidth()
+```
+
+<!--- KNIT example-foundation-scoped-01.kt -->
+
+Code compiled with Kotlin language version 2.2 or 2.3 needs the `-Xcontext-parameters` compiler option to
+call this modifier or declare its own:
+
+```kotlin
+kotlin {
+    compilerOptions {
+        freeCompilerArgs.add("-Xcontext-parameters")
+    }
+}
+```
+
+<!--- CLEAR -->
 
 ### Choosing a container
 

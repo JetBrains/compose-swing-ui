@@ -18,10 +18,35 @@
  * findSize search order, the isSatisfiedBy check and the intrinsic functions are upstream's.
  */
 
+@file:JvmMultifileClass
+@file:JvmName("LayoutKt")
+
 package org.jetbrains.compose.swing.foundation.layout
 
+import androidx.annotation.FloatRange
+import org.jetbrains.compose.swing.modifier.SwingModifier
 import java.awt.Dimension
 import kotlin.math.roundToInt
+
+/**
+ * Sizes the child to [ratio] width per unit height, taking the size from the greatest width its
+ * incoming constraints allow, then the greatest height, then the least width and the least
+ * height, and stopping at the first of those that satisfies both the constraints and the ratio.
+ * Where none of them does, the constraints are not respected: the child takes the size the first
+ * of those extents that names a size at all implies at the ratio, and only where none of them
+ * names one is the child measured under the incoming constraints unchanged.
+ *
+ * @param ratio the desired width to height ratio, finite and greater than zero
+ * @param matchHeightConstraintsFirst takes the size from the greatest height, then the greatest
+ *   width, then the least height and the least width, for a child whose height is the extent
+ *   that should decide the other; `false` by default
+ * @return this modifier with the aspect ratio declared on it.
+ */
+context(scope: ConstrainedScope)
+public fun SwingModifier.aspectRatio(
+    @FloatRange(from = 0.0, fromInclusive = false) ratio: Float,
+    matchHeightConstraintsFirst: Boolean = false,
+): SwingModifier = this then AspectRatioElement(ratio, matchHeightConstraintsFirst)
 
 /**
  * The `ConstrainedScope.aspectRatio` the child is sized under: [ratio] width per unit height, taken

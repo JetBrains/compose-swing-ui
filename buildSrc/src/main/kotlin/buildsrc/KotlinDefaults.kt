@@ -35,6 +35,7 @@ public fun Project.kotlinDefaults() {
             // rejects 2.1 as deprecated, and this build turns that warning into an error.
             languageVersion.set(KotlinVersion.KOTLIN_2_2)
             apiVersion.set(KotlinVersion.KOTLIN_2_2)
+            freeCompilerArgs.add("-Xcontext-parameters")
         }
     }
 

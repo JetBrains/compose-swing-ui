@@ -1,4 +1,64 @@
+@file:JvmMultifileClass
+@file:JvmName("LayoutKt")
+
 package org.jetbrains.compose.swing.foundation.layout
+
+import org.jetbrains.compose.swing.modifier.SwingModifier
+
+/**
+ * Reserves [all] along every edge of the child.
+ *
+ * @return this modifier with the padding declared on it.
+ */
+context(scope: ConstrainedScope)
+public fun SwingModifier.padding(all: Int): SwingModifier = this then PaddingElement(all, all, all, all)
+
+/**
+ * Reserves [start] before the child and [end] after it along the reading order, and [top] and
+ * [bottom] above and below it, each edge left unreserved by default. [start] and [end] swap edges
+ * under a right-to-left reading order; see [absolutePadding] for a padding that never does.
+ *
+ * A padding reserves space, so none of the four is ever below zero; declare [offset] to move a
+ * child outward from where its container places it.
+ *
+ * @return this modifier with the padding declared on it.
+ */
+context(scope: ConstrainedScope)
+public fun SwingModifier.padding(
+    start: Int = 0,
+    top: Int = 0,
+    end: Int = 0,
+    bottom: Int = 0,
+): SwingModifier = this then PaddingElement(start, top, end, bottom)
+
+/**
+ * Reserves [horizontal] before and after the child along the reading order, and [vertical] above
+ * and below it, either pair left unreserved by default.
+ *
+ * @return this modifier with the padding declared on it.
+ */
+context(scope: ConstrainedScope)
+public fun SwingModifier.padding(
+    horizontal: Int = 0,
+    vertical: Int = 0,
+): SwingModifier = padding(horizontal, vertical, horizontal, vertical)
+
+/**
+ * Reserves [left], [top], [right] and [bottom] along the child's edges, each left unreserved by
+ * default, the same under a right-to-left reading order as under a left-to-right one; see
+ * [padding] for a padding that follows the reading order instead.
+ *
+ * None of the four is ever below zero, the same as for [padding].
+ *
+ * @return this modifier with the padding declared on it.
+ */
+context(scope: ConstrainedScope)
+public fun SwingModifier.absolutePadding(
+    left: Int = 0,
+    top: Int = 0,
+    right: Int = 0,
+    bottom: Int = 0,
+): SwingModifier = this then AbsolutePaddingElement(left, top, right, bottom)
 
 /**
  * This non-negative padding side plus [other], held to the largest geometry extent [Constraints] can

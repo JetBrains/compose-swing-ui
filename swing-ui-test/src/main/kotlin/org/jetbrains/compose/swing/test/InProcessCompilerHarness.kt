@@ -109,6 +109,7 @@ public object InProcessCompilerHarness {
             add("2.2")
             add("-jvm-target")
             add("11")
+            add("-Xcontext-parameters")
             pluginClasspath.forEach { jar -> add("-Xplugin=${jar.absolutePath}") }
             add(sourceFile.absolutePath)
         }.toTypedArray()

@@ -54,4 +54,52 @@ class InProcessCompilerHarnessTest {
         assertEquals(ExitCode.OK, result.exitCode, "Snippet compilation should succeed: ${result.output}")
         assertTrue(InProcessCompilerHarness.composePluginClasspath.isNotEmpty())
     }
+
+    @Test
+    fun compilesContextParameterDeclarationAndCallWithKotlin22Settings() {
+        val result =
+            InProcessCompilerHarness.compileSnippet(
+                "ContextParameterSnippet.kt",
+                """
+                interface Dependency
+
+                context(dependency: Dependency)
+                fun useDependency(): Dependency = dependency
+
+                fun callWithContext(dependency: Dependency): Dependency =
+                    context(dependency) { useDependency() }
+                """.trimIndent(),
+            )
+
+        assertEquals(
+            ExitCode.OK,
+            result.exitCode,
+            "Context parameter declaration and call should compile: ${result.output}",
+        )
+    }
+
+    @Test
+    fun reportsMeaningfulDiagnosticWhenContextParameterIsMissing() {
+        val result =
+            InProcessCompilerHarness.compileSnippet(
+                "MissingContextParameterSnippet.kt",
+                """
+                interface Dependency
+
+                context(dependency: Dependency)
+                fun useDependency(): Dependency = dependency
+
+                fun callWithoutContext(): Dependency = useDependency()
+                """.trimIndent(),
+            )
+
+        assertEquals(ExitCode.COMPILATION_ERROR, result.exitCode)
+        assertTrue(
+            result.errors().any { diagnostic ->
+                diagnostic.contains("no context argument for", ignoreCase = true) &&
+                    diagnostic.contains("dependency: Dependency")
+            },
+            "Expected a missing-context diagnostic, got: ${result.output}",
+        )
+    }
 }

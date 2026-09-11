@@ -18,7 +18,50 @@
  * structure and the enforceIncoming measure logic, for both width and height, are upstream's.
  */
 
+@file:JvmMultifileClass
+@file:JvmName("LayoutKt")
+
 package org.jetbrains.compose.swing.foundation.layout
+
+import org.jetbrains.compose.swing.modifier.SwingModifier
+
+/**
+ * Prefers the child's [intrinsicSize] width, while still allowing the constraints the parent offers
+ * to override it.
+ *
+ * @return this modifier with the preferred intrinsic width declared on it.
+ */
+context(scope: ConstrainedScope)
+public fun SwingModifier.width(intrinsicSize: IntrinsicSize): SwingModifier =
+    this then IntrinsicWidthElement(intrinsicSize, enforceIncoming = true, name = "width")
+
+/**
+ * Prefers the child's [intrinsicSize] height, while still allowing the constraints the parent offers
+ * to override it.
+ *
+ * @return this modifier with the preferred intrinsic height declared on it.
+ */
+context(scope: ConstrainedScope)
+public fun SwingModifier.height(intrinsicSize: IntrinsicSize): SwingModifier =
+    this then IntrinsicHeightElement(intrinsicSize, enforceIncoming = true, name = "height")
+
+/**
+ * Requires the child's [intrinsicSize] width, even where it is outside the constraints the parent offers.
+ *
+ * @return this modifier with the required intrinsic width declared on it.
+ */
+context(scope: ConstrainedScope)
+public fun SwingModifier.requiredWidth(intrinsicSize: IntrinsicSize): SwingModifier =
+    this then IntrinsicWidthElement(intrinsicSize, enforceIncoming = false, name = "requiredWidth")
+
+/**
+ * Requires the child's [intrinsicSize] height, even where it is outside the constraints the parent offers.
+ *
+ * @return this modifier with the required intrinsic height declared on it.
+ */
+context(scope: ConstrainedScope)
+public fun SwingModifier.requiredHeight(intrinsicSize: IntrinsicSize): SwingModifier =
+    this then IntrinsicHeightElement(intrinsicSize, enforceIncoming = false, name = "requiredHeight")
 
 /** Which of a child's two intrinsic answers an intrinsic size modifier uses. */
 public enum class IntrinsicSize {

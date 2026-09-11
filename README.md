@@ -236,7 +236,8 @@ shapes), and had to be built from scratch to do it.
 ## Stability
 
 Pre-1.0: breaking API changes may land in any minor release. Kotlin 2.2 or newer is required to
-consume the libraries.
+consume the libraries. Below Kotlin 2.4, calling the Foundation layout modifiers also needs
+the `-Xcontext-parameters` compiler option; see [Scoped modifiers](docs/FOUNDATION.md#scoped-modifiers).
 
 ## License
 

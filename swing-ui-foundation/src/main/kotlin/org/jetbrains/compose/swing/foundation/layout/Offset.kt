@@ -1,4 +1,36 @@
+@file:JvmMultifileClass
+@file:JvmName("LayoutKt")
+
 package org.jetbrains.compose.swing.foundation.layout
+
+import org.jetbrains.compose.swing.modifier.SwingModifier
+
+/**
+ * Moves the child by ([x], [y]) from where it would otherwise sit, neither axis moved by default,
+ * without changing the space it measures into. A positive [x] moves the child toward the trailing
+ * edge: right under a left-to-right reading order and left under a right-to-left one. See
+ * [absoluteOffset] for an offset that always moves it toward the right.
+ *
+ * @return this modifier with the offset declared on it.
+ */
+context(scope: ConstrainedScope)
+public fun SwingModifier.offset(
+    x: Int = 0,
+    y: Int = 0,
+): SwingModifier = this then OffsetElement(x, y)
+
+/**
+ * Moves the child by ([x], [y]) from where it would otherwise sit, neither axis moved by default,
+ * the same under a right-to-left reading order as under a left-to-right one; see [offset] for an
+ * offset that follows the reading order instead.
+ *
+ * @return this modifier with the offset declared on it.
+ */
+context(scope: ConstrainedScope)
+public fun SwingModifier.absoluteOffset(
+    x: Int = 0,
+    y: Int = 0,
+): SwingModifier = this then AbsoluteOffsetElement(x, y)
 
 /**
  * The move `ConstrainedScope.offset` applies to the child's placement, without changing the space it
