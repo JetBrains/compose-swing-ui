@@ -15,6 +15,24 @@ class TopLevelSectionsTest {
             onNodeWithText("No dialog acknowledged yet", substring = true).assertExists()
         }
 
+    // The glass pane and the menu bar belong to the secondary window, but the state driving them is
+    // hoisted into the card, so the readouts stand whether or not the window is open.
+    @Test
+    fun theGlassPaneToggleFlipsItsReadout() =
+        runComposeSwingTest {
+            openSection("Top-level windows")
+
+            onNodeWithText("Glass pane: down", substring = true).assertExists()
+            onNodeWithText("Clicks inside the window: 0", substring = true).assertExists()
+            onNodeWithText("Theme picked in the window's menu: light", substring = true).assertExists()
+
+            onNodeWithText("Raise glass pane").performClick()
+            onNodeWithText("Glass pane: up", substring = true).assertExists()
+
+            onNodeWithText("Lower glass pane").performClick()
+            onNodeWithText("Glass pane: down", substring = true).assertExists()
+        }
+
     // The window card reads its hoisted WindowState into labels and writes it from buttons, so the
     // readout tracks a state change made from the composition's own side of the two-way contract.
     @Test

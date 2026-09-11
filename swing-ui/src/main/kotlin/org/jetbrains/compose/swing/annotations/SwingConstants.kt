@@ -1,6 +1,7 @@
 package org.jetbrains.compose.swing.annotations
 
 import org.intellij.lang.annotations.MagicConstant
+import java.awt.AWTEvent
 import java.awt.FlowLayout
 import java.awt.Frame
 import java.awt.GridBagConstraints
@@ -379,3 +380,25 @@ public annotation class WindowExtendedState
     ],
 )
 public annotation class CalendarField
+
+/**
+ * An `AWTEvent` type a `JLayer` observes events of (`COMPONENT_EVENT_MASK`, `FOCUS_EVENT_MASK`,
+ * `KEY_EVENT_MASK`, `MOUSE_EVENT_MASK`, `MOUSE_MOTION_EVENT_MASK`, `MOUSE_WHEEL_EVENT_MASK`,
+ * `INPUT_METHOD_EVENT_MASK`, `HIERARCHY_EVENT_MASK`, `HIERARCHY_BOUNDS_EVENT_MASK`). The mask is a bit
+ * mask: combine the types a layer watches using the bitwise `or`.
+ */
+@Retention(AnnotationRetention.BINARY)
+@MagicConstant(
+    intValues = [
+        AWTEvent.COMPONENT_EVENT_MASK,
+        AWTEvent.FOCUS_EVENT_MASK,
+        AWTEvent.KEY_EVENT_MASK,
+        AWTEvent.MOUSE_EVENT_MASK,
+        AWTEvent.MOUSE_MOTION_EVENT_MASK,
+        AWTEvent.MOUSE_WHEEL_EVENT_MASK,
+        AWTEvent.INPUT_METHOD_EVENT_MASK,
+        AWTEvent.HIERARCHY_EVENT_MASK,
+        AWTEvent.HIERARCHY_BOUNDS_EVENT_MASK,
+    ],
+)
+public annotation class AWTEventMask

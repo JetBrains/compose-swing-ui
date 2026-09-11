@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.Layer
 import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.composeMenu
 import org.jetbrains.compose.swing.modifier.appearance.background
@@ -20,8 +21,10 @@ import java.awt.Color
 import java.util.concurrent.atomic.AtomicInteger
 import javax.swing.JComponent
 import javax.swing.JLabel
+import javax.swing.JLayer
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertSame
 
 /**
  * [composed] entries are materialized in the composition of the node they reach: the factory's state
@@ -79,6 +82,22 @@ class ComposedModifierTest {
         val popup = composeMenu { MenuItem("Cut", onClick = { }, modifier = SwingModifier.composed { name("cut") }) }
 
         assertEquals("cut", popup.getComponent(0).name, "a menu node applies what the factory returns")
+    }
+
+    @Test
+    fun aLayerTakesAViewSlotDeclaredThroughAFactory() = runComposeSwingTest {
+        val tag = "layer"
+        setContent {
+            Layer(modifier = SwingModifier.testTag(tag), onMouseEvent = {}) {
+                Label("", modifier = SwingModifier.preferredSize(32, 32).composed { view() })
+            }
+        }
+
+        assertSame(
+            onNodeOfType<JLabel>().fetch(),
+            onNodeWithTag(tag).fetch<JLayer<*>>().view,
+            "the label the factory declares a view is the layer's view",
+        )
     }
 
     @Test

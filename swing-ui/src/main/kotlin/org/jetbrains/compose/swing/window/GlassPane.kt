@@ -20,11 +20,14 @@ import javax.swing.JRootPane
  * This is declared on [WindowScope], the receiver of the content of a [Window] and of a [Dialog], so it
  * is only available where there is a window to carry the pane.
  *
- * A glass pane is the sheet above everything else in the window: it covers the whole window, it is
- * transparent where [content] paints nothing, and while it is shown the window's mouse events reach it -
- * which is what makes it the place for a drag-and-drop hint, a progress veil, or anything else drawn over
- * the window rather than in it. [content] fills the pane, so a layout composable inside it places what
- * the overlay is made of:
+ * A glass pane is the sheet above everything else in the window: it covers the whole window and is
+ * transparent where [content] paints nothing - which is what makes it the place for a drag-and-drop hint,
+ * a progress veil, or anything else drawn over the window rather than in it. A mouse event reaches the
+ * deepest component under the pointer that listens for it, so a click over part of [content] that
+ * listens - a button in the overlay - goes there, and a click anywhere else goes on to the window's
+ * content underneath. To keep the window's content out of reach, fill the pane with content that listens
+ * for the mouse. [content] fills the pane, so a layout composable inside it places what the overlay is
+ * made of:
  *
  * ```
  * Window(onCloseRequest = ::exitApplication) {
@@ -47,6 +50,9 @@ import javax.swing.JRootPane
  * A window carries one glass pane, so one declaration serves a window: put the choice of overlay inside
  * the declaration rather than composing a second one for the same window, which fails and leaves the
  * window the pane it carried.
+ *
+ * The same sheet over one wrapped component rather than a whole window is
+ * `LayerScope.GlassPane`.
  *
  * @param content the composable content the glass pane shows over the window.
  * @see javax.swing.JRootPane.setGlassPane
@@ -82,9 +88,7 @@ public fun WindowScope.GlassPane(
             )
         }
 
-        // Transparent, the way a root pane's own glass pane is, so the window shows through wherever the
-        // content paints nothing.
-        val pane = JPanel(BorderLayout()).apply { isOpaque = false }
+        val pane = WindowGlassPane()
         val displaced = scope.rootPane.glassPane
         val declaration =
             WindowDecoration(
@@ -114,9 +118,25 @@ private data class PaneVisibility(
 )
 
 /**
- * Puts [glassPane] over this root pane at the given [visible], and asks for the layout pass the change
- * needs: a root pane sizes the glass pane to the whole window as it lays itself out, so an arriving pane
- * is given those bounds once the root pane has been laid out again.
+ * The pane a [GlassPane] fills, transparent where its content paints nothing, the way a root pane's own
+ * glass pane is, where a plain panel would be opaque and would hide the window.
+ */
+private class WindowGlassPane : JPanel(BorderLayout()) {
+    init {
+        isOpaque = false
+    }
+}
+
+/**
+ * Puts [glassPane] over this root pane at the given [visible], and gives it the window's bounds: a root
+ * pane sizes the glass pane to the whole window as it lays itself out, so that pass is run here rather
+ * than only asked for. Asking for it answers no earlier than the end of the current event, and answers
+ * not at all while the window is not showing, either of which leaves the pane standing at no size over
+ * the window it is meant to cover.
+ *
+ * The revalidate stays, for the pane's own content: that content is composed into the pane while the
+ * pane has no parent, and a revalidate asked for then is dropped, so the pass laying it out is asked for
+ * here once the pane is on the window.
  *
  * A root pane hands an arriving glass pane the visibility of the one it replaces, so the visibility this
  * pane is to be carried at is stated right after the swap.
@@ -127,5 +147,6 @@ private fun JRootPane.installGlassPane(
 ) {
     this.glassPane = glassPane
     glassPane.isVisible = visible
+    doLayout()
     revalidate()
 }

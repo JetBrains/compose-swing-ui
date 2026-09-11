@@ -17,11 +17,14 @@ import org.jetbrains.compose.swing.components.menu.CheckBoxMenuItem
 import org.jetbrains.compose.swing.components.menu.Menu
 import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.components.menu.MenuSeparator
+import org.jetbrains.compose.swing.components.menu.RadioButtonMenuItem
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.background
+import org.jetbrains.compose.swing.modifier.appearance.foreground
 import org.jetbrains.compose.swing.modifier.appearance.horizontalAlignment
 import org.jetbrains.compose.swing.modifier.appearance.opaque
+import org.jetbrains.compose.swing.modifier.listener.mouseListener
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
 import org.jetbrains.compose.swing.samples.widgets.SectionColumn
 import org.jetbrains.compose.swing.samples.widgets.SectionHeading
@@ -64,17 +67,29 @@ internal fun WindowsSection() {
 
 @Composable
 private fun ColumnScope.SecondaryWindowCard() {
-    ExampleCard("Window (secondary top-level frame)") {
+    ExampleCard("Window (secondary top-level frame, with its MenuBar and GlassPane)") {
         var open by remember { mutableStateOf(false) }
         // Hoisted above the `if (open)` so the readout survives closing and reopening the window.
         val state = rememberWindowState(size = Dimension(320, 200))
         val chrome = remember { WindowChromeState() }
-        var busy by remember { mutableStateOf(false) }
+        var blocking by remember { mutableStateOf(false) }
+        var clicks by remember { mutableIntStateOf(0) }
+        // A RadioButtonMenuItem carries no grouping of its own, so the two items in the window's Theme
+        // menu are kept mutually exclusive by reading and writing this one state between them.
+        var dark by remember { mutableStateOf(false) }
         val icon = remember { windowIconImage() }
 
         Panel {
             Button(if (open) "Close window" else "Open window", onClick = { open = !open })
             Label("Window is ${if (open) "open" else "closed"}")
+        }
+        // The glass pane is raised and lowered from here rather than from inside the window: while the
+        // pane is up it is the only thing in that window able to receive a click.
+        Panel {
+            Button(if (blocking) "Lower glass pane" else "Raise glass pane", onClick = { blocking = !blocking })
+            Label("Glass pane: ${if (blocking) "up" else "down"}")
+            Label("Clicks inside the window: $clicks")
+            Label("Theme picked in the window's menu: ${if (dark) "dark" else "light"}")
         }
         // Geometry is two-way: these labels show what the window writes back as the user drags or
         // resizes it, and the buttons below drive the very same properties in the other direction.
@@ -106,8 +121,10 @@ private fun ColumnScope.SecondaryWindowCard() {
                 SecondaryWindowContent(
                     alwaysOnTop = chrome.alwaysOnTop,
                     onAlwaysOnTopChange = { chrome.alwaysOnTop = it },
-                    busy = busy,
-                    onBusyChange = { busy = it },
+                    dark = dark,
+                    onDarkChange = { dark = it },
+                    blocking = blocking,
+                    onClick = { clicks++ },
                     onClose = { open = false },
                 )
             }
@@ -149,43 +166,62 @@ private fun WindowChromeControls(state: WindowChromeState) {
 private fun WindowScope.SecondaryWindowContent(
     alwaysOnTop: Boolean,
     onAlwaysOnTopChange: (Boolean) -> Unit,
-    busy: Boolean,
-    onBusyChange: (Boolean) -> Unit,
+    dark: Boolean,
+    onDarkChange: (Boolean) -> Unit,
+    blocking: Boolean,
+    onClick: () -> Unit,
     onClose: () -> Unit,
 ) {
     // MenuBar is declared on the window whose content this is, so it is the secondary window - not
-    // the gallery's own frame - that shows this menu bar.
+    // the gallery's own frame - that shows this menu bar. The Theme menu repaints the window below it,
+    // so which item carries the radio mark is visible without opening the menu again.
     MenuBar {
         Menu("Window") {
             CheckBoxMenuItem(
-                "Always on top",
+                "Keep this window on top",
                 checked = alwaysOnTop,
                 onCheckedChange = onAlwaysOnTopChange,
             )
             MenuSeparator()
-            MenuItem("Close window", onClick = onClose)
+            MenuItem("Close this window", onClick = onClose)
+        }
+        Menu("Theme") {
+            RadioButtonMenuItem("Light", selected = !dark, onSelectedChange = { if (it) onDarkChange(false) })
+            RadioButtonMenuItem("Dark", selected = dark, onSelectedChange = { if (it) onDarkChange(true) })
         }
     }
-    Panel(PanelLayout.Border()) {
+    val background = if (dark) DarkThemeBackground else Color.WHITE
+    Panel(PanelLayout.Border(), modifier = SwingModifier.opaque(true).background(background)) {
         Label(
             "A second top-level window, composed declaratively.",
-            modifier = SwingModifier.center().horizontalAlignment(SwingConstants.CENTER),
+            modifier =
+                SwingModifier
+                    .center()
+                    .horizontalAlignment(SwingConstants.CENTER)
+                    .foreground(if (dark) Color.WHITE else Color.BLACK),
         )
         Panel(PanelLayout.Flow(), SwingModifier.south()) {
-            Button("Dismiss", onClick = onClose)
-            Button("Show busy overlay", onClick = { onBusyChange(true) })
+            Button("Click me", onClick = onClick)
         }
     }
-    // A glass pane covers the whole window for as long as it is composed, and the window's mouse
-    // events reach it instead of the content underneath - which is what makes it a busy overlay:
-    // shown here behind the same `if` that drives every other overlay in the gallery.
-    if (busy) {
+    // A glass pane covers the whole window for as long as it is composed. A click goes to the deepest
+    // component under the pointer that listens for the mouse, so the panel filling the pane listens,
+    // and the button above goes on being visible while it stops answering clicks. The pane is
+    // transparent where its content paints nothing: the banner is held to the top of a non-opaque
+    // panel, leaving the rest of the window showing through.
+    if (blocking) {
         GlassPane {
-            Panel(PanelLayout.Border(), modifier = SwingModifier.opaque(true).background(Color(0xE8EAF6))) {
-                Panel(PanelLayout.Flow(), SwingModifier.center()) {
-                    Label("Busy...")
-                    Button("Dismiss overlay", onClick = { onBusyChange(false) })
-                }
+            Panel(PanelLayout.Border(), modifier = SwingModifier.opaque(false).mouseListener {}) {
+                Label(
+                    "Input is blocked while this pane is up",
+                    modifier =
+                        SwingModifier
+                            .north()
+                            .opaque(true)
+                            .background(DarkThemeBackground)
+                            .foreground(Color.WHITE)
+                            .horizontalAlignment(SwingConstants.CENTER),
+                )
             }
         }
     }
@@ -260,15 +296,21 @@ private class DialogChromeState {
     var enforceMinimumSize by mutableStateOf(false)
 }
 
+// The labels name the dialog because the window card above offers the same five controls, and a
+// control is picked out of a section by what it says.
 @Composable
 private fun DialogChromeControls(state: DialogChromeState) {
     Panel {
-        CheckBox("Resizable", checked = state.resizable, onCheckedChange = { state.resizable = it })
-        CheckBox("Always on top", checked = state.alwaysOnTop, onCheckedChange = { state.alwaysOnTop = it })
-        CheckBox("Undecorated", checked = state.undecorated, onCheckedChange = { state.undecorated = it })
-        CheckBox("Custom icon", checked = state.customIcon, onCheckedChange = { state.customIcon = it })
+        CheckBox("Dialog resizable", checked = state.resizable, onCheckedChange = { state.resizable = it })
         CheckBox(
-            "Minimum size 240x160",
+            "Dialog always on top",
+            checked = state.alwaysOnTop,
+            onCheckedChange = { state.alwaysOnTop = it },
+        )
+        CheckBox("Dialog undecorated", checked = state.undecorated, onCheckedChange = { state.undecorated = it })
+        CheckBox("Dialog custom icon", checked = state.customIcon, onCheckedChange = { state.customIcon = it })
+        CheckBox(
+            "Dialog minimum size 240x160",
             checked = state.enforceMinimumSize,
             onCheckedChange = { state.enforceMinimumSize = it },
         )
@@ -338,6 +380,10 @@ private fun ColumnScope.ApplicationEntryPointCard() {
         )
     }
 }
+
+// The background the window's Theme menu paints it with when Dark is picked, and the ground the
+// glass pane's banner is drawn on.
+private val DarkThemeBackground = Color(0x26, 0x32, 0x38)
 
 private const val WINDOW_ICON_SIZE = 24
 private val WindowIconColor = Color(0x2D, 0x4B, 0x73)

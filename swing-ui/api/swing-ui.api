@@ -5,6 +5,9 @@ public final class org/jetbrains/compose/swing/SetContentKt {
 	public static synthetic fun setContent$default (Ljavax/swing/JComponent;Landroidx/compose/runtime/CompositionContext;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)Lkotlinx/coroutines/DisposableHandle;
 }
 
+public abstract interface annotation class org/jetbrains/compose/swing/annotations/AWTEventMask : java/lang/annotation/Annotation {
+}
+
 public abstract interface annotation class org/jetbrains/compose/swing/annotations/AutoResizeMode : java/lang/annotation/Annotation {
 }
 
@@ -92,6 +95,8 @@ public final class org/jetbrains/compose/swing/components/ComponentsKt {
 	public static final fun ComboBox (Ljavax/swing/ComboBoxModel;Ljava/awt/event/ActionListener;Lorg/jetbrains/compose/swing/modifier/SwingModifier;ZLjava/lang/Integer;Lkotlin/jvm/functions/Function4;Landroidx/compose/runtime/Composer;II)V
 	public static final fun ComboBox (Ljavax/swing/ComboBoxModel;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;ZLkotlin/jvm/functions/Function1;Ljava/lang/Integer;Lkotlin/jvm/functions/Function4;Landroidx/compose/runtime/Composer;II)V
 	public static final fun Label (Ljava/lang/String;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Landroidx/compose/runtime/Composer;II)V
+	public static final fun Layer (Ljavax/swing/plaf/LayerUI;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/lang/Long;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+	public static final fun Layer (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function4;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
 	public static final fun ProgressBar (ILorg/jetbrains/compose/swing/modifier/SwingModifier;IIZIZLjava/lang/String;Landroidx/compose/runtime/Composer;II)V
 	public static final fun ProgressBar (Ljavax/swing/BoundedRangeModel;Lorg/jetbrains/compose/swing/modifier/SwingModifier;ZIZLjava/lang/String;Landroidx/compose/runtime/Composer;II)V
 	public static final fun Separator (Lorg/jetbrains/compose/swing/modifier/SwingModifier;ILandroidx/compose/runtime/Composer;II)V
@@ -110,6 +115,11 @@ public final class org/jetbrains/compose/swing/components/ComposableSingletons$T
 	public static final field INSTANCE Lorg/jetbrains/compose/swing/components/ComposableSingletons$TrayKt;
 	public fun <init> ()V
 	public final fun getLambda$-1905108586$org_jetbrains_compose_swing_swing_ui ()Lkotlin/jvm/functions/Function2;
+}
+
+public abstract interface class org/jetbrains/compose/swing/components/LayerScope {
+	public abstract fun GlassPane (Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;I)V
+	public abstract fun view (Lorg/jetbrains/compose/swing/modifier/SwingModifier;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 }
 
 public final class org/jetbrains/compose/swing/components/button/ButtonComponentsKt {

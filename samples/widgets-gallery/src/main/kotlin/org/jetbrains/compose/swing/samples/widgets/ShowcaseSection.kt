@@ -18,6 +18,7 @@ import org.jetbrains.compose.swing.samples.widgets.components.FormInputsSection
 import org.jetbrains.compose.swing.samples.widgets.components.RadioGroupSection
 import org.jetbrains.compose.swing.samples.widgets.custom.CanvasSection
 import org.jetbrains.compose.swing.samples.widgets.custom.CustomComponentSection
+import org.jetbrains.compose.swing.samples.widgets.custom.LayerSection
 import org.jetbrains.compose.swing.samples.widgets.layout.BoxSection
 import org.jetbrains.compose.swing.samples.widgets.layout.LayoutMechanicsSection
 import org.jetbrains.compose.swing.samples.widgets.layout.LinearLayoutsSection
@@ -73,6 +74,7 @@ internal val showcaseSections: List<ShowcaseSection> =
         ShowcaseSection("Tabs") { TabsSection() },
         ShowcaseSection("Canvas") { CanvasSection() },
         ShowcaseSection("Custom component") { CustomComponentSection() },
+        ShowcaseSection("Layer") { LayerSection() },
         ShowcaseSection("Context menu") { ContextMenuSection() },
         ShowcaseSection("Data transfer") { DataTransferSection() },
         ShowcaseSection("Top-level windows") { WindowsSection() },

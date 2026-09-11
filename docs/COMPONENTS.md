@@ -542,6 +542,7 @@ For Compose-style constraint-based layouts (`Row`, `Column`, `Box`) and layout m
 | `SplitPane`   | Two sides and a draggable divider over `JSplitPane`.                                 |
 | `ScrollPane`  | A scrolled viewport plus header and corner regions over `JScrollPane`.               |
 | `ToolBar`     | A bar of controls over `JToolBar`; `ToolBarSeparator` divides its groups.            |
+| `Layer`       | One wrapped component with paint, event, and glass-pane overlay hooks over `JLayer`. |
 | `LayeredPane` | Children stacked on integer depth layers over `JLayeredPane`.                        |
 | `DesktopPane` | Floating internal frames over `JDesktopPane`.                                        |
 
@@ -740,10 +741,62 @@ ToolBar(floatable = false, rollover = true) {
 
 <!--- CLEAR -->
 
+`Layer` wraps one component in a `JLayer` while keeping that component as the layer's view, so its
+preferred size and component-specific behavior continue through the layer. Use the callback overload
+for painting or observing mouse events; it requires at least one callback. `onPaint` may call `paintView`
+before or after its own drawing, more than once, or not at all. The graphics copy and `paintView` are
+valid only during the callback. Snapshot state read by `onPaint` causes the layer to repaint when that
+state changes.
+
+The mouse callbacks observe mouse, mouse-motion and mouse-wheel events. Returning from a callback does not
+consume the mutable event or prevent it from reaching the view; a callback may consume it explicitly by
+calling `consume()`. Use the `LayerUI` overload when the delegate needs its own painting,
+preferred size, layout or other event handling. Give each layer its own `LayerUI` instance. A null
+`eventMask` leaves event selection to the delegate; a non-null mask overrides it.
+
+```kotlin
+Layer(
+    onPaint = { graphics, width, height, paintView ->
+        paintView()
+        graphics.color = overlayColor
+        graphics.fillRect(0, 0, width, height)
+    },
+    onMouseEvent = { event -> log(event) },
+) {
+    Table(model = model, modifier = SwingModifier.view())
+}
+```
+
+`Layer` content receives a `LayerScope` with two slots. A child using
+`modifier = SwingModifier.view()` becomes the wrapped view, not an ordinary indexed child.
+`GlassPane { ... }` places one transparent overlay pane over the view, with its content laid out inside that pane.
+Every child must declare exactly one slot, and each slot accepts only one child. Removing a glass pane
+restores the pane the layer carried before it, including its previous visibility. Use an ordinary `if` for
+a conditional overlay.
+
+The overlay is transparent where its content paints nothing. It takes pointer targeting where a visible
+child lies, where it has a mouse, motion or wheel listener, or where it has an explicit cursor. Empty
+areas continue through to the view. Give an overlay child or its pane a listener when it must take the
+pointer.
+
+`Layer` is a normal Swing component in its parent, and its `view()` and `GlassPane` declarations are valid
+only in the `LayerScope` that supplied them. The composition owns the `JLayer`, its view and overlay,
+their placement, the delegate, callbacks and event mask. Do not mutate that structure behind the
+composition. For a layer built from `SwingNode`, `factory` creates its component once, `update` reapplies
+state during recomposition, and `onRelease` is for teardown when the node leaves the composition. A
+parked node is released; content that becomes active later receives a new component.
+
+Mount compositions and mutate Swing components on the Event Dispatch Thread. Layer painting and event
+callbacks run on the EDT; use `Dispatchers.Swing` for coroutines that touch the layer or its children,
+and keep blocking work out of those callbacks.
+
+<!--- CLEAR -->
+
 A `LayeredPane` stacks children on integer depths - higher layers paint above lower ones, and within
 one layer the children stack in the order the composition declares them, the first of them on top. A
 child that declares no layer stands on `JLayeredPane.DEFAULT_LAYER`. It lays nothing out, so each
-child carries its own bounds.
+child carries its own bounds. Changing a child's layer moves the existing component to the top of its
+new layer.
 
 ```kotlin
 LayeredPane {
@@ -814,9 +867,12 @@ A window's content is given the window as its scope, and what the window carries
 is declared there: `MenuBar { }` and `GlassPane { }` are those declarations, so each can only be
 written where there is a window to carry it.
 
-`GlassPane { }` is the sheet above everything else in the window: it covers the whole window, it is
-transparent where its content paints nothing, and while it is shown the window's mouse events reach
-it - a drag-and-drop hint, a progress veil, anything drawn over the window rather than in it.
+`GlassPane { }` is the sheet above everything else in the window: it covers the whole window and is
+transparent where its content paints nothing - a drag-and-drop hint, a progress veil, anything drawn
+over the window rather than in it. A mouse event reaches the deepest component under the pointer that
+listens for it, so a button in the overlay gets its clicks and a click anywhere else goes on to the
+window's content underneath; fill the pane with content that listens for the mouse to keep the window
+out of reach.
 The content fills the pane, so a layout composable inside it places what the overlay is made of. The
 pane is over the window while the declaration is composed, and the window carries the glass pane it
 carried before once the declaration leaves, so an overlay that comes and goes is an `if` around the
