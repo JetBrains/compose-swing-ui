@@ -109,7 +109,9 @@ Placements of your own go in a scope of your own extending `ConstrainedScope`, a
 above. Its builders append the value with `layoutConstraint`, and the policy reads that value back
 through `Measurable.parentData`. Only a policy measures a child through its layout modifiers, so
 a scope over a layout manager must not extend `ConstrainedScope`: a layout modifier under a container
-that cannot measure one is refused when it is applied.
+that cannot measure one is refused when it is applied. Decorations need no scope of their own: they are plain
+`SwingModifier` extensions, so a `Layout`'s children can declare them whether or not the content offers anything
+beyond `ConstrainedScope`.
 
 `preferredLayoutSize` and `minimumLayoutSize` hold no extent to offer, so they ask
 `MeasurePolicy.intrinsicSize`, which measures under `Constraints.Unbounded` by default. A policy that

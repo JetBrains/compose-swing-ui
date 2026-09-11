@@ -1,7 +1,7 @@
 # Foundation
 
 `swing-ui-foundation` brings androidx's parent-driven layout and its drawing surface to real Swing components: a
-parent offers constraints, a child reports a size, and the parent places it; drawing paints through
+parent offers constraints, a child reports a size, and the parent places it; drawing and decorations paint through
 Java2D. Swing still owns the component tree, the layout and paint cycles, and the final bounds.
 
 Depend on `swing-ui-foundation` for `Row`, `Column`, `Box`, `Layout` and `Canvas`. See
@@ -14,6 +14,7 @@ import androidx.compose.runtime.*
 import org.jetbrains.compose.swing.components.*
 import org.jetbrains.compose.swing.components.button.*
 import org.jetbrains.compose.swing.components.layout.*
+import org.jetbrains.compose.swing.foundation.graphics.*
 import org.jetbrains.compose.swing.foundation.layout.*
 import org.jetbrains.compose.swing.modifier.*
 import org.jetbrains.compose.swing.modifier.layout.*
@@ -234,8 +235,8 @@ collapse them.
 
 ### Scoped modifiers
 
-Foundation's layout modifiers resolve only in content whose container honors them. The content of each container
-offers these scopes:
+Foundation's layout modifiers resolve only in content whose container honors them. The content of each
+container offers these scopes:
 
 | Content of | Scopes |
 |---|---|
@@ -244,10 +245,11 @@ offers these scopes:
 | `Box` | `BoxScope`, `ConstrainedScope` |
 | `Layout` | `ConstrainedScope` |
 
-A container's scopes hide the scopes of the containers around it: a label in a `Box` inside a `Row` cannot declare the
-row's `weight`. The content of `setContent` and of a Swing container, such as a `Panel`, a `ToolBar`, a `Window` or a
-`SwingNode` container, offers none of these either, because the layout manager placing that content reads none of
-them. A modifier that reaches a container unable to honor it is refused when it is applied.
+A container's scopes hide the scopes of the containers around it: a label in a `Box` inside a `Row`
+cannot declare the row's `weight`. The content of `setContent` and of a Swing container, such as a `Panel`, a
+`ToolBar`, a `Window` or a `SwingNode` container, offers none of these either, because the layout manager placing
+that content reads none of them. A modifier that reaches a container unable to honor it is refused when it is
+applied.
 
 A modifier of your own, for a container you also write, goes in a scope of your own extending
 `ConstrainedScope`, as the `StackScope` example in [`CUSTOM-CONTAINERS.md`](CUSTOM-CONTAINERS.md) shows;
@@ -261,6 +263,68 @@ it builds on `ConstrainedScope`'s own modifiers the same way theirs do.
   custom content scopes and layout constraints.
 - `Panel(PanelLayout.Xxx)` for a Swing layout manager's behavior, with a `Box` or another constraint-based
   container inside it wherever its descendants need layout modifiers.
+
+## Graphics
+
+### Writing a decorator
+
+A `Decorator` paints one step of a decoration: write it as a `data class`, call the continuation to paint the
+content, and declare it with `decoration`:
+
+<!--- INCLUDE .*foundation-outlined.*
+import org.jetbrains.compose.swing.foundation.graphics.*
+import org.jetbrains.compose.swing.modifier.*
+
+-->
+
+```kotlin
+fun SwingModifier.outlined(outline: Decorator): SwingModifier = decoration(outline)
+```
+
+<!--- KNIT example-foundation-outlined-01.kt -->
+
+An effect that reads the content's pixels calls the continuation inside `ImageLayer.record` and draws the layer.
+
+A step that keeps state across paints extends `DecorationModifierNode` and declares its element through the same
+`decoration` member. The library gathers a step's `isOpaque` after each modifier pass, so an element's `update`
+needs no call for it. Between passes, a node calls `invalidateDecoration()` where its `isOpaque` changed.
+
+### Making a component decoratable
+
+To make a component of your own decoratable, implement `Decoratable`. The library writes its `decoration`, and the
+component stores it and applies it, as it applies its `Border`:
+
+<!--- INCLUDE .*foundation-decoratable.*
+import org.jetbrains.compose.swing.foundation.graphics.Decoratable
+import org.jetbrains.compose.swing.foundation.graphics.Decoration
+import java.awt.Graphics
+import javax.swing.JComponent
+-->
+
+```kotlin
+class Card :
+    JComponent(),
+    Decoratable {
+    override var decoration: Decoration = Decoration.None
+
+    override fun paint(g: Graphics) = decoration.paint(this, g) { super.paint(it) }
+
+    override fun contains(
+        x: Int,
+        y: Int,
+    ): Boolean = decoration.contains(this, x, y)
+
+    override fun isOpaque(): Boolean = super.isOpaque() && decoration.isOpaque(this)
+}
+```
+
+<!--- KNIT example-foundation-decoratable-01.kt -->
+
+The decoration contract is the `decoration` property plus three overrides: `paint`, `contains` and `isOpaque`. The
+component's sizes answer as for any Swing component, and its decoration is clipped at its bounds. A container adds
+`override fun isPaintingOrigin(): Boolean = decoration.isDecorated`, as `JLayer` does, so a child repainting itself
+alone is painted through the decoration. Its children can declare decorations regardless of what scope, if any, the
+container hands its content.
 
 ## Relationship to Compose UI/Foundation
 

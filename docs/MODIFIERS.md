@@ -172,8 +172,11 @@ capabilities, and each of them fails on a node that is not attached:
 
 `visitDeclaredNodes { ... }` visits, in declaration order, the additive `ComponentNode`s and the
 `ParentLayoutNode`s of the node's modifier. A component that implements `DeclaredNodesListener`
-receives that list after each pass that changes it, so it can paint or lay itself out through those
-nodes.
+receives that list after each modifier pass that attaches, detaches or moves one of those nodes, or writes
+one with a new element that its `needsNodesAfterWrite` takes, and after a composition-local refresh that
+rewrites such a node, so it can paint or lay itself out through those nodes.
+`swing-ui-foundation` paints a component through such nodes; see
+[Writing a decorator](FOUNDATION.md#writing-a-decorator).
 
 ## Failure
 

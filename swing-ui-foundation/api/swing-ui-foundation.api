@@ -2,6 +2,46 @@ public final class org/jetbrains/compose/swing/foundation/CanvasKt {
 	public static final fun Canvas (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
 }
 
+public abstract interface class org/jetbrains/compose/swing/foundation/graphics/Decoratable : org/jetbrains/compose/swing/modifier/DeclaredNodesListener {
+	public abstract fun getDecoration ()Lorg/jetbrains/compose/swing/foundation/graphics/Decoration;
+	public fun needsNodesAfterWrite (Lorg/jetbrains/compose/swing/modifier/SwingModifier$Node;)Z
+	public fun onDeclaredNodesChanged (Ljava/util/List;)V
+	public abstract fun setDecoration (Lorg/jetbrains/compose/swing/foundation/graphics/Decoration;)V
+}
+
+public final class org/jetbrains/compose/swing/foundation/graphics/Decoration {
+	public static final field $stable I
+	public static final field Companion Lorg/jetbrains/compose/swing/foundation/graphics/Decoration$Companion;
+	public final fun contains (Ljava/awt/Component;II)Z
+	public final fun isDecorated ()Z
+	public final fun isOpaque (Ljava/awt/Component;)Z
+	public final fun paint (Ljava/awt/Component;Ljava/awt/Graphics;Lkotlin/jvm/functions/Function1;)V
+}
+
+public final class org/jetbrains/compose/swing/foundation/graphics/Decoration$Companion {
+	public final fun getNone ()Lorg/jetbrains/compose/swing/foundation/graphics/Decoration;
+}
+
+public abstract class org/jetbrains/compose/swing/foundation/graphics/DecorationModifierNode : org/jetbrains/compose/swing/modifier/SwingModifier$ComponentNode, org/jetbrains/compose/swing/foundation/graphics/Decorator {
+	public static final field $stable I
+	public fun <init> ()V
+	public final fun invalidateDecoration ()V
+	public final fun onAttach ()V
+	public final fun onDetach ()V
+	protected fun onRemovedFromDecoration ()V
+}
+
+public abstract interface class org/jetbrains/compose/swing/foundation/graphics/Decorator {
+	public fun getOutsets ()Ljava/awt/Insets;
+	public fun isOpaque ()Z
+	public abstract fun paint (Ljava/awt/Graphics2D;IILkotlin/jvm/functions/Function3;)V
+}
+
+public final class org/jetbrains/compose/swing/foundation/graphics/GraphicsKt {
+	public static final fun decoration (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/foundation/graphics/Decorator;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun decoration (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/modifier/SwingModifier$NodeElement;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+}
+
 public final class org/jetbrains/compose/swing/foundation/layout/AbsoluteAlignment {
 	public static final field $stable I
 	public static final field INSTANCE Lorg/jetbrains/compose/swing/foundation/layout/AbsoluteAlignment;

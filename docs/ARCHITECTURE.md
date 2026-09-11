@@ -10,7 +10,7 @@ component tree on the Event Dispatch Thread (EDT).
 
 The modules have separate responsibilities. `swing-ui` owns the composition runtime, Swing applier,
 `SwingNode`, wrappers, and Swing layout-manager containers. `swing-ui-foundation` depends on it and
-owns Foundation drawing and constraint-based layout.
+owns Foundation drawing, decorations and constraint-based layout.
 
 This document describes the concepts that shape the binding. The KDoc on the public API is the
 reference for individual functions.
@@ -599,6 +599,6 @@ its drawing, while here all three belong to Swing.
 
 ---
 
-For layout, see
+For layout and graphics, see
 [`FOUNDATION.md`](FOUNDATION.md). For a step-by-step guide to building your own component on top
 of `SwingNode`, see [`CUSTOM-COMPONENTS.md`](CUSTOM-COMPONENTS.md).

@@ -55,6 +55,9 @@ public fun MyWidget(
 `SwingNode` is `inline` and `reified` on the component type, so inside `update` the component is
 available as the strongly-typed `this`.
 
+For decorations to reach your component, see
+[Making a component decoratable](FOUNDATION.md#making-a-component-decoratable).
+
 ## What the composition owns
 
 Two things about every component belong to the composition rather than to your code:
