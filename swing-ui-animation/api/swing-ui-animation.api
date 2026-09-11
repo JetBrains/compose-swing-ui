@@ -60,6 +60,13 @@ public final class org/jetbrains/compose/swing/animation/AnimatedContentTransiti
 	public final fun getUp-sDqMl6w ()I
 }
 
+public final class org/jetbrains/compose/swing/animation/AnimatedScrollKt {
+	public static final fun animateScrollBy (Lorg/jetbrains/compose/swing/components/layout/ScrollState;IILorg/jetbrains/compose/swing/animation/core/AnimationSpec;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun animateScrollBy$default (Lorg/jetbrains/compose/swing/components/layout/ScrollState;IILorg/jetbrains/compose/swing/animation/core/AnimationSpec;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public static final fun animateScrollTo (Lorg/jetbrains/compose/swing/components/layout/ScrollState;IILorg/jetbrains/compose/swing/animation/core/AnimationSpec;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun animateScrollTo$default (Lorg/jetbrains/compose/swing/components/layout/ScrollState;IILorg/jetbrains/compose/swing/animation/core/AnimationSpec;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+}
+
 public final class org/jetbrains/compose/swing/animation/AnimatedVisibilityKt {
 	public static final fun AnimatedVisibility (Lorg/jetbrains/compose/swing/animation/core/MutableTransitionState;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/animation/EnterTransition;Lorg/jetbrains/compose/swing/animation/ExitTransition;Ljava/lang/String;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
 	public static final fun AnimatedVisibility (Lorg/jetbrains/compose/swing/foundation/layout/ColumnScope;Lorg/jetbrains/compose/swing/animation/core/MutableTransitionState;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/animation/EnterTransition;Lorg/jetbrains/compose/swing/animation/ExitTransition;Ljava/lang/String;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V

@@ -23,6 +23,9 @@ A `java.awt.Color` animates through `animateColorAsState`, which interpolates in
 sRGB color. For value types beyond those, supply a `TwoWayConverter`. The animation APIs are
 documented in KDoc.
 
+`ScrollState.animateScrollTo` and `animateScrollBy` travel a scroll pane to a position over time instead
+of in one write, holding the pane's position until they arrive.
+
 ## Animating a composable
 
 `AnimatedVisibility` runs content through an enter and an exit transition as a boolean flips.
