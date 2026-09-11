@@ -10,6 +10,7 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
 import org.junit.jupiter.api.Assumptions.assumeFalse
+import java.awt.Frame
 import java.awt.GraphicsEnvironment
 import javax.swing.JPanel
 import javax.swing.SwingUtilities
@@ -367,7 +368,7 @@ class SetContentMoveTest {
                 labelTexts(composition) == listOf("rooted")
             }
 
-            val published = composition.contentCompositionContextOrNull()
+            val published = composition.contentCompositionOrNull()?.publishedContext
             assertNotNull(published, "a content composition must publish the context its content composes under")
 
             // Both within one EDT turn, so the content composition enters the second window and leaves
@@ -379,7 +380,7 @@ class SetContentMoveTest {
 
             assertSame(
                 published,
-                composition.contentCompositionContextOrNull(),
+                composition.contentCompositionOrNull()?.publishedContext,
                 "a content composition whose move is undone must publish the context it published before it",
             )
 
@@ -387,6 +388,129 @@ class SetContentMoveTest {
         } finally {
             first.dispose()
             second.dispose()
+        }
+    }
+
+    @Test
+    fun aContainerPutBackBeforeItsRejoinRunsKeepsTheRecomposerItWasOn() = runSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        // The window the content starts in has no root pane, so it shares no recomposer and answering
+        // the rejoin by asking that window would answer nothing: the registration the move withdrew
+        // would stay withdrawn, and the recomposer would be reaped as unused under live content. The
+        // content composition's own record of what it composes under is what puts the registration back.
+        val bare = Frame().apply { pack() }
+        val other = realizedFrame()
+        try {
+            val composition = JPanel().also { bare.add(it) }
+            var caption by mutableStateOf("first")
+            val handle = composition.setContent { Label(text = caption) }
+            awaitUntil("the content composition renders in the window it starts in") {
+                labelTexts(composition) == listOf("first")
+            }
+
+            // Both within one EDT turn, so the container leaves the bare frame and is back in it before
+            // the rejoin queued for the move can run.
+            other.contentPane.add(composition)
+            bare.add(composition)
+            repeat(4) { yield() }
+
+            caption = "second"
+            awaitUntil("the content put back where it was goes on recomposing") {
+                labelTexts(composition) == listOf("second")
+            }
+
+            handle.dispose()
+        } finally {
+            other.dispose()
+            bare.dispose()
+        }
+    }
+
+    @Test
+    fun aHierarchyEventWhileContentIsPendingButParentStillUnresolvableChangesNothing() = runSwingTest {
+        // A setContent on a detached container is pending. Moving it into another detached container
+        // fires a hierarchy event but the parent is still unresolvable: the Pending → resolve null
+        // branch of placeChanged() runs and the composition remains pending.
+        val outer = JPanel()
+        val inner = JPanel()
+        val handle = inner.setContent { Label(text = "pending") }
+        try {
+            // inner is detached; setContent is pending. Adding inner into outer fires a hierarchy
+            // event on inner - both are still detached so resolveParentOrNull returns null and
+            // nothing composes yet.
+            outer.add(inner)
+            repeat(4) { yield() }
+
+            assertEquals(0, inner.componentCount, "content must still be pending - no window to compose in")
+        } finally {
+            handle.dispose()
+        }
+    }
+
+    @Test
+    fun aRejoinScheduledBeforeDisposeRunsCleanly() = runSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        // Schedule a rejoin (move to second window), then dispose before the rejoin fires. The rejoin
+        // runs with phase == Disposed: parentToRejoin returns null (moved == false), and neither branch
+        // of rejoin() executes. Nothing must throw or leave state behind.
+        val first = realizedFrame()
+        val second = realizedFrame()
+        try {
+            val composition = JPanel().also { first.contentPane.add(it) }
+            val handle = composition.setContent { Label(text = "content") }
+            awaitUntil("content composes in first window") {
+                labelTexts(composition) == listOf("content")
+            }
+
+            // Move queues a rejoin. Dispose before that queued event can run — both in the same turn.
+            second.contentPane.add(composition)
+            handle.dispose()
+
+            // Let the queued rejoin fire and settle. With phase == Disposed it must be a no-op.
+            repeat(8) { yield() }
+
+            assertEquals(0, composition.componentCount, "disposed content leaves the container empty")
+            assertEquals(0, composition.hierarchyListeners.size, "disposed content leaves no listener behind")
+        } finally {
+            second.dispose()
+            first.dispose()
+        }
+    }
+
+    @Test
+    fun aContainerRemovedFromAllWindowsBeforeItsRejoinFiresComposeNothing() = runSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        // Move queues a rejoin. Remove the container from all windows before the rejoin fires.
+        // parentToRejoin sees arrivedIn == null so moved == false, returns null, and rejoin's
+        // else-if branch (phase == Mounted) restores the registration rather than composing again.
+        val first = realizedFrame()
+        val second = realizedFrame()
+        try {
+            val composition = JPanel().also { first.contentPane.add(it) }
+            var caption by mutableStateOf("first")
+            val handle = composition.setContent { Label(text = caption) }
+            awaitUntil("content composes in first window") {
+                labelTexts(composition) == listOf("first")
+            }
+
+            // Move to second (queues rejoin), then immediately detach from all windows in the same turn.
+            second.contentPane.add(composition)
+            second.contentPane.remove(composition)
+
+            // Let the rejoin fire. With arrivedIn == null, parentToRejoin returns null and
+            // the else-if branch restores context + registration without composing again.
+            repeat(8) { yield() }
+
+            caption = "second"
+            // The composition should still be live (it went back to no-window state, context restored).
+            awaitUntil("recomposition fires after the no-op rejoin") {
+                labelTexts(composition) == listOf("second")
+            }
+
+            handle.dispose()
+        } finally {
+            second.dispose()
+            first.dispose()
         }
     }
 }

@@ -10,15 +10,20 @@ import kotlinx.coroutines.yield
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
+import org.jetbrains.compose.swing.setContentAsInteropHost
 import org.jetbrains.compose.swing.window.LocalWindow
 import org.junit.jupiter.api.Assumptions.assumeFalse
+import java.awt.Frame
 import java.awt.GraphicsEnvironment
+import java.awt.Panel
+import javax.swing.JDialog
 import javax.swing.JFrame
 import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
@@ -55,8 +60,37 @@ class SetContentMisuseTest {
     }
 
     @Test
-    fun aContainerWhoseMountIsStillPendingRefusesMoreContent() = runSwingTest {
-        // In no window and under no host, so the mount phase defers and publishes no context yet. The
+    fun aContainerWhoseListenersWereSweptStillHoldsItsContent() = runSwingTest {
+        val panel = JPanel()
+        val recomposer = SwingRecomposer.create(panel)
+        try {
+            panel.setContent(parent = recomposer.compositionContext) { Label(text = "first") }
+
+            // An ordinary Swing cleanup, written by code that knows nothing of this library. What is
+            // mounted where is kept under a key nobody else holds, so a sweep takes none of it away.
+            for (listener in panel.hierarchyListeners) panel.removeHierarchyListener(listener)
+
+            assertSame(
+                recomposer.recomposer,
+                panel.findRecomposer(),
+                "a swept container must still answer for the content standing in it",
+            )
+            val refused =
+                assertFailsWith<IllegalStateException> {
+                    panel.setContent(parent = recomposer.compositionContext) { Label(text = "second") }
+                }
+            assertTrue(
+                "two content compositions cannot both be" in refused.message.orEmpty(),
+                "a swept container must still refuse a second content composition, and said: ${refused.message}",
+            )
+        } finally {
+            recomposer.dispose()
+        }
+    }
+
+    @Test
+    fun aContainerWhoseContentCompositionIsStillPendingRefusesMoreContent() = runSwingTest {
+        // In no window and under no host, so mounting is deferred and no context is published yet. The
         // pending content will compose the moment the panel reaches a window, so it stands in the way
         // exactly as a composed one does.
         val panel = JPanel()
@@ -107,11 +141,15 @@ class SetContentMisuseTest {
                     panel.setContent(parent = recomposer.compositionContext) { error("boom") }
                 }
             assertEquals("boom", failure.message, "the first pass's failure reaches the caller as it is")
-            assertEquals(0, panel.componentCount, "a mount that failed its first pass leaves the container empty")
+            assertEquals(
+                0,
+                panel.componentCount,
+                "a content composition that failed its first pass leaves the container empty",
+            )
             assertEquals(
                 0,
                 panel.hierarchyListeners.size,
-                "a mount that failed its first pass leaves no listener behind",
+                "a content composition that failed its first pass leaves no listener behind",
             )
 
             // The failed call composed nothing and handed its caller no handle, so nothing stands in
@@ -129,25 +167,29 @@ class SetContentMisuseTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val frame = realizedFrame()
         try {
-            // No parent named and no window, so the mount waits: the content composes for the first
-            // time inside the hierarchy event the add below fires, and that pass throws.
+            // No parent named and no window, so the content composition waits: the content composes
+            // for the first time inside the hierarchy event the add below fires, and that pass throws.
             val panel = JPanel()
             var passes = 0
             panel.setContent {
                 passes++
                 error("boom")
             }
-            assertEquals(0, passes, "a mount waiting for a window composes nothing until it reaches one")
+            assertEquals(0, passes, "a content composition waiting for a window composes nothing until it reaches one")
 
             val failure = assertFailsWith<IllegalStateException> { frame.contentPane.add(panel) }
 
             assertEquals("boom", failure.message, "the failure reaches whoever put the container in the window")
             assertEquals(1, passes, "the content composes once, as its container arrives")
-            assertEquals(0, panel.componentCount, "a mount that threw on arrival leaves the container empty")
+            assertEquals(
+                0,
+                panel.componentCount,
+                "a content composition that threw on arrival leaves the container empty",
+            )
             assertEquals(
                 0,
                 panel.hierarchyListeners.size,
-                "a mount that threw on arrival leaves no listener behind",
+                "a content composition that threw on arrival leaves no listener behind",
             )
 
             // The window is then free to hand out a fresh recomposer, which lets the container hold
@@ -257,7 +299,7 @@ class SetContentMisuseTest {
         recomposer.dispose()
 
         val refused =
-            assertFailsWith<IllegalStateException> {
+            assertFailsWith<IllegalArgumentException> {
                 panel.setContent(parent = ended) { Label(text = "never composes") }
             }
         assertTrue(
@@ -293,7 +335,7 @@ class SetContentMisuseTest {
 
         val panel = JPanel()
         val refused =
-            assertFailsWith<IllegalStateException> {
+            assertFailsWith<IllegalArgumentException> {
                 panel.setContent(parent = neverRan) { Label(text = "never composes") }
             }
         assertTrue(
@@ -322,13 +364,72 @@ class SetContentMisuseTest {
 
         val panel = JPanel()
         val refused =
-            assertFailsWith<IllegalStateException> {
+            assertFailsWith<IllegalArgumentException> {
                 panel.setContent(parent = ended) { Label(text = "never composes") }
             }
         assertTrue(
             "would never recompose" in refused.message.orEmpty(),
             "a closed window's context must be refused as an ended recomposer, and said: ${refused.message}",
         )
+    }
+
+    @Test
+    fun setContentAsInteropHostRefusesANonJComponentHost() = runSwingTest {
+        // setContentAsInteropHost is typed as Container, not JComponent, to allow the call site
+        // to pass any Container without an explicit cast. The require() inside enforces JComponent.
+        val recomposer = SwingRecomposer.create(JPanel())
+        try {
+            val panel = Panel()
+            val refused =
+                assertFailsWith<IllegalArgumentException> {
+                    panel.setContentAsInteropHost(recomposer.compositionContext) { }
+                }
+            assertTrue(
+                "JComponent" in refused.message.orEmpty(),
+                "the refusal must name what the host must be, but said: ${refused.message}",
+            )
+        } finally {
+            recomposer.dispose()
+        }
+    }
+
+    @Test
+    fun windowSetContentRefusesAWindowWithNoRootPane() = runSwingTest {
+        // A bare java.awt.Frame is a Window but not a RootPaneContainer, so it has no content
+        // pane on which to mount the composition. The precondition names the constraint.
+        val frame = Frame()
+        try {
+            val refused =
+                assertFailsWith<IllegalArgumentException> {
+                    frame.setContent { }
+                }
+            assertTrue(
+                "RootPaneContainer" in refused.message.orEmpty(),
+                "the refusal must name what a Window must be to host a composition, but said: ${refused.message}",
+            )
+        } finally {
+            frame.dispose()
+        }
+    }
+
+    @Test
+    fun windowSetContentRefusesAWindowWhoseContentPaneIsNotAJComponent() = runSwingTest {
+        // RootPaneContainer.getContentPane() is typed as Container, not JComponent. This replaces
+        // the default JPanel content pane with a raw AWT Panel to confirm the second precondition.
+        val dialog = JDialog()
+        try {
+            dialog.contentPane = Panel()
+            val refused =
+                assertFailsWith<IllegalArgumentException> {
+                    dialog.setContent { }
+                }
+            assertTrue(
+                "JComponent" in refused.message.orEmpty(),
+                "the refusal must name what the content pane must be, but said: ${refused.message}",
+            )
+        } finally {
+            dialog.dispose()
+        }
     }
 
     private companion object {

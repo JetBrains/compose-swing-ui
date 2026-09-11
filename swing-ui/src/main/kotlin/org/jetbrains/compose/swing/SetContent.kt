@@ -7,7 +7,7 @@ import androidx.compose.runtime.State
 import kotlinx.coroutines.DisposableHandle
 import org.jetbrains.compose.swing.annotations.SwingComposable
 import org.jetbrains.compose.swing.annotations.SwingMenuComposable
-import org.jetbrains.compose.swing.core.MountParent
+import org.jetbrains.compose.swing.core.ParentComposition
 import org.jetbrains.compose.swing.core.SwingContentComposition
 import org.jetbrains.compose.swing.core.checkEventDispatchThread
 import org.jetbrains.compose.swing.core.mountUnderNamedParent
@@ -24,15 +24,17 @@ import javax.swing.JMenuBar
 import javax.swing.RootPaneContainer
 
 /**
- * Sets the composable [content] of any [Container] (a `JPanel`, a window's content pane, ...).
+ * Sets the composable [content] of any [JComponent] (a `JPanel`, a window's content pane, ...).
  *
  * With no [parent] the content joins the composition the container's own place in the Swing tree
  * resolves to: an enclosing composition when the container is nested under one, otherwise the
  * composition shared by the owning top-level [Window], so every content composition in one window
- * recomposes together. A container detached from any window is **not** an error: the content is mounted
- * as soon as the container is attached to a window, and disposing the returned handle before that
- * happens mounts nothing. A container in a window that has been disposed composes where it stands, on a
- * composition that lasts as long as the handle returned here.
+ * recomposes together. A window with no root pane - a bare [java.awt.Frame] - has nowhere to keep a
+ * shared composition, so content in one composes on a recomposer of its own. A container detached from
+ * any window is **not** an error: the content is mounted as soon as the container is attached to a
+ * window, and disposing the returned handle before that happens mounts nothing. A container in a window
+ * that has been disposed composes where it stands, on a composition that lasts as long as the handle
+ * returned here.
  *
  * A [parent] drives the composition instead, and the content composes **on this call**, whatever the
  * container is attached to - which is what reaches a container that is built to be read rather than
@@ -75,7 +77,7 @@ import javax.swing.RootPaneContainer
  * @return a [DisposableHandle] that disposes this content composition when invoked (or cancels it if it
  *   has not mounted yet). Must be disposed on the Event Dispatch Thread.
  */
-public fun Container.setContent(
+public fun JComponent.setContent(
     parent: CompositionContext? = null,
     content:
         @Composable @SwingComposable
@@ -83,7 +85,7 @@ public fun Container.setContent(
 ): DisposableHandle {
     checkEventDispatchThread()
 
-    val compose = { resolved: MountParent, window: State<Window?> -> mountContent(resolved, window, content) }
+    val compose = { resolved: ParentComposition, window: State<Window?> -> mountContent(resolved, window, content) }
     return if (parent == null) {
         mountWhenParentResolves(this, compose)
     } else {
@@ -99,8 +101,8 @@ public fun Container.setContent(
  * [androidx.compose.runtime.CompositionLocal]s and the window has to be stated here. [window] is the one
  * the content stands in and follows, so content mounted under no window reads the one it later reaches.
  */
-private fun Container.mountContent(
-    parent: MountParent,
+private fun JComponent.mountContent(
+    parent: ParentComposition,
     window: State<Window?>,
     content:
         @Composable @SwingComposable
@@ -137,9 +139,10 @@ internal fun Container.setContentAsInteropHost(
         () -> Unit,
 ): DisposableHandle {
     checkEventDispatchThread()
-
-    val host = this as? JComponent
-    host?.setCompositionContext(parent)
+    require(this is JComponent) {
+        "setContentAsInteropHost requires a JComponent host; '${javaClass.name}' is not a JComponent."
+    }
+    setCompositionContext(parent)
 
     val composition =
         SwingContentComposition.nested(parent) { owner ->
@@ -148,7 +151,7 @@ internal fun Container.setContentAsInteropHost(
     composition.setContent(content)
     return DisposableHandle {
         checkEventDispatchThread()
-        host?.setCompositionContext(null)
+        setCompositionContext(null)
         composition.dispose()
     }
 }
@@ -171,25 +174,29 @@ public fun Window.setContent(
         @Composable @SwingComposable
         () -> Unit,
 ): DisposableHandle {
-    val contentPane =
-        (this as? RootPaneContainer)?.contentPane
-            ?: error(
-                "Window.setContent { } requires a RootPaneContainer (JFrame/JDialog/JWindow); " +
-                    "'${javaClass.name}' has no content pane.",
-            )
-    return contentPane.setContent(content = content)
+    checkEventDispatchThread()
+    require(this is RootPaneContainer) {
+        "Window.setContent { } requires a RootPaneContainer (JFrame/JDialog/JWindow); " +
+            "'${javaClass.name}' has no root pane."
+    }
+    val pane = contentPane
+    require(pane is JComponent) {
+        "Window.setContent { } requires a JComponent content pane; " +
+            "'${pane?.javaClass?.name ?: "null"}' is not a JComponent."
+    }
+    return pane.setContent(content = content)
 }
 
 /**
  * Sets the composable content of a [JMenuBar].
  *
- * Joins a composition like [Container.setContent]: the enclosing composition when nested, otherwise
- * the composition shared by the owning window. A menu bar installed on a window shares that window's
- * composition.
+ * Joins a composition like [JComponent.setContent]: the enclosing composition when nested, otherwise
+ * what the owning window shares, on the terms stated there. A menu bar installed on a window shares that
+ * window's composition.
  *
  * A menu bar is routinely built **before** it is installed on its frame (`bar.setContent { ... }` then
  * `frame.jMenuBar = bar`), so at the call site it usually has no window ancestor yet. As with
- * [Container.setContent], that is **not** an error: the content is mounted the moment the menu bar
+ * [JComponent.setContent], that is **not** an error: the content is mounted the moment the menu bar
  * gains a window ancestor (when it is installed on the frame) - and the menu tree reads that window as
  * its [LocalWindow][org.jetbrains.compose.swing.window.LocalWindow], so an item's callback reaches the
  * window its menu hangs off. Must be called on the Event Dispatch Thread.

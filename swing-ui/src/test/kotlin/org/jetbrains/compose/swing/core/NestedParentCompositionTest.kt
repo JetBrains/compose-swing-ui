@@ -42,7 +42,7 @@ import kotlin.time.Duration.Companion.seconds
  *
  * Each case realizes a real top-level peer, so each skips on a headless environment.
  */
-class NestedMountParentTest {
+class NestedParentCompositionTest {
     @Test
     fun contentMountedDuringTheCompositionsFirstPassJoinsTheRecomposerTheCompositionWasGiven() = runSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display to realize a window")
@@ -237,7 +237,7 @@ class NestedMountParentTest {
     }
 
     @Test
-    fun aNestedMountFollowsItsContainersMoveToAnotherWindowAndOutlivesTheOneItLeft() = runSwingTest {
+    fun aNestedContentCompositionFollowsItsContainersMoveToAnotherWindowAndOutlivesTheOneItLeft() = runSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display to realize a window")
         val first = realizedFrame()
         val second = realizedFrame()

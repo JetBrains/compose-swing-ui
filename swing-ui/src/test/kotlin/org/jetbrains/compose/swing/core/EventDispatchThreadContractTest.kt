@@ -53,7 +53,7 @@ class EventDispatchThreadContractTest {
     }
 
     @Test
-    fun mountDisposalOffTheEventDispatchThreadFailsFast() {
+    fun contentCompositionDisposalOffTheEventDispatchThreadFailsFast() {
         val panel = JPanel()
         lateinit var handle: DisposableHandle
         SwingUtilities.invokeAndWait { handle = panel.setContent { } }

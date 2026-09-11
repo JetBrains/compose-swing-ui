@@ -12,13 +12,15 @@ import javax.swing.JComponent
  *
  * The search starts at this component and walks up its Swing ancestors as far as the window holding
  * it, so a container carrying a content composition answers for that composition, and anything nested
- * inside one answers for the scope around it. A [Window] answers for the content standing in it,
- * whether that content composes on a recomposer the window owns or under a context a caller named -
- * which is what a window declared inside `application { }` composes under. A window owned by another
- * answers for itself rather than for its owner. It reads what is already there and starts nothing.
+ * inside one answers for the scope around it. A [Window] with a root pane answers for the content
+ * standing in it, whether that content composes on a recomposer the window owns or under a context a
+ * caller named - which is what a window declared inside `application { }` composes under. A window owned
+ * by another answers for itself rather than for its owner. It reads what is already there and starts
+ * nothing.
  *
- * `null` covers a component nothing above it answers for: one no composed content stands in, and one
- * whose content composes under a recomposer that is not this library's.
+ * `null` covers a component nothing above it answers for: one no composed content stands in, one whose
+ * content composes under a recomposer that is not this library's, and a window with no root pane, which
+ * shares no recomposer to answer with - its content still answers, asked where it stands.
  *
  * Must be called on the Event Dispatch Thread.
  */
@@ -39,7 +41,7 @@ private fun Component.recomposerOrNull(): Recomposer? =
     when (this) {
         is JComponent -> {
             get(COMPOSITION_KEY)?.drivingRecomposer()
-                ?: contentCompositionContextOrNull()?.drivingRecomposer()
+                ?: contentCompositionOrNull()?.publishedContext?.drivingRecomposer()
         }
 
         is Window -> {

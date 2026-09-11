@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.Button
 import java.awt.Container
 import java.awt.GraphicsEnvironment
+import javax.swing.JComponent
 import javax.swing.JDialog
 import javax.swing.JFrame
 import javax.swing.JLabel
@@ -236,7 +237,7 @@ class FindRecomposerTest {
                     "a dialog holding no composed content answers with nothing, whatever its owner drives",
                 )
 
-                inner = composed.contentPane.setContent { Label(text = "owned") }
+                inner = composed.setContent { Label(text = "owned") }
                 awaitUntil("the dialog's content composes") { labelTextOrNull(composed.contentPane) == "owned" }
                 val ownRecomposer = assertNotNull(composed.swingRecomposerOrNull()).recomposer
 
@@ -314,11 +315,11 @@ class FindRecomposerTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display to realize a window")
         val frame = realizedFrame()
         try {
-            val recomposer = SwingRecomposer.create(frame.contentPane)
+            val contentPane = frame.contentPane as JComponent
+            val recomposer = SwingRecomposer.create(contentPane)
             var content: DisposableHandle? = null
             try {
-                content =
-                    frame.contentPane.setContent(parent = recomposer.compositionContext) { Label(text = "named") }
+                content = contentPane.setContent(parent = recomposer.compositionContext) { Label(text = "named") }
                 awaitUntil("the named content composes") { labelTextOrNull(frame.contentPane) == "named" }
 
                 assertNull(
@@ -351,7 +352,7 @@ class FindRecomposerTest {
     }
 
     /** Adds and returns a fresh child container inside [frame]'s content pane. Must be on the EDT. */
-    private fun childOf(frame: JFrame): Container = JPanel().also { frame.contentPane.add(it) }
+    private fun childOf(frame: JFrame): JPanel = JPanel().also { frame.contentPane.add(it) }
 
     /** The single [JLabel]'s text in [container]'s subtree, or `null` while none has mounted yet. */
     private fun labelTextOrNull(container: Container): String? {

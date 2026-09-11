@@ -177,7 +177,9 @@ and go - is the Compose runtime's own `Recomposer.observe(CompositionRegistratio
 what is already there and starts nothing, so it may be asked of any component without changing it.
 
 - Content mounted by `setContent` on a window, or on any container inside it, is driven by that
-  window's recomposer, and every component below the window answers with it.
+  window's recomposer, and every component below the window answers with it. A window with no root pane
+  - a bare `java.awt.Frame` - shares no recomposer: its content compositions each drive their own, so the
+  containers holding them answer while the frame itself answers `null`.
 - Content mounted under a context its caller passed as the `parent` of a `setContent` answers with the
   recomposer driving that context, whether or not the container hangs under a window - the recomposer
   itself where the caller created one, and the one behind it where the caller captured the context with

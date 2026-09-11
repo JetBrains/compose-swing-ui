@@ -24,7 +24,7 @@ import java.awt.Component
  * that component across displays: a component reports every [java.awt.GraphicsConfiguration] change,
  * including the ones an ancestor propagates down to it.
  *
- * Content is mounted on it by passing its [compositionContext] as the parent of a mount.
+ * Content is mounted on it by passing its [compositionContext] as the parent of a content composition.
  *
  * It holds a live coroutine scope and a Swing timer, so it has to be [dispose]d. A caller handed one by
  * [create] owns it and decides when it ends; the one a window is given is this library's own and ends
@@ -78,7 +78,7 @@ public class SwingRecomposer private constructor(
     /** The content compositions registered as composing under this; see [registerContentComposition]. */
     private val contentCompositions = LinkedHashSet<DisposableHandle>()
 
-    /** The context to pass as the parent of a mount this recomposer drives. */
+    /** The context to pass as the parent of a content composition this recomposer drives. */
     public val compositionContext: CompositionContext
         get() = recomposer
 
@@ -120,8 +120,9 @@ public class SwingRecomposer private constructor(
      * [deregisterContentComposition]s when it is disposed, composes under another recomposer, or leaves
      * the window mid-move for its queued rejoin to place again. Two kinds of content stand outside the
      * set: content composed under a caller-named context that is no window's own, while its container
-     * hangs off no window, registers with no recomposer until its container adopts a window; and content
-     * on a recomposer of its caller's own registers with none at all. Either is disposed by its own
+     * hangs off no window and stands inside no other content, registers with no recomposer until its
+     * container adopts a window; and content on a recomposer of its caller's own registers with none at
+     * all. Either is disposed by its own
      * handle, and by the teardown of a window whose tree its container stands in when that window closes.
      *
      * A disposed recomposer keeps no set to be disposed with, so it disposes [content] on the spot rather
@@ -185,9 +186,9 @@ public class SwingRecomposer private constructor(
          * content built to be read rather than shown, which reaches a composition with no window
          * anywhere in the picture.
          *
-         * Creating it publishes nothing on [component], so a mount resolving its parent from the Swing
-         * tree reaches this recomposer only through content a caller has already mounted under it, and
-         * two content compositions a window accounts for stay on one recomposer and one frame clock.
+         * Creating it publishes nothing on [component], so a `setContent` resolving its parent from the
+         * Swing tree reaches this recomposer only through content a caller has already mounted under it,
+         * and two content compositions a window accounts for stay on one recomposer and one frame clock.
          *
          * The caller owns what is returned and decides when it ends: [dispose] it once the content it
          * drives is torn down. Content that belongs to a window joins that window's own instead.

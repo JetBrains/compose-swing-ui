@@ -53,7 +53,7 @@ internal fun Component.findParentCompositionContext(): CompositionContext? {
  */
 private fun Component.compositionContextHere(walkStartedAt: Component): CompositionContext? =
     (this as? JComponent)?.get(COMPOSITION_KEY)
-        ?: takeIf { it !== walkStartedAt }?.contentCompositionContextOrNull()
+        ?: takeIf { it !== walkStartedAt }?.contentCompositionOrNull()?.publishedContext
 
 /**
  * Sets [context] as this component's [COMPOSITION_KEY] client property, so descendant `setContent` calls

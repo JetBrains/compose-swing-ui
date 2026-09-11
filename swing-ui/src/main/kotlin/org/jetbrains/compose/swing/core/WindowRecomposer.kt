@@ -2,13 +2,16 @@ package org.jetbrains.compose.swing.core
 
 import androidx.compose.runtime.CompositionContext
 import kotlinx.coroutines.DisposableHandle
+import org.jetbrains.compose.swing.util.Key
 import org.jetbrains.compose.swing.util.get
+import org.jetbrains.compose.swing.util.set
 import java.awt.Component
 import java.awt.Container
 import java.awt.Window
 import java.awt.event.WindowAdapter
 import java.awt.event.WindowEvent
 import javax.swing.JComponent
+import javax.swing.JRootPane
 import javax.swing.RootPaneContainer
 
 /**
@@ -20,10 +23,10 @@ import javax.swing.RootPaneContainer
  * with the last content composed under it, with the window, and with a failure - see
  * [SwingRecomposer]; a call after that hands out a fresh one.
  *
- * Pass it as the parent context of a mount to join this window's composition - which is what a mount on
- * a container already under this window resolves to on its own. Creating is what this is for: a caller
- * asks to compose into the answer, so a context taken and held across a moment when the window composes
- * nothing is the one case where the answer goes stale.
+ * Pass it as the parent context of a content composition to join this window's composition - which is
+ * what content composed on a container already under this window resolves to on its own. Creating is
+ * what this is for: a caller asks to compose into the answer, so a context taken and held across a
+ * moment when the window composes nothing is the one case where the answer goes stale.
  *
  * A window whose content composes under a composition declared elsewhere drives none of its own and is
  * refused here, because a context created for it would drive nothing: a window declared inside
@@ -40,8 +43,20 @@ internal fun Window.compositionContext(): CompositionContext {
             "composition of its own, and a context created here would drive nothing. A window declared " +
             "inside application { } runs on the application's recomposer: ask ApplicationScope for it."
     }
+    require(this is RootPaneContainer) {
+        "'${javaClass.name}' has no root pane, so it has nowhere to keep a shared composition, and a " +
+            "context created here would be a fresh one on every call. Window.compositionContext() " +
+            "requires a RootPaneContainer (JFrame/JDialog/JWindow); content in a window without one " +
+            "composes on a recomposer of its own, which Component.findRecomposer() answers with."
+    }
     return getOrCreateRecomposer().recomposer
 }
+
+/**
+ * The [JRootPane] of this window when it is a [RootPaneContainer], or `null` for a window with no root pane.
+ */
+internal val Window.rootPaneOrNull: JRootPane?
+    get() = (this as? RootPaneContainer)?.rootPane
 
 /**
  * The [JComponent] content pane of this window when it is a [RootPaneContainer] whose content pane is a
@@ -59,21 +74,19 @@ internal val Window.contentPaneOrNull: JComponent?
 private fun Window.composesUnderAForeignComposition(): Boolean = contentPaneOrNull?.get(COMPOSITION_KEY) != null
 
 /**
- * A window's [SwingRecomposer], held by the listener that reaps its content when the window is disposed.
- *
- * A window is asked for its recomposer through the registration it already keeps: the listener that
- * reaps its content is the same one that names it, so which recomposer a window has is answered by the
- * window itself rather than tracked anywhere else, and a window that is garbage collected takes its
- * recomposer with it.
+ * Reaps a window's content when the window is disposed, and ends [recomposer] with it.
  *
  * Reaping the window's content is what normally ends its recomposer; it is disposed here as well, for
  * the window that took a context and mounted nothing under it: no registration was ever withdrawn to end
  * that one. This runs only for a window disposed while it was displayable; one already past that is
  * answered where it is created, by [getOrCreateRecomposer]. Disposing is idempotent, so both routes are
  * safe.
+ *
+ * The recomposer this reaps for is held rather than looked up, because a window with no root pane keeps
+ * none to look up.
  */
 private class WindowRecomposerHolder(
-    val recomposer: SwingRecomposer,
+    private val recomposer: SwingRecomposer,
 ) : WindowAdapter() {
     override fun windowClosed(e: WindowEvent) {
         disposeContentCompositionsIn(e.window)
@@ -99,7 +112,7 @@ internal fun disposeContentCompositionsIn(window: Window) {
     val standing = mutableListOf<DisposableHandle>()
 
     fun collect(component: Component) {
-        component.contentCompositionHandleOrNull()?.let(standing::add)
+        component.contentCompositionOrNull()?.let(standing::add)
         if (component is Container) {
             for (child in component.components) collect(child)
         }
@@ -109,40 +122,42 @@ internal fun disposeContentCompositionsIn(window: Window) {
 }
 
 /**
- * Returns the live [SwingRecomposer] already created for this window, or `null` if none exists yet or
- * the one it was given has ended. Does NOT create one. EDT-only.
+ * The [SwingRecomposer] a window shares with every content composition standing in it, kept on its root
+ * pane beside the [COMPOSITION_KEY] stamp naming the same one, and cleared when it ends.
  */
-internal fun Window.swingRecomposerOrNull(): SwingRecomposer? =
-    recomposerHolderOrNull()?.recomposer?.takeIf { !it.isDisposed }
+private val WINDOW_RECOMPOSER_KEY: Key<SwingRecomposer> = Key("org.jetbrains.compose.swing.windowRecomposer")
 
 /**
- * The listener naming the recomposer this window was given, whether or not that recomposer is still
- * live. A window whose recomposer has ended keeps it until the next one replaces it.
+ * Returns the live [SwingRecomposer] this window shares, or `null` if none exists yet, the one it was
+ * given has ended, or this window has no root pane to share one from. Does NOT create one. EDT-only.
  */
-private fun Window.recomposerHolderOrNull(): WindowRecomposerHolder? =
-    windowListeners.firstNotNullOfOrNull { it as? WindowRecomposerHolder }
+internal fun Window.swingRecomposerOrNull(): SwingRecomposer? = rootPaneOrNull?.get(WINDOW_RECOMPOSER_KEY)
 
 /**
  * The [Window] whose own shared composition scope [context] is, or `null` when [context] is something
  * else - a context published by a host composition, or one created for a component.
  *
- * This answers from [context] alone, so a mount handed a window's context states that window even while
- * the container it composes into hangs off no window at all. The answer is read back off the windows
- * themselves, so it costs a pass over the windows this application has open. EDT-only.
+ * This answers from [context] alone, so a `setContent` handed a window's context states that window
+ * even while the container it composes into hangs off no window at all. The answer is read back off the
+ * windows themselves, so it costs a pass over the windows this application has open. EDT-only.
  */
 internal fun windowOwning(context: CompositionContext): Window? =
     Window.getWindows().firstOrNull { it.swingRecomposerOrNull()?.recomposer === context }
 
 /**
  * Returns this window's single [SwingRecomposer], creating it (recomposer + frame clock + scope) on
- * first call and memoizing it on the window, so every content composition in one window recomposes on
- * one recomposer and one frame clock.
+ * first call and memoizing it on the window's [javax.swing.JRootPane], so every content composition in
+ * one window recomposes on one recomposer and one frame clock.
+ *
+ * A window with no root pane - a bare [java.awt.Frame] holding a [JComponent] - has nowhere to keep one
+ * and shares nothing: every call creates a recomposer, so its content compositions each get their own.
+ * Nothing is refused, and nothing is asked of the caller.
  *
  * On creation its recomposer is also published as the window's [COMPOSITION_KEY]
- * [androidx.compose.runtime.CompositionContext] on the [javax.swing.JRootPane] (when present), so
- * descendant `setContent` calls resolving via [findParentCompositionContext] share this same scope. A
- * [WindowAdapter.windowClosed] listener is registered once that reaps the content compositions standing
- * in the window when it is disposed.
+ * [androidx.compose.runtime.CompositionContext] on the root pane (when present), so descendant
+ * `setContent` calls resolving via [findParentCompositionContext] share this same scope. A
+ * [WindowAdapter.windowClosed] listener reaping the content compositions standing in the window is
+ * added for each recomposer created, and removed when that recomposer ends.
  *
  * Nobody is handed this recomposer, so it ends itself once the last content composition registered with
  * it is gone: a window closing reaps those and so ends it, and a window emptied while it stays open ends
@@ -153,15 +168,27 @@ internal fun windowOwning(context: CompositionContext): Window? =
 internal fun Window.getOrCreateRecomposer(): SwingRecomposer {
     swingRecomposerOrNull()?.let { return it }
 
-    // Cleared when the recomposer ends, so the stamp stands exactly as long as what it names: a mount
-    // resolving its parent up the Swing tree must never reach an ended context.
-    val stampedOn = (this as? RootPaneContainer)?.rootPane
-    val created = SwingRecomposer.forWindow(this) { stampedOn?.setCompositionContext(null) }
-    stampedOn?.setCompositionContext(created.recomposer)
-    // The listener naming a recomposer that has ended is replaced, rather than left standing beside a
-    // second one answering the same close.
-    recomposerHolderOrNull()?.let(::removeWindowListener)
-    addWindowListener(WindowRecomposerHolder(created))
+    // Cleared when the recomposer ends, so the stamps stand exactly as long as what they name: a
+    // setContent resolving its parent up the Swing tree must never reach an ended context, and a window
+    // must never hand out a recomposer that has ended.
+    // Assignable only after the recomposer it reaps for exists. Safe to read from the callback: the
+    // recomposer dispatches every turn of its own onto the event queue, so nothing can end it inside
+    // the call that creates it.
+    lateinit var reaper: WindowRecomposerHolder
+    val created =
+        SwingRecomposer.forWindow(this) {
+            rootPaneOrNull?.apply {
+                setCompositionContext(null)
+                set(WINDOW_RECOMPOSER_KEY, null)
+            }
+            removeWindowListener(reaper)
+        }
+    reaper = WindowRecomposerHolder(created)
+    rootPaneOrNull?.apply {
+        setCompositionContext(created.recomposer)
+        set(WINDOW_RECOMPOSER_KEY, created)
+    }
+    addWindowListener(reaper)
     // A window that is not displayable posts no windowClosed - Window.dispose() posts it only while the
     // peer stands - so the listener just registered would never run, and a recomposer nothing composes
     // under would hold its clock and its toolkit subscription for the life of the process. Asked here, it

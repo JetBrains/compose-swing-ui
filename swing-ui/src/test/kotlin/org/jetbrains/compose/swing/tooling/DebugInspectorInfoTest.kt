@@ -13,6 +13,9 @@ import org.jetbrains.compose.swing.components.Slider
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.TabbedPane
+import org.jetbrains.compose.swing.components.selection.ListBox
+import org.jetbrains.compose.swing.components.selection.firstLabelText
+import org.jetbrains.compose.swing.components.selection.stampCell
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.core.SwingContentComposition
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -27,6 +30,7 @@ import java.awt.Component
 import java.awt.Container
 import java.lang.ref.WeakReference
 import javax.swing.JComponent
+import javax.swing.JList
 import javax.swing.JPanel
 import javax.swing.JSlider
 import javax.swing.JTabbedPane
@@ -87,7 +91,7 @@ class DebugInspectorInfoTest {
     }
 
     @Test
-    fun turningInspectionOnAfterTheMountReachesWhatIsAlreadyOnScreen() = runComposeSwingTest {
+    fun turningInspectionOnAfterContentIsMountedReachesWhatIsAlreadyOnScreen() = runComposeSwingTest {
         setContent { Label(text = "hello", modifier = SwingModifier.testTag(LABEL_TAG)) }
         assertNull(
             onNodeWithTag(LABEL_TAG).fetch().findDeclaringGroup(),
@@ -120,7 +124,7 @@ class DebugInspectorInfoTest {
                 }
             }
         }
-        assertEquals(1, buildsOfTheContent, "the content is built once by the initial mount")
+        assertEquals(1, buildsOfTheContent, "the content is built once when it is first mounted")
 
         typed = "what the user typed"
         sliderValue = 70
@@ -163,7 +167,7 @@ class DebugInspectorInfoTest {
             parentContext = rememberCompositionContext()
             Label(text = "hello", modifier = SwingModifier.testTag(LABEL_TAG))
         }
-        assertEquals(1, buildsOfTheContent, "the content is built once by the initial mount")
+        assertEquals(1, buildsOfTheContent, "the content is built once when it is first mounted")
         assertNotNull((root as JComponent).findCompositionData(), "and publishes itself while it records")
 
         isDebugInspectorInfoEnabled = false
@@ -237,7 +241,7 @@ class DebugInspectorInfoTest {
             }
         try {
             awaitIdle()
-            assertEquals(1, buildsOfTheComposition, "the content composition is built once by its own mount")
+            assertEquals(1, buildsOfTheComposition, "the content composition is built once when it is first mounted")
 
             isDebugInspectorInfoEnabled = true
             awaitIdle()
@@ -262,7 +266,7 @@ class DebugInspectorInfoTest {
             remember { buildsOfTheContent++ }
             Label(text = "hello", modifier = SwingModifier.testTag(LABEL_TAG))
         }
-        assertEquals(1, buildsOfTheContent, "the content is built once by the initial mount")
+        assertEquals(1, buildsOfTheContent, "the content is built once when it is first mounted")
 
         // Both in one turn of the event loop, so the switch is off again before any pass reads it.
         isDebugInspectorInfoEnabled = true
@@ -286,62 +290,41 @@ class DebugInspectorInfoTest {
         lateinit var parentContext: CompositionContext
         setContent { parentContext = rememberCompositionContext() }
 
-        var buildsOfTheComposition = 0
-        // No client-property bag, so this composition can publish nothing and answers for nothing.
-        val bareHost = Container()
+        var cellBuilds = 0
+        // Every cell composition is rooted at a bare Container, which carries no client-property bag: it
+        // can publish no slot table and answers for nothing, so re-inserting it would discard what each
+        // cell remembered and buy nothing back.
+        val compositionHost = JPanel()
         val handle =
-            bareHost.setContent(parent = parentContext) {
-                remember { buildsOfTheComposition++ }
-                Label(text = "nested", modifier = SwingModifier.testTag(NESTED_TAG))
+            compositionHost.setContent(parent = parentContext) {
+                ListBox(items = listOf("alpha", "beta")) { item ->
+                    remember { cellBuilds++ }
+                    Label(text = item)
+                }
             }
         try {
             awaitIdle()
-            assertEquals(1, buildsOfTheComposition, "the content composition is built once by its own mount")
+            val list = compositionHost.firstListOrNull() ?: error("the nested composition declared no list")
+            assertEquals("alpha", list.stampCell(index = 0).firstLabelText(), "the row renders its item")
+            assertEquals(1, cellBuilds, "and the cell composition is built by the stamp that renders it")
 
             isDebugInspectorInfoEnabled = true
             awaitIdle()
 
             assertEquals(
-                1,
-                buildsOfTheComposition,
-                "rebuilding a composition nothing can read source information off would be cost with no " +
-                    "payload, so it is left alone",
+                "beta",
+                list.stampCell(index = 1).firstLabelText(),
+                "the same cell composition goes on stamping the rows the widget asks it to paint",
             )
-            assertNull(
-                bareHost.components.single().findDeclaringGroup(),
-                "and the component it declared is still answered for by nothing",
-            )
-        } finally {
-            handle.dispose()
-        }
-    }
-
-    @Test
-    fun aCompositionThatCanPublishNothingCollectsNothingWhenItMountsWhileInspectionIsOn() = runComposeSwingTest {
-        lateinit var parentContext: CompositionContext
-        setContent { parentContext = rememberCompositionContext() }
-
-        isDebugInspectorInfoEnabled = true
-        awaitIdle()
-
-        var buildsOfTheComposition = 0
-        // No client-property bag, so this composition can publish nothing and answers for nothing.
-        val bareHost = Container()
-        val handle =
-            bareHost.setContent(parent = parentContext) {
-                remember { buildsOfTheComposition++ }
-                Label(text = "nested", modifier = SwingModifier.testTag(NESTED_TAG))
-            }
-        try {
-            awaitIdle()
             assertEquals(
                 1,
-                buildsOfTheComposition,
-                "the content composition is built once and re-inserted for nothing",
+                cellBuilds,
+                "and the switch left it standing: a composition nothing can read source information off " +
+                    "is never rebuilt to record it",
             )
             assertNull(
-                bareHost.components.single().findDeclaringGroup(),
-                "and the component it declared is answered for by nothing",
+                list.stampCell(index = 0).findDeclaringGroup(),
+                "so the component a cell declared is still answered for by nothing",
             )
         } finally {
             handle.dispose()
@@ -467,6 +450,13 @@ class DebugInspectorInfoTest {
             "the failure must name the thread the switch belongs to, but was: ${failure.message}",
         )
     }
+}
+
+/** The first [JList] in this component subtree, or `null` where the content declared none. */
+private fun Component.firstListOrNull(): JList<*>? = when (this) {
+    is JList<*> -> this
+    is Container -> components.firstNotNullOfOrNull { it.firstListOrNull() }
+    else -> null
 }
 
 /**

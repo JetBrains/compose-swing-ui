@@ -238,7 +238,7 @@ class WindowRecomposerFailureTest {
         val host = JPanel()
         val recomposer = SwingRecomposer.create(host)
         // Built here rather than through setContent, because a first pass that throws hands its caller
-        // no handle: the observer is only reachable from the composition the mount discards.
+        // no handle: the observer is only reachable from the composition setContent discards.
         val composition =
             SwingContentComposition.nested(recomposer.compositionContext) { owner ->
                 SwingApplier(SwingNodeHolder(host).attachedTo(owner))

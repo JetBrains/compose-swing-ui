@@ -441,8 +441,8 @@ reports it and carries on dispatching, and matching that is the whole of what a 
 A callback reached from the pass that applies the composition's changes is the other case - a report of
 what a widget settled on, a listener that a write of your own provokes before that write returns, a
 callback called straight out of `update`. Recomposition is the pump there, and it does not carry on: a
-throw reaching it ends the window's recomposer and tears down every content composition the window
-holds. The throw is reported to the thread's uncaught-exception handler.
+throw reaching it ends the recomposer driving that content and tears down every content composition
+standing on it. The throw is reported to the thread's uncaught-exception handler.
 
 So contain what the caller supplied, at the edge their code sits behind. The two-way binding already
 does: `declare`'s `onSettled` and anything a write through `mirror.write { }` provokes are contained

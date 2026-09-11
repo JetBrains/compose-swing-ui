@@ -275,7 +275,7 @@ class ComponentRecomposerTest {
     }
 
     /** Adds and returns a fresh child container inside [frame]'s content pane. Must be on the EDT. */
-    private fun childOf(frame: JFrame): Container = JPanel().also { frame.contentPane.add(it) }
+    private fun childOf(frame: JFrame): JPanel = JPanel().also { frame.contentPane.add(it) }
 
     /** The single [JLabel]'s text in [container]'s subtree, or `null` while none has mounted yet. */
     private fun labelTextOrNull(container: Container): String? {

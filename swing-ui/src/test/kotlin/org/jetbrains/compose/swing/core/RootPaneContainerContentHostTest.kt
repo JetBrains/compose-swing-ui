@@ -28,7 +28,7 @@ import kotlin.test.assertSame
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * `Container.setContent` accepts any container, a root-pane container such as a [JInternalFrame]
+ * `JComponent.setContent` accepts any component, a root-pane container such as a [JInternalFrame]
  * included. Such a container forwards `add` to its content pane, so the composition's children live on
  * the content pane and every structural change - the last of them being the dispose - has to address
  * them there. What the container holds itself is its own affair, the root pane and whatever else the

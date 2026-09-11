@@ -132,7 +132,7 @@ class SwingApplierRegionTest {
     /**
      * Builds a [SwingApplier] over [root] with a snapshot observer this test owns and disposes, so the
      * global apply-observer registration the applier starts is torn down at test end rather than
-     * leaked (the production path disposes it with the composition mount).
+     * leaked (the production path disposes it with the content composition).
      */
     private fun applierFor(root: Container): SwingApplier {
         val owner = TestCompositionOwner.observing()

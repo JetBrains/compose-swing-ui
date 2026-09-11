@@ -39,8 +39,9 @@ class FrameSectionTest : TracedTest() {
         try {
             content = composition.setContent(parent = recomposer.compositionContext) { Label(text = text) }
             awaitUntil("the content mounts") { labelTextOrNull(composition) == "v0" }
-            // The mount composes and applies synchronously, on the caller's own turn rather than on a
-            // frame. What this case states is the frame a later write is carried through.
+            // The content composition composes and applies synchronously, on the caller's own turn
+            // rather than on a frame. What this case states is the frame a later write is carried
+            // through.
             tracer.clear()
 
             text = "v1"

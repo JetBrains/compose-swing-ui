@@ -14,7 +14,6 @@ import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Assumptions.assumeFalse
-import java.awt.Container
 import java.awt.GraphicsEnvironment
 import java.awt.Window
 import javax.swing.JDialog
@@ -191,7 +190,7 @@ class LocalWindowTest {
             // has to be answered as the dialog itself. Content reading its owner instead would anchor a
             // peer of its own - a file chooser, a nested dialog - to the frame behind it.
             val composition = WindowReader()
-            (dialog as Container).setContent { composition.Read() }
+            dialog.setContent { composition.Read() }
 
             awaitComposed("the content set on the dialog composes", composition)
             assertSame(dialog, composition.seen, "content set on an owned dialog must read that dialog")

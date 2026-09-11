@@ -19,7 +19,7 @@ reference for individual functions.
 
 ## Mounting a composition
 
-A composition is mounted onto an existing Swing container with `container.setContent { ... }`.
+A composition is mounted onto an existing Swing component with `component.setContent { ... }`.
 There are matching entry points for windows and for menu bars, and a high-level `application`
 entry point that owns a whole app lifecycle.
 
@@ -36,30 +36,32 @@ flowchart TD
 ```
 
 Mounting always happens on the EDT, because composition and the AWT mutations it drives must run
-on that thread. A mount looks for a composition already hosted above it in the Swing tree, starting
-with the container itself, and joins that one, sharing its scope and `CompositionLocal`s. Failing
-that, it joins the composition scope belonging to its window. Every mount nests into something, so
-two containers given content under one window recompose together, on that window's recomposer and
-its frame clock. A container that is in no window yet is mounted the moment it is added to one.
+on that thread. A content composition looks for a composition already hosted above it in the Swing
+tree, starting with the component itself, and joins that one, sharing its scope and
+`CompositionLocal`s. Failing that, it joins the composition scope belonging to its window. Every
+content composition nests into something, so two components given content under one window recompose
+together, on that window's recomposer and its frame clock - unless that window has no root pane, a
+bare `java.awt.Frame`, which has nowhere to keep a scope to share, so each content composition in one
+drives its own. A component that is in no window yet is mounted the moment it is added to one.
 
-A mount can also be given the composition it nests into. A composable scope hands one over with
-`rememberCompositionContext()`, and `component.findRecomposer()` reads the scope already driving
-composed content - a `Recomposer` is a `CompositionContext`, so it stands as a parent as it is.
-`container.setContent(parent) { ... }` then composes on the call, whatever the container is attached
-to. Everything mounted inside such a container joins the same parent: a
-`setContent` naming no parent of its own on a container hanging under that content composition resolves
+A content composition can also be given the composition it nests into. A composable scope hands one
+over with `rememberCompositionContext()`, and `component.findRecomposer()` reads the scope already
+driving composed content - a `Recomposer` is a `CompositionContext`, so it stands as a parent as it is.
+`component.setContent(parent) { ... }` then composes on the call, whatever the component is attached
+to. Everything mounted inside such a component joins the same parent: a
+`setContent` naming no parent of its own on a component hanging under that content composition resolves
 to the composition it was given rather than to the window's. A container given a window's own scope
-joins the composition of the window it is in should it later be added to another, so a window's
-content still recomposes on one recomposer and one frame clock. A container given a runtime of its
-own is kept on that runtime instead: a move brings only the window its content reads up to date.
+joins the composition of the window it is in should it later be added to another. A container given
+a runtime of its own is kept on that runtime instead: a move brings only the window its content reads
+up to date.
 
 Content reads a `LifecycleOwner` through `LocalLifecycleOwner`, shared by everything that content
-hosts - popups, menus, overlays. A mount takes the owner of the mount above it in the Swing tree, and
-only where there is none does it get an owner of its own. A `Window` or `Dialog` composed in it always
-gets one of its own, since being attached, minimized or focused are facts about a single window. An
-owner answers for the content it follows, so a mount that resolved one reports where that content
-stands rather than where its own container hangs, and disposing that mount leaves the owner live -
-only the mount an owner was made for ends it. Attachment
+hosts - popups, menus, overlays. A content composition takes the owner of the one above it in the
+Swing tree, and only where there is none does it get an owner of its own. A `Window` or `Dialog`
+composed in it always gets one of its own, since being attached, minimized or focused are facts about
+a single window. An owner answers for the content it follows, so a content composition that resolved
+one reports where that content stands rather than where its own container hangs, and disposing that
+content composition leaves the owner live - only the one an owner was made for ends it. Attachment
 to the Swing tree, minimization of the window, and that window's keyboard focus move an owner between
 `CREATED`, `STARTED`, and `RESUMED`; the KDoc on `setContent` is the reference for which is which.
 

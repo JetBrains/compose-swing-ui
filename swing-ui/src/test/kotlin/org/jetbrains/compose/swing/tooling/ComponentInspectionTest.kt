@@ -87,7 +87,7 @@ class ComponentInspectionTest {
     }
 
     @Test
-    fun inspectionOnBeforeTheMountLeadsFromEachComponentToWhereItWasDeclared() = runComposeSwingTest {
+    fun inspectionOnBeforeContentIsMountedLeadsFromEachComponentToWhereItWasDeclared() = runComposeSwingTest {
         isDebugInspectorInfoEnabled = true
         setContent {
             Panel(PanelLayout.Box()) {

@@ -118,9 +118,9 @@ class SetContentParentTest {
     }
 
     @Test
-    fun aNamedParentMountWatchesTheContainersPlaceAndGivesItUpOnDispose() {
+    fun aContentCompositionUnderANamedParentWatchesTheContainersPlaceAndGivesItUpOnDispose() {
         // Two things watch the container's place in the Swing tree, each with its own HierarchyListener:
-        // the mount phase (so a container that ends up in a window joins that window's composition) and
+        // mounting (so a container that ends up in a window joins that window's composition) and
         // the content's lifecycle owner (which reads whether the content is shown off that same place).
         // Disposing the handle gives both listeners back.
         val detached = onEdt { JPanel().apply { size = Dimension(SIZE, SIZE) } }
@@ -131,7 +131,7 @@ class SetContentParentTest {
             before + 2,
             onEdt { detached.hierarchyListeners.size },
             "content mounted under a named parent must watch the container's place with one " +
-                "HierarchyListener for the mount phase and one for the content's lifecycle",
+                "HierarchyListener for mounting and one for the content's lifecycle",
         )
 
         onEdt { handle.dispose() }

@@ -20,6 +20,7 @@ import org.jetbrains.compose.swing.setContent
 import java.awt.Component
 import java.awt.Container
 import javax.swing.JButton
+import javax.swing.JComponent
 import javax.swing.JPanel
 import javax.swing.JRootPane
 import javax.swing.SwingUtilities
@@ -39,7 +40,7 @@ class DefaultButtonModifierTest {
     private val scope = CoroutineScope(Dispatchers.Swing + Job() + clock)
     private val recomposer = Recomposer(scope.coroutineContext)
     private val rootPane: JRootPane = onEdt { JRootPane() }
-    private val root: Container = onEdt { rootPane.contentPane }
+    private val root: JComponent = onEdt { rootPane.contentPane as JComponent }
     private var handle: DisposableHandle? = null
     private var frameTimeNanos = 0L
 

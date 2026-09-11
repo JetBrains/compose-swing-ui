@@ -75,7 +75,7 @@ windows, dialogs and menus - is cataloged with the parameters that decide how it
 ## Mounting into existing Swing (`setContent`)
 
 You can also drive composition into any container without the `application`/`Window` entry points.
-`setContent` is an extension on `java.awt.Container`, with `java.awt.Window.setContent` (covering
+`setContent` is an extension on `javax.swing.JComponent`, with `java.awt.Window.setContent` (covering
 `JFrame`, `JDialog`, and `JWindow`) and `JMenuBar.setContent` provided too. A single
 `import org.jetbrains.compose.swing.setContent` resolves all of them:
 
