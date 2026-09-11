@@ -5,7 +5,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
+import org.jetbrains.compose.swing.animation.animateScrollBy
+import org.jetbrains.compose.swing.animation.animateScrollTo
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.Spinner
 import org.jetbrains.compose.swing.components.button.Button
@@ -40,8 +44,8 @@ import javax.swing.SwingConstants
 // The full ScrollPaneScope: a scrollable grid as the viewport content, a synced row header and column
 // header, and a corner badge in the upper-leading slot, each child naming its own region. The scrollbar
 // policies are forced always-on so every slot is visible at once. Further down: the pane's hoistable
-// ScrollState, the viewport content's own scrolling behavior, its border and wheel-scrolling switch, and
-// a raw JScrollBar driven through adjustmentListener.
+// ScrollState, moving that position over time, the viewport content's own scrolling behavior, its
+// border and wheel-scrolling switch, and a raw JScrollBar driven through adjustmentListener.
 @Preview
 @Composable
 internal fun ScrollPaneSection() {
@@ -75,6 +79,7 @@ internal fun ScrollPaneSection() {
             }
         }
         ScrollStateCard()
+        AnimatedScrollCard()
         ContentBehaviorCard()
         BorderAndWheelCard()
         AdjustmentListenerCard()
@@ -124,6 +129,32 @@ private fun ColumnScope.ScrollStateCard() {
             Panel(PanelLayout.Grid(rows = ROWS, cols = COLS, hgap = 1, vgap = 1), SwingModifier.viewport()) {
                 repeat(ROWS * COLS) { index ->
                     Cell("R${index / COLS},C${index % COLS}", Color(0xE1, 0xF5, 0xFE))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ColumnScope.AnimatedScrollCard() {
+    ExampleCard("ScrollPane (animateScrollTo)") {
+        val scroll = rememberScrollState()
+        val scope = rememberCoroutineScope()
+        WrappedCaption(
+            "These buttons travel to the position over time instead of jumping to it. Whatever moves the " +
+                "pane next ends the travel where it stands: press two of them in a row, or grab a " +
+                "scrollbar or the wheel while one is running.",
+        )
+        Panel {
+            Button("Animate to end", onClick = { scope.launch { scroll.animateScrollTo(scroll.maxX, scroll.maxY) } })
+            Button("Animate to start", onClick = { scope.launch { scroll.animateScrollTo(0, 0) } })
+            Button("Nudge down", onClick = { scope.launch { scroll.animateScrollBy(dy = 75) } })
+        }
+        Label("x: ${scroll.x}   y: ${scroll.y}   scrolling: ${scroll.isScrollInProgress}")
+        ScrollPane(modifier = SwingModifier.preferredSize(Dimension(220, 120)), state = scroll) {
+            Panel(PanelLayout.Grid(rows = ROWS, cols = COLS, hgap = 1, vgap = 1), SwingModifier.viewport()) {
+                repeat(ROWS * COLS) { index ->
+                    Cell("R${index / COLS},C${index % COLS}", Color(0xE8, 0xF5, 0xE9))
                 }
             }
         }

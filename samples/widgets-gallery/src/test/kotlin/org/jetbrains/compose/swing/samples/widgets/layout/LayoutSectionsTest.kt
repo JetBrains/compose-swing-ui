@@ -7,9 +7,11 @@ import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import java.awt.Dimension
+import java.awt.Point
 import javax.swing.JButton
 import javax.swing.JComponent
 import javax.swing.JLabel
+import javax.swing.JScrollPane
 import javax.swing.JSlider
 import javax.swing.JSplitPane
 import javax.swing.JTabbedPane
@@ -487,6 +489,63 @@ class LayoutSectionsTest {
         }
 
     @Test
+    fun theAnimateToEndButtonReachesBothContentEdgesAndFinishes() =
+        runComposeSwingTest {
+            openSection("ScrollPane")
+            val pane = animatedScrollPane()
+            val end =
+                Point(
+                    pane.viewport.viewSize.width - pane.viewport.extentSize.width,
+                    pane.viewport.viewSize.height - pane.viewport.extentSize.height,
+                )
+            assertTrue(end.x > 0 && end.y > 0, "the example has room to scroll on both axes")
+            assertEquals(Point(0, 0), pane.viewport.viewPosition, "the pane starts at the beginning")
+            onNodeWithText("Animate to end").performClick()
+            awaitIdle()
+
+            assertEquals(end, pane.viewport.viewPosition, "the button reaches the end on both axes")
+            onNodeWithText("scrolling:", substring = true)
+                .assertTextEquals("x: ${end.x}   y: ${end.y}   scrolling: false")
+        }
+
+    @Test
+    fun theAnimateToStartButtonReturnsThePaneToTheBeginning() =
+        runComposeSwingTest {
+            openSection("ScrollPane")
+            val pane = animatedScrollPane()
+            onNodeWithText("Animate to end").performClick()
+            awaitIdle()
+            val end = pane.viewport.viewPosition
+            assertTrue(end.x > 0 && end.y > 0, "the pane has moved on both axes before returning")
+
+            onNodeWithText("Animate to start").performClick()
+            awaitIdle()
+
+            assertEquals(Point(0, 0), pane.viewport.viewPosition, "the button returns both axes to the beginning")
+            onNodeWithText("scrolling:", substring = true).assertTextEquals("x: 0   y: 0   scrolling: false")
+        }
+
+    @Test
+    fun theNudgeDownButtonMovesSeventyFivePixelsFromTheCurrentPosition() =
+        runComposeSwingTest {
+            openSection("ScrollPane")
+            val pane = animatedScrollPane()
+            val maxY = pane.viewport.viewSize.height - pane.viewport.extentSize.height
+            assertTrue(maxY > 150, "the example has room for two complete nudges")
+            assertEquals(Point(0, 0), pane.viewport.viewPosition, "the pane starts at the beginning")
+
+            onNodeWithText("Nudge down").performClick()
+            awaitIdle()
+            assertEquals(Point(0, 75), pane.viewport.viewPosition, "the first nudge moves only the vertical axis")
+            onNodeWithText("scrolling:", substring = true).assertTextEquals("x: 0   y: 75   scrolling: false")
+
+            onNodeWithText("Nudge down").performClick()
+            awaitIdle()
+            assertEquals(Point(0, 150), pane.viewport.viewPosition, "the second nudge starts where the first stopped")
+            onNodeWithText("scrolling:", substring = true).assertTextEquals("x: 0   y: 150   scrolling: false")
+        }
+
+    @Test
     fun theScrollPaneSectionCapturesALaidOutHeaderCell() =
         runComposeSwingTest {
             openSection("ScrollPane")
@@ -520,6 +579,11 @@ private fun ComposeSwingTest.buttonNamed(name: String): JButton =
     onAllNodesOfType<JButton>()
         .fetchAll<JButton>()
         .single { it.accessibleContext.accessibleName == name }
+
+private fun ComposeSwingTest.animatedScrollPane(): JScrollPane {
+    val card = onNodeWithText("scrolling:", substring = true).fetch<JLabel>().parent
+    return onAllNodesOfType<JScrollPane>().fetchAll().single { it.parent === card }
+}
 
 private fun ComposeSwingTest.fillMaxFractionSlider(): JSlider =
     onAllNodesOfType<JSlider>()
