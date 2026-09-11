@@ -26,14 +26,13 @@ import javax.swing.JMenuItem
  */
 public fun SwingModifier.opaque(opaque: Boolean): SwingModifier =
     this then
-        derivedPropertyElement<JComponent, Boolean?>(
-            name = OpaqueProperty.name,
-            value = opaque,
-            read = OpaqueProperty.read,
-            write = OpaqueProperty.write,
-            // The component announces every change of the flag, its own included, so the flag itself is
-            // what to listen on.
+        derivedPropertyElement(
+            OpaqueProperty,
+            opaque,
+            // The component announces every change of the flag, its own included, so the flag itself is what
+            // to listen on.
             interference = PropertyInterference.OverwrittenOn("opaque"),
+            inheritable = true,
         )
 
 /**

@@ -3,6 +3,7 @@
 
 package org.jetbrains.compose.swing.modifier.layout
 
+import org.jetbrains.compose.swing.modifier.PropertyAccessors
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.propertyElement
 import java.awt.Component
@@ -22,19 +23,19 @@ import java.awt.ComponentOrientation
  * @see java.awt.Component.setComponentOrientation
  */
 public fun SwingModifier.componentOrientation(orientation: ComponentOrientation): SwingModifier =
-    this then
-        propertyElement<Component, ComponentOrientation>(
-            name = "componentOrientation",
-            value = orientation,
-            read = { it.componentOrientation },
-            // Honest Swing semantics: set on this component only; do not recurse to children.
-            // Setting the property only invalidates. Orientation flips leading/trailing layout positions
-            // (BorderLayout lineStart/lineEnd, FlowLayout, etc.), which needs a relayout, and it also moves
-            // what the component paints leading-aligned inside bounds that stay the same, which needs a
-            // repaint. Ask for both.
-            write = { component, value ->
-                component.componentOrientation = value
-                component.revalidate()
-                component.repaint()
-            },
-        )
+    this then propertyElement(ComponentOrientationProperty, orientation, inheritable = true)
+
+private val ComponentOrientationProperty =
+    PropertyAccessors<Component, ComponentOrientation>(
+        name = "componentOrientation",
+        read = { it.componentOrientation },
+        // Honest Swing semantics: set on this component only; do not recurse to children.
+        // Setting the property only invalidates. Orientation flips leading and trailing layout positions,
+        // which needs a relayout, and moves what the component paints leading-aligned inside bounds that
+        // stay the same, which needs a repaint.
+        write = { component, value ->
+            component.componentOrientation = value
+            component.revalidate()
+            component.repaint()
+        },
+    )

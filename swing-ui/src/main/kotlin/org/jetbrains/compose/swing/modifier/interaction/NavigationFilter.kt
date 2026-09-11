@@ -3,6 +3,7 @@
 
 package org.jetbrains.compose.swing.modifier.interaction
 
+import org.jetbrains.compose.swing.modifier.PropertyAccessors
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.propertyElement
 import javax.swing.JFormattedTextField
@@ -32,19 +33,20 @@ import javax.swing.text.NavigationFilter
  * @see javax.swing.text.JTextComponent.setNavigationFilter
  */
 public fun SwingModifier.navigationFilter(filter: NavigationFilter?): SwingModifier =
-    this then
-        propertyElement<JTextComponent, NavigationFilter?>(
-            name = "navigationFilter",
-            value = filter,
-            // The check sits in `read`, which the node calls once on attach: a component the declaration
-            // cannot hold on to is rejected before the node captures a restore action for it.
-            read = { component ->
-                require(component !is JFormattedTextField) {
-                    "navigationFilter cannot be declared on a ${component.javaClass.name}: the field puts back " +
-                        "the filter its formatter returns from AbstractFormatter.getNavigationFilter every time " +
-                        "it reformats, so a declared filter would stop steering the caret without saying so"
-                }
-                component.navigationFilter
-            },
-            write = { component, value -> component.navigationFilter = value },
-        )
+    this then propertyElement(NavigationFilterProperty, filter)
+
+private val NavigationFilterProperty =
+    PropertyAccessors<JTextComponent, NavigationFilter?>(
+        name = "navigationFilter",
+        // The check sits in `read`, which the node calls once on attach: a component the declaration
+        // cannot hold on to is rejected before the node captures a restore action for it.
+        read = { component ->
+            require(component !is JFormattedTextField) {
+                "navigationFilter cannot be declared on a ${component.javaClass.name}: the field puts back " +
+                    "the filter its formatter returns from AbstractFormatter.getNavigationFilter every time " +
+                    "it reformats, so a declared filter would stop steering the caret without saying so"
+            }
+            component.navigationFilter
+        },
+        write = { component, value -> component.navigationFilter = value },
+    )

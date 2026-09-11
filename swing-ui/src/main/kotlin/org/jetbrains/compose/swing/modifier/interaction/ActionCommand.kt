@@ -3,6 +3,7 @@
 
 package org.jetbrains.compose.swing.modifier.interaction
 
+import org.jetbrains.compose.swing.modifier.PropertyAccessors
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.propertyElement
 import javax.swing.AbstractButton
@@ -21,12 +22,13 @@ import javax.swing.AbstractButton
  * @see javax.swing.AbstractButton.setActionCommand
  */
 public fun SwingModifier.actionCommand(command: String?): SwingModifier =
-    this then
-        propertyElement<AbstractButton, String?>(
-            name = "actionCommand",
-            value = command,
-            // A button's own getter substitutes its text when no command is set; the model holds the
-            // real value, including null, so reading from the model is what lets `null` restore the default.
-            read = { it.model.actionCommand },
-            write = { component, value -> component.actionCommand = value },
-        )
+    this then propertyElement(ActionCommandProperty, command)
+
+private val ActionCommandProperty =
+    PropertyAccessors<AbstractButton, String?>(
+        name = "actionCommand",
+        // A button's own getter substitutes its text when no command is set; the model holds the
+        // real value, including null, so reading from the model is what lets `null` restore the default.
+        read = { it.model.actionCommand },
+        write = { component, value -> component.actionCommand = value },
+    )

@@ -29,8 +29,11 @@ public sealed interface SwingComponentNode {
     public val component: Component
 
     /**
-     * The modifier chain the composition last declared for [component], and [SwingModifier] itself where
-     * it declared none. Walk it with [SwingModifier.foldIn], which hands out a [SwingModifier.Element];
+     * The effective [SwingModifier] chain currently declared on this node, including any inherited
+     * component defaults applicable to this component followed by elements passed directly on the
+     * node's own modifier.
+     *
+     * Walk it with [SwingModifier.foldIn], which hands out a [SwingModifier.Element];
      * read the [name][SwingModifier.InspectableElement.name] and
      * [declaredValues][SwingModifier.InspectableElement.declaredValues] of each one that is a
      * [SwingModifier.InspectableElement] to show what the component carries.
@@ -38,8 +41,10 @@ public sealed interface SwingComponentNode {
      * A [composed][org.jetbrains.compose.swing.modifier.composed] entry appears as the entries its factory
      * returned for this component.
      *
-     * It is the whole declared modifier chain, placement included: an element saying where the component sits in
-     * its parent stands in it alongside the ones saying what it looks like.
+     * It is the whole effective declared modifier chain, placement included: an element saying where the
+     * component sits in its parent stands in it alongside the ones saying what it looks like. Inherited
+     * defaults are flattened into their effective property elements; provider-key boundaries are not
+     * preserved and key names are not presented as synthetic modifier elements.
      *
      * It answers whatever the composition declared last, whether or not the pass that declared it had
      * anything to write, so it never lags the composition. Every node holds its modifier whatever

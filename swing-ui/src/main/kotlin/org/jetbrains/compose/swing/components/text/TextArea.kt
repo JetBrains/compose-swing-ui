@@ -5,6 +5,7 @@ package org.jetbrains.compose.swing.components.text
 
 import androidx.compose.runtime.Composable
 import org.jetbrains.annotations.Nls
+import org.jetbrains.compose.swing.modifier.PropertyAccessors
 import org.jetbrains.compose.swing.modifier.PropertyElement
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.documentListener
@@ -230,11 +231,15 @@ private fun SwingModifier.tabSize(
 private class TabSizeElement(
     private val state: DocumentState,
     size: Int,
-) : PropertyElement<JTextArea, Int>(JTextArea::class.java, "tabSize", size, READ_TAB_SIZE, WRITE_TAB_SIZE) {
+) : PropertyElement<JTextArea, Int>(JTextArea::class.java, TabSizeProperty, size) {
     override fun equals(other: Any?): Boolean = super.equals(other) && state === (other as TabSizeElement).state
 
     override fun hashCode(): Int = 31 * super.hashCode() + System.identityHashCode(state)
 }
 
-private val READ_TAB_SIZE: (JTextArea) -> Int = { it.tabSize }
-private val WRITE_TAB_SIZE: (JTextArea, Int) -> Unit = { area, size -> area.tabSize = size }
+private val TabSizeProperty =
+    PropertyAccessors<JTextArea, Int>(
+        name = "tabSize",
+        read = { it.tabSize },
+        write = { area, size -> area.tabSize = size },
+    )

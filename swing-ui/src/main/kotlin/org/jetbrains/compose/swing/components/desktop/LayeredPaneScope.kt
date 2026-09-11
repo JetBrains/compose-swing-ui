@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.components.desktop
 
+import org.jetbrains.compose.swing.modifier.PropertyAccessors
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
 import org.jetbrains.compose.swing.modifier.propertyElement
@@ -65,10 +66,11 @@ internal object LayeredPaneScopeImpl : LayeredPaneScope {
  * restore that returns a child to the default layer once its chain stops declaring one. It writes nothing
  * while the component has no pane to be moved within, which is where the constraint itself answers.
  */
-private fun layerDepth(layer: Int): SwingModifier =
-    propertyElement<Component, Int>(
+private fun layerDepth(layer: Int): SwingModifier = propertyElement(LayerProperty, layer)
+
+private val LayerProperty =
+    PropertyAccessors<Component, Int>(
         name = "layer",
-        value = layer,
         read = { component ->
             (component.parent as? JLayeredPane)?.getLayer(component) ?: JLayeredPane.DEFAULT_LAYER
         },

@@ -3,6 +3,7 @@
 
 package org.jetbrains.compose.swing.modifier.interaction
 
+import org.jetbrains.compose.swing.modifier.PropertyAccessors
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.CallbackBundle
 import org.jetbrains.compose.swing.modifier.listener.UNDECLARED
@@ -25,13 +26,7 @@ import java.awt.event.MouseEvent
  * @see java.awt.Component.setFocusable
  */
 public fun SwingModifier.focusable(focusable: Boolean): SwingModifier =
-    this then
-        propertyElement<Component, Boolean>(
-            name = "focusable",
-            value = focusable,
-            read = { it.isFocusable },
-            write = { component, value -> component.isFocusable = value },
-        )
+    this then propertyElement(FocusableProperty, focusable)
 
 /**
  * Sets `isEnabled` on **this component only** - whether it responds to user input and paints in its
@@ -45,13 +40,7 @@ public fun SwingModifier.focusable(focusable: Boolean): SwingModifier =
  * @see java.awt.Component.setEnabled
  */
 public fun SwingModifier.enabled(enabled: Boolean): SwingModifier =
-    this then
-        propertyElement<Component, Boolean>(
-            name = "enabled",
-            value = enabled,
-            read = { it.isEnabled },
-            write = { component, value -> component.isEnabled = value },
-        )
+    this then propertyElement(EnabledProperty, enabled, inheritable = true)
 
 /**
  * Installs mouse enter/exit handlers.
@@ -124,6 +113,20 @@ public fun SwingModifier.onPointerEvent(
         onMouseReleased = onRelease ?: UNDECLARED,
     )
 }
+
+private val FocusableProperty =
+    PropertyAccessors<Component, Boolean>(
+        name = "focusable",
+        read = { it.isFocusable },
+        write = { component, value -> component.isFocusable = value },
+    )
+
+private val EnabledProperty =
+    PropertyAccessors<Component, Boolean>(
+        name = "enabled",
+        read = { it.isEnabled },
+        write = { component, value -> component.isEnabled = value },
+    )
 
 /** Runs [action] on any event. */
 private class EventIgnoring(

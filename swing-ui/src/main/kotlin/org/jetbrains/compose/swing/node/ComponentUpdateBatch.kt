@@ -1,9 +1,11 @@
 package org.jetbrains.compose.swing.node
 
 import org.jetbrains.compose.swing.core.beginSection
+import org.jetbrains.compose.swing.defaults.refreshInheritedDefaults
 import org.jetbrains.compose.swing.modifier.ModifierPartition
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.SwingModifierState
+import org.jetbrains.compose.swing.util.fastForEach
 import java.awt.Container
 import java.awt.Rectangle
 import java.util.IdentityHashMap
@@ -32,6 +34,9 @@ internal class ComponentUpdateBatch {
      * union and repaints nothing.
      */
     private val changedContainers: MutableMap<Container, Rectangle> = IdentityHashMap()
+
+    /** The nodes whose inherited component defaults changed, re-diffed at the end. */
+    private val heldForDefaultsRefresh: MutableList<SwingNodeHolder<*>> = ArrayList()
 
     /** The nodes whose composition locals map was replaced after an observed pass read it, run again at the end. */
     private val heldForLocalsRefresh: MutableList<SwingNodeHolder<*>> = ArrayList()
@@ -65,6 +70,7 @@ internal class ComponentUpdateBatch {
      */
     fun begin() {
         changedContainers.clear()
+        heldForDefaultsRefresh.clear()
         heldForLocalsRefresh.clear()
         heldForChildSettle.clear()
         section?.close()
@@ -90,6 +96,15 @@ internal class ComponentUpdateBatch {
     }
 
     /**
+     * Holds [node] to re-diff its modifier behind the component defaults it now inherits, once this batch has
+     * applied everything else it declares. A node's defaults are stored once per pass, so it is held at most
+     * once.
+     */
+    fun holdForDefaultsRefresh(node: SwingNodeHolder<*>) {
+        heldForDefaultsRefresh += node
+    }
+
+    /**
      * Holds [node] to bring each [CompositionLocalConsumerModifierNode] its modifier holds up to date once this batch
      * has run every node's update block and modifier diff, so the modifier writes onto the component last. A node's
      * locals are stored once per pass, so it is held at most once.
@@ -111,19 +126,22 @@ internal class ComponentUpdateBatch {
     }
 
     /**
-     * Runs [bringWidgetsUpToDate], brings up to date the modifier nodes that read a composition locals map this
-     * batch replaced, brings the containers this batch changed up to date, then runs every settle this batch held, and
-     * closes the section whichever way that goes - a batch that ends by throwing still leaves no section open.
+     * Runs [bringWidgetsUpToDate], re-diffs the nodes whose defaults changed, brings up to date the modifier
+     * nodes that read a composition locals map this batch replaced, brings the containers this batch changed
+     * up to date, then runs every settle this batch held, and closes the section whichever way that goes - a
+     * batch that ends by throwing still leaves no section open.
      *
      * Called from the applier's `onEndChanges`, which is the only place a batch ends.
      */
     fun end(bringWidgetsUpToDate: () -> Unit) {
         try {
             bringWidgetsUpToDate()
-            for (node in heldForLocalsRefresh) node.refreshLocalConsumers()
+            heldForDefaultsRefresh.fastForEach { it.refreshInheritedDefaults() }
+            heldForLocalsRefresh.fastForEach { it.refreshLocalConsumers() }
             refreshChangedContainers()
             runHeldChildSettles()
         } finally {
+            heldForDefaultsRefresh.clear()
             heldForLocalsRefresh.clear()
             heldForChildSettle.clear()
             changedContainers.clear()

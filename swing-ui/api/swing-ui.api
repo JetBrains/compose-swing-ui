@@ -547,6 +547,36 @@ public final class org/jetbrains/compose/swing/core/ComponentRecomposerKt {
 	public static final fun findRecomposer (Ljava/awt/Component;)Landroidx/compose/runtime/Recomposer;
 }
 
+public final class org/jetbrains/compose/swing/defaults/ComponentDefaultKey {
+	public static final field $stable I
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getName ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class org/jetbrains/compose/swing/defaults/ComponentDefaultsKt {
+	public static final fun ProvideComponentDefaults (Lorg/jetbrains/compose/swing/defaults/ProvidedComponentDefault;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;I)V
+	public static final fun ProvideComponentDefaults ([Lorg/jetbrains/compose/swing/defaults/ProvidedComponentDefault;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;I)V
+	public static final fun componentDefaultKeyOf (Ljava/lang/String;Lkotlin/jvm/functions/Function2;)Lorg/jetbrains/compose/swing/defaults/ComponentDefaultKey;
+	public static final fun getCurrent (Lorg/jetbrains/compose/swing/defaults/ComponentDefaultKey;Landroidx/compose/runtime/Composer;I)Ljava/lang/Object;
+	public static final fun getDefaultBackground ()Lorg/jetbrains/compose/swing/defaults/ComponentDefaultKey;
+	public static final fun getDefaultComponentOrientation ()Lorg/jetbrains/compose/swing/defaults/ComponentDefaultKey;
+	public static final fun getDefaultCursor ()Lorg/jetbrains/compose/swing/defaults/ComponentDefaultKey;
+	public static final fun getDefaultEnabled ()Lorg/jetbrains/compose/swing/defaults/ComponentDefaultKey;
+	public static final fun getDefaultFont ()Lorg/jetbrains/compose/swing/defaults/ComponentDefaultKey;
+	public static final fun getDefaultForeground ()Lorg/jetbrains/compose/swing/defaults/ComponentDefaultKey;
+	public static final fun getDefaultOpaque ()Lorg/jetbrains/compose/swing/defaults/ComponentDefaultKey;
+	public static final fun provides (Lorg/jetbrains/compose/swing/defaults/ComponentDefaultKey;Ljava/lang/Object;)Lorg/jetbrains/compose/swing/defaults/ProvidedComponentDefault;
+}
+
+public final class org/jetbrains/compose/swing/defaults/ProvidedComponentDefault {
+	public static final field $stable I
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
 public abstract interface class org/jetbrains/compose/swing/layout/ChildPlacement {
 }
 
@@ -708,6 +738,7 @@ public abstract class org/jetbrains/compose/swing/modifier/SwingModifier$NodeEle
 	public fun getAdditive ()Z
 	public fun getDeclaredValues ()Ljava/util/Map;
 	public fun getHeldProperties ()Ljava/util/Set;
+	public fun getInheritable ()Z
 	public fun getKey ()Ljava/lang/Object;
 	public fun getName ()Ljava/lang/String;
 	public fun getRestores-sp8GJzU ()I
@@ -718,7 +749,7 @@ public abstract class org/jetbrains/compose/swing/modifier/SwingModifier$NodeEle
 
 public final class org/jetbrains/compose/swing/modifier/SwingModifierKt {
 	public static final fun applyCompositionLocalMap-pWFREzI (Landroidx/compose/runtime/Composer;Landroidx/compose/runtime/CompositionLocalMap;)V
-	public static final fun applyModifier-pWFREzI (Landroidx/compose/runtime/Composer;Lorg/jetbrains/compose/swing/modifier/SwingModifier;)V
+	public static final fun applyModifier-7gJpb6k (Landroidx/compose/runtime/Composer;Landroidx/compose/runtime/CompositionLocalMap;Lorg/jetbrains/compose/swing/modifier/SwingModifier;)V
 	public static final fun key (Lorg/jetbrains/compose/swing/modifier/SwingModifier;[Ljava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun property-l-gV6mU (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/reflect/KClass;Ljava/lang/String;Ljava/lang/Object;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;I)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static synthetic fun property-l-gV6mU$default (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/reflect/KClass;Ljava/lang/String;Ljava/lang/Object;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;IILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;

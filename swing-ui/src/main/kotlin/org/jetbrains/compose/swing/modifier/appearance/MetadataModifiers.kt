@@ -4,7 +4,8 @@
 package org.jetbrains.compose.swing.modifier.appearance
 
 import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
-import org.jetbrains.compose.swing.modifier.PropertyElement
+import org.jetbrains.compose.swing.modifier.PropertyAccessors
+import org.jetbrains.compose.swing.modifier.PropertyNode
 import org.jetbrains.compose.swing.modifier.RestorePolicy
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.propertyElement
@@ -27,14 +28,7 @@ import javax.swing.JComponent
  * @return this modifier with the name declared on it.
  * @see java.awt.Component.setName
  */
-public fun SwingModifier.name(name: String?): SwingModifier =
-    this then
-        propertyElement<Component, String?>(
-            name = "name",
-            value = name,
-            read = { it.name },
-            write = { component, value -> component.name = value },
-        )
+public fun SwingModifier.name(name: String?): SwingModifier = this then propertyElement(NameProperty, name)
 
 /**
  * Tags the component with [tag] so it can be located in tests independently of its name.
@@ -42,7 +36,7 @@ public fun SwingModifier.name(name: String?): SwingModifier =
  * @param tag the identifier used to find the component.
  * @return this modifier with the test tag declared on it.
  */
-public fun SwingModifier.testTag(tag: String): SwingModifier = this then TestTagElement(tag)
+public fun SwingModifier.testTag(tag: String): SwingModifier = this then propertyElement(TestTagProperty, tag)
 
 /**
  * The tag [testTag] set on this component, or `null` where it carries none: a component the modifier
@@ -59,12 +53,9 @@ public fun Component.testTagOrNull(): String? = (this as? JComponent)?.get(TEST_
 /** The client property [testTag] stores its tag under, read back by [testTagOrNull]. */
 private val TEST_TAG_KEY: Key<String> = Key("org.jetbrains.compose.swing.testTag")
 
-private class TestTagElement(
-    tag: String?,
-) : PropertyElement<JComponent, String?>(
-        JComponent::class.java,
+private val TestTagProperty =
+    PropertyAccessors<JComponent, String?>(
         name = "testTag",
-        value = tag,
         read = { it[TEST_TAG_KEY] },
         write = { component, value -> component[TEST_TAG_KEY] = value },
     )
@@ -98,34 +89,45 @@ public fun SwingModifier.clientProperty(
  * A client-property entry, whose last-wins slot is keyed by the property key rather than by its class,
  * so distinct keys are independent slots even though they share this runtime class. A fixed-property
  * element keyed by its own class never equals such a key, so no collision with one is possible.
+ *
+ * The accessors are built around [propertyKey], so the slot's node is given its own pair as it is built.
  */
 private class ClientPropertyElement(
     private val propertyKey: Any,
     private val declared: Any?,
-) : PropertyElement<JComponent, Any?>(
-        JComponent::class.java,
-        name = "clientProperty",
-        value = declared,
-        read = { it.getClientProperty(propertyKey) },
-        write = { component, declared -> component.putClientProperty(propertyKey, declared) },
-    ) {
+) : SwingModifier.NodeElement<JComponent, PropertyNode<JComponent, Any?>>() {
+    override val targetType: Class<JComponent> get() = JComponent::class.java
+
+    override val name: String get() = "clientProperty"
+
     override val key: Any get() = propertyKey
 
     override val restores: RestorePolicy get() = RestorePolicy.DeclaredPropertyOnly
 
     /** The key names the entry written, so it stands beside the value written under it. */
-    override val declaredValues: Map<String, Any?> get() = mapOf("key" to propertyKey) + super.declaredValues
+    override val declaredValues: Map<String, Any?> get() = mapOf("key" to propertyKey, name to declared)
 
-    /**
-     * Two declarations of one key and one value are equal, so a modifier re-declaring the entry is
-     * adopted.
-     *
-     * The accessors this element hands its slot are built around [propertyKey] and so are a fresh pair
-     * on every pass, which [PropertyElement] compares by identity. Left at that, the entry would be
-     * written on every pass, and every slot the modifier declares after it written again with it.
-     */
+    override fun create(): PropertyNode<JComponent, Any?> =
+        PropertyNode(
+            propertyKey,
+            read = { it.getClientProperty(propertyKey) },
+            write = { component, value -> component.putClientProperty(propertyKey, value) },
+        )
+
+    override fun update(node: PropertyNode<JComponent, Any?>) {
+        node.apply(declared)
+    }
+
+    /** Two declarations of one key and one value are equal, so a modifier re-declaring the entry is adopted. */
     override fun equals(other: Any?): Boolean =
         other is ClientPropertyElement && propertyKey == other.propertyKey && declared == other.declared
 
     override fun hashCode(): Int = 31 * propertyKey.hashCode() + (declared?.hashCode() ?: 0)
 }
+
+private val NameProperty =
+    PropertyAccessors<Component, String?>(
+        name = "name",
+        read = { it.name },
+        write = { component, value -> component.name = value },
+    )

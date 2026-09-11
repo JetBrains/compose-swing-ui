@@ -242,6 +242,84 @@ own beside a declared import. Removing the last such element restores the compon
 
 ---
 
+## Component defaults
+
+`ProvideComponentDefaults` scopes inherited modifier property declarations over a composition subtree.
+It applies each matching declaration to every composed Swing or menu node below it, including custom
+components, menu content, rendered cells, and subcompositions that use the provider's composition
+context. It does not walk arbitrary native Swing children or components created outside the composition.
+A declaration is skipped for components it does not target, so a mixed subtree is valid. New or
+reactivated nodes receive the defaults currently scoped around them.
+
+The library ships atomic `Default...` keys for broad component properties. The public API and KDoc
+define the exact current set; the keys provide no implicit values and each declares only its named
+property, so a background default does not imply opacity.
+
+The precedence is:
+
+```text
+component factory / look and feel < SwingNode or MenuNode update < inherited defaults < explicit modifier
+```
+
+An explicit modifier therefore wins over an inherited default for the same property. When a default
+changes, compatible existing nodes update in place. Removing it restores the component's value from
+before the declaration, unless another declaration still owns that property.
+
+Create a custom key with `componentDefaultKeyOf` when an application needs a reusable property or
+semantic combination:
+
+```kotlin
+val DefaultCardSurface = componentDefaultKeyOf<Color>("cardSurface") { color ->
+    background(color).opaque(true)
+}
+
+val cardColor = Color.LIGHT_GRAY
+val accentColor = Color.BLUE
+
+ProvideComponentDefaults(
+    DefaultComponentOrientation provides ComponentOrientation.LEFT_TO_RIGHT,
+) {
+    ProvideComponentDefaults(DefaultCardSurface provides cardColor) {
+        val background = DefaultCardSurface.current ?: Color.WHITE
+        Label("Title")
+        Button(
+            "OK",
+            modifier = SwingModifier.background(accentColor), // explicit modifier wins
+            onClick = {},
+        )
+        Canvas { graphics -> graphics.color = background }
+
+        ProvideComponentDefaults(DefaultCardSurface provides null) {
+            val maskedBackground = DefaultCardSurface.current ?: Color.WHITE
+            Canvas { graphics -> graphics.color = maskedBackground }
+            ToolBar { /* The surface is absent; the outer orientation remains. */ }
+        }
+    }
+}
+```
+
+One key can declare several related properties, such as a background and opacity. The key's `apply`
+function must be deterministic for its value. It may return only inheritable, non-additive property
+declarations; custom property declarations opt in with `property(..., inheritable = true)`. Listeners,
+focus behavior, bindings, layout declarations, and other additive elements are not component defaults. See
+[`Keyed and additive slots`](MODIFIERS.md#keyed-and-additive-slots).
+
+The single-value and vararg overloads both accept `key provides value`. A nested provision replaces the
+outer provision for that key while its content is composed. `key provides null` masks the key in that
+subtree and reveals the outer provision again after the nested provider leaves. Repeated keys in one
+vararg call use the last argument. Different keys that declare the same property use the later applicable
+declaration.
+
+`key.current` reads the nearest surviving declaration for that key, or `null` when the key is absent or
+masked. Reading it observes changes to the declaration. It reports the declaration, not the final property
+value after another key or an explicit modifier wins.
+
+Call `ProvideComponentDefaults` on the Event Dispatch Thread. Keep a provider around the smallest
+coherent subtree that needs the shared property; use a direct modifier for an isolated component or a
+local exception.
+
+---
+
 ## Effects and snapshot state
 
 Prefer the snapshot APIs over hand-wiring Swing listeners to state when you want derived or

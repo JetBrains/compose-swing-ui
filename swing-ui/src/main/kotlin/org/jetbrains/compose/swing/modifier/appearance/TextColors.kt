@@ -3,6 +3,7 @@
 
 package org.jetbrains.compose.swing.modifier.appearance
 
+import org.jetbrains.compose.swing.modifier.PropertyAccessors
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.propertyElement
 import java.awt.Color
@@ -19,20 +20,7 @@ import javax.swing.text.JTextComponent
  * @return this chain with the caret color declared on it.
  * @see javax.swing.text.JTextComponent.setCaretColor
  */
-public fun SwingModifier.caretColor(color: Color): SwingModifier =
-    this then
-        propertyElement<JTextComponent, Color>(
-            name = "caretColor",
-            value = color,
-            read = { it.caretColor },
-            write = { component, value ->
-                component.caretColor = value
-                // A text component's color setters only fire a property change, and the color itself is
-                // read at paint time, so each of these writes asks for the repaint that puts the new
-                // color on the screen.
-                component.repaint()
-            },
-        )
+public fun SwingModifier.caretColor(color: Color): SwingModifier = this then propertyElement(CaretColorProperty, color)
 
 /**
  * Sets the background painted behind selected text in a text component.
@@ -42,16 +30,7 @@ public fun SwingModifier.caretColor(color: Color): SwingModifier =
  * @see javax.swing.text.JTextComponent.setSelectionColor
  */
 public fun SwingModifier.selectionColor(color: Color): SwingModifier =
-    this then
-        propertyElement<JTextComponent, Color>(
-            name = "selectionColor",
-            value = color,
-            read = { it.selectionColor },
-            write = { component, value ->
-                component.selectionColor = value
-                component.repaint()
-            },
-        )
+    this then propertyElement(SelectionColorProperty, color)
 
 /**
  * Sets the color selected text is drawn in.
@@ -61,16 +40,7 @@ public fun SwingModifier.selectionColor(color: Color): SwingModifier =
  * @see javax.swing.text.JTextComponent.setSelectedTextColor
  */
 public fun SwingModifier.selectedTextColor(color: Color): SwingModifier =
-    this then
-        propertyElement<JTextComponent, Color>(
-            name = "selectedTextColor",
-            value = color,
-            read = { it.selectedTextColor },
-            write = { component, value ->
-                component.selectedTextColor = value
-                component.repaint()
-            },
-        )
+    this then propertyElement(SelectedTextColorProperty, color)
 
 /**
  * Sets the color text is drawn in while the component is disabled.
@@ -81,13 +51,47 @@ public fun SwingModifier.selectedTextColor(color: Color): SwingModifier =
  * @see javax.swing.text.JTextComponent.setDisabledTextColor
  */
 public fun SwingModifier.disabledTextColor(color: Color): SwingModifier =
-    this then
-        propertyElement<JTextComponent, Color>(
-            name = "disabledTextColor",
-            value = color,
-            read = { it.disabledTextColor },
-            write = { component, value ->
-                component.disabledTextColor = value
-                component.repaint()
-            },
-        )
+    this then propertyElement(DisabledTextColorProperty, color)
+
+private val CaretColorProperty =
+    PropertyAccessors<JTextComponent, Color>(
+        name = "caretColor",
+        read = { it.caretColor },
+        write = { component, value ->
+            component.caretColor = value
+            // A text component's color setters only fire a property change, and the color itself is
+            // read at paint time, so each of these writes asks for the repaint that puts the new
+            // color on the screen.
+            component.repaint()
+        },
+    )
+
+private val SelectionColorProperty =
+    PropertyAccessors<JTextComponent, Color>(
+        name = "selectionColor",
+        read = { it.selectionColor },
+        write = { component, value ->
+            component.selectionColor = value
+            component.repaint()
+        },
+    )
+
+private val SelectedTextColorProperty =
+    PropertyAccessors<JTextComponent, Color>(
+        name = "selectedTextColor",
+        read = { it.selectedTextColor },
+        write = { component, value ->
+            component.selectedTextColor = value
+            component.repaint()
+        },
+    )
+
+private val DisabledTextColorProperty =
+    PropertyAccessors<JTextComponent, Color>(
+        name = "disabledTextColor",
+        read = { it.disabledTextColor },
+        write = { component, value ->
+            component.disabledTextColor = value
+            component.repaint()
+        },
+    )

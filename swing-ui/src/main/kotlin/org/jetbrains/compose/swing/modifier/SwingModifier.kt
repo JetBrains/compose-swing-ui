@@ -14,6 +14,7 @@ import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import org.jetbrains.compose.swing.core.SwingCompositionDiagnostics
 import org.jetbrains.compose.swing.core.watchRestore
 import org.jetbrains.compose.swing.core.watchWrite
+import org.jetbrains.compose.swing.defaults.LocalComponentDefaults
 import org.jetbrains.compose.swing.layout.ParentLayoutNode
 import org.jetbrains.compose.swing.layout.ParentLayoutNodeElement
 import org.jetbrains.compose.swing.modifier.layout.checkOnePlacement
@@ -296,6 +297,15 @@ public interface SwingModifier {
         Element,
         InspectableElement {
         /**
+         * Whether this element is permitted to cascade as an inherited component default.
+         *
+         * `false` by default. Only non-additive property elements intended to apply across a heterogeneous
+         * subtree opt in to `true`. Behavior, listeners, focus management, button-group membership and
+         * layout declarations remain `false`.
+         */
+        public open val inheritable: Boolean get() = false
+
+        /**
          * The component type this element targets. The node's [ComponentNode.component] arrives already typed
          * [T]; a node that is not a [T] is rejected at apply with a clear error. Use the most general
          * type the element needs: `Component::class.java` for a universal property,
@@ -406,7 +416,7 @@ public interface SwingModifier {
  * Two cells are equal when both halves are, so a modifier rebuilt from equal parts equals the modifier
  * built on the previous composition and the whole apply is skipped.
  */
-internal class CombinedSwingModifier(
+internal open class CombinedSwingModifier(
     internal val outer: SwingModifier,
     internal val inner: SwingModifier,
 ) : SwingModifier {
@@ -451,7 +461,9 @@ internal abstract class NodeRecord<N : SwingModifier.Node, E : SwingModifier.Ele
         // errors during attach are unwound rather than leaving a half-attached node in the chain.
         try {
             node.runAttachLifecycle()
-        } catch (@Suppress("TooGenericExceptionCaught") failure: Throwable) {
+        } catch (
+            @Suppress("TooGenericExceptionCaught") failure: Throwable,
+        ) {
             unrecord()
             detach(diagnostics)
             throw failure
@@ -944,12 +956,27 @@ internal fun SwingNodeUpdater<out Component>.applyCompositionLocalMap(map: Compo
  * component. A modifier declaring both kinds of placement is refused here, since a parent holds a child by
  * one of the two.
  *
+ * Inherited component defaults in [localMap] are put ahead of [modifier], keyed apart from it, so a pass
+ * where neither changed allocates nothing, and a change of an unrelated local re-diffs nothing.
+ *
+ * @param localMap the composition locals in scope where the node declaring [modifier] was composed.
  * @param modifier the modifier to declare on the node; [SwingModifier] itself declares nothing, which
  *   detaches every element the previous pass installed.
  */
 @PublishedApi
-internal fun SwingNodeUpdater<out Component>.applyModifier(modifier: SwingModifier): Unit =
-    updater.set(modifier) { applyDeclaredModifier(it) }
+internal fun SwingNodeUpdater<out Component>.applyModifier(
+    localMap: CompositionLocalMap,
+    modifier: SwingModifier,
+) {
+    // A change of the defaults alone re-diffs at the end of the batch, so a modifier changed on the same
+    // pass has already applied them and the node is diffed once.
+    updater.set(localMap[LocalComponentDefaults]) {
+        if (modifierState != null) requireOwner().updateBatch.holdForDefaultsRefresh(this)
+    }
+    updater.set(modifier) {
+        applyDeclaredModifier(compositionLocalMap[LocalComponentDefaults].effectiveModifier(component.javaClass, it))
+    }
+}
 
 /**
  * Diffs [modifier] onto this node unless the modifier applied last declares the same thing, which is what
@@ -1262,7 +1289,9 @@ private class MarkedChain(
                         if (it is ParentLayoutNodeElement<*>) layoutNodes += LayoutNodeRecord.mark(it, holder)
                     }
                 }
-            } catch (@Suppress("TooGenericExceptionCaught") failure: Throwable) {
+            } catch (
+                @Suppress("TooGenericExceptionCaught") failure: Throwable,
+            ) {
                 // Every node created above is attach()ed but has not run its onAttach, so unwinding it undoes
                 // exactly that mark: no onDetach runs for a node whose onAttach never did.
                 keyed.fastForEach { it.node.detach() }

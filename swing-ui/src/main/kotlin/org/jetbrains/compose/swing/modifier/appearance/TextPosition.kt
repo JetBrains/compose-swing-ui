@@ -24,7 +24,7 @@ import javax.swing.JLabel
  */
 public fun SwingModifier.horizontalTextPosition(
     @HorizontalAlignment position: Int,
-): SwingModifier = this then MultiTargetPropertyElement(HorizontalTextPositionProperty, position)
+): SwingModifier = this then MultiTargetPropertyElement(HorizontalTextPositionProperty, position, inheritable = true)
 
 /**
  * Sets whether the text is drawn above, across or below the icon. Applies to labels and to everything
@@ -38,7 +38,7 @@ public fun SwingModifier.horizontalTextPosition(
  */
 public fun SwingModifier.verticalTextPosition(
     @VerticalAlignment position: Int,
-): SwingModifier = this then MultiTargetPropertyElement(VerticalTextPositionProperty, position)
+): SwingModifier = this then MultiTargetPropertyElement(VerticalTextPositionProperty, position, inheritable = true)
 
 /**
  * Sets the space between a component's icon and its text. Applies to labels and to everything built on
@@ -53,7 +53,7 @@ public fun SwingModifier.verticalTextPosition(
  * @see javax.swing.AbstractButton.setIconTextGap
  */
 public fun SwingModifier.iconTextGap(gap: Int): SwingModifier =
-    this then MultiTargetPropertyElement(IconTextGapProperty, gap)
+    this then MultiTargetPropertyElement(IconTextGapProperty, gap, inheritable = true)
 
 private val HorizontalTextPositionProperty =
     MultiTargetProperty<Int>(

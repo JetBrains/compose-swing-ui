@@ -3,6 +3,7 @@
 
 package org.jetbrains.compose.swing.modifier.appearance
 
+import org.jetbrains.compose.swing.modifier.PropertyAccessors
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.propertyElement
 import java.awt.Color
@@ -18,16 +19,17 @@ import javax.swing.JComponent
  * @see java.awt.Component.setForeground
  */
 public fun SwingModifier.foreground(color: Color?): SwingModifier =
-    this then
-        propertyElement<Component, Color?>(
-            name = "foreground",
-            value = color,
-            read = { if (it.isForegroundSet) it.foreground else null },
-            write = { component, value ->
-                component.foreground = value
-                // JComponent.setForeground already repaints. A plain AWT Component does not, so the
-                // new color would not show until an unrelated repaint - request one here. A color is
-                // repainted and needs no layout pass.
-                if (component !is JComponent) component.repaint()
-            },
-        )
+    this then propertyElement(ForegroundProperty, color, inheritable = true)
+
+private val ForegroundProperty =
+    PropertyAccessors<Component, Color?>(
+        name = "foreground",
+        read = { if (it.isForegroundSet) it.foreground else null },
+        write = { component, value ->
+            component.foreground = value
+            // JComponent.setForeground already repaints. A plain AWT Component does not, so the
+            // new color would not show until an unrelated repaint - request one here. A color is
+            // read at paint only, so it asks for no layout.
+            if (component !is JComponent) component.repaint()
+        },
+    )

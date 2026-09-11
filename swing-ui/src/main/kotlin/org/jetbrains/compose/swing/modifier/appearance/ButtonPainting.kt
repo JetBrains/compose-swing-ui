@@ -58,14 +58,9 @@ public fun SwingModifier.borderPainted(painted: Boolean): SwingModifier =
  */
 public fun SwingModifier.contentAreaFilled(filled: Boolean): SwingModifier =
     this then
-        propertyElement<AbstractButton, Boolean>(
-            name = "contentAreaFilled",
-            value = filled,
-            read = { it.isContentAreaFilled },
-            // Latched by the first write, as a button's border painting is.
-            write = { component, value ->
-                if (component.isContentAreaFilled != value) component.isContentAreaFilled = value
-            },
+        propertyElement(
+            ContentAreaFilledProperty,
+            filled,
             interference = PropertyInterference.AlsoOverwrites(OpaqueProperty),
         )
 
@@ -84,11 +79,9 @@ public fun SwingModifier.contentAreaFilled(filled: Boolean): SwingModifier =
  */
 public fun SwingModifier.rolloverEnabled(enabled: Boolean): SwingModifier =
     this then
-        propertyElement<AbstractButton, Boolean>(
-            name = RolloverEnabledProperty.name,
-            value = enabled,
-            read = RolloverEnabledProperty.read,
-            write = RolloverEnabledProperty.write,
+        propertyElement(
+            RolloverEnabledProperty,
+            enabled,
             // Writing either rollover icon switches the state on after announcing the icon, so the
             // icon's own announcement comes too early to answer.
             interference = PropertyInterference.OverwrittenOn("rolloverEnabled"),
@@ -107,13 +100,7 @@ public fun SwingModifier.rolloverEnabled(enabled: Boolean): SwingModifier =
  * @see javax.swing.AbstractButton.setFocusPainted
  */
 public fun SwingModifier.focusPainted(painted: Boolean): SwingModifier =
-    this then
-        propertyElement<AbstractButton, Boolean>(
-            name = "focusPainted",
-            value = painted,
-            read = { it.isFocusPainted },
-            write = { component, value -> component.isFocusPainted = value },
-        )
+    this then propertyElement(FocusPaintedProperty, painted)
 
 /**
  * Each of these types declares `borderPainted` for itself; the classes they share declare no such
@@ -157,4 +144,21 @@ internal val RolloverEnabledProperty =
         write = { component, value ->
             if (component.isRolloverEnabled != value) component.isRolloverEnabled = value
         },
+    )
+
+private val ContentAreaFilledProperty =
+    PropertyAccessors<AbstractButton, Boolean>(
+        name = "contentAreaFilled",
+        read = { it.isContentAreaFilled },
+        // Latched by the first write, as a button's border painting is.
+        write = { component, value ->
+            if (component.isContentAreaFilled != value) component.isContentAreaFilled = value
+        },
+    )
+
+private val FocusPaintedProperty =
+    PropertyAccessors<AbstractButton, Boolean>(
+        name = "focusPainted",
+        read = { it.isFocusPainted },
+        write = { component, value -> component.isFocusPainted = value },
     )

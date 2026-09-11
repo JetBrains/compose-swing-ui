@@ -27,7 +27,7 @@ import javax.swing.JTextField
  */
 public fun SwingModifier.horizontalAlignment(
     @HorizontalAlignment alignment: Int,
-): SwingModifier = this then MultiTargetPropertyElement(HorizontalAlignmentProperty, alignment)
+): SwingModifier = this then MultiTargetPropertyElement(HorizontalAlignmentProperty, alignment, inheritable = true)
 
 /**
  * Sets where a component's content sits along its height, when it is given more height than it needs.
@@ -43,7 +43,7 @@ public fun SwingModifier.horizontalAlignment(
  */
 public fun SwingModifier.verticalAlignment(
     @VerticalAlignment alignment: Int,
-): SwingModifier = this then MultiTargetPropertyElement(VerticalAlignmentProperty, alignment)
+): SwingModifier = this then MultiTargetPropertyElement(VerticalAlignmentProperty, alignment, inheritable = true)
 
 private val HorizontalAlignmentProperty =
     MultiTargetProperty<Int>(

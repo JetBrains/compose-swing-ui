@@ -4,6 +4,7 @@
 package org.jetbrains.compose.swing.modifier.accessibility
 
 import org.jetbrains.annotations.Nls
+import org.jetbrains.compose.swing.modifier.PropertyAccessors
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.derivedPropertyElement
 import java.awt.Component
@@ -23,10 +24,11 @@ import java.awt.Component
  * @see javax.accessibility.AccessibleContext.setAccessibleDescription
  */
 public fun SwingModifier.accessibleDescription(description: @Nls String?): SwingModifier =
-    this then
-        derivedPropertyElement<Component, String?>(
-            name = "accessibleDescription",
-            value = description,
-            read = { it.accessibleContext?.declaredAccessibleDescription() },
-            write = { component, value -> component.accessibleContext?.accessibleDescription = value },
-        )
+    this then derivedPropertyElement(AccessibleDescriptionProperty, description)
+
+private val AccessibleDescriptionProperty =
+    PropertyAccessors<Component, String?>(
+        name = "accessibleDescription",
+        read = { it.accessibleContext?.declaredAccessibleDescription() },
+        write = { component, value -> component.accessibleContext?.accessibleDescription = value },
+    )

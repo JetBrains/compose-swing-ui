@@ -24,6 +24,9 @@ import org.jetbrains.compose.swing.components.text.TextArea
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.components.text.rememberDocumentState
 import org.jetbrains.compose.swing.composeMenu
+import org.jetbrains.compose.swing.defaults.DefaultBackground
+import org.jetbrains.compose.swing.defaults.ProvideComponentDefaults
+import org.jetbrains.compose.swing.defaults.provides
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.border
@@ -512,6 +515,28 @@ class ModifierInspectionTest {
                 acc + (inspectable.name to inspectable.declaredValues)
             },
             "the chain should hold the factory's entries in place of the composed one",
+        )
+    }
+
+    @Test
+    fun inheritedDefaultsAreExposedAsEffectivePropertyElementsWithoutSyntheticKeys() = runComposeSwingTest {
+        isDebugInspectorInfoEnabled = true
+        setContent {
+            ProvideComponentDefaults(DefaultBackground provides Color.RED) {
+                Label("hello", modifier = SwingModifier.testTag(CHAIN_LABEL_TAG).toolTip("tip"))
+            }
+        }
+
+        val chain = onNodeWithTag(CHAIN_LABEL_TAG).fetch().declaredChain()
+        assertEquals(
+            listOf("background", "testTag", "toolTip"),
+            chain.map { it.first },
+            "inherited defaults should precede explicit modifiers, without synthetic key elements",
+        )
+        assertEquals(
+            mapOf("background" to Color.RED),
+            chain.first { it.first == "background" }.second,
+            "inherited element should report its declared value",
         )
     }
 }

@@ -18,16 +18,7 @@ import java.awt.Dimension
  * @see java.awt.Component.setPreferredSize
  */
 public fun SwingModifier.preferredSize(size: Dimension?): SwingModifier =
-    this then
-        propertyElement<Component, Dimension?>(
-            name = "preferredSize",
-            value = size,
-            read = { if (it.isPreferredSizeSet) it.preferredSize else null },
-            write = { component, value ->
-                component.preferredSize = value
-                component.revalidate()
-            },
-        )
+    this then propertyElement(PreferredSizeProperty, size)
 
 /**
  * Sets `preferredSize` to `Dimension(width, height)` and relays out.
@@ -51,16 +42,7 @@ public fun SwingModifier.preferredSize(
  * @see java.awt.Component.setMinimumSize
  */
 public fun SwingModifier.minimumSize(size: Dimension?): SwingModifier =
-    this then
-        propertyElement<Component, Dimension?>(
-            name = "minimumSize",
-            value = size,
-            read = { if (it.isMinimumSizeSet) it.minimumSize else null },
-            write = { component, value ->
-                component.minimumSize = value
-                component.revalidate()
-            },
-        )
+    this then propertyElement(MinimumSizeProperty, size)
 
 /**
  * Sets `minimumSize` to `Dimension(width, height)` and relays out.
@@ -84,16 +66,7 @@ public fun SwingModifier.minimumSize(
  * @see java.awt.Component.setMaximumSize
  */
 public fun SwingModifier.maximumSize(size: Dimension?): SwingModifier =
-    this then
-        propertyElement<Component, Dimension?>(
-            name = "maximumSize",
-            value = size,
-            read = { if (it.isMaximumSizeSet) it.maximumSize else null },
-            write = { component, value ->
-                component.maximumSize = value
-                component.revalidate()
-            },
-        )
+    this then propertyElement(MaximumSizeProperty, size)
 
 /**
  * Sets `maximumSize` to `Dimension(width, height)` and relays out.
@@ -140,11 +113,9 @@ public fun SwingModifier.size(
  */
 public fun SwingModifier.size(size: Dimension): SwingModifier =
     this then
-        propertyElement<Component, Dimension>(
-            name = "size",
-            value = size,
-            read = { it.size },
-            write = { component, value -> component.size = value },
+        propertyElement(
+            SizeProperty,
+            size,
             interference = PropertyInterference.AlsoOverwrites(WidthProperty, HeightProperty),
         )
 
@@ -158,14 +129,7 @@ public fun SwingModifier.size(size: Dimension): SwingModifier =
  * @return this modifier with the width declared on it.
  * @see java.awt.Component.setSize
  */
-public fun SwingModifier.width(width: Int): SwingModifier =
-    this then
-        propertyElement<Component, Int>(
-            name = WidthProperty.name,
-            value = width,
-            read = WidthProperty.read,
-            write = WidthProperty.write,
-        )
+public fun SwingModifier.width(width: Int): SwingModifier = this then propertyElement(WidthProperty, width)
 
 /**
  * Sets the component's actual height to [height], keeping its current width, like `setSize(width,
@@ -177,14 +141,7 @@ public fun SwingModifier.width(width: Int): SwingModifier =
  * @return this modifier with the height declared on it.
  * @see java.awt.Component.setSize
  */
-public fun SwingModifier.height(height: Int): SwingModifier =
-    this then
-        propertyElement<Component, Int>(
-            name = HeightProperty.name,
-            value = height,
-            read = HeightProperty.read,
-            write = HeightProperty.write,
-        )
+public fun SwingModifier.height(height: Int): SwingModifier = this then propertyElement(HeightProperty, height)
 
 /**
  * The width axis's own accessors, so the width declaration and every coarser write that covers the
@@ -203,4 +160,41 @@ internal val HeightProperty =
         name = "height",
         read = { it.height },
         write = { component, value -> component.setSize(component.width, value) },
+    )
+
+private val PreferredSizeProperty =
+    PropertyAccessors<Component, Dimension?>(
+        name = "preferredSize",
+        read = { if (it.isPreferredSizeSet) it.preferredSize else null },
+        write = { component, value ->
+            component.preferredSize = value
+            component.revalidate()
+        },
+    )
+
+private val MinimumSizeProperty =
+    PropertyAccessors<Component, Dimension?>(
+        name = "minimumSize",
+        read = { if (it.isMinimumSizeSet) it.minimumSize else null },
+        write = { component, value ->
+            component.minimumSize = value
+            component.revalidate()
+        },
+    )
+
+private val MaximumSizeProperty =
+    PropertyAccessors<Component, Dimension?>(
+        name = "maximumSize",
+        read = { if (it.isMaximumSizeSet) it.maximumSize else null },
+        write = { component, value ->
+            component.maximumSize = value
+            component.revalidate()
+        },
+    )
+
+private val SizeProperty =
+    PropertyAccessors<Component, Dimension>(
+        name = "size",
+        read = { it.size },
+        write = { component, value -> component.size = value },
     )

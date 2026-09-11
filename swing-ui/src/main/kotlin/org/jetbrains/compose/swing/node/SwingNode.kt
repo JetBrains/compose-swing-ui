@@ -67,7 +67,7 @@ public inline fun <reified T : Component> SwingNode(
             val updater = SwingNodeUpdater(this)
             updater.applyCompositionLocalMap(localMap)
             updater.update()
-            updater.applyModifier(materialized)
+            updater.applyModifier(localMap, materialized)
             set(onRelease) { release ->
                 releaseBlock =
                     if (release != null) {
@@ -139,7 +139,7 @@ public inline fun <reified T : Component> SwingNode(
             val updater = SwingNodeUpdater(this)
             updater.applyCompositionLocalMap(localMap)
             updater.update()
-            updater.applyModifier(materialized)
+            updater.applyModifier(localMap, materialized)
             set(onRelease) { release ->
                 releaseBlock =
                     if (release != null) {

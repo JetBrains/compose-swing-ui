@@ -3,6 +3,7 @@
 
 package org.jetbrains.compose.swing.modifier.layout
 
+import org.jetbrains.compose.swing.modifier.PropertyAccessors
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.derivedPropertyElement
 import java.awt.Component
@@ -27,16 +28,7 @@ import javax.swing.JComponent
  * @see javax.swing.JComponent.setAlignmentX
  */
 public fun SwingModifier.alignmentX(value: Float): SwingModifier =
-    this then
-        derivedPropertyElement<JComponent, Float?>(
-            name = "alignmentX",
-            value = value,
-            read = { if (it.alignmentX == it.layoutAlignmentX) null else it.alignmentX },
-            write = { component, alignment ->
-                component.alignmentX = alignment ?: component.layoutAlignmentX
-                component.revalidate()
-            },
-        )
+    this then derivedPropertyElement(AlignmentXProperty, value)
 
 /**
  * Sets the vertical alignment along the y axis, where `0.0` aligns to the top, `0.5` centers, and
@@ -51,16 +43,7 @@ public fun SwingModifier.alignmentX(value: Float): SwingModifier =
  * @see javax.swing.JComponent.setAlignmentY
  */
 public fun SwingModifier.alignmentY(value: Float): SwingModifier =
-    this then
-        derivedPropertyElement<JComponent, Float?>(
-            name = "alignmentY",
-            value = value,
-            read = { if (it.alignmentY == it.layoutAlignmentY) null else it.alignmentY },
-            write = { component, alignment ->
-                component.alignmentY = alignment ?: component.layoutAlignmentY
-                component.revalidate()
-            },
-        )
+    this then derivedPropertyElement(AlignmentYProperty, value)
 
 /**
  * The horizontal alignment the component's own layout manager derives - only a `LayoutManager2` derives
@@ -73,3 +56,23 @@ private val JComponent.layoutAlignmentX: Float
 /** The vertical alignment [layoutAlignmentX] describes, on the y axis. */
 private val JComponent.layoutAlignmentY: Float
     get() = (layout as? LayoutManager2)?.getLayoutAlignmentY(this) ?: Component.CENTER_ALIGNMENT
+
+private val AlignmentXProperty =
+    PropertyAccessors<JComponent, Float?>(
+        name = "alignmentX",
+        read = { if (it.alignmentX == it.layoutAlignmentX) null else it.alignmentX },
+        write = { component, alignment ->
+            component.alignmentX = alignment ?: component.layoutAlignmentX
+            component.revalidate()
+        },
+    )
+
+private val AlignmentYProperty =
+    PropertyAccessors<JComponent, Float?>(
+        name = "alignmentY",
+        read = { if (it.alignmentY == it.layoutAlignmentY) null else it.alignmentY },
+        write = { component, alignment ->
+            component.alignmentY = alignment ?: component.layoutAlignmentY
+            component.revalidate()
+        },
+    )

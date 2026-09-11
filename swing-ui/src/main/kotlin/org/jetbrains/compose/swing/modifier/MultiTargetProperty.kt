@@ -18,6 +18,8 @@ internal class PropertyCase<T : Component, V>(
 
     fun handles(component: Component): Boolean = type.isInstance(component)
 
+    fun handles(componentClass: Class<*>): Boolean = type.isAssignableFrom(componentClass)
+
     /** Call only when [handles] is `true`. */
     fun readFrom(component: Component): V = read(type.cast(component))
 
@@ -50,16 +52,20 @@ internal class MultiTargetProperty<V>(
     private vararg val cases: PropertyCase<*, V>,
 ) {
     /**
-     * Reads the property, capturing the value to restore when the element leaves the modifier.
+     * Reads and writes the property through the case serving the component.
      *
      * Allocated once, with the property, so every element built from this property holds the same
-     * accessor object and elements declaring the same value compare equal.
+     * accessors and elements declaring the same value compare equal.
      */
-    val read: (component: Component) -> V = { component -> caseFor(component).readFrom(component) }
+    val accessors: PropertyAccessors<Component, V> =
+        PropertyAccessors(
+            name,
+            read = { component -> caseFor(component).readFrom(component) },
+            write = { component, value -> caseFor(component).writeTo(component, value) },
+        )
 
-    /** Allocated once, with the property, as [read] is. */
-    val write: (component: Component, value: V) -> Unit =
-        { component, value -> caseFor(component).writeTo(component, value) }
+    /** Whether a case serves components of [componentClass]. */
+    fun handles(componentClass: Class<*>): Boolean = cases.any { it.handles(componentClass) }
 
     /** The property's name; also its slot identity, so one property occupies one last-wins slot. */
     override fun toString(): String = name
@@ -80,12 +86,10 @@ internal class MultiTargetProperty<V>(
 internal open class MultiTargetPropertyElement<V>(
     private val property: MultiTargetProperty<V>,
     value: V,
-) : PropertyElement<Component, V>(
-        Component::class.java,
-        property.name,
-        value,
-        read = property.read,
-        write = property.write,
-    ) {
+    inheritable: Boolean = false,
+) : PropertyElement<Component, V>(Component::class.java, property.accessors, value, inheritable = inheritable) {
     override val key: Any get() = property
+
+    /** Whether a case of the property serves components of [componentClass]. */
+    fun handles(componentClass: Class<*>): Boolean = property.handles(componentClass)
 }

@@ -95,8 +95,76 @@ public fun <T : Component, V> SwingModifier.property(
     val type = targetType.java
     return this then
         when (restores) {
-            RestorePolicy.None -> UnrestoredPropertyElement(type, name, value, read, write)
-            RestorePolicy.DeclaredPropertyOnly -> DeclaredOnlyPropertyElement(type, name, value, read, write)
-            else -> PropertyElement(type, name, value, read, write)
+            RestorePolicy.None -> UnrestoredDeclaration(type, name, value, read, write)
+            RestorePolicy.DeclaredPropertyOnly -> DeclaredOnlyDeclaration(type, name, value, read, write)
+            else -> RestoredDeclaration(type, name, value, read, write)
         }
+}
+
+/**
+ * A declaration made through [property]. Its accessors are the caller's own lambdas, held as they arrive
+ * and compared one by one by identity, so a non-capturing pair adopts the slot across passes.
+ *
+ * What the declaration puts back when it leaves is its class rather than a field, so a pass that changes
+ * it hands the slot an element the slot's node was not built for, and the slot restores and is built
+ * again instead of quietly changing its word.
+ */
+private sealed class Declaration<T : Component, V>(
+    final override val targetType: Class<T>,
+    final override val name: String,
+    private val value: V,
+    private val read: (component: T) -> V,
+    private val write: (component: T, value: V) -> Unit,
+) : SwingModifier.NodeElement<T, PropertyNode<T, V>>() {
+    final override val key: Any get() = write.javaClass
+
+    final override val declaredValues: Map<String, Any?> get() = mapOf(name to value)
+
+    final override fun create(): PropertyNode<T, V> = PropertyNode(key, read, write)
+
+    final override fun update(node: PropertyNode<T, V>) {
+        node.apply(value)
+    }
+
+    final override fun equals(other: Any?): Boolean =
+        other is Declaration<*, *> &&
+            javaClass == other.javaClass &&
+            read === other.read &&
+            write === other.write &&
+            value == other.value
+
+    final override fun hashCode(): Int {
+        var result = javaClass.hashCode()
+        result = 31 * result + System.identityHashCode(write)
+        result = 31 * result + (value?.hashCode() ?: 0)
+        return result
+    }
+}
+
+private class RestoredDeclaration<T : Component, V>(
+    targetType: Class<T>,
+    name: String,
+    value: V,
+    read: (component: T) -> V,
+    write: (component: T, value: V) -> Unit,
+) : Declaration<T, V>(targetType, name, value, read, write)
+
+private class DeclaredOnlyDeclaration<T : Component, V>(
+    targetType: Class<T>,
+    name: String,
+    value: V,
+    read: (component: T) -> V,
+    write: (component: T, value: V) -> Unit,
+) : Declaration<T, V>(targetType, name, value, read, write) {
+    override val restores: RestorePolicy get() = RestorePolicy.DeclaredPropertyOnly
+}
+
+private class UnrestoredDeclaration<T : Component, V>(
+    targetType: Class<T>,
+    name: String,
+    value: V,
+    read: (component: T) -> V,
+    write: (component: T, value: V) -> Unit,
+) : Declaration<T, V>(targetType, name, value, read, write) {
+    override val restores: RestorePolicy get() = RestorePolicy.None
 }

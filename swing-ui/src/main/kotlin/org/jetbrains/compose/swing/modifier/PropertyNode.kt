@@ -74,34 +74,32 @@ internal class PropertyNode<T : Component, V>(
 
 /**
  * Base [SwingModifier.NodeElement] for a single component property, backed by a [PropertyNode]. Holds the
- * [value] to write plus the property's [read]/[write] accessors. [create] builds the node; [update]
- * writes this element's [value] through it.
+ * [value] to write plus the property's [accessors]. [create] builds the node; [update] writes this
+ * element's [value] through it.
  *
  * Build a single property with [propertyElement], which derives [targetType] from the reified type and
- * documents the slot contract. For a property whose distinct instances must be independent slots (a
- * client property keyed by its property key), subclass this and override [SwingModifier.NodeElement.key]
- * instead.
+ * documents the slot contract.
  *
- * [name] is the property's name, under which the element reports itself and the [value] it declares. It
- * labels the property and no more; [write] is what identifies the slot.
+ * The element reports itself under the accessors' name, with the [value] it declares. The name labels
+ * the property and no more; the accessors' write is what identifies the slot.
  *
- * Two elements are equal when they are of the same class, take the same slot, carry the same [value],
- * and hold the *same* [read] and [write] instances - identity, because a lambda capturing anything is
- * a fresh instance on every pass and the two accessors it holds may then differ in what they capture
- * while sharing a class. A property whose accessors are allocated once (a builder's non-capturing
- * lambda, an accessor pair hoisted onto the property object) therefore compares equal across passes,
- * and its slot is adopted rather than written wherever no slot ahead of it wrote on the same pass; one
- * that captures compares unequal and is written on every pass.
+ * Two elements are equal when they are of the same class, take the same slot, carry the same [value], and
+ * hold the *same* [accessors] - identity, so a pair allocated once, beside the builder or on the property
+ * object, compares equal across passes, and its slot is adopted rather than written wherever no slot
+ * ahead of it wrote on the same pass.
+ *
+ * [interference] and [inheritable] are fixed per property, so they take no part in equality.
  */
 internal open class PropertyElement<T : Component, V>(
     final override val targetType: Class<T>,
-    override val name: String,
+    private val accessors: PropertyAccessors<T, V>,
     private val value: V,
-    private val read: (component: T) -> V,
-    private val write: (component: T, value: V) -> Unit,
     private val interference: PropertyInterference<T>? = null,
+    final override val inheritable: Boolean = false,
 ) : SwingModifier.NodeElement<T, PropertyNode<T, V>>() {
-    override val key: Any get() = write.javaClass
+    override val name: String get() = accessors.name
+
+    override val key: Any get() = accessors.write.javaClass
 
     override val declaredValues: Map<String, Any?> get() = mapOf(name to value)
 
@@ -111,7 +109,7 @@ internal open class PropertyElement<T : Component, V>(
             return setOf(name) + alsoOverwrites.names()
         }
 
-    final override fun create(): PropertyNode<T, V> = PropertyNode(key, read, write, interference)
+    final override fun create(): PropertyNode<T, V> = PropertyNode(key, accessors.read, accessors.write, interference)
 
     final override fun update(node: PropertyNode<T, V>) {
         node.apply(value)
@@ -122,16 +120,14 @@ internal open class PropertyElement<T : Component, V>(
         if (other == null || javaClass != other.javaClass) return false
         other as PropertyElement<*, *>
         if (key != other.key) return false
-        if (read !== other.read) return false
-        if (write !== other.write) return false
+        if (accessors !== other.accessors) return false
         return value == other.value
     }
 
     override fun hashCode(): Int {
         var result = javaClass.hashCode()
         result = 31 * result + key.hashCode()
-        result = 31 * result + System.identityHashCode(read)
-        result = 31 * result + System.identityHashCode(write)
+        result = 31 * result + System.identityHashCode(accessors)
         result = 31 * result + (value?.hashCode() ?: 0)
         return result
     }
@@ -140,77 +136,56 @@ internal open class PropertyElement<T : Component, V>(
 /**
  * Builds a single-property [SwingModifier.NodeElement], deriving
  * [targetType][SwingModifier.NodeElement.targetType] from the reified [T]. The element's last-wins slot
- * is keyed by the class of its [write] lambda, so each property gets its own `write` accessor, written
- * out once: every invocation of the builder holding it shares one slot (last wins), while another
- * `write` is a different class and an independent slot.
+ * is keyed by the class of the [accessors]' write lambda, so each property holds its accessors in one
+ * top-level value, allocated once: every invocation of the builder shares one slot (last wins) and
+ * compares equal for an equal [value], while another property's write is a different class and an
+ * independent slot.
  *
- * [read] captures the property's pre-modifier value for restore; [write] applies a value. Both are
- * `noinline` - they are stored in the node, not invoked at the call site. [name] is the Swing property
- * being written, which is what an error about the element and a tool showing the modifier both name it by.
+ * [inheritable] lets the element be provided to descendants as a component default - a property such as a
+ * color or a font that makes sense across a whole subtree.
  *
- * [interference] is fixed per builder, so it takes no part in equality. See [PropertyInterference]. A
- * property the component works out again for itself is built with [derivedPropertyElement] instead.
+ * See [PropertyInterference] for [interference]. A property the component works out again for itself is
+ * built with [derivedPropertyElement] instead.
  */
 internal inline fun <reified T : Component, V> propertyElement(
-    name: String,
+    accessors: PropertyAccessors<T, V>,
     value: V,
-    noinline read: (component: T) -> V,
-    noinline write: (component: T, value: V) -> Unit,
     interference: PropertyInterference<T>? = null,
+    inheritable: Boolean = false,
 ): SwingModifier.NodeElement<T, PropertyNode<T, V>> =
-    PropertyElement(T::class.java, name, value, read, write, interference)
+    PropertyElement(T::class.java, accessors, value, interference, inheritable)
 
 /**
  * Builds a [propertyElement] for a property the component works out again for itself - a button's
  * opaque flag following its fill, an alignment a layout derives from the children standing then, an
- * accessible name a context falls back to the widget's own text for. [read] answers `null` where the
- * component holds none of its own, and removing the declaration writes that `null`, which resolves to
- * whatever derives the property at that moment.
+ * accessible name a context falls back to the widget's own text for. The accessors' read answers `null`
+ * where the component holds none of its own, and removing the declaration writes that `null`, which
+ * resolves to whatever derives the property at that moment.
  *
  * The fill, the children or the text the property is worked out from may have moved since attach, so
  * the element [restores][SwingModifier.NodeElement.restores] [RestorePolicy.None]: nothing comparing the
  * value read at attach with the one standing now can work the derivation out.
  */
 internal inline fun <reified T : Component, V> derivedPropertyElement(
-    name: String,
+    accessors: PropertyAccessors<T, V>,
     value: V,
-    noinline read: (component: T) -> V,
-    noinline write: (component: T, value: V) -> Unit,
     interference: PropertyInterference<T>? = null,
+    inheritable: Boolean = false,
 ): SwingModifier.NodeElement<T, PropertyNode<T, V>> =
-    UnrestoredPropertyElement(T::class.java, name, value, read, write, interference)
+    UnrestoredPropertyElement(T::class.java, accessors, value, interference, inheritable)
 
 /**
  * A [PropertyElement] that puts nothing back when it leaves, for a property whose value at attach says
- * nothing about what it should be given back: one the component works out again for itself, and one the
- * component offers no way to give back at all.
+ * nothing about what it should be given back: one the component works out again for itself.
  */
 internal class UnrestoredPropertyElement<T : Component, V>(
     targetType: Class<T>,
-    name: String,
+    accessors: PropertyAccessors<T, V>,
     value: V,
-    read: (component: T) -> V,
-    write: (component: T, value: V) -> Unit,
     interference: PropertyInterference<T>? = null,
-) : PropertyElement<T, V>(targetType, name, value, read, write, interference) {
+    inheritable: Boolean = false,
+) : PropertyElement<T, V>(targetType, accessors, value, interference, inheritable) {
     override val restores: RestorePolicy get() = RestorePolicy.None
-}
-
-/**
- * A [PropertyElement] that puts back the property it declares and leaves what a look and feel works out
- * from that write. Its own class rather than a field on [PropertyElement], so a pass that changes what a
- * property undertakes hands the slot an element the slot's node was not built for, and the slot restores
- * and is built again instead of quietly changing its word.
- */
-internal class DeclaredOnlyPropertyElement<T : Component, V>(
-    targetType: Class<T>,
-    name: String,
-    value: V,
-    read: (component: T) -> V,
-    write: (component: T, value: V) -> Unit,
-    interference: PropertyInterference<T>? = null,
-) : PropertyElement<T, V>(targetType, name, value, read, write, interference) {
-    override val restores: RestorePolicy get() = RestorePolicy.DeclaredPropertyOnly
 }
 
 /**
@@ -266,9 +241,10 @@ internal sealed interface PropertyInterference<T : Component> {
 }
 
 /**
- * One property's own accessors, held apart so every element writing that property names the same pair:
- * the builder declaring it, and each [PropertyInterference.AlsoOverwrites] whose write lands on it. A
- * pair held once is what makes them meet on one [PropertyCaptures] hold rather than take one each.
+ * One property's own accessors, allocated once in a top-level value so every element writing that property
+ * names the same pair: the builder declaring it, and each [PropertyInterference.AlsoOverwrites] whose write
+ * lands on it. A pair held once is what makes them meet on one [PropertyCaptures] hold rather than take
+ * one each, and what makes two declarations of one value compare equal.
  *
  * The target is contravariant: a pair written against the class that declares the property serves every
  * widget built on it, so a slot targeting a narrower widget can name that same property.

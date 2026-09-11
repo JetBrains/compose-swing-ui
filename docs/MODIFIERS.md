@@ -76,6 +76,11 @@ An additive element has no key and is paired by position instead: the k-th addit
 modifier takes the slot of the k-th additive element the modifier applied last. Only additive elements
 are counted, so a property element entering or leaving shifts no additive slot.
 
+Set `inheritable = true` only on a non-additive property that makes sense across a whole subtree, such
+as a color or a font. Only such an element may be provided to descendants as a
+[component default](ARCHITECTURE.md#component-defaults);
+a default applies to each descendant whose component the element targets.
+
 ### What stands and what is recreated
 
 - An element matched to a slot built by an element of its own class keeps that slot's node. Where it is

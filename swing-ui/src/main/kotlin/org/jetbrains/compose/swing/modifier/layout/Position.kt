@@ -29,13 +29,10 @@ public fun SwingModifier.bounds(
     height: Int,
 ): SwingModifier =
     this then
-        propertyElement<Component, Rectangle>(
-            name = "bounds",
-            value = Rectangle(x, y, width, height),
-            read = { it.bounds },
-            write = { component, value -> component.bounds = value },
-            interference =
-                PropertyInterference.AlsoOverwrites(XProperty, YProperty, WidthProperty, HeightProperty),
+        propertyElement(
+            BoundsProperty,
+            Rectangle(x, y, width, height),
+            interference = PropertyInterference.AlsoOverwrites(XProperty, YProperty, WidthProperty, HeightProperty),
         )
 
 /**
@@ -72,11 +69,9 @@ public fun SwingModifier.location(
  */
 public fun SwingModifier.location(point: Point): SwingModifier =
     this then
-        propertyElement<Component, Point>(
-            name = "location",
-            value = point,
-            read = { it.location },
-            write = { component, value -> component.location = value },
+        propertyElement(
+            LocationProperty,
+            point,
             interference = PropertyInterference.AlsoOverwrites(XProperty, YProperty),
         )
 
@@ -91,14 +86,7 @@ public fun SwingModifier.location(point: Point): SwingModifier =
  * @return this modifier with the x position declared on it.
  * @see java.awt.Component.setLocation
  */
-public fun SwingModifier.x(value: Int): SwingModifier =
-    this then
-        propertyElement<Component, Int>(
-            name = XProperty.name,
-            value = value,
-            read = XProperty.read,
-            write = XProperty.write,
-        )
+public fun SwingModifier.x(value: Int): SwingModifier = this then propertyElement(XProperty, value)
 
 /**
  * Sets the component's actual y position to [value], keeping its current x, like `setLocation(x, y)`.
@@ -111,14 +99,7 @@ public fun SwingModifier.x(value: Int): SwingModifier =
  * @return this modifier with the y position declared on it.
  * @see java.awt.Component.setLocation
  */
-public fun SwingModifier.y(value: Int): SwingModifier =
-    this then
-        propertyElement<Component, Int>(
-            name = YProperty.name,
-            value = value,
-            read = YProperty.read,
-            write = YProperty.write,
-        )
+public fun SwingModifier.y(value: Int): SwingModifier = this then propertyElement(YProperty, value)
 
 /**
  * The horizontal axis's own accessors, so the [x] declaration and every coarser write that covers the
@@ -137,4 +118,18 @@ internal val YProperty =
         name = "y",
         read = { it.y },
         write = { component, value -> component.setLocation(component.x, value) },
+    )
+
+private val BoundsProperty =
+    PropertyAccessors<Component, Rectangle>(
+        name = "bounds",
+        read = { it.bounds },
+        write = { component, value -> component.bounds = value },
+    )
+
+private val LocationProperty =
+    PropertyAccessors<Component, Point>(
+        name = "location",
+        read = { it.location },
+        write = { component, value -> component.location = value },
     )

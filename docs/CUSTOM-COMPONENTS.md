@@ -46,7 +46,10 @@ public fun MyWidget(
   pieces of state map onto which component properties; the framework only re-applies the ones that
   actually changed. It is not a composable scope: `@DisallowComposableCalls` on it makes a composable
   call inside it - `remember` included - a compile-time error, so read state in the composable body and
-  pass the value in.
+  pass the value in. A property written directly by a custom `SwingNode` or `MenuNode` `update` block is
+  baseline component state: a matching inherited default can overwrite it, and the node's explicit modifier is
+  applied last. For the component-default contract, see
+  [`Component defaults`](ARCHITECTURE.md#component-defaults).
 - `onRelease` runs **once**, when the node leaves the composition for good.
 
 `SwingNode` is `inline` and `reified` on the component type, so inside `update` the component is

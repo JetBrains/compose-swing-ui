@@ -111,6 +111,23 @@ class ModifierChainSkipTest {
     }
 
     @Test
+    fun aChainDeclaringThePropertyItDeclaredLastIsSkippedWhole() = runComposeSwingTest {
+        val counts = ChainCounts()
+        var tick by mutableStateOf(0)
+        setContent {
+            Label("tick $tick", modifier = SwingModifier.declaredName("small").then(ChainProbeElement(counts)))
+        }
+
+        repeat(passes) {
+            tick++
+            awaitIdle()
+        }
+
+        assertEquals(1, counts.walks.get(), "a property declaring what it declared last leaves the modifier equal")
+        assertEquals(1, counts.updates.get(), "a property declaring what it declared last writes nothing again")
+    }
+
+    @Test
     fun aChainCarryingACallbackBuiltOutsideTheCompositionIsSkippedWhole() = runComposeSwingTest {
         val counts = ChainCounts()
         val declarations = AtomicInteger()
@@ -515,6 +532,13 @@ class ModifierChainSkipTest {
             },
         )
     }
+
+    private fun SwingModifier.declaredName(name: String): SwingModifier = property<JLabel, String?>(
+        name = "name",
+        value = name,
+        read = { it.name },
+        write = { label, value -> label.name = value },
+    )
 
     /**
      * Declares what [declare] builds from a receiver, replaces that receiver with an equal but distinct one,

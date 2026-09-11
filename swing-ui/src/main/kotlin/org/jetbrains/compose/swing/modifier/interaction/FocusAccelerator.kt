@@ -3,6 +3,7 @@
 
 package org.jetbrains.compose.swing.modifier.interaction
 
+import org.jetbrains.compose.swing.modifier.PropertyAccessors
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.propertyElement
 import javax.swing.text.JTextComponent
@@ -25,10 +26,11 @@ import javax.swing.text.JTextComponent
  * @see javax.swing.text.JTextComponent.setFocusAccelerator
  */
 public fun SwingModifier.focusAccelerator(key: Char): SwingModifier =
-    this then
-        propertyElement<JTextComponent, Char>(
-            name = "focusAccelerator",
-            value = key,
-            read = { it.focusAccelerator },
-            write = { component, value -> component.focusAccelerator = value },
-        )
+    this then propertyElement(FocusAcceleratorProperty, key)
+
+private val FocusAcceleratorProperty =
+    PropertyAccessors<JTextComponent, Char>(
+        name = "focusAccelerator",
+        read = { it.focusAccelerator },
+        write = { component, value -> component.focusAccelerator = value },
+    )

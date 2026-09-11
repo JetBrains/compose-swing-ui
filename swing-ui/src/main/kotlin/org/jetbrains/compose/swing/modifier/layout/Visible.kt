@@ -3,6 +3,7 @@
 
 package org.jetbrains.compose.swing.modifier.layout
 
+import org.jetbrains.compose.swing.modifier.PropertyAccessors
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.propertyElement
 import java.awt.Component
@@ -24,11 +25,11 @@ import java.awt.Component
  * @return this chain with the visibility declared on it.
  * @see java.awt.Component.setVisible
  */
-public fun SwingModifier.visible(visible: Boolean): SwingModifier =
-    this then
-        propertyElement<Component, Boolean>(
-            name = "visible",
-            value = visible,
-            read = { it.isVisible },
-            write = { component, value -> component.isVisible = value },
-        )
+public fun SwingModifier.visible(visible: Boolean): SwingModifier = this then propertyElement(VisibleProperty, visible)
+
+private val VisibleProperty =
+    PropertyAccessors<Component, Boolean>(
+        name = "visible",
+        read = { it.isVisible },
+        write = { component, value -> component.isVisible = value },
+    )
