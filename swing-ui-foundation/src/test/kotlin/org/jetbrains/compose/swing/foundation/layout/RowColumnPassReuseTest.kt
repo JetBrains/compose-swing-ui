@@ -6,7 +6,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Rectangle
-import javax.swing.JPanel
+import javax.swing.JComponent
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertSame
@@ -22,14 +22,14 @@ class RowColumnPassReuseTest {
             var count by mutableStateOf(1)
             setContent {
                 Row(
-                    modifier = containerModifier(COLUMN_EXTENT, CROSS_EXTENT),
+                    modifier = containerModifier(300, 100),
                     horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.Bottom,
                 ) {
                     repeat(count) { SizedChild(it) }
                 }
             }
-            val row = onNodeWithTag(CONTAINER_TAG).fetch<JPanel>()
+            val row = onNodeWithTag(CONTAINER_TAG).fetch<JComponent>()
             val initialPolicy = row.layout as PolicyLayout
 
             count = 2
@@ -48,14 +48,14 @@ class RowColumnPassReuseTest {
             var count by mutableStateOf(1)
             setContent {
                 Column(
-                    modifier = containerModifier(CROSS_EXTENT, COLUMN_EXTENT),
+                    modifier = containerModifier(100, 300),
                     verticalArrangement = Arrangement.Bottom,
                     horizontalAlignment = Alignment.End,
                 ) {
                     repeat(count) { SizedChild(it) }
                 }
             }
-            val column = onNodeWithTag(CONTAINER_TAG).fetch<JPanel>()
+            val column = onNodeWithTag(CONTAINER_TAG).fetch<JComponent>()
             val initialPolicy = column.layout as PolicyLayout
 
             count = 2
@@ -73,7 +73,7 @@ class RowColumnPassReuseTest {
         runComposeSwingTest {
             var count by mutableStateOf(3)
             setContent {
-                Column(modifier = containerModifier(CROSS_EXTENT, COLUMN_EXTENT)) {
+                Column(modifier = containerModifier(100, 300)) {
                     repeat(count) { SizedChild(it) }
                 }
             }
@@ -94,7 +94,7 @@ class RowColumnPassReuseTest {
         runComposeSwingTest {
             var count by mutableStateOf(2)
             setContent {
-                Column(modifier = containerModifier(CROSS_EXTENT, COLUMN_EXTENT)) {
+                Column(modifier = containerModifier(100, 300)) {
                     repeat(count) { SizedChild(it) }
                 }
             }
@@ -115,7 +115,7 @@ class RowColumnPassReuseTest {
         runComposeSwingTest {
             var weighted by mutableStateOf(true)
             setContent {
-                Column(modifier = containerModifier(CROSS_EXTENT, COLUMN_EXTENT)) {
+                Column(modifier = containerModifier(100, 300)) {
                     SizedChild(0)
                     SizedChild(1, if (weighted) SwingModifier.weight(1f) else SwingModifier)
                 }
@@ -123,7 +123,7 @@ class RowColumnPassReuseTest {
             assertEquals(
                 listOf(
                     Rectangle(0, 0, CHILD_WIDTH, CHILD_HEIGHT),
-                    Rectangle(0, CHILD_HEIGHT, CHILD_WIDTH, COLUMN_EXTENT - CHILD_HEIGHT),
+                    Rectangle(0, CHILD_HEIGHT, CHILD_WIDTH, 260),
                 ),
                 childBounds(),
                 "a weighted child takes the height the column has left over",
@@ -144,7 +144,7 @@ class RowColumnPassReuseTest {
         runComposeSwingTest {
             val arrangement = GatedArrangement()
             setContent {
-                Column(modifier = containerModifier(CROSS_EXTENT, COLUMN_EXTENT), verticalArrangement = arrangement) {
+                Column(modifier = containerModifier(100, 300), verticalArrangement = arrangement) {
                     repeat(CHILD_COUNT) { SizedChild(it) }
                 }
             }
@@ -155,7 +155,7 @@ class RowColumnPassReuseTest {
             )
 
             arrangement.writesOffsets = false
-            onNodeWithTag(CONTAINER_TAG).fetch<JPanel>().doLayout()
+            onNodeWithTag(CONTAINER_TAG).fetch<JComponent>().doLayout()
 
             assertEquals(
                 columnRows(0, 0, 0),
@@ -163,11 +163,6 @@ class RowColumnPassReuseTest {
                 "an offset this pass never wrote must be zero, not the offset the pass before it wrote",
             )
         }
-
-    private companion object {
-        const val CROSS_EXTENT = 100
-        const val COLUMN_EXTENT = 300
-    }
 }
 
 /** The gap [GatedArrangement] leaves between children while it is placing them. */

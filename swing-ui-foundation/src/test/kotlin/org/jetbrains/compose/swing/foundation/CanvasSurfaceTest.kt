@@ -1,5 +1,7 @@
 package org.jetbrains.compose.swing.foundation
 
+import org.jetbrains.compose.swing.foundation.graphics.decorated
+import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.border
 import org.jetbrains.compose.swing.modifier.appearance.testTag
@@ -124,6 +126,48 @@ class CanvasSurfaceTest {
             val painted = onNodeWithTag("canvas").captureToImage()
 
             assertEquals(Color.BLUE.rgb, painted.getRGB(1, 1), "the border paints in the composite onDraw found")
+        }
+
+    @Test
+    fun aBorderReservesItsInsetsFromTheDrawing() =
+        runComposeSwingTest {
+            var drawingSize: Dimension? = null
+            setContent {
+                SwingNode(factory = { JPanel() }) {
+                    Canvas(
+                        modifier =
+                            SwingModifier
+                                .testTag("bordered")
+                                .preferredSize(64, 48)
+                                .border(EmptyBorder(3, 4, 5, 6)),
+                        renderingHints = null,
+                    ) { drawRect(Color.RED) }
+                    Canvas(modifier = SwingModifier.testTag("expected").preferredSize(64, 48), renderingHints = null) {
+                        drawRect(Color.RED, x = 4f, y = 3f, width = 54f, height = 40f)
+                    }
+                    Canvas(
+                        modifier =
+                            decorated {
+                                SwingModifier
+                                    .testTag("decorated")
+                                    .preferredSize(64, 48)
+                                    .border(LineBorder(Color.BLUE, 2))
+                                    .shadow(4, Color.BLACK)
+                            },
+                    ) { drawingSize = size }
+                }
+            }
+
+            assertImagesPixelPerfect(
+                onNodeWithTag("expected").captureToImage(),
+                onNodeWithTag("bordered").captureToImage(),
+            )
+            onNodeWithTag("decorated").captureToImage()
+            assertEquals(
+                Dimension(60, 44),
+                drawingSize,
+                "the drawing gets what the border leaves, and none of the shadow's outsets",
+            )
         }
 
     @Test

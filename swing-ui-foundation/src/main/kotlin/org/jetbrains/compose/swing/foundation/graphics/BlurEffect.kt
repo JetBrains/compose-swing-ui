@@ -1,8 +1,10 @@
 package org.jetbrains.compose.swing.foundation.graphics
 
 import androidx.compose.runtime.Immutable
+import org.jetbrains.compose.swing.modifier.SwingModifier
 import java.awt.Graphics2D
 import java.awt.Insets
+import java.awt.Rectangle
 import java.awt.RenderingHints
 import java.awt.geom.Point2D
 import java.awt.geom.Rectangle2D
@@ -18,7 +20,7 @@ import kotlin.math.roundToInt
 /**
  * Blurs the recording of the [ImageLayer] it is set on, by [radiusX] across and [radiusY] down.
  *
- * A radius is how far each pixel is spread, in the recording's own units: a
+ * A radius is how far each pixel is spread, as in [SwingModifier.blur], in the recording's own units: a
  * recording made at a `scale` of `2.0`, or aligned to a destination scaled by two, is blurred across twice as many
  * pixels. A radius of `0f` or less leaves that direction sharp; any radius above that spreads it, however slightly. A
  * recording aligned to a destination is blurred along the device's axes, so under a rotated destination [radiusX] and
@@ -67,9 +69,38 @@ public class BlurEffect(
     @Volatile
     private var lastOp: BlurOp? = null
 
+    /**
+     * The scale to record at for this effect to blur the recording with the least resampling: the one the axis
+     * reduced less reduces a recording at a scale of `1.0` to, so that axis is blurred without resampling and the
+     * other is reduced further from there. A recording whose size is on the grid of [recordingBounds] is a whole
+     * number of pixels at it.
+     */
+    internal val recordingScale: Double
+        get() = 1.0 / minOf(unscaledOp.blur.reductionX, unscaledOp.blur.reductionY)
+
     override fun createOp(scale: Double): BufferedImageOp = op(scale)
 
     override fun outsets(scale: Double): Insets = op(scale).outsets
+
+    /**
+     * What to record, at [recordingScale], for this [TileMode.Decal] effect to draw [area] as it would draw it from
+     * a recording of everything around it: [area] grown by the [outsets] at a scale of `1.0`, then snapped outward to
+     * a grid of [MAX_REDUCTION] units counted from the origin. A cell of that grid is a whole number of pixels at
+     * [recordingScale], and of the pixels this effect reduces a recording at any whole scale to, so a recording of
+     * part of an area is made of the same pixels as a recording of the whole.
+     *
+     * A recording made over these bounds already holds this effect's reach around [area], so drawing it through a
+     * [TileMode.Clamp] blur of the same radius reads that reach without growing the recording again, as this Decal
+     * effect would.
+     */
+    internal fun recordingBounds(area: Rectangle): Rectangle {
+        val outsets = unscaledOp.outsets
+        val left = Math.floorDiv(area.x - outsets.left, MAX_REDUCTION) * MAX_REDUCTION
+        val top = Math.floorDiv(area.y - outsets.top, MAX_REDUCTION) * MAX_REDUCTION
+        val right = ceilDiv(area.x + area.width + outsets.right, MAX_REDUCTION) * MAX_REDUCTION
+        val bottom = ceilDiv(area.y + area.height + outsets.bottom, MAX_REDUCTION) * MAX_REDUCTION
+        return Rectangle(left, top, right - left, bottom - top)
+    }
 
     private fun op(scale: Double): BlurOp =
         if (scale == 1.0) unscaledOp else lastOp?.takeIf { it.scale == scale } ?: newOp(scale).also { lastOp = it }

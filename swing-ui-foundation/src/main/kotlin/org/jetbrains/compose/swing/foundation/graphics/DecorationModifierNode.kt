@@ -49,6 +49,9 @@ public abstract class DecorationModifierNode<T : Component> :
     /** Runs where [onDetach] would, while the node is still attached and still part of the decoration. */
     protected open fun onRemovedFromDecoration() {}
 
+    /** Whether this step paints its content unchanged, so the component is not decorated by it. */
+    internal open val paintsNothing: Boolean get() = false
+
     /**
      * Gathers the component's decoration again, after this step's outsets or isOpaque changed between modifier
      * passes, and repaints it. An element's `update` needs no call. Does nothing while the node is not attached.

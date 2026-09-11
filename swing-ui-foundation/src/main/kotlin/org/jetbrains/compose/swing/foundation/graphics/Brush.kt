@@ -9,8 +9,10 @@ import kotlin.math.nextDown
 import kotlin.math.nextUp
 
 /**
- * A fill resolved against the size of what it decorates: it is asked for its paint at the size its
- * [decorated box][DecoratedScope.decoration] stands at, with that box's top-left corner as the origin.
+ * A fill resolved against the size of what it decorates - what [background] paints under a component's
+ * content and what [border] strokes its edge with. It is asked for its paint each time the component paints, at
+ * the size its [decorated box][decoration] stands at then, with that box's top-left corner as the
+ * origin.
  *
  * The gradients below compare structurally, so a chain rebuilt from unchanged values declares the same
  * fill and nothing repaints. [of] wraps a paint of the caller's own and compares it by identity - hoist

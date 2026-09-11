@@ -34,7 +34,7 @@ internal fun ColumnScope.GridLayoutCard() {
         Label("$rows rows x $cols columns")
         Panel(
             PanelLayout.Grid(rows = rows, cols = cols, hgap = 6, vgap = 6),
-            modifier = SwingModifier.layoutTrack().preferredSize(Dimension(320, 120)),
+            modifier = SwingModifier.layoutPanelTrack().preferredSize(Dimension(320, 120)),
         ) {
             repeat(6) { index -> LayoutRegionSwatch("Cell ${index + 1}", GRID_COLORS[index]) }
         }
@@ -57,7 +57,7 @@ internal fun ColumnScope.GridBagLayoutCard() {
         )
         Panel(
             PanelLayout.GridBag,
-            modifier = SwingModifier.layoutTrack().preferredSize(Dimension(360, 128)),
+            modifier = SwingModifier.layoutPanelTrack().preferredSize(Dimension(360, 128)),
         ) {
             LayoutRegionSwatch(
                 "Name",
@@ -114,7 +114,7 @@ internal fun ColumnScope.CardDeckCard() {
         }
         Panel(
             PanelLayout.Card(selectedCard = shown),
-            modifier = SwingModifier.layoutTrack().preferredSize(Dimension(320, 60)),
+            modifier = SwingModifier.layoutPanelTrack().preferredSize(Dimension(320, 60)),
         ) {
             LayoutRegionSwatch("Card A", LayoutSampleColors.Blue, SwingModifier.card("A"))
             LayoutRegionSwatch("Card B", LayoutSampleColors.Green, SwingModifier.card("B"))

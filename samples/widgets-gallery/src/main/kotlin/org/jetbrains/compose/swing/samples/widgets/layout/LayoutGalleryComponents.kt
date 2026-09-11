@@ -5,6 +5,8 @@ import org.jetbrains.compose.swing.components.ComboBox
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.Slider
 import org.jetbrains.compose.swing.components.button.Button
+import org.jetbrains.compose.swing.foundation.graphics.RectangleShape
+import org.jetbrains.compose.swing.foundation.graphics.background
 import org.jetbrains.compose.swing.foundation.layout.Alignment
 import org.jetbrains.compose.swing.foundation.layout.Arrangement
 import org.jetbrains.compose.swing.foundation.layout.Row
@@ -23,7 +25,13 @@ import java.awt.Cursor
 import java.awt.Dimension
 import javax.swing.SwingConstants
 
+// Row, Column and Box paint nothing of their own, so their track is declared as a decoration.
 internal fun SwingModifier.layoutTrack(): SwingModifier =
+    this
+        .lineBorder(LayoutSampleColors.Border)
+        .background(LayoutSampleColors.Track, RectangleShape)
+
+internal fun SwingModifier.layoutPanelTrack(): SwingModifier =
     this
         .lineBorder(LayoutSampleColors.Border)
         .background(LayoutSampleColors.Track)

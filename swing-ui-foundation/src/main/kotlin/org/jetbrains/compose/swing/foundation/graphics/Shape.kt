@@ -5,8 +5,11 @@ import java.awt.geom.RoundRectangle2D
 import java.awt.Shape as AwtShape
 
 /**
- * An outline resolved against the size of what it decorates: it is asked for its outline at the size its
- * [decorated box][DecoratedScope.decoration] stands at, with that box's top-left corner as the origin.
+ * An outline resolved against the size of what it decorates - what [clip] cuts a component's painting to. It is
+ * asked for its outline at the size its [decorated box][decoration] stands at then, with that box's
+ * top-left corner as the origin. How often depends on the decorator: [clip] and [background] ask again on every
+ * paint, while [border] keeps the outline it built and asks again when the size or the border's width, brush or
+ * shape changes.
  *
  * The values below compare structurally, so a chain rebuilt from unchanged values declares the same
  * shape and nothing repaints. [of] wraps a shape of the caller's own and compares it by identity - hoist

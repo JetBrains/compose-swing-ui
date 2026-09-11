@@ -9,6 +9,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.observeReads
 import java.awt.Component
 import java.awt.Graphics2D
+import java.awt.Insets
 
 /**
  * A [SwingModifier.ComponentNode] that draws into its component.
@@ -47,6 +48,9 @@ public abstract class DrawModifierNode<T : Component> : DecorationModifierNode<T
     final override fun onRemovedFromDecoration() {
         drawing = null
     }
+
+    /** A draw node paints nothing past its box. */
+    final override val outsets: Insets get() = NoPaintOutsets
 
     /** A draw node may leave part of its area unpainted. */
     final override val isOpaque: Boolean get() = false

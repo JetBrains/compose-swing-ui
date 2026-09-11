@@ -1,14 +1,22 @@
 package org.jetbrains.compose.swing.foundation.graphics
 
+import org.jetbrains.compose.swing.foundation.Canvas
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.appearance.testTag
+import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
 import org.junit.jupiter.api.Assumptions.assumeFalse
+import java.awt.AlphaComposite
 import java.awt.Color
 import java.awt.Dimension
 import java.awt.Graphics2D
 import java.awt.GraphicsEnvironment
 import java.awt.RenderingHints
 import java.awt.Transparency
+import java.awt.geom.Area
 import java.awt.geom.Ellipse2D
+import java.awt.geom.Rectangle2D
 import java.awt.image.BufferedImage
 import java.awt.image.BufferedImageOp
 import java.awt.image.ColorModel
@@ -16,6 +24,7 @@ import java.awt.image.ConvolveOp
 import java.awt.image.Kernel
 import java.awt.image.LookupOp
 import java.awt.image.ShortLookupTable
+import javax.swing.JComponent
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -359,6 +368,50 @@ class ImageLayerReRecordingTest {
             layer.toBufferedImage().getRGB(1, 1),
             "The second filter matches the operation run on fresh images, not the recording it replaced.",
         )
+    }
+
+    @Test
+    fun anAntialiasedClipPaintedAgainKeepsTheTranslucentEdgesOfAFreshRecording() =
+        runComposeSwingTest {
+            val size = SQUARE * 2
+            setContent {
+                Canvas(
+                    modifier =
+                        decorated {
+                            SwingModifier
+                                .testTag(
+                                    "clipped",
+                                ).preferredSize(size, size)
+                                .clip(CircleShape, antialias = true)
+                        },
+                    renderingHints = null,
+                ) { drawTranslucentEllipses(graphics) }
+            }
+            val component = onNodeWithTag("clipped").fetch<JComponent>()
+            val reference = renderImage(size, size) { freshClip(it, size) }
+            repeat(3) {
+                assertImagesPixelPerfect(reference, renderImage(size, size) { graphics -> component.paint(graphics) })
+            }
+        }
+
+    /** What an antialiased circle clip paints over [drawTranslucentEllipses] from a fresh recording. */
+    private fun freshClip(
+        destination: Graphics2D,
+        size: Int,
+    ) {
+        val recording = freshRecording()
+        val graphics = recording.createGraphics()
+        try {
+            val outside = Area(Rectangle2D.Float(0f, 0f, size.toFloat(), size.toFloat()))
+            outside.subtract(Area(CircleShape.outline(size, size)))
+            graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+            graphics.composite = AlphaComposite.DstOut
+            graphics.color = Color.WHITE
+            graphics.fill(outside)
+        } finally {
+            graphics.dispose()
+        }
+        destination.drawImage(recording, 0, 0, null)
     }
 
     private fun freshRecording(): BufferedImage = renderImage(SQUARE * 2, SQUARE * 2, block = ::drawTranslucentEllipses)

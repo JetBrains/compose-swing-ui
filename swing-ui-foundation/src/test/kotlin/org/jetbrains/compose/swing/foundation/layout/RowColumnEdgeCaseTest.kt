@@ -10,7 +10,7 @@ import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Dimension
 import java.awt.Rectangle
-import javax.swing.JPanel
+import javax.swing.JComponent
 import javax.swing.border.EmptyBorder
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -29,7 +29,8 @@ class RowColumnEdgeCaseTest {
     fun aRowGivesEveryChildTheSpaceLeftOnceTheEarlierOnesHaveTakenTheirs() =
         runComposeSwingTest {
             setContent {
-                Row(modifier = containerModifier(NARROW_MAIN, NARROW_CROSS)) {
+                // Narrower and shorter than the two fixture children combined, so a deficit is unmistakable.
+                Row(modifier = containerModifier(30, 10)) {
                     SizedChild(0)
                     SizedChild(1)
                 }
@@ -37,8 +38,8 @@ class RowColumnEdgeCaseTest {
 
             assertEquals(
                 listOf(
-                    Rectangle(0, 0, NARROW_MAIN, NARROW_CROSS),
-                    Rectangle(NARROW_MAIN, 0, 0, NARROW_CROSS),
+                    Rectangle(0, 0, 30, 10),
+                    Rectangle(30, 0, 0, 10),
                 ),
                 childBounds(),
                 "a row narrower than its children's combined width must give the first child all of it, " +
@@ -50,7 +51,7 @@ class RowColumnEdgeCaseTest {
     fun aColumnGivesEveryChildTheSpaceLeftOnceTheEarlierOnesHaveTakenTheirs() =
         runComposeSwingTest {
             setContent {
-                Column(modifier = containerModifier(NARROW_CROSS, NARROW_MAIN)) {
+                Column(modifier = containerModifier(10, 30)) {
                     SizedChild(0)
                     SizedChild(1)
                 }
@@ -58,8 +59,8 @@ class RowColumnEdgeCaseTest {
 
             assertEquals(
                 listOf(
-                    Rectangle(0, 0, NARROW_CROSS, NARROW_MAIN),
-                    Rectangle(0, NARROW_MAIN, NARROW_CROSS, 0),
+                    Rectangle(0, 0, 10, 30),
+                    Rectangle(0, 30, 10, 0),
                 ),
                 childBounds(),
                 "a column shorter than its children's combined height must give the first child all of it, " +
@@ -71,7 +72,7 @@ class RowColumnEdgeCaseTest {
     fun threeEquallyWeightedChildrenSplitASurplusThatDoesNotDivideEvenlyAndStillFillItExactly() =
         runComposeSwingTest {
             setContent {
-                Column(modifier = containerModifier(CROSS_EXTENT, UNEVEN_SURPLUS)) {
+                Column(modifier = containerModifier(100, 100)) {
                     SizedChild(0, SwingModifier.weight(1f))
                     SizedChild(1, SwingModifier.weight(1f))
                     SizedChild(2, SwingModifier.weight(1f))
@@ -95,8 +96,8 @@ class RowColumnEdgeCaseTest {
         runComposeSwingTest {
             setContent {
                 Row(
-                    modifier = containerModifier(SPACED_ROW_WIDTH, CROSS_EXTENT),
-                    horizontalArrangement = Arrangement.spacedBy(SPACING),
+                    modifier = containerModifier(40, 100),
+                    horizontalArrangement = Arrangement.spacedBy(8),
                 ) {
                     SizedChild(0, SwingModifier.weight(1f))
                     SizedChild(1, SwingModifier.weight(1f))
@@ -118,9 +119,11 @@ class RowColumnEdgeCaseTest {
     fun aSpacedByGapWiderThanTheRowTakesTheSpaceLeftAndStillKeepsEveryChildInsideIt() =
         runComposeSwingTest {
             setContent {
+                // Two 20px children in a 44px row: 24px of space for a gap declared far wider than that, which
+                // the gap then takes in full, leaving the second child nothing to be measured in.
                 Row(
-                    modifier = containerModifier(GAP_TEST_ROW_WIDTH, CROSS_EXTENT),
-                    horizontalArrangement = Arrangement.spacedBy(HUGE_GAP),
+                    modifier = containerModifier(44, 100),
+                    horizontalArrangement = Arrangement.spacedBy(1000),
                 ) {
                     SmallChild(0)
                     SmallChild(1)
@@ -129,8 +132,8 @@ class RowColumnEdgeCaseTest {
 
             assertEquals(
                 listOf(
-                    Rectangle(0, 0, SMALL_CHILD_WIDTH, SMALL_CHILD_HEIGHT),
-                    Rectangle(GAP_TEST_ROW_WIDTH, 0, 0, SMALL_CHILD_HEIGHT),
+                    Rectangle(0, 0, 20, 40),
+                    Rectangle(44, 0, 0, 40),
                 ),
                 childBounds(),
                 "a 1000px gap declared between two 20px children in a 44px row must shrink to the 24px the " +
@@ -143,9 +146,10 @@ class RowColumnEdgeCaseTest {
     fun aNegativeSpacedByGapOverlapsTheChildrenInsteadOfSpacingThem() =
         runComposeSwingTest {
             setContent {
+                // Wide enough that a negative gap's overlap, not a shortfall, is what the row demonstrates.
                 Row(
-                    modifier = containerModifier(WIDE_ROW_WIDTH, CROSS_EXTENT),
-                    horizontalArrangement = Arrangement.spacedBy(NEGATIVE_GAP),
+                    modifier = containerModifier(300, 100),
+                    horizontalArrangement = Arrangement.spacedBy(-10),
                 ) {
                     SizedChild(0)
                     SizedChild(1)
@@ -167,10 +171,10 @@ class RowColumnEdgeCaseTest {
     fun aRowNestedInAColumnIsMeasuredAndPlacedAsAWeightedChildAndThenLaysOutItsOwnChildren() =
         runComposeSwingTest {
             setContent {
-                Column(modifier = containerModifier(CROSS_EXTENT, NESTED_COLUMN_HEIGHT)) {
+                Column(modifier = containerModifier(100, 200)) {
                     SizedChild(0)
                     Row(
-                        modifier = SwingModifier.testTag(NESTED_ROW_TAG).weight(1f),
+                        modifier = SwingModifier.testTag("nestedRow").weight(1f),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -180,10 +184,10 @@ class RowColumnEdgeCaseTest {
                 }
             }
 
-            val nestedRow = onNodeWithTag(NESTED_ROW_TAG).fetch<JPanel>()
+            val nestedRow = onNodeWithTag("nestedRow").fetch<JComponent>()
 
             assertEquals(
-                Rectangle(0, CHILD_HEIGHT, CROSS_EXTENT, NESTED_COLUMN_HEIGHT - CHILD_HEIGHT),
+                Rectangle(0, CHILD_HEIGHT, 100, 160),
                 nestedRow.bounds,
                 "the weight must give the nested row the column's whole leftover height, and the row's own " +
                     "preferred width since it declared no fill of its own",
@@ -204,10 +208,12 @@ class RowColumnEdgeCaseTest {
     fun aWeightedNestedRowKeepsItsOwnWidthInAColumnWiderThanItPrefers() =
         runComposeSwingTest {
             setContent {
-                Column(modifier = containerModifier(WIDE_CROSS_EXTENT, NESTED_COLUMN_HEIGHT)) {
+                // Wider than the nested row's own preferred width (two fixture children), so a stretched row
+                // would be caught: a column exactly as wide as the row prefers cannot tell the two apart.
+                Column(modifier = containerModifier(150, 200)) {
                     SizedChild(0)
                     Row(
-                        modifier = SwingModifier.testTag(NESTED_ROW_TAG).weight(1f),
+                        modifier = SwingModifier.testTag("nestedRow").weight(1f),
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
                         SizedChild(1)
@@ -216,10 +222,10 @@ class RowColumnEdgeCaseTest {
                 }
             }
 
-            val nestedRow = onNodeWithTag(NESTED_ROW_TAG).fetch<JPanel>()
+            val nestedRow = onNodeWithTag("nestedRow").fetch<JComponent>()
 
             assertEquals(
-                Rectangle(0, CHILD_HEIGHT, CHILD_WIDTH * 2, NESTED_COLUMN_HEIGHT - CHILD_HEIGHT),
+                Rectangle(0, CHILD_HEIGHT, CHILD_WIDTH * 2, 160),
                 nestedRow.bounds,
                 "a weighted row without fillMaxWidth must keep the width it prefers " +
                     "once its main-axis weight is resolved, not stretch to a column wider than that",
@@ -236,15 +242,17 @@ class RowColumnEdgeCaseTest {
     fun aNestedRowsWeightsAreDividedOnceRatherThanAgainAtTheWidthTheyShrankItTo() =
         runComposeSwingTest {
             setContent {
-                Column(modifier = containerModifier(SPACIOUS_CROSS_EXTENT, NESTED_COLUMN_HEIGHT)) {
-                    Row(modifier = SwingModifier.testTag(NESTED_ROW_TAG)) {
+                // Four times the width a nested row prefers, so a share of it is unmistakably wider than a
+                // child asks for and a second division of the row's own width grants visibly less.
+                Column(modifier = containerModifier(400, 200)) {
+                    Row(modifier = SwingModifier.testTag("nestedRow")) {
                         SizedChild(0, SwingModifier.weight(1f, fill = false))
                         SizedChild(1, SwingModifier.weight(3f, fill = false))
                     }
                 }
             }
 
-            val nestedRow = onNodeWithTag(NESTED_ROW_TAG).fetch<JPanel>()
+            val nestedRow = onNodeWithTag("nestedRow").fetch<JComponent>()
 
             assertEquals(
                 rowCells(0, CHILD_WIDTH),
@@ -259,8 +267,8 @@ class RowColumnEdgeCaseTest {
     fun aChildWhoseMaximumSizeIsNegativeIsHeldToNothingRatherThanTakingTheRowsPassDown() =
         runComposeSwingTest {
             setContent {
-                Row(modifier = containerModifier(CROSS_EXTENT, CROSS_EXTENT)) {
-                    SizedChild(0, SwingModifier.weight(1f).maximumSize(NEGATIVE_MAXIMUM, NEGATIVE_MAXIMUM))
+                Row(modifier = containerModifier(100, 100)) {
+                    SizedChild(0, SwingModifier.weight(1f).maximumSize(-1, -1))
                 }
             }
 
@@ -280,7 +288,7 @@ class RowColumnEdgeCaseTest {
                     modifier =
                         SwingModifier
                             .testTag(CONTAINER_TAG)
-                            .border(EmptyBorder(BORDER_TOP, BORDER_LEFT, BORDER_BOTTOM, BORDER_RIGHT)),
+                            .border(EmptyBorder(3, 7, 11, 13)),
                 ) {
                     SizedChild(0, SwingModifier.weight(Float.MAX_VALUE))
                     SizedChild(1, SwingModifier.weight(1f))
@@ -289,7 +297,7 @@ class RowColumnEdgeCaseTest {
             }
 
             assertEquals(
-                Dimension(Int.MAX_VALUE, CHILD_HEIGHT + BORDER_TOP + BORDER_BOTTOM),
+                Dimension(Int.MAX_VALUE, 54),
                 containerPreferredSize(),
                 "the width the 1f child implies for a weight of Float.MAX_VALUE beside it does not fit an " +
                     "Int, so the row must ask for the largest width there is and keep the height its " +
@@ -297,54 +305,6 @@ class RowColumnEdgeCaseTest {
                     "around it may carry the row past it and back to a negative width",
             )
         }
-
-    private companion object {
-        // Narrower, or shorter, than the two 50x40 fixture children combined, so a deficit is unmistakable.
-        const val NARROW_MAIN = 30
-        const val NARROW_CROSS = 10
-
-        // Wider than a fixture child, so a weight or a gap is never short of room on its own.
-        const val CROSS_EXTENT = 100
-
-        // 100px split three ways by an equal weight does not divide evenly.
-        const val UNEVEN_SURPLUS = 100
-
-        // 40px split between two equally weighted children once an 8px gap is held back.
-        const val SPACING = 8
-        const val SPACED_ROW_WIDTH = 40
-
-        // Two 20px children in a 44px row: 24px of room for a gap declared far wider than that, which
-        // the gap then takes in full, leaving the second child nothing to be measured in.
-        const val SMALL_CHILD_WIDTH = 20
-        const val SMALL_CHILD_HEIGHT = 40
-        const val GAP_TEST_ROW_WIDTH = 44
-        const val HUGE_GAP = 1000
-
-        // Wide enough that a negative gap's overlap, not a shortfall, is what the row demonstrates.
-        const val WIDE_ROW_WIDTH = 300
-        const val NEGATIVE_GAP = -10
-
-        // Room for the fixture child plus a weighted nested row's leftover height.
-        const val NESTED_COLUMN_HEIGHT = 200
-        const val NESTED_ROW_TAG = "nestedRow"
-
-        // Wider than the nested row's own preferred width (two fixture children), so a stretched row
-        // would be caught: a column exactly as wide as the row prefers cannot tell the two apart.
-        const val WIDE_CROSS_EXTENT = 150
-
-        // A maximum a component may carry as readily as any other, and which no extent can fit inside.
-        const val NEGATIVE_MAXIMUM = -1
-
-        // The four insets of a border on the row, each different, so no two can be mistaken.
-        const val BORDER_TOP = 3
-        const val BORDER_LEFT = 7
-        const val BORDER_BOTTOM = 11
-        const val BORDER_RIGHT = 13
-
-        // Four times the width a nested row prefers, so a share of it is unmistakably wider than a
-        // child asks for and a second division of the row's own width grants visibly less.
-        const val SPACIOUS_CROSS_EXTENT = 400
-    }
 }
 
 /** A child narrower than [SizedChild], so a 44px row still has space to hold part of an oversized gap. */

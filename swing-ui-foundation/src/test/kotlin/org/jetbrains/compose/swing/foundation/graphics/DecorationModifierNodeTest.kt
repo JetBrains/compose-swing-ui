@@ -142,6 +142,37 @@ class DecorationModifierNodeTest {
         }
 
     @Test
+    fun aStepLosingItsDecoratorInAPassThatThrowsStillPaintsTheContent() =
+        runComposeSwingTest {
+            var failing by mutableStateOf(false)
+            val thrown = ArrayList<String>()
+            setContent {
+                SwingNode(
+                    factory = { DecoratedPanel() },
+                    modifier =
+                        SwingModifier
+                            .testTag("panel")
+                            .preferredSize(Dimension(32, 32))
+                            .then(DecoratorElement(if (failing) null else Cut()))
+                            .then(DecoratorElement(Fill(Color.RED)))
+                            .then(FailingToUpdate(failing, thrown)),
+                )
+            }
+            val panel = onNodeWithTag("panel").fetch<JComponent>()
+            assertEquals(0, panel.paintOnto(32, 32).getRGB(0, 0), "The cut takes the corner away.")
+
+            failing = true
+            awaitIdle()
+            assertEquals(listOf("update fails"), thrown, "The pass writing the step throws after it.")
+
+            assertEquals(
+                Color.RED.rgb,
+                panel.paintOnto(32, 32).getRGB(0, 0),
+                "A step left holding no decorator paints its content unchanged.",
+            )
+        }
+
+    @Test
     fun aStepDetachedInAPassThatThrowsPaintsNoMore() =
         runComposeSwingTest {
             var failing by mutableStateOf(false)
@@ -212,10 +243,10 @@ class DecorationModifierNodeTest {
     fun aDecoratableNeedsAStepAfterAWriteButNotADrawNode() {
         val panel = DecoratedPanel()
 
-        assertTrue(panel.needsNodesAfterWrite(StepNode()), "A step's write may change its opacity.")
+        assertTrue(panel.needsNodesAfterWrite(StepNode()), "A step's write may change its outsets or opacity.")
         assertFalse(
             panel.needsNodesAfterWrite(DrawingNode()),
-            "A draw node's opacity never changes, and it repaints its own change.",
+            "A draw node's outsets and opacity never change, and it repaints its own change.",
         )
         assertFalse(panel.needsNodesAfterWrite(PlainNode()), "A node that is no decoration step changes nothing.")
     }

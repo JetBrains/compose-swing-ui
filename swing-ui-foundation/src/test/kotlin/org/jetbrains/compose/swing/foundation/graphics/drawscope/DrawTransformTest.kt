@@ -1,7 +1,17 @@
 package org.jetbrains.compose.swing.foundation.graphics.drawscope
 
+import org.jetbrains.compose.swing.foundation.graphics.Brush
+import org.jetbrains.compose.swing.foundation.graphics.background
+import org.jetbrains.compose.swing.foundation.graphics.decorated
+import org.jetbrains.compose.swing.foundation.graphics.drawWithContent
+import org.jetbrains.compose.swing.foundation.layout.Box
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.appearance.opaque
+import org.jetbrains.compose.swing.modifier.appearance.testTag
+import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
+import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import java.awt.Color
 import java.awt.Dimension
 import java.awt.Point
@@ -76,6 +86,29 @@ class DrawTransformTest {
                 nested,
                 "the nested scope is as large as what each inset leaves",
             )
+        }
+
+    @Test
+    fun contentDrawnInsideAnInsetKeepsItsOwnSize() =
+        runComposeSwingTest {
+            setContent {
+                Box(
+                    modifier =
+                        decorated {
+                            SwingModifier
+                                .testTag("box")
+                                .preferredSize(32, 32)
+                                .opaque(false)
+                                .drawWithContent { inset(8f) { this@drawWithContent.drawContent() } }
+                                .background(Brush.of(Color.RED))
+                        },
+                )
+            }
+
+            val image = onNodeWithTag("box").captureToImage()
+
+            assertEquals(0, image.getRGB(4, 4), "the content moves with the inset origin")
+            assertEquals(Color.RED.rgb, image.getRGB(30, 30), "the content paints at its own size, past the inset box")
         }
 
     @Test

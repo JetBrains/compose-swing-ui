@@ -9,7 +9,7 @@ import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImageMatches
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import javax.swing.JButton
-import javax.swing.JPanel
+import javax.swing.JComponent
 import javax.swing.JProgressBar
 import javax.swing.JScrollPane
 import javax.swing.JTextField
@@ -147,7 +147,7 @@ class ReactiveTaskListTest {
 
             // The column places the height it has left over instead of pushing it into a child, so a
             // row is laid out at exactly the height it asks for however much space the list has.
-            val rowWithFourTasks = onNodeWithTag(taskRowTag(3)).fetch<JPanel>()
+            val rowWithFourTasks = onNodeWithTag(taskRowTag(3)).fetch<JComponent>()
             val heightWithFourTasks = rowWithFourTasks.height
             assertTrue(heightWithFourTasks > 0, "the row must have a real, laid-out height")
             assertEquals(
@@ -162,7 +162,7 @@ class ReactiveTaskListTest {
 
             assertEquals(
                 heightWithFourTasks,
-                onNodeWithTag(taskRowTag(3)).fetch<JPanel>().height,
+                onNodeWithTag(taskRowTag(3)).fetch<JComponent>().height,
                 "a row's laid-out height does not depend on the task count",
             )
         }
@@ -174,7 +174,7 @@ class ReactiveTaskListTest {
 
             // The row fills the bounded width the list column offers instead of keeping the narrower
             // width its own controls prefer.
-            val row = onNodeWithTag(taskRowTag(3)).fetch<JPanel>()
+            val row = onNodeWithTag(taskRowTag(3)).fetch<JComponent>()
             val list = row.parent
             val listInsets = list.insets
             assertEquals(
@@ -194,7 +194,7 @@ class ReactiveTaskListTest {
             assertEquals(320, heightWithFourTasks, "the list is laid out at its declared preferred height")
 
             // Add enough tasks to overflow the fixed-height viewport.
-            repeat(EXTRA_TASKS_TO_OVERFLOW_THE_LIST) { index ->
+            repeat(20) { index ->
                 onAddField().performTextReplacement("Task $index")
                 onAddButton().performClick()
             }
@@ -237,6 +237,3 @@ private fun ComposeSwingTest.onAddField() = onNode(SwingMatcher.hasAccessibleNam
 
 /** The add button, located by its visible label and button type rather than a test tag. */
 private fun ComposeSwingTest.onAddButton() = onNode(SwingMatcher.hasText("Add") and SwingMatcher.isOfType<JButton>())
-
-/** More tasks than the list's 320px preferred height can show without scrolling. */
-private const val EXTRA_TASKS_TO_OVERFLOW_THE_LIST = 20

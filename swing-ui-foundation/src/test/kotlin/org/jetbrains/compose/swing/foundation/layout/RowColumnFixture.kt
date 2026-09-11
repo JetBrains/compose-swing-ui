@@ -12,7 +12,7 @@ import java.awt.ComponentOrientation
 import java.awt.Container
 import java.awt.Dimension
 import java.awt.Rectangle
-import javax.swing.JPanel
+import javax.swing.JComponent
 
 /**
  * The tag the container under test carries. A test declares exactly one, so its children are
@@ -100,4 +100,4 @@ internal fun columnRows(vararg tops: Int): List<Rectangle> = tops.map { Rectangl
 internal fun rowCells(vararg lefts: Int): List<Rectangle> = lefts.map { Rectangle(it, 0, CHILD_WIDTH, CHILD_HEIGHT) }
 
 /** The one container a test tagged, which every reading above is taken from. */
-private fun ComposeSwingTest.container(): JPanel = onNodeWithTag(CONTAINER_TAG).fetch<JPanel>()
+private fun ComposeSwingTest.container(): JComponent = onNodeWithTag(CONTAINER_TAG).fetch<JComponent>()

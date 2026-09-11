@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.foundation.graphics
 
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -8,8 +9,13 @@ import kotlinx.coroutines.job
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.foundation.Canvas
 import org.jetbrains.compose.swing.foundation.graphics.drawscope.ContentDrawScope
+import org.jetbrains.compose.swing.foundation.graphics.drawscope.DrawScope
+import org.jetbrains.compose.swing.foundation.graphics.drawscope.clipRect
 import org.jetbrains.compose.swing.foundation.graphics.drawscope.record
+import org.jetbrains.compose.swing.foundation.graphics.drawscope.translate
+import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
@@ -37,6 +43,186 @@ import kotlin.test.assertTrue
  * RenderNode cases are intentionally not ported.
  */
 class DrawModifierNodeTest {
+    @Test
+    fun simpleDrawTest() =
+        runComposeSwingTest {
+            setContent {
+                Box(
+                    modifier =
+                        decorated {
+                            SwingModifier
+                                .testTag("outer")
+                                .preferredSize(Dimension(32, 32))
+                                .opaque(false)
+                                .drawBehind { drawRect(Color.YELLOW) }
+                        },
+                ) {
+                    Box(
+                        modifier =
+                            SwingModifier
+                                .testTag("inner")
+                                .preferredSize(Dimension(16, 16))
+                                .opaque(false)
+                                .drawBehind { drawRect(Color.RED) },
+                    )
+                }
+            }
+
+            val image = onNodeWithTag("outer").captureToImage()
+            assertEquals(Color.YELLOW.rgb, image.getRGB(31, 31), "The outer drawBehind paints under the inner content.")
+            assertEquals(Color.RED.rgb, image.getRGB(8, 8), "The inner drawBehind paints its own area.")
+        }
+
+    @Test
+    fun recomposeDrawTest() =
+        runComposeSwingTest {
+            var outerColor by mutableStateOf(Color.BLUE)
+            var innerColor by mutableStateOf(Color.WHITE)
+            setContent {
+                Box(
+                    modifier =
+                        decorated {
+                            SwingModifier
+                                .testTag("outer")
+                                .preferredSize(Dimension(32, 32))
+                                .opaque(false)
+                                .drawBehind { drawRect(outerColor) }
+                        },
+                ) {
+                    Box(
+                        modifier =
+                            SwingModifier
+                                .testTag("inner")
+                                .preferredSize(Dimension(16, 16))
+                                .opaque(false)
+                                .drawBehind { drawRect(innerColor) },
+                    )
+                }
+            }
+            val component = onNodeWithTag("outer").fetch<JComponent>()
+            var image = onNodeWithTag("outer").captureToImage()
+            assertEquals(Color.BLUE.rgb, image.getRGB(31, 31), "The outer drawBehind paints its declared color first.")
+            assertEquals(Color.WHITE.rgb, image.getRGB(8, 8), "The inner drawBehind paints its declared color first.")
+
+            withRecordedRepaints { repaints ->
+                outerColor = Color.RED
+                innerColor = Color.YELLOW
+                awaitIdle()
+
+                assertTrue(repaints.repaintsOf(component) > 0, "A changed drawBehind read must repaint the component.")
+            }
+            image = onNodeWithTag("outer").captureToImage()
+            assertEquals(Color.RED.rgb, image.getRGB(31, 31), "The outer drawBehind repaints with the changed color.")
+            assertEquals(Color.YELLOW.rgb, image.getRGB(8, 8), "The inner drawBehind repaints with the changed color.")
+        }
+
+    @Test
+    fun aRecompositionWithTheSameDrawBlocksDoesNotRepaint() =
+        runComposeSwingTest {
+            var recomposeTrigger by mutableStateOf(0)
+            var compositions = 0
+            setContent {
+                recomposeTrigger
+                SideEffect { compositions++ }
+                Box(
+                    modifier =
+                        decorated {
+                            SwingModifier
+                                .testTag("box")
+                                .preferredSize(Dimension(16, 16))
+                                .drawBehind(fillRed)
+                                .drawWithContent(drawContentOverRed)
+                        },
+                )
+            }
+            val box = onNodeWithTag("box").fetch<JComponent>()
+
+            val composed = compositions
+
+            withRecordedRepaints { repaints ->
+                recomposeTrigger++
+                awaitIdle()
+
+                assertTrue(compositions > composed, "the chain was declared again")
+                assertEquals(0, repaints.repaintsOf(box), "draw blocks declared again unchanged draw nothing new")
+            }
+        }
+
+    @Test
+    fun drawOrderWithChildren() =
+        runComposeSwingTest {
+            setContent {
+                Box(
+                    modifier =
+                        decorated {
+                            SwingModifier
+                                .testTag("outer")
+                                .preferredSize(Dimension(32, 32))
+                                .opaque(false)
+                                .then(
+                                    SwingModifier.drawWithContent {
+                                        drawRect(Color.GREEN)
+                                        val offset = size.width / 3f
+                                        clipRect(offset, offset, offset * 2, offset * 2) {
+                                            this@drawWithContent.drawContent()
+                                            drawRect(
+                                                Color.WHITE,
+                                                x = 0f,
+                                                y = size.height / 2f,
+                                                width = size.width.toFloat(),
+                                                height = size.height / 2f,
+                                            )
+                                        }
+                                    },
+                                ).drawBehind {
+                                    drawRect(Color.WHITE, height = size.height / 2f)
+                                }
+                        },
+                )
+            }
+
+            val image = onNodeWithTag("outer").captureToImage()
+            assertEquals(Color.GREEN.rgb, image.getRGB(2, 2), "outside the clip, drawWithContent's own paint shows")
+            assertEquals(Color.GREEN.rgb, image.getRGB(8, 16), "inside the clip's top half, content shows through")
+            assertEquals(Color.WHITE.rgb, image.getRGB(16, 12), "inside the clip's bottom half, its own paint covers")
+            assertEquals(Color.WHITE.rgb, image.getRGB(16, 20), "Below the clip, drawBehind's paint shows through.")
+        }
+
+    @Test
+    fun drawModifierWithLayout() =
+        runComposeSwingTest {
+            setContent {
+                Box(
+                    modifier =
+                        decorated {
+                            SwingModifier
+                                .testTag("outer")
+                                .preferredSize(Dimension(32, 32))
+                                .opaque(false)
+                                .then(
+                                    SwingModifier.drawWithContent {
+                                        drawRect(Color.BLUE)
+                                        translate(8f, 8f) { this@drawWithContent.drawContent() }
+                                    },
+                                )
+                        },
+                ) {
+                    Box(
+                        modifier =
+                            SwingModifier
+                                .testTag("inner")
+                                .preferredSize(Dimension(16, 16))
+                                .opaque(false)
+                                .background(Brush.of(Color.WHITE)),
+                    )
+                }
+            }
+
+            val image = onNodeWithTag("outer").captureToImage()
+            assertEquals(Color.BLUE.rgb, image.getRGB(4, 4), "the draw block paints the parent before content")
+            assertEquals(Color.WHITE.rgb, image.getRGB(16, 16), "drawContent is translated, its size unchanged")
+        }
+
     @Test
     fun drawingBackTheContentRecordedIntoALayerPaintsWhatDrawContentPaints() =
         runComposeSwingTest {
@@ -93,6 +279,105 @@ class DrawModifierNodeTest {
         }
 
     @Test
+    fun aChainPositionSwitchingFromDrawBehindToDrawWithContentAndBackPaintsExactlyOnce() =
+        assertSwitchingDrawBehindAndDrawWithContentPaintsExactlyOnce(startsWithDrawWithContent = false)
+
+    @Test
+    fun aChainPositionSwitchingFromDrawWithContentToDrawBehindAndBackPaintsExactlyOnce() =
+        assertSwitchingDrawBehindAndDrawWithContentPaintsExactlyOnce(startsWithDrawWithContent = true)
+
+    /**
+     * A chain position that switches between [SwingModifier.drawBehind] and [SwingModifier.drawWithContent] must
+     * get each mode's own node, rather than reusing the other mode's node with its content-ordering stuck.
+     */
+    private fun assertSwitchingDrawBehindAndDrawWithContentPaintsExactlyOnce(startsWithDrawWithContent: Boolean) =
+        runComposeSwingTest {
+            var useDrawWithContent by mutableStateOf(startsWithDrawWithContent)
+            var contentPaints = 0
+            setContent {
+                Box(
+                    modifier =
+                        decorated {
+                            val drawStep =
+                                if (useDrawWithContent) {
+                                    SwingModifier.drawWithContent {
+                                        drawRect(Color.RED)
+                                        drawContent()
+                                    }
+                                } else {
+                                    SwingModifier.drawBehind { drawRect(Color.RED) }
+                                }
+                            SwingModifier
+                                .testTag("outer")
+                                .preferredSize(Dimension(32, 32))
+                                .opaque(false)
+                                .then(drawStep)
+                        },
+                ) {
+                    Box(
+                        modifier =
+                            SwingModifier.testTag("inner").preferredSize(Dimension(16, 16)).opaque(false).drawBehind {
+                                contentPaints++
+                                drawRect(Color.GREEN)
+                            },
+                    )
+                }
+            }
+
+            fun assertPaintsOnce(message: String) {
+                contentPaints = 0
+                val image = onNodeWithTag("outer").captureToImage()
+                assertEquals(1, contentPaints, "$message: content paints exactly once.")
+                assertEquals(Color.RED.rgb, image.getRGB(31, 31), "$message: red at the tip.")
+                assertEquals(Color.GREEN.rgb, image.getRGB(8, 8), "$message: green after, where content paints.")
+            }
+
+            fun modeName() = if (useDrawWithContent) "drawWithContent" else "drawBehind"
+
+            assertPaintsOnce(modeName())
+            useDrawWithContent = !useDrawWithContent
+            awaitIdle()
+            assertPaintsOnce(modeName())
+            useDrawWithContent = !useDrawWithContent
+            awaitIdle()
+            assertPaintsOnce("${modeName()} again")
+        }
+
+    @Test
+    fun aDrawNodeWrapsWhatIsDeclaredAfterItAndIsWrappedByWhatIsDeclaredBefore() =
+        runComposeSwingTest {
+            setContent {
+                SwingNode(
+                    factory = { DecoratedPanel().apply { isOpaque = false } },
+                    modifier =
+                        decorated {
+                            SwingModifier
+                                .testTag("outer")
+                                .preferredSize(Dimension(32, 32))
+                                .then(DrawFill { Color.RED })
+                                .background(Brush.of(Color.BLUE))
+                        },
+                )
+                SwingNode(
+                    factory = { DecoratedPanel().apply { isOpaque = false } },
+                    modifier =
+                        decorated {
+                            SwingModifier
+                                .testTag("inner")
+                                .preferredSize(Dimension(32, 32))
+                                .background(Brush.of(Color.BLUE))
+                                .then(DrawFill { Color.RED })
+                        },
+                )
+            }
+
+            val outerAt16 = onNodeWithTag("outer").captureToImage().getRGB(16, 16)
+            val innerAt16 = onNodeWithTag("inner").captureToImage().getRGB(16, 16)
+            assertEquals(Color.BLUE.rgb, outerAt16, "background after the draw node paints over its fill")
+            assertEquals(Color.RED.rgb, innerAt16, "draw node after the background paints over it")
+        }
+
+    @Test
     fun aStateReadWhileDrawingRepaintsTheComponent() =
         runComposeSwingTest {
             var color by mutableStateOf(Color.RED)
@@ -127,7 +412,7 @@ class DrawModifierNodeTest {
                         SwingModifier
                             .testTag("outer")
                             .preferredSize(Dimension(32, 32))
-                            .drawBehind { drawRect(Color.BLUE) }
+                            .background(Brush.of(Color.BLUE))
                     }
                 SwingNode(
                     factory = { DecoratedPanel().apply { isOpaque = false } },
@@ -169,6 +454,44 @@ class DrawModifierNodeTest {
                 assertEquals(1, repaints.repaintsOf(component), "invalidateDraw repaints the node's component.")
             }
             assertEquals(Color.BLUE.rgb, outerPixel(), "The repaint draws with the changed color.")
+        }
+
+    @Test
+    fun decorationsThatPaintOffscreenInsideADrawNodeDoNotRepaintTheComponentByThemselves() =
+        runComposeSwingTest {
+            setContent {
+                SwingNode(
+                    factory = { DecoratedPanel().apply { isOpaque = false } },
+                    modifier =
+                        decorated {
+                            SwingModifier
+                                .testTag("outer")
+                                .preferredSize(Dimension(32, 32))
+                                .then(DrawFill { Color.RED })
+                                .shadow(2, Color.BLACK)
+                                .blur(2)
+                                .clip(CircleShape, antialias = true)
+                                .then(DrawFill { Color.BLUE })
+                        },
+                )
+            }
+            val component = onNodeWithTag("outer").fetch<JComponent>()
+            val first = onNodeWithTag("outer").captureToImage()
+
+            withRecordedRepaints { repaints ->
+                val second = onNodeWithTag("outer").captureToImage()
+                awaitIdle()
+                onNodeWithTag("outer").captureToImage()
+                awaitIdle()
+
+                assertEquals(
+                    0,
+                    repaints.repaintsOf(component),
+                    "Each paint records the decorations' own layers, and a paint that observed them would ask " +
+                        "for the next.",
+                )
+                assertImagesPixelPerfect(first, second)
+            }
         }
 
     @Test
@@ -421,3 +744,10 @@ private class DrawFillNode : DrawModifierNode<JComponent>() {
 }
 
 private fun ComposeSwingTest.outerPixel(): Int = onNodeWithTag("outer").captureToImage().getRGB(16, 16)
+
+private val fillRed: DrawScope.() -> Unit = { drawRect(Color.RED) }
+
+private val drawContentOverRed: ContentDrawScope.() -> Unit = {
+    drawRect(Color.RED)
+    drawContent()
+}

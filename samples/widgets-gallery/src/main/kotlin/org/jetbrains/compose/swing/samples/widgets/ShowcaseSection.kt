@@ -9,10 +9,12 @@ import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.foundation.layout.Column
 import org.jetbrains.compose.swing.foundation.layout.ColumnScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.border
 import org.jetbrains.compose.swing.modifier.appearance.font
 import org.jetbrains.compose.swing.modifier.appearance.foreground
 import org.jetbrains.compose.swing.modifier.appearance.horizontalAlignment
+import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.samples.widgets.components.ComponentsSection
 import org.jetbrains.compose.swing.samples.widgets.components.FormInputsSection
 import org.jetbrains.compose.swing.samples.widgets.components.RadioGroupSection
@@ -47,6 +49,7 @@ import java.awt.Font
 import javax.swing.BorderFactory
 import javax.swing.JScrollPane
 import javax.swing.SwingConstants
+import javax.swing.UIManager
 
 // A navigable section of the showcase: a sidebar title paired with the composable that renders its body,
 // so adding a section is a single list entry and the navigation shell and the body switch read from one source.
@@ -110,14 +113,15 @@ internal fun ColumnScope.ExampleCard(
 }
 
 // The standard body shape for a section: a vertical column of cards that scrolls vertically only, so a
-// wide example never forces a sideways scrollbar onto the whole section.
+// wide example never forces a sideways scrollbar onto the whole section. The column paints the section
+// surface in `Panel.background`, so plain JPanel grouping inside cards blends with it.
 @Composable
 internal fun SectionColumn(cards: @Composable ColumnScope.() -> Unit) {
     ScrollPane(
         verticalScrollbar = JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
         horizontalScrollbar = JScrollPane.HORIZONTAL_SCROLLBAR_NEVER,
     ) {
-        Column(SwingModifier.viewport()) {
+        Column(SwingModifier.background(UIManager.getColor("Panel.background")).opaque(true).viewport()) {
             cards()
         }
     }

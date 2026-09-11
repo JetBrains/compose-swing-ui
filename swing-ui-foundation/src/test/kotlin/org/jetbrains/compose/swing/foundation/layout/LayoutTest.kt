@@ -11,7 +11,7 @@ import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Dimension
 import java.awt.Rectangle
-import javax.swing.JPanel
+import javax.swing.JComponent
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -228,7 +228,7 @@ class LayoutTest {
                 )
             }
 
-            val layout = onNodeWithTag(CONTAINER_TAG).fetch<JPanel>()
+            val layout = onNodeWithTag(CONTAINER_TAG).fetch<JComponent>()
             assertEquals(0, layout.componentCount, "the leaf overload must not compose an empty child lambda")
             assertEquals(
                 Dimension(0, 0),
@@ -297,7 +297,7 @@ class LayoutTest {
 
         /** The bounds the one row nested inside the container under test assigned its own children. */
         fun ComposeSwingTest.nestedRowChildBounds(): List<Rectangle> =
-            (onNodeWithTag(CONTAINER_TAG).fetch<JPanel>().getComponent(0) as JPanel)
+            (onNodeWithTag(CONTAINER_TAG).fetch<JComponent>().getComponent(0) as JComponent)
                 .components
                 .map { it.bounds }
 

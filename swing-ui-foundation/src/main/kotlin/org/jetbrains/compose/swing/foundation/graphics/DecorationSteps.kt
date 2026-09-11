@@ -6,10 +6,30 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import java.awt.Graphics2D
 import java.awt.Insets
 
-/** The steps a component's modifier declares, outermost first. Two are equal when they hold the same steps. */
+/**
+ * The steps a component's modifier declares, outermost first, and what they report together. Two are equal when they
+ * hold the same steps reporting the same outsets.
+ */
 internal class DecorationSteps private constructor(
     private val decorators: List<Decorator>,
 ) {
+    /** The [Decorator.outsets] of the steps, added together. */
+    val outsets: Insets =
+        run {
+            var top = 0
+            var left = 0
+            var bottom = 0
+            var right = 0
+            decorators.fastForEach {
+                val outsets = it.outsets
+                top += outsets.top
+                left += outsets.left
+                bottom += outsets.bottom
+                right += outsets.right
+            }
+            Insets(top, left, bottom, right)
+        }
+
     /** Whether every step answers [Decorator.isOpaque] now; the library reads it once per gathering. */
     val isOpaque: Boolean get() = decorators.fastAll { it.isOpaque }
 
@@ -49,7 +69,7 @@ internal class DecorationSteps private constructor(
     }
 
     override fun equals(other: Any?): Boolean =
-        this === other || (other is DecorationSteps && decorators == other.decorators)
+        this === other || (other is DecorationSteps && decorators == other.decorators && outsets == other.outsets)
 
     override fun hashCode(): Int = decorators.hashCode()
 
@@ -57,11 +77,11 @@ internal class DecorationSteps private constructor(
         /** No steps. */
         val None: DecorationSteps = DecorationSteps(emptyList())
 
-        /** The [DecorationModifierNode]s among [nodes], in order. */
+        /** The [DecorationModifierNode]s among [nodes], in order, leaving out those that paint nothing. */
         fun of(nodes: List<SwingModifier.Node>): DecorationSteps {
             val decorators = ArrayList<Decorator>()
             nodes.fastForEach { node ->
-                if (node is DecorationModifierNode<*>) decorators += node
+                if (node is DecorationModifierNode<*> && !node.paintsNothing) decorators += node
             }
             return if (decorators.isEmpty()) None else DecorationSteps(decorators)
         }

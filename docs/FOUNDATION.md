@@ -4,7 +4,7 @@
 parent offers constraints, a child reports a size, and the parent places it; drawing and decorations paint through
 Java2D. Swing still owns the component tree, the layout and paint cycles, and the final bounds.
 
-Depend on `swing-ui-foundation` for `Row`, `Column`, `Box`, `Layout` and `Canvas`. See
+Depend on `swing-ui-foundation` for `Row`, `Column`, `Box`, `Layout`, `Canvas` and the decoration modifiers. See
 [`COMPONENTS.md`](COMPONENTS.md#containers-and-layout) for the standard Swing containers,
 [`CUSTOM-CONTAINERS.md`](CUSTOM-CONTAINERS.md) to implement a container, and [`ARCHITECTURE.md`](ARCHITECTURE.md)
 for the runtime.
@@ -333,11 +333,59 @@ Brushes compare their value inputs structurally. A caller-owned `Paint` passed t
 compared by identity, so remember or otherwise hoist it when rebuilding a modifier during
 recomposition.
 
-`Shape` is the corresponding size-aware outline. Foundation
+`Shape` is the corresponding size-aware outline used by clipping and shaped borders. Foundation
 provides `RectangleShape`, `CircleShape` and `RoundedCornerShape`; `Shape.of(awtShape)` adapts a
 caller-owned `java.awt.Shape` whose coordinates do not change with the component's size. A custom
 shape implements `outline(width, height)` and returns an outline relative to the decorated box's
 top-left corner.
+
+### Decorations
+
+The decoration modifiers `clip`, `background`, `border`, `alpha`, `blur` and `shadow`, and the drawing modifiers,
+wrap what a component paints in declaration order: the first declared is outermost, and later declarations paint
+inside earlier ones. Unlike the layout modifiers in [Scoped modifiers](#scoped-modifiers), they are plain
+`SwingModifier` extensions that resolve wherever a modifier does, but reach only a component that implements
+`Decoratable`. `Canvas` and the `Row`, `Column`, `Box` and `Layout` containers do. A stock widget or a `Panel`
+refuses them with an error naming `Decoratable`;
+[Making a component decoratable](#making-a-component-decoratable) opts a component of your own in.
+
+A decoration paints inside the component's bounds, and a padding, in either order, sits outside them.
+
+- `background(color)` without a shape is the Swing property; pass a `Shape` or a `Brush` for the decoration.
+- A `clip` declared before a `border` only cuts its line; pass the clip's shape to the border for the line to
+  follow it.
+- A clip outside a blur can cut its halo.
+
+A modifier of your own can combine decorations, as `card` does:
+
+<!--- INCLUDE .*foundation-card.*
+import androidx.compose.runtime.*
+import org.jetbrains.compose.swing.components.*
+import org.jetbrains.compose.swing.components.layout.*
+import org.jetbrains.compose.swing.foundation.graphics.*
+import org.jetbrains.compose.swing.foundation.layout.*
+import org.jetbrains.compose.swing.modifier.*
+import java.awt.Color
+
+-->
+
+```kotlin
+fun SwingModifier.card(): SwingModifier =
+    border(width = 1, color = Color.GRAY, shape = RoundedCornerShape(8f)).background(Color.WHITE, RoundedCornerShape(8f))
+
+@Composable
+fun PaddedCard() {
+    Panel(PanelLayout.Flow()) {
+        Box {
+            Box(modifier = SwingModifier.padding(16).card()) {
+                Label("Padded")
+            }
+        }
+    }
+}
+```
+
+<!--- KNIT example-foundation-card-01.kt -->
 
 ### Writing a decorator or draw node
 
@@ -359,7 +407,7 @@ fun SwingModifier.outlined(outline: Decorator): SwingModifier = decoration(outli
 An effect that reads the content's pixels calls the continuation inside `ImageLayer.record` and draws the layer.
 
 A step that keeps state across paints extends `DecorationModifierNode`, or `DrawModifierNode` to draw through a
-`ContentDrawScope`, and declares its element through the same `decoration` member. State read in `draw()` is
+`ContentDrawScope`, and declares its element through the same `decoration` function. State read in `draw()` is
 observed, and a change repaints the component without laying it out again. The library gathers a step's
 `isOpaque` after each modifier pass, so an element's `update` needs no call for it. Between passes, a node that
 changes a plain field it paints from calls `invalidateDraw()`, or `invalidateDecoration()` when its outsets or `isOpaque`

@@ -14,6 +14,17 @@ public final class org/jetbrains/compose/swing/foundation/graphics/BlurEffect : 
 	public fun toString ()Ljava/lang/String;
 }
 
+public final class org/jetbrains/compose/swing/foundation/graphics/BorderStroke {
+	public static final field $stable I
+	public fun <init> (ILjava/awt/Color;)V
+	public fun <init> (ILorg/jetbrains/compose/swing/foundation/graphics/Brush;)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBrush ()Lorg/jetbrains/compose/swing/foundation/graphics/Brush;
+	public final fun getWidth ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
 public abstract interface class org/jetbrains/compose/swing/foundation/graphics/Brush {
 	public static final field Companion Lorg/jetbrains/compose/swing/foundation/graphics/Brush$Companion;
 	public abstract fun paint (II)Ljava/awt/Paint;
@@ -73,6 +84,7 @@ public abstract class org/jetbrains/compose/swing/foundation/graphics/DrawModifi
 	public static final field $stable I
 	public fun <init> ()V
 	public abstract fun draw (Lorg/jetbrains/compose/swing/foundation/graphics/drawscope/ContentDrawScope;)V
+	public final fun getOutsets ()Ljava/awt/Insets;
 	public final fun isOpaque ()Z
 	public fun onMeasureResultChanged ()V
 	protected final fun onRemovedFromDecoration ()V
@@ -80,13 +92,28 @@ public abstract class org/jetbrains/compose/swing/foundation/graphics/DrawModifi
 }
 
 public final class org/jetbrains/compose/swing/foundation/graphics/GraphicsKt {
+	public static final fun alpha (Lorg/jetbrains/compose/swing/modifier/SwingModifier;F)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun asRenderEffect (Ljava/awt/image/BufferedImageOp;)Lorg/jetbrains/compose/swing/foundation/graphics/RenderEffect;
+	public static final fun background (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/awt/Color;Lorg/jetbrains/compose/swing/foundation/graphics/Shape;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun background (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/foundation/graphics/Brush;Lorg/jetbrains/compose/swing/foundation/graphics/Shape;F)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static synthetic fun background$default (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/foundation/graphics/Brush;Lorg/jetbrains/compose/swing/foundation/graphics/Shape;FILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun blur (Lorg/jetbrains/compose/swing/modifier/SwingModifier;I)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun border (Lorg/jetbrains/compose/swing/modifier/SwingModifier;ILjava/awt/Color;Lorg/jetbrains/compose/swing/foundation/graphics/Shape;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun border (Lorg/jetbrains/compose/swing/modifier/SwingModifier;ILorg/jetbrains/compose/swing/foundation/graphics/Brush;Lorg/jetbrains/compose/swing/foundation/graphics/Shape;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun border (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/foundation/graphics/BorderStroke;Lorg/jetbrains/compose/swing/foundation/graphics/Shape;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static synthetic fun border$default (Lorg/jetbrains/compose/swing/modifier/SwingModifier;ILjava/awt/Color;Lorg/jetbrains/compose/swing/foundation/graphics/Shape;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static synthetic fun border$default (Lorg/jetbrains/compose/swing/modifier/SwingModifier;ILorg/jetbrains/compose/swing/foundation/graphics/Brush;Lorg/jetbrains/compose/swing/foundation/graphics/Shape;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static synthetic fun border$default (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/foundation/graphics/BorderStroke;Lorg/jetbrains/compose/swing/foundation/graphics/Shape;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun clip (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/foundation/graphics/Shape;Z)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static synthetic fun clip$default (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/foundation/graphics/Shape;ZILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun decoration (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/foundation/graphics/Decorator;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun decoration (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/modifier/SwingModifier$NodeElement;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun drawBehind (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun drawWithContent (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun invalidateDraw (Lorg/jetbrains/compose/swing/foundation/graphics/DrawModifierNode;)V
 	public static final fun rememberImageLayer (Landroidx/compose/runtime/Composer;I)Lorg/jetbrains/compose/swing/foundation/graphics/ImageLayer;
+	public static final fun shadow (Lorg/jetbrains/compose/swing/modifier/SwingModifier;ILjava/awt/Color;II)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static synthetic fun shadow$default (Lorg/jetbrains/compose/swing/modifier/SwingModifier;ILjava/awt/Color;IIILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 }
 
 public final class org/jetbrains/compose/swing/foundation/graphics/ImageLayer {

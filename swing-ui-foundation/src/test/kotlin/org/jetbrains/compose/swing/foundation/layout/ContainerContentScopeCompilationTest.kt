@@ -57,10 +57,10 @@ class ContainerContentScopeCompilationTest {
                 Window(onCloseRequest = {}) { GlassPane { GlassPane {} } }
                 Window(onCloseRequest = {}) { MenuBar { MenuBar {} } }
                 PopupMenu(anchor = rememberPopupAnchor(), expanded = true, onDismiss = {}) {
-                    Menu("m") { MenuItem("x", onClick = {}, modifier = SwingModifier.$EXTRA) }
+                    Menu("m") { MenuItem("x", onClick = {}, modifier = SwingModifier.$SHADOW) }
                 }
                 PopupMenu(anchor = rememberPopupAnchor(), expanded = true, onDismiss = {}) {
-                    MenuNode(factory = { JMenu() }) { MenuItem("x", onClick = {}, modifier = SwingModifier.$EXTRA) }
+                    MenuNode(factory = { JMenu() }) { MenuItem("x", onClick = {}, modifier = SwingModifier.$SHADOW) }
                 }
             }
             """,
@@ -74,8 +74,8 @@ class ContainerContentScopeCompilationTest {
             @Composable
             fun Wrapped() {
                 Row {
-                    ProvideComponentDefaults { Label("x", modifier = SwingModifier.weight(1f).$EXTRA) }
-                    key(1) { Label("y", modifier = SwingModifier.weight(1f).$EXTRA) }
+                    ProvideComponentDefaults { Label("x", modifier = SwingModifier.weight(1f).$SHADOW) }
+                    key(1) { Label("y", modifier = SwingModifier.weight(1f).$SHADOW) }
                 }
             }
             """,
@@ -99,7 +99,7 @@ class ContainerContentScopeCompilationTest {
     }
 
     private companion object {
-        const val EXTRA = "enabled(true)"
+        const val SHADOW = "shadow(radius = 8, color = Color.BLACK)"
 
         /**
          * Resolves the compiler plugin classpath once at startup, so a test task that does not hand the
@@ -145,11 +145,12 @@ class ContainerContentScopeCompilationTest {
                 import org.jetbrains.compose.swing.components.menu.*
                 import org.jetbrains.compose.swing.components.selection.*
                 import org.jetbrains.compose.swing.defaults.*
+                import org.jetbrains.compose.swing.foundation.graphics.*
                 import org.jetbrains.compose.swing.foundation.layout.*
                 import org.jetbrains.compose.swing.modifier.SwingModifier
-                import org.jetbrains.compose.swing.modifier.interaction.*
                 import org.jetbrains.compose.swing.node.*
                 import org.jetbrains.compose.swing.window.*
+                import java.awt.Color
                 import java.awt.Rectangle
                 import java.awt.image.BufferedImage
                 import javax.swing.JMenu

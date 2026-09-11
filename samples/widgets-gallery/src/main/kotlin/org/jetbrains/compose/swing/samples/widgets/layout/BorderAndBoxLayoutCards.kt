@@ -53,7 +53,7 @@ internal fun ColumnScope.FlowLayoutCard() {
                 hgap = gap,
                 vgap = gap,
             ),
-            modifier = SwingModifier.layoutTrack().preferredSize(300, 104),
+            modifier = SwingModifier.layoutPanelTrack().preferredSize(300, 104),
         ) {
             LayoutSwatch("A", LayoutSampleColors.Blue, SwingModifier.preferredSize(110, 28))
             LayoutSwatch("B", LayoutSampleColors.Orange, SwingModifier.preferredSize(110, 28))
@@ -77,7 +77,7 @@ internal fun ColumnScope.BorderCompassCard() {
         )
         Panel(
             PanelLayout.Border(hgap = gap, vgap = gap),
-            modifier = SwingModifier.layoutTrack().preferredSize(Dimension(360, 140)),
+            modifier = SwingModifier.layoutPanelTrack().preferredSize(Dimension(360, 140)),
         ) {
             LayoutRegionSwatch("north", LayoutSampleColors.Blue, SwingModifier.north())
             LayoutRegionSwatch("south", LayoutSampleColors.Green, SwingModifier.south())
@@ -103,7 +103,7 @@ internal fun ColumnScope.BorderOrientationCard() {
             PanelLayout.Border(hgap = 4, vgap = 4),
             modifier =
                 SwingModifier
-                    .layoutTrack()
+                    .layoutPanelTrack()
                     .preferredSize(Dimension(360, 120))
                     .componentOrientation(
                         if (rtl) ComponentOrientation.RIGHT_TO_LEFT else ComponentOrientation.LEFT_TO_RIGHT,
@@ -140,7 +140,7 @@ internal fun ColumnScope.LinearLayoutCard() {
         Label("axis = ${if (horizontal) "X_AXIS" else "Y_AXIS"}")
         Panel(
             PanelLayout.Box(axis = if (horizontal) BoxLayout.X_AXIS else BoxLayout.Y_AXIS),
-            modifier = SwingModifier.layoutTrack().preferredSize(320, 128),
+            modifier = SwingModifier.layoutPanelTrack().preferredSize(320, 128),
         ) {
             LayoutSwatch(
                 "First",
@@ -171,7 +171,7 @@ internal fun ColumnScope.BoxFillersCard() {
         Label("Purple = RigidArea 24 px; gray = Spacer 16 px; pink = Strut 32 px; green = Glue")
         Panel(
             PanelLayout.Box(axis = BoxLayout.X_AXIS),
-            modifier = SwingModifier.layoutTrack().preferredSize(460, 52),
+            modifier = SwingModifier.layoutPanelTrack().preferredSize(460, 52),
         ) {
             LayoutSwatch(
                 "Start",

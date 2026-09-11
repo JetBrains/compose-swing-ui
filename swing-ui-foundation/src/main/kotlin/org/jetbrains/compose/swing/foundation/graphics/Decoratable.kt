@@ -37,8 +37,8 @@ public interface Decoratable : DeclaredNodesListener {
 
     /**
      * Takes a written [DecorationModifierNode] other than a [DrawModifierNode], since its element may have changed
-     * the node's `isOpaque`, and declines every other node. A draw node's `isOpaque` never changes, and it repaints
-     * its own change. Not to be overridden.
+     * the node's `outsets` or `isOpaque`, and declines every other node. A draw node's `outsets` and `isOpaque`
+     * never change, and it repaints its own change. Not to be overridden.
      */
     override fun needsNodesAfterWrite(node: SwingModifier.Node): Boolean =
         node is DecorationModifierNode<*> && node !is DrawModifierNode<*>
