@@ -1,10 +1,16 @@
 # Architecture
 
 Compose Swing UI is a Compose-runtime binding over Swing. Layout, measurement, and painting stay
-with Swing: your composition produces real `java.awt.Component`s, sized and placed by Swing's layout
-pass and painted by the look-and-feel. What the library adds is Compose's composition model -
+with Swing for standard wrappers: your composition produces real `java.awt.Component`s, sized and
+placed by Swing's layout pass and painted by the look-and-feel. The `swing-ui-foundation` artifact
+adds Foundation Canvas and a Compose-style measurement and placement pass for constraint-based
+containers; layout still ends in real Swing component bounds. What the library adds is Compose's composition model -
 composition and recomposition, snapshot state, effects, and a frame clock - driving a live AWT
 component tree on the Event Dispatch Thread (EDT).
+
+The modules have separate responsibilities. `swing-ui` owns the composition runtime, Swing applier,
+`SwingNode`, wrappers, and Swing layout-manager containers. `swing-ui-foundation` depends on it and
+owns Foundation drawing and constraint-based layout.
 
 This document describes the concepts that shape the binding. The KDoc on the public API is the
 reference for individual functions.
@@ -144,13 +150,20 @@ order does not express that intent: conditionals and reordering change a child's
 changing where the author meant to place it. Placement is therefore explicit rather than inferred
 from index.
 
-A child declares its own placement, on its own modifier. `layoutConstraint` puts the whole constraint
-on the modifier outright, and the last one declared there wins. A `Row` or `Column` scope's own
-`weight()` and `align()` builders each declare a part of the constraint instead and fold it into what
-the modifier declared before. A modifier mixing the two kinds of declaration is refused. The default,
-for a modifier that declares neither, is "add by position," and a modifier that stops declaring a
-placement returns the component to it. Constraint-transforming modifiers such as `fillMaxWidth()` are
-separate ordered layout declarations and compose with either placement form.
+A child declares its parent layout data on its own modifier. `ParentDataModifier` implementations fold
+their values in declaration order and identify a compatible parent-layout family. `Row`, `Column`, and
+`Box` expose their resolved value as `Measurable.parentData`; a declaration for another family's parent
+layout is rejected before Swing receives it. `layoutConstraint` is the untyped escape hatch for a
+value understood by the enclosing Swing layout manager, while a custom parent can define a typed
+`ParentDataModifier.Type` and scope builders of its own. A legacy manager that implements only
+`LayoutManager` receives a `String` constraint through Swing's string registration route.
+
+Other parent-layout declarations implement `SwingModifier.ParentLayoutElement`. A declaration is keyed:
+the last non-additive declaration with a key wins, while additive declarations remain in modifier order.
+Foundation's `LayoutModifier` is additive, so a custom policy can wrap measurement and placement in
+the order callers declare it. A modifier that declares neither parent data nor a host slot is added by
+index only when it declares no parent-layout elements or host slot, and a modifier that stops declaring
+parent data returns to that behavior.
 
 The ordering that makes this work is the applier's own. An inserted node is visited twice, top-down
 and then bottom-up, its `update` changes run between the two passes, and the bottom-up pass is the
@@ -167,10 +180,10 @@ same mechanism extends to other constraint-based layouts, and to hosts whose chi
 through dedicated setters (such as a scroll pane's viewport, headers, and corners) rather than a
 generic add.
 
-`layoutConstraint` is public, which is what makes a container over a layout manager the library does
-not model possible at all: the container supplies the manager and hosts arbitrary content, and each
-child it holds names its own place in it. The value is untyped, matching what a container takes; a
-manager's author names it in a scope of typed builders for their own callers.
+`layoutConstraint` is public, which makes a container over a layout manager the library does not model
+possible: the container supplies the manager and hosts arbitrary content, and each child it holds names
+its own place in it. The value is untyped, matching what a container takes; a manager's author can
+instead expose typed parent-data builders for callers.
 
 A placement reaches the node whose modifier declares it and travels no further, so it says nothing
 about that node's own children: a container placed in a region of its parent lays its own children
@@ -523,5 +536,6 @@ its drawing, while here all three belong to Swing.
 
 ---
 
-For a step-by-step guide to building your own component on top of `SwingNode`, see
-[`CUSTOM-COMPONENTS.md`](CUSTOM-COMPONENTS.md).
+For layout, see
+[`FOUNDATION-LAYOUT.md`](FOUNDATION-LAYOUT.md). For a step-by-step guide to building your own component on top
+of `SwingNode`, see [`CUSTOM-COMPONENTS.md`](CUSTOM-COMPONENTS.md).

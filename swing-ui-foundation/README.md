@@ -10,4 +10,5 @@ The public packages remain under `org.jetbrains.compose.swing`.
 ## Related
 
 - [`../README.md`](../README.md) — project overview.
+- [`../docs/FOUNDATION-LAYOUT.md`](../docs/FOUNDATION-LAYOUT.md) — measurement and placement model.
 - [`../docs/CUSTOM-CONTAINERS.md`](../docs/CUSTOM-CONTAINERS.md) — custom constraint-based containers.

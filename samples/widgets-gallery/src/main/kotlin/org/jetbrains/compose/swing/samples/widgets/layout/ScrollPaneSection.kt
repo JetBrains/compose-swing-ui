@@ -7,7 +7,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.components.Slider
 import org.jetbrains.compose.swing.components.Spinner
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.button.CheckBox
@@ -104,9 +103,22 @@ private fun ColumnScope.ScrollStateCard() {
             // The grid below has 1px hgap/vgap, so cell (col, row) starts at (col * 61, row * 25).
             Button("Reveal R9,C6", onClick = { scroll.revealRect(Rectangle(6 * 61, 9 * 25, 60, 24)) })
         }
-        Label("x: ${scroll.x} (max ${scroll.maxX})   y: ${scroll.y} (max ${scroll.maxY})")
-        Slider(value = scroll.x, onValueChange = { scroll.x = it }, min = 0, max = scroll.maxX)
-        Slider(value = scroll.y, onValueChange = { scroll.y = it }, min = 0, max = scroll.maxY)
+        LayoutSlider(
+            label = "Horizontal scroll",
+            valueText = "${scroll.x} / ${scroll.maxX}",
+            value = scroll.x,
+            onValueChange = { scroll.x = it },
+            min = 0,
+            max = scroll.maxX,
+        )
+        LayoutSlider(
+            label = "Vertical scroll",
+            valueText = "${scroll.y} / ${scroll.maxY}",
+            value = scroll.y,
+            onValueChange = { scroll.y = it },
+            min = 0,
+            max = scroll.maxY,
+        )
         Label("Viewport ${scroll.extentWidth}x${scroll.extentHeight}, content ${scroll.viewWidth}x${scroll.viewHeight}")
         ScrollPane(modifier = SwingModifier.preferredSize(Dimension(220, 120)), state = scroll) {
             Panel(PanelLayout.Grid(rows = ROWS, cols = COLS, hgap = 1, vgap = 1), SwingModifier.viewport()) {

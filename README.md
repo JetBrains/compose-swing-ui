@@ -218,17 +218,18 @@ Full quality-gate command (what CI runs):
 
 [`CONTRIBUTING.md`](CONTRIBUTING.md) walks through what each gate covers.
 
-## Modules
+The project is split into focused artifacts: [`swing-ui`](swing-ui/README.md) supplies the runtime,
+Swing wrappers, and Swing layout-manager containers; [`swing-ui-foundation`](swing-ui-foundation/README.md)
+supplies drawing and constraint-based layout; [`swing-ui-animation`](swing-ui-animation/README.md)
+supplies animation; [`swing-ui-test`](swing-ui-test/README.md) supplies the deterministic test harness;
+and [`swing-ui-detekt`](swing-ui-detekt/README.md) supplies the project's detekt rules. The runnable
+samples and documentation snippets are kept in `samples/`.
 
-- `swing-ui` - the library: composition runtime wired to Swing, plus composable wrappers over Swing
-  components and layouts. See [`swing-ui/README.md`](swing-ui/README.md).
-- `swing-ui-animation` - the animation engine. See
-  [`swing-ui-animation/README.md`](swing-ui-animation/README.md).
-- `swing-ui-detekt` - this library's own detekt rules. See
-  [`swing-ui-detekt/README.md`](swing-ui-detekt/README.md).
-- `swing-ui-test` - the test harness. See [`swing-ui-test/README.md`](swing-ui-test/README.md).
-- `samples/todo-app`, `samples/widgets-gallery` - runnable showcases.
-- `samples/docs` - the Kotlin snippets in this repository's Markdown, compiled by the build.
+`swing-ui` and `swing-ui-foundation` split along what Swing itself can already do: `swing-ui` wraps a
+Swing/AWT capability that already exists (a component, a listener, a `LayoutManager`) in a declarative
+API; `swing-ui-foundation` mimics the part of Compose UI/Foundation's own API surface that Swing has no
+equivalent for at all (weighted two-pass measurement, `Row`/`Column`/`Box`), and had to be built from
+scratch to do it.
 
 ## Stability
 

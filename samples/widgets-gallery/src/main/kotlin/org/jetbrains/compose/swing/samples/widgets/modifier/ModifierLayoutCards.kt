@@ -25,10 +25,12 @@ import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.verticalAlignment
 import org.jetbrains.compose.swing.modifier.layout.alignmentX
 import org.jetbrains.compose.swing.modifier.layout.alignmentY
+import org.jetbrains.compose.swing.modifier.layout.height
 import org.jetbrains.compose.swing.modifier.layout.maximumSize
 import org.jetbrains.compose.swing.modifier.layout.minimumSize
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.layout.visible
+import org.jetbrains.compose.swing.modifier.layout.width
 import org.jetbrains.compose.swing.modifier.layout.x
 import org.jetbrains.compose.swing.modifier.layout.y
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
@@ -108,21 +110,37 @@ internal fun ColumnScope.GeometryCard() {
             GeometrySpinner("width:", frameWidth, { frameWidth = it }, min = 40, max = 240)
             GeometrySpinner("height:", frameHeight, { frameHeight = it }, min = 30, max = 100)
         }
-        LayeredPane(modifier = SwingModifier.preferredSize(Dimension(280, 180))) {
-            Label(
-                "Adjust the spinners",
-                modifier =
-                    SwingModifier
-                        .layer(JLayeredPane.DEFAULT_LAYER)
-                        .opaque(true)
-                        .background(Color(0xC8, 0xE6, 0xC9))
-                        .horizontalAlignment(SwingConstants.CENTER)
-                        .x(frameX)
-                        .y(frameY)
-                        .width(frameWidth)
-                        .height(frameHeight),
-            )
-        }
+        GeometryPreview(
+            frameX = frameX,
+            frameY = frameY,
+            frameWidth = frameWidth,
+            frameHeight = frameHeight,
+        )
+    }
+}
+
+/** The layered preview component demonstrating direct-bounds geometry modifiers outside ColumnScope. */
+@Composable
+private fun GeometryPreview(
+    frameX: Int,
+    frameY: Int,
+    frameWidth: Int,
+    frameHeight: Int,
+) {
+    LayeredPane(modifier = SwingModifier.preferredSize(Dimension(280, 180))) {
+        Label(
+            "Adjust the spinners",
+            modifier =
+                SwingModifier
+                    .layer(JLayeredPane.DEFAULT_LAYER)
+                    .opaque(true)
+                    .background(Color(0xC8, 0xE6, 0xC9))
+                    .horizontalAlignment(SwingConstants.CENTER)
+                    .x(frameX)
+                    .y(frameY)
+                    .width(frameWidth)
+                    .height(frameHeight),
+        )
     }
 }
 
