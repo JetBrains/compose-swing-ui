@@ -1,16 +1,10 @@
 package org.jetbrains.compose.swing.foundation.layout
 
-import org.jetbrains.compose.swing.components.layout.ScrollablePanel
 import java.awt.Component
-import java.awt.ComponentOrientation
-import java.awt.Container
 import java.awt.Dimension
-import java.awt.LayoutManager2
-import java.awt.Rectangle
-import java.util.IdentityHashMap
 
 /**
- * The layout manager behind [Box]: it stacks every visible child in the same place, each at the extent it
+ * The measure policy behind [Box]: it stacks every visible child in the same place, each at the extent it
  * prefers, capped at the container's, and sitting where the alignment it declares puts it, or where
  * [alignment] puts it when it declares none. Which of the stacked children is on top is [OverlapPanel]'s
  * to arrange; this manager only tells it that a child's constraint has been written again.
@@ -26,160 +20,171 @@ import java.util.IdentityHashMap
  */
 internal class OverlapLayout(
     var alignment: Alignment,
-) : LayoutManager2 {
-    /** The extents measured for this container's children, see [PreferredSizeCache]. */
-    private val measured = PreferredSizeCache()
+) : MeasurePolicyLayout(),
+    MeasurePolicy {
+    override val policy: MeasurePolicy get() = this
+
+    /** What the last [measure] settled on, which [OverlapResult.placeChildren] places. */
+    private val result = OverlapResult()
 
     /**
-     * What each child was registered under. A child added under nothing carries none, and is laid out at
-     * the size it prefers, where the container's own alignment puts it.
-     */
-    internal val declared = IdentityHashMap<Component, BoxConstraint>()
-
-    /**
-     * Takes what [component] was registered under, and refuses a constraint of any other kind the way
-     * `BorderLayout` and `GridBagLayout` refuse one they cannot read.
+     * Refuses a constraint of any kind but a box's own, the way `BorderLayout` and `GridBagLayout`
+     * refuse one they cannot read, and stacks the children again.
+     *
+     * A child registered again is one whose modifier ran again, which is how a changed zIndex arrives:
+     * the component keeps its parent, and only what it is registered under changes. The removal that
+     * precedes such a write has given up the value to compare against, so the panel stacks its children
+     * again either way; the reordering is what is held to whatever moved.
      */
     override fun addLayoutComponent(
         component: Component,
         constraints: Any?,
     ) {
-        when (constraints) {
-            null -> declared.remove(component)
-            is BoxConstraint -> declared[component] = constraints
-            else -> throw IllegalArgumentException(foreignConstraint(component, constraints))
-        }
-        // A child registered again is one whose modifier ran again, which is how a changed zIndex
-        // arrives: the component keeps its parent, and only what it is registered under changes. The
-        // removal that precedes such a write has given up the value to compare against, so the panel
-        // stacks its children again either way; the reordering is what is held to whatever moved.
+        require(constraints == null || constraints is BoxConstraint) { foreignConstraint(component, constraints) }
+        super.addLayoutComponent(component, constraints)
         (component.parent as? OverlapPanel)?.stackingOrder?.restack()
     }
 
-    override fun addLayoutComponent(
-        name: String?,
-        component: Component,
-    ): Unit = Unit
-
-    /** Gives up what [component] was registered under, and the extent measured for it. */
-    override fun removeLayoutComponent(component: Component) {
-        measured.forget(component)
-        declared.remove(component)
+    /**
+     * Each child at the extent it prefers, capped at the container's and at an explicit `maximumSize`,
+     * and each placed where its own alignment or the container's puts it.
+     *
+     * A child is never asked what it prefers along an axis it fills, or along either where it matches
+     * the container's extent; it is offered the whole of the container there, and its alignment places
+     * it in whatever an explicit `maximumSize` leaves free.
+     *
+     * A child that matches is measured after the others have settled the container's extent, and
+     * against that extent, so it takes what they settled rather than adding to it. Under the exact
+     * constraints a layout pass offers, what they settled is the container's own inner extent.
+     */
+    override fun MeasureScope.measure(
+        measurables: List<Measurable>,
+        constraints: Constraints,
+    ): MeasureResult {
+        var width = 0
+        var height = 0
+        var matching = false
+        measurables.forEach { child ->
+            if (boxConstraintOf(child)?.matchesParentSize == true) {
+                matching = true
+                return@forEach
+            }
+            val placeable = child.measure(offerTo(child, constraints))
+            width = maxOf(width, placeable.width)
+            height = maxOf(height, placeable.height)
+        }
+        width = constraints.constrainWidth(width)
+        height = constraints.constrainHeight(height)
+        if (matching) {
+            val settled = Constraints(width, width, height, height)
+            measurables.forEach { child ->
+                if (boxConstraintOf(child)?.matchesParentSize == true) child.measure(offerTo(child, settled))
+            }
+        }
+        return result.settled(children = measurables, width = width, height = height)
     }
 
-    override fun invalidateLayout(target: Container): Unit = measured.invalidate()
-
-    override fun preferredLayoutSize(parent: Container): Dimension = combinedSize(parent, ::preferredSizeOf)
-
     /**
-     * Minimum extents are read fresh every time. The cache holds preferred extents only, and a container
-     * is asked for its minimum once per validate rather than once per pass.
+     * The extent the container asks for: the largest extent along either axis among the children that do
+     * not match the container's own. A container whose children all match it asks for nothing.
      */
-    override fun minimumLayoutSize(parent: Container): Dimension = combinedSize(parent) { it.minimumSize }
+    override fun MeasureScope.intrinsicSize(measurables: List<Measurable>): MeasureResult {
+        var width = 0
+        var height = 0
+        measurables.forEach { child ->
+            if (boxConstraintOf(child)?.matchesParentSize == true) return@forEach
+            val placeable = child.measure(Constraints.Unbounded)
+            width = maxOf(width, placeable.width)
+            height = maxOf(height, placeable.height)
+        }
+        return intrinsicResult(width, height)
+    }
 
-    /** The extent [child] prefers, measured once and reused until the next invalidation. */
-    internal fun preferredSizeOf(child: Component): Dimension = measured.preferredSizeOf(child)
+    /** Where in the stack [child] declared it sits, and `0f` where it declared nothing. */
+    internal fun zIndexOf(child: Component): Float = (measurables.declaredBy(child) as? BoxConstraint)?.zIndex ?: 0f
 
-    /** A box takes any extent it is offered and places its children inside it. */
-    override fun maximumLayoutSize(target: Container): Dimension = Dimension(Int.MAX_VALUE, Int.MAX_VALUE)
+    /** What the last [measure] settled on, and where each child it measured goes. */
+    private inner class OverlapResult : MeasureResult {
+        override var width: Int = 0
+            private set
 
-    /**
-     * What the visible child on top of the stack reports - the front of the component array, see
-     * [StackingOrder]; see [firstVisibleChildAlignment].
-     */
-    override fun getLayoutAlignmentX(target: Container): Float = firstVisibleChildAlignment(target) { it.alignmentX }
+        override var height: Int = 0
+            private set
 
-    /** What the visible child on top of the stack reports; see [getLayoutAlignmentX]. */
-    override fun getLayoutAlignmentY(target: Container): Float = firstVisibleChildAlignment(target) { it.alignmentY }
+        private var children: List<Measurable> = emptyList()
 
-    override fun layoutContainer(parent: Container) {
-        val insets = parent.insets
-        val inner =
-            Rectangle(
-                insets.left,
-                insets.top,
-                (parent.width - insets.left - insets.right).coerceAtLeast(0),
-                (parent.height - insets.top - insets.bottom).coerceAtLeast(0),
-            )
-        val orientation = parent.componentOrientation
-        for (index in 0 until parent.componentCount) {
-            val child = parent.getComponent(index)
-            if (child.isVisible) place(child, inner, orientation)
+        /** Records what [measure] settled on, which is the extent its children are aligned in. */
+        fun settled(
+            children: List<Measurable>,
+            width: Int,
+            height: Int,
+        ): MeasureResult {
+            this.children = children
+            this.width = width
+            this.height = height
+            return this
+        }
+
+        override fun PlacementScope.placeChildren() {
+            val inner = Dimension(width, height)
+            children.forEach { child ->
+                val placeable = child.measured
+                val extent = Dimension(placeable.width, placeable.height)
+                val place = (boxConstraintOf(child)?.alignment ?: alignment).align(extent, inner, orientation)
+                placeable.place(place.x, place.y)
+            }
         }
     }
 }
 
+/** What [child] declared to this box, or `null` where it declared nothing. */
+private fun boxConstraintOf(child: Measurable): BoxConstraint? = child.layoutConstraint as? BoxConstraint
+
 /**
- * Puts [child] in [inner] - the container's rectangle inside its insets: at the extent it prefers, capped
- * at the container's and at an explicit `maximumSize`, where its own alignment or the container's puts it.
- * A child is never asked what it prefers along an axis it fills, or along either where it matches the
- * container's extent; it is offered the whole of [inner] there, and its alignment places it in whatever
- * an explicit `maximumSize` leaves free.
+ * The constraints [child] is measured under: the whole of what the container was offered on each axis
+ * the child fills or matches, otherwise as much of it as the child prefers - in either case no more than
+ * an explicit `maximumSize`.
+ *
+ * A fill has nothing to fill where the axis is unbounded, so there the child keeps what it prefers.
  */
-private fun OverlapLayout.place(
-    child: Component,
-    inner: Rectangle,
-    orientation: ComponentOrientation,
-) {
-    val constraint = declared[child]
+private fun OverlapLayout.offerTo(
+    child: Measurable,
+    constraints: Constraints,
+): Constraints {
+    val constraint = boxConstraintOf(child)
     val matches = constraint?.matchesParentSize == true
-    val fillsWidth = matches || constraint?.fillsWidth == true
-    val fillsHeight = matches || constraint?.fillsHeight == true
-    // A child that fills both axes is never asked what it prefers; neither extent below would read it.
-    val preferred = if (fillsWidth && fillsHeight) inner.size else preferredSizeOf(child)
-    val maximum = if (child.isMaximumSizeSet) child.maximumSize else null
-    val width = extent(if (fillsWidth) inner.width else preferred.width, inner.width, maximum?.width)
-    val height = extent(if (fillsHeight) inner.height else preferred.height, inner.height, maximum?.height)
-    val place = (constraint?.alignment ?: alignment).align(Dimension(width, height), inner.size, orientation)
-    child.setBounds(inner.x + place.x, inner.y + place.y, width, height)
+    val component = child.component
+    val maximum = if (component.isMaximumSizeSet) component.maximumSize else null
+    val width = ceiling(constraints.maxWidth, maximum?.width)
+    val height = ceiling(constraints.maxHeight, maximum?.height)
+    val fillsWidth = (matches || constraint?.fillsWidth == true) && constraints.hasBoundedWidth
+    val fillsHeight = (matches || constraint?.fillsHeight == true) && constraints.hasBoundedHeight
+    return Constraints(
+        minWidth = if (fillsWidth) width else 0,
+        maxWidth = width,
+        minHeight = if (fillsHeight) height else 0,
+        maxHeight = height,
+    )
 }
 
-/** Where in the stack [child] declared it sits, and `0f` where it declared nothing. */
-private fun OverlapLayout.zIndexOf(child: Component): Float = declared[child]?.zIndex ?: 0f
+/**
+ * As much of [available] as an explicit `maximumSize` of [ceiling] leaves. A maximum below zero holds the
+ * child to nothing on that axis.
+ */
+private fun ceiling(
+    available: Int,
+    ceiling: Int?,
+): Int = if (ceiling == null) available else minOf(available, ceiling.coerceAtLeast(0))
 
 /** The message refusing a constraint a box cannot read. */
 private fun foreignConstraint(
     child: Component,
-    constraint: Any,
+    constraint: Any?,
 ): String =
     "A Box places a child by the alignment it is declared with, and by align() / matchParentSize() / " +
         "fillWidth() / fillHeight() / " +
         "zIndex() on the child's own modifier, so '$child' can carry no layout constraint, but it was " +
         "added under '$constraint'."
-
-/**
- * The extent a child occupies along one axis: as much of the [available] extent as it [requested], and
- * no more than an explicit `maximumSize` where the child declares one.
- */
-private fun extent(
-    requested: Int,
-    available: Int,
-    ceiling: Int?,
-): Int = minOf(requested, available, ceiling ?: requested)
-
-/**
- * The extent the container asks for: the largest extent along either axis among the children that do not
- * match the container's own, plus the container's insets. A container whose children all match it asks
- * for its insets alone.
- */
-private fun OverlapLayout.combinedSize(
-    parent: Container,
-    extentOf: (Component) -> Dimension,
-): Dimension {
-    var width = 0
-    var height = 0
-    // Read straight off the container: this walk needs no index of its own, so it holds nothing between
-    // calls and stays usable while a layout pass is in flight.
-    for (index in 0 until parent.componentCount) {
-        val child = parent.getComponent(index)
-        if (!child.isVisible || declared[child]?.matchesParentSize == true) continue
-        val extent = extentOf(child)
-        width = maxOf(width, extent.width)
-        height = maxOf(height, extent.height)
-    }
-    val insets = parent.insets
-    return Dimension(width + insets.left + insets.right, height + insets.top + insets.bottom)
-}
 
 /**
  * The panel behind a [Box]. `JComponent.isOptimizedDrawingEnabled` asks whether a component tiles its
@@ -191,7 +196,7 @@ private fun OverlapLayout.combinedSize(
  */
 internal class OverlapPanel(
     private val overlap: OverlapLayout,
-) : ScrollablePanel(overlap) {
+) : ConstrainedPanel(overlap) {
     /** Where each child stands among its siblings; a child declares that with a zIndex. */
     val stackingOrder: StackingOrder = StackingOrder(this) { overlap.zIndexOf(it) }
 

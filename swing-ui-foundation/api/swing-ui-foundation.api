@@ -143,6 +143,40 @@ public abstract interface class org/jetbrains/compose/swing/foundation/layout/Co
 	public static synthetic fun weight$default (Lorg/jetbrains/compose/swing/foundation/layout/ColumnScope;Lorg/jetbrains/compose/swing/modifier/SwingModifier;FZILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 }
 
+public abstract interface class org/jetbrains/compose/swing/foundation/layout/ConstrainedSize {
+	public abstract fun getConstrainedHeight ()I
+	public abstract fun getConstrainedWidth ()I
+	public abstract fun measure (Lorg/jetbrains/compose/swing/foundation/layout/Constraints;)V
+}
+
+public final class org/jetbrains/compose/swing/foundation/layout/Constraints {
+	public static final field $stable I
+	public static final field Companion Lorg/jetbrains/compose/swing/foundation/layout/Constraints$Companion;
+	public fun <init> ()V
+	public fun <init> (IIII)V
+	public synthetic fun <init> (IIIIILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun constrainHeight (I)I
+	public final fun constrainWidth (I)I
+	public final fun copy (IIII)Lorg/jetbrains/compose/swing/foundation/layout/Constraints;
+	public static synthetic fun copy$default (Lorg/jetbrains/compose/swing/foundation/layout/Constraints;IIIIILjava/lang/Object;)Lorg/jetbrains/compose/swing/foundation/layout/Constraints;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getHasBoundedHeight ()Z
+	public final fun getHasBoundedWidth ()Z
+	public final fun getHasFixedHeight ()Z
+	public final fun getHasFixedWidth ()Z
+	public final fun getMaxHeight ()I
+	public final fun getMaxWidth ()I
+	public final fun getMinHeight ()I
+	public final fun getMinWidth ()I
+	public fun hashCode ()I
+	public final fun isZero ()Z
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class org/jetbrains/compose/swing/foundation/layout/Constraints$Companion {
+	public final fun getUnbounded ()Lorg/jetbrains/compose/swing/foundation/layout/Constraints;
+}
+
 public abstract interface class org/jetbrains/compose/swing/foundation/layout/FillHeightScope {
 	public fun fillHeight (Lorg/jetbrains/compose/swing/modifier/SwingModifier;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 }
@@ -157,9 +191,42 @@ public final class org/jetbrains/compose/swing/foundation/layout/FoundationLayou
 	public static final fun Row (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/foundation/layout/Arrangement$Horizontal;Lorg/jetbrains/compose/swing/foundation/layout/Alignment$Vertical;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
 }
 
+public abstract interface class org/jetbrains/compose/swing/foundation/layout/Measurable {
+	public abstract fun baseline (II)I
+	public abstract fun getLayoutConstraint ()Ljava/lang/Object;
+	public abstract fun measure (Lorg/jetbrains/compose/swing/foundation/layout/Constraints;)Lorg/jetbrains/compose/swing/foundation/layout/Placeable;
+}
+
+public abstract interface class org/jetbrains/compose/swing/foundation/layout/MeasurePolicy {
+	public fun intrinsicSize (Lorg/jetbrains/compose/swing/foundation/layout/MeasureScope;Ljava/util/List;)Lorg/jetbrains/compose/swing/foundation/layout/MeasureResult;
+	public abstract fun measure (Lorg/jetbrains/compose/swing/foundation/layout/MeasureScope;Ljava/util/List;Lorg/jetbrains/compose/swing/foundation/layout/Constraints;)Lorg/jetbrains/compose/swing/foundation/layout/MeasureResult;
+}
+
+public abstract interface class org/jetbrains/compose/swing/foundation/layout/MeasureResult {
+	public abstract fun getHeight ()I
+	public abstract fun getWidth ()I
+	public abstract fun placeChildren (Lorg/jetbrains/compose/swing/foundation/layout/PlacementScope;)V
+}
+
+public abstract interface class org/jetbrains/compose/swing/foundation/layout/MeasureScope {
+	public abstract fun layout (IILkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/foundation/layout/MeasureResult;
+}
+
 public abstract interface class org/jetbrains/compose/swing/foundation/layout/ParentFill {
 	public abstract fun getFillsHeight ()Z
 	public abstract fun getFillsWidth ()Z
+}
+
+public abstract interface class org/jetbrains/compose/swing/foundation/layout/Placeable {
+	public abstract fun getHeight ()I
+	public abstract fun getWidth ()I
+}
+
+public abstract interface class org/jetbrains/compose/swing/foundation/layout/PlacementScope {
+	public abstract fun getParentWidth ()I
+	public abstract fun isLeftToRight ()Z
+	public abstract fun place (Lorg/jetbrains/compose/swing/foundation/layout/Placeable;II)V
+	public fun placeRelative (Lorg/jetbrains/compose/swing/foundation/layout/Placeable;II)V
 }
 
 public abstract interface class org/jetbrains/compose/swing/foundation/layout/RowScope : org/jetbrains/compose/swing/foundation/layout/FillHeightScope {

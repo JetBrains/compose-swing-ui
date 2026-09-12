@@ -85,7 +85,7 @@ class BoxStackOrderTest {
                 }
             }
 
-            val pressed = SwingUtilities.getDeepestComponentAt(container(), CHILD_WIDTH / 2, CHILD_HEIGHT / 2)
+            val pressed = SwingUtilities.getDeepestComponentAt(box(), CHILD_WIDTH / 2, CHILD_HEIGHT / 2)
 
             assertEquals(
                 "child 1",
@@ -164,7 +164,7 @@ class BoxStackOrderTest {
                 }
             }
 
-            val pressed = SwingUtilities.getDeepestComponentAt(container(), CHILD_WIDTH / 2, CHILD_HEIGHT / 2)
+            val pressed = SwingUtilities.getDeepestComponentAt(box(), CHILD_WIDTH / 2, CHILD_HEIGHT / 2)
 
             assertEquals(
                 "child 0",
@@ -318,7 +318,7 @@ class BoxStackOrderTest {
 
             assertEquals(
                 2,
-                container().componentCount,
+                box().componentCount,
                 "the box must give up the child it dropped rather than one equal to it, and take no " +
                     "dropped child back into the stack",
             )
@@ -336,7 +336,7 @@ class BoxStackOrderTest {
             }
 
             var repaints = 0
-            recordRepaintsOf(container()) { repaints++ }
+            recordRepaintsOf(box()) { repaints++ }
             lifted = true
             awaitIdle()
 
@@ -426,15 +426,6 @@ private class AlikeChild : JLabel("alike") {
 
     override fun hashCode(): Int = javaClass.hashCode()
 }
-
-/** The one box a test tagged, the container every reading is taken from. */
-private fun ComposeSwingTest.container(): JComponent = onNodeWithTag(CONTAINER_TAG).fetch<JComponent>()
-
-/**
- * The children of the box under test, from the bottom of its stack up. A box holds its children in the
- * reverse of stacking order.
- */
-private fun ComposeSwingTest.stackedChildren(): List<Component> = container().components.reversed()
 
 /** The text of each child of the box, from the bottom of its stack up. */
 private fun ComposeSwingTest.stackedChildText(): List<String> = stackedChildren().map { (it as JLabel).text }

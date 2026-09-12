@@ -1,10 +1,8 @@
 package org.jetbrains.compose.swing.foundation.layout
 
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.border
 import org.jetbrains.compose.swing.modifier.appearance.testTag
@@ -12,13 +10,10 @@ import org.jetbrains.compose.swing.modifier.layout.maximumSize
 import org.jetbrains.compose.swing.modifier.layout.minimumSize
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.layout.visible
-import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
-import java.awt.Component
 import java.awt.ComponentOrientation
 import java.awt.Dimension
 import java.awt.Rectangle
-import javax.swing.JComponent
 import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.border.EmptyBorder
@@ -36,7 +31,11 @@ import kotlin.test.assertTrue
  *
  * A case that androidx `foundation-layout`'s own `BoxTest` makes keeps that test's name, so the two
  * files read side by side. A case that test cannot make - a hidden child, a constraint refused - is
- * named for what it pins. The order the box stacks its children in is [BoxStackOrderTest].
+ * named for what it pins, as is the one case this tree settles the other way round: where androidx
+ * gives a chain of alignments to the first declared, here the last wins, so
+ * [aChildKeepsTheLastAlignmentItDeclares] stands in for `testBox_outermostGravityWins` under a name
+ * that states what it asserts. The order the box stacks its children in is [BoxStackOrderTest], and a
+ * case reachable only at a degenerate declaration is [BoxEdgeCaseTest].
  *
  * One case here per case in that suite, in its order and under its names, so the two can be read
  * against each other and a case dropped in translation shows up as a gap. That correspondence is what
@@ -286,12 +285,12 @@ class BoxTest {
             )
             assertEquals(
                 Dimension(CHILD_WIDTH, CHILD_HEIGHT),
-                container().minimumSize,
+                box().minimumSize,
                 "and its minimum must be the largest minimum on each axis, the matching child passed over again",
             )
             assertEquals(
                 Dimension(Int.MAX_VALUE, Int.MAX_VALUE),
-                container().maximumSize,
+                box().maximumSize,
                 "and must take any extent it is offered, however large",
             )
         }
@@ -313,7 +312,7 @@ class BoxTest {
             )
             assertEquals(
                 insetsAlone,
-                container().minimumSize,
+                box().minimumSize,
                 "and must ask for no more than that as its minimum",
             )
         }
@@ -413,6 +412,34 @@ class BoxTest {
         }
 
     @Test
+    fun aMatchingChildDoesNotDragTheBoxToTheExtentItsParentOffers() =
+        runComposeSwingTest {
+            setContent {
+                Column(modifier = SwingModifier.preferredSize(BOX_WIDTH, BOX_HEIGHT)) {
+                    Box(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
+                        Child(0, CHILD_WIDTH, CHILD_HEIGHT)
+                        Child(1, BOX_WIDTH, BOX_HEIGHT, SwingModifier.matchParentSize())
+                    }
+                }
+            }
+
+            assertEquals(
+                Dimension(CHILD_WIDTH, CHILD_HEIGHT),
+                containerSize(),
+                "a box offered more room than it needs is sized by the children that do not match it, so a " +
+                    "matching child measured against what its parent offered would take the box with it",
+            )
+            assertEquals(
+                listOf(
+                    Rectangle(0, 0, CHILD_WIDTH, CHILD_HEIGHT),
+                    Rectangle(0, 0, CHILD_WIDTH, CHILD_HEIGHT),
+                ),
+                stackedChildBounds(),
+                "and the matching child takes the extent its siblings settled",
+            )
+        }
+
+    @Test
     fun aChildsOwnAlignmentPlacesItOnBothAxes() =
         runComposeSwingTest {
             setContent {
@@ -436,14 +463,14 @@ class BoxTest {
         runComposeSwingTest {
             setContent {
                 Box(modifier = containerModifier(BOX_WIDTH, BOX_HEIGHT)) {
-                    SizedChild(0, SwingModifier.align(Alignment.TopStart).align(Alignment.TopEnd))
+                    SizedChild(0, SwingModifier.align(Alignment.BottomEnd).align(Alignment.TopStart))
                 }
             }
 
             assertEquals(
-                listOf(Rectangle(BOX_WIDTH - CHILD_WIDTH, 0, CHILD_WIDTH, CHILD_HEIGHT)),
+                listOf(Rectangle(0, 0, CHILD_WIDTH, CHILD_HEIGHT)),
                 stackedChildBounds(),
-                "a modifier is folded in declaration order, so the last alignment declared wins",
+                "a modifier is folded in declaration order, so the last alignment declared wins on both axes",
             )
         }
 
@@ -569,7 +596,7 @@ class BoxTest {
             )
             assertEquals(
                 listOf(Rectangle(0, 0, CHILD_WIDTH, CHILD_HEIGHT)),
-                container().components.filter { it.isVisible }.map { it.bounds },
+                box().components.filter { it.isVisible }.map { it.bounds },
                 "and must place the children it does show as though the hidden one were not there",
             )
         }
@@ -582,7 +609,7 @@ class BoxTest {
             }
 
             assertFalse(
-                container().isOptimizedDrawingEnabled,
+                box().isOptimizedDrawingEnabled,
                 "children of a box overlap, so painting one must repaint what it overlaps",
             )
         }
@@ -622,7 +649,7 @@ class BoxTest {
 
             assertEquals(
                 Dimension(CHILD_WIDTH, CHILD_HEIGHT),
-                container().preferredSize,
+                box().preferredSize,
                 "a box holding one filling child should ask for the extent that child prefers",
             )
         }
@@ -760,38 +787,8 @@ private val ALIGNMENT_GRID =
         Alignment.BottomEnd,
     )
 
-/** The fixture child at a size of its own, for a box holding children of more than one size. */
-@Composable
-private fun Child(
-    index: Int,
-    width: Int,
-    height: Int,
-    modifier: SwingModifier = SwingModifier,
-) {
-    Label("child $index", modifier = modifier.preferredSize(width, height))
-}
-
 /** A child taking the box's extent, held to [width] by [height] of it by a maximum size of its own. */
 private fun BoxScope.matchingUpTo(
     width: Int,
     height: Int,
 ): SwingModifier = SwingModifier.matchParentSize().maximumSize(width, height)
-
-/** The one box a test tagged, the container every reading is taken from. */
-private fun ComposeSwingTest.container(): JComponent = onNodeWithTag(CONTAINER_TAG).fetch<JComponent>()
-
-/**
- * The children of the box under test, from the bottom of its stack up. A box holds its children in the
- * reverse of stacking order, and stacks children declaring the same `zIndex` in the order they are
- * declared, so this reads as declaration order wherever no child declares a `zIndex` of its own.
- */
-private fun ComposeSwingTest.stackedChildren(): List<Component> = container().components.reversed()
-
-/** The bounds the box assigned each of its children, from the bottom of its stack up. */
-private fun ComposeSwingTest.stackedChildBounds(): List<Rectangle> = stackedChildren().map { it.bounds }
-
-/** The last entry of this modifier that describes itself - the one the builder under test declared. */
-private fun SwingModifier.lastElement(): SwingModifier.InspectableElement =
-    foldIn<SwingModifier.InspectableElement?>(null) { last, element ->
-        element as? SwingModifier.InspectableElement ?: last
-    } ?: error("the modifier declares nothing that describes itself")

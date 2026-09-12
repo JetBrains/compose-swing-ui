@@ -1,16 +1,12 @@
 package org.jetbrains.compose.swing.foundation.layout
 
 import java.awt.Component
-import java.awt.Container
 import java.awt.Dimension
-import java.awt.LayoutManager2
-import java.awt.Rectangle
-import java.util.IdentityHashMap
 import kotlin.math.roundToInt
 import kotlin.math.sign
 
 /**
- * The layout manager behind [Row] and [Column]: it stacks the visible children along [axis] at their
+ * The measure policy behind [Row] and [Column]: it stacks the visible children along [axis] at their
  * preferred extent, and hands any leftover room to [arrangement] to place instead of the children absorbing it.
  *
  * Weighted children are the exception: they share the leftover extent along the axis in proportion to
@@ -33,102 +29,217 @@ internal class LinearLayout(
     val axis: LayoutAxis,
     var arrangement: AxisArrangement,
     var alignment: AxisAlignment,
-) : LayoutManager2 {
-    /** The extents measured for this container's children, see [PreferredSizeCache]. */
-    private val measured = PreferredSizeCache()
-
-    /**
-     * What each child was registered under. A child added under nothing carries none, and is laid out
-     * at the size it prefers, where the container's own alignment puts it.
-     */
-    internal val declared = IdentityHashMap<Component, LinearConstraint>()
+) : MeasurePolicyLayout(),
+    MeasurePolicy {
+    override val policy: MeasurePolicy get() = this
 
     /** The working room a pass takes, kept for the next one - see [PassRoom]. */
     internal val room: PassRoom = PassRoom()
 
+    /** What the last [measure] settled on, which [LinearResult.placeChildren] places. */
+    private val result = LinearResult()
+
     /**
-     * Takes what [component] was registered under, and refuses a constraint of any other kind the way
-     * `BorderLayout` and `GridBagLayout` refuse one they cannot read.
+     * Refuses a constraint of any kind but a row's or a column's own, the way `BorderLayout` and
+     * `GridBagLayout` refuse one they cannot read.
      */
     override fun addLayoutComponent(
         component: Component,
         constraints: Any?,
     ) {
-        when (constraints) {
-            null -> declared.remove(component)
-            is LinearConstraint -> declared[component] = constraints
-            else -> throw IllegalArgumentException(foreignConstraint(component, constraints))
+        require(constraints == null || constraints is LinearConstraint) {
+            foreignConstraint(component, constraints)
         }
+        super.addLayoutComponent(component, constraints)
     }
-
-    override fun addLayoutComponent(
-        name: String?,
-        component: Component,
-    ): Unit = Unit
-
-    /** Gives up what [component] was registered under, and the extent measured for it. */
-    override fun removeLayoutComponent(component: Component) {
-        measured.forget(component)
-        declared.remove(component)
-    }
-
-    override fun invalidateLayout(target: Container): Unit = measured.invalidate()
-
-    override fun preferredLayoutSize(parent: Container): Dimension = combinedSize(parent, ::preferredSizeOf)
 
     /**
-     * Minimum extents are read fresh every time. [measured] holds preferred extents only, and a container
-     * is asked for its minimum once per validate rather than once per pass.
+     * The extent each child occupies, in declaration order, and with it the extent the container takes.
+     *
+     * A child with no weight takes its preferred extent from whatever room is still unclaimed, reserving
+     * the gap after it from that same room. What remains, minus the gaps between weighted children, is
+     * what they share. A container narrower than its children's combined extent runs out of room partway
+     * through: the child that empties it keeps whatever was left, and every child after it takes none at
+     * all.
+     *
+     * An unbounded main axis has nothing to divide, so the weighted children are distributed against the
+     * least extent the constraints ask for instead, which collapses them. That is the answer for a
+     * caller who measures a row under [Constraints.Unbounded]; a container asking what a row prefers
+     * asks [intrinsicSize], which divides nothing.
      */
-    override fun minimumLayoutSize(parent: Container): Dimension = combinedSize(parent) { it.minimumSize }
+    override fun MeasureScope.measure(
+        measurables: List<Measurable>,
+        constraints: Constraints,
+    ): MeasureResult {
+        val mainMax = axis.mainMax(constraints)
+        val crossMax = axis.crossMax(constraints)
+        val hasBoundedMain = axis.hasBoundedMain(constraints)
+        val hasBoundedCross = axis.hasBoundedCross(constraints)
+        val sizes = room.sizes(measurables.size)
+        val spacing = arrangement.spacing
+        var claimed = 0
+        var weightedCount = 0
+        measurables.forEachIndexed { index, child ->
+            if (weightOf(child) != null) {
+                // distributeWeights writes every weighted index, out of what the rest leave unclaimed.
+                weightedCount++
+                return@forEachIndexed
+            }
+            val unclaimed =
+                if (!hasBoundedMain) {
+                    Int.MAX_VALUE
+                } else {
+                    saturatedInt(mainMax.toLong() - claimed).coerceAtLeast(0)
+                }
+            val placeable =
+                child.measure(
+                    crossOf(
+                        child,
+                        crossMax,
+                        hasBoundedCross,
+                        mainMin = 0,
+                        mainMax = unclaimed,
+                    ),
+                )
+            val size = axis.main(placeable)
+            sizes[index] = size
+            claimed =
+                saturatedInt(
+                    claimed.toLong() + size + minOf(spacing.toLong(), unclaimed.toLong() - size),
+                )
+        }
+        if (weightedCount > 0) {
+            val target = if (hasBoundedMain) mainMax else axis.mainMin(constraints)
+            val share =
+                (target.toLong() - claimed - spacing.toLong() * (weightedCount - 1))
+                    .coerceIn(0, Int.MAX_VALUE.toLong())
+                    .toInt()
+            distributeWeights(measurables, sizes, share, crossMax, hasBoundedCross)
+        }
+        return result.settled(measurables, sizes, constraints)
+    }
 
-    /** The extent [child] prefers, measured once and reused until the next invalidation. */
-    internal fun preferredSizeOf(child: Component): Dimension = measured.preferredSizeOf(child)
+    /**
+     * The extent the container asks for: enough room along the axis for every child to occupy what it
+     * wants, plus the gap the arrangement holds between each adjacent pair, the widest child across it.
+     *
+     * A child claiming no share of the leftover space contributes the extent it asks for. A weighted
+     * child is granted its weight's share of what the others leave, so the extent it asks for implies an
+     * extent for the weighted children together: that share divided into it. The container holds the
+     * largest of those implications, which is what it takes for none of them to be cut short.
+     *
+     * Across the axis, a child sitting on the shared baseline splits what it asks for in two, the part
+     * above that line and the part below, and the container holds the deepest of each - so it is as tall
+     * as it takes for every such child to fit on one line.
+     */
+    override fun MeasureScope.intrinsicSize(measurables: List<Measurable>): MeasureResult {
+        var main = 0L
+        var cross = 0
+        var totalWeight = 0f
+        var weightUnitSpace = 0
+        var aboveBaseline = 0
+        var belowBaseline = 0
+        measurables.forEach { child ->
+            val placeable = child.measure(Constraints.Unbounded)
+            val mainExtent = axis.main(placeable)
+            val crossExtent = axis.cross(placeable)
+            val weight = weightOf(child)?.weight
+            if (weight == null) {
+                main += mainExtent
+            } else {
+                totalWeight += weight
+                weightUnitSpace = maxOf(weightUnitSpace, (cappedMainSize(child, mainExtent) / weight).roundToInt())
+            }
+            val baseline = baselineOf(child, mainExtent, crossExtent)
+            if (baseline >= 0) {
+                aboveBaseline = maxOf(aboveBaseline, baseline)
+                belowBaseline = maxOf(belowBaseline, crossExtent - baseline)
+            }
+            cross = maxOf(cross, crossExtent)
+        }
+        cross = maxOf(cross, aboveBaseline + belowBaseline)
+        // AndroidX rounds the greatest size one weight unit must cover before multiplying it by the
+        // total weight. The same sequence keeps the one-unit implication of a fractional share instead
+        // of letting it disappear when the total weight happens to multiply back to an integer.
+        main += (weightUnitSpace * totalWeight).roundToInt()
+        if (measurables.isNotEmpty()) main += arrangement.spacing.toLong() * (measurables.size - 1)
+        val size = axis.dimension(saturatedInt(main).coerceAtLeast(0), cross)
+        return intrinsicResult(size.width, size.height)
+    }
 
-    /** A row or column takes any extent it is offered and places the surplus by its arrangement. */
-    override fun maximumLayoutSize(target: Container): Dimension = Dimension(Int.MAX_VALUE, Int.MAX_VALUE)
+    /**
+     * What the last [measure] settled on. One of these belongs to one policy, and so to the one container
+     * it lays out: a pass runs to completion on the event dispatch thread before the next begins.
+     */
+    private inner class LinearResult : MeasureResult {
+        override var width: Int = 0
+            private set
 
-    /** What the row's first visible child reports; see [firstVisibleChildAlignment]. */
-    override fun getLayoutAlignmentX(target: Container): Float = firstVisibleChildAlignment(target) { it.alignmentX }
+        override var height: Int = 0
+            private set
 
-    /** What the row's first visible child reports; see [firstVisibleChildAlignment]. */
-    override fun getLayoutAlignmentY(target: Container): Float = firstVisibleChildAlignment(target) { it.alignmentY }
+        /** The children the pass measured, and their extents along the axis. */
+        private var children: List<Measurable> = emptyList()
+        private var sizes: IntArray = IntArray(0)
 
-    override fun layoutContainer(parent: Container) {
-        val children = room.visibleChildrenOf(parent)
-        if (children.isEmpty()) return
-        val insets = parent.insets
-        val inner =
-            Rectangle(
-                insets.left,
-                insets.top,
-                parent.width - insets.left - insets.right,
-                parent.height - insets.top - insets.bottom,
-            )
-        val availableMain = axis.main(inner).coerceAtLeast(0)
-        val availableCross = axis.cross(inner).coerceAtLeast(0)
-        val orientation = parent.componentOrientation
-        val sizes = measureMainAxis(children, availableMain)
-        val positions = room.positions(sizes.size)
-        arrangement.arrange(availableMain, sizes, orientation, positions)
-        val sharedBaseline = sharedBaseline(children, sizes, availableCross)
-        children.forEachIndexed { index, child ->
-            val crossSize = crossSize(child, availableCross)
-            val baseline = baselineOf(child, sizes[index], crossSize)
-            val crossAlignment = declared[child]?.alignment ?: alignment
-            axis.place(
-                component = child,
-                main = axis.mainOrigin(inner) + positions[index],
-                cross =
-                    axis.crossOrigin(inner) +
-                        if (baseline >= 0) {
-                            sharedBaseline - baseline
-                        } else {
-                            crossAlignment.align(crossSize, availableCross, orientation)
-                        },
-                mainSize = sizes[index],
-                crossSize = crossSize,
-            )
+        /**
+         * Records what [measure] settled on, and the extent the container occupies under [constraints].
+         *
+         * Both extents are held to what was offered, which is also what the children are placed within.
+         * A container reporting more than it was offered is placed at the offer all the same - its own
+         * measurable holds it there - so its children would be arranged in an extent it does not occupy.
+         */
+        fun settled(
+            children: List<Measurable>,
+            sizes: IntArray,
+            constraints: Constraints,
+        ): MeasureResult {
+            this.children = children
+            this.sizes = sizes
+            var main = 0L
+            var cross = 0
+            var aboveBaseline = 0
+            var belowBaseline = 0
+            children.forEachIndexed { index, child ->
+                main += sizes[index]
+                val crossExtent = axis.cross(child.measured)
+                val baseline = baselineOf(child, sizes[index], crossExtent)
+                if (baseline >= 0) {
+                    aboveBaseline = maxOf(aboveBaseline, baseline)
+                    belowBaseline = maxOf(belowBaseline, crossExtent - baseline)
+                }
+                cross = maxOf(cross, crossExtent)
+            }
+            // A child on the shared baseline is offset by what the deepest one above the line leaves, so
+            // the pair takes more room across the axis than the tallest child alone asks for.
+            cross = maxOf(cross, aboveBaseline + belowBaseline)
+            if (children.isNotEmpty()) main += arrangement.spacing.toLong() * (children.size - 1)
+            val size = axis.dimension(saturatedInt(main), cross)
+            width = constraints.constrainWidth(size.width)
+            height = constraints.constrainHeight(size.height)
+            return this
+        }
+
+        override fun PlacementScope.placeChildren() {
+            if (children.isEmpty()) return
+            val extent = Dimension(width, height)
+            val availableCross = axis.cross(extent)
+            val positions = room.positions(children.size)
+            arrangement.arrange(axis.main(extent), sizes, orientation, positions)
+            val sharedBaseline = sharedBaseline(children)
+            children.forEachIndexed { index, child ->
+                val placeable = child.measured
+                val crossSize = axis.cross(placeable)
+                val baseline = baselineOf(child, sizes[index], crossSize)
+                val crossAlignment = linearConstraintOf(child)?.alignment ?: alignment
+                val cross =
+                    if (baseline >= 0) {
+                        sharedBaseline - baseline
+                    } else {
+                        crossAlignment.align(crossSize, availableCross, orientation)
+                    }
+                placeable.place(axis.x(positions[index], cross), axis.y(positions[index], cross))
+            }
         }
     }
 }
@@ -136,29 +247,43 @@ internal class LinearLayout(
 /** The message refusing a constraint a row or a column cannot read. */
 private fun foreignConstraint(
     child: Component,
-    constraint: Any,
+    constraint: Any?,
 ): String =
     "A Row or Column places a child by the arrangement and alignment it is declared with, and by " +
         "weight() / align() on the child's own modifier, so '$child' can carry no layout constraint, " +
         "but it was added under '$constraint'."
 
+/** What [child] declared to this row or column, or `null` where it declared nothing. */
+private fun linearConstraintOf(child: Measurable): LinearConstraint? = child.layoutConstraint as? LinearConstraint
+
+/** What [child] claims of the leftover space, or `null` where it claims none. */
+private fun weightOf(child: Measurable): WeightPlacement? = linearConstraintOf(child)?.weight
+
 /**
- * The extent [child] occupies across the axis, of the [available] extent: the whole of it where the child
- * declared a cross-axis fill, otherwise the extent it prefers, and in either case no more than an explicit
- * `maximumSize` - the same ceiling a weighted child's main-axis share is held to.
+ * The constraints [child] is measured under: [mainMin] to [mainMax] along the axis, and across it the
+ * whole of [crossMax] where the child declared a cross-axis fill, otherwise as much of it as the child
+ * prefers - in either case no more than an explicit `maximumSize`, the same ceiling a weighted child's
+ * main-axis share is held to. A maximum below zero, which a component may carry as readily as any other,
+ * holds the child to nothing on that axis.
+ *
+ * A fill has nothing to fill where the cross axis is unbounded, so there the child keeps what it prefers.
  */
-private fun LinearLayout.crossSize(
-    child: Component,
-    available: Int,
-): Int {
-    val requested =
-        if (declared[child]?.fillsCrossAxis == true) {
-            available
+private fun LinearLayout.crossOf(
+    child: Measurable,
+    crossMax: Int,
+    hasBoundedCross: Boolean,
+    mainMin: Int,
+    mainMax: Int,
+): Constraints {
+    val component = child.component
+    val ceiling =
+        if (component.isMaximumSizeSet) {
+            minOf(crossMax, axis.cross(component.maximumSize).coerceAtLeast(0))
         } else {
-            axis.cross(preferredSizeOf(child)).coerceAtMost(available)
+            crossMax
         }
-    val ceiling = if (child.isMaximumSizeSet) axis.cross(child.maximumSize) else requested
-    return minOf(requested, ceiling)
+    val fills = linearConstraintOf(child)?.fillsCrossAxis == true && hasBoundedCross
+    return axis.constraints(mainMin, mainMax, if (fills) ceiling else 0, ceiling)
 }
 
 /**
@@ -166,14 +291,11 @@ private fun LinearLayout.crossSize(
  * baseline any child sitting on it reports, which is what it takes for none of them to be pushed past
  * that edge.
  */
-private fun LinearLayout.sharedBaseline(
-    children: List<Component>,
-    sizes: IntArray,
-    availableCross: Int,
-): Int {
+private fun LinearLayout.sharedBaseline(children: List<Measurable>): Int {
     var deepest = 0
-    children.forEachIndexed { index, child ->
-        deepest = maxOf(deepest, baselineOf(child, sizes[index], crossSize(child, availableCross)))
+    children.forEach { child ->
+        val placeable = child.measured
+        deepest = maxOf(deepest, baselineOf(child, axis.main(placeable), axis.cross(placeable)))
     }
     return deepest
 }
@@ -185,11 +307,11 @@ private fun LinearLayout.sharedBaseline(
  * its component reports no baseline of its own.
  */
 private fun LinearLayout.baselineOf(
-    child: Component,
+    child: Measurable,
     mainSize: Int,
     crossSize: Int,
 ): Int {
-    val constraint = declared[child]
+    val constraint = linearConstraintOf(child)
     // An empty component is asked for nothing, the guard GroupLayout holds one to before it asks, and
     // Component.getBaseline refuses a negative extent outright.
     val onTheLine =
@@ -200,102 +322,7 @@ private fun LinearLayout.baselineOf(
             crossSize > 0
     if (!onTheLine) return -1
     val size = axis.dimension(mainSize, crossSize)
-    return child.getBaseline(size.width, size.height)
-}
-
-/**
- * The extent the container asks for: enough room along the axis for every child to occupy what it
- * wants, plus the gap the arrangement holds between each adjacent pair, the widest child across it,
- * and the container's insets.
- *
- * A child claiming no share of the leftover space contributes the extent it asks for. A weighted child
- * is granted its weight's share of what the others leave, so the extent it asks for implies an extent
- * for the weighted children together: that share divided into it. The container holds the largest of
- * those implications, which is what it takes for none of them to be cut short.
- *
- * Across the axis, a child sitting on the shared baseline splits what it asks for in two, the part above
- * that line and the part below, and the container holds the deepest of each - so it is as tall as it
- * takes for every such child to fit on one line.
- */
-private fun LinearLayout.combinedSize(
-    parent: Container,
-    extentOf: (Component) -> Dimension,
-): Dimension {
-    var main = 0
-    var cross = 0
-    var visible = 0
-    var totalWeight = 0.0
-    var perWeight = 0.0
-    var aboveBaseline = 0
-    var belowBaseline = 0
-    // Read straight off the container: this walk needs no index of its own, so it borrows none of the
-    // room a layout pass keeps, and stays usable while one is in flight.
-    for (index in 0 until parent.componentCount) {
-        val child = parent.getComponent(index)
-        if (!child.isVisible) continue
-        val extent = extentOf(child)
-        val weight = declared[child]?.weight?.weight
-        if (weight == null) {
-            main += axis.main(extent)
-        } else {
-            totalWeight += weight.toDouble()
-            perWeight = maxOf(perWeight, cappedMainSize(child, axis.main(extent)) / weight.toDouble())
-        }
-        val crossExtent = axis.cross(extent)
-        val baseline = baselineOf(child, axis.main(extent), crossExtent)
-        if (baseline >= 0) {
-            aboveBaseline = maxOf(aboveBaseline, baseline)
-            belowBaseline = maxOf(belowBaseline, crossExtent - baseline)
-        }
-        cross = maxOf(cross, crossExtent)
-        visible++
-    }
-    cross = maxOf(cross, aboveBaseline + belowBaseline)
-    // Rounded once, here: what a child implies is a share of one extent rather than an extent of its
-    // own. The weights are summed as doubles, so two children at the largest finite weight add up
-    // instead of overflowing to an infinity multiplied by the vanishing share it leaves each of them.
-    main += (perWeight * totalWeight).roundToInt()
-    if (visible > 0) main += arrangement.spacing * (visible - 1)
-    val insets = parent.insets
-    val size = axis.dimension(main, cross)
-    size.width += insets.left + insets.right
-    size.height += insets.top + insets.bottom
-    return size
-}
-
-/**
- * The extent each child occupies along the axis, in declaration order.
- *
- * A child with no weight takes its preferred extent from whatever room is still unclaimed, reserving the
- * gap after it from that same room. What remains, minus the gaps between weighted children, is what they
- * share. A container narrower than its children's combined extent runs out of room partway through: the
- * child that empties it keeps whatever was left, and every child after it takes none at all.
- */
-private fun LinearLayout.measureMainAxis(
-    children: List<Component>,
-    available: Int,
-): IntArray {
-    val sizes = room.sizes(children.size)
-    val spacing = arrangement.spacing
-    var claimed = 0
-    var weightedCount = 0
-    children.forEachIndexed { index, child ->
-        val weighted = declared[child]?.weight
-        if (weighted == null) {
-            val unclaimed = (available - claimed).coerceAtLeast(0)
-            val size = axis.main(preferredSizeOf(child)).coerceAtMost(unclaimed)
-            sizes[index] = size
-            claimed += size + minOf(spacing, unclaimed - size)
-        } else {
-            // distributeWeights writes every weighted index, out of what the rest leave unclaimed.
-            weightedCount++
-        }
-    }
-    if (weightedCount > 0) {
-        val share = available - claimed - spacing * (weightedCount - 1)
-        distributeWeights(children, sizes, share.coerceAtLeast(0))
-    }
-    return sizes
+    return child.baseline(size.width, size.height)
 }
 
 /**
@@ -308,72 +335,64 @@ private fun LinearLayout.measureMainAxis(
  * handed out a pixel at a time to the leading weighted children.
  */
 private fun LinearLayout.distributeWeights(
-    children: List<Component>,
+    children: List<Measurable>,
     sizes: IntArray,
     share: Int,
+    crossMax: Int,
+    hasBoundedCross: Boolean,
 ) {
     var totalWeight = 0.0
-    for (child in children) {
-        totalWeight += (declared[child]?.weight ?: continue).weight.toDouble()
+    children.forEach { child ->
+        totalWeight += (weightOf(child) ?: return@forEach).weight.toDouble()
     }
     val unit = share / totalWeight
     var remainder = share
-    for (child in children) {
-        val weighted = declared[child]?.weight ?: continue
+    children.forEach { child ->
+        val weighted = weightOf(child) ?: return@forEach
         remainder -= (unit * weighted.weight).roundToInt()
     }
-    for (index in children.indices) {
-        val child = children[index]
-        val weighted = declared[child]?.weight ?: continue
+    children.forEachIndexed { index, child ->
+        val weighted = weightOf(child) ?: return@forEachIndexed
         val correction = remainder.sign
         remainder -= correction
         val granted = ((unit * weighted.weight).roundToInt() + correction).coerceAtLeast(0)
-        sizes[index] = weightedMainSize(child, weighted, granted)
+        val ceiling = cappedMainSize(child, granted)
+        val placeable =
+            child.measure(
+                crossOf(child, crossMax, hasBoundedCross, if (weighted.fill) ceiling else 0, ceiling),
+            )
+        sizes[index] = axis.main(placeable)
     }
 }
-
-/**
- * How much of the [granted] extent a weighted child occupies: all of it when it fills, otherwise as much
- * of it as the child prefers, and in either case no more than an explicit `maximumSize`.
- */
-private fun LinearLayout.weightedMainSize(
-    child: Component,
-    weighted: WeightPlacement,
-    granted: Int,
-): Int = cappedMainSize(child, if (weighted.fill) granted else minOf(axis.main(preferredSizeOf(child)), granted))
 
 /**
  * The [wanted] extent along the axis, held to an explicit `maximumSize` on [child] - all such a child
  * would occupy of a larger extent, and so all its container has reason to hold for it.
  */
 private fun LinearLayout.cappedMainSize(
-    child: Component,
+    child: Measurable,
     wanted: Int,
-): Int = if (child.isMaximumSizeSet) minOf(wanted, axis.main(child.maximumSize)) else wanted
+): Int {
+    val component = child.component
+    if (!component.isMaximumSizeSet) return wanted
+    return minOf(wanted, axis.main(component.maximumSize).coerceAtLeast(0))
+}
+
+/** [value] as an extent accumulator: it saturates rather than wrapping into the other side of zero. */
+private fun saturatedInt(value: Long): Int = value.coerceIn(Int.MIN_VALUE.toLong(), Int.MAX_VALUE.toLong()).toInt()
 
 /**
- * The working room one layout pass needs: the visible children it places, their extents along the axis,
- * and the offsets it places them at.
+ * The working room one layout pass needs: the extents of the children along the axis, and the offsets it
+ * places them at.
  *
  * Held between passes rather than allocated per pass. One of these belongs to one [LinearLayout], and so
- * to the one container that manager lays out; a pass runs to completion on the event dispatch thread
+ * to the one container that policy lays out; a pass runs to completion on the event dispatch thread
  * before the next begins - so no two passes hold this at once. An extent read mid-pass reaches a child's
  * own manager, which has room of its own.
  */
 internal class PassRoom {
-    private val children = ArrayList<Component>()
     private var sizes = IntArray(0)
     private var positions = IntArray(0)
-
-    /** The visible children [parent] holds, in declaration order; an invisible child takes no space. */
-    fun visibleChildrenOf(parent: Container): List<Component> {
-        children.clear()
-        for (index in 0 until parent.componentCount) {
-            val child = parent.getComponent(index)
-            if (child.isVisible) children.add(child)
-        }
-        return children
-    }
 
     /**
      * Room for [count] extents, reused where the child count has not moved - which is every pass over a

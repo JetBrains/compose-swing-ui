@@ -19,8 +19,9 @@ import kotlin.test.assertEquals
  * the offset the child ends up at, which is what every test here reads back.
  *
  * The container is always wider (a column) or taller (a row) than its children ask for, so each child
- * has room across the axis to be placed in. A child that names an alignment of its own is placed by
- * that one, and its siblings are untouched.
+ * has room across the axis to be placed in - except where a row asks for its own height, which is what
+ * the children on its shared baseline decide between them. A child that names an alignment of its own
+ * is placed by that one, and its siblings are untouched.
  */
 class RowColumnAlignmentTest {
     @Test
@@ -181,6 +182,55 @@ class RowColumnAlignmentTest {
         }
 
     @Test
+    fun aRowChildKeepsTheLastAlignmentItDeclares() =
+        runComposeSwingTest {
+            setContent {
+                Row(modifier = containerModifier(ALONG_EXTENT, ACROSS_EXTENT)) {
+                    SizedChild(0, SwingModifier.align(Alignment.Top).align(Alignment.Bottom))
+                }
+            }
+
+            assertEquals(
+                listOf(Rectangle(0, ACROSS_EXTENT - CHILD_HEIGHT, CHILD_WIDTH, CHILD_HEIGHT)),
+                childBounds(),
+                "a modifier is folded in declaration order, so the last alignment declared wins",
+            )
+        }
+
+    @Test
+    fun aColumnChildKeepsTheLastAlignmentItDeclares() =
+        runComposeSwingTest {
+            setContent {
+                Column(modifier = containerModifier(ACROSS_EXTENT, ALONG_EXTENT)) {
+                    SizedChild(0, SwingModifier.align(Alignment.Start).align(Alignment.End))
+                }
+            }
+
+            assertEquals(
+                listOf(Rectangle(ACROSS_EXTENT - CHILD_WIDTH, 0, CHILD_WIDTH, CHILD_HEIGHT)),
+                childBounds(),
+                "a modifier is folded in declaration order, so the last alignment declared wins",
+            )
+        }
+
+    @Test
+    fun anAlignAppendedAfterTheCallersModifierArgumentStillWins() =
+        runComposeSwingTest {
+            setContent {
+                Row(modifier = containerModifier(ALONG_EXTENT, ACROSS_EXTENT)) {
+                    BottomAlignedChild(modifier = SwingModifier.align(Alignment.Top))
+                }
+            }
+
+            assertEquals(
+                listOf(Rectangle(0, ACROSS_EXTENT - CHILD_HEIGHT, CHILD_WIDTH, CHILD_HEIGHT)),
+                childBounds(),
+                "align is folded in declaration order wherever it is chained from, so the align a component " +
+                    "appends after the modifier its caller passed in still wins over one already on that modifier",
+            )
+        }
+
+    @Test
     fun childrenOnTheSharedBaselineLineUpOnIt() =
         runComposeSwingTest {
             setContent {
@@ -325,6 +375,34 @@ class RowColumnAlignmentTest {
                 "both children must fit within the height the row asked for, on one baseline",
             )
         }
+
+    @Test
+    fun aRowMeasuredByItsParentStillHoldsTheDeepestBaselineAndTheDeepestRemainder() =
+        runComposeSwingTest {
+            setContent {
+                Column(modifier = SwingModifier.preferredSize(ACROSS_EXTENT, ACROSS_EXTENT)) {
+                    Row(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
+                        BaselineChild(DEEP_BASELINE, SwingModifier.alignByBaseline())
+                        BaselineChild(SHALLOW_BASELINE, SwingModifier.alignByBaseline())
+                    }
+                }
+            }
+
+            assertEquals(
+                Dimension(CHILD_WIDTH * 2, DEEP_BASELINE + CHILD_HEIGHT - SHALLOW_BASELINE),
+                containerSize(),
+                "a row its column measures settles on the same height it would ask for: the deepest baseline " +
+                    "above the shared line and the deepest remainder below it, not merely its tallest child",
+            )
+            assertEquals(
+                listOf(
+                    Rectangle(0, 0, CHILD_WIDTH, CHILD_HEIGHT),
+                    Rectangle(CHILD_WIDTH, DEEP_BASELINE - SHALLOW_BASELINE, CHILD_WIDTH, CHILD_HEIGHT),
+                ),
+                childBounds(),
+                "so both children still fit within it, on one baseline",
+            )
+        }
 }
 
 /** The extent a fixture container is given across its axis, far wider than a child asks for. */
@@ -356,6 +434,15 @@ private fun AlignedRow(alignment: Alignment.Vertical) {
     ) {
         SizedChild(0)
     }
+}
+
+/**
+ * A child aligned to the row's bottom by an align appended, following the "modifier passed first"
+ * convention, after the [modifier] its caller passed in - rather than one built fresh from it.
+ */
+@Composable
+private fun RowScope.BottomAlignedChild(modifier: SwingModifier) {
+    SizedChild(0, modifier.align(Alignment.Bottom))
 }
 
 /** How far below a child's top edge the deeper of the two fixture baselines falls. */

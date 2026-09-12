@@ -1,9 +1,7 @@
 package org.jetbrains.compose.swing.foundation.layout
 
-import java.awt.Component
 import java.awt.ComponentOrientation
 import java.awt.Dimension
-import java.awt.Rectangle
 
 /**
  * The axis a [LinearLayout] arranges its children along, and with it the axis-neutral reading of a
@@ -23,39 +21,66 @@ internal enum class LayoutAxis(
     /** The extent of [size] across the axis. */
     fun cross(size: Dimension): Int = if (horizontal) size.height else size.width
 
-    /** The extent of [bounds] along the axis. */
-    fun main(bounds: Rectangle): Int = if (horizontal) bounds.width else bounds.height
+    /** The extent [placeable] settled on along the axis. */
+    fun main(placeable: Placeable): Int = if (horizontal) placeable.width else placeable.height
 
-    /** The extent of [bounds] across the axis. */
-    fun cross(bounds: Rectangle): Int = if (horizontal) bounds.height else bounds.width
+    /** The extent [placeable] settled on across the axis. */
+    fun cross(placeable: Placeable): Int = if (horizontal) placeable.height else placeable.width
 
-    /** Where [bounds] starts along the axis. */
-    fun mainOrigin(bounds: Rectangle): Int = if (horizontal) bounds.x else bounds.y
+    /** The least extent [constraints] allows along the axis. */
+    fun mainMin(constraints: Constraints): Int = if (horizontal) constraints.minWidth else constraints.minHeight
 
-    /** Where [bounds] starts across the axis. */
-    fun crossOrigin(bounds: Rectangle): Int = if (horizontal) bounds.y else bounds.x
+    /** The most extent [constraints] allows along the axis. */
+    fun mainMax(constraints: Constraints): Int = if (horizontal) constraints.maxWidth else constraints.maxHeight
+
+    /** The most extent [constraints] allows across the axis. */
+    fun crossMax(constraints: Constraints): Int = if (horizontal) constraints.maxHeight else constraints.maxWidth
+
+    /** Constraints offering [mainMin] to [mainMax] along the axis and [crossMin] to [crossMax] across it. */
+    fun constraints(
+        mainMin: Int,
+        mainMax: Int,
+        crossMin: Int,
+        crossMax: Int,
+    ): Constraints =
+        if (horizontal) {
+            Constraints(mainMin, mainMax, crossMin, crossMax)
+        } else {
+            Constraints(crossMin, crossMax, mainMin, mainMax)
+        }
+
+    /** The x of a placement [main] along the axis and [cross] across it. */
+    fun x(
+        main: Int,
+        cross: Int,
+    ): Int = if (horizontal) main else cross
+
+    /** The y of a placement [main] along the axis and [cross] across it. */
+    fun y(
+        main: Int,
+        cross: Int,
+    ): Int = if (horizontal) cross else main
 
     /** A size whose extent along the axis is [main] and across it [cross]. */
     fun dimension(
         main: Int,
         cross: Int,
     ): Dimension = if (horizontal) Dimension(main, cross) else Dimension(cross, main)
-
-    /** Puts [component] at [main] along the axis and [cross] across it, at the extents given. */
-    fun place(
-        component: Component,
-        main: Int,
-        cross: Int,
-        mainSize: Int,
-        crossSize: Int,
-    ) {
-        if (horizontal) {
-            component.setBounds(main, cross, mainSize, crossSize)
-        } else {
-            component.setBounds(cross, main, crossSize, mainSize)
-        }
-    }
 }
+
+/** Whether [constraints] has a finite maximum along this axis. */
+internal fun LayoutAxis.hasBoundedMain(constraints: Constraints): Boolean =
+    when (this) {
+        LayoutAxis.Horizontal -> constraints.hasBoundedWidth
+        LayoutAxis.Vertical -> constraints.hasBoundedHeight
+    }
+
+/** Whether [constraints] has a finite maximum across this axis. */
+internal fun LayoutAxis.hasBoundedCross(constraints: Constraints): Boolean =
+    when (this) {
+        LayoutAxis.Horizontal -> constraints.hasBoundedHeight
+        LayoutAxis.Vertical -> constraints.hasBoundedWidth
+    }
 
 /**
  * An [Alignment.Horizontal] or [Alignment.Vertical] read without regard to the axis it belongs to, so a

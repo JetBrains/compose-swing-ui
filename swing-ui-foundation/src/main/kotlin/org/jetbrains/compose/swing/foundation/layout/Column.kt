@@ -4,7 +4,6 @@
 package org.jetbrains.compose.swing.foundation.layout
 
 import androidx.compose.runtime.Composable
-import org.jetbrains.compose.swing.components.layout.ScrollablePanel
 import org.jetbrains.compose.swing.components.layout.updateLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
@@ -47,7 +46,7 @@ public fun Column(
 
     SwingNode(
         factory = {
-            ScrollablePanel(LinearLayout(LayoutAxis.Vertical, axisArrangement, axisAlignment))
+            ConstrainedPanel(LinearLayout(LayoutAxis.Vertical, axisArrangement, axisAlignment))
         },
         modifier = modifier,
         update = {

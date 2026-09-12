@@ -216,9 +216,3 @@ private class FillLayout : LayoutManager2 {
         }
     }
 }
-
-/** The last entry of this modifier that describes itself - the one the builder under test declared. */
-private fun SwingModifier.lastElement(): SwingModifier.InspectableElement =
-    foldIn<SwingModifier.InspectableElement?>(null) { last, element ->
-        element as? SwingModifier.InspectableElement ?: last
-    } ?: error("the modifier declares nothing that describes itself")

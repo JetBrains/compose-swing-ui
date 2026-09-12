@@ -3,11 +3,15 @@ package org.jetbrains.compose.swing.foundation.layout
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.appearance.border
 import org.jetbrains.compose.swing.modifier.appearance.testTag
+import org.jetbrains.compose.swing.modifier.layout.maximumSize
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import java.awt.Dimension
 import java.awt.Rectangle
 import javax.swing.JPanel
+import javax.swing.border.EmptyBorder
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -16,8 +20,9 @@ import kotlin.test.assertEquals
  * a weight normally covers: a container with less room than its children ask for, a weighted surplus
  * that does not split into whole pixels, a weight sharing the surplus with a fixed arrangement gap, a
  * gap wider than the container has room for, a negative gap that overlaps its children instead of
- * spacing them, and a container whose weighted child is itself a [Row] or [Column] with children of its
- * own.
+ * spacing them, a container whose weighted child is itself a [Row] or [Column] with children of its
+ * own, a child carrying a negative maximum size, and a weight so large that the extent it implies does
+ * not fit an `Int`.
  */
 class RowColumnEdgeCaseTest {
     @Test
@@ -195,6 +200,104 @@ class RowColumnEdgeCaseTest {
             )
         }
 
+    @Test
+    fun aWeightedNestedRowKeepsItsOwnWidthInAColumnWiderThanItPrefers() =
+        runComposeSwingTest {
+            setContent {
+                Column(modifier = containerModifier(WIDE_CROSS_EXTENT, NESTED_COLUMN_HEIGHT)) {
+                    SizedChild(0)
+                    Row(
+                        modifier = SwingModifier.testTag(NESTED_ROW_TAG).weight(1f),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        SizedChild(1)
+                        SizedChild(2)
+                    }
+                }
+            }
+
+            val nestedRow = onNodeWithTag(NESTED_ROW_TAG).fetch<JPanel>()
+
+            assertEquals(
+                Rectangle(0, CHILD_HEIGHT, CHILD_WIDTH * 2, NESTED_COLUMN_HEIGHT - CHILD_HEIGHT),
+                nestedRow.bounds,
+                "a weighted row that declares no cross-axis fill of its own must keep the width it prefers " +
+                    "once its main-axis weight is resolved, not stretch to a column wider than that",
+            )
+            assertEquals(
+                rowCells(0, CHILD_WIDTH),
+                nestedRow.components.map { it.bounds },
+                "and must space its children across the width it settled on rather than the wider one its " +
+                    "column offered, which would put the last of them outside the row",
+            )
+        }
+
+    @Test
+    fun aNestedRowsWeightsAreDividedOnceRatherThanAgainAtTheWidthTheyShrankItTo() =
+        runComposeSwingTest {
+            setContent {
+                Column(modifier = containerModifier(SPACIOUS_CROSS_EXTENT, NESTED_COLUMN_HEIGHT)) {
+                    Row(modifier = SwingModifier.testTag(NESTED_ROW_TAG)) {
+                        SizedChild(0, SwingModifier.weight(1f, fill = false))
+                        SizedChild(1, SwingModifier.weight(3f, fill = false))
+                    }
+                }
+            }
+
+            val nestedRow = onNodeWithTag(NESTED_ROW_TAG).fetch<JPanel>()
+
+            assertEquals(
+                rowCells(0, CHILD_WIDTH),
+                nestedRow.components.map { it.bounds },
+                "a child claiming a share it does not fill shrinks the row below the width it was offered, " +
+                    "and the row must place the children that pass measured rather than divide the width " +
+                    "they shrank it to among the same weights again",
+            )
+        }
+
+    @Test
+    fun aChildWhoseMaximumSizeIsNegativeIsHeldToNothingRatherThanTakingTheRowsPassDown() =
+        runComposeSwingTest {
+            setContent {
+                Row(modifier = containerModifier(CROSS_EXTENT, CROSS_EXTENT)) {
+                    SizedChild(0, SwingModifier.weight(1f).maximumSize(NEGATIVE_MAXIMUM, NEGATIVE_MAXIMUM))
+                }
+            }
+
+            assertEquals(
+                listOf(Rectangle(0, 0, 0, 0)),
+                childBounds(),
+                "a maximum size below zero must hold the child to no width and no height, and the row must " +
+                    "complete its pass rather than measure that child under an inverted range",
+            )
+        }
+
+    @Test
+    fun aRowAskedWhatItPrefersBesideAWeightTooLargeToFitAnIntAsksForTheLargestWidthThereIs() =
+        runComposeSwingTest {
+            setContent {
+                Row(
+                    modifier =
+                        SwingModifier
+                            .testTag(CONTAINER_TAG)
+                            .border(EmptyBorder(BORDER_TOP, BORDER_LEFT, BORDER_BOTTOM, BORDER_RIGHT)),
+                ) {
+                    SizedChild(0, SwingModifier.weight(Float.MAX_VALUE))
+                    SizedChild(1, SwingModifier.weight(1f))
+                    SizedChild(2)
+                }
+            }
+
+            assertEquals(
+                Dimension(Int.MAX_VALUE, CHILD_HEIGHT + BORDER_TOP + BORDER_BOTTOM),
+                containerPreferredSize(),
+                "the width the 1f child implies for a weight of Float.MAX_VALUE beside it does not fit an " +
+                    "Int, so the row must ask for the largest width there is and keep the height its " +
+                    "children ask for - neither the unweighted child beside that width nor the border " +
+                    "around it may carry the row past it and back to a negative width",
+            )
+        }
+
     private companion object {
         // Narrower, or shorter, than the two 50x40 fixture children combined, so a deficit is unmistakable.
         const val NARROW_MAIN = 30
@@ -224,6 +327,23 @@ class RowColumnEdgeCaseTest {
         // Room for the fixture child plus a weighted nested row's leftover height.
         const val NESTED_COLUMN_HEIGHT = 200
         const val NESTED_ROW_TAG = "nestedRow"
+
+        // Wider than the nested row's own preferred width (two fixture children), so a stretched row
+        // would be caught: a column exactly as wide as the row prefers cannot tell the two apart.
+        const val WIDE_CROSS_EXTENT = 150
+
+        // A maximum a component may carry as readily as any other, and which no extent can fit inside.
+        const val NEGATIVE_MAXIMUM = -1
+
+        // The four insets of a border on the row, each different, so no two can be mistaken.
+        const val BORDER_TOP = 3
+        const val BORDER_LEFT = 7
+        const val BORDER_BOTTOM = 11
+        const val BORDER_RIGHT = 13
+
+        // Four times the width a nested row prefers, so a share of it is unmistakably wider than a
+        // child asks for and a second division of the row's own width grants visibly less.
+        const val SPACIOUS_CROSS_EXTENT = 400
     }
 }
 

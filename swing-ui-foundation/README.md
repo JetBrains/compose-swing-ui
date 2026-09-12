@@ -1,7 +1,9 @@
 # Module swing-ui-foundation
 
 Foundation APIs for Compose Swing UI: drawing and adapted constraint-based layout over real Swing
-components; their final placement still becomes Swing component bounds.
+components. Foundation layouts use `MeasurePolicy`, `Measurable.parentData`, and public
+`ParentDataModifier` and `LayoutModifier` implementations; their final placement still becomes Swing
+component bounds.
 
 The public packages remain under `org.jetbrains.compose.swing`.
 

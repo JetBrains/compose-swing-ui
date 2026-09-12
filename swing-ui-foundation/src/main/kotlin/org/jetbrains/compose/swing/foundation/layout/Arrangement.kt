@@ -501,13 +501,14 @@ private data class SpacedAligned(
         totalSize: Int,
         sizes: IntArray,
         outPositions: IntArray,
-    ): Int {
-        var occupied = 0
-        var lastSpace = 0
+    ): Long {
+        var occupied = 0L
+        var lastSpace = 0L
         sizes.forEachIndexed { index, size ->
-            outPositions[index] = min(occupied, totalSize - size)
-            lastSpace = min(space, totalSize - outPositions[index] - size)
-            occupied = outPositions[index] + size + lastSpace
+            val position = min(occupied, totalSize.toLong() - size)
+            outPositions[index] = saturatedCoordinate(position)
+            lastSpace = min(space.toLong(), totalSize - position - size)
+            occupied = position + size + lastSpace
         }
         return totalSize - (occupied - lastSpace)
     }
@@ -517,13 +518,14 @@ private data class SpacedAligned(
         totalSize: Int,
         sizes: IntArray,
         outPositions: IntArray,
-    ): Int {
-        var freeSpace = totalSize
-        var lastSpace = 0
+    ): Long {
+        var freeSpace = totalSize.toLong()
+        var lastSpace = 0L
         sizes.forEachIndexed { index, size ->
-            outPositions[index] = maxOf(0, freeSpace - size)
-            lastSpace = min(space, outPositions[index])
-            freeSpace = outPositions[index] - lastSpace
+            val position = maxOf(0L, freeSpace - size)
+            outPositions[index] = saturatedCoordinate(position)
+            lastSpace = min(space.toLong(), position)
+            freeSpace = position - lastSpace
         }
         return freeSpace + lastSpace
     }
@@ -531,16 +533,16 @@ private data class SpacedAligned(
     /** Shifts the packed group to where [alignment] puts it in [freeSpace]. */
     private fun alignGroup(
         alignment: AxisAlignment,
-        freeSpace: Int,
+        freeSpace: Long,
         rightToLeft: Boolean,
         orientation: ComponentOrientation,
         outPositions: IntArray,
     ) {
         if (freeSpace <= 0) return
-        val group = alignment.align(0, freeSpace, orientation)
-        val offset = if (rightToLeft) group - freeSpace else group
+        val group = alignment.align(0, saturatedCoordinate(freeSpace), orientation)
+        val offset = if (rightToLeft) group.toLong() - freeSpace else group.toLong()
         for (index in outPositions.indices) {
-            outPositions[index] += offset
+            outPositions[index] = saturatedCoordinate(outPositions[index].toLong() + offset)
         }
     }
 }
@@ -578,7 +580,7 @@ private fun placeTrailing(
     sizes: IntArray,
     outPositions: IntArray,
     reversed: Boolean,
-): Unit = placeRun(first = (totalSize - sizes.sum()).toFloat(), gap = 0f, sizes, outPositions, reversed)
+): Unit = placeRun(first = surplus(totalSize, sizes).toFloat(), gap = 0f, sizes, outPositions, reversed)
 
 /** Packs the children edge to edge and centers the group. */
 private fun placeCenter(
@@ -586,7 +588,7 @@ private fun placeCenter(
     sizes: IntArray,
     outPositions: IntArray,
     reversed: Boolean,
-): Unit = placeRun(first = (totalSize - sizes.sum()).toFloat() / 2, gap = 0f, sizes, outPositions, reversed)
+): Unit = placeRun(first = surplus(totalSize, sizes).toFloat() / 2, gap = 0f, sizes, outPositions, reversed)
 
 /** Splits the room left over into one gap between each pair of children. */
 private fun placeSpaceBetween(
@@ -596,7 +598,7 @@ private fun placeSpaceBetween(
     reversed: Boolean,
 ) {
     if (sizes.isEmpty()) return
-    val gap = (totalSize - sizes.sum()).toFloat() / maxOf(sizes.lastIndex, 1)
+    val gap = surplus(totalSize, sizes).toFloat() / maxOf(sizes.lastIndex, 1)
     // A lone child has no gap to sit between, so it goes to whichever edge the reading order starts at.
     val first = if (reversed && sizes.size == 1) gap else 0f
     placeRun(first, gap, sizes, outPositions, reversed)
@@ -610,7 +612,7 @@ private fun placeSpaceAround(
     reversed: Boolean,
 ) {
     if (sizes.isEmpty()) return
-    val gap = (totalSize - sizes.sum()).toFloat() / sizes.size
+    val gap = surplus(totalSize, sizes).toFloat() / sizes.size
     placeRun(first = gap / 2, gap, sizes, outPositions, reversed)
 }
 
@@ -621,9 +623,19 @@ private fun placeSpaceEvenly(
     outPositions: IntArray,
     reversed: Boolean,
 ) {
-    val gap = (totalSize - sizes.sum()).toFloat() / (sizes.size + 1)
+    val gap = surplus(totalSize, sizes).toFloat() / (sizes.size + 1)
     placeRun(first = gap, gap, sizes, outPositions, reversed)
 }
+
+/** The room left after [sizes], summed without letting a pair of large extents wrap through zero. */
+private fun surplus(
+    totalSize: Int,
+    sizes: IntArray,
+): Long = totalSize.toLong() - sizes.fold(0L) { total, size -> total + size }
+
+/** A coordinate held to the range AWT can represent rather than wrapped across the opposite edge. */
+private fun saturatedCoordinate(value: Long): Int =
+    value.coerceIn(Int.MIN_VALUE.toLong(), Int.MAX_VALUE.toLong()).toInt()
 
 /**
  * Walks the sizes with their own indices, from the last to the first when [reversed], so a placement
