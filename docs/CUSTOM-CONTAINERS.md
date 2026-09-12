@@ -123,6 +123,14 @@ A scope like this keeps the constraint's type inside your container - `MosaicSco
 placement API your callers see, and `BorderPanelScope`'s regions and `GridBagPanelScope`'s items are
 the same shape over a fixed, nameable set of placements.
 
+A fill is the one placement you do not write yourself. A container whose children may take its whole
+extent along an axis implements `FillWidthScope` or `FillHeightScope`, inheriting `fillWidth` /
+`fillHeight` from it, and its layout manager reads what a child declared off that child's constraint
+through `ParentFill`. Both the builder and the constraint behind it belong to `swing-ui`, so a fill
+means the same thing in your container as it does in a `Row` or a `Column`, and your container declares
+no constraint type for it. One that also names placements of its own overrides the builder and folds
+the fill into that constraint instead, as `RowScope` does.
+
 A scope is worth writing only where the placements are worth naming. Where a layout manager answers
 for a child that declares nothing - `BorderLayout` places one at `CENTER`, `JLayeredPane` on
 `DEFAULT_LAYER`, `CardLayout` under the empty name - a container over it takes a plain

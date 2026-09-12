@@ -537,6 +537,7 @@ offers it and cannot be named anywhere else.
 | Component       | What it is                                                                                                         |
 |-----------------|--------------------------------------------------------------------------------------------------------------------|
 | `Row`, `Column` | A single-axis stack holding each child at the size it prefers, with its leftover space placed by an `Arrangement`. |
+| `Box`           | A stack of children in one place, sized to the largest of them, each placed by an `Alignment`.                     |
 | `Panel`         | A `JPanel` under the layout manager its `layout` names, from `PanelLayout`'s set.                                  |
 | `TabbedPane`    | Tabs over `JTabbedPane`, each child the body of the tab it declares with `tab(...)`.                               |
 | `SplitPane`     | Two sides and a draggable divider over `JSplitPane`.                                                               |
@@ -545,8 +546,8 @@ offers it and cannot be named anywhere else.
 | `LayeredPane`   | Children stacked on integer depth layers over `JLayeredPane`.                                                      |
 | `DesktopPane`   | Floating internal frames over `JDesktopPane`.                                                                      |
 
-`Row` and `Column` are the Compose-shaped containers, arranging their children themselves; `Panel`
-hands the arranging to a Swing layout manager, one of the closed set `PanelLayout` names:
+`Row`, `Column` and `Box` are the Compose-shaped containers, arranging their children themselves;
+`Panel` hands the arranging to a Swing layout manager, one of the closed set `PanelLayout` names:
 
 | `layout`             | What it lays out                                                                          |
 |----------------------|-------------------------------------------------------------------------------------------|
@@ -595,17 +596,20 @@ Panel(PanelLayout.Border()) {
 `Row` and `Column` are the two single-axis stacks you reach for most. Along its axis, a child keeps
 the size it prefers, and the space the container has left over is placed by an `Arrangement`
 (`Top`, `Bottom`, `Start`, `End`, `Center`, `SpaceBetween`, `SpaceAround`, `SpaceEvenly`,
-`spacedBy(gap)`, `aligned(...)`). Across the axis, a child sits where an `Alignment` puts it, or
-takes the whole cross extent in its place. Spacing and every other measure here is in pixels. An
-`Arrangement` of your own is handed the children's sizes and the positions to write in two arrays the
-container owns and reuses on its next layout pass, so read and write them within the call and keep
-neither.
+`spacedBy(gap)`, `aligned(...)`); `Arrangement.Absolute` holds the same set for a row that should
+read left to right whatever the container's `ComponentOrientation` says. Across the axis, a child
+sits where an `Alignment.Horizontal` or `Alignment.Vertical` puts it - or an `AbsoluteAlignment`,
+which ignores the orientation the same way - or takes the whole cross extent in its place. Spacing
+and every other measure here is in pixels. An `Arrangement` of your own is handed the children's
+sizes and the positions to write in two arrays the container owns and reuses on its next layout
+pass, so read and write them within the call and keep neither.
 
-A child claims a share of the leftover space with `weight`, names its own cross-axis placement
-with `align`, or takes the whole cross extent with `fillWidth` / `fillHeight` in place of both its
-own `align` and the container's cross-axis alignment, capped by an explicit `maximumSize` where it
-declares one - through the `RowScope` / `ColumnScope` its content is written in, modifier
-extensions so children stay plain:
+A child claims a share of the leftover space with `weight`, which also makes the container ask its
+own parent for the room that share needs. It names its own cross-axis placement with `align`, sits
+on the row's shared text baseline with `alignByBaseline`, or takes the whole cross extent with
+`fillWidth` / `fillHeight` in place of all of those and of the container's cross-axis alignment,
+capped by an explicit `maximumSize` where it declares one - through the `RowScope` / `ColumnScope`
+its content is written in, modifier extensions so children stay plain:
 
 ```kotlin
 Column(verticalArrangement = Arrangement.spacedBy(8), horizontalAlignment = Alignment.Start) {
@@ -630,6 +634,14 @@ their maximum size, in proportion to that room. `Glue` is empty space with the m
 takes the largest share, and `Strut`, `RigidArea` and `Spacer` (a `RigidArea` square) are the fixed
 gaps between items. `PanelLayout.Flow` centers its children and gaps them by `5` pixels, and
 `PanelLayout.Grid` starts as a single row that grows a column per child, with no gaps.
+
+`Box` stacks its children in one place instead of along an axis: it is sized to the largest of them and
+places each one over the ones declared before it, where the box's `contentAlignment` puts it - which is
+what puts a badge on a corner of the thing it marks. A child names its own placement with `align`, takes
+the box's whole extent along one axis with `fillWidth` / `fillHeight` and along both with
+`matchParentSize` - which alone leaves the box's size to its other children, while a filling child is
+still measured on the axis it does not fill - or names where in the stack it sits with `zIndex`, which
+lifts it over every sibling declaring a smaller one wherever the two are declared.
 
 `PanelLayout.GridBag`'s `item` takes one parameter per `GridBagConstraints` field, under the field's
 own name and with its own default, so a grid-bag layout written against Swing carries over field for

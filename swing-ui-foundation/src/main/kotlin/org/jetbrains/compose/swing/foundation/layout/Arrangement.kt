@@ -87,6 +87,7 @@ public object Arrangement {
     }
 
     /** Packs the children against the leading edge - the left under a left-to-right orientation. */
+    @Stable
     public val Start: Horizontal =
         object : Horizontal {
             override fun arrange(
@@ -104,6 +105,7 @@ public object Arrangement {
         }
 
     /** Packs the children against the trailing edge - the right under a left-to-right orientation. */
+    @Stable
     public val End: Horizontal =
         object : Horizontal {
             override fun arrange(
@@ -121,6 +123,7 @@ public object Arrangement {
         }
 
     /** Packs the children against the top. */
+    @Stable
     public val Top: Vertical =
         object : Vertical {
             override fun arrange(
@@ -133,6 +136,7 @@ public object Arrangement {
         }
 
     /** Packs the children against the bottom. */
+    @Stable
     public val Bottom: Vertical =
         object : Vertical {
             override fun arrange(
@@ -145,6 +149,7 @@ public object Arrangement {
         }
 
     /** Keeps the children together and puts half the space left over on either side of the group. */
+    @Stable
     public val Center: HorizontalOrVertical =
         object : HorizontalOrVertical {
             override fun arrange(
@@ -164,6 +169,7 @@ public object Arrangement {
         }
 
     /** Splits the space left over into equal gaps between the children, with none at either edge. */
+    @Stable
     public val SpaceBetween: HorizontalOrVertical =
         object : HorizontalOrVertical {
             override fun arrange(
@@ -183,6 +189,7 @@ public object Arrangement {
         }
 
     /** Gives every child an equal gap of its own, so the gaps at the edges are half the gaps between. */
+    @Stable
     public val SpaceAround: HorizontalOrVertical =
         object : HorizontalOrVertical {
             override fun arrange(
@@ -202,6 +209,7 @@ public object Arrangement {
         }
 
     /** Splits the space left over into equal gaps between the children and at both edges. */
+    @Stable
     public val SpaceEvenly: HorizontalOrVertical =
         object : HorizontalOrVertical {
             override fun arrange(
@@ -229,8 +237,7 @@ public object Arrangement {
      *   [Column].
      */
     @Stable
-    public fun spacedBy(space: Int): HorizontalOrVertical =
-        SpacedAligned(space, mirrored = true, alignment = HorizontalAxisAlignment(Alignment.Start))
+    public fun spacedBy(space: Int): HorizontalOrVertical = SpacedAligned(space, mirrored = true, alignment = null)
 
     /**
      * Holds [space] pixels between two adjacent children and places the group as a whole at [alignment]
@@ -285,12 +292,176 @@ public object Arrangement {
     @Stable
     public fun aligned(alignment: Alignment.Vertical): Vertical =
         SpacedAligned(space = 0, mirrored = false, alignment = VerticalAxisAlignment(alignment))
+
+    /**
+     * Arrangements for a [Row] that place children by physical position rather than reading order - the
+     * distinction Swing itself keeps between `FlowLayout.LEFT` and the reading-order `FlowLayout.LEADING`.
+     * Unlike their counterparts on [Arrangement] itself, none of these mirror the children's packing
+     * order under a right-to-left `ComponentOrientation`: they run left to right in declaration order
+     * whichever way the row reads. The two factories that take an [Alignment.Horizontal] are the
+     * exception - the alignment itself still resolves against the row's `ComponentOrientation`, so only
+     * the packing they align is absolute.
+     */
+    @Immutable
+    public object Absolute {
+        /** Packs the children against the left edge, whatever the row's `ComponentOrientation` says. */
+        @Stable
+        public val Left: Horizontal =
+            object : Horizontal {
+                override fun arrange(
+                    totalSize: Int,
+                    sizes: IntArray,
+                    orientation: ComponentOrientation,
+                    outPositions: IntArray,
+                ) = placeLeading(sizes, outPositions, reversed = false)
+
+                override fun toString(): String = "AbsoluteArrangement#Left"
+            }
+
+        /** Packs the children against the right edge, whatever the row's `ComponentOrientation` says. */
+        @Stable
+        public val Right: Horizontal =
+            object : Horizontal {
+                override fun arrange(
+                    totalSize: Int,
+                    sizes: IntArray,
+                    orientation: ComponentOrientation,
+                    outPositions: IntArray,
+                ) = placeTrailing(totalSize, sizes, outPositions, reversed = false)
+
+                override fun toString(): String = "AbsoluteArrangement#Right"
+            }
+
+        /**
+         * Keeps the children together and puts half the space left over on either side of the group,
+         * whatever the row's `ComponentOrientation` says.
+         */
+        @Stable
+        public val Center: Horizontal =
+            object : Horizontal {
+                override fun arrange(
+                    totalSize: Int,
+                    sizes: IntArray,
+                    orientation: ComponentOrientation,
+                    outPositions: IntArray,
+                ) = placeCenter(totalSize, sizes, outPositions, reversed = false)
+
+                override fun toString(): String = "AbsoluteArrangement#Center"
+            }
+
+        /**
+         * Splits the space left over into equal gaps between the children, with none at either edge,
+         * whatever the row's `ComponentOrientation` says.
+         */
+        @Stable
+        public val SpaceBetween: Horizontal =
+            object : Horizontal {
+                override fun arrange(
+                    totalSize: Int,
+                    sizes: IntArray,
+                    orientation: ComponentOrientation,
+                    outPositions: IntArray,
+                ) = placeSpaceBetween(totalSize, sizes, outPositions, reversed = false)
+
+                override fun toString(): String = "AbsoluteArrangement#SpaceBetween"
+            }
+
+        /**
+         * Gives every child an equal gap of its own, so the gaps at the edges are half the gaps between,
+         * whatever the row's `ComponentOrientation` says.
+         */
+        @Stable
+        public val SpaceAround: Horizontal =
+            object : Horizontal {
+                override fun arrange(
+                    totalSize: Int,
+                    sizes: IntArray,
+                    orientation: ComponentOrientation,
+                    outPositions: IntArray,
+                ) = placeSpaceAround(totalSize, sizes, outPositions, reversed = false)
+
+                override fun toString(): String = "AbsoluteArrangement#SpaceAround"
+            }
+
+        /**
+         * Splits the space left over into equal gaps between the children and at both edges, whatever
+         * the row's `ComponentOrientation` says.
+         */
+        @Stable
+        public val SpaceEvenly: Horizontal =
+            object : Horizontal {
+                override fun arrange(
+                    totalSize: Int,
+                    sizes: IntArray,
+                    orientation: ComponentOrientation,
+                    outPositions: IntArray,
+                ) = placeSpaceEvenly(totalSize, sizes, outPositions, reversed = false)
+
+                override fun toString(): String = "AbsoluteArrangement#SpaceEvenly"
+            }
+
+        /**
+         * Holds [space] pixels between two adjacent children and packs the group against the left edge,
+         * whatever the row's `ComponentOrientation` says. A negative [space] overlaps them.
+         *
+         * @param space the gap between adjacent children only, never at the group's edges.
+         * @return an arrangement usable on either axis. In a [Column] it places children exactly as
+         *   [Arrangement.spacedBy] does, a vertical axis having nothing to mirror.
+         */
+        @Stable
+        public fun spacedBy(space: Int): HorizontalOrVertical = SpacedAligned(space, mirrored = false, alignment = null)
+
+        /**
+         * Holds [space] pixels between two adjacent children, packed left to right in declaration order
+         * whatever the row's `ComponentOrientation` says, and places the group as a whole at [alignment]
+         * along the row. A negative [space] overlaps them.
+         *
+         * @param space the gap between adjacent children only, never at the group's edges.
+         * @param alignment where the group goes in the width left over, resolved against the row's
+         *   `ComponentOrientation` the same as it would be for [Arrangement.spacedBy]; the gaps between
+         *   the children are unchanged.
+         */
+        @Stable
+        public fun spacedBy(
+            space: Int,
+            alignment: Alignment.Horizontal,
+        ): Horizontal = SpacedAligned(space, mirrored = false, alignment = HorizontalAxisAlignment(alignment))
+
+        /**
+         * Holds [space] pixels between two adjacent children and places the group as a whole at
+         * [alignment] along the column. A negative [space] overlaps them.
+         *
+         * A vertical axis never mirrors, so this is the same arrangement as [Arrangement.spacedBy].
+         *
+         * @param space the gap between adjacent children only, never at the group's edges.
+         * @param alignment where the group goes in the height left over; the gaps between the children
+         *   are unchanged.
+         */
+        @Stable
+        public fun spacedBy(
+            space: Int,
+            alignment: Alignment.Vertical,
+        ): Vertical = SpacedAligned(space, mirrored = false, alignment = VerticalAxisAlignment(alignment))
+
+        /**
+         * Keeps the children together, packed left to right in declaration order whatever the row's
+         * `ComponentOrientation` says, and places the group as a whole at [alignment] along the row.
+         *
+         * @param alignment where the group goes in the width left over, resolved against the row's
+         *   `ComponentOrientation` the same as it would be for [Arrangement.aligned].
+         * @return an arrangement whose `spacing` is zero, so the row reserves no gap when it measures.
+         */
+        @Stable
+        public fun aligned(alignment: Alignment.Horizontal): Horizontal =
+            SpacedAligned(space = 0, mirrored = false, alignment = HorizontalAxisAlignment(alignment))
+    }
 }
 
 /**
- * Holds [space] pixels between adjacent children and places the group at [alignment] in whatever room is
- * left. [mirrored] reverses the packing direction under a right-to-left orientation, which a horizontal
- * arrangement does and a vertical one leaves alone.
+ * Holds [space] pixels between adjacent children and, when [alignment] is given, places the group at it
+ * in whatever room is left; a null [alignment] leaves the group where packing left it. [mirrored]
+ * reverses the packing direction under a right-to-left orientation, which a horizontal arrangement does
+ * and a vertical one leaves alone.
  *
  * Both the position of a child and the gap after it are capped at the trailing edge, so a run of children
  * longer than the container stacks up there rather than running past it.
@@ -298,7 +469,7 @@ public object Arrangement {
 private data class SpacedAligned(
     private val space: Int,
     private val mirrored: Boolean,
-    private val alignment: AxisAlignment,
+    private val alignment: AxisAlignment?,
 ) : Arrangement.HorizontalOrVertical {
     override val spacing: Int get() = space
 
@@ -316,7 +487,7 @@ private data class SpacedAligned(
             } else {
                 packLeading(totalSize, sizes, outPositions)
             }
-        alignGroup(freeSpace, rightToLeft, orientation, outPositions)
+        alignGroup(alignment ?: return, freeSpace, rightToLeft, orientation, outPositions)
     }
 
     override fun arrange(
@@ -359,6 +530,7 @@ private data class SpacedAligned(
 
     /** Shifts the packed group to where [alignment] puts it in [freeSpace]. */
     private fun alignGroup(
+        alignment: AxisAlignment,
         freeSpace: Int,
         rightToLeft: Boolean,
         orientation: ComponentOrientation,

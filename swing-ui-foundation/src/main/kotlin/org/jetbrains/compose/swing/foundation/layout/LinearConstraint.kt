@@ -1,6 +1,8 @@
 package org.jetbrains.compose.swing.foundation.layout
 
 import org.jetbrains.compose.swing.modifier.layout.ConstraintElement
+import org.jetbrains.compose.swing.modifier.layout.twoScopesOfConstraint
+import java.awt.ComponentOrientation
 
 /**
  * What a child of a [Row] or a [Column] declares for itself: the share of the leftover space it claims,
@@ -31,6 +33,23 @@ internal data class WeightPlacement(
 )
 
 /**
+ * A child sitting on the shared text baseline of a [Row], as `alignByBaseline` declares it. It is an
+ * [AxisAlignment] so that it and an `align` occupy the one place a child names its cross-axis placement
+ * in, which is what makes the last of the two declared the one that places the child.
+ *
+ * A [LinearLayout] reads the baseline off the component rather than through [align]; [align] is the
+ * answer for a child that reports none, and puts it against the container's leading edge across the
+ * axis.
+ */
+internal data object BaselineAxisAlignment : AxisAlignment {
+    override fun align(
+        size: Int,
+        space: Int,
+        orientation: ComponentOrientation,
+    ): Int = 0
+}
+
+/**
  * Builds the claim a scope's `weight` extension declares. An infinite weight is taken as the largest
  * finite one, so a child asking for everything gets it rather than an arithmetic answer.
  */
@@ -46,11 +65,14 @@ internal fun weightPlacement(
  * What the modifier has declared to a row or a column so far, and an empty constraint where it has
  * declared nothing of the kind.
  *
- * A modifier naming a constraint outright as well is refused as the walk reaches the second kind, so a
- * value of another kind never reaches here. The fallback stands for a first part folded onto nothing.
+ * A constraint built by another container's scope is refused: both state parts of one constraint, so the
+ * walk over the modifier folds them together rather than refusing the pair itself. The fallback stands
+ * for a first part folded onto nothing.
  */
-private fun linearConstraintCarried(carried: Any?): LinearConstraint =
-    carried as? LinearConstraint ?: LinearConstraint()
+private fun linearConstraintCarried(carried: Any?): LinearConstraint {
+    require(carried == null || carried is LinearConstraint) { twoScopesOfConstraint() }
+    return carried as? LinearConstraint ?: LinearConstraint()
+}
 
 /** The share of the leftover space a child claims, as a row's or a column's `weight` declares it. */
 internal data class WeightElement(

@@ -17,7 +17,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
  * ```
  */
 @LayoutScopeMarker
-public sealed interface RowScope {
+public sealed interface RowScope : FillHeightScope {
     /**
      * Claims [weight] shares of the width the row has left over once every child that claims none has
      * taken the width it prefers. Two children weighted `1f` and `2f` take a third and two thirds of it.
@@ -48,7 +48,25 @@ public sealed interface RowScope {
      * `maximumSize` where it declares one. A child taking the whole height has nowhere left to sit, so
      * this stands in for both its own [align] and the row's `verticalAlignment`.
      */
-    public fun SwingModifier.fillHeight(): SwingModifier
+    override fun SwingModifier.fillHeight(): SwingModifier
+
+    /**
+     * Puts the child on the row's shared text baseline, which is what a label beside a text field sits
+     * on. Every child declaring it is placed so that the baseline its component reports falls on one
+     * line, and a row asking for its own height holds the deepest baseline above that line and the
+     * deepest remainder below it.
+     *
+     * This is a form of [align] and stands in the same place on the modifier chain, so of the two the
+     * last one declared places the child, and either stands in for the row's `verticalAlignment`.
+     *
+     * A child whose component reports no baseline - `java.awt.Component.getBaseline` gives `-1` - sits
+     * against the row's top edge and takes no part in the shared line, the way `javax.swing.GroupLayout`
+     * places one in a baseline group. So does a child that also declares [fillHeight]: it takes the row's
+     * whole height and has nowhere left to sit.
+     *
+     * @return this modifier with the child's placement on the shared baseline declared on it.
+     */
+    public fun SwingModifier.alignByBaseline(): SwingModifier
 }
 
 /**
@@ -65,4 +83,6 @@ internal object RowScopeImpl : RowScope {
         this then AlignElement(VerticalAxisAlignment(alignment))
 
     override fun SwingModifier.fillHeight(): SwingModifier = this then FillElement
+
+    override fun SwingModifier.alignByBaseline(): SwingModifier = this then AlignElement(BaselineAxisAlignment)
 }

@@ -58,9 +58,9 @@ internal enum class LayoutAxis(
 }
 
 /**
- * An [Alignment] read without regard to the axis it belongs to, so a [LinearLayout] places a child across
- * either axis through one call. Implementations compare by value, which is what lets an unchanged
- * declaration be recognized as the placement already in force.
+ * An [Alignment.Horizontal] or [Alignment.Vertical] read without regard to the axis it belongs to, so a
+ * [LinearLayout] places a child across either axis through one call. Implementations compare by value,
+ * which is what lets an unchanged declaration be recognized as the placement already in force.
  */
 internal interface AxisAlignment {
     fun align(
