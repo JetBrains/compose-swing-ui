@@ -11,16 +11,20 @@ import org.jetbrains.compose.swing.annotations.FlowAlignment
 import org.jetbrains.compose.swing.annotations.GridBagAnchor
 import org.jetbrains.compose.swing.annotations.GridBagFill
 import org.jetbrains.compose.swing.layout.LayoutScopeMarker
+import org.jetbrains.compose.swing.layout.ParentDataModifier
+import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
 import java.awt.BorderLayout
+import java.awt.CardLayout
+import java.awt.Container
 import java.awt.FlowLayout
 import java.awt.GridBagConstraints
 import java.awt.GridBagLayout
 import java.awt.GridLayout
 import java.awt.Insets
+import java.awt.LayoutManager
 import java.util.Objects
 import javax.swing.BoxLayout
 import javax.swing.JPanel
@@ -422,23 +426,27 @@ public sealed interface BorderPanelScope : PanelScope {
  * under, so one instance serves them all.
  */
 internal object BorderPanelScopeImpl : BorderPanelScope {
-    override fun SwingModifier.north(): SwingModifier = this.layoutConstraint(BorderLayout.NORTH)
+    override fun SwingModifier.north(): SwingModifier = parentData(BorderParentProtocol, BorderLayout.NORTH, "north")
 
-    override fun SwingModifier.south(): SwingModifier = this.layoutConstraint(BorderLayout.SOUTH)
+    override fun SwingModifier.south(): SwingModifier = parentData(BorderParentProtocol, BorderLayout.SOUTH, "south")
 
-    override fun SwingModifier.east(): SwingModifier = this.layoutConstraint(BorderLayout.EAST)
+    override fun SwingModifier.east(): SwingModifier = parentData(BorderParentProtocol, BorderLayout.EAST, "east")
 
-    override fun SwingModifier.west(): SwingModifier = this.layoutConstraint(BorderLayout.WEST)
+    override fun SwingModifier.west(): SwingModifier = parentData(BorderParentProtocol, BorderLayout.WEST, "west")
 
-    override fun SwingModifier.center(): SwingModifier = this.layoutConstraint(BorderLayout.CENTER)
+    override fun SwingModifier.center(): SwingModifier = parentData(BorderParentProtocol, BorderLayout.CENTER, "center")
 
-    override fun SwingModifier.pageStart(): SwingModifier = this.layoutConstraint(BorderLayout.PAGE_START)
+    override fun SwingModifier.pageStart(): SwingModifier =
+        parentData(BorderParentProtocol, BorderLayout.PAGE_START, "pageStart")
 
-    override fun SwingModifier.pageEnd(): SwingModifier = this.layoutConstraint(BorderLayout.PAGE_END)
+    override fun SwingModifier.pageEnd(): SwingModifier =
+        parentData(BorderParentProtocol, BorderLayout.PAGE_END, "pageEnd")
 
-    override fun SwingModifier.lineStart(): SwingModifier = this.layoutConstraint(BorderLayout.LINE_START)
+    override fun SwingModifier.lineStart(): SwingModifier =
+        parentData(BorderParentProtocol, BorderLayout.LINE_START, "lineStart")
 
-    override fun SwingModifier.lineEnd(): SwingModifier = this.layoutConstraint(BorderLayout.LINE_END)
+    override fun SwingModifier.lineEnd(): SwingModifier =
+        parentData(BorderParentProtocol, BorderLayout.LINE_END, "lineEnd")
 }
 
 /**
@@ -522,7 +530,8 @@ internal object GridBagPanelScopeImpl : GridBagPanelScope {
         ipadx: Int,
         ipady: Int,
     ): SwingModifier =
-        layoutConstraint(
+        parentData(
+            GridBagParentProtocol,
             ItemConstraints().apply {
                 this.gridx = gridx
                 this.gridy = gridy
@@ -538,6 +547,7 @@ internal object GridBagPanelScopeImpl : GridBagPanelScope {
                 this.ipadx = ipadx
                 this.ipady = ipady
             },
+            "item",
         )
 }
 
@@ -581,9 +591,40 @@ internal object CardPanelScopeImpl : CardPanelScope {
         // A card is addressed by its name, and the empty name is the one `CardLayout` gives a child added
         // with no card at all - so an empty key would declare a card that cannot be told from no card.
         require(key.isNotEmpty()) { "A PanelLayout.Card card key must not be empty." }
-        return layoutConstraint(key)
+        return parentData(CardParentProtocol, key, "card")
     }
 }
+
+/** A parent-layout family backed by one concrete Swing [layout manager][LayoutManager] class. */
+private class SwingLayoutParentProtocol(
+    private val layoutManagerClass: Class<out LayoutManager>,
+    override val description: String,
+) : ParentProtocol {
+    override fun accepts(parent: Container): Boolean = layoutManagerClass.isInstance(parent.layout)
+}
+
+private val BorderParentProtocol = SwingLayoutParentProtocol(BorderLayout::class.java, "BorderLayout parent data")
+private val GridBagParentProtocol = SwingLayoutParentProtocol(GridBagLayout::class.java, "GridBagLayout parent data")
+private val CardParentProtocol = SwingLayoutParentProtocol(CardLayout::class.java, "CardLayout parent data")
+
+/** One built-in panel-scope declaration, resolved last-wins with its own [type] as the slot key. */
+private data class PanelParentDataElement(
+    val parentData: Any,
+    override val parentProtocol: ParentProtocol,
+    override val name: String,
+) : ParentDataModifier {
+    override val key: Any get() = parentProtocol
+
+    override val declaredValues: Map<String, Any?> get() = mapOf("parentData" to parentData)
+
+    override fun modifyParentData(parentData: Any?): Any = this.parentData
+}
+
+private fun SwingModifier.parentData(
+    parentProtocol: ParentProtocol,
+    parentData: Any,
+    name: String,
+): SwingModifier = this then PanelParentDataElement(parentData, parentProtocol, name)
 
 /**
  * Writes both dimensions, the non-zero one first: `GridLayout` refuses a zero row count while its

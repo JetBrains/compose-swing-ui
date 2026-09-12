@@ -17,7 +17,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
  * ```
  */
 @LayoutScopeMarker
-public sealed interface RowScope : FillHeightScope {
+public sealed interface RowScope : ConstrainedScope {
     /**
      * Claims [weight] shares of the width the row has left over once every child that claims none has
      * taken the width it prefers. Two children weighted `1f` and `2f` take a third and two thirds of it.
@@ -44,13 +44,6 @@ public sealed interface RowScope : FillHeightScope {
     public fun SwingModifier.align(alignment: Alignment.Vertical): SwingModifier
 
     /**
-     * Gives the child the row's whole height in place of the height it prefers, up to an explicit
-     * `maximumSize` where it declares one. A child taking the whole height has nowhere left to sit, so
-     * this stands in for both its own [align] and the row's `verticalAlignment`.
-     */
-    override fun SwingModifier.fillHeight(): SwingModifier
-
-    /**
      * Puts the child on the row's shared text baseline, which is what a label beside a text field sits
      * on. Every child declaring it is placed so that the baseline its component reports falls on one
      * line, and a row asking for its own height holds the deepest baseline above that line and the
@@ -61,8 +54,7 @@ public sealed interface RowScope : FillHeightScope {
      *
      * A child whose component reports no baseline - `java.awt.Component.getBaseline` gives `-1` - sits
      * against the row's top edge and takes no part in the shared line, the way `javax.swing.GroupLayout`
-     * places one in a baseline group. So does a child that also declares [fillHeight]: it takes the row's
-     * whole height and has nowhere left to sit.
+     * places one in a baseline group.
      *
      * @return this modifier with the child's placement on the shared baseline declared on it.
      */
@@ -73,16 +65,21 @@ public sealed interface RowScope : FillHeightScope {
  * The [RowScope] one [Row] hands its content. What a child declares to it goes onto that child's own
  * modifier, so the scope holds nothing itself and every row shares this one.
  */
-internal object RowScopeImpl : RowScope {
+@PublishedApi
+internal object RowScopeInstance : RowScope {
     override fun SwingModifier.weight(
         weight: Float,
         fill: Boolean,
-    ): SwingModifier = this then WeightElement(weightPlacement(weight, fill))
+    ): SwingModifier =
+        this then
+            WeightElement(
+                weightPlacement(weight, fill),
+                LinearParentDataProtocol,
+            )
 
     override fun SwingModifier.align(alignment: Alignment.Vertical): SwingModifier =
-        this then AlignElement(VerticalAxisAlignment(alignment))
+        this then AlignElement(VerticalAxisAlignment(alignment), LinearParentDataProtocol)
 
-    override fun SwingModifier.fillHeight(): SwingModifier = this then FillElement
-
-    override fun SwingModifier.alignByBaseline(): SwingModifier = this then AlignElement(BaselineAxisAlignment)
+    override fun SwingModifier.alignByBaseline(): SwingModifier =
+        this then AlignElement(BaselineAxisAlignment, LinearParentDataProtocol)
 }

@@ -172,8 +172,8 @@ class ReactiveTaskListTest {
         runComposeSwingTest {
             setContent { ReactiveTaskList() }
 
-            // The row declares a cross-axis fill, so the list column hands it the whole width it has to
-            // give rather than the narrower width the row's own controls ask for.
+            // The row fills the bounded width the list column offers instead of keeping the narrower
+            // width its own controls prefer.
             val row = onNodeWithTag(taskRowTag(3)).fetch<JPanel>()
             val list = row.parent
             val listInsets = list.insets

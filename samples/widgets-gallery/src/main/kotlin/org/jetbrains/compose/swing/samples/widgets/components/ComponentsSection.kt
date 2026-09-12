@@ -358,16 +358,16 @@ private fun ColumnScope.SeparatorCard() {
         Label("Above the horizontal separator")
         // A horizontal separator asks for no width of its own, so it takes the card's whole width to draw.
         Separator(
-            modifier = SwingModifier.fillWidth(),
+            modifier = SwingModifier.fillMaxWidth(),
             orientation = SwingConstants.HORIZONTAL,
         )
         Label("Below the horizontal separator")
-        // A vertical separator likewise asks for no height of its own; fillHeight lets it match the
+        // A vertical separator likewise asks for no height of its own; fillMaxHeight lets it match the
         // height of the row it sits in instead of collapsing to zero.
         Row {
             Label("Left of the vertical separator")
             Separator(
-                modifier = SwingModifier.fillHeight(),
+                modifier = SwingModifier.fillMaxHeight(),
                 orientation = SwingConstants.VERTICAL,
             )
             Label("Right of the vertical separator")

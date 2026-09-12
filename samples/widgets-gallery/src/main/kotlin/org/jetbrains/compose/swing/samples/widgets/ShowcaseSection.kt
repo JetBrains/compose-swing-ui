@@ -96,7 +96,7 @@ internal fun ColumnScope.ExampleCard(
                 BorderFactory.createEmptyBorder(6, 6, 6, 6),
             )
         }
-    Column(modifier = SwingModifier.border(cardBorder).fillWidth()) {
+    Column(modifier = SwingModifier.border(cardBorder).fillMaxWidth()) {
         content()
     }
 }

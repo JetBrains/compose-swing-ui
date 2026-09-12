@@ -1,3 +1,6 @@
+// Public bias values intentionally use CMP's data-class API, including generated copy/componentN methods.
+@file:Suppress("PublicDataClass")
+
 package org.jetbrains.compose.swing.foundation.layout
 
 import androidx.compose.runtime.Immutable
@@ -159,7 +162,8 @@ public fun interface Alignment {
  * @see AbsoluteAlignment
  */
 @Immutable
-public class BiasAlignment(
+@Suppress("DataClassDefinition")
+public data class BiasAlignment(
     /** The bias across the width available to the child. */
     public val horizontalBias: Float,
     /** The bias down the height available to the child. */
@@ -179,18 +183,10 @@ public class BiasAlignment(
         )
     }
 
-    override fun equals(other: Any?): Boolean =
-        other is BiasAlignment &&
-            horizontalBias.toBits() == other.horizontalBias.toBits() &&
-            verticalBias.toBits() == other.verticalBias.toBits()
-
-    override fun hashCode(): Int = 31 * horizontalBias.hashCode() + verticalBias.hashCode()
-
-    override fun toString(): String = "BiasAlignment(horizontalBias=$horizontalBias, verticalBias=$verticalBias)"
-
     /** The horizontal half of a [BiasAlignment]; it is the one that reads the orientation. */
     @Immutable
-    public class Horizontal(
+    @Suppress("DataClassDefinition")
+    public data class Horizontal(
         /** The bias across the width available to the child. */
         public val bias: Float,
     ) : Alignment.Horizontal {
@@ -204,19 +200,14 @@ public class BiasAlignment(
             return (center * (1 + resolvedBias)).roundToInt()
         }
 
-        override fun equals(other: Any?): Boolean = other is Horizontal && bias.toBits() == other.bias.toBits()
-
-        override fun hashCode(): Int = bias.hashCode()
-
-        override fun toString(): String = "BiasAlignment.Horizontal(bias=$bias)"
-
         override fun plus(other: Alignment.Vertical): Alignment =
             if (other is Vertical) BiasAlignment(bias, other.bias) else super.plus(other)
     }
 
     /** The vertical half of a [BiasAlignment]; a vertical axis reads the same either way. */
     @Immutable
-    public class Vertical(
+    @Suppress("DataClassDefinition")
+    public data class Vertical(
         /** The bias down the height available to the child. */
         public val bias: Float,
     ) : Alignment.Vertical {
@@ -228,14 +219,12 @@ public class BiasAlignment(
             return (center * (1 + bias)).roundToInt()
         }
 
-        override fun equals(other: Any?): Boolean = other is Vertical && bias.toBits() == other.bias.toBits()
-
-        override fun hashCode(): Int = bias.hashCode()
-
-        override fun toString(): String = "BiasAlignment.Vertical(bias=$bias)"
-
         override fun plus(other: Alignment.Horizontal): Alignment =
-            if (other is Horizontal) BiasAlignment(other.bias, bias) else super.plus(other)
+            when (other) {
+                is Horizontal -> BiasAlignment(other.bias, bias)
+                is BiasAbsoluteAlignment.Horizontal -> BiasAbsoluteAlignment(other.bias, bias)
+                else -> super.plus(other)
+            }
     }
 }
 
@@ -263,48 +252,79 @@ private data class CombinedAlignment(
 public object AbsoluteAlignment {
     /** Places a child at the top left, regardless of orientation. */
     @Stable
-    public val TopLeft: Alignment = absolute(-1f, -1f)
+    public val TopLeft: Alignment = BiasAbsoluteAlignment(-1f, -1f)
 
     /** Places a child at the top right, regardless of orientation. */
     @Stable
-    public val TopRight: Alignment = absolute(1f, -1f)
+    public val TopRight: Alignment = BiasAbsoluteAlignment(1f, -1f)
 
     /** Places a child at the left, halfway down the height available to it, regardless of orientation. */
     @Stable
-    public val CenterLeft: Alignment = absolute(-1f, 0f)
+    public val CenterLeft: Alignment = BiasAbsoluteAlignment(-1f, 0f)
 
     /** Places a child at the right, halfway down the height available to it, regardless of orientation. */
     @Stable
-    public val CenterRight: Alignment = absolute(1f, 0f)
+    public val CenterRight: Alignment = BiasAbsoluteAlignment(1f, 0f)
 
     /** Places a child at the bottom left, regardless of orientation. */
     @Stable
-    public val BottomLeft: Alignment = absolute(-1f, 1f)
+    public val BottomLeft: Alignment = BiasAbsoluteAlignment(-1f, 1f)
 
     /** Places a child at the bottom right, regardless of orientation. */
     @Stable
-    public val BottomRight: Alignment = absolute(1f, 1f)
+    public val BottomRight: Alignment = BiasAbsoluteAlignment(1f, 1f)
 
     /** Places a child at the left of the width available to it, regardless of orientation. */
     @Stable
-    public val Left: Alignment.Horizontal = absoluteHorizontal(-1f)
+    public val Left: Alignment.Horizontal = BiasAbsoluteAlignment.Horizontal(-1f)
 
     /** Places a child at the right of the width available to it, regardless of orientation. */
     @Stable
-    public val Right: Alignment.Horizontal = absoluteHorizontal(1f)
+    public val Right: Alignment.Horizontal = BiasAbsoluteAlignment.Horizontal(1f)
+}
 
-    private fun absolute(
-        horizontalBias: Float,
-        verticalBias: Float,
-    ): Alignment {
-        val delegate = BiasAlignment(horizontalBias, verticalBias)
-        return Alignment { size, space, _ -> delegate.align(size, space, ComponentOrientation.LEFT_TO_RIGHT) }
+/**
+ * Places a child according to horizontal and vertical biases without mirroring under a right-to-left
+ * component orientation.
+ */
+@Immutable
+@Suppress("DataClassDefinition")
+public data class BiasAbsoluteAlignment(
+    /** The bias across the width available to the child. */
+    public val horizontalBias: Float,
+    /** The bias down the height available to the child. */
+    public val verticalBias: Float,
+) : Alignment {
+    override fun align(
+        size: Dimension,
+        space: Dimension,
+        orientation: ComponentOrientation,
+    ): Point {
+        val centerX = (space.width - size.width).toFloat() / 2f
+        val centerY = (space.height - size.height).toFloat() / 2f
+        return Point(
+            (centerX * (1 + horizontalBias)).roundToInt(),
+            (centerY * (1 + verticalBias)).roundToInt(),
+        )
     }
 
-    private fun absoluteHorizontal(bias: Float): Alignment.Horizontal {
-        val delegate = BiasAlignment.Horizontal(bias)
-        return Alignment.Horizontal { size, space, _ ->
-            delegate.align(size, space, ComponentOrientation.LEFT_TO_RIGHT)
+    /** A horizontal absolute alignment that ignores component orientation. */
+    @Immutable
+    @Suppress("DataClassDefinition")
+    public data class Horizontal(
+        /** The bias across the width available to the child. */
+        public val bias: Float,
+    ) : Alignment.Horizontal {
+        override fun align(
+            size: Int,
+            space: Int,
+            orientation: ComponentOrientation,
+        ): Int {
+            val center = (space - size).toFloat() / 2f
+            return (center * (1 + bias)).roundToInt()
         }
+
+        override fun plus(other: Alignment.Vertical): Alignment =
+            if (other is BiasAlignment.Vertical) BiasAbsoluteAlignment(bias, other.bias) else super.plus(other)
     }
 }

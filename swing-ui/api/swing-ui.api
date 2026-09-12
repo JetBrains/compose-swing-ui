@@ -547,7 +547,75 @@ public final class org/jetbrains/compose/swing/core/ComponentRecomposerKt {
 	public static final fun findRecomposer (Ljava/awt/Component;)Landroidx/compose/runtime/Recomposer;
 }
 
+public abstract interface class org/jetbrains/compose/swing/layout/ChildPlacement {
+}
+
+public final class org/jetbrains/compose/swing/layout/ChildPlacement$Indexed : org/jetbrains/compose/swing/layout/ChildPlacement {
+	public static final field $stable I
+	public static final field INSTANCE Lorg/jetbrains/compose/swing/layout/ChildPlacement$Indexed;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class org/jetbrains/compose/swing/layout/ChildPlacement$OrderedSlots : org/jetbrains/compose/swing/layout/ChildPlacement {
+	public static final field $stable I
+	public fun <init> (Ljava/lang/String;)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getName ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class org/jetbrains/compose/swing/layout/ChildPlacement$Slots : org/jetbrains/compose/swing/layout/ChildPlacement {
+	public static final field $stable I
+	public fun <init> (Ljava/util/List;)V
+	public fun <init> ([Ljava/lang/String;)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getNames ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
 public abstract interface annotation class org/jetbrains/compose/swing/layout/LayoutScopeMarker : java/lang/annotation/Annotation {
+}
+
+public abstract interface class org/jetbrains/compose/swing/layout/MeasurementLayoutManager : java/awt/LayoutManager2 {
+	public static final field Companion Lorg/jetbrains/compose/swing/layout/MeasurementLayoutManager$Companion;
+	public abstract fun declareComponentLayout (Ljava/awt/Component;Ljava/lang/Object;Ljava/util/List;)V
+}
+
+public final class org/jetbrains/compose/swing/layout/MeasurementLayoutManager$Companion {
+	public final fun parentProtocol (Ljava/lang/String;)Lorg/jetbrains/compose/swing/layout/ParentProtocol;
+}
+
+public abstract interface class org/jetbrains/compose/swing/layout/ParentDataModifier : org/jetbrains/compose/swing/layout/ParentLayoutElement {
+	public abstract fun modifyParentData (Ljava/lang/Object;)Ljava/lang/Object;
+}
+
+public abstract interface class org/jetbrains/compose/swing/layout/ParentElement : org/jetbrains/compose/swing/modifier/SwingModifier$Element, org/jetbrains/compose/swing/modifier/SwingModifier$InspectableElement {
+	public fun getAdditive ()Z
+	public fun getKey ()Ljava/lang/Object;
+	public abstract fun getParentProtocol ()Lorg/jetbrains/compose/swing/layout/ParentProtocol;
+}
+
+public abstract interface class org/jetbrains/compose/swing/layout/ParentLayoutElement : org/jetbrains/compose/swing/layout/ParentElement {
+}
+
+public abstract interface class org/jetbrains/compose/swing/layout/ParentProtocol {
+	public abstract fun accepts (Ljava/awt/Container;)Z
+	public abstract fun getDescription ()Ljava/lang/String;
+}
+
+public final class org/jetbrains/compose/swing/layout/ParentProtocolKt {
+	public static final fun parentProtocolOf (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/layout/ParentProtocol;
+}
+
+public abstract interface class org/jetbrains/compose/swing/layout/ParentSlotElement : org/jetbrains/compose/swing/layout/ParentElement {
+}
+
+public abstract interface class org/jetbrains/compose/swing/layout/SlotAttachment {
+	public abstract fun install (Ljava/awt/Container;Ljava/awt/Component;I)Lkotlin/jvm/functions/Function0;
 }
 
 public final class org/jetbrains/compose/swing/modifier/RestorePolicy {
@@ -756,7 +824,7 @@ public final class org/jetbrains/compose/swing/modifier/layout/LayoutModifierKt 
 	public static final fun preferredSize (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/awt/Dimension;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun size (Lorg/jetbrains/compose/swing/modifier/SwingModifier;II)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun size (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/awt/Dimension;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
-	public static final fun slot (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/lang/String;Lorg/jetbrains/compose/swing/node/SlotAttachment;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun slot (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/layout/ParentProtocol;Ljava/lang/String;Lorg/jetbrains/compose/swing/layout/SlotAttachment;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun visible (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Z)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun width (Lorg/jetbrains/compose/swing/modifier/SwingModifier;I)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun x (Lorg/jetbrains/compose/swing/modifier/SwingModifier;I)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
@@ -852,36 +920,6 @@ public final class org/jetbrains/compose/swing/modifier/listener/ListenerRegistr
 	public fun hashCode ()I
 }
 
-public abstract interface class org/jetbrains/compose/swing/node/ChildPlacement {
-}
-
-public final class org/jetbrains/compose/swing/node/ChildPlacement$Indexed : org/jetbrains/compose/swing/node/ChildPlacement {
-	public static final field $stable I
-	public static final field INSTANCE Lorg/jetbrains/compose/swing/node/ChildPlacement$Indexed;
-	public fun equals (Ljava/lang/Object;)Z
-	public fun hashCode ()I
-	public fun toString ()Ljava/lang/String;
-}
-
-public final class org/jetbrains/compose/swing/node/ChildPlacement$OrderedSlots : org/jetbrains/compose/swing/node/ChildPlacement {
-	public static final field $stable I
-	public fun <init> (Ljava/lang/String;)V
-	public fun equals (Ljava/lang/Object;)Z
-	public final fun getName ()Ljava/lang/String;
-	public fun hashCode ()I
-	public fun toString ()Ljava/lang/String;
-}
-
-public final class org/jetbrains/compose/swing/node/ChildPlacement$Slots : org/jetbrains/compose/swing/node/ChildPlacement {
-	public static final field $stable I
-	public fun <init> (Ljava/util/List;)V
-	public fun <init> ([Ljava/lang/String;)V
-	public fun equals (Ljava/lang/Object;)Z
-	public final fun getNames ()Ljava/util/List;
-	public fun hashCode ()I
-	public fun toString ()Ljava/lang/String;
-}
-
 public final class org/jetbrains/compose/swing/node/MenuApplier : androidx/compose/runtime/AbstractApplier {
 	public static final field $stable I
 	public fun <init> (Lorg/jetbrains/compose/swing/node/SwingNodeHolder;)V
@@ -923,10 +961,6 @@ public final class org/jetbrains/compose/swing/node/NodeKt {
 	public static final fun report (Lorg/jetbrains/compose/swing/node/MirrorState;Lkotlin/jvm/functions/Function0;)V
 }
 
-public abstract interface class org/jetbrains/compose/swing/node/SlotAttachment {
-	public abstract fun install (Ljava/awt/Container;Ljava/awt/Component;I)Lkotlin/jvm/functions/Function0;
-}
-
 public final class org/jetbrains/compose/swing/node/SwingApplier : androidx/compose/runtime/AbstractApplier {
 	public static final field $stable I
 	public synthetic fun insertBottomUp (ILjava/lang/Object;)V
@@ -948,14 +982,14 @@ public abstract interface class org/jetbrains/compose/swing/node/SwingComponentN
 public final class org/jetbrains/compose/swing/node/SwingNodeHolder : androidx/compose/runtime/ComposeNodeLifecycleCallback, org/jetbrains/compose/swing/node/SwingComponentNode {
 	public static final field $stable I
 	public fun <init> (Ljava/awt/Component;)V
-	public final fun getChildPlacement ()Lorg/jetbrains/compose/swing/node/ChildPlacement;
+	public final fun getChildPlacement ()Lorg/jetbrains/compose/swing/layout/ChildPlacement;
 	public fun getComponent ()Ljava/awt/Component;
 	public fun getModifier ()Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public final fun getReleaseBlock ()Lkotlin/jvm/functions/Function0;
 	public fun onDeactivate ()V
 	public fun onRelease ()V
 	public fun onReuse ()V
-	public final fun setChildPlacement (Lorg/jetbrains/compose/swing/node/ChildPlacement;)V
+	public final fun setChildPlacement (Lorg/jetbrains/compose/swing/layout/ChildPlacement;)V
 	public final fun setReleaseBlock (Lkotlin/jvm/functions/Function0;)V
 }
 

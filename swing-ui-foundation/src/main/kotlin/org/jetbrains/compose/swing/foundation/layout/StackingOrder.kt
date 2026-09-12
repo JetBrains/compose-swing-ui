@@ -3,6 +3,11 @@ package org.jetbrains.compose.swing.foundation.layout
 import java.awt.Component
 import java.awt.Container
 
+/** Parent data that asks a policy container to reorder painting and hit testing. */
+internal interface StackingParentData {
+    val zIndex: Float
+}
+
 /**
  * The declaration order of a stacking container's children, and the component array derived from it.
  *
@@ -13,7 +18,7 @@ import java.awt.Container
  * off it. This keeps that order, and [restack] arranges the array from it.
  *
  * [container] is the container whose children these are, and [zIndexOf] reads where a child declared it
- * sits - the two containers that stack their children keep that value in different places.
+ * sits.
  *
  * Every add and every removal keeps this in step with the array; a container hands over [declared],
  * [dropped] and [cleared] from the `addImpl`, `remove(int)` - which `Container.remove(Component)` reaches
@@ -56,6 +61,14 @@ internal class StackingOrder(
     public fun cleared() {
         order.clear()
     }
+
+    /** Runs [action] over the children in the order their parent declared them. */
+    internal inline fun forEachInDeclarationOrder(action: (Component) -> Unit) {
+        order.forEach(action)
+    }
+
+    /** The child declared first, or `null` where the container has none. */
+    internal fun firstDeclaredChild(): Component? = order.firstOrNull()
 
     /**
      * Puts the component array in stacking order: the child declaring the largest z-index at the front,

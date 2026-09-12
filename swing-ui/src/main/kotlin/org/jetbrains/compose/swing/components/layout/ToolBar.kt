@@ -259,7 +259,7 @@ private fun SwingNodeHolder<JToolBar>.placeAsDeclared(
     if (!displaced[0] || floating) return
     displaced[0] = false
     mirror.write {
-        reapplyConstraint()
+        declaration.reapply()
         component.orientation = orientation
     }
 }

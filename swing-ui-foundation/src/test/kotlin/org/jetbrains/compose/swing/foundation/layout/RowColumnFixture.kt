@@ -7,7 +7,9 @@ import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.componentOrientation
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import java.awt.Component
 import java.awt.ComponentOrientation
+import java.awt.Container
 import java.awt.Dimension
 import java.awt.Rectangle
 import javax.swing.JPanel
@@ -61,7 +63,20 @@ internal fun Child(
 }
 
 /** The bounds the container under test assigned each of its children, in declaration order. */
-internal fun ComposeSwingTest.childBounds(): List<Rectangle> = container().components.map { it.bounds }
+internal fun ComposeSwingTest.childBounds(): List<Rectangle> =
+    container().childrenInDeclarationOrder().map {
+        it.bounds
+    }
+
+/** This container's children in the order its composable content declared them. */
+internal fun Container.childrenInDeclarationOrder(): List<Component> =
+    buildList(componentCount) {
+        if (this@childrenInDeclarationOrder is ConstrainedPanel) {
+            forEachChildInDeclarationOrder { add(it) }
+        } else {
+            components.forEach { add(it) }
+        }
+    }
 
 /** The size the container under test asks of its own parent. */
 internal fun ComposeSwingTest.containerPreferredSize(): Dimension = container().preferredSize

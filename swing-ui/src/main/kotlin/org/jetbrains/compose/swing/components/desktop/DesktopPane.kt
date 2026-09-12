@@ -9,14 +9,15 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.annotations.Nls
+import org.jetbrains.compose.swing.layout.ChildPlacement
+import org.jetbrains.compose.swing.layout.SlotAttachment
+import org.jetbrains.compose.swing.layout.parentProtocolOf
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.slot
 import org.jetbrains.compose.swing.modifier.listener.componentListener
 import org.jetbrains.compose.swing.modifier.listener.hierarchyListener
 import org.jetbrains.compose.swing.modifier.listener.internalFrameListener
 import org.jetbrains.compose.swing.modifier.listener.propertyChangeListener
-import org.jetbrains.compose.swing.node.ChildPlacement
-import org.jetbrains.compose.swing.node.SlotAttachment
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.wrongSlotHost
 import java.awt.Rectangle
@@ -468,7 +469,7 @@ private inline fun FrameNode(
             modifier
                 .then(stateChannels)
                 .then(closeChannel)
-                .slot(FRAME_REGION, InternalFrameAttachment),
+                .slot(DesktopPaneParentProtocol, FRAME_REGION, InternalFrameAttachment),
         update = {
             set(title) { this.title = it }
             set(controls.closable) { this.isClosable = it }
@@ -499,6 +500,8 @@ private inline fun FrameNode(
  * [DesktopPaneScope.InternalFrame].
  */
 private const val FRAME_REGION: String = "InternalFrame(...)"
+
+private val DesktopPaneParentProtocol = parentProtocolOf("JDesktopPane slot") { it is JDesktopPane }
 
 /**
  * Hosts one [JInternalFrame] on the host [JDesktopPane]: adds it on install, at the position among the

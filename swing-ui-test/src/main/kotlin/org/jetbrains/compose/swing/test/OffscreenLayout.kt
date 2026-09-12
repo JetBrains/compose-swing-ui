@@ -1,6 +1,5 @@
 package org.jetbrains.compose.swing.test
 
-import kotlinx.coroutines.yield
 import java.awt.Component
 import java.awt.Container
 import java.awt.Dimension
@@ -74,12 +73,8 @@ private fun layoutSubtree(component: Component) {
  * of its own from that announcement rather than from a layout manager - the Aqua internal frame's
  * resize box, placed against its layered pane - is otherwise left where its previous size put it.
  *
- * The yield is what delivers those announcements: the test body runs on the event dispatch thread, and
- * a continuation dispatched there is queued behind everything already posted. [ComposeSwingTest.awaitEventsDelivered]
- * then drains the runnables they scheduled; it cannot stand alone here, because it counts only queued
- * invocations and a resize announcement is not one.
+ * [ComposeSwingTest.awaitEventsDelivered] is what delivers those announcements: it counts a queued
+ * bounds notification as work still pending and yields until none is left, so the listeners run and the
+ * runnables they schedule are drained with them.
  */
-internal suspend fun ComposeSwingTest.deliverQueuedEvents() {
-    yield()
-    awaitEventsDelivered()
-}
+internal suspend fun ComposeSwingTest.deliverQueuedEvents(): Unit = awaitEventsDelivered()

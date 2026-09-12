@@ -240,6 +240,6 @@ consume the libraries.
 Licensed under the Apache License, Version 2.0 - see [LICENSE](LICENSE).
 
 `swing-ui-foundation` redistributes source code from the Android Open Source Project's Jetpack Compose
-`foundation-layout`, `swing-ui-animation` its `animation-core`, and `swing-ui-detekt` one of that
-project's Android Lint checks, all under the same license. See each module's `META-INF/NOTICE` and
-the per-file headers for attribution.
+`foundation-layout` and `compose.ui:ui`, `swing-ui-animation` its `animation-core`, and `swing-ui-detekt`
+one of that project's Android Lint checks, all under the same license. See each module's `META-INF/NOTICE`
+and the per-file headers for attribution.

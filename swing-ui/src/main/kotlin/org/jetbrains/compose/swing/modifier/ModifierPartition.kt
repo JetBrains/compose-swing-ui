@@ -1,8 +1,12 @@
 package org.jetbrains.compose.swing.modifier
 
-import org.jetbrains.compose.swing.modifier.layout.ConstraintElement
+import org.jetbrains.compose.swing.layout.ParentDataModifier
+import org.jetbrains.compose.swing.layout.ParentElement
+import org.jetbrains.compose.swing.layout.ParentLayoutElement
+import org.jetbrains.compose.swing.layout.ParentProtocol
+import org.jetbrains.compose.swing.layout.ParentSlotElement
 import org.jetbrains.compose.swing.modifier.layout.SlotElement
-import org.jetbrains.compose.swing.modifier.layout.twoKindsOfConstraint
+import org.jetbrains.compose.swing.util.fastForEach
 
 /**
  * One modifier taken apart as the walk over it reaches each entry: the elements the diff has nodes for,
@@ -17,26 +21,28 @@ internal class ModifierPartition {
     /** The additive (subscription) elements of the modifier being applied, in declaration order. */
     val additive: ArrayList<SwingModifier.NodeElement<*, *>> = ArrayList()
 
-    /**
-     * The host slot the modifier being applied declares, the last one its walk reaches. `null` where it
-     * declares none, which puts a node that has given up its slot back to placement by index.
-     */
-    var slot: SlotElement? = null
-        private set
+    private val pendingParentDeclarations: ArrayList<ParentElement> = ArrayList()
+    private var resolvedParentDeclarations: ResolvedParentDeclarations? = null
 
-    /**
-     * The layout constraint the modifier being applied declares, folded together as the walk reaches each
-     * element that states part of it. `null` where it declares none.
-     */
-    var constraint: Any? = null
-        private set
+    /** The parent-layout declarations retained after their [key][ParentElement.key] resolution. */
+    val parentDeclarations: List<ParentElement>
+        get() = resolveParentDeclarations().declarations
 
-    /**
-     * Whether the constraint reached so far was stated whole rather than in parts, or `null` where the
-     * walk has reached none. A modifier mixing the two names a place in a parent that holds its children
-     * the other way, and is refused.
-     */
-    private var constraintStatedWhole: Boolean? = null
+    /** The parent data folded from the retained [ParentDataModifier]s, or `null` where none stand. */
+    val parentData: Any?
+        get() = resolveParentDeclarations().parentData
+
+    /** The family of [parentData], or `null` where no parent-data modifier stands. */
+    val parentProtocol: ParentProtocol?
+        get() = resolveParentDeclarations().parentProtocol
+
+    /** The retained parent-layout declarations a measuring parent still interprets after parent-data folding. */
+    val parentLayoutElements: List<ParentLayoutElement>
+        get() = resolveParentDeclarations().elements
+
+    /** The one retained built-in slot declaration, or `null` when none remains. */
+    val slot: SlotElement?
+        get() = resolveParentDeclarations().slot
 
     /**
      * The keys the modifier ties its application to, in the order they stand, or `null` where it
@@ -52,16 +58,16 @@ internal class ModifierPartition {
     fun take(element: SwingModifier.Element) {
         when (element) {
             is SwingModifier.NodeElement<*, *> -> {
+                require(element !is ParentLayoutElement) {
+                    "A modifier entry cannot both write a component through SwingModifier.NodeElement and " +
+                        "declare layout data to its parent through ParentLayoutElement. " +
+                        "Split it into one entry for each responsibility."
+                }
                 takeElement(element)
             }
 
-            // The last slot declared is the one the component is installed into.
-            is SlotElement -> {
-                slot = element
-            }
-
-            is ConstraintElement -> {
-                takeConstraint(element)
+            is ParentElement -> {
+                takeParentElement(element)
             }
 
             is KeyElement -> {
@@ -92,15 +98,58 @@ internal class ModifierPartition {
         keyed[key] = element
     }
 
-    /**
-     * The parts of one constraint are declared one at a time, so they fold together in the order the
-     * modifier declares them; one stating the whole constraint replaces what came before.
-     */
-    private fun takeConstraint(element: ConstraintElement) {
-        val statedWhole = element.statesWholeConstraint
-        require(constraintStatedWhole.let { it == null || it == statedWhole }) { twoKindsOfConstraint() }
-        constraintStatedWhole = statedWhole
-        constraint = element.foldInto(constraint)
+    /** Records every parent declaration so keyed and additive declarations share one order. */
+    private fun takeParentElement(element: ParentElement) {
+        resolvedParentDeclarations = null
+        pendingParentDeclarations += element
+    }
+
+    /** Folds the retained parent data only after key resolution, so replaced declarations cannot contribute. */
+    private fun resolveParentDeclarations(): ResolvedParentDeclarations =
+        resolvedParentDeclarations ?: buildResolvedParentDeclarations().also { resolvedParentDeclarations = it }
+
+    private fun buildResolvedParentDeclarations(): ResolvedParentDeclarations {
+        val declarations = retainedParentDeclarations()
+        val parentDataModifiers = declarations.filterIsInstance<ParentDataModifier>()
+        val parentProtocol = parentDataModifiers.firstOrNull()?.parentProtocol
+        require(parentDataModifiers.all { it.parentProtocol === parentProtocol }) {
+            val types = parentDataModifiers.map { it.parentProtocol.description }.distinct().joinToString()
+            "A child declares parent data for incompatible layout families: $types. Apply declarations " +
+                "only from the scope of its immediate parent."
+        }
+        val parentData =
+            parentDataModifiers.fold(null as Any?) { carried, modifier ->
+                modifier.modifyParentData(carried)
+            }
+        val slots = declarations.filterIsInstance<ParentSlotElement>()
+        require(slots.size <= 1) {
+            "A modifier can retain at most one parent slot declaration."
+        }
+        val slot = slots.singleOrNull()
+        require(slot == null || slot is SlotElement) {
+            "Parent slot declarations must be created with SwingModifier.slot()."
+        }
+        return ResolvedParentDeclarations(
+            declarations = declarations,
+            parentData = parentData,
+            parentProtocol = parentProtocol,
+            elements =
+                declarations.filterIsInstance<ParentLayoutElement>().filterNot {
+                    it is ParentDataModifier
+                },
+            slot = slot as? SlotElement,
+        )
+    }
+
+    /** Keeps each non-additive key's final declaration without moving it across additive declarations. */
+    private fun retainedParentDeclarations(): List<ParentElement> {
+        val retained = ArrayList<ParentElement>(pendingParentDeclarations.size)
+        val seenKeys = HashSet<Any>()
+        pendingParentDeclarations.asReversed().fastForEach { element ->
+            if (element.additive || seenKeys.add(element.key)) retained += element
+        }
+        retained.reverse()
+        return retained
     }
 
     /**
@@ -112,4 +161,12 @@ internal class ModifierPartition {
         // stands where it was declared last, and counts once.
         keyElements = keyElements.filterNot { it == element } + element
     }
+
+    private data class ResolvedParentDeclarations(
+        val declarations: List<ParentElement>,
+        val parentData: Any?,
+        val parentProtocol: ParentProtocol?,
+        val elements: List<ParentLayoutElement>,
+        val slot: SlotElement?,
+    )
 }

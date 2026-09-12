@@ -8,20 +8,26 @@ import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.visible
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import java.awt.Component
 import java.awt.Dimension
-import java.awt.Rectangle
 import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 /**
- * A child hidden with `SwingModifier.visible(false)` stays attached to its row or column, and the layout
- * pass steps over it: it takes no space along the axis and no gap of its own, so the children around it
- * close up and the container asks its own parent for less. Revealing it gives both back.
+ * A child hidden with `SwingModifier.visible(false)` stays attached to its row or column and the layout
+ * pass treats it as any other child: it is measured, it keeps its space along the axis and its gap, and
+ * it is placed in the slot it reserved. Hiding a child therefore moves nothing around it, and the
+ * container asks its own parent for the same extent either way.
+ *
+ * `isVisible` is what stops the child painting, taking focus and reaching accessibility. It is not a
+ * layout filter, so it is the one thing about the child a pass does not consult.
  */
 class RowColumnVisibilityTest {
     @Test
-    fun anInvisibleChildTakesNoSpaceAndNoGapOfItsOwn() =
+    fun anInvisibleChildKeepsItsSpaceAndItsGap() =
         runComposeSwingTest {
             setContent {
                 Column(
@@ -36,14 +42,14 @@ class RowColumnVisibilityTest {
 
             assertEquals(CHILD_COUNT, childCount(), "a hidden child stays attached to the column that declares it")
             assertEquals(
-                columnRows(0, CHILD_HEIGHT + GAP),
-                visibleChildBounds(),
-                "an invisible child takes no space and no gap of its own, so the children around it close up",
+                columnRows(0, CHILD_HEIGHT + GAP, 2 * (CHILD_HEIGHT + GAP)),
+                childBounds(),
+                "a hidden child is placed in the slot it reserved, and the children after it sit past it",
             )
         }
 
     @Test
-    fun aColumnAsksForNeitherSpaceNorGapForAnInvisibleChild() =
+    fun aColumnAsksForTheSpaceAndGapOfAnInvisibleChild() =
         runComposeSwingTest {
             setContent {
                 Column(
@@ -57,14 +63,14 @@ class RowColumnVisibilityTest {
             }
 
             assertEquals(
-                Dimension(CHILD_WIDTH, 2 * CHILD_HEIGHT + GAP),
+                Dimension(CHILD_WIDTH, CHILD_COUNT * CHILD_HEIGHT + 2 * GAP),
                 containerPreferredSize(),
-                "an invisible child takes no space and no gap of its own, so the column asks for neither",
+                "a hidden child costs its own extent and its gap, so the column asks for both",
             )
         }
 
     @Test
-    fun anInvisibleChildTakesNoSpaceAndNoGapInARowEither() =
+    fun anInvisibleChildKeepsItsSpaceAndItsGapInARowToo() =
         runComposeSwingTest {
             setContent {
                 Row(
@@ -78,14 +84,14 @@ class RowColumnVisibilityTest {
             }
 
             assertEquals(
-                rowCells(0, CHILD_WIDTH + GAP),
-                visibleChildBounds(),
-                "an invisible child takes no space and no gap of its own along either axis",
+                rowCells(0, CHILD_WIDTH + GAP, 2 * (CHILD_WIDTH + GAP)),
+                childBounds(),
+                "a hidden child holds its place along either axis",
             )
         }
 
     @Test
-    fun revealingAChildGivesItBackItsSpaceAndItsGap() =
+    fun hidingAndRevealingAChildMovesNothingAroundIt() =
         runComposeSwingTest {
             var shown by mutableStateOf(false)
             setContent {
@@ -98,34 +104,26 @@ class RowColumnVisibilityTest {
                     SizedChild(2)
                 }
             }
+            val rows = columnRows(0, CHILD_HEIGHT + GAP, 2 * (CHILD_HEIGHT + GAP))
 
-            assertEquals(
-                columnRows(0, CHILD_HEIGHT + GAP),
-                visibleChildBounds(),
-                "the column should start closed up over the child it hides",
-            )
+            assertFalse(toggledChild().isVisible, "the child under test starts hidden")
+            assertEquals(rows, childBounds(), "and the column holds the slot it hides")
 
             shown = true
             awaitIdle()
 
-            assertEquals(
-                columnRows(0, CHILD_HEIGHT + GAP, 2 * (CHILD_HEIGHT + GAP)),
-                visibleChildBounds(),
-                "a child shown again takes its space and its gap back, moving the children after it along",
-            )
+            assertTrue(toggledChild().isVisible, "the declaration reaches the child when it is shown")
+            assertEquals(rows, childBounds(), "which is already standing where it was placed")
 
             shown = false
             awaitIdle()
 
-            assertEquals(
-                columnRows(0, CHILD_HEIGHT + GAP),
-                visibleChildBounds(),
-                "a child hidden again gives its space and its gap back up",
-            )
+            assertFalse(toggledChild().isVisible, "and when it is hidden again")
+            assertEquals(rows, childBounds(), "moving nothing either way")
         }
 
     private companion object {
-        /** The gap the fixture arrangement holds between two adjacent visible children. */
+        /** The gap the fixture arrangement holds between two adjacent children. */
         const val GAP = 10
 
         /** The extent the fixture container is given along the axis it arranges its children on. */
@@ -134,15 +132,11 @@ class RowColumnVisibilityTest {
         /** The extent the fixture container is given across that axis, wider than any child asks for. */
         const val CROSS_EXTENT = 100
 
-        /**
-         * The bounds of the children a layout pass placed. The hidden one is left out: it is never
-         * placed, so what it reports is whatever it was last laid out at, which is no reading of this pass.
-         */
-        fun ComposeSwingTest.visibleChildBounds(): List<Rectangle> =
-            container().components.filter { it.isVisible }.map { it.bounds }
-
         /** How many children the container holds, hidden ones included. */
         fun ComposeSwingTest.childCount(): Int = container().componentCount
+
+        /** The child whose visibility a test drives, the second of the three the fixture declares. */
+        fun ComposeSwingTest.toggledChild(): Component = container().childrenInDeclarationOrder()[1]
 
         fun ComposeSwingTest.container(): JPanel = onNodeWithTag(CONTAINER_TAG).fetch<JPanel>()
     }

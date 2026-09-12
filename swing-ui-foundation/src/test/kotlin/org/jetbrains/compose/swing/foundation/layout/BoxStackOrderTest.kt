@@ -267,6 +267,35 @@ class BoxStackOrderTest {
         }
 
     @Test
+    fun aPolicyReadsChildrenInDeclarationOrderWhileTheBoxKeepsTheTopChildFirst() {
+        val policy = DeclarationRecordingOverlapPolicy()
+        val box = ConstrainedPanel(PolicyLayout(policy))
+        val under = JLabel("under").apply { name = "under" }
+        val over = JLabel("over").apply { name = "over" }
+        box.add(under, BoxConstraint())
+        box.add(over, BoxConstraint(zIndex = 1f))
+        box.setSize(CHILD_WIDTH, CHILD_HEIGHT)
+
+        box.doLayout()
+
+        assertEquals(
+            listOf("under", "over"),
+            policy.measuredNames,
+            "the policy must see the children in their declaration order, not in Swing's visual stack order",
+        )
+        assertEquals(
+            listOf(over, under),
+            box.components.toList(),
+            "the component array must still keep the larger zIndex first so it paints above its sibling",
+        )
+        assertEquals(
+            over,
+            SwingUtilities.getDeepestComponentAt(box, CHILD_WIDTH / 2, CHILD_HEIGHT / 2),
+            "the larger-zIndex child must still receive input where the siblings overlap",
+        )
+    }
+
+    @Test
     fun theChildrenLeftKeepTheirStackWhenOneIsRemoved() =
         runComposeSwingTest {
             var declared by mutableStateOf(listOf("a", "b", "c"))
@@ -349,7 +378,7 @@ class BoxStackOrderTest {
 
     @Test
     fun aBoxStacksTheChildrenItTookAfterRefusingOne() {
-        val box = OverlapPanel(OverlapLayout(Alignment.TopStart))
+        val box = ConstrainedPanel(PolicyLayout(BoxMeasurePolicy(Alignment.TopStart)))
         val dropped = JLabel("dropped")
 
         assertFailsWith<IllegalArgumentException> { box.add(dropped, "North") }
@@ -364,7 +393,7 @@ class BoxStackOrderTest {
 
     @Test
     fun aBoxStacksTheChildrenItTakesAfterBeingEmptied() {
-        val box = OverlapPanel(OverlapLayout(Alignment.TopStart))
+        val box = ConstrainedPanel(PolicyLayout(BoxMeasurePolicy(Alignment.TopStart)))
         box.add(JLabel("first"), BoxConstraint())
 
         box.removeAll()
@@ -382,7 +411,7 @@ class BoxStackOrderTest {
  * Adds two children to [box] - one declaring a zIndex over the other - and answers them in the order the
  * component array must hold them, the top of the stack first.
  */
-private fun liftedPairAddedTo(box: OverlapPanel): Pair<Component, Component> {
+private fun liftedPairAddedTo(box: ConstrainedPanel): Pair<Component, Component> {
     val under = JLabel("under")
     val over = JLabel("over")
     box.add(under, BoxConstraint())
@@ -425,6 +454,24 @@ private class AlikeChild : JLabel("alike") {
     override fun equals(other: Any?): Boolean = other is AlikeChild
 
     override fun hashCode(): Int = javaClass.hashCode()
+}
+
+/** Records policy input and deliberately overlaps its children, separating layout order from stack order. */
+private class DeclarationRecordingOverlapPolicy : MeasurePolicy {
+    var measuredNames: List<String> = emptyList()
+        private set
+
+    override fun MeasureScope.measure(
+        measurables: List<Measurable>,
+        constraints: Constraints,
+    ): MeasureResult {
+        measuredNames = measurables.map { it.component.name.orEmpty() }
+        val children =
+            measurables.map {
+                it.measure(Constraints(CHILD_WIDTH, CHILD_WIDTH, CHILD_HEIGHT, CHILD_HEIGHT))
+            }
+        return layout(CHILD_WIDTH, CHILD_HEIGHT) { children.forEach { it.place(0, 0) } }
+    }
 }
 
 /** The text of each child of the box, from the bottom of its stack up. */

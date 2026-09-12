@@ -75,7 +75,7 @@ internal fun ColumnScope.Card(
                 BorderFactory.createEmptyBorder(ROW_GAP, ROW_GAP, ROW_GAP, ROW_GAP),
             )
         }
-    Column(modifier = SwingModifier.border(cardBorder).fillWidth()) {
+    Column(modifier = SwingModifier.border(cardBorder).fillMaxWidth()) {
         content()
     }
 }

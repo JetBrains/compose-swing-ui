@@ -2,6 +2,9 @@ package org.jetbrains.compose.swing.node
 
 import androidx.compose.runtime.AbstractApplier
 import org.jetbrains.compose.swing.core.trace
+import org.jetbrains.compose.swing.layout.ChildPlacement
+import org.jetbrains.compose.swing.layout.MeasurementLayoutManager
+import org.jetbrains.compose.swing.layout.SlotAttachment
 import org.jetbrains.compose.swing.util.DeferredAction
 import org.jetbrains.compose.swing.util.fastForEach
 import org.jetbrains.compose.swing.util.fastForEachIndexed
@@ -30,7 +33,7 @@ import javax.swing.RootPaneContainer
  *   host before its own modifier chain has run there, so it is taken into that host's children as it
  *   arrives and attached once the change pass has settled, under the placement its modifier names at the
  *   host it is at now. That is also where such a child is held to the host's declaration.
- * - An indexed child is added with its declared [SwingNodeHolder.constraint] when non-null (e.g. a
+ * - An indexed child is added with its declared [ParentDeclaration.parentData] when non-null (e.g. a
  *   `BorderLayout` region), otherwise by index alone. The constraint is the one the child's own modifier
  *   chain declares.
  * - A child naming a region carries the [SwingNodeHolder.declaredSlot] that fills it. The child
@@ -127,6 +130,7 @@ internal class SwingApplier internal constructor(
                 // one-child-per-region check this pass ends with.
                 val slotIndex = parent.slotIndexOf(container, index)
                 instance.installedThrough(attachment, attachment.install(container, instance.component, slotIndex))
+                instance.declaration.attachedUnder(container)
                 parent.children.add(index, instance)
                 if (parent.childPlacement is ChildPlacement.Slots) changes.recordSlotFilled(parent)
                 batch.markChanged(container)
@@ -317,6 +321,7 @@ private class ChildRegions(
         if (attachment != null) {
             val slotIndex = slotIndexOf(container, index)
             child.installedThrough(attachment, attachment.install(container, child.component, slotIndex))
+            child.declaration.attachedUnder(container)
             if (childPlacement is ChildPlacement.Slots) changes.recordSlotFilled(this)
         } else {
             addToHost(container, child, index)
@@ -554,15 +559,18 @@ internal val Container.childHost: Container
 /**
  * Adds [child], composed at [index], to [container]'s child host at the place the host reads a position at.
  *
- * The host is always handed a position, whether or not the child carries a layout constraint:
+ * The host is always handed a position. A conventional layout is also handed folded parent data when
+ * the child has one:
  * `Container.add(Component, Object)` ignores the index and appends, while a constrained layout such as
  * `BorderLayout` stores the component by its region, so the two-argument form would tell a constrained
  * child's host nothing about where the composition puts it. What the host makes of the position is its
  * own. A plain container holds its children in exactly the order given, so it is handed the place among
  * the children standing there already. A `JLayeredPane` reads the position as one within the depth the
- * constraint names, so it is handed the place among the standing siblings on that depth - a count over
+ * parent data names, so it is handed the place among the standing siblings on that depth - a count over
  * every sibling would put the child one place lower within its depth for each sibling on another depth
- * ahead of it, or at the depth's bottom once the count ran past its end.
+ * ahead of it, or at the depth's bottom once the count ran past its end. A
+ * [MeasurementLayoutManager] is added without parent data, then receives that data and the ordered
+ * parent-layout elements together from [ParentDeclaration.attachedUnder].
  */
 private fun SwingNodeHolder<*>.addToHost(
     container: Container,
@@ -570,18 +578,20 @@ private fun SwingNodeHolder<*>.addToHost(
     index: Int,
 ) {
     val childHost = container.childHost
+    child.declaration.checkAttachableUnder(childHost)
     val position =
         if (childHost is JLayeredPane) {
             standingSiblingsOnDepthBefore(childHost, child, index)
         } else {
             standingSiblingsBefore(childHost, index)
         }
-    val constraint = child.constraint
-    if (constraint != null) {
-        childHost.add(child.component, constraint, position)
+    val parentData = child.declaration.parentData
+    if (parentData != null && childHost.layout !is MeasurementLayoutManager) {
+        childHost.add(child.component, parentData, position)
     } else {
         childHost.add(child.component, position)
     }
+    child.declaration.attachedUnder(childHost)
 }
 
 /**
@@ -617,7 +627,8 @@ private fun SwingNodeHolder<*>.standingSiblingsOnDepthBefore(
     return standing
 }
 
-private fun SwingNodeHolder<*>.depthOn(pane: JLayeredPane): Int = constraint as? Int ?: pane.getLayer(component)
+private fun SwingNodeHolder<*>.depthOn(pane: JLayeredPane): Int =
+    declaration.parentData as? Int ?: pane.getLayer(component)
 
 /**
  * The index a region's attachment is handed for the child composed at [index]: `0` where the host's regions
@@ -648,6 +659,7 @@ private fun SwingNodeHolder<*>.checkPlacementOf(
     child: SwingNodeHolder<*>,
     fillsRegion: Boolean,
 ) {
+    child.declaration.checkAttachableUnder(host)
     checkChildKind(host, child, fillsRegion)
     // Every attached child here was held to this same rule as it arrived, so they agree with one another
     // and the first of them answers for them all. A holder in `children` carries the attachment that
@@ -681,10 +693,15 @@ private fun SwingNodeHolder<*>.checkChildKind(
     fillsRegion: Boolean,
 ) {
     val placement = childPlacement
+    // The kind answers first: a child of the wrong kind for this host is held by nothing, and telling it
+    // instead to put itself in a Box here would name a container it cannot be a child of either.
     if (placement.holdsRegions) {
         check(fillsRegion) { childNamesNoRegion(host, child.component, placement) }
     } else {
         check(!fillsRegion) { hostHasNoRegions(host, child) }
+    }
+    check(child.declaration.parentLayoutElements.isEmpty() || host.layout is MeasurementLayoutManager) {
+        hostCannotMeasureChild(host, child)
     }
 }
 

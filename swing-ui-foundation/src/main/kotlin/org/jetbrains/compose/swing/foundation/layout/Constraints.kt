@@ -1,5 +1,8 @@
 package org.jetbrains.compose.swing.foundation.layout
 
+import androidx.compose.runtime.Stable
+import java.awt.Dimension
+
 /**
  * The extents a parent offers a child: the least it must occupy along each axis and the most it may.
  *
@@ -54,8 +57,9 @@ public class Constraints(
     /** Whether the height can take exactly one value. */
     public val hasFixedHeight: Boolean get() = minHeight == maxHeight
 
-    /** Whether both axes can take only zero. */
-    public val isZero: Boolean get() = hasFixedWidth && minWidth == 0 && hasFixedHeight && minHeight == 0
+    /** Whether every size satisfying these constraints has zero area. */
+    @Stable
+    public val isZero: Boolean get() = maxWidth == 0 || maxHeight == 0
 
     /**
      * A new constraint with every extent left unchanged unless this call supplies a replacement.
@@ -74,6 +78,10 @@ public class Constraints(
             minHeight = minHeight,
             maxHeight = maxHeight,
         )
+
+    /** A copy with both minimum dimensions reset to zero. */
+    @Stable
+    public fun copyMaxDimensions(): Constraints = Constraints(maxWidth = maxWidth, maxHeight = maxHeight)
 
     override fun equals(other: Any?): Boolean =
         this === other ||
@@ -94,20 +102,117 @@ public class Constraints(
     }
 
     override fun toString(): String =
-        "Constraints(width=${extent(minWidth, maxWidth)}, height=${extent(minHeight, maxHeight)})"
+        "Constraints(minWidth = $minWidth, maxWidth = ${displayMaximum(maxWidth)}, " +
+            "minHeight = $minHeight, maxHeight = ${displayMaximum(maxHeight)})"
 
     /** The standard constraints. */
     public companion object {
+        // Keep the Compose-compatible spelling; this public constant is intentionally not screaming snake case.
+
+        /** The value used for an unconstrained maximum width or height. */
+        @Suppress("ktlint:standard:property-naming")
+        public const val Infinity: Int = Int.MAX_VALUE
+
         /** Constraints that impose nothing: a child takes the extent it asks for on either axis. */
+        @Stable
         public val Unbounded: Constraints = Constraints()
+
+        /** Creates constraints for a fixed size in both dimensions. */
+        @Stable
+        public fun fixed(
+            width: Int,
+            height: Int,
+        ): Constraints =
+            Constraints(
+                minWidth = width,
+                maxWidth = width,
+                minHeight = height,
+                maxHeight = height,
+            )
+
+        /** Creates constraints for a fixed width and an unspecified height. */
+        @Stable
+        public fun fixedWidth(width: Int): Constraints =
+            Constraints(
+                minWidth = width,
+                maxWidth = width,
+            )
+
+        /** Creates constraints for a fixed height and an unspecified width. */
+        @Stable
+        public fun fixedHeight(height: Int): Constraints =
+            Constraints(
+                minHeight = height,
+                maxHeight = height,
+            )
+
+        /**
+         * Creates constraints from all four dimensions.
+         *
+         * This compatibility entry point is retained for callers of Compose's packed-constraint
+         * implementation. Swing constraints are already represented by four [Int]s, so neither
+         * [prioritizeWidth] branch needs to trim the requested dimensions.
+         */
+        @Deprecated(
+            "Use Constraints(minWidth, maxWidth, minHeight, maxHeight) instead",
+            ReplaceWith("Constraints(minWidth, maxWidth, minHeight, maxHeight)"),
+        )
+        @Stable
+        // CMP keeps this parameter for packed-constraint compatibility; Swing's four Ints need no prioritization.
+        @Suppress("UnusedParameter")
+        public fun restrictConstraints(
+            minWidth: Int,
+            maxWidth: Int,
+            minHeight: Int,
+            maxHeight: Int,
+            prioritizeWidth: Boolean = true,
+        ): Constraints = Constraints(minWidth, maxWidth, minHeight, maxHeight)
     }
 }
 
-/** One axis of a [Constraints] as its string prints it, naming an unbounded maximum rather than its number. */
-private fun extent(
-    min: Int,
+/** Coerces both dimensions of [size] into this set of constraints. */
+@Stable
+public fun Constraints.constrain(size: Dimension): Dimension =
+    Dimension(
+        constrainWidth(size.width),
+        constrainHeight(size.height),
+    )
+
+/** Coerces the ranges in [otherConstraints] into this set of constraints. */
+@Stable
+public fun Constraints.constrain(otherConstraints: Constraints): Constraints =
+    Constraints(
+        minWidth = otherConstraints.minWidth.coerceIn(minWidth, maxWidth),
+        maxWidth = otherConstraints.maxWidth.coerceIn(minWidth, maxWidth),
+        minHeight = otherConstraints.minHeight.coerceIn(minHeight, maxHeight),
+        maxHeight = otherConstraints.maxHeight.coerceIn(minHeight, maxHeight),
+    )
+
+/** Returns whether [size] falls within this set of constraints. */
+@Stable
+public fun Constraints.isSatisfiedBy(size: Dimension): Boolean =
+    size.width in minWidth..maxWidth && size.height in minHeight..maxHeight
+
+/** Returns these constraints with the minimum dimensions shifted by [horizontal] and [vertical]. */
+@Stable
+public fun Constraints.offset(
+    horizontal: Int = 0,
+    vertical: Int = 0,
+): Constraints =
+    Constraints(
+        minWidth = (minWidth + horizontal).coerceAtLeast(0),
+        maxWidth = addMaxWithMinimum(maxWidth, horizontal),
+        minHeight = (minHeight + vertical).coerceAtLeast(0),
+        maxHeight = addMaxWithMinimum(maxHeight, vertical),
+    )
+
+private fun addMaxWithMinimum(
     max: Int,
-): String = "$min..${if (max == Int.MAX_VALUE) "unbounded" else max.toString()}"
+    value: Int,
+): Int = if (max == Constraints.Infinity) max else (max + value).coerceAtLeast(0)
+
+/** Prints an unconstrained maximum with Compose's public spelling. */
+private fun displayMaximum(max: Int): String = if (max == Constraints.Infinity) "Infinity" else max.toString()
 
 /**
  * These constraints with [horizontal] taken off both widths and [vertical] off both heights, for a

@@ -6,6 +6,7 @@ plugins {
     id("buildsrc.convention.publishing")
     id("buildsrc.convention.jacoco-coverage")
     id("buildsrc.convention.window-system-lock")
+    id("buildsrc.convention.compiler-test-harness")
 }
 
 kotlin {
@@ -41,6 +42,9 @@ dependencies {
     // @Nls localization annotations. CLASS/IDE-only: compileOnly so they warn consumers in-IDE across
     // the jar boundary without leaking org.jetbrains:annotations to the published runtime.
     compileOnly(libs.jetbrainsAnnotations)
+    // Embeddable Kotlin compiler driven by the in-process test harness. compileOnly so the published
+    // test artifact does not leak the compiler jar onto consumers' test classpaths.
+    compileOnly(kotlin("compiler-embeddable"))
     // The harness's own tests drive real animations to show what manual frame control does to one.
     // Test-only: the published harness does not depend on the animation module.
     testImplementation(project(":swing-ui-animation"))

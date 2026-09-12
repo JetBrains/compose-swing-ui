@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.foundation.layout
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
+import org.jetbrains.compose.swing.modifier.layout.maximumSize
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -296,11 +297,11 @@ class RowColumnAlignmentTest {
         }
 
     @Test
-    fun fillHeightWinsOverTheBaselineAChildAlsoDeclares() =
+    fun fillMaxHeightComposesWithTheBaselineAChildAlsoDeclares() =
         runComposeSwingTest {
             setContent {
                 BaselineRow {
-                    BaselineChild(DEEP_BASELINE, SwingModifier.fillHeight().alignByBaseline())
+                    FlexibleBaselineChild(DEEP_BASELINE, SwingModifier.fillMaxHeight().alignByBaseline())
                     BaselineChild(SHALLOW_BASELINE, SwingModifier.alignByBaseline())
                 }
             }
@@ -308,11 +309,11 @@ class RowColumnAlignmentTest {
             assertEquals(
                 listOf(
                     Rectangle(0, 0, CHILD_WIDTH, ACROSS_EXTENT),
-                    Rectangle(CHILD_WIDTH, 0, CHILD_WIDTH, CHILD_HEIGHT),
+                    Rectangle(CHILD_WIDTH, DEEP_BASELINE - SHALLOW_BASELINE, CHILD_WIDTH, CHILD_HEIGHT),
                 ),
                 childBounds(),
-                "a child filling the row's height must take the whole of it and leave the shared baseline, " +
-                    "so its sibling is the only child on that line and sits at the top",
+                "fillMaxHeight must size the first child while alignByBaseline independently places both " +
+                    "children on the shared line",
             )
         }
 
@@ -373,6 +374,52 @@ class RowColumnAlignmentTest {
                 ),
                 childBounds(),
                 "both children must fit within the height the row asked for, on one baseline",
+            )
+        }
+
+    @Test
+    fun aRowsIntrinsicBaselineUsesAChildsCappedWidth() =
+        runComposeSwingTest {
+            setContent {
+                Row(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
+                    CappedBaselineChild(
+                        SwingModifier.maximumSize(CAPPED_BASELINE_WIDTH, CHILD_HEIGHT).alignByBaseline(),
+                    )
+                    BaselineChild(SHALLOW_BASELINE, SwingModifier.alignByBaseline())
+                }
+            }
+
+            assertEquals(
+                Dimension(
+                    CAPPED_BASELINE_WIDTH + CHILD_WIDTH,
+                    DEEP_BASELINE + CHILD_HEIGHT - SHALLOW_BASELINE,
+                ),
+                containerPreferredSize(),
+                "a row must ask its capped child for the baseline at the width it can occupy, so the child " +
+                    "still contributes its deeper baseline to the row's intrinsic height",
+            )
+        }
+
+    @Test
+    fun aRowsIntrinsicBaselineUsesAChildsCappedHeight() =
+        runComposeSwingTest {
+            setContent {
+                Row(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
+                    CappedCrossBaselineChild(
+                        SwingModifier.maximumSize(CHILD_WIDTH, CAPPED_BASELINE_HEIGHT).alignByBaseline(),
+                    )
+                    BaselineChild(SHALLOW_BASELINE, SwingModifier.alignByBaseline())
+                }
+            }
+
+            assertEquals(
+                Dimension(
+                    CHILD_WIDTH * 2,
+                    CAPPED_CROSS_DEEP_BASELINE + CHILD_HEIGHT - SHALLOW_BASELINE,
+                ),
+                containerPreferredSize(),
+                "a row must ask its capped child for the baseline at the height it can occupy, then calculate " +
+                    "the below-baseline remainder from that same capped height",
             )
         }
 
@@ -451,6 +498,15 @@ private const val DEEP_BASELINE = 30
 /** How far below a child's top edge the shallower of the two fixture baselines falls. */
 private const val SHALLOW_BASELINE = 10
 
+/** The capped width at which [CappedBaselinePanel] reports the baseline its test declares. */
+private const val CAPPED_BASELINE_WIDTH = 30
+
+/** The capped height at which [CappedCrossBaselinePanel] reports its baseline. */
+private const val CAPPED_BASELINE_HEIGHT = 30
+
+/** The baseline [CappedCrossBaselinePanel] reports at [CAPPED_BASELINE_HEIGHT]. */
+private const val CAPPED_CROSS_DEEP_BASELINE = 20
+
 /** What a component reports when it has no baseline at all, as `java.awt.Component` defines it. */
 private const val NO_BASELINE = -1
 
@@ -479,6 +535,36 @@ private fun BaselineChild(
     )
 }
 
+/** A child whose component reports [baseline] for every positive extent it can occupy. */
+@Composable
+private fun FlexibleBaselineChild(
+    baseline: Int,
+    modifier: SwingModifier = SwingModifier,
+) {
+    SwingNode(
+        factory = { FlexibleBaselinePanel(baseline) },
+        modifier = modifier.preferredSize(CHILD_WIDTH, CHILD_HEIGHT),
+    )
+}
+
+/** A baseline child that reports only when the row asks it at its explicit capped width. */
+@Composable
+private fun CappedBaselineChild(modifier: SwingModifier = SwingModifier) {
+    SwingNode(
+        factory = { CappedBaselinePanel() },
+        modifier = modifier.preferredSize(CHILD_WIDTH, CHILD_HEIGHT),
+    )
+}
+
+/** A baseline child that reports only when the row asks it at its explicit capped height. */
+@Composable
+private fun CappedCrossBaselineChild(modifier: SwingModifier = SwingModifier) {
+    SwingNode(
+        factory = { CappedCrossBaselinePanel() },
+        modifier = modifier.preferredSize(CHILD_WIDTH, CHILD_HEIGHT),
+    )
+}
+
 /**
  * A component carrying the baseline the test chose for it, and none at all when it is asked at any size
  * other than the one it occupies - so a row asking the wrong question gets no baseline to place it by.
@@ -490,4 +576,30 @@ private class BaselinePanel(
         width: Int,
         height: Int,
     ): Int = if (width == CHILD_WIDTH && height == CHILD_HEIGHT) reported else NO_BASELINE
+}
+
+/** A component that retains its baseline when a layout modifier changes its extent. */
+private class FlexibleBaselinePanel(
+    private val reported: Int,
+) : JPanel() {
+    override fun getBaseline(
+        width: Int,
+        height: Int,
+    ): Int = if (width > 0 && height > 0) reported else NO_BASELINE
+}
+
+/** A component whose baseline is available only at [CAPPED_BASELINE_WIDTH]. */
+private class CappedBaselinePanel : JPanel() {
+    override fun getBaseline(
+        width: Int,
+        height: Int,
+    ): Int = if (width == CAPPED_BASELINE_WIDTH && height == CHILD_HEIGHT) DEEP_BASELINE else NO_BASELINE
+}
+
+/** A component whose baseline is available only at [CAPPED_BASELINE_HEIGHT]. */
+private class CappedCrossBaselinePanel : JPanel() {
+    override fun getBaseline(
+        width: Int,
+        height: Int,
+    ): Int = if (width == CHILD_WIDTH && height == CAPPED_BASELINE_HEIGHT) CAPPED_CROSS_DEEP_BASELINE else NO_BASELINE
 }

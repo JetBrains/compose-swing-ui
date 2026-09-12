@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.node
 
+import org.jetbrains.compose.swing.layout.ChildPlacement
 import java.awt.Component
 import java.awt.Container
 import java.lang.reflect.Modifier
@@ -29,6 +30,22 @@ internal fun childNamesNoRegion(
     return "A ${host.declaredName} holds each child in one of its own regions rather than as an " +
         "indexed child, so every child must declare which region it fills. The " +
         "${child.declaredName} declared here names none. $add"
+}
+
+/**
+ * A child declaring parent-layout elements arriving at a host that cannot interpret them. Names the
+ * host being joined, not the one being left: on a relocation this fires as the child attaches, and a
+ * message naming where it came from would read as a fault of that container.
+ */
+internal fun hostCannotMeasureChild(
+    host: Container,
+    child: SwingNodeHolder<*>,
+): String {
+    val declared = child.declaration.parentLayoutElements.joinToString { "SwingModifier.${it.name}()" }
+    return "A ${host.declaredName} lays each child out at the size the child asks for, so it never " +
+        "interprets parent-layout declarations, and the ${child.component.declaredName} joining it " +
+        "declares $declared. Put the component in a Box inside this container and declare the layout " +
+        "modifiers on the Box's child, which the Box interprets."
 }
 
 /** A child naming a region of a host that has none: the container offering that region is elsewhere. */

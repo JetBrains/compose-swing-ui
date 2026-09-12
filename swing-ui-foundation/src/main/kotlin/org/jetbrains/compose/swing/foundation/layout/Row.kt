@@ -1,20 +1,56 @@
+/*
+ * Copyright 2020 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 @file:JvmMultifileClass
 @file:JvmName("FoundationLayoutKt")
 
 package org.jetbrains.compose.swing.foundation.layout
 
 import androidx.compose.runtime.Composable
-import org.jetbrains.compose.swing.components.layout.updateLayout
+import androidx.compose.runtime.remember
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.node.SwingNode
+
+/** Adapted from AndroidX's foundation-layout; see this module's META-INF/NOTICE for the synced version. */
+@PublishedApi
+internal val DefaultRowMeasurePolicy: MeasurePolicy =
+    RowMeasurePolicy(horizontalArrangement = Arrangement.Start, verticalAlignment = Alignment.Top)
+
+@PublishedApi
+@Composable
+internal fun rowMeasurePolicy(
+    horizontalArrangement: Arrangement.Horizontal,
+    verticalAlignment: Alignment.Vertical,
+): MeasurePolicy =
+    if (horizontalArrangement == Arrangement.Start && verticalAlignment == Alignment.Top) {
+        DefaultRowMeasurePolicy
+    } else {
+        remember(horizontalArrangement, verticalAlignment) {
+            RowMeasurePolicy(horizontalArrangement, verticalAlignment)
+        }
+    }
 
 /**
  * A composable that arranges its [content] horizontally, along the panel's reading order.
  *
- * Every child keeps the width it prefers, and the width the row has left over is placed by
- * [horizontalArrangement] - before the children, after them, between them, or as a fixed gap through
- * [Arrangement.spacedBy]. Across the row each child keeps the height it prefers and sits where
- * [verticalAlignment] puts it.
+ * An explicit `maximumSize` caps the offer and normally the extent each child takes on either axis.
+ * A layout modifier whose own contract permits escape from an impossible offer, such as
+ * [ConstrainedScope.aspectRatio], may report an extent outside that maximum. The width the row has left
+ * over is placed by [horizontalArrangement] - before the children, after them, between them, or as a
+ * fixed gap through [Arrangement.spacedBy]. Across the row each child sits where [verticalAlignment]
+ * puts it.
  *
  * A child claims a share of the leftover width with `weight`, or names its own vertical placement with
  * `align`, through [RowScope]:
@@ -36,24 +72,16 @@ import org.jetbrains.compose.swing.node.SwingNode
  * @param content the composable content of the row; see [RowScope]
  */
 @Composable
-public fun Row(
+public inline fun Row(
     modifier: SwingModifier = SwingModifier,
     horizontalArrangement: Arrangement.Horizontal = Arrangement.Start,
     verticalAlignment: Alignment.Vertical = Alignment.Top,
-    content: @Composable RowScope.() -> Unit,
+    crossinline content: @Composable RowScope.() -> Unit,
 ) {
-    val axisArrangement = HorizontalAxisArrangement(horizontalArrangement)
-    val axisAlignment = VerticalAxisAlignment(verticalAlignment)
-
-    SwingNode(
-        factory = {
-            ConstrainedPanel(LinearLayout(LayoutAxis.Horizontal, axisArrangement, axisAlignment))
-        },
+    Layout(
+        measurePolicy = rowMeasurePolicy(horizontalArrangement, verticalAlignment),
         modifier = modifier,
-        update = {
-            updateLayout<LinearLayout, _>(axisArrangement) { this.arrangement = it }
-            updateLayout<LinearLayout, _>(axisAlignment) { this.alignment = it }
-        },
-        content = { RowScopeImpl.content() },
+        parentDataProtocol = LinearParentDataProtocol,
+        content = { RowScopeInstance.content() },
     )
 }

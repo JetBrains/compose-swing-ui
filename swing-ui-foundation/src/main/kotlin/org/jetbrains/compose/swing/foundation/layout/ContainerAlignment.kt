@@ -1,11 +1,24 @@
 package org.jetbrains.compose.swing.foundation.layout
 
 import java.awt.Component
-import java.awt.Container
+
+/** Which child a policy-driven container lets its parent read alignment from. */
+internal enum class ParentAlignmentChild {
+    /** The child declared first, as Row and Column arrange their content. */
+    FirstDeclared,
+
+    /** The child Swing holds first, which is the topmost child of a stacking container. */
+    Topmost,
+}
+
+/** A policy that chooses a child other than the first declaration for its parent's alignment query. */
+internal interface ParentAlignmentPolicy {
+    val parentAlignmentChild: ParentAlignmentChild
+}
 
 /**
- * What [alignment] reads for the first child of [target] that is visible, or [Component.CENTER_ALIGNMENT]
- * where the container has no visible child to ask.
+ * What [alignment] reads for [child], or [Component.CENTER_ALIGNMENT] where the
+ * container has no child to ask.
  *
  * A container built from this package reports its content's alignment rather than a fixed value of its own,
  * so the layout above it places it where it would have placed that content directly. A parent that lines
@@ -13,16 +26,11 @@ import java.awt.Container
  * line for every sibling, so a container answering a constant would sit off the line its content belongs
  * on and squeeze whichever siblings can stretch.
  *
- * A hidden child is passed over because it takes no space and is placed nowhere; letting it decide the
- * alignment would move the container for content that is not on screen.
+ * A hidden child answers like any other, because these containers reserve its place as well: a container
+ * whose reserved layout and whose reported alignment disagreed about which children exist would sit off
+ * the line its own content was measured against.
  */
-internal inline fun firstVisibleChildAlignment(
-    target: Container,
+internal inline fun firstChildAlignment(
+    child: Component?,
     alignment: (Component) -> Float,
-): Float {
-    for (index in 0 until target.componentCount) {
-        val child = target.getComponent(index)
-        if (child.isVisible) return alignment(child)
-    }
-    return Component.CENTER_ALIGNMENT
-}
+): Float = child?.let(alignment) ?: Component.CENTER_ALIGNMENT

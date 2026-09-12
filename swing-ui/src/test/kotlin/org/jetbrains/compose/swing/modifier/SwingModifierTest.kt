@@ -9,6 +9,7 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
+import org.jetbrains.compose.swing.layout.SlotAttachment
 import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.foreground
 import org.jetbrains.compose.swing.modifier.appearance.name
@@ -35,6 +36,7 @@ import org.jetbrains.compose.swing.modifier.interaction.onHover
 import org.jetbrains.compose.swing.modifier.interaction.onPointerEvent
 import org.jetbrains.compose.swing.modifier.interaction.orderedFocusTraversal
 import org.jetbrains.compose.swing.modifier.interaction.verifyInputWhenFocusTarget
+import org.jetbrains.compose.swing.modifier.layout.RawParentProtocol
 import org.jetbrains.compose.swing.modifier.layout.alignmentX
 import org.jetbrains.compose.swing.modifier.layout.alignmentY
 import org.jetbrains.compose.swing.modifier.layout.bounds
@@ -55,7 +57,6 @@ import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
 import org.jetbrains.compose.swing.modifier.listener.listener
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
 import org.jetbrains.compose.swing.modifier.listener.mouseMotionListener
-import org.jetbrains.compose.swing.node.SlotAttachment
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.interaction.onParent
@@ -845,7 +846,7 @@ class SwingModifierTest {
         assertDeclaredChainCarriedOnce { alignmentY(0f) }
         assertDeclaredChainCarriedOnce { componentOrientation(ComponentOrientation.LEFT_TO_RIGHT) }
         assertDeclaredChainCarriedOnce { layoutConstraint("region") }
-        assertDeclaredChainCarriedOnce { slot("region", SlotAttachment { _, _, _ -> {} }) }
+        assertDeclaredChainCarriedOnce { slot(RawParentProtocol, "region", SlotAttachment { _, _, _ -> {} }) }
         assertDeclaredChainCarriedOnce { bounds(0, 0, 1, 1) }
         assertDeclaredChainCarriedOnce { location(0, 0) }
         assertDeclaredChainCarriedOnce { location(Point(0, 0)) }

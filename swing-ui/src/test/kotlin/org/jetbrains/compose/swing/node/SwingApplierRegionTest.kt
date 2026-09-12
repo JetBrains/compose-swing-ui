@@ -1,7 +1,10 @@
 package org.jetbrains.compose.swing.node
 
+import org.jetbrains.compose.swing.layout.ChildPlacement
+import org.jetbrains.compose.swing.layout.SlotAttachment
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifierDiff
+import org.jetbrains.compose.swing.modifier.layout.RawParentProtocol
 import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
 import org.jetbrains.compose.swing.modifier.layout.slot
 import java.awt.BorderLayout
@@ -157,7 +160,7 @@ class SwingApplierRegionTest {
         name: String = VIEWPORT_CALL,
         attachment: SlotAttachment = HoldsNothing,
     ): SwingNodeHolder<Component> = SwingNodeHolder(component).apply {
-        applyModifierDiff(SwingModifier.slot(name, attachment))
+        applyModifierDiff(SwingModifier.slot(RawParentProtocol, name, attachment))
     }
 
     /** A `JSplitPane` holding its children on the two sides it offers, with neither side taken. */
@@ -246,7 +249,9 @@ class SwingApplierRegionTest {
         applier.onBeginChanges()
         applier.onContainer(host) {
             onNode(movedChild) {
-                movedChild.applyModifierDiff(SwingModifier.slot(SECOND_SIDE_CALL, SecondSideAttachment))
+                movedChild.applyModifierDiff(
+                    SwingModifier.slot(RawParentProtocol, SECOND_SIDE_CALL, SecondSideAttachment),
+                )
             }
             insertChild(1, slotHolder(arriving, FIRST_SIDE_CALL, FirstSideAttachment))
         }
@@ -338,7 +343,13 @@ class SwingApplierRegionTest {
         // what puts them there, so it is the moved child's new side the pane is held to.
         applier.onBeginChanges()
         applier.onContainer(host) {
-            onNode(leading) { leading.applyModifierDiff(SwingModifier.slot(SECOND_SIDE_CALL, SecondSideAttachment)) }
+            onNode(
+                leading,
+            ) {
+                leading.applyModifierDiff(
+                    SwingModifier.slot(RawParentProtocol, SECOND_SIDE_CALL, SecondSideAttachment),
+                )
+            }
         }
         val failure =
             assertFailsWith<IllegalStateException> {
@@ -432,7 +443,9 @@ class SwingApplierRegionTest {
         applier.onContainer(leaving) { remove(0, 1) }
         applier.onContainer(arrivedAt) {
             relocateChild(0, child)
-            onNode(child) { child.applyModifierDiff(SwingModifier.slot(SECOND_SIDE_CALL, SecondSideAttachment)) }
+            onNode(
+                child,
+            ) { child.applyModifierDiff(SwingModifier.slot(RawParentProtocol, SECOND_SIDE_CALL, SecondSideAttachment)) }
         }
         applier.onEndChanges()
 
@@ -518,18 +531,28 @@ class SwingApplierRegionTest {
         val failure =
             assertFailsWith<IllegalArgumentException> {
                 child.applyModifierDiff(
-                    SwingModifier.layoutConstraint(BorderLayout.CENTER).slot(VIEWPORT_CALL, HoldsNothing),
+                    SwingModifier
+                        .layoutConstraint(
+                            BorderLayout.CENTER,
+                        ).slot(RawParentProtocol, VIEWPORT_CALL, HoldsNothing),
                 )
             }
 
         val message = failure.message.orEmpty()
         assertTrue(message.contains("this modifier declares both"), "the failure should say why: $message")
         assertTrue(
-            message.contains("layoutConstraint(${BorderLayout.CENTER}) and $VIEWPORT_CALL"),
-            "the failure should name the two placements the modifier declares: $message",
+            message.contains("SwingModifier.layoutConstraint() asks for"),
+            "the failure should name the layout constraint declaration: $message",
+        )
+        assertTrue(
+            message.contains(VIEWPORT_CALL),
+            "the failure should name the region declaration: $message",
         )
         assertNull(child.declaredSlot, "a refused modifier should leave no region recorded on the node")
-        assertNull(child.constraint, "a refused modifier should leave no layout constraint recorded on the node")
+        assertNull(
+            child.declaration.parentData,
+            "a refused modifier should leave no layout constraint recorded on the node",
+        )
     }
 }
 

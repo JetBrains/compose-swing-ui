@@ -1,10 +1,11 @@
 package org.jetbrains.compose.swing.components.layout
 
 import org.jetbrains.compose.swing.annotations.ScrollPaneCorner
+import org.jetbrains.compose.swing.layout.ChildPlacement
+import org.jetbrains.compose.swing.layout.SlotAttachment
+import org.jetbrains.compose.swing.layout.parentProtocolOf
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.slot
-import org.jetbrains.compose.swing.node.ChildPlacement
-import org.jetbrains.compose.swing.node.SlotAttachment
 import org.jetbrains.compose.swing.node.wrongSlotHost
 import java.awt.BorderLayout
 import java.awt.Component
@@ -130,17 +131,27 @@ internal class ScrollPaneScopeImpl : ScrollPaneScope {
         tracksViewportHeight: Boolean?,
     ): SwingModifier {
         val behavior = ScrollBehavior.of(unitIncrement, blockIncrement, tracksViewportWidth, tracksViewportHeight)
-        return (this then ScrollBehaviorElement(region, behavior)).slot(VIEWPORT_REGION, region.attachment)
+        return (
+            this then
+                ScrollBehaviorElement(
+                    region,
+                    behavior,
+                )
+        ).slot(ScrollPaneParentProtocol, VIEWPORT_REGION, region.attachment)
     }
 
-    override fun SwingModifier.rowHeader(): SwingModifier = slot(ROW_HEADER_REGION, RowHeaderAttachment)
+    override fun SwingModifier.rowHeader(): SwingModifier =
+        slot(ScrollPaneParentProtocol, ROW_HEADER_REGION, RowHeaderAttachment)
 
-    override fun SwingModifier.columnHeader(): SwingModifier = slot(COLUMN_HEADER_REGION, ColumnHeaderAttachment)
+    override fun SwingModifier.columnHeader(): SwingModifier =
+        slot(ScrollPaneParentProtocol, COLUMN_HEADER_REGION, ColumnHeaderAttachment)
 
     override fun SwingModifier.corner(
         @ScrollPaneCorner corner: String,
-    ): SwingModifier = slot(cornerRegion(corner), CornerAttachments.getValue(corner))
+    ): SwingModifier = slot(ScrollPaneParentProtocol, cornerRegion(corner), CornerAttachments.getValue(corner))
 }
+
+private val ScrollPaneParentProtocol = parentProtocolOf("JScrollPane slot") { it is JScrollPane }
 
 /**
  * The pane a region-filling child is installed into. Every [ScrollPaneScope] builder reaches its child

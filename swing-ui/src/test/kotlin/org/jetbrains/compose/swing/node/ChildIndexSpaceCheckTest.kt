@@ -1,6 +1,9 @@
 package org.jetbrains.compose.swing.node
 
 import org.jetbrains.compose.swing.core.SwingCompositionDiagnostics
+import org.jetbrains.compose.swing.layout.ChildPlacement
+import org.jetbrains.compose.swing.layout.SlotAttachment
+import org.jetbrains.compose.swing.modifier.layout.RawParentProtocol
 import javax.swing.JLabel
 import javax.swing.JPanel
 import kotlin.test.Test
@@ -36,7 +39,7 @@ class ChildIndexSpaceCheckTest {
         child: SwingNodeHolder<*>,
         name: String,
     ) {
-        child.declaredSlot = DeclaredSlot(attachment, name)
+        child.declaredSlot = DeclaredSlot(RawParentProtocol, attachment, name)
         child.installedSlot = InstalledSlot(attachment, name) {}
         host.children += child
     }
@@ -94,7 +97,10 @@ class ChildIndexSpaceCheckTest {
 
         // Declares a region but was never installed into one: declaredSlot is set, but installedSlot
         // is left null.
-        val child = SwingNodeHolder(JLabel("a")).apply { declaredSlot = DeclaredSlot(attachment, "a") }
+        val child =
+            SwingNodeHolder(
+                JLabel("a"),
+            ).apply { declaredSlot = DeclaredSlot(RawParentProtocol, attachment, "a") }
         host.children += child
 
         val failure = assertFailsWith<IllegalStateException> { root.checkChildIndexSpace() }
@@ -226,7 +232,7 @@ class ChildIndexSpaceCheckTest {
         // still declares one; it stands in host.children only until the composition removes it for good.
         val parked =
             SwingNodeHolder(JLabel("parked")).apply {
-                declaredSlot = DeclaredSlot(attachment, "a")
+                declaredSlot = DeclaredSlot(RawParentProtocol, attachment, "a")
                 deactivated = true
             }
         host.children += parked

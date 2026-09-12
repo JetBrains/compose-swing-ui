@@ -65,15 +65,37 @@ class RowColumnConstraintRefusalTest {
         }
 
     @Test
+    fun aChainDeclaringTwoKindsOfConstraintIsRefused() {
+        // The scope's own builder and the modifier builder each declare a constraint, and a parent
+        // registers a child under one.
+        val declared = with(RowScopeInstance) { SwingModifier.weight(1f) }.layoutConstraint(CONSTRAINT)
+
+        val failure =
+            assertFailsWith<IllegalArgumentException> {
+                runComposeSwingTest {
+                    setContent { Row { Label("placed", modifier = declared) } }
+                }
+            }
+
+        val message = failure.message.orEmpty()
+        assertTrue(
+            "incompatible layout families" in message,
+            "the refusal should name each kind declared: $message",
+        )
+        assertTrue(
+            "untyped layout constraint" in message,
+            "the refusal should identify raw parent data: $message",
+        )
+        assertTrue(
+            "linear parent data" in message,
+            "the refusal should identify the scope parent data: $message",
+        )
+    }
+
+    @Test
     fun aRowsLayoutManagerRefusesAConstraintOfAnotherKind() {
         val row =
-            JPanel(
-                LinearLayout(
-                    LayoutAxis.Horizontal,
-                    HorizontalAxisArrangement(Arrangement.Start),
-                    VerticalAxisAlignment(Alignment.Top),
-                ),
-            )
+            JPanel(rowPolicyLayout())
 
         val failure = assertFailsWith<IllegalArgumentException> { row.add(CONSTRAINT, JLabel("dropped")) }
 

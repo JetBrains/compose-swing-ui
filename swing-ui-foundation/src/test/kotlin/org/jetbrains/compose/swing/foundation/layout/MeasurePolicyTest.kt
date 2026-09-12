@@ -6,13 +6,12 @@ import java.awt.Dimension
 import java.awt.Insets
 import java.awt.Rectangle
 import javax.swing.JComponent
-import javax.swing.JFrame
 import javax.swing.JPanel
-import javax.swing.SwingUtilities
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotEquals
+import kotlin.test.assertNotSame
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
@@ -26,7 +25,14 @@ import kotlin.test.assertTrue
  *
  * These cases build their containers by hand rather than declaring them, and the frame [peered] grants
  * a peer is what a reading kept between two passes turns on - the tree a composed test mounts has none.
+ *
+ * One case here per case in the upstream Compose measurement test suites, in their order and under
+ * their names, so the files can be read against each other and a case dropped in translation shows
+ * up as a gap. That correspondence is what holds the class together and what the size suppression
+ * below protects: it is as large as its upstream source rather than a class that grew by accretion,
+ * and splitting it would break the reading it exists for.
  */
+@Suppress("LargeClass")
 class MeasurePolicyTest {
     @Test
     fun constraintsBuiltFromTheSameExtentsAreEqualAndHashAlike() {
@@ -99,7 +105,7 @@ class MeasurePolicyTest {
     }
 
     @Test
-    fun measuringAChildAgainOverwritesThePlaceableTheFirstMeasureHandedOut() {
+    fun measuringAChildAgainKeepsEachPlaceableAtItsOwnMeasuredExtent() {
         val policy = CapturingPolicy()
         val panel = policyPanel(policy, FixedSizeChild(WIDE.width, WIDE.height))
         panel.preferredSize
@@ -110,13 +116,187 @@ class MeasurePolicyTest {
 
         val second = child.measure(Constraints(maxWidth = 70, maxHeight = 70))
 
-        assertSame(first, second, "one object is both the measurable and the placeable it hands back")
-        assertEquals(WIDE.width, first.width, "a placeable read after a second measure reports the second extent")
+        assertNotSame(first, second, "each measure must return a result a policy may retain independently")
+        assertEquals(30, first.width, "the first placeable must retain the extent from its own measure")
+        assertEquals(WIDE.width, second.width, "the second placeable must report the later, wider offer")
+    }
+
+    @Test
+    fun anOrdinarySwingChildIsClampedBecauseItCannotMeasureOutsideItsOffer() {
+        var measured: Placeable? = null
+        val panel =
+            policyPanel(
+                { measurables, _ ->
+                    val child = measurables.single().measure(Constraints(30, 50, 20, 30))
+                    measured = child
+                    layout(100, 100) { child.place(10, 15) }
+                },
+                FixedSizeChild(70, 40),
+            )
+        panel.setSize(100, 100)
+
+        panel.doLayout()
+
+        assertEquals(50, measured?.width, "a parent must arrange from the width it offered")
+        assertEquals(30, measured?.height, "a parent must arrange from the height it offered")
+        assertEquals(50, measured?.measuredWidth, "Swing reports the width the offered layout grants it")
+        assertEquals(30, measured?.measuredHeight, "Swing reports the height the offered layout grants it")
+        assertEquals(
+            Rectangle(10, 15, 50, 30),
+            panel.getComponent(0).bounds,
+            "a stock component has no raw overflow to center because it cannot answer a constrained measure",
+        )
+    }
+
+    @Test
+    fun anOversizedPolicyContainerExposesACoercedExtentAndIsCenteredAtItsRawExtent() {
+        var measured: Placeable? = null
+        val child = ConstrainedPanel(TestPolicyLayout { _, _ -> layout(70, 40) {} })
+        val panel =
+            policyPanel(
+                { measurables, _ ->
+                    val placeable = measurables.single().measure(Constraints(30, 50, 20, 30))
+                    measured = placeable
+                    layout(100, 100) { placeable.place(10, 15) }
+                },
+                child,
+            )
+        panel.setSize(100, 100)
+
+        panel.doLayout()
+
+        assertEquals(50, measured?.width, "a parent must arrange from the width it offered")
+        assertEquals(30, measured?.height, "a parent must arrange from the height it offered")
+        assertEquals(70, measured?.measuredWidth, "the placeable must retain the policy's actual width")
+        assertEquals(40, measured?.measuredHeight, "the placeable must retain the policy's actual height")
+        assertEquals(
+            Rectangle(0, 10, 70, 40),
+            child.bounds,
+            "the raw oversized container must be centered on the apparent space the policy placed",
+        )
+    }
+
+    @Test
+    fun anUndersizedPolicyContainerExposesACoercedExtentAndIsCenteredAtItsRawExtent() {
+        var measured: Placeable? = null
+        val child = ConstrainedPanel(TestPolicyLayout { _, _ -> layout(10, 5) {} })
+        val panel =
+            policyPanel(
+                { measurables, _ ->
+                    val placeable = measurables.single().measure(Constraints(30, 50, 20, 40))
+                    measured = placeable
+                    layout(100, 100) { placeable.place(10, 15) }
+                },
+                child,
+            )
+        panel.setSize(100, 100)
+
+        panel.doLayout()
+
+        assertEquals(30, measured?.width, "a parent must arrange from the minimum width it offered")
+        assertEquals(20, measured?.height, "a parent must arrange from the minimum height it offered")
+        assertEquals(10, measured?.measuredWidth, "the placeable must retain the policy's undersized width")
+        assertEquals(5, measured?.measuredHeight, "the placeable must retain the policy's undersized height")
+        assertEquals(
+            Rectangle(20, 22, 10, 5),
+            child.bounds,
+            "the raw undersized container must be centered on the apparent minimum space the policy placed",
+        )
+    }
+
+    @Test
+    fun aModifierChainPreservesItsChildsCenteredOverflowPlacement() {
+        val layout =
+            TestPolicyLayout { measurables, _ ->
+                val child = measurables.single().measure(Constraints(maxWidth = 50, maxHeight = 30))
+                layout(100, 100) { child.place(10, 15) }
+            }
+        val child = FixedSizeChild(10, 10)
+        val panel = JPanel(layout)
+        panel.add(child)
+        layout.declareLayoutChain(child, listOf(ForcedRawExtentElement))
+        panel.setSize(100, 100)
+
+        panel.doLayout()
+
+        assertEquals(
+            Rectangle(7, 19, 10, 10),
+            child.bounds,
+            "a modifier's raw overflow must center before it replays the child placement it retains",
+        )
+    }
+
+    @Test
+    fun defaultIntrinsicHooksAdaptStockSwingsMinimumAndPreferredSizes() {
+        val policy =
+            MeasurePolicy { measurables, constraints ->
+                val child = measurables.single().measure(constraints)
+                layout(child.width, child.height) {}
+            }
+        val layout = TestPolicyLayout(policy)
+        val child = FixedSizeChild(70, 40).also { it.minimumSize = Dimension(5, 7) }
+        val panel = JPanel(layout)
+        panel.add(child)
+        val measurable = layout.measurables.of(child)
+
+        with(policy) {
+            assertEquals(
+                5,
+                PolicyMeasureScope.minIntrinsicWidth(listOf(measurable), Int.MAX_VALUE),
+                "the default minimum-width hook must ask a stock Swing child for its minimum size",
+            )
+            assertEquals(
+                7,
+                PolicyMeasureScope.minIntrinsicHeight(listOf(measurable), Int.MAX_VALUE),
+                "the default minimum-height hook must ask a stock Swing child for its minimum size",
+            )
+            assertEquals(
+                70,
+                PolicyMeasureScope.maxIntrinsicWidth(listOf(measurable), Int.MAX_VALUE),
+                "the default maximum-width hook must ask a stock Swing child for its preferred size",
+            )
+            assertEquals(
+                40,
+                PolicyMeasureScope.maxIntrinsicHeight(listOf(measurable), Int.MAX_VALUE),
+                "the default maximum-height hook must ask a stock Swing child for its preferred size",
+            )
+        }
+    }
+
+    @Test
+    fun aMeasureResultExposesItsAlignmentLinesAndCanPlaceWithTheStandaloneSurface() {
+        val line = HorizontalAlignmentLine { first, second -> minOf(first, second) }
+        var result: MeasureResult? = null
+        val panel =
+            policyPanel(
+                { measurables, _ ->
+                    val child = measurables.single().measure(Constraints(maxWidth = 10, maxHeight = 10))
+                    layout(20, 10, mapOf(line to 6)) { child.placeRelative(0, 0) }
+                        .also { result = it }
+                },
+                FixedSizeChild(10, 10),
+            )
+        panel.setSize(20, 10)
+        panel.doLayout()
+        panel.getComponent(0).setBounds(99, 99, 0, 0)
+
+        result?.placeChildren()
+
+        assertEquals(
+            mapOf<AlignmentLine, Int>(line to 6),
+            result?.alignmentLines,
+            "layout must retain its explicit alignment lines",
+        )
+        assertEquals(
+            Rectangle(0, 0, 10, 10),
+            panel.getComponent(0).bounds,
+            "the standalone CMP surface must replay into its zero-origin, left-to-right Swing adaptation",
+        )
     }
 
     @Test
     fun aRowMeasuredUnderUnboundedConstraintsCollapsesItsWeightedChildren() {
-        val row = LinearLayout(LayoutAxis.Horizontal, HorizontalAxisArrangement(Arrangement.Start), TOP)
+        val row = rowPolicy()
         var settled: MeasureResult? = null
         // A caller outside the library reaches the row's policy with measurables of its own container's,
         // where nothing routes the question to intrinsicSize first.
@@ -146,12 +326,8 @@ class MeasurePolicyTest {
     @Test
     fun hugeSpacingCannotWrapIntoSpaceForWeightedChildren() {
         val row =
-            LinearLayout(
-                LayoutAxis.Horizontal,
-                HorizontalAxisArrangement(Arrangement.spacedBy(Int.MAX_VALUE)),
-                TOP,
-            )
-        val panel = JPanel(row)
+            rowPolicy(arrangement = Arrangement.spacedBy(Int.MAX_VALUE))
+        val panel = JPanel(PolicyLayout(row))
         repeat(3) {
             panel.add(FixedSizeChild(), LinearConstraint(weight = WeightPlacement(1f, fill = true)))
         }
@@ -271,9 +447,10 @@ class MeasurePolicyTest {
     @Test
     fun aChildGrantedBothOfItsExtentsIsNeverAskedWhatItPrefers() {
         val child = CountingChild()
-        val row = LinearLayout(LayoutAxis.Horizontal, HorizontalAxisArrangement(Arrangement.Start), TOP)
+        val row = rowPolicyLayout()
         val panel = JPanel(row)
-        panel.add(child, LinearConstraint(weight = WeightPlacement(1f, fill = true), fillsCrossAxis = true))
+        panel.add(child, LinearConstraint(weight = WeightPlacement(1f, fill = true)))
+        row.declareLayoutChain(child, listOf(FillMaxElement.height(1f)))
         panel.setSize(PANEL_EXTENT, PANEL_EXTENT)
 
         panel.doLayout()
@@ -294,7 +471,7 @@ class MeasurePolicyTest {
     @Test
     fun aChildThePlacementResizedIsAskedAfreshAtTheExtentItWasPlacedAt() {
         val child = WrappingChild()
-        val panel = JPanel(LinearLayout(LayoutAxis.Horizontal, HorizontalAxisArrangement(Arrangement.Start), TOP))
+        val panel = JPanel(rowPolicyLayout())
         panel.add(child, LinearConstraint(weight = WeightPlacement(1f, fill = true)))
 
         peered(panel) {
@@ -322,11 +499,11 @@ class MeasurePolicyTest {
     @Test
     fun aNestedContainerPlacesWhatTheMeasureItsParentAskedForGranted() {
         val row =
-            ConstrainedPanel(LinearLayout(LayoutAxis.Horizontal, HorizontalAxisArrangement(Arrangement.Start), TOP))
+            ConstrainedPanel(rowPolicyLayout())
         row.add(sized(), LinearConstraint(weight = WeightPlacement(1f, fill = false)))
         row.add(sized(), LinearConstraint(weight = WeightPlacement(3f, fill = false)))
         val column =
-            ConstrainedPanel(LinearLayout(LayoutAxis.Vertical, VerticalAxisArrangement(Arrangement.Top), START))
+            ConstrainedPanel(columnPolicyLayout())
         column.add(row, LinearConstraint())
 
         peered(column) {
@@ -339,7 +516,7 @@ class MeasurePolicyTest {
                     Rectangle(0, 0, SHARING_CHILD.width, SHARING_CHILD.height),
                     Rectangle(SHARING_CHILD.width, 0, SHARING_CHILD.width, SHARING_CHILD.height),
                 ),
-                row.components.map { it.bounds },
+                row.declarationBounds(),
                 "the column's own placement of the row invalidates the row, and that must not throw away " +
                     "the pass the column already ran over it: the row places what that pass granted",
             )
@@ -350,7 +527,7 @@ class MeasurePolicyTest {
     fun aContainerInvalidatedByItsOwnPlacementStillAsksItsChildrenAfresh() {
         val child = AskingChild()
         val row =
-            ConstrainedPanel(LinearLayout(LayoutAxis.Horizontal, HorizontalAxisArrangement(Arrangement.Start), TOP))
+            ConstrainedPanel(rowPolicyLayout())
         row.add(child, LinearConstraint())
 
         peered(row) {
@@ -377,8 +554,9 @@ class MeasurePolicyTest {
     @Test
     fun aContainerThatGainsOrLosesAChildMeasuresAfreshRatherThanPlacingThePassBeforeIt() {
         val row =
-            ConstrainedPanel(LinearLayout(LayoutAxis.Horizontal, HorizontalAxisArrangement(Arrangement.Start), TOP))
-        row.add(sized(), LinearConstraint())
+            ConstrainedPanel(rowPolicyLayout())
+        val original = sized()
+        row.add(original, LinearConstraint())
         row.measure(Constraints(maxWidth = PANEL_EXTENT, maxHeight = PANEL_EXTENT))
 
         // The extents below are exactly what each pass settled on, so a container that kept a pass it
@@ -397,7 +575,7 @@ class MeasurePolicyTest {
 
         row.measure(Constraints(maxWidth = PANEL_EXTENT, maxHeight = PANEL_EXTENT))
         row.setSize(SHARING_CHILD.width * 2, SHARING_CHILD.height)
-        row.remove(row.getComponent(0))
+        row.remove(original)
         row.doLayout()
 
         assertEquals(
@@ -432,15 +610,297 @@ class MeasurePolicyTest {
         )
     }
 
+    @Test
+    fun rightToLeftRelativePlacementSaturatesRatherThanWrappingAcrossAnEdge() {
+        assertEquals(
+            Int.MAX_VALUE,
+            relativeChildX(
+                parentWidth = Int.MAX_VALUE,
+                childConstraints = Constraints(0, 0, 0, 0),
+                x = Int.MIN_VALUE,
+            ),
+            "mirroring an Int.MIN_VALUE placement past the right edge must stop there rather than wrap left",
+        )
+        assertEquals(
+            Int.MIN_VALUE,
+            relativeChildX(
+                parentWidth = 0,
+                childConstraints = Constraints(Int.MAX_VALUE, Int.MAX_VALUE, 0, 0),
+                x = Int.MAX_VALUE,
+            ),
+            "mirroring a maximum-sized child and placement past the left edge must stop there rather than wrap right",
+        )
+    }
+
+    @Test
+    fun aChainedMeasurableBaselineDerivesItsComponentSizeAndOffsetFromTheDimensionsItIsGiven() {
+        val layout = TestPolicyLayout { _, _ -> EmptyResult }
+        val child = RecordingBaselineChild()
+        val panel = JPanel(layout)
+        panel.add(child)
+        layout.declareLayoutChain(
+            child,
+            listOf(AbsolutePaddingElement(left = 5, top = 7, right = 11, bottom = 13), AbsoluteOffsetElement(19, 23)),
+        )
+        val measurable = layout.measurables.of(child)
+
+        assertEquals(
+            60,
+            measurable.baseline(100, 80),
+            "a baseline must be the component's current-size baseline plus every modifier's vertical displacement",
+        )
+        assertEquals(
+            Dimension(84, 60),
+            child.baselineSize,
+            "the padding outside the component must be removed before its baseline is asked for",
+        )
+
+        measurable.measure(Constraints(20, 20, 20, 20))
+
+        assertEquals(
+            60,
+            measurable.baseline(100, 80),
+            "a later baseline query must derive from its arguments rather than the smaller extent a prior measure left",
+        )
+        assertEquals(
+            Dimension(84, 60),
+            child.baselineSize,
+            "the supplied baseline dimensions, not the prior measure, decide the component dimensions",
+        )
+    }
+
+    @Test
+    fun aChainedRelativeMeasurableBaselineUsesItsComponentSizeAndOffset() {
+        val layout = TestPolicyLayout { _, _ -> EmptyResult }
+        val child = RecordingBaselineChild()
+        val panel = JPanel(layout)
+        panel.add(child)
+        layout.declareLayoutChain(
+            child,
+            listOf(PaddingElement(start = 5, top = 7, end = 11, bottom = 13), OffsetElement(x = 19, y = 23)),
+        )
+
+        val measurable = layout.measurables.of(child)
+
+        assertEquals(
+            60,
+            measurable.baseline(100, 80),
+            "a relative padding and offset must contribute their component size and vertical displacement",
+        )
+        assertEquals(
+            Dimension(84, 60),
+            child.baselineSize,
+            "relative modifiers must remove padding before asking the component for its baseline",
+        )
+    }
+
+    @Test
+    fun finalComponentPlacementSaturatesItsPolicyCoordinateAndModifierOffset() {
+        val layout =
+            TestPolicyLayout { measurables, _ ->
+                val child = measurables.single().measure(Constraints(0, 0, 0, 0))
+                layout(0, 0) { child.place(Int.MAX_VALUE, Int.MAX_VALUE) }
+            }
+        val panel = JPanel(layout)
+        val child = FixedSizeChild()
+        panel.add(child)
+        layout.declareLayoutChain(child, listOf(AbsoluteOffsetElement(1, 1)))
+        panel.setSize(0, 0)
+
+        panel.doLayout()
+
+        assertEquals(
+            Rectangle(Int.MAX_VALUE, Int.MAX_VALUE, 0, 0),
+            child.bounds,
+            "a modifier move beyond a maximum policy coordinate must stay on that edge rather than wrap",
+        )
+    }
+
+    @Test
+    fun insetOriginsSaturateWhenAPolicyPlacementAddsToThem() {
+        val layout =
+            TestPolicyLayout { measurables, _ ->
+                val child = measurables.single().measure(Constraints(0, 0, 0, 0))
+                layout(0, 0) { child.place(1, 1) }
+            }
+        val panel = MaximumOriginPanel(layout)
+        val child = FixedSizeChild()
+        panel.add(child)
+        panel.setSize(0, 0)
+
+        panel.doLayout()
+
+        assertEquals(
+            Rectangle(Int.MAX_VALUE, Int.MAX_VALUE, 0, 0),
+            child.bounds,
+            "a placement one pixel beyond a maximum inset origin must stay on that origin instead of wrapping",
+        )
+    }
+
+    @Test
+    fun negativeInsetOriginsAndPolicyCoordinatesComposeWithModifiersBeforeSaturating() {
+        val layout =
+            TestPolicyLayout { measurables, _ ->
+                val child = measurables.single().measure(Constraints(0, 0, 0, 0))
+                layout(0, 0) { child.place(-1, 0) }
+            }
+        val panel = MinimumOriginPanel(layout)
+        val child = FixedSizeChild()
+        panel.add(child)
+        layout.declareLayoutChain(child, listOf(AbsoluteOffsetElement(Int.MAX_VALUE, 0)))
+        panel.setSize(0, 0)
+
+        panel.doLayout()
+
+        assertEquals(
+            Rectangle(-2, 0, 0, 0),
+            child.bounds,
+            "a negative origin, policy coordinate and offset must cancel as one sum before its final clamp",
+        )
+    }
+
+    @Test
+    fun relativePlacementComposesWithInsetOriginsAndModifierOffsetsBeforeSaturating() {
+        val layout =
+            TestPolicyLayout { measurables, _ ->
+                val child = measurables.single().measure(Constraints(0, 0, 0, 0))
+                layout(0, 0) { child.placeRelative(Int.MIN_VALUE, 0) }
+            }
+        val panel = MinimumOriginPanel(layout)
+        val child = FixedSizeChild()
+        panel.add(child)
+        layout.declareLayoutChain(child, listOf(AbsoluteOffsetElement(1, 0)))
+        panel.componentOrientation = ComponentOrientation.RIGHT_TO_LEFT
+        panel.setSize(0, 0)
+
+        panel.doLayout()
+
+        assertEquals(
+            Rectangle(1, 0, 0, 0),
+            child.bounds,
+            "the right-to-left relative coordinate must retain its Long value until it composes with the origin " +
+                "and offset",
+        )
+    }
+
+    @Test
+    fun chainedBaselineOffsetsKeepCancellationUntilTheFinalBaseline() {
+        val layout = TestPolicyLayout { _, _ -> EmptyResult }
+        val child = RecordingBaselineChild()
+        val panel = JPanel(layout)
+        panel.add(child)
+        layout.declareLayoutChain(
+            child,
+            listOf(
+                AbsoluteOffsetElement(0, Int.MIN_VALUE),
+                AbsoluteOffsetElement(0, 1),
+                AbsoluteOffsetElement(0, Int.MAX_VALUE),
+            ),
+        )
+
+        assertEquals(
+            40,
+            layout.measurables.of(child).baseline(100, 80),
+            "offsets that cancel must leave the component baseline unchanged rather than clamp midway through",
+        )
+    }
+
+    @Test
+    fun aChainedBaselineSaturatesAboveTheLargestRepresentableCoordinate() {
+        val layout = TestPolicyLayout { _, _ -> EmptyResult }
+        val child = RecordingBaselineChild()
+        val panel = JPanel(layout)
+        panel.add(child)
+        layout.declareLayoutChain(child, listOf(AbsoluteOffsetElement(0, Int.MAX_VALUE)))
+
+        assertEquals(
+            Int.MAX_VALUE,
+            layout.measurables.of(child).baseline(100, 80),
+            "a baseline beyond the greatest coordinate must stay at that edge rather than wrap negative",
+        )
+    }
+
+    @Test
+    fun aChainedBaselineSaturatesBelowTheSmallestRepresentableCoordinate() {
+        val layout = TestPolicyLayout { _, _ -> EmptyResult }
+        val child = RecordingBaselineChild()
+        val panel = JPanel(layout)
+        panel.add(child)
+        layout.declareLayoutChain(
+            child,
+            listOf(AbsoluteOffsetElement(0, Int.MIN_VALUE), AbsoluteOffsetElement(0, Int.MIN_VALUE)),
+        )
+
+        assertEquals(
+            Int.MIN_VALUE,
+            layout.measurables.of(child).baseline(100, 80),
+            "a baseline below the least coordinate must stay at that edge rather than wrap positive",
+        )
+    }
+
+    @Test
+    fun aChainedMeasurableKeepsAnAbsentBaseline() {
+        val layout = TestPolicyLayout { _, _ -> EmptyResult }
+        val child = NoBaselineChild()
+        val panel = JPanel(layout)
+        panel.add(child)
+        layout.declareLayoutChain(
+            child,
+            listOf(AbsolutePaddingElement(left = 5, top = 7, right = 11, bottom = 13), AbsoluteOffsetElement(19, 23)),
+        )
+
+        assertEquals(
+            -1,
+            layout.measurables.of(child).baseline(100, 80),
+            "a component without a baseline must stay out of baseline alignment despite its modifier displacement",
+        )
+    }
+
+    @Test
+    fun replacingAConstraintKeepsTheChildMeasurableAndModifierChainWhileDroppingItsSettledResult() {
+        val firstConstraint = Dimension(17, 0)
+        val replacementConstraint = Dimension(23, 0)
+        val layout =
+            TestPolicyLayout { measurables, _ ->
+                layout((measurables.single().parentData as Dimension).width, 0) {}
+            }
+        val panel = JPanel(layout)
+        val child = FixedSizeChild()
+        val chain = listOf(AbsoluteOffsetElement(2, 3))
+        panel.add(child, firstConstraint)
+        layout.declareLayoutChain(child, chain)
+        val measurable = layout.measurables.of(child)
+
+        assertEquals(
+            firstConstraint,
+            layout.measurables.measuredSize(panel, Constraints.Unbounded),
+            "the first constrained measurement must leave a result that could otherwise be reused",
+        )
+
+        layout.replaceLayoutConstraint(child, replacementConstraint)
+
+        assertSame(measurable, layout.measurables.of(child), "a constraint replacement must not rebuild the child")
+        assertEquals(chain, measurable.layoutChain, "the child must retain the modifier chain it was measured through")
+        assertEquals(replacementConstraint, measurable.parentData, "the policy must read the new parent data")
+        assertEquals(
+            replacementConstraint.width,
+            layout.measurables.settledOn(panel, firstConstraint.width, 0).width,
+            "a result settled with the old constraint must not be used after the replacement",
+        )
+    }
+
     private companion object {
-        val TOP = VerticalAxisAlignment(Alignment.Top)
         val NARROW = Dimension(30, 40)
         val WIDE = Dimension(70, 40)
         const val PANEL_EXTENT = 200
-
-        val START = HorizontalAxisAlignment(Alignment.Start)
     }
 }
+
+/** The bounds of a policy container's children in their declaration order, not Swing's z-order. */
+private fun ConstrainedPanel.declarationBounds(): List<Rectangle> =
+    buildList {
+        forEachChildInDeclarationOrder { add(it.bounds) }
+    }
 
 /** Where a policy placing its one child with [placement] leaves that child, under [orientation]. */
 private fun placedAt(
@@ -453,6 +913,24 @@ private fun placedAt(
     panel.setSize(200, 100)
     panel.doLayout()
     return panel.getComponent(0).bounds
+}
+
+/** Where a right-to-left policy placing its child at [x] from the leading edge leaves it. */
+private fun relativeChildX(
+    parentWidth: Int,
+    childConstraints: Constraints,
+    x: Int,
+): Int {
+    val policy =
+        MeasurePolicy { measurables, _ ->
+            val child = measurables.single().measure(childConstraints)
+            layout(parentWidth, 0) { child.placeRelative(x, 0) }
+        }
+    val panel = policyPanel(policy, FixedSizeChild())
+    panel.componentOrientation = ComponentOrientation.RIGHT_TO_LEFT
+    panel.setSize(parentWidth, 0)
+    panel.doLayout()
+    return panel.getComponent(0).x
 }
 
 /** A panel laid out by [policy], holding [children] under no constraint of their own. */
@@ -473,28 +951,6 @@ private class CountingChild : JPanel() {
     override fun getPreferredSize(): Dimension {
         questions++
         return super.getPreferredSize()
-    }
-}
-
-/**
- * Runs [body] with [root] under a frame that grants it a peer - what makes a container hold between two
- * Swing calls what a pass measured - on the dispatch thread that frame lays its own content out on. The
- * frame is never shown, so nothing takes focus.
- */
-private fun peered(
-    root: JComponent,
-    body: () -> Unit,
-) {
-    val frame = JFrame()
-    try {
-        SwingUtilities.invokeAndWait {
-            frame.contentPane.layout = null
-            frame.contentPane.add(root)
-            frame.addNotify()
-            body()
-        }
-    } finally {
-        SwingUtilities.invokeAndWait { frame.dispose() }
     }
 }
 
@@ -525,6 +981,42 @@ private class HugeInsetPanel(
     override fun getInsets(): Insets = Insets(0, Int.MAX_VALUE, 0, Int.MAX_VALUE)
 }
 
+/** A panel whose inner rectangle starts at the greatest coordinate an AWT component can carry. */
+private class MaximumOriginPanel(
+    layout: MeasurePolicyLayout,
+) : ConstrainedPanel(layout) {
+    override fun getInsets(): Insets = Insets(Int.MAX_VALUE, Int.MAX_VALUE, 0, 0)
+}
+
+/** A panel whose inner rectangle starts at the least coordinate an AWT component can carry. */
+private class MinimumOriginPanel(
+    layout: MeasurePolicyLayout,
+) : ConstrainedPanel(layout) {
+    override fun getInsets(): Insets = Insets(0, Int.MIN_VALUE, 0, 0)
+}
+
+/** A component that exposes both the dimensions and the baseline a query reaches it with. */
+private class RecordingBaselineChild : JPanel() {
+    var baselineSize: Dimension? = null
+        private set
+
+    override fun getBaseline(
+        width: Int,
+        height: Int,
+    ): Int {
+        baselineSize = Dimension(width, height)
+        return height / 2
+    }
+}
+
+/** A component that never carries a baseline, whatever extents a layout asks it about. */
+private class NoBaselineChild : JPanel() {
+    override fun getBaseline(
+        width: Int,
+        height: Int,
+    ): Int = -1
+}
+
 /** A child whose height depends on its own width, the way a component wrapping its content does. */
 private class WrappingChild : JPanel() {
     override fun getPreferredSize(): Dimension =
@@ -545,6 +1037,19 @@ private class CapturingPolicy : MeasurePolicy {
     ): MeasureResult {
         this@CapturingPolicy.measurables = measurables.toList()
         return EmptyResult
+    }
+}
+
+/** A test-only modifier that intentionally reports a size outside the constraints it receives. */
+private object ForcedRawExtentElement : LayoutModifier {
+    override val name: String get() = "forcedRawExtent"
+
+    override fun MeasureScope.measure(
+        measurable: Measurable,
+        constraints: Constraints,
+    ): MeasureResult {
+        val child = measurable.measure(constraints)
+        return layout(70, 40) { child.place(7, 9) }
     }
 }
 

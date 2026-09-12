@@ -4,6 +4,9 @@ import androidx.compose.runtime.ComposeNodeLifecycleCallback
 import androidx.compose.runtime.CompositionContext
 import org.jetbrains.annotations.VisibleForTesting
 import org.jetbrains.compose.swing.core.COMPOSITION_KEY
+import org.jetbrains.compose.swing.layout.ChildPlacement
+import org.jetbrains.compose.swing.layout.ParentProtocol
+import org.jetbrains.compose.swing.layout.SlotAttachment
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.SwingModifierState
 import org.jetbrains.compose.swing.modifier.resetModifierState
@@ -11,55 +14,19 @@ import org.jetbrains.compose.swing.util.fastForEach
 import org.jetbrains.compose.swing.util.fastForEachIndexed
 import org.jetbrains.compose.swing.util.set
 import java.awt.Component
-import java.awt.Container
-import java.awt.LayoutManager2
 import java.util.Collections
 import javax.swing.JComponent
-
-/**
- * An attachment to a host that has its own method for holding children, such as
- * `JScrollPane.setViewportView`, instead of the usual `Container.add`.
- *
- * The host names its [ChildPlacement]:
- * - [ChildPlacement.Slots] - named regions that hold one child each.
- * - [ChildPlacement.OrderedSlots] - a host that holds many children in order, such as the tabs of a
- *   `JTabbedPane`.
- *
- * The attachment belongs to the host: the container composable wrapping it hands each of its regions
- * the attachment that installs a component there. A child reaches a region through
- * [org.jetbrains.compose.swing.modifier.layout.slot], which names the region it fills.
- *
- * @see org.jetbrains.compose.swing.modifier.layout.slot
- */
-public fun interface SlotAttachment {
-    /**
-     * Attaches [component] to [host], and returns the action that detaches it again.
-     *
-     * In a host that holds many children, the returned action must detach the component by identity.
-     * Positions shift as siblings come and go, so an index captured now can point at another child
-     * later.
-     *
-     * @param host the component that holds the region being filled
-     * @param component the child to attach
-     * @param index the position among the host's slot children, always `0` for a region that holds
-     *   one child
-     * @return the action that detaches [component] and frees the region
-     */
-    public fun install(
-        host: Container,
-        component: Component,
-        index: Int,
-    ): () -> Unit
-}
 
 /**
  * The region a node's modifier chain declares. It says where the composition wants the component,
  * before the applier has attached it there.
  *
+ * @property parentProtocol the protocol identity for the host that owns this region.
  * @property attachment the host's method for installing a component into the region
  * @property name the region's name, such as `viewport` or `corner(UPPER_LEFT)`
  */
 internal class DeclaredSlot(
+    val parentProtocol: ParentProtocol,
     val attachment: SlotAttachment,
     val name: String,
 )
@@ -102,57 +69,8 @@ internal class SwingNodeHolder<out T : Component>
         override val component: T,
     ) : ComposeNodeLifecycleCallback,
         SwingComponentNode {
-        /**
-         * The layout constraint the component is placed under, such as a `BorderLayout` region.
-         * `null` means the component is placed by index only.
-         *
-         * This also records what the parent's layout manager currently holds. The modifier chain sets
-         * it before the applier attaches the component, so the two always agree.
-         */
-        internal var constraint: Any? = null
-            private set
-
-        /**
-         * Places this node under [value], the constraint its modifier chain declares, or `null` for none.
-         *
-         * The value is what a parent's layout manager registers the component under. A manager that does
-         * not read it lays the component out as one placed by index alone.
-         */
-        internal fun applyConstraint(value: Any?) {
-            if (value == constraint) return
-            constraint = value
-            reapplyConstraint()
-        }
-
-        /**
-         * Tells the parent's layout manager that the component uses [constraint].
-         *
-         * The component is never removed from its parent, so it keeps its position, its focus and its
-         * native resources. Only the placement changes.
-         *
-         * `removeLayoutComponent` runs first because some managers store the child under its old
-         * constraint. `BorderLayout` is one: without this it would hold the component twice.
-         *
-         * A node that is not attached yet is placed by the applier's own add instead, and a parent
-         * with no layout manager has nothing to register.
-         *
-         * Called on its own where a look and feel re-registers a component of its own accord -
-         * `BasicToolBarUI` docking a tool bar onto the edge the user dropped it on - which changes what
-         * the manager holds without changing what the composition declares. [applyConstraint] writes
-         * only what changed and so has nothing to say there.
-         */
-        internal fun reapplyConstraint() {
-            val parent = component.parent ?: return
-            val manager = parent.layout ?: return
-            manager.removeLayoutComponent(component)
-            val declared = constraint
-            if (manager is LayoutManager2) {
-                manager.addLayoutComponent(component, declared)
-            } else if (declared is String) {
-                manager.addLayoutComponent(declared, component)
-            }
-            parent.revalidate()
-        }
+        /** What this node declares to its parent's layout manager: where it goes, and how it is measured. */
+        internal val declaration: ParentDeclaration = ParentDeclaration(this)
 
         /** Set by [SwingNode] from the user's `onRelease`. Called once, when the node is released. */
         @PublishedApi
@@ -206,10 +124,10 @@ internal class SwingNodeHolder<out T : Component>
         /**
          * The children the applier holds for this component, in composition order.
          *
-         * A move reads each moved child's [constraint] from here, because Swing does not give a
-         * constraint back after `remove`. A removal from a host that holds its children in regions of
-         * its own also reads them from here, and runs each one's [InstalledSlot.uninstall] to release
-         * the region.
+         * A move reads each moved child's [ParentDeclaration.parentData] from here, because Swing does not
+         * give a constraint back after `remove`. A removal from a host that holds its children in regions of
+         * its own also reads them from here, and runs each one's [InstalledSlot.uninstall] to release the
+         * region.
          * The list lives on the node, so it goes away with the node.
          *
          * A child stands here from the moment the applier takes it in, which for a relocated child is
@@ -344,8 +262,8 @@ internal class SwingNodeHolder<out T : Component>
          * that no longer runs. The shared observer itself keeps running for every other node. It is
          * disposed with the composition.
          *
-         * It does not change where the component lives: [constraint], [declaredSlot] and
-         * [childPlacement] all survive.
+         * It does not change where the component lives: [ParentDeclaration.parentData], [declaredSlot]
+         * and [childPlacement] all survive.
          */
         private fun reset() {
             clearSubcompositionStamp()
@@ -364,8 +282,7 @@ internal class SwingNodeHolder<out T : Component>
             // The call is unguarded because both the installed and the uninstalled state are
             // legitimate: an ordinary remove or move has already freed the region.
             releaseInstalledSlot()
-            releaseBlock?.invoke()
-            releaseBlock = null
+            release()
         }
 
         /**
@@ -393,11 +310,18 @@ internal class SwingNodeHolder<out T : Component>
             deactivated = true
             reset()
             releaseInstalledSlot()
+            release()
             component.parent?.let {
                 it.remove(component)
                 it.revalidate()
                 it.repaint()
             }
+        }
+
+        /** Runs this terminal node's teardown once, whether removal or parking ends its lifetime. */
+        private fun release() {
+            releaseBlock?.invoke()
+            releaseBlock = null
         }
     }
 

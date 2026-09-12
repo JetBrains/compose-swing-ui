@@ -150,7 +150,7 @@ private fun ColumnScope.TaskRow(
     // The title takes the weight, so the toggle stays at the leading edge and Remove at the trailing
     // edge no matter how wide the window is.
     Row(
-        modifier = SwingModifier.testTag(taskRowTag(task.id)).fillWidth(),
+        modifier = SwingModifier.testTag(taskRowTag(task.id)).fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(ROW_GAP),
         verticalAlignment = Alignment.CenterVertically,
     ) {

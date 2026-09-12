@@ -1,9 +1,10 @@
 package org.jetbrains.compose.swing.components.layout
 
+import org.jetbrains.compose.swing.layout.ChildPlacement
+import org.jetbrains.compose.swing.layout.SlotAttachment
+import org.jetbrains.compose.swing.layout.parentProtocolOf
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.slot
-import org.jetbrains.compose.swing.node.ChildPlacement
-import org.jetbrains.compose.swing.node.SlotAttachment
 import org.jetbrains.compose.swing.node.wrongSlotHost
 import java.awt.Component
 import java.awt.Container
@@ -58,10 +59,14 @@ public sealed interface SplitPaneScope {
  * called under, so one instance serves them all.
  */
 internal object SplitPaneScopeImpl : SplitPaneScope {
-    override fun SwingModifier.first(): SwingModifier = this.slot(SplitSide.First.label, FirstSideAttachment)
+    override fun SwingModifier.first(): SwingModifier =
+        this.slot(SplitPaneParentProtocol, SplitSide.First.label, FirstSideAttachment)
 
-    override fun SwingModifier.second(): SwingModifier = this.slot(SplitSide.Second.label, SecondSideAttachment)
+    override fun SwingModifier.second(): SwingModifier =
+        this.slot(SplitPaneParentProtocol, SplitSide.Second.label, SecondSideAttachment)
 }
+
+private val SplitPaneParentProtocol = parentProtocolOf("JSplitPane slot") { it is JSplitPane }
 
 /**
  * The two sides a [SplitPane] holds its children on, named as the [SplitPaneScope] builders that fill

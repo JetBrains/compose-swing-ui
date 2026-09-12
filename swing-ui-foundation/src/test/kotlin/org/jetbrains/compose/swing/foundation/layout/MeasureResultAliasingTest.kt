@@ -12,16 +12,14 @@ import kotlin.test.assertEquals
 class MeasureResultAliasingTest {
     @Test
     fun anIntrinsicQuestionDoesNotRewriteARowsRetainedPlacementResult() {
-        val layout = LinearLayout(LayoutAxis.Horizontal, HorizontalAxisArrangement(Arrangement.End), TOP)
+        val layout = rowPolicyLayout(arrangement = Arrangement.End)
         val panel = JPanel(layout)
         val child = FixedSizeChild(width = 20, height = 10)
         panel.add(
             child,
-            LinearConstraint(
-                weight = WeightPlacement(weight = 1f, fill = true),
-                fillsCrossAxis = true,
-            ),
+            LinearConstraint(weight = WeightPlacement(weight = 1f, fill = true)),
         )
+        layout.declareLayoutChain(child, listOf(FillMaxElement.height(1f)))
 
         placeRetainedResultAfterAnIntrinsicQuestion(layout, panel)
 
@@ -34,10 +32,11 @@ class MeasureResultAliasingTest {
 
     @Test
     fun anIntrinsicQuestionDoesNotClearABoxsRetainedPlacementResult() {
-        val layout = OverlapLayout(Alignment.BottomEnd)
+        val layout = PolicyLayout(BoxMeasurePolicy(Alignment.BottomEnd))
         val panel = JPanel(layout)
         val child = FixedSizeChild(width = 20, height = 10)
-        panel.add(child, BoxConstraint(fillsWidth = true, fillsHeight = true))
+        panel.add(child, BoxConstraint())
+        layout.declareLayoutChain(child, listOf(FillMaxElement.size(1f)))
 
         placeRetainedResultAfterAnIntrinsicQuestion(layout, panel)
 
@@ -68,9 +67,5 @@ class MeasureResultAliasingTest {
             )
         parent.setSize(constraints.maxWidth, constraints.maxHeight)
         parent.doLayout()
-    }
-
-    private companion object {
-        val TOP = VerticalAxisAlignment(Alignment.Top)
     }
 }

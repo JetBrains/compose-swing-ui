@@ -13,13 +13,13 @@ import kotlin.test.assertTrue
 
 /**
  * A row or column measures a child once and reuses that measurement until its container is invalidated -
- * the contract [LinearLayout.invalidateLayout] exists for.
+ * the generic policy manager's invalidation contract exists for.
  *
  * Each case drives a realized frame, because that is the only place the measurements are held. AWT
  * carries a child's invalidation up to its container only while `isValid` reports true of it, and that
  * requires a peer. On an unrealized container the manager measures afresh every pass and holds nothing.
  */
-class LinearLayoutMeasurementTest {
+class RowColumnMeasurementTest {
     @Test
     fun aPassWithNothingInvalidatedAsksTheChildrenNothing() {
         val children = List(CHILD_COUNT) { MeasuredChild(NARROW) }
@@ -78,7 +78,7 @@ class LinearLayoutMeasurementTest {
 }
 
 /**
- * Realizes a horizontal [LinearLayout] holding [children] and runs [body] against it on the event
+ * Realizes a horizontal policy-driven Row holding [children] and runs [body] against it on the event
  * dispatch thread. The frame is disposed however [body] ends.
  */
 private fun inRealizedRow(
@@ -91,11 +91,7 @@ private fun inRealizedRow(
         try {
             val row =
                 JPanel(
-                    LinearLayout(
-                        axis = LayoutAxis.Horizontal,
-                        arrangement = HorizontalAxisArrangement(Arrangement.Start),
-                        alignment = VerticalAxisAlignment(Alignment.Top),
-                    ),
+                    rowPolicyLayout(),
                 )
             children.forEach(row::add)
             frame.contentPane.add(row)
@@ -124,7 +120,7 @@ private fun onEventDispatchThread(body: () -> Unit) {
 }
 
 /** The width the row assigned each of its children, in declaration order. */
-private fun JPanel.childWidths(): List<Int> = components.map { it.width }
+private fun JPanel.childWidths(): List<Int> = childrenInDeclarationOrder().map { it.width }
 
 /** A raw component counting the times its container asked for the extent it prefers. */
 private class MeasuredChild(

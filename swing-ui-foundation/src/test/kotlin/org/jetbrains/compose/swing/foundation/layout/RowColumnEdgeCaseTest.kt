@@ -193,7 +193,7 @@ class RowColumnEdgeCaseTest {
                     Rectangle(0, 60, CHILD_WIDTH, CHILD_HEIGHT),
                     Rectangle(CHILD_WIDTH, 60, CHILD_WIDTH, CHILD_HEIGHT),
                 ),
-                nestedRow.components.map { it.bounds },
+                nestedRow.childrenInDeclarationOrder().map { it.bounds },
                 "inside the height its weight granted, the nested row must place its own children by its " +
                     "own arrangement and alignment - spread edge to edge and centered vertically - exactly " +
                     "as it would laid out on its own",
@@ -221,12 +221,12 @@ class RowColumnEdgeCaseTest {
             assertEquals(
                 Rectangle(0, CHILD_HEIGHT, CHILD_WIDTH * 2, NESTED_COLUMN_HEIGHT - CHILD_HEIGHT),
                 nestedRow.bounds,
-                "a weighted row that declares no cross-axis fill of its own must keep the width it prefers " +
+                "a weighted row without fillMaxWidth must keep the width it prefers " +
                     "once its main-axis weight is resolved, not stretch to a column wider than that",
             )
             assertEquals(
                 rowCells(0, CHILD_WIDTH),
-                nestedRow.components.map { it.bounds },
+                nestedRow.childrenInDeclarationOrder().map { it.bounds },
                 "and must space its children across the width it settled on rather than the wider one its " +
                     "column offered, which would put the last of them outside the row",
             )
@@ -248,7 +248,7 @@ class RowColumnEdgeCaseTest {
 
             assertEquals(
                 rowCells(0, CHILD_WIDTH),
-                nestedRow.components.map { it.bounds },
+                nestedRow.childrenInDeclarationOrder().map { it.bounds },
                 "a child claiming a share it does not fill shrinks the row below the width it was offered, " +
                     "and the row must place the children that pass measured rather than divide the width " +
                     "they shrank it to among the same weights again",

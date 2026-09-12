@@ -16,9 +16,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
  * ```
  */
 @LayoutScopeMarker
-public sealed interface BoxScope :
-    FillWidthScope,
-    FillHeightScope {
+public sealed interface BoxScope : ConstrainedScope {
     /**
      * Places the child at [alignment] on both axes, in place of the box's own `contentAlignment`.
      *
@@ -41,23 +39,6 @@ public sealed interface BoxScope :
     public fun SwingModifier.matchParentSize(): SwingModifier
 
     /**
-     * Gives the child the box's whole width in place of the width it prefers, up to an explicit
-     * `maximumSize` where it declares one. The box is still sized to the height the child prefers,
-     * which is what tells this apart from [matchParentSize].
-     *
-     * @return this modifier with the child's fill of the box's width declared on it.
-     */
-    override fun SwingModifier.fillWidth(): SwingModifier
-
-    /**
-     * Gives the child the box's whole height in place of the height it prefers; see [fillWidth], which
-     * this mirrors along the other axis.
-     *
-     * @return this modifier with the child's fill of the box's height declared on it.
-     */
-    override fun SwingModifier.fillHeight(): SwingModifier
-
-    /**
      * Puts the child at [zIndex] in the box's stack, in place of the `0f` a child declaring none takes.
      *
      * The box paints the child with the largest value last, over all the others, and hands it a mouse
@@ -77,14 +58,11 @@ public sealed interface BoxScope :
  * The [BoxScope] one [Box] hands its content. What a child declares to it goes onto that child's own
  * modifier, so the scope holds nothing itself and every box shares this one.
  */
-internal object BoxScopeImpl : BoxScope {
+@PublishedApi
+internal object BoxScopeInstance : BoxScope {
     override fun SwingModifier.align(alignment: Alignment): SwingModifier = this then BoxAlignElement(alignment)
 
     override fun SwingModifier.matchParentSize(): SwingModifier = this then BoxMatchParentSizeElement
-
-    override fun SwingModifier.fillWidth(): SwingModifier = this then BoxFillWidthElement
-
-    override fun SwingModifier.fillHeight(): SwingModifier = this then BoxFillHeightElement
 
     override fun SwingModifier.zIndex(zIndex: Float): SwingModifier = this then BoxZIndexElement(zIndex)
 }

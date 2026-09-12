@@ -628,6 +628,14 @@ A weighted child takes its share of what is left after every child that claims n
 size it prefers, in proportion to the weights; `weight(w, fill = false)` lets it settle for the size
 it prefers and leaves the rest to the arrangement. An explicit `maximumSize` caps that share.
 
+Beside the placements, a child of a `Row`, a `Column` or a `Box` declares what stands between the
+extent its container offers and its own measure, through `ConstrainedScope`, which those three scopes
+inherit: `padding` reserves room along the child's edges, `offset` moves it from where it would
+otherwise sit without changing the room it measures into, `aspectRatio` sizes it to a width per unit
+height, and `defaultMinSize` raises its minimum along whichever axis the container leaves at zero. The
+container measures and places the child plus the room its chain reserved as one rectangle, so each of
+these reaches the child through the container rather than by writing anything on the component.
+
 `PanelLayout.Box` is `BoxLayout` itself, and a `ToolBar` lays its controls out the same way: each
 shares its leftover space out among the children that have room between the size they prefer and
 their maximum size, in proportion to that room. `Glue` is empty space with the most room of all, so it

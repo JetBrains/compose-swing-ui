@@ -21,6 +21,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
@@ -211,6 +212,89 @@ class BoxTest {
                 ),
                 stackedChildBounds(),
                 "a matching child must take a box its own parent sized, and its siblings must be placed in it",
+            )
+        }
+
+    @Test
+    fun aBoxDoesNotPassItsMinimumExtentToContentByDefault() =
+        runComposeSwingTest {
+            setContent {
+                Box(modifier = containerModifier(BOX_WIDTH, BOX_HEIGHT)) {
+                    SizedChild(0)
+                }
+            }
+
+            assertEquals(
+                listOf(Rectangle(0, 0, CHILD_WIDTH, CHILD_HEIGHT)),
+                stackedChildBounds(),
+                "the default Box policy must relax its incoming minimum before measuring content",
+            )
+        }
+
+    @Test
+    fun aBoxCanPassItsMinimumExtentToContent() =
+        runComposeSwingTest {
+            setContent {
+                Box(
+                    modifier = containerModifier(BOX_WIDTH, BOX_HEIGHT),
+                    propagateMinConstraints = true,
+                ) {
+                    SizedChild(0)
+                }
+            }
+
+            assertEquals(
+                listOf(Rectangle(0, 0, BOX_WIDTH, BOX_HEIGHT)),
+                stackedChildBounds(),
+                "propagating Box constraints must measure content at the box's incoming minimum",
+            )
+        }
+
+    @Test
+    fun anEmptyBoxUsesTheDedicatedEmptyPolicy() =
+        runComposeSwingTest {
+            setContent { Box(modifier = SwingModifier.testTag(CONTAINER_TAG)) }
+
+            assertEquals(Dimension(0, 0), containerPreferredSize(), "an empty Box asks for no content extent")
+            assertEquals(emptyList(), stackedChildBounds(), "the content-less overload must compose no children")
+            assertSame(
+                EmptyBoxMeasurePolicy,
+                (box().layout as PolicyLayout).policy,
+                "the modifier-only overload must not allocate a content Box measure policy",
+            )
+        }
+
+    @Test
+    fun aBoxReusesCachedPoliciesAcrossRecompositions() =
+        runComposeSwingTest {
+            var alignment by mutableStateOf(Alignment.TopStart)
+            setContent {
+                Box(modifier = containerModifier(BOX_WIDTH, BOX_HEIGHT), contentAlignment = alignment) {
+                    SizedChild(0)
+                }
+            }
+
+            val topStartPolicy = (box().layout as PolicyLayout).policy
+            assertSame(
+                maybeCachedBoxMeasurePolicy(Alignment.TopStart, propagateMinConstraints = false),
+                topStartPolicy,
+                "the default Box policy must come from the standard-alignment cache",
+            )
+
+            alignment = Alignment.BottomEnd
+            awaitIdle()
+            assertSame(
+                maybeCachedBoxMeasurePolicy(Alignment.BottomEnd, propagateMinConstraints = false),
+                (box().layout as PolicyLayout).policy,
+                "a new standard alignment must replace the policy with its cached counterpart",
+            )
+
+            alignment = Alignment.TopStart
+            awaitIdle()
+            assertSame(
+                topStartPolicy,
+                (box().layout as PolicyLayout).policy,
+                "returning to a prior standard alignment must reuse its original policy",
             )
         }
 
@@ -580,7 +664,7 @@ class BoxTest {
         }
 
     @Test
-    fun anInvisibleChildIsNeitherMeasuredNorPlaced() =
+    fun anInvisibleChildIsMeasuredAndPlacedLikeAnyOther() =
         runComposeSwingTest {
             setContent {
                 Box(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
@@ -590,14 +674,17 @@ class BoxTest {
             }
 
             assertEquals(
-                Dimension(CHILD_WIDTH, CHILD_HEIGHT),
+                Dimension(BOX_WIDTH, BOX_HEIGHT),
                 containerPreferredSize(),
-                "the box must ask for nothing on behalf of a child it hides",
+                "the box asks for what the child it hides prefers, the largest of the two",
             )
             assertEquals(
-                listOf(Rectangle(0, 0, CHILD_WIDTH, CHILD_HEIGHT)),
-                box().components.filter { it.isVisible }.map { it.bounds },
-                "and must place the children it does show as though the hidden one were not there",
+                listOf(
+                    Rectangle(0, 0, CHILD_WIDTH, CHILD_HEIGHT),
+                    Rectangle(0, 0, BOX_WIDTH, BOX_HEIGHT),
+                ),
+                stackedChildBounds(),
+                "and places the hidden one at the extent it asked for, alongside the child it shows",
             )
         }
 
@@ -620,7 +707,7 @@ class BoxTest {
             setContent {
                 Box(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
                     Child(0, BOX_WIDTH, BOX_HEIGHT)
-                    Child(1, CHILD_WIDTH, CHILD_HEIGHT, SwingModifier.fillWidth())
+                    Child(1, CHILD_WIDTH, CHILD_HEIGHT, SwingModifier.fillMaxWidth())
                 }
             }
 
@@ -643,7 +730,7 @@ class BoxTest {
         runComposeSwingTest {
             setContent {
                 Box(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
-                    Child(0, CHILD_WIDTH, CHILD_HEIGHT, SwingModifier.fillWidth())
+                    Child(0, CHILD_WIDTH, CHILD_HEIGHT, SwingModifier.fillMaxWidth())
                 }
             }
 
@@ -655,47 +742,30 @@ class BoxTest {
         }
 
     @Test
-    fun testFillWidthInspectableValue() {
-        val declared = with(BoxScopeImpl) { SwingModifier.fillWidth() }
-
-        assertEquals("fillWidth", declared.lastElement().name, "fillWidth must report itself under its own name")
-    }
-
-    @Test
-    fun testFillHeightInspectableValue() {
-        val declared = with(BoxScopeImpl) { SwingModifier.fillHeight() }
-
-        assertEquals("fillHeight", declared.lastElement().name, "fillHeight must report itself under its own name")
-    }
-
-    @Test
     fun aChainDeclaringToTheScopesOfTwoContainersIsRefused() {
-        val weightFirst = with(BoxScopeImpl) { with(RowScopeImpl) { SwingModifier.weight(1f) }.matchParentSize() }
+        val weightFirst =
+            with(BoxScopeInstance) { with(RowScopeInstance) { SwingModifier.weight(1f) }.matchParentSize() }
         val alignFirst =
-            with(RowScopeImpl) { with(BoxScopeImpl) { SwingModifier.align(Alignment.CenterEnd) }.weight(1f) }
+            with(RowScopeInstance) { with(BoxScopeInstance) { SwingModifier.align(Alignment.CenterEnd) }.weight(1f) }
 
         for (declared in listOf(weightFirst, alignFirst)) {
             val failure =
                 assertFailsWith<IllegalArgumentException> {
                     runComposeSwingTest {
-                        setContent {
-                            Box {
-                                Child(0, CHILD_WIDTH, CHILD_HEIGHT, declared)
-                            }
-                        }
+                        setContent { Box { Child(0, CHILD_WIDTH, CHILD_HEIGHT, declared) } }
                     }
                 }
 
             assertTrue(
-                "declares parts of two kinds" in failure.message.orEmpty(),
-                "the refusal should name both scopes the modifier declared to: ${failure.message}",
+                "incompatible layout families" in failure.message.orEmpty(),
+                "the refusal should identify the incompatible parent-data families: ${failure.message}",
             )
         }
     }
 
     @Test
     fun aBoxsLayoutManagerRefusesAConstraintOfAnotherKind() {
-        val box = JPanel(OverlapLayout(Alignment.TopStart))
+        val box = JPanel(PolicyLayout(BoxMeasurePolicy(Alignment.TopStart)))
 
         val failure = assertFailsWith<IllegalArgumentException> { box.add("North", JLabel("dropped")) }
 
@@ -707,7 +777,7 @@ class BoxTest {
 
     @Test
     fun testAlignInspectableValue() {
-        val declared = with(BoxScopeImpl) { SwingModifier.align(Alignment.Center) }
+        val declared = with(BoxScopeInstance) { SwingModifier.align(Alignment.Center) }
 
         assertEquals("align", declared.lastElement().name, "align must report itself under its own name")
         assertEquals(
@@ -719,7 +789,7 @@ class BoxTest {
 
     @Test
     fun testZIndexInspectableValue() {
-        val declared = with(BoxScopeImpl) { SwingModifier.zIndex(2f) }
+        val declared = with(BoxScopeInstance) { SwingModifier.zIndex(2f) }
 
         assertEquals("zIndex", declared.lastElement().name, "zIndex must report itself under its own name")
         assertEquals(
@@ -731,7 +801,7 @@ class BoxTest {
 
     @Test
     fun testMatchParentSizeInspectableValue() {
-        val declared = with(BoxScopeImpl) { SwingModifier.matchParentSize() }
+        val declared = with(BoxScopeInstance) { SwingModifier.matchParentSize() }
 
         assertEquals(
             "matchParentSize",

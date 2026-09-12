@@ -146,10 +146,11 @@ from index.
 
 A child declares its own placement, on its own modifier. `layoutConstraint` puts the whole constraint
 on the modifier outright, and the last one declared there wins. A `Row` or `Column` scope's own
-builders - `weight()`, `align()`, a cross-axis fill - each declare a part of the constraint instead
-and fold it into what the modifier declared before. A modifier mixing the two kinds of declaration is
-refused. The default, for a modifier that declares neither, is "add by position," and a modifier that
-stops declaring a placement returns the component to it.
+`weight()` and `align()` builders each declare a part of the constraint instead and fold it into what
+the modifier declared before. A modifier mixing the two kinds of declaration is refused. The default,
+for a modifier that declares neither, is "add by position," and a modifier that stops declaring a
+placement returns the component to it. Constraint-transforming modifiers such as `fillMaxWidth()` are
+separate ordered layout declarations and compose with either placement form.
 
 The ordering that makes this work is the applier's own. An inserted node is visited twice, top-down
 and then bottom-up, its `update` changes run between the two passes, and the bottom-up pass is the

@@ -1,6 +1,7 @@
 package org.jetbrains.compose.swing.node
 
 import org.jetbrains.compose.swing.core.SwingCompositionDiagnostics
+import org.jetbrains.compose.swing.layout.ChildPlacement
 import java.awt.Component
 import java.awt.Container
 import java.util.IdentityHashMap

@@ -25,7 +25,7 @@ import javax.swing.BoxLayout
 internal fun ColumnScope.RowCard() {
     ExampleCard("Row (arrangement + weight)") {
         Row(
-            modifier = SwingModifier.fillWidth(),
+            modifier = SwingModifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -61,12 +61,12 @@ internal fun ColumnScope.RowArrangementCard() {
             arrangements.forEach { (name, _) -> option(name) }
         }
         Row(
-            modifier = SwingModifier.fillWidth(),
+            modifier = SwingModifier.fillMaxWidth(),
             horizontalArrangement = arrangements[selected].second,
         ) {
             Label(text = "<html>Two<br>lines</html>")
             Button("Bottom-aligned", onClick = { }, modifier = SwingModifier.align(Alignment.Bottom))
-            Button("Fills height", onClick = { }, modifier = SwingModifier.fillHeight())
+            Button("Fills height", onClick = { }, modifier = SwingModifier.fillMaxHeight())
         }
     }
 }

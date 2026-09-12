@@ -3,9 +3,24 @@
 
 package org.jetbrains.compose.swing.modifier.layout
 
-import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
+import org.jetbrains.compose.swing.layout.ParentDataModifier
+import org.jetbrains.compose.swing.layout.ParentLayoutElement
+import org.jetbrains.compose.swing.layout.ParentProtocol
+import org.jetbrains.compose.swing.layout.ParentSlotElement
+import org.jetbrains.compose.swing.layout.SlotAttachment
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.node.SlotAttachment
+import java.awt.Container
+
+/**
+ * The untyped parent-data protocol used by [layoutConstraint]. It accepts every [Container] by explicit
+ * escape-hatch contract: callers are responsible for supplying a constraint their actual parent accepts.
+ */
+internal val RawParentProtocol: ParentProtocol =
+    object : ParentProtocol {
+        override val description: String = "an untyped layout constraint"
+
+        override fun accepts(parent: Container): Boolean = true
+    }
 
 /**
  * Places the component in its parent container under [constraint] - the value
@@ -24,9 +39,9 @@ import org.jetbrains.compose.swing.node.SlotAttachment
  * declaration, which is what the scope builders -
  * [org.jetbrains.compose.swing.components.layout.GridBagPanelScope.item] among them - supply.
  *
- * The value is handed over the way `Container.add(Component, Object)` hands it over: a `LayoutManager2`
- * receives it as-is and reports a value it does not understand with its own exception, while a manager
- * that takes no constraints places the component by index.
+ * This is the untyped parent-data escape hatch: it can register any value a parent layout understands.
+ * Prefer a parent layout's typed scope builder where it offers one; that rejects a hoisted declaration
+ * under a different layout before Swing receives it.
  *
  * @param constraint the placement the parent container's layout manager registers the component under.
  * @return this modifier with the placement declared on it.
@@ -42,7 +57,7 @@ public fun SwingModifier.layoutConstraint(constraint: Any): SwingModifier =
  * its regions the attachment that installs a component there and takes it out again.
  *
  * A host that holds its children this way says so, through
- * [org.jetbrains.compose.swing.node.ChildPlacement] on its own node, and every child composed under it
+ * [org.jetbrains.compose.swing.layout.ChildPlacement] on its own node, and every child composed under it
  * names a region: a modifier declaring none is refused there, and a modifier declaring one is refused under a
  * host that adds its children by index. The last region declared in a modifier chain wins, and a modifier declaring
  * a region as well as a [layoutConstraint] is refused, since a parent holds a child by one of the two.
@@ -57,6 +72,7 @@ public fun SwingModifier.layoutConstraint(constraint: Any): SwingModifier =
  * contents without moving the component out of it. A node the host moves among its siblings keeps the
  * region it fills.
  *
+ * @param parentProtocol the stable protocol identity for the host that owns this slot.
  * @param name which region of the host this fills, written exactly as the call that fills it -
  *   `"SwingModifier.viewport()"`, `"SwingModifier.corner(UPPER_LEFT)"`. It identifies the region among
  *   the host's own, and it is what an error about that region prints, so a caller acts on that text by
@@ -65,56 +81,22 @@ public fun SwingModifier.layoutConstraint(constraint: Any): SwingModifier =
  * @return this modifier with the region declared on it.
  */
 public fun SwingModifier.slot(
+    parentProtocol: ParentProtocol,
     name: String,
     attachment: SlotAttachment,
-): SwingModifier = this then SlotElement(name, attachment)
-
-/**
- * An entry declaring where the node is attached in its parent, rather than a property of the component.
- * The walk over a modifier takes it off for the node holder, which writes it onto the node before the
- * element diff runs, so it carries no [SwingModifier.Node] of its own.
- *
- * The walk resolves the last of each kind: a slot keeps the one declared last, and the constraint
- * elements fold together, since the parts of one constraint are declared one at a time.
- */
-@InternalSwingUiApi
-public interface PlacementElement :
-    SwingModifier.Element,
-    SwingModifier.InspectableElement
-
-/**
- * A modifier element declaring the constraint the node's parent registers its component under. A modifier
- * declares one: the [constraint] a caller names outright, or the one a container's own scope builds from
- * what the child declares to it.
- */
-@InternalSwingUiApi
-public interface ConstraintElement : PlacementElement {
-    /**
-     * Folds what this element declares into [carried] - what the modifier has declared before it - and
-     * answers the constraint standing after it. The modifier is folded in declaration order, so an element
-     * that states the whole constraint replaces what came before and one that states a part adds to it.
-     */
-    public fun foldInto(carried: Any?): Any
-
-    /**
-     * Whether this element states the whole constraint rather than a part of it. A modifier mixing the two
-     * declares a placement in a parent that holds its children the other way, and is refused.
-     */
-    public val statesWholeConstraint: Boolean get() = false
-}
+): SwingModifier = this then SlotElement(parentProtocol, name, attachment)
 
 /** The layout constraint a caller names outright, through [layoutConstraint]. */
 internal data class LayoutConstraintElement(
     val constraint: Any,
-) : ConstraintElement {
+) : ParentDataModifier {
+    override val parentProtocol: ParentProtocol get() = RawParentProtocol
+
     override val name: String get() = "layoutConstraint"
 
     override val declaredValues: Map<String, Any?> get() = mapOf("constraint" to constraint)
 
-    /** The whole constraint, so the last one a modifier names is what the component is registered under. */
-    override fun foldInto(carried: Any?): Any = constraint
-
-    override val statesWholeConstraint: Boolean get() = true
+    override fun modifyParentData(parentData: Any?): Any = constraint
 }
 
 /**
@@ -131,42 +113,24 @@ internal data class LayoutConstraintElement(
  * the others.
  */
 internal class SlotElement(
+    override val parentProtocol: ParentProtocol,
     val regionName: String,
     val attachment: SlotAttachment,
-) : PlacementElement {
+) : ParentSlotElement {
     override val name: String get() = "slot"
 
     override val declaredValues: Map<String, Any?> get() = mapOf("region" to regionName)
 
     override fun equals(other: Any?): Boolean =
-        other is SlotElement && regionName == other.regionName && attachment === other.attachment
+        other is SlotElement &&
+            parentProtocol === other.parentProtocol &&
+            regionName == other.regionName &&
+            attachment === other.attachment
 
-    override fun hashCode(): Int = 31 * regionName.hashCode() + System.identityHashCode(attachment)
+    override fun hashCode(): Int =
+        31 * (31 * System.identityHashCode(parentProtocol) + regionName.hashCode()) +
+            System.identityHashCode(attachment)
 }
-
-/**
- * Why a modifier naming a constraint outright as well as declaring one to a container's own scope is
- * refused.
- */
-@InternalSwingUiApi
-public fun twoKindsOfConstraint(): String =
-    "A parent registers a child under one layout constraint, and this modifier declares two kinds: one " +
-        "named with layoutConstraint(), and one declared to the container's own scope - weight(), " +
-        "align(), a cross-axis fill or matchParentSize(). Declare the one the enclosing container " +
-        "places its children by, and drop the other."
-
-/**
- * Why a modifier declaring to the scopes of two different containers is refused. Both build one
- * constraint a part at a time, so the parts fold together, and a modifier mixing them describes a
- * placement in a container that places its children the other way.
- */
-@InternalSwingUiApi
-public fun twoScopesOfConstraint(): String =
-    "A parent registers a child under one layout constraint, and this modifier declares parts of two " +
-        "kinds, where each container's scope builds one: a Row's or a Column's - weight(), align() or " +
-        "a fill - a Box's - align(), matchParentSize() or zIndex() - and a plain fill on its own, as " +
-        "a container reading nothing else takes it. Declare the one the enclosing container places " +
-        "its children by, and drop the other."
 
 /**
  * Refuses a modifier declaring both kinds of placement, before either is written onto the node. A parent
@@ -175,13 +139,15 @@ public fun twoScopesOfConstraint(): String =
  * offer: a modifier declaring one of each names a place in a parent that holds children the other way.
  */
 internal fun checkOnePlacement(
-    slot: SlotElement?,
-    constraint: Any?,
+    slot: ParentSlotElement?,
+    parentDeclarations: List<ParentLayoutElement>,
 ) {
-    require(slot == null || constraint == null) {
-        "A parent holds a child either under a layout constraint its layout manager registers the " +
-            "component by, or in a region of its own reached through a setter written for that region, " +
-            "and this modifier declares both: layoutConstraint($constraint) and ${slot?.regionName}. " +
-            "Declare the one the enclosing container holds its children by, and drop the other."
+    require(slot == null || parentDeclarations.isEmpty()) {
+        val declared = parentDeclarations.joinToString { "SwingModifier.${it.name}()" }
+        "A component filling a region of its host is laid out by that host's own setter rather than " +
+            "measured by a layout manager, so there is nothing to measure it under the constraints " +
+            "$declared asks for, and this modifier declares both that and " +
+            "${(slot as? SlotElement)?.regionName}. Put the " +
+            "component in a Box inside the region and declare the layout modifiers on the Box's child."
     }
 }

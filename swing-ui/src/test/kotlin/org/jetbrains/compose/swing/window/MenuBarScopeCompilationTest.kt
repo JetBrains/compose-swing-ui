@@ -1,11 +1,8 @@
 package org.jetbrains.compose.swing.window
 
-import org.jetbrains.compose.swing.components.InProcessCompilerHarness
-import org.jetbrains.compose.swing.components.InProcessCompilerHarness.CompilationResult
-import org.jetbrains.compose.swing.components.InProcessCompilerHarness.SourceSpec
+import org.jetbrains.compose.swing.test.InProcessCompilerHarness
 import org.jetbrains.kotlin.cli.common.ExitCode
 import org.junit.jupiter.api.BeforeAll
-import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -24,7 +21,8 @@ class MenuBarScopeCompilationTest {
     @Test
     fun aMenuBarOutsideAWindowsContentDoesNotCompile() {
         val result =
-            compileSnippet(
+            InProcessCompilerHarness.compileSnippet(
+                "MenuBarSnippet.kt",
                 """
                 import org.jetbrains.compose.swing.components.menu.Menu
                 import org.jetbrains.compose.swing.components.menu.MenuItem
@@ -53,7 +51,8 @@ class MenuBarScopeCompilationTest {
     @Test
     fun aMenuBarInAWindowsContentCompiles() {
         val result =
-            compileSnippet(
+            InProcessCompilerHarness.compileSnippet(
+                "MenuBarSnippet.kt",
                 """
                 import org.jetbrains.compose.swing.components.menu.Menu
                 import org.jetbrains.compose.swing.components.menu.MenuItem
@@ -95,7 +94,8 @@ class MenuBarScopeCompilationTest {
     @Test
     fun aWindowScopeSubtypeOfACallersOwnDoesNotCompile() {
         val result =
-            compileSnippet(
+            InProcessCompilerHarness.compileSnippet(
+                "MenuBarSnippet.kt",
                 """
                 import org.jetbrains.compose.swing.window.WindowScope
 
@@ -121,7 +121,8 @@ class MenuBarScopeCompilationTest {
     @Test
     fun aWindowScopeConstructedByACallerDoesNotCompile() {
         val result =
-            compileSnippet(
+            InProcessCompilerHarness.compileSnippet(
+                "MenuBarSnippet.kt",
                 """
                 import org.jetbrains.compose.swing.window.WindowScope
                 import javax.swing.JRootPane
@@ -148,7 +149,8 @@ class MenuBarScopeCompilationTest {
     @Test
     fun contentThatIgnoresTheScopeCompiles() {
         val result =
-            compileSnippet(
+            InProcessCompilerHarness.compileSnippet(
+                "MenuBarSnippet.kt",
                 """
                 import org.jetbrains.compose.swing.components.Label
                 import org.jetbrains.compose.swing.window.Window
@@ -169,80 +171,15 @@ class MenuBarScopeCompilationTest {
         )
     }
 
-    /**
-     * What the compiler said in each error diagnostic, with the source location it prefixes the message
-     * with dropped.
-     *
-     * The location is the snippet's own file path, so a match against the whole line holds for whatever
-     * the snippet file happens to be called rather than for anything the compiler found in it: the name
-     * of the declaration under test appears in every diagnostic, and in a passing assertion, even when
-     * the compiler is complaining about something else entirely.
-     */
-    private fun CompilationResult.errors(): List<String> = output
-        .lineSequence()
-        .filter { DIAGNOSTIC_SEPARATOR in it }
-        .map { it.substringAfter(DIAGNOSTIC_SEPARATOR) }
-        .toList()
-
     private companion object {
-        /** What the compiler puts between the source location of a diagnostic and the message itself. */
-        private const val DIAGNOSTIC_SEPARATOR = ": error: "
-
-        /** The system property the Gradle test task uses to hand the harness the plugin jar(s). */
-        private const val PLUGIN_CLASSPATH_PROPERTY = "compose.compiler.plugin.classpath"
-
         /**
-         * The Compose compiler plugin jar(s) the Gradle test task hands every test in this module, so a
-         * snippet is compiled the way the real build compiles it. Whether a call has a receiver to
-         * resolve against is settled by the frontend either way.
-         */
-        private val composePluginClasspath: List<File> by lazy { resolveComposePluginClasspath() }
-
-        /**
-         * Fail fast at suite startup when the Compose compiler plugin classpath is not wired up: every
-         * snippet below still compiles without the plugin, so an unset property would leave the
-         * assertions passing over a compilation that is not the one the real build performs.
+         * Resolves the compiler plugin classpath once at startup, so a test task that does not hand the
+         * harness one reports a single failure here rather than the same failure in every case below.
          */
         @JvmStatic
         @BeforeAll
         fun verifyComposePluginClasspathAvailable() {
-            resolveComposePluginClasspath()
+            InProcessCompilerHarness.resolveComposePluginClasspath()
         }
-
-        /**
-         * Resolves the Compose compiler plugin jar(s) from the [PLUGIN_CLASSPATH_PROPERTY] system
-         * property, asserting both that the property is set and that every jar it names exists, with a
-         * message that tells the user exactly which property the Gradle test task must set.
-         */
-        private fun resolveComposePluginClasspath(): List<File> {
-            val raw =
-                System.getProperty(PLUGIN_CLASSPATH_PROPERTY)
-                    ?: throw AssertionError(
-                        "System property '$PLUGIN_CLASSPATH_PROPERTY' is not set; the Gradle test task must " +
-                            "hand the resolved Compose compiler plugin jar to the harness. Run these tests " +
-                            "via Gradle (./gradlew :swing-ui:test), or set " +
-                            "-D$PLUGIN_CLASSPATH_PROPERTY=<path-to-compose-compiler-plugin.jar> when running " +
-                            "them directly.",
-                    )
-            val jars = raw.split(File.pathSeparator).filter(String::isNotBlank).map(::File)
-            val missing = jars.filterNot(File::exists)
-            if (jars.isEmpty() || missing.isNotEmpty()) {
-                throw AssertionError(
-                    "System property '$PLUGIN_CLASSPATH_PROPERTY' does not point at existing Compose " +
-                        "compiler plugin jar(s). Value: '$raw'. " +
-                        if (jars.isEmpty()) {
-                            "No jar paths were listed."
-                        } else {
-                            "Missing: ${missing.joinToString { it.path }}."
-                        },
-                )
-            }
-            return jars
-        }
-
-        private fun compileSnippet(source: String): CompilationResult = InProcessCompilerHarness.compileSnippet(
-            source = SourceSpec(relativePath = "MenuBarSnippet.kt", contents = source),
-            pluginClasspath = composePluginClasspath,
-        )
     }
 }

@@ -17,7 +17,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
  * ```
  */
 @LayoutScopeMarker
-public sealed interface ColumnScope : FillWidthScope {
+public sealed interface ColumnScope : ConstrainedScope {
     /**
      * Claims [weight] shares of the height the column has left over once every child that claims none
      * has taken the height it prefers. Two children weighted `1f` and `2f` take a third and two thirds
@@ -42,27 +42,19 @@ public sealed interface ColumnScope : FillWidthScope {
      * @return this modifier with the child's horizontal alignment declared on it.
      */
     public fun SwingModifier.align(alignment: Alignment.Horizontal): SwingModifier
-
-    /**
-     * Gives the child the column's whole width in place of the width it prefers, up to an explicit
-     * `maximumSize` where it declares one. A child taking the whole width has nowhere left to sit, so
-     * this stands in for both its own [align] and the column's `horizontalAlignment`.
-     */
-    override fun SwingModifier.fillWidth(): SwingModifier
 }
 
 /**
  * The [ColumnScope] one [Column] hands its content. What a child declares to it goes onto that child's
  * own modifier, so the scope holds nothing itself and every column shares this one.
  */
-internal object ColumnScopeImpl : ColumnScope {
+@PublishedApi
+internal object ColumnScopeInstance : ColumnScope {
     override fun SwingModifier.weight(
         weight: Float,
         fill: Boolean,
-    ): SwingModifier = this then WeightElement(weightPlacement(weight, fill))
+    ): SwingModifier = this then WeightElement(weightPlacement(weight, fill), LinearParentDataProtocol)
 
     override fun SwingModifier.align(alignment: Alignment.Horizontal): SwingModifier =
-        this then AlignElement(HorizontalAxisAlignment(alignment))
-
-    override fun SwingModifier.fillWidth(): SwingModifier = this then FillElement
+        this then AlignElement(HorizontalAxisAlignment(alignment), LinearParentDataProtocol)
 }

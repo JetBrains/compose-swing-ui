@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.node
 
+import org.jetbrains.compose.swing.layout.SlotAttachment
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifierDiff
 import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
@@ -143,6 +144,21 @@ class SwingNodeHolderLifecycleTest {
         // observable proof that onDeactivate cleared it rather than leaving the install-guard tripped.
         holder.applyModifierDiff(listenerModifier())
         assertEquals(2, attach[0], "a later apply on a deactivated holder must re-attach exactly one fresh listener")
+    }
+
+    @Test
+    fun onDeactivate_runsTheReleaseBlockOnce() {
+        val holder = SwingNodeHolder(JButton("b"))
+        val releaseCount = IntArray(1)
+        holder.releaseBlock = { releaseCount[0]++ }
+
+        holder.onDeactivate()
+
+        assertEquals(1, releaseCount[0], "parking must release resources owned by the deactivated node")
+
+        // The runtime may release the parked holder later; its teardown must already be gone.
+        holder.onRelease()
+        assertEquals(1, releaseCount[0], "release after parking must not run the teardown again")
     }
 
     @Test

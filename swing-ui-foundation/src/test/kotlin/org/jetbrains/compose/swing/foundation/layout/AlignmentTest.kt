@@ -54,6 +54,33 @@ class AlignmentTest {
     }
 
     @Test
+    fun biasAlignmentsHaveComposeValueSemantics() {
+        assertEquals(BiasAlignment(0.25f, -0.5f), BiasAlignment(0.25f, -0.5f))
+        assertEquals(BiasAlignment.Horizontal(0.25f), BiasAlignment.Horizontal(0.25f))
+        assertEquals(BiasAlignment.Vertical(-0.5f), BiasAlignment.Vertical(-0.5f))
+    }
+
+    @Test
+    fun absoluteBiasAlignmentIgnoresComponentOrientation() {
+        val size = Dimension(CHILD_WIDTH, CHILD_HEIGHT)
+        val space = Dimension(CONTAINER_WIDTH, CONTAINER_HEIGHT)
+        val expected = Point(CONTAINER_WIDTH - CHILD_WIDTH, CONTAINER_HEIGHT - CHILD_HEIGHT)
+
+        assertEquals(
+            expected,
+            BiasAbsoluteAlignment(1f, 1f).align(size, space, ComponentOrientation.LEFT_TO_RIGHT),
+        )
+        assertEquals(
+            expected,
+            BiasAbsoluteAlignment(1f, 1f).align(size, space, ComponentOrientation.RIGHT_TO_LEFT),
+        )
+        assertEquals(
+            BiasAbsoluteAlignment(1f, 1f),
+            Alignment.Bottom + BiasAbsoluteAlignment.Horizontal(1f),
+        )
+    }
+
+    @Test
     fun plusComposesCallerWrittenAxisAlignmentsInEitherOrder() {
         val horizontal =
             Alignment.Horizontal { size, space, orientation ->

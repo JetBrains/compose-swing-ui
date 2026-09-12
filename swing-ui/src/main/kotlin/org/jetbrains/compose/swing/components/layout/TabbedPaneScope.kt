@@ -5,10 +5,11 @@ import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.mutableStateOf
 import kotlinx.coroutines.DisposableHandle
 import org.jetbrains.annotations.Nls
+import org.jetbrains.compose.swing.layout.SlotAttachment
+import org.jetbrains.compose.swing.layout.parentProtocolOf
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.slot
 import org.jetbrains.compose.swing.node.MirrorState
-import org.jetbrains.compose.swing.node.SlotAttachment
 import org.jetbrains.compose.swing.node.wrongSlotHost
 import org.jetbrains.compose.swing.setContentAsInteropHost
 import java.awt.Color
@@ -124,7 +125,7 @@ internal class TabbedPaneScopeImpl(
         // The slot creates the tab and takes it away again; the element carries every later declaration to
         // the tab the slot created, and writes nothing for a tab redeclared unchanged.
         return this
-            .slot(TAB_SLOT_NAME, TabAttachment(metadata, header, headerContext, mirror))
+            .slot(TabbedPaneParentProtocol, TAB_SLOT_NAME, TabAttachment(metadata, header, headerContext, mirror))
             .then(TabElement(metadata, header, headerContext))
     }
 }
@@ -135,6 +136,8 @@ internal class TabbedPaneScopeImpl(
  * prints the very call a caller writes.
  */
 internal const val TAB_SLOT_NAME: String = "SwingModifier.tab(title)"
+
+private val TabbedPaneParentProtocol = parentProtocolOf("JTabbedPane slot") { it is JTabbedPane }
 
 /** The key code a `JTabbedPane` tab carries while no key selects it. */
 private const val NO_MNEMONIC: Int = -1

@@ -32,7 +32,7 @@ class RowColumnModifierTest {
             var alignment by mutableStateOf(Alignment.Top)
             setContent {
                 Box(modifier = SwingModifier.preferredSize(BOX_EXTENT, BOX_EXTENT)) {
-                    Row(modifier = SwingModifier.fillWidth().testTag(CONTAINER_TAG)) {
+                    Row(modifier = SwingModifier.fillMaxWidth().testTag(CONTAINER_TAG)) {
                         RowChildren { index ->
                             SwingModifier.align(alignment).takeIf { index == SHORT } ?: SwingModifier
                         }
@@ -58,7 +58,7 @@ class RowColumnModifierTest {
             var fill by mutableStateOf(false)
             setContent {
                 Box(modifier = SwingModifier.preferredSize(WIDE_BOX_EXTENT, WIDE_BOX_EXTENT)) {
-                    Row(modifier = SwingModifier.fillWidth().testTag(CONTAINER_TAG)) {
+                    Row(modifier = SwingModifier.fillMaxWidth().testTag(CONTAINER_TAG)) {
                         RowChildren { SwingModifier.weight(1f, fill) }
                     }
                 }
@@ -87,7 +87,7 @@ class RowColumnModifierTest {
             var alignment by mutableStateOf(Alignment.Top)
             setContent {
                 Box(modifier = SwingModifier.preferredSize(WIDE_BOX_EXTENT, WIDE_BOX_EXTENT)) {
-                    Row(modifier = SwingModifier.fillWidth().testTag(CONTAINER_TAG)) {
+                    Row(modifier = SwingModifier.fillMaxWidth().testTag(CONTAINER_TAG)) {
                         RowChildren { SwingModifier.weight(1f, fill).align(alignment) }
                     }
                 }
@@ -114,7 +114,7 @@ class RowColumnModifierTest {
             var alignment by mutableStateOf(Alignment.Start)
             setContent {
                 Box(modifier = SwingModifier.preferredSize(BOX_EXTENT, BOX_EXTENT)) {
-                    Column(modifier = SwingModifier.fillHeight().testTag(CONTAINER_TAG)) {
+                    Column(modifier = SwingModifier.fillMaxHeight().testTag(CONTAINER_TAG)) {
                         ColumnChildren { index ->
                             SwingModifier.align(alignment).takeIf { index == SHORT } ?: SwingModifier
                         }
@@ -140,7 +140,7 @@ class RowColumnModifierTest {
             var fill by mutableStateOf(false)
             setContent {
                 Box(modifier = SwingModifier.preferredSize(WIDE_BOX_EXTENT, WIDE_BOX_EXTENT)) {
-                    Column(modifier = SwingModifier.fillHeight().testTag(CONTAINER_TAG)) {
+                    Column(modifier = SwingModifier.fillMaxHeight().testTag(CONTAINER_TAG)) {
                         ColumnChildren { SwingModifier.weight(1f, fill) }
                     }
                 }
@@ -169,7 +169,7 @@ class RowColumnModifierTest {
             var alignment by mutableStateOf(Alignment.Start)
             setContent {
                 Box(modifier = SwingModifier.preferredSize(WIDE_BOX_EXTENT, WIDE_BOX_EXTENT)) {
-                    Column(modifier = SwingModifier.fillHeight().testTag(CONTAINER_TAG)) {
+                    Column(modifier = SwingModifier.fillMaxHeight().testTag(CONTAINER_TAG)) {
                         ColumnChildren { SwingModifier.weight(1f, fill).align(alignment) }
                     }
                 }
@@ -238,10 +238,10 @@ private fun ColumnScope.ColumnChildren(modifier: ColumnScope.(Int) -> SwingModif
 private fun ComposeSwingTest.container(): JComponent = onNodeWithTag(CONTAINER_TAG).fetch<JComponent>()
 
 /** The bounds the container assigned the child that is short across its axis. */
-private fun ComposeSwingTest.shortChild(): Rectangle = container().getComponent(SHORT).bounds
+private fun ComposeSwingTest.shortChild(): Rectangle = container().childrenInDeclarationOrder()[SHORT].bounds
 
 /** The width the container assigned each of its children, in declaration order. */
-private fun ComposeSwingTest.childWidths(): List<Int> = container().components.map { it.width }
+private fun ComposeSwingTest.childWidths(): List<Int> = container().childrenInDeclarationOrder().map { it.width }
 
 /** The height the container assigned each of its children, in declaration order. */
-private fun ComposeSwingTest.childHeights(): List<Int> = container().components.map { it.height }
+private fun ComposeSwingTest.childHeights(): List<Int> = container().childrenInDeclarationOrder().map { it.height }

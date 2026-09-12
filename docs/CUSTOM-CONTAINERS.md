@@ -123,13 +123,13 @@ A scope like this keeps the constraint's type inside your container - `MosaicSco
 placement API your callers see, and `BorderPanelScope`'s regions and `GridBagPanelScope`'s items are
 the same shape over a fixed, nameable set of placements.
 
-A fill is the one placement you do not write yourself. A container whose children may take its whole
-extent along an axis implements `FillWidthScope` or `FillHeightScope`, inheriting `fillWidth` /
-`fillHeight` from it, and its layout manager reads what a child declared off that child's constraint
-through `ParentFill`. Both the builder and the constraint behind it belong to `swing-ui`, so a fill
-means the same thing in your container as it does in a `Row` or a `Column`, and your container declares
-no constraint type for it. One that also names placements of its own overrides the builder and folds
-the fill into that constraint instead, as `RowScope` does.
+Fill is not a custom-manager placement. `fillMaxWidth(fraction)`, `fillMaxHeight(fraction)`, and
+`fillMaxSize(fraction)` are the `ConstrainedScope` layout modifiers for policy layouts, including a
+custom scope that extends `ConstrainedScope`. They fill the requested fraction of a bounded offered
+axis, within the offered bounds, and leave an unbounded one unchanged; `fillMaxSize` applies the
+fraction to both axes. Their place in the modifier chain matters because they transform the constraints
+seen by later modifiers and the component. A container backed by a Swing layout manager must not expose
+them in its content scope, because it does not measure children through layout modifiers.
 
 A scope is worth writing only where the placements are worth naming. Where a layout manager answers
 for a child that declares nothing - `BorderLayout` places one at `CENTER`, `JLayeredPane` on

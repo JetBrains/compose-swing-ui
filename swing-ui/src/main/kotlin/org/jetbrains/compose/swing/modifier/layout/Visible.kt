@@ -15,9 +15,12 @@ import java.awt.Component
  * you only need to hide a component that already exists.
  *
  * @param visible `false` stops the component painting, taking focus and receiving events, and hides its
- *   children with it; most layout managers skip it as well, though `GridLayout` and `OverlayLayout` still
- *   reserve its place. A component starts out visible unless its own constructor hides it - a window and a
- *   `JInternalFrame` both start hidden.
+ *   children with it. Whether its place is still reserved is the parent's decision, and the JDK's managers
+ *   are split on it: `FlowLayout`, `BoxLayout` and `BorderLayout` collapse a hidden child, while
+ *   `GridLayout`, `CardLayout` and `OverlayLayout` reserve it. `Row`, `Column`, `Box` and any `Layout`
+ *   measure and place a hidden child like any other, so hiding one leaves the rest where they are. A
+ *   component starts out visible unless its own constructor hides it - a window and a `JInternalFrame`
+ *   both start hidden.
  * @return this chain with the visibility declared on it.
  * @see java.awt.Component.setVisible
  */

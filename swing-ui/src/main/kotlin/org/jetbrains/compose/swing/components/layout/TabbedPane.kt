@@ -9,9 +9,9 @@ import androidx.compose.runtime.rememberCompositionContext
 import org.jetbrains.compose.swing.annotations.TabLayoutPolicy
 import org.jetbrains.compose.swing.annotations.TabPlacement
 import org.jetbrains.compose.swing.core.dispatchToCaller
+import org.jetbrains.compose.swing.layout.ChildPlacement
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.changeListener
-import org.jetbrains.compose.swing.node.ChildPlacement
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.rememberMirrorState

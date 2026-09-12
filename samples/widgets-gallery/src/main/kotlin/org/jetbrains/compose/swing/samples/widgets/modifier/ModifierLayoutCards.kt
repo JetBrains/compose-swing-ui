@@ -25,12 +25,10 @@ import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.verticalAlignment
 import org.jetbrains.compose.swing.modifier.layout.alignmentX
 import org.jetbrains.compose.swing.modifier.layout.alignmentY
-import org.jetbrains.compose.swing.modifier.layout.height
 import org.jetbrains.compose.swing.modifier.layout.maximumSize
 import org.jetbrains.compose.swing.modifier.layout.minimumSize
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.layout.visible
-import org.jetbrains.compose.swing.modifier.layout.width
 import org.jetbrains.compose.swing.modifier.layout.x
 import org.jetbrains.compose.swing.modifier.layout.y
 import org.jetbrains.compose.swing.samples.widgets.ExampleCard
@@ -77,7 +75,7 @@ internal fun ColumnScope.SizeConstraintsCard() {
             "The button claims the whole row with weight(1f), and maximumSize caps how much of that " +
                 "width it actually takes, while minimumSize keeps it from collapsing.",
         )
-        Row(modifier = SwingModifier.fillWidth()) {
+        Row(modifier = SwingModifier.fillMaxWidth()) {
             Button(
                 "Clamped button",
                 onClick = { },

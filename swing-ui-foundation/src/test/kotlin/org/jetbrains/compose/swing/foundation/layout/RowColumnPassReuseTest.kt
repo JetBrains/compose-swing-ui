@@ -9,13 +9,65 @@ import java.awt.Rectangle
 import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertSame
 
 /**
- * A row or column keeps the working room a layout pass needs - the children it places, their extents and
- * their offsets - and hands the same room to the next pass. Each test here runs two passes over one
- * container and asserts the second is placed by what it declares, not by what the first one left behind.
+ * A Row or Column calculates each pass from the children and arrangement now declared. Each test runs
+ * two passes over one container and asserts the second is not placed by state the first one left behind.
  */
-class LinearLayoutPassReuseTest {
+class RowColumnPassReuseTest {
+    @Test
+    fun aConfiguredRowReusesItsMeasurePolicyAcrossRecompositions() =
+        runComposeSwingTest {
+            var count by mutableStateOf(1)
+            setContent {
+                Row(
+                    modifier = containerModifier(COLUMN_EXTENT, CROSS_EXTENT),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.Bottom,
+                ) {
+                    repeat(count) { SizedChild(it) }
+                }
+            }
+            val row = onNodeWithTag(CONTAINER_TAG).fetch<JPanel>()
+            val initialPolicy = row.layout as PolicyLayout
+
+            count = 2
+            awaitIdle()
+
+            assertSame(
+                initialPolicy.policy,
+                row.layout.let { it as PolicyLayout }.policy,
+                "an unchanged Row configuration must keep its remembered measure policy",
+            )
+        }
+
+    @Test
+    fun aConfiguredColumnReusesItsMeasurePolicyAcrossRecompositions() =
+        runComposeSwingTest {
+            var count by mutableStateOf(1)
+            setContent {
+                Column(
+                    modifier = containerModifier(CROSS_EXTENT, COLUMN_EXTENT),
+                    verticalArrangement = Arrangement.Bottom,
+                    horizontalAlignment = Alignment.End,
+                ) {
+                    repeat(count) { SizedChild(it) }
+                }
+            }
+            val column = onNodeWithTag(CONTAINER_TAG).fetch<JPanel>()
+            val initialPolicy = column.layout as PolicyLayout
+
+            count = 2
+            awaitIdle()
+
+            assertSame(
+                initialPolicy.policy,
+                column.layout.let { it as PolicyLayout }.policy,
+                "an unchanged Column configuration must keep its remembered measure policy",
+            )
+        }
+
     @Test
     fun aColumnThatLosesAChildPlacesOnlyTheOnesThatRemain() =
         runComposeSwingTest {

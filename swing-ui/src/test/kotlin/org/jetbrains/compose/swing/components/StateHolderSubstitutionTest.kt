@@ -1,7 +1,8 @@
 package org.jetbrains.compose.swing.components
 
-import org.jetbrains.compose.swing.components.InProcessCompilerHarness.CompilationResult
-import org.jetbrains.compose.swing.components.InProcessCompilerHarness.SourceSpec
+import org.jetbrains.compose.swing.test.InProcessCompilerHarness
+import org.jetbrains.compose.swing.test.InProcessCompilerHarness.CompilationResult
+import org.jetbrains.compose.swing.test.InProcessCompilerHarness.SourceSpec
 import org.jetbrains.kotlin.cli.common.ExitCode
 import java.io.File
 import kotlin.test.Test

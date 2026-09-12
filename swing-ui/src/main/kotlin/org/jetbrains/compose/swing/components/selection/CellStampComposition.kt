@@ -5,7 +5,7 @@ import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import org.jetbrains.compose.swing.core.SwingContentComposition
-import org.jetbrains.compose.swing.node.SlotAttachment
+import org.jetbrains.compose.swing.layout.SlotAttachment
 import org.jetbrains.compose.swing.node.SwingApplier
 import org.jetbrains.compose.swing.node.SwingNodeHolder
 import java.awt.Component

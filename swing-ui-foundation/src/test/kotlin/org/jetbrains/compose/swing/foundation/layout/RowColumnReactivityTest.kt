@@ -2,21 +2,34 @@ package org.jetbrains.compose.swing.foundation.layout
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.appearance.font
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.jetbrains.compose.swing.window.Window
+import org.jetbrains.compose.swing.window.WindowState
+import org.junit.jupiter.api.Assumptions.assumeFalse
+import java.awt.Dimension
+import java.awt.Font
+import java.awt.GraphicsEnvironment
 import java.awt.Rectangle
+import javax.swing.JLabel
+import javax.swing.JTextField
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /**
- * Everything a row or column is declared with is composition state: an arrangement, an alignment and
- * a child's weight all reach the live layout on the composition that declares them and follow every
- * later value, not only the first. A child that stops declaring a placement goes back to the one its
- * container gives it.
+ * Everything a row or column is declared with is composition state, and every child extent it consumes
+ * can change with Swing state. Both reach the live layout on the composition that declares them and
+ * follow every later value, not only the first. A child that stops declaring a placement goes back to
+ * the one its container gives it.
  *
  * Each test drives one declaration through at least two values and reads the bounds back after each.
  */
@@ -170,6 +183,57 @@ class RowColumnReactivityTest {
         }
 
     @Test
+    fun aBaselineAlignedSiblingMovesWhenAChildFontChanges() =
+        runComposeSwingTest {
+            assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+            var fontSize by mutableIntStateOf(12)
+            setContent {
+                Window(
+                    onCloseRequest = {},
+                    state = WindowState(size = Dimension(MAIN_EXTENT, CROSS_EXTENT)),
+                    title = BASELINE_WINDOW_TITLE,
+                ) {
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Label(
+                            text = "Label:",
+                            modifier =
+                                SwingModifier
+                                    .font(Font(Font.SANS_SERIF, Font.PLAIN, 12))
+                                    .alignByBaseline(),
+                        )
+                        SwingNode(
+                            factory = { JTextField("Text field", 12) },
+                            modifier = SwingModifier.alignByBaseline(),
+                            update = {
+                                set(fontSize) { font = Font(Font.SANS_SERIF, Font.PLAIN, it) }
+                            },
+                        )
+                    }
+                }
+            }
+
+            val window = onWindowWithTitle(BASELINE_WINDOW_TITLE)
+            val label = window.onNodeWithText("Label:").fetch<JLabel>()
+            val field = window.onNodeWithText("Text field").fetch<JTextField>()
+            val labelYBefore = label.y
+            val fieldHeightBefore = field.height
+            assertTrue(field.parent.isValid, "the realized Row must start valid")
+            fontSize = 48
+            awaitIdle()
+
+            assertTrue(
+                label.y > labelYBefore,
+                "the small label must move down to the larger field's new baseline without another update: " +
+                    "label y $labelYBefore -> ${label.y}, field height $fieldHeightBefore -> ${field.height}, " +
+                    "preferred ${field.preferredSize.height}, row valid ${field.parent.isValid}",
+            )
+            assertTrue(
+                field.height > fieldHeightBefore,
+                "the larger font must increase the text field's measured height",
+            )
+        }
+
+    @Test
     fun aChildFollowsTheAlignmentItDeclaresForItself() =
         runComposeSwingTest {
             var alignment by mutableStateOf<Alignment.Horizontal?>(Alignment.End)
@@ -207,6 +271,8 @@ class RowColumnReactivityTest {
 
         /** A width that differs from the fixture child's, so a re-measurement shows in the bounds. */
         const val WIDE_CHILD = 90
+
+        const val BASELINE_WINDOW_TITLE = "reactive-baseline-row"
 
         /** The bounds of a lone column child placed [left] pixels across the column. */
         fun childAt(left: Int): List<Rectangle> = listOf(Rectangle(left, 0, CHILD_WIDTH, CHILD_HEIGHT))

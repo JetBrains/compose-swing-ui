@@ -34,6 +34,7 @@ import java.awt.Component
 import java.awt.Container
 import java.awt.Dimension
 import java.awt.Toolkit
+import java.awt.event.ComponentEvent
 import java.awt.event.InvocationEvent
 import javax.swing.JComponent
 import javax.swing.JPanel
@@ -625,19 +626,18 @@ private class ComposeSwingTestImpl(
                 // another. Yielding is the drain step precisely because it advances queued work without
                 // leaving any dispatch artifact behind.
                 //
-                // The termination condition tracks scheduled runnables only - the invocation events
-                // that carry invokeLater callbacks and coroutine continuations - not every event on
-                // the queue. A realized visible window peer streams native paint events indefinitely;
-                // those never mutate composition state and must not be mistaken for pending work, or a
-                // visible window would make the gate spin forever. So the gate returns once the
-                // composition is idle AND no invocation is queued: no scheduled EDT callback and no
-                // pending recomposition remain to revive observable work. If a dispatched runnable
-                // instead revived the composition (a snapshot write, a fresh invalidation), we abandon
-                // draining and let the next outer pass send a frame and recompose. MAX_IDLE_FRAMES
+                // The termination condition tracks what a dispatch could still run - scheduled
+                // runnables and the bounds notifications a layout pass queues - and not every event on
+                // the queue; noPendingDispatch names which and why. So the gate returns once the
+                // composition is idle AND nothing of that kind is queued: no scheduled EDT callback, no
+                // undelivered notification and no pending recomposition remain to revive observable
+                // work. If a dispatched runnable instead revived the composition (a snapshot write, a
+                // fresh invalidation), we abandon draining and let the next outer pass send a frame
+                // and recompose. MAX_IDLE_FRAMES
                 // bounds the combined drains and frames so a runnable source that never quiesces fails
                 // readably instead of spinning forever.
                 while (idle()) {
-                    if (noPendingInvocations()) return
+                    if (noPendingDispatch()) return
                     yield()
                     throwLibraryFailure()
                     Snapshot.sendApplyNotifications()
@@ -654,7 +654,7 @@ private class ComposeSwingTestImpl(
         // No frame is sent, and the recomposer recomposes and applies only from inside withFrameNanos,
         // so nothing this delivers can reach the AWT tree by way of the composition.
         var drains = 0
-        while (!noPendingInvocations()) {
+        while (!noPendingDispatch()) {
             yield()
             throwLibraryFailure()
             drains++
@@ -665,7 +665,8 @@ private class ComposeSwingTestImpl(
     private fun notDrained(): AssertionError =
         AssertionError(
             "awaitEventsDelivered did not drain after $MAX_IDLE_FRAMES passes: the event dispatch thread " +
-                "still holds scheduled work, so something keeps queueing more. Current tree:\n" +
+                "still holds scheduled work or an undelivered notification, so something keeps queueing " +
+                "more. Current tree:\n" +
                 root.dumpTree() + realizedWindowsTreeDump() + compositionFailureNote(),
         )
 
@@ -696,17 +697,27 @@ private class ComposeSwingTestImpl(
         (!recomposer.hasPendingWork || clock.hasAwaiters) && !Snapshot.current.hasPendingChanges()
 
     /**
-     * True when no invocation event is queued on the EDT - no scheduled `invokeLater` callback and no
-     * coroutine continuation awaiting dispatch. This is the "no scheduled runnable remains" signal the
-     * idle gate drains toward. It deliberately ignores every other event class: a realized visible
-     * window peer posts native paint events continuously, and treating those as pending work would
-     * keep the gate spinning even though they never revive the composition.
+     * True when the EDT holds nothing that could still run something the test can observe: no
+     * scheduled `invokeLater` callback or coroutine continuation awaiting dispatch, and no bounds
+     * notification a component has queued but not yet delivered to its listeners.
+     *
+     * This is the "nothing queued remains" signal the settle gates drain toward. Bounds notifications
+     * belong in it because a layout pass posts them rather than delivering them, so a gate that
+     * returned on the invocation queue alone would return before a modifier reporting the extent a
+     * pass settled on had heard about it - and they are finite, since AWT posts one only for a
+     * component whose bounds actually changed.
+     *
+     * Every other event class is deliberately ignored. A realized visible window peer posts native
+     * paint events continuously, and treating those as pending work would keep the gate spinning even
+     * though they never revive the composition. A paint event is itself a [ComponentEvent], carrying an
+     * id of its own outside the range walked here, so peeking that range takes the notifications a
+     * component sends about itself without taking those.
      */
-    private fun noPendingInvocations(): Boolean =
-        Toolkit
-            .getDefaultToolkit()
-            .systemEventQueue
-            .peekEvent(InvocationEvent.INVOCATION_DEFAULT) == null
+    private fun noPendingDispatch(): Boolean {
+        val queue = Toolkit.getDefaultToolkit().systemEventQueue
+        return queue.peekEvent(InvocationEvent.INVOCATION_DEFAULT) == null &&
+            (ComponentEvent.COMPONENT_FIRST..ComponentEvent.COMPONENT_LAST).none { queue.peekEvent(it) != null }
+    }
 
     private fun notSettled(gate: String): AssertionError =
         AssertionError(
@@ -780,13 +791,17 @@ private class ComposeSwingTestImpl(
         // drives its drain by pumping the EDT queue rather than yielding, but the loop shape and the
         // termination condition are identical, including honoring mainClock.autoAdvance (see idle()).
         // It returns only when the composition has reached that idle state AND a pump found no
-        // scheduled runnable still queued, and never declares idleness while a scheduled EDT callback
-        // or pending recomposition could still revive work. A pump advances only the work queued
-        // before its exit marker, so work scheduled during a pump lands after it and needs another
-        // pass; the loop keeps pumping until one pump both drains every queued invocation and finds
-        // the composition idle. Like awaitIdle it tracks scheduled runnables only, never the native
-        // paint events a visible window peer streams. MAX_IDLE_FRAMES bounds the combined drains and
-        // frames as a runaway backstop.
+        // queued work still pending, and never declares idleness while a scheduled EDT callback, an
+        // undelivered notification or a pending recomposition could still revive work. A pump advances
+        // only the work queued before its exit marker, so work scheduled during a pump lands after it
+        // and needs another pass; the loop keeps pumping until one pump drains the queue and finds the
+        // composition idle. The pump's reading is taken before this pass lays the tree out, so a bounds
+        // notification that pass posts is drained by the next pump rather than by this one, and a caller
+        // needing every notification delivered before it reads a callback's effect reaches for awaitIdle,
+        // which re-reads the queue after its own layout. Like awaitIdle it walks what a dispatch could
+        // still run and not the native paint events a visible window peer streams - noPendingDispatch
+        // names which and why. MAX_IDLE_FRAMES bounds the combined drains and frames as a runaway
+        // backstop.
         var work = 0
         while (true) {
             Snapshot.sendApplyNotifications()
@@ -794,12 +809,12 @@ private class ComposeSwingTestImpl(
                 frameTimeNanos += FRAME_INTERVAL_NANOS
                 clock.sendFrame(frameTimeNanos)
             }
-            val invocationsDrained = pumpEdtQueue()
+            val queueDrained = pumpEdtQueue()
             throwLibraryFailure()
             Snapshot.sendApplyNotifications()
             layoutRoot()
             work++
-            if (idle() && invocationsDrained) return
+            if (idle() && queueDrained) return
             if (work >= MAX_IDLE_FRAMES) throw notSettled("setContent")
         }
     }
@@ -825,27 +840,29 @@ private class ComposeSwingTestImpl(
         clock.sendFrame(frameTimeNanos)
         var work = 0
         while (true) {
-            val invocationsDrained = pumpEdtQueue()
+            val queueDrained = pumpEdtQueue()
             throwLibraryFailure()
             Snapshot.sendApplyNotifications()
             layoutRoot()
             work++
-            if (composedOrAwaitingFrame() && invocationsDrained) return
+            if (composedOrAwaitingFrame() && queueDrained) return
             if (work >= MAX_IDLE_FRAMES) throw notSettledAfterDrainPasses(caller)
         }
     }
 
     /**
      * Lets Runnables already queued on the EDT (including the recomposer's apply step) run, without
-     * leaving the EDT, and reports whether the pump drained every scheduled runnable. We are on the
+     * leaving the EDT, and reports whether the pump left the queue holding nothing a dispatch could
+     * still run - as of this reading, which is taken before any layout pass the caller runs next. We
+     * are on the
      * EDT, so we cannot block on `invokeAndWait`; instead we enter an AWT [java.awt.SecondaryLoop] and
      * post a task that exits it. The secondary loop processes the pending events first, so the
      * recomposer's continuation runs before this returns.
      *
-     * Whether any invocation remains is read from inside the exit task, at the one instant it is
-     * honest: every event queued before the exit marker has been dispatched, and the secondary loop's
-     * own teardown invocation has not yet been posted. A check taken after `enter` returns would
-     * instead always see that teardown artifact and could never report a drained queue.
+     * Whether anything remains is read from inside the exit task, at the one instant it is honest:
+     * every event queued before the exit marker has been dispatched, and the secondary loop's own
+     * teardown invocation has not yet been posted. A check taken after `enter` returns would instead
+     * always see that teardown artifact and could never report a drained queue.
      */
     private fun pumpEdtQueue(): Boolean {
         val loop =
@@ -857,7 +874,7 @@ private class ComposeSwingTestImpl(
         // first. enter() blocks the current EDT dispatch until exit() runs, while still pumping events.
         val drained = booleanArrayOf(false)
         SwingUtilities.invokeLater {
-            drained[0] = noPendingInvocations()
+            drained[0] = noPendingDispatch()
             loop.exit()
         }
         loop.enter()

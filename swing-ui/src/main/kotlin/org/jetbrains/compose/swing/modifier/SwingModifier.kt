@@ -9,6 +9,7 @@ import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import org.jetbrains.compose.swing.core.SwingCompositionDiagnostics
 import org.jetbrains.compose.swing.core.watchRestore
 import org.jetbrains.compose.swing.core.watchWrite
+import org.jetbrains.compose.swing.layout.ParentLayoutElement
 import org.jetbrains.compose.swing.modifier.layout.checkOnePlacement
 import org.jetbrains.compose.swing.node.DeclaredSlot
 import org.jetbrains.compose.swing.node.SwingNodeHolder
@@ -653,21 +654,26 @@ internal fun SwingNodeHolder<Component>.applyModifierDiff(modifier: SwingModifie
 
     // A placement says where the node is attached rather than what its component looks like, so the walk
     // routes it here rather than into a slot, which is what keeps it away from the element diff it has no
-    // node for. The walk has already settled each kind: the last slot declared stands, the constraint
-    // elements have folded together, and a modifier declaring one of each was refused as it walked.
+    // node for. The walk has resolved parent declarations, folded their parent data, and retained the
+    // non-data declarations a measuring parent interprets. A modifier declaring a slot with any parent
+    // declaration is refused here.
     //
     // Writing it here puts it on the node before the applier reads it: an inserted node runs its update
     // changes between the applier's top-down and bottom-up passes, and the bottom-up pass is the one
     // that attaches the component. A modifier declaring no placement leaves nothing to take off and resets
-    // the node to none; applyConstraint gates on equality, so an unchanged constraint writes nothing.
+    // the node to none; applyComponentLayout gates on equality, so an unchanged declaration writes nothing.
     // The declared host region is recorded rather than filled: the applier alone installs a component
     // into a region, and it moves one whose modifier declares a region other than the one it is in.
     val slot = incoming.slot
-    val constraint = incoming.constraint
+    val parentDeclarations = incoming.parentDeclarations
+    val parentData = incoming.parentData
+    val parentProtocol = incoming.parentProtocol
+    val parentLayoutElements = incoming.parentLayoutElements
     val declaredKeys = incoming.keys
-    checkOnePlacement(slot, constraint)
-    declaredSlot = slot?.let { DeclaredSlot(it.attachment, it.regionName) }
-    applyConstraint(constraint)
+    checkOnePlacement(slot, parentDeclarations.filterIsInstance<ParentLayoutElement>())
+    declaration.checkParentElementsAccepted(parentDeclarations)
+    declaredSlot = slot?.let { DeclaredSlot(it.parentProtocol, it.attachment, it.regionName) }
+    declaration.applyComponentLayout(parentData, parentProtocol, parentLayoutElements)
 
     // A modifier tied to other keys than the ones applied last is applied from scratch rather than
     // diffed: every standing slot comes apart, putting back what it captured, and the diff below finds

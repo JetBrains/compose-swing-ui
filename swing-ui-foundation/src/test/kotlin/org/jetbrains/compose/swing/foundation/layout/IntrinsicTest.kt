@@ -5,6 +5,7 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.SplitPane
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
+import org.jetbrains.compose.swing.modifier.layout.maximumSize
 import org.jetbrains.compose.swing.modifier.layout.minimumSize
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
@@ -26,8 +27,8 @@ import kotlin.test.assertTrue
  * through `IntrinsicSize.Min` or `IntrinsicSize.Max` as a modifier, or asks for one axis while fixing
  * the other, and neither reaches a Swing widget: `getPreferredSize()` and `getMinimumSize()` take no
  * argument, a cross-axis extent threaded down would be discarded at the first widget, and every chain
- * ends at one. The cases here pin the questions this tree does ask, and which of the policy's two
- * entry points each of them reaches.
+ * ends at one. The cases here pin the questions this tree does ask, and which of the policy's
+ * constrained and four intrinsic entry points each of them reaches.
  */
 class IntrinsicTest {
     @Test
@@ -83,6 +84,22 @@ class IntrinsicTest {
                 containerMinimumSize(),
                 "a box stacks its children in one place, so it can shrink no further than the largest of " +
                     "them can",
+            )
+        }
+
+    @Test
+    fun aBoxsPreferredSizeRespectsANonMatchingChildsMaximum() =
+        runComposeSwingTest {
+            setContent {
+                Box(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
+                    Child(0, width = 200, height = 160, modifier = SwingModifier.maximumSize(50, 40))
+                }
+            }
+
+            assertEquals(
+                Dimension(50, 40),
+                containerPreferredSize(),
+                "a box must not ask for more than its non-matching child explicitly accepts",
             )
         }
 
@@ -216,9 +233,9 @@ private fun ShrinkableChild(
 }
 
 /**
- * A container of this library's own, counting which of its policy's two entry points its parent
- * reaches: `measure`, which only a caller holding an extent to offer can ask, and `intrinsicSize`,
- * which is what an argument-less question routes to.
+ * A container of this library's own, counting which of its policy's two kinds of entry points its
+ * parent reaches: `measure`, which only a caller holding an extent to offer can ask, and one of the
+ * four intrinsic functions, which argument-less questions route to with an unbounded opposite axis.
  */
 private class CountingPanel : ConstrainedPanel(TestPolicyLayout(CountingPolicy())) {
     private val counting: CountingPolicy get() = (layout as TestPolicyLayout).policy as CountingPolicy
@@ -251,9 +268,36 @@ private class CountingPolicy : MeasurePolicy {
         return NoExtent
     }
 
-    override fun MeasureScope.intrinsicSize(measurables: List<Measurable>): MeasureResult {
+    override fun IntrinsicMeasureScope.minIntrinsicWidth(
+        measurables: List<IntrinsicMeasurable>,
+        height: Int,
+    ): Int {
         asked++
-        return NoExtent
+        return 0
+    }
+
+    override fun IntrinsicMeasureScope.maxIntrinsicWidth(
+        measurables: List<IntrinsicMeasurable>,
+        height: Int,
+    ): Int {
+        asked++
+        return 0
+    }
+
+    override fun IntrinsicMeasureScope.minIntrinsicHeight(
+        measurables: List<IntrinsicMeasurable>,
+        width: Int,
+    ): Int {
+        asked++
+        return 0
+    }
+
+    override fun IntrinsicMeasureScope.maxIntrinsicHeight(
+        measurables: List<IntrinsicMeasurable>,
+        width: Int,
+    ): Int {
+        asked++
+        return 0
     }
 }
 

@@ -98,7 +98,7 @@ internal fun ColumnScope.LinearLayoutCard() {
 @Composable
 internal fun ColumnScope.BoxFillersCard() {
     ExampleCard("Box fillers (RigidArea, Spacer, Strut, Glue)") {
-        Panel(PanelLayout.Box(axis = BoxLayout.X_AXIS), modifier = SwingModifier.fillWidth()) {
+        Panel(PanelLayout.Box(axis = BoxLayout.X_AXIS), modifier = SwingModifier.fillMaxWidth()) {
             Label("Start")
             RigidArea(width = 24, height = 0)
             Label("+24px RigidArea")
