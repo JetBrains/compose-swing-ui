@@ -15,7 +15,6 @@ import java.awt.ComponentOrientation
 import java.awt.Dimension
 import java.awt.Rectangle
 import javax.swing.JLabel
-import javax.swing.JPanel
 import javax.swing.border.EmptyBorder
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -259,7 +258,7 @@ class BoxTest {
             assertEquals(emptyList(), stackedChildBounds(), "the content-less overload must compose no children")
             assertSame(
                 EmptyBoxMeasurePolicy,
-                (box().layout as PolicyLayout).policy,
+                (box().layout as MeasurePolicyLayout).policy,
                 "the modifier-only overload must not allocate a content Box measure policy",
             )
         }
@@ -274,7 +273,7 @@ class BoxTest {
                 }
             }
 
-            val topStartPolicy = (box().layout as PolicyLayout).policy
+            val topStartPolicy = (box().layout as MeasurePolicyLayout).policy
             assertSame(
                 maybeCachedBoxMeasurePolicy(Alignment.TopStart, propagateMinConstraints = false),
                 topStartPolicy,
@@ -285,7 +284,7 @@ class BoxTest {
             awaitIdle()
             assertSame(
                 maybeCachedBoxMeasurePolicy(Alignment.BottomEnd, propagateMinConstraints = false),
-                (box().layout as PolicyLayout).policy,
+                (box().layout as MeasurePolicyLayout).policy,
                 "a new standard alignment must replace the policy with its cached counterpart",
             )
 
@@ -293,7 +292,7 @@ class BoxTest {
             awaitIdle()
             assertSame(
                 topStartPolicy,
-                (box().layout as PolicyLayout).policy,
+                (box().layout as MeasurePolicyLayout).policy,
                 "returning to a prior standard alignment must reuse its original policy",
             )
         }
@@ -765,7 +764,13 @@ class BoxTest {
 
     @Test
     fun aBoxsLayoutManagerRefusesAConstraintOfAnotherKind() {
-        val box = JPanel(PolicyLayout(BoxMeasurePolicy(Alignment.TopStart)))
+        val box =
+            ConstrainedPanel(
+                MeasurePolicyLayout(
+                    BoxMeasurePolicy(Alignment.TopStart, propagateMinConstraints = false),
+                    BoxParentDataProtocol,
+                ),
+            )
 
         val failure = assertFailsWith<IllegalArgumentException> { box.add("North", JLabel("dropped")) }
 

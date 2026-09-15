@@ -26,29 +26,18 @@ import org.jetbrains.compose.swing.components.text.TextArea
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.components.text.TextPane
 import org.jetbrains.compose.swing.test.runComposeSwingTest
-import org.jetbrains.compose.swing.tooling.isDebugInspectorInfoEnabled
 import java.awt.Rectangle
-import javax.swing.SwingUtilities
 import javax.swing.table.DefaultTableModel
-import kotlin.test.AfterTest
 import kotlin.test.Test
 
 /**
  * A component declares one restart scope: its own. The node each one renders is inlined into it, so the
  * scope the call site pays for is the one a recomposition restarts at, and no widget opens a second.
  *
- * Inspection is process-wide and belongs to the application, which these tests stand in for: the
- * assertion turns it on and the default is restored after each test.
- *
  * A menu item composes under an applier of its own, and the data this reads is the root's, so the menu
  * components are not ones these counts cover.
  */
 class RestartScopeCountTest {
-    @AfterTest
-    fun turnInspectionOff() {
-        SwingUtilities.invokeAndWait { isDebugInspectorInfoEnabled = false }
-    }
-
     @Test
     fun aButtonOpensOneRestartScope() = runComposeSwingTest {
         assertRestartScopeCount(1) { Button(text = "Save", onClick = {}) }

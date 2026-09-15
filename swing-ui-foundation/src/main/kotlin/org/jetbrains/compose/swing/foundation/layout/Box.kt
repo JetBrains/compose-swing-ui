@@ -26,7 +26,6 @@ package org.jetbrains.compose.swing.foundation.layout
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import java.awt.Component
 import java.awt.ComponentOrientation
 import java.awt.Dimension
 
@@ -36,8 +35,8 @@ import java.awt.Dimension
  * The box asks for the largest size among the children that do not match its own, plus its insets. Each
  * child keeps the size it prefers, capped at the box's inner extent, and sits where [contentAlignment]
  * puts it. The children stack in declaration order: the last child declared paints over the ones before
- * it, and takes a mouse event at a point they share. A child naming a `zIndex` rises over every sibling
- * declaring a smaller one, wherever the two are declared.
+ * it, and takes a mouse event at a point they share. A child declaring a `zIndex` rises over every
+ * sibling with a smaller one, wherever the two are declared.
  *
  * By default the box gives content a zero minimum, so a minimum imposed on the box need not enlarge its
  * children. Set [propagateMinConstraints] to pass that incoming minimum through instead, such as when
@@ -135,22 +134,10 @@ internal val EmptyBoxMeasurePolicy: MeasurePolicy =
 /** The foundation Box policy, adapted to Swing's component sizes and alignments. */
 internal data class BoxMeasurePolicy(
     private val alignment: Alignment,
-    private val propagateMinConstraints: Boolean = false,
+    private val propagateMinConstraints: Boolean,
 ) : MeasurePolicy,
-    ParentDataPolicy,
     ParentAlignmentPolicy {
     override val parentAlignmentChild: ParentAlignmentChild = ParentAlignmentChild.Topmost
-
-    override fun validateParentData(
-        component: Component,
-        parentData: Any?,
-    ) {
-        require(parentData == null || parentData is BoxConstraint) {
-            "A Box places a child by the alignment it is declared with, and by align() / " +
-                "matchParentSize() / zIndex() on the child's own modifier, so '$component' can carry no " +
-                "layout constraint, but it was added under '$parentData'."
-        }
-    }
 
     override fun MeasureScope.measure(
         measurables: List<Measurable>,

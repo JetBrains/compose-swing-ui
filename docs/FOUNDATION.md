@@ -84,6 +84,9 @@ The placement block runs inside the container's inner rectangle, after its inset
 A policy must return a non-negative size. It should use `constraints.constrainWidth` and
 `constraints.constrainHeight` when its size comes from child measurements.
 
+A policy may read and write snapshot `State`. [Phases](#phases) lists what a read in each block invalidates;
+`Layout`'s KDoc states what a write costs.
+
 ### Intrinsic size
 
 Swing asks a container for its preferred and minimum sizes without offering a width or height. A preferred size
@@ -482,6 +485,19 @@ component's sizes answer as for any Swing component, and its decoration is clipp
 `override fun isPaintingOrigin(): Boolean = decoration.isDecorated`, as `JLayer` does, so a child repainting itself
 alone is painted through the decoration. Its children can declare decorations regardless of what scope, if any, the
 container hands its content.
+
+## The layout pipeline
+
+A constraint-based container runs androidx's layout phases inside Swing's validate and paint cycles.
+
+### Phases
+
+| Phase | Runs when | A state read in it |
+|---|---|---|
+| Intrinsic | Swing asks for a preferred or minimum size; see [Intrinsic size](#intrinsic-size) | Lays the container and its ancestors out again |
+| Measure | During a layout: the container's `doLayout`, or a constraint-based parent measuring it | Lays the container and its ancestors out again |
+| Place | In `doLayout` after measure, and alone when only placement reads change | Places the children again inside the container's current bounds, without measuring; a child that placement resizes is laid out |
+| Paint | Swing paints the component | Repaints the component |
 
 ## Relationship to Compose UI/Foundation
 

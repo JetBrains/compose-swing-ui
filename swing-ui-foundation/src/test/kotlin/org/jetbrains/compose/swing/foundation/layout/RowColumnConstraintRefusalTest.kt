@@ -6,7 +6,6 @@ import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Rectangle
 import javax.swing.JLabel
-import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -94,8 +93,7 @@ class RowColumnConstraintRefusalTest {
 
     @Test
     fun aRowsLayoutManagerRefusesAConstraintOfAnotherKind() {
-        val row =
-            JPanel(rowPolicyLayout())
+        val row = rowPolicyPanel()
 
         val failure = assertFailsWith<IllegalArgumentException> { row.add(CONSTRAINT, JLabel("dropped")) }
 

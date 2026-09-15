@@ -1,9 +1,9 @@
 package org.jetbrains.compose.swing.foundation.layout
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.junit.jupiter.api.extension.ExtendWith
 import java.awt.Dimension
 import java.awt.Rectangle
-import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -12,6 +12,7 @@ import kotlin.test.assertEquals
  * variants are constrained by the parent; required variants keep the selected raw extent, which the
  * parent reports and centers as overflow.
  */
+@ExtendWith(ComposedPanels::class)
 class IntrinsicModifierTest {
     @Test
     fun intrinsicWidthAndHeightReplaceBothSameAxisIntrinsicAnswers() {
@@ -117,9 +118,18 @@ class IntrinsicModifierTest {
     }
 
     private fun measurableWith(modifier: SwingModifier): Measurable {
-        val layout = TestPolicyLayout(MeasurePolicy { _, _ -> error("an intrinsic question must not measure") })
+        val layout =
+            MeasurePolicyLayout(
+                MeasurePolicy {
+                    _,
+                    _,
+                    ->
+                    error("an intrinsic question must not measure")
+                },
+                null,
+            )
         val child = intrinsicChild()
-        JPanel(layout).add(child)
+        composed(ConstrainedPanel(layout)).add(child)
         layout.declareLayoutChain(child, layoutChain(modifier))
         return layout.measurables.of(child)
     }
@@ -129,12 +139,15 @@ class IntrinsicModifierTest {
         offer: Constraints,
     ): Rectangle {
         val layout =
-            TestPolicyLayout { measurables, _ ->
-                val placeable = measurables.single().measure(offer)
-                layout(placeable.width, placeable.height) { placeable.place(0, 0) }
-            }
+            MeasurePolicyLayout(
+                MeasurePolicy { measurables, _ ->
+                    val placeable = measurables.single().measure(offer)
+                    layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+                },
+                null,
+            )
         val child = intrinsicChild()
-        val panel = JPanel(layout)
+        val panel = composed(ConstrainedPanel(layout))
         panel.add(child)
         layout.declareLayoutChain(child, layoutChain(modifier))
         panel.setSize(PANEL_SIZE, PANEL_SIZE)

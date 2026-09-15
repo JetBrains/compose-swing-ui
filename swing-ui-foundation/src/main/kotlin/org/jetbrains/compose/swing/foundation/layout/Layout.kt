@@ -7,7 +7,7 @@ import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
-import java.awt.Component
+import java.awt.Container
 
 /**
  * A composable that measures and places its [content] by a [MeasurePolicy] of your own: a container
@@ -61,6 +61,15 @@ import java.awt.Component
  * extending it, whose builders append a value the policy reads back through
  * [Measurable.parentData].
  *
+ * A policy that reads a snapshot `State` is observed: a read made while measuring or answering an
+ * intrinsic query measures the container and its ancestors again when the state changes, and a read made
+ * only while placing places the children again, invalidating no ancestor. A read made while the container
+ * paints its own decoration repaints it. A child's paint is observed by the child, so a plain component
+ * reading state while it paints is not observed; draw such content in a `Canvas`. A policy that writes,
+ * while measuring, a state it also reads is measured again after the write, and settles once a pass
+ * writes the value the state already holds. A pass at the extent the container already settled on
+ * places that result again without running the policy, until the container is invalidated.
+ *
  * @param measurePolicy how the container measures and places its children
  * @param modifier the [SwingModifier] applied to the panel
  * @param parentDataProtocol the stable token for parent data that [measurePolicy] reads, or `null`
@@ -76,16 +85,13 @@ public fun Layout(
     content: @Composable ConstrainedScope.() -> Unit = {},
 ) {
     SwingNode(
-        factory = { ConstrainedPanel(PolicyLayout(measurePolicy, parentDataProtocol)) },
-        modifier = modifier,
+        factory = { ConstrainedPanel(MeasurePolicyLayout(measurePolicy, parentDataProtocol)) },
+        modifier = modifier then LayoutObservation,
         update = {
             update(parentDataProtocol) {
-                (layout as PolicyLayout).requireSameParentDataProtocol(it)
+                policyLayout.requireSameParentDataProtocol(it)
             }
-            update(measurePolicy) {
-                (layout as PolicyLayout).policy = it
-                revalidate()
-            }
+            update(measurePolicy, SetMeasurePolicy)
         },
         content = { ConstrainedScopeImpl.content() },
     )
@@ -102,45 +108,32 @@ public fun Layout(
     measurePolicy: MeasurePolicy,
     modifier: SwingModifier = SwingModifier,
 ) {
-    Layout(
-        measurePolicy = measurePolicy,
-        modifier = modifier,
-        content = {},
+    SwingNode(
+        factory = { ConstrainedPanel(MeasurePolicyLayout(measurePolicy)) },
+        modifier = modifier then LayoutObservation,
+        update = {
+            update(measurePolicy, SetMeasurePolicy)
+        },
     )
 }
 
-/**
- * The manager a [Layout] is built under: the policy its caller handed it, written in place when a
- * later pass hands a different one.
- */
-internal class PolicyLayout(
-    override var policy: MeasurePolicy,
-    private val parentDataProtocol: LayoutParentDataProtocol? = null,
-) : MeasurePolicyLayout() {
-    /** Whether this policy layout understands [protocol] for an immediately composed child. */
-    fun acceptsParentProtocol(protocol: ParentProtocol): Boolean =
-        protocol === parentDataProtocol || protocol === LayoutModifierParentProtocol
-
-    /** The token is a stable layout-family identity, not a recomposable configuration value. */
-    fun requireSameParentDataProtocol(protocol: LayoutParentDataProtocol?) {
-        require(protocol === parentDataProtocol) {
-            "Layout's parentDataProtocol must remain the same instance while the layout is composed."
-        }
-    }
-
-    override val onParentDataChanged: (Component, Any?, Any?) -> Unit = { component, previous, current ->
-        val previousZIndex = (previous as? StackingParentData)?.zIndex ?: 0f
-        val zIndex = (current as? StackingParentData)?.zIndex ?: 0f
-        if (zIndex != previousZIndex) (component.parent as? ConstrainedPanel)?.stackingOrder?.restack()
-    }
+/** Sets a [Layout] panel's policy and revalidates the panel. */
+private val SetMeasurePolicy: ConstrainedPanel.(MeasurePolicy) -> Unit = {
+    policyLayout.policy = it
+    revalidate()
 }
 
-/** Optional validation for a policy whose scoped parent data has one concrete representation. */
-internal interface ParentDataPolicy {
-    fun validateParentData(
-        component: Component,
-        parentData: Any?,
-    )
+/** Whether this is a Foundation container whose policy layout understands [protocol] for a composed child. */
+internal fun Container.acceptsParentProtocol(protocol: ParentProtocol): Boolean {
+    val layout = layout as? MeasurePolicyLayout ?: return false
+    return protocol === layout.parentDataProtocol || protocol === LayoutModifierParentProtocol
+}
+
+/** The token is a stable layout-family identity, not a recomposable configuration value. */
+internal fun MeasurePolicyLayout.requireSameParentDataProtocol(protocol: LayoutParentDataProtocol?) {
+    require(protocol === parentDataProtocol) {
+        "Layout's parentDataProtocol must remain the same instance while the layout is composed."
+    }
 }
 
 /** The [ConstrainedScope] a [Layout] hands its content, which offers no placement of its own. */

@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.node
 import androidx.compose.runtime.mutableIntStateOf
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.swing.KeyReadingElement
 import org.jetbrains.compose.swing.layout.ChildPlacement
 import org.jetbrains.compose.swing.layout.MeasurementLayoutManager
 import org.jetbrains.compose.swing.layout.ParentLayoutElement
@@ -13,6 +14,7 @@ import org.jetbrains.compose.swing.layout.SlotAttachment
 import org.jetbrains.compose.swing.layout.parentProtocolOf
 import org.jetbrains.compose.swing.modifier.DeclaredNodesListener
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.applyDeclaredModifier
 import org.jetbrains.compose.swing.modifier.applyModifierDiff
 import org.jetbrains.compose.swing.modifier.layout.RawParentProtocol
 import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
@@ -389,6 +391,49 @@ class ParentDeclarationTest {
     }
 
     @Test
+    fun aLayoutNodeWrittenInPlaceIsDeclaredToTheParentAgain() {
+        val owner = TestCompositionOwner()
+        val layout = RecordingMeasurementLayout()
+        val root = JPanel(layout)
+        val child: SwingNodeHolder<Component> = SwingNodeHolder(JButton("child")).attachedTo(owner)
+        root.add(child.component)
+        child.declaration.attachedUnder(root)
+        val keyed = KeyReadingElement()
+        val events = mutableListOf<String>()
+        child.applyDeclaredModifier(SwingModifier then keyed then RecordingLayoutNodeElement("a", events))
+        val node = child.declaration.parentLayoutElements.single()
+        val declarations = layout.declarations.size
+        events.clear()
+
+        child.applyDeclaredModifier(SwingModifier then keyed then RecordingLayoutNodeElement("b", events))
+
+        assertEquals(listOf("update(b)"), events, "the slot's node must be written once with the new element")
+        assertEquals(declarations + 1, layout.declarations.size, "the parent must be declared to once again")
+        assertEquals(listOf(node), layout.declarations.last().elements, "the parent must be handed the same node")
+        owner.dispose()
+    }
+
+    @Test
+    fun aLayoutElementALaterOneOfItsKeyReplacesWritesNothingWhereOnlyItChanges() {
+        val owner = TestCompositionOwner()
+        val child = attachedLayoutNode(owner)
+        val events = mutableListOf<String>()
+        child.applyDeclaredModifier(
+            SwingModifier then RecordingLayoutNodeElement("a", events, key = "k") then
+                RecordingLayoutNodeElement("b", events, key = "k"),
+        )
+        events.clear()
+
+        child.applyDeclaredModifier(
+            SwingModifier then RecordingLayoutNodeElement("c", events, key = "k") then
+                RecordingLayoutNodeElement("b", events, key = "k"),
+        )
+
+        assertEquals(emptyList(), events, "the slot holds the later declaration, which did not change")
+        owner.dispose()
+    }
+
+    @Test
     fun aListenerThatDeclinesEveryWriteStillTellsTheParentALayoutNodeWasRewritten() {
         val owner = TestCompositionOwner()
         val layout = RecordingMeasurementLayout()
@@ -690,12 +735,11 @@ private suspend fun awaitCancellationForever(): Nothing = kotlinx.coroutines.sus
 internal class RecordingLayoutNodeElement(
     private val value: String,
     private val events: MutableList<String>,
+    /** Keyed by value unless given a key, so two declared together hold two slots. */
+    override val key: Any = value,
     private val onAttach: (RecordingLayoutNode) -> Unit = {},
 ) : ParentLayoutNodeElement<RecordingLayoutNode>() {
     override val parentProtocol: ParentProtocol get() = TestMeasurementParentProtocol
-
-    /** Keyed by value, so two declared together hold two slots. */
-    override val key: Any get() = value
 
     override fun create(): RecordingLayoutNode {
         events += "create($value)"

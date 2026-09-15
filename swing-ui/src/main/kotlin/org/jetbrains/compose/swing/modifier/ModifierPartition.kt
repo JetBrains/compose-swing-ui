@@ -14,16 +14,25 @@ import org.jetbrains.compose.swing.util.fastForEach
  * split into the keyed ones and the additive ones, and the declarations the node holder reads instead.
  *
  * Built by the walk and dropped after it, so nothing of one pass outlives the pass that made it.
+ *
+ * @param keyedCapacity how many keyed elements the modifier is expected to declare, which [keyed] is sized for.
+ * @param chainCapacity how many elements the modifier is expected to hold slots for, which [chain] is sized for.
  */
-internal class ModifierPartition {
+internal class ModifierPartition(
+    keyedCapacity: Int = 0,
+    chainCapacity: Int = 0,
+) {
     /** The keyed (last-wins) elements of the modifier being applied, by [SwingModifier.NodeElement.key]. */
-    val keyed: LinkedHashMap<Any, SwingModifier.NodeElement<*, *>> = LinkedHashMap()
+    val keyed: LinkedHashMap<Any, SwingModifier.NodeElement<*, *>> =
+        // Holds keyedCapacity entries under the default load factor of 0.75 without growing.
+        LinkedHashMap(keyedCapacity + keyedCapacity / 3 + 1)
 
     /**
      * The elements whose nodes hold a place in the modifier, in declaration order: every additive (subscription)
-     * [SwingModifier.NodeElement], and every [ParentLayoutNodeElement] among [parentLayoutElements].
+     * [SwingModifier.NodeElement], and every [ParentLayoutNodeElement] among [parentLayoutElements]; see
+     * [isChainElement].
      */
-    val chain: ArrayList<SwingModifier.Element> = ArrayList()
+    val chain: ArrayList<SwingModifier.Element> = ArrayList(chainCapacity)
 
     private val pendingParentDeclarations: ArrayList<ParentElement> = ArrayList()
 
@@ -91,7 +100,7 @@ internal class ModifierPartition {
     }
 
     private fun takeElement(element: SwingModifier.NodeElement<*, *>) {
-        if (element.additive) {
+        if (element.isChainElement) {
             chain.add(element)
             return
         }
@@ -114,7 +123,7 @@ internal class ModifierPartition {
         if (!element.additive) {
             chain.removeAll { it is ParentLayoutNodeElement<*> && !it.additive && it.key == element.key }
         }
-        if (element is ParentLayoutNodeElement<*> && element !is ParentDataModifier) chain += element
+        if (element.isChainElement) chain += element
     }
 
     /** Folds the retained parent data only after key resolution, so replaced declarations cannot contribute. */
@@ -194,3 +203,15 @@ internal class ModifierPartition {
             )
     }
 }
+
+/**
+ * Whether this element's node holds a place in the modifier's chain, matched by position: an additive
+ * [SwingModifier.NodeElement], or a [ParentLayoutNodeElement] that folds no parent data.
+ */
+internal val SwingModifier.Element.isChainElement: Boolean
+    get() =
+        if (this is SwingModifier.NodeElement<*, *>) {
+            additive
+        } else {
+            this is ParentLayoutNodeElement<*> && this !is ParentDataModifier
+        }

@@ -57,15 +57,6 @@ internal fun weightPlacement(
     return WeightPlacement(weight.coerceAtMost(Float.MAX_VALUE), fill)
 }
 
-/**
- * What the modifier has declared to a row or a column so far, and an empty constraint where it has
- * declared nothing of the kind.
- *
- * The core runtime validates this family against the actual receiving parent before it folds the data.
- */
-private fun linearConstraintCarried(carried: Any?): LinearConstraint =
-    carried as? LinearConstraint ?: LinearConstraint()
-
 /** The share of the leftover space a child claims, as a row's or a column's `weight` declares it. */
 internal data class WeightElement(
     val placement: WeightPlacement,
@@ -77,7 +68,8 @@ internal data class WeightElement(
 
     override val declaredValues: Map<String, Any?> get() = mapOf("weight" to placement)
 
-    override fun modifyParentData(parentData: Any?): Any = linearConstraintCarried(parentData).copy(weight = placement)
+    override fun modifyParentData(parentData: Any?): Any =
+        (parentData as? LinearConstraint ?: LinearConstraint()).copy(weight = placement)
 }
 
 /** Where across the axis a child sits, as a row's or a column's `align` declares it. */
@@ -92,5 +84,5 @@ internal data class AlignElement(
     override val declaredValues: Map<String, Any?> get() = mapOf("alignment" to alignment)
 
     override fun modifyParentData(parentData: Any?): Any =
-        linearConstraintCarried(parentData).copy(alignment = alignment)
+        (parentData as? LinearConstraint ?: LinearConstraint()).copy(alignment = alignment)
 }

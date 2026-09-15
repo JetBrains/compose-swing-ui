@@ -274,13 +274,23 @@ public sealed interface PlacementScope {
     /** Whether the container reads left to right; see `java.awt.ComponentOrientation`. */
     public val isLeftToRight: Boolean
 
-    /** Places the child at [x] from the left edge, whatever the orientation. */
+    /**
+     * Places the child at [x] from the left edge, whatever the orientation.
+     *
+     * @param x where the child's left edge lands, from the container's inner left edge
+     * @param y where the child's top edge lands, from the container's inner top edge
+     */
     public fun Placeable.place(
         x: Int,
         y: Int,
     )
 
-    /** Places the child at [x] from the leading edge, mirroring under a right-to-left parent. */
+    /**
+     * Places the child at [x] from the leading edge, mirroring under a right-to-left parent.
+     *
+     * @param x where the child's leading edge lands, from the container's inner leading edge
+     * @param y where the child's top edge lands, from the container's inner top edge
+     */
     public fun Placeable.placeRelative(
         x: Int,
         y: Int,

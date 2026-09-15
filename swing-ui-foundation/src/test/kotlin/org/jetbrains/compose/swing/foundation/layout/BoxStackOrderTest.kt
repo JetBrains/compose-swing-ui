@@ -18,6 +18,7 @@ import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.jetbrains.compose.swing.withRecordedRepaints
+import org.junit.jupiter.api.extension.ExtendWith
 import java.awt.Color
 import java.awt.Component
 import javax.swing.JLabel
@@ -33,6 +34,7 @@ import kotlin.test.assertTrue
  * declared. The child on top is the one painted last, and the one a mouse event at a point they share
  * is delivered to.
  */
+@ExtendWith(ComposedPanels::class)
 class BoxStackOrderTest {
     @Test
     fun theChildDeclaredLastPaintsOverTheOnesBeforeIt() =
@@ -252,7 +254,7 @@ class BoxStackOrderTest {
     @Test
     fun aPolicyReadsChildrenInDeclarationOrderWhileTheBoxKeepsTheTopChildFirst() {
         val policy = DeclarationRecordingOverlapPolicy()
-        val box = ConstrainedPanel(PolicyLayout(policy))
+        val box = composed(ConstrainedPanel(MeasurePolicyLayout(policy, null)))
         val under = JLabel("under").apply { name = "under" }
         val over = JLabel("over").apply { name = "over" }
         box.add(under, BoxConstraint())
@@ -362,7 +364,12 @@ class BoxStackOrderTest {
 
     @Test
     fun aBoxStacksTheChildrenItTookAfterRefusingOne() {
-        val box = ConstrainedPanel(PolicyLayout(BoxMeasurePolicy(Alignment.TopStart)))
+        val box =
+            composed(
+                ConstrainedPanel(
+                    MeasurePolicyLayout(BoxMeasurePolicy(Alignment.TopStart, false), BoxParentDataProtocol),
+                ),
+            )
         val dropped = JLabel("dropped")
 
         assertFailsWith<IllegalArgumentException> { box.add(dropped, "North") }
@@ -377,7 +384,8 @@ class BoxStackOrderTest {
 
     @Test
     fun aBoxStacksTheChildrenItTakesAfterBeingEmptied() {
-        val box = ConstrainedPanel(PolicyLayout(BoxMeasurePolicy(Alignment.TopStart)))
+        val box =
+            composed(ConstrainedPanel(MeasurePolicyLayout(BoxMeasurePolicy(Alignment.TopStart, false), null)))
         box.add(JLabel("first"), BoxConstraint())
 
         box.removeAll()

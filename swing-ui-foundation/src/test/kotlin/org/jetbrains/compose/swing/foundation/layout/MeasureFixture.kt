@@ -1,19 +1,70 @@
 package org.jetbrains.compose.swing.foundation.layout
 
+import androidx.compose.runtime.Recomposer
+import kotlinx.coroutines.DisposableHandle
+import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.setContent
 import org.junit.jupiter.api.Assumptions.assumeFalse
+import org.junit.jupiter.api.extension.AfterEachCallback
+import org.junit.jupiter.api.extension.ExtensionContext
 import java.awt.Component
 import java.awt.Dimension
 import java.awt.GraphicsEnvironment
 import java.awt.Rectangle
+import java.lang.reflect.InvocationTargetException
 import javax.swing.JComponent
 import javax.swing.JFrame
 import javax.swing.JPanel
 import javax.swing.SwingUtilities
+import kotlin.coroutines.EmptyCoroutineContext
 
-/** A manager whose policy a test supplies outright, rather than one that is its own policy. */
-internal class TestPolicyLayout(
-    override val policy: MeasurePolicy,
-) : MeasurePolicyLayout()
+/**
+ * Composes [panel] as a [SwingNode]'s component carrying the nodes [Layout] attaches, so its layout
+ * measures, places and paints as a composed [Layout]'s does. A test class calling this registers
+ * [ComposedPanels], which disposes the composition after each test.
+ */
+internal fun <P : ConstrainedPanel> composed(panel: P): P {
+    onEventDispatchThread {
+        val recomposer = Recomposer(EmptyCoroutineContext)
+        val handle =
+            JPanel().setContent(parent = recomposer) {
+                SwingNode<ConstrainedPanel>(factory = { panel }, modifier = LayoutObservation)
+            }
+        ComposedPanels.handles +=
+            DisposableHandle {
+                handle.dispose()
+                recomposer.cancel()
+            }
+    }
+    return panel
+}
+
+/** Disposes every composition [composed] made during a test. */
+internal class ComposedPanels : AfterEachCallback {
+    override fun afterEach(context: ExtensionContext) {
+        onEventDispatchThread {
+            handles.forEach { it.dispose() }
+            handles.clear()
+        }
+    }
+
+    companion object {
+        val handles: MutableList<DisposableHandle> = mutableListOf()
+    }
+}
+
+/** Runs [body] on the event dispatch thread, preserving direct failures from the invocation. */
+internal fun onEventDispatchThread(body: () -> Unit) {
+    if (SwingUtilities.isEventDispatchThread()) {
+        body()
+        return
+    }
+    try {
+        SwingUtilities.invokeAndWait(body)
+    } catch (invocation: InvocationTargetException) {
+        throw invocation.cause ?: invocation
+    }
+}
 
 /** A component asking for one fixed extent and declaring no maximum of its own. */
 internal class FixedSizeChild(
@@ -25,7 +76,7 @@ internal class FixedSizeChild(
 
 /**
  * Where a row or a column's policy puts [children] when it is measured under [constraints] outright -
- * the entry point a caller reaches when nothing routes the question to `intrinsicSize` first, and the
+ * the entry point a caller reaches when it measures without asking the intrinsic functions first, and the
  * only way to hand a policy an extent `layoutContainer` never offers, such as an unbounded axis.
  *
  * Each child is registered under what it declares, and the bounds come back in declaration order.
@@ -36,15 +87,20 @@ internal fun measuredUnder(
     vararg children: Pair<Component, LinearConstraint?>,
 ): List<Rectangle> {
     val panel =
-        JPanel(
-            TestPolicyLayout { measurables, _ ->
-                with(policy) { PolicyMeasureScope.measure(measurables, constraints) }
-            },
+        composed(
+            ConstrainedPanel(
+                MeasurePolicyLayout(
+                    MeasurePolicy { measurables, _ ->
+                        with(policy) { PolicyMeasureScope.measure(measurables, constraints) }
+                    },
+                    null,
+                ),
+            ),
         )
     children.forEach { (child, declared) -> panel.add(child, declared) }
-    panel.setSize(MEASURED_PANEL_EXTENT, MEASURED_PANEL_EXTENT)
+    panel.setSize(1000, 1000) // Large enough that the panel never decides an extent itself.
     panel.doLayout()
-    return panel.components.map { it.bounds }
+    return panel.childrenInDeclarationOrder().map { it.bounds }
 }
 
 /** The default Row policy for direct policy tests. */
@@ -59,20 +115,18 @@ internal fun columnPolicy(
     alignment: Alignment.Horizontal = Alignment.Start,
 ): ColumnMeasurePolicy = ColumnMeasurePolicy(arrangement, alignment)
 
-/** A generic policy manager carrying a Row policy for direct Swing tests. */
-internal fun rowPolicyLayout(
+/** A panel laid out by a Row policy, for direct Swing tests. */
+internal fun rowPolicyPanel(
     arrangement: Arrangement.Horizontal = Arrangement.Start,
     alignment: Alignment.Vertical = Alignment.Top,
-): PolicyLayout = PolicyLayout(rowPolicy(arrangement, alignment))
+): ConstrainedPanel = ConstrainedPanel(MeasurePolicyLayout(rowPolicy(arrangement, alignment), LinearParentDataProtocol))
 
-/** A generic policy manager carrying a Column policy for direct Swing tests. */
-internal fun columnPolicyLayout(
+/** A panel laid out by a Column policy, for direct Swing tests. */
+internal fun columnPolicyPanel(
     arrangement: Arrangement.Vertical = Arrangement.Top,
     alignment: Alignment.Horizontal = Alignment.Start,
-): PolicyLayout = PolicyLayout(columnPolicy(arrangement, alignment))
-
-/** Large enough that the panel holding a measured policy never itself decides an extent. */
-private const val MEASURED_PANEL_EXTENT = 1000
+): ConstrainedPanel =
+    ConstrainedPanel(MeasurePolicyLayout(columnPolicy(arrangement, alignment), LinearParentDataProtocol))
 
 /**
  * Runs [body] with [root] under a frame that grants it a peer - what makes a container hold between two
@@ -86,13 +140,13 @@ internal fun peered(
     assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
     val frame = JFrame()
     try {
-        SwingUtilities.invokeAndWait {
+        onEventDispatchThread {
             frame.contentPane.layout = null
             frame.contentPane.add(root)
             frame.addNotify()
             body()
         }
     } finally {
-        SwingUtilities.invokeAndWait { frame.dispose() }
+        onEventDispatchThread { frame.dispose() }
     }
 }

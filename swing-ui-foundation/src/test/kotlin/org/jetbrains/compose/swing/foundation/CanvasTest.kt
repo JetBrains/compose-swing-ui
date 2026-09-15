@@ -7,6 +7,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.Snapshot
+import org.jetbrains.compose.swing.KeyReadingElement
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
@@ -232,6 +233,28 @@ class CanvasTest {
                     "the repaint draws with the new onDraw's color",
                 )
             }
+        }
+
+    /** A cost probe: counts key reads to pin that an in-place write skips the modifier diff. */
+    @Test
+    fun aNewOnDrawIsWrittenWithoutReadingAModifierKey() =
+        runComposeSwingTest {
+            var color by mutableStateOf(Color.RED)
+            val keyed = KeyReadingElement()
+            setContent {
+                val captured = color
+                Canvas(modifier = SwingModifier.testTag("canvas").preferredSize(64, 48).then(keyed)) {
+                    drawRect(captured)
+                }
+            }
+            onNodeWithTag("canvas").captureToImage()
+            val keyReads = keyed.keyReads
+
+            color = Color.BLUE
+            awaitIdle()
+
+            assertEquals(Color.BLUE.rgb, onNodeWithTag("canvas").captureToImage().getRGB(32, 24))
+            assertEquals(keyReads, keyed.keyReads, "a new onDraw must be written in place, leaving the rest undiffed")
         }
 
     @Test

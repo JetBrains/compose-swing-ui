@@ -21,15 +21,12 @@
 
 package org.jetbrains.compose.swing.foundation.layout
 
-import java.awt.Component
 import java.awt.Dimension
 import kotlin.math.roundToInt
 import kotlin.math.sign
 
 /** The shared AndroidX RowColumnMeasurePolicy shape, with Swing placement adaptations. */
-internal interface RowColumnMeasurePolicy :
-    MeasurePolicy,
-    ParentDataPolicy {
+internal interface RowColumnMeasurePolicy : MeasurePolicy {
     val arrangementSpacing: Int
 
     fun Placeable.mainAxisSize(): Int
@@ -56,13 +53,6 @@ internal interface RowColumnMeasurePolicy :
         measurables: List<Measurable>,
         beforeCrossAxisAlignmentLine: Int,
     ): MeasureResult
-
-    override fun validateParentData(
-        component: Component,
-        parentData: Any?,
-    ) {
-        require(parentData == null || parentData is LinearConstraint) { foreignConstraint(component, parentData) }
-    }
 }
 
 /**
@@ -614,12 +604,3 @@ private fun saturatedLong(value: Long): Long = value.coerceIn(Int.MIN_VALUE.toLo
 
 /** Holds an extent at Swing's representable signed range before the caller applies its own lower bound. */
 private fun saturatedInt(value: Long): Int = saturatedLong(value).toInt()
-
-/** The message refusing a constraint a Row or Column cannot interpret. */
-private fun foreignConstraint(
-    child: Component,
-    constraint: Any?,
-): String =
-    "A Row or Column places a child by the arrangement and alignment it is declared with, and by " +
-        "weight() / align() on the child's own modifier, so '$child' can carry no layout constraint, " +
-        "but it was added under '$constraint'."

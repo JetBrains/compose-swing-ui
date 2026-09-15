@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
+import org.jetbrains.compose.swing.KeyReadingElement
 import org.jetbrains.compose.swing.layout.ParentLayoutNode
 import org.jetbrains.compose.swing.layout.ParentLayoutNodeElement
 import org.jetbrains.compose.swing.layout.ParentProtocol
@@ -18,10 +19,12 @@ import org.jetbrains.compose.swing.node.attachedChild
 import org.jetbrains.compose.swing.node.currentValueOf
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
+import java.util.concurrent.atomic.AtomicInteger
 import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 
 private val LocalStatic = staticCompositionLocalOf { "default" }
 
@@ -220,6 +223,91 @@ class DeclaredNodesTest {
         child.applyModifierDiff(SwingModifier.then(Additive("b")).then(Layout("l")))
 
         assertEquals(listOf(listOf("a", "l")), child.component.received, "the listener declines the write")
+        owner.dispose()
+    }
+
+    @Test
+    fun anAdditiveElementDeclaredWithAnotherValueIsWrittenInPlace() {
+        val owner = TestCompositionOwner()
+        val child = attachedChild(owner, ListeningPanel(needsAfterWrite = { false }))
+        val keyed = KeyReadingElement()
+        val additive = Additive("a")
+        child.applyDeclaredModifier(SwingModifier.then(keyed).then(additive).then(Layout("l")))
+        val visits = ArrayList<List<String>>()
+
+        child.applyDeclaredModifier(SwingModifier.then(keyed).then(Additive("b", visits = visits)).then(Layout("l")))
+
+        assertEquals("b", additive.created.single().label, "the slot's node must take the new element")
+        assertEquals(1, visits.size, "the new element must be written once")
+        assertEquals(listOf(listOf("a", "l")), child.component.received, "the listener declines the write")
+        owner.dispose()
+    }
+
+    @Test
+    fun anAdditiveElementWhoseWriteTheListenerNeedsIsWrittenInPlaceAndHandsTheNodesOverOnce() {
+        val owner = TestCompositionOwner()
+        val child = attachedChild(owner, ListeningPanel())
+        val keyed = KeyReadingElement()
+        val additive = Additive("a")
+        child.applyDeclaredModifier(SwingModifier.then(keyed).then(additive).then(Layout("l")))
+
+        child.applyDeclaredModifier(SwingModifier.then(keyed).then(Additive("b")).then(Layout("l")))
+
+        assertEquals(listOf(listOf("a", "l"), listOf("b", "l")), child.component.received)
+        assertEquals(
+            "b",
+            additive.created.single().label,
+            "the slot's node must be written in place with the new element",
+        )
+        owner.dispose()
+    }
+
+    @Test
+    fun aSlotTheListenerNeedsWrittenBeforeAKeyedChangeHandsTheNodesOverOnce() {
+        val owner = TestCompositionOwner()
+        val child = attachedChild(owner, ListeningPanel())
+        val writes = AtomicInteger()
+        child.applyDeclaredModifier(
+            SwingModifier.then(CountingElement("kept", writes)).then(Additive("a")).opaque(false),
+        )
+
+        child.applyDeclaredModifier(
+            SwingModifier.then(CountingElement("kept", writes)).then(Additive("b")).opaque(true),
+        )
+
+        assertTrue(child.component.isOpaque, "the keyed slot must be written with its new value")
+        assertEquals(listOf(listOf("a"), listOf("b")), child.component.received)
+        assertEquals(
+            1,
+            writes.get(),
+            "an unchanged keyed element declared before the write must not be rewritten by the diverging opaque change",
+        )
+        owner.dispose()
+    }
+
+    @Test
+    fun aKeyedElementDeclaredWithAnotherValueIsWritten() {
+        val owner = TestCompositionOwner()
+        val child = attachedChild(owner, ListeningPanel(needsAfterWrite = { false }))
+        val keyed = KeyReadingElement()
+        child.applyDeclaredModifier(SwingModifier.then(keyed).then(Additive("a")).opaque(false))
+
+        child.applyDeclaredModifier(SwingModifier.then(keyed).then(Additive("a")).opaque(true))
+
+        assertTrue(child.component.isOpaque, "the keyed slot must be written with its new value")
+        owner.dispose()
+    }
+
+    @Test
+    fun anAdditiveSlotDeclaredAsAKeyedElementOfItsClassIsDiffed() {
+        val owner = TestCompositionOwner()
+        val child = attachedChild(owner, ListeningPanel(needsAfterWrite = { false }))
+        child.applyDeclaredModifier(SwingModifier.then(KeyableAdditive("p", additive = true)))
+        assertEquals(1, child.modifierState?.chain?.size, "the additive element must hold a chain slot")
+
+        child.applyDeclaredModifier(SwingModifier.then(KeyableAdditive("p", additive = false)))
+
+        assertEquals(0, child.modifierState?.chain?.size, "a keyed element of the same class holds no chain slot")
         owner.dispose()
     }
 
@@ -604,6 +692,47 @@ private open class Additive(
 private class SubAdditive(
     label: String,
 ) : Additive(label)
+
+/** A non-additive element written in place while [label] stays equal; each write increments [writes]. */
+private class CountingElement(
+    private val label: String,
+    private val writes: AtomicInteger,
+) : SwingModifier.NodeElement<Component, LabelNode>() {
+    override val targetType: Class<Component> get() = Component::class.java
+
+    override fun create(): LabelNode = LabelNode()
+
+    override fun update(node: LabelNode) {
+        writes.incrementAndGet()
+        node.label = label
+    }
+
+    override fun equals(other: Any?): Boolean =
+        other is CountingElement && other.label == label && other.writes === writes
+
+    override fun hashCode(): Int = 31 * label.hashCode() + System.identityHashCode(writes)
+}
+
+/** An additive element of its own class whose [additive] a declaration can also decide, keyed by [label]. */
+private class KeyableAdditive(
+    private val label: String,
+    override val additive: Boolean,
+) : SwingModifier.NodeElement<Component, LabelNode>() {
+    override val targetType: Class<Component> get() = Component::class.java
+
+    override val key: Any get() = label
+
+    override fun create(): LabelNode = LabelNode()
+
+    override fun update(node: LabelNode) {
+        node.label = label
+    }
+
+    override fun equals(other: Any?): Boolean =
+        other is KeyableAdditive && other.label == label && other.additive == additive
+
+    override fun hashCode(): Int = 31 * label.hashCode() + additive.hashCode()
+}
 
 /** An additive element whose node is a [CompositionLocalConsumerModifierNode], so a local refresh rewrites it. */
 private class ConsumingAdditive(

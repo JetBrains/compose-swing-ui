@@ -1,6 +1,5 @@
 package org.jetbrains.compose.swing.test
 
-import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import org.jetbrains.kotlin.cli.common.ExitCode
 import org.jetbrains.kotlin.cli.jvm.K2JVMCompiler
 import java.io.ByteArrayOutputStream
@@ -12,10 +11,8 @@ import kotlin.io.path.createTempDirectory
  * In-process Kotlin compiler harness that compiles a snippet with the Compose compiler plugin
  * and captures diagnostics on the current test classpath.
  */
-@InternalSwingUiApi
 public object InProcessCompilerHarness {
     /** Source snippet to compile. */
-    @InternalSwingUiApi
     public class SourceSpec(
         /** Path of the source file relative to the temporary source root. */
         public val relativePath: String,
@@ -34,7 +31,6 @@ public object InProcessCompilerHarness {
     }
 
     /** Compiler outcome holding the [exitCode] and diagnostic [output]. */
-    @InternalSwingUiApi
     public class CompilationResult(
         /** Exit code returned by the compiler. */
         public val exitCode: ExitCode,

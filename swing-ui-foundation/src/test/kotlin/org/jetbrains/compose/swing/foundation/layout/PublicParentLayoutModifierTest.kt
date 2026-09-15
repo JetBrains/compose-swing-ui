@@ -6,15 +6,17 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.extension.ExtendWith
 import java.awt.Component
 import java.awt.Rectangle
-import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /** Proves Foundation's supported parent-layout contracts work without any internal API opt-in. */
+@ExtendWith(ComposedPanels::class)
 class PublicParentLayoutModifierTest {
     @Test
     fun customParentDataModifiersFoldInTheirDeclarationOrder() {
@@ -59,11 +61,14 @@ class PublicParentLayoutModifierTest {
     fun customLayoutModifiersFormANestedMeasureAndPlacementChain() {
         val events = mutableListOf<String>()
         val layout =
-            TestPolicyLayout { measurables, constraints ->
-                val placeable = measurables.single().measure(constraints)
-                layout(placeable.width, placeable.height) { placeable.place(0, 0) }
-            }
-        val panel = JPanel(layout)
+            MeasurePolicyLayout(
+                MeasurePolicy { measurables, constraints ->
+                    val placeable = measurables.single().measure(constraints)
+                    layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+                },
+                null,
+            )
+        val panel = composed(ConstrainedPanel(layout))
         val child = FixedSizeChild(width = 10, height = 10)
         panel.add(child)
         layout.declareComponentLayout(
@@ -109,11 +114,14 @@ class PublicParentLayoutModifierTest {
         val inner = OffsetLayoutModifier("inner", 7, events)
 
         val layout =
-            TestPolicyLayout { measurables, constraints ->
-                val placeable = measurables.single().measure(constraints)
-                layout(placeable.width, placeable.height) { placeable.place(0, 0) }
-            }
-        val panel = JPanel(layout)
+            MeasurePolicyLayout(
+                MeasurePolicy { measurables, constraints ->
+                    val placeable = measurables.single().measure(constraints)
+                    layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+                },
+                null,
+            )
+        val panel = composed(ConstrainedPanel(layout))
         val child = FixedSizeChild(width = 10, height = 10)
         panel.add(child)
         layout.declareComponentLayout(child, null, listOf(outer, inner))
@@ -126,6 +134,48 @@ class PublicParentLayoutModifierTest {
         assertEquals(10, minH)
         assertEquals(10, maxH)
         assertEquals(-1, base)
+    }
+
+    @Test
+    fun aPassThroughLayoutModifierRunsItsOwnMeasureOnlyOnceAcrossAValidateCycle() {
+        var measureCount = 0
+        val passThrough =
+            object : LayoutModifier {
+                override val name: String get() = "passThrough"
+
+                override fun MeasureScope.measure(
+                    measurable: Measurable,
+                    constraints: Constraints,
+                ): MeasureResult {
+                    measureCount++
+                    val placeable = measurable.measure(constraints)
+                    return layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+                }
+            }
+
+        val layout =
+            MeasurePolicyLayout(
+                MeasurePolicy { measurables, constraints ->
+                    val placeable = measurables.single().measure(constraints)
+                    layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+                },
+                null,
+            )
+        val panel = composed(ConstrainedPanel(layout))
+        val child = FixedSizeChild(width = 10, height = 10)
+        panel.add(child)
+        layout.declareComponentLayout(child, null, listOf(passThrough))
+
+        val first = layout.measurables.settledOn(10, 10)
+        val second = layout.measurables.settledOn(10, 10)
+
+        assertSame(first, second, "settling on the same extent again must reuse the result the first pass settled on")
+        assertEquals(
+            1,
+            measureCount,
+            "a validate cycle settling on the same extent more than once must run a pass-through modifier's " +
+                "own measure only once",
+        )
     }
 
     @Test

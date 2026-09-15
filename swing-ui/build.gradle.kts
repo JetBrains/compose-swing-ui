@@ -45,6 +45,8 @@ dependencies {
     // The JUnit 5 flavor, whose Tag the ExclusiveWindowSystem annotation carries.
     testFixturesImplementation(kotlin("test-junit5"))
     testFixturesImplementation(project(":swing-ui-test"))
+    // The in-process compiler harness; the compiler-test-harness convention supplies it at test runtime.
+    testFixturesCompileOnly(kotlin("compiler-embeddable"))
     testImplementation(kotlin("test"))
     testImplementation(libs.mockk)
     testImplementation(project(":swing-ui-test"))

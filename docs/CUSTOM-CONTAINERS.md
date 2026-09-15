@@ -113,10 +113,8 @@ that cannot measure one is refused when it is applied. Decorations need no scope
 `SwingModifier` extensions, so a `Layout`'s children can declare them whether or not the content offers anything
 beyond `ConstrainedScope`.
 
-`preferredLayoutSize` and `minimumLayoutSize` hold no extent to offer, so they ask
-`MeasurePolicy.intrinsicSize`, which measures under `Constraints.Unbounded` by default. A policy that
-divides a finite extent among its children has nothing to divide there and overrides it to name what it
-wants instead.
+Swing's preferred and minimum size queries offer no extent; [Intrinsic size](FOUNDATION.md#intrinsic-size)
+describes how a policy answers them, and when it overrides its intrinsic functions.
 
 ### Parent data and layout modifiers
 

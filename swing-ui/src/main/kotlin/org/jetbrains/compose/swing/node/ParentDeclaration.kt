@@ -77,7 +77,7 @@ internal class ParentDeclaration(
         checkParentAccepts(parentProtocol, parentLayoutElements)
         this.parentData = parentData
         this.parentProtocol = parentProtocol
-        this.parentLayoutElements = chain.withLayoutNodes(parentLayoutElements)
+        this.parentLayoutElements = chain.withLayoutNodes(parentLayoutElements, this.parentLayoutElements)
         reapply()
     }
 
@@ -195,8 +195,14 @@ private fun List<ParentLayoutElement>.standsAs(applied: List<ParentLayoutElement
     return stands
 }
 
-/** [declared], with the k-th [ParentLayoutNodeElement] replaced by the k-th layout node this chain holds. */
-private fun List<NodeRecord<*, *>>.withLayoutNodes(declared: List<ParentLayoutElement>): List<ParentLayoutElement> {
+/**
+ * [declared], with the k-th [ParentLayoutNodeElement] replaced by the k-th layout node this chain holds - or
+ * [applied] itself where every element already resolves to it.
+ */
+private fun List<NodeRecord<*, *>>.withLayoutNodes(
+    declared: List<ParentLayoutElement>,
+    applied: List<ParentLayoutElement>,
+): List<ParentLayoutElement> {
     var hasNodeElement = false
     for (index in declared.indices) {
         if (declared[index] is ParentLayoutNodeElement<*>) {
@@ -206,13 +212,18 @@ private fun List<NodeRecord<*, *>>.withLayoutNodes(declared: List<ParentLayoutEl
     }
     // No node element to replace: skip the mapNotNull below. toList() returns the shared empty list when
     // declared is empty, and a defensive copy of declared otherwise.
-    if (!hasNodeElement) return declared.toList()
-    var next = 0
-    return declared.mapNotNull { element ->
-        if (element !is ParentLayoutNodeElement<*>) return@mapNotNull element
-        while (next < size && this[next] !is LayoutNodeRecord) next++
-        getOrNull(next++)?.node as ParentLayoutNode?
-    }
+    val resolved =
+        if (!hasNodeElement) {
+            declared.toList()
+        } else {
+            var next = 0
+            declared.mapNotNull { element ->
+                if (element !is ParentLayoutNodeElement<*>) return@mapNotNull element
+                while (next < size && this[next] !is LayoutNodeRecord) next++
+                getOrNull(next++)?.node as ParentLayoutNode?
+            }
+        }
+    return if (resolved == applied) applied else resolved
 }
 
 /** Represents folded parent data for the shared acceptance pass. */

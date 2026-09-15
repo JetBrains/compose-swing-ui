@@ -30,14 +30,14 @@ class RowColumnPassReuseTest {
                 }
             }
             val row = onNodeWithTag(CONTAINER_TAG).fetch<JComponent>()
-            val initialPolicy = row.layout as PolicyLayout
+            val initialPolicy = row.layout as MeasurePolicyLayout
 
             count = 2
             awaitIdle()
 
             assertSame(
                 initialPolicy.policy,
-                row.layout.let { it as PolicyLayout }.policy,
+                row.layout.let { it as MeasurePolicyLayout }.policy,
                 "an unchanged Row configuration must keep its remembered measure policy",
             )
         }
@@ -56,14 +56,14 @@ class RowColumnPassReuseTest {
                 }
             }
             val column = onNodeWithTag(CONTAINER_TAG).fetch<JComponent>()
-            val initialPolicy = column.layout as PolicyLayout
+            val initialPolicy = column.layout as MeasurePolicyLayout
 
             count = 2
             awaitIdle()
 
             assertSame(
                 initialPolicy.policy,
-                column.layout.let { it as PolicyLayout }.policy,
+                column.layout.let { it as MeasurePolicyLayout }.policy,
                 "an unchanged Column configuration must keep its remembered measure policy",
             )
         }

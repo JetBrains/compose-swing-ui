@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.foundation.layout
 
+import androidx.compose.runtime.snapshots.Snapshot
 import org.jetbrains.compose.swing.foundation.graphics.Decoratable
 import org.jetbrains.compose.swing.foundation.graphics.Decoration
 import java.awt.Component
@@ -30,7 +31,7 @@ import javax.swing.SwingConstants
  */
 @Suppress("TooManyFunctions") // Every function but the declaration-order accessors overrides a supertype member.
 internal open class ConstrainedPanel(
-    private val policyLayout: MeasurePolicyLayout,
+    val policyLayout: MeasurePolicyLayout,
 ) : JComponent(),
     Accessible,
     Scrollable,
@@ -40,6 +41,7 @@ internal open class ConstrainedPanel(
 
     init {
         layout = policyLayout
+        policyLayout.measurables.panel = this
     }
 
     /** Declaration order adjusted by any stacking parent data understood by this container. */
@@ -80,6 +82,9 @@ internal open class ConstrainedPanel(
         )
     }
 
+    /** What [paintBlock] paints into, held only while [paint] runs. */
+    private var paintGraphics: Graphics? = null
+
     private val paintContent: (Graphics) -> Unit = { graphics ->
         val decoration = decoration
         val outsets = decoration.heldPaintOutsets
@@ -93,7 +98,32 @@ internal open class ConstrainedPanel(
         paintChildren(graphics)
     }
 
-    override fun paint(g: Graphics) = decoration.paint(this, g, paintContent)
+    // Stored once and reading its graphics from a field, so observing a paint allocates nothing per call.
+    private val paintBlock: () -> Unit = {
+        decoration.paint(this, checkNotNull(paintGraphics), paintContent)
+    }
+
+    override fun paint(g: Graphics) {
+        paintGraphics = g
+        try {
+            policyLayout.observe(PaintReads, paintBlock)
+        } finally {
+            paintGraphics = null
+        }
+    }
+
+    /**
+     * A child's paint is observed by the child itself, so a paint that skips a child drops none of its
+     * reads, and a plain component reading state while it paints is not observed.
+     */
+    override fun paintChildren(g: Graphics) = Snapshot.withoutReadObservation { super.paintChildren(g) }
+
+    /**
+     * Validates this panel and its descendants inside one snapshot that observes no read. Each answer a policy
+     * computes during the validation observes its reads through that snapshot instead of entering one of its own, and
+     * a read made outside an answer is not observed.
+     */
+    override fun validateTree() = Snapshot.withoutReadObservation { super.validateTree() }
 
     override fun addImpl(
         comp: Component,
@@ -119,6 +149,11 @@ internal open class ConstrainedPanel(
         super.removeAll()
     }
 
+    /** A child moved by a placement replay reports an invalidation that replay has already answered. */
+    override fun invalidate() {
+        if (!policyLayout.measurables.isPlacingAgain) super.invalidate()
+    }
+
     /** Runs [action] in composition order, before [StackingOrder] rearranges Swing's component array. */
     internal inline fun forEachChildInDeclarationOrder(action: (Component) -> Unit) {
         stackingOrder.forEachInDeclarationOrder(action)
@@ -133,13 +168,13 @@ internal open class ConstrainedPanel(
 
     final override val constrainedHeight: Int get() = measured.height
 
-    /** Placed by its own parent; see [ChildMeasurables.reshaped] for what that placement must not undo. */
+    /** Placed by its own parent; see [ChildMeasurables.during] for what that placement must not undo. */
     final override fun setBounds(
         x: Int,
         y: Int,
         width: Int,
         height: Int,
-    ) = policyLayout.measurables.reshaped { super.setBounds(x, y, width, height) }
+    ) = policyLayout.measurables.during(RunningCause.ParentPlacement) { super.setBounds(x, y, width, height) }
 
     /**
      * A size set on the component outright answers for it, as it does for `getPreferredSize()`: setting
@@ -147,7 +182,12 @@ internal open class ConstrainedPanel(
      * question asked with an argument. The policy measures only where nothing has been set.
      */
     final override fun measure(constraints: Constraints) {
-        measured = if (isPreferredSizeSet) preferredSize else policyLayout.measurables.measuredSize(this, constraints)
+        measured =
+            if (isPreferredSizeSet) {
+                super.getPreferredSize()
+            } else {
+                policyLayout.measurables.measuredSize(constraints)
+            }
     }
 
     override fun getAccessibleContext(): AccessibleContext =
@@ -213,3 +253,6 @@ internal inline fun Component.fillsViewport(side: (Dimension) -> Int): Boolean {
     val viewport = parent as? JViewport ?: return false
     return side(viewport.size) > side(preferredSize)
 }
+
+/** Reads behind the container's own pixels; its children's paint is observed by each child. */
+private val PaintReads: (LayoutObservationNode) -> Unit = { it.component.repaint() }

@@ -7,7 +7,7 @@ import org.jetbrains.compose.swing.layout.ParentProtocol
  * What a child of a [Box] declares for itself: the placement it names in place of its container's, and
  * whether it takes the box's whole extent instead of the one it prefers.
  *
- * It is the parent data the child is registered under, so [PolicyLayout] hands it to the [BoxMeasurePolicy]
+ * It is the parent data the child is registered under, so [MeasurePolicyLayout] hands it to the [BoxMeasurePolicy]
  * through [Measurable.parentData].
  *
  * @property alignment where the child sits in the box, or `null` to leave that to its container.

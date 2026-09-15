@@ -1,35 +1,30 @@
 package org.jetbrains.compose.swing
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.currentComposer
 import androidx.compose.runtime.key
 import androidx.compose.runtime.tooling.CompositionData
 import androidx.compose.runtime.tooling.CompositionGroup
 import org.jetbrains.compose.swing.test.ComposeSwingTest
-import org.jetbrains.compose.swing.tooling.findCompositionData
-import org.jetbrains.compose.swing.tooling.isDebugInspectorInfoEnabled
-import javax.swing.JComponent
 
 /**
  * Composes [content] and asserts that it opened exactly [expected] restart scopes - the groups a
  * recomposition can restart at. A composable inlined into its caller opens none of its own, so the count
  * is what a call site pays to be recomposable.
- *
- * Turns inspection on, which is what publishes the composition data this reads; the caller restores it.
  */
-internal fun ComposeSwingTest.assertRestartScopeCount(
+public fun ComposeSwingTest.assertRestartScopeCount(
     expected: Int,
     content: @Composable () -> Unit,
 ) {
-    isDebugInspectorInfoEnabled = true
     val contentKey = Any()
-    setContent { key(contentKey) { content() } }
+    var data: CompositionData? = null
+    setContent {
+        data = currentComposer.compositionData
+        key(contentKey) { content() }
+    }
 
-    val data =
-        checkNotNull((root as JComponent).findCompositionData()) {
-            "the test root publishes no composition data"
-        }
     val contentGroup =
-        checkNotNull(data.allGroups().firstOrNull { it.key == contentKey }) {
+        checkNotNull(data?.allGroups()?.firstOrNull { it.key == contentKey }) {
             "the content the assertion composed is not in the slot table"
         }
     // The key group holds exactly the content lambda, whose own scope is not one the widget opened; the
@@ -50,7 +45,7 @@ internal fun ComposeSwingTest.assertRestartScopeCount(
     if (scopes.size != expected) {
         throw AssertionError(
             "expected $expected restart scope(s), found ${scopes.size}:\n" +
-                scopes.joinToString("\n") { " - key=${it.key}, sourceInfo=${it.sourceInfo}" },
+                scopes.joinToString("\n") { " - key=${it.key}" },
         )
     }
 }

@@ -530,7 +530,6 @@ public final class org/jetbrains/compose/swing/foundation/layout/ColumnScopeInst
 public final class org/jetbrains/compose/swing/foundation/layout/ComposableSingletons$LayoutKt {
 	public static final field INSTANCE Lorg/jetbrains/compose/swing/foundation/layout/ComposableSingletons$LayoutKt;
 	public fun <init> ()V
-	public final fun getLambda$-1368829734$org_jetbrains_compose_swing_swing_ui_foundation ()Lkotlin/jvm/functions/Function3;
 	public final fun getLambda$-1724192535$org_jetbrains_compose_swing_swing_ui_foundation ()Lkotlin/jvm/functions/Function3;
 }
 

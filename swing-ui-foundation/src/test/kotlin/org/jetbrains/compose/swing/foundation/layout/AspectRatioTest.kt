@@ -3,9 +3,9 @@ package org.jetbrains.compose.swing.foundation.layout
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.extension.ExtendWith
 import java.awt.Dimension
 import java.awt.Rectangle
-import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -32,6 +32,7 @@ import kotlin.test.assertFailsWith
  * questions this tree does ask. What that case asks with neither extent fixed - the ratio reporting the
  * content's own size - is [aRatioNoSizeSatisfiesLeavesTheChildMeasuredUnderWhatItWasOffered].
  */
+@ExtendWith(ComposedPanels::class)
 class AspectRatioTest {
     @Test
     fun testAspectRatio_sizesCorrectly() {
@@ -261,8 +262,8 @@ class AspectRatioTest {
     ): Pair<Dimension, Dimension> {
         val child = FixedSizeChild(CHILD_WIDTH, CHILD_HEIGHT)
         val policy = OfferedConstraints(constraints)
-        val layout = TestPolicyLayout(policy)
-        val panel = JPanel(layout)
+        val layout = MeasurePolicyLayout(policy, null)
+        val panel = composed(ConstrainedPanel(layout))
         panel.add(child)
         // After the add, which is what builds the measurable the chain lives on.
         layout.declareLayoutChain(child, ratioChain(ratio, matchHeightConstraintsFirst))

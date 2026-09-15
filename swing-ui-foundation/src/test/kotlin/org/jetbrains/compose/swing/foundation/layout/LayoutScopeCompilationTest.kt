@@ -36,8 +36,7 @@ class LayoutScopeCompilationTest {
 
     @Test
     fun aNestedContainerHidesTheOuterContainersOwnScope() {
-        assertRejected(
-            "weight",
+        compile(
             """
             @Composable
             fun Nested() {
@@ -48,9 +47,8 @@ class LayoutScopeCompilationTest {
                 }
             }
             """,
-        )
-        assertRejected(
-            "align",
+        ).assertRejected(listOf("weight"))
+        compile(
             """
             @Composable
             fun Nested() {
@@ -61,7 +59,7 @@ class LayoutScopeCompilationTest {
                 }
             }
             """,
-        )
+        ).assertRejected(listOf("align"))
     }
 
     /** What the policy itself honors stays in reach: those builders are the scope the content is given. */
@@ -100,12 +98,7 @@ class LayoutScopeCompilationTest {
             InProcessCompilerHarness.resolveComposePluginClasspath()
         }
 
-        /** Asserts [program] fails to compile with an error naming [name]. */
-        fun assertRejected(
-            name: String,
-            program: String,
-        ) = compile(program).assertRejected(listOf(name))
-
+        /** Compiles [program] with the imports a nested-container snippet needs. */
         fun compile(program: String) =
             InProcessCompilerHarness.compileSnippet(
                 "LayoutScopeSnippet.kt",

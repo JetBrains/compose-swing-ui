@@ -199,7 +199,7 @@ class LayoutTest {
                         SizedChild(0)
                         SizedChild(1)
                     },
-                    measurePolicy = if (spaced) stackedRows(CHILD_HEIGHT) else stackedRows(),
+                    measurePolicy = if (spaced) stackedRows { CHILD_HEIGHT } else stackedRows(),
                     modifier = containerModifier(CROSS_EXTENT, MAIN_EXTENT),
                 )
             }
@@ -300,43 +300,47 @@ class LayoutTest {
             (onNodeWithTag(CONTAINER_TAG).fetch<JComponent>().getComponent(0) as JComponent)
                 .components
                 .map { it.bounds }
-
-        /**
-         * A policy that stacks its children down the container at the width the offer allows, [gap]
-         * apart, and asks for as much space as the stack occupies within that offer.
-         */
-        fun stackedRows(gap: Int = 0): MeasurePolicy =
-            MeasurePolicy { measurables, constraints ->
-                var remainingHeight = constraints.maxHeight
-                val placeables =
-                    measurables.mapIndexed { index, measurable ->
-                        val measured =
-                            measurable.measure(
-                                Constraints(maxWidth = constraints.maxWidth, maxHeight = remainingHeight),
-                            )
-                        val placeable =
-                            if (measured.measuredWidth <= constraints.maxWidth &&
-                                measured.measuredHeight <= remainingHeight
-                            ) {
-                                measured
-                            } else {
-                                measurable.measure(Constraints(maxWidth = 0, maxHeight = 0))
-                            }
-                        remainingHeight = (remainingHeight - placeable.height).coerceAtLeast(0)
-                        if (index < measurables.lastIndex) {
-                            remainingHeight = (remainingHeight - gap.coerceAtLeast(0)).coerceAtLeast(0)
-                        }
-                        placeable
-                    }
-                val width = constraints.constrainWidth(placeables.maxOfOrNull { it.width } ?: 0)
-                val height = constraints.constrainHeight(constraints.maxHeight - remainingHeight)
-                layout(width, height) {
-                    var y = 0
-                    for (placeable in placeables) {
-                        placeable.place(0, y)
-                        y += placeable.height + gap
-                    }
-                }
-            }
     }
+
+    // The content is a composable lambda of its own, and a lambda of its own is a scope of its own; Layout
+    // adds none on top of it, and neither do the inline containers built on it.
 }
+
+/**
+ * A policy that stacks its children down the container at the width the offer allows, [gap]
+ * apart, and asks for as much space as the stack occupies within that offer. It reads [gap] on every measure.
+ */
+internal fun stackedRows(gap: () -> Int = { 0 }): MeasurePolicy =
+    MeasurePolicy { measurables, constraints ->
+        var remainingHeight = constraints.maxHeight
+        val currentGap = gap()
+        val placeables =
+            measurables.mapIndexed { index, measurable ->
+                val measured =
+                    measurable.measure(
+                        Constraints(maxWidth = constraints.maxWidth, maxHeight = remainingHeight),
+                    )
+                val placeable =
+                    if (measured.measuredWidth <= constraints.maxWidth &&
+                        measured.measuredHeight <= remainingHeight
+                    ) {
+                        measured
+                    } else {
+                        measurable.measure(Constraints(maxWidth = 0, maxHeight = 0))
+                    }
+                remainingHeight = (remainingHeight - placeable.height).coerceAtLeast(0)
+                if (index < measurables.lastIndex) {
+                    remainingHeight = (remainingHeight - currentGap.coerceAtLeast(0)).coerceAtLeast(0)
+                }
+                placeable
+            }
+        val width = constraints.constrainWidth(placeables.maxOfOrNull { it.width } ?: 0)
+        val height = constraints.constrainHeight(constraints.maxHeight - remainingHeight)
+        layout(width, height) {
+            var y = 0
+            for (placeable in placeables) {
+                placeable.place(0, y)
+                y += placeable.height + currentGap
+            }
+        }
+    }

@@ -8,8 +8,10 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.font
+import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.test.interaction.onChild
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.window.Window
@@ -56,6 +58,26 @@ class RowColumnReactivityTest {
             arrangement = Arrangement.spacedBy(GAP)
             awaitIdle()
             assertEquals(columnRows(0, 50, 100), childBounds(), "an arrangement that holds a gap of its own")
+        }
+
+    /**
+     * The content lambda of each inline container is a composable lambda of its own: a state read that is its only
+     * call recomposes it.
+     */
+    @Test
+    fun aStateReadThatIsTheOnlyCallOfAContainersContentRecomposesThatContent() =
+        runComposeSwingTest {
+            val text = mutableStateOf("before")
+            setContent {
+                Box(SwingModifier.testTag("box")) { Label(text.value) }
+                Row(SwingModifier.testTag("row")) { Label(text.value) }
+                Column(SwingModifier.testTag("column")) { Label(text.value) }
+            }
+
+            text.value = "after"
+            awaitIdle()
+
+            for (tag in listOf("box", "row", "column")) onNodeWithTag(tag).onChild().assertTextEquals("after")
         }
 
     @Test

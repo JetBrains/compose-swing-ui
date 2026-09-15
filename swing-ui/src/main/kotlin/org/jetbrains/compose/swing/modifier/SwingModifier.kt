@@ -461,8 +461,12 @@ internal open class CombinedSwingModifier(
 internal abstract class NodeRecord<N : SwingModifier.Node, E : SwingModifier.Element>(
     /** The node this slot holds for as long as the slot stands. */
     val node: N,
-    protected var element: E,
+    element: E,
 ) {
+    /** The element occupying this slot, the one the last diff handed [node]. */
+    var element: E = element
+        protected set
+
     /**
      * Calls [record], runs the node's [SwingModifier.Node.onAttach], then pushes the element onto it: the first
      * install. The slot stands while `onAttach` runs, so [SwingModifier.Node.visitDeclaredNodes] finds the node from
@@ -698,17 +702,17 @@ public class SwingModifierState internal constructor() {
     internal val chain: ArrayList<NodeRecord<*, *>> = ArrayList()
 
     /**
-     * The modifier last declared for this node, and what the next pass compares its own declaration
-     * against. Every pass that finishes replaces it with the modifier it declared, whether the slots diffed that
-     * declaration or adopted it, so what stands here is what the composition declared last - which is
-     * what [org.jetbrains.compose.swing.node.SwingComponentNode.modifier] answers with, through [declared].
+     * The modifier last declared for this node, which the next pass compares its own declaration against. Every
+     * pass that finishes replaces it with the modifier it declared, whether the walk wrote the slots in place or
+     * the diff applied it. [org.jetbrains.compose.swing.node.SwingComponentNode.modifier] reads it through
+     * [declared].
      *
-     * Adopting decides what reaches the component, not what is held: a modifier the slots adopt writes
-     * nothing, while this and each slot's own element still take the incoming declaration, releasing
-     * everything the elements they replace captured.
+     * Adopting decides what reaches the component, not what is held: a slot that adopts its element writes
+     * nothing, but it still takes the new instance, releasing everything the replaced one captured.
      *
-     * An [UnfinishedPass] from the start of a diff or a slot refresh until it returns. One left standing - the
-     * write threw - equals no declaration, so the next declaration is diffed with every slot written again.
+     * An [UnfinishedPass] from the start of a pass or a slot refresh until it returns. If one is left behind
+     * because a write threw, it equals no declaration, so the next declaration is diffed and every slot is
+     * written again.
      */
     internal var applied: SwingModifier = SwingModifier
 
@@ -1011,13 +1015,12 @@ internal fun SwingNodeUpdater<out Component>.applyModifier(
 }
 
 /**
- * Diffs [modifier] onto this node unless the modifier applied last declares the same thing, which is what
- * [adoptDeclaration] answers - and, for the part of a modifier that is read live rather than applied, is
- * what hands the pass's own over.
+ * Diffs [modifier] onto this node unless the slots take it in place, which is what [adoptDeclaration] answers -
+ * and, for the part of a modifier that is read live rather than applied, is what hands the pass's own over.
  *
  * The two questions are not the same one asked twice. A modifier reaching here is one the caller declared
- * anew - a callback rebuilt for this pass is enough to make it that - and what this asks is whether
- * anything the node applied has to change for it.
+ * anew - a callback rebuilt for this pass is enough to make it that - and what this asks is whether applying
+ * it takes more than writing each changed slot its new element.
  *
  * A node with no modifier state yet has applied no modifier, so its first declaration always diffs; a node
  * whose state was reset - released, reused, parked - is in that same position and rebuilds from scratch. A node
@@ -1025,78 +1028,133 @@ internal fun SwingNodeUpdater<out Component>.applyModifier(
  */
 internal fun SwingNodeHolder<Component>.applyDeclaredModifier(modifier: SwingModifier) {
     val state = modifierState
+    var handsOver = false
     if (state != null) {
         val held = state.startWrite()
-        if (held !is UnfinishedPass && adoptDeclaration(held, modifier, state.chain, 0) != DIVERGED) {
-            state.applied = modifier
-            return
+        if (held !is UnfinishedPass) {
+            val adopted = adoptDeclaration(held, modifier, state.chain)
+            if (!adopted.diverged) {
+                state.applied = modifier
+                notifyDeclaredNodes(adopted.handsOver, state.handedNodes)
+                return
+            }
+            handsOver = adopted.handsOver
         }
         state.applied = held
     }
-    applyModifierDiff(modifier)
+    applyModifierDiff(modifier, handsOver)
 }
 
-/** What the walk answers from where two modifiers part ways, so no slot past that point is asked. */
-private const val DIVERGED = -1
+/**
+ * What [adoptDeclaration] has paired so far: how many slots of the chain it [matched], whether the two modifiers
+ * [diverged], so no slot past that point is asked, and whether a slot it wrote holds a node the holder's
+ * [DeclaredNodesListener] needs ([handsOver]), which hands the nodes over once the walk ends.
+ */
+@JvmInline
+private value class Adoption(
+    private val bits: Int,
+) {
+    val matched: Int get() = bits shr 1
+
+    val handsOver: Boolean get() = bits and 1 != 0
+
+    val diverged: Boolean get() = bits < 0
+
+    /** One more slot matched; [handsOver] where its write holds a node the listener needs, and from then on. */
+    fun nextSlot(handsOver: Boolean): Adoption = Adoption((bits + 2) or (if (handsOver) 1 else 0))
+
+    /** The walk parting ways here, keeping [handsOver]. */
+    fun diverge(): Adoption = Adoption(bits or Int.MIN_VALUE)
+}
 
 /**
- * Walks [applied] and [next] in lockstep, asking the slot behind each element of [applied] to adopt the
- * element [next] declares in its place, and answers how many additive slots were matched - or [DIVERGED]
- * as soon as the two modifiers differ, since past that point an element is no longer paired with its own
- * slot. The diff that follows is what pairs the rest, by key and by position, adopting as it goes.
+ * Walks [applied] and [next] in lockstep from [adopted], handing the slot behind each element of [applied] the
+ * element [next] declares in its place, and answers how far it paired them, [diverged][Adoption.diverged] as soon as
+ * the two modifiers differ in a way only the diff can apply. The diff that follows pairs every element with its slot
+ * by key and by position, adopting as it goes.
  *
- * [matched] indexes [records], the [chain][SwingModifierState.chain]: this walk takes the same path through a
- * modifier as [SwingModifier.foldIn], so a prefix of the path it matched is a prefix of its additive slots.
- * The parent-layout slots among them are passed over, and their elements compared by equality.
+ * An element holding a slot is paired with the slot at [Adoption.matched] of [records], the
+ * [chain][SwingModifierState.chain]: this walk takes the same path through a modifier as [SwingModifier.foldIn], so
+ * the slots it reaches in order are the chain's. Every other element - a keyed one, or a declaration read by the
+ * parent - is compared by equality, since a keyed slot's write has every later keyed slot write again, which the diff
+ * alone orders.
  *
- * The two walks agreeing is what this fast path is worth, not what makes it safe. A walk taking another
- * path than the fold reaches a slot holding a registration its element does not match, [DIVERGED] is
- * answered, and the diff behind it pairs everything correctly - so the modifier still ends the pass on what
- * the composition declares, at the cost of the diff this path exists to skip. Nothing observable breaks,
- * which is why a disagreement would have to be found by reading rather than by a failing test.
+ * A slot is handed an element only where it holds the very element [applied] declares, so a walk taking another
+ * path than the fold writes no slot that is not its own: it answers [Adoption.diverged] there instead, and the diff
+ * behind it pairs everything correctly. A slot the walk wrote before parting ways holds its new element, which the
+ * diff then adopts; where [Adoption.handsOver], the diff hands the nodes over.
  */
-private fun adoptDeclaration(
+private fun SwingNodeHolder<Component>.adoptDeclaration(
     applied: SwingModifier,
     next: SwingModifier,
     records: ArrayList<NodeRecord<*, *>>,
-    matched: Int,
-): Int =
+    adopted: Adoption = Adoption(0),
+): Adoption =
     when {
         applied is CombinedSwingModifier && next is CombinedSwingModifier -> {
-            val outer = adoptDeclaration(applied.outer, next.outer, records, matched)
-            if (outer == DIVERGED) DIVERGED else adoptDeclaration(applied.inner, next.inner, records, outer)
+            val outer = adoptDeclaration(applied.outer, next.outer, records, adopted)
+            if (outer.diverged) outer else adoptDeclaration(applied.inner, next.inner, records, outer)
         }
 
-        applied is SwingModifier.NodeElement<*, *> && next is SwingModifier.NodeElement<*, *> -> {
-            adoptElement(applied, next, records, matched)
+        applied is SwingModifier.Element && applied.isChainElement && next is SwingModifier.Element -> {
+            adoptElement(applied, next, records, adopted)
         }
 
         else -> {
-            if (applied == next) matched else DIVERGED
+            if (applied == next) adopted else adopted.diverge()
         }
     }
 
 /**
- * Asks the slot [applied] occupies - the first component slot of [records] from [matched], where it is an additive
- * one - for [next].
+ * Hands [next] to the slot at [Adoption.matched], where [applied] is the element it holds: the slot adopts an element
+ * that declares what [applied] does, and is written in place with one unequal but of [applied]'s own class, as
+ * androidx's `NodeChain.updateNode` updates a node in place. Answers [Adoption.diverged] where the slot holds another
+ * element, or where [next] is of another class. A parent-layout slot written so that its parent lays the component
+ * out again declares it to the parent again; a component slot written with a node the holder's
+ * [DeclaredNodesListener] needs has the nodes handed over once the walk ends.
  */
-private fun adoptElement(
-    applied: SwingModifier.NodeElement<*, *>,
-    next: SwingModifier.NodeElement<*, *>,
+private fun SwingNodeHolder<Component>.adoptElement(
+    applied: SwingModifier.Element,
+    next: SwingModifier.Element,
     records: ArrayList<NodeRecord<*, *>>,
-    matched: Int,
-): Int {
-    // A keyed element owns a slot as well, but nothing keyed carries anything read live, so equality is
-    // the whole of what its slot has to be asked and the keyed records are never indexed here.
-    if (!applied.additive) return if (applied == next) matched else DIVERGED
-    var index = matched
-    while (records.getOrNull(index) is LayoutNodeRecord) index++
-    val record = records.getOrNull(index)
-    return if (record is ElementRecord<*, *> && record.adopt(next)) index + 1 else DIVERGED
+    adopted: Adoption,
+): Adoption {
+    val record = records.getOrNull(adopted.matched)?.takeIf { it.element === applied } ?: return adopted.diverge()
+    return when {
+        !next.isChainElement -> {
+            adopted.diverge()
+        }
+
+        record.adopt(next) -> {
+            adopted.nextSlot(handsOver = false)
+        }
+
+        !record.canRebind(next) -> {
+            adopted.diverge()
+        }
+
+        else -> {
+            record.rebindAndWrite(next, component, owner?.diagnostics)
+            if (record is LayoutNodeRecord) declaration.reapply()
+            adopted.nextSlot(
+                handsOver =
+                    record is ElementRecord<*, *> &&
+                        (component as? DeclaredNodesListener)?.needsNodesAfterWrite(record.node) == true,
+            )
+        }
+    }
 }
 
+/**
+ * @param modifier the modifier to diff onto this node's chain.
+ * @param handsOver whether a slot written in place before this diff holds a node the holder's
+ *   [DeclaredNodesListener] needs; the diff adopts that slot and hands the nodes over.
+ */
 @VisibleForTesting
-internal fun SwingNodeHolder<Component>.applyModifierDiff(modifier: SwingModifier) {
+internal fun SwingNodeHolder<Component>.applyModifierDiff(
+    modifier: SwingModifier,
+    handsOver: Boolean = false,
+) {
     // A holder with no modifier state attaches its chain whole: on its first apply, and on the first after a
     // release, a reuse or a deactivation reset it.
     var attachesWholeChain = modifierState == null
@@ -1105,14 +1163,15 @@ internal fun SwingNodeHolder<Component>.applyModifierDiff(modifier: SwingModifie
     // nodes it attached are handed over.
     val adoptable = state.startWrite() !is UnfinishedPass
     val handedNodes = state.handedNodes
-    var chainChanged = !adoptable
+    var chainChanged = !adoptable or handsOver
     // Read off the owner rather than held: the node is attached to its composition before its update
     // block runs, so the owner answers for every write this pass makes.
     val diagnostics = owner?.diagnostics
 
     // Walk the modifier once, routing each entry to whatever reads it. The partition is the fold's
-    // accumulator, so the walk carries its destinations rather than capturing them.
-    val incoming = ModifierPartition()
+    // accumulator, so the walk carries its destinations rather than capturing them. It is sized for the slots
+    // standing, which a modifier changing its values rather than its shape declares again.
+    val incoming = ModifierPartition(state.records.size, state.chain.size)
     modifier.foldIn(incoming) { partition, element ->
         partition.take(element)
         partition

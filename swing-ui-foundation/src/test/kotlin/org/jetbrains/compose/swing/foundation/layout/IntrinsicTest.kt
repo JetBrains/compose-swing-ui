@@ -237,8 +237,8 @@ private fun ShrinkableChild(
  * parent reaches: `measure`, which only a caller holding an extent to offer can ask, and one of the
  * four intrinsic functions, which argument-less questions route to with an unbounded opposite axis.
  */
-private class CountingPanel : ConstrainedPanel(TestPolicyLayout(CountingPolicy())) {
-    private val counting: CountingPolicy get() = (layout as TestPolicyLayout).policy as CountingPolicy
+private class CountingPanel : ConstrainedPanel(MeasurePolicyLayout(CountingPolicy(), null)) {
+    private val counting: CountingPolicy get() = (layout as MeasurePolicyLayout).policy as CountingPolicy
 
     val constrainedQuestions: Int get() = counting.measured
 
