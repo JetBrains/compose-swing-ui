@@ -1,6 +1,10 @@
 package org.jetbrains.compose.swing.foundation.layout
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.border
 import org.jetbrains.compose.swing.modifier.appearance.testTag
@@ -134,7 +138,7 @@ class RowColumnParentQueryTest {
         }
 
     @Test
-    fun aBoxReportsTheAlignmentOfTheChildOnTopOfTheStack() =
+    fun aBoxReportsTheAlignmentItsFirstChildReports() =
         runComposeSwingTest {
             setContent {
                 Box(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
@@ -143,24 +147,125 @@ class RowColumnParentQueryTest {
                 }
             }
 
-            // A box stacks a later child over an earlier one, so the last declared is the one on top.
-            assertEquals(TRAILING, container().alignmentX, "the box must report the x alignment of the child on top")
-            assertEquals(LEADING, container().alignmentY, "and the y alignment of that same child")
+            // The child declared last stacks on top, but a box answers for the one declared first, as a row does.
+            assertEquals(LEADING, container().alignmentX, "the box must report the x alignment of its first child")
+            assertEquals(TRAILING, container().alignmentY, "and the y alignment of that same child")
         }
+
+    /** Restacking a child by z-index changes the paint and hit-testing order, not which child a parent query asks. */
+    @Test
+    fun aBoxRestackedByAZIndexStillReportsItsFirstDeclaredChild() =
+        runComposeSwingTest {
+            var z by mutableFloatStateOf(0f)
+            setContent {
+                Box(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
+                    SizedChild(0, SwingModifier.alignmentX(LEADING).alignmentY(TRAILING).zIndex(z))
+                    SizedChild(1, SwingModifier.alignmentX(Component.CENTER_ALIGNMENT))
+                    SizedChild(2, SwingModifier.alignmentX(TRAILING))
+                }
+            }
+
+            assertEquals(
+                LEADING,
+                container().alignmentX,
+                "the first declared child must be reported before any restack",
+            )
+            assertEquals(TRAILING, container().alignmentY)
+
+            z = 5f
+            awaitIdle()
+
+            assertEquals(LEADING, container().alignmentX, "restacking by z-index must not change which child is asked")
+            assertEquals(TRAILING, container().alignmentY)
+        }
+
+    /** A container's declaration order, and so the child a parent query asks, survives removal and insertion. */
+    @Test
+    fun aContainerFollowsItsFirstDeclaredChildThroughRemovalAndInsertion() =
+        runComposeSwingTest {
+            var presentA by mutableStateOf(true)
+            var presentC by mutableStateOf(false)
+            setContent {
+                Row(modifier = SwingModifier.testTag(ROW_TAG)) { OrderedChildren(presentA, presentC) }
+                Column(modifier = SwingModifier.testTag(COLUMN_TAG)) { OrderedChildren(presentA, presentC) }
+                Box(modifier = SwingModifier.testTag(BOX_TAG)) { OrderedChildren(presentA, presentC) }
+            }
+
+            for (tag in listOf(ROW_TAG, COLUMN_TAG, BOX_TAG)) {
+                assertEquals(LEADING, panel(tag).alignmentX, "'$tag' must report A's alignment before it is removed")
+            }
+
+            presentA = false
+            awaitIdle()
+
+            for (tag in listOf(ROW_TAG, COLUMN_TAG, BOX_TAG)) {
+                assertEquals(TRAILING, panel(tag).alignmentX, "'$tag' must report B's alignment once A is removed")
+            }
+
+            presentC = true
+            awaitIdle()
+
+            for (tag in listOf(ROW_TAG, COLUMN_TAG, BOX_TAG)) {
+                assertEquals(
+                    Component.CENTER_ALIGNMENT,
+                    panel(tag).alignmentX,
+                    "'$tag' must report C's alignment once it is declared first",
+                )
+            }
+        }
+
+    /** A custom layout's parent query follows the declaration order of its content, not the order its policy places. */
+    @Test
+    fun aCustomLayoutReportsTheAlignmentItsFirstChildReports() =
+        runComposeSwingTest {
+            setContent {
+                Layout(
+                    modifier = SwingModifier.testTag(CONTAINER_TAG),
+                    content = {
+                        SizedChild(0, SwingModifier.alignmentX(LEADING).alignmentY(TRAILING))
+                        SizedChild(1, SwingModifier.alignmentX(TRAILING).alignmentY(LEADING))
+                    },
+                    measurePolicy = { measurables, constraints ->
+                        val placeables = measurables.map { it.measure(constraints) }
+                        layout(CHILD_WIDTH, CHILD_HEIGHT) {
+                            placeables[1].place(0, 0)
+                            placeables[0].place(0, 0)
+                        }
+                    },
+                )
+            }
+
+            assertEquals(
+                LEADING,
+                container().alignmentX,
+                "a custom layout must report its first declared child's x alignment",
+            )
+            assertEquals(TRAILING, container().alignmentY, "and its y alignment, not the order it placed them in")
+        }
+
+    /** Content shared by [aContainerFollowsItsFirstDeclaredChildThroughRemovalAndInsertion]'s three containers. */
+    @Composable
+    private fun OrderedChildren(
+        presentA: Boolean,
+        presentC: Boolean,
+    ) {
+        if (presentC) SizedChild(2, SwingModifier.alignmentX(Component.CENTER_ALIGNMENT))
+        if (presentA) SizedChild(0, SwingModifier.alignmentX(LEADING))
+        SizedChild(1, SwingModifier.alignmentX(TRAILING))
+    }
 
     @Test
     fun aHiddenChildDecidesWhatItsContainerReportsLikeAnyOther() =
         runComposeSwingTest {
             setContent {
-                // In each container the hidden child is the one that is asked: the first declared in a row,
-                // the last declared - the top of the stack - in a box.
+                // In each container the hidden child is the first declared, the one that is asked.
                 Row(modifier = SwingModifier.testTag(ROW_TAG)) {
                     SizedChild(0, SwingModifier.alignmentX(TRAILING).alignmentY(LEADING).visible(false))
                     SizedChild(1, SwingModifier.alignmentX(LEADING).alignmentY(TRAILING))
                 }
                 Box(modifier = SwingModifier.testTag(BOX_TAG)) {
-                    SizedChild(0, SwingModifier.alignmentX(LEADING).alignmentY(TRAILING))
-                    SizedChild(1, SwingModifier.alignmentX(TRAILING).alignmentY(LEADING).visible(false))
+                    SizedChild(0, SwingModifier.alignmentX(TRAILING).alignmentY(LEADING).visible(false))
+                    SizedChild(1, SwingModifier.alignmentX(LEADING).alignmentY(TRAILING))
                 }
             }
 
@@ -477,6 +582,7 @@ private val BASELINE_MOVING_MODIFIERS: List<Triple<String, RowScope.() -> SwingM
         Triple("wrapContentHeight", { SwingModifier.requiredHeight(60).wrapContentHeight() }, 60 to 20),
         Triple("defaultMinSize", { SwingModifier.defaultMinSize(minHeight = 50) }, 50 to 10),
         Triple("height(Max)", { SwingModifier.height(IntrinsicSize.Max) }, 40 to 10),
+        Triple("zIndex", { SwingModifier.zIndex(1f) }, 40 to 10),
         Triple(
             "layout",
             {

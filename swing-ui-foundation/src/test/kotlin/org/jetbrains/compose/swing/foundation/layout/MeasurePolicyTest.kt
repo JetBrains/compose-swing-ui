@@ -1021,10 +1021,7 @@ class MeasurePolicyTest {
 }
 
 /** The bounds of a policy container's children in their declaration order, not Swing's z-order. */
-private fun ConstrainedPanel.declarationBounds(): List<Rectangle> =
-    buildList {
-        forEachChildInDeclarationOrder { add(it.bounds) }
-    }
+private fun ConstrainedPanel.declarationBounds(): List<Rectangle> = stackingOrder.order.map { it.bounds }
 
 /** Where a policy placing its one child with [placement] leaves that child, under [orientation]. */
 private fun placedAt(

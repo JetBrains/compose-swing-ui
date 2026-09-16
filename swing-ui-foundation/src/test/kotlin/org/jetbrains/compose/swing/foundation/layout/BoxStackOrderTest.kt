@@ -14,6 +14,7 @@ import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.repaintsDuring
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
@@ -257,8 +258,8 @@ class BoxStackOrderTest {
         val box = composed(ConstrainedPanel(MeasurePolicyLayout(policy, null)))
         val under = JLabel("under").apply { name = "under" }
         val over = JLabel("over").apply { name = "over" }
-        box.add(under, BoxConstraint())
-        box.add(over, BoxConstraint(zIndex = 1f))
+        box.add(under)
+        box.add(over)
         box.setSize(CHILD_WIDTH, CHILD_HEIGHT)
 
         box.doLayout()
@@ -271,7 +272,7 @@ class BoxStackOrderTest {
         assertEquals(
             listOf(over, under),
             box.components.toList(),
-            "the component array must still keep the larger zIndex first so it paints above its sibling",
+            "the component array must keep the child placed at the larger zIndex first, painting above its sibling",
         )
         assertEquals(
             over,
@@ -363,6 +364,29 @@ class BoxStackOrderTest {
         }
 
     @Test
+    fun aChildDeclaredAmongPlacedSiblingsRepaintsNoneOfThem() {
+        val box =
+            composed(ConstrainedPanel(MeasurePolicyLayout(BoxMeasurePolicy(Alignment.TopStart, false), null)))
+        val (a, b, c) = List(3) { JLabel("child $it") }
+        for (child in listOf(a, b, c)) box.add(child, BoxConstraint())
+        box.setSize(CHILD_WIDTH, CHILD_HEIGHT)
+        box.doLayout()
+
+        val inserted = JLabel("inserted")
+        val recorded =
+            repaintsDuring {
+                box.add(inserted, BoxConstraint(), 1)
+            }
+
+        assertEquals(listOf(c, b, inserted, a), box.components.toList(), "the child must stack where it is declared")
+        assertEquals(
+            0,
+            recorded.repaintsOf(box),
+            "a child added where it stacks must move no sibling, so none needs a repaint",
+        )
+    }
+
+    @Test
     fun aBoxStacksTheChildrenItTookAfterRefusingOne() {
         val box =
             composed(
@@ -400,14 +424,17 @@ class BoxStackOrderTest {
 }
 
 /**
- * Adds two children to [box] - one declaring a zIndex over the other - and answers them in the order the
- * component array must hold them, the top of the stack first.
+ * Adds two children to [box] - one declaring a zIndex over the other - lays the box out, and answers them
+ * in the order the component array must hold them, the top of the stack first.
  */
 private fun liftedPairAddedTo(box: ConstrainedPanel): Pair<Component, Component> {
     val under = JLabel("under")
     val over = JLabel("over")
     box.add(under, BoxConstraint())
-    box.add(over, BoxConstraint(zIndex = 1f))
+    box.add(over, BoxConstraint())
+    (box.layout as MeasurePolicyLayout).declareLayoutChain(over, layoutChainOf { SwingModifier.zIndex(1f) })
+    box.setSize(CHILD_WIDTH, CHILD_HEIGHT)
+    box.doLayout()
     return over to under
 }
 
@@ -421,7 +448,10 @@ private class AlikeChild : JLabel("alike") {
     override fun hashCode(): Int = javaClass.hashCode()
 }
 
-/** Records policy input and deliberately overlaps its children, separating layout order from stack order. */
+/**
+ * Records policy input and deliberately overlaps its children, separating layout order from stack order:
+ * the child named `over` is placed at a z-index above its siblings.
+ */
 private class DeclarationRecordingOverlapPolicy : MeasurePolicy {
     var measuredNames: List<String> = emptyList()
         private set
@@ -435,7 +465,11 @@ private class DeclarationRecordingOverlapPolicy : MeasurePolicy {
             measurables.map {
                 it.measure(Constraints(CHILD_WIDTH, CHILD_WIDTH, CHILD_HEIGHT, CHILD_HEIGHT))
             }
-        return layout(CHILD_WIDTH, CHILD_HEIGHT) { children.forEach { it.place(0, 0) } }
+        return layout(CHILD_WIDTH, CHILD_HEIGHT) {
+            children.forEachIndexed { index, child ->
+                child.place(0, 0, zIndex = if (measuredNames[index] == "over") 1f else 0f)
+            }
+        }
     }
 }
 

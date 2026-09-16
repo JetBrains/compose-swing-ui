@@ -503,7 +503,6 @@ public final class org/jetbrains/compose/swing/foundation/layout/BiasAlignment$V
 public abstract interface class org/jetbrains/compose/swing/foundation/layout/BoxScope : org/jetbrains/compose/swing/foundation/layout/ConstrainedScope {
 	public abstract fun align (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/foundation/layout/Alignment;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public abstract fun matchParentSize (Lorg/jetbrains/compose/swing/modifier/SwingModifier;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
-	public abstract fun zIndex (Lorg/jetbrains/compose/swing/modifier/SwingModifier;F)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 }
 
 public final class org/jetbrains/compose/swing/foundation/layout/BoxScopeInstance : org/jetbrains/compose/swing/foundation/layout/BoxScope {
@@ -511,7 +510,6 @@ public final class org/jetbrains/compose/swing/foundation/layout/BoxScopeInstanc
 	public static final field INSTANCE Lorg/jetbrains/compose/swing/foundation/layout/BoxScopeInstance;
 	public fun align (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/foundation/layout/Alignment;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public fun matchParentSize (Lorg/jetbrains/compose/swing/modifier/SwingModifier;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
-	public fun zIndex (Lorg/jetbrains/compose/swing/modifier/SwingModifier;F)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 }
 
 public abstract interface class org/jetbrains/compose/swing/foundation/layout/ColumnScope : org/jetbrains/compose/swing/foundation/layout/ConstrainedScope {
@@ -681,6 +679,7 @@ public final class org/jetbrains/compose/swing/foundation/layout/LayoutKt {
 	public static synthetic fun wrapContentSize$default (Lorg/jetbrains/compose/swing/foundation/layout/ConstrainedScope;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/foundation/layout/Alignment;ZILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun wrapContentWidth (Lorg/jetbrains/compose/swing/foundation/layout/ConstrainedScope;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/foundation/layout/Alignment$Horizontal;Z)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static synthetic fun wrapContentWidth$default (Lorg/jetbrains/compose/swing/foundation/layout/ConstrainedScope;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/foundation/layout/Alignment$Horizontal;ZILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun zIndex (Lorg/jetbrains/compose/swing/foundation/layout/ConstrainedScope;Lorg/jetbrains/compose/swing/modifier/SwingModifier;F)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 }
 
 public abstract class org/jetbrains/compose/swing/foundation/layout/LayoutModifierNode : org/jetbrains/compose/swing/layout/ParentLayoutNode {
@@ -748,8 +747,10 @@ public abstract class org/jetbrains/compose/swing/foundation/layout/PlacementSco
 	public static final field $stable I
 	public abstract fun getParentWidth ()I
 	public abstract fun isLeftToRight ()Z
-	public abstract fun place (Lorg/jetbrains/compose/swing/foundation/layout/Placeable;II)V
-	public fun placeRelative (Lorg/jetbrains/compose/swing/foundation/layout/Placeable;II)V
+	public abstract fun place (Lorg/jetbrains/compose/swing/foundation/layout/Placeable;IIF)V
+	public static synthetic fun place$default (Lorg/jetbrains/compose/swing/foundation/layout/PlacementScope;Lorg/jetbrains/compose/swing/foundation/layout/Placeable;IIFILjava/lang/Object;)V
+	public fun placeRelative (Lorg/jetbrains/compose/swing/foundation/layout/Placeable;IIF)V
+	public static synthetic fun placeRelative$default (Lorg/jetbrains/compose/swing/foundation/layout/PlacementScope;Lorg/jetbrains/compose/swing/foundation/layout/Placeable;IIFILjava/lang/Object;)V
 }
 
 public abstract interface class org/jetbrains/compose/swing/foundation/layout/RowScope : org/jetbrains/compose/swing/foundation/layout/ConstrainedScope {

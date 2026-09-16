@@ -116,10 +116,12 @@ public sealed class Placeable {
     /**
      * @param x where this placeable's origin lands, in its caller's coordinates.
      * @param y where this placeable's origin lands, in its caller's coordinates.
+     * @param zIndex the z-index placed so far, summed through layout modifiers.
      */
     internal abstract fun placeAt(
         x: Long,
         y: Long,
+        zIndex: Float,
     )
 
     /**

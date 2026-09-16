@@ -84,6 +84,9 @@ The placement block runs inside the container's inner rectangle, after its inset
 - `place(x, y)` measures `x` from the left edge.
 - `placeRelative(x, y)` measures `x` from the leading edge. It mirrors the position when the
   container's `ComponentOrientation` is right-to-left.
+- Both take a `zIndex`, `0f` by default. A child placed with a larger value paints over, and receives
+  mouse events before, siblings placed with a smaller one; equal values keep declaration order, with the
+  later child on top, whatever order the block places them in.
 
 A policy must return a non-negative size. It should use `constraints.constrainWidth` and
 `constraints.constrainHeight` when its size comes from child measurements.
@@ -151,6 +154,9 @@ matters: constraints travel from the outermost modifier toward the component, wh
 offsets travel back out. `start` and `end` mirror under a right-to-left orientation; the `absolute` variants use
 `left` and `right` and never mirror. `padding` and `offset` move the component's baseline too, so
 `alignByBaseline()` stays correct through them.
+
+`zIndex(value)` places the child at that z-index among its siblings, as `place`'s `zIndex` does; several
+declarations add up, and add to the z-index the container places the child with.
 
 A layout modifier is a `LayoutModifierNodeElement`, whose `LayoutModifierNode` wraps a child's measurement and
 placement and keeps its state across passes; a child declares one of your own through `ConstrainedScope`'s `layout`
@@ -263,9 +269,6 @@ In `BoxScope`:
 - `fillMaxWidth()` and `fillMaxHeight()` expand the child to fill one bounded axis, up to an explicit
   `maximumSize`, while contributing its preferred size along the other. `fillMaxSize()` does both. On
   an unbounded fill axis, the child also keeps its preferred size.
-- `zIndex(value)` controls paint and hit-test order. Children with higher values sit above lower
-  values regardless of declaration order. Equal values preserve declaration order, with the later
-  child on top. Multiple `zIndex` declarations add their values.
 
 ### Visibility
 
@@ -563,3 +566,5 @@ The model follows Compose UI, adapted to Swing:
   no `LastBaseline`.
 - Intrinsic measurement maps to Swing's argument-less `preferredSize` and `minimumSize` queries.
 - Placement ends in `Component.setBounds` on a real Swing component.
+- Children with equal z-index stack in declaration order. androidx stacks them in the order the parent places
+  them.

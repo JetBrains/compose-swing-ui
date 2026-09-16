@@ -44,11 +44,8 @@ internal open class ConstrainedPanel(
         policyLayout.measurables.panel = this
     }
 
-    /** Declaration order adjusted by any stacking parent data understood by this container. */
-    val stackingOrder: StackingOrder =
-        StackingOrder(this) {
-            (policyLayout.measurables.find(it)?.parentData as? StackingParentData)?.zIndex ?: 0f
-        }
+    /** Declaration order, and the component array sorted by the z-index each child was last placed with. */
+    val stackingOrder: StackingOrder = StackingOrder(this, policyLayout.measurables)
 
     override fun contains(
         x: Int,
@@ -130,12 +127,14 @@ internal open class ConstrainedPanel(
         constraints: Any?,
         index: Int,
     ) {
+        // In step, the add itself stacks the child where a restack would.
+        val inStep = stackingOrder.isInStep
         try {
-            super.addImpl(comp, constraints, index)
+            super.addImpl(comp, constraints, stackingOrder.stackedIndex(comp, index))
         } finally {
             stackingOrder.declared(comp, index)
         }
-        stackingOrder.restack()
+        if (!inStep) stackingOrder.restack()
     }
 
     override fun remove(index: Int) {
@@ -149,18 +148,15 @@ internal open class ConstrainedPanel(
         super.removeAll()
     }
 
-    /** A child moved by a placement replay reports an invalidation that replay has already answered. */
+    /**
+     * A child moved by a placement replay reports an invalidation that replay has already answered, and so
+     * does the [StackingOrder.restack] it ends with: `setComponentZOrder` invalidates this panel, and a
+     * change of z-order needs no layout.
+     */
     override fun invalidate() {
-        if (!policyLayout.measurables.isPlacingAgain) super.invalidate()
+        if (policyLayout.measurables.isPlacingAgain) return
+        super.invalidate()
     }
-
-    /** Runs [action] in composition order, before [StackingOrder] rearranges Swing's component array. */
-    internal inline fun forEachChildInDeclarationOrder(action: (Component) -> Unit) {
-        stackingOrder.forEachInDeclarationOrder(action)
-    }
-
-    /** The child composed first, before [StackingOrder] rearranges Swing's component array. */
-    internal fun firstChildInDeclarationOrder(): Component? = stackingOrder.firstDeclaredChild()
 
     private var measured: Dimension = Dimension()
 

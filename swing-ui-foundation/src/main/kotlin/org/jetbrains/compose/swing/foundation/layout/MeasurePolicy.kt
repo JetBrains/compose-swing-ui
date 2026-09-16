@@ -181,6 +181,7 @@ internal class IntrinsicPlaceable(
     override fun placeAt(
         x: Long,
         y: Long,
+        zIndex: Float,
     ): Unit = error("IntrinsicPlaceable is never placed")
 
     override fun alignmentLineAt(
@@ -292,8 +293,9 @@ private class StandalonePlacementScope(
     override fun Placeable.place(
         x: Int,
         y: Int,
+        zIndex: Float,
     ) {
-        placeAt(x.toLong(), y.toLong())
+        placeAt(x.toLong(), y.toLong(), zIndex)
     }
 }
 
@@ -315,10 +317,13 @@ public sealed class PlacementScope {
      *
      * @param x where the child's left edge lands, from the container's inner left edge
      * @param y where the child's top edge lands, from the container's inner top edge
+     * @param zIndex the child's place in its container's paint and hit-testing order; larger values paint on top.
+     *   A layout modifier placing its content adds its value to this one.
      */
     public abstract fun Placeable.place(
         x: Int,
         y: Int,
+        zIndex: Float = 0f,
     )
 
     /**
@@ -326,11 +331,13 @@ public sealed class PlacementScope {
      *
      * @param x where the child's leading edge lands, from the container's inner leading edge
      * @param y where the child's top edge lands, from the container's inner top edge
+     * @param zIndex the child's place in its container's paint and hit-testing order; see [place].
      */
     public open fun Placeable.placeRelative(
         x: Int,
         y: Int,
-    ): Unit = place(saturateLayoutCoordinate(relativeX(this, x)), y)
+        zIndex: Float = 0f,
+    ): Unit = place(saturateLayoutCoordinate(relativeX(this, x)), y, zIndex)
 
     /** Where [x] from the leading edge lands from the left edge of this scope, as wide as [parentWidth]. */
     internal fun relativeX(

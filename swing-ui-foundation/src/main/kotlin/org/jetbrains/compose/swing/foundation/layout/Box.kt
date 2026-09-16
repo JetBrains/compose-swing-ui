@@ -42,8 +42,8 @@ import java.awt.Dimension
  * children. Set [propagateMinConstraints] to pass that incoming minimum through instead, such as when
  * content cannot receive a modifier directly.
  *
- * A child names its own placement with `align`, takes the box's whole extent with `matchParentSize`, or
- * names where in the stack it sits with `zIndex`, through [BoxScope]:
+ * A child names its own placement with `align`, or takes the box's whole extent with `matchParentSize`,
+ * through [BoxScope]:
  *
  * ```
  * Box(contentAlignment = Alignment.Center) {
@@ -118,10 +118,7 @@ internal val EmptyBoxMeasurePolicy: MeasurePolicy =
 internal data class BoxMeasurePolicy(
     private val alignment: Alignment,
     private val propagateMinConstraints: Boolean,
-) : MeasurePolicy,
-    ParentAlignmentPolicy {
-    override val parentAlignmentChild: ParentAlignmentChild = ParentAlignmentChild.Topmost
-
+) : MeasurePolicy {
     override fun MeasureScope.measure(
         measurables: List<Measurable>,
         constraints: Constraints,

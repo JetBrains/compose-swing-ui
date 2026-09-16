@@ -15,6 +15,7 @@ import org.jetbrains.compose.swing.modifier.interaction.enabled
 import org.jetbrains.compose.swing.modifier.interaction.focusTraversalIndex
 import org.jetbrains.compose.swing.modifier.interaction.focusable
 import org.jetbrains.compose.swing.modifier.interaction.orderedFocusTraversal
+import org.jetbrains.compose.swing.modifier.layout.componentOrientation
 import org.jetbrains.compose.swing.modifier.layout.visible
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.runSwingTest
@@ -26,6 +27,7 @@ import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.window.Window
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.Component
+import java.awt.ComponentOrientation
 import java.awt.GraphicsEnvironment
 import javax.swing.ButtonGroup
 import javax.swing.JButton
@@ -34,6 +36,7 @@ import javax.swing.JPanel
 import javax.swing.JRadioButton
 import javax.swing.JTextField
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNotSame
@@ -93,6 +96,24 @@ class FocusTraversalModifierTest {
     }
 
     @Test
+    fun eachOrderedContainerIsGivenItsOwnFocusTraversalPolicy() = runComposeSwingTest {
+        setContent {
+            Panel(PanelLayout.Flow(), modifier = SwingModifier.testTag("panelA").orderedFocusTraversal()) {
+                TextField("", onValueChange = {})
+            }
+            Panel(PanelLayout.Flow(), modifier = SwingModifier.testTag("panelB").orderedFocusTraversal()) {
+                TextField("", onValueChange = {})
+            }
+        }
+        val a = onNodeWithTag("panelA").fetch<JPanel>()
+        val b = onNodeWithTag("panelB").fetch<JPanel>()
+
+        // Swing writes the cycle root's ComponentOrientation into the policy's comparator on each query, so
+        // the policy is state of the one container it serves.
+        assertNotSame(a.focusTraversalPolicy, b.focusTraversalPolicy, "each container must get its own policy")
+    }
+
+    @Test
     fun orderedFocusTraversalRestoresPolicyOnRemoval() = runComposeSwingTest {
         var ordered by mutableStateOf(true)
         setContent {
@@ -107,7 +128,7 @@ class FocusTraversalModifierTest {
             }
         }
         // A bare panel is not a focus cycle root and inherits its container's policy; the modifier
-        // makes it one and installs the composition-order policy.
+        // makes it one and installs the index-order policy.
         val before = onNodeWithTag(PANEL_TAG).fetch<JPanel>()
         assertTrue(before.isFocusCycleRoot, "the modifier should make the panel a focus cycle root")
         assertTrue(before.isFocusTraversalPolicyProvider, "the modifier should make the panel a policy provider")
@@ -205,25 +226,72 @@ class FocusTraversalModifierTest {
     }
 
     @Test
-    fun unindexedChildrenFollowIndexedOnesInDeclarationOrder() = runComposeSwingTest {
+    fun unindexedChildrenFollowIndexedOnesInOnScreenOrder() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         setFormContent {
-            Panel(PanelLayout.Flow(), modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
-                TextField("plainA", onValueChange = {})
+            Panel(PanelLayout.Border(), modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
+                TextField("right", onValueChange = {}, modifier = SwingModifier.east())
                 TextField("indexed", onValueChange = {}, modifier = SwingModifier.focusTraversalIndex(5))
-                TextField("plainB", onValueChange = {})
+                TextField("left", onValueChange = {}, modifier = SwingModifier.west())
             }
         }
         val panel = formContainer(PANEL_TAG).fetch<JPanel>()
         val policy = panel.focusTraversalPolicy
         val indexed = formControl("indexed").fetch<JTextField>()
-        val plainA = formControl("plainA").fetch<JTextField>()
-        val plainB = formControl("plainB").fetch<JTextField>()
+        val right = formControl("right").fetch<JTextField>()
+        val left = formControl("left").fetch<JTextField>()
 
         assertSame(indexed, policy.getFirstComponent(panel), "an indexed child is visited before un-indexed ones")
-        assertSame(plainA, policy.getComponentAfter(panel, indexed), "un-indexed children follow the indexed ones")
-        assertSame(plainB, policy.getComponentAfter(panel, plainA), "un-indexed children keep their declaration order")
-        assertSame(plainB, policy.getLastComponent(panel), "the last un-indexed child ends the order")
+        assertSame(left, policy.getComponentAfter(panel, indexed), "un-indexed children follow the indexed ones")
+        assertSame(right, policy.getComponentAfter(panel, left), "un-indexed children keep their on-screen order")
+        assertSame(right, policy.getLastComponent(panel), "the rightmost un-indexed child ends the order")
+    }
+
+    @Test
+    fun unindexedChildrenReadRowsInTheContainersOrientation() = runComposeSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        setFormContent {
+            Panel(
+                PanelLayout.Flow(),
+                modifier =
+                    SwingModifier
+                        .orderedFocusTraversal()
+                        .componentOrientation(ComponentOrientation.RIGHT_TO_LEFT),
+            ) {
+                TextField("right", onValueChange = {})
+                TextField("middle", onValueChange = {})
+                TextField("left", onValueChange = {})
+            }
+        }
+
+        assertTabOrder("right", "middle", "left", "right")
+    }
+
+    @Test
+    fun orderedFocusTraversalAddedLaterInterleavesNestedChildrenByIndex() = runComposeSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        var ordered by mutableStateOf(false)
+        setFormContent {
+            Panel(
+                PanelLayout.Flow(),
+                modifier = if (ordered) SwingModifier.orderedFocusTraversal() else SwingModifier,
+            ) {
+                Panel(PanelLayout.Flow()) {
+                    TextField("a", onValueChange = {}, modifier = SwingModifier.focusTraversalIndex(0))
+                    TextField("b", onValueChange = {}, modifier = SwingModifier.focusTraversalIndex(2))
+                }
+                TextField("c", onValueChange = {}, modifier = SwingModifier.focusTraversalIndex(1))
+            }
+        }
+        assertTabOrder("a", "b", "c", "a")
+
+        ordered = true
+        awaitIdle()
+        assertTabOrder("a", "c", "b", "a")
+
+        ordered = false
+        awaitIdle()
+        assertTabOrder("a", "b", "c", "a")
     }
 
     @Test
@@ -512,4 +580,18 @@ class FocusTraversalModifierTest {
             "stepping back from outside the order resumes at its last stop",
         )
     }
+}
+
+/** Asserts that Tab after Tab from the control reading the first of [texts] reaches the ones after it, in order. */
+private fun ComposeSwingTest.assertTabOrder(vararg texts: String) {
+    var control = formControl(texts.first()).fetch()
+    val reached =
+        List(texts.size) { index ->
+            if (index > 0) {
+                val root = control.focusCycleRootAncestor
+                control = root.focusTraversalPolicy.getComponentAfter(root, control)
+            }
+            (control as? JTextField)?.text ?: control.toString()
+        }
+    assertEquals(texts.toList(), reached, "the traversal did not reach the controls in order")
 }

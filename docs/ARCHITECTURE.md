@@ -114,8 +114,12 @@ windows is independent.
 ## Applying changes to the AWT tree
 
 As a composition changes, the runtime emits structural operations - insert, remove, move, clear -
-that are applied to the backing container. Child order in the AWT tree is kept aligned with
-composition order, so index-based operations always address the intended component.
+that are applied to the backing container. The applier keeps each node's children in composition
+order and addresses them by that index: an insert passes it to `Container.add`, and removing or
+relocating a node hands `Container.remove` the component, which finds it in the array by `equals`. The
+container's component array need not follow composition
+order: a `JLayeredPane` orders them by layer, and a [Foundation container](FOUNDATION.md) by the `zIndex` each
+child is placed with.
 
 Swing does not lay out or repaint added, removed, or moved children on its own: adding or removing a
 child only invalidates its container. Every container touched during a change pass is therefore

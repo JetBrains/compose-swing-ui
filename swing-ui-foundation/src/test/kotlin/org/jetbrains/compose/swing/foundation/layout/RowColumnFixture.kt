@@ -94,13 +94,7 @@ internal fun ComposeSwingTest.childBounds(): List<Rectangle> =
 
 /** This container's children in the order its composable content declared them. */
 internal fun Container.childrenInDeclarationOrder(): List<Component> =
-    buildList(componentCount) {
-        if (this@childrenInDeclarationOrder is ConstrainedPanel) {
-            forEachChildInDeclarationOrder { add(it) }
-        } else {
-            components.forEach { add(it) }
-        }
-    }
+    if (this is ConstrainedPanel) stackingOrder.order.toList() else components.toList()
 
 /** The size the container under test asks of its own parent. */
 internal fun ComposeSwingTest.containerPreferredSize(): Dimension = container().preferredSize

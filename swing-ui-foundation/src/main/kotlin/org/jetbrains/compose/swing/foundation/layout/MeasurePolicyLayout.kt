@@ -104,12 +104,29 @@ internal class MeasurePolicyLayout(
     /** A policy-driven container takes any extent it is offered and places its children inside it. */
     override fun maximumLayoutSize(target: Container): Dimension = Dimension(Int.MAX_VALUE, Int.MAX_VALUE)
 
-    /** What the policy's chosen child reports; see [firstChildAlignment]. */
+    /**
+     * What the first declared child reports, or [Component.CENTER_ALIGNMENT] where the container has no child to ask.
+     *
+     * A container built from this package reports its content's alignment rather than a fixed value of its own,
+     * so the layout above it places it where it would have placed that content directly. A parent that lines
+     * its children up on a shared alignment - `javax.swing.BoxLayout` - reserves space on both sides of that
+     * line for every sibling, so a container answering a constant would sit off the line its content belongs
+     * on and squeeze whichever siblings can stretch.
+     *
+     * A hidden child answers like any other, because these containers reserve its place as well: a container
+     * whose reserved layout and whose reported alignment disagreed about which children exist would sit off
+     * the line its own content was measured against.
+     */
     override fun getLayoutAlignmentX(target: Container): Float =
-        firstChildAlignment(alignmentChild(target)) { it.alignmentX }
+        measurables.panel.stackingOrder.order
+            .firstOrNull()
+            ?.alignmentX ?: Component.CENTER_ALIGNMENT
 
+    /** What the first declared child reports; see [getLayoutAlignmentX]. */
     override fun getLayoutAlignmentY(target: Container): Float =
-        firstChildAlignment(alignmentChild(target)) { it.alignmentY }
+        measurables.panel.stackingOrder.order
+            .firstOrNull()
+            ?.alignmentY ?: Component.CENTER_ALIGNMENT
 
     override fun layoutContainer(parent: Container) {
         val insets = parent.insets
@@ -130,26 +147,12 @@ internal class MeasurePolicyLayout(
         placementScope.begin(insets.left, insets.top, width, parent.componentOrientation.isLeftToRight)
         placed = result
         observe(PlacementReads, placeBlock)
+        if (measurables.zIndexChanged) {
+            measurables.zIndexChanged = false
+            measurables.panel.stackingOrder.restack()
+        }
     }
 }
-
-private fun MeasurePolicyLayout.alignmentChild(target: Container): Component? =
-    when ((policy as? ParentAlignmentPolicy)?.parentAlignmentChild ?: ParentAlignmentChild.FirstDeclared) {
-        ParentAlignmentChild.FirstDeclared -> {
-            (target as? ConstrainedPanel)?.firstChildInDeclarationOrder()
-                ?: if (target.componentCount > 0) target.getComponent(0) else null
-        }
-
-        ParentAlignmentChild.Topmost -> {
-            if (target.componentCount == 0) {
-                null
-            } else if (target is ConstrainedPanel) {
-                target.getComponent(0)
-            } else {
-                target.getComponent(target.componentCount - 1)
-            }
-        }
-    }
 
 /** The non-negative extent left after the insets on its two edges have taken their space. */
 private fun innerExtent(
@@ -253,24 +256,20 @@ internal class ChildMeasurables(
     /** The measurable for [child], or null where this container has made none. */
     fun find(child: Component): ChildMeasurable? = measurables[child]
 
-    /**
-     * Stores [parentData] once the parent-data protocol of [owner] has accepted it, and stacks the children again
-     * where it moves [component] to another z-index.
-     */
+    /** Stores [parentData] once the parent-data protocol of [owner] has accepted it. */
     fun updateParentData(
         component: Component,
         parentData: Any?,
     ) {
         owner.parentDataProtocol?.validateParentData(component, parentData)
-        val measurable = of(component)
-        val previousZIndex = (measurable.parentData as? StackingParentData)?.zIndex ?: 0f
-        measurable.parentData = parentData
-        val zIndex = (parentData as? StackingParentData)?.zIndex ?: 0f
-        if (zIndex != previousZIndex) (component.parent as? ConstrainedPanel)?.stackingOrder?.restack()
+        of(component).parentData = parentData
     }
 
     /** Counts the runs of the placement block; see [ChildMeasurable.isPlacedByParent]. */
     internal var placementRun: Int = 0
+
+    /** Whether a child was placed at a z-index other than the one it was last placed with. */
+    var zIndexChanged: Boolean = false
 
     /** Gives up the measurable for [child], for a child leaving the container. */
     fun forget(child: Component) {
@@ -423,7 +422,7 @@ internal fun ChildMeasurables.settledOn(
 
 private fun ChildMeasurables.gather(into: ArrayList<ChildMeasurable>): List<Measurable> {
     into.clear()
-    panel.forEachChildInDeclarationOrder { into.add(of(it)) }
+    panel.stackingOrder.order.fastForEach { into.add(of(it)) }
     return into
 }
 
@@ -471,6 +470,9 @@ internal class ChildMeasurable(
      */
     var outerMeasurable: Measurable? = null
         private set
+
+    /** The z-index this child was last placed with, summed over its container and layout modifiers. */
+    var zIndex: Float = 0f
 
     internal var preferred: Dimension? = null
 
@@ -661,6 +663,7 @@ private class UnmodifiedIntrinsicPlaceable(
     override fun placeAt(
         x: Long,
         y: Long,
+        zIndex: Float,
     ): Unit = Unit
 
     override fun alignmentLineAt(
@@ -745,7 +748,12 @@ internal class ChildPlaceable(
     override fun placeAt(
         x: Long,
         y: Long,
+        zIndex: Float,
     ) {
+        if (child.zIndex != zIndex) {
+            child.zIndex = zIndex
+            child.owner.zIndexChanged = true
+        }
         val component = child.component
         val resized = component.width != measuredWidth || component.height != measuredHeight
         // A constrainable child answers its constraints whatever its size.
@@ -850,10 +858,11 @@ private class LayoutModifierPlaceable(
     override fun placeAt(
         x: Long,
         y: Long,
+        zIndex: Float,
     ) {
         val originX = x + centeredOverflowOffset(width, measuredWidth)
         val originY = y + centeredOverflowOffset(height, measuredHeight)
-        val scope = NodePlacementScope(originX, originY, measuredWidth, leftToRight)
+        val scope = NodePlacementScope(originX, originY, measuredWidth, leftToRight, zIndex)
         with(result) { scope.placeChildren() }
     }
 
@@ -890,19 +899,22 @@ private class NodePlacementScope(
     private val originY: Long,
     override val parentWidth: Int,
     override val isLeftToRight: Boolean,
+    private val zIndex: Float,
 ) : PlacementScope() {
     override fun Placeable.place(
         x: Int,
         y: Int,
+        zIndex: Float,
     ) {
-        placeAt(originX + x.toLong(), originY + y.toLong())
+        placeAt(originX + x.toLong(), originY + y.toLong(), this@NodePlacementScope.zIndex + zIndex)
     }
 
     override fun Placeable.placeRelative(
         x: Int,
         y: Int,
+        zIndex: Float,
     ) {
-        placeAt(originX + relativeX(this, x), originY + y.toLong())
+        placeAt(originX + relativeX(this, x), originY + y.toLong(), this@NodePlacementScope.zIndex + zIndex)
     }
 }
 
@@ -944,27 +956,30 @@ internal class InnerPlacementScope : PlacementScope() {
     override fun Placeable.place(
         x: Int,
         y: Int,
+        zIndex: Float,
     ) {
-        placeOnce(originX.toLong() + x.toLong(), originY.toLong() + y.toLong())
+        placeOnce(originX.toLong() + x.toLong(), originY.toLong() + y.toLong(), zIndex)
     }
 
     override fun Placeable.placeRelative(
         x: Int,
         y: Int,
+        zIndex: Float,
     ) {
-        placeOnce(originX.toLong() + relativeX(this, x), originY.toLong() + y.toLong())
+        placeOnce(originX.toLong() + relativeX(this, x), originY.toLong() + y.toLong(), zIndex)
     }
 
-    /** Places the child at ([x], [y]). */
+    /** Places the child at ([x], [y]) at [zIndex] among its siblings. */
     private fun Placeable.placeOnce(
         x: Long,
         y: Long,
+        zIndex: Float,
     ) {
         if (this !is ChildPlaceable && this !is LayoutModifierPlaceable) return
         check(!child.isPlacedByParent) {
             "Place was called on a node which was placed already"
         }
-        placeAt(x, y)
+        placeAt(x, y, zIndex)
     }
 }
 

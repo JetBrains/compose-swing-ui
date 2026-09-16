@@ -213,6 +213,7 @@ private class IntrinsicModifierPlaceable(
     override fun placeAt(
         x: Long,
         y: Long,
+        zIndex: Float,
     ): Unit = Unit
 
     override fun get(alignmentLine: AlignmentLine): Int {
@@ -271,6 +272,7 @@ internal class AlignmentLinePlacementScope(
     override fun Placeable.place(
         x: Int,
         y: Int,
+        zIndex: Float,
     ) {
         record(this, originX + x.toLong(), originY + y.toLong())
     }
@@ -278,6 +280,7 @@ internal class AlignmentLinePlacementScope(
     override fun Placeable.placeRelative(
         x: Int,
         y: Int,
+        zIndex: Float,
     ) {
         record(this, originX + relativeX(this, x), originY + y.toLong())
     }
@@ -427,6 +430,7 @@ internal class LineMergingPlacementScope :
     override fun Placeable.place(
         x: Int,
         y: Int,
+        zIndex: Float,
     ) {
         mergeAlignmentLines(this@LineMergingPlacementScope, originX + x, originY + y)
     }
@@ -434,6 +438,7 @@ internal class LineMergingPlacementScope :
     override fun Placeable.placeRelative(
         x: Int,
         y: Int,
+        zIndex: Float,
     ) {
         mergeAlignmentLines(this@LineMergingPlacementScope, originX + relativeX(this, x), originY + y)
     }
