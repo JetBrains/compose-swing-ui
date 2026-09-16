@@ -1,10 +1,12 @@
 package org.jetbrains.compose.swing.foundation.graphics
 
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.foundation.layout.Row
+import org.jetbrains.compose.swing.foundation.layout.placementLayer
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
@@ -22,10 +24,11 @@ import kotlin.test.Test
 /**
  * A decoration whose content paints on another destination than before paints what a fresh one does: an
  * antialiased [SwingModifier.clip] or a [SwingModifier.shadow] records into a device-aligned surface, which a
- * [SwingModifier.blur] wraps around it while active. Once the wrapping step stops recording it - the blur reaches
- * zero, or the content is captured for the first time after painting offscreen - the wrapped step records aligned
- * to the destination directly, which must show what recording there afresh would. A [FakeScreen] stands for the
- * destination, so the scenario needs no display.
+ * [SwingModifier.blur] or a placement layer's fade wraps around it while active. Once the wrapping step stops
+ * recording it - the blur reaches zero or leaves the steps, the fade reaches full opacity, or the content is
+ * captured for the first time after painting offscreen - the wrapped step records aligned to the destination
+ * directly, which must show what recording there afresh would. A [FakeScreen] stands for the destination, so the
+ * scenario needs no display.
  */
 class DecorationDestinationChangeTest {
     @Test
@@ -38,25 +41,21 @@ class DecorationDestinationChangeTest {
                     SwingNode(
                         factory = { DecoratedPanel() },
                         modifier =
-                            decorated {
-                                SwingModifier
-                                    .testTag("subject")
-                                    .preferredSize(size, size)
-                                    .blur(radius)
-                                    .clip(CircleShape, antialias = true)
-                                    .fill(Color.RED)
-                            },
+                            SwingModifier
+                                .testTag("subject")
+                                .preferredSize(size, size)
+                                .blur(radius)
+                                .clip(CircleShape, antialias = true)
+                                .fill(Color.RED),
                     )
                     SwingNode(
                         factory = { DecoratedPanel() },
                         modifier =
-                            decorated {
-                                SwingModifier
-                                    .testTag("reference")
-                                    .preferredSize(size, size)
-                                    .clip(CircleShape, antialias = true)
-                                    .fill(Color.RED)
-                            },
+                            SwingModifier
+                                .testTag("reference")
+                                .preferredSize(size, size)
+                                .clip(CircleShape, antialias = true)
+                                .fill(Color.RED),
                     )
                 }
             }
@@ -78,25 +77,21 @@ class DecorationDestinationChangeTest {
                     SwingNode(
                         factory = { DecoratedPanel() },
                         modifier =
-                            decorated {
-                                SwingModifier
-                                    .testTag("subject")
-                                    .preferredSize(size, size)
-                                    .blur(radius)
-                                    .shadow(6, Color.BLACK, 3, 3)
-                                    .fill(Color.RED)
-                            },
+                            SwingModifier
+                                .testTag("subject")
+                                .preferredSize(size, size)
+                                .blur(radius)
+                                .shadow(6, Color.BLACK, 3, 3)
+                                .fill(Color.RED),
                     )
                     SwingNode(
                         factory = { DecoratedPanel() },
                         modifier =
-                            decorated {
-                                SwingModifier
-                                    .testTag("reference")
-                                    .preferredSize(size, size)
-                                    .shadow(6, Color.BLACK, 3, 3)
-                                    .fill(Color.RED)
-                            },
+                            SwingModifier
+                                .testTag("reference")
+                                .preferredSize(size, size)
+                                .shadow(6, Color.BLACK, 3, 3)
+                                .fill(Color.RED),
                     )
                 }
             }
@@ -117,24 +112,20 @@ class DecorationDestinationChangeTest {
                     SwingNode(
                         factory = { DecoratedPanel() },
                         modifier =
-                            decorated {
-                                SwingModifier
-                                    .testTag("subject")
-                                    .preferredSize(size, size)
-                                    .clip(CircleShape, antialias = true)
-                                    .fill(Color.RED)
-                            },
+                            SwingModifier
+                                .testTag("subject")
+                                .preferredSize(size, size)
+                                .clip(CircleShape, antialias = true)
+                                .fill(Color.RED),
                     )
                     SwingNode(
                         factory = { DecoratedPanel() },
                         modifier =
-                            decorated {
-                                SwingModifier
-                                    .testTag("reference")
-                                    .preferredSize(size, size)
-                                    .clip(CircleShape, antialias = true)
-                                    .fill(Color.RED)
-                            },
+                            SwingModifier
+                                .testTag("reference")
+                                .preferredSize(size, size)
+                                .clip(CircleShape, antialias = true)
+                                .fill(Color.RED),
                     )
                 }
             }
@@ -145,11 +136,47 @@ class DecorationDestinationChangeTest {
             assertScaledScreenPaintsMatch(size)
         }
 
+    @Test
+    fun anAntialiasedClipInsideAFadeRaisedToFullPaintsOnAScaledScreenWhatAFreshOneDoes() =
+        runComposeSwingTest {
+            var alpha by mutableFloatStateOf(0.5f)
+            val size = 60
+            setContent {
+                Row {
+                    SwingNode(
+                        factory = { DecoratedPanel() },
+                        modifier =
+                            SwingModifier.placementLayer { this.alpha = alpha }.then(
+                                SwingModifier
+                                    .testTag("subject")
+                                    .preferredSize(size, size)
+                                    .clip(CircleShape, antialias = true)
+                                    .fill(Color.RED),
+                            ),
+                    )
+                    SwingNode(
+                        factory = { DecoratedPanel() },
+                        modifier =
+                            SwingModifier
+                                .testTag("reference")
+                                .preferredSize(size, size)
+                                .clip(CircleShape, antialias = true)
+                                .fill(Color.RED),
+                    )
+                }
+            }
+            repeat(2) { onNodeWithTag("subject").captureToImage() }
+
+            alpha = 1f
+            awaitIdle()
+
+            assertScaledScreenPaintsMatch(size)
+        }
+
     /**
-     * A destination change from removing a step, not from a property reaching a value that stops it recording:
-     * a polygon-outline surface with a shadow and an antialiased clip, nested inside a blur, paints what a
-     * surface that never had the blur declared does, once the blur leaves the steps and the frames before that
-     * were painted on the scaled screen itself, as the reported sample painted them.
+     * A destination change from a step leaving the steps, rather than from a value that stops it recording: a
+     * polygon-outline surface with a shadow and an antialiased clip inside a blur, painted on the scaled screen
+     * before the blur is removed, then paints what a surface that never had the blur does.
      */
     @Test
     fun aPolygonWithShadowAndClipInABlurRemovedFromItsStepsPaintsOnAScaledScreenWhatAFreshOneDoes() =
@@ -182,7 +209,7 @@ class DecorationDestinationChangeTest {
                 }
             }
             val subject = onNodeWithTag("subject").fetch<JComponent>()
-            repeat(2) { paintOnFakeScreen(subject) }
+            repeat(2) { paintOnFakeScreen(FakeScreen(2.0), subject, size) }
 
             blurEnabled = false
             awaitIdle()
@@ -190,9 +217,13 @@ class DecorationDestinationChangeTest {
             assertScaledScreenPaintsMatch(size)
         }
 
-    /** A fresh 2x [FakeScreen] surface of [component]'s own size, painted once and disposed. */
-    private fun paintOnFakeScreen(component: JComponent): BufferedImage {
-        val surface = FakeScreen(2.0).surface(component.width, component.height)
+    /** Paints [component] onto a fresh [size] by [size] surface of [screen], and returns its pixels. */
+    private fun paintOnFakeScreen(
+        screen: FakeScreen,
+        component: JComponent,
+        size: Int,
+    ): BufferedImage {
+        val surface = screen.surface(size, size)
         try {
             component.paint(surface.graphics)
         } finally {
@@ -207,19 +238,10 @@ class DecorationDestinationChangeTest {
         val screen = FakeScreen(2.0)
         val subject = onNodeWithTag("subject").fetch<JComponent>()
         val reference = onNodeWithTag("reference").fetch<JComponent>()
-        val subjectSurface = screen.surface(size, size)
-        try {
-            subject.paint(subjectSurface.graphics)
-        } finally {
-            subjectSurface.graphics.dispose()
-        }
-        val referenceSurface = screen.surface(size, size)
-        try {
-            reference.paint(referenceSurface.graphics)
-        } finally {
-            referenceSurface.graphics.dispose()
-        }
-        assertImagesPixelPerfect(referenceSurface.pixels, subjectSurface.pixels)
+        assertImagesPixelPerfect(
+            paintOnFakeScreen(screen, reference, size),
+            paintOnFakeScreen(screen, subject, size),
+        )
     }
 
     private companion object {

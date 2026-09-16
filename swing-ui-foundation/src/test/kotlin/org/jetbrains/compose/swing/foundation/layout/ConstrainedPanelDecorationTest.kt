@@ -4,10 +4,8 @@ import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.foundation.Canvas
 import org.jetbrains.compose.swing.foundation.graphics.Brush
 import org.jetbrains.compose.swing.foundation.graphics.Decoratable
-import org.jetbrains.compose.swing.foundation.graphics.RectangleShape
 import org.jetbrains.compose.swing.foundation.graphics.background
 import org.jetbrains.compose.swing.foundation.graphics.blur
-import org.jetbrains.compose.swing.foundation.graphics.clip
 import org.jetbrains.compose.swing.foundation.graphics.decorated
 import org.jetbrains.compose.swing.foundation.graphics.drawBehind
 import org.jetbrains.compose.swing.foundation.graphics.shadow
@@ -29,7 +27,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import org.jetbrains.compose.swing.modifier.appearance.background as swingBackground
 
-/** [Row], [Column] and [Box] are decorated components: each paints the decoration its modifier declares. */
+/**
+ * [Row], [Column] and [Box] are decorated components: each paints the decoration its modifier declares under the
+ * same snapshot observer its policy measures and places under.
+ */
 class ConstrainedPanelDecorationTest {
     @Test
     fun anOpaqueBoxPaintsItsSwingBackgroundOnTheInitialPass() =
@@ -67,7 +68,7 @@ class ConstrainedPanelDecorationTest {
                                 .preferredSize(Dimension(64, 48))
                                 .opaque(true)
                                 .swingBackground(Color.RED)
-                                .clip(RectangleShape),
+                                .clipToBounds(),
                     )
                 }
             }

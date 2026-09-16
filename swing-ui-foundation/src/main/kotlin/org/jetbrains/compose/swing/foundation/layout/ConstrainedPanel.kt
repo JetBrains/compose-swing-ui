@@ -3,6 +3,8 @@ package org.jetbrains.compose.swing.foundation.layout
 import androidx.compose.runtime.snapshots.Snapshot
 import org.jetbrains.compose.swing.foundation.graphics.Decoratable
 import org.jetbrains.compose.swing.foundation.graphics.Decoration
+import org.jetbrains.compose.swing.foundation.graphics.DecorationSteps
+import org.jetbrains.compose.swing.foundation.graphics.NoPaintOutsets
 import java.awt.Component
 import java.awt.Dimension
 import java.awt.Graphics
@@ -29,7 +31,7 @@ import javax.swing.SwingConstants
  * declared here as `JPanel.AccessibleJPanel` does. Without it, a name set through the `accessibleName` modifier has
  * nowhere to land.
  */
-@Suppress("TooManyFunctions") // Every function but the declaration-order accessors overrides a supertype member.
+@Suppress("TooManyFunctions") // Every non-private function overrides a Swing or Constrainable member.
 internal open class ConstrainedPanel(
     val policyLayout: MeasurePolicyLayout,
 ) : JComponent(),
@@ -37,7 +39,8 @@ internal open class ConstrainedPanel(
     Scrollable,
     Constrainable,
     Decoratable {
-    override var decoration: Decoration = Decoration.None
+    override var decoration: Decoration =
+        Decoration(DecorationSteps.None, NoPaintOutsets, policyLayout.measurables, hasOpaqueSteps = true)
 
     init {
         layout = policyLayout
@@ -61,7 +64,9 @@ internal open class ConstrainedPanel(
     public override fun isPaintingOrigin(): Boolean = decoration.isDecorated
 
     /**
-     * Paints the area grown by the decoration's outsets, which a blur or a shadow spreads a change in the area into.
+     * Paints the whole panel while a layer rotates or scales it, since a repaint a descendant asks for names the area
+     * it would take unturned and unscaled. Otherwise, it paints the area grown by the decoration's outsets, which a
+     * blur or a shadow spreads a change in the area into.
      */
     override fun paintImmediately(
         x: Int,
@@ -69,7 +74,9 @@ internal open class ConstrainedPanel(
         w: Int,
         h: Int,
     ) {
-        val reach = decoration.steps.outsets
+        val steps = decoration.steps
+        if (steps.isTransformed) return super.paintImmediately(0, 0, width, height)
+        val reach = steps.outsets
         // Not the Rectangle overload, which calls back here.
         super.paintImmediately(
             x - reach.left,
@@ -138,8 +145,7 @@ internal open class ConstrainedPanel(
     }
 
     override fun remove(index: Int) {
-        val dropped = getComponent(index)
-        stackingOrder.dropped(dropped)
+        stackingOrder.dropped(getComponent(index))
         super.remove(index)
     }
 

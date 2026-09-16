@@ -422,6 +422,49 @@ class OnPlacedTest {
         }
 
     @Test
+    fun stoppingPlacingWithLayerShouldInvalidateCoordinatesOnGrandChild() =
+        runComposeSwingTest {
+            val reported = mutableListOf<Rectangle>()
+            val layer = mutableStateOf<(PlacementLayerScope.() -> Unit)?>({ scaleX = 2f })
+
+            setContent {
+                Box(modifier = SwingModifier.preferredSize(100, 100)) {
+                    Box(
+                        modifier =
+                            SwingModifier
+                                .preferredSize(10, 10)
+                                .then(PlacementReadLayerElement(layer, relative = false)),
+                    ) {
+                        Box {
+                            Label(
+                                text = "child",
+                                modifier =
+                                    SwingModifier.preferredSize(10, 10).onPlaced {
+                                        reported +=
+                                            it
+                                    },
+                            )
+                        }
+                    }
+                }
+            }
+            awaitIdle()
+
+            assertEquals(listOf(Rectangle(0, 0, 10, 10)), reported, "the first placement is reported")
+            reported.clear()
+
+            layer.value = null
+            awaitIdle()
+
+            // Androidx reports here, its coordinates resolving against the window, which the layer moved. The bounds
+            // reported here are the layout bounds in the parent, which the layer never moved.
+            assertTrue(
+                reported.isEmpty(),
+                "a grandparent placed without its layer leaves the grandchild's bounds alone",
+            )
+        }
+
+    @Test
     fun aMoveIsReportedAsAPlacementAndNotAsAnExtent() =
         runComposeSwingTest {
             val placements = mutableListOf<Rectangle>()

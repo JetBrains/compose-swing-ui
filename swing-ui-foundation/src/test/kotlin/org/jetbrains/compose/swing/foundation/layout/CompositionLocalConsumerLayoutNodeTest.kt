@@ -12,12 +12,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import org.jetbrains.compose.swing.assertAskedForLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.appearance.testTag
+import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.CompositionLocalConsumerModifierNode
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.currentValueOf
+import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.withRecordedRepaints
 import org.junit.jupiter.api.Assumptions.assumeFalse
+import java.awt.Dimension
 import java.awt.GraphicsEnvironment
 import javax.swing.JComponent
 import javax.swing.JPanel
@@ -34,13 +38,19 @@ private val LocalX = compositionLocalOf { 0 }
 
 private val LocalStaticX = staticCompositionLocalOf { 0 }
 
+private val LocalAlpha = compositionLocalOf { 1f }
+
+private val LocalStaticAlpha = staticCompositionLocalOf { 1f }
+
 private val LocalUnrelated = compositionLocalOf { "default" }
 
 /**
- * A layout node reading composition locals through `currentValueOf` while its parent measures and places it.
+ * A layout node reading composition locals through `currentValueOf` while its parent measures, places and
+ * paints it.
  *
- * Every test that pins a pass running again composes into a real, showing window: pinning which of measure and
- * place ran again needs Swing's own validity and dirty-region state, which only a shown component carries.
+ * Every test that pins a pass running again composes into a real, showing window: pinning which of measure,
+ * place and the layer block ran again needs Swing's own validity and dirty-region state, which only a shown
+ * component carries.
  */
 class CompositionLocalConsumerLayoutNodeTest {
     @Test
@@ -117,6 +127,50 @@ class CompositionLocalConsumerLayoutNodeTest {
                 assertTrue(probe.measures > measures, "a changed static local must measure the node again")
                 assertTrue(probe.placements > placements, "a changed static local must place the node again")
                 recorded.assertAskedForLayout(panel, "a changed static local")
+                assertTrue(recorded.repaintsOf(parent) > 0, "a changed static local must repaint the parent")
+            }
+        }
+
+    @Test
+    fun aLayerBlockReadingAChangedLocalRunsAgainWithoutMeasuringOrPlacingAgain() = assertLayerFollows(LocalAlpha)
+
+    @Test
+    fun aLayerBlockReadingAChangedStaticLocalMeasuresPlacesAndLaysTheParentOutAgain() =
+        runComposeSwingTest {
+            assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+            val probe = LocalProbe()
+            var alpha by mutableStateOf(1f)
+            setWindowContent {
+                CompositionLocalProvider(LocalStaticAlpha provides alpha) {
+                    // A layer needs a component that paints through a decoration, which a Box is.
+                    Box {
+                        Row {
+                            Box(
+                                modifier =
+                                    SwingModifier
+                                        .testTag("layer-box")
+                                        .preferredSize(Dimension(20, 20))
+                                        .then(LocalReadingElement(probe, width = null, x = null, LocalStaticAlpha)),
+                            )
+                        }
+                    }
+                }
+            }
+            val box = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag("layer-box").fetch<JComponent>()
+            val parent = checkNotNull(box.parent as? JComponent)
+            val measures = probe.measures
+            val placements = probe.placements
+            val layerRuns = probe.layerRuns
+
+            withRecordedRepaints { recorded ->
+                alpha = 0.5f
+                awaitIdle()
+
+                assertEquals(0.5f, probe.lastAlpha, "the layer block must read the changed alpha local")
+                assertTrue(probe.measures > measures, "a changed static local must measure the node again")
+                assertTrue(probe.placements > placements, "a changed static local must place the node again")
+                assertTrue(probe.layerRuns > layerRuns, "a changed static local must run the layer block again")
+                recorded.assertAskedForLayout(box, "a changed static local")
                 assertTrue(recorded.repaintsOf(parent) > 0, "a changed static local must repaint the parent")
             }
         }
@@ -254,32 +308,67 @@ class CompositionLocalConsumerLayoutNodeTest {
             assertEquals(measures, probe.measures, "a placement read must not measure again")
             assertEquals(placements + 1, probe.placements, "a placement read must place once again")
         }
+
+    private fun assertLayerFollows(local: ProvidableCompositionLocal<Float>) =
+        runComposeSwingTest {
+            assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+            val probe = LocalProbe()
+            var alpha by mutableStateOf(1f)
+            setWindowContent {
+                CompositionLocalProvider(local provides alpha) {
+                    // A layer needs a component that paints through a decoration, which a Box is.
+                    Box {
+                        Row {
+                            Box(modifier = SwingModifier then LocalReadingElement(probe, width = null, x = null, local))
+                        }
+                    }
+                }
+            }
+            // Settles what the window's first passes leave, as the placement test does.
+            alpha = 0.8f
+            awaitIdle()
+            val measures = probe.measures
+            val placements = probe.placements
+            val layerRuns = probe.layerRuns
+
+            alpha = 0.5f
+            awaitIdle()
+
+            assertEquals(0.5f, probe.lastAlpha, "the layer block must read the changed alpha local")
+            assertEquals(measures, probe.measures, "a layer read must not measure again")
+            assertEquals(placements, probe.placements, "a layer read must not place again")
+            assertEquals(layerRuns + 1, probe.layerRuns, "a layer read must run the layer block once again")
+        }
 }
 
-/** What a [LocalReadingNode] saw: itself, and how many times each of its passes ran. */
+/** What a [LocalReadingNode] saw: itself, how many times each of its passes ran, and the alpha it last read. */
 private class LocalProbe {
     var node: LocalReadingNode? = null
     var measures = 0
     var placements = 0
+    var layerRuns = 0
+    var lastAlpha = Float.NaN
 
-    fun passes(): List<Int> = listOf(measures, placements)
+    fun passes(): List<Int> = listOf(measures, placements, layerRuns)
 }
 
 /**
- * Measures the content as wide as [width] reads and places it at [x]; each pass reads no local where its local is
- * `null`.
+ * Measures the content as wide as [width] reads, places it at [x], and fades it by [alpha]; each pass reads no
+ * local where its local is `null`.
  */
 private class LocalReadingElement(
     private val probe: LocalProbe,
     private val width: CompositionLocal<Int>? = LocalWidth,
     private val x: CompositionLocal<Int>? = LocalX,
+    private val alpha: CompositionLocal<Float>? = null,
 ) : LayoutModifierNodeElement<LocalReadingNode>() {
-    override fun create(): LocalReadingNode = LocalReadingNode(probe, width, x).also { probe.node = it }
+    override fun create(): LocalReadingNode = LocalReadingNode(probe, width, x, alpha).also { probe.node = it }
 
     override fun update(node: LocalReadingNode) = Unit
 
     override fun equals(other: Any?): Boolean =
-        other is LocalReadingElement && other.probe === probe && other.width === width && other.x === x
+        other is LocalReadingElement && other.probe === probe && other.width === width && other.x === x &&
+            other.alpha === alpha
 
     override fun hashCode(): Int = System.identityHashCode(probe)
 }
@@ -288,8 +377,15 @@ private class LocalReadingNode(
     private val probe: LocalProbe,
     private val width: CompositionLocal<Int>?,
     private val x: CompositionLocal<Int>?,
+    private val alpha: CompositionLocal<Float>?,
 ) : LayoutModifierNode(),
     CompositionLocalConsumerModifierNode {
+    // Stored once, so every placement passes the same block and a new instance repaints nothing.
+    private val layerBlock: PlacementLayerScope.() -> Unit = {
+        probe.layerRuns++
+        this.alpha = currentValueOf(checkNotNull(this@LocalReadingNode.alpha)).also { probe.lastAlpha = it }
+    }
+
     override fun MeasureScope.measure(
         measurable: Measurable,
         constraints: Constraints,
@@ -299,7 +395,7 @@ private class LocalReadingNode(
         return layout(placeable.width, placeable.height) {
             probe.placements++
             val x = x?.let { currentValueOf(it) } ?: 0
-            placeable.place(x, 0)
+            if (alpha == null) placeable.place(x, 0) else placeable.placeWithLayer(x, 0, layerBlock = layerBlock)
         }
     }
 }

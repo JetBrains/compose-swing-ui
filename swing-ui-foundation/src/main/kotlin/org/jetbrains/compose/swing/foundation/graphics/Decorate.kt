@@ -13,7 +13,8 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
  * `SwingModifier.decoration(a).decoration(b)` paints `a` around `b`. A declaration whose decorator is equal
  * across a recomposition leaves the component's painting alone.
  *
- * [decorator] paints at the component's layout bounds.
+ * [decorator] paints at its *decorated box*: the box of the first layout modifier declared after it, such as a
+ * `padding`, or the component's layout bounds when none follows.
  *
  * @param decorator what wraps the component's painting inside everything declared before it.
  * @return this chain with the decorator declared on it.

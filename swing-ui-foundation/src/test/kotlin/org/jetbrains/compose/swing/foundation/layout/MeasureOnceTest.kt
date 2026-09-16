@@ -19,6 +19,7 @@
 
 package org.jetbrains.compose.swing.foundation.layout
 
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
@@ -36,8 +37,7 @@ import kotlin.test.assertNull
 /**
  * A policy measures each child at most once per pass, and only in its measure block or in its placement block, while a
  * layout modifier may measure its inner measurable again. It places each child at most once per run of its placement
- * block. Ported from androidx's `MeasuringPlacingTwiceIsNotAllowedTest`; its `placeTwiceWithLayer` has no
- * counterpart, since a policy's [PlacementScope] places no layer.
+ * block. Ported from androidx's `MeasuringPlacingTwiceIsNotAllowedTest`.
  */
 class MeasureOnceTest {
     @Test
@@ -169,6 +169,19 @@ class MeasureOnceTest {
             },
         )
 
+    @Test
+    fun placeTwiceWithLayer() =
+        assertRefused(
+            "Place was called on a node which was placed already",
+            content = { DecoratedBaselineChild(0) },
+            layoutBlock = { measurable, constraints ->
+                measurable.measure(constraints).also {
+                    it.placeWithLayer(0, 0)
+                    it.placeWithLayer(0, 0)
+                }
+            },
+        )
+
     /** A placement read replays the placement block, which places again the child its previous run placed. */
     @Test
     fun aPlacementReplayMayPlaceTheChildAgain() =
@@ -281,11 +294,12 @@ class MeasureOnceTest {
         message: String,
         measureBlock: (Measurable, Constraints) -> Unit = { _, _ -> },
         layoutBlock: PlacementScope.(Measurable, Constraints) -> Unit = { _, _ -> },
+        content: @Composable ConstrainedScope.() -> Unit = { SizedChild(0) },
     ) = runComposeSwingTest {
         var exception: Exception? = null
         setContent {
             Layout(
-                content = { SizedChild(0) },
+                content = content,
                 measurePolicy = { measurables, constraints ->
                     try {
                         measureBlock(measurables.first(), constraints)

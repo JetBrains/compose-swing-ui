@@ -4,6 +4,7 @@
 package org.jetbrains.compose.swing.foundation.layout
 
 import androidx.compose.runtime.Composable
+import org.jetbrains.compose.swing.foundation.graphics.Decoratable
 import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
@@ -118,7 +119,7 @@ private val SetMeasurePolicy: ConstrainedPanel.(MeasurePolicy) -> Unit = {
 
 /** Whether this is a Foundation container whose policy layout understands [protocol] for a composed child. */
 internal fun Container.acceptsParentProtocol(protocol: ParentProtocol): Boolean {
-    val layout = layout as? MeasurePolicyLayout ?: return false
+    val layout = (this as? Decoratable)?.decoration?.childMeasurables?.owner ?: return false
     return protocol === layout.parentDataProtocol || protocol === LayoutModifierParentProtocol
 }
 

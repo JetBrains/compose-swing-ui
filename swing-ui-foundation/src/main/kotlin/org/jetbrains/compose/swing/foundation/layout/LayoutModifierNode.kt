@@ -1,10 +1,15 @@
 package org.jetbrains.compose.swing.foundation.layout
 
+import org.jetbrains.compose.swing.foundation.graphics.Decoratable
+import org.jetbrains.compose.swing.foundation.graphics.Decorator
+import org.jetbrains.compose.swing.foundation.graphics.declaredNodes
+import org.jetbrains.compose.swing.foundation.graphics.publishDecoration
 import org.jetbrains.compose.swing.foundation.util.fastForEach
 import org.jetbrains.compose.swing.layout.ParentLayoutNode
 import org.jetbrains.compose.swing.layout.ParentLayoutNodeElement
 import org.jetbrains.compose.swing.layout.ParentProtocol
 import java.awt.Dimension
+import java.awt.Rectangle
 import java.util.function.BiConsumer
 
 /**
@@ -34,12 +39,14 @@ public abstract class LayoutModifierNodeElement<N : LayoutModifierNode> : Parent
  *
  * A node launches an animation from its `measure` in [coroutineScope], which lives from [onAttach] until
  * [onDetach] cancels it.
+ *
+ * Its placement can place the content with a layer; see [PlacementScope.placeWithLayer].
  */
 public abstract class LayoutModifierNode : ParentLayoutNode() {
     /** The capability of the element this node fills a slot for. */
     final override val parentProtocol: ParentProtocol get() = LayoutModifierParentProtocol
 
-    /** Measures [measurable] under [constraints], and places it. */
+    /** Measures [measurable] under [constraints], and places it, with a layer or without one. */
     public abstract fun MeasureScope.measure(
         measurable: Measurable,
         constraints: Constraints,
@@ -133,11 +140,85 @@ public abstract class LayoutModifierNode : ParentLayoutNode() {
         child?.owner?.panel?.revalidate()
     }
 
+    /** The layer this node's placement paints, made by its first placement with one. */
+    internal var layerOrNull: PlacementLayer? = null
+        private set
+
+    /** The layer this node's placement paints, a step of its component's decoration once placed with. */
+    internal val layer: PlacementLayer
+        get() = layerOrNull ?: PlacementLayer(this, null).also { layerOrNull = it }
+
+    /**
+     * Where the last placement put this node, in its component's layout coordinates: the origin it places its content
+     * from, and the size its [measure] reported. Null until a placement of a [Decoratable] component writes it.
+     */
+    internal var box: Rectangle? = null
+
     /**
      * The record of the child this node lays out, once its container's layout has received the node, and null again
-     * once the node leaves it.
+     * once the node leaves it. A node leaving its container stops placing its content with a layer.
      */
     internal var child: ChildMeasurable? = null
+        set(value) {
+            val previous = field
+            field = value
+            if (value == null) {
+                layerOrNull?.placedWithoutLayer()
+                if (standingDecorator != null && standingDecorator === layerOrNull) {
+                    standingDecorator = null
+                    previous?.decoratable?.let { publishDecoration(it, declaredNodes()) }
+                }
+            }
+            if (value != null && decorationStep != null) value.requireDecoratable
+        }
+
+    private var standingDecorator: Decorator? = null
+
+    /**
+     * The decorator this node paints its component with, at the node's position in the modifier, or null for
+     * none. It paints at the node's own box: the size [measure] reports, where the node is placed.
+     *
+     * Setting a different instance replaces it and setting null removes it, both repainting the component. Setting the
+     * same instance again gathers the decoration again, re-reading its outsets and isOpaque; set it again
+     * after the decorator's outsets or isOpaque change. The node keeps it across a detach, and paints with it only
+     * while attached.
+     *
+     * While the node places its content with a layer, the layer paints in the decorator's place: this reads null,
+     * and setting null leaves the layer painting.
+     *
+     * @throws IllegalStateException if set while the node is not attached, if set to a decorator while the
+     *   component is not a [Decoratable], or if set to a decorator while the node places its content with a
+     *   layer. A decorator set before the component's container has received the node fails as it does.
+     */
+    public var decorator: Decorator?
+        get() = decorationStep.takeIf { it !== layerOrNull }
+        set(value) {
+            val step = decorationStep
+            if (step != null && step === layerOrNull) {
+                check(value == null) {
+                    "A layout node placing its content with a layer cannot hold a decorator, since the layer paints " +
+                        "in its place. Declare the decorator on a node of its own."
+                }
+                return
+            }
+            paintWith(value)
+        }
+
+    /** What this node paints its component with: its [decorator], or its [layer] while it places with one. */
+    internal val decorationStep: Decorator?
+        get() = standingDecorator.takeIf { isAttached }
+
+    /** Paints the component with [value] in this node's place; see [decorator]. */
+    internal fun paintWith(value: Decorator?) {
+        check(isAttached) { "A layout node sets its decorator only while it is attached" }
+        val standing = decorationStep
+        standingDecorator = value
+        // Before the container has received the node, the modifier pass under way gathers the decoration.
+        val child = child ?: return
+        // A node that paints nothing, and painted nothing, leaves the decoration as it stands.
+        if (value == null && standing == null) return
+        publishDecoration(child.requireDecoratable, declaredNodes())
+    }
 }
 
 /** Runs [LayoutModifierNode.measure] against an intrinsic-mode stand-in for the real child. */
@@ -208,13 +289,6 @@ private class IntrinsicModifierPlaceable(
     override val measuredHeight: Int get() = result.height
     override val width: Int = constraints.constrainWidth(measuredWidth)
     override val height: Int = constraints.constrainHeight(measuredHeight)
-    override val child: ChildMeasurable get() = error("IntrinsicModifierPlaceable is never placed")
-
-    override fun placeAt(
-        x: Long,
-        y: Long,
-        zIndex: Float,
-    ): Unit = Unit
 
     override fun get(alignmentLine: AlignmentLine): Int {
         val originX = centeredOverflowOffset(width, measuredWidth)

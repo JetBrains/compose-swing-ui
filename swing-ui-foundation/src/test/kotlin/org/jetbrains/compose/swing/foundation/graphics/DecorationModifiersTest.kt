@@ -84,6 +84,7 @@ class DecorationModifiersTest {
                 "background(Color) writes the Swing property a look and feel honors; a Color is a Paint but " +
                     "not a Brush, so the call is not the decoration overload.",
             )
+            assertFalse(panel.decoration.isDecorated, "background(Color) declares no decoration.")
         }
 
     @Test

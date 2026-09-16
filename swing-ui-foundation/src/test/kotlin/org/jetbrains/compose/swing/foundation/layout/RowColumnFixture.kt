@@ -64,7 +64,10 @@ internal fun Child(
     Label("child $index", modifier = modifier.preferredSize(width, height))
 }
 
-/** A fixture-sized child whose component reports [baseline] at any extent and accepts a decoration. */
+/**
+ * A fixture-sized child whose component reports [baseline] at any extent and accepts a decoration, so a layout
+ * modifier may place it with a layer.
+ */
 @Composable
 internal fun DecoratedBaselineChild(
     baseline: Int,
@@ -76,7 +79,10 @@ internal fun DecoratedBaselineChild(
     )
 }
 
-/** Paints nothing of a decoration it receives; the tests using it read only where it is placed. */
+/**
+ * Paints nothing of a decoration it receives; the tests using it read only where it is placed. Its baseline is
+ * [baseline] below the top of its layout bounds, which Swing's `getBaseline` measures from the top of the bounds.
+ */
 private class DecoratedBaselinePanel(
     private val baseline: Int,
 ) : DecoratedPanel() {

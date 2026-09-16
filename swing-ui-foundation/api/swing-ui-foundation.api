@@ -200,6 +200,27 @@ public final class org/jetbrains/compose/swing/foundation/graphics/TileMode$Comp
 	public final fun getDecal-0BiVDiQ ()I
 }
 
+public final class org/jetbrains/compose/swing/foundation/graphics/TransformOrigin {
+	public static final field $stable I
+	public static final field Companion Lorg/jetbrains/compose/swing/foundation/graphics/TransformOrigin$Companion;
+	public fun <init> (FF)V
+	public final fun component1 ()F
+	public final fun component2 ()F
+	public final fun copy (FF)Lorg/jetbrains/compose/swing/foundation/graphics/TransformOrigin;
+	public static synthetic fun copy$default (Lorg/jetbrains/compose/swing/foundation/graphics/TransformOrigin;FFILjava/lang/Object;)Lorg/jetbrains/compose/swing/foundation/graphics/TransformOrigin;
+	public final fun createTransform (Ljava/awt/geom/Rectangle2D;FFF)Ljava/awt/geom/AffineTransform;
+	public static synthetic fun createTransform$default (Lorg/jetbrains/compose/swing/foundation/graphics/TransformOrigin;Ljava/awt/geom/Rectangle2D;FFFILjava/lang/Object;)Ljava/awt/geom/AffineTransform;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getPivotFractionX ()F
+	public final fun getPivotFractionY ()F
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class org/jetbrains/compose/swing/foundation/graphics/TransformOrigin$Companion {
+	public final fun getCenter ()Lorg/jetbrains/compose/swing/foundation/graphics/TransformOrigin;
+}
+
 public abstract interface class org/jetbrains/compose/swing/foundation/graphics/drawscope/ContentDrawScope : org/jetbrains/compose/swing/foundation/graphics/drawscope/DrawScope {
 	public abstract fun drawContent ()V
 }
@@ -616,6 +637,7 @@ public final class org/jetbrains/compose/swing/foundation/layout/LayoutKt {
 	public static synthetic fun absolutePadding$default (Lorg/jetbrains/compose/swing/foundation/layout/ConstrainedScope;Lorg/jetbrains/compose/swing/modifier/SwingModifier;IIIIILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun aspectRatio (Lorg/jetbrains/compose/swing/foundation/layout/ConstrainedScope;Lorg/jetbrains/compose/swing/modifier/SwingModifier;FZ)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static synthetic fun aspectRatio$default (Lorg/jetbrains/compose/swing/foundation/layout/ConstrainedScope;Lorg/jetbrains/compose/swing/modifier/SwingModifier;FZILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun clipToBounds (Lorg/jetbrains/compose/swing/foundation/layout/ConstrainedScope;Lorg/jetbrains/compose/swing/modifier/SwingModifier;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun columnMeasurePolicy (Lorg/jetbrains/compose/swing/foundation/layout/Arrangement$Vertical;Lorg/jetbrains/compose/swing/foundation/layout/Alignment$Horizontal;Landroidx/compose/runtime/Composer;I)Lorg/jetbrains/compose/swing/foundation/layout/MeasurePolicy;
 	public static final fun constrain (Lorg/jetbrains/compose/swing/foundation/layout/Constraints;Ljava/awt/Dimension;)Ljava/awt/Dimension;
 	public static final fun constrain (Lorg/jetbrains/compose/swing/foundation/layout/Constraints;Lorg/jetbrains/compose/swing/foundation/layout/Constraints;)Lorg/jetbrains/compose/swing/foundation/layout/Constraints;
@@ -685,6 +707,7 @@ public final class org/jetbrains/compose/swing/foundation/layout/LayoutKt {
 public abstract class org/jetbrains/compose/swing/foundation/layout/LayoutModifierNode : org/jetbrains/compose/swing/layout/ParentLayoutNode {
 	public static final field $stable I
 	public fun <init> ()V
+	public final fun getDecorator ()Lorg/jetbrains/compose/swing/foundation/graphics/Decorator;
 	public final fun getParentProtocol ()Lorg/jetbrains/compose/swing/layout/ParentProtocol;
 	public fun intrinsicPlaceable (Lorg/jetbrains/compose/swing/foundation/layout/IntrinsicMeasureScope;Lorg/jetbrains/compose/swing/foundation/layout/IntrinsicMeasurable;II)Lorg/jetbrains/compose/swing/foundation/layout/Placeable;
 	public final fun invalidateMeasurement ()V
@@ -694,6 +717,7 @@ public abstract class org/jetbrains/compose/swing/foundation/layout/LayoutModifi
 	public abstract fun measure (Lorg/jetbrains/compose/swing/foundation/layout/MeasureScope;Lorg/jetbrains/compose/swing/foundation/layout/Measurable;Lorg/jetbrains/compose/swing/foundation/layout/Constraints;)Lorg/jetbrains/compose/swing/foundation/layout/MeasureResult;
 	public fun minIntrinsicHeight (Lorg/jetbrains/compose/swing/foundation/layout/IntrinsicMeasureScope;Lorg/jetbrains/compose/swing/foundation/layout/IntrinsicMeasurable;I)I
 	public fun minIntrinsicWidth (Lorg/jetbrains/compose/swing/foundation/layout/IntrinsicMeasureScope;Lorg/jetbrains/compose/swing/foundation/layout/IntrinsicMeasurable;I)I
+	public final fun setDecorator (Lorg/jetbrains/compose/swing/foundation/graphics/Decorator;)V
 }
 
 public abstract class org/jetbrains/compose/swing/foundation/layout/LayoutModifierNodeElement : org/jetbrains/compose/swing/layout/ParentLayoutNodeElement {
@@ -743,6 +767,21 @@ public abstract class org/jetbrains/compose/swing/foundation/layout/Placeable {
 	public abstract fun getWidth ()I
 }
 
+public abstract interface class org/jetbrains/compose/swing/foundation/layout/PlacementLayerScope {
+	public abstract fun getAlpha ()F
+	public abstract fun getClip ()Z
+	public abstract fun getRotationZ ()F
+	public abstract fun getScaleX ()F
+	public abstract fun getScaleY ()F
+	public abstract fun getTransformOrigin ()Lorg/jetbrains/compose/swing/foundation/graphics/TransformOrigin;
+	public abstract fun setAlpha (F)V
+	public abstract fun setClip (Z)V
+	public abstract fun setRotationZ (F)V
+	public abstract fun setScaleX (F)V
+	public abstract fun setScaleY (F)V
+	public abstract fun setTransformOrigin (Lorg/jetbrains/compose/swing/foundation/graphics/TransformOrigin;)V
+}
+
 public abstract class org/jetbrains/compose/swing/foundation/layout/PlacementScope {
 	public static final field $stable I
 	public abstract fun getParentWidth ()I
@@ -751,6 +790,10 @@ public abstract class org/jetbrains/compose/swing/foundation/layout/PlacementSco
 	public static synthetic fun place$default (Lorg/jetbrains/compose/swing/foundation/layout/PlacementScope;Lorg/jetbrains/compose/swing/foundation/layout/Placeable;IIFILjava/lang/Object;)V
 	public fun placeRelative (Lorg/jetbrains/compose/swing/foundation/layout/Placeable;IIF)V
 	public static synthetic fun placeRelative$default (Lorg/jetbrains/compose/swing/foundation/layout/PlacementScope;Lorg/jetbrains/compose/swing/foundation/layout/Placeable;IIFILjava/lang/Object;)V
+	public fun placeRelativeWithLayer (Lorg/jetbrains/compose/swing/foundation/layout/Placeable;IIFLkotlin/jvm/functions/Function1;)V
+	public static synthetic fun placeRelativeWithLayer$default (Lorg/jetbrains/compose/swing/foundation/layout/PlacementScope;Lorg/jetbrains/compose/swing/foundation/layout/Placeable;IIFLkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+	public fun placeWithLayer (Lorg/jetbrains/compose/swing/foundation/layout/Placeable;IIFLkotlin/jvm/functions/Function1;)V
+	public static synthetic fun placeWithLayer$default (Lorg/jetbrains/compose/swing/foundation/layout/PlacementScope;Lorg/jetbrains/compose/swing/foundation/layout/Placeable;IIFLkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
 }
 
 public abstract interface class org/jetbrains/compose/swing/foundation/layout/RowScope : org/jetbrains/compose/swing/foundation/layout/ConstrainedScope {

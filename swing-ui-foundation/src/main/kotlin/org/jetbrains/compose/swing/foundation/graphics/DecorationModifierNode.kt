@@ -13,9 +13,9 @@ import java.awt.Component
  * node its position among the other steps; a node whose element is not additive is refused as it attaches. A
  * child declares that element through [decoration].
  *
- * The library gathers [isOpaque] and outsets after each modifier pass that attaches, detaches, moves or writes a
- * step, so an element's `update` needs no call for it. A node that changes its outsets or isOpaque between passes
- * calls [invalidateDecoration]. A change that only affects [paint] is a `component.repaint()`.
+ * The library gathers [outsets] and [isOpaque] after each modifier pass that attaches, detaches, moves or writes a
+ * step, so an element's `update` needs no call for them. A node that changes one of them between passes calls
+ * [invalidateDecoration]. A change that only affects [paint] is a `component.repaint()`.
  */
 public abstract class DecorationModifierNode<T : Component> :
     SwingModifier.ComponentNode<T>(),
@@ -49,11 +49,11 @@ public abstract class DecorationModifierNode<T : Component> :
     /** Runs where [onDetach] would, while the node is still attached and still part of the decoration. */
     protected open fun onRemovedFromDecoration() {}
 
-    /** Whether this step paints its content unchanged, so the component is not decorated by it. */
+    /** Whether this step paints its content unchanged and takes no outsets, so the component is not decorated by it. */
     internal open val paintsNothing: Boolean get() = false
 
     /**
-     * Gathers the component's decoration again, after this step's outsets or isOpaque changed between modifier
+     * Gathers the component's decoration again, after this step's [outsets] or [isOpaque] changed between modifier
      * passes, and repaints it. An element's `update` needs no call. Does nothing while the node is not attached.
      */
     public fun invalidateDecoration() {
@@ -69,11 +69,14 @@ internal fun SwingModifier.Node.declaredNodes(): List<SwingModifier.Node> {
     return nodes
 }
 
-/** Writes to [decoratable] the decoration [nodes] declare; see [publishSteps]. */
+/**
+ * Writes to [decoratable] the decoration [nodes] declare, inside the layer its container places it with; see
+ * [publishSteps].
+ */
 internal fun publishDecoration(
     decoratable: Decoratable,
     nodes: List<SwingModifier.Node>,
-): Boolean = publishSteps(decoratable, DecorationSteps.of(nodes))
+): Boolean = publishSteps(decoratable, DecorationSteps.of(nodes, decoratable.decoration.steps.containerLayer))
 
 /**
  * Writes to [decoratable] a decoration of [steps], and repaints it; nothing where the value held equals it. Returns
@@ -90,9 +93,14 @@ internal fun publishSteps(
             "A ${Decoratable::class.java.name} paints as a component, and ${decoratable.javaClass.name} is not one"
         }
     val held = decoratable.decoration
-    val isOpaque = steps.isOpaque
-    if (held.steps == steps && held.hasOpaqueSteps == isOpaque) return false
-    decoratable.decoration = if (steps.isEmpty) Decoration.None else Decoration(steps, NoPaintOutsets, isOpaque)
+    val opaque = steps.isOpaque
+    if (steps == held.steps && opaque == held.hasOpaqueSteps) return false
+    decoratable.decoration =
+        if (steps.isEmpty && held.childMeasurables == null) {
+            Decoration.None
+        } else {
+            Decoration(steps, held.heldPaintOutsets, held.childMeasurables, opaque)
+        }
     component.repaint()
     return true
 }

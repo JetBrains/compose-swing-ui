@@ -2,6 +2,7 @@ package org.jetbrains.compose.swing.foundation.layout
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -345,6 +346,64 @@ class FirstBaselineTest {
             awaitIdle()
 
             assertEquals(30, baseline, "the line the child's placement moved")
+        }
+
+    /**
+     * A container's line is worked out by replaying its placement outside the placement block's own pass. That
+     * replay must not swallow the placement block's own recorded reads: a state read in a layer block the placement
+     * sets up must keep repainting on a later change, even after a parent has read the container's line in between.
+     */
+    @Test
+    fun aLayerReadSurvivesAParentReadingTheContainersLineInALaterEvent() =
+        runComposeSwingTest {
+            var y by mutableIntStateOf(0)
+            var byLine by mutableStateOf(false)
+            val alpha = mutableFloatStateOf(1f)
+            var layerRuns = 0
+            val block: PlacementLayerScope.() -> Unit = {
+                layerRuns++
+                this.alpha = alpha.floatValue
+            }
+            setContent {
+                Layout(
+                    content = {
+                        Layout(
+                            content = {
+                                Layout(measurePolicy = { _, _ -> layout(20, 20, mapOf(FirstBaseline to 10)) {} })
+                            },
+                            measurePolicy = { measurables, constraints ->
+                                val placeable = measurables.single().measure(constraints)
+                                layout(placeable.width, placeable.height + 50) {
+                                    placeable.placeWithLayer(0, y, layerBlock = block)
+                                }
+                            },
+                        )
+                    },
+                    modifier = containerModifier(200, 200),
+                    measurePolicy = { measurables, constraints ->
+                        val box = measurables.single().measure(Constraints(maxWidth = 200, maxHeight = 200))
+                        layout(constraints.minWidth, constraints.minHeight) {
+                            box.place(0, if (byLine) 100 - box[FirstBaseline] else 0)
+                        }
+                    },
+                )
+            }
+            awaitIdle()
+
+            // Move the layer, then have the parent start reading the container's line in a later event: the line
+            // replay this triggers must not be recorded under the placement block's own scope.
+            y = 20
+            awaitIdle()
+            byLine = true
+            awaitIdle()
+
+            val before = layerRuns
+            alpha.floatValue = 0.5f
+            awaitIdle()
+            assertTrue(
+                layerRuns > before,
+                "the layer block must run again after the line replay ($before -> $layerRuns)",
+            )
         }
 
     @Test

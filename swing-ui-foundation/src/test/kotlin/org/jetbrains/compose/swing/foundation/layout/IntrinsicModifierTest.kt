@@ -1,11 +1,16 @@
 package org.jetbrains.compose.swing.foundation.layout
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.extension.ExtendWith
 import java.awt.Dimension
 import java.awt.Rectangle
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 /**
  * Intrinsic size modifiers select one of their child's explicit min/max intrinsic hooks. Preferred
@@ -159,6 +164,17 @@ class IntrinsicModifierTest {
                     placeable.place(0, 0)
                 }
             }
+        val layerNode =
+            layoutChainOf {
+                SwingModifier.layout { measurable, constraints ->
+                    val standIn = measurable.intrinsicPlaceable(5, 5)!!
+                    val placeable = measurable.measure(constraints)
+                    layout(placeable.width, placeable.height) {
+                        standIn.placeWithLayer(10, 10)
+                        placeable.place(0, 0)
+                    }
+                }
+            }
 
         assertEquals(
             Rectangle(0, 0, PANEL_EXTENT, PANEL_EXTENT),
@@ -170,7 +186,46 @@ class IntrinsicModifierTest {
             boundsPlacedBy(policy, layoutChainOf { SwingModifier.padding(4) }),
             "a policy placing a padded child's stand-in must leave the child where its real placement puts it",
         )
+        assertEquals(
+            Rectangle(0, 0, PANEL_EXTENT, PANEL_EXTENT),
+            boundsAt(layerNode, Constraints.fixed(PANEL_EXTENT, PANEL_EXTENT)),
+            "a layout node placing its content's stand-in with a layer must leave the child where its real " +
+                "placement puts it",
+        )
     }
+
+    @Test
+    fun aLayoutNodePlacingItsContentsStandInPlainlyPlacesNothing() =
+        runComposeSwingTest {
+            var failure: IllegalStateException? = null
+            var standInX by mutableIntStateOf(10)
+            setContent {
+                Box(modifier = containerModifier(PANEL_EXTENT, PANEL_EXTENT)) {
+                    Box(
+                        modifier =
+                            SwingModifier
+                                .layout { measurable, constraints ->
+                                    val standIn = measurable.intrinsicPlaceable(5, 5)!!
+                                    val placeable = measurable.measure(constraints)
+                                    layout(placeable.width, placeable.height) {
+                                        try {
+                                            standIn.place(standInX, 10)
+                                        } catch (e: IllegalStateException) {
+                                            failure = e
+                                        }
+                                        placeable.placeWithLayer(0, 0)
+                                    }
+                                }.padding(4),
+                    ) {}
+                }
+            }
+            awaitIdle()
+
+            standInX = 20
+            awaitIdle()
+
+            assertNull(failure, "a layout node placing its content's stand-in with place must place nothing")
+        }
 
     @Test
     fun defaultIntrinsicMeasurableIgnoresALayoutModifiersFixedMeasureConstraints() {

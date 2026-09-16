@@ -110,20 +110,6 @@ public sealed class Placeable {
     /** The height the child actually measured itself to, before its parent coerced [height]. */
     public abstract val measuredHeight: Int
 
-    /** The child this placeable ends up placing. */
-    internal abstract val child: ChildMeasurable
-
-    /**
-     * @param x where this placeable's origin lands, in its caller's coordinates.
-     * @param y where this placeable's origin lands, in its caller's coordinates.
-     * @param zIndex the z-index placed so far, summed through layout modifiers.
-     */
-    internal abstract fun placeAt(
-        x: Long,
-        y: Long,
-        zIndex: Float,
-    )
-
     /**
      * Where [alignmentLine] falls when this placeable's origin lands at ([x], [y]), or
      * [AlignmentLine.UNSPECIFIED] where the child provides no such line.
@@ -148,11 +134,36 @@ public sealed class Placeable {
      * Where [alignmentLine] falls from the edge of the box this placeable is placed at, [width] by
      * [height], or [AlignmentLine.UNSPECIFIED] where the child provides no such line.
      */
-    public open operator fun get(alignmentLine: AlignmentLine): Int {
-        val state = child.owner.layoutState
-        if (state == LayoutState.Measuring || child.lineReadDuring == LayoutState.Idle) {
-            child.lineReadDuring = state
-        }
-        return alignmentLineAt(alignmentLine, 0L, 0L)
+    public open operator fun get(alignmentLine: AlignmentLine): Int = alignmentLineAt(alignmentLine, 0L, 0L)
+}
+
+/** A placeable its container places: a child's own measurement, or a layout modifier's around it. */
+internal sealed class PlacedPlaceable : Placeable() {
+    /** The child this placeable ends up placing. */
+    internal abstract val child: ChildMeasurable
+
+    /** The layout node whose box this placeable lands the content in, or null where it lands the child itself. */
+    internal abstract val node: LayoutModifierNode?
+
+    /**
+     * @param x where this placeable's origin lands, in its caller's coordinates.
+     * @param y where this placeable's origin lands, in its caller's coordinates.
+     * @param zIndex the z-index placed so far, which each layout modifier on the way in adds its own to.
+     */
+    internal abstract fun placeAt(
+        x: Long,
+        y: Long,
+        zIndex: Float,
+    )
+
+    override fun get(alignmentLine: AlignmentLine): Int {
+        child.recordLineRead()
+        return super.get(alignmentLine)
     }
+}
+
+/** Records that a line of this child was read, and in which stage of its container's layout; see [lineReadDuring]. */
+internal fun ChildMeasurable.recordLineRead() {
+    val state = owner.layoutState
+    if (state == LayoutState.Measuring || lineReadDuring == LayoutState.Idle) lineReadDuring = state
 }

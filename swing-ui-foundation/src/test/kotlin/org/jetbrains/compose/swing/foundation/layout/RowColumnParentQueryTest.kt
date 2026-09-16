@@ -582,6 +582,7 @@ private val BASELINE_MOVING_MODIFIERS: List<Triple<String, RowScope.() -> SwingM
         Triple("wrapContentHeight", { SwingModifier.requiredHeight(60).wrapContentHeight() }, 60 to 20),
         Triple("defaultMinSize", { SwingModifier.defaultMinSize(minHeight = 50) }, 50 to 10),
         Triple("height(Max)", { SwingModifier.height(IntrinsicSize.Max) }, 40 to 10),
+        Triple("clipToBounds", { SwingModifier.clipToBounds() }, 40 to 10),
         Triple("zIndex", { SwingModifier.zIndex(1f) }, 40 to 10),
         Triple(
             "layout",

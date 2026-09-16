@@ -9,7 +9,8 @@ import java.awt.Insets
  * continuation that paints everything inside it, and it decides what graphics that continuation paints
  * into: a decorator painting *around* its content hands on the graphics it was given, one cutting the content
  * hands on a clipped one, and one that post-processes the content's pixels, such as a blur or a tint, points it
- * at an offscreen raster.
+ * at an offscreen raster. The content keeps its own area: space between a decoration and the content is a
+ * `padding` declared after the decoration.
  *
  * Each decorator is handed a graphics of its own, created around the call and disposed after it, so a
  * clip, composite, stroke or transform it leaves behind reaches no other painting.

@@ -71,12 +71,12 @@ class BoxTest {
                     Child(0, CHILD_WIDTH, CHILD_HEIGHT, SwingModifier.align(Alignment.BottomEnd))
                     Child(
                         index = 1,
-                        width = BOX_WIDTH,
-                        height = BOX_HEIGHT,
+                        width = 200,
+                        height = 160,
                         modifier =
                             SwingModifier
                                 .matchParentSize()
-                                .maximumSize(CHILD_WIDTH - 2 * INSET, CHILD_HEIGHT - 2 * INSET),
+                                .maximumSize(30, 20),
                     )
                 }
             }
@@ -89,7 +89,7 @@ class BoxTest {
             assertEquals(
                 listOf(
                     Rectangle(0, 0, CHILD_WIDTH, CHILD_HEIGHT),
-                    Rectangle(0, 0, CHILD_WIDTH - 2 * INSET, CHILD_HEIGHT - 2 * INSET),
+                    Rectangle(0, 0, 30, 20),
                 ),
                 stackedChildBounds(),
                 "the matching child must take the box, held to the maximum size it declares",
@@ -102,19 +102,19 @@ class BoxTest {
             setContent {
                 Box(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
                     Child(0, CHILD_WIDTH, CHILD_HEIGHT, SwingModifier.align(Alignment.BottomEnd))
-                    Child(1, BOX_WIDTH, BOX_HEIGHT, SwingModifier.align(Alignment.BottomEnd))
+                    Child(1, 200, 160, SwingModifier.align(Alignment.BottomEnd))
                 }
             }
 
             assertEquals(
-                Dimension(BOX_WIDTH, BOX_HEIGHT),
+                Dimension(200, 160),
                 containerPreferredSize(),
                 "the box must ask for the largest of its children along either axis",
             )
             assertEquals(
                 listOf(
-                    Rectangle(BOX_WIDTH - CHILD_WIDTH, BOX_HEIGHT - CHILD_HEIGHT, CHILD_WIDTH, CHILD_HEIGHT),
-                    Rectangle(0, 0, BOX_WIDTH, BOX_HEIGHT),
+                    Rectangle(150, 120, CHILD_WIDTH, CHILD_HEIGHT),
+                    Rectangle(0, 0, 200, 160),
                 ),
                 stackedChildBounds(),
                 "each child must sit at the alignment it declares, in the box the largest of them sized",
@@ -126,19 +126,19 @@ class BoxTest {
         runComposeSwingTest {
             setContent {
                 Box(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
-                    Child(0, BOX_WIDTH, BOX_HEIGHT)
-                    Child(1, BOX_WIDTH, BOX_HEIGHT, matchingUpTo(BOX_WIDTH - INSET, BOX_HEIGHT))
-                    Child(2, BOX_WIDTH, BOX_HEIGHT, matchingUpTo(BOX_WIDTH, BOX_HEIGHT - INSET))
-                    Child(3, BOX_WIDTH, BOX_HEIGHT, matchingUpTo(BOX_WIDTH - INSET, BOX_HEIGHT - INSET))
+                    Child(0, 200, 160)
+                    Child(1, 200, 160, matchingUpTo(190, 160))
+                    Child(2, 200, 160, matchingUpTo(200, 150))
+                    Child(3, 200, 160, matchingUpTo(190, 150))
                 }
             }
 
             assertEquals(
                 listOf(
-                    Rectangle(0, 0, BOX_WIDTH, BOX_HEIGHT),
-                    Rectangle(0, 0, BOX_WIDTH - INSET, BOX_HEIGHT),
-                    Rectangle(0, 0, BOX_WIDTH, BOX_HEIGHT - INSET),
-                    Rectangle(0, 0, BOX_WIDTH - INSET, BOX_HEIGHT - INSET),
+                    Rectangle(0, 0, 200, 160),
+                    Rectangle(0, 0, 190, 160),
+                    Rectangle(0, 0, 200, 150),
+                    Rectangle(0, 0, 190, 150),
                 ),
                 stackedChildBounds(),
                 "a matching child must take the box on each axis its own maximum size leaves free",
@@ -160,13 +160,13 @@ class BoxTest {
                 listOf(
                     Rectangle(0, 0, CHILD_WIDTH, CHILD_HEIGHT),
                     Rectangle(CHILD_WIDTH, 0, CHILD_WIDTH, CHILD_HEIGHT),
-                    Rectangle(2 * CHILD_WIDTH, 0, CHILD_WIDTH, CHILD_HEIGHT),
+                    Rectangle(100, 0, CHILD_WIDTH, CHILD_HEIGHT),
                     Rectangle(0, CHILD_HEIGHT, CHILD_WIDTH, CHILD_HEIGHT),
                     Rectangle(CHILD_WIDTH, CHILD_HEIGHT, CHILD_WIDTH, CHILD_HEIGHT),
-                    Rectangle(2 * CHILD_WIDTH, CHILD_HEIGHT, CHILD_WIDTH, CHILD_HEIGHT),
-                    Rectangle(0, 2 * CHILD_HEIGHT, CHILD_WIDTH, CHILD_HEIGHT),
-                    Rectangle(CHILD_WIDTH, 2 * CHILD_HEIGHT, CHILD_WIDTH, CHILD_HEIGHT),
-                    Rectangle(2 * CHILD_WIDTH, 2 * CHILD_HEIGHT, CHILD_WIDTH, CHILD_HEIGHT),
+                    Rectangle(100, CHILD_HEIGHT, CHILD_WIDTH, CHILD_HEIGHT),
+                    Rectangle(0, 80, CHILD_WIDTH, CHILD_HEIGHT),
+                    Rectangle(CHILD_WIDTH, 80, CHILD_WIDTH, CHILD_HEIGHT),
+                    Rectangle(100, 80, CHILD_WIDTH, CHILD_HEIGHT),
                 ),
                 stackedChildBounds(),
                 "each of the nine alignments must put its child in the corner or edge it names",
@@ -193,15 +193,15 @@ class BoxTest {
 
             assertEquals(
                 listOf(
-                    Rectangle(2 * CHILD_WIDTH, 0, CHILD_WIDTH, CHILD_HEIGHT),
+                    Rectangle(100, 0, CHILD_WIDTH, CHILD_HEIGHT),
                     Rectangle(CHILD_WIDTH, 0, CHILD_WIDTH, CHILD_HEIGHT),
                     Rectangle(0, 0, CHILD_WIDTH, CHILD_HEIGHT),
-                    Rectangle(2 * CHILD_WIDTH, CHILD_HEIGHT, CHILD_WIDTH, CHILD_HEIGHT),
+                    Rectangle(100, CHILD_HEIGHT, CHILD_WIDTH, CHILD_HEIGHT),
                     Rectangle(CHILD_WIDTH, CHILD_HEIGHT, CHILD_WIDTH, CHILD_HEIGHT),
                     Rectangle(0, CHILD_HEIGHT, CHILD_WIDTH, CHILD_HEIGHT),
-                    Rectangle(2 * CHILD_WIDTH, 2 * CHILD_HEIGHT, CHILD_WIDTH, CHILD_HEIGHT),
-                    Rectangle(CHILD_WIDTH, 2 * CHILD_HEIGHT, CHILD_WIDTH, CHILD_HEIGHT),
-                    Rectangle(0, 2 * CHILD_HEIGHT, CHILD_WIDTH, CHILD_HEIGHT),
+                    Rectangle(100, 80, CHILD_WIDTH, CHILD_HEIGHT),
+                    Rectangle(CHILD_WIDTH, 80, CHILD_WIDTH, CHILD_HEIGHT),
+                    Rectangle(0, 80, CHILD_WIDTH, CHILD_HEIGHT),
                 ),
                 stackedChildBounds(),
                 "a right-to-left box must mirror the horizontal alignments and leave the vertical ones alone",
@@ -212,12 +212,12 @@ class BoxTest {
     fun testBox_expanded() =
         runComposeSwingTest {
             setContent {
-                Box(modifier = containerModifier(BOX_WIDTH, BOX_HEIGHT)) {
+                Box(modifier = containerModifier(200, 160)) {
                     Child(0, CHILD_WIDTH, CHILD_HEIGHT, SwingModifier.matchParentSize())
                     Child(
                         index = 1,
-                        width = BOX_WIDTH / 2,
-                        height = BOX_HEIGHT / 2,
+                        width = 100,
+                        height = 80,
                         modifier = SwingModifier.align(Alignment.BottomEnd),
                     )
                 }
@@ -225,8 +225,8 @@ class BoxTest {
 
             assertEquals(
                 listOf(
-                    Rectangle(0, 0, BOX_WIDTH, BOX_HEIGHT),
-                    Rectangle(BOX_WIDTH / 2, BOX_HEIGHT / 2, BOX_WIDTH / 2, BOX_HEIGHT / 2),
+                    Rectangle(0, 0, 200, 160),
+                    Rectangle(100, 80, 100, 80),
                 ),
                 stackedChildBounds(),
                 "a matching child must take a box its own parent sized, and its siblings must be placed in it",
@@ -237,7 +237,7 @@ class BoxTest {
     fun aBoxDoesNotPassItsMinimumExtentToContentByDefault() =
         runComposeSwingTest {
             setContent {
-                Box(modifier = containerModifier(BOX_WIDTH, BOX_HEIGHT)) {
+                Box(modifier = containerModifier(200, 160)) {
                     SizedChild(0)
                 }
             }
@@ -254,7 +254,7 @@ class BoxTest {
         runComposeSwingTest {
             setContent {
                 Box(
-                    modifier = containerModifier(BOX_WIDTH, BOX_HEIGHT),
+                    modifier = containerModifier(200, 160),
                     propagateMinConstraints = true,
                 ) {
                     SizedChild(0)
@@ -262,7 +262,7 @@ class BoxTest {
             }
 
             assertEquals(
-                listOf(Rectangle(0, 0, BOX_WIDTH, BOX_HEIGHT)),
+                listOf(Rectangle(0, 0, 200, 160)),
                 stackedChildBounds(),
                 "propagating Box constraints must measure content at the box's incoming minimum",
             )
@@ -287,7 +287,7 @@ class BoxTest {
         runComposeSwingTest {
             var alignment by mutableStateOf(Alignment.TopStart)
             setContent {
-                Box(modifier = containerModifier(BOX_WIDTH, BOX_HEIGHT), contentAlignment = alignment) {
+                Box(modifier = containerModifier(200, 160), contentAlignment = alignment) {
                     SizedChild(0)
                 }
             }
@@ -321,7 +321,7 @@ class BoxTest {
         runComposeSwingTest {
             setContent {
                 Box(
-                    modifier = containerModifier(BOX_WIDTH, BOX_HEIGHT),
+                    modifier = containerModifier(200, 160),
                     contentAlignment = Alignment.BottomEnd,
                 ) {
                     SizedChild(0)
@@ -329,7 +329,7 @@ class BoxTest {
             }
 
             assertEquals(
-                listOf(Rectangle(BOX_WIDTH - CHILD_WIDTH, BOX_HEIGHT - CHILD_HEIGHT, CHILD_WIDTH, CHILD_HEIGHT)),
+                listOf(Rectangle(150, 120, CHILD_WIDTH, CHILD_HEIGHT)),
                 stackedChildBounds(),
                 "a child declaring no alignment of its own must sit where the box's alignment puts it",
             )
@@ -349,16 +349,16 @@ class BoxTest {
                 "the box must ask for the size its child prefers",
             )
 
-            width = BOX_WIDTH
+            width = 200
             awaitIdle()
 
             assertEquals(
-                Dimension(BOX_WIDTH, CHILD_HEIGHT),
+                Dimension(200, CHILD_HEIGHT),
                 containerPreferredSize(),
                 "a child that comes to prefer another size must carry the box's own size with it",
             )
             assertEquals(
-                listOf(Rectangle(0, 0, BOX_WIDTH, CHILD_HEIGHT)),
+                listOf(Rectangle(0, 0, 200, CHILD_HEIGHT)),
                 stackedChildBounds(),
                 "and must be laid out at the size it now prefers",
             )
@@ -369,19 +369,21 @@ class BoxTest {
         runComposeSwingTest {
             setContent {
                 Box(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
-                    Child(0, CHILD_WIDTH, BOX_HEIGHT, SwingModifier.minimumSize(SMALL_WIDTH, CHILD_HEIGHT))
-                    Child(1, BOX_WIDTH, CHILD_HEIGHT, SwingModifier.minimumSize(CHILD_WIDTH, SMALL_HEIGHT))
+                    // Each minimum is below the fixture child's own on one axis, so the largest minimum along
+                    // an axis is one child's and neither axis sums to it.
+                    Child(0, CHILD_WIDTH, 160, SwingModifier.minimumSize(20, CHILD_HEIGHT))
+                    Child(1, 200, CHILD_HEIGHT, SwingModifier.minimumSize(CHILD_WIDTH, 15))
                     Child(
                         index = 2,
-                        width = 2 * BOX_WIDTH,
-                        height = 2 * BOX_HEIGHT,
-                        modifier = SwingModifier.matchParentSize().minimumSize(2 * BOX_WIDTH, 2 * BOX_HEIGHT),
+                        width = 400,
+                        height = 320,
+                        modifier = SwingModifier.matchParentSize().minimumSize(400, 320),
                     )
                 }
             }
 
             assertEquals(
-                Dimension(BOX_WIDTH, BOX_HEIGHT),
+                Dimension(200, 160),
                 containerPreferredSize(),
                 "the box must prefer the largest child on each axis, and nothing of a matching child",
             )
@@ -401,12 +403,12 @@ class BoxTest {
     fun testBox_hasCorrectIntrinsicMeasurements_withNoAlignedChildren() =
         runComposeSwingTest {
             setContent {
-                Box(modifier = SwingModifier.testTag(CONTAINER_TAG).border(EmptyBorder(TOP, LEFT, BOTTOM, RIGHT))) {
-                    Child(0, BOX_WIDTH, BOX_HEIGHT, SwingModifier.matchParentSize())
+                Box(modifier = SwingModifier.testTag(CONTAINER_TAG).border(EmptyBorder(5, 10, 15, 20))) {
+                    Child(0, 200, 160, SwingModifier.matchParentSize())
                 }
             }
 
-            val insetsAlone = Dimension(LEFT + RIGHT, TOP + BOTTOM)
+            val insetsAlone = Dimension(30, 20)
             assertEquals(
                 insetsAlone,
                 containerPreferredSize(),
@@ -423,13 +425,13 @@ class BoxTest {
     fun aMatchingChildTakesTheBoxInsideItsInsets() =
         runComposeSwingTest {
             setContent {
-                Box(modifier = containerModifier(BOX_WIDTH, BOX_HEIGHT).border(EmptyBorder(TOP, LEFT, BOTTOM, RIGHT))) {
+                Box(modifier = containerModifier(200, 160).border(EmptyBorder(5, 10, 15, 20))) {
                     Child(0, CHILD_WIDTH, CHILD_HEIGHT, SwingModifier.matchParentSize())
                 }
             }
 
             assertEquals(
-                listOf(Rectangle(LEFT, TOP, BOX_WIDTH - LEFT - RIGHT, BOX_HEIGHT - TOP - BOTTOM)),
+                listOf(Rectangle(10, 5, 170, 140)),
                 stackedChildBounds(),
                 "a matching child must take the box inside its insets, not the box itself",
             )
@@ -440,7 +442,7 @@ class BoxTest {
         runComposeSwingTest {
             setContent {
                 Box(
-                    modifier = containerModifier(BOX_WIDTH, BOX_HEIGHT).border(EmptyBorder(TOP, LEFT, BOTTOM, RIGHT)),
+                    modifier = containerModifier(200, 160).border(EmptyBorder(5, 10, 15, 20)),
                     contentAlignment = Alignment.BottomEnd,
                 ) {
                     SizedChild(0)
@@ -450,8 +452,8 @@ class BoxTest {
             assertEquals(
                 listOf(
                     Rectangle(
-                        BOX_WIDTH - RIGHT - CHILD_WIDTH,
-                        BOX_HEIGHT - BOTTOM - CHILD_HEIGHT,
+                        130,
+                        105,
                         CHILD_WIDTH,
                         CHILD_HEIGHT,
                     ),
@@ -466,7 +468,7 @@ class BoxTest {
         runComposeSwingTest {
             setContent {
                 Box(
-                    modifier = containerModifier(BOX_WIDTH + 1, BOX_HEIGHT + 1),
+                    modifier = containerModifier(201, 161),
                     contentAlignment = Alignment.Center,
                 ) {
                     SizedChild(0)
@@ -485,14 +487,14 @@ class BoxTest {
         runComposeSwingTest {
             setContent {
                 Box(
-                    modifier = containerModifier(BOX_WIDTH, BOX_HEIGHT),
+                    modifier = containerModifier(200, 160),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Child(0, BOX_WIDTH, BOX_HEIGHT, matchingUpTo(CHILD_WIDTH, CHILD_HEIGHT))
+                    Child(0, 200, 160, matchingUpTo(CHILD_WIDTH, CHILD_HEIGHT))
                     Child(
                         index = 1,
-                        width = BOX_WIDTH,
-                        height = BOX_HEIGHT,
+                        width = 200,
+                        height = 160,
                         modifier = matchingUpTo(CHILD_WIDTH, CHILD_HEIGHT).align(Alignment.BottomEnd),
                     )
                 }
@@ -501,12 +503,12 @@ class BoxTest {
             assertEquals(
                 listOf(
                     Rectangle(
-                        (BOX_WIDTH - CHILD_WIDTH) / 2,
-                        (BOX_HEIGHT - CHILD_HEIGHT) / 2,
+                        75,
+                        60,
                         CHILD_WIDTH,
                         CHILD_HEIGHT,
                     ),
-                    Rectangle(BOX_WIDTH - CHILD_WIDTH, BOX_HEIGHT - CHILD_HEIGHT, CHILD_WIDTH, CHILD_HEIGHT),
+                    Rectangle(150, 120, CHILD_WIDTH, CHILD_HEIGHT),
                 ),
                 stackedChildBounds(),
                 "a matching child a maximum size holds back must sit where its own or the box's alignment puts it",
@@ -517,10 +519,10 @@ class BoxTest {
     fun aMatchingChildDoesNotDragTheBoxToTheExtentItsParentOffers() =
         runComposeSwingTest {
             setContent {
-                Column(modifier = SwingModifier.preferredSize(BOX_WIDTH, BOX_HEIGHT)) {
+                Column(modifier = SwingModifier.preferredSize(200, 160)) {
                     Box(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
                         Child(0, CHILD_WIDTH, CHILD_HEIGHT)
-                        Child(1, BOX_WIDTH, BOX_HEIGHT, SwingModifier.matchParentSize())
+                        Child(1, 200, 160, SwingModifier.matchParentSize())
                     }
                 }
             }
@@ -546,7 +548,7 @@ class BoxTest {
         runComposeSwingTest {
             setContent {
                 Box(
-                    modifier = containerModifier(BOX_WIDTH, BOX_HEIGHT),
+                    modifier = containerModifier(200, 160),
                     contentAlignment = Alignment.BottomEnd,
                 ) {
                     SizedChild(0, SwingModifier.align(Alignment.TopCenter))
@@ -554,7 +556,7 @@ class BoxTest {
             }
 
             assertEquals(
-                listOf(Rectangle((BOX_WIDTH - CHILD_WIDTH) / 2, 0, CHILD_WIDTH, CHILD_HEIGHT)),
+                listOf(Rectangle(75, 0, CHILD_WIDTH, CHILD_HEIGHT)),
                 stackedChildBounds(),
                 "an alignment a child declares must place it on both axes, leaving neither to the box",
             )
@@ -564,7 +566,7 @@ class BoxTest {
     fun aChildKeepsTheLastAlignmentItDeclares() =
         runComposeSwingTest {
             setContent {
-                Box(modifier = containerModifier(BOX_WIDTH, BOX_HEIGHT)) {
+                Box(modifier = containerModifier(200, 160)) {
                     SizedChild(0, SwingModifier.align(Alignment.BottomEnd).align(Alignment.TopStart))
                 }
             }
@@ -581,7 +583,7 @@ class BoxTest {
         runComposeSwingTest {
             var alignment by mutableStateOf(Alignment.TopStart)
             setContent {
-                Box(modifier = containerModifier(BOX_WIDTH, BOX_HEIGHT), contentAlignment = alignment) {
+                Box(modifier = containerModifier(200, 160), contentAlignment = alignment) {
                     SizedChild(0)
                 }
             }
@@ -596,7 +598,7 @@ class BoxTest {
             awaitIdle()
 
             assertEquals(
-                listOf(Rectangle(BOX_WIDTH - CHILD_WIDTH, BOX_HEIGHT - CHILD_HEIGHT, CHILD_WIDTH, CHILD_HEIGHT)),
+                listOf(Rectangle(150, 120, CHILD_WIDTH, CHILD_HEIGHT)),
                 stackedChildBounds(),
                 "the alignment declared on the next pass",
             )
@@ -608,7 +610,7 @@ class BoxTest {
             var alignment by mutableStateOf<Alignment?>(Alignment.TopEnd)
             setContent {
                 Box(
-                    modifier = containerModifier(BOX_WIDTH, BOX_HEIGHT),
+                    modifier = containerModifier(200, 160),
                     contentAlignment = Alignment.TopStart,
                 ) {
                     SizedChild(0, alignment?.let { SwingModifier.align(it) } ?: SwingModifier)
@@ -616,7 +618,7 @@ class BoxTest {
             }
 
             assertEquals(
-                listOf(Rectangle(BOX_WIDTH - CHILD_WIDTH, 0, CHILD_WIDTH, CHILD_HEIGHT)),
+                listOf(Rectangle(150, 0, CHILD_WIDTH, CHILD_HEIGHT)),
                 stackedChildBounds(),
                 "the alignment the child names for itself",
             )
@@ -624,7 +626,7 @@ class BoxTest {
             alignment = Alignment.TopCenter
             awaitIdle()
             assertEquals(
-                listOf(Rectangle((BOX_WIDTH - CHILD_WIDTH) / 2, 0, CHILD_WIDTH, CHILD_HEIGHT)),
+                listOf(Rectangle(75, 0, CHILD_WIDTH, CHILD_HEIGHT)),
                 stackedChildBounds(),
                 "the alignment the child names on the next pass",
             )
@@ -645,7 +647,7 @@ class BoxTest {
             setContent {
                 Box(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
                     Child(0, CHILD_WIDTH, CHILD_HEIGHT)
-                    Child(1, BOX_WIDTH, BOX_HEIGHT, if (matching) SwingModifier.matchParentSize() else SwingModifier)
+                    Child(1, 200, 160, if (matching) SwingModifier.matchParentSize() else SwingModifier)
                 }
             }
 
@@ -667,14 +669,14 @@ class BoxTest {
             awaitIdle()
 
             assertEquals(
-                Dimension(BOX_WIDTH, BOX_HEIGHT),
+                Dimension(200, 160),
                 containerSize(),
                 "with the match dropped the child is measured again and the box grows to what it prefers",
             )
             assertEquals(
                 listOf(
                     Rectangle(0, 0, CHILD_WIDTH, CHILD_HEIGHT),
-                    Rectangle(0, 0, BOX_WIDTH, BOX_HEIGHT),
+                    Rectangle(0, 0, 200, 160),
                 ),
                 stackedChildBounds(),
                 "and the child is laid out at that size rather than at the box's",
@@ -687,19 +689,19 @@ class BoxTest {
             setContent {
                 Box(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
                     Child(0, CHILD_WIDTH, CHILD_HEIGHT)
-                    Child(1, BOX_WIDTH, BOX_HEIGHT, SwingModifier.visible(false))
+                    Child(1, 200, 160, SwingModifier.visible(false))
                 }
             }
 
             assertEquals(
-                Dimension(BOX_WIDTH, BOX_HEIGHT),
+                Dimension(200, 160),
                 containerPreferredSize(),
                 "the box asks for what the child it hides prefers, the largest of the two",
             )
             assertEquals(
                 listOf(
                     Rectangle(0, 0, CHILD_WIDTH, CHILD_HEIGHT),
-                    Rectangle(0, 0, BOX_WIDTH, BOX_HEIGHT),
+                    Rectangle(0, 0, 200, 160),
                 ),
                 stackedChildBounds(),
                 "and places the hidden one at the extent it asked for, alongside the child it shows",
@@ -724,15 +726,15 @@ class BoxTest {
         runComposeSwingTest {
             setContent {
                 Box(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
-                    Child(0, BOX_WIDTH, BOX_HEIGHT)
+                    Child(0, 200, 160)
                     Child(1, CHILD_WIDTH, CHILD_HEIGHT, SwingModifier.fillMaxWidth())
                 }
             }
 
             assertEquals(
                 listOf(
-                    Rectangle(0, 0, BOX_WIDTH, BOX_HEIGHT),
-                    Rectangle(0, 0, BOX_WIDTH, CHILD_HEIGHT),
+                    Rectangle(0, 0, 200, 160),
+                    Rectangle(0, 0, 200, CHILD_HEIGHT),
                 ),
                 stackedChildBounds(),
                 "the filling child should take the box's width and the height it prefers",
@@ -840,26 +842,8 @@ class BoxTest {
     }
 
     private companion object {
-        /** The extent a box under test is given, wide and tall enough to place a fixture child within. */
-        const val BOX_WIDTH = 200
-        const val BOX_HEIGHT = 160
-
-        /** How far a matching child's own maximum size holds it back from the box's extent. */
-        const val INSET = 10
-
-        // A minimum below the fixture child's own on one axis each, so the largest minimum along an
-        // axis is one child's and neither axis sums to it.
-        const val SMALL_WIDTH = 20
-        const val SMALL_HEIGHT = 15
-
         /** How many fixture children fit along either axis of the box the alignment grid is placed in. */
         const val STACKED = 3
-
-        // The four insets of the border a box is given, each different, so no two can be mistaken.
-        const val TOP = 5
-        const val LEFT = 10
-        const val BOTTOM = 15
-        const val RIGHT = 20
     }
 }
 

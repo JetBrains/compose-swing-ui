@@ -11,6 +11,9 @@ import androidx.compose.runtime.snapshots.Snapshot
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
+import org.jetbrains.compose.swing.foundation.graphics.Brush
+import org.jetbrains.compose.swing.foundation.graphics.background
+import org.jetbrains.compose.swing.foundation.graphics.decorated
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.opaque
@@ -80,6 +83,68 @@ class PlacementZIndexTest {
                 onNodeWithTag("lifted").fetch<Component>(),
                 SwingUtilities.getDeepestComponentAt(container, CHILD_WIDTH / 2, CHILD_HEIGHT / 2),
                 "a press where the children overlap must reach the child placed relative at the larger zIndex",
+            )
+        }
+
+    @Test
+    fun aLayoutNodePlacingWithALayerAddsItsZIndex() =
+        runComposeSwingTest {
+            setContent {
+                Layout(
+                    content = {
+                        Box(
+                            modifier =
+                                decorated {
+                                    SwingModifier
+                                        .testTag("lifted")
+                                        .then(ZIndexLayerElement(zIndex = 1f))
+                                        .background(Brush.of(Color.RED))
+                                },
+                        )
+                        Box(modifier = decorated { SwingModifier.background(Brush.of(Color.BLUE)) })
+                    },
+                    measurePolicy = overlapping { 0f },
+                    modifier = containerModifier(CHILD_WIDTH, CHILD_HEIGHT),
+                )
+            }
+
+            val container = onNodeWithTag(CONTAINER_TAG)
+            assertEquals(
+                Color.RED.rgb,
+                container.captureToImage().getRGB(CHILD_WIDTH / 2, CHILD_HEIGHT / 2),
+                "the child a layer lifts must paint over the one declared after it",
+            )
+            assertEquals(
+                onNodeWithTag("lifted").fetch<Component>(),
+                SwingUtilities.getDeepestComponentAt(container.fetch<Component>(), CHILD_WIDTH / 2, CHILD_HEIGHT / 2),
+                "a press where the children overlap must reach the child a layer lifts",
+            )
+        }
+
+    @Test
+    fun aChildItsContainerPlacesWithALayerAtAHigherZIndexPaintsOnTopAndTakesThePress() =
+        runComposeSwingTest {
+            setContent {
+                Layout(
+                    content = {
+                        Box(modifier = decorated { SwingModifier.testTag("lifted").background(Brush.of(Color.RED)) })
+                        Box(modifier = decorated { SwingModifier.background(Brush.of(Color.BLUE)) })
+                    },
+                    measurePolicy = overlapping(layered = true) { index -> if (index == 0) 1f else 0f },
+                    modifier = containerModifier(CHILD_WIDTH, CHILD_HEIGHT),
+                )
+            }
+
+            val container = onNodeWithTag(CONTAINER_TAG)
+            assertEquals(
+                Color.RED.rgb,
+                container.captureToImage().getRGB(CHILD_WIDTH / 2, CHILD_HEIGHT / 2),
+                "the child placed with a layer at the larger zIndex must paint over the one declared after it",
+            )
+            assertEquals(
+                onNodeWithTag("lifted").fetch<Component>(),
+                SwingUtilities.getDeepestComponentAt(container.fetch<Component>(), CHILD_WIDTH / 2, CHILD_HEIGHT / 2),
+                "a press where the children overlap must reach the child placed with a layer at the larger zIndex",
             )
         }
 
@@ -178,14 +243,40 @@ private fun InsetOverlappingChildren(zIndexOf: (Int) -> Float) {
 private fun filled(color: Color): SwingModifier =
     SwingModifier.opaque(true).background(color).preferredSize(CHILD_WIDTH, CHILD_HEIGHT)
 
+/** Places its content with an empty layer at the reported [zIndex], to pin a layer's contribution to the stack. */
+private data class ZIndexLayerElement(
+    private val zIndex: Float,
+) : LayoutModifierNodeElement<ZIndexLayerNode>() {
+    override fun create(): ZIndexLayerNode = ZIndexLayerNode(zIndex)
+
+    override fun update(node: ZIndexLayerNode) = Unit
+}
+
+private class ZIndexLayerNode(
+    private val zIndex: Float,
+) : LayoutModifierNode() {
+    override val name: String get() = "zIndexLayer"
+
+    override val declaredValues: Map<String, Any?> get() = emptyMap()
+
+    override fun MeasureScope.measure(
+        measurable: Measurable,
+        constraints: Constraints,
+    ): MeasureResult {
+        val placeable = measurable.measure(constraints)
+        return layout(placeable.width, placeable.height) { placeable.placeWithLayer(0, 0, zIndex, layerBlock = {}) }
+    }
+}
+
 /**
  * Places every child at [inset] from the container's origin, from its leading edge where [relative], each at the
- * z-index [zIndexOf] names for its declaration index, in a container leaving
+ * z-index [zIndexOf] names for its declaration index, with an empty layer where [layered], in a container leaving
  * [inset] around them.
  */
 private fun overlapping(
     inset: Int = 0,
     relative: Boolean = false,
+    layered: Boolean = false,
     zIndexOf: (Int) -> Float,
 ): MeasurePolicy =
     MeasurePolicy { measurables, _ ->
@@ -197,7 +288,9 @@ private fun overlapping(
             }
         layout(CHILD_WIDTH + 2 * inset, CHILD_HEIGHT + 2 * inset) {
             placeables.forEachIndexed { index, placeable ->
-                if (relative) {
+                if (layered) {
+                    placeable.placeWithLayer(inset, inset, zIndexOf(index)) {}
+                } else if (relative) {
                     placeable.placeRelative(inset, inset, zIndexOf(index))
                 } else {
                     placeable.place(inset, inset, zIndexOf(index))

@@ -75,6 +75,31 @@ class ConstrainedScopeCompilationTest {
         ).assertRejected(listOf("ConstrainedScope", "HalfWidth"))
     }
 
+    @Test
+    fun clipToBoundsResolvesWhereConstrainedScopeDoes() {
+        compile(
+            """
+            @Composable
+            fun Clipped() {
+                Row { Box(modifier = SwingModifier.clipToBounds()) {} }
+                Column { Box(modifier = SwingModifier.clipToBounds()) {} }
+                Box { Box(modifier = SwingModifier.clipToBounds()) {} }
+                Layout(measurePolicy = { _, _ -> layout(0, 0) {} }) {
+                    Box(modifier = SwingModifier.clipToBounds())
+                }
+            }
+            """,
+        ).assertCompiled()
+        compile(
+            """
+            @Composable
+            fun Root() {
+                Box(modifier = SwingModifier.clipToBounds())
+            }
+            """,
+        ).assertRejected(listOf("ConstrainedScope"))
+    }
+
     private companion object {
         /**
          * A layout modifier of the caller's own declared through the `layout` member, and one written as a

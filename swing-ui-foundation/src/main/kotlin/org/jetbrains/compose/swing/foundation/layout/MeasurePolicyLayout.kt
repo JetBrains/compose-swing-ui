@@ -1,6 +1,9 @@
 package org.jetbrains.compose.swing.foundation.layout
 
 import androidx.compose.runtime.snapshots.Snapshot
+import org.jetbrains.compose.swing.foundation.graphics.Decoratable
+import org.jetbrains.compose.swing.foundation.graphics.NoPaintOutsets
+import org.jetbrains.compose.swing.foundation.graphics.publishSteps
 import org.jetbrains.compose.swing.foundation.util.fastForEach
 import org.jetbrains.compose.swing.layout.MeasurementLayoutManager
 import org.jetbrains.compose.swing.layout.ParentLayoutElement
@@ -9,6 +12,7 @@ import java.awt.ComponentOrientation
 import java.awt.Container
 import java.awt.Dimension
 import java.awt.LayoutManager2
+import java.awt.Rectangle
 import java.util.EnumSet
 import java.util.IdentityHashMap
 import java.util.function.BiConsumer
@@ -90,6 +94,10 @@ internal class MeasurePolicyLayout(
     }
 
     override fun invalidateLayout(target: Container) {
+        // Invalidation reaches a valid parent on its own but schedules no layout pass, and a child that is
+        // its own validate root, such as a JTextField, schedules the validation of itself alone. Revalidating
+        // the parent schedules the pass that measures this container again; revalidating the target itself
+        // would call back here.
         if (measurables.invalidate()) target.parent?.revalidate()
     }
 
@@ -129,9 +137,10 @@ internal class MeasurePolicyLayout(
             ?.alignmentY ?: Component.CENTER_ALIGNMENT
 
     override fun layoutContainer(parent: Container) {
-        val insets = parent.insets
-        val width = innerExtent(parent.width, insets.left, insets.right)
-        val height = innerExtent(parent.height, insets.top, insets.bottom)
+        val panel = measurables.panel
+        val insets = panel.insets
+        val width = innerExtent(panel.decoration.layoutWidth(panel), insets.left, insets.right)
+        val height = innerExtent(panel.decoration.layoutHeight(panel), insets.top, insets.bottom)
         // A placement read's pass over a container still valid places its latest result at the size it holds again,
         // without running the policy: a parent may have measured it again since without laying it out. A container
         // invalidated since, by a child added or removed or a size changed, has a validation coming, and is measured
@@ -250,7 +259,7 @@ internal class ChildMeasurables(
     fun of(child: Component): ChildMeasurable =
         measurables.getOrPut(child) {
             measured = null
-            ChildMeasurable(child, this)
+            ChildMeasurable(child, this, child as? Decoratable, child as? Constrainable)
         }
 
     /** The measurable for [child], or null where this container has made none. */
@@ -271,10 +280,18 @@ internal class ChildMeasurables(
     /** Whether a child was placed at a z-index other than the one it was last placed with. */
     var zIndexChanged: Boolean = false
 
-    /** Gives up the measurable for [child], for a child leaving the container. */
+    /**
+     * Gives up the measurable for [child], for a child leaving the container, and the layer the container placed it
+     * with.
+     */
     fun forget(child: Component) {
         val measurable = measurables.remove(child) ?: return
         layoutPass.remove(measurable)
+        measurable.decoratable?.let {
+            val steps = it.decoration.steps
+            steps.containerLayer?.placedWithoutLayer()
+            publishSteps(it, steps.inContainerLayer(null))
+        }
         measurable.forEachLayoutNode { if (it.child === measurable) it.child = null }
         measured = null
     }
@@ -329,7 +346,7 @@ internal class ChildMeasurables(
     }
 
     /**
-     * What the policy asks for in [mode], plus the insets the policy measured inside.
+     * What the policy asks for in [mode], plus the panel's insets, as any Swing layout manager adds them.
      *
      * Swing asks for both axes at once and supplies no cross-axis extent. It therefore combines the
      * two matching CMP intrinsic hooks with an unbounded opposite axis: min hooks for a Swing
@@ -455,6 +472,10 @@ internal class ChildMeasurable(
     /** The component this stands for, which the container's own policy reads properties of. */
     val component: Component,
     internal val owner: ChildMeasurables,
+    /** [component] itself, where it is a [Decoratable]. */
+    val decoratable: Decoratable?,
+    /** [component] itself, where it answers constraints on its own. */
+    val constrainable: Constrainable?,
 ) : Measurable {
     override var parentData: Any? = null
 
@@ -471,7 +492,7 @@ internal class ChildMeasurable(
     var outerMeasurable: Measurable? = null
         private set
 
-    /** The z-index this child was last placed with, summed over its container and layout modifiers. */
+    /** The z-index this child was last placed with, summed over its container and its layout modifiers. */
     var zIndex: Float = 0f
 
     internal var preferred: Dimension? = null
@@ -536,7 +557,6 @@ internal class ChildMeasurable(
 
     /** What the component itself answers under [constraints], with no chain between. */
     internal fun measureUnmodified(constraints: Constraints): ChildPlaceable {
-        val constrainable = component as? Constrainable
         if (constrainable != null) {
             constrainable.measure(constraints)
             return ChildPlaceable(
@@ -544,7 +564,7 @@ internal class ChildMeasurable(
                 constrainable.constrainedWidth,
                 constrainable.constrainedHeight,
                 constraints,
-                if (component !is ConstrainedPanel) constrainable.alignmentLines else emptyMap(),
+                if (decoratable?.decoration?.childMeasurables == null) constrainable.alignmentLines else emptyMap(),
             )
         }
         // Swing has no constrained-measure operation for an ordinary component.  When both axes
@@ -606,6 +626,14 @@ internal class ChildMeasurable(
         owner.updateParentData(component, parentData)
         if (changed) owner.measured = null
     }
+
+    /** The width of the child's layout bounds. */
+    val layoutWidth: Int
+        get() = decoratable?.decoration?.layoutWidth(component) ?: component.width
+
+    /** The height of the child's layout bounds. */
+    val layoutHeight: Int
+        get() = decoratable?.decoration?.layoutHeight(component) ?: component.height
 }
 
 private fun ChildMeasurable.preferredExtent(): Dimension =
@@ -614,6 +642,18 @@ private fun ChildMeasurable.preferredExtent(): Dimension =
     } else {
         component.preferredSize
     }
+
+/**
+ * [ChildMeasurable.decoratable], or throws where [ChildMeasurable.component] does not paint through a decoration.
+ *
+ * @throws IllegalStateException if the component is not a [Decoratable].
+ */
+internal val ChildMeasurable.requireDecoratable: Decoratable
+    get() =
+        checkNotNull(decoratable) {
+            "A decoration step requires a ${Decoratable::class.java.name} target, but the component is a " +
+                "${component.javaClass.name}"
+        }
 
 /** Runs [action] on each layout modifier node this child is measured through, outermost first. */
 private inline fun ChildMeasurable.forEachLayoutNode(action: (LayoutModifierNode) -> Unit) {
@@ -653,18 +693,17 @@ private class UnmodifiedChildMeasurable(
  * [FirstBaseline], read from the component itself, answers a line read of it.
  */
 private class UnmodifiedIntrinsicPlaceable(
-    override val child: ChildMeasurable,
+    private val child: ChildMeasurable,
     override val measuredWidth: Int,
     override val measuredHeight: Int,
 ) : Placeable() {
     override val width: Int = measuredWidth
     override val height: Int = measuredHeight
 
-    override fun placeAt(
-        x: Long,
-        y: Long,
-        zIndex: Float,
-    ): Unit = Unit
+    override fun get(alignmentLine: AlignmentLine): Int {
+        child.recordLineRead()
+        return super.get(alignmentLine)
+    }
 
     override fun alignmentLineAt(
         alignmentLine: AlignmentLine,
@@ -687,6 +726,7 @@ private class LayoutModifierMeasurable(
 
     override fun measure(constraints: Constraints): Placeable =
         LayoutModifierPlaceable(
+            modifier,
             with(PolicyMeasureScope) { with(modifier) { measure(measurable, constraints) } },
             constraints,
             placement.owner.panel.componentOrientation.isLeftToRight,
@@ -726,20 +766,22 @@ internal class ChildPlaceable(
     override val measuredHeight: Int,
     constraints: Constraints,
     private var cachedLines: Map<AlignmentLine, Int>,
-) : Placeable() {
+) : PlacedPlaceable() {
     /** The [generation][LineMergingPlacementScope.generation] [cachedLines] were worked out at. */
     private var linesGeneration = Int.MIN_VALUE
 
     private val lines: Map<AlignmentLine, Int>
         get() {
-            val held = (child.component as? ConstrainedPanel)?.policyLayout?.measurables ?: return cachedLines
+            val held = child.decoratable?.decoration?.childMeasurables ?: return cachedLines
             val generation = held.lineScope.generation
             if (generation != linesGeneration && held.measured != null) {
                 linesGeneration = generation
-                cachedLines = (child.component as Constrainable).alignmentLines
+                cachedLines = checkNotNull(child.constrainable).alignmentLines
             }
             return cachedLines
         }
+
+    override val node: LayoutModifierNode? get() = null
 
     override val width: Int = constraints.constrainWidth(measuredWidth)
 
@@ -755,16 +797,20 @@ internal class ChildPlaceable(
             child.owner.zIndexChanged = true
         }
         val component = child.component
-        val resized = component.width != measuredWidth || component.height != measuredHeight
+        val resized = child.layoutWidth != measuredWidth || child.layoutHeight != measuredHeight
         // A constrainable child answers its constraints whatever its size.
-        val readable = resized && component !is Constrainable
+        val readable = resized && child.constrainable == null
         val read = if (readable) child.preferredAtOldSize() else null
         if (resized) child.preferred = null
+        val placedX = saturateLayoutCoordinate(x + centeredOverflowOffset(width, measuredWidth))
+        val placedY = saturateLayoutCoordinate(y + centeredOverflowOffset(height, measuredHeight))
+        val origin = child.owner.panel.decoration.heldPaintOutsets
+        val outsets = child.decoratable?.decoration?.heldPaintOutsets ?: NoPaintOutsets
         component.setBounds(
-            saturateLayoutCoordinate(x + centeredOverflowOffset(width, measuredWidth)),
-            saturateLayoutCoordinate(y + centeredOverflowOffset(height, measuredHeight)),
-            measuredWidth,
-            measuredHeight,
+            placedX + origin.left - outsets.left,
+            placedY + origin.top - outsets.top,
+            measuredWidth.grownBy(outsets.left + outsets.right),
+            measuredHeight.grownBy(outsets.top + outsets.bottom),
         )
         if (readable && child.answersOtherwiseThan(read)) child.owner.measured = null
         child.placedInRun = child.owner.placementRun
@@ -845,11 +891,12 @@ private fun ChildMeasurable.answersOtherwiseThan(read: Dimension?): Boolean =
 
 /** A [MeasureResult] held with the reading order it must replay its placement under. */
 private class LayoutModifierPlaceable(
+    override val node: LayoutModifierNode,
     private val result: MeasureResult,
     constraints: Constraints,
     private val leftToRight: Boolean,
     override val child: ChildMeasurable,
-) : Placeable() {
+) : PlacedPlaceable() {
     override val measuredWidth: Int get() = result.width
     override val measuredHeight: Int get() = result.height
     override val width: Int = constraints.constrainWidth(measuredWidth)
@@ -862,8 +909,19 @@ private class LayoutModifierPlaceable(
     ) {
         val originX = x + centeredOverflowOffset(width, measuredWidth)
         val originY = y + centeredOverflowOffset(height, measuredHeight)
-        val scope = NodePlacementScope(originX, originY, measuredWidth, leftToRight, zIndex)
+        val scope = NodePlacementScope(originX, originY, measuredWidth, leftToRight, zIndex, node)
         with(result) { scope.placeChildren() }
+        // The component's layout origin, in the coordinates of its container's layout, once the content inside
+        // this node is placed.
+        val outsets = child.decoratable?.decoration?.heldPaintOutsets ?: return
+        val origin = child.owner.panel.decoration.heldPaintOutsets
+        val box = node.box ?: Rectangle().also { node.box = it }
+        box.setBounds(
+            saturateLayoutCoordinate(originX) - (child.component.x + outsets.left - origin.left),
+            saturateLayoutCoordinate(originY) - (child.component.y + outsets.top - origin.top),
+            measuredWidth,
+            measuredHeight,
+        )
     }
 
     /** The modifier's own [alignmentLine] where its result names one, and the content's otherwise. */
@@ -893,20 +951,24 @@ internal fun centeredOverflowOffset(
     measured: Int,
 ): Long = (apparent.toLong() - measured.toLong()) / 2L
 
-/** Replays a [LayoutModifierNode]'s result into the coordinate system of the enclosing node or parent. */
+/**
+ * Replays a [LayoutModifierNode]'s result into the coordinate system of the enclosing node or parent, placing with
+ * the layer [layoutNode] owns.
+ */
 private class NodePlacementScope(
     private val originX: Long,
     private val originY: Long,
     override val parentWidth: Int,
     override val isLeftToRight: Boolean,
     private val zIndex: Float,
+    private val layoutNode: LayoutModifierNode,
 ) : PlacementScope() {
     override fun Placeable.place(
         x: Int,
         y: Int,
         zIndex: Float,
     ) {
-        placeAt(originX + x.toLong(), originY + y.toLong(), this@NodePlacementScope.zIndex + zIndex)
+        placeWithoutLayer(x.toLong(), y, zIndex)
     }
 
     override fun Placeable.placeRelative(
@@ -914,7 +976,59 @@ private class NodePlacementScope(
         y: Int,
         zIndex: Float,
     ) {
-        placeAt(originX + relativeX(this, x), originY + y.toLong(), this@NodePlacementScope.zIndex + zIndex)
+        placeWithoutLayer(relativeX(this, x), y, zIndex)
+    }
+
+    /**
+     * @throws IllegalStateException if the node holds a decorator, or the component placed is not a [Decoratable].
+     */
+    override fun Placeable.placeWithLayer(
+        x: Int,
+        y: Int,
+        zIndex: Float,
+        layerBlock: PlacementLayerScope.() -> Unit,
+    ) {
+        if (this !is PlacedPlaceable) return
+        val layer = layoutNode.layer
+        val standing = layoutNode.decorationStep
+        check(standing == null || standing === layer) {
+            "A layout node holding a decorator cannot place its content with a layer, which paints in the " +
+                "decorator's place. Declare the decorator on a node of its own."
+        }
+        child.requireDecoratable
+        val changed =
+            layer.placeContent(node, layerBlock) {
+                placeAt(
+                    originX + x,
+                    originY + y,
+                    this@NodePlacementScope.zIndex + zIndex,
+                )
+            }
+        // Painting it again regathers the decoration, so this skips the placement it is already placed with.
+        if (standing !== layer) layoutNode.paintWith(layer)
+        if (changed) child.component.repaint()
+    }
+
+    /**
+     * Places the content plainly, clearing the decorator the node holds from placing it with a layer before, and
+     * repainting its component.
+     */
+    private fun Placeable.placeWithoutLayer(
+        x: Long,
+        y: Int,
+        zIndex: Float,
+    ) {
+        if (this !is PlacedPlaceable) return
+        placeAt(
+            originX + x,
+            originY + y,
+            this@NodePlacementScope.zIndex + zIndex,
+        )
+        if (layoutNode.layerOrNull?.placedWithoutLayer() == true) {
+            // A node attached again starts without the layer, and may hold a decorator of its own by now.
+            if (layoutNode.decorationStep === layoutNode.layer) layoutNode.paintWith(null)
+            child.component.repaint()
+        }
     }
 }
 
@@ -958,7 +1072,7 @@ internal class InnerPlacementScope : PlacementScope() {
         y: Int,
         zIndex: Float,
     ) {
-        placeOnce(originX.toLong() + x.toLong(), originY.toLong() + y.toLong(), zIndex)
+        placeOnce(originX.toLong() + x.toLong(), originY.toLong() + y.toLong(), zIndex, null)
     }
 
     override fun Placeable.placeRelative(
@@ -966,20 +1080,62 @@ internal class InnerPlacementScope : PlacementScope() {
         y: Int,
         zIndex: Float,
     ) {
-        placeOnce(originX.toLong() + relativeX(this, x), originY.toLong() + y.toLong(), zIndex)
+        placeOnce(originX.toLong() + relativeX(this, x), originY.toLong() + y.toLong(), zIndex, null)
     }
 
-    /** Places the child at ([x], [y]) at [zIndex] among its siblings. */
+    /** @throws IllegalStateException if the component placed is not a [Decoratable]. */
+    override fun Placeable.placeWithLayer(
+        x: Int,
+        y: Int,
+        zIndex: Float,
+        layerBlock: PlacementLayerScope.() -> Unit,
+    ) {
+        placeOnce(originX.toLong() + x.toLong(), originY.toLong() + y.toLong(), zIndex, layerBlock)
+    }
+
+    /** @throws IllegalStateException if the component placed is not a [Decoratable]. */
+    override fun Placeable.placeRelativeWithLayer(
+        x: Int,
+        y: Int,
+        zIndex: Float,
+        layerBlock: PlacementLayerScope.() -> Unit,
+    ) {
+        placeOnce(originX.toLong() + relativeX(this, x), originY.toLong() + y.toLong(), zIndex, layerBlock)
+    }
+
+    /**
+     * Places the child at ([x], [y]), inside a layer that [layerBlock] sets, outside every step of its own modifier,
+     * or without one where it is null, which removes the layer it was placed with before.
+     */
     private fun Placeable.placeOnce(
         x: Long,
         y: Long,
         zIndex: Float,
+        layerBlock: (PlacementLayerScope.() -> Unit)?,
     ) {
-        if (this !is ChildPlaceable && this !is LayoutModifierPlaceable) return
+        if (this !is PlacedPlaceable) return
+        val child = this.child
         check(!child.isPlacedByParent) {
             "Place was called on a node which was placed already"
         }
-        placeAt(x, y, zIndex)
+        if (layerBlock == null) {
+            placeAt(x, y, zIndex)
+            child.decoratable?.decoration?.steps?.containerLayer?.let {
+                if (it.placedWithoutLayer()) child.paintInContainerLayer(null)
+            }
+        } else {
+            val decoratable = child.requireDecoratable
+            val layer = decoratable.decoration.steps.containerLayer ?: PlacementLayer(null, child)
+            val changed = layer.placeContent(node, layerBlock) { placeAt(x, y, zIndex) }
+            if (decoratable.decoration.steps.containerLayer !== layer) child.paintInContainerLayer(layer)
+            if (changed) child.component.repaint()
+        }
+    }
+
+    /** Paints this child inside [layer], outside every step of its own modifier, or without such a layer for null. */
+    private fun ChildMeasurable.paintInContainerLayer(layer: PlacementLayer?) {
+        val decoratable = decoratable ?: return
+        publishSteps(decoratable, decoratable.decoration.steps.inContainerLayer(layer))
     }
 }
 

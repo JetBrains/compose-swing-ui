@@ -7,6 +7,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertAskedToRepaint
 import org.jetbrains.compose.swing.foundation.graphics.drawscope.ContentDrawScope
+import org.jetbrains.compose.swing.foundation.layout.Row
+import org.jetbrains.compose.swing.foundation.layout.placementLayer
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
@@ -237,6 +239,48 @@ class DecorationModifierNodeTest {
 
             assertEquals(Decoration.None, panel.decoration, "The deactivated component holds no decoration.")
             assertEquals(undecorated, panel.isOpaque, "and answers isOpaque as it did before the step.")
+        }
+
+    @Test
+    fun aLayerAndAClipOnAnOpaquePanelLeaveTogetherWithoutARestoreFailure() =
+        runComposeSwingTest {
+            setContent {
+                Row {
+                    SwingNode(
+                        factory = { DecoratedPanel() },
+                        modifier =
+                            SwingModifier
+                                .placementLayer { alpha = 0.5f }
+                                .testTag("subject")
+                                .preferredSize(60, 60)
+                                .clip(CircleShape, antialias = true),
+                    )
+                }
+            }
+
+            // The panel leaves with the composition, whose teardown holds each departing step to the restore check.
+            val panel = onNodeWithTag("subject").fetch<DecoratedPanel>()
+            assertFalse(panel.isOpaque, "A faded, clipped panel is not opaque.")
+        }
+
+    @Test
+    fun aClipLeavingAPanelThatALayerStillFadesIsNotOwedItsOpacity() =
+        runComposeSwingTest {
+            var clipped by mutableStateOf(true)
+            setContent {
+                Row {
+                    val sized = SwingModifier.placementLayer { alpha = 0.5f }.testTag("subject").preferredSize(60, 60)
+                    SwingNode(
+                        factory = { DecoratedPanel() },
+                        modifier = if (clipped) sized.clip(CircleShape, antialias = true) else sized,
+                    )
+                }
+            }
+
+            clipped = false
+            awaitIdle()
+
+            assertFalse(onNodeWithTag("subject").fetch<DecoratedPanel>().isOpaque, "The layer still fades the panel.")
         }
 
     @Test

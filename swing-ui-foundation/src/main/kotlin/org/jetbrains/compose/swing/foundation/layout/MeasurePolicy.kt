@@ -176,21 +176,12 @@ internal class IntrinsicPlaceable(
 ) : Placeable() {
     override val width: Int = measuredWidth.coerceAtLeast(0)
     override val height: Int = measuredHeight.coerceAtLeast(0)
-    override val child: ChildMeasurable get() = error("IntrinsicPlaceable is never placed")
-
-    override fun placeAt(
-        x: Long,
-        y: Long,
-        zIndex: Float,
-    ): Unit = error("IntrinsicPlaceable is never placed")
 
     override fun alignmentLineAt(
         alignmentLine: AlignmentLine,
         x: Long,
         y: Long,
     ): Int = AlignmentLine.UNSPECIFIED
-
-    override fun get(alignmentLine: AlignmentLine): Int = AlignmentLine.UNSPECIFIED
 }
 
 /** CMP's finite replacement for an intrinsic axis a policy was not asked to determine. */
@@ -295,9 +286,13 @@ private class StandalonePlacementScope(
         y: Int,
         zIndex: Float,
     ) {
+        if (this !is PlacedPlaceable) return
         placeAt(x.toLong(), y.toLong(), zIndex)
     }
 }
+
+/** The [PlacementScope.placeWithLayer] and [PlacementScope.placeRelativeWithLayer] default: a layer at its defaults. */
+private val DefaultLayerBlock: PlacementLayerScope.() -> Unit = {}
 
 /**
  * The receiver a [MeasureResult] places its children in, from a [MeasurePolicy] or a [LayoutModifierNode].
@@ -317,8 +312,10 @@ public sealed class PlacementScope {
      *
      * @param x where the child's left edge lands, from the container's inner left edge
      * @param y where the child's top edge lands, from the container's inner top edge
-     * @param zIndex the child's place in its container's paint and hit-testing order; larger values paint on top.
-     *   A layout modifier placing its content adds its value to this one.
+     * @param zIndex the child's place in its container's paint and hit-testing order: a child placed
+     *   with a larger value paints over, and receives a mouse event before, every sibling placed with a
+     *   smaller one. Siblings placed with the same value keep the order they are declared in. A layout
+     *   modifier placing its content adds its value to this one.
      */
     public abstract fun Placeable.place(
         x: Int,
@@ -338,6 +335,51 @@ public sealed class PlacementScope {
         y: Int,
         zIndex: Float = 0f,
     ): Unit = place(saturateLayoutCoordinate(relativeX(this, x)), y, zIndex)
+
+    /**
+     * Places the child at [x] from the left edge, whatever the orientation, with a layer whose properties
+     * [layerBlock] sets, as androidx's `placeWithLayer` does. Placing the child without a layer on a later pass
+     * removes the layer.
+     *
+     * A [MeasurePolicy]'s layer wraps the child's whole decoration, outside every step of its own modifier, and
+     * covers the extent the child measured to. A [LayoutModifierNode]'s layer paints in the place of the node's
+     * [decorator][LayoutModifierNode.decorator], at the node's position in the modifier: a decoration declared
+     * before the node paints outside the layer, and one declared after it paints inside. Placing with a layer
+     * fails while the node holds a decorator, and where the component placed is not a
+     * [Decoratable][org.jetbrains.compose.swing.foundation.graphics.Decoratable]. A placement that only replays
+     * where the children go, such as [MeasureResult.placeChildren] or an alignment-line query, places the child
+     * without a layer.
+     *
+     * A state read in [layerBlock] repaints the component without measuring it again. Placing with a different
+     * block instance repaints the component; pass the same instance to avoid that.
+     *
+     * @param x where the child's left edge lands, from the container's inner left edge
+     * @param y where the child's top edge lands, from the container's inner top edge
+     * @param zIndex the child's place in its container's paint and hit-testing order; see [place].
+     * @param layerBlock sets the layer's properties; a layer at its defaults when omitted
+     */
+    public open fun Placeable.placeWithLayer(
+        x: Int,
+        y: Int,
+        zIndex: Float = 0f,
+        layerBlock: PlacementLayerScope.() -> Unit = DefaultLayerBlock,
+    ): Unit = place(x, y, zIndex)
+
+    /**
+     * Places the child at [x] from the leading edge, mirroring under a right-to-left parent, with a layer
+     * whose properties [layerBlock] sets; see [placeWithLayer].
+     *
+     * @param x where the child's leading edge lands, from the container's inner leading edge
+     * @param y where the child's top edge lands, from the container's inner top edge
+     * @param zIndex the child's place in its container's paint and hit-testing order; see [place].
+     * @param layerBlock sets the layer's properties; a layer at its defaults when omitted
+     */
+    public open fun Placeable.placeRelativeWithLayer(
+        x: Int,
+        y: Int,
+        zIndex: Float = 0f,
+        layerBlock: PlacementLayerScope.() -> Unit = DefaultLayerBlock,
+    ): Unit = placeWithLayer(saturateLayoutCoordinate(relativeX(this, x)), y, zIndex, layerBlock)
 
     /** Where [x] from the leading edge lands from the left edge of this scope, as wide as [parentWidth]. */
     internal fun relativeX(

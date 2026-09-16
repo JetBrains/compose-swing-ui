@@ -58,7 +58,7 @@ internal val BoxParentDataProtocol: LayoutParentDataProtocol =
             parentData: Any?,
         ) = require(parentData == null || parentData is BoxConstraint) {
             "A Box places a child by the alignment it is declared with, and by align() / " +
-                "matchParentSize() / zIndex() on the child's own modifier, so '$component' can carry no " +
+                "matchParentSize() on the child's own modifier, so '$component' can carry no " +
                 "layout constraint, but it was added under '$parentData'."
         }
     }

@@ -289,6 +289,10 @@ container offers these scopes:
 | `Box` | `BoxScope`, `ConstrainedScope` |
 | `Layout` | `ConstrainedScope` |
 
+`weight`, `align`, `alignBy`, `alignByBaseline` and `matchParentSize` are members of `RowScope`, `ColumnScope`
+and `BoxScope`; layout modifiers need `ConstrainedScope`; drawing modifiers and decorations need no scope, but their
+component must be `Decoratable`; `clipToBounds` needs `ConstrainedScope` and a `Decoratable` component.
+
 A container's scopes hide the scopes of the containers around it: a label in a `Box` inside a `Row`
 cannot declare the row's `weight`. The content of `setContent` and of a Swing container, such as a `Panel`, a
 `ToolBar`, a `Window` or a `SwingNode` container, offers none of these either, because the layout manager placing
@@ -403,7 +407,7 @@ the modifier, without reserving space. `SwingModifier.drawWithContent { ... }` e
 so the block can choose where that content is painted. Both observe state read by the drawing block and
 require `Decoratable`.
 
-### Brushes and shapes
+### Brushes, shapes and transform origins
 
 `Brush` is a size-aware fill. Use `Brush.of(paint)` for a fixed Java2D `Paint`, or use one of the
 gradient factories: `horizontalGradient`, `verticalGradient`, `linearGradient` and
@@ -419,6 +423,9 @@ provides `RectangleShape`, `CircleShape` and `RoundedCornerShape`; `Shape.of(awt
 caller-owned `java.awt.Shape` whose coordinates do not change with the component's size. A custom
 shape implements `outline(width, height)` and returns an outline relative to the decorated box's
 top-left corner.
+
+`TransformOrigin` names a pivot as fractions of a box; `TransformOrigin.Center` is the default. A
+[placed child's transform](#transforming-a-placed-child) turns and scales around it.
 
 ### Decorations
 
@@ -468,6 +475,18 @@ fun PaddedCard() {
 
 <!--- KNIT example-foundation-card-01.kt -->
 
+### Transforming a placed child
+
+In a `PlacementScope`, `placeWithLayer` and `placeRelativeWithLayer` fade, scale, rotate and clip the placed child;
+`clipToBounds()` is built on them. A `MeasurePolicy`'s layer wraps the child's whole decoration, outside every step
+of its own modifier. A `LayoutModifierNode`'s layer paints at the node's place in the child's decoration: a
+decoration declared before the node paints outside the layer, and one declared after it paints inside. A layout
+node paints through its `decorator` or with a layer, not both. Placing the child without a layer on a later pass
+removes the layer.
+
+The child must be `Decoratable`: the first placement with a layer fails with `IllegalStateException` otherwise.
+What a layer paints past the child's bounds is clipped at them.
+
 ### Writing a decorator or draw node
 
 A `Decorator` paints one step of a decoration: write it as a `data class`, call the continuation to paint the
@@ -492,7 +511,7 @@ A step that keeps state across paints extends `DecorationModifierNode`, or `Draw
 observed, and a change repaints the component without laying it out again. The library gathers a step's
 `isOpaque` after each modifier pass, so an element's `update` needs no call for it. Between passes, a node that
 changes a plain field it paints from calls `invalidateDraw()`, or `invalidateDecoration()` when its outsets or `isOpaque`
-change.
+change. A `LayoutModifierNode` paints at its own box through its `decorator`.
 
 `ImageLayer` is an offscreen raster: `record` replaces its recording, `draw` draws it, and `filter` post-processes
 it. `alpha`, `scaleX`, `scaleY`, `translationX`, `translationY`, `rotationZ`, `pivotOffset` and `renderEffect` are
