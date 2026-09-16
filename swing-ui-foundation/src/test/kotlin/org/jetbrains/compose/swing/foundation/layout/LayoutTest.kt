@@ -35,7 +35,7 @@ class LayoutTest {
                         SizedChild(1)
                         SizedChild(2)
                     },
-                    modifier = containerModifier(CROSS_EXTENT, MAIN_EXTENT),
+                    modifier = containerModifier(200, 300),
                     measurePolicy = stackedRows(),
                 )
             }
@@ -56,7 +56,7 @@ class LayoutTest {
                         SizedChild(0)
                         SizedChild(1)
                     },
-                    modifier = containerModifier(CROSS_EXTENT, CHILD_HEIGHT),
+                    modifier = containerModifier(200, CHILD_HEIGHT),
                     measurePolicy = stackedRows(),
                 )
             }
@@ -80,7 +80,7 @@ class LayoutTest {
                         SizedChild(0)
                         SizedChild(1, SwingModifier.aspectRatio(2f))
                     },
-                    modifier = containerModifier(CROSS_EXTENT, CHILD_HEIGHT),
+                    modifier = containerModifier(200, CHILD_HEIGHT),
                     measurePolicy = stackedRows(),
                 )
             }
@@ -123,15 +123,15 @@ class LayoutTest {
                 Layout(
                     content = { SizedChild(0) },
                     measurePolicy = { measurables, _ ->
-                        val placeable = measurables.single().measure(Constraints(GRANTED, GRANTED, GRANTED, GRANTED))
-                        layout(GRANTED, GRANTED) { placeable.place(0, 0) }
+                        val placeable = measurables.single().measure(Constraints(30, 30, 30, 30))
+                        layout(30, 30) { placeable.place(0, 0) }
                     },
-                    modifier = containerModifier(CROSS_EXTENT, MAIN_EXTENT),
+                    modifier = containerModifier(200, 300),
                 )
             }
 
             assertEquals(
-                listOf(Rectangle(0, 0, GRANTED, GRANTED)),
+                listOf(Rectangle(0, 0, 30, 30)),
                 childBounds(),
                 "a child measured under a fixed extent occupies it rather than the extent it prefers",
             )
@@ -147,14 +147,14 @@ class LayoutTest {
         runComposeSwingTest {
             setContent {
                 Layout(
-                    content = { SizedChild(0, SwingModifier.padding(PADDING)) },
-                    modifier = containerModifier(CROSS_EXTENT, MAIN_EXTENT),
+                    content = { SizedChild(0, SwingModifier.padding(8)) },
+                    modifier = containerModifier(200, 300),
                     measurePolicy = stackedRows(),
                 )
             }
 
             assertEquals(
-                listOf(Rectangle(PADDING, PADDING, CHILD_WIDTH, CHILD_HEIGHT)),
+                listOf(Rectangle(8, 8, CHILD_WIDTH, CHILD_HEIGHT)),
                 childBounds(),
                 "a padded child sits inside the space its padding reserved",
             )
@@ -165,12 +165,12 @@ class LayoutTest {
         runComposeSwingTest {
             setContent {
                 Layout(
-                    content = { SizedChild(0, SwingModifier.layoutConstraint(TRAILING)) },
+                    content = { SizedChild(0, SwingModifier.layoutConstraint("trailing")) },
                     measurePolicy = { measurables, constraints ->
                         val placeables =
                             measurables.map {
                                 val placeable = it.measure(Constraints(maxWidth = constraints.maxWidth))
-                                placeable to (it.parentData == TRAILING)
+                                placeable to (it.parentData == "trailing")
                             }
                         layout(constraints.maxWidth, CHILD_HEIGHT) {
                             for ((placeable, trailing) in placeables) {
@@ -178,12 +178,12 @@ class LayoutTest {
                             }
                         }
                     },
-                    modifier = containerModifier(CROSS_EXTENT, MAIN_EXTENT),
+                    modifier = containerModifier(200, 300),
                 )
             }
 
             assertEquals(
-                listOf(Rectangle(CROSS_EXTENT - CHILD_WIDTH, 0, CHILD_WIDTH, CHILD_HEIGHT)),
+                listOf(Rectangle(150, 0, CHILD_WIDTH, CHILD_HEIGHT)),
                 childBounds(),
                 "the policy must place the child by the constraint the child declared to it",
             )
@@ -200,7 +200,7 @@ class LayoutTest {
                         SizedChild(1)
                     },
                     measurePolicy = if (spaced) stackedRows { CHILD_HEIGHT } else stackedRows(),
-                    modifier = containerModifier(CROSS_EXTENT, MAIN_EXTENT),
+                    modifier = containerModifier(200, 300),
                 )
             }
 
@@ -259,42 +259,27 @@ class LayoutTest {
                     measurePolicy = { measurables, _ ->
                         val placeable =
                             measurables.single().measure(
-                                Constraints(maxWidth = GRANTED, maxHeight = GRANTED),
+                                Constraints(maxWidth = 30, maxHeight = 30),
                             )
                         layout(placeable.width, placeable.height) { placeable.place(0, 0) }
                     },
-                    modifier = containerModifier(CROSS_EXTENT, MAIN_EXTENT),
+                    modifier = containerModifier(200, 300),
                 )
             }
 
             assertEquals(
-                listOf(Rectangle(0, 0, GRANTED, GRANTED)),
+                listOf(Rectangle(0, 0, 30, 30)),
                 childBounds(),
                 "the nested row must settle for the ceiling the policy offered, not the extent it prefers",
             )
             assertEquals(
-                listOf(Rectangle(0, 0, GRANTED, GRANTED)),
+                listOf(Rectangle(0, 0, 30, 30)),
                 nestedRowChildBounds(),
                 "and must have measured under it, since its weighted child takes the width it was granted",
             )
         }
 
     private companion object {
-        /** The extent the fixture container is given across the axis its policy stacks children on. */
-        const val CROSS_EXTENT = 200
-
-        /** The extent the fixture container is given along that axis. */
-        const val MAIN_EXTENT = 300
-
-        /** The extent a policy grants a child outright, smaller than the container and than the child. */
-        const val GRANTED = 30
-
-        /** The space a padded child reserves around itself. */
-        const val PADDING = 8
-
-        /** What a child declares to a policy that places by a constraint of its own. */
-        const val TRAILING = "trailing"
-
         /** The bounds the one row nested inside the container under test assigned its own children. */
         fun ComposeSwingTest.nestedRowChildBounds(): List<Rectangle> =
             (onNodeWithTag(CONTAINER_TAG).fetch<JComponent>().getComponent(0) as JComponent)

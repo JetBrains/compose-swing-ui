@@ -1,3 +1,24 @@
+/*
+ * Copyright 2019 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * Adapted from androidx.compose.foundation.layout.PaddingNode in AndroidX's foundation-layout;
+ * see this module's META-INF/NOTICE for the synced version. The measure steps, which shrink the
+ * constraints by the padding and constrain the child's size grown by it, and the rtlAware placement
+ * branch are upstream's.
+ */
+
 @file:JvmMultifileClass
 @file:JvmName("LayoutKt")
 
@@ -11,7 +32,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
  * @return this modifier with the padding declared on it.
  */
 context(scope: ConstrainedScope)
-public fun SwingModifier.padding(all: Int): SwingModifier = this then PaddingElement(all, all, all, all)
+public fun SwingModifier.padding(all: Int): SwingModifier = padding(all, all, all, all)
 
 /**
  * Reserves [start] before the child and [end] after it along the reading order, and [top] and
@@ -29,7 +50,7 @@ public fun SwingModifier.padding(
     top: Int = 0,
     end: Int = 0,
     bottom: Int = 0,
-): SwingModifier = this then PaddingElement(start, top, end, bottom)
+): SwingModifier = with(scope) { layout(PaddingElement(start, top, end, bottom, rtlAware = true)) }
 
 /**
  * Reserves [horizontal] before and after the child along the reading order, and [vertical] above
@@ -58,100 +79,78 @@ public fun SwingModifier.absolutePadding(
     top: Int = 0,
     right: Int = 0,
     bottom: Int = 0,
-): SwingModifier = this then AbsolutePaddingElement(left, top, right, bottom)
+): SwingModifier = with(scope) { layout(PaddingElement(left, top, right, bottom, rtlAware = false)) }
 
 /**
- * This non-negative padding side plus [other], held to the largest geometry extent [Constraints] can
- * represent. A pair beyond that extent reserves all finite space instead of overflowing
- * negative and giving the child more space than its parent offered.
+ * The space `padding` and `absolutePadding` reserve along the child's edges. Under [rtlAware],
+ * [start] leads and [end] trails the child along the reading order, swapping places under a
+ * right-to-left one; otherwise [start] is the left edge and [end] the right one under either
+ * reading order.
  */
-private fun Int.reservedWith(other: Int): Int = (this.toLong() + other).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
-
-/**
- * Why a padding declaring [sides] reserves no space at all, for one whose edges are not all above zero.
- *
- * Narrowing subtracts the space reserved, so an edge below zero would hand the child a maximum larger
- * than its parent offered and then place it outside the parent.
- */
-private fun spaceBelowZero(sides: String): String =
-    "A padding reserves space along the edges it names, and there is no space below none, but this one " +
-        "declares $sides. To move a child outward from where its container places it, declare " +
-        "offset() instead."
-
-/**
- * The space `ConstrainedScope.padding` reserves along the child's edges, leading-edge relative: [start]
- * leads and [end] trails the child along the reading order, swapping places under a right-to-left one.
- */
-internal data class PaddingElement(
+private data class PaddingElement(
     val start: Int,
     val top: Int,
     val end: Int,
     val bottom: Int,
-) : LayoutModifier {
+    val rtlAware: Boolean,
+) : LayoutModifierNodeElement<PaddingNode>() {
     init {
+        // Narrowing subtracts the space reserved, so an edge below zero would hand the child a maximum
+        // larger than its parent offered and then place it outside the parent.
         require(start >= 0 && top >= 0 && end >= 0 && bottom >= 0) {
-            spaceBelowZero("start $start, top $top, end $end, bottom $bottom")
+            val sides =
+                if (rtlAware) {
+                    "start $start, top $top, end $end, bottom $bottom"
+                } else {
+                    "left $start, top $top, right $end, bottom $bottom"
+                }
+            "A padding reserves space along the edges it names, and there is no space for an edge below zero, " +
+                "but this one declares $sides. To move a child outward from where its container places it, " +
+                "declare offset() instead."
         }
     }
 
-    override val name: String get() = "padding"
+    override val name: String get() = if (rtlAware) "padding" else "absolutePadding"
 
     override val declaredValues: Map<String, Any?>
-        get() = mapOf("start" to start, "top" to top, "end" to end, "bottom" to bottom)
+        get() =
+            if (rtlAware) {
+                mapOf("start" to start, "top" to top, "end" to end, "bottom" to bottom)
+            } else {
+                mapOf("left" to start, "top" to top, "right" to end, "bottom" to bottom)
+            }
 
-    private val horizontalSpace: Int get() = start.reservedWith(end)
+    override fun create(): PaddingNode = PaddingNode(start, top, end, bottom, rtlAware)
 
-    private val verticalSpace: Int get() = top.reservedWith(bottom)
-
-    override fun MeasureScope.measure(
-        measurable: Measurable,
-        constraints: Constraints,
-    ): MeasureResult {
-        val placeable = measurable.measure(constraints.shrunkBy(horizontalSpace, verticalSpace))
-        return layout(
-            constraints.constrainWidth(placeable.width.grownBy(horizontalSpace)),
-            constraints.constrainHeight(placeable.height.grownBy(verticalSpace)),
-        ) {
-            placeable.placeRelative(start, top)
-        }
+    override fun update(node: PaddingNode) {
+        node.start = start
+        node.top = top
+        node.end = end
+        node.bottom = bottom
+        node.rtlAware = rtlAware
     }
 }
 
-/**
- * The space `ConstrainedScope.absolutePadding` reserves along the child's edges: [left], [top], [right]
- * and [bottom], the same under either reading order.
- */
-internal data class AbsolutePaddingElement(
-    val left: Int,
-    val top: Int,
-    val right: Int,
-    val bottom: Int,
-) : LayoutModifier {
-    init {
-        require(left >= 0 && top >= 0 && right >= 0 && bottom >= 0) {
-            spaceBelowZero("left $left, top $top, right $right, bottom $bottom")
-        }
-    }
-
-    override val name: String get() = "absolutePadding"
-
-    override val declaredValues: Map<String, Any?>
-        get() = mapOf("left" to left, "top" to top, "right" to right, "bottom" to bottom)
-
-    private val horizontalSpace: Int get() = left.reservedWith(right)
-
-    private val verticalSpace: Int get() = top.reservedWith(bottom)
-
+/** Measures the child inside the space a [PaddingElement] reserves, and places it past the leading space. */
+private class PaddingNode(
+    var start: Int,
+    var top: Int,
+    var end: Int,
+    var bottom: Int,
+    var rtlAware: Boolean,
+) : LayoutModifierNode() {
     override fun MeasureScope.measure(
         measurable: Measurable,
         constraints: Constraints,
     ): MeasureResult {
-        val placeable = measurable.measure(constraints.shrunkBy(horizontalSpace, verticalSpace))
+        val horizontalPadding = start.grownBy(end)
+        val verticalPadding = top.grownBy(bottom)
+        val placeable = measurable.measure(constraints.offset(-horizontalPadding, -verticalPadding))
         return layout(
-            constraints.constrainWidth(placeable.width.grownBy(horizontalSpace)),
-            constraints.constrainHeight(placeable.height.grownBy(verticalSpace)),
+            constraints.constrainWidth(placeable.width.grownBy(horizontalPadding)),
+            constraints.constrainHeight(placeable.height.grownBy(verticalPadding)),
         ) {
-            placeable.place(left, top)
+            if (rtlAware) placeable.placeRelative(start, top) else placeable.place(start, top)
         }
     }
 }

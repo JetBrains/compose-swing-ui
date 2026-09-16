@@ -26,9 +26,9 @@
 
 package org.jetbrains.compose.swing.foundation.layout
 
+import androidx.annotation.FloatRange
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import java.awt.Dimension
-import kotlin.math.roundToInt
 
 /**
  * Prefers an exact [width], while still allowing the constraints the parent offers to override it.
@@ -37,7 +37,7 @@ import kotlin.math.roundToInt
  */
 context(scope: ConstrainedScope)
 public fun SwingModifier.width(width: Int): SwingModifier =
-    this then SizeElement(minWidth = width, maxWidth = width, enforceIncoming = true, name = "width")
+    with(scope) { layout(SizeElement(minWidth = width, maxWidth = width, enforceIncoming = true, name = "width")) }
 
 /**
  * Prefers an exact [height], while still allowing the constraints the parent offers to override it.
@@ -46,7 +46,7 @@ public fun SwingModifier.width(width: Int): SwingModifier =
  */
 context(scope: ConstrainedScope)
 public fun SwingModifier.height(height: Int): SwingModifier =
-    this then SizeElement(minHeight = height, maxHeight = height, enforceIncoming = true, name = "height")
+    with(scope) { layout(SizeElement(minHeight = height, maxHeight = height, enforceIncoming = true, name = "height")) }
 
 /**
  * Prefers an exact square [size], while still allowing the constraints the parent offers to override it.
@@ -67,15 +67,18 @@ public fun SwingModifier.size(
     width: Int,
     height: Int,
 ): SwingModifier =
-    this then
-        SizeElement(
-            minWidth = width,
-            minHeight = height,
-            maxWidth = width,
-            maxHeight = height,
-            enforceIncoming = true,
-            name = "size",
+    with(scope) {
+        layout(
+            SizeElement(
+                minWidth = width,
+                minHeight = height,
+                maxWidth = width,
+                maxHeight = height,
+                enforceIncoming = true,
+                name = "size",
+            ),
         )
+    }
 
 /**
  * Prefers a width between [min] and [max], with either bound absent when it is `null`.
@@ -87,7 +90,10 @@ context(scope: ConstrainedScope)
 public fun SwingModifier.widthIn(
     min: Int? = null,
     max: Int? = null,
-): SwingModifier = this then SizeElement(minWidth = min, maxWidth = max, enforceIncoming = true, name = "widthIn")
+): SwingModifier =
+    with(scope) {
+        layout(SizeElement(minWidth = min, maxWidth = max, enforceIncoming = true, name = "widthIn"))
+    }
 
 /**
  * Prefers a height between [min] and [max], with either bound absent when it is `null`.
@@ -99,7 +105,10 @@ context(scope: ConstrainedScope)
 public fun SwingModifier.heightIn(
     min: Int? = null,
     max: Int? = null,
-): SwingModifier = this then SizeElement(minHeight = min, maxHeight = max, enforceIncoming = true, name = "heightIn")
+): SwingModifier =
+    with(scope) {
+        layout(SizeElement(minHeight = min, maxHeight = max, enforceIncoming = true, name = "heightIn"))
+    }
 
 /**
  * Prefers a size inside the bounds named here, with any `null` bound absent. The constraints the
@@ -114,15 +123,18 @@ public fun SwingModifier.sizeIn(
     maxWidth: Int? = null,
     maxHeight: Int? = null,
 ): SwingModifier =
-    this then
-        SizeElement(
-            minWidth = minWidth,
-            minHeight = minHeight,
-            maxWidth = maxWidth,
-            maxHeight = maxHeight,
-            enforceIncoming = true,
-            name = "sizeIn",
+    with(scope) {
+        layout(
+            SizeElement(
+                minWidth = minWidth,
+                minHeight = minHeight,
+                maxWidth = maxWidth,
+                maxHeight = maxHeight,
+                enforceIncoming = true,
+                name = "sizeIn",
+            ),
         )
+    }
 
 /**
  * Requires an exact [width], even where it is outside the constraints the parent offers.
@@ -131,7 +143,9 @@ public fun SwingModifier.sizeIn(
  */
 context(scope: ConstrainedScope)
 public fun SwingModifier.requiredWidth(width: Int): SwingModifier =
-    this then SizeElement(minWidth = width, maxWidth = width, enforceIncoming = false, name = "requiredWidth")
+    with(scope) {
+        layout(SizeElement(minWidth = width, maxWidth = width, enforceIncoming = false, name = "requiredWidth"))
+    }
 
 /**
  * Requires an exact [height], even where it is outside the constraints the parent offers.
@@ -140,7 +154,9 @@ public fun SwingModifier.requiredWidth(width: Int): SwingModifier =
  */
 context(scope: ConstrainedScope)
 public fun SwingModifier.requiredHeight(height: Int): SwingModifier =
-    this then SizeElement(minHeight = height, maxHeight = height, enforceIncoming = false, name = "requiredHeight")
+    with(scope) {
+        layout(SizeElement(minHeight = height, maxHeight = height, enforceIncoming = false, name = "requiredHeight"))
+    }
 
 /**
  * Requires an exact square [size], even where it is outside the constraints the parent offers.
@@ -160,15 +176,18 @@ public fun SwingModifier.requiredSize(
     width: Int,
     height: Int,
 ): SwingModifier =
-    this then
-        SizeElement(
-            minWidth = width,
-            minHeight = height,
-            maxWidth = width,
-            maxHeight = height,
-            enforceIncoming = false,
-            name = "requiredSize",
+    with(scope) {
+        layout(
+            SizeElement(
+                minWidth = width,
+                minHeight = height,
+                maxWidth = width,
+                maxHeight = height,
+                enforceIncoming = false,
+                name = "requiredSize",
+            ),
         )
+    }
 
 /**
  * Requires a width inside the bounds named here, with either bound absent when it is `null`.
@@ -180,7 +199,9 @@ public fun SwingModifier.requiredWidthIn(
     min: Int? = null,
     max: Int? = null,
 ): SwingModifier =
-    this then SizeElement(minWidth = min, maxWidth = max, enforceIncoming = false, name = "requiredWidthIn")
+    with(scope) {
+        layout(SizeElement(minWidth = min, maxWidth = max, enforceIncoming = false, name = "requiredWidthIn"))
+    }
 
 /**
  * Requires a height inside the bounds named here, with either bound absent when it is `null`.
@@ -192,7 +213,9 @@ public fun SwingModifier.requiredHeightIn(
     min: Int? = null,
     max: Int? = null,
 ): SwingModifier =
-    this then SizeElement(minHeight = min, maxHeight = max, enforceIncoming = false, name = "requiredHeightIn")
+    with(scope) {
+        layout(SizeElement(minHeight = min, maxHeight = max, enforceIncoming = false, name = "requiredHeightIn"))
+    }
 
 /**
  * Requires a size inside the bounds named here, with any `null` bound absent.
@@ -206,48 +229,54 @@ public fun SwingModifier.requiredSizeIn(
     maxWidth: Int? = null,
     maxHeight: Int? = null,
 ): SwingModifier =
-    this then
-        SizeElement(
-            minWidth = minWidth,
-            minHeight = minHeight,
-            maxWidth = maxWidth,
-            maxHeight = maxHeight,
-            enforceIncoming = false,
-            name = "requiredSizeIn",
+    with(scope) {
+        layout(
+            SizeElement(
+                minWidth = minWidth,
+                minHeight = minHeight,
+                maxWidth = maxWidth,
+                maxHeight = maxHeight,
+                enforceIncoming = false,
+                name = "requiredSizeIn",
+            ),
         )
+    }
 
 /**
  * Makes the child occupy [fraction] of the greatest bounded width its parent offers it. The result
  * is held between the offered minimum and maximum width. An unbounded width is left unchanged.
  *
- * @param fraction the fraction of the offered maximum width to occupy, from zero through one
- * @throws IllegalArgumentException if [fraction] is outside `0f..1f`
+ * @param fraction the fraction of the offered maximum width to occupy.
  * @return this modifier with the width fill declared on it.
  */
 context(scope: ConstrainedScope)
-public fun SwingModifier.fillMaxWidth(fraction: Float = 1f): SwingModifier = this then FillMaxElement.width(fraction)
+public fun SwingModifier.fillMaxWidth(
+    @FloatRange(from = 0.0, to = 1.0) fraction: Float = 1f,
+): SwingModifier = with(scope) { layout(FillMaxElement(Direction.Horizontal, fraction)) }
 
 /**
  * Makes the child occupy [fraction] of the greatest bounded height its parent offers it. The result
  * is held between the offered minimum and maximum height. An unbounded height is left unchanged.
  *
- * @param fraction the fraction of the offered maximum height to occupy, from zero through one
- * @throws IllegalArgumentException if [fraction] is outside `0f..1f`
+ * @param fraction the fraction of the offered maximum height to occupy.
  * @return this modifier with the height fill declared on it.
  */
 context(scope: ConstrainedScope)
-public fun SwingModifier.fillMaxHeight(fraction: Float = 1f): SwingModifier = this then FillMaxElement.height(fraction)
+public fun SwingModifier.fillMaxHeight(
+    @FloatRange(from = 0.0, to = 1.0) fraction: Float = 1f,
+): SwingModifier = with(scope) { layout(FillMaxElement(Direction.Vertical, fraction)) }
 
 /**
- * Makes the child occupy [fraction] of the greatest bounded width and height its parent offers it.
- * Either unbounded axis is left unchanged.
+ * Makes the child occupy [fraction] of the greatest bounded width and height its parent offers it. Each
+ * result is held between the offered minimum and maximum. Either unbounded axis is left unchanged.
  *
- * @param fraction the fraction of each offered maximum extent to occupy, from zero through one
- * @throws IllegalArgumentException if [fraction] is outside `0f..1f`
+ * @param fraction the fraction of each offered maximum extent to occupy.
  * @return this modifier with the width and height fill declared on it.
  */
 context(scope: ConstrainedScope)
-public fun SwingModifier.fillMaxSize(fraction: Float = 1f): SwingModifier = this then FillMaxElement.size(fraction)
+public fun SwingModifier.fillMaxSize(
+    @FloatRange(from = 0.0, to = 1.0) fraction: Float = 1f,
+): SwingModifier = with(scope) { layout(FillMaxElement(Direction.Both, fraction)) }
 
 /**
  * Lets the child choose its width without the offered minimum and, where [unbounded], maximum;
@@ -259,7 +288,7 @@ context(scope: ConstrainedScope)
 public fun SwingModifier.wrapContentWidth(
     align: Alignment.Horizontal = Alignment.CenterHorizontally,
     unbounded: Boolean = false,
-): SwingModifier = this then WrapContentElement.width(align, unbounded)
+): SwingModifier = with(scope) { layout(WrapContentElement(Direction.Horizontal, align, null, null, unbounded)) }
 
 /**
  * Lets the child choose its height without the offered minimum and, where [unbounded], maximum;
@@ -271,7 +300,7 @@ context(scope: ConstrainedScope)
 public fun SwingModifier.wrapContentHeight(
     align: Alignment.Vertical = Alignment.CenterVertically,
     unbounded: Boolean = false,
-): SwingModifier = this then WrapContentElement.height(align, unbounded)
+): SwingModifier = with(scope) { layout(WrapContentElement(Direction.Vertical, null, align, null, unbounded)) }
 
 /**
  * Lets the child choose both extents without the offered minima and, where [unbounded], maxima;
@@ -283,7 +312,7 @@ context(scope: ConstrainedScope)
 public fun SwingModifier.wrapContentSize(
     align: Alignment = Alignment.Center,
     unbounded: Boolean = false,
-): SwingModifier = this then WrapContentElement.size(align, unbounded)
+): SwingModifier = with(scope) { layout(WrapContentElement(Direction.Both, null, null, align, unbounded)) }
 
 /**
  * Raises the child's minimum size to [minWidth] by [minHeight] along whichever axis its incoming
@@ -297,43 +326,55 @@ context(scope: ConstrainedScope)
 public fun SwingModifier.defaultMinSize(
     minWidth: Int? = null,
     minHeight: Int? = null,
-): SwingModifier = this then DefaultMinSizeElement(minWidth, minHeight)
+): SwingModifier = with(scope) { layout(DefaultMinSizeElement(minWidth, minHeight)) }
 
-/** Which bounded axes a [FillMaxElement] fixes to a fraction of the maximum it receives. */
-internal enum class FillDirection {
-    Width,
-    Height,
+/** The axes a fill or wrap-content modifier applies to. */
+private enum class Direction {
+    Vertical,
+    Horizontal,
     Both,
 }
 
 /** A `fillMax*` declaration, applied to every bounded axis named by [direction]. */
-internal data class FillMaxElement(
-    private val direction: FillDirection,
+private data class FillMaxElement(
+    private val direction: Direction,
     val fraction: Float,
-    override val name: String,
-) : LayoutModifier {
-    init {
-        require(fraction in 0f..1f) { "A fill fraction must be between zero and one, but was $fraction." }
-    }
+) : LayoutModifierNodeElement<FillMaxNode>() {
+    override val name: String
+        get() =
+            when (direction) {
+                Direction.Horizontal -> "fillMaxWidth"
+                Direction.Vertical -> "fillMaxHeight"
+                Direction.Both -> "fillMaxSize"
+            }
 
     override val declaredValues: Map<String, Any?> get() = mapOf("fraction" to fraction)
 
+    override fun create(): FillMaxNode = FillMaxNode(direction, fraction)
+
+    override fun update(node: FillMaxNode) {
+        node.direction = direction
+        node.fraction = fraction
+    }
+}
+
+/** Fixes every bounded axis [direction] names to [fraction] of the maximum it receives. */
+private class FillMaxNode(
+    var direction: Direction,
+    var fraction: Float,
+) : LayoutModifierNode() {
     override fun MeasureScope.measure(
         measurable: Measurable,
         constraints: Constraints,
     ): MeasureResult {
         val width =
-            if (direction != FillDirection.Height && constraints.hasBoundedWidth) {
-                (constraints.maxWidth * fraction).roundToInt().coerceIn(constraints.minWidth, constraints.maxWidth)
-            } else {
-                null
-            }
+            constraints.maxWidth
+                .takeIf { direction != Direction.Vertical && constraints.hasBoundedWidth }
+                ?.let { Math.round(it * fraction).coerceIn(constraints.minWidth, it) }
         val height =
-            if (direction != FillDirection.Width && constraints.hasBoundedHeight) {
-                (constraints.maxHeight * fraction).roundToInt().coerceIn(constraints.minHeight, constraints.maxHeight)
-            } else {
-                null
-            }
+            constraints.maxHeight
+                .takeIf { direction != Direction.Horizontal && constraints.hasBoundedHeight }
+                ?.let { Math.round(it * fraction).coerceIn(constraints.minHeight, it) }
         val measuredConstraints =
             Constraints(
                 minWidth = width ?: constraints.minWidth,
@@ -344,28 +385,37 @@ internal data class FillMaxElement(
         val placeable = measurable.measure(measuredConstraints)
         return layout(placeable.width, placeable.height) { placeable.place(0, 0) }
     }
-
-    companion object {
-        fun width(fraction: Float): FillMaxElement = FillMaxElement(FillDirection.Width, fraction, "fillMaxWidth")
-
-        fun height(fraction: Float): FillMaxElement = FillMaxElement(FillDirection.Height, fraction, "fillMaxHeight")
-
-        fun size(fraction: Float): FillMaxElement = FillMaxElement(FillDirection.Both, fraction, "fillMaxSize")
-    }
 }
 
 /**
  * The numeric constraints a `ConstrainedScope` size modifier applies before measuring its child.
- * A `null` bound is Compose's `Dp.Unspecified` in this Int-based geometry API.
+ * A `null` bound is androidx's `Dp.Unspecified` in this Int-based geometry API. Equal to another for the same
+ * bounds whichever builder [name]s it, so `width(10)` replacing `widthIn(10, 10)` updates nothing.
  */
-internal data class SizeElement(
+private class SizeElement(
     val minWidth: Int? = null,
     val minHeight: Int? = null,
     val maxWidth: Int? = null,
     val maxHeight: Int? = null,
     val enforceIncoming: Boolean,
     override val name: String,
-) : LayoutModifier {
+) : LayoutModifierNodeElement<SizeNode>() {
+    override fun equals(other: Any?): Boolean =
+        other is SizeElement &&
+            minWidth == other.minWidth &&
+            minHeight == other.minHeight &&
+            maxWidth == other.maxWidth &&
+            maxHeight == other.maxHeight &&
+            enforceIncoming == other.enforceIncoming
+
+    override fun hashCode(): Int {
+        var result = minWidth.hashCode()
+        result = 31 * result + minHeight.hashCode()
+        result = 31 * result + maxWidth.hashCode()
+        result = 31 * result + maxHeight.hashCode()
+        return 31 * result + enforceIncoming.hashCode()
+    }
+
     override val declaredValues: Map<String, Any?>
         get() =
             mapOf(
@@ -375,6 +425,25 @@ internal data class SizeElement(
                 "maxHeight" to maxHeight,
             )
 
+    override fun create(): SizeNode = SizeNode(minWidth, minHeight, maxWidth, maxHeight, enforceIncoming)
+
+    override fun update(node: SizeNode) {
+        node.minWidth = minWidth
+        node.minHeight = minHeight
+        node.maxWidth = maxWidth
+        node.maxHeight = maxHeight
+        node.enforceIncoming = enforceIncoming
+    }
+}
+
+/** Measures the child under the bounds a [SizeElement] declares, held to the incoming ones where [enforceIncoming]. */
+private class SizeNode(
+    var minWidth: Int?,
+    var minHeight: Int?,
+    var maxWidth: Int?,
+    var maxHeight: Int?,
+    var enforceIncoming: Boolean,
+) : LayoutModifierNode() {
     override fun MeasureScope.measure(
         measurable: Measurable,
         constraints: Constraints,
@@ -407,6 +476,58 @@ internal data class SizeElement(
             maxHeight = maxHeight,
         )
     }
+
+    override fun IntrinsicMeasureScope.minIntrinsicWidth(
+        measurable: IntrinsicMeasurable,
+        height: Int,
+    ): Int {
+        val constraints = targetConstraints()
+        return if (constraints.hasFixedWidth) {
+            constraints.maxWidth
+        } else {
+            val childHeight = if (enforceIncoming) height else constraints.constrainHeight(height)
+            constraints.constrainWidth(measurable.minIntrinsicWidth(childHeight))
+        }
+    }
+
+    override fun IntrinsicMeasureScope.minIntrinsicHeight(
+        measurable: IntrinsicMeasurable,
+        width: Int,
+    ): Int {
+        val constraints = targetConstraints()
+        return if (constraints.hasFixedHeight) {
+            constraints.maxHeight
+        } else {
+            val childWidth = if (enforceIncoming) width else constraints.constrainWidth(width)
+            constraints.constrainHeight(measurable.minIntrinsicHeight(childWidth))
+        }
+    }
+
+    override fun IntrinsicMeasureScope.maxIntrinsicWidth(
+        measurable: IntrinsicMeasurable,
+        height: Int,
+    ): Int {
+        val constraints = targetConstraints()
+        return if (constraints.hasFixedWidth) {
+            constraints.maxWidth
+        } else {
+            val childHeight = if (enforceIncoming) height else constraints.constrainHeight(height)
+            constraints.constrainWidth(measurable.maxIntrinsicWidth(childHeight))
+        }
+    }
+
+    override fun IntrinsicMeasureScope.maxIntrinsicHeight(
+        measurable: IntrinsicMeasurable,
+        width: Int,
+    ): Int {
+        val constraints = targetConstraints()
+        return if (constraints.hasFixedHeight) {
+            constraints.maxHeight
+        } else {
+            val childWidth = if (enforceIncoming) width else constraints.constrainWidth(width)
+            constraints.constrainHeight(measurable.maxIntrinsicHeight(childWidth))
+        }
+    }
 }
 
 /** Compose accepts negative Dp bounds and resolves them to zero before building its constraints. */
@@ -417,37 +538,58 @@ private fun Int?.normalizedMaximum(): Int = this?.coerceAtLeast(0) ?: Int.MAX_VA
  * other is held in 0..[maximum].
  */
 private fun Int?.normalizedMinimum(maximum: Int): Int =
-    this?.coerceAtLeast(0)?.takeUnless { it == Int.MAX_VALUE }?.coerceAtMost(maximum) ?: 0
-
-/** Which axes a wrap-content modifier relaxes before it measures its child. */
-internal enum class WrapDirection {
-    Width,
-    Height,
-    Both,
-}
+    this?.coerceIn(0, maximum)?.takeUnless { it == Int.MAX_VALUE } ?: 0
 
 /** The `wrapContent*` modifier, including its alignment inside the wrapper it reports. */
-internal data class WrapContentElement(
-    private val direction: WrapDirection,
+private data class WrapContentElement(
+    private val direction: Direction,
     private val horizontalAlignment: Alignment.Horizontal?,
     private val verticalAlignment: Alignment.Vertical?,
     private val alignment: Alignment?,
     val unbounded: Boolean,
-    override val name: String,
-) : LayoutModifier {
+) : LayoutModifierNodeElement<WrapContentNode>() {
+    override val name: String
+        get() =
+            when (direction) {
+                Direction.Horizontal -> "wrapContentWidth"
+                Direction.Vertical -> "wrapContentHeight"
+                Direction.Both -> "wrapContentSize"
+            }
+
     override val declaredValues: Map<String, Any?>
         get() = mapOf("align" to (alignment ?: horizontalAlignment ?: verticalAlignment), "unbounded" to unbounded)
 
+    override fun create(): WrapContentNode =
+        WrapContentNode(direction, horizontalAlignment, verticalAlignment, alignment, unbounded)
+
+    override fun update(node: WrapContentNode) {
+        node.direction = direction
+        node.horizontalAlignment = horizontalAlignment
+        node.verticalAlignment = verticalAlignment
+        node.alignment = alignment
+        node.unbounded = unbounded
+    }
+}
+
+/** Measures the child with the axes [direction] names relaxed, and aligns it inside the wrapper it reports. */
+private class WrapContentNode(
+    var direction: Direction,
+    var horizontalAlignment: Alignment.Horizontal?,
+    var verticalAlignment: Alignment.Vertical?,
+    var alignment: Alignment?,
+    var unbounded: Boolean,
+) : LayoutModifierNode() {
     override fun MeasureScope.measure(
         measurable: Measurable,
         constraints: Constraints,
     ): MeasureResult {
         val wrappedConstraints =
             Constraints(
-                minWidth = if (direction == WrapDirection.Height) constraints.minWidth else 0,
-                maxWidth = if (direction != WrapDirection.Height && unbounded) Int.MAX_VALUE else constraints.maxWidth,
-                minHeight = if (direction == WrapDirection.Width) constraints.minHeight else 0,
-                maxHeight = if (direction != WrapDirection.Width && unbounded) Int.MAX_VALUE else constraints.maxHeight,
+                minWidth = if (direction == Direction.Vertical) constraints.minWidth else 0,
+                maxWidth = if (direction != Direction.Vertical && unbounded) Int.MAX_VALUE else constraints.maxWidth,
+                minHeight = if (direction == Direction.Horizontal) constraints.minHeight else 0,
+                maxHeight =
+                    if (direction != Direction.Horizontal && unbounded) Int.MAX_VALUE else constraints.maxHeight,
             )
         val placeable = measurable.measure(wrappedConstraints)
         val wrapperWidth = constraints.constrainWidth(placeable.width)
@@ -461,25 +603,6 @@ internal data class WrapContentElement(
             placeable.place(x, y)
         }
     }
-
-    companion object {
-        fun width(
-            align: Alignment.Horizontal,
-            unbounded: Boolean,
-        ): WrapContentElement =
-            WrapContentElement(WrapDirection.Width, align, null, null, unbounded, "wrapContentWidth")
-
-        fun height(
-            align: Alignment.Vertical,
-            unbounded: Boolean,
-        ): WrapContentElement =
-            WrapContentElement(WrapDirection.Height, null, align, null, unbounded, "wrapContentHeight")
-
-        fun size(
-            align: Alignment,
-            unbounded: Boolean,
-        ): WrapContentElement = WrapContentElement(WrapDirection.Both, null, null, align, unbounded, "wrapContentSize")
-    }
 }
 
 /**
@@ -487,27 +610,40 @@ internal data class WrapContentElement(
  * whose incoming minimum is zero. A constraint that already claims a minimum along an axis is left as
  * it is, and the minimum raised to is held between nothing and the incoming maximum.
  */
-internal data class DefaultMinSizeElement(
+private data class DefaultMinSizeElement(
     val minWidth: Int?,
     val minHeight: Int?,
-) : LayoutModifier {
+) : LayoutModifierNodeElement<DefaultMinSizeNode>() {
     override val name: String get() = "defaultMinSize"
 
     override val declaredValues: Map<String, Any?> get() = mapOf("minWidth" to minWidth, "minHeight" to minHeight)
 
+    override fun create(): DefaultMinSizeNode = DefaultMinSizeNode(minWidth, minHeight)
+
+    override fun update(node: DefaultMinSizeNode) {
+        node.minWidth = minWidth
+        node.minHeight = minHeight
+    }
+}
+
+/** Raises the child's zero minimum along each axis to the one a [DefaultMinSizeElement] declares. */
+private class DefaultMinSizeNode(
+    var minWidth: Int?,
+    var minHeight: Int?,
+) : LayoutModifierNode() {
     override fun MeasureScope.measure(
         measurable: Measurable,
         constraints: Constraints,
     ): MeasureResult {
         val minWidth =
-            if (constraints.minWidth == 0 && minWidth != null) {
-                minWidth.normalizedMinimum(constraints.maxWidth)
+            if (constraints.minWidth == 0) {
+                minWidth?.normalizedMinimum(constraints.maxWidth) ?: 0
             } else {
                 constraints.minWidth
             }
         val minHeight =
-            if (constraints.minHeight == 0 && minHeight != null) {
-                minHeight.normalizedMinimum(constraints.maxHeight)
+            if (constraints.minHeight == 0) {
+                minHeight?.normalizedMinimum(constraints.maxHeight) ?: 0
             } else {
                 constraints.minHeight
             }
@@ -515,4 +651,24 @@ internal data class DefaultMinSizeElement(
         val placeable = measurable.measure(measuredConstraints)
         return layout(placeable.width, placeable.height) { placeable.place(0, 0) }
     }
+
+    override fun IntrinsicMeasureScope.minIntrinsicWidth(
+        measurable: IntrinsicMeasurable,
+        height: Int,
+    ) = measurable.minIntrinsicWidth(height).coerceAtLeast(minWidth ?: 0)
+
+    override fun IntrinsicMeasureScope.maxIntrinsicWidth(
+        measurable: IntrinsicMeasurable,
+        height: Int,
+    ) = measurable.maxIntrinsicWidth(height).coerceAtLeast(minWidth ?: 0)
+
+    override fun IntrinsicMeasureScope.minIntrinsicHeight(
+        measurable: IntrinsicMeasurable,
+        width: Int,
+    ) = measurable.minIntrinsicHeight(width).coerceAtLeast(minHeight ?: 0)
+
+    override fun IntrinsicMeasureScope.maxIntrinsicHeight(
+        measurable: IntrinsicMeasurable,
+        width: Int,
+    ) = measurable.maxIntrinsicHeight(width).coerceAtLeast(minHeight ?: 0)
 }

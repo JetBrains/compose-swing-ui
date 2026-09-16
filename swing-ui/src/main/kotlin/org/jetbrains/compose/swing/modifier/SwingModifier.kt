@@ -467,6 +467,9 @@ internal abstract class NodeRecord<N : SwingModifier.Node, E : SwingModifier.Ele
     var element: E = element
         protected set
 
+    /** What writing an element to this slot changes for the parent's layout. */
+    open val writeChange: SlotChange get() = SlotChange.Written
+
     /**
      * Calls [record], runs the node's [SwingModifier.Node.onAttach], then pushes the element onto it: the first
      * install. The slot stands while `onAttach` runs, so [SwingModifier.Node.visitDeclaredNodes] finds the node from
@@ -657,6 +660,10 @@ internal class LayoutNodeRecord(
     element: ParentLayoutNodeElement<*>,
 ) : NodeRecord<ParentLayoutNode, ParentLayoutNodeElement<*>>(node, element) {
     override fun adopts(incoming: SwingModifier.Element): Boolean = element == incoming
+
+    /** A layout node that does not [auto-invalidate][ParentLayoutNode.shouldAutoInvalidate] leaves it standing. */
+    override val writeChange: SlotChange
+        get() = if (node.shouldAutoInvalidate) SlotChange.Written else SlotChange.Unchanged
 
     @Suppress("UNCHECKED_CAST") // The slot's node was created by an element of this element's class.
     override fun update(element: ParentLayoutNodeElement<*>) {
@@ -1135,7 +1142,7 @@ private fun SwingNodeHolder<Component>.adoptElement(
 
         else -> {
             record.rebindAndWrite(next, component, owner?.diagnostics)
-            if (record is LayoutNodeRecord) declaration.reapply()
+            if (record is LayoutNodeRecord && record.writeChange != SlotChange.Unchanged) declaration.reapply()
             adopted.nextSlot(
                 handsOver =
                     record is ElementRecord<*, *> &&
@@ -1568,7 +1575,7 @@ private fun diffChainSlots(
             record.canRebind(element) -> {
                 if (!adoptable || !record.adopt(element)) {
                     record.rebindAndWrite(element, target, diagnostics)
-                    change = maxOf(change, SlotChange.Written.countedFor(listener, record.node))
+                    change = maxOf(change, record.writeChange.countedFor(listener, record.node))
                 }
             }
 
@@ -1593,7 +1600,10 @@ private fun diffChainSlots(
 
 /** What [diffChainSlots] did to the slots of one family, from least to most. */
 internal enum class SlotChange {
-    /** Every slot adopted its element, or was written with a node its component's [DeclaredNodesListener] declines. */
+    /**
+     * Every slot adopted its element, or was written with a node its component's [DeclaredNodesListener] declines
+     * or a layout node that does not [auto-invalidate][ParentLayoutNode.shouldAutoInvalidate].
+     */
     Unchanged,
 
     /** A slot was written with its element, and none joined or left the chain. */

@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.foundation.layout
 
+import org.jetbrains.compose.swing.foundation.util.fastForEach
 import org.jetbrains.compose.swing.layout.MeasurementLayoutManager
 import org.jetbrains.compose.swing.layout.ParentLayoutElement
 import java.awt.Component
@@ -9,6 +10,7 @@ import java.awt.Dimension
 import java.awt.LayoutManager2
 import java.util.EnumSet
 import java.util.IdentityHashMap
+import java.util.function.BiConsumer
 
 /**
  * The layout manager a [MeasurePolicy] drives: it holds one [Measurable] per child, answers the three
@@ -71,29 +73,12 @@ internal class MeasurePolicyLayout(
         component: Component,
     ): Unit = Unit
 
-    /**
-     * Records every declaration [component] makes to this Foundation layout.
-     *
-     * Core has already resolved and folded parent-data modifiers into [parentData]. Foundation retains
-     * only its ordered layout-modifier chain and rejects another parent's remaining element rather than
-     * silently ignoring a declaration it cannot apply.
-     */
+    /** Records every declaration [component] makes to this Foundation layout; see [ChildMeasurable.declare]. */
     override fun declareComponentLayout(
         component: Component,
         parentData: Any?,
         elements: List<ParentLayoutElement>,
-    ) {
-        val layoutModifiers = elements.filterIsInstance<LayoutModifier>()
-        val unsupported = elements.filterNot { it is LayoutModifier }
-        require(unsupported.isEmpty()) {
-            "Foundation layout received an unsupported parent-layout modifier: ${unsupported.first().name}."
-        }
-        val measurable = measurables.of(component)
-        val changed = measurable.parentData != parentData || measurable.layoutChain != layoutModifiers
-        measurables.updateParentData(component, parentData)
-        measurable.layoutChain = layoutModifiers
-        if (changed) measurables.measured = null
-    }
+    ): Unit = measurables.of(component).declare(parentData, elements)
 
     /** Gives up what [component] was registered under, and the extent measured for it. */
     override fun removeLayoutComponent(component: Component) {
@@ -131,7 +116,7 @@ internal class MeasurePolicyLayout(
         // coming, and is measured again as that validation would.
         val replaysPlacement = measurables.isPlacingAgain && parent.isValid && ::placed.isInitialized
         val result = if (replaysPlacement) placed else measurables.settledOn(width, height)
-        placementScope.begin(insets.left, insets.top, width, parent.componentOrientation)
+        placementScope.begin(insets.left, insets.top, width, parent.componentOrientation.isLeftToRight)
         placed = result
         observe(PlacementReads, placeBlock)
     }
@@ -277,6 +262,7 @@ internal class ChildMeasurables(
     fun forget(child: Component) {
         val measurable = measurables.remove(child) ?: return
         layoutPass.remove(measurable)
+        measurable.forEachLayoutNode { if (it.child === measurable) it.child = null }
         measured = null
     }
 
@@ -286,7 +272,9 @@ internal class ChildMeasurables(
      * its parent must be laid out too; placement only assigns the size a parent already measured.
      */
     fun invalidate(): Boolean {
-        for (measurable in measurables.values) measurable.invalidate()
+        // The SAM constructor compiles to one shared instance; a bare lambda here is wrapped in a new BiConsumer
+        // on every call.
+        measurables.forEach(BiConsumer { _, measurable -> measurable.preferred = null })
         if (beingPlaced) return false
         measured = null
         return true
@@ -313,20 +301,6 @@ internal class ChildMeasurables(
         mode = MeasureMode.Measure
         measured = null
         return gather(layoutPass)
-    }
-
-    /** Runs an intrinsic child query under its requested stock Swing preferred or minimum mode. */
-    fun <T> intrinsic(
-        mode: MeasureMode,
-        query: () -> T,
-    ): T {
-        val retainedMode = this.mode
-        this.mode = mode
-        return try {
-            query()
-        } finally {
-            this.mode = retainedMode
-        }
     }
 
     /**
@@ -427,10 +401,11 @@ internal enum class MeasureMode {
 
 /**
  * One child of a container driven by a [MeasurePolicy]. Each measurement returns a [ChildPlaceable]
- * that retains its own result, matching Compose's measure-then-place contract.
+ * that retains its own result, matching androidx's measure-then-place contract.
  *
- * A child offered one extent on both axes takes that extent and is asked nothing - neither the
- * argument-less question nor the constrained one, since whatever it answered would be discarded.
+ * A child that is not a [Constrainable], offered one extent on both axes, takes that extent and is asked
+ * nothing, since whatever it answered would be discarded. A [Constrainable] always answers the constrained
+ * question.
  *
  * The extent the child prefers is otherwise measured once and kept while the child still holds the
  * extent it was read at, so a pass with nothing to re-measure asks the child nothing. A placement that
@@ -447,34 +422,52 @@ internal class ChildMeasurable(
 ) : Measurable {
     override var parentData: Any? = null
 
-    /** The layout modifiers this child is measured through, outermost first. */
-    var layoutChain: List<LayoutModifier> = emptyList()
+    /**
+     * The measurable of this child's outermost layout modifier, which measures through the next one inward, the
+     * innermost measuring the unmodified child; null where the child has no layout modifier. It is built again only
+     * when the child declares other nodes.
+     *
+     * Intrinsic queries answer through it rather than through [measure], and the unmodified end answers with the
+     * component's own preferred or minimum extent. A stateful node overriding the intrinsic hooks, such as an
+     * animation node, then answers without running its `measure`, which would retarget its animation once per query
+     * in a single validate cycle.
+     */
+    var outerMeasurable: Measurable? = null
+        private set
 
     internal var preferred: Dimension? = null
 
-    override fun measure(constraints: Constraints): Placeable {
-        if (layoutChain.isEmpty()) {
-            return measureUnmodified(constraints)
-        }
-        return measureThroughChain(constraints)
+    /**
+     * Whether the running or last measure block of its container read this child's baseline. Placing the
+     * child again then moves a baseline that measure depended on.
+     */
+    var lineReadByMeasure: Boolean = false
+
+    override fun measure(constraints: Constraints): Placeable =
+        outerMeasurable?.measure(constraints) ?: measureUnmodified(constraints)
+
+    // Each reads the field once rather than through a safe call, which would box the Int it answers.
+    override fun minIntrinsicWidth(height: Int): Int {
+        val outer = outerMeasurable ?: return component.minimumSize.width
+        return outer.minIntrinsicWidth(height)
     }
 
-    override fun minIntrinsicWidth(height: Int): Int =
-        intrinsicSize(MeasureMode.Minimum, Constraints(maxHeight = height)).width
-
-    override fun maxIntrinsicWidth(height: Int): Int =
-        intrinsicSize(MeasureMode.Preferred, Constraints(maxHeight = height)).width
-
-    override fun minIntrinsicHeight(width: Int): Int =
-        intrinsicSize(MeasureMode.Minimum, Constraints(maxWidth = width)).height
-
-    override fun maxIntrinsicHeight(width: Int): Int =
-        intrinsicSize(MeasureMode.Preferred, Constraints(maxWidth = width)).height
-
-    internal fun measureUnmodified(constraints: Constraints): ChildPlaceable {
-        val measured = measureComponent(constraints)
-        return ChildPlaceable(this, measured.width, measured.height, constraints)
+    override fun maxIntrinsicWidth(height: Int): Int {
+        val outer = outerMeasurable ?: return preferredExtent().width
+        return outer.maxIntrinsicWidth(height)
     }
+
+    override fun minIntrinsicHeight(width: Int): Int {
+        val outer = outerMeasurable ?: return component.minimumSize.height
+        return outer.minIntrinsicHeight(width)
+    }
+
+    override fun maxIntrinsicHeight(width: Int): Int {
+        val outer = outerMeasurable ?: return preferredExtent().height
+        return outer.maxIntrinsicHeight(width)
+    }
+
+    override fun maximumSize(): Dimension? = if (component.isMaximumSizeSet) component.maximumSize else null
 
     /**
      * Where the baseline falls within the extent this measurable states. The nested layout result is
@@ -484,72 +477,100 @@ internal class ChildMeasurable(
     override fun baseline(
         width: Int,
         height: Int,
-    ): Int = (measure(Constraints(width, width, height, height)) as PositionedPlaceable).baselineAt(0L, 0L)
-
-    /** Gives up the extent measured, for a container whose layout has been invalidated. */
-    fun invalidate() {
-        preferred = null
+    ): Int {
+        if (owner.layoutState == LayoutState.Measuring) lineReadByMeasure = true
+        return measure(Constraints(width, width, height, height)).baselineAt(0L, 0L)
     }
 
-    /** What the child answers through its own argument-less Swing call, for the mode the pass is in. */
-    internal fun plainExtent(): Dimension =
-        when (owner.mode) {
-            MeasureMode.Minimum -> component.minimumSize
-            else -> preferredExtent()
+    /** What the component itself answers under [constraints], with no chain between. */
+    internal fun measureUnmodified(constraints: Constraints): ChildPlaceable {
+        val constrainable = component as? Constrainable
+        if (constrainable != null && owner.mode == MeasureMode.Measure) {
+            constrainable.measure(constraints)
+            return ChildPlaceable(
+                this,
+                constrainable.constrainedWidth,
+                constrainable.constrainedHeight,
+                constraints,
+            )
         }
-
-    internal fun preferredExtent(): Dimension =
-        if (component.isDisplayable) preferred ?: measurePreferred() else component.preferredSize
-
-    internal fun measurePreferred(): Dimension = component.preferredSize.also { preferred = it }
-}
-
-private fun ChildMeasurable.measureThroughChain(constraints: Constraints): Placeable =
-    layoutChain
-        .asReversed()
-        .fold(UnmodifiedChildMeasurable(this) as Measurable) { inner, modifier ->
-            LayoutModifierMeasurable(modifier, inner, component.parent?.componentOrientation?.isLeftToRight ?: true)
-        }.measure(constraints)
-
-private fun ChildMeasurable.intrinsicSize(
-    mode: MeasureMode,
-    constraints: Constraints,
-): Placeable = owner.intrinsic(mode) { measure(constraints) }
-
-/** What the component itself answers under [constraints], with no chain between. */
-private fun ChildMeasurable.measureComponent(constraints: Constraints): Dimension {
-    val constrained = component as? Constrainable
-    return if (constrained != null && owner.mode == MeasureMode.Measure) {
-        constrained.measure(constraints)
-        Dimension(constrained.constrainedWidth, constrained.constrainedHeight)
-    } else {
         // Swing has no constrained-measure operation for an ordinary component.  When both axes
         // are exact, retain the established no-query fast path and use the granted extent. For every
         // other offer, its preferred or minimum size is the only answer Swing gives us, so constrain
         // it here. Only a Constrainable or layout modifier can deliberately report real overflow.
-        if (constraints.hasFixedWidth && constraints.hasFixedHeight) {
-            Dimension(constraints.minWidth, constraints.minHeight)
-        } else {
-            val extent = plainExtent()
-            Dimension(constraints.constrainWidth(extent.width), constraints.constrainHeight(extent.height))
+        val fixed = constraints.hasFixedWidth && constraints.hasFixedHeight
+        val extent = if (fixed) Dimension(constraints.minWidth, constraints.minHeight) else plainExtent()
+        val width = constraints.constrainWidth(extent.width)
+        return ChildPlaceable(this, width, constraints.constrainHeight(extent.height), constraints)
+    }
+
+    /**
+     * Records every declaration this child makes to its container.
+     *
+     * Core has already resolved and folded parent-data modifiers into [parentData]. Foundation retains
+     * only its ordered layout-modifier chain and rejects another parent's remaining element rather than
+     * silently ignoring a declaration it cannot apply.
+     */
+    fun declare(
+        parentData: Any?,
+        elements: List<ParentLayoutElement>,
+    ) {
+        elements.fastForEach {
+            require(it is LayoutModifierNode) {
+                "Foundation layout received an unsupported parent-layout modifier: ${it.name}."
+            }
+            it.child = this
         }
+        var kept = 0
+        var chainChanged = false
+        forEachLayoutNode {
+            if (chainChanged) return@forEachLayoutNode
+            if (kept < elements.size && elements[kept] == it) kept++ else chainChanged = true
+        }
+        chainChanged = chainChanged || kept != elements.size
+        if (chainChanged) {
+            forEachLayoutNode { if (it.child === this && it !in elements) it.child = null }
+            outerMeasurable =
+                if (elements.isEmpty()) {
+                    null
+                } else {
+                    var outer: Measurable = UnmodifiedChildMeasurable(this)
+                    for (index in elements.lastIndex downTo 0) {
+                        outer = LayoutModifierMeasurable(elements[index] as LayoutModifierNode, outer, this)
+                    }
+                    outer
+                }
+        }
+        val changed = this.parentData != parentData || chainChanged
+        owner.updateParentData(component, parentData)
+        if (changed) owner.measured = null
     }
 }
 
-/** A placeable Foundation can replay into a nested modifier result or directly into Swing bounds. */
-internal interface PositionedPlaceable : Placeable {
-    fun placeAt(
-        x: Long,
-        y: Long,
-    )
+/** What the child answers through its own argument-less Swing call, for the mode the pass is in. */
+private fun ChildMeasurable.plainExtent(): Dimension =
+    when (owner.mode) {
+        MeasureMode.Minimum -> component.minimumSize
+        else -> preferredExtent()
+    }
 
-    fun baselineAt(
-        x: Long,
-        y: Long,
-    ): Int
+private fun ChildMeasurable.preferredExtent(): Dimension =
+    if (component.isDisplayable) {
+        preferred ?: component.preferredSize.also { preferred = it }
+    } else {
+        component.preferredSize
+    }
+
+/** Runs [action] on each layout modifier node this child is measured through, outermost first. */
+private inline fun ChildMeasurable.forEachLayoutNode(action: (LayoutModifierNode) -> Unit) {
+    var measurable = outerMeasurable
+    while (measurable is LayoutModifierMeasurable) {
+        action(measurable.modifier)
+        measurable = measurable.measurable
+    }
 }
 
-/** The unmodified end of a child modifier chain. */
+/** The unmodified child, which its innermost layout modifier measures through. */
 private class UnmodifiedChildMeasurable(
     internal val child: ChildMeasurable,
 ) : Measurable {
@@ -565,52 +586,57 @@ private class UnmodifiedChildMeasurable(
 
     override fun maxIntrinsicHeight(width: Int): Int = child.preferredExtent().height
 
+    override fun maximumSize(): Dimension? = child.maximumSize()
+
     override fun baseline(
         width: Int,
         height: Int,
     ): Int = child.component.getBaseline(width, height)
 }
 
-/** One layer in the nested [LayoutModifier] measurement chain. */
+/** One layout modifier of a child, measuring through [measurable]. */
 private class LayoutModifierMeasurable(
-    private val modifier: LayoutModifier,
-    internal val child: Measurable,
-    private val leftToRight: Boolean,
+    val modifier: LayoutModifierNode,
+    val measurable: Measurable,
+    private val placement: ChildMeasurable,
 ) : Measurable {
-    override val parentData: Any? get() = child.parentData
+    override val parentData: Any? get() = measurable.parentData
 
     override fun measure(constraints: Constraints): Placeable =
         LayoutModifierPlaceable(
-            with(PolicyMeasureScope) { with(modifier) { measure(child, constraints) } },
+            with(PolicyMeasureScope) { with(modifier) { measure(measurable, constraints) } },
             constraints,
-            leftToRight,
+            placement.owner.panel.componentOrientation.isLeftToRight,
+            placement,
         )
 
     override fun minIntrinsicWidth(height: Int): Int =
-        with(PolicyMeasureScope) { with(modifier) { minIntrinsicWidth(child, height) } }
+        with(PolicyMeasureScope) { with(modifier) { minIntrinsicWidth(measurable, height) } }
 
     override fun maxIntrinsicWidth(height: Int): Int =
-        with(PolicyMeasureScope) { with(modifier) { maxIntrinsicWidth(child, height) } }
+        with(PolicyMeasureScope) { with(modifier) { maxIntrinsicWidth(measurable, height) } }
 
     override fun minIntrinsicHeight(width: Int): Int =
-        with(PolicyMeasureScope) { with(modifier) { minIntrinsicHeight(child, width) } }
+        with(PolicyMeasureScope) { with(modifier) { minIntrinsicHeight(measurable, width) } }
 
     override fun maxIntrinsicHeight(width: Int): Int =
-        with(PolicyMeasureScope) { with(modifier) { maxIntrinsicHeight(child, width) } }
+        with(PolicyMeasureScope) { with(modifier) { maxIntrinsicHeight(measurable, width) } }
+
+    override fun maximumSize(): Dimension? = measurable.maximumSize()
 
     override fun baseline(
         width: Int,
         height: Int,
-    ): Int = (measure(Constraints(width, width, height, height)) as PositionedPlaceable).baselineAt(0L, 0L)
+    ): Int = measure(Constraints(width, width, height, height)).baselineAt(0L, 0L)
 }
 
 /** One independent measurement of a Swing child. */
 internal class ChildPlaceable(
-    private val measurable: ChildMeasurable,
+    override val child: ChildMeasurable,
     override val measuredWidth: Int,
     override val measuredHeight: Int,
     constraints: Constraints,
-) : PositionedPlaceable {
+) : Placeable() {
     override val width: Int = constraints.constrainWidth(measuredWidth)
 
     override val height: Int = constraints.constrainHeight(measuredHeight)
@@ -619,26 +645,26 @@ internal class ChildPlaceable(
         x: Long,
         y: Long,
     ) {
-        val component = measurable.component
+        val component = child.component
         val resized = component.width != measuredWidth || component.height != measuredHeight
         // A constrainable child answers its constraints whatever its size.
         val readable = resized && component !is Constrainable
-        val read = if (readable) measurable.preferredAtOldSize() else null
-        if (resized) measurable.invalidate()
+        val read = if (readable) child.preferredAtOldSize() else null
+        if (resized) child.preferred = null
         component.setBounds(
             saturateLayoutCoordinate(x + centeredOverflowOffset(width, measuredWidth)),
             saturateLayoutCoordinate(y + centeredOverflowOffset(height, measuredHeight)),
             measuredWidth,
             measuredHeight,
         )
-        if (readable && measurable.answersOtherwiseThan(read)) measurable.owner.measured = null
+        if (readable && child.answersOtherwiseThan(read)) child.owner.measured = null
     }
 
     override fun baselineAt(
         x: Long,
         y: Long,
     ): Int {
-        val baseline = measurable.component.getBaseline(measuredWidth, measuredHeight)
+        val baseline = child.component.getBaseline(measuredWidth, measuredHeight)
         return if (baseline < 0) {
             baseline
         } else {
@@ -655,7 +681,7 @@ internal class ChildPlaceable(
 private fun ChildMeasurable.preferredAtOldSize(): Dimension? =
     when {
         component.isDisplayable -> preferred
-        layoutChain.isEmpty() -> component.preferredSize
+        outerMeasurable == null -> component.preferredSize
         else -> null
     }
 
@@ -666,14 +692,15 @@ private fun ChildMeasurable.preferredAtOldSize(): Dimension? =
  * nothing else was read.
  */
 private fun ChildMeasurable.answersOtherwiseThan(read: Dimension?): Boolean =
-    if (read == null) layoutChain.isNotEmpty() else preferredExtent() != read
+    if (read == null) outerMeasurable != null else preferredExtent() != read
 
 /** A [MeasureResult] held with the reading order it must replay its placement under. */
 private class LayoutModifierPlaceable(
     private val result: MeasureResult,
     constraints: Constraints,
     private val leftToRight: Boolean,
-) : PositionedPlaceable {
+    override val child: ChildMeasurable,
+) : Placeable() {
     override val measuredWidth: Int get() = result.width
     override val measuredHeight: Int get() = result.height
     override val width: Int = constraints.constrainWidth(measuredWidth)
@@ -685,14 +712,8 @@ private class LayoutModifierPlaceable(
     ) {
         val originX = x + centeredOverflowOffset(width, measuredWidth)
         val originY = y + centeredOverflowOffset(height, measuredHeight)
-        with(result) {
-            NestedPlacementScope(
-                originX,
-                originY,
-                measuredWidth,
-                leftToRight,
-            ).placeChildren()
-        }
+        val scope = NodePlacementScope(originX, originY, measuredWidth, leftToRight)
+        with(result) { scope.placeChildren() }
     }
 
     override fun baselineAt(
@@ -715,26 +736,25 @@ private fun centeredOverflowOffset(
     measured: Int,
 ): Long = (apparent.toLong() - measured.toLong()) / 2L
 
-/** Replays one modifier's result into the coordinate system of the enclosing modifier or parent. */
-private class NestedPlacementScope(
+/** Replays a [LayoutModifierNode]'s result into the coordinate system of the enclosing node or parent. */
+private class NodePlacementScope(
     private val originX: Long,
     private val originY: Long,
     override val parentWidth: Int,
     override val isLeftToRight: Boolean,
-) : PlacementScope {
+) : PlacementScope() {
     override fun Placeable.place(
         x: Int,
         y: Int,
     ) {
-        (this as PositionedPlaceable).placeAt(originX + x.toLong(), originY + y.toLong())
+        placeAt(originX + x.toLong(), originY + y.toLong())
     }
 
     override fun Placeable.placeRelative(
         x: Int,
         y: Int,
     ) {
-        val relativeX = if (isLeftToRight) x.toLong() else parentWidth.toLong() - width.toLong() - x.toLong()
-        (this as PositionedPlaceable).placeAt(originX + relativeX, originY + y.toLong())
+        placeAt(originX + relativeX(this, x), originY + y.toLong())
     }
 }
 
@@ -744,7 +764,7 @@ private class BaselinePlacementScope(
     private val originY: Long,
     override val parentWidth: Int,
     override val isLeftToRight: Boolean,
-) : PlacementScope {
+) : PlacementScope() {
     var baseline: Int = -1
         private set
 
@@ -752,7 +772,7 @@ private class BaselinePlacementScope(
         x: Int,
         y: Int,
     ) {
-        val placed = (this as PositionedPlaceable).baselineAt(originX + x.toLong(), originY + y.toLong())
+        val placed = baselineAt(originX + x.toLong(), originY + y.toLong())
         if (baseline < 0) baseline = placed
     }
 
@@ -760,8 +780,7 @@ private class BaselinePlacementScope(
         x: Int,
         y: Int,
     ) {
-        val relativeX = if (isLeftToRight) x.toLong() else parentWidth.toLong() - width.toLong() - x.toLong()
-        val placed = (this as PositionedPlaceable).baselineAt(originX + relativeX, originY + y.toLong())
+        val placed = baselineAt(originX + relativeX(this, x), originY + y.toLong())
         if (baseline < 0) baseline = placed
     }
 }
@@ -772,7 +791,7 @@ internal val IntrinsicMeasurable.componentOrNull: Component?
         when (this) {
             is ChildMeasurable -> component
             is UnmodifiedChildMeasurable -> child.component
-            is LayoutModifierMeasurable -> child.componentOrNull
+            is LayoutModifierMeasurable -> measurable.componentOrNull
             is IntrinsicMeasurableAdapter -> source.componentOrNull
         }
 
@@ -786,58 +805,46 @@ internal val Measurable.component: Component
  * needs; these two take the orientation itself.
  */
 internal val PlacementScope.orientation: ComponentOrientation
-    get() =
-        (this as? InnerPlacementScope)?.orientation
-            ?: if (isLeftToRight) ComponentOrientation.LEFT_TO_RIGHT else ComponentOrientation.RIGHT_TO_LEFT
+    get() = if (isLeftToRight) ComponentOrientation.LEFT_TO_RIGHT else ComponentOrientation.RIGHT_TO_LEFT
 
 /**
  * Where a policy places its children: inside the container's insets, whose origin every placement is
  * offset by, so a policy works in the coordinates it measured in.
  */
-internal class InnerPlacementScope : PlacementScope {
+internal class InnerPlacementScope : PlacementScope() {
     private var originX: Int = 0
     private var originY: Int = 0
-
-    /** The reading order the container carries; see [orientation]. */
-    var orientation: ComponentOrientation = ComponentOrientation.LEFT_TO_RIGHT
-        private set
 
     override var parentWidth: Int = 0
         private set
 
-    override val isLeftToRight: Boolean get() = orientation.isLeftToRight
+    override var isLeftToRight: Boolean = true
+        private set
 
     fun begin(
         originX: Int,
         originY: Int,
         parentWidth: Int,
-        orientation: ComponentOrientation,
+        isLeftToRight: Boolean,
     ) {
         this.originX = originX
         this.originY = originY
         this.parentWidth = parentWidth
-        this.orientation = orientation
+        this.isLeftToRight = isLeftToRight
     }
 
     override fun Placeable.place(
         x: Int,
         y: Int,
     ) {
-        (this as PositionedPlaceable).placeAt(
-            originX.toLong() + x.toLong(),
-            originY.toLong() + y.toLong(),
-        )
+        placeAt(originX.toLong() + x.toLong(), originY.toLong() + y.toLong())
     }
 
     override fun Placeable.placeRelative(
         x: Int,
         y: Int,
     ) {
-        val relativeX = if (isLeftToRight) x.toLong() else parentWidth.toLong() - width.toLong() - x.toLong()
-        (this as PositionedPlaceable).placeAt(
-            originX.toLong() + relativeX,
-            originY.toLong() + y.toLong(),
-        )
+        placeAt(originX.toLong() + relativeX(this, x), originY.toLong() + y.toLong())
     }
 }
 

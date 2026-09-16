@@ -93,9 +93,10 @@ Swing asks a container for its preferred and minimum sizes without offering a wi
 query asks the policy's `maxIntrinsicWidth` and `maxIntrinsicHeight`, and a minimum size query its
 `minIntrinsicWidth` and `minIntrinsicHeight`, each with the other axis unbounded. A child answers the max functions
 with its preferred size and the min functions with its minimum size, through the intrinsic functions of its layout
-modifiers. By default, the intrinsic functions of a policy run its `measure`, as
+modifiers. By default, the intrinsic functions of a policy and of a `LayoutModifierNode` run its `measure`, as
 androidx's do, against a stand-in whose extent along the asked axis is the child's intrinsic size, whatever constraints
-it is measured under. A policy that divides bounded space, such as a weighted linear layout, overrides all four. A
+it is measured under. A `LayoutModifierNode` whose `measure` must not run for a query, such as one that starts an
+animation, overrides all four, and so does a policy that divides bounded space, such as a weighted linear layout. A
 container's maximum size is unbounded unless one is set.
 
 ### Where constraints stop
@@ -128,8 +129,10 @@ offsets travel back out. `start` and `end` mirror under a right-to-left orientat
 `left` and `right` and never mirror. `padding` and `offset` move the component's baseline too, so
 `alignByBaseline()` stays correct through them.
 
-Parent-data modifiers such as `weight` and `align` fold in declaration order and reach a policy as
-`Measurable.parentData`: `weight(2f).weight(1f)` uses `1f`, while
+A layout modifier is a `LayoutModifierNodeElement`, whose `LayoutModifierNode` wraps a child's measurement and
+placement and keeps its state across passes; a child declares one of your own through `ConstrainedScope`'s `layout`
+member, as [Scoped modifiers](#scoped-modifiers) shows. Parent-data modifiers such as `weight` and `align` fold in
+declaration order and reach a policy as `Measurable.parentData`: `weight(2f).weight(1f)` uses `1f`, while
 `weight(1f).align(Alignment.Bottom)` keeps both.
 [Parent data and layout modifiers](CUSTOM-CONTAINERS.md#parent-data-and-layout-modifiers) describes these types.
 
@@ -182,7 +185,8 @@ In both containers:
 - a child's `align` overrides the container's cross-axis alignment.
 
 An explicit Swing `maximumSize` caps the extent offered to a child. It applies to the child as a whole, outside
-its layout modifiers: the outermost modifier receives the capped offer.
+its layout modifiers: the outermost modifier receives the capped offer. A `Row`, `Column` or `Box` holds the
+child's intrinsic size to it too.
 
 On an unbounded main axis, weighted children share only what the container's minimum extent leaves after the other
 children; the container's preferred size is large enough for each weighted child to get its preferred extent at its
@@ -255,9 +259,11 @@ that content reads none of them. A modifier that reaches a container unable to h
 applied.
 
 A modifier of your own declares the same scope as a context parameter, and resolves wherever the scope's own
-modifiers do. It builds on those modifiers:
+modifiers do. It builds on those modifiers, or on the scope's one member: `layout` declares a
+`LayoutModifierNodeElement` of your own, or a measure lambda as androidx's `Modifier.layout` does.
 
 <!--- INCLUDE .*foundation-scoped.*
+import org.jetbrains.compose.swing.foundation.graphics.*
 import org.jetbrains.compose.swing.foundation.layout.*
 import org.jetbrains.compose.swing.modifier.*
 
@@ -266,6 +272,16 @@ import org.jetbrains.compose.swing.modifier.*
 ```kotlin
 context(scope: ConstrainedScope)
 fun SwingModifier.gutter(): SwingModifier = padding(horizontal = 12, vertical = 4).fillMaxWidth()
+
+/** Places the child [dx] to the right of where it would otherwise sit. */
+context(scope: ConstrainedScope)
+fun SwingModifier.shifted(dx: Int): SwingModifier =
+    layout { measurable, constraints ->
+        val placeable = measurable.measure(constraints)
+        layout(placeable.width, placeable.height) { placeable.place(dx, 0) }
+    }
+
+fun SwingModifier.outlined(outline: Decorator): SwingModifier = decoration(outline)
 ```
 
 <!--- KNIT example-foundation-scoped-01.kt -->

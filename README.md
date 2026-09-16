@@ -244,7 +244,7 @@ the `-Xcontext-parameters` compiler option; see [Scoped modifiers](docs/FOUNDATI
 Licensed under the Apache License, Version 2.0 - see [LICENSE](LICENSE).
 
 `swing-ui` redistributes source code from the Android Open Source Project's Jetpack Compose `compose.ui:ui` and
-`ui-util`, `swing-ui-foundation` its `foundation`, `foundation-layout`, `compose.ui:ui`, `ui-graphics` and
-`ui-util`, `swing-ui-animation` its `animation-core`, and `swing-ui-detekt` one of that project's Android Lint
+`ui-util`, `swing-ui-foundation` its `foundation`, `foundation-layout`, `compose.ui:ui`, `ui-graphics`, `ui-unit`
+and `ui-util`, `swing-ui-animation` its `animation-core`, and `swing-ui-detekt` one of that project's Android Lint
 checks, all under the same license. See each module's `META-INF/NOTICE`
 and the per-file headers for attribution.

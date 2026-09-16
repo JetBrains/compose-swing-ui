@@ -273,6 +273,30 @@ class ParentDeclarationTest {
     }
 
     @Test
+    fun aHostThatCannotMeasureNamesTheLayoutElementDeclaredRatherThanTheNodeStandingForIt() {
+        val root = JPanel(FlowLayout())
+        val owner = TestCompositionOwner()
+        val applier = SwingApplier(SwingNodeHolder(root).attachedTo(owner))
+        val child = SwingNodeHolder(JButton("child")).attachedTo(owner)
+        child.applyModifierDiff(SwingModifier.then(AnyHostLayoutNodeElement))
+
+        try {
+            applier.onBeginChanges()
+            applier.insertTopDown(0, child)
+            applier.down(applier.root)
+            val refusal = assertFailsWith<IllegalStateException> { applier.insertBottomUp(0, child) }
+            applier.up()
+
+            assertTrue(
+                refusal.message.orEmpty().contains("declares SwingModifier.anyHostLayout()."),
+                "the refusal must name the declared element, but was: ${refusal.message}",
+            )
+        } finally {
+            owner.dispose()
+        }
+    }
+
+    @Test
     fun rawParentDataCanAttachToALayeredPaneWithoutALayoutManager() {
         val root = JLayeredPane()
         val owner = TestCompositionOwner()
@@ -853,6 +877,21 @@ private class ChainComponentNode(
     private fun sight(step: String) {
         sightings += "$step $label: ${chain.count { it.isAttached }} of ${chain.size}"
     }
+}
+
+/** A layout node element whose protocol accepts any host, named apart from the class of the node it creates. */
+private data object AnyHostLayoutNodeElement : ParentLayoutNodeElement<AnyHostLayoutNode>() {
+    override val name: String get() = "anyHostLayout"
+
+    override val parentProtocol: ParentProtocol = parentProtocolOf("any host") { true }
+
+    override fun create(): AnyHostLayoutNode = AnyHostLayoutNode()
+
+    override fun update(node: AnyHostLayoutNode) = Unit
+}
+
+private class AnyHostLayoutNode : ParentLayoutNode() {
+    override val parentProtocol: ParentProtocol get() = AnyHostLayoutNodeElement.parentProtocol
 }
 
 private data class TestParentLayoutElement(

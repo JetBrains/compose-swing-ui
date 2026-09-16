@@ -6,6 +6,7 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.PrintStream
 import kotlin.io.path.createTempDirectory
+import kotlin.test.assertEquals
 
 /**
  * In-process Kotlin compiler harness that compiles a snippet with the Compose compiler plugin
@@ -45,6 +46,32 @@ public object InProcessCompilerHarness {
                     val separator = ERROR_DIAGNOSTIC_MARKER.find(line) ?: return@mapNotNull null
                     line.substring(separator.range.last + 1)
                 }.toList()
+
+        /** Asserts the snippet compiled. */
+        public fun assertCompiled() {
+            assertEquals(ExitCode.OK, exitCode, "the snippet must compile, output was:\n$output")
+        }
+
+        /**
+         * Asserts the snippet failed to compile with one error naming each of [names], and no other. A name
+         * listed twice must be named by two errors.
+         */
+        public fun assertRejected(names: List<String>) {
+            val errors = errors()
+            assertEquals(
+                names.size,
+                errors.size,
+                "each of $names must be rejected once, output was:\n$output",
+            )
+            for (name in names.distinct()) {
+                assertEquals(
+                    names.count { it == name },
+                    errors.count { name in it },
+                    "the rejections must name `$name`, output was:\n$output",
+                )
+            }
+            assertEquals(ExitCode.COMPILATION_ERROR, exitCode, "output was:\n$output")
+        }
 
         override fun equals(other: Any?): Boolean {
             if (this === other) return true

@@ -46,17 +46,13 @@ context(scope: ConstrainedScope)
 public fun SwingModifier.aspectRatio(
     @FloatRange(from = 0.0, fromInclusive = false) ratio: Float,
     matchHeightConstraintsFirst: Boolean = false,
-): SwingModifier = this then AspectRatioElement(ratio, matchHeightConstraintsFirst)
+): SwingModifier = with(scope) { layout(AspectRatioElement(ratio, matchHeightConstraintsFirst)) }
 
-/**
- * The `ConstrainedScope.aspectRatio` the child is sized under: [ratio] width per unit height, taken
- * from the extents its incoming constraints name in the order [findSizeAt] tries them. Where none of
- * those names a size at all, the child is measured under the constraints unchanged.
- */
-internal data class AspectRatioElement(
+/** The `aspectRatio` the child is sized under. */
+private data class AspectRatioElement(
     val ratio: Float,
     val matchHeightConstraintsFirst: Boolean,
-) : LayoutModifier {
+) : LayoutModifierNodeElement<AspectRatioNode>() {
     init {
         require(ratio.isFinite() && ratio > 0) { "aspectRatio $ratio must be finite and greater than zero" }
     }
@@ -66,6 +62,23 @@ internal data class AspectRatioElement(
     override val declaredValues: Map<String, Any?>
         get() = mapOf("ratio" to ratio, "matchHeightConstraintsFirst" to matchHeightConstraintsFirst)
 
+    override fun create(): AspectRatioNode = AspectRatioNode(ratio, matchHeightConstraintsFirst)
+
+    override fun update(node: AspectRatioNode) {
+        node.ratio = ratio
+        node.matchHeightConstraintsFirst = matchHeightConstraintsFirst
+    }
+}
+
+/**
+ * Sizes the child to [ratio] width per unit height, taken from the extents its incoming constraints name in the
+ * order [findSizeAt] tries them. Where none of those names a size at all, the child is measured under the
+ * constraints unchanged.
+ */
+private class AspectRatioNode(
+    var ratio: Float,
+    var matchHeightConstraintsFirst: Boolean,
+) : LayoutModifierNode() {
     override fun MeasureScope.measure(
         measurable: Measurable,
         constraints: Constraints,
@@ -76,21 +89,43 @@ internal data class AspectRatioElement(
         val placeable = measurable.measure(measuredConstraints)
         return layout(placeable.width, placeable.height) { placeable.place(0, 0) }
     }
-}
 
-/** An extent an aspect ratio can take a size from, the other following from the ratio. */
-private enum class RatioExtent {
-    MaxWidth,
-    MaxHeight,
-    MinWidth,
-    MinHeight,
-}
+    override fun IntrinsicMeasureScope.minIntrinsicWidth(
+        measurable: IntrinsicMeasurable,
+        height: Int,
+    ) = if (height != Constraints.Infinity) {
+        (height * ratio).roundToInt()
+    } else {
+        measurable.minIntrinsicWidth(height)
+    }
 
-/** The extents tried in turn, widest first, and the same order with the two axes swapped. */
-private val WIDTH_FIRST =
-    listOf(RatioExtent.MaxWidth, RatioExtent.MaxHeight, RatioExtent.MinWidth, RatioExtent.MinHeight)
-private val HEIGHT_FIRST =
-    listOf(RatioExtent.MaxHeight, RatioExtent.MaxWidth, RatioExtent.MinHeight, RatioExtent.MinWidth)
+    override fun IntrinsicMeasureScope.maxIntrinsicWidth(
+        measurable: IntrinsicMeasurable,
+        height: Int,
+    ) = if (height != Constraints.Infinity) {
+        (height * ratio).roundToInt()
+    } else {
+        measurable.maxIntrinsicWidth(height)
+    }
+
+    override fun IntrinsicMeasureScope.minIntrinsicHeight(
+        measurable: IntrinsicMeasurable,
+        width: Int,
+    ) = if (width != Constraints.Infinity) {
+        (width / ratio).roundToInt()
+    } else {
+        measurable.minIntrinsicHeight(width)
+    }
+
+    override fun IntrinsicMeasureScope.maxIntrinsicHeight(
+        measurable: IntrinsicMeasurable,
+        width: Int,
+    ) = if (width != Constraints.Infinity) {
+        (width / ratio).roundToInt()
+    } else {
+        measurable.maxIntrinsicHeight(width)
+    }
+}
 
 /**
  * The size satisfying [ratio]: each extent tried in turn while the size it yields must satisfy the
@@ -100,68 +135,50 @@ private val HEIGHT_FIRST =
 private fun Constraints.findSizeAt(
     ratio: Float,
     matchHeightConstraintsFirst: Boolean,
-): Dimension? {
-    val order = if (matchHeightConstraintsFirst) HEIGHT_FIRST else WIDTH_FIRST
-    for (enforce in ENFORCED_THEN_NOT) {
-        for (extent in order) {
-            sizeAt(extent, ratio, enforce)?.let { return it }
-        }
-    }
-    return null
-}
+): Dimension? =
+    findSizeRound(ratio, matchHeightConstraintsFirst, enforce = true)
+        ?: findSizeRound(ratio, matchHeightConstraintsFirst, enforce = false)
 
-/** The size the constraints yield at [extent], held to them where [enforce]. */
-private fun Constraints.sizeAt(
-    extent: RatioExtent,
+/** The first size one round of [findSizeAt] yields, held to the constraints where [enforce]. */
+private fun Constraints.findSizeRound(
     ratio: Float,
+    matchHeightConstraintsFirst: Boolean,
     enforce: Boolean,
 ): Dimension? =
-    when (extent) {
-        RatioExtent.MaxWidth -> tryMaxWidth(ratio, enforce)
-        RatioExtent.MaxHeight -> tryMaxHeight(ratio, enforce)
-        RatioExtent.MinWidth -> tryMinWidth(ratio, enforce)
-        RatioExtent.MinHeight -> tryMinHeight(ratio, enforce)
+    if (matchHeightConstraintsFirst) {
+        (if (hasBoundedHeight) sizeAtHeight(maxHeight, ratio, enforce) else null)
+            ?: (if (hasBoundedWidth) sizeAtWidth(maxWidth, ratio, enforce) else null)
+            ?: sizeAtHeight(minHeight, ratio, enforce)
+            ?: sizeAtWidth(minWidth, ratio, enforce)
+    } else {
+        (if (hasBoundedWidth) sizeAtWidth(maxWidth, ratio, enforce) else null)
+            ?: (if (hasBoundedHeight) sizeAtHeight(maxHeight, ratio, enforce) else null)
+            ?: sizeAtWidth(minWidth, ratio, enforce)
+            ?: sizeAtHeight(minHeight, ratio, enforce)
     }
 
-/** A size must satisfy the constraints on the first round and need not on the second. */
-private val ENFORCED_THEN_NOT = booleanArrayOf(true, false)
-
-private fun Constraints.tryMaxWidth(
+/** The size at [ratio] for a child this wide, or `null` where [enforce] and it falls outside these constraints. */
+private fun Constraints.sizeAtWidth(
+    width: Int,
     ratio: Float,
     enforce: Boolean,
 ): Dimension? {
-    if (!hasBoundedWidth) return null
-    val height = (maxWidth / ratio).roundToInt()
-    return if (height > 0 && (!enforce || satisfies(maxWidth, height))) Dimension(maxWidth, height) else null
+    val height = (width / ratio).roundToInt()
+    return if (height > 0 && (!enforce || isSatisfiedBy(width, height))) Dimension(width, height) else null
 }
 
-private fun Constraints.tryMaxHeight(
+/** The size at [ratio] for a child this tall, or `null` where [enforce] and it falls outside these constraints. */
+private fun Constraints.sizeAtHeight(
+    height: Int,
     ratio: Float,
     enforce: Boolean,
 ): Dimension? {
-    if (!hasBoundedHeight) return null
-    val width = (maxHeight * ratio).roundToInt()
-    return if (width > 0 && (!enforce || satisfies(width, maxHeight))) Dimension(width, maxHeight) else null
+    val width = (height * ratio).roundToInt()
+    return if (width > 0 && (!enforce || isSatisfiedBy(width, height))) Dimension(width, height) else null
 }
 
-private fun Constraints.tryMinWidth(
-    ratio: Float,
-    enforce: Boolean,
-): Dimension? {
-    val height = (minWidth / ratio).roundToInt()
-    return if (height > 0 && (!enforce || satisfies(minWidth, height))) Dimension(minWidth, height) else null
-}
-
-private fun Constraints.tryMinHeight(
-    ratio: Float,
-    enforce: Boolean,
-): Dimension? {
-    val width = (minHeight * ratio).roundToInt()
-    return if (width > 0 && (!enforce || satisfies(width, minHeight))) Dimension(width, minHeight) else null
-}
-
-/** Whether ([width], [height]) falls inside these constraints. */
-private fun Constraints.satisfies(
+/** Whether a size this wide and this tall satisfies the constraints, without allocating a [Dimension] for it. */
+private fun Constraints.isSatisfiedBy(
     width: Int,
     height: Int,
 ): Boolean = width in minWidth..maxWidth && height in minHeight..maxHeight

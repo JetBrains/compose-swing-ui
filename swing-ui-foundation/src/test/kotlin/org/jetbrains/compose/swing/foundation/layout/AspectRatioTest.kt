@@ -1,3 +1,22 @@
+/*
+ * Copyright 2019 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * Adapted from androidx.compose.foundation.layout.AspectRatioTest in AndroidX's
+ * foundation-layout; see this module's META-INF/NOTICE for the synced version.
+ */
+
 package org.jetbrains.compose.swing.foundation.layout
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -137,12 +156,12 @@ class AspectRatioTest {
         )
         assertEquals(
             Dimension(1, 2),
-            sizeAt(0.5f, Constraints(minWidth = SMALLEST_WIDTH)),
+            sizeAt(0.5f, Constraints(minWidth = 1)),
             "a least width of one still names a size at a ratio that implies a height above nothing from it",
         )
         assertEquals(
             Dimension(CHILD_WIDTH, CHILD_HEIGHT),
-            sizeAt(100f, Constraints(minWidth = SMALLEST_WIDTH)),
+            sizeAt(100f, Constraints(minWidth = 1)),
             "and where the ratio implies no height at all from that width, the child must again be measured " +
                 "under the constraints it was offered",
         )
@@ -150,16 +169,16 @@ class AspectRatioTest {
 
     @Test
     fun aRatioReportsTheExtentItSizedItsChildTo() {
-        val (sized, reported) = laidOutAt(2f, Constraints(FIXED_OFFER, FIXED_OFFER, FIXED_OFFER, FIXED_OFFER))
+        val (sized, reported) = laidOutAt(2f, Constraints(200, 200, 200, 200))
 
         assertEquals(
-            Dimension(FIXED_OFFER, FIXED_OFFER / 2),
+            Dimension(200, 100),
             sized,
             "a ratio no size within an extent fixed on both axes satisfies must size its child at the " +
                 "ratio all the same, outside the extent it was offered",
         )
         assertEquals(
-            Dimension(FIXED_OFFER, FIXED_OFFER),
+            Dimension(200, 200),
             reported,
             "and the parent must see an apparent extent coerced into the fixed offer it made",
         )
@@ -279,20 +298,7 @@ class AspectRatioTest {
     private fun ratioChain(
         ratio: Float,
         matchHeightConstraintsFirst: Boolean,
-    ): List<LayoutModifier> {
-        val declared = with(BoxScopeInstance) { SwingModifier.aspectRatio(ratio, matchHeightConstraintsFirst) }
-        return declared.foldIn(mutableListOf<LayoutModifier>()) { chain, element ->
-            chain.also { if (element is LayoutModifier) it.add(element) }
-        }
-    }
-
-    private companion object {
-        /** The least width a child can be asked for while still being asked for one at all. */
-        const val SMALLEST_WIDTH = 1
-
-        /** An extent fixed on both axes, which no size at a ratio of two to one satisfies. */
-        const val FIXED_OFFER = 200
-    }
+    ): List<LayoutModifierNode> = layoutChainOf { SwingModifier.aspectRatio(ratio, matchHeightConstraintsFirst) }
 }
 
 /**

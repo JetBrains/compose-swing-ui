@@ -33,7 +33,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
  */
 context(scope: ConstrainedScope)
 public fun SwingModifier.width(intrinsicSize: IntrinsicSize): SwingModifier =
-    this then IntrinsicWidthElement(intrinsicSize, enforceIncoming = true, name = "width")
+    with(scope) { layout(IntrinsicWidthElement(intrinsicSize, enforceIncoming = true)) }
 
 /**
  * Prefers the child's [intrinsicSize] height, while still allowing the constraints the parent offers
@@ -43,7 +43,7 @@ public fun SwingModifier.width(intrinsicSize: IntrinsicSize): SwingModifier =
  */
 context(scope: ConstrainedScope)
 public fun SwingModifier.height(intrinsicSize: IntrinsicSize): SwingModifier =
-    this then IntrinsicHeightElement(intrinsicSize, enforceIncoming = true, name = "height")
+    with(scope) { layout(IntrinsicHeightElement(intrinsicSize, enforceIncoming = true)) }
 
 /**
  * Requires the child's [intrinsicSize] width, even where it is outside the constraints the parent offers.
@@ -52,7 +52,7 @@ public fun SwingModifier.height(intrinsicSize: IntrinsicSize): SwingModifier =
  */
 context(scope: ConstrainedScope)
 public fun SwingModifier.requiredWidth(intrinsicSize: IntrinsicSize): SwingModifier =
-    this then IntrinsicWidthElement(intrinsicSize, enforceIncoming = false, name = "requiredWidth")
+    with(scope) { layout(IntrinsicWidthElement(intrinsicSize, enforceIncoming = false)) }
 
 /**
  * Requires the child's [intrinsicSize] height, even where it is outside the constraints the parent offers.
@@ -61,7 +61,7 @@ public fun SwingModifier.requiredWidth(intrinsicSize: IntrinsicSize): SwingModif
  */
 context(scope: ConstrainedScope)
 public fun SwingModifier.requiredHeight(intrinsicSize: IntrinsicSize): SwingModifier =
-    this then IntrinsicHeightElement(intrinsicSize, enforceIncoming = false, name = "requiredHeight")
+    with(scope) { layout(IntrinsicHeightElement(intrinsicSize, enforceIncoming = false)) }
 
 /** Which of a child's two intrinsic answers an intrinsic size modifier uses. */
 public enum class IntrinsicSize {
@@ -73,13 +73,27 @@ public enum class IntrinsicSize {
 }
 
 /** An intrinsic width declaration, optionally letting the parent override its exact result. */
-internal data class IntrinsicWidthElement(
+private data class IntrinsicWidthElement(
     val intrinsicSize: IntrinsicSize,
     val enforceIncoming: Boolean,
-    override val name: String,
-) : LayoutModifier {
+) : LayoutModifierNodeElement<IntrinsicWidthNode>() {
+    override val name: String get() = if (enforceIncoming) "width" else "requiredWidth"
+
     override val declaredValues: Map<String, Any?> get() = mapOf("intrinsicSize" to intrinsicSize)
 
+    override fun create(): IntrinsicWidthNode = IntrinsicWidthNode(intrinsicSize, enforceIncoming)
+
+    override fun update(node: IntrinsicWidthNode) {
+        node.intrinsicSize = intrinsicSize
+        node.enforceIncoming = enforceIncoming
+    }
+}
+
+/** Sizes the child to its [intrinsicSize] width, held to the incoming constraints where [enforceIncoming]. */
+private class IntrinsicWidthNode(
+    var intrinsicSize: IntrinsicSize,
+    var enforceIncoming: Boolean,
+) : LayoutModifierNode() {
     override fun MeasureScope.measure(
         measurable: Measurable,
         constraints: Constraints,
@@ -100,16 +114,40 @@ internal data class IntrinsicWidthElement(
         measurable: IntrinsicMeasurable,
         height: Int,
     ): Int = measurable.intrinsicWidth(intrinsicSize, height)
+
+    override fun IntrinsicMeasureScope.minIntrinsicHeight(
+        measurable: IntrinsicMeasurable,
+        width: Int,
+    ): Int = measurable.minIntrinsicHeight(width)
+
+    override fun IntrinsicMeasureScope.maxIntrinsicHeight(
+        measurable: IntrinsicMeasurable,
+        width: Int,
+    ): Int = measurable.maxIntrinsicHeight(width)
 }
 
 /** An intrinsic height declaration, optionally letting the parent override its exact result. */
-internal data class IntrinsicHeightElement(
+private data class IntrinsicHeightElement(
     val intrinsicSize: IntrinsicSize,
     val enforceIncoming: Boolean,
-    override val name: String,
-) : LayoutModifier {
+) : LayoutModifierNodeElement<IntrinsicHeightNode>() {
+    override val name: String get() = if (enforceIncoming) "height" else "requiredHeight"
+
     override val declaredValues: Map<String, Any?> get() = mapOf("intrinsicSize" to intrinsicSize)
 
+    override fun create(): IntrinsicHeightNode = IntrinsicHeightNode(intrinsicSize, enforceIncoming)
+
+    override fun update(node: IntrinsicHeightNode) {
+        node.intrinsicSize = intrinsicSize
+        node.enforceIncoming = enforceIncoming
+    }
+}
+
+/** Sizes the child to its [intrinsicSize] height, held to the incoming constraints where [enforceIncoming]. */
+private class IntrinsicHeightNode(
+    var intrinsicSize: IntrinsicSize,
+    var enforceIncoming: Boolean,
+) : LayoutModifierNode() {
     override fun MeasureScope.measure(
         measurable: Measurable,
         constraints: Constraints,
@@ -130,14 +168,24 @@ internal data class IntrinsicHeightElement(
         measurable: IntrinsicMeasurable,
         width: Int,
     ): Int = measurable.intrinsicHeight(intrinsicSize, width)
+
+    override fun IntrinsicMeasureScope.minIntrinsicWidth(
+        measurable: IntrinsicMeasurable,
+        height: Int,
+    ): Int = measurable.minIntrinsicWidth(height)
+
+    override fun IntrinsicMeasureScope.maxIntrinsicWidth(
+        measurable: IntrinsicMeasurable,
+        height: Int,
+    ): Int = measurable.maxIntrinsicWidth(height)
 }
 
-private fun IntrinsicMeasurable.intrinsicWidth(
+internal fun IntrinsicMeasurable.intrinsicWidth(
     intrinsicSize: IntrinsicSize,
     height: Int,
 ): Int = if (intrinsicSize == IntrinsicSize.Min) minIntrinsicWidth(height) else maxIntrinsicWidth(height)
 
-private fun IntrinsicMeasurable.intrinsicHeight(
+internal fun IntrinsicMeasurable.intrinsicHeight(
     intrinsicSize: IntrinsicSize,
     width: Int,
 ): Int = if (intrinsicSize == IntrinsicSize.Min) minIntrinsicHeight(width) else maxIntrinsicHeight(width)

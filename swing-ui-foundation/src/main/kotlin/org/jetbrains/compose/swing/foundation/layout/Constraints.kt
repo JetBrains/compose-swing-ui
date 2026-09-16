@@ -1,3 +1,34 @@
+/*
+ * Copyright 2019 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * Adapted from androidx.compose.ui.unit.Constraints in AndroidX's ui-unit; see this module's
+ * META-INF/NOTICE for the synced version. The KDoc and code of Infinity, constrain, constrainWidth,
+ * constrainHeight, isSatisfiedBy, offset and addMaxWithMinimum are upstream's, except:
+ * - Dimension replaces IntSize, built from positional arguments because Kotlin takes no named
+ *   arguments for a Java constructor, and the standard library's coerceIn and coerceAtLeast
+ *   replace ui-util's fastCoerceIn and fastCoerceAtLeast.
+ * - This module's explicit API mode adds `public` and states the types of Infinity,
+ *   constrain(size), constrainWidth, constrainHeight and offset, which upstream leaves inferred.
+ * - Infinity suppresses ktlint's property-naming rule, and addMaxWithMinimum reads
+ *   Constraints.Infinity where upstream reads a file-private copy, which that rule rejects.
+ * - ktlint's function-signature rule puts the parameters of offset and addMaxWithMinimum one per
+ *   line, and its function-expression-body rule turns the block bodies of isSatisfiedBy and
+ *   addMaxWithMinimum into expression bodies.
+ * - addMaxWithMinimum drops `inline`: it takes no function-typed parameter, so inlining it
+ *   triggers the "nothing to inline" warning, which this build treats as an error.
+ */
 @file:JvmMultifileClass
 @file:JvmName("LayoutKt")
 
@@ -14,10 +45,7 @@ import java.awt.Dimension
  * parent imposes no ceiling there, which is what a container asked for the extent it prefers offers,
  * and what `maximumLayoutSize` already reports for a row.
  *
- * The extents are plain `Int`s, the unit every other geometry in this library is written in. AWT's
- * geometry is in user-space coordinates: a component 100 wide occupies 200 device pixels on a
- * 2x display, because the graphics configuration's default transform scales user space onto the
- * device. There is nothing for a unit type to convert.
+ * The extents are plain `Int`s, the unit every other geometry in this library is written in.
  *
  * @property minWidth the least width the child must occupy
  * @property maxWidth the most width the child may occupy, [Int.MAX_VALUE] for an unbounded axis
@@ -41,12 +69,6 @@ public class Constraints(
                 "$minHeight and maxHeight is $maxHeight."
         }
     }
-
-    /** [width] held inside [minWidth] and [maxWidth]. */
-    public fun constrainWidth(width: Int): Int = width.coerceIn(minWidth, maxWidth)
-
-    /** [height] held inside [minHeight] and [maxHeight]. */
-    public fun constrainHeight(height: Int): Int = height.coerceIn(minHeight, maxHeight)
 
     /** Whether the width has a finite maximum. */
     public val hasBoundedWidth: Boolean get() = maxWidth != Int.MAX_VALUE
@@ -110,9 +132,11 @@ public class Constraints(
 
     /** The standard constraints. */
     public companion object {
-        // Keep the Compose-compatible spelling; this public constant is intentionally not screaming snake case.
-
-        /** The value used for an unconstrained maximum width or height. */
+        /**
+         * A value that [maxWidth] or [maxHeight] will be set to when the constraint should be
+         * considered infinite. [hasBoundedWidth] or [hasBoundedHeight] will be `false` when
+         * [maxWidth] or [maxHeight] is [Infinity], respectively.
+         */
         @Suppress("ktlint:standard:property-naming")
         public const val Infinity: Int = Int.MAX_VALUE
 
@@ -148,103 +172,72 @@ public class Constraints(
                 minHeight = height,
                 maxHeight = height,
             )
-
-        /**
-         * Creates constraints from all four dimensions.
-         *
-         * This compatibility entry point is retained for callers of Compose's packed-constraint
-         * implementation. Swing constraints are already represented by four [Int]s, so neither
-         * [prioritizeWidth] branch needs to trim the requested dimensions.
-         */
-        @Deprecated(
-            "Use Constraints(minWidth, maxWidth, minHeight, maxHeight) instead",
-            ReplaceWith("Constraints(minWidth, maxWidth, minHeight, maxHeight)"),
-        )
-        @Stable
-        // CMP keeps this parameter for packed-constraint compatibility; Swing's four Ints need no prioritization.
-        @Suppress("UnusedParameter")
-        public fun restrictConstraints(
-            minWidth: Int,
-            maxWidth: Int,
-            minHeight: Int,
-            maxHeight: Int,
-            prioritizeWidth: Boolean = true,
-        ): Constraints = Constraints(minWidth, maxWidth, minHeight, maxHeight)
     }
 }
 
-/** Coerces both dimensions of [size] into this set of constraints. */
-@Stable
-public fun Constraints.constrain(size: Dimension): Dimension =
-    Dimension(
-        constrainWidth(size.width),
-        constrainHeight(size.height),
-    )
-
-/** Coerces the ranges in [otherConstraints] into this set of constraints. */
-@Stable
-public fun Constraints.constrain(otherConstraints: Constraints): Constraints =
-    Constraints(
+/**
+ * Takes [otherConstraints] and returns the result of coercing them in the current constraints. Note
+ * this means that any size satisfying the resulting constraints will satisfy the current
+ * constraints, but they might not satisfy the [otherConstraints] when the two set of constraints
+ * are disjoint. Examples (showing only width, height works the same): (minWidth=2,
+ * maxWidth=10).constrain(minWidth=7, maxWidth=12) -> (minWidth = 7, maxWidth = 10) (minWidth=2,
+ * maxWidth=10).constrain(minWidth=11, maxWidth=12) -> (minWidth=10, maxWidth=10) (minWidth=2,
+ * maxWidth=10).constrain(minWidth=5, maxWidth=7) -> (minWidth=5, maxWidth=7)
+ */
+public fun Constraints.constrain(otherConstraints: Constraints): Constraints {
+    val minWidth = minWidth
+    val maxWidth = maxWidth
+    val minHeight = minHeight
+    val maxHeight = maxHeight
+    return Constraints(
         minWidth = otherConstraints.minWidth.coerceIn(minWidth, maxWidth),
         maxWidth = otherConstraints.maxWidth.coerceIn(minWidth, maxWidth),
         minHeight = otherConstraints.minHeight.coerceIn(minHeight, maxHeight),
         maxHeight = otherConstraints.maxHeight.coerceIn(minHeight, maxHeight),
     )
+}
 
-/** Returns whether [size] falls within this set of constraints. */
+/** Takes a size and returns the closest size to it that satisfies the constraints. */
+@Stable
+public fun Constraints.constrain(size: Dimension): Dimension =
+    Dimension(
+        size.width.coerceIn(minWidth, maxWidth),
+        size.height.coerceIn(minHeight, maxHeight),
+    )
+
+/** Takes a width and returns the closest size to it that satisfies the constraints. */
+@Stable public fun Constraints.constrainWidth(width: Int): Int = width.coerceIn(minWidth, maxWidth)
+
+/** Takes a height and returns the closest size to it that satisfies the constraints. */
+@Stable public fun Constraints.constrainHeight(height: Int): Int = height.coerceIn(minHeight, maxHeight)
+
+/** Takes a size and returns whether it satisfies the current constraints. */
 @Stable
 public fun Constraints.isSatisfiedBy(size: Dimension): Boolean =
     size.width in minWidth..maxWidth && size.height in minHeight..maxHeight
 
-/** Returns these constraints with the minimum dimensions shifted by [horizontal] and [vertical]. */
+/** Returns the Constraints obtained by offsetting the current instance with the given values. */
 @Stable
 public fun Constraints.offset(
     horizontal: Int = 0,
     vertical: Int = 0,
 ): Constraints =
     Constraints(
-        minWidth = (minWidth + horizontal).coerceAtLeast(0),
-        maxWidth = addMaxWithMinimum(maxWidth, horizontal),
-        minHeight = (minHeight + vertical).coerceAtLeast(0),
-        maxHeight = addMaxWithMinimum(maxHeight, vertical),
+        (minWidth + horizontal).coerceAtLeast(0),
+        addMaxWithMinimum(maxWidth, horizontal),
+        (minHeight + vertical).coerceAtLeast(0),
+        addMaxWithMinimum(maxHeight, vertical),
     )
 
 private fun addMaxWithMinimum(
     max: Int,
     value: Int,
-): Int = if (max == Constraints.Infinity) max else (max + value).coerceAtLeast(0)
+): Int =
+    if (max == Constraints.Infinity) {
+        max
+    } else {
+        (max + value).coerceAtLeast(0)
+    }
 
-/** Prints an unconstrained maximum with Compose's public spelling. */
+/** Prints an unconstrained maximum with androidx's public spelling. */
 private fun displayMaximum(max: Int): String = if (max == Constraints.Infinity) "Infinity" else max.toString()
-
-/**
- * These constraints with [horizontal] taken off both widths and [vertical] off both heights, for a
- * container measuring inside its insets or a modifier insetting a child.
- *
- * **An unbounded axis stays unbounded**: taking 16 off a maximum of [Int.MAX_VALUE] yields
- * [Int.MAX_VALUE] again, not a number just below it. A policy recognizes an axis it has nothing to
- * divide by with [Constraints.hasBoundedWidth] or [Constraints.hasBoundedHeight]; a maximum a
- * subtraction moved is a finite extent of about two billion, which it would divide among its weighted
- * children.
- *
- * Neither minimum falls below zero, and neither rises above the maximum left beside it.
- */
-internal fun Constraints.shrunkBy(
-    horizontal: Int,
-    vertical: Int,
-): Constraints {
-    val maxWidth = if (hasBoundedWidth) narrowed(maxWidth, horizontal) else maxWidth
-    val maxHeight = if (hasBoundedHeight) narrowed(maxHeight, vertical) else maxHeight
-    return Constraints(
-        minWidth = narrowed(minWidth, horizontal).coerceAtMost(maxWidth),
-        maxWidth = maxWidth,
-        minHeight = narrowed(minHeight, vertical).coerceAtMost(maxHeight),
-        maxHeight = maxHeight,
-    )
-}
-
-/** [extent] less [taken], never below zero. */
-private fun narrowed(
-    extent: Int,
-    taken: Int,
-): Int = (extent - taken).coerceAtLeast(0)

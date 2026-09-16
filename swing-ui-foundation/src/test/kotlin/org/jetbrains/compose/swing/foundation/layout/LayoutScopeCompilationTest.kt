@@ -1,6 +1,5 @@
 package org.jetbrains.compose.swing.foundation.layout
 
-import org.jetbrains.compose.swing.assertRejected
 import org.jetbrains.compose.swing.test.InProcessCompilerHarness
 import org.jetbrains.kotlin.cli.common.ExitCode
 import org.junit.jupiter.api.BeforeAll

@@ -5,6 +5,7 @@ import org.jetbrains.compose.swing.test.InProcessCompilerHarness.SourceSpec
 import org.jetbrains.kotlin.cli.common.ExitCode
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
@@ -25,6 +26,21 @@ class InProcessCompilerHarnessTest {
             result.errors(),
         )
         assertEquals(output, result.output)
+    }
+
+    @Test
+    fun assertRejectedFailsWhenAnErrorGoesUnnamed() {
+        val result =
+            InProcessCompilerHarness.compileSnippet(
+                "TwoUnresolvedSnippet.kt",
+                """
+                val first: Int = missingFirst
+                val second: Int = missingSecond
+                """.trimIndent(),
+            )
+
+        result.assertRejected(listOf("missingFirst", "missingSecond"))
+        assertFailsWith<AssertionError> { result.assertRejected(listOf("missingFirst")) }
     }
 
     @Test

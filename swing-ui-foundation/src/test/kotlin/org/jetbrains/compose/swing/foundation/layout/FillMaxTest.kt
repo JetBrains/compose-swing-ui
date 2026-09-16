@@ -8,8 +8,6 @@ import java.awt.Dimension
 import java.awt.Rectangle
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertTrue
 
 /**
  * The `fillMax*` layout modifiers fix each bounded axis they name to a fraction of its offered maximum.
@@ -225,28 +223,26 @@ class FillMaxTest {
     }
 
     @Test
-    fun fractionsOutsideThePublicRangeAreRejected() {
-        val invalid = listOf(-0.1f, 1.1f, Float.NaN, Float.NEGATIVE_INFINITY, Float.POSITIVE_INFINITY)
-
-        with(ConstrainedScopeImpl) {
-            val builders =
-                mapOf<String, (Float) -> SwingModifier>(
-                    "fillMaxWidth" to { SwingModifier.fillMaxWidth(it) },
-                    "fillMaxHeight" to { SwingModifier.fillMaxHeight(it) },
-                    "fillMaxSize" to { SwingModifier.fillMaxSize(it) },
-                )
-
-            for ((name, builder) in builders) {
-                for (fraction in invalid) {
-                    val failure = assertFailsWith<IllegalArgumentException> { builder(fraction) }
-                    assertTrue(
-                        "between zero and one" in failure.message.orEmpty(),
-                        "$name must state the accepted range, but was: ${failure.message}",
-                    )
+    fun aFractionOutsideTheRangeIsHeldBetweenTheOfferedMinimumAndMaximum() =
+        runComposeSwingTest {
+            setContent {
+                Box(modifier = containerModifier(CONTAINER_WIDTH, CONTAINER_HEIGHT)) {
+                    SizedChild(0, SwingModifier.fillMaxWidth(1.5f))
+                    SizedChild(1, SwingModifier.fillMaxHeight(-0.5f))
+                    SizedChild(2, SwingModifier.fillMaxSize(Float.NaN))
                 }
             }
+
+            assertEquals(
+                listOf(
+                    Rectangle(0, 0, CONTAINER_WIDTH, CHILD_HEIGHT),
+                    Rectangle(0, 0, CHILD_WIDTH, 0),
+                    Rectangle(0, 0, 0, 0),
+                ),
+                stackedChildBounds(),
+                "a fraction above one fills the maximum, and one below zero or NaN takes the minimum, as in androidx",
+            )
         }
-    }
 
     private companion object {
         const val CONTAINER_WIDTH = 200

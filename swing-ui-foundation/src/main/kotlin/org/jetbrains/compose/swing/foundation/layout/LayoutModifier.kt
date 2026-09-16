@@ -1,50 +1,47 @@
+@file:JvmMultifileClass
+@file:JvmName("LayoutKt")
+
 package org.jetbrains.compose.swing.foundation.layout
 
-import org.jetbrains.compose.swing.layout.ParentLayoutElement
-import org.jetbrains.compose.swing.layout.ParentProtocol
+import org.jetbrains.compose.swing.modifier.SwingModifier
 
 /**
- * A modifier that measures one child between the constraints its parent offers and the result it
- * reports back.
+ * Measures and places the child with [measure], a layout modifier written as a lambda: [measure] measures the
+ * child's measurable under the constraints it is handed, and answers with [MeasureScope.layout].
  *
- * Layout modifiers nest in declaration order: the first modifier is outermost and measures the next
- * one as its [measurable]. Use [MeasureScope.layout] to return this modifier's size and to place the
- * placeable measured from that child.
+ * Its intrinsic answers are those every [LayoutModifierNode] gives by default. [measure] may also run to answer a
+ * container's size query, so it must have no effect beyond its answer; a modifier that drives state across passes
+ * is a [LayoutModifierNodeElement].
+ *
+ * @param measure measures and places the child under the constraints this modifier receives.
+ * @return this modifier with the measurement declared on it.
  */
-public interface LayoutModifier : ParentLayoutElement {
-    /** The capability a Foundation [Layout] must support to interpret this modifier. */
-    override val parentProtocol: ParentProtocol get() = LayoutModifierParentProtocol
+context(scope: ConstrainedScope)
+public fun SwingModifier.layout(
+    measure: MeasureScope.(measurable: Measurable, constraints: Constraints) -> MeasureResult,
+): SwingModifier = with(scope) { layout(LayoutElement(measure)) }
 
-    /** Layout modifiers wrap one another, so every declaration remains in order. */
-    override val additive: Boolean get() = true
+/** The `ConstrainedScope.layout` lambda declaration, equal to another only for the same block. */
+private data class LayoutElement(
+    private val measure: MeasureScope.(Measurable, Constraints) -> MeasureResult,
+) : LayoutModifierNodeElement<LayoutModifierImpl>() {
+    override val name: String get() = "layout"
 
-    /** Measures and places [measurable] under [constraints]. */
-    public fun MeasureScope.measure(
+    override val declaredValues: Map<String, Any?> get() = mapOf("measure" to measure)
+
+    override fun create(): LayoutModifierImpl = LayoutModifierImpl(measure)
+
+    override fun update(node: LayoutModifierImpl) {
+        node.measureBlock = measure
+    }
+}
+
+/** Measures and places the child with [measureBlock]. */
+private class LayoutModifierImpl(
+    var measureBlock: MeasureScope.(Measurable, Constraints) -> MeasureResult,
+) : LayoutModifierNode() {
+    override fun MeasureScope.measure(
         measurable: Measurable,
         constraints: Constraints,
-    ): MeasureResult
-
-    /** The least width this modifier reports when its child is [height] tall. */
-    public fun IntrinsicMeasureScope.minIntrinsicWidth(
-        measurable: IntrinsicMeasurable,
-        height: Int,
-    ): Int = measurable.minIntrinsicWidth(height)
-
-    /** The greatest useful width this modifier reports when its child is [height] tall. */
-    public fun IntrinsicMeasureScope.maxIntrinsicWidth(
-        measurable: IntrinsicMeasurable,
-        height: Int,
-    ): Int = measurable.maxIntrinsicWidth(height)
-
-    /** The least height this modifier reports when its child is [width] wide. */
-    public fun IntrinsicMeasureScope.minIntrinsicHeight(
-        measurable: IntrinsicMeasurable,
-        width: Int,
-    ): Int = measurable.minIntrinsicHeight(width)
-
-    /** The greatest useful height this modifier reports when its child is [width] wide. */
-    public fun IntrinsicMeasureScope.maxIntrinsicHeight(
-        measurable: IntrinsicMeasurable,
-        width: Int,
-    ): Int = measurable.maxIntrinsicHeight(width)
+    ): MeasureResult = measureBlock(measurable, constraints)
 }

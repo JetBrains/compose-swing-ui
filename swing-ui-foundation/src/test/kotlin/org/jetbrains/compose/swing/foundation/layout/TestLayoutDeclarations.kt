@@ -1,19 +1,18 @@
 package org.jetbrains.compose.swing.foundation.layout
 
+import org.jetbrains.compose.swing.modifier.SwingModifier
 import java.awt.Component
 
-/** Keeps focused legacy behavior tests concise while exercising the public parent-layout handoff. */
+/** Declares [chain] for [component], keeping the parent data it was added with. */
 internal fun MeasurePolicyLayout.declareLayoutChain(
     component: Component,
-    chain: List<LayoutModifier>,
+    chain: List<LayoutModifierNode>,
 ) {
-    declareComponentLayout(component, measurables.declaredBy(component), chain)
+    measurables.of(component).run { declare(parentData, chain) }
 }
 
-/** Replaces raw parent data through the same atomic declaration path the runtime now uses. */
-internal fun MeasurePolicyLayout.replaceLayoutConstraint(
-    component: Component,
-    constraint: Any?,
-) {
-    declareComponentLayout(component, constraint, measurables.of(component).layoutChain)
-}
+/** A node for each layout modifier [declare] states on a child, in the order its container reads them. */
+internal fun layoutChainOf(declare: ConstrainedScope.() -> SwingModifier): List<LayoutModifierNode> =
+    BoxScopeInstance.declare().foldIn(mutableListOf()) { chain, element ->
+        chain.also { if (element is LayoutModifierNodeElement<*>) it.add(element.create()) }
+    }

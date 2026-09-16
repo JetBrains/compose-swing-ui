@@ -25,6 +25,8 @@ import org.jetbrains.compose.swing.foundation.layout.RowScope
 import org.jetbrains.compose.swing.foundation.layout.absoluteOffset
 import org.jetbrains.compose.swing.foundation.layout.absolutePadding
 import org.jetbrains.compose.swing.foundation.layout.aspectRatio
+import org.jetbrains.compose.swing.foundation.layout.constrainHeight
+import org.jetbrains.compose.swing.foundation.layout.constrainWidth
 import org.jetbrains.compose.swing.foundation.layout.defaultMinSize
 import org.jetbrains.compose.swing.foundation.layout.fillMaxWidth
 import org.jetbrains.compose.swing.foundation.layout.offset

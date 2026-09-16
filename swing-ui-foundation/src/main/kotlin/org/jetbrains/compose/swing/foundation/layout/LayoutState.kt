@@ -26,8 +26,14 @@ internal enum class LayoutState {
     LayingOut,
 }
 
-/** Starts running the block [state] names, and answers the state to set [layoutState] back to. */
+/**
+ * Starts running the block [state] names over the children of the last layout pass, and answers the state to set
+ * [layoutState] back to. A measure block forgets which children's baselines the previous one read.
+ */
 internal fun ChildMeasurables.enter(state: LayoutState): LayoutState {
+    if (state == LayoutState.Measuring) {
+        for (index in layoutPass.indices) layoutPass[index].lineReadByMeasure = false
+    }
     val previous = layoutState
     layoutState = state
     return previous

@@ -149,6 +149,27 @@ internal data class BoxMeasurePolicy(
             else -> measureMultiple(measurables, constraints)
         }
 
+    // A Box holds each child to its maximum size, so it answers an intrinsic question with each child held to it too.
+    override fun IntrinsicMeasureScope.minIntrinsicWidth(
+        measurables: List<IntrinsicMeasurable>,
+        height: Int,
+    ): Int = intrinsicMeasure(measurables, IntrinsicSize.Min, IntrinsicWidthHeight.Width, height, holdToMaximum = true)
+
+    override fun IntrinsicMeasureScope.maxIntrinsicWidth(
+        measurables: List<IntrinsicMeasurable>,
+        height: Int,
+    ): Int = intrinsicMeasure(measurables, IntrinsicSize.Max, IntrinsicWidthHeight.Width, height, holdToMaximum = true)
+
+    override fun IntrinsicMeasureScope.minIntrinsicHeight(
+        measurables: List<IntrinsicMeasurable>,
+        width: Int,
+    ): Int = intrinsicMeasure(measurables, IntrinsicSize.Min, IntrinsicWidthHeight.Height, width, holdToMaximum = true)
+
+    override fun IntrinsicMeasureScope.maxIntrinsicHeight(
+        measurables: List<IntrinsicMeasurable>,
+        width: Int,
+    ): Int = intrinsicMeasure(measurables, IntrinsicSize.Max, IntrinsicWidthHeight.Height, width, holdToMaximum = true)
+
     private fun MeasureScope.measureSingle(
         measurable: Measurable,
         constraints: Constraints,
@@ -248,11 +269,7 @@ private fun Constraints.forChild(
     measurable: Measurable,
     fixed: Boolean = false,
 ): Constraints {
-    val maximum =
-        measurable
-            .componentOrNull
-            ?.takeIf { it.isMaximumSizeSet }
-            ?.maximumSize
+    val maximum = measurable.maximumSize()
     val maxWidth = ceiling(maxWidth, maximum?.width)
     val maxHeight = ceiling(maxHeight, maximum?.height)
     return Constraints(

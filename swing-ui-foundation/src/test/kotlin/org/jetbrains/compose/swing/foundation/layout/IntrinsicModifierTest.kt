@@ -16,8 +16,8 @@ import kotlin.test.assertEquals
 class IntrinsicModifierTest {
     @Test
     fun intrinsicWidthAndHeightReplaceBothSameAxisIntrinsicAnswers() {
-        val minimumWidth = measurableWith(inScope { SwingModifier.width(IntrinsicSize.Min) })
-        val maximumHeight = measurableWith(inScope { SwingModifier.height(IntrinsicSize.Max) })
+        val minimumWidth = measurableWith(layoutChainOf { SwingModifier.width(IntrinsicSize.Min) })
+        val maximumHeight = measurableWith(layoutChainOf { SwingModifier.height(IntrinsicSize.Max) })
 
         assertEquals(
             MINIMUM_WIDTH,
@@ -45,10 +45,10 @@ class IntrinsicModifierTest {
     fun everyIntrinsicSizeBuilderReportsItsNameAndIntrinsicSize() {
         val declarations =
             listOf(
-                inScope { SwingModifier.width(IntrinsicSize.Min) } to "width",
-                inScope { SwingModifier.requiredWidth(IntrinsicSize.Max) } to "requiredWidth",
-                inScope { SwingModifier.height(IntrinsicSize.Max) } to "height",
-                inScope { SwingModifier.requiredHeight(IntrinsicSize.Min) } to "requiredHeight",
+                with(BoxScopeInstance) { SwingModifier.width(IntrinsicSize.Min) } to "width",
+                with(BoxScopeInstance) { SwingModifier.requiredWidth(IntrinsicSize.Max) } to "requiredWidth",
+                with(BoxScopeInstance) { SwingModifier.height(IntrinsicSize.Max) } to "height",
+                with(BoxScopeInstance) { SwingModifier.requiredHeight(IntrinsicSize.Min) } to "requiredHeight",
             )
 
         for ((modifier, name) in declarations) {
@@ -62,62 +62,117 @@ class IntrinsicModifierTest {
     }
 
     @Test
-    fun unmodifiedMeasurableAnswersIntrinsicsAndBaseline() {
-        val unmodified = measurableWith(SwingModifier)
-        assertEquals(MINIMUM_WIDTH, unmodified.minIntrinsicWidth(Int.MAX_VALUE))
-        assertEquals(PREFERRED_WIDTH, unmodified.maxIntrinsicWidth(Int.MAX_VALUE))
-        assertEquals(MINIMUM_HEIGHT, unmodified.minIntrinsicHeight(Int.MAX_VALUE))
-        assertEquals(PREFERRED_HEIGHT, unmodified.maxIntrinsicHeight(Int.MAX_VALUE))
-        assertEquals(-1, unmodified.baseline(PREFERRED_WIDTH, PREFERRED_HEIGHT))
+    fun intrinsicWidthAndHeightPassTheCrossAxisQuestionsThrough() {
+        val width = measurableWith(layoutChainOf { SwingModifier.width(IntrinsicSize.Max).aspectRatio(1f) })
+        val height = measurableWith(layoutChainOf { SwingModifier.height(IntrinsicSize.Max).aspectRatio(1f) })
+
+        assertEquals(200, width.minIntrinsicHeight(200), "an intrinsic width must pass the height questions through")
+        assertEquals(200, width.maxIntrinsicHeight(200), "and answer both with what the content answers")
+        assertEquals(200, height.minIntrinsicWidth(200), "an intrinsic height must pass the width questions through")
+        assertEquals(200, height.maxIntrinsicWidth(200), "and answer both with what the content answers")
     }
 
     @Test
-    fun layoutModifierChainDelegatesIntrinsicsAndBaseline() {
-        val padded = measurableWith(inScope { SwingModifier.padding(4) })
-        assertEquals(MINIMUM_WIDTH + 8, padded.minIntrinsicWidth(Int.MAX_VALUE))
-        assertEquals(PREFERRED_WIDTH + 8, padded.maxIntrinsicWidth(Int.MAX_VALUE))
-        assertEquals(MINIMUM_HEIGHT + 8, padded.minIntrinsicHeight(Int.MAX_VALUE))
-        assertEquals(PREFERRED_HEIGHT + 8, padded.maxIntrinsicHeight(Int.MAX_VALUE))
-        assertEquals(-1, padded.baseline(PREFERRED_WIDTH, PREFERRED_HEIGHT))
+    fun unmodifiedMeasurableAnswersIntrinsics() {
+        val unmodified = measurableWith(emptyList())
+        assertEquals(
+            MINIMUM_WIDTH,
+            unmodified.minIntrinsicWidth(Int.MAX_VALUE),
+            "an unmodified measurable must answer its minimum width query with the child's raw minimum width",
+        )
+        assertEquals(
+            PREFERRED_WIDTH,
+            unmodified.maxIntrinsicWidth(Int.MAX_VALUE),
+            "and its maximum width query with the child's raw preferred width",
+        )
+        assertEquals(
+            MINIMUM_HEIGHT,
+            unmodified.minIntrinsicHeight(Int.MAX_VALUE),
+            "and its minimum height query with the child's raw minimum height",
+        )
+        assertEquals(
+            PREFERRED_HEIGHT,
+            unmodified.maxIntrinsicHeight(Int.MAX_VALUE),
+            "and its maximum height query with the child's raw preferred height",
+        )
+    }
+
+    @Test
+    fun layoutModifierChainDelegatesIntrinsics() {
+        val padded = measurableWith(layoutChainOf { SwingModifier.padding(4) })
+        assertEquals(
+            MINIMUM_WIDTH + 8,
+            padded.minIntrinsicWidth(Int.MAX_VALUE),
+            "a padding modifier must add its horizontal inset to the child's minimum width",
+        )
+        assertEquals(
+            PREFERRED_WIDTH + 8,
+            padded.maxIntrinsicWidth(Int.MAX_VALUE),
+            "and to its preferred width",
+        )
+        assertEquals(
+            MINIMUM_HEIGHT + 8,
+            padded.minIntrinsicHeight(Int.MAX_VALUE),
+            "a padding modifier must add its vertical inset to the child's minimum height",
+        )
+        assertEquals(
+            PREFERRED_HEIGHT + 8,
+            padded.maxIntrinsicHeight(Int.MAX_VALUE),
+            "and to its preferred height",
+        )
     }
 
     @Test
     fun preferredIntrinsicExtentsRespectTheOfferWhileRequiredOnesOverflowIt() {
-        val offer = Constraints(maxWidth = OFFER_WIDTH, maxHeight = OFFER_HEIGHT)
+        val offer = Constraints(maxWidth = 40, maxHeight = 50)
 
         assertEquals(
-            Rectangle(0, 0, OFFER_WIDTH, OFFER_HEIGHT),
-            boundsAt(inScope { SwingModifier.width(IntrinsicSize.Max) }, offer),
+            Rectangle(0, 0, 40, 50),
+            boundsAt(layoutChainOf { SwingModifier.width(IntrinsicSize.Max) }, offer),
             "a preferred intrinsic width must be held inside the incoming constraints",
         )
         assertEquals(
-            Rectangle(0, 0, OFFER_WIDTH, OFFER_HEIGHT),
-            boundsAt(inScope { SwingModifier.height(IntrinsicSize.Max) }, offer),
+            Rectangle(0, 0, 40, 50),
+            boundsAt(layoutChainOf { SwingModifier.height(IntrinsicSize.Max) }, offer),
             "and a preferred intrinsic height must be held there too",
         )
         assertEquals(
-            Rectangle(
-                (OFFER_WIDTH - PREFERRED_WIDTH) / 2,
-                (OFFER_HEIGHT - PREFERRED_HEIGHT) / 2,
-                PREFERRED_WIDTH,
-                PREFERRED_HEIGHT,
-            ),
-            boundsAt(inScope { SwingModifier.requiredWidth(IntrinsicSize.Max) }, offer),
+            Rectangle(-30, -35, PREFERRED_WIDTH, PREFERRED_HEIGHT),
+            boundsAt(layoutChainOf { SwingModifier.requiredWidth(IntrinsicSize.Max) }, offer),
             "a required intrinsic width must retain the child's raw size and centered overflow",
         )
         assertEquals(
-            Rectangle(
-                (OFFER_WIDTH - PREFERRED_WIDTH) / 2,
-                (OFFER_HEIGHT - PREFERRED_HEIGHT) / 2,
-                PREFERRED_WIDTH,
-                PREFERRED_HEIGHT,
-            ),
-            boundsAt(inScope { SwingModifier.requiredHeight(IntrinsicSize.Max) }, offer),
+            Rectangle(-30, -35, PREFERRED_WIDTH, PREFERRED_HEIGHT),
+            boundsAt(layoutChainOf { SwingModifier.requiredHeight(IntrinsicSize.Max) }, offer),
             "and a required intrinsic height must retain the same raw size and overflow behavior",
         )
     }
 
-    private fun measurableWith(modifier: SwingModifier): Measurable {
+    @Test
+    fun defaultIntrinsicMeasurableIgnoresALayoutModifiersFixedMeasureConstraints() {
+        val fixed =
+            measurableWith(
+                layoutChainOf {
+                    SwingModifier.layout { measurable, _ ->
+                        val placeable = measurable.measure(Constraints(30, 30, 30, 30))
+                        layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+                    }
+                },
+            )
+
+        assertEquals(
+            PREFERRED_WIDTH,
+            fixed.maxIntrinsicWidth(Int.MAX_VALUE),
+            "the default intrinsic measurable must answer with the child's raw preferred width, not the fixed 30",
+        )
+        assertEquals(
+            PREFERRED_HEIGHT,
+            fixed.maxIntrinsicHeight(Int.MAX_VALUE),
+            "and with its raw preferred height too",
+        )
+    }
+
+    private fun measurableWith(chain: List<LayoutModifierNode>): Measurable {
         val layout =
             MeasurePolicyLayout(
                 MeasurePolicy {
@@ -130,12 +185,12 @@ class IntrinsicModifierTest {
             )
         val child = intrinsicChild()
         composed(ConstrainedPanel(layout)).add(child)
-        layout.declareLayoutChain(child, layoutChain(modifier))
+        layout.declareLayoutChain(child, chain)
         return layout.measurables.of(child)
     }
 
     private fun boundsAt(
-        modifier: SwingModifier,
+        chain: List<LayoutModifierNode>,
         offer: Constraints,
     ): Rectangle {
         val layout =
@@ -149,8 +204,8 @@ class IntrinsicModifierTest {
         val child = intrinsicChild()
         val panel = composed(ConstrainedPanel(layout))
         panel.add(child)
-        layout.declareLayoutChain(child, layoutChain(modifier))
-        panel.setSize(PANEL_SIZE, PANEL_SIZE)
+        layout.declareLayoutChain(child, chain)
+        panel.setSize(500, 500)
         panel.doLayout()
         return child.bounds
     }
@@ -160,21 +215,10 @@ class IntrinsicModifierTest {
             it.minimumSize = Dimension(MINIMUM_WIDTH, MINIMUM_HEIGHT)
         }
 
-    private fun layoutChain(modifier: SwingModifier): List<LayoutModifier> =
-        modifier.foldIn(mutableListOf<LayoutModifier>()) { chain, element ->
-            chain.also { if (element is LayoutModifier) it.add(element) }
-        }
-
-    private fun inScope(declaration: ConstrainedScope.() -> SwingModifier): SwingModifier =
-        with(BoxScopeInstance) { declaration() }
-
     private companion object {
         const val MINIMUM_WIDTH = 20
         const val MINIMUM_HEIGHT = 30
         const val PREFERRED_WIDTH = 100
         const val PREFERRED_HEIGHT = 120
-        const val OFFER_WIDTH = 40
-        const val OFFER_HEIGHT = 50
-        const val PANEL_SIZE = 500
     }
 }

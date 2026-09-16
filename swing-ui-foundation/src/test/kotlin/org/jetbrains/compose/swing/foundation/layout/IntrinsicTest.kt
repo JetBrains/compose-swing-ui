@@ -143,7 +143,7 @@ class IntrinsicTest {
             val inner = CountingPanel()
             setContent {
                 Column(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
-                    SwingNode(factory = { inner }, modifier = SwingModifier)
+                    SwingNode(factory = { inner }, modifier = LayoutObservation)
                 }
             }
             inner.forgetQuestions()
@@ -167,7 +167,7 @@ class IntrinsicTest {
             val inner = CountingPanel()
             setContent {
                 Column(modifier = containerModifier(200, 200)) {
-                    SwingNode(factory = { inner }, modifier = SwingModifier)
+                    SwingNode(factory = { inner }, modifier = LayoutObservation)
                 }
             }
 

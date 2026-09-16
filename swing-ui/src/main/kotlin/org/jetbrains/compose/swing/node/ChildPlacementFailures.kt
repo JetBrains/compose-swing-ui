@@ -1,6 +1,8 @@
 package org.jetbrains.compose.swing.node
 
 import org.jetbrains.compose.swing.layout.ChildPlacement
+import org.jetbrains.compose.swing.layout.ParentLayoutElement
+import org.jetbrains.compose.swing.util.fastFirstOrNull
 import java.awt.Component
 import java.awt.Container
 import java.lang.reflect.Modifier
@@ -41,7 +43,13 @@ internal fun hostCannotMeasureChild(
     host: Container,
     child: SwingNodeHolder<*>,
 ): String {
-    val declared = child.declaration.parentLayoutElements.joinToString { "SwingModifier.${it.name}()" }
+    val chain = child.modifierState?.chain.orEmpty()
+    val declared =
+        child.declaration.parentLayoutElements.joinToString { standing ->
+            // A layout node stands in its element's place; the error names the element a caller declared.
+            val element = chain.fastFirstOrNull { it.node === standing }?.element as? ParentLayoutElement ?: standing
+            "SwingModifier.${element.name}()"
+        }
     return "A ${host.declaredName} lays each child out at the size the child asks for, so it never " +
         "interprets parent-layout declarations, and the ${child.component.declaredName} joining it " +
         "declares $declared. Put the component in a Box inside this container and declare the layout " +

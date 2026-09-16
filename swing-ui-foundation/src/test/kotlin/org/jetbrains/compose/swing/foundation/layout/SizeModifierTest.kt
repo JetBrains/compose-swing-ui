@@ -3,8 +3,10 @@ package org.jetbrains.compose.swing.foundation.layout
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
+import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Rectangle
+import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -269,6 +271,30 @@ class SizeModifierTest {
         }
     }
 
+    /**
+     * androidx `Size.kt:800-807` coerces `minWidth` into `0..maxWidth` before checking whether the result names
+     * the unspecified sentinel, so an `Int.MAX_VALUE` minimum above a finite maximum is coerced down to that
+     * maximum and kept, not answered as zero.
+     */
+    @Test
+    fun widthInCoercesAnOutOfRangeMinimumIntoRangeBeforeItChecksForTheUnboundedSentinel() =
+        runComposeSwingTest {
+            val naturalHeight = 20
+            val coercedMaxWidth = 50
+            setContent {
+                FixedOfferLayout(Constraints(maxWidth = LARGE_WIDTH, maxHeight = LARGE_HEIGHT)) {
+                    Child(0, 10, naturalHeight, SwingModifier.widthIn(min = Int.MAX_VALUE, max = coercedMaxWidth))
+                }
+            }
+
+            assertEquals(
+                listOf(Rectangle(0, 0, coercedMaxWidth, naturalHeight)),
+                stackedChildBounds(),
+                "an unbounded minimum above a finite maximum must be coerced down to that maximum and raise the " +
+                    "child to it, not fall back to zero",
+            )
+        }
+
     @Composable
     private fun FixedOfferLayout(
         offer: Constraints,
@@ -288,6 +314,81 @@ class SizeModifierTest {
             },
         )
     }
+
+    /**
+     * androidx `Size.kt:877-878` asks the child for its intrinsic width at the incoming height, unchanged by a
+     * preferred `heightIn` bounding only its own maximum height. `AspectRatio.kt:127-128` answers that width as
+     * the incoming height times the ratio.
+     */
+    @Test
+    fun heightInAsksTheChildForItsMinIntrinsicWidthAtTheIncomingHeight() =
+        runComposeSwingTest {
+            var minIntrinsicWidth = -1
+            setContent {
+                Layout(measurePolicy = { measurables, _ ->
+                    minIntrinsicWidth = measurables[0].minIntrinsicWidth(100)
+                    layout(0, 0) {}
+                }) {
+                    SwingNode(factory = { JPanel() }, modifier = SwingModifier.heightIn(max = 30).aspectRatio(2f))
+                }
+            }
+
+            assertEquals(
+                200,
+                minIntrinsicWidth,
+                "a preferred heightIn must pass the incoming height to the child unchanged, not its own bounded " +
+                    "maximum height",
+            )
+        }
+
+    /**
+     * androidx `Size.kt:916-917` asks the child for its intrinsic height at the incoming width, held to a
+     * required `requiredWidthIn`'s own bounds. `AspectRatio.kt:157-158` answers that height as the width
+     * divided by the ratio.
+     */
+    @Test
+    fun requiredWidthInAsksTheChildForItsMaxIntrinsicHeightAtTheIncomingWidth() =
+        runComposeSwingTest {
+            var maxIntrinsicHeight = -1
+            setContent {
+                Layout(measurePolicy = { measurables, _ ->
+                    maxIntrinsicHeight = measurables[0].maxIntrinsicHeight(100)
+                    layout(0, 0) {}
+                }) {
+                    SwingNode(
+                        factory = { JPanel() },
+                        modifier = SwingModifier.requiredWidthIn(max = 200).aspectRatio(2f),
+                    )
+                }
+            }
+
+            assertEquals(
+                50,
+                maxIntrinsicHeight,
+                "a required widthIn must hold the incoming width to its own bounds before asking the child",
+            )
+        }
+
+    /**
+     * androidx `Size.kt:1079-1080` coerces an unspecified minimum into `0..maxWidth` before it can name the
+     * unbounded sentinel, so a minimum of `Int.MAX_VALUE` under a finite incoming maximum resolves to that
+     * maximum.
+     */
+    @Test
+    fun defaultMinSizeResolvesAnUnboundedMinimumToTheFiniteIncomingMaximum() =
+        runComposeSwingTest {
+            setContent {
+                FixedOfferLayout(Constraints(maxWidth = LARGE_WIDTH, maxHeight = LARGE_HEIGHT)) {
+                    Child(0, ASKED_WIDTH, ASKED_HEIGHT, SwingModifier.defaultMinSize(minWidth = Int.MAX_VALUE))
+                }
+            }
+
+            assertEquals(
+                listOf(Rectangle(0, 0, LARGE_WIDTH, ASKED_HEIGHT)),
+                stackedChildBounds(),
+                "an unbounded minimum must be coerced down to the finite incoming maximum, not left unbounded",
+            )
+        }
 
     private companion object {
         const val ASKED_WIDTH = 20

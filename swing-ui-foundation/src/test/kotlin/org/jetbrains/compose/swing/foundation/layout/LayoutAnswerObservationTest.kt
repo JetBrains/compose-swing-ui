@@ -403,7 +403,17 @@ private fun measuringParent(read: () -> Unit = {}): MeasurePolicy =
  */
 private data class ProbeElement(
     private val probe: () -> Boolean,
-) : LayoutModifier {
+) : LayoutModifierNodeElement<ProbeNode>() {
+    override fun create(): ProbeNode = ProbeNode(probe)
+
+    override fun update(node: ProbeNode) {
+        node.probe = probe
+    }
+}
+
+private class ProbeNode(
+    var probe: () -> Boolean,
+) : LayoutModifierNode() {
     override fun MeasureScope.measure(
         measurable: Measurable,
         constraints: Constraints,
@@ -412,6 +422,26 @@ private data class ProbeElement(
         if (probe()) measurable.measure(Constraints(1, 1, 1, 1))
         return layout(placeable.width, placeable.height) { placeable.place(0, 0) }
     }
+
+    override fun IntrinsicMeasureScope.minIntrinsicWidth(
+        measurable: IntrinsicMeasurable,
+        height: Int,
+    ): Int = measurable.minIntrinsicWidth(height)
+
+    override fun IntrinsicMeasureScope.maxIntrinsicWidth(
+        measurable: IntrinsicMeasurable,
+        height: Int,
+    ): Int = measurable.maxIntrinsicWidth(height)
+
+    override fun IntrinsicMeasureScope.minIntrinsicHeight(
+        measurable: IntrinsicMeasurable,
+        width: Int,
+    ): Int = measurable.minIntrinsicHeight(width)
+
+    override fun IntrinsicMeasureScope.maxIntrinsicHeight(
+        measurable: IntrinsicMeasurable,
+        width: Int,
+    ): Int = measurable.maxIntrinsicHeight(width)
 }
 
 /** The bounds the row nested in the container under test assigned its children. */

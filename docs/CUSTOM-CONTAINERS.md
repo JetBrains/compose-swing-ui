@@ -29,6 +29,8 @@ import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.foundation.layout.ConstrainedScope
 import org.jetbrains.compose.swing.foundation.layout.Constraints
 import org.jetbrains.compose.swing.foundation.layout.Layout
+import org.jetbrains.compose.swing.foundation.layout.constrainHeight
+import org.jetbrains.compose.swing.foundation.layout.constrainWidth
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
 -->
@@ -101,6 +103,7 @@ The measurables arrive in declaration order, hidden children included; see
 [Visibility](FOUNDATION.md#visibility).
 
 The content receiver is `ConstrainedScope`, so a child of a `Layout` declares its own layout modifiers -
+`padding`, `offset`, `aspectRatio`, `defaultMinSize`, and one of your own through the scope's `layout` member,
 as [Scoped modifiers](FOUNDATION.md#scoped-modifiers) shows. Each narrows what reaches the child, states the
 child plus the space it reserved as what the policy measured, and puts the child inside that; the policy
 measures and places one rectangle per child either way.
@@ -127,9 +130,9 @@ Every declaration is a `ParentElement`:
   fold, in declaration order, through `modifyParentData` into one value: the constraint a
   `LayoutManager2` registers the component under, or `Measurable.parentData` for a measure policy.
   `layoutConstraint` declares one untyped. Parent data must be immutable, since the parent may keep it.
-- `ParentLayoutElement` - any other declaration a measuring parent interprets, such as the
-  `LayoutModifier` of `swing-ui-foundation`.
-- `ParentLayoutNodeElement` - a `ParentLayoutElement` backed by a stateful `ParentLayoutNode`.
+- `ParentLayoutElement` - any other declaration a measuring parent interprets.
+- `ParentLayoutNodeElement` - a `ParentLayoutElement` backed by a stateful `ParentLayoutNode`, such as the
+  `LayoutModifierNodeElement` of `swing-ui-foundation`.
 - a host slot, declared with `slot(parentProtocol, name, attachment)` - see
   [Writing a `SlotAttachment`](CUSTOM-COMPONENTS.md#writing-a-slotattachment).
 

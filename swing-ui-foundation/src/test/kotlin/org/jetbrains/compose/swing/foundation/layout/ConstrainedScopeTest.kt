@@ -38,28 +38,32 @@ class ConstrainedScopeTest {
 
             modifier.foldIn(Unit) { _, element -> elements.add(element) }
 
-            assertEquals(21, elements.size)
-            assertIs<FillMaxElement>(elements[0])
-            assertIs<FillMaxElement>(elements[1])
-            assertIs<FillMaxElement>(elements[2])
-            assertIs<SizeElement>(elements[3])
-            assertIs<IntrinsicWidthElement>(elements[4])
-            assertIs<SizeElement>(elements[5])
-            assertIs<IntrinsicHeightElement>(elements[6])
-            assertIs<SizeElement>(elements[7])
-            assertIs<SizeElement>(elements[8])
-            assertIs<SizeElement>(elements[9])
-            assertIs<SizeElement>(elements[10])
-            assertIs<SizeElement>(elements[11])
-            assertIs<SizeElement>(elements[12])
-            assertIs<IntrinsicWidthElement>(elements[13])
-            assertIs<SizeElement>(elements[14])
-            assertIs<IntrinsicHeightElement>(elements[15])
-            assertIs<SizeElement>(elements[16])
-            assertIs<SizeElement>(elements[17])
-            assertIs<SizeElement>(elements[18])
-            assertIs<SizeElement>(elements[19])
-            assertIs<SizeElement>(elements[20])
+            assertEquals(
+                listOf(
+                    "fillMaxWidth",
+                    "fillMaxHeight",
+                    "fillMaxSize",
+                    "width",
+                    "width",
+                    "height",
+                    "height",
+                    "size",
+                    "size",
+                    "widthIn",
+                    "heightIn",
+                    "sizeIn",
+                    "requiredWidth",
+                    "requiredWidth",
+                    "requiredHeight",
+                    "requiredHeight",
+                    "requiredSize",
+                    "requiredSize",
+                    "requiredWidthIn",
+                    "requiredHeightIn",
+                    "requiredSizeIn",
+                ),
+                elements.layoutModifierNames(),
+            )
         }
     }
 
@@ -83,18 +87,22 @@ class ConstrainedScopeTest {
 
             modifier.foldIn(Unit) { _, element -> elements.add(element) }
 
-            assertEquals(11, elements.size)
-            assertIs<WrapContentElement>(elements[0])
-            assertIs<WrapContentElement>(elements[1])
-            assertIs<WrapContentElement>(elements[2])
-            assertIs<DefaultMinSizeElement>(elements[3])
-            assertIs<PaddingElement>(elements[4])
-            assertIs<PaddingElement>(elements[5])
-            assertIs<PaddingElement>(elements[6])
-            assertIs<AbsolutePaddingElement>(elements[7])
-            assertIs<OffsetElement>(elements[8])
-            assertIs<AbsoluteOffsetElement>(elements[9])
-            assertIs<AspectRatioElement>(elements[10])
+            assertEquals(
+                listOf(
+                    "wrapContentWidth",
+                    "wrapContentHeight",
+                    "wrapContentSize",
+                    "defaultMinSize",
+                    "padding",
+                    "padding",
+                    "padding",
+                    "absolutePadding",
+                    "offset",
+                    "absoluteOffset",
+                    "aspectRatio",
+                ),
+                elements.layoutModifierNames(),
+            )
         }
     }
 
@@ -132,3 +140,7 @@ class ConstrainedScopeTest {
         }
     }
 }
+
+/** The name each [LayoutModifierNodeElement] reports, each one declared through [ConstrainedScope.layout]. */
+private fun List<SwingModifier.Element>.layoutModifierNames(): List<String> =
+    map { assertIs<LayoutModifierNodeElement<*>>(it).name }

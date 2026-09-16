@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.foundation.layout
 
+import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.junit.jupiter.api.extension.ExtendWith
 import java.awt.Rectangle
 import kotlin.test.Test
@@ -20,7 +21,7 @@ class MeasureResultAliasingTest {
             child,
             LinearConstraint(weight = WeightPlacement(weight = 1f, fill = true)),
         )
-        layout.declareLayoutChain(child, listOf(FillMaxElement.height(1f)))
+        layout.declareLayoutChain(child, layoutChainOf { SwingModifier.fillMaxHeight() })
 
         placeRetainedResultAfterAnIntrinsicQuestion(layout)
 
@@ -37,7 +38,7 @@ class MeasureResultAliasingTest {
         val panel = composed(ConstrainedPanel(layout))
         val child = FixedSizeChild(width = 20, height = 10)
         panel.add(child, BoxConstraint())
-        layout.declareLayoutChain(child, listOf(FillMaxElement.size(1f)))
+        layout.declareLayoutChain(child, layoutChainOf { SwingModifier.fillMaxSize() })
 
         placeRetainedResultAfterAnIntrinsicQuestion(layout)
 

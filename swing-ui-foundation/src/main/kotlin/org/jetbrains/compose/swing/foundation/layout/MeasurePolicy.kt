@@ -1,4 +1,27 @@
+/*
+ * Copyright 2020 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * Adapted from androidx.compose.ui.layout.Layout in AndroidX's ui; see this module's
+ * META-INF/NOTICE for the synced version. IntrinsicMeasurableAdapter mirrors
+ * DefaultIntrinsicMeasurable and LargeDimension, IntrinsicPlaceable mirrors FixedSizeIntrinsicsPlaceable, and
+ * placeRelative mirrors Placeable's.
+ */
+
 package org.jetbrains.compose.swing.foundation.layout
+
+import java.awt.Dimension
 
 /**
  * How a container measures and places its children.
@@ -26,51 +49,63 @@ public fun interface MeasurePolicy {
     public fun IntrinsicMeasureScope.minIntrinsicWidth(
         measurables: List<IntrinsicMeasurable>,
         height: Int,
-    ): Int = this@MeasurePolicy.intrinsicMeasure(measurables, IntrinsicMinMax.Min, IntrinsicWidthHeight.Width, height)
+    ): Int = intrinsicMeasure(measurables, IntrinsicSize.Min, IntrinsicWidthHeight.Width, height)
 
     /** The width beyond which growing [measurables] no longer reduces their height at [height]. */
     public fun IntrinsicMeasureScope.maxIntrinsicWidth(
         measurables: List<IntrinsicMeasurable>,
         height: Int,
-    ): Int = this@MeasurePolicy.intrinsicMeasure(measurables, IntrinsicMinMax.Max, IntrinsicWidthHeight.Width, height)
+    ): Int = intrinsicMeasure(measurables, IntrinsicSize.Max, IntrinsicWidthHeight.Width, height)
 
     /** The smallest height that lets [measurables] paint correctly when they are [width] wide. */
     public fun IntrinsicMeasureScope.minIntrinsicHeight(
         measurables: List<IntrinsicMeasurable>,
         width: Int,
-    ): Int = this@MeasurePolicy.intrinsicMeasure(measurables, IntrinsicMinMax.Min, IntrinsicWidthHeight.Height, width)
+    ): Int = intrinsicMeasure(measurables, IntrinsicSize.Min, IntrinsicWidthHeight.Height, width)
 
     /** The height beyond which growing [measurables] no longer reduces their width at [width]. */
     public fun IntrinsicMeasureScope.maxIntrinsicHeight(
         measurables: List<IntrinsicMeasurable>,
         width: Int,
-    ): Int = this@MeasurePolicy.intrinsicMeasure(measurables, IntrinsicMinMax.Max, IntrinsicWidthHeight.Height, width)
+    ): Int = intrinsicMeasure(measurables, IntrinsicSize.Max, IntrinsicWidthHeight.Height, width)
 }
 
-/** CMP's default intrinsic-policy adapter, using Swing's integer constraints rather than packed ones. */
-private fun MeasurePolicy.intrinsicMeasure(
+/**
+ * CMP's default intrinsic-policy adapter, using Swing's integer constraints rather than packed ones. Where
+ * [holdToMaximum], each child answers no more than its [maximum size][IntrinsicMeasurable.maximumSize].
+ */
+internal fun MeasurePolicy.intrinsicMeasure(
     measurables: List<IntrinsicMeasurable>,
-    minMax: IntrinsicMinMax,
+    intrinsicSize: IntrinsicSize,
     widthHeight: IntrinsicWidthHeight,
     crossAxisSize: Int,
+    holdToMaximum: Boolean = false,
+): Int {
+    val constrained =
+        List(measurables.size) {
+            IntrinsicMeasurableAdapter(measurables[it], intrinsicSize, widthHeight, holdToMaximum)
+        }
+    return intrinsicExtent(widthHeight, crossAxisSize) { measure(constrained, it) }
+}
+
+/**
+ * The extent [measure] answers along [widthHeight] under a [crossAxisSize] bound on the other axis and an unbounded
+ * one along it, which is how a policy or a layout modifier answers an intrinsic question by default.
+ */
+internal inline fun intrinsicExtent(
+    widthHeight: IntrinsicWidthHeight,
+    crossAxisSize: Int,
+    measure: MeasureScope.(Constraints) -> MeasureResult,
 ): Int {
     require(crossAxisSize >= 0) { "An intrinsic cross-axis size must be zero or more, but was $crossAxisSize." }
-    val constrained =
-        measurables.map { IntrinsicMeasurableAdapter(it, minMax, widthHeight) }
     val constraints =
         if (widthHeight == IntrinsicWidthHeight.Width) {
             Constraints(maxHeight = crossAxisSize)
         } else {
             Constraints(maxWidth = crossAxisSize)
         }
-    val result = with(PolicyMeasureScope) { measure(constrained, constraints) }
+    val result = PolicyMeasureScope.measure(constraints)
     return if (widthHeight == IntrinsicWidthHeight.Width) result.width else result.height
-}
-
-/** Identifies the minimum or maximum intrinsic question a policy is answering. */
-internal enum class IntrinsicMinMax {
-    Min,
-    Max,
 }
 
 /** Identifies the axis an intrinsic question asks its policy to return. */
@@ -84,30 +119,35 @@ internal enum class IntrinsicWidthHeight {
  *
  * A policy may run normal measurement while answering an intrinsic query. Swing constraints can
  * represent an unbounded axis, but a component policy may use that otherwise irrelevant axis in
- * arithmetic, so this follows CMP and substitutes a finite large value.
+ * arithmetic, so this follows CMP and substitutes a finite large value. Where [holdToMaximum], the answer is held to
+ * [source]'s [maximum size][IntrinsicMeasurable.maximumSize].
  */
 internal class IntrinsicMeasurableAdapter(
     /** The Swing-backed measurable a policy may inspect for maximum-size adaptations. */
     internal val source: IntrinsicMeasurable,
-    private val minMax: IntrinsicMinMax,
+    private val intrinsicSize: IntrinsicSize,
     private val widthHeight: IntrinsicWidthHeight,
+    private val holdToMaximum: Boolean = false,
 ) : Measurable {
     override val parentData: Any? get() = source.parentData
 
     override fun measure(constraints: Constraints): Placeable {
+        val maximum = if (holdToMaximum) source.maximumSize() else null
         val width =
             if (widthHeight == IntrinsicWidthHeight.Width) {
-                source.intrinsicWidth(minMax, constraints.maxHeight)
+                val intrinsic = source.intrinsicWidth(intrinsicSize, constraints.maxHeight)
+                if (maximum == null) intrinsic else minOf(intrinsic, maximum.width.coerceAtLeast(0))
             } else {
                 if (constraints.hasBoundedWidth) constraints.maxWidth else INTRINSIC_LARGE_DIMENSION
             }
         val height =
             if (widthHeight == IntrinsicWidthHeight.Height) {
-                source.intrinsicHeight(minMax, constraints.maxWidth)
+                val intrinsic = source.intrinsicHeight(intrinsicSize, constraints.maxWidth)
+                if (maximum == null) intrinsic else minOf(intrinsic, maximum.height.coerceAtLeast(0))
             } else {
                 if (constraints.hasBoundedHeight) constraints.maxHeight else INTRINSIC_LARGE_DIMENSION
             }
-        return IntrinsicPlaceable(width, height, constraints)
+        return IntrinsicPlaceable(width, height)
     }
 
     override fun minIntrinsicWidth(height: Int): Int = source.minIntrinsicWidth(height)
@@ -118,54 +158,60 @@ internal class IntrinsicMeasurableAdapter(
 
     override fun maxIntrinsicHeight(width: Int): Int = source.maxIntrinsicHeight(width)
 
+    override fun maximumSize(): Dimension? = source.maximumSize()
+
     override fun baseline(
         width: Int,
         height: Int,
     ): Int = -1
 }
 
-private fun IntrinsicMeasurable.intrinsicWidth(
-    minMax: IntrinsicMinMax,
-    height: Int,
-): Int = if (minMax == IntrinsicMinMax.Min) minIntrinsicWidth(height) else maxIntrinsicWidth(height)
-
-private fun IntrinsicMeasurable.intrinsicHeight(
-    minMax: IntrinsicMinMax,
-    width: Int,
-): Int = if (minMax == IntrinsicMinMax.Min) minIntrinsicHeight(width) else maxIntrinsicHeight(width)
-
-/** A fixed measurement used only while a policy's default intrinsic implementation runs. */
+/**
+ * A fixed measurement used only while an intrinsic question is answered; never placed, so it reports no alignment
+ * line rather than answering through a placement it does not have. Its extent is the one it was given, whatever the
+ * constraints it was measured under.
+ */
 private class IntrinsicPlaceable(
     override val measuredWidth: Int,
     override val measuredHeight: Int,
-    constraints: Constraints,
-) : Placeable {
-    override val width: Int = constraints.constrainWidth(measuredWidth)
-    override val height: Int = constraints.constrainHeight(measuredHeight)
+) : Placeable() {
+    override val width: Int = measuredWidth.coerceAtLeast(0)
+    override val height: Int = measuredHeight.coerceAtLeast(0)
+    override val child: ChildMeasurable get() = error("IntrinsicPlaceable is never placed")
+
+    override fun placeAt(
+        x: Long,
+        y: Long,
+    ): Unit = error("IntrinsicPlaceable is never placed")
+
+    override fun baselineAt(
+        x: Long,
+        y: Long,
+    ): Int = -1
 }
 
 /** CMP's finite replacement for an intrinsic axis a policy was not asked to determine. */
 private const val INTRINSIC_LARGE_DIMENSION: Int = (1 shl 15) - 1
 
 /**
- * The receiver a [MeasurePolicy] measures in, and the one way it answers.
+ * The receiver a [MeasurePolicy] or a [LayoutModifierNode] measures in, and the one way it answers.
  *
  * @see layout
  */
 public sealed interface MeasureScope : IntrinsicMeasureScope {
     /**
-     * The extent this policy settled on, with [placementBlock] as the block that places what it
+     * The extent this policy or modifier settled on, with [placementBlock] as the block that places what it
      * measured.
      *
-     * @param width the width the container actually measured itself to. A parent sees this extent
+     * @param width the width this layout measured itself to. A parent sees this extent
      *   coerced into the constraints it offered, while Swing ultimately receives this raw extent.
-     * @param height the height the container actually measured itself to. A parent sees this extent
+     * @param height the height this layout measured itself to. A parent sees this extent
      *   coerced into the constraints it offered, while Swing ultimately receives this raw extent.
      * @param alignmentLines lines this layout explicitly provides to its parent. Swing has no native
      *   alignment-line graph, so lines from ordinary child components are not inferred or inherited.
-     * @param placementBlock places every child the policy measured, relative to the container's inner
-     *   rectangle
-     * @return what the policy settled on.
+     * @param placementBlock places what this layout measured: a policy's children relative to the
+     *   container's inner rectangle, a modifier's content relative to the modifier's box
+     * @return what this layout settled on.
      * @throws IllegalArgumentException if either extent is negative
      */
     public fun layout(
@@ -176,19 +222,7 @@ public sealed interface MeasureScope : IntrinsicMeasureScope {
     ): MeasureResult
 }
 
-/**
- * An empty intrinsic result: it reports only an extent, because intrinsic sizing never places the
- * children it measured.
- *
- * It is deliberately a separate result from a layout pass. A parent may retain a measured result,
- * ask the same policy for its intrinsic extent, and then place the retained result.
- */
-internal fun MeasureScope.intrinsicResult(
-    width: Int,
-    height: Int,
-): MeasureResult = layout(width, height) {}
-
-/** The [MeasureScope] every policy of this library is run in; it holds nothing of its own. */
+/** The [MeasureScope] every policy and layout modifier node of this library is run in; it holds nothing of its own. */
 internal object PolicyMeasureScope : MeasureScope {
     override fun layout(
         width: Int,
@@ -235,8 +269,7 @@ public interface MeasureResult {
      *
      * This is CMP's standalone placement surface. Swing's real layout, nested-modifier replay and
      * baseline probing each have a distinct origin and reading order, so they call the scoped
-     * overload below instead. Keeping that overload is necessary to replay one retained measurement
-     * without losing its pass-specific AWT placement context.
+     * overload below instead.
      */
     public fun placeChildren() {
         val scope = StandalonePlacementScope(width)
@@ -250,29 +283,29 @@ public interface MeasureResult {
 /** CMP's standalone placement scope, adapted to Swing's zero-origin, left-to-right default. */
 private class StandalonePlacementScope(
     override val parentWidth: Int,
-) : PlacementScope {
+) : PlacementScope() {
     override val isLeftToRight: Boolean = true
 
     override fun Placeable.place(
         x: Int,
         y: Int,
     ) {
-        (this as PositionedPlaceable).placeAt(x.toLong(), y.toLong())
+        placeAt(x.toLong(), y.toLong())
     }
 }
 
 /**
- * The receiver a [MeasureResult] places its children in.
+ * The receiver a [MeasureResult] places its children in, from a [MeasurePolicy] or a [LayoutModifierNode].
  *
  * A placement is relative to the container's inner rectangle - inside its insets - so a policy works in
  * the same coordinates it measured in.
  */
-public sealed interface PlacementScope {
+public sealed class PlacementScope {
     /** The inner width the policy divided, which is what [placeRelative] mirrors a placement across. */
-    public val parentWidth: Int
+    public abstract val parentWidth: Int
 
     /** Whether the container reads left to right; see `java.awt.ComponentOrientation`. */
-    public val isLeftToRight: Boolean
+    public abstract val isLeftToRight: Boolean
 
     /**
      * Places the child at [x] from the left edge, whatever the orientation.
@@ -280,7 +313,7 @@ public sealed interface PlacementScope {
      * @param x where the child's left edge lands, from the container's inner left edge
      * @param y where the child's top edge lands, from the container's inner top edge
      */
-    public fun Placeable.place(
+    public abstract fun Placeable.place(
         x: Int,
         y: Int,
     )
@@ -291,14 +324,16 @@ public sealed interface PlacementScope {
      * @param x where the child's leading edge lands, from the container's inner leading edge
      * @param y where the child's top edge lands, from the container's inner top edge
      */
-    public fun Placeable.placeRelative(
+    public open fun Placeable.placeRelative(
         x: Int,
         y: Int,
-    ): Unit =
-        place(
-            if (isLeftToRight) x else saturateLayoutCoordinate(parentWidth.toLong() - width.toLong() - x.toLong()),
-            y,
-        )
+    ): Unit = place(saturateLayoutCoordinate(relativeX(this, x)), y)
+
+    /** Where [x] from the leading edge lands from the left edge of this scope, as wide as [parentWidth]. */
+    internal fun relativeX(
+        placeable: Placeable,
+        x: Int,
+    ): Long = if (isLeftToRight) x.toLong() else parentWidth.toLong() - placeable.width.toLong() - x.toLong()
 }
 
 /** A signed coordinate held to the range AWT can represent rather than wrapped across the opposite edge. */

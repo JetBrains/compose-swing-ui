@@ -1,5 +1,7 @@
 package org.jetbrains.compose.swing.foundation.layout
 
+import java.awt.Dimension
+
 /** A child as a [MeasurePolicy] asks about its unconstrained, axis-specific dimensions. */
 public sealed interface IntrinsicMeasurable {
     /** What the child declared to this container - a weight, an alignment, a scope's own value. */
@@ -16,6 +18,12 @@ public sealed interface IntrinsicMeasurable {
 
     /** The height beyond which growing this child no longer reduces its width at [width]. */
     public fun maxIntrinsicHeight(width: Int): Int
+
+    /**
+     * The maximum size set on this child's component, which a `Row`, `Column` or `Box` holds the whole child to,
+     * outside its layout modifiers, or null where none is set. Null by default.
+     */
+    public fun maximumSize(): Dimension? = null
 }
 
 /**
@@ -80,7 +88,7 @@ public class HorizontalAlignmentLine(
  * A placeable is one immutable measurement of a child. It retains the component extent and layout
  * modifier offsets computed for that measurement.
  */
-public sealed interface Placeable {
+public sealed class Placeable {
     /**
      * The width the parent sees: [measuredWidth] coerced inside the constraints passed to
      * [Measurable.measure].
@@ -88,17 +96,35 @@ public sealed interface Placeable {
      * A parent normally lays its children out from this apparent extent, so one that measures a
      * child outside its offer still has an extent it can safely account for.
      */
-    public val width: Int
+    public abstract val width: Int
 
     /**
      * The height the parent sees: [measuredHeight] coerced inside the constraints passed to
      * [Measurable.measure].
      */
-    public val height: Int
+    public abstract val height: Int
 
     /** The width the child actually measured itself to, before its parent coerced [width]. */
-    public val measuredWidth: Int
+    public abstract val measuredWidth: Int
 
     /** The height the child actually measured itself to, before its parent coerced [height]. */
-    public val measuredHeight: Int
+    public abstract val measuredHeight: Int
+
+    /** The child this placeable ends up placing. */
+    internal abstract val child: ChildMeasurable
+
+    /**
+     * @param x where this placeable's origin lands, in its caller's coordinates.
+     * @param y where this placeable's origin lands, in its caller's coordinates.
+     */
+    internal abstract fun placeAt(
+        x: Long,
+        y: Long,
+    )
+
+    /** Where the child's baseline falls when this placeable's origin lands at ([x], [y]), or `-1` where it has none. */
+    internal abstract fun baselineAt(
+        x: Long,
+        y: Long,
+    ): Int
 }

@@ -64,8 +64,8 @@ internal class ParentDeclaration(
      * modifier's [chain][org.jetbrains.compose.swing.modifier.SwingModifierState.chain], so this runs once the modifier
      * diff has brought the layout nodes up to date. One the chain does not hold - after a diff that threw partway - is
      * left out. The declaration is applied again whenever [layoutNodesChanged], that is where a layout node of the
-     * chain attached, detached or was written since the last call; otherwise the other elements are compared, and a
-     * node element needs only a layout node in its place.
+     * chain attached, detached or was written with [ParentLayoutNode.shouldAutoInvalidate] since the last call;
+     * otherwise the other elements are compared, and a node element needs only a layout node in its place.
      */
     fun applyComponentLayout(
         parentData: Any?,

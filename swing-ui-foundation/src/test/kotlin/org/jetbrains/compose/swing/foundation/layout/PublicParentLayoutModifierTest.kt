@@ -1,5 +1,8 @@
 package org.jetbrains.compose.swing.foundation.layout
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.layout.ParentDataModifier
 import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -8,11 +11,11 @@ import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.extension.ExtendWith
 import java.awt.Component
+import java.awt.Dimension
 import java.awt.Rectangle
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /** Proves Foundation's supported parent-layout contracts work without any internal API opt-in. */
@@ -33,7 +36,7 @@ class PublicParentLayoutModifierTest {
                                 SwingModifier then
                                     AppendParentData("first", parentDataProtocol) then
                                     AppendParentData("second", parentDataProtocol) then
-                                    OffsetLayoutModifier("offset", 9, events),
+                                    OffsetLayoutElement("offset", 9, events),
                         )
                     },
                     measurePolicy =
@@ -74,7 +77,7 @@ class PublicParentLayoutModifierTest {
         layout.declareComponentLayout(
             child,
             null,
-            listOf(OffsetLayoutModifier("outer", 5, events), OffsetLayoutModifier("inner", 7, events)),
+            listOf(OffsetLayoutNode("outer", 5, events), OffsetLayoutNode("inner", 7, events)),
         )
         panel.setSize(10, 10)
 
@@ -93,9 +96,7 @@ class PublicParentLayoutModifierTest {
         var base = -2
 
         val outer =
-            object : LayoutModifier {
-                override val name: String get() = "outer"
-
+            object : LayoutModifierNode() {
                 override fun MeasureScope.measure(
                     measurable: Measurable,
                     constraints: Constraints,
@@ -111,7 +112,7 @@ class PublicParentLayoutModifierTest {
             }
 
         val events = mutableListOf<String>()
-        val inner = OffsetLayoutModifier("inner", 7, events)
+        val inner = OffsetLayoutNode("inner", 7, events)
 
         val layout =
             MeasurePolicyLayout(
@@ -136,13 +137,17 @@ class PublicParentLayoutModifierTest {
         assertEquals(-1, base)
     }
 
+    /**
+     * A stateful node - an animation node, in `swing-ui-animation` - overrides the four intrinsic hooks
+     * to pass straight through rather than inheriting [LayoutModifierNode]'s measure-based default, precisely
+     * so an intrinsic query never runs its own `measure` again. Without that override, a validate cycle
+     * asking preferred, minimum and layout would run `measure` up to five times over one real pass.
+     */
     @Test
     fun aPassThroughLayoutModifierRunsItsOwnMeasureOnlyOnceAcrossAValidateCycle() {
         var measureCount = 0
         val passThrough =
-            object : LayoutModifier {
-                override val name: String get() = "passThrough"
-
+            object : LayoutModifierNode() {
                 override fun MeasureScope.measure(
                     measurable: Measurable,
                     constraints: Constraints,
@@ -151,6 +156,26 @@ class PublicParentLayoutModifierTest {
                     val placeable = measurable.measure(constraints)
                     return layout(placeable.width, placeable.height) { placeable.place(0, 0) }
                 }
+
+                override fun IntrinsicMeasureScope.minIntrinsicWidth(
+                    measurable: IntrinsicMeasurable,
+                    height: Int,
+                ): Int = measurable.minIntrinsicWidth(height)
+
+                override fun IntrinsicMeasureScope.maxIntrinsicWidth(
+                    measurable: IntrinsicMeasurable,
+                    height: Int,
+                ): Int = measurable.maxIntrinsicWidth(height)
+
+                override fun IntrinsicMeasureScope.minIntrinsicHeight(
+                    measurable: IntrinsicMeasurable,
+                    width: Int,
+                ): Int = measurable.minIntrinsicHeight(width)
+
+                override fun IntrinsicMeasureScope.maxIntrinsicHeight(
+                    measurable: IntrinsicMeasurable,
+                    width: Int,
+                ): Int = measurable.maxIntrinsicHeight(width)
             }
 
         val layout =
@@ -165,17 +190,46 @@ class PublicParentLayoutModifierTest {
         val child = FixedSizeChild(width = 10, height = 10)
         panel.add(child)
         layout.declareComponentLayout(child, null, listOf(passThrough))
+        panel.setSize(10, 10)
 
-        val first = layout.measurables.settledOn(10, 10)
-        val second = layout.measurables.settledOn(10, 10)
+        panel.preferredSize
+        panel.minimumSize
+        panel.doLayout()
 
-        assertSame(first, second, "settling on the same extent again must reuse the result the first pass settled on")
         assertEquals(
             1,
             measureCount,
-            "a validate cycle settling on the same extent more than once must run a pass-through modifier's " +
-                "own measure only once",
+            "a validate cycle asking preferred, minimum and layout in turn must run a pass-through " +
+                "node's own measure exactly once, from the real layout pass",
         )
+    }
+
+    /**
+     * A node whose [LayoutModifierNode.shouldAutoInvalidate] is `false` gets no measure from a changed
+     * declaration on its own; it must call [LayoutModifierNode.invalidateMeasurement] itself for a change
+     * its own measure reads.
+     */
+    @Test
+    fun invalidateMeasurementMeasuresTheNodeAgainForAChangeAutoInvalidationWouldMiss() {
+        runComposeSwingTest {
+            var size by mutableIntStateOf(10)
+            setContent {
+                Box(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
+                    SizedChild(0, SwingModifier then ReportedSizeElement(size))
+                }
+            }
+
+            assertEquals(Dimension(10, 10), containerPreferredSize(), "the node must report the size it starts with")
+
+            size = 24
+            awaitIdle()
+
+            assertEquals(
+                Dimension(24, 24),
+                containerPreferredSize(),
+                "invalidateMeasurement must measure the node again for a change shouldAutoInvalidate is false for",
+            )
+        }
     }
 
     @Test
@@ -291,15 +345,25 @@ class PublicParentLayoutModifierTest {
         override fun modifyParentData(parentData: Any?): Any = "stack"
     }
 
-    private data class OffsetLayoutModifier(
+    private data class OffsetLayoutElement(
         private val label: String,
         private val x: Int,
         private val events: MutableList<String>,
-    ) : LayoutModifier {
-        override val name: String get() = "offsetLayout"
+    ) : LayoutModifierNodeElement<OffsetLayoutNode>() {
+        override fun create(): OffsetLayoutNode = OffsetLayoutNode(label, x, events)
 
-        override val declaredValues: Map<String, Any?> get() = mapOf("x" to x)
+        override fun update(node: OffsetLayoutNode) {
+            node.label = label
+            node.x = x
+            node.events = events
+        }
+    }
 
+    private class OffsetLayoutNode(
+        var label: String,
+        var x: Int,
+        var events: MutableList<String>,
+    ) : LayoutModifierNode() {
         override fun MeasureScope.measure(
             measurable: Measurable,
             constraints: Constraints,
@@ -308,6 +372,38 @@ class PublicParentLayoutModifierTest {
             val placeable = measurable.measure(constraints)
             events += "$label after"
             return layout(placeable.width, placeable.height) { placeable.place(x, 0) }
+        }
+    }
+
+    /**
+     * Reports itself at [size] by [size] whatever its content measures, and is measured again only through
+     * invalidateMeasurement.
+     */
+    private data class ReportedSizeElement(
+        private val size: Int,
+    ) : LayoutModifierNodeElement<ReportedSizeNode>() {
+        override fun create(): ReportedSizeNode = ReportedSizeNode(size)
+
+        override fun update(node: ReportedSizeNode) = node.update(size)
+    }
+
+    private class ReportedSizeNode(
+        private var size: Int,
+    ) : LayoutModifierNode() {
+        override val shouldAutoInvalidate: Boolean get() = false
+
+        fun update(size: Int) {
+            val changed = this.size != size
+            this.size = size
+            if (changed) invalidateMeasurement()
+        }
+
+        override fun MeasureScope.measure(
+            measurable: Measurable,
+            constraints: Constraints,
+        ): MeasureResult {
+            val placeable = measurable.measure(constraints)
+            return layout(size, size) { placeable.place(0, 0) }
         }
     }
 }

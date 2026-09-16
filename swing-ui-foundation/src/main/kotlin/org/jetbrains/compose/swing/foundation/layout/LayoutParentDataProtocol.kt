@@ -41,7 +41,7 @@ public open class LayoutParentDataProtocol internal constructor(
 public fun layoutParentDataProtocol(description: String): LayoutParentDataProtocol =
     object : LayoutParentDataProtocol(description) {}
 
-/** The capability every Foundation [LayoutModifier] uses. */
+/** The capability every Foundation [LayoutModifierNodeElement] uses. */
 public val LayoutModifierParentProtocol: ParentProtocol =
     object : ParentProtocol {
         override val description: String = "Foundation layout modifiers"
