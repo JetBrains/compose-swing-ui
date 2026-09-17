@@ -149,6 +149,30 @@ class IntrinsicModifierTest {
     }
 
     @Test
+    fun placingAnIntrinsicStandInPlacesNothing() {
+        val policy =
+            MeasurePolicy { measurables, constraints ->
+                val standIn = measurables.single().intrinsicPlaceable(5, 5)!!
+                val placeable = measurables.single().measure(constraints)
+                layout(placeable.width, placeable.height) {
+                    standIn.place(10, 10)
+                    placeable.place(0, 0)
+                }
+            }
+
+        assertEquals(
+            Rectangle(0, 0, PANEL_EXTENT, PANEL_EXTENT),
+            boundsPlacedBy(policy, emptyList()),
+            "a policy placing an unmodified child's stand-in must leave the child where its real placement puts it",
+        )
+        assertEquals(
+            Rectangle(4, 4, PANEL_EXTENT - 8, PANEL_EXTENT - 8),
+            boundsPlacedBy(policy, layoutChainOf { SwingModifier.padding(4) }),
+            "a policy placing a padded child's stand-in must leave the child where its real placement puts it",
+        )
+    }
+
+    @Test
     fun defaultIntrinsicMeasurableIgnoresALayoutModifiersFixedMeasureConstraints() {
         val fixed =
             measurableWith(
@@ -192,20 +216,26 @@ class IntrinsicModifierTest {
     private fun boundsAt(
         chain: List<LayoutModifierNode>,
         offer: Constraints,
+    ): Rectangle =
+        boundsPlacedBy(
+            MeasurePolicy { measurables, _ ->
+                val placeable = measurables.single().measure(offer)
+                layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+            },
+            chain,
+        )
+
+    /** Where [policy] places the one child, measured through [chain], in a panel [PANEL_EXTENT] square. */
+    private fun boundsPlacedBy(
+        policy: MeasurePolicy,
+        chain: List<LayoutModifierNode>,
     ): Rectangle {
-        val layout =
-            MeasurePolicyLayout(
-                MeasurePolicy { measurables, _ ->
-                    val placeable = measurables.single().measure(offer)
-                    layout(placeable.width, placeable.height) { placeable.place(0, 0) }
-                },
-                null,
-            )
+        val layout = MeasurePolicyLayout(policy, null)
         val child = intrinsicChild()
         val panel = composed(ConstrainedPanel(layout))
         panel.add(child)
         layout.declareLayoutChain(child, chain)
-        panel.setSize(500, 500)
+        panel.setSize(PANEL_EXTENT, PANEL_EXTENT)
         panel.doLayout()
         return child.bounds
     }
@@ -220,5 +250,6 @@ class IntrinsicModifierTest {
         const val MINIMUM_HEIGHT = 30
         const val PREFERRED_WIDTH = 100
         const val PREFERRED_HEIGHT = 120
+        const val PANEL_EXTENT = 500
     }
 }

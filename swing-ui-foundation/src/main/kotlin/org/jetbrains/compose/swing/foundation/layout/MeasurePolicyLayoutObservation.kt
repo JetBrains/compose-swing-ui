@@ -76,11 +76,24 @@ internal fun MeasurePolicyLayout.observe(
 
 /**
  * Places the children again inside the bounds this panel already holds: this panel's own layout pass run
- * outside a validation, invalidating neither this panel nor an ancestor.
+ * outside a validation, invalidating neither this panel nor an ancestor. The lines this panel and each Foundation
+ * container above it put are then dirty, and the next read of one works them out again. Where a container above read
+ * such a line in its last measure, the panel is revalidated instead; where it read one only in its last placement, that
+ * container places its children again too.
  */
 internal fun ConstrainedPanel.placeChildrenAgain() {
+    var panel = this
+    var readBy = LayoutState.Idle
+    while (readBy == LayoutState.Idle) {
+        panel.policyLayout.measurables.lineScope.generation++
+        val record = (panel.parent as? ConstrainedPanel)?.policyLayout?.measurables?.find(panel) ?: break
+        readBy = record.lineReadDuring
+        panel = record.owner.panel
+    }
+    if (readBy == LayoutState.Measuring) return revalidate()
     policyLayout.measurables.during(RunningCause.PlacementReplay) { doLayout() }
     // A child this pass resized is left invalid, and nothing above it is: no validation is coming to lay
     // it out, so it is laid out here, as a validation laying this panel out would.
     policyLayout.measurables.layoutPass.fastForEach { if (!it.component.isValid) it.component.validate() }
+    if (readBy == LayoutState.LayingOut) panel.placeChildrenAgain()
 }

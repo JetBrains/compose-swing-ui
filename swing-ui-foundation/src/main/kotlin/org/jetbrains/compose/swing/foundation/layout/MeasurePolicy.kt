@@ -123,8 +123,7 @@ internal enum class IntrinsicWidthHeight {
  * [source]'s [maximum size][IntrinsicMeasurable.maximumSize].
  */
 internal class IntrinsicMeasurableAdapter(
-    /** The Swing-backed measurable a policy may inspect for maximum-size adaptations. */
-    internal val source: IntrinsicMeasurable,
+    private val source: IntrinsicMeasurable,
     private val intrinsicSize: IntrinsicSize,
     private val widthHeight: IntrinsicWidthHeight,
     private val holdToMaximum: Boolean = false,
@@ -158,12 +157,12 @@ internal class IntrinsicMeasurableAdapter(
 
     override fun maxIntrinsicHeight(width: Int): Int = source.maxIntrinsicHeight(width)
 
-    override fun maximumSize(): Dimension? = source.maximumSize()
-
-    override fun baseline(
+    override fun intrinsicPlaceable(
         width: Int,
         height: Int,
-    ): Int = -1
+    ): Placeable? = source.intrinsicPlaceable(width, height)
+
+    override fun maximumSize(): Dimension? = source.maximumSize()
 }
 
 /**
@@ -171,7 +170,7 @@ internal class IntrinsicMeasurableAdapter(
  * line rather than answering through a placement it does not have. Its extent is the one it was given, whatever the
  * constraints it was measured under.
  */
-private class IntrinsicPlaceable(
+internal class IntrinsicPlaceable(
     override val measuredWidth: Int,
     override val measuredHeight: Int,
 ) : Placeable() {
@@ -184,10 +183,13 @@ private class IntrinsicPlaceable(
         y: Long,
     ): Unit = error("IntrinsicPlaceable is never placed")
 
-    override fun baselineAt(
+    override fun alignmentLineAt(
+        alignmentLine: AlignmentLine,
         x: Long,
         y: Long,
-    ): Int = -1
+    ): Int = AlignmentLine.UNSPECIFIED
+
+    override fun get(alignmentLine: AlignmentLine): Int = AlignmentLine.UNSPECIFIED
 }
 
 /** CMP's finite replacement for an intrinsic axis a policy was not asked to determine. */
@@ -207,8 +209,9 @@ public sealed interface MeasureScope : IntrinsicMeasureScope {
      *   coerced into the constraints it offered, while Swing ultimately receives this raw extent.
      * @param height the height this layout measured itself to. A parent sees this extent
      *   coerced into the constraints it offered, while Swing ultimately receives this raw extent.
-     * @param alignmentLines lines this layout explicitly provides to its parent. Swing has no native
-     *   alignment-line graph, so lines from ordinary child components are not inferred or inherited.
+     * @param alignmentLines lines this layout provides to its parent, which reads them through
+     *   [Placeable.get]. A line named here takes the place of that line of what this layout places; each other
+     *   line comes from what it places, where it places it.
      * @param placementBlock places what this layout measured: a policy's children relative to the
      *   container's inner rectangle, a modifier's content relative to the modifier's box
      * @return what this layout settled on.

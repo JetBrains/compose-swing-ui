@@ -23,4 +23,10 @@ public interface Constrainable {
 
     /** The height the last [measure] settled on. */
     public val constrainedHeight: Int
+
+    /**
+     * The alignment lines the last [measure] provided, each measured from the top-left corner of the extent it
+     * settled on, which a parent reads through `placeable[line]`. Empty by default.
+     */
+    public val alignmentLines: Map<AlignmentLine, Int> get() = emptyMap()
 }

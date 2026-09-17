@@ -1,8 +1,11 @@
 package org.jetbrains.compose.swing.foundation.layout
 
+import org.jetbrains.compose.swing.foundation.util.fastForEach
 import org.jetbrains.compose.swing.layout.ParentLayoutNode
 import org.jetbrains.compose.swing.layout.ParentLayoutNodeElement
 import org.jetbrains.compose.swing.layout.ParentProtocol
+import java.awt.Dimension
+import java.util.function.BiConsumer
 
 /**
  * A layout modifier: declares a [LayoutModifierNode] that measures one child between the constraints its parent
@@ -48,7 +51,8 @@ public abstract class LayoutModifierNode : ParentLayoutNode() {
      * The default runs this node's [measure] against a stand-in for the child, under a bounded cross axis and an
      * unbounded main axis, as androidx's `NodeMeasuringIntrinsics` does, so the answer carries this node's own
      * transform. A node whose `measure` must not run for a query, such as an animation node, overrides the four
-     * intrinsic hooks to ask [measurable] directly; a container's size query then runs its `measure` nowhere.
+     * intrinsic hooks and [intrinsicPlaceable] to ask [measurable] directly; a container's size query then runs its
+     * `measure` nowhere.
      */
     public open fun IntrinsicMeasureScope.minIntrinsicWidth(
         measurable: IntrinsicMeasurable,
@@ -74,19 +78,47 @@ public abstract class LayoutModifierNode : ParentLayoutNode() {
     ): Int = measureIntrinsically(measurable, IntrinsicSize.Max, IntrinsicWidthHeight.Height, width)
 
     /**
+     * This node at [width] by [height] as a placeable a container reads alignment lines from while it answers an
+     * intrinsic question, or null where it has none. A `Row` or `Column` asking for its own size reads a child's
+     * baseline or `alignBy` line from it, so the line holds where this node moves it.
+     *
+     * The default runs this node's [measure] under exactly [width] by [height] against a stand-in for the child,
+     * which [measurable]'s own [intrinsicPlaceable][IntrinsicMeasurable.intrinsicPlaceable] answers, and reads a line
+     * this node does not name by running its placement without placing anything. The real child is never measured.
+     * Override it with the four intrinsic hooks, returning `measurable.intrinsicPlaceable(width, height)`, where this
+     * node's `measure` must not run for a size query; the line then stays where the child puts it.
+     */
+    public open fun IntrinsicMeasureScope.intrinsicPlaceable(
+        measurable: IntrinsicMeasurable,
+        width: Int,
+        height: Int,
+    ): Placeable? {
+        val constraints = Constraints.fixed(width, height)
+        val result = with(PolicyMeasureScope) { measure(IntrinsicLineMeasurable(measurable), constraints) }
+        val leftToRight =
+            child
+                ?.owner
+                ?.panel
+                ?.componentOrientation
+                ?.isLeftToRight ?: true
+        return IntrinsicModifierPlaceable(result, constraints, leftToRight)
+    }
+
+    /**
      * Has the container place this node's component again at once, without measuring it: the placement of the
      * last measure result reruns before this returns, reading this node's state as it stands. Unlike androidx's
      * `LayoutModifierNode.invalidatePlacement`, which schedules the placement, a node updates its state first
      * and calls this last. A node whose [shouldAutoInvalidate] is `false` calls this from an update that changes
      * only where it places its content. A container awaiting a layout pass already measures and places the
-     * component in that pass, and one whose measure read the component's baseline, such as a `Row` aligning it
-     * by its baseline, is measured again, since the baseline moves with the content. Does nothing before the
-     * container has received the node.
+     * component in that pass. One whose measure read an alignment line of the component, such as a `Row` aligning it
+     * by its baseline, is measured again, since the line moves with the content, and so is a container above it that
+     * read a line of a container holding the component in its measure; one that read it only in its placement places
+     * its children again. Does nothing before the container has received the node.
      */
     public fun invalidatePlacement() {
         val child = child ?: return
         val panel = child.owner.panel
-        if (panel.isValid && !child.lineReadByMeasure) {
+        if (panel.isValid && child.lineReadDuring != LayoutState.Measuring) {
             panel.placeChildrenAgain()
         } else {
             panel.revalidate()
@@ -118,5 +150,291 @@ private fun LayoutModifierNode.measureIntrinsically(
     val adapter = IntrinsicMeasurableAdapter(measurable, intrinsicSize, widthHeight)
     return intrinsicExtent(widthHeight, crossAxisSize) {
         with(PolicyMeasureScope) { measure(adapter, it) }
+    }
+}
+
+/**
+ * The child a layout modifier measures while its [LayoutModifierNode.intrinsicPlaceable] is asked for: measuring it
+ * answers [source]'s own stand-in at the offered extent, or at the extent [source] prefers within a loose offer.
+ */
+private class IntrinsicLineMeasurable(
+    private val source: IntrinsicMeasurable,
+) : Measurable {
+    override val parentData: Any? get() = source.parentData
+
+    override fun measure(constraints: Constraints): Placeable {
+        val width =
+            if (constraints.hasFixedWidth) {
+                constraints.minWidth
+            } else {
+                constraints.constrainWidth(source.maxIntrinsicWidth(constraints.maxHeight))
+            }
+        val height =
+            if (constraints.hasFixedHeight) {
+                constraints.minHeight
+            } else {
+                constraints.constrainHeight(source.maxIntrinsicHeight(width))
+            }
+        return source.intrinsicPlaceable(width, height) ?: IntrinsicPlaceable(width, height)
+    }
+
+    override fun minIntrinsicWidth(height: Int): Int = source.minIntrinsicWidth(height)
+
+    override fun maxIntrinsicWidth(height: Int): Int = source.maxIntrinsicWidth(height)
+
+    override fun minIntrinsicHeight(width: Int): Int = source.minIntrinsicHeight(width)
+
+    override fun maxIntrinsicHeight(width: Int): Int = source.maxIntrinsicHeight(width)
+
+    override fun intrinsicPlaceable(
+        width: Int,
+        height: Int,
+    ): Placeable? = source.intrinsicPlaceable(width, height)
+
+    override fun maximumSize(): Dimension? = source.maximumSize()
+}
+
+/**
+ * A layout modifier's [result] under [constraints], standing in for its content in an intrinsic question, in
+ * [leftToRight] reading order. It places nothing: a line the result does not name is read by replaying its
+ * placement, as [MeasureResult.lineAt] does for the real one.
+ */
+private class IntrinsicModifierPlaceable(
+    private val result: MeasureResult,
+    constraints: Constraints,
+    private val leftToRight: Boolean,
+) : Placeable() {
+    override val measuredWidth: Int get() = result.width
+    override val measuredHeight: Int get() = result.height
+    override val width: Int = constraints.constrainWidth(measuredWidth)
+    override val height: Int = constraints.constrainHeight(measuredHeight)
+    override val child: ChildMeasurable get() = error("IntrinsicModifierPlaceable is never placed")
+
+    override fun placeAt(
+        x: Long,
+        y: Long,
+    ): Unit = Unit
+
+    override fun get(alignmentLine: AlignmentLine): Int {
+        val originX = centeredOverflowOffset(width, measuredWidth)
+        val originY = centeredOverflowOffset(height, measuredHeight)
+        return result.lineAt(alignmentLine, originX, originY, measuredWidth, leftToRight)
+    }
+
+    override fun alignmentLineAt(
+        alignmentLine: AlignmentLine,
+        x: Long,
+        y: Long,
+    ): Int {
+        val line = get(alignmentLine)
+        return if (line == AlignmentLine.UNSPECIFIED) {
+            AlignmentLine.UNSPECIFIED
+        } else {
+            saturateLineCoordinate(line.toLong() + if (alignmentLine is HorizontalAlignmentLine) y else x)
+        }
+    }
+}
+
+/**
+ * Where [alignmentLine] falls in [this] result: the line it names itself, offset by [originX] or [originY], or the
+ * lines its placement puts the content it places at, merged by the line's merger, in [isLeftToRight] reading order.
+ */
+internal fun MeasureResult.lineAt(
+    alignmentLine: AlignmentLine,
+    originX: Long,
+    originY: Long,
+    parentWidth: Int,
+    isLeftToRight: Boolean,
+): Int {
+    alignmentLines[alignmentLine]?.let { provided ->
+        return saturateLineCoordinate(provided + if (alignmentLine is HorizontalAlignmentLine) originY else originX)
+    }
+    return AlignmentLinePlacementScope(alignmentLine, originX, originY, parentWidth, isLeftToRight)
+        .also { scope -> with(this) { scope.placeChildren() } }
+        .position
+}
+
+/**
+ * Replays a placement without placing anything, merging where each content placed puts [alignmentLine] by the
+ * line's merger, in [isLeftToRight] reading order.
+ */
+internal class AlignmentLinePlacementScope(
+    private val alignmentLine: AlignmentLine,
+    private val originX: Long,
+    private val originY: Long,
+    override val parentWidth: Int,
+    override val isLeftToRight: Boolean,
+) : PlacementScope() {
+    var position: Int = AlignmentLine.UNSPECIFIED
+        private set
+
+    override fun Placeable.place(
+        x: Int,
+        y: Int,
+    ) {
+        record(this, originX + x.toLong(), originY + y.toLong())
+    }
+
+    override fun Placeable.placeRelative(
+        x: Int,
+        y: Int,
+    ) {
+        record(this, originX + relativeX(this, x), originY + y.toLong())
+    }
+
+    private fun record(
+        placeable: Placeable,
+        x: Long,
+        y: Long,
+    ) {
+        val placed = placeable.alignmentLineAt(alignmentLine, x, y)
+        if (placed == AlignmentLine.UNSPECIFIED) return
+        position = if (position == AlignmentLine.UNSPECIFIED) placed else alignmentLine.merger(position, placed)
+    }
+}
+
+/**
+ * Replays placements without placing anything, merging each line a content placed puts by the line's merger. A line a
+ * result names takes the place of that line of the content the result places. One container reuses it for every
+ * [ChildMeasurables.alignmentLinesOf].
+ */
+internal class LineMergingPlacementScope :
+    PlacementScope(),
+    BiConsumer<AlignmentLine, Int> {
+    /**
+     * Moves each time the container, or a container inside it, places its children again without a measure: the lines
+     * worked out before it moved are dirty.
+     */
+    var generation = 0
+
+    /**
+     * Whether a change to the reads the last replay recorded places the container's children again: true for a replay
+     * of a result the container has not placed, until it places the result it measured last or replays the placed one.
+     */
+    var observesReplay = false
+
+    /** The lines merged so far, a map made by the first line merged and handed over by [takeLines]. */
+    private var merged: Map<AlignmentLine, Int> = emptyMap()
+
+    /** What [replay] merges: the result, its origin and its reading order. */
+    private lateinit var replayed: MeasureResult
+    private var replayedX = 0L
+    private var replayedY = 0L
+    private var replayedLeftToRight = true
+
+    // Stored once, reading inputs from fields, so observing a replay allocates nothing per call.
+    val replay: () -> Unit = { merge(replayed, replayedX, replayedY, replayedLeftToRight) }
+
+    private var originX = 0L
+    private var originY = 0L
+
+    override var parentWidth: Int = 0
+        private set
+
+    override var isLeftToRight: Boolean = true
+        private set
+
+    /** The lines each result being replayed names, outermost first. */
+    private val named = ArrayList<Map<AlignmentLine, Int>>()
+
+    /** Has [replay] merge the lines [result] puts with its origin at ([x], [y]), in [leftToRight] reading order. */
+    fun replaying(
+        result: MeasureResult,
+        x: Long,
+        y: Long,
+        leftToRight: Boolean,
+    ) {
+        merged = emptyMap()
+        replayed = result
+        replayedX = x
+        replayedY = y
+        replayedLeftToRight = leftToRight
+    }
+
+    /** The lines merged since [replaying], or an empty map where there are none. */
+    fun takeLines(): Map<AlignmentLine, Int> {
+        val lines = merged
+        merged = emptyMap()
+        return lines
+    }
+
+    /** Merges the lines [result] names, and then those of the content its placement places, from ([x], [y]). */
+    fun merge(
+        result: MeasureResult,
+        x: Long,
+        y: Long,
+        leftToRight: Boolean,
+    ) {
+        val standingX = originX
+        val standingY = originY
+        val standingWidth = parentWidth
+        val standingOrder = isLeftToRight
+        originX = x
+        originY = y
+        parentWidth = result.width
+        isLeftToRight = leftToRight
+        val own = result.alignmentLines
+        own.forEach(this)
+        val names = own.isNotEmpty()
+        if (names) named += own
+        try {
+            with(result) { this@LineMergingPlacementScope.placeChildren() }
+        } finally {
+            if (names) named.removeAt(named.lastIndex)
+            originX = standingX
+            originY = standingY
+            parentWidth = standingWidth
+            isLeftToRight = standingOrder
+        }
+    }
+
+    /** Merges [lines], each measured from ([x], [y]). */
+    fun merge(
+        lines: Map<AlignmentLine, Int>,
+        x: Long,
+        y: Long,
+    ) {
+        if (lines.isEmpty()) return
+        val standingX = originX
+        val standingY = originY
+        originX = x
+        originY = y
+        lines.forEach(this)
+        originX = standingX
+        originY = standingY
+    }
+
+    /** Merges [line] at [coordinate], unless a result being replayed names it. */
+    fun merge(
+        line: AlignmentLine,
+        coordinate: Long,
+    ) {
+        named.fastForEach { if (line in it) return }
+        val position = saturateLineCoordinate(coordinate)
+        val lines = merged as? HashMap ?: HashMap<AlignmentLine, Int>().also { merged = it }
+        val standing = lines[line]
+        lines[line] = if (standing == null) position else line.merger(standing, position)
+    }
+
+    /** Merges [line] at [position] from the origin. */
+    override fun accept(
+        line: AlignmentLine,
+        position: Int,
+    ) {
+        merge(line, position + if (line is HorizontalAlignmentLine) originY else originX)
+    }
+
+    override fun Placeable.place(
+        x: Int,
+        y: Int,
+    ) {
+        mergeAlignmentLines(this@LineMergingPlacementScope, originX + x, originY + y)
+    }
+
+    override fun Placeable.placeRelative(
+        x: Int,
+        y: Int,
+    ) {
+        mergeAlignmentLines(this@LineMergingPlacementScope, originX + relativeX(this, x), originY + y)
     }
 }

@@ -58,16 +58,9 @@ fun Stack(
         measurePolicy = { measurables, constraints ->
             var remainingHeight = constraints.maxHeight
             val placeables = measurables.map { measurable ->
-                val measured = measurable.measure(
+                val placeable = measurable.measure(
                     Constraints(maxWidth = constraints.maxWidth, maxHeight = remainingHeight)
                 )
-                // A layout modifier may escape an impossible offer, so give an overflowing child no space.
-                val placeable =
-                    if (measured.width <= constraints.maxWidth && measured.height <= remainingHeight) {
-                        measured
-                    } else {
-                        measurable.measure(Constraints(maxWidth = 0, maxHeight = 0))
-                    }
                 remainingHeight = (remainingHeight - placeable.height).coerceAtLeast(0)
                 placeable
             }
@@ -96,8 +89,11 @@ for the height - and a policy handing that down forces every child to the contai
 policy that stacks or divides offers each child a ceiling and no floor. The stack above offers the
 container's width ceiling and the height left after earlier children, so a finite parent cannot have a
 later child placed beyond its bottom edge; with an unbounded height, the children can take what they
-prefer. A layout modifier such as `aspectRatio` may report outside an impossible offer, so the example
-remeasures such a child with zero space before placing it.
+prefer. A child that measures outside its offer, such as one with `aspectRatio` under an impossible
+offer, still reports a `width` and `height` inside that offer, so the stack's arithmetic stays within
+it; the child's own extent is centered on the slot it is placed at.
+
+Each child is measured at most once per pass, as [Measure once](FOUNDATION.md#measure-once) describes.
 
 The measurables arrive in declaration order, hidden children included; see
 [Visibility](FOUNDATION.md#visibility).

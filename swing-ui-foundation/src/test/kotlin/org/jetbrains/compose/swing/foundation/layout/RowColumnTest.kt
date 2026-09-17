@@ -1,3 +1,22 @@
+/*
+ * Copyright 2019 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * Adapted from androidx.compose.foundation.layout.RowColumnTest in AndroidX's
+ * foundation-layout; see this module's META-INF/NOTICE for the synced version.
+ */
+
 package org.jetbrains.compose.swing.foundation.layout
 
 import androidx.compose.runtime.Composable
@@ -9,14 +28,13 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.minimumSize
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
-import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.junit.jupiter.api.extension.ExtendWith
 import java.awt.ComponentOrientation
 import java.awt.Dimension
 import java.awt.Rectangle
 import javax.swing.JComponent
-import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -27,9 +45,8 @@ import kotlin.test.assertFailsWith
  * a child keeps the extent it prefers and sits where its own alignment, or its container's, puts it.
  *
  * A case that androidx `foundation-layout`'s own `RowColumnTest` makes keeps that test's name, so the
- * two files read side by side. A case that test makes and this library cannot - an alignment line
- * beyond the baseline, a cross-axis-parameterized intrinsic, `IntrinsicSize` as a modifier - is
- * replaced here by one pinning what this library does instead.
+ * two files read side by side. A case that test makes and this library cannot - a cross-axis-parameterized
+ * intrinsic - is replaced here by one pinning what this library does instead.
  *
  * Port provenance: case names and order follow AndroidX
  * [`RowColumnTest.kt` at 2846f08e5bd9b827b90d7b6c07dc209b63c7e5fb](https://github.com/androidx/androidx/blob/2846f08e5bd9b827b90d7b6c07dc209b63c7e5fb/compose/foundation/foundation-layout/src/androidDeviceTest/kotlin/androidx/compose/foundation/layout/RowColumnTest.kt),
@@ -42,6 +59,7 @@ import kotlin.test.assertFailsWith
  * rather than a class that grew by accretion, and splitting it would break the reading it exists for.
  */
 @Suppress("LargeClass")
+@ExtendWith(ComposedPanels::class)
 class RowColumnTest {
     @Test
     fun testRow_measuresChildrenCorrectly_whenMeasuredWithInfiniteWidth() {
@@ -817,6 +835,53 @@ class RowColumnTest {
         }
 
     @Test
+    fun testRow_withAlignByModifier() =
+        runComposeSwingTest {
+            setContent {
+                Row(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
+                    LineChild(TestHorizontalLine, 30, SwingModifier.alignBy(TestHorizontalLine))
+                    Child(1, 40, 40, SwingModifier.alignBy { it.measuredHeight / 2 })
+                    LineChild(TestHorizontalLine, 25, SwingModifier.alignBy(TestHorizontalLine))
+                    Child(3, 40, 40, SwingModifier.alignBy { it.measuredHeight * 3 / 4 })
+                    LineChild(FirstBaseline, 20, SwingModifier.alignByBaseline())
+                }
+            }
+
+            assertEquals(
+                listOf(
+                    Rectangle(0, 0, 40, 40),
+                    Rectangle(40, 30 - 40 / 2, 40, 40),
+                    Rectangle(2 * 40, 30 - 25, 40, 40),
+                    Rectangle(3 * 40, 0, 40, 40),
+                    Rectangle(4 * 40, 30 - 20, 40, 40),
+                ),
+                childBounds(),
+                "every child declaring alignBy, by a line it names or by one it works out, must be placed so " +
+                    "that its line falls on the deepest of those lines, the child holding it against the top",
+            )
+        }
+
+    @Test
+    fun testRow_withAlignByModifier_andWeight() =
+        runComposeSwingTest {
+            setContent {
+                Row(modifier = containerModifier(200, 100)) {
+                    LineChild(TestHorizontalLine, 30, SwingModifier.alignBy(TestHorizontalLine))
+                    Child(1, 0, 40, SwingModifier.alignBy { it.measuredHeight / 2 }.weight(1f))
+                }
+            }
+
+            assertEquals(
+                listOf(
+                    Rectangle(0, 0, 40, 40),
+                    Rectangle(40, 30 - 40 / 2, 200 - 40, 40),
+                ),
+                childBounds(),
+                "a weighted child must take its share of the width and still be placed on the shared line",
+            )
+        }
+
+    @Test
     fun testColumn_withStretchCrossAxisAlignment() =
         runComposeSwingTest {
             setContent {
@@ -881,6 +946,51 @@ class RowColumnTest {
                 childBounds(),
                 "each child naming a horizontal alignment of its own must be placed by that one in place of " +
                     "the column's, and the child naming none by the column's",
+            )
+        }
+
+    @Test
+    fun testColumn_withAlignByModifier() =
+        runComposeSwingTest {
+            setContent {
+                Column(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
+                    Child(0, 40, 40, SwingModifier.alignBy { it.measuredWidth })
+                    Child(1, 40, 40, SwingModifier.alignBy { 0 })
+                    LineChild(TestVerticalLine, 20, SwingModifier.alignBy(TestVerticalLine))
+                    LineChild(TestVerticalLine, 30, SwingModifier.alignBy(TestVerticalLine))
+                }
+            }
+
+            assertEquals(
+                listOf(
+                    Rectangle(0, 0, 40, 40),
+                    Rectangle(40, 40, 40, 40),
+                    Rectangle(40 - 20, 2 * 40, 40, 40),
+                    Rectangle(40 - 30, 3 * 40, 40, 40),
+                ),
+                childBounds(),
+                "every child declaring alignBy, by a line it names or by one it works out, must be placed so " +
+                    "that its line falls on the furthest of those lines from the leading edge",
+            )
+        }
+
+    @Test
+    fun testColumn_withAlignByModifier_andWeight() =
+        runComposeSwingTest {
+            setContent {
+                Column(modifier = containerModifier(100, 200)) {
+                    LineChild(TestVerticalLine, 30, SwingModifier.alignBy(TestVerticalLine))
+                    Child(1, 40, 0, SwingModifier.alignBy { it.measuredWidth / 2 }.weight(1f))
+                }
+            }
+
+            assertEquals(
+                listOf(
+                    Rectangle(0, 0, 40, 40),
+                    Rectangle(30 - 40 / 2, 40, 40, 200 - 40),
+                ),
+                childBounds(),
+                "a weighted child must take its share of the height and still be placed on the shared line",
             )
         }
 
@@ -1079,6 +1189,29 @@ class RowColumnTest {
                 ),
                 childBounds(),
                 "and neither child, declaring no fill of its own, may be stretched into the height the row gained",
+            )
+        }
+
+    @Test
+    fun testRow_withMinMainAxisSize() =
+        runComposeSwingTest {
+            setContent {
+                Box(modifier = SwingModifier.preferredSize(400, 400)) {
+                    Row(modifier = SwingModifier.testTag(CONTAINER_TAG).widthIn(min = 250).width(IntrinsicSize.Max)) {
+                        Child(0, 50, 50, SwingModifier.weight(1f))
+                    }
+                }
+            }
+
+            assertEquals(
+                Dimension(250, 50),
+                containerSize(),
+                "a row sized to its own widest extent must still take the minimum width its parent imposes",
+            )
+            assertEquals(
+                listOf(Rectangle(0, 0, 250, 50)),
+                childBounds(),
+                "and its weighted child must fill the width the row took, not the width the child prefers",
             )
         }
 
@@ -1354,6 +1487,31 @@ class RowColumnTest {
                 childBounds(),
                 "and neither child, declaring no fill of its own, may be stretched into the width the " +
                     "column gained: each keeps the width it prefers, at the start of the cross axis",
+            )
+        }
+
+    @Test
+    fun testColumn_withMinMainAxisSize() =
+        runComposeSwingTest {
+            setContent {
+                Box(modifier = SwingModifier.preferredSize(400, 400)) {
+                    Column(
+                        modifier = SwingModifier.testTag(CONTAINER_TAG).heightIn(min = 250).height(IntrinsicSize.Max),
+                    ) {
+                        Child(0, 50, 50, SwingModifier.weight(1f))
+                    }
+                }
+            }
+
+            assertEquals(
+                Dimension(50, 250),
+                containerSize(),
+                "a column sized to its own tallest extent must still take the minimum height its parent imposes",
+            )
+            assertEquals(
+                listOf(Rectangle(0, 0, 50, 250)),
+                childBounds(),
+                "and its weighted child must fill the height the column took, not the height the child prefers",
             )
         }
 
@@ -2060,6 +2218,69 @@ class RowColumnTest {
         }
 
     @Test
+    fun aRowAtItsMinimumHeightStretchesAFillingSiblingToItsTallestChild() =
+        runComposeSwingTest {
+            setContent {
+                Box(modifier = SwingModifier.preferredSize(100, 100)) {
+                    Row(modifier = SwingModifier.testTag(CONTAINER_TAG).requiredWidth(40).height(IntrinsicSize.Min)) {
+                        Box(modifier = SwingModifier.requiredWidth(10).fillMaxHeight())
+                        FixedChild(1, 30, 15)
+                    }
+                }
+            }
+
+            assertEquals(
+                listOf(Rectangle(0, 0, 10, 15), Rectangle(10, 0, 30, 15)),
+                childBounds(),
+                "a row at its minimum height must take the height its tallest child can shrink to, and a sibling " +
+                    "filling the row's height must stop there",
+            )
+        }
+
+    @Test
+    fun aColumnAtItsMinimumWidthStretchesAFillingSiblingToItsWidestChild() =
+        runComposeSwingTest {
+            setContent {
+                Box(modifier = SwingModifier.preferredSize(100, 100)) {
+                    Column(
+                        modifier = SwingModifier.testTag(CONTAINER_TAG).requiredHeight(40).width(IntrinsicSize.Min),
+                    ) {
+                        Box(modifier = SwingModifier.requiredHeight(10).fillMaxWidth())
+                        FixedChild(1, 15, 30)
+                    }
+                }
+            }
+
+            assertEquals(
+                listOf(Rectangle(0, 0, 15, 10), Rectangle(0, 10, 15, 30)),
+                childBounds(),
+                "a column at its minimum width must take the width its widest child can shrink to, and a sibling " +
+                    "filling the column's width must stop there",
+            )
+        }
+
+    @Test
+    fun scenarioShouldNotCrash() =
+        runComposeSwingTest {
+            setContent {
+                Box(modifier = SwingModifier.preferredSize(400, 400)) {
+                    Column(modifier = SwingModifier.width(IntrinsicSize.Max)) {
+                        Row(modifier = SwingModifier.testTag(CONTAINER_TAG).width(200)) {
+                            Box(modifier = SwingModifier.weight(0.8f))
+                            Box(modifier = SwingModifier.weight(0.2f))
+                        }
+                    }
+                }
+            }
+
+            assertEquals(
+                listOf(160, 40),
+                childBounds().map { it.width },
+                "a weighted row of a fixed width inside a column at its widest extent must divide that width",
+            )
+        }
+
+    @Test
     fun testRowColumnModifiersChain_lastDeclarationWins() =
         runComposeSwingTest {
             setContent {
@@ -2085,20 +2306,16 @@ class RowColumnTest {
         runComposeSwingTest {
             setContent {
                 Row(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
-                    BaselineChild(40, SwingModifier.alignByBaseline())
-                    BaselineChild(
-                        40 / 2,
-                        SwingModifier.align(Alignment.Top).alignByBaseline(),
-                    )
+                    Child(0, 40, 40, SwingModifier.alignBy { it.measuredHeight })
+                    Child(1, 40, 40, SwingModifier.alignBy { 0 }.alignBy { it.measuredHeight / 2 })
                 }
             }
 
             assertEquals(
-                Rectangle(40, 40 / 2, 40, 40),
+                Rectangle(40, 40 - 40 / 2, 40, 40),
                 childBounds()[1],
-                "an alignment and a baseline stand in the same place on a modifier, which is folded in " +
-                    "declaration order, so the baseline declared last places the child on the shared line " +
-                    "rather than the alignment before it holding it against the row's top edge",
+                "an alignBy stands in the one place a child names its cross-axis placement in, which is folded " +
+                    "in declaration order, so the line the child declares last places it on the shared line",
             )
         }
 
@@ -2291,6 +2508,27 @@ class RowColumnTest {
                 childBounds(),
                 "Alignment.End must put each child against the column's trailing edge, the left one under a " +
                     "right-to-left orientation",
+            )
+        }
+
+    @Test
+    fun testColumn_Rtl_gravityAlignBy() =
+        runComposeSwingTest {
+            setContent {
+                Column(modifier = containerModifier(200, 100, ComponentOrientation.RIGHT_TO_LEFT)) {
+                    Child(0, 50, 50, SwingModifier.alignBy { it.measuredWidth })
+                    Child(1, 50, 50, SwingModifier.alignBy { it.measuredHeight / 2 })
+                }
+            }
+
+            assertEquals(
+                listOf(
+                    Rectangle(200 - 50, 0, 50, 50),
+                    Rectangle(200 - 50 - 50 / 2, 50, 50, 50),
+                ),
+                childBounds(),
+                "under a right-to-left orientation a column must read each child's line from its leading edge, " +
+                    "the right one, and line the children up from the column's right edge",
             )
         }
 
@@ -2505,17 +2743,17 @@ class RowColumnTest {
 
     @Test
     fun testRow_AlignByInspectableValue() {
-        val declared = with(RowScopeInstance) { SwingModifier.alignByBaseline() }
+        val declared = with(RowScopeInstance) { SwingModifier.alignBy(FirstBaseline) }
 
         assertEquals(
             "align",
             declared.lastElement().name,
-            "a placement on the shared baseline stands where an align does, so it reports that name",
+            "a placement on a shared line stands where an align does, so it reports that name",
         )
         assertEquals(
-            mapOf("alignment" to BaselineAxisAlignment),
+            mapOf("alignment" to AlignmentLineValue(FirstBaseline)),
             declared.lastElement().declaredValues,
-            "and must report the shared baseline as the placement it declared",
+            "and must report the line it places the child by as the placement it declared",
         )
     }
 
@@ -2544,6 +2782,22 @@ class RowColumnTest {
     }
 
     @Test
+    fun testColumn_AlignByInspectableValue() {
+        val declared = with(ColumnScopeInstance) { SwingModifier.alignBy(TestVerticalLine) }
+
+        assertEquals(
+            "align",
+            declared.lastElement().name,
+            "a placement on a shared line stands where an align does, so it reports that name",
+        )
+        assertEquals(
+            mapOf("alignment" to AlignmentLineValue(TestVerticalLine)),
+            declared.lastElement().declaredValues,
+            "and must report the line it places the child by as the placement it declared",
+        )
+    }
+
+    @Test
     fun testColumn_WeightInspectableValue() {
         val declared = with(ColumnScopeInstance) { SwingModifier.weight(2f, fill = false) }
 
@@ -2556,30 +2810,20 @@ class RowColumnTest {
     }
 }
 
-/** A child of the baseline row whose component reports [baseline] whatever extent it is asked at. */
-@Composable
-private fun BaselineChild(
-    baseline: Int,
-    modifier: SwingModifier = SwingModifier,
-) {
-    SwingNode(
-        factory = { ConstantBaselinePanel(baseline) },
-        modifier = modifier.preferredSize(40, 40),
-    )
-}
+/** A line of the test's own across a row, which a [LineChild] provides and a child aligns by. */
+private val TestHorizontalLine = HorizontalAlignmentLine(::minOf)
 
-/**
- * A component carrying the baseline the test chose for it. It reports that baseline at every extent,
- * because a child claiming a share of its row's leftover width is asked at the width it was granted
- * rather than at the width it asked for.
- */
-private class ConstantBaselinePanel(
-    private val reported: Int,
-) : JPanel() {
-    override fun getBaseline(
-        width: Int,
-        height: Int,
-    ): Int = reported
+/** A line of the test's own across a column, which a [LineChild] provides and a child aligns by. */
+private val TestVerticalLine = VerticalAlignmentLine(::minOf)
+
+/** A 40-pixel square child whose policy provides [line] at [position]. */
+@Composable
+private fun LineChild(
+    line: AlignmentLine,
+    position: Int,
+    modifier: SwingModifier,
+) {
+    Layout(measurePolicy = { _, _ -> layout(40, 40, mapOf(line to position)) {} }, modifier = modifier)
 }
 
 /** A vertical alignment centering its child, and recording the height and the space it was handed. */

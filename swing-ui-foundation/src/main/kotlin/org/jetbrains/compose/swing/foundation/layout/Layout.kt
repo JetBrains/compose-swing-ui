@@ -27,16 +27,9 @@ import java.awt.Container
  *         // A stack imposes no minimum of its own: each child takes the height left after earlier ones.
  *         var remainingHeight = constraints.maxHeight
  *         val placeables = measurables.map { measurable ->
- *             val measured = measurable.measure(
+ *             val placeable = measurable.measure(
  *                 Constraints(maxWidth = constraints.maxWidth, maxHeight = remainingHeight)
  *             )
- *             // A layout modifier may escape an impossible offer, so give an overflowing child no space.
- *             val placeable =
- *                 if (measured.width <= constraints.maxWidth && measured.height <= remainingHeight) {
- *                     measured
- *                 } else {
- *                     measurable.measure(Constraints(maxWidth = 0, maxHeight = 0))
- *                 }
  *             remainingHeight = (remainingHeight - placeable.height).coerceAtLeast(0)
  *             placeable
  *         }

@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.foundation.layout
 
+import androidx.compose.runtime.snapshots.Snapshot
 import org.jetbrains.compose.swing.foundation.util.fastForEach
 import org.jetbrains.compose.swing.layout.MeasurementLayoutManager
 import org.jetbrains.compose.swing.layout.ParentLayoutElement
@@ -46,6 +47,9 @@ internal class MeasurePolicyLayout(
 
     /** What [placeBlock] places. */
     private lateinit var placed: MeasureResult
+
+    /** What the placement block last placed, or null before its first run. */
+    val lastPlaced: MeasureResult? get() = if (::placed.isInitialized) placed else null
 
     // Stored once, so observing a placement allocates nothing per pass.
     private val placeBlock: () -> Unit = {
@@ -111,11 +115,18 @@ internal class MeasurePolicyLayout(
         val insets = parent.insets
         val width = innerExtent(parent.width, insets.left, insets.right)
         val height = innerExtent(parent.height, insets.top, insets.bottom)
-        // A placement read's pass over a container still valid places the last result again without running the
-        // policy. A container invalidated since, by a child added or removed or a size changed, has a validation
-        // coming, and is measured again as that validation would.
+        // A placement read's pass over a container still valid places its latest result at the size it holds again,
+        // without running the policy: a parent may have measured it again since without laying it out. A container
+        // invalidated since, by a child added or removed or a size changed, has a validation coming, and is measured
+        // again as that validation would.
         val replaysPlacement = measurables.isPlacingAgain && parent.isValid && ::placed.isInitialized
-        val result = if (replaysPlacement) placed else measurables.settledOn(width, height)
+        val result =
+            if (replaysPlacement) {
+                measurables.measured?.takeIf { it.width == width && it.height == height } ?: placed
+            } else {
+                measurables.settledOn(width, height)
+            }
+        if (result === measurables.measured) measurables.lineScope.observesReplay = false
         placementScope.begin(insets.left, insets.top, width, parent.componentOrientation.isLeftToRight)
         placed = result
         observe(PlacementReads, placeBlock)
@@ -164,6 +175,9 @@ internal class ChildMeasurables(
 ) {
     private val measurables = IdentityHashMap<Component, ChildMeasurable>()
     private val intrinsicWalk = ArrayList<ChildMeasurable>()
+
+    /** The receiver [alignmentLinesOf] replays the placement in. */
+    internal val lineScope = LineMergingPlacementScope()
 
     /** The panel laid out by [owner], which keeps the stacking order of its children. */
     lateinit var panel: ConstrainedPanel
@@ -218,11 +232,8 @@ internal class ChildMeasurables(
     /** Whether this container places its children again outside a validation. */
     val isPlacingAgain: Boolean get() = RunningCause.PlacementReplay in runningCauses
 
-    /**
-     * Which extent a child that cannot be asked a constrained question answers with. The policy never
-     * learns it: it is what tells one policy body apart from the same body run for a different question.
-     */
-    var mode: MeasureMode = MeasureMode.Measure
+    /** The Swing size query [askedSize] is answering, which picks the intrinsic hooks [askBlock] runs. */
+    var mode: MeasureMode = MeasureMode.Preferred
         private set
 
     /**
@@ -239,8 +250,8 @@ internal class ChildMeasurables(
             ChildMeasurable(child, this)
         }
 
-    /** What [child] was registered under, or `null` where this container does not hold it. */
-    fun declaredBy(child: Component): Any? = measurables[child]?.parentData
+    /** The measurable for [child], or null where this container has made none. */
+    fun find(child: Component): ChildMeasurable? = measurables[child]
 
     /**
      * Stores [parentData] once the parent-data protocol of [owner] has accepted it, and stacks the children again
@@ -257,6 +268,9 @@ internal class ChildMeasurables(
         val zIndex = (parentData as? StackingParentData)?.zIndex ?: 0f
         if (zIndex != previousZIndex) (component.parent as? ConstrainedPanel)?.stackingOrder?.restack()
     }
+
+    /** Counts the runs of the placement block; see [ChildMeasurable.isPlacedByParent]. */
+    internal var placementRun: Int = 0
 
     /** Gives up the measurable for [child], for a child leaving the container. */
     fun forget(child: Component) {
@@ -293,12 +307,8 @@ internal class ChildMeasurables(
         }
     }
 
-    /**
-     * The children a layout pass hands its policy, in declaration order, with the pass put in the mode a measure
-     * under given constraints runs in.
-     */
+    /** The children a layout pass hands its policy, in declaration order. */
     fun layoutPassOf(): List<Measurable> {
-        mode = MeasureMode.Measure
         measured = null
         return gather(layoutPass)
     }
@@ -347,6 +357,36 @@ internal class ChildMeasurables(
         )
     }
 
+    /**
+     * The lines [result], a measure of its container, puts with its inner rectangle at ([originX], [originY]), in
+     * [leftToRight] reading order: each line the policy provides, and each other line the children put where the
+     * placement puts them, merged by the line's merger, as androidx merges a layout's lines from its placed children.
+     * The placement runs as the placement block does, placing nothing; a child it measures is measured again by the
+     * next run of the placement block. For a result the container has not placed, its reads are recorded under a
+     * callback of their own, kept apart from the placement block's; the placement block's reads cover the result it
+     * placed.
+     */
+    fun alignmentLinesOf(
+        result: MeasureResult,
+        originX: Int,
+        originY: Int,
+        leftToRight: Boolean,
+    ): Map<AlignmentLine, Int> {
+        val run = placementRun
+        val previous = enter(LayoutState.LayingOut)
+        try {
+            lineScope.replaying(result, originX.toLong(), originY.toLong(), leftToRight)
+            Snapshot.withoutReadObservation {
+                lineScope.observesReplay = owner.lastPlaced !== result
+                if (lineScope.observesReplay) owner.observe(LineReads, lineScope.replay) else lineScope.replay()
+            }
+            return lineScope.takeLines()
+        } finally {
+            layoutState = previous
+            placementRun = run
+        }
+    }
+
     /** What the policy measures over the children under [constraints], its reads recorded under [onChanged]. */
     internal fun measureObserved(
         constraints: Constraints,
@@ -387,15 +427,12 @@ private fun ChildMeasurables.gather(into: ArrayList<ChildMeasurable>): List<Meas
     return into
 }
 
-/** Which extent a child answers with when the question reaches its own argument-less Swing call. */
+/** A Swing size query a container answers through its policy's intrinsic hooks. */
 internal enum class MeasureMode {
-    /** A layout pass: the child takes the extent it prefers, held to the constraints it was measured under. */
-    Measure,
-
-    /** The container is being asked what it prefers, so each child answers with what it prefers. */
+    /** getPreferredSize: the policy's max intrinsic hooks answer it. */
     Preferred,
 
-    /** The container is being asked for its minimum, so each child answers with its own minimum. */
+    /** getMinimumSize: the policy's min intrinsic hooks answer it. */
     Minimum,
 }
 
@@ -438,13 +475,31 @@ internal class ChildMeasurable(
     internal var preferred: Dimension? = null
 
     /**
-     * Whether the running or last measure block of its container read this child's baseline. Placing the
-     * child again then moves a baseline that measure depended on.
+     * The block of its container's policy that measured this child in the running pass; [LayoutState.Idle] where
+     * none has.
      */
-    var lineReadByMeasure: Boolean = false
+    var measuredByParent: LayoutState = LayoutState.Idle
 
-    override fun measure(constraints: Constraints): Placeable =
-        outerMeasurable?.measure(constraints) ?: measureUnmodified(constraints)
+    /**
+     * The block of its container's policy that read one of this child's alignment lines in its running or last run,
+     * [LayoutState.Measuring] where both did; [LayoutState.Idle] where neither did. Placing the child again then moves
+     * a line that block depended on.
+     */
+    var lineReadDuring: LayoutState = LayoutState.Idle
+
+    /** The [run][ChildMeasurables.placementRun] of its container's placement block that last placed this child. */
+    var placedInRun: Int = -1
+
+    /**
+     * Whether the running or last run of its container's placement block placed this child, as androidx's
+     * `MeasurePassDelegate.isPlacedByParent`.
+     */
+    val isPlacedByParent: Boolean get() = placedInRun == owner.placementRun
+
+    override fun measure(constraints: Constraints): Placeable {
+        trackMeasurementByParent()
+        return outerMeasurable?.measure(constraints) ?: measureUnmodified(constraints)
+    }
 
     // Each reads the field once rather than through a safe call, which would box the Int it answers.
     override fun minIntrinsicWidth(height: Int): Int {
@@ -467,41 +522,45 @@ internal class ChildMeasurable(
         return outer.maxIntrinsicHeight(width)
     }
 
-    override fun maximumSize(): Dimension? = if (component.isMaximumSizeSet) component.maximumSize else null
-
-    /**
-     * Where the baseline falls within the extent this measurable states. The nested layout result is
-     * replayed into a baseline-only placement scope, so custom layout modifiers participate exactly as
-     * they do during real placement.
-     */
-    override fun baseline(
+    override fun intrinsicPlaceable(
         width: Int,
         height: Int,
-    ): Int {
-        if (owner.layoutState == LayoutState.Measuring) lineReadByMeasure = true
-        return measure(Constraints(width, width, height, height)).baselineAt(0L, 0L)
+    ): Placeable? {
+        val outer = outerMeasurable ?: return UnmodifiedIntrinsicPlaceable(this, width, height)
+        return outer.intrinsicPlaceable(width, height)
     }
+
+    override fun maximumSize(): Dimension? = if (component.isMaximumSizeSet) component.maximumSize else null
 
     /** What the component itself answers under [constraints], with no chain between. */
     internal fun measureUnmodified(constraints: Constraints): ChildPlaceable {
         val constrainable = component as? Constrainable
-        if (constrainable != null && owner.mode == MeasureMode.Measure) {
+        if (constrainable != null) {
             constrainable.measure(constraints)
             return ChildPlaceable(
                 this,
                 constrainable.constrainedWidth,
                 constrainable.constrainedHeight,
                 constraints,
+                if (component !is ConstrainedPanel) constrainable.alignmentLines else emptyMap(),
             )
         }
         // Swing has no constrained-measure operation for an ordinary component.  When both axes
         // are exact, retain the established no-query fast path and use the granted extent. For every
-        // other offer, its preferred or minimum size is the only answer Swing gives us, so constrain
-        // it here. Only a Constrainable or layout modifier can deliberately report real overflow.
+        // other offer, its preferred size is the only answer Swing gives us, so constrain it here.
+        // Only a Constrainable or layout modifier can deliberately report real overflow.
         val fixed = constraints.hasFixedWidth && constraints.hasFixedHeight
-        val extent = if (fixed) Dimension(constraints.minWidth, constraints.minHeight) else plainExtent()
-        val width = constraints.constrainWidth(extent.width)
-        return ChildPlaceable(this, width, constraints.constrainHeight(extent.height), constraints)
+        val width: Int
+        val height: Int
+        if (fixed) {
+            width = constraints.minWidth
+            height = constraints.minHeight
+        } else {
+            val extent = preferredExtent()
+            width = constraints.constrainWidth(extent.width)
+            height = constraints.constrainHeight(extent.height)
+        }
+        return ChildPlaceable(this, width, height, constraints, emptyMap())
     }
 
     /**
@@ -547,13 +606,6 @@ internal class ChildMeasurable(
     }
 }
 
-/** What the child answers through its own argument-less Swing call, for the mode the pass is in. */
-private fun ChildMeasurable.plainExtent(): Dimension =
-    when (owner.mode) {
-        MeasureMode.Minimum -> component.minimumSize
-        else -> preferredExtent()
-    }
-
 private fun ChildMeasurable.preferredExtent(): Dimension =
     if (component.isDisplayable) {
         preferred ?: component.preferredSize.also { preferred = it }
@@ -586,12 +638,40 @@ private class UnmodifiedChildMeasurable(
 
     override fun maxIntrinsicHeight(width: Int): Int = child.preferredExtent().height
 
-    override fun maximumSize(): Dimension? = child.maximumSize()
-
-    override fun baseline(
+    override fun intrinsicPlaceable(
         width: Int,
         height: Int,
-    ): Int = child.component.getBaseline(width, height)
+    ): Placeable = UnmodifiedIntrinsicPlaceable(child, width, height)
+
+    override fun maximumSize(): Dimension? = child.maximumSize()
+}
+
+/**
+ * [child] at [width] by [height], standing in for it in an intrinsic question. It places nothing: only its
+ * [FirstBaseline], read from the component itself, answers a line read of it.
+ */
+private class UnmodifiedIntrinsicPlaceable(
+    override val child: ChildMeasurable,
+    override val measuredWidth: Int,
+    override val measuredHeight: Int,
+) : Placeable() {
+    override val width: Int = measuredWidth
+    override val height: Int = measuredHeight
+
+    override fun placeAt(
+        x: Long,
+        y: Long,
+    ): Unit = Unit
+
+    override fun alignmentLineAt(
+        alignmentLine: AlignmentLine,
+        x: Long,
+        y: Long,
+    ): Int {
+        if (alignmentLine !== FirstBaseline) return AlignmentLine.UNSPECIFIED
+        val baseline = child.component.getBaseline(measuredWidth, measuredHeight)
+        return if (baseline < 0) AlignmentLine.UNSPECIFIED else saturateLineCoordinate(y + baseline)
+    }
 }
 
 /** One layout modifier of a child, measuring through [measurable]. */
@@ -622,21 +702,42 @@ private class LayoutModifierMeasurable(
     override fun maxIntrinsicHeight(width: Int): Int =
         with(PolicyMeasureScope) { with(modifier) { maxIntrinsicHeight(measurable, width) } }
 
-    override fun maximumSize(): Dimension? = measurable.maximumSize()
-
-    override fun baseline(
+    override fun intrinsicPlaceable(
         width: Int,
         height: Int,
-    ): Int = measure(Constraints(width, width, height, height)).baselineAt(0L, 0L)
+    ): Placeable? = with(PolicyMeasureScope) { with(modifier) { intrinsicPlaceable(measurable, width, height) } }
+
+    override fun maximumSize(): Dimension? = measurable.maximumSize()
 }
 
-/** One independent measurement of a Swing child. */
+/**
+ * One independent measurement of a Swing child. It holds the [lines][Constrainable.alignmentLines] a [Constrainable]
+ * child provided for this measurement: for a non-container child, that answers for its own measurement after the
+ * child is measured again. A Foundation container's lines instead follow the container's latest measure, as
+ * androidx's `Placeable` does, worked out by the first read after its measure, and again by the first read after it
+ * places its children again.
+ */
 internal class ChildPlaceable(
     override val child: ChildMeasurable,
     override val measuredWidth: Int,
     override val measuredHeight: Int,
     constraints: Constraints,
+    private var cachedLines: Map<AlignmentLine, Int>,
 ) : Placeable() {
+    /** The [generation][LineMergingPlacementScope.generation] [cachedLines] were worked out at. */
+    private var linesGeneration = Int.MIN_VALUE
+
+    private val lines: Map<AlignmentLine, Int>
+        get() {
+            val held = (child.component as? ConstrainedPanel)?.policyLayout?.measurables ?: return cachedLines
+            val generation = held.lineScope.generation
+            if (generation != linesGeneration && held.measured != null) {
+                linesGeneration = generation
+                cachedLines = (child.component as Constrainable).alignmentLines
+            }
+            return cachedLines
+        }
+
     override val width: Int = constraints.constrainWidth(measuredWidth)
 
     override val height: Int = constraints.constrainHeight(measuredHeight)
@@ -658,17 +759,57 @@ internal class ChildPlaceable(
             measuredHeight,
         )
         if (readable && child.answersOtherwiseThan(read)) child.owner.measured = null
+        child.placedInRun = child.owner.placementRun
     }
 
-    override fun baselineAt(
+    override fun mergeAlignmentLines(
+        scope: LineMergingPlacementScope,
+        x: Long,
+        y: Long,
+    ) {
+        val originY = y + centeredOverflowOffset(height, measuredHeight)
+        val lines = lines
+        scope.merge(lines, x + centeredOverflowOffset(width, measuredWidth), originY)
+        if (FirstBaseline in lines) return
+        val baseline = child.component.getBaseline(measuredWidth, measuredHeight)
+        if (baseline >= 0) scope.merge(FirstBaseline, originY + baseline)
+    }
+
+    override fun alignmentLineAt(
+        alignmentLine: AlignmentLine,
         x: Long,
         y: Long,
     ): Int {
-        val baseline = child.component.getBaseline(measuredWidth, measuredHeight)
-        return if (baseline < 0) {
-            baseline
-        } else {
-            saturateLayoutCoordinate(y + centeredOverflowOffset(height, measuredHeight) + baseline.toLong())
+        val position = linePosition(alignmentLine)
+        if (position == AlignmentLine.UNSPECIFIED) return AlignmentLine.UNSPECIFIED
+        val coordinate =
+            if (alignmentLine is HorizontalAlignmentLine) {
+                y + centeredOverflowOffset(height, measuredHeight) + position
+            } else {
+                x + centeredOverflowOffset(width, measuredWidth) + position
+            }
+        return saturateLineCoordinate(coordinate)
+    }
+
+    /**
+     * Where the child puts [alignmentLine] within the extent it measured, or [AlignmentLine.UNSPECIFIED] where it
+     * puts none.
+     */
+    private fun linePosition(alignmentLine: AlignmentLine): Int {
+        val provided = lines[alignmentLine]
+        return when {
+            provided != null -> {
+                provided
+            }
+
+            alignmentLine === FirstBaseline -> {
+                val baseline = child.component.getBaseline(measuredWidth, measuredHeight)
+                if (baseline < 0) AlignmentLine.UNSPECIFIED else baseline
+            }
+
+            else -> {
+                AlignmentLine.UNSPECIFIED
+            }
         }
     }
 }
@@ -716,22 +857,29 @@ private class LayoutModifierPlaceable(
         with(result) { scope.placeChildren() }
     }
 
-    override fun baselineAt(
+    /** The modifier's own [alignmentLine] where its result names one, and the content's otherwise. */
+    override fun alignmentLineAt(
+        alignmentLine: AlignmentLine,
         x: Long,
         y: Long,
-    ): Int =
-        BaselinePlacementScope(
-            x + centeredOverflowOffset(width, measuredWidth),
-            y + centeredOverflowOffset(height, measuredHeight),
-            measuredWidth,
-            leftToRight,
-        ).also { scope ->
-            with(result) { scope.placeChildren() }
-        }.baseline
+    ): Int {
+        val originX = x + centeredOverflowOffset(width, measuredWidth)
+        val originY = y + centeredOverflowOffset(height, measuredHeight)
+        return result.lineAt(alignmentLine, originX, originY, measuredWidth, leftToRight)
+    }
+
+    override fun mergeAlignmentLines(
+        scope: LineMergingPlacementScope,
+        x: Long,
+        y: Long,
+    ) {
+        val originX = x + centeredOverflowOffset(width, measuredWidth)
+        scope.merge(result, originX, y + centeredOverflowOffset(height, measuredHeight), leftToRight)
+    }
 }
 
 /** The real child's centered displacement inside the apparent extent its parent arranged around. */
-private fun centeredOverflowOffset(
+internal fun centeredOverflowOffset(
     apparent: Int,
     measured: Int,
 ): Long = (apparent.toLong() - measured.toLong()) / 2L
@@ -758,47 +906,6 @@ private class NodePlacementScope(
     }
 }
 
-/** Replays placement only far enough to discover the component baseline inside a modifier chain. */
-private class BaselinePlacementScope(
-    private val originX: Long,
-    private val originY: Long,
-    override val parentWidth: Int,
-    override val isLeftToRight: Boolean,
-) : PlacementScope() {
-    var baseline: Int = -1
-        private set
-
-    override fun Placeable.place(
-        x: Int,
-        y: Int,
-    ) {
-        val placed = baselineAt(originX + x.toLong(), originY + y.toLong())
-        if (baseline < 0) baseline = placed
-    }
-
-    override fun Placeable.placeRelative(
-        x: Int,
-        y: Int,
-    ) {
-        val placed = baselineAt(originX + relativeX(this, x), originY + y.toLong())
-        if (baseline < 0) baseline = placed
-    }
-}
-
-/** The Swing component behind an intrinsic measurable, if one is present. */
-internal val IntrinsicMeasurable.componentOrNull: Component?
-    get() =
-        when (this) {
-            is ChildMeasurable -> component
-            is UnmodifiedChildMeasurable -> child.component
-            is LayoutModifierMeasurable -> measurable.componentOrNull
-            is IntrinsicMeasurableAdapter -> source.componentOrNull
-        }
-
-/** The component a policy of this library reads a property of - a maximum size, a baseline. */
-internal val Measurable.component: Component
-    get() = componentOrNull ?: error("Foundation can inspect a Swing component only from one of its child measurables.")
-
 /**
  * The reading order the container carries, which a policy of this library resolves an [Arrangement] and
  * an [Alignment] against. [PlacementScope.isLeftToRight] is the whole of it a policy outside the library
@@ -809,7 +916,8 @@ internal val PlacementScope.orientation: ComponentOrientation
 
 /**
  * Where a policy places its children: inside the container's insets, whose origin every placement is
- * offset by, so a policy works in the coordinates it measured in.
+ * offset by, so a policy works in the coordinates it measured in. A child placed twice in one run of the
+ * placement block fails.
  */
 internal class InnerPlacementScope : PlacementScope() {
     private var originX: Int = 0
@@ -837,14 +945,26 @@ internal class InnerPlacementScope : PlacementScope() {
         x: Int,
         y: Int,
     ) {
-        placeAt(originX.toLong() + x.toLong(), originY.toLong() + y.toLong())
+        placeOnce(originX.toLong() + x.toLong(), originY.toLong() + y.toLong())
     }
 
     override fun Placeable.placeRelative(
         x: Int,
         y: Int,
     ) {
-        placeAt(originX.toLong() + relativeX(this, x), originY.toLong() + y.toLong())
+        placeOnce(originX.toLong() + relativeX(this, x), originY.toLong() + y.toLong())
+    }
+
+    /** Places the child at ([x], [y]). */
+    private fun Placeable.placeOnce(
+        x: Long,
+        y: Long,
+    ) {
+        if (this !is ChildPlaceable && this !is LayoutModifierPlaceable) return
+        check(!child.isPlacedByParent) {
+            "Place was called on a node which was placed already"
+        }
+        placeAt(x, y)
     }
 }
 
@@ -862,3 +982,8 @@ private val SettledReads: (LayoutObservationNode) -> Unit = { it.remeasure() }
 
 /** Reads behind the children's bounds, which the placement block sets. */
 private val PlacementReads: (LayoutObservationNode) -> Unit = { it.component.placeChildrenAgain() }
+
+/** Reads behind the lines [ChildMeasurables.alignmentLinesOf] works out for a result its container has not placed. */
+private val LineReads: (LayoutObservationNode) -> Unit = {
+    if (it.component.policyLayout.measurables.lineScope.observesReplay) it.component.placeChildrenAgain()
+}

@@ -1,3 +1,23 @@
+/*
+ * Copyright 2020 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * Adapted from androidx.compose.foundation.layout.ColumnScope in AndroidX's foundation-layout;
+ * see this module's META-INF/NOTICE for the synced version. The alignBy KDoc is
+ * a light rewording of upstream's.
+ */
+
 package org.jetbrains.compose.swing.foundation.layout
 
 import androidx.annotation.FloatRange
@@ -43,6 +63,33 @@ public sealed interface ColumnScope : ConstrainedScope {
      * @return this modifier with the child's horizontal alignment declared on it.
      */
     public fun SwingModifier.align(alignment: Alignment.Horizontal): SwingModifier
+
+    /**
+     * Places the child across the column's width so that its [alignmentLine] falls on the line it shares with
+     * every sibling also declaring `alignBy`. This is a form of [align] and stands in the same place on the
+     * modifier chain, so of the two the last one declared places the child. Within a [Column], every child
+     * declaring `alignBy` aligns horizontally using the [VerticalAlignmentLine]s it names or the values the other
+     * `alignBy` overload works out, forming a sibling group. At least one child of the group is placed as it would
+     * be with [Alignment.Start], and the others are placed so that their alignment lines coincide with its line. A
+     * child declaring `alignBy` alone in its [Column] is placed as it would be with [Alignment.Start]; a child that
+     * provides no such line sits at the column's left edge.
+     *
+     * A column asking for its own width holds the furthest line from a child's leading edge before the shared line
+     * and the furthest remainder past it. A line a [Layout] child's policy provides places that child on the shared
+     * line, but does not enter the width the column asks for.
+     *
+     * @param alignmentLine the line of the child's own that falls on the shared line
+     * @return this modifier with the child's placement on the shared line declared on it.
+     */
+    public fun SwingModifier.alignBy(alignmentLine: VerticalAlignmentLine): SwingModifier
+
+    /**
+     * As `alignBy(alignmentLine)`, with the line [alignmentLineBlock] works out from the measured child.
+     *
+     * @param alignmentLineBlock where the line falls from the leading edge of the measured child
+     * @return this modifier with the child's placement on the shared line declared on it.
+     */
+    public fun SwingModifier.alignBy(alignmentLineBlock: (Placeable) -> Int): SwingModifier
 }
 
 /**
@@ -54,8 +101,14 @@ internal object ColumnScopeInstance : ColumnScope {
     override fun SwingModifier.weight(
         weight: Float,
         fill: Boolean,
-    ): SwingModifier = this then WeightElement(weightPlacement(weight, fill), LinearParentDataProtocol)
+    ): SwingModifier = this then WeightElement(weightPlacement(weight, fill))
 
     override fun SwingModifier.align(alignment: Alignment.Horizontal): SwingModifier =
-        this then AlignElement(HorizontalAxisAlignment(alignment), LinearParentDataProtocol)
+        this then AlignElement(HorizontalAxisAlignment(alignment))
+
+    override fun SwingModifier.alignBy(alignmentLine: VerticalAlignmentLine): SwingModifier =
+        this then AlignElement(AlignmentLineValue(alignmentLine))
+
+    override fun SwingModifier.alignBy(alignmentLineBlock: (Placeable) -> Int): SwingModifier =
+        this then AlignElement(AlignmentLineBlock(alignmentLineBlock))
 }

@@ -1,3 +1,24 @@
+/*
+ * Copyright 2019 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * Adapted from androidx.compose.foundation.layout.CrossAxisAlignment in AndroidX's
+ * foundation-layout; see this module's META-INF/NOTICE for the synced version.
+ * AlignmentLineCrossAxisAlignment's beforeCrossAxisAlignmentLine parameter and its RTL line
+ * math are upstream's.
+ */
+
 package org.jetbrains.compose.swing.foundation.layout
 
 import org.jetbrains.compose.swing.layout.ParentDataModifier
@@ -16,7 +37,7 @@ import java.awt.ComponentOrientation
  */
 internal data class LinearConstraint(
     val weight: WeightPlacement? = null,
-    val alignment: AxisAlignment? = null,
+    val alignment: CrossAxisAlignment? = null,
 )
 
 /**
@@ -29,20 +50,68 @@ internal data class WeightPlacement(
 )
 
 /**
- * A child sitting on the shared text baseline of a [Row], as `alignByBaseline` declares it. It is an
- * [AxisAlignment] so that it and an `align` occupy the one place a child names its cross-axis placement
- * in, which is what makes the last of the two declared the one that places the child.
- *
- * A [RowMeasurePolicy] reads the baseline off the component rather than through [align]; [align] is the
- * answer for a child that reports none, and puts it against the container's leading edge across the
- * axis.
+ * Where a [RowMeasurePolicy] or [ColumnMeasurePolicy] places a child across its axis, as androidx's RowColumnImpl
+ * `CrossAxisAlignment` does: by an [AxisAlignment], or by an alignment line the child shares with its siblings. Both
+ * are declared through the one [LinearConstraint.alignment], so of an `align` and an `alignBy` the last declared
+ * places the child. Implementations compare by value, which is what lets an unchanged declaration be recognized as
+ * the placement already in force.
  */
-internal data object BaselineAxisAlignment : AxisAlignment {
+internal sealed interface CrossAxisAlignment {
+    /** Whether this places the child by an alignment line it shares with every sibling declaring one. */
+    val isRelative: Boolean get() = false
+
+    /** Where the child's line falls from the edge [placeable] is placed at, or [AlignmentLine.UNSPECIFIED]. */
+    fun linePosition(placeable: Placeable): Int = AlignmentLine.UNSPECIFIED
+
+    /**
+     * Where [placeable], [size] across the axis, sits in the container's cross-axis extent [space] under
+     * [orientation], the shared line lying [beforeCrossAxisAlignmentLine] from the container's leading edge.
+     */
+    fun align(
+        size: Int,
+        space: Int,
+        orientation: ComponentOrientation,
+        placeable: Placeable,
+        beforeCrossAxisAlignmentLine: Int,
+    ): Int
+}
+
+/**
+ * A child placed so that its alignment line falls on the line it shares with every sibling declaring one, as
+ * `alignBy` and `alignByBaseline` declare it. A child without the line sits at the top of a row or the left
+ * edge of a column.
+ */
+internal sealed class AlignmentLineCrossAxisAlignment : CrossAxisAlignment {
+    override val isRelative: Boolean get() = true
+
+    abstract override fun linePosition(placeable: Placeable): Int
+
     override fun align(
         size: Int,
         space: Int,
         orientation: ComponentOrientation,
-    ): Int = 0
+        placeable: Placeable,
+        beforeCrossAxisAlignmentLine: Int,
+    ): Int {
+        val position = linePosition(placeable)
+        if (position == AlignmentLine.UNSPECIFIED) return 0
+        val line = beforeCrossAxisAlignmentLine - position
+        return if (orientation.isLeftToRight) line else space - size - line
+    }
+}
+
+/** The child's own [line], as `alignBy(alignmentLine)` and `alignByBaseline` declare it. */
+internal data class AlignmentLineValue(
+    val line: AlignmentLine,
+) : AlignmentLineCrossAxisAlignment() {
+    override fun linePosition(placeable: Placeable): Int = placeable[line]
+}
+
+/** The line [block] works out from the measured child, as `alignBy(alignmentLineBlock)` declares it. */
+internal data class AlignmentLineBlock(
+    val block: (Placeable) -> Int,
+) : AlignmentLineCrossAxisAlignment() {
+    override fun linePosition(placeable: Placeable): Int = block(placeable)
 }
 
 /**
@@ -60,8 +129,9 @@ internal fun weightPlacement(
 /** The share of the leftover space a child claims, as a row's or a column's `weight` declares it. */
 internal data class WeightElement(
     val placement: WeightPlacement,
-    override val parentProtocol: ParentProtocol,
 ) : ParentDataModifier {
+    override val parentProtocol: ParentProtocol get() = LinearParentDataProtocol
+
     override val key: Any get() = WeightElement::class
 
     override val name: String get() = "weight"
@@ -74,9 +144,10 @@ internal data class WeightElement(
 
 /** Where across the axis a child sits, as a row's or a column's `align` declares it. */
 internal data class AlignElement(
-    val alignment: AxisAlignment,
-    override val parentProtocol: ParentProtocol,
+    val alignment: CrossAxisAlignment,
 ) : ParentDataModifier {
+    override val parentProtocol: ParentProtocol get() = LinearParentDataProtocol
+
     override val key: Any get() = AlignElement::class
 
     override val name: String get() = "align"

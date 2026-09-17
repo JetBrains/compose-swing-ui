@@ -12,6 +12,11 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * Adapted from androidx.compose.foundation.layout.Row in AndroidX's foundation-layout; see this
+ * module's META-INF/NOTICE for the synced version. rowMeasurePolicy's Start/Top fast path,
+ * falling back to DefaultRowMeasurePolicy, is upstream's verbatim, as is DefaultRowMeasurePolicy's
+ * KDoc.
  */
 
 @file:JvmMultifileClass
@@ -23,9 +28,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import org.jetbrains.compose.swing.modifier.SwingModifier
 
-/** Adapted from AndroidX's foundation-layout; see this module's META-INF/NOTICE for the synced version. */
-@PublishedApi
-internal val DefaultRowMeasurePolicy: MeasurePolicy =
+/** MeasureBlocks to use when horizontalArrangement and verticalAlignment are not provided. */
+private val DefaultRowMeasurePolicy: MeasurePolicy =
     RowMeasurePolicy(horizontalArrangement = Arrangement.Start, verticalAlignment = Alignment.Top)
 
 @PublishedApi
@@ -38,7 +42,10 @@ internal fun rowMeasurePolicy(
         DefaultRowMeasurePolicy
     } else {
         remember(horizontalArrangement, verticalAlignment) {
-            RowMeasurePolicy(horizontalArrangement, verticalAlignment)
+            RowMeasurePolicy(
+                horizontalArrangement = horizontalArrangement,
+                verticalAlignment = verticalAlignment,
+            )
         }
     }
 

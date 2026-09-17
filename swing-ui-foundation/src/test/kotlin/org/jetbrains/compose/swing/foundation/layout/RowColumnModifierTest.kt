@@ -1,3 +1,22 @@
+/*
+ * Copyright 2023 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * Adapted from androidx.compose.foundation.layout.RowColumnModifierTest in AndroidX's
+ * foundation-layout; see this module's META-INF/NOTICE for the synced version.
+ */
+
 package org.jetbrains.compose.swing.foundation.layout
 
 import androidx.compose.runtime.Composable
@@ -21,9 +40,7 @@ import kotlin.test.assertEquals
  * next one places.
  *
  * A case that androidx `foundation-layout`'s own `RowColumnModifierTest` makes keeps that test's name,
- * so the two files read side by side. That test's two `alignBy` cases are not here: they change the
- * block an `alignBy(Measured) -> Int` resolves, and this library carries the one alignment line Swing
- * has, which `alignByBaseline()` reaches.
+ * so the two files read side by side.
  */
 class RowColumnModifierTest {
     @Test
@@ -49,6 +66,31 @@ class RowColumnModifierTest {
                 (TALL - SHORT_HEIGHT) / 2,
                 shortChild().y,
                 "changing the alignment it declares must move the child, not leave it where the last pass put it",
+            )
+        }
+
+    @Test
+    fun testRow_updatesOnAlignByBlockChange() =
+        runComposeSwingTest {
+            val sharedLine: (Placeable) -> Int = { 5 }
+            var line by mutableStateOf(sharedLine)
+            setContent {
+                Box(modifier = SwingModifier.preferredSize(BOX_EXTENT, BOX_EXTENT)) {
+                    Row(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
+                        RowChildren { index -> SwingModifier.alignBy(if (index == SHORT) line else sharedLine) }
+                    }
+                }
+            }
+
+            assertEquals(0, shortChild().y, "the short child sits at the top while its line matches its siblings'")
+
+            line = { 0 }
+            awaitIdle()
+
+            assertEquals(
+                5,
+                shortChild().y,
+                "changing the block its alignBy works the line out with must move the child onto the shared line",
             )
         }
 
@@ -131,6 +173,31 @@ class RowColumnModifierTest {
                 (TALL - SHORT_HEIGHT) / 2,
                 shortChild().x,
                 "changing the alignment it declares must move the child across the column",
+            )
+        }
+
+    @Test
+    fun testColumn_updatesOnAlignByBlockChange() =
+        runComposeSwingTest {
+            val sharedLine: (Placeable) -> Int = { 5 }
+            var line by mutableStateOf(sharedLine)
+            setContent {
+                Box(modifier = SwingModifier.preferredSize(BOX_EXTENT, BOX_EXTENT)) {
+                    Column(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
+                        ColumnChildren { index -> SwingModifier.alignBy(if (index == SHORT) line else sharedLine) }
+                    }
+                }
+            }
+
+            assertEquals(0, shortChild().x, "the narrow child sits at the leading edge while its line matches")
+
+            line = { 0 }
+            awaitIdle()
+
+            assertEquals(
+                5,
+                shortChild().x,
+                "changing the block its alignBy works the line out with must move the child onto the shared line",
             )
         }
 

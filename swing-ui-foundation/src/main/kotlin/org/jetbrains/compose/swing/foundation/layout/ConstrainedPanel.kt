@@ -47,7 +47,7 @@ internal open class ConstrainedPanel(
     /** Declaration order adjusted by any stacking parent data understood by this container. */
     val stackingOrder: StackingOrder =
         StackingOrder(this) {
-            (policyLayout.measurables.declaredBy(it) as? StackingParentData)?.zIndex ?: 0f
+            (policyLayout.measurables.find(it)?.parentData as? StackingParentData)?.zIndex ?: 0f
         }
 
     override fun contains(
@@ -189,6 +189,25 @@ internal open class ConstrainedPanel(
                 policyLayout.measurables.measuredSize(constraints)
             }
     }
+
+    /**
+     * The lines of the last [measure], moved by the insets it measured inside, worked out on each read; see
+     * [ChildMeasurables.alignmentLinesOf]. None where a set preferred size answered it. A Foundation parent reads
+     * them on its first read of a line after a measure, holds them with what it measured, and reads them again once
+     * this panel places its children again.
+     */
+    final override val alignmentLines: Map<AlignmentLine, Int>
+        get() {
+            val result = policyLayout.measurables.measured
+            if (isPreferredSizeSet || result == null) return emptyMap()
+            val insets = getInsets()
+            return policyLayout.measurables.alignmentLinesOf(
+                result,
+                insets.left,
+                insets.top,
+                componentOrientation.isLeftToRight,
+            )
+        }
 
     override fun getAccessibleContext(): AccessibleContext =
         accessibleContext ?: AccessibleConstrainedPanel().also { accessibleContext = it }

@@ -12,15 +12,21 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * Adapted from androidx.compose.foundation.layout.RowColumnMeasurePolicy in AndroidX's
+ * foundation-layout; see this module's META-INF/NOTICE for the synced version.
+ * intrinsicMainAxisSize/intrinsicCrossAxisSize (from RowColumnImpl.kt, 2019) and
+ * RowMeasurePolicy/ColumnMeasurePolicy (from Row.kt/Column.kt, 2020) are upstream's too.
  */
 
-// Suppressed: This file consolidates AndroidX's foundation-layout Row and Column measurement
-// algorithms, intrinsic sizing passes, and saturating arithmetic to preserve verbatim upstream synchronization.
-// See this module's META-INF/NOTICE for the synced version.
+// Suppressed: every function here is a step of the one Row and Column measurement algorithm, with its intrinsic
+// passes and the saturating arithmetic they share.
 @file:Suppress("TooManyFunctions")
 
 package org.jetbrains.compose.swing.foundation.layout
 
+import org.jetbrains.compose.swing.foundation.util.fastForEach
+import java.awt.ComponentOrientation
 import java.awt.Dimension
 import kotlin.math.roundToInt
 import kotlin.math.sign
@@ -44,6 +50,15 @@ internal interface RowColumnMeasurePolicy : MeasurePolicy {
 
     fun componentCrossAxisMaximum(component: Dimension): Int
 
+    /**
+     * [IntrinsicMeasurable.intrinsicPlaceable] naming this policy's axes: main by cross for a Row, cross by main
+     * for a Column.
+     */
+    fun IntrinsicMeasurable.intrinsicPlaceableAt(
+        main: Int,
+        cross: Int,
+    ): Placeable?
+
     @Suppress("LongParameterList")
     fun MeasureScope.layoutResult(
         mainAxisLayoutSize: Int,
@@ -58,8 +73,7 @@ internal interface RowColumnMeasurePolicy : MeasurePolicy {
 /**
  * Measures a Row or Column with AndroidX foundation-layout's two-pass algorithm (see this
  * module's META-INF/NOTICE for the synced version). The only differences are Swing's
- * maximum-size ceiling, integer arrangements, baseline bridge, and saturating coordinate
- * arithmetic.
+ * maximum-size ceiling, integer arrangements, and saturating coordinate arithmetic.
  *
  * Keep the coupled upstream hot-path algorithm together: splitting it allocates state and lambdas,
  * and risks drifting from AndroidX's weight-rounding semantics.
@@ -71,7 +85,6 @@ internal fun RowColumnMeasurePolicy.measureRowColumn(
     crossAxisMin: Int,
     mainAxisMax: Int,
     crossAxisMax: Int,
-    arrangementSpacing: Int,
     measurables: List<Measurable>,
 ): MeasureResult {
     val placeables = arrayOfNulls<Placeable>(measurables.size)
@@ -79,7 +92,7 @@ internal fun RowColumnMeasurePolicy.measureRowColumn(
     var fixedSpace = 0L
     var crossAxisSpace = 0
     var weightedChildrenCount = 0
-    var anyBaseline = false
+    var anyAlignBy = false
     val childrenMainAxisSize = IntArray(measurables.size)
     var beforeCrossAxisAlignmentLine = 0
     var afterCrossAxisAlignmentLine = 0
@@ -89,13 +102,13 @@ internal fun RowColumnMeasurePolicy.measureRowColumn(
         val child = measurables[index]
         val parentData = child.linearConstraint
         val weight = parentData?.weight
-        anyBaseline = anyBaseline || parentData?.alignment == BaselineAxisAlignment
+        anyAlignBy = anyAlignBy || parentData?.alignment?.isRelative == true
         if (weight != null) {
             totalWeight += weight.weight
             weightedChildrenCount++
             continue
         }
-        val remaining = saturatedInt(mainAxisMax.toLong() - fixedSpace).coerceAtLeast(0)
+        val remaining = saturateLayoutCoordinate(mainAxisMax.toLong() - fixedSpace).coerceAtLeast(0)
         val placeable =
             child.measure(
                 child.constraintsWithMaximumSize(
@@ -110,19 +123,19 @@ internal fun RowColumnMeasurePolicy.measureRowColumn(
         val mainAxisSize = placeable.mainAxisSize()
         childrenMainAxisSize[index] = mainAxisSize
         spaceAfterLastNoWeight = minOf(arrangementSpacing, (remaining - mainAxisSize).coerceAtLeast(0))
-        fixedSpace = saturatedLong(fixedSpace + mainAxisSize + spaceAfterLastNoWeight)
+        fixedSpace = saturateLayoutCoordinate(fixedSpace + mainAxisSize + spaceAfterLastNoWeight).toLong()
         crossAxisSpace = maxOf(crossAxisSpace, placeable.crossAxisSize())
         placeables[index] = placeable
     }
 
     var weightedSpace = 0L
     if (weightedChildrenCount == 0) {
-        fixedSpace = saturatedLong(fixedSpace - spaceAfterLastNoWeight)
+        fixedSpace = saturateLayoutCoordinate(fixedSpace - spaceAfterLastNoWeight).toLong()
     } else {
         val targetSpace = if (mainAxisMax != Int.MAX_VALUE) mainAxisMax else mainAxisMin
         val arrangementSpacingTotal = arrangementSpacing.toLong() * (weightedChildrenCount - 1)
         val remainingToTarget =
-            saturatedInt(
+            saturateLayoutCoordinate(
                 targetSpace.toLong() - fixedSpace - arrangementSpacingTotal,
             ).coerceAtLeast(0)
         val weightUnitSpace = remainingToTarget / totalWeight
@@ -138,7 +151,7 @@ internal fun RowColumnMeasurePolicy.measureRowColumn(
             val remainderUnit = remainder.sign
             remainder -= remainderUnit
             val allocated =
-                saturatedInt(
+                saturateLayoutCoordinate(
                     (weightUnitSpace * weight.weight).roundToInt().toLong() + remainderUnit,
                 ).coerceAtLeast(0)
             val childMainAxisSize = child.cappedMainAxisSize(allocated, this)
@@ -154,39 +167,32 @@ internal fun RowColumnMeasurePolicy.measureRowColumn(
                     ),
                 )
             childrenMainAxisSize[index] = placeable.mainAxisSize()
-            weightedSpace = saturatedLong(weightedSpace + placeable.mainAxisSize())
+            weightedSpace = saturateLayoutCoordinate(weightedSpace + placeable.mainAxisSize()).toLong()
             crossAxisSpace = maxOf(crossAxisSpace, placeable.crossAxisSize())
             placeables[index] = placeable
         }
         weightedSpace =
-            saturatedLong(weightedSpace + arrangementSpacingTotal)
+            saturateLayoutCoordinate(weightedSpace + arrangementSpacingTotal)
+                .toLong()
                 .coerceIn(0L, (mainAxisMax.toLong() - fixedSpace).coerceAtLeast(0L))
     }
 
-    if (anyBaseline) {
+    if (anyAlignBy) {
         for (index in measurables.indices) {
-            val child = measurables[index]
-            if (child.linearConstraint?.alignment != BaselineAxisAlignment) continue
             val placeable = checkNotNull(placeables[index])
-            val alignmentLine = child.baseline(placeable.width, placeable.height)
-            if (alignmentLine >= 0) {
-                beforeCrossAxisAlignmentLine = maxOf(beforeCrossAxisAlignmentLine, alignmentLine)
+            val alignmentLinePosition =
+                measurables[index].linearConstraint?.alignment?.linePosition(placeable) ?: AlignmentLine.UNSPECIFIED
+            if (alignmentLinePosition != AlignmentLine.UNSPECIFIED) {
+                beforeCrossAxisAlignmentLine = maxOf(beforeCrossAxisAlignmentLine, alignmentLinePosition)
                 afterCrossAxisAlignmentLine =
-                    maxOf(afterCrossAxisAlignmentLine, placeable.crossAxisSize() - alignmentLine)
+                    maxOf(afterCrossAxisAlignmentLine, placeable.crossAxisSize() - alignmentLinePosition)
             }
         }
     }
 
-    val mainAxisLayoutSize =
-        saturatedInt(
-            fixedSpace + weightedSpace,
-        ).coerceAtLeast(0).coerceIn(mainAxisMin, mainAxisMax)
+    val mainAxisLayoutSize = saturateLayoutCoordinate(fixedSpace + weightedSpace).coerceAtLeast(mainAxisMin)
     val crossAxisLayoutSize =
-        maxOf(
-            crossAxisSpace,
-            crossAxisMin,
-            beforeCrossAxisAlignmentLine + afterCrossAxisAlignmentLine,
-        ).coerceIn(crossAxisMin, crossAxisMax)
+        maxOf(crossAxisSpace, crossAxisMin, beforeCrossAxisAlignmentLine + afterCrossAxisAlignmentLine)
     return with(measureScope) {
         layoutResult(
             mainAxisLayoutSize,
@@ -202,30 +208,32 @@ internal fun RowColumnMeasurePolicy.measureRowColumn(
 /** AndroidX's intrinsic main-axis calculation, retaining Swing's saturating coordinate arithmetic. */
 private fun RowColumnMeasurePolicy.intrinsicMainAxisSize(
     measurables: List<IntrinsicMeasurable>,
-    mainAxisSize: (IntrinsicMeasurable) -> Int,
+    crossAxisAvailable: Int,
+    mainAxisSize: (IntrinsicMeasurable, Int) -> Int,
 ): Int {
     var fixedSpace = 0L
     var totalWeight = 0f
     var weightUnitSpace = 0
-    for (child in measurables) {
-        val childMainAxisSize = child.cappedIntrinsicMainAxisSize(mainAxisSize(child), this)
+    measurables.fastForEach { child ->
+        val crossAxisSize = child.cappedCrossAxisSize(crossAxisAvailable, this)
+        val childMainAxisSize = child.cappedMainAxisSize(mainAxisSize(child, crossAxisSize), this)
         val weight = child.linearConstraint?.weight
         if (weight == null) {
-            fixedSpace = saturatedLong(fixedSpace + childMainAxisSize)
+            fixedSpace = saturateLayoutCoordinate(fixedSpace + childMainAxisSize).toLong()
         } else {
             totalWeight += weight.weight
             weightUnitSpace = maxOf(weightUnitSpace, (childMainAxisSize / weight.weight).roundToInt())
         }
     }
-    fixedSpace = saturatedLong(fixedSpace + (weightUnitSpace * totalWeight).roundToIntOrZero())
+    fixedSpace = saturateLayoutCoordinate(fixedSpace + (weightUnitSpace * totalWeight).roundToIntOrZero()).toLong()
     if (measurables.isNotEmpty()) {
         fixedSpace =
-            saturatedLong(fixedSpace + arrangementSpacing.toLong() * (measurables.size - 1))
+            saturateLayoutCoordinate(fixedSpace + arrangementSpacing.toLong() * (measurables.size - 1)).toLong()
     }
-    return saturatedInt(fixedSpace).coerceAtLeast(0)
+    return saturateLayoutCoordinate(fixedSpace).coerceAtLeast(0)
 }
 
-/** AndroidX's intrinsic cross-axis calculation, retaining Swing's maximum-size ceiling. */
+/** AndroidX's intrinsic cross-axis calculation, with Swing's maximum-size ceiling and alignment-line extent. */
 @Suppress("CyclomaticComplexMethod")
 private fun RowColumnMeasurePolicy.intrinsicCrossAxisSize(
     measurables: List<IntrinsicMeasurable>,
@@ -239,20 +247,20 @@ private fun RowColumnMeasurePolicy.intrinsicCrossAxisSize(
     var totalWeight = 0f
     var beforeCrossAxisAlignmentLine = 0
     var afterCrossAxisAlignmentLine = 0
-    for (child in measurables) {
+    measurables.fastForEach { child ->
         val weight = child.linearConstraint?.weight?.weight ?: 0f
         if (weight == 0f) {
             val remaining = if (mainAxisAvailable == Int.MAX_VALUE) Int.MAX_VALUE else mainAxisAvailable - fixedSpace
-            val childMainAxisSize = minOf(mainAxisSize(child, Int.MAX_VALUE), remaining)
+            val crossAxisAvailable = child.cappedCrossAxisSize(Int.MAX_VALUE, this)
+            val childMainAxisSize =
+                minOf(child.cappedMainAxisSize(mainAxisSize(child, crossAxisAvailable), this), remaining)
             fixedSpace += childMainAxisSize
-            val childCrossAxisSize = child.cappedIntrinsicCrossAxisSize(crossAxisSize(child, childMainAxisSize), this)
+            val childCrossAxisSize = child.cappedCrossAxisSize(crossAxisSize(child, childMainAxisSize), this)
             crossAxisMaximum = maxOf(crossAxisMaximum, childCrossAxisSize)
-            if (child.linearConstraint?.alignment == BaselineAxisAlignment) {
-                val baseline = child.intrinsicBaseline(childMainAxisSize, childCrossAxisSize)
-                if (baseline >= 0) {
-                    beforeCrossAxisAlignmentLine = maxOf(beforeCrossAxisAlignmentLine, baseline)
-                    afterCrossAxisAlignmentLine = maxOf(afterCrossAxisAlignmentLine, childCrossAxisSize - baseline)
-                }
+            val line = alignmentLineOrUnspecified(child, childMainAxisSize, childCrossAxisSize)
+            if (line != AlignmentLine.UNSPECIFIED) {
+                beforeCrossAxisAlignmentLine = maxOf(beforeCrossAxisAlignmentLine, line)
+                afterCrossAxisAlignmentLine = maxOf(afterCrossAxisAlignmentLine, childCrossAxisSize - line)
             }
         } else if (weight > 0f) {
             totalWeight += weight
@@ -264,71 +272,62 @@ private fun RowColumnMeasurePolicy.intrinsicCrossAxisSize(
             mainAxisAvailable == Int.MAX_VALUE -> Int.MAX_VALUE
             else -> ((mainAxisAvailable - fixedSpace).coerceAtLeast(0) / totalWeight).roundToIntOrZero()
         }
-    for (child in measurables) {
+    measurables.fastForEach { child ->
         val weight = child.linearConstraint?.weight?.weight ?: 0f
         if (weight > 0f) {
-            val childMainAxisSize =
+            val weightedMainAxisSize =
                 if (weightUnitSpace == Int.MAX_VALUE) {
                     Int.MAX_VALUE
                 } else {
                     (weightUnitSpace * weight).roundToIntOrZero()
                 }
-            val childCrossAxisSize = child.cappedIntrinsicCrossAxisSize(crossAxisSize(child, childMainAxisSize), this)
+            val childMainAxisSize = child.cappedMainAxisSize(weightedMainAxisSize, this)
+            val childCrossAxisSize = child.cappedCrossAxisSize(crossAxisSize(child, childMainAxisSize), this)
             crossAxisMaximum = maxOf(crossAxisMaximum, childCrossAxisSize)
-            if (child.linearConstraint?.alignment == BaselineAxisAlignment) {
-                val baseline = child.intrinsicBaseline(childMainAxisSize, childCrossAxisSize)
-                if (baseline >= 0) {
-                    beforeCrossAxisAlignmentLine = maxOf(beforeCrossAxisAlignmentLine, baseline)
-                    afterCrossAxisAlignmentLine = maxOf(afterCrossAxisAlignmentLine, childCrossAxisSize - baseline)
-                }
+            val line = alignmentLineOrUnspecified(child, childMainAxisSize, childCrossAxisSize)
+            if (line != AlignmentLine.UNSPECIFIED) {
+                beforeCrossAxisAlignmentLine = maxOf(beforeCrossAxisAlignmentLine, line)
+                afterCrossAxisAlignmentLine = maxOf(afterCrossAxisAlignmentLine, childCrossAxisSize - line)
             }
         }
     }
     return maxOf(crossAxisMaximum, beforeCrossAxisAlignmentLine + afterCrossAxisAlignmentLine)
 }
 
-/** Compose's fast rounding maps NaN to zero; Kotlin's [roundToInt] instead throws for it. */
-private fun Float.roundToIntOrZero(): Int = if (isNaN()) 0 else roundToInt()
-
-/** The intrinsic contract has no baseline; only Swing's live measurables can supply the bridge. */
-private fun IntrinsicMeasurable.intrinsicBaseline(
-    width: Int,
-    height: Int,
-): Int = (this as? Measurable)?.baseline(width, height) ?: -1
-
 /**
- * Replays a live Swing child's modifier chain under its explicit maximum size, which CMP's abstract
- * intrinsic contract cannot express. This preserves the constrained bridge for aspect ratio and the
- * baseline query while non-Swing intrinsic measurables keep using their supplied answer.
+ * [child]'s alignment line at [mainAxisSize] by [crossAxisSize], or [AlignmentLine.UNSPECIFIED] where it aligns by
+ * extent.
  */
-private fun RowColumnMeasurePolicy.measureIntrinsicChild(
+private fun RowColumnMeasurePolicy.alignmentLineOrUnspecified(
     child: IntrinsicMeasurable,
-    mainAxisMaximum: Int,
-): Placeable? {
-    val measurable = child as? ChildMeasurable ?: return null
-    val component = measurable.component
-    val maximum = component.maximumSize
-    val mainMaximum =
-        if (component.isMaximumSizeSet) {
-            minOf(mainAxisMaximum, componentMainAxisMaximum(maximum).coerceAtLeast(0))
-        } else {
-            mainAxisMaximum
-        }
-    val crossMaximum =
-        if (component.isMaximumSizeSet) componentCrossAxisMaximum(maximum).coerceAtLeast(0) else Int.MAX_VALUE
-    return measurable.measure(createConstraints(0, 0, mainMaximum, crossMaximum))
+    mainAxisSize: Int,
+    crossAxisSize: Int,
+): Int {
+    val alignment = child.linearConstraint?.alignment
+    return if (alignment?.isRelative == true) {
+        intrinsicAlignmentLine(child, alignment, mainAxisSize, crossAxisSize)
+    } else {
+        AlignmentLine.UNSPECIFIED
+    }
 }
 
-private fun RowColumnMeasurePolicy.intrinsicMainAxisSize(
-    child: IntrinsicMeasurable,
-    fallback: () -> Int,
-): Int = measureIntrinsicChild(child, Int.MAX_VALUE)?.mainAxisSize() ?: fallback()
+/** androidx's fast rounding maps NaN to zero; Kotlin's [roundToInt] instead throws for it. */
+private fun Float.roundToIntOrZero(): Int = if (isNaN()) 0 else roundToInt()
 
-private fun RowColumnMeasurePolicy.intrinsicCrossAxisSize(
+/**
+ * Where [alignment] puts the child's line when it is [mainAxisSize] along the main axis and [crossAxisSize] across it,
+ * read from the child's [stand-in][IntrinsicMeasurable.intrinsicPlaceable], since the intrinsic contract has no
+ * alignment line; [AlignmentLine.UNSPECIFIED] where the child has no stand-in.
+ */
+private fun RowColumnMeasurePolicy.intrinsicAlignmentLine(
     child: IntrinsicMeasurable,
-    mainAxisMaximum: Int,
-    fallback: () -> Int,
-): Int = measureIntrinsicChild(child, mainAxisMaximum)?.crossAxisSize() ?: fallback()
+    alignment: CrossAxisAlignment,
+    mainAxisSize: Int,
+    crossAxisSize: Int,
+): Int {
+    val placeable = child.intrinsicPlaceableAt(mainAxisSize, crossAxisSize) ?: return AlignmentLine.UNSPECIFIED
+    return alignment.linePosition(placeable)
+}
 
 /** AndroidX's row policy adapted to Swing's integer arrangements and physical component orientation. */
 internal data class RowMeasurePolicy(
@@ -336,6 +335,8 @@ internal data class RowMeasurePolicy(
     private val verticalAlignment: Alignment.Vertical,
 ) : RowColumnMeasurePolicy {
     override val arrangementSpacing: Int get() = horizontalArrangement.spacing
+
+    private val crossAxisAlignment: CrossAxisAlignment = VerticalAxisAlignment(verticalAlignment)
 
     override fun Placeable.mainAxisSize(): Int = width
 
@@ -351,7 +352,6 @@ internal data class RowMeasurePolicy(
             constraints.minHeight,
             constraints.maxWidth,
             constraints.maxHeight,
-            horizontalArrangement.spacing,
             measurables,
         )
 
@@ -359,16 +359,16 @@ internal data class RowMeasurePolicy(
         measurables: List<IntrinsicMeasurable>,
         height: Int,
     ): Int =
-        intrinsicMainAxisSize(measurables) { child ->
-            intrinsicMainAxisSize(child) { child.minIntrinsicWidth(height) }
+        intrinsicMainAxisSize(measurables, height) { child, crossAxisSize ->
+            child.minIntrinsicWidth(crossAxisSize)
         }
 
     override fun IntrinsicMeasureScope.maxIntrinsicWidth(
         measurables: List<IntrinsicMeasurable>,
         height: Int,
     ): Int =
-        intrinsicMainAxisSize(measurables) { child ->
-            intrinsicMainAxisSize(child) { child.maxIntrinsicWidth(height) }
+        intrinsicMainAxisSize(measurables, height) { child, crossAxisSize ->
+            child.maxIntrinsicWidth(crossAxisSize)
         }
 
     override fun IntrinsicMeasureScope.minIntrinsicHeight(
@@ -377,12 +377,12 @@ internal data class RowMeasurePolicy(
     ): Int =
         intrinsicCrossAxisSize(
             measurables,
-            mainAxisSize = { child, height -> intrinsicMainAxisSize(child) { child.maxIntrinsicWidth(height) } },
+            mainAxisSize = { child, height -> child.maxIntrinsicWidth(height) },
             crossAxisSize = {
                 child,
                 childWidth,
                 ->
-                intrinsicCrossAxisSize(child, childWidth) { child.minIntrinsicHeight(childWidth) }
+                child.minIntrinsicHeight(childWidth)
             },
             mainAxisAvailable = width,
         )
@@ -393,12 +393,12 @@ internal data class RowMeasurePolicy(
     ): Int =
         intrinsicCrossAxisSize(
             measurables,
-            mainAxisSize = { child, height -> intrinsicMainAxisSize(child) { child.maxIntrinsicWidth(height) } },
+            mainAxisSize = { child, height -> child.maxIntrinsicWidth(height) },
             crossAxisSize = {
                 child,
                 childWidth,
                 ->
-                intrinsicCrossAxisSize(child, childWidth) { child.maxIntrinsicHeight(childWidth) }
+                child.maxIntrinsicHeight(childWidth)
             },
             mainAxisAvailable = width,
         )
@@ -414,6 +414,11 @@ internal data class RowMeasurePolicy(
 
     override fun componentCrossAxisMaximum(component: Dimension): Int = component.height
 
+    override fun IntrinsicMeasurable.intrinsicPlaceableAt(
+        main: Int,
+        cross: Int,
+    ): Placeable? = intrinsicPlaceable(main, cross)
+
     override fun MeasureScope.layoutResult(
         mainAxisLayoutSize: Int,
         crossAxisLayoutSize: Int,
@@ -428,15 +433,13 @@ internal data class RowMeasurePolicy(
             placeables.forEachIndexed { index, placeable ->
                 val measured = checkNotNull(placeable)
                 val crossAxisPosition =
-                    if (measurables[index].linearConstraint?.alignment == BaselineAxisAlignment) {
-                        measurables[index]
-                            .baseline(measured.width, measured.height)
-                            .takeIf { it >= 0 }
-                            ?.let { beforeCrossAxisAlignmentLine - it } ?: 0
-                    } else {
-                        (measurables[index].linearConstraint?.alignment ?: VerticalAxisAlignment(verticalAlignment))
-                            .align(measured.height, crossAxisLayoutSize, orientation)
-                    }
+                    (measurables[index].linearConstraint?.alignment ?: crossAxisAlignment).align(
+                        measured.height,
+                        crossAxisLayoutSize,
+                        ComponentOrientation.LEFT_TO_RIGHT,
+                        measured,
+                        beforeCrossAxisAlignmentLine,
+                    )
                 measured.place(positions[index], crossAxisPosition)
             }
         }
@@ -448,6 +451,8 @@ internal data class ColumnMeasurePolicy(
     private val horizontalAlignment: Alignment.Horizontal,
 ) : RowColumnMeasurePolicy {
     override val arrangementSpacing: Int get() = verticalArrangement.spacing
+
+    private val crossAxisAlignment: CrossAxisAlignment = HorizontalAxisAlignment(horizontalAlignment)
 
     override fun Placeable.mainAxisSize(): Int = height
 
@@ -463,7 +468,6 @@ internal data class ColumnMeasurePolicy(
             constraints.minWidth,
             constraints.maxHeight,
             constraints.maxWidth,
-            verticalArrangement.spacing,
             measurables,
         )
 
@@ -473,12 +477,12 @@ internal data class ColumnMeasurePolicy(
     ): Int =
         intrinsicCrossAxisSize(
             measurables,
-            mainAxisSize = { child, width -> intrinsicMainAxisSize(child) { child.maxIntrinsicHeight(width) } },
+            mainAxisSize = { child, width -> child.maxIntrinsicHeight(width) },
             crossAxisSize = {
                 child,
                 childHeight,
                 ->
-                intrinsicCrossAxisSize(child, childHeight) { child.minIntrinsicWidth(childHeight) }
+                child.minIntrinsicWidth(childHeight)
             },
             mainAxisAvailable = height,
         )
@@ -489,12 +493,12 @@ internal data class ColumnMeasurePolicy(
     ): Int =
         intrinsicCrossAxisSize(
             measurables,
-            mainAxisSize = { child, width -> intrinsicMainAxisSize(child) { child.maxIntrinsicHeight(width) } },
+            mainAxisSize = { child, width -> child.maxIntrinsicHeight(width) },
             crossAxisSize = {
                 child,
                 childHeight,
                 ->
-                intrinsicCrossAxisSize(child, childHeight) { child.maxIntrinsicWidth(childHeight) }
+                child.maxIntrinsicWidth(childHeight)
             },
             mainAxisAvailable = height,
         )
@@ -503,16 +507,16 @@ internal data class ColumnMeasurePolicy(
         measurables: List<IntrinsicMeasurable>,
         width: Int,
     ): Int =
-        intrinsicMainAxisSize(measurables) { child ->
-            intrinsicMainAxisSize(child) { child.minIntrinsicHeight(width) }
+        intrinsicMainAxisSize(measurables, width) { child, crossAxisSize ->
+            child.minIntrinsicHeight(crossAxisSize)
         }
 
     override fun IntrinsicMeasureScope.maxIntrinsicHeight(
         measurables: List<IntrinsicMeasurable>,
         width: Int,
     ): Int =
-        intrinsicMainAxisSize(measurables) { child ->
-            intrinsicMainAxisSize(child) { child.maxIntrinsicHeight(width) }
+        intrinsicMainAxisSize(measurables, width) { child, crossAxisSize ->
+            child.maxIntrinsicHeight(crossAxisSize)
         }
 
     override fun createConstraints(
@@ -525,6 +529,11 @@ internal data class ColumnMeasurePolicy(
     override fun componentMainAxisMaximum(component: Dimension): Int = component.height
 
     override fun componentCrossAxisMaximum(component: Dimension): Int = component.width
+
+    override fun IntrinsicMeasurable.intrinsicPlaceableAt(
+        main: Int,
+        cross: Int,
+    ): Placeable? = intrinsicPlaceable(cross, main)
 
     override fun MeasureScope.layoutResult(
         mainAxisLayoutSize: Int,
@@ -540,8 +549,13 @@ internal data class ColumnMeasurePolicy(
             placeables.forEachIndexed { index, placeable ->
                 val measured = checkNotNull(placeable)
                 val crossAxisPosition =
-                    (measurables[index].linearConstraint?.alignment ?: HorizontalAxisAlignment(horizontalAlignment))
-                        .align(measured.width, crossAxisLayoutSize, orientation)
+                    (measurables[index].linearConstraint?.alignment ?: crossAxisAlignment).align(
+                        measured.width,
+                        crossAxisLayoutSize,
+                        orientation,
+                        measured,
+                        beforeCrossAxisAlignmentLine,
+                    )
                 measured.place(crossAxisPosition, positions[index])
             }
         }
@@ -550,11 +564,9 @@ internal data class ColumnMeasurePolicy(
 /** What a child declared to a Row or Column. */
 private val IntrinsicMeasurable.linearConstraint: LinearConstraint? get() = parentData as? LinearConstraint
 
-/** Applies a component's explicit Swing maximum size to a physical constraint offer. */
+/** Applies a child's explicit Swing maximum size to a constraint offer. */
 private fun Measurable.constraintsWithMaximumSize(constraints: Constraints): Constraints {
-    val component = component
-    if (!component.isMaximumSizeSet) return constraints
-    val maximum = component.maximumSize
+    val maximum = maximumSize() ?: return constraints
     val maxWidth = minOf(constraints.maxWidth, maximum.width.coerceAtLeast(0))
     val maxHeight = minOf(constraints.maxHeight, maximum.height.coerceAtLeast(0))
     return Constraints(
@@ -565,42 +577,14 @@ private fun Measurable.constraintsWithMaximumSize(constraints: Constraints): Con
     )
 }
 
-/** The weight allocation held to the child's explicit Swing maximum size along this policy's main axis. */
-private fun Measurable.cappedMainAxisSize(
-    allocated: Int,
-    policy: RowColumnMeasurePolicy,
-): Int =
-    if (component.isMaximumSizeSet) {
-        minOf(
-            allocated,
-            policy.componentMainAxisMaximum(component.maximumSize).coerceAtLeast(0),
-        )
-    } else {
-        allocated
-    }
-
-/** Applies the same Swing maximum-size ceiling to a direct child's intrinsic axis query. */
-private fun IntrinsicMeasurable.cappedIntrinsicMainAxisSize(
+/** [size] held to the child's explicit Swing maximum size along this policy's main axis. */
+private fun IntrinsicMeasurable.cappedMainAxisSize(
     size: Int,
     policy: RowColumnMeasurePolicy,
-): Int =
-    componentOrNull
-        ?.takeIf { it.isMaximumSizeSet }
-        ?.let { minOf(size, policy.componentMainAxisMaximum(it.maximumSize).coerceAtLeast(0)) }
-        ?: size
+): Int = maximumSize()?.let { minOf(size, policy.componentMainAxisMaximum(it).coerceAtLeast(0)) } ?: size
 
-/** Applies the same Swing maximum-size ceiling to a direct child's intrinsic cross-axis query. */
-private fun IntrinsicMeasurable.cappedIntrinsicCrossAxisSize(
+/** [size] held to the child's explicit Swing maximum size across this policy's main axis. */
+private fun IntrinsicMeasurable.cappedCrossAxisSize(
     size: Int,
     policy: RowColumnMeasurePolicy,
-): Int =
-    componentOrNull
-        ?.takeIf { it.isMaximumSizeSet }
-        ?.let { minOf(size, policy.componentCrossAxisMaximum(it.maximumSize).coerceAtLeast(0)) }
-        ?: size
-
-/** Holds arithmetic at Swing's representable signed coordinate range rather than letting it wrap. */
-private fun saturatedLong(value: Long): Long = value.coerceIn(Int.MIN_VALUE.toLong(), Int.MAX_VALUE.toLong())
-
-/** Holds an extent at Swing's representable signed range before the caller applies its own lower bound. */
-private fun saturatedInt(value: Long): Int = saturatedLong(value).toInt()
+): Int = maximumSize()?.let { minOf(size, policy.componentCrossAxisMaximum(it).coerceAtLeast(0)) } ?: size

@@ -70,9 +70,13 @@ layout(width, height) {
 
 <!--- CLEAR -->
 
-`Measurable.measure(constraints)` returns an immutable `Placeable` with the measured `width` and
-`height`. Each call returns an independent result, so a policy may retain an earlier result while it
-measures the same child again. Place the result that corresponds to the constraints the policy chose.
+`Measurable.measure(constraints)` returns a `Placeable` with the measured `width` and
+`height`. [Measure once](#measure-once) states how often a policy may call it.
+
+`placeable[FirstBaseline]` reads where the child puts its first baseline, or
+`AlignmentLine.UNSPECIFIED` where it has none. A policy provides lines of its own through
+`layout(width, height, alignmentLines)`, and a layout modifier's line takes the place of the same line of the
+content it wraps. A Foundation container's lines follow its latest measure.
 
 The placement block runs inside the container's inner rectangle, after its insets:
 
@@ -87,6 +91,18 @@ A policy must return a non-negative size. It should use `constraints.constrainWi
 A policy may read and write snapshot `State`. [Phases](#phases) lists what a read in each block invalidates;
 `Layout`'s KDoc states what a write costs.
 
+### Measure once
+
+A policy measures each child at most once per pass, and only in its measure block or its placement
+block; measuring the same child again, or outside both blocks, throws `IllegalStateException` with
+androidx's message. A size the policy needs before it chooses a child's constraints comes from the child's
+intrinsic functions, and a baseline comes from the placeable already measured, as `placeable[FirstBaseline]`. A
+layout modifier may measure its inner measurable again, and each call returns an independent result.
+
+The placement block places each child at most once per run; placing the same child twice throws
+`IllegalStateException`, as in androidx. A run replayed by a placement read starts over, so it places each
+child again.
+
 ### Intrinsic size
 
 Swing asks a container for its preferred and minimum sizes without offering a width or height. A preferred size
@@ -99,12 +115,19 @@ it is measured under. A `LayoutModifierNode` whose `measure` must not run for a 
 animation, overrides all four, and so does a policy that divides bounded space, such as a weighted linear layout. A
 container's maximum size is unbounded unless one is set.
 
+A `Row` or `Column` aligning a child by a line reads that line for its own size from the child's
+`intrinsicPlaceable`: the line the component reports, moved or named by each `LayoutModifierNode` through its
+`intrinsicPlaceable`. By default that runs the node's `measure` against a stand-in for the child and its placement
+without placing anything, so the child itself is never measured. A node whose `measure` must not run for a query,
+such as one that starts an animation, overrides `intrinsicPlaceable` too, alongside the four intrinsic functions, to
+pass the child's stand-in through.
+
 ### Where constraints stop
 
 An explicit `preferredSize` on a constraint-based container is authoritative: it answers a constrained
 measurement without running the container's policy. Without one, constraints continue through any depth of
 `Row`, `Column`, `Box` and `Layout`. A component of your own can implement `Constrainable` to answer for the
-offered constraints.
+offered constraints, and name the alignment lines it provides in `alignmentLines`.
 
 A stock Swing widget or a foreign Swing container answers with its preferred or minimum size, held inside the
 offered constraints; it cannot reflow for an offered width, since Swing has no width-for-height query. Constraints
@@ -204,6 +227,17 @@ modifiers and the component receive.
 `Arrangement` distributes leftover main-axis space and `Alignment` positions children on the cross axis, under
 androidx's names. `Arrangement.Absolute` keeps a row's children packed left to right under either orientation.
 
+#### Aligning by a line
+
+`alignBy` places the children declaring it so that their alignment lines fall on one shared line:
+`alignBy(line)` names a `HorizontalAlignmentLine` of a row's child or a `VerticalAlignmentLine` of a column's,
+and `alignBy { placeable -> ... }` works the line out from the measured child. `Row` also supports
+`alignByBaseline()`, which is `alignBy(FirstBaseline)`. The baseline is the child's `FirstBaseline`: what
+`Component.getBaseline` reports, or the line a `Layout` child's policy provides. A child without the line sits
+at the row's top edge, or the column's left edge, instead of using the container's alignment. A row asking for
+its own height holds the deepest line above the shared line and the deepest remainder below it, and a column
+asking for its own width does the same across its width. A line a policy provides aligns the child within the
+container's measured extent, but does not enter the container's preferred size.
 
 ### `Box`
 
@@ -224,7 +258,7 @@ Box(contentAlignment = Alignment.Center) {
 In `BoxScope`:
 
 - `matchParentSize()` does not influence the box's own size. After the other children determine that
-  size, the box measures the child again with fixed constraints for the resolved extent. An explicit
+  size, the box measures the child with fixed constraints for the resolved extent. An explicit
   Swing `maximumSize` may keep the child smaller.
 - `fillMaxWidth()` and `fillMaxHeight()` expand the child to fill one bounded axis, up to an explicit
   `maximumSize`, while contributing its preferred size along the other. `fillMaxSize()` does both. On
@@ -525,5 +559,7 @@ The model follows Compose UI, adapted to Swing:
 
 - Geometry uses AWT integer user-space coordinates instead of `Dp` and `IntSize`.
 - Layout direction comes from `ComponentOrientation`.
+- Swing exposes one alignment line through `Component.getBaseline`, so there is `FirstBaseline` and
+  no `LastBaseline`.
 - Intrinsic measurement maps to Swing's argument-less `preferredSize` and `minimumSize` queries.
 - Placement ends in `Component.setBounds` on a real Swing component.

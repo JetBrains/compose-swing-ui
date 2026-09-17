@@ -2,10 +2,12 @@ package org.jetbrains.compose.swing.foundation.layout
 
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.foundation.graphics.DecoratedPanel
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.componentOrientation
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import java.awt.Component
 import java.awt.ComponentOrientation
@@ -60,6 +62,28 @@ internal fun Child(
     modifier: SwingModifier = SwingModifier,
 ) {
     Label("child $index", modifier = modifier.preferredSize(width, height))
+}
+
+/** A fixture-sized child whose component reports [baseline] at any extent and accepts a decoration. */
+@Composable
+internal fun DecoratedBaselineChild(
+    baseline: Int,
+    modifier: SwingModifier = SwingModifier,
+) {
+    SwingNode(
+        factory = { DecoratedBaselinePanel(baseline) },
+        modifier = modifier.preferredSize(CHILD_WIDTH, CHILD_HEIGHT),
+    )
+}
+
+/** Paints nothing of a decoration it receives; the tests using it read only where it is placed. */
+private class DecoratedBaselinePanel(
+    private val baseline: Int,
+) : DecoratedPanel() {
+    override fun getBaseline(
+        width: Int,
+        height: Int,
+    ): Int = baseline
 }
 
 /** The bounds the container under test assigned each of its children, in declaration order. */

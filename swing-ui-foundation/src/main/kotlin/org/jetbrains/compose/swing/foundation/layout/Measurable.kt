@@ -1,3 +1,23 @@
+/*
+ * Copyright 2019 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * Adapted from androidx.compose.ui.layout.IntrinsicMeasurable in AndroidX's ui; see this
+ * module's META-INF/NOTICE for the synced version. The intrinsic-size KDoc is a light rewording
+ * of upstream's, and Placeable's width/measuredWidth docs are upstream's.
+ */
+
 package org.jetbrains.compose.swing.foundation.layout
 
 import java.awt.Dimension
@@ -20,6 +40,17 @@ public sealed interface IntrinsicMeasurable {
     public fun maxIntrinsicHeight(width: Int): Int
 
     /**
+     * A stand-in for this child at [width] by [height], which a policy answering an intrinsic question reads alignment
+     * lines from without measuring the child, or null where it has none. A component answers [FirstBaseline] with its
+     * Swing baseline at that size, and each of its layout modifiers moves or names lines through
+     * [LayoutModifierNode.intrinsicPlaceable]. Placing it has no effect. Null by default.
+     */
+    public fun intrinsicPlaceable(
+        width: Int,
+        height: Int,
+    ): Placeable? = null
+
+    /**
      * The maximum size set on this child's component, which a `Row`, `Column` or `Box` holds the whole child to,
      * outside its layout modifiers, or null where none is set. Null by default.
      */
@@ -37,56 +68,25 @@ public sealed interface Measurable : IntrinsicMeasurable {
     /**
      * The extent the child takes under [constraints].
      *
-     * Each answer is an independent [Placeable]. Measuring the same child again does not rewrite an
-     * earlier result retained by the policy.
+     * A [MeasurePolicy] measures each child at most once per pass, and only in its measure block or in
+     * its placement block. A size it needs before choosing the constraints comes from the intrinsic
+     * functions. A [LayoutModifierNode] may measure its inner measurable again; each answer is then an
+     * independent [Placeable].
+     *
+     * @throws IllegalStateException if the policy already measured this child in the same pass, or
+     * measures it outside both blocks
      */
     public fun measure(constraints: Constraints): Placeable
-
-    /**
-     * Where the child carries its text baseline when it occupies [width] by [height], or `-1` where it
-     * carries none. Foundation reconstructs the exact measurement so the baseline follows any raw-size
-     * centering and layout modifiers before it reaches `java.awt.Component.getBaseline`.
-     */
-    public fun baseline(
-        width: Int,
-        height: Int,
-    ): Int
 }
 
 /** The receiver of a [MeasurePolicy]'s four intrinsic measurement functions. */
 public sealed interface IntrinsicMeasureScope
 
 /**
- * An offset line a measured layout exposes to its parent for alignment.
- *
- * Foundation retains lines named explicitly in [MeasureResult.alignmentLines]. Swing has no native
- * alignment-line graph, so it does not infer or inherit lines from ordinary components.
- */
-public sealed class AlignmentLine(
-    internal val merger: (Int, Int) -> Int,
-) {
-    /** A line no layout supplied. */
-    public companion object {
-        /** Value indicating an unspecified alignment line position. */
-        public const val UNSPECIFIED: Int = Int.MIN_VALUE
-    }
-}
-
-/** A line whose position is measured from the left or right edge. */
-public class VerticalAlignmentLine(
-    merger: (Int, Int) -> Int,
-) : AlignmentLine(merger)
-
-/** A line whose position is measured from the top or bottom edge, such as a text baseline. */
-public class HorizontalAlignmentLine(
-    merger: (Int, Int) -> Int,
-) : AlignmentLine(merger)
-
-/**
  * A child measured, and the handle its container places it by.
  *
- * A placeable is one immutable measurement of a child. It retains the component extent and layout
- * modifier offsets computed for that measurement.
+ * A placeable is one measurement of a child. It retains the component extent and layout modifier offsets
+ * computed for that measurement. The alignment lines of a Foundation container follow its latest measure.
  */
 public sealed class Placeable {
     /**
@@ -122,9 +122,35 @@ public sealed class Placeable {
         y: Long,
     )
 
-    /** Where the child's baseline falls when this placeable's origin lands at ([x], [y]), or `-1` where it has none. */
-    internal abstract fun baselineAt(
+    /**
+     * Where [alignmentLine] falls when this placeable's origin lands at ([x], [y]), or
+     * [AlignmentLine.UNSPECIFIED] where the child provides no such line.
+     */
+    internal abstract fun alignmentLineAt(
+        alignmentLine: AlignmentLine,
         x: Long,
         y: Long,
     ): Int
+
+    /**
+     * Merges into [scope] each line this placeable puts when its origin lands at ([x], [y]). A stand-in puts none, as
+     * placing it has no effect.
+     */
+    internal open fun mergeAlignmentLines(
+        scope: LineMergingPlacementScope,
+        x: Long,
+        y: Long,
+    ): Unit = Unit
+
+    /**
+     * Where [alignmentLine] falls from the edge of the box this placeable is placed at, [width] by
+     * [height], or [AlignmentLine.UNSPECIFIED] where the child provides no such line.
+     */
+    public open operator fun get(alignmentLine: AlignmentLine): Int {
+        val state = child.owner.layoutState
+        if (state == LayoutState.Measuring || child.lineReadDuring == LayoutState.Idle) {
+            child.lineReadDuring = state
+        }
+        return alignmentLineAt(alignmentLine, 0L, 0L)
+    }
 }

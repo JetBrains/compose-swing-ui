@@ -24,7 +24,7 @@
 package org.jetbrains.compose.swing.foundation.layout
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import org.jetbrains.compose.swing.foundation.util.fastForEachIndexed
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import java.awt.ComponentOrientation
 import java.awt.Dimension
@@ -109,23 +109,6 @@ internal fun maybeCachedBoxMeasurePolicy(
     return cache[alignment] ?: BoxMeasurePolicy(alignment, propagateMinConstraints)
 }
 
-@PublishedApi
-@Composable
-internal fun rememberBoxMeasurePolicy(
-    alignment: Alignment,
-    propagateMinConstraints: Boolean,
-): MeasurePolicy =
-    if (alignment == Alignment.TopStart && !propagateMinConstraints) {
-        DefaultBoxMeasurePolicy
-    } else {
-        remember(alignment, propagateMinConstraints) {
-            BoxMeasurePolicy(alignment, propagateMinConstraints)
-        }
-    }
-
-private val DefaultBoxMeasurePolicy: MeasurePolicy =
-    BoxMeasurePolicy(Alignment.TopStart, propagateMinConstraints = false)
-
 internal val EmptyBoxMeasurePolicy: MeasurePolicy =
     MeasurePolicy { _, constraints ->
         layout(constraints.minWidth, constraints.minHeight) {}
@@ -205,7 +188,7 @@ internal data class BoxMeasurePolicy(
         var hasMatchParentSizeChildren = false
         var boxWidth = constraints.minWidth
         var boxHeight = constraints.minHeight
-        measurables.forEachIndexed { index, measurable ->
+        measurables.fastForEachIndexed { index, measurable ->
             if (!measurable.matchesParentSize) {
                 val placeable = measurable.measure(contentConstraints.forChild(measurable))
                 placeables[index] = placeable
@@ -224,7 +207,7 @@ internal data class BoxMeasurePolicy(
                     maxWidth = boxWidth,
                     maxHeight = boxHeight,
                 )
-            measurables.forEachIndexed { index, measurable ->
+            measurables.fastForEachIndexed { index, measurable ->
                 if (measurable.matchesParentSize) {
                     placeables[index] =
                         measurable.measure(

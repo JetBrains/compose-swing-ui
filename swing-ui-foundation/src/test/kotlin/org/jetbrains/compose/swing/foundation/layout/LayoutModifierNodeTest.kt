@@ -9,13 +9,17 @@ import androidx.compose.runtime.withFrameNanos
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
+import org.jetbrains.compose.swing.modifier.layout.maximumSize
+import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Component
 import java.awt.Dimension
+import javax.swing.JComponent
 import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /**
  * A [LayoutModifierNode]'s `coroutineScope` runs on the composition's own effect context, so a coroutine
@@ -133,6 +137,62 @@ class LayoutModifierNodeTest {
             )
         }
 
+    @Test
+    fun aRowsSizeQueriesNeverMeasureTheNodeOfAChildWithAMaximumSize() =
+        runComposeSwingTest {
+            var measures = 0
+            setContent {
+                Row(modifier = SwingModifier.testTag("row")) {
+                    SwingNode(
+                        factory = { JPanel() },
+                        modifier = SwingModifier.maximumSize(40, 20).countingMeasures { measures++ },
+                    )
+                }
+            }
+            val row = onNodeWithTag("row").fetch<JComponent>()
+            measures = 0
+            row.invalidate()
+
+            row.preferredSize
+            row.minimumSize
+            assertEquals(0, measures, "a size query answers through the node's intrinsic hooks")
+
+            row.validate()
+            assertTrue(measures > 0, "a layout pass measures the node")
+        }
+
+    @Test
+    fun aRowsPreferredHeightReadsABaselineThroughANodeThatPassesTheChildsStandInThrough() =
+        runComposeSwingTest {
+            var measures = 0
+            setContent {
+                Row(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
+                    SwingNode(
+                        factory = { FixedBaselinePanel(30) },
+                        modifier =
+                            SwingModifier
+                                .alignByBaseline()
+                                .countingMeasures { measures++ }
+                                .preferredSize(CHILD_WIDTH, CHILD_HEIGHT),
+                    )
+                    SwingNode(
+                        factory = { FixedBaselinePanel(10) },
+                        modifier = SwingModifier.alignByBaseline().preferredSize(CHILD_WIDTH, CHILD_HEIGHT),
+                    )
+                }
+            }
+            val row = onNodeWithTag(CONTAINER_TAG).fetch<JComponent>()
+            measures = 0
+            row.invalidate()
+
+            assertEquals(
+                Dimension(CHILD_WIDTH * 2, 60),
+                row.preferredSize,
+                "the row must hold the baseline the node's intrinsicPlaceable pass-through reads from the child",
+            )
+            assertEquals(0, measures, "a size query must answer through the node's intrinsic hooks")
+        }
+
     /** A node that overrides no intrinsic hook answers a size query through its own `measure`, as androidx's does. */
     @Test
     fun aLayoutModifierNodesSizeQueriesAnswerThroughItsOwnMeasure() =
@@ -170,6 +230,16 @@ private class WidthDoublingNode : LayoutModifierNode() {
         val placeable = measurable.measure(constraints.copy(maxWidth = constraints.maxWidth / 2))
         return layout(2 * placeable.width, placeable.height) { placeable.place(0, 0) }
     }
+}
+
+/** A component whose Swing baseline is fixed at [baseline], whatever size it is asked at. */
+private class FixedBaselinePanel(
+    private val baseline: Int,
+) : JPanel() {
+    override fun getBaseline(
+        width: Int,
+        height: Int,
+    ): Int = baseline
 }
 
 /** Counts each run of the node's `measure`; its intrinsic hooks answer without running it. */
@@ -223,6 +293,12 @@ private class MeasureCountingNode(
         measurable: IntrinsicMeasurable,
         width: Int,
     ): Int = measurable.maxIntrinsicHeight(width)
+
+    override fun IntrinsicMeasureScope.intrinsicPlaceable(
+        measurable: IntrinsicMeasurable,
+        width: Int,
+        height: Int,
+    ): Placeable? = measurable.intrinsicPlaceable(width, height)
 }
 
 private fun frameCountingLayoutModifier(

@@ -12,6 +12,10 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * Adapted from androidx.compose.foundation.layout.Column in AndroidX's foundation-layout; see
+ * this module's META-INF/NOTICE for the synced version. columnMeasurePolicy's Top/Start fast
+ * path, falling back to DefaultColumnMeasurePolicy, is upstream's verbatim.
  */
 
 @file:JvmMultifileClass
@@ -23,10 +27,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import org.jetbrains.compose.swing.modifier.SwingModifier
 
-/** Adapted from AndroidX's foundation-layout; see this module's META-INF/NOTICE for the synced version. */
-@PublishedApi
-internal val DefaultColumnMeasurePolicy: MeasurePolicy =
-    ColumnMeasurePolicy(verticalArrangement = Arrangement.Top, horizontalAlignment = Alignment.Start)
+private val DefaultColumnMeasurePolicy: MeasurePolicy =
+    ColumnMeasurePolicy(
+        verticalArrangement = Arrangement.Top,
+        horizontalAlignment = Alignment.Start,
+    )
 
 @PublishedApi
 @Composable
@@ -38,7 +43,10 @@ internal fun columnMeasurePolicy(
         DefaultColumnMeasurePolicy
     } else {
         remember(verticalArrangement, horizontalAlignment) {
-            ColumnMeasurePolicy(verticalArrangement, horizontalAlignment)
+            ColumnMeasurePolicy(
+                verticalArrangement = verticalArrangement,
+                horizontalAlignment = horizontalAlignment,
+            )
         }
     }
 

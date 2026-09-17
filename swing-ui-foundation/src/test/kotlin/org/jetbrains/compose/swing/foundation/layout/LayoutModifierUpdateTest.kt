@@ -16,6 +16,7 @@ import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.ComponentOrientation
 import java.awt.Container
+import java.awt.Dimension
 import java.awt.Rectangle
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -211,6 +212,201 @@ class LayoutModifierUpdateTest {
         }
 
     @Test
+    fun anOffsetPlacesAChildAgainWithoutMeasuringItOnceTheRowNoLongerAlignsItByItsBaseline() =
+        runComposeSwingTest {
+            var aligned by mutableStateOf(true)
+            var y by mutableIntStateOf(0)
+            var measures = 0
+            setContent {
+                Row(modifier = SwingModifier.testTag(UPDATED_TAG)) {
+                    val alignment = if (aligned) SwingModifier.alignByBaseline() else SwingModifier
+                    DecoratedBaselineChild(30, alignment.offset(y = y).countingMeasures { measures++ })
+                    DecoratedBaselineChild(10, SwingModifier.alignByBaseline())
+                }
+            }
+            aligned = false
+            awaitIdle()
+            measures = 0
+
+            y = 20
+            awaitIdle()
+
+            assertEquals(20, laidOut(UPDATED_TAG).childBounds.first().y, "the offset must place the child")
+            assertEquals(0, measures, "a row that no longer reads the child's baseline must not measure it again")
+        }
+
+    @Test
+    fun anOffsetDeclaredWithAnotherValueRealignsARowAligningTheChildByItsBaseline() =
+        runComposeSwingTest {
+            var y by mutableIntStateOf(0)
+            setContent {
+                Column {
+                    BaselineOffsetRow(UPDATED_TAG, y)
+                    BaselineOffsetRow(FRESH_TAG, 20)
+                }
+            }
+
+            assertRelaidAsFresh { y = 20 }
+        }
+
+    @Test
+    fun aPlacementReadingStateRealignsARowAligningTheChildByItsBaseline() =
+        runComposeSwingTest {
+            var y by mutableIntStateOf(0)
+            setContent {
+                Column {
+                    Row(modifier = SwingModifier.testTag(UPDATED_TAG)) {
+                        val placedLower =
+                            SwingModifier.alignByBaseline().layout { measurable, constraints ->
+                                val placeable = measurable.measure(constraints)
+                                layout(placeable.width, placeable.height) { placeable.place(0, y) }
+                            }
+                        DecoratedBaselineChild(30, placedLower)
+                        DecoratedBaselineChild(10, SwingModifier.alignByBaseline())
+                    }
+                    BaselineOffsetRow(FRESH_TAG, 20)
+                }
+            }
+
+            assertRelaidAsFresh { y = 20 }
+        }
+
+    @Test
+    fun anOffsetDeclaredWithAnotherValueInsideABoxRealignsARowAligningTheBoxByItsBaseline() =
+        runComposeSwingTest {
+            var y by mutableIntStateOf(0)
+            setContent {
+                Column {
+                    BoxedBaselineOffsetRow(UPDATED_TAG, y)
+                    BoxedBaselineOffsetRow(FRESH_TAG, 20)
+                }
+            }
+
+            assertRelaidAsFresh { y = 20 }
+        }
+
+    @Test
+    fun aPlacementReadingStateInsideABoxRealignsARowAligningTheBoxByItsBaseline() =
+        runComposeSwingTest {
+            var y by mutableIntStateOf(0)
+            setContent {
+                Column {
+                    Row(modifier = boxedRowModifier(UPDATED_TAG)) {
+                        Box(modifier = SwingModifier.alignByBaseline()) {
+                            val placedLower =
+                                SwingModifier.layout { measurable, constraints ->
+                                    val placeable = measurable.measure(constraints)
+                                    layout(placeable.width, placeable.height) { placeable.place(0, y) }
+                                }
+                            DecoratedBaselineChild(30, placedLower)
+                        }
+                        DecoratedBaselineChild(10, SwingModifier.alignByBaseline())
+                    }
+                    BoxedBaselineOffsetRow(FRESH_TAG, 20)
+                }
+            }
+
+            assertRelaidAsFresh { y = 20 }
+        }
+
+    @Test
+    fun anOffsetDeclaredWithAnotherValueInsideABoxMovesAParentPlacingTheBoxByItsBaseline() =
+        runComposeSwingTest {
+            var y by mutableIntStateOf(0)
+            var measures = 0
+            setContent {
+                Layout(
+                    content = {
+                        Box {
+                            Layout(
+                                measurePolicy = { _, _ ->
+                                    layout(CHILD_WIDTH, CHILD_HEIGHT, mapOf(FirstBaseline to 10)) {}
+                                },
+                                modifier = SwingModifier.offset(y = y),
+                            )
+                        }
+                    },
+                    modifier = containerModifier(200, 200),
+                    measurePolicy = { measurables, constraints ->
+                        measures++
+                        val box = measurables.single().measure(Constraints(maxWidth = 200, maxHeight = 200))
+                        layout(constraints.minWidth, constraints.minHeight) { box.place(0, 100 - box[FirstBaseline]) }
+                    },
+                )
+            }
+            awaitIdle()
+            measures = 0
+
+            y = 20
+            awaitIdle()
+
+            assertEquals(
+                100 - 20 - 10,
+                onNodeWithTag(CONTAINER_TAG).fetch<Container>().getComponent(0).y,
+                "a parent placing the box by its baseline must follow the baseline the offset moves",
+            )
+            assertEquals(0, measures, "a parent reading the line only in its placement is placed again, not measured")
+        }
+
+    @Test
+    fun aParentPlacingTheBoxByItsBaselineAgainFollowsTheBaselineAnOffsetInsideTheBoxMovedMeanwhile() =
+        runComposeSwingTest {
+            var y by mutableIntStateOf(0)
+            var byLine by mutableStateOf(false)
+            setContent {
+                Layout(
+                    content = {
+                        Box {
+                            Layout(
+                                measurePolicy = { _, _ ->
+                                    layout(CHILD_WIDTH, CHILD_HEIGHT, mapOf(FirstBaseline to 10)) {}
+                                },
+                                modifier = SwingModifier.offset(y = y),
+                            )
+                        }
+                    },
+                    modifier = containerModifier(200, 200),
+                    measurePolicy = { measurables, constraints ->
+                        val box = measurables.single().measure(Constraints(maxWidth = 200, maxHeight = 200))
+                        layout(constraints.minWidth, constraints.minHeight) {
+                            box.place(0, if (byLine) 100 - box[FirstBaseline] else 0)
+                        }
+                    },
+                )
+            }
+            awaitIdle()
+            val box = onNodeWithTag(CONTAINER_TAG).fetch<Container>().getComponent(0)
+
+            y = 20
+            awaitIdle()
+            byLine = true
+            awaitIdle()
+            assertEquals(100 - 20 - 10, box.y, "the first read must find the baseline the offset moved")
+
+            byLine = false
+            awaitIdle()
+            y = 0
+            awaitIdle()
+            byLine = true
+            awaitIdle()
+            assertEquals(100 - 10, box.y, "a read after an earlier one must find the baseline the offset moved since")
+        }
+
+    @Test
+    fun anOffsetDeclaredWithAnotherValueRealignsAColumnAligningTheChildByALine() =
+        runComposeSwingTest {
+            var x by mutableIntStateOf(0)
+            setContent {
+                Column {
+                    LineOffsetColumn(UPDATED_TAG, x)
+                    LineOffsetColumn(FRESH_TAG, 20)
+                }
+            }
+
+            assertRelaidAsFresh { x = 20 }
+        }
+
+    @Test
     fun aSizeDeclaredAgainThroughAnotherBuilderWithEqualBoundsMeasuresNothingAgain() =
         runComposeSwingTest {
             var exact by mutableStateOf(false)
@@ -268,6 +464,93 @@ class LayoutModifierUpdateTest {
         )
     }
 
+    /**
+     * Runs [change] on the container tagged [UPDATED_TAG] and asserts it ends up laid out as the one tagged
+     * [FRESH_TAG], which declares the changed value from the start, where it was laid out otherwise before.
+     */
+    private suspend fun ComposeSwingTest.assertRelaidAsFresh(change: () -> Unit) {
+        val before = laidOut(UPDATED_TAG)
+        assertNotEquals(laidOut(FRESH_TAG), before, "the change must lay the container out otherwise")
+
+        change()
+        awaitIdle()
+
+        assertEquals(
+            laidOut(FRESH_TAG),
+            laidOut(UPDATED_TAG),
+            "a container must lay the changed child out as one declared with the change from the start",
+        )
+    }
+
+    private fun ComposeSwingTest.laidOut(tag: String): LaidOut {
+        val container = onNodeWithTag(tag).fetch<Container>()
+        val childBounds = container.childrenInDeclarationOrder().map { it.bounds }
+        return LaidOut(container.preferredSize, container.size, childBounds)
+    }
+
+    private data class LaidOut(
+        val preferredSize: Dimension,
+        val size: Dimension,
+        val childBounds: List<Rectangle>,
+    )
+
+    /** A row lining two children up on their baselines, the first moved down by [offsetY]. */
+    @Composable
+    private fun BaselineOffsetRow(
+        tag: String,
+        offsetY: Int,
+    ) {
+        Row(modifier = SwingModifier.testTag(tag)) {
+            DecoratedBaselineChild(30, SwingModifier.alignByBaseline().offset(y = offsetY))
+            DecoratedBaselineChild(10, SwingModifier.alignByBaseline())
+        }
+    }
+
+    /** A row lining a box and a child up on their baselines, the content of the box moved down by [offsetY]. */
+    @Composable
+    private fun BoxedBaselineOffsetRow(
+        tag: String,
+        offsetY: Int,
+    ) {
+        Row(modifier = boxedRowModifier(tag)) {
+            Box(modifier = SwingModifier.alignByBaseline()) {
+                DecoratedBaselineChild(30, SwingModifier.offset(y = offsetY))
+            }
+            DecoratedBaselineChild(10, SwingModifier.alignByBaseline())
+        }
+    }
+
+    /** A column lining two children up on [StartLine], the first moved along by [offsetX]. */
+    @Composable
+    private fun LineOffsetColumn(
+        tag: String,
+        offsetX: Int,
+    ) {
+        Column(modifier = SwingModifier.testTag(tag)) {
+            LineChild(10, SwingModifier.alignBy(StartLine).offset(x = offsetX))
+            LineChild(0, SwingModifier.alignBy(StartLine))
+        }
+    }
+
+    /**
+     * A row tagged [tag], sized for a box and a child on one baseline 20 below the box's own: a row's preferred height
+     * does not hold a line a box's children put.
+     */
+    private fun boxedRowModifier(tag: String): SwingModifier =
+        SwingModifier.testTag(tag).preferredSize(CHILD_WIDTH * 2, CHILD_HEIGHT * 2)
+
+    /** A fixture-sized child whose policy provides [StartLine] at [line]. */
+    @Composable
+    private fun LineChild(
+        line: Int,
+        modifier: SwingModifier,
+    ) {
+        Layout(
+            measurePolicy = { _, _ -> layout(CHILD_WIDTH, CHILD_HEIGHT, mapOf(StartLine to line)) {} },
+            modifier = modifier,
+        )
+    }
+
     private fun boxModifier(
         tag: String,
         extent: Int,
@@ -292,6 +575,8 @@ class LayoutModifierUpdateTest {
 
         /** Less than a fixture child prefers along both axes, and more than it needs. */
         const val INTRINSIC_BOX_EXTENT = 30
+
+        val StartLine = VerticalAlignmentLine(::minOf)
 
         val ShiftedBy4: MeasureScope.(Measurable, Constraints) -> MeasureResult = { measurable, constraints ->
             val placeable = measurable.measure(constraints)

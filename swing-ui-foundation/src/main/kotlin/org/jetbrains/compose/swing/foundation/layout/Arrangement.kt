@@ -506,7 +506,7 @@ private data class SpacedAligned(
         var lastSpace = 0L
         sizes.forEachIndexed { index, size ->
             val position = min(occupied, totalSize.toLong() - size)
-            outPositions[index] = saturatedCoordinate(position)
+            outPositions[index] = saturateLayoutCoordinate(position)
             lastSpace = min(space.toLong(), totalSize - position - size)
             occupied = position + size + lastSpace
         }
@@ -523,7 +523,7 @@ private data class SpacedAligned(
         var lastSpace = 0L
         sizes.forEachIndexed { index, size ->
             val position = maxOf(0L, freeSpace - size)
-            outPositions[index] = saturatedCoordinate(position)
+            outPositions[index] = saturateLayoutCoordinate(position)
             lastSpace = min(space.toLong(), position)
             freeSpace = position - lastSpace
         }
@@ -539,10 +539,10 @@ private data class SpacedAligned(
         outPositions: IntArray,
     ) {
         if (freeSpace <= 0) return
-        val group = alignment.align(0, saturatedCoordinate(freeSpace), orientation)
+        val group = alignment.align(0, saturateLayoutCoordinate(freeSpace), orientation)
         val offset = if (rightToLeft) group.toLong() - freeSpace else group.toLong()
         for (index in outPositions.indices) {
-            outPositions[index] = saturatedCoordinate(outPositions[index].toLong() + offset)
+            outPositions[index] = saturateLayoutCoordinate(outPositions[index].toLong() + offset)
         }
     }
 }
@@ -632,10 +632,6 @@ private fun surplus(
     totalSize: Int,
     sizes: IntArray,
 ): Long = totalSize.toLong() - sizes.fold(0L) { total, size -> total + size }
-
-/** A coordinate held to the range AWT can represent rather than wrapped across the opposite edge. */
-private fun saturatedCoordinate(value: Long): Int =
-    value.coerceIn(Int.MIN_VALUE.toLong(), Int.MAX_VALUE.toLong()).toInt()
 
 /**
  * Walks the sizes with their own indices, from the last to the first when [reversed], so a placement

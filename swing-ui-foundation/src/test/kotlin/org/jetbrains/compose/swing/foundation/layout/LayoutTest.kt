@@ -72,7 +72,7 @@ class LayoutTest {
         }
 
     @Test
-    fun anAspectRatioChildThatHasNoHeightLeftIsGivenNoSpaceToEscapeTheContainer() =
+    fun anAspectRatioChildThatHasNoHeightLeftTakesNoHeightFromTheStack() =
         runComposeSwingTest {
             setContent {
                 Layout(
@@ -88,10 +88,11 @@ class LayoutTest {
             assertEquals(
                 listOf(
                     Rectangle(0, 0, CHILD_WIDTH, CHILD_HEIGHT),
-                    Rectangle(0, CHILD_HEIGHT, 0, 0),
+                    Rectangle(0, -10, 200, 100),
                 ),
                 childBounds(),
-                "an aspect-ratio child that escapes a zero-height offer must not be placed outside the stack",
+                "an aspect-ratio child that escapes a zero-height offer is seen at no height, and its own extent is " +
+                    "centered on that slot",
             )
         }
 
@@ -301,18 +302,10 @@ internal fun stackedRows(gap: () -> Int = { 0 }): MeasurePolicy =
         val currentGap = gap()
         val placeables =
             measurables.mapIndexed { index, measurable ->
-                val measured =
+                val placeable =
                     measurable.measure(
                         Constraints(maxWidth = constraints.maxWidth, maxHeight = remainingHeight),
                     )
-                val placeable =
-                    if (measured.measuredWidth <= constraints.maxWidth &&
-                        measured.measuredHeight <= remainingHeight
-                    ) {
-                        measured
-                    } else {
-                        measurable.measure(Constraints(maxWidth = 0, maxHeight = 0))
-                    }
                 remainingHeight = (remainingHeight - placeable.height).coerceAtLeast(0)
                 if (index < measurables.lastIndex) {
                     remainingHeight = (remainingHeight - currentGap.coerceAtLeast(0)).coerceAtLeast(0)

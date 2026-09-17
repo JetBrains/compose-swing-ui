@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.foundation.layout
 
+import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.border
 import org.jetbrains.compose.swing.modifier.appearance.testTag
@@ -215,6 +216,100 @@ class RowColumnParentQueryTest {
             )
         }
 
+    @Test
+    fun aRowsPreferredSizeIsItsMeasuredSizeWhateverLayoutModifierItsChildDeclares() {
+        val mismatches =
+            preferredAndMeasuredMismatches(ROW_OFF_PREFERRED_SIZES) { declare, bounded ->
+                Row {
+                    val bound = if (bounded) SwingModifier else SwingModifier.wrapContentSize(unbounded = true)
+                    Row(modifier = SwingModifier.testTag(CONTAINER_TAG).then(bound)) {
+                        DecoratedBaselineChild(30, SwingModifier.alignByBaseline())
+                        DecoratedBaselineChild(10, declare().alignByBaseline())
+                    }
+                }
+            }
+
+        assertEquals(
+            emptyList(),
+            mismatches,
+            "a row must be laid out at the size it prefers, with or without a genuine bound on its height, " +
+                "whatever layout modifier its baseline-aligned child declares, except where androidx itself lays " +
+                "it out at another size, at the sizes in ROW_OFF_PREFERRED_SIZES",
+        )
+    }
+
+    @Test
+    fun aColumnsPreferredSizeIsItsMeasuredSizeWhateverLayoutModifierItsChildDeclares() {
+        val mismatches =
+            preferredAndMeasuredMismatches(COLUMN_ANDROIDX_SIZES) { declare, bounded ->
+                Column {
+                    val bound = if (bounded) SwingModifier else SwingModifier.wrapContentSize(unbounded = true)
+                    Column(modifier = SwingModifier.testTag(CONTAINER_TAG).then(bound)) {
+                        SizedChild(0, SwingModifier.alignBy { it.measuredWidth })
+                        SizedChild(1, declare().alignBy { it.measuredWidth })
+                    }
+                }
+            }
+
+        assertEquals(
+            emptyList(),
+            mismatches,
+            "a column must be laid out at the size it prefers, with or without a genuine bound on its width, " +
+                "whatever layout modifier its aligned child declares, except where androidx itself lays it out at " +
+                "another size, at the sizes in COLUMN_ANDROIDX_SIZES",
+        )
+    }
+
+    @Test
+    fun aBoxsPreferredSizeIsItsMeasuredSizeWhateverLayoutModifierItsChildDeclares() {
+        val mismatches =
+            preferredAndMeasuredMismatches(BOX_ANDROIDX_SIZES) { declare, bounded ->
+                Column {
+                    val bound = if (bounded) SwingModifier else SwingModifier.wrapContentSize(unbounded = true)
+                    Box(modifier = SwingModifier.testTag(CONTAINER_TAG).then(bound)) {
+                        SizedChild(0)
+                        SizedChild(1, declare())
+                    }
+                }
+            }
+
+        assertEquals(
+            emptyList(),
+            mismatches,
+            "a box must be laid out at the size it prefers, with or without a genuine bound, whatever layout " +
+                "modifier its child declares, except where androidx itself lays it out at another size, at the " +
+                "sizes in BOX_ANDROIDX_SIZES",
+        )
+    }
+
+    /** A row sizing itself reads a child's baseline where each kind of layout node moves it, as its layout does. */
+    @Test
+    fun aRowPrefersItsMeasuredHeightAndLinesUpBaselinesWhateverLayoutNodeMovesOne() =
+        runComposeSwingTest {
+            setContent {
+                Column {
+                    for ((name, declare, _) in BASELINE_MOVING_MODIFIERS) {
+                        Row(modifier = SwingModifier.testTag(name)) {
+                            DecoratedBaselineChild(10, SwingModifier.alignByBaseline())
+                            DecoratedBaselineChild(10, declare().alignByBaseline())
+                        }
+                    }
+                }
+            }
+
+            val mismatches =
+                BASELINE_MOVING_MODIFIERS.mapNotNull { (name, _, expected) ->
+                    val (height, baseline) = expected
+                    val row = onNodeWithTag(name).fetch<JComponent>()
+                    val (a, b) = row.childrenInDeclarationOrder()
+                    val baselines = listOf(a, b).map { it.y + it.getBaseline(it.width, it.height) }
+                    val actual = Triple(row.height, baselines[0], baselines[1])
+                    val message = "$name: expected height $height and baseline $baseline, was $actual"
+                    message.takeIf { actual != Triple(height, baseline, baseline) }
+                }
+            assertEquals(emptyList(), mismatches)
+        }
+
     private companion object {
         // Below the fixture child on both axes, so a minimum read off the preferred extent is unmistakable.
         const val MIN_WIDTH = 18
@@ -247,3 +342,167 @@ private fun ComposeSwingTest.container(): JComponent = panel(CONTAINER_TAG)
 
 /** The container a test tagged [tag], for a case that declares more than one. */
 private fun ComposeSwingTest.panel(tag: String): JComponent = onNodeWithTag(tag).fetch<JComponent>()
+
+/**
+ * Every built-in layout modifier whose extent along one axis can follow the other axis or the constraints its child is
+ * offered, under the name a failure reports it by.
+ */
+private val SIZING_MODIFIERS: List<Pair<String, ConstrainedScope.() -> SwingModifier>> =
+    listOf(
+        "aspectRatio(2f)" to { SwingModifier.aspectRatio(2f) },
+        "aspectRatio(2f, matchHeightConstraintsFirst)" to { SwingModifier.aspectRatio(2f, true) },
+        "aspectRatio(0.5f)" to { SwingModifier.aspectRatio(0.5f) },
+        "aspectRatio(2f).padding(5)" to { SwingModifier.aspectRatio(2f).padding(5) },
+        "padding(5).aspectRatio(2f)" to { SwingModifier.padding(5).aspectRatio(2f) },
+        "width(Min)" to { SwingModifier.width(IntrinsicSize.Min) },
+        "width(Max)" to { SwingModifier.width(IntrinsicSize.Max) },
+        "height(Min)" to { SwingModifier.height(IntrinsicSize.Min) },
+        "height(Max)" to { SwingModifier.height(IntrinsicSize.Max) },
+        "requiredWidth(Max)" to { SwingModifier.requiredWidth(IntrinsicSize.Max) },
+        "requiredHeight(Min)" to { SwingModifier.requiredHeight(IntrinsicSize.Min) },
+        "fillMaxWidth" to { SwingModifier.fillMaxWidth() },
+        "fillMaxHeight" to { SwingModifier.fillMaxHeight() },
+        "fillMaxSize" to { SwingModifier.fillMaxSize() },
+        "wrapContentSize" to { SwingModifier.wrapContentSize() },
+        "wrapContentSize(unbounded)" to { SwingModifier.wrapContentSize(unbounded = true) },
+        "size(70, 30)" to { SwingModifier.size(70, 30) },
+        "requiredSize(70, 30)" to { SwingModifier.requiredSize(70, 30) },
+        "sizeIn(min 60 x 50)" to { SwingModifier.sizeIn(minWidth = 60, minHeight = 50) },
+        "sizeIn(max 30 x 20)" to { SwingModifier.sizeIn(maxWidth = 30, maxHeight = 20) },
+        "defaultMinSize(60, 50)" to { SwingModifier.defaultMinSize(60, 50) },
+        "padding(3, 5, 7, 11)" to { SwingModifier.padding(start = 3, top = 5, end = 7, bottom = 11) },
+        "offset(5, 7)" to { SwingModifier.offset(5, 7) },
+    )
+
+/** The size a container prefers and the size its parent lays it out at. */
+private data class PreferredAndLaidOut(
+    val preferred: Dimension,
+    val laidOut: Dimension,
+)
+
+/**
+ * The [SIZING_MODIFIERS] entries a [Row] with no bound at all prefers at one size and is laid out at another, as
+ * androidx does: offered no constraint, `AspectRatioNode` finds no size and measures its content unchanged, so the
+ * baseline-aligned child keeps its own size and the row lays it out at the height the two baselines need, while
+ * the row's max intrinsic height asks the ratio for the child's height at the child's intrinsic width. A row's
+ * preferred height also holds the child's baseline, read through `intrinsicPlaceable`, where androidx's intrinsics
+ * leave alignment lines out.
+ *
+ * A bounded row's `fillMaxHeight`/`fillMaxSize` child is measured unbounded for the row's own preferred size, where
+ * filling is a no-op, but stretches to the row's real, packed offer once laid out; its fixed baseline does not move
+ * with that growth, so the row's cross-axis size, held to the deepest baseline's before and after extent, grows
+ * past what it preferred.
+ */
+private val ROW_OFF_PREFERRED_SIZES: Map<String, PreferredAndLaidOut> =
+    mapOf(
+        "aspectRatio(2f), unbounded" to PreferredAndLaidOut(Dimension(100, 45), Dimension(100, 60)),
+        "aspectRatio(2f, matchHeightConstraintsFirst), unbounded" to
+            PreferredAndLaidOut(Dimension(100, 45), Dimension(100, 60)),
+        "aspectRatio(0.5f), unbounded" to PreferredAndLaidOut(Dimension(100, 120), Dimension(100, 60)),
+        "aspectRatio(2f).padding(5), unbounded" to PreferredAndLaidOut(Dimension(110, 45), Dimension(110, 65)),
+        "padding(5).aspectRatio(2f), unbounded" to PreferredAndLaidOut(Dimension(110, 50), Dimension(110, 65)),
+        "fillMaxHeight, bounded" to PreferredAndLaidOut(Dimension(100, 60), Dimension(100, 80)),
+        "fillMaxSize, bounded" to PreferredAndLaidOut(Dimension(100, 60), Dimension(100, 80)),
+    )
+
+/**
+ * The [SIZING_MODIFIERS] entries a [Column] with no bound at all prefers at one size and is laid out at another, as
+ * androidx does; see [ROW_OFF_PREFERRED_SIZES]. The column's max intrinsic width asks the ratio for the child's
+ * width at the child's intrinsic height, while its measure, offered no constraint, keeps the child's own width. A
+ * ratio below one gives a width under the other child's, so it is not among these.
+ */
+private val COLUMN_ANDROIDX_SIZES: Map<String, PreferredAndLaidOut> =
+    mapOf(
+        "aspectRatio(2f), unbounded" to PreferredAndLaidOut(Dimension(80, 80), Dimension(50, 80)),
+        "aspectRatio(2f, matchHeightConstraintsFirst), unbounded" to
+            PreferredAndLaidOut(Dimension(80, 80), Dimension(50, 80)),
+        "aspectRatio(2f).padding(5), unbounded" to PreferredAndLaidOut(Dimension(100, 90), Dimension(60, 90)),
+        "padding(5).aspectRatio(2f), unbounded" to PreferredAndLaidOut(Dimension(90, 90), Dimension(60, 90)),
+    )
+
+/**
+ * The [SIZING_MODIFIERS] entries a bounded [Box] prefers at one size and is laid out at another, as androidx does. The
+ * box's default max intrinsic height asks the ratio at an unbounded width, where it answers the padded child's own 50,
+ * while the column above offers the box its preferred 60 by 50 as a bound: the ratio takes the height from that
+ * width, and the box is laid out at the other child's 40.
+ */
+private val BOX_ANDROIDX_SIZES: Map<String, PreferredAndLaidOut> =
+    mapOf(
+        "aspectRatio(2f).padding(5), bounded" to PreferredAndLaidOut(Dimension(60, 50), Dimension(60, 40)),
+        "padding(5).aspectRatio(2f), bounded" to PreferredAndLaidOut(Dimension(60, 50), Dimension(60, 40)),
+    )
+
+/**
+ * Each [SIZING_MODIFIERS] entry, with a real bound on the container and with none at all
+ * (`wrapContentSize(unbounded = true)`, which is the only way this Swing-packed harness decouples a container's real
+ * layout from its own preferred size - a single-axis `wrapContentWidth`/`wrapContentHeight` still leaves the other
+ * axis tied to the window's pack-to-preferred-size real bound, so it never differs from the bounded case here), for
+ * which the container [content] declares is laid out at a size other than the one it prefers, or, for an entry in
+ * [androidxSizes], at sizes other than the ones listed there, described for a failure message. [content] declares
+ * the entry on a child through `declare`, and bounds the container when `bounded`.
+ */
+private fun preferredAndMeasuredMismatches(
+    androidxSizes: Map<String, PreferredAndLaidOut>,
+    content: @Composable (declare: ConstrainedScope.() -> SwingModifier, bounded: Boolean) -> Unit,
+): List<String> {
+    val mismatches = mutableListOf<String>()
+    for ((name, declare) in SIZING_MODIFIERS) {
+        for (bounded in listOf(true, false)) {
+            runComposeSwingTest {
+                setContent { content(declare, bounded) }
+
+                val actual = PreferredAndLaidOut(container().preferredSize, container().size)
+                val key = "$name, ${if (bounded) "bounded" else "unbounded"}"
+                val expected = androidxSizes[key] ?: PreferredAndLaidOut(actual.preferred, actual.preferred)
+                if (actual != expected) mismatches += "$key: expected $expected, was $actual"
+            }
+        }
+    }
+    return mismatches
+}
+
+/**
+ * One modifier per kind of layout node that sizes to its content, each moving or resizing the child it declares,
+ * paired with the row height and the shared baseline y it must line up at, worked out the way androidx's
+ * baseline-aligned `Row` does: the shared line sits at the lower of the two children's own baselines, measured from
+ * their own top, and the row grows to fit whichever child's own extent below that line is taller.
+ */
+private val BASELINE_MOVING_MODIFIERS: List<Triple<String, RowScope.() -> SwingModifier, Pair<Int, Int>>> =
+    listOf(
+        Triple("padding", { SwingModifier.padding(top = 7) }, 47 to 17),
+        Triple("offset", { SwingModifier.offset(y = 5) }, 45 to 15),
+        Triple("requiredSize", { SwingModifier.requiredSize(30, 20) }, 40 to 10),
+        Triple("sizeIn", { SwingModifier.sizeIn(maxHeight = 12) }, 40 to 10),
+        Triple("aspectRatio", { SwingModifier.aspectRatio(2f) }, 40 to 10),
+        Triple("wrapContentHeight", { SwingModifier.requiredHeight(60).wrapContentHeight() }, 60 to 20),
+        Triple("defaultMinSize", { SwingModifier.defaultMinSize(minHeight = 50) }, 50 to 10),
+        Triple("height(Max)", { SwingModifier.height(IntrinsicSize.Max) }, 40 to 10),
+        Triple(
+            "layout",
+            {
+                SwingModifier.layout { measurable, constraints ->
+                    val placeable = measurable.measure(constraints)
+                    layout(placeable.width, placeable.height) { placeable.place(0, 6) }
+                }
+            },
+            46 to 16,
+        ),
+        Triple("LayoutModifierNode", { SwingModifier.then(ShiftDownElement) }, 46 to 16),
+    )
+
+/** A layout node that places its content 6 lower than it would otherwise sit. */
+private data object ShiftDownElement : LayoutModifierNodeElement<ShiftDownNode>() {
+    override fun create(): ShiftDownNode = ShiftDownNode()
+
+    override fun update(node: ShiftDownNode): Unit = Unit
+}
+
+private class ShiftDownNode : LayoutModifierNode() {
+    override fun MeasureScope.measure(
+        measurable: Measurable,
+        constraints: Constraints,
+    ): MeasureResult {
+        val placeable = measurable.measure(constraints)
+        return layout(placeable.width, placeable.height) { placeable.place(0, 6) }
+    }
+}

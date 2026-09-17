@@ -1,6 +1,7 @@
 package org.jetbrains.compose.swing.foundation.layout
 
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -11,6 +12,7 @@ import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Dimension
 import java.awt.Rectangle
+import javax.swing.JComponent
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -48,6 +50,25 @@ class RowColumnWeightTest {
                 childBounds(),
                 "a single weighted child must take the whole height the column has left over",
             )
+        }
+
+    @Test
+    fun aChangedWeightMeasuresTheChildAgainThroughTheModifiersItDeclares() =
+        runComposeSwingTest {
+            var weight by mutableFloatStateOf(1f)
+            setContent {
+                Row(modifier = containerModifier(100, 10)) {
+                    Box(modifier = SwingModifier.testTag("changed").weight(weight).absoluteOffset(2, 3))
+                    Box(modifier = SwingModifier.weight(1f))
+                }
+            }
+            val changed = onNodeWithTag("changed").fetch<JComponent>()
+            assertEquals(Rectangle(2, 3, 50, 0), changed.bounds)
+
+            weight = 3f
+            awaitIdle()
+
+            assertEquals(Rectangle(2, 3, 75, 0), changed.bounds)
         }
 
     @Test

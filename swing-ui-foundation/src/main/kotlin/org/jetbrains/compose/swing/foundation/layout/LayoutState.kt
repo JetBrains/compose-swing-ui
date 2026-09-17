@@ -14,7 +14,9 @@
  * limitations under the License.
  *
  * Adapted from androidx.compose.ui.node.LayoutNodeLayoutDelegate in AndroidX's ui; see this
- * module's META-INF/NOTICE for the synced version.
+ * module's META-INF/NOTICE for the synced version. The measured-twice and measured-by-parent
+ * error strings are upstream's verbatim, and trackMeasurementByParent mirrors
+ * MeasurePassDelegate's check-then-record logic.
  */
 
 package org.jetbrains.compose.swing.foundation.layout
@@ -28,13 +30,39 @@ internal enum class LayoutState {
 
 /**
  * Starts running the block [state] names over the children of the last layout pass, and answers the state to set
- * [layoutState] back to. A measure block forgets which children's baselines the previous one read.
+ * [layoutState] back to. A measure block starts a pass; a placement block may measure and place again a child the
+ * previous placement run measured and placed.
  */
 internal fun ChildMeasurables.enter(state: LayoutState): LayoutState {
-    if (state == LayoutState.Measuring) {
-        for (index in layoutPass.indices) layoutPass[index].lineReadByMeasure = false
+    for (index in layoutPass.indices) {
+        val child = layoutPass[index]
+        if (state == LayoutState.Measuring || child.lineReadDuring == LayoutState.LayingOut) {
+            child.lineReadDuring = LayoutState.Idle
+        }
+        if (state == LayoutState.Measuring || child.measuredByParent == LayoutState.LayingOut) {
+            child.measuredByParent = LayoutState.Idle
+        }
     }
+    if (state == LayoutState.LayingOut) placementRun++
     val previous = layoutState
     layoutState = state
     return previous
+}
+
+/**
+ * Records this child as measured by the block its container is running, and fails where the pass already measured
+ * it or where the container runs neither block.
+ */
+internal fun ChildMeasurable.trackMeasurementByParent() {
+    check(measuredByParent == LayoutState.Idle) {
+        "measure() may not be called multiple times on the same Measurable. If you want to " +
+            "get the content size of the Measurable before calculating the final constraints, " +
+            "please use methods like minIntrinsicWidth()/maxIntrinsicWidth() and " +
+            "minIntrinsicHeight()/maxIntrinsicHeight()"
+    }
+    val state = owner.layoutState
+    check(state != LayoutState.Idle) {
+        "Measurable could be only measured from the parent's measure or layout block. Parents state is $state"
+    }
+    measuredByParent = state
 }

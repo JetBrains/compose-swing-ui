@@ -93,7 +93,7 @@ class PublicParentLayoutModifierTest {
         var maxW = -1
         var minH = -1
         var maxH = -1
-        var base = -2
+        var base = 0
 
         val outer =
             object : LayoutModifierNode() {
@@ -105,8 +105,8 @@ class PublicParentLayoutModifierTest {
                     maxW = measurable.maxIntrinsicWidth(100)
                     minH = measurable.minIntrinsicHeight(100)
                     maxH = measurable.maxIntrinsicHeight(100)
-                    base = measurable.baseline(10, 10)
                     val placeable = measurable.measure(constraints)
+                    base = placeable[FirstBaseline]
                     return layout(placeable.width, placeable.height) { placeable.place(0, 0) }
                 }
             }
@@ -134,7 +134,7 @@ class PublicParentLayoutModifierTest {
         assertEquals(10, maxW)
         assertEquals(10, minH)
         assertEquals(10, maxH)
-        assertEquals(-1, base)
+        assertEquals(AlignmentLine.UNSPECIFIED, base)
     }
 
     /**

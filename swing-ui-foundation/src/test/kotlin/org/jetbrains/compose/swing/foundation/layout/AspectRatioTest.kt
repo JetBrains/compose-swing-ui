@@ -208,6 +208,34 @@ class AspectRatioTest {
         }
 
     @Test
+    fun aColumnAtItsOwnWidthTakesARatioChildsWidthFromTheChildsHeight() =
+        runComposeSwingTest {
+            setContent {
+                Column {
+                    Column(modifier = SwingModifier.testTag(CONTAINER_TAG)) {
+                        SizedChild(0)
+                        SizedChild(1, SwingModifier.aspectRatio(2f).alignBy { it.measuredWidth })
+                    }
+                }
+            }
+
+            assertEquals(
+                Dimension(2 * CHILD_HEIGHT, 2 * CHILD_HEIGHT),
+                containerPreferredSize(),
+                "a column asking for its own width must ask the ratio for its width at the height the child " +
+                    "takes, as androidx's AspectRatioNode answers it",
+            )
+            assertEquals(
+                listOf(
+                    Rectangle(0, 0, CHILD_WIDTH, CHILD_HEIGHT),
+                    Rectangle(0, CHILD_HEIGHT, 2 * CHILD_HEIGHT, CHILD_HEIGHT),
+                ),
+                childBounds(),
+                "and the column laid out at that width must size the child from its height too",
+            )
+        }
+
+    @Test
     fun testAspectRatioModifier_zeroRatio() {
         with(BoxScopeInstance) {
             assertFailsWith<IllegalArgumentException>("no width per unit height is no ratio at all") {

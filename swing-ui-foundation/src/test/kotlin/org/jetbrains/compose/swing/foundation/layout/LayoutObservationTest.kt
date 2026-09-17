@@ -188,6 +188,39 @@ class LayoutObservationTest {
         }
 
     /**
+     * A policy writing, from the placement block of a layout pass, a state its measure block read measures the
+     * container again, though that pass marks the container valid after the write.
+     */
+    @Test
+    fun aMeasureStateWrittenFromThePlacementBlockOfALayoutPassMeasuresTheContainerAgain() =
+        runComposeSwingTest {
+            val measured = mutableIntStateOf(0)
+            val trigger = mutableIntStateOf(0)
+            var written = false
+            var readWhileMeasuring = -1
+            setContent {
+                Layout(
+                    measurePolicy = { _, _ ->
+                        readWhileMeasuring = measured.intValue
+                        val writes = trigger.intValue != 0
+                        layout(CHILD_WIDTH, CHILD_HEIGHT) {
+                            if (writes && !written) {
+                                written = true
+                                measured.intValue = 1
+                                Snapshot.sendApplyNotifications()
+                            }
+                        }
+                    },
+                )
+            }
+
+            trigger.intValue = 1
+            awaitIdle()
+
+            assertEquals(1, readWhileMeasuring, "the measure block must run again and read the written value")
+        }
+
+    /**
      * A policy writing, from its placement block, a state that same block read places the children again. Ported from
      * androidx's `ModelReadsTest.relayoutRequestForTheNodeBeingLaidOut`.
      */

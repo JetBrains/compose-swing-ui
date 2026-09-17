@@ -430,7 +430,7 @@ private class DeclarationRecordingOverlapPolicy : MeasurePolicy {
         measurables: List<Measurable>,
         constraints: Constraints,
     ): MeasureResult {
-        measuredNames = measurables.map { it.component.name.orEmpty() }
+        measuredNames = measurables.map { (it as ChildMeasurable).component.name.orEmpty() }
         val children =
             measurables.map {
                 it.measure(Constraints(CHILD_WIDTH, CHILD_WIDTH, CHILD_HEIGHT, CHILD_HEIGHT))
