@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.node
 
+import java.awt.Rectangle
 import javax.swing.JMenu
 import javax.swing.JMenuBar
 import javax.swing.JMenuItem
@@ -73,6 +74,137 @@ class MenuApplierTest {
         applier.onEndChanges()
 
         assertEquals(listOf("a", "c", "b"), itemNames(menu))
+    }
+
+    @Test
+    fun remove_repaintsOnlyTheAreaTheMenuLeavesAndClearRepaintsWhatItHeld() {
+        val repaints = mutableListOf<Rectangle>()
+        val bar =
+            object : JMenuBar() {
+                override fun repaint(
+                    tm: Long,
+                    x: Int,
+                    y: Int,
+                    width: Int,
+                    height: Int,
+                ) {
+                    repaints += Rectangle(x, y, width, height)
+                    super.repaint(tm, x, y, width, height)
+                }
+            }
+        bar.setSize(300, 20)
+        val applier = MenuApplier(SwingNodeHolder(bar).attachedTo(TestCompositionOwner.unobserved()))
+
+        applier.onBeginChanges()
+        applier.onNode(applier.root) {
+            listOf("File", "Edit", "View").forEachIndexed { i, text ->
+                insertBottomUp(i, SwingNodeHolder(JMenu(text).apply { setBounds(i * 40, 0, 40, 20) }))
+            }
+        }
+        applier.onEndChanges()
+        repaints.clear()
+
+        applier.onBeginChanges()
+        applier.onNode(applier.root) { remove(1, 1) }
+        applier.onEndChanges()
+
+        assertEquals(listOf("File", "View"), (0 until bar.menuCount).map { bar.getMenu(it).text })
+        assertEquals(listOf(Rectangle(40, 0, 40, 20)), repaints, "only the area the removed menu leaves")
+
+        repaints.clear()
+        applier.onBeginChanges()
+        applier.clear()
+        applier.onEndChanges()
+
+        assertEquals(
+            listOf(Rectangle(0, 0, 120, 20)),
+            repaints,
+            "clearing repaints the union of the area each menu leaves",
+        )
+    }
+
+    @Test
+    fun move_repaintsTheAreaOfTheMovedMenu() {
+        val repaints = mutableListOf<Rectangle>()
+        val bar =
+            object : JMenuBar() {
+                override fun repaint(
+                    tm: Long,
+                    x: Int,
+                    y: Int,
+                    width: Int,
+                    height: Int,
+                ) {
+                    repaints += Rectangle(x, y, width, height)
+                    super.repaint(tm, x, y, width, height)
+                }
+            }
+        bar.setSize(300, 20)
+        val applier = MenuApplier(SwingNodeHolder(bar).attachedTo(TestCompositionOwner.unobserved()))
+
+        applier.onBeginChanges()
+        applier.onNode(applier.root) {
+            listOf("File", "Edit", "View").forEachIndexed { i, text ->
+                insertBottomUp(i, SwingNodeHolder(JMenu(text).apply { setBounds(i * 40, 0, 40, 20) }))
+            }
+        }
+        applier.onEndChanges()
+        repaints.clear()
+
+        applier.onBeginChanges()
+        applier.onNode(applier.root) { move(2, 0, 1) }
+        applier.onEndChanges()
+
+        assertEquals(listOf("View", "File", "Edit"), (0 until bar.menuCount).map { bar.getMenu(it).text })
+        // The bar places the menus again once it lays out; the menus that shift repaint themselves then.
+        assertEquals(listOf(Rectangle(80, 0, 40, 20)), repaints, "the area the moved menu leaves")
+    }
+
+    @Test
+    fun insertBottomUp_repaintsTheAreaOfAMenuThatArrivesWhereTheBarPlacesIt() {
+        val repaints = mutableListOf<Rectangle>()
+        val first = JMenuBar().apply { setSize(300, 20) }
+        val second =
+            object : JMenuBar() {
+                override fun repaint(
+                    tm: Long,
+                    x: Int,
+                    y: Int,
+                    width: Int,
+                    height: Int,
+                ) {
+                    repaints += Rectangle(x, y, width, height)
+                    super.repaint(tm, x, y, width, height)
+                }
+            }
+        second.setSize(300, 20)
+        val menu = JMenu("File")
+        first.add(menu)
+        first.doLayout()
+        val boundsInFirst = menu.bounds
+        first.remove(menu)
+        val applier = MenuApplier(SwingNodeHolder(second).attachedTo(TestCompositionOwner.unobserved()))
+        repaints.clear()
+
+        applier.onBeginChanges()
+        applier.onNode(applier.root) { insertBottomUp(0, SwingNodeHolder(menu)) }
+        applier.onEndChanges()
+        second.doLayout()
+
+        assertEquals(boundsInFirst, menu.bounds, "the second bar places the menu where the first one did")
+        // No relayout repaints a component whose bounds stay the same, and the bar was blank there.
+        assertEquals(listOf(boundsInFirst), repaints, "only the area the arriving menu covers")
+    }
+
+    @Test
+    fun clear_leavesAMenuThatNeverHeldAnItemWithoutAPopup() {
+        val menu = JMenu("File")
+        val applier = MenuApplier(SwingNodeHolder(menu).attachedTo(TestCompositionOwner.unobserved()))
+
+        applier.clear()
+
+        // A menu reports its popup as a sub-element once it has one.
+        assertEquals(0, menu.subElements.size, "clearing a menu with no items must not create its popup")
     }
 
     @Test

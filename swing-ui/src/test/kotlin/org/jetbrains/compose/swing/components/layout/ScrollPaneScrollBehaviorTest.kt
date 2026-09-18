@@ -11,6 +11,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.jetbrains.compose.swing.withRecordedRepaints
 import java.awt.Dimension
 import java.awt.Rectangle
 import javax.swing.JComponent
@@ -87,6 +88,36 @@ class ScrollPaneScrollBehaviorTest {
             SECOND_UNIT_INCREMENT,
             view.getScrollableUnitIncrement(visible, SwingConstants.VERTICAL, 1),
             "a unit increment declared later is the one given from then on",
+        )
+    }
+
+    @Test
+    fun anIncrementDeclaredLaterReachesTheViewportAndAsksForNoLayout() = runComposeSwingTest {
+        var unitIncrement by mutableStateOf(FIRST_UNIT_INCREMENT)
+        setContent {
+            ScrollPane(modifier = SwingModifier.preferredSize(PANE_WIDTH, PANE_HEIGHT)) {
+                Label(text = "Body", modifier = SwingModifier.viewport(unitIncrement = unitIncrement))
+            }
+        }
+
+        val pane = onNodeOfType<JScrollPane>().fetch()
+        val body = assertIs<ScrollableBody>(pane.viewport.view, "a declared answer hosts the content in a body")
+        // An increment is read only as the user scrolls, so nothing is measured or placed differently.
+        withRecordedRepaints { recorded ->
+            unitIncrement = SECOND_UNIT_INCREMENT
+            awaitIdle()
+
+            assertEquals(
+                0,
+                recorded.relayoutsOver(body),
+                "an increment change revalidates neither the body nor its ancestors: ${recorded.relayouts}",
+            )
+        }
+
+        assertEquals(
+            SECOND_UNIT_INCREMENT,
+            body.getScrollableUnitIncrement(visible, SwingConstants.VERTICAL, 1),
+            "the new unit increment is what one arrow button scrolls by",
         )
     }
 
@@ -375,6 +406,40 @@ class ScrollPaneScrollBehaviorTest {
             onNodeOfType<JTextArea>().fetch(),
             "the content survives dropping its last declared answer too",
         )
+    }
+
+    @Test
+    fun rehostingTheContentRepaintsInsideTheViewportAndRevalidatesOnlyTheViewport() = runComposeSwingTest {
+        var unitIncrement by mutableStateOf<Int?>(null)
+        setContent {
+            ScrollPane(modifier = SwingModifier.preferredSize(PANE_WIDTH, PANE_HEIGHT)) {
+                TextArea(
+                    value = "line\n".repeat(LINE_COUNT),
+                    onValueChange = {},
+                    modifier = SwingModifier.viewport(unitIncrement = unitIncrement),
+                )
+            }
+        }
+
+        val pane = onNodeOfType<JScrollPane>().fetch()
+        // A viewport forwards its repaint to the scroll pane, clipped to its own bounds.
+        withRecordedRepaints { recorded ->
+            unitIncrement = FIRST_UNIT_INCREMENT
+            awaitIdle()
+
+            assertIs<ScrollableBody>(pane.viewport.view, "declaring an answer hosts the content in a body")
+            val paneRepaints = recorded.dirtyRegionsOf(pane)
+            assertTrue(paneRepaints.isNotEmpty(), "the viewport that took a new view repaints")
+            assertTrue(
+                paneRepaints.all { pane.viewport.bounds.contains(it) },
+                "swapping the viewport's view repaints the viewport alone, not the scroll pane around it: " +
+                    "$paneRepaints outside ${pane.viewport.bounds}",
+            )
+            assertTrue(pane.viewport in recorded.relayouts, "the viewport that took a new view lays out")
+            // The viewport's own revalidate still has the pane validated, as the pane is its validate root;
+            // what this rules out is a revalidate asked of the pane itself on top of it.
+            assertFalse(pane in recorded.relayouts, "a view swap asks the scroll pane itself for no revalidate")
+        }
     }
 
     @Test

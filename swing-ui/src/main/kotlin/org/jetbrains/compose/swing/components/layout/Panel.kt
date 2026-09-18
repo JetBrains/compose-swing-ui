@@ -137,7 +137,7 @@ public sealed class PanelLayout<S : PanelScope> private constructor(
     ) : PanelLayout<PanelScope>(PanelScopeImpl) {
         override fun installOn(updater: SwingNodeUpdater<JPanel>) {
             updater.init { layout = FlowLayout() }
-            updater.setOnLayout<FlowLayout, _>(alignment) { this.alignment = it }
+            updater.setOnPlacement<FlowLayout, _>(alignment) { this.alignment = it }
             updater.setOnLayout<FlowLayout, _>(hgap) { this.hgap = it }
             updater.setOnLayout<FlowLayout, _>(vgap) { this.vgap = it }
         }

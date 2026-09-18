@@ -139,6 +139,8 @@ public value class SwingNodeUpdater<T : Component>
          * as the component itself.
          */
         internal fun settleWithChildren(block: SwingNodeHolder<T>.() -> Unit): Unit =
+            // Runs on every pass, including one whose declared values are all unchanged and one in which the
+            // applier changes this node's children. Each run stores the block and holds the node once.
             updater.reconcile {
                 childSettle = { block() }
                 requireOwner().updateBatch.holdForChildSettle(this)

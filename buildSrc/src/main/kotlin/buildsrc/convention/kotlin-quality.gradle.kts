@@ -44,6 +44,12 @@ tasks.named("check") {
     dependsOn(tasks.named("detektMain"), tasks.named("detektTest"))
 }
 
+plugins.withId("java-test-fixtures") {
+    tasks.named("check") {
+        dependsOn(tasks.named("detektTestFixtures"))
+    }
+}
+
 // The module carrying this project's own detekt rules; it applies this convention too, and a module
 // cannot contribute its rules to itself.
 private val detektRuleSet = ":swing-ui-detekt"

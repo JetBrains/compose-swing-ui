@@ -62,12 +62,17 @@ internal class ScrollableBody : ScrollablePanel(BorderLayout()) {
     override fun getPreferredScrollableViewportSize(): Dimension =
         content?.preferredScrollableViewportSize ?: super.getPreferredScrollableViewportSize()
 
-    /** The answers this body gives; a changed answer triggers the layout pass that applies it. */
+    /**
+     * The answers this body gives. A changed tracking answer triggers the layout pass that applies it; an
+     * increment is read only as the user scrolls, so a change to one alone invalidates nothing.
+     */
     var behavior: ScrollBehavior = ScrollBehavior.None
         set(value) {
-            if (value == field) return
+            val tracksChanged =
+                value.tracksViewportWidth != field.tracksViewportWidth ||
+                    value.tracksViewportHeight != field.tracksViewportHeight
             field = value
-            revalidate()
+            if (tracksChanged) revalidate()
         }
 
     override fun getScrollableUnitIncrement(

@@ -525,8 +525,14 @@ private val InternalFrameAttachment =
         desktop.setPosition(frame, index.coerceAtMost(desktop.getIndexOf(frame)))
         return@SlotAttachment {
             desktop.remove(component)
+            // `Container.remove` only invalidates, and the icon of an iconified frame is a component the
+            // composition does not hold, so its host repaints the area it leaves.
             val icon = frame.desktopIcon
-            icon.parent?.remove(icon)
+            icon.parent?.let { iconHost ->
+                val iconArea = icon.bounds
+                iconHost.remove(icon)
+                iconHost.repaint(iconArea.x, iconArea.y, iconArea.width, iconArea.height)
+            }
         }
     }
 

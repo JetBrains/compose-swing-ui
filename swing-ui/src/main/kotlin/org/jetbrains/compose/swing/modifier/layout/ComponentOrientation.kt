@@ -28,9 +28,10 @@ public fun SwingModifier.componentOrientation(orientation: ComponentOrientation)
             value = orientation,
             read = { it.componentOrientation },
             // Honest Swing semantics: set on this component only; do not recurse to children.
-            // Orientation flips leading/trailing layout positions (BorderLayout lineStart/lineEnd,
-            // FlowLayout, etc.); setting the property does not request a layout pass on its own, so a
-            // reactive change is otherwise invisible until the next unrelated relayout.
+            // Setting the property only invalidates. Orientation flips leading/trailing layout positions
+            // (BorderLayout lineStart/lineEnd, FlowLayout, etc.), which needs a relayout, and it also moves
+            // what the component paints leading-aligned inside bounds that stay the same, which needs a
+            // repaint. Ask for both.
             write = { component, value ->
                 component.componentOrientation = value
                 component.revalidate()

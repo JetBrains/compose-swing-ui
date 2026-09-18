@@ -13,10 +13,10 @@ import javax.swing.MenuSelectionManager
 
 /**
  * Applier for the menu tree: `JMenuBar`/`JMenu`/`JPopupMenu` containers and `JMenuItem`/`JSeparator`
- * leaves, placed by index. Every container a change pass touches is revalidated and repainted once: the
- * applier hands that walk to [ComponentUpdateBatch]. Every popup of the tree that is on screen is packed
- * in [onEndChanges] and once more on the event-queue turn that follows, so a menu open while the pass ran
- * takes the size of what it shows now.
+ * leaves, placed by index. Every container a change pass touches is revalidated once, by
+ * [ComponentUpdateBatch], and the applier repaints the area a child leaves or arrives in. Every popup of
+ * the tree that is on screen is packed in [onEndChanges] and once more on the event-queue turn that
+ * follows, so a menu open while the pass ran takes the size of what it shows now.
  *
  * Each node keeps its [SwingNodeHolder.children] in composition order, which is the index space the
  * runtime addresses. A parked child stands in that list with its component already detached - the
@@ -63,8 +63,10 @@ internal class MenuApplier(
         val container = parent.menuContainer("add menu child ${instance.component}")
         batch.holdForChildSettle(parent)
         container.add(instance.component, parent.attachedSiblingsBefore(index))
+        // A child that arrives where the container places it would stay unpainted, since no relayout changes
+        // its bounds.
+        batch.markChanged(container, instance.component.bounds)
         parent.children.add(index, instance)
-        batch.markChanged(container)
     }
 
     override fun remove(
@@ -77,8 +79,11 @@ internal class MenuApplier(
         // Each child leaves by component identity: a parked child's component is already detached, so
         // the container holds nothing at that child's composition index, and removing a detached
         // component is a no-op.
-        parent.removeChildRun(index, count) { container.removeMenuChild(it.component) }
-        batch.markChanged(container)
+        parent.removeChildRun(index, count) {
+            val area = it.component.bounds
+            container.removeMenuChild(it.component)
+            batch.markChanged(container, area)
+        }
     }
 
     override fun move(
@@ -95,10 +100,16 @@ internal class MenuApplier(
             from,
             to,
             count,
-            detach = { container.removeMenuChild(it.component) },
-            place = { holder, index -> container.add(holder.component, parent.attachedSiblingsBefore(index)) },
+            detach = {
+                val area = it.component.bounds
+                container.removeMenuChild(it.component)
+                batch.markChanged(container, area)
+            },
+            place = { holder, index ->
+                container.add(holder.component, parent.attachedSiblingsBefore(index))
+                batch.markChanged(container, holder.component.bounds)
+            },
         )
-        batch.markChanged(container)
     }
 
     override fun onClear() {
@@ -110,7 +121,6 @@ internal class MenuApplier(
         if (selection.selectedPath.firstOrNull() === rootMenu) selection.clearSelectedPath()
         removeAllChildren(rootMenu)
         root.children.clear()
-        (rootMenu as? Container)?.let { batch.markChanged(it) }
     }
 
     override fun onBeginChanges() {
@@ -143,12 +153,17 @@ internal class MenuApplier(
     }
 
     private fun removeAllChildren(node: Component) {
-        when (node) {
-            is JMenu -> node.removeAll()
-            is JMenuBar -> node.removeAll()
-            is JPopupMenu -> node.removeAll()
-            else -> error("Cannot clear children of menu node $node")
-        }
+        // A menu holds its items in a popup it creates on first use, so the menu is asked for them rather
+        // than for the popup, and a menu that never held an item gets no popup from being cleared.
+        val items =
+            when (node) {
+                is JMenu -> node.menuComponents
+                is JMenuBar -> node.components
+                is JPopupMenu -> node.components
+                else -> error("Cannot clear children of menu node $node")
+            }
+        items.forEach { batch.markChanged(node, it.bounds) }
+        node.removeAll()
     }
 }
 

@@ -7,6 +7,7 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.Slider
 import org.jetbrains.compose.swing.core.TracedTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import javax.swing.JMenu
 import javax.swing.JMenuBar
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -97,9 +98,9 @@ class ApplySectionTest : TracedTest() {
             }
         val applier = MenuApplier(SwingNodeHolder(failing).attachedTo(TestCompositionOwner.unobserved()))
         applier.onBeginChanges()
-        // Removing nothing still marks the bar as a container the pass touched, which is all the
-        // end-of-pass refresh needs to reach it.
-        applier.remove(index = 0, count = 0)
+        // A menu arriving marks the bar as a container the pass changed, which is all the end-of-pass
+        // refresh needs to reach it.
+        applier.insertBottomUp(0, SwingNodeHolder(JMenu("File")))
 
         assertFailsWith<IllegalStateException> { applier.onEndChanges() }
         tracer.clear()

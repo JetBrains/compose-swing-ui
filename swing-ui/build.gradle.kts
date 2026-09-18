@@ -1,6 +1,7 @@
 import org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation
 
 plugins {
+    `java-test-fixtures`
     id("buildsrc.convention.kotlin-jvm")
     id("buildsrc.convention.kotlin-quality")
     id("buildsrc.convention.publishing")
@@ -40,8 +41,17 @@ dependencies {
     // compileOnly so they warn consumers in-IDE across the jar boundary without leaking
     // org.jetbrains:annotations to the published runtime.
     compileOnly(libs.jetbrainsAnnotations)
+    testFixturesImplementation(kotlin("test"))
+    testFixturesImplementation(project(":swing-ui-test"))
     testImplementation(kotlin("test"))
     testImplementation(project(":swing-ui-test"))
+}
+
+// The fixtures stand in for Swing services while this project's own tests run; they are not part of what
+// the library publishes.
+(components["java"] as AdhocComponentWithVariants).run {
+    withVariantsFromConfiguration(configurations["testFixturesApiElements"]) { skip() }
+    withVariantsFromConfiguration(configurations["testFixturesRuntimeElements"]) { skip() }
 }
 
 jacocoCoverage {

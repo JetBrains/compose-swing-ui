@@ -13,6 +13,7 @@ import java.util.Collections
 import java.util.IdentityHashMap
 import javax.swing.JLayeredPane
 import javax.swing.RootPaneContainer
+import javax.swing.SwingUtilities
 
 /**
  * The [androidx.compose.runtime.Applier] that [org.jetbrains.compose.swing.node.SwingNode] emits into, mutating
@@ -49,7 +50,8 @@ import javax.swing.RootPaneContainer
  *   `Container.add`, and [root] shows the one top-level component that region holds - checked the way
  *   every other single-occupancy host is.
  *
- * Every container mutated during a change pass is revalidated and repainted once, by [ComponentUpdateBatch].
+ * Every container mutated during a change pass is revalidated once, by [ComponentUpdateBatch]. The applier
+ * repaints the area a child leaves or arrives in.
  *
  * Internal implementation type; not public API.
  *
@@ -127,19 +129,19 @@ internal class SwingApplier internal constructor(
                 // Container.add. Install it through the attachment, record on the holder what installed it
                 // and how the region is released again, and record the holder in this node's
                 // composition-ordered child list so remove/move can address it by index and release the
-                // region. Mark the container dirty so the new content gets laid out, and the host for the
-                // one-child-per-region check this pass ends with.
+                // region. Mark the container dirty so the new content gets laid out and the area it covers
+                // repainted, and the host for the one-child-per-region check this pass ends with.
                 val slotIndex = parent.slotIndexOf(container, index)
                 instance.installedThrough(attachment, attachment.install(container, instance.component, slotIndex))
                 instance.declaration.attachedUnder(container)
                 parent.children.add(index, instance)
                 if (parent.childPlacement is ChildPlacement.Slots) changes.recordSlotFilled(parent)
-                batch.markChanged(container)
+                batch.markSlotChanged(container, instance)
                 return
             }
             parent.addToHost(container, instance, index)
             parent.children.add(index, instance)
-            batch.markChanged(container)
+            batch.markChanged(container.childHost, instance.component.bounds)
         }
     }
 
@@ -156,8 +158,10 @@ internal class SwingApplier internal constructor(
                 // are not direct AWT-array entries, so address them by composition index in the child list
                 // and run each holder's uninstall to release the host region (e.g. clear a JScrollPane
                 // region).
-                parent.removeChildRun(index, count) { it.releaseInstalledSlot() }
-                batch.markChanged(container)
+                parent.removeChildRun(index, count) {
+                    batch.markSlotChanged(container, it)
+                    it.releaseInstalledSlot()
+                }
                 return
             }
             // Ordinary children are the AWT array's own entries, but where in that array a host keeps each of
@@ -166,8 +170,11 @@ internal class SwingApplier internal constructor(
             // child list is what says which children the pass drops, and each of them leaves the host by
             // component identity, which addresses the same child however the host has arranged them.
             val childHost = container.childHost
-            parent.removeChildRun(index, count) { childHost.remove(it.component) }
-            batch.markChanged(container)
+            parent.removeChildRun(index, count) {
+                val area = it.component.bounds
+                childHost.remove(it.component)
+                batch.markChanged(childHost, area)
+            }
         }
     }
 
@@ -189,16 +196,24 @@ internal class SwingApplier internal constructor(
 
             // Ordinary children are the AWT array's own entries, and each of them leaves the host by
             // component identity, which addresses the same child whichever place in that array the host
-            // has given it.
+            // has given it. A child's pixels change only where it overlaps a sibling it now stands above or
+            // below, which lies inside its own area, so its bounds before it detaches and after it is
+            // placed again are what the pass repaints.
             val childHost = container.childHost
             parent.moveChildRun(
                 from,
                 to,
                 count,
-                detach = { childHost.remove(it.component) },
-                place = { holder, index -> parent.addToHost(container, holder, index) },
+                detach = {
+                    val area = it.component.bounds
+                    childHost.remove(it.component)
+                    batch.markChanged(childHost, area)
+                },
+                place = { holder, index ->
+                    parent.addToHost(container, holder, index)
+                    batch.markChanged(childHost, holder.component.bounds)
+                },
             )
-            batch.markChanged(container)
         }
     }
 
@@ -214,10 +229,13 @@ internal class SwingApplier internal constructor(
         // The root's placement stays as it was declared when the content mounted: the composition is
         // emptied, not re-hosted.
         val container = root.component as? Container ?: return
-        container.childHost.removeAll()
+        val childHost = container.childHost
+        childHost.run {
+            components.forEach { batch.markChanged(childHost, it.bounds) }
+            removeAll()
+        }
         root.children.clear()
         changes.forget()
-        batch.markChanged(container)
     }
 
     override fun onBeginChanges() {
@@ -324,10 +342,11 @@ private class ChildRegions(
             child.installedThrough(attachment, attachment.install(container, child.component, slotIndex))
             child.declaration.attachedUnder(container)
             if (childPlacement is ChildPlacement.Slots) changes.recordSlotFilled(this)
+            batch.markSlotChanged(container, child)
         } else {
             addToHost(container, child, index)
+            batch.markChanged(container.childHost, child.component.bounds)
         }
-        batch.markChanged(container)
     }
 
     /**
@@ -354,14 +373,15 @@ private class ChildRegions(
         children.fastForEachIndexed { index, child ->
             if (!child.attachedToHost) return@fastForEachIndexed
             if (child.declaredSlot?.name != child.installedSlot?.name) {
+                batch.markSlotChanged(container, child)
                 child.releaseInstalledSlot()
-                batch.markChanged(container)
                 val attachment = attachmentOf(this, child)
                 checkChildKind(container, child, fillsRegion = attachment != null)
                 if (attachment != null) {
                     val slotIndex = slotIndexOf(container, index)
                     child.installedThrough(attachment, attachment.install(container, child.component, slotIndex))
                     if (childPlacement is ChildPlacement.Slots) changes.recordSlotFilled(this)
+                    batch.markSlotChanged(container, child)
                 }
             }
         }
@@ -396,17 +416,20 @@ private class ChildRegions(
             from,
             to,
             count,
-            detach = { it.releaseInstalledSlot() },
+            detach = {
+                batch.markSlotChanged(container, it)
+                it.releaseInstalledSlot()
+            },
             place = { child, index ->
                 val attachment = attachmentOf(host, child)
                 checkChildKind(container, child, fillsRegion = attachment != null)
                 if (attachment != null) {
                     val slotIndex = slotIndexOf(container, index)
                     child.installedThrough(attachment, attachment.install(container, child.component, slotIndex))
+                    batch.markSlotChanged(container, child)
                 }
             },
         )
-        batch.markChanged(container)
     }
 }
 
@@ -641,6 +664,20 @@ private fun SwingNodeHolder<*>.slotIndexOf(
     host: Container,
     index: Int,
 ): Int = if (childPlacement is ChildPlacement.Slots) 0 else standingSiblingsBefore(host, index)
+
+/**
+ * Records [host] as changed over the area [child]'s component covers, in [host]'s coordinates, wherever
+ * its region put it. Called just before a region is released and just after one is filled: an attachment
+ * going through `Container.add` and `Container.remove` only invalidates.
+ */
+private fun ComponentUpdateBatch.markSlotChanged(
+    host: Container,
+    child: SwingNodeHolder<*>,
+) {
+    val component = child.component
+    val parent = component.parent
+    markChanged(host, parent?.let { SwingUtilities.convertRectangle(it, component.bounds, host) })
+}
 
 /** Whether a node declaring this placement holds its children in named regions rather than by index. */
 internal val ChildPlacement.holdsRegions: Boolean

@@ -13,6 +13,7 @@ import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.window.Window
 import org.jetbrains.compose.swing.window.WindowState
+import org.jetbrains.compose.swing.withRecordedRepaints
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.BorderLayout
 import java.awt.CardLayout
@@ -84,6 +85,32 @@ class PanelLayoutReactivityTest {
         assertEquals(FIRST_GAP, layout.vgap, "the vgap declared again")
         assertSame(layout, panel.layout, "the panel should keep the layout it started with")
         assertEquals(1, panel.componentCount, "the child should stay attached")
+    }
+
+    @Test
+    fun aFlowPanelsNewAlignmentMovesItsChildrenWithoutInvalidatingAnything() = runComposeSwingTest {
+        var alignment by mutableIntStateOf(FlowLayout.LEADING)
+        setContent {
+            Panel(PanelLayout.Flow(alignment = alignment), SwingModifier.preferredSize(200, 40)) {
+                Label("child")
+            }
+        }
+
+        val panel = onRoot().onChild().fetch<JPanel>()
+        val child = panel.getComponent(0)
+        val leadingX = child.x
+        // A flow measures a panel by its gaps and its children alone, so an alignment only moves the children.
+        withRecordedRepaints { recorded ->
+            alignment = FlowLayout.TRAILING
+            awaitIdle()
+
+            assertTrue(child.x > leadingX, "the child moves to the trailing edge: from x=$leadingX to x=${child.x}")
+            assertEquals(
+                emptyList(),
+                recorded.relayouts,
+                "a new alignment revalidates neither the panel nor any ancestor",
+            )
+        }
     }
 
     @Test

@@ -7,6 +7,7 @@ import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Color
 import java.awt.Component
@@ -30,15 +31,16 @@ import kotlin.test.assertTrue
  * A `JComponent` self-revalidates and self-repaints inside its own setters, so the modifier must add
  * nothing on that path. A plain AWT [Component] does not: its `setFont` only invalidates (no layout
  * pass, no repaint) and `setForeground`/`setBackground` do neither. So for a non-`JComponent` target
- * the modifier must itself request a relayout and a repaint, or a reactive appearance change that
- * resizes the component stays invisible until some unrelated event happens to relayout/repaint it.
+ * the modifier must itself request what the change needs: a font changes both the size and the
+ * pixels, so it asks for a relayout and a repaint; a color changes only the pixels, so it asks for a
+ * repaint and no relayout.
  *
  * A widget that does invalidate for itself sets the opposite requirement, on the two properties where
  * its setter is unusual: `JTextComponent.setMargin` marks the component invalid without asking for the
- * layout pass that would act on it, so the modifier must ask; `JLabel.setHorizontalTextPosition` asks
- * for a layout and a paint on every call, even one that changes nothing, so a declaration the label is
- * already carrying must reach its setter no further - a recomposition rebuilds the chain, and a
- * redundant write would cost a layout and a paint each time.
+ * layout pass that would act on it or for a paint of the text it moves, so the modifier must ask for both;
+ * `JLabel.setHorizontalTextPosition` asks for a layout and a paint on every call, even one that changes
+ * nothing, so a declaration the label is already carrying must reach its setter no further - a
+ * recomposition rebuilds the chain, and a redundant write would cost a layout and a paint each time.
  *
  * Every case drives the change through the real public API ([SwingNode] plus the modifier under test,
  * re-applied across a recomposition) and observes behavior deterministically under headless.
@@ -88,15 +90,22 @@ class AppearanceInvalidationTest {
         }
     }
 
-    /** A [JTextField] that counts the relayout requests made on it. */
+    /** A [JTextField] that counts the relayout and repaint requests made on it. */
     private class CountingTextField : JTextField() {
         // As with CountingLabel: the superclass constructor's own requests fall outside the count.
         var revalidateCount: Int = 0
+            private set
+        var repaintCount: Int = 0
             private set
 
         override fun revalidate() {
             revalidateCount++
             super.revalidate()
+        }
+
+        override fun repaint() {
+            repaintCount++
+            super.repaint()
         }
     }
 
@@ -171,7 +180,44 @@ class AppearanceInvalidationTest {
     }
 
     @Test
-    fun aTextComponentsMarginChangeAsksForTheLayoutItNeeds() = runComposeSwingTest {
+    fun reactiveBackgroundChangeOnNonJComponentRepaintsWithoutRelayout() = runComposeSwingTest {
+        assertColorChangeRepaintsOnly { SwingModifier.background(it) }
+    }
+
+    @Test
+    fun reactiveForegroundChangeOnNonJComponentRepaintsWithoutRelayout() = runComposeSwingTest {
+        assertColorChangeRepaintsOnly { SwingModifier.foreground(it) }
+    }
+
+    private suspend fun ComposeSwingTest.assertColorChangeRepaintsOnly(declare: (Color) -> SwingModifier) {
+        var color by mutableStateOf(Color.RED)
+        val target = CountingComponent().apply { preferredSize = Dimension(20, 20) }
+
+        setContent {
+            SwingNode(factory = { target }, modifier = declare(color))
+        }
+
+        awaitIdle()
+        val revalidatesBefore = target.revalidateCount.get()
+        val repaintsBefore = target.repaintCount.get()
+
+        color = Color.BLUE
+        awaitIdle()
+
+        assertTrue(
+            target.repaintCount.get() > repaintsBefore,
+            "a color change on a non-JComponent must request a repaint: count before=$repaintsBefore " +
+                "after=${target.repaintCount.get()}",
+        )
+        assertEquals(
+            revalidatesBefore,
+            target.revalidateCount.get(),
+            "a color is read at paint only, so its change must request no relayout",
+        )
+    }
+
+    @Test
+    fun aTextComponentsMarginChangeAsksForTheLayoutAndThePaintItNeeds() = runComposeSwingTest {
         var margin by mutableStateOf(Insets(2, 2, 2, 2))
         val field = CountingTextField()
 
@@ -182,6 +228,7 @@ class AppearanceInvalidationTest {
         awaitIdle()
         assertEquals(margin, field.margin, "the field should carry the declared margin")
         val revalidatesBefore = field.revalidateCount
+        val repaintsBefore = field.repaintCount
 
         margin = Insets(12, 12, 12, 12)
         awaitIdle()
@@ -192,6 +239,11 @@ class AppearanceInvalidationTest {
             "changing a text component's margin must ask for a relayout: count before " +
                 "$revalidatesBefore, after ${field.revalidateCount} - its setter only invalidates, so " +
                 "without this the space inside the border never changes on screen.",
+        )
+        assertTrue(
+            field.repaintCount > repaintsBefore,
+            "changing a text component's margin must ask for a repaint: the text moves inside the border " +
+                "even where the field keeps its bounds, and a relayout that keeps them paints nothing",
         )
     }
 

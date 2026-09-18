@@ -26,10 +26,8 @@ public fun SwingModifier.background(color: Color?): SwingModifier =
             write = { component, value ->
                 component.background = value
                 // JComponent.setBackground already repaints. A plain AWT Component does not, so the
-                // new color would not show until an unrelated repaint - request one here.
-                if (component !is JComponent) {
-                    component.revalidate()
-                    component.repaint()
-                }
+                // new color would not show until an unrelated repaint - request one here. A color is
+                // repainted and needs no layout pass.
+                if (component !is JComponent) component.repaint()
             },
         )

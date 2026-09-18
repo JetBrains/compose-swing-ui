@@ -13,6 +13,7 @@ import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.jetbrains.compose.swing.withRecordedRepaints
 import java.awt.Point
 import javax.swing.JTable
 import javax.swing.JTextField
@@ -59,6 +60,66 @@ class TableBehaviorTest {
         assertEquals(36, model.getValueAt(0, 1), "cell (0,1) value")
         assertEquals("Alan", model.getValueAt(1, 0), "cell (1,0) value")
         assertEquals(41, model.getValueAt(1, 1), "cell (1,1) value")
+    }
+
+    @Test
+    fun aColumnsNewValueReachesTheModelWhileItsRowsAndHeaderStay() = runComposeSwingTest {
+        var unit by mutableStateOf("years")
+        setContent {
+            // Read here, so each pass declares a column whose extractor holds a plain value.
+            val declaredUnit = unit
+            Table(rows = listOf(Person("Ada", 36))) {
+                column("Age") { "${it.age} $declaredUnit" }
+            }
+        }
+
+        val model = onNodeOfType<JTable>().fetch().model
+        assertEquals("36 years", model.getValueAt(0, 0), "the declared extractor fills the cell")
+
+        unit = "yrs"
+        awaitIdle()
+
+        assertEquals("36 yrs", model.getValueAt(0, 0), "a new extractor under the same header fills the model")
+    }
+
+    @Test
+    fun aColumnsNewValueRepaintsTheCellsItFills() = runComposeSwingTest {
+        var unit by mutableStateOf("years")
+        setContent {
+            val declaredUnit = unit
+            Table(rows = listOf(Person("Ada", 36))) {
+                column("Age") { "${it.age} $declaredUnit" }
+            }
+        }
+        val table = onNodeOfType<JTable>().fetch()
+        withRecordedRepaints { recorded ->
+            unit = "yrs"
+            awaitIdle()
+
+            // A table paints each cell from the model when it is repainted, so a cell the table is not asked
+            // to repaint keeps showing the value it last painted.
+            val firstRow = table.getCellRect(0, 0, true).union(table.getCellRect(0, table.columnCount - 1, true))
+            val tableRepaints = recorded.dirtyRegionsOf(table)
+            assertTrue(tableRepaints.any { it.contains(firstRow) }, "the row the new value fills: $tableRepaints")
+        }
+    }
+
+    @Test
+    fun aPassThatKeepsTheColumnsLeavesTheTablesColumnsAlone() = runComposeSwingTest {
+        var rowHeight by mutableStateOf(20)
+        setContent {
+            Table(rows = listOf(Person("Ada", 36)), rowHeight = rowHeight) {
+                column("Age") { it.age }
+            }
+        }
+        val table = onNodeOfType<JTable>().fetch()
+        table.columnModel.getColumn(0).minWidth = 50
+
+        rowHeight = 30
+        awaitIdle()
+
+        assertEquals(30, table.rowHeight, "the pass reached the table")
+        assertEquals(50, table.columnModel.getColumn(0).minWidth, "unchanged columns are not declared again")
     }
 
     @Test

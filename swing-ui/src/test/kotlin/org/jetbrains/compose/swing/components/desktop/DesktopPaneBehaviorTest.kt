@@ -11,9 +11,11 @@ import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.jetbrains.compose.swing.withRecordedRepaints
 import java.awt.Rectangle
 import javax.swing.JDesktopPane
 import javax.swing.JInternalFrame
+import javax.swing.JInternalFrame.JDesktopIcon
 import javax.swing.event.InternalFrameAdapter
 import javax.swing.event.InternalFrameEvent
 import kotlin.test.Test
@@ -22,6 +24,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
@@ -211,6 +214,63 @@ class DesktopPaneBehaviorTest {
         showSecond = true
         awaitIdle()
         onAllNodesOfType<JInternalFrame>().assertCountEquals(2)
+    }
+
+    @Test
+    fun removingAFrameRepaintsTheAreaItLeavesOnTheDesktop() = runComposeSwingTest {
+        var showSecond by mutableStateOf(true)
+        setContent {
+            DesktopPane {
+                InternalFrame(title = "One", bounds = Rectangle(0, 0, 100, 100), onClose = { }) { Label(text = "1") }
+                if (showSecond) {
+                    InternalFrame(title = "Two", bounds = Rectangle(120, 30, 90, 60), onClose = { }) {
+                        Label(text = "2")
+                    }
+                }
+            }
+        }
+        val desktop = onNodeOfType<JDesktopPane>().fetch()
+        withRecordedRepaints { recorded ->
+            showSecond = false
+            awaitIdle()
+
+            onAllNodesOfType<JInternalFrame>().assertCountEquals(1)
+            // `JLayeredPane.remove` only invalidates, so nothing else paints over the area the frame leaves.
+            assertEquals(
+                listOf(Rectangle(120, 30, 90, 60)),
+                recorded.dirtyRegionsOf(desktop),
+                "the area the removed frame leaves",
+            )
+        }
+    }
+
+    @Test
+    fun removingAnIconifiedFrameRepaintsTheAreaItsIconLeaves() = runComposeSwingTest {
+        val state = InternalFrameState(Rectangle(0, 0, 100, 100), iconified = true)
+        var show by mutableStateOf(true)
+        setContent {
+            DesktopPane {
+                if (show) {
+                    InternalFrame(
+                        title = "Editor",
+                        state = state,
+                        onClose = { },
+                        controls = InternalFrameControls(iconifiable = true),
+                    ) { Label(text = "body") }
+                }
+            }
+        }
+        val desktop = onNodeOfType<JDesktopPane>().fetch()
+        val icon = onNodeOfType<JDesktopIcon>().fetch()
+        assertSame(desktop, icon.parent, "the iconified frame stands on the desktop as its icon")
+        val iconArea = icon.bounds
+        withRecordedRepaints { recorded ->
+            show = false
+            awaitIdle()
+
+            onNodeOfType<JDesktopIcon>().assertDoesNotExist()
+            assertContains(recorded.dirtyRegionsOf(desktop), iconArea, "the area the removed icon leaves")
+        }
     }
 
     @Test

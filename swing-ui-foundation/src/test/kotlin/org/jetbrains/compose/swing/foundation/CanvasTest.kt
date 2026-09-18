@@ -13,17 +13,15 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.jetbrains.compose.swing.withRecordedRepaints
 import java.awt.Container
 import java.awt.Dimension
 import java.awt.Rectangle
 import java.awt.image.BufferedImage
 import javax.swing.JComponent
 import javax.swing.JViewport
-import javax.swing.RepaintManager
 import javax.swing.Scrollable
 import javax.swing.SwingConstants
-import kotlin.test.AfterTest
-import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -39,20 +37,6 @@ import kotlin.test.assertTrue
  * snapshot-change callbacks on the single event dispatch thread.
  */
 class CanvasTest {
-    private var hostRepaintManager: RepaintManager? = null
-
-    @BeforeTest
-    fun rememberRepaintManager() {
-        hostRepaintManager = RepaintManager.currentManager(null)
-    }
-
-    @AfterTest
-    fun restoreRepaintManager() {
-        // The repaint manager is process-wide, and a recorder left installed intercepts the repaints
-        // of every later test. Restoring it keeps the recording local to the test that asked for it.
-        RepaintManager.setCurrentManager(hostRepaintManager)
-    }
-
     @Test
     fun drawsOnceInitiallyWithInitialValue() =
         runComposeSwingTest {
@@ -113,30 +97,30 @@ class CanvasTest {
             }
 
             val canvas = onNodeWithTag(CANVAS).fetch<JComponent>()
-            var repaintRequests = 0
-            installRepaintRecorder(canvas) { repaintRequests++ }
+            withRecordedRepaints { repaints ->
 
-            // First paint starts the observer and tracks the read of `value` inside onDraw.
-            forcePaint(canvas)
-            assertEquals(7, lastDrawn, "Initial paint should draw the initial value.")
-            repaintRequests = 0
+                // First paint starts the observer and tracks the read of `value` inside onDraw.
+                forcePaint(canvas)
+                assertEquals(7, lastDrawn, "Initial paint should draw the initial value.")
+                repaints.forget()
 
-            // Mutate the observed state on the EDT and pump apply notifications (awaitIdle does this).
-            // No recomposition occurs; the observer must react by requesting a repaint of the surface.
-            value.intValue = 42
-            awaitIdle()
+                // Mutate the observed state on the EDT and pump apply notifications (awaitIdle does this).
+                // No recomposition occurs; the observer must react by requesting a repaint of the surface.
+                value.intValue = 42
+                awaitIdle()
 
-            assertTrue(
-                repaintRequests > 0,
-                "A state read only inside onDraw changed: the snapshot observer must have requested a " +
-                    "repaint of the surface, with no recomposition and no manual forcePaint. Observed " +
-                    "$repaintRequests repaint requests.",
-            )
+                assertTrue(
+                    repaints.repaintsOf(canvas) > 0,
+                    "A state read only inside onDraw changed: the snapshot observer must have requested a " +
+                        "repaint of the surface, with no recomposition and no manual forcePaint. Observed " +
+                        "${repaints.repaintsOf(canvas)} repaint requests.",
+                )
 
-            // And when that requested repaint is serviced, onDraw re-runs and reads the NEW value -
-            // proving the observation drives a real redraw, not a stale one.
-            forcePaint(canvas)
-            assertEquals(42, lastDrawn, "The serviced repaint must redraw with the new value.")
+                // And when that requested repaint is serviced, onDraw re-runs and reads the NEW value -
+                // proving the observation drives a real redraw, not a stale one.
+                forcePaint(canvas)
+                assertEquals(42, lastDrawn, "The serviced repaint must redraw with the new value.")
+            }
         }
 
     @Test
@@ -168,25 +152,25 @@ class CanvasTest {
             awaitIdle()
 
             val canvas = onNodeWithTag(CANVAS).fetch<JComponent>()
-            var repaintRequests = 0
-            installRepaintRecorder(canvas) { repaintRequests++ }
+            withRecordedRepaints { repaints ->
 
-            forcePaint(canvas)
-            assertEquals(7, lastDrawn, "Initial paint of the recomposition-inserted surface should draw the value.")
-            repaintRequests = 0
+                forcePaint(canvas)
+                assertEquals(7, lastDrawn, "Initial paint of the recomposition-inserted surface should draw the value.")
+                repaints.forget()
 
-            value.intValue = 42
-            awaitIdle()
+                value.intValue = 42
+                awaitIdle()
 
-            assertTrue(
-                repaintRequests > 0,
-                "A state read only inside the onDraw of a Canvas inserted during recomposition changed: the " +
-                    "owner observer must have been wired to it and requested a repaint. Observed " +
-                    "$repaintRequests repaint requests.",
-            )
+                assertTrue(
+                    repaints.repaintsOf(canvas) > 0,
+                    "A state read only inside the onDraw of a Canvas inserted during recomposition changed: the " +
+                        "owner observer must have been wired to it and requested a repaint. Observed " +
+                        "${repaints.repaintsOf(canvas)} repaint requests.",
+                )
 
-            forcePaint(canvas)
-            assertEquals(42, lastDrawn, "The serviced repaint must redraw the surface with the new value.")
+                forcePaint(canvas)
+                assertEquals(42, lastDrawn, "The serviced repaint must redraw the surface with the new value.")
+            }
         }
 
     @Test
@@ -213,21 +197,21 @@ class CanvasTest {
             awaitIdle()
 
             val canvas = onNodeWithTag(CANVAS).fetch<JComponent>()
-            var repaintRequests = 0
-            installRepaintRecorder(canvas) { repaintRequests++ }
+            withRecordedRepaints { repaints ->
 
-            forcePaint(canvas)
-            assertEquals(7, lastDrawn, "Initial paint after activation should draw the value.")
-            repaintRequests = 0
+                forcePaint(canvas)
+                assertEquals(7, lastDrawn, "Initial paint after activation should draw the value.")
+                repaints.forget()
 
-            value.intValue = 42
-            awaitIdle()
+                value.intValue = 42
+                awaitIdle()
 
-            assertTrue(
-                repaintRequests > 0,
-                "A Canvas first activated via ReusableContentHost must be observed: a state read only inside " +
-                    "its onDraw must request a repaint. Observed $repaintRequests repaint requests.",
-            )
+                assertTrue(
+                    repaints.repaintsOf(canvas) > 0,
+                    "A Canvas first activated via ReusableContentHost must be observed: a state read only inside " +
+                        "its onDraw must request a repaint. Observed ${repaints.repaintsOf(canvas)} repaint requests.",
+                )
+            }
         }
 
     @Test
@@ -252,28 +236,28 @@ class CanvasTest {
             }
 
             val canvas = onNodeWithTag(CANVAS).fetch<JComponent>()
-            var repaintRequests = 0
-            installRepaintRecorder(canvas) { repaintRequests++ }
-            forcePaint(canvas)
-            assertEquals(1, drawCount, "the canvas should draw once before removal")
+            withRecordedRepaints { repaints ->
+                forcePaint(canvas)
+                assertEquals(1, drawCount, "the canvas should draw once before removal")
 
-            present = false
-            awaitIdle()
+                present = false
+                awaitIdle()
 
-            onNodeWithTag(CANVAS).assertDoesNotExist()
-            assertTrue(canvas.parent == null, "Removed canvas should be detached from the tree.")
+                onNodeWithTag(CANVAS).assertDoesNotExist()
+                assertTrue(canvas.parent == null, "Removed canvas should be detached from the tree.")
 
-            repaintRequests = 0
-            value.intValue = 42
-            awaitIdle()
+                repaints.forget()
+                value.intValue = 42
+                awaitIdle()
 
-            assertEquals(
-                0,
-                repaintRequests,
-                "A change to state the removed canvas used to read must request no repaint of it: its node " +
-                    "released, so the shared observer no longer tracks its reads.",
-            )
-            assertEquals(1, drawCount, "No further onDraw should occur after removal.")
+                assertEquals(
+                    0,
+                    repaints.repaintsOf(canvas),
+                    "A change to state the removed canvas used to read must request no repaint of it: its node " +
+                        "released, so the shared observer no longer tracks its reads.",
+                )
+                assertEquals(1, drawCount, "No further onDraw should occur after removal.")
+            }
         }
 
     @Test
@@ -300,36 +284,39 @@ class CanvasTest {
             }
 
             val canvas = onNodeWithTag(CANVAS).fetch<JComponent>()
-            var repaintRequests = 0
-            installRepaintRecorder(canvas) { repaintRequests++ }
+            withRecordedRepaints { repaints ->
 
-            // Paint once to track the read, then confirm the surface reacts while it is active - so the
-            // silence asserted below is the parking, not an observer that never worked.
-            forcePaint(canvas)
-            assertEquals(7, lastDrawn, "The first paint should draw the initial value.")
-            repaintRequests = 0
-            value.intValue = 42
-            awaitIdle()
-            assertTrue(repaintRequests > 0, "An active canvas must repaint on a change to state its onDraw read.")
+                // Paint once to track the read, then confirm the surface reacts while it is active - so the
+                // silence asserted below is the parking, not an observer that never worked.
+                forcePaint(canvas)
+                assertEquals(7, lastDrawn, "The first paint should draw the initial value.")
+                repaints.forget()
+                value.intValue = 42
+                awaitIdle()
+                assertTrue(
+                    repaints.repaintsOf(canvas) > 0,
+                    "An active canvas must repaint on a change to state its onDraw read.",
+                )
 
-            active = false
-            awaitIdle()
+                active = false
+                awaitIdle()
 
-            onNodeWithTag(CANVAS).assertDoesNotExist()
-            assertTrue(canvas.parent == null, "A parked canvas is detached from the tree.")
+                onNodeWithTag(CANVAS).assertDoesNotExist()
+                assertTrue(canvas.parent == null, "A parked canvas is detached from the tree.")
 
-            val drawsBeforeParkedPaint = drawCount
-            repaintRequests = 0
-            value.intValue = 43
-            awaitIdle()
+                val drawsBeforeParkedPaint = drawCount
+                repaints.forget()
+                value.intValue = 43
+                awaitIdle()
 
-            assertEquals(
-                0,
-                repaintRequests,
-                "A change to state a parked canvas last read must request no repaint of it: its node was " +
-                    "deactivated, so the shared observer no longer tracks its reads.",
-            )
-            assertEquals(drawsBeforeParkedPaint, drawCount, "No further onDraw should occur while parked.")
+                assertEquals(
+                    0,
+                    repaints.repaintsOf(canvas),
+                    "A change to state a parked canvas last read must request no repaint of it: its node was " +
+                        "deactivated, so the shared observer no longer tracks its reads.",
+                )
+                assertEquals(drawsBeforeParkedPaint, drawCount, "No further onDraw should occur while parked.")
+            }
         }
 
     @Test
@@ -404,23 +391,23 @@ class CanvasTest {
             val reactivated = onNodeWithTag(CANVAS).fetch<JComponent>()
             assertNotSame(canvas, reactivated, "reactivation builds a fresh canvas rather than reusing the parked one")
 
-            var repaintRequests = 0
-            installRepaintRecorder(reactivated) { repaintRequests++ }
-            forcePaint(reactivated)
-            assertEquals(7, lastDrawn, "The fresh canvas should draw the current value.")
-            repaintRequests = 0
+            withRecordedRepaints { repaints ->
+                forcePaint(reactivated)
+                assertEquals(7, lastDrawn, "The fresh canvas should draw the current value.")
+                repaints.forget()
 
-            value.intValue = 42
-            awaitIdle()
+                value.intValue = 42
+                awaitIdle()
 
-            assertTrue(
-                repaintRequests > 0,
-                "The fresh canvas must observe its reads: a change to state read only inside its onDraw must " +
-                    "request a repaint. Observed $repaintRequests repaint requests.",
-            )
+                assertTrue(
+                    repaints.repaintsOf(reactivated) > 0,
+                    "The fresh canvas must observe its reads: a change to state read only inside its onDraw must " +
+                        "request a repaint. Observed ${repaints.repaintsOf(reactivated)} repaint requests.",
+                )
 
-            forcePaint(reactivated)
-            assertEquals(42, lastDrawn, "The serviced repaint must redraw the fresh canvas with the new value.")
+                forcePaint(reactivated)
+                assertEquals(42, lastDrawn, "The serviced repaint must redraw the fresh canvas with the new value.")
+            }
         }
 
     @Test
@@ -445,40 +432,42 @@ class CanvasTest {
             }
 
             val original = onNodeWithTag(CANVAS).fetch<JComponent>()
-            var repaintRequestsForOriginal = 0
-            installRepaintRecorder(original) { repaintRequestsForOriginal++ }
-            forcePaint(original)
+            withRecordedRepaints { repaints ->
+                forcePaint(original)
 
-            reuseKey = 1
-            awaitIdle()
+                reuseKey = 1
+                awaitIdle()
 
-            val replacement = onNodeWithTag(CANVAS).fetch<JComponent>()
-            assertNotSame(original, replacement, "a key change builds a fresh canvas rather than reusing the old one")
-            assertTrue(original.parent == null, "the discarded canvas is detached from the tree")
+                val replacement = onNodeWithTag(CANVAS).fetch<JComponent>()
+                assertNotSame(
+                    original,
+                    replacement,
+                    "a key change builds a fresh canvas rather than reusing the old one",
+                )
+                assertTrue(original.parent == null, "the discarded canvas is detached from the tree")
 
-            repaintRequestsForOriginal = 0
-            readByOldContent.intValue = 2
-            awaitIdle()
+                repaints.forget()
+                readByOldContent.intValue = 2
+                awaitIdle()
 
-            assertEquals(
-                0,
-                repaintRequestsForOriginal,
-                "A change to state only the discarded content read must request no repaint of it: its node " +
-                    "was released, so the shared observer no longer tracks its reads.",
-            )
+                assertEquals(
+                    0,
+                    repaints.repaintsOf(original),
+                    "A change to state only the discarded content read must request no repaint of it: its node " +
+                        "was released, so the shared observer no longer tracks its reads.",
+                )
 
-            var repaintRequestsForReplacement = 0
-            installRepaintRecorder(replacement) { repaintRequestsForReplacement++ }
-            forcePaint(replacement)
-            repaintRequestsForReplacement = 0
-            readByNewContent.intValue = 2
-            awaitIdle()
+                forcePaint(replacement)
+                repaints.forget()
+                readByNewContent.intValue = 2
+                awaitIdle()
 
-            assertTrue(
-                repaintRequestsForReplacement > 0,
-                "The fresh canvas must observe what the new content reads. Observed $repaintRequestsForReplacement " +
-                    "repaint requests.",
-            )
+                assertTrue(
+                    repaints.repaintsOf(replacement) > 0,
+                    "The fresh canvas must observe what the new content reads. Observed " +
+                        "${repaints.repaintsOf(replacement)} repaint requests.",
+                )
+            }
         }
 
     @Test
@@ -504,31 +493,31 @@ class CanvasTest {
             }
 
             val second = onNodeWithTag(SECOND).fetch<JComponent>()
-            var secondRepaints = 0
-            installRepaintRecorder(second) { secondRepaints++ }
+            withRecordedRepaints { repaints ->
 
-            // Paint both so the observer tracks each one's read of `value`.
-            forcePaint(onNodeWithTag(FIRST).fetch<JComponent>())
-            forcePaint(second)
-            secondRepaints = 0
+                // Paint both so the observer tracks each one's read of `value`.
+                forcePaint(onNodeWithTag(FIRST).fetch<JComponent>())
+                forcePaint(second)
+                repaints.forget()
 
-            // Detach the first canvas. Its node releases and forgets its own scope; the shared observer
-            // keeps running for the second canvas.
-            firstPresent = false
-            awaitIdle()
-            onNodeWithTag(FIRST).assertDoesNotExist()
+                // Detach the first canvas. Its node releases and forgets its own scope; the shared observer
+                // keeps running for the second canvas.
+                firstPresent = false
+                awaitIdle()
+                onNodeWithTag(FIRST).assertDoesNotExist()
 
-            // A change to the still-observed state must repaint the surviving canvas - proving the shared
-            // observer was not disposed by the first canvas's detach.
-            value.intValue = 42
-            awaitIdle()
+                // A change to the still-observed state must repaint the surviving canvas - proving the shared
+                // observer was not disposed by the first canvas's detach.
+                value.intValue = 42
+                awaitIdle()
 
-            assertTrue(
-                secondRepaints > 0,
-                "After one canvas detached, a change to the shared observed state must still request a " +
-                    "repaint of the surviving canvas: the owner observer must outlive a single detach. " +
-                    "Observed $secondRepaints repaint requests.",
-            )
+                assertTrue(
+                    repaints.repaintsOf(second) > 0,
+                    "After one canvas detached, a change to the shared observed state must still request a " +
+                        "repaint of the surviving canvas: the owner observer must outlive a single detach. " +
+                        "Observed ${repaints.repaintsOf(second)} repaint requests.",
+                )
+            }
         }
 
     @Test
@@ -611,33 +600,6 @@ class CanvasTest {
         } finally {
             graphics.dispose()
         }
-    }
-
-    /**
-     * Installs a [RepaintManager] that invokes [onRepaintRequest] on each repaint request targeting
-     * [component]. `JComponent.repaint()` routes through `RepaintManager.addDirtyRegion`; intercepting
-     * it captures the request before the manager's `isShowing()` gate would drop it off-screen, so it is
-     * a reliable headless signal. Direct `paint(...)` passes (our [forcePaint]) bypass the manager, so
-     * they never fire the callback.
-     */
-    private fun installRepaintRecorder(
-        component: JComponent,
-        onRepaintRequest: () -> Unit,
-    ) {
-        RepaintManager.setCurrentManager(
-            object : RepaintManager() {
-                override fun addDirtyRegion(
-                    c: JComponent,
-                    x: Int,
-                    y: Int,
-                    w: Int,
-                    h: Int,
-                ) {
-                    if (c === component) onRepaintRequest()
-                    super.addDirtyRegion(c, x, y, w, h)
-                }
-            },
-        )
     }
 
     private companion object {

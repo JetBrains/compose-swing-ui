@@ -5,7 +5,9 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyModifierDiff
 import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
 import org.jetbrains.compose.swing.modifier.listener.listener
+import java.awt.Rectangle
 import javax.swing.JButton
+import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -144,6 +146,30 @@ class SwingNodeHolderLifecycleTest {
         // observable proof that onDeactivate cleared it rather than leaving the install-guard tripped.
         holder.applyModifierDiff(listenerModifier())
         assertEquals(2, attach[0], "a later apply on a deactivated holder must re-attach exactly one fresh listener")
+    }
+
+    @Test
+    fun onDeactivate_repaintsOnlyTheAreaTheComponentLeaves() {
+        val repaints = mutableListOf<Rectangle>()
+        val parent =
+            object : JPanel(null) {
+                override fun repaint(
+                    x: Int,
+                    y: Int,
+                    width: Int,
+                    height: Int,
+                ) {
+                    repaints += Rectangle(x, y, width, height)
+                    super.repaint(x, y, width, height)
+                }
+            }
+        val child = JPanel().apply { setBounds(10, 20, 30, 40) }
+        parent.add(child)
+
+        val holder = SwingNodeHolder(child)
+        holder.onDeactivate()
+
+        assertEquals(listOf(Rectangle(10, 20, 30, 40)), repaints)
     }
 
     @Test

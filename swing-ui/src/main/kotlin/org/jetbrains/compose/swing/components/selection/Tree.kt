@@ -781,7 +781,7 @@ private inline fun TreeNode(
                 settleNarrowing(selectionMirror, selectedPaths, treeSelectionListener) { isRootVisible = visible }
             }
             set(isEditable) { editable -> this.isEditable = editable }
-            set(visibleRowCount) { count -> this.visibleRowCount = count }
+            set(visibleRowCount) { count -> applyVisibleRowCount(count) }
             set(toggleClickCount) { clicks -> this.toggleClickCount = clicks }
         },
     )

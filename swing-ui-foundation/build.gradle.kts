@@ -24,6 +24,7 @@ dependencies {
     api(project(":swing-ui"))
 
     testImplementation(kotlin("test"))
+    testImplementation(testFixtures(project(":swing-ui")))
     testImplementation(project(":swing-ui-test"))
 }
 

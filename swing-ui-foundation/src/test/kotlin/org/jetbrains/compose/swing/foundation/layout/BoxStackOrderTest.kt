@@ -17,14 +17,11 @@ import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
+import org.jetbrains.compose.swing.withRecordedRepaints
 import java.awt.Color
 import java.awt.Component
-import javax.swing.JComponent
 import javax.swing.JLabel
-import javax.swing.RepaintManager
 import javax.swing.SwingUtilities
-import kotlin.test.AfterTest
-import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -37,20 +34,6 @@ import kotlin.test.assertTrue
  * is delivered to.
  */
 class BoxStackOrderTest {
-    private var standingRepaintManager: RepaintManager? = null
-
-    @BeforeTest
-    fun rememberRepaintManager() {
-        standingRepaintManager = RepaintManager.currentManager(null)
-    }
-
-    @AfterTest
-    fun restoreRepaintManager() {
-        // The repaint manager is process-wide, and a recorder left installed would count the repaints
-        // asked for by every later test.
-        RepaintManager.setCurrentManager(standingRepaintManager)
-    }
-
     @Test
     fun theChildDeclaredLastPaintsOverTheOnesBeforeIt() =
         runComposeSwingTest {
@@ -364,16 +347,17 @@ class BoxStackOrderTest {
                 }
             }
 
-            var repaints = 0
-            recordRepaintsOf(box()) { repaints++ }
-            lifted = true
-            awaitIdle()
+            val container = box()
+            withRecordedRepaints { recorded ->
+                lifted = true
+                awaitIdle()
 
-            assertTrue(
-                repaints > 0,
-                "a stack that changed must ask to be painted again: nothing else in the pass does, because " +
-                    "every child keeps the bounds it had",
-            )
+                assertTrue(
+                    recorded.repaintsOf(container) > 0,
+                    "a stack that changed must ask to be painted again: nothing else in the pass does, " +
+                        "because every child keeps the bounds it had",
+                )
+            }
         }
 
     @Test
@@ -417,33 +401,6 @@ private fun liftedPairAddedTo(box: ConstrainedPanel): Pair<Component, Component>
     box.add(under, BoxConstraint())
     box.add(over, BoxConstraint(zIndex = 1f))
     return over to under
-}
-
-/**
- * Counts the repaints asked for on [component] through [onRepaint], for as long as the test runs.
- *
- * `JComponent.repaint()` routes through `RepaintManager.addDirtyRegion`, which is read before the
- * manager's own `isShowing` gate would drop the request off-screen. `BoxStackOrderTest` puts the
- * standing manager back after each test.
- */
-private fun recordRepaintsOf(
-    component: JComponent,
-    onRepaint: () -> Unit,
-) {
-    RepaintManager.setCurrentManager(
-        object : RepaintManager() {
-            override fun addDirtyRegion(
-                c: JComponent,
-                x: Int,
-                y: Int,
-                w: Int,
-                h: Int,
-            ) {
-                if (c === component) onRepaint()
-                super.addDirtyRegion(c, x, y, w, h)
-            }
-        },
-    )
 }
 
 /**

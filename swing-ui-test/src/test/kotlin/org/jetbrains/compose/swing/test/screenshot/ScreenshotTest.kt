@@ -7,6 +7,7 @@ import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Color
+import java.awt.Rectangle
 import java.awt.image.BufferedImage
 import javax.swing.JButton
 import javax.swing.JLabel
@@ -15,6 +16,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class ScreenshotTest {
@@ -189,6 +191,29 @@ class ScreenshotTest {
 
         assertFailsWith<IllegalArgumentException> {
             assertImagesPixelPerfect(image, image, maxDifferentPixels = -1)
+        }
+    }
+
+    @Test
+    fun differingPixelBoundsIsNullForIdenticalImages() {
+        assertNull(differingPixelBounds(filled(Color.WHITE), filled(Color.WHITE)))
+    }
+
+    @Test
+    fun differingPixelBoundsIsTheSmallestRectangleHoldingEveryDifference() {
+        val changed =
+            filled(Color.WHITE).also {
+                it.setRGB(3, 4, Color.RED.rgb)
+                it.setRGB(10, 7, Color.RED.rgb)
+            }
+
+        assertEquals(Rectangle(3, 4, 8, 4), differingPixelBounds(filled(Color.WHITE), changed))
+    }
+
+    @Test
+    fun differingPixelBoundsRefusesImagesOfDifferentSizes() {
+        assertFailsWith<IllegalArgumentException> {
+            differingPixelBounds(filled(Color.WHITE), BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB))
         }
     }
 

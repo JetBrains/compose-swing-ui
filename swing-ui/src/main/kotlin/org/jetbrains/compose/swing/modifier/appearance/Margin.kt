@@ -42,10 +42,13 @@ private val MarginProperty =
         ),
         propertyCase<JTextComponent, Insets?>(
             read = { it.margin },
-            // JTextComponent.setMargin does not revalidate on its own; ask for the layout it needs.
+            // JTextComponent.setMargin only invalidates. A margin changes the preferred size and also moves
+            // the text inside the border, which a relayout that keeps the bounds does not repaint, so this
+            // write asks for both.
             write = { component, value ->
                 component.margin = value
                 component.revalidate()
+                component.repaint()
             },
         ),
     )

@@ -2,7 +2,7 @@ package org.jetbrains.compose.swing.node
 
 import org.jetbrains.compose.swing.core.beginSection
 import java.awt.Container
-import java.util.Collections
+import java.awt.Rectangle
 import java.util.IdentityHashMap
 
 /**
@@ -23,8 +23,12 @@ internal class ComponentUpdateBatch {
     /** The section covering the batch in flight. `null` while no batch is running. */
     private var section: AutoCloseable? = null
 
-    /** The containers this batch changed, revalidated and repainted once when it ends. */
-    private val changedContainers: MutableSet<Container> = Collections.newSetFromMap(IdentityHashMap())
+    /**
+     * The containers this batch changed, each against the union of the areas [markChanged] named for it.
+     * Revalidated and repainted once when the batch ends; a container no area was named for holds an empty
+     * union and repaints nothing.
+     */
+    private val changedContainers: MutableMap<Container, Rectangle> = IdentityHashMap()
 
     /** The nodes still to be settled against their children, in the order the batch held them. */
     private val heldForChildSettle: MutableList<SwingNodeHolder<*>> = ArrayList()
@@ -46,9 +50,22 @@ internal class ComponentUpdateBatch {
         section = beginSection("apply")
     }
 
-    /** Records that this batch changed [container]'s children, so it is brought up to date when the batch ends. */
-    fun markChanged(container: Container) {
-        changedContainers += container
+    /**
+     * Records that this batch changed [container], so it is revalidated when the batch ends.
+     *
+     * [area] names the region of [container] the change repaints, in [container]'s own coordinates, and a
+     * container named more than once repaints the union of every area named for it. Pass a child's bounds
+     * read just before it leaves, and just after it arrives with bounds it already had: `Container.remove`
+     * and `Container.add` only invalidate, and the relayout that follows repaints only the children whose
+     * bounds change. An absent or empty area repaints nothing.
+     */
+    fun markChanged(
+        container: Container,
+        area: Rectangle? = null,
+    ) {
+        // A negative size makes the union empty until the first area is added, which it then becomes.
+        val union = changedContainers.getOrPut(container) { Rectangle(0, 0, -1, -1) }
+        if (area != null && !area.isEmpty) union.add(area)
     }
 
     /**
@@ -84,19 +101,17 @@ internal class ComponentUpdateBatch {
     }
 
     /**
-     * Revalidates and repaints every container this batch changed.
+     * Revalidates every container this batch changed, since `Container.add` and `Container.remove` only
+     * invalidate, then repaints the union of the areas [markChanged] named for it.
      *
-     * The set is cleared by [end], whichever way this goes. The walk is entered only where the batch
-     * changed a container: a batch that just wrote widget properties takes no iterator over an empty
-     * set. `repaint` is load-bearing for the remove case - `Container.remove` only calls
-     * `invalidateIfValid` and never repaints the vacated region, so without it a removed child's pixels
-     * linger. Relayout is already covered by `Component.reshape`.
+     * The map is cleared by [end], whichever way this goes. The walk is entered only where the batch
+     * changed a container: a batch that just wrote widget properties takes no iterator over an empty map.
      */
     private fun refreshChangedContainers() {
         if (changedContainers.isEmpty()) return
-        for (container in changedContainers) {
+        for ((container, area) in changedContainers) {
             container.revalidate()
-            container.repaint()
+            if (!area.isEmpty) container.repaint(area.x, area.y, area.width, area.height)
         }
     }
 

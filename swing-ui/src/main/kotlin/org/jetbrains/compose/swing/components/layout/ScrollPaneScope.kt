@@ -234,15 +234,13 @@ private class ViewportRegion {
         }
     }
 
-    /** Makes [hosted] the viewport's view, and asks for the layout pass that shows it. */
+    /** Makes [hosted] the viewport's view; the viewport asks for the layout and the paint that show it. */
     private fun show(
         scrollPane: JScrollPane,
         hosted: Component,
     ) {
         if (scrollPane.viewport?.view === hosted) return
         scrollPane.setViewportView(hosted)
-        scrollPane.revalidate()
-        scrollPane.repaint()
     }
 
     /**

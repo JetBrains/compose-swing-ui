@@ -278,11 +278,14 @@ private inline fun <R> TableRowsImpl(
         cellCompositions = cellCompositions,
     ) { selectionMirror, columnMirror, sortChannel, columnChannel ->
         // The refresh that gives the table this composition's model, rows, columns and cell renderers,
-        // named step by step. The steps nest instead of running in sequence: each wraps the ones that can
-        // undo what it is putting back, so its own restore runs only once those have already run - which
-        // is why none of the four can be pulled out as an independent set(). The last line's nesting order
-        // is the whole contract; a step's own comment says what it is guarding against.
-        reconcile {
+        // named step by step, run when the rows, the columns or sortable change - the content it installs.
+        // The selection, the sort order and the column layout it puts back are settled on every pass below
+        // and in TableNode, so a change to them alone needs no refresh. The steps nest instead of running
+        // in sequence: each wraps the ones that can undo what it is putting back, so its own restore runs
+        // only once those have already run - which is why none of the four can be pulled out as a set() of
+        // its own. The last line's nesting order is the whole contract; a step's own comment says what it
+        // is guarding against.
+        set(listOf(declaredRows, columns, sortable)) {
             val table = this
 
             // Adopting this composition's model belongs inside the refresh: a table takes only a model

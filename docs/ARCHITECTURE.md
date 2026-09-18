@@ -117,11 +117,12 @@ As a composition changes, the runtime emits structural operations - insert, remo
 that are applied to the backing container. Child order in the AWT tree is kept aligned with
 composition order, so index-based operations always address the intended component.
 
-Swing does not lay out or repaint added, removed, or moved children on its own: a mutated container
-needs an explicit layout-and-repaint pass to make the change visible. Every container touched
-during a change pass therefore gets one such pass once the pass completes, so a change that touches
-a container many times still costs a single layout. The menu tree follows the same model through
-its own applier.
+Swing does not lay out or repaint added, removed, or moved children on its own: adding or removing a
+child only invalidates its container. Every container touched during a change pass is therefore
+revalidated once the pass completes, so a change that touches a container many times still costs a
+single layout. That layout repaints each child whose bounds it changes; the applier repaints the rest
+itself - the area a child leaves as it is taken out, and the area a child that already has bounds
+covers as it is added. The menu tree follows the same model through its own applier.
 
 Changing a *property* of a component that is already attached takes a different route: a component's
 `update` block declares one value per property it drives, and a declaration reaches the widget on the
@@ -470,12 +471,13 @@ sequenceDiagram
 3. A handful of event-dispatch cycles later the invalidated scope re-executes and recomputes the
    label; the stable listener is left in place.
 4. The change is applied to the live button, and its container is marked for layout.
-5. Once the change pass completes, that container is laid out and repainted once, and the new label
-   is on screen.
+5. Once the change pass completes, that container is laid out once, the label repaints itself, and
+   the new label is on screen.
 
 If a child had appeared or disappeared instead - a conditional inside a `PanelLayout.Border` panel -
-the applied change would be an insert or remove in the region that child declares, and the
-layout-and-repaint pass is what makes the structural change visible.
+the applied change would be an insert or remove in the region that child declares, and the layout
+pass, with the applier's repaint of the area the child leaves or covers, is what makes the structural
+change visible.
 
 ---
 
@@ -525,7 +527,7 @@ changes reach the screen:
 |------------------------|----------------------------------------------------------------------------------|-----------------------------------------------------------------------------------|-----------------------------------------------------|-----------------------------------------------|
 | Backing tree           | `java.awt.Container` widgets                                                     | `LayoutNode`s, a tree the toolkit owns outright                                   | live DOM nodes                                      | an in-memory node tree                        |
 | Who lays out           | Swing `LayoutManager`s                                                           | Compose UI's own measure-and-layout pass                                          | the browser's reflow engine                         | the target's own layout pass                  |
-| Making changes visible | an explicit layout-and-repaint pass per touched container                        | the owner is told changes ended, and the next frame draws the scene onto a canvas | mutating the DOM reflows and repaints automatically | the target re-runs layout and renders a frame |
+| Making changes visible | a layout pass per touched container, and a repaint where a child left or arrived | the owner is told changes ended, and the next frame draws the scene onto a canvas | mutating the DOM reflows and repaints automatically | the target re-runs layout and renders a frame |
 | Placement              | explicit constraints, because layout managers need region/constraint information | `Modifier` and layout composables                                                 | CSS and element order                               | the target's own modifier/layout system       |
 | Threading              | the EDT                                                                          | a frame-driven render loop, on the EDT where the desktop target hosts it          | the single-threaded JS event loop                   | the target's render loop                      |
 

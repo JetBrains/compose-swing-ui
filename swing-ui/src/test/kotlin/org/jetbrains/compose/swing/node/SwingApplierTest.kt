@@ -2,6 +2,7 @@ package org.jetbrains.compose.swing.node
 
 import java.awt.Container
 import java.awt.EventQueue
+import java.awt.Rectangle
 import javax.swing.JButton
 import javax.swing.JLabel
 import javax.swing.JPanel
@@ -44,16 +45,23 @@ class SwingApplierTest {
     }
 
     /**
-     * A JPanel that counts how many times [revalidate] and `repaint` are invoked, for the
-     * onEndChanges assertions. Every `Component.repaint()` overload funnels through the five-argument
-     * `repaint(long, int, int, int, int)`, so counting there captures the applier's bare
-     * `container.repaint()` call regardless of how it is dispatched.
+     * A JPanel that counts how many times [revalidate] is invoked and records the area each `repaint`
+     * asks for, for the onEndChanges assertions. Every `Component.repaint()` overload funnels through the
+     * five-argument `repaint(long, int, int, int, int)`, so recording there captures every request
+     * regardless of how it is made.
      */
-    private class CountingPanel : JPanel() {
+    private class CountingPanel : JPanel(null) {
         var revalidateCount: Int = 0
             private set
-        var repaintCount: Int = 0
-            private set
+
+        val repaints: MutableList<Rectangle> = mutableListOf()
+
+        // False until construction ends, so the requests JPanel's own constructor makes are not recorded.
+        private var constructed = false
+
+        init {
+            constructed = true
+        }
 
         override fun revalidate() {
             revalidateCount++
@@ -67,7 +75,7 @@ class SwingApplierTest {
             width: Int,
             height: Int,
         ) {
-            repaintCount++
+            if (constructed) repaints += Rectangle(x, y, width, height)
             super.repaint(tm, x, y, width, height)
         }
     }
@@ -371,34 +379,101 @@ class SwingApplierTest {
         assertEquals(before, root.revalidateCount)
     }
 
+    /** Seeds [root], sized 200x100, with three buttons in a row, each 50x20, in a pass of their own. */
+    private fun seedRow(
+        root: CountingPanel,
+        applier: SwingApplier,
+    ) {
+        root.setSize(200, 100)
+        applier.onBeginChanges()
+        applier.onContainer(applier.root) {
+            listOf("a", "b", "c").forEachIndexed { i, n ->
+                insertChild(i, SwingNodeHolder(namedButton(n).apply { setBounds(i * 50, 0, 50, 20) }))
+            }
+        }
+        applier.onEndChanges()
+        root.repaints.clear()
+    }
+
     @Test
-    fun onEndChanges_repaintsParentRegionAfterRemovingChild() = onEdt {
+    fun onEndChanges_repaintsOnlyTheAreaARemovedChildLeaves() = onEdt {
         val root = CountingPanel()
         val applier = applierFor(root)
+        seedRow(root, applier)
 
-        // Seed the container with two children in their own pass.
+        // Container.remove only invalidates, so the area the child leaves is repainted by the applier; the
+        // siblings keep their bounds and need nothing.
         applier.onBeginChanges()
-        applier.onContainer(applier.root) {
-            insertChild(0, SwingNodeHolder(namedButton("a")))
-            insertChild(1, SwingNodeHolder(namedButton("b")))
-        }
+        applier.onContainer(applier.root) { remove(1, 1) }
         applier.onEndChanges()
 
-        val repaintsBeforeRemoval = root.repaintCount
-
-        // Removing a child vacates its region; AWT's Container.remove only invalidates and never
-        // repaints those pixels, so the applier must repaint the parent once in onEndChanges.
-        applier.onBeginChanges()
-        applier.onContainer(applier.root) {
-            remove(0, 1)
-        }
-        applier.onEndChanges()
-
-        assertEquals(listOf("b"), childNames(root), "the removed child should be gone")
+        assertEquals(listOf("a", "c"), childNames(root), "the removed child should be gone")
         assertEquals(
-            repaintsBeforeRemoval + 1,
-            root.repaintCount,
-            "the parent region should be repainted once after a child is removed",
+            listOf(Rectangle(50, 0, 50, 20)),
+            root.repaints,
+            "only the area the removed child leaves should be repainted",
+        )
+    }
+
+    @Test
+    fun onEndChanges_repaintsOnlyTheAreaOfAMovedChild() = onEdt {
+        val root = CountingPanel()
+        val applier = applierFor(root)
+        seedRow(root, applier)
+
+        applier.onBeginChanges()
+        applier.onContainer(applier.root) { move(0, 3, 1) }
+        applier.onEndChanges()
+
+        assertEquals(listOf("b", "c", "a"), childNames(root), "the child should move to the end")
+        assertEquals(
+            listOf(Rectangle(0, 0, 50, 20)),
+            root.repaints,
+            "only the area of the child whose place among its siblings changed should be repainted",
+        )
+    }
+
+    @Test
+    fun onEndChanges_leavesAnInsertedChildToTheRelayoutThatSizesIt() = onEdt {
+        val root = CountingPanel()
+        val applier = applierFor(root)
+        seedRow(root, applier)
+        val relayoutsBefore = root.revalidateCount
+
+        // A new child has no bounds yet, so it covers no area: the relayout that gives it some repaints it,
+        // and a paint asked for here would only be made again by that relayout.
+        applier.onBeginChanges()
+        applier.onContainer(applier.root) { insertChild(3, SwingNodeHolder(namedButton("d"))) }
+        applier.onEndChanges()
+
+        assertEquals(listOf("a", "b", "c", "d"), childNames(root), "the child should be inserted")
+        assertEquals(
+            relayoutsBefore + 1,
+            root.revalidateCount,
+            "the insert should ask for the relayout that sizes the child",
+        )
+        assertEquals(emptyList(), root.repaints, "and for no paint of its own, which that relayout makes")
+    }
+
+    @Test
+    fun onEndChanges_repaintsTheAreaOfAnInsertedChildThatAlreadyHasBounds() = onEdt {
+        val root = CountingPanel()
+        val applier = applierFor(root)
+        seedRow(root, applier)
+
+        // Bounds written before the child has a parent, as a geometry modifier writes them, repaint nothing,
+        // and a host without a layout manager gives the child no bounds to repaint it through.
+        applier.onBeginChanges()
+        applier.onContainer(applier.root) {
+            insertChild(3, SwingNodeHolder(namedButton("d").apply { setBounds(150, 0, 50, 20) }))
+        }
+        applier.onEndChanges()
+
+        assertEquals(listOf("a", "b", "c", "d"), childNames(root), "the child should be inserted")
+        assertEquals(
+            listOf(Rectangle(150, 0, 50, 20)),
+            root.repaints,
+            "only the area the inserted child covers should be repainted",
         )
     }
 

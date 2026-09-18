@@ -531,7 +531,8 @@ their sizes differ. Reach for it instead of `assertImageMatches` where the image
 rather than merely alike: structural similarity averages over 10x10 windows to tolerate antialiasing
 and font-rasterization drift, which a small localized difference — a stray border, a margin, a
 one-pixel shift — can pass. It is what proves two components rendered by different routes rasterize
-the same.
+the same. `differingPixelBounds(expected, image)` returns the smallest rectangle holding every pixel at
+which the two differ, or `null` where they are the same.
 
 ### Comparing against a hand-built tree
 

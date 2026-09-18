@@ -10,6 +10,7 @@ import org.jetbrains.compose.swing.node.SwingApplier
 import org.jetbrains.compose.swing.node.SwingNodeHolder
 import java.awt.Component
 import java.awt.Container
+import java.awt.Dimension
 
 /**
  * The rubber stamp a widget's composable cells are painted through - ONE reused component and ONE reused
@@ -137,4 +138,8 @@ private fun Stamp(
  * widget dereferences whatever its renderer returns - an empty cell is a component that renders as
  * nothing, not the absence of one.
  */
-private val EMPTY_CELL = Container()
+private val EMPTY_CELL =
+    Container().apply {
+        minimumSize = Dimension()
+        preferredSize = Dimension()
+    }

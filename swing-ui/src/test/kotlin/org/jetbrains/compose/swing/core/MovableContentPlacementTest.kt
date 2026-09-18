@@ -11,7 +11,9 @@ import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
+import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.jetbrains.compose.swing.withRecordedRepaints
 import java.awt.Component
 import javax.swing.JPanel
 import javax.swing.JScrollPane
@@ -199,6 +201,39 @@ class MovableContentPlacementTest : TracedTest() {
         val body = assertIs<Scrollable>(second.viewport.view, "the body answering for the moved content")
         assertTrue(body.scrollableTracksViewportWidth, "an answer declared after the move reaches the pane it is in")
         assertSame(label, onNodeWithText("body").fetch(), "the move keeps the component the content was realized as")
+    }
+
+    @Test
+    fun contentMovedToAHostThatPlacesItAtTheSameBoundsIsPaintedThere() = runComposeSwingTest {
+        var inFirst by mutableStateOf(true)
+        setContent {
+            val content = remember { movableContentOf { Label("body") } }
+            Panel {
+                Panel(PanelLayout.Flow(), SwingModifier.testTag("first").preferredSize(120, 40)) {
+                    if (inFirst) content()
+                }
+                Panel(PanelLayout.Flow(), SwingModifier.testTag("second").preferredSize(120, 40)) {
+                    if (!inFirst) content()
+                }
+            }
+        }
+
+        val label = onNodeWithText("body").fetch()
+        val second = onNodeWithTag("second").fetch<JPanel>()
+        val boundsInFirst = label.bounds
+        withRecordedRepaints { recorded ->
+            inFirst = false
+            awaitIdle()
+
+            assertSame(second, label.parent, "the content moves to the second host")
+            assertEquals(boundsInFirst, label.bounds, "the second host places the content where the first one did")
+            // No relayout repaints a component whose bounds stay the same.
+            assertEquals(
+                listOf(boundsInFirst),
+                recorded.dirtyRegionsOf(second),
+                "the host the content arrives at repaints the area the content covers there, and no more",
+            )
+        }
     }
 }
 

@@ -26,8 +26,8 @@ public fun SwingModifier.font(font: Font?): SwingModifier =
             write = { component, value ->
                 component.font = value
                 // JComponent.setFont already revalidates and repaints. A plain AWT Component only
-                // invalidates, so a font change that resizes it stays invisible until an unrelated
-                // relayout - request one here for the non-JComponent target.
+                // invalidates, so request both here: a font changes the size, which needs a relayout,
+                // and the glyphs, which need a repaint even where the bounds stay the same.
                 if (component !is JComponent) {
                     component.revalidate()
                     component.repaint()

@@ -197,11 +197,12 @@ public final class org/jetbrains/compose/swing/test/screenshot/ScreenshotTestKt 
 	public static final fun assertImageMatches (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/awt/image/BufferedImage;D)V
 	public static synthetic fun assertImageMatches$default (Lorg/jetbrains/compose/swing/test/ComposeSwingTest;Ljava/awt/image/BufferedImage;Ljava/awt/image/BufferedImage;DILjava/lang/Object;)V
 	public static synthetic fun assertImageMatches$default (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/awt/image/BufferedImage;DILjava/lang/Object;)V
-	public static final fun assertImagesPixelPerfect (Lorg/jetbrains/compose/swing/test/ComposeSwingTest;Ljava/awt/image/BufferedImage;Ljava/awt/image/BufferedImage;I)V
-	public static synthetic fun assertImagesPixelPerfect$default (Lorg/jetbrains/compose/swing/test/ComposeSwingTest;Ljava/awt/image/BufferedImage;Ljava/awt/image/BufferedImage;IILjava/lang/Object;)V
+	public static final fun assertImagesPixelPerfect (Ljava/awt/image/BufferedImage;Ljava/awt/image/BufferedImage;I)V
+	public static synthetic fun assertImagesPixelPerfect$default (Ljava/awt/image/BufferedImage;Ljava/awt/image/BufferedImage;IILjava/lang/Object;)V
 	public static final fun captureToImage (Ljava/awt/Component;)Ljava/awt/image/BufferedImage;
 	public static final fun captureToImage (Lorg/jetbrains/compose/swing/test/ComposeSwingTest;)Ljava/awt/image/BufferedImage;
 	public static final fun captureToImage (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;)Ljava/awt/image/BufferedImage;
 	public static final fun captureToImages (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteractionCollection;)Ljava/util/List;
+	public static final fun differingPixelBounds (Ljava/awt/image/BufferedImage;Ljava/awt/image/BufferedImage;)Ljava/awt/Rectangle;
 }
 

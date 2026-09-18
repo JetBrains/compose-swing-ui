@@ -8,7 +8,7 @@ import java.awt.Container
 import java.awt.image.BufferedImage
 import javax.swing.JComponent
 import javax.swing.JPanel
-import javax.swing.RepaintManager
+import javax.swing.SwingUtilities
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlin.test.fail
@@ -23,9 +23,9 @@ import kotlin.test.fail
  * a later event-dispatch cycle - which is what [assertUnadoptedChangeIsPutBack] bounds - is still one the
  * user sees flash past. This pins the stronger property: the put-back lands before that repaint is served.
  *
- * Repaints are counted through a [RepaintManager] of the test's own, installed once the widget is
- * mounted and holding [declared], and restored before this returns. It stands in for the real one on the
- * one property under test: a repaint is served from a later event than the one that asked for it.
+ * Repaints are counted through a [RecordedRepaints] serving each request from a later event than the one
+ * that asked for it, installed only while the change is made. What the widget holds is read as each paint
+ * is served, after the layout the repaint asked for has been applied.
  *
  * [content] is handed the report to call from the callback the component under test reports changes
  * through. Calling it adopts nothing - it only states that the widget told the caller it had changed,
@@ -67,7 +67,6 @@ internal suspend fun <C : JComponent> assertUnadoptedChangeIsNeverPainted(
     val composition = JPanel()
     val recomposer = SwingRecomposer.create(composition)
     var mounted: DisposableHandle? = null
-    val standingManager = RepaintManager.currentManager(composition)
     try {
         var reported = false
         mounted = composition.setContent(parent = recomposer.compositionContext) { content { reported = true } }
@@ -84,25 +83,33 @@ internal suspend fun <C : JComponent> assertUnadoptedChangeIsNeverPainted(
             "what the user did before the change must leave the declaration standing",
         )
 
-        val repaints = RecordedRepaints(value = { read(widget) }, paint = ::paintOffscreen)
-        RepaintManager.setCurrentManager(repaints)
-        change.made(widget)
-        assertTrue(
-            reported,
-            "the change must reach the ${type.simpleName} and be reported before paints are counted",
-        )
-        repeat(PAINT_CYCLES) { yield() }
+        val shown = mutableListOf<Any?>()
+        val recorded =
+            RecordedRepaints { component, served ->
+                SwingUtilities.invokeLater {
+                    served()
+                    shown += read(widget)
+                    paintOffscreen(component)
+                }
+            }
+        withRecordedRepaints(recorded) {
+            change.made(widget)
+            assertTrue(
+                reported,
+                "the change must reach the ${type.simpleName} and be reported before paints are counted",
+            )
+            repeat(PAINT_CYCLES) { yield() }
+        }
 
-        assertTrue(repaints.served.isNotEmpty(), "the change must provoke a paint of the ${type.simpleName}")
+        assertTrue(shown.isNotEmpty(), "the change must provoke a paint of the ${type.simpleName}")
         assertEquals(
             emptyList(),
-            repaints.served.filter { shown -> shown != declared },
+            shown.filter { it != declared },
             "a change the caller does not adopt must be off the ${type.simpleName} before the paint it " +
                 "asked for is served, so that the user is shown the declaration and nothing else; the paints " +
-                "showed ${repaints.served}",
+                "showed $shown",
         )
     } finally {
-        RepaintManager.setCurrentManager(standingManager)
         mounted?.dispose()
         recomposer.dispose()
     }

@@ -93,6 +93,10 @@ public fun ScrollPane(
  * The `ScrollPane.viewportBorder` key cannot answer for this border. A look and feel installs it onto
  * the pane itself, and one built on [javax.swing.plaf.synth.SynthLookAndFeel] installs it from a style
  * of its own and publishes no key at all. The border is read off the pane and written back from there.
+ *
+ * `JScrollPane.setViewportBorder` only fires a property change, and no look and feel acts on it. The
+ * write asks for both halves itself: the pane's layout takes the viewport in by the border's insets, and
+ * the border is drawn in the room that leaves.
  */
 private fun SwingModifier.declaredViewportBorder(border: Border?): SwingModifier =
     if (border == null) {
@@ -102,6 +106,10 @@ private fun SwingModifier.declaredViewportBorder(border: Border?): SwingModifier
             name = "viewportBorder",
             value = border,
             read = { it.viewportBorder },
-            write = { pane, value -> pane.viewportBorder = value },
+            write = { pane, value ->
+                pane.viewportBorder = value
+                pane.revalidate()
+                pane.repaint()
+            },
         )
     }

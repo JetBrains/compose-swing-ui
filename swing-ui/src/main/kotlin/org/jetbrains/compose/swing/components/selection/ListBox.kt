@@ -552,7 +552,7 @@ private inline fun <T> ListBoxNode(
             set(selectionMode) { mode ->
                 narrowSelection(mirror, selectedIndices, listSelectionListener) { this.selectionMode = mode }
             }
-            set(visibleRowCount) { count -> this.visibleRowCount = count }
+            set(visibleRowCount) { count -> applyVisibleRowCount(count) }
             set(layoutOrientation) { orientation -> this.layoutOrientation = orientation }
             installContent(mirror)
             // Run on every pass regardless of whether a selection is declared, so the set calls this makes

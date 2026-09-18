@@ -99,7 +99,9 @@ public sealed interface TableScope<R> {
  * @param cellContent renders this column's cells through a composable body, against a [TableCellScope]
  *   and the row each cell belongs to; `null` (the default) renders a cell through the renderer the table
  *   picks by [V]
- * @param value extracts the cell value to display for a given row
+ * @param value extracts the cell value to display for a given row. Hold one instance across passes: an
+ *   extractor is compared by identity, so one built anew each pass - a capturing lambda - updates every row
+ *   each pass
  * @see javax.swing.table.TableColumn
  */
 @Suppress("LongParameterList")
@@ -117,17 +119,18 @@ public inline fun <R, reified V : Any> TableScope<R>.column(
     noinline cellContent: (@Composable TableCellScope.(row: R) -> Unit)? = null,
     noinline value: (row: R) -> V?,
 ) {
-    val columnClass = V::class.javaObjectType
     addColumn(
         header = header,
-        columnClass = columnClass,
+        columnClass = V::class.javaObjectType,
         isEditable = isEditable,
         isCellEditable = isCellEditable,
         isSortable = isSortable,
         comparator = comparator,
         minWidth = minWidth,
         maxWidth = maxWidth,
-        onCellEdit = { row, rowIndex, newValue -> onCellEdit(row, rowIndex, columnClass.cast(newValue)) },
+        // Handed over as the same instance, so a pass declaring the same callback declares the same column.
+        // The model casts each committed value to the column class, V, before it reaches the callback.
+        onCellEdit = @Suppress("UNCHECKED_CAST") (onCellEdit as (row: R, rowIndex: Int, newValue: Any?) -> Unit),
         cellContent = cellContent,
         value = value,
     )
@@ -169,7 +172,9 @@ public inline fun <R, reified V : Any> TableScope<R>.column(
  * @param cellContent renders this column's cells through a composable body, against a [TableCellScope]
  *   and the row each cell belongs to; `null` (the default) renders a cell through the renderer the table
  *   picks by [columnClass]
- * @param value extracts the cell value to display for a given row
+ * @param value extracts the cell value to display for a given row. Hold one instance across passes: an
+ *   extractor is compared by identity, so one built anew each pass - a capturing lambda - updates every row
+ *   each pass
  * @see javax.swing.table.TableColumn
  */
 @Suppress("LongParameterList")
@@ -206,6 +211,10 @@ public fun <R> TableScope<R>.column(
 /**
  * One declared column: its header, class, value extractor, editability, sorting rules, widths, edit
  * callback and cell body.
+ *
+ * Two declarations are equal when every value is equal and every callback is the same instance. A callback is
+ * compared by identity because a function reference carries an `equals` of its own, under which two
+ * references the table must tell apart compare equal.
  */
 @Suppress("LongParameterList")
 // One field per declared aspect of a column; see TableScope.addColumn, which hands them over one for one.
@@ -221,7 +230,36 @@ internal class ColumnDeclaration<R>(
     val onCellEdit: (row: R, rowIndex: Int, newValue: Any?) -> Unit,
     val cellContent: (@Composable TableCellScope.(row: R) -> Unit)?,
     val value: (row: R) -> Any?,
-)
+) {
+    override fun equals(other: Any?): Boolean =
+        other is ColumnDeclaration<*> &&
+            header == other.header &&
+            columnClass == other.columnClass &&
+            isEditable == other.isEditable &&
+            isCellEditable === other.isCellEditable &&
+            isSortable == other.isSortable &&
+            comparator === other.comparator &&
+            minWidth == other.minWidth &&
+            maxWidth == other.maxWidth &&
+            onCellEdit === other.onCellEdit &&
+            cellContent === other.cellContent &&
+            value === other.value
+
+    override fun hashCode(): Int {
+        var result = header.hashCode()
+        result = 31 * result + columnClass.hashCode()
+        result = 31 * result + isEditable.hashCode()
+        result = 31 * result + System.identityHashCode(isCellEditable)
+        result = 31 * result + isSortable.hashCode()
+        result = 31 * result + System.identityHashCode(comparator)
+        result = 31 * result + minWidth
+        result = 31 * result + maxWidth
+        result = 31 * result + System.identityHashCode(onCellEdit)
+        result = 31 * result + System.identityHashCode(cellContent)
+        result = 31 * result + System.identityHashCode(value)
+        return result
+    }
+}
 
 internal class TableScopeImpl<R> : TableScope<R> {
     val columns: MutableList<ColumnDeclaration<R>> = ArrayList()
@@ -261,7 +299,8 @@ internal class TableScopeImpl<R> : TableScope<R> {
 
 /**
  * The [AbstractTableModel] backing a [Table]: it presents the rows it was last given through the
- * [columns]' value extractors and routes a committed cell edit to the edited column's `onCellEdit`.
+ * [columns]' value extractors and routes a committed cell edit, cast to the edited column's class, to
+ * that column's `onCellEdit`.
  *
  * The model answers every read - row count, cell value, editability - from the rows it was last given,
  * which are held apart from any list the caller keeps, so what it reports is always what the table was
@@ -272,8 +311,8 @@ internal class TableScopeImpl<R> : TableScope<R> {
  * [refresh] takes the latest rows and columns on every recomposition and fires the *narrowest*
  * change event the difference warrants: a structure change only when the column shape (count,
  * headers, classes, editability, cell bodies) differs, an insert, delete or update naming just the rows
- * that differ, and nothing at all when neither did, so a recomposition that changed no data leaves the
- * table entirely alone.
+ * that differ, an update of every row when a column's value extractor is another instance, and nothing at
+ * all when none of these did, so a recomposition that changed no data leaves the table entirely alone.
  */
 internal class ColumnsTableModel<R> : AbstractTableModel() {
     /**
@@ -303,6 +342,9 @@ internal class ColumnsTableModel<R> : AbstractTableModel() {
         // The difference between the two row lists is worked out once, before the new one is adopted: it
         // is both what the table is told and what decides whether an edit survives being told it.
         val change = if (structureChanged) null else rowChange(this.rows, rows)
+        // A new value extractor can answer other values for rows that did not change, and only reading
+        // every row through it could tell which, so every row is updated.
+        val valuesChanged = valuesMayDiffer(this.columns, columns, rows)
         // An editor commits by index, into whatever the model holds there by then, and nothing fired below
         // takes one off by itself.
         val standsAt = if (table.isEditing) editedRowAfter(table, structureChanged, change) else GONE
@@ -325,14 +367,17 @@ internal class ColumnsTableModel<R> : AbstractTableModel() {
         // The change goes out as the narrowest event that describes it. One that both moves the row count
         // and rewrites rows falls back to the wholesale change, which costs a full repaint and empties the
         // table's selection.
-        if (change == null) return
-        val head = change.head
-        when {
-            change.removed == 0 -> fireTableRowsInserted(head, head + change.added - 1)
-            change.added == 0 -> fireTableRowsDeleted(head, head + change.removed - 1)
-            change.removed == change.added -> fireTableRowsUpdated(head, head + change.added - 1)
-            else -> fireTableDataChanged()
+        if (change != null) {
+            val head = change.head
+            // Where every row is updated below, that update names an in-place edit's rows too.
+            when {
+                change.removed == 0 -> fireTableRowsInserted(head, head + change.added - 1)
+                change.added == 0 -> fireTableRowsDeleted(head, head + change.removed - 1)
+                change.removed != change.added -> return fireTableDataChanged()
+                !valuesChanged -> fireTableRowsUpdated(head, head + change.added - 1)
+            }
         }
+        if (valuesChanged) fireTableRowsUpdated(0, rows.lastIndex)
     }
 
     /**
@@ -415,7 +460,9 @@ internal class ColumnsTableModel<R> : AbstractTableModel() {
         rowIndex: Int,
         columnIndex: Int,
     ) {
-        columns[columnIndex].onCellEdit(rows[rowIndex], rowIndex, aValue)
+        val column = columns[columnIndex]
+        val valueClass = column.columnClass.kotlin.javaObjectType
+        column.onCellEdit(rows[rowIndex], rowIndex, valueClass.cast(aValue))
     }
 
     /**
@@ -471,6 +518,13 @@ internal class ColumnsTableModel<R> : AbstractTableModel() {
                     (old[i].cellContent == null) != (new[i].cellContent == null)
             }
         }
+
+        /** Whether some column of the same shape reads non-empty [rows] through another value extractor. */
+        fun valuesMayDiffer(
+            old: List<ColumnDeclaration<*>>,
+            new: List<ColumnDeclaration<*>>,
+            rows: List<*>,
+        ): Boolean = rows.isNotEmpty() && old.size == new.size && old.indices.any { old[it].value !== new[it].value }
     }
 }
 

@@ -137,7 +137,7 @@ public fun SwingNodeInteraction<*>.assertImageMatches(
  *   pixels.
  * @throws IllegalArgumentException if [maxDifferentPixels] is negative.
  */
-public fun ComposeSwingTest.assertImagesPixelPerfect(
+public fun assertImagesPixelPerfect(
     expected: BufferedImage,
     image: BufferedImage,
     maxDifferentPixels: Int = 0,

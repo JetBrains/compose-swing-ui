@@ -313,12 +313,17 @@ internal class SwingNodeHolder<out T : Component>
         override fun onDeactivate() {
             deactivated = true
             reset()
+            // No batch runs here, so the parent repaints the area the component leaves itself, once it has
+            // revalidated: `Container.remove` only invalidates. Both are read before the region is released,
+            // which can take the component out of its parent.
+            val parent = component.parent
+            val area = component.bounds
             releaseInstalledSlot()
             release()
-            component.parent?.let {
-                it.remove(component)
-                it.revalidate()
-                it.repaint()
+            if (parent != null) {
+                parent.remove(component)
+                parent.revalidate()
+                parent.repaint(area.x, area.y, area.width, area.height)
             }
         }
 

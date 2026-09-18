@@ -22,6 +22,20 @@ internal inline fun <reified L : LayoutManager, V> SwingNodeUpdater<out JPanel>.
     }
 
 /**
+ * Writes [value] to the panel's layout manager as [setOnLayout] does, for a value the manager reads only
+ * where it places the children and never where it measures the panel: the panel lays its children out
+ * again, and nothing above it is invalidated.
+ */
+internal inline fun <reified L : LayoutManager, V> SwingNodeUpdater<out JPanel>.setOnPlacement(
+    value: V,
+    crossinline block: L.(V) -> Unit,
+): Unit =
+    set(value) {
+        (layout as L).block(it)
+        doLayout()
+    }
+
+/**
  * Writes [value] to the panel's layout manager as [setOnLayout] does, but skips the pass that builds the
  * panel. Use it when the factory already built the manager from the same value.
  */
