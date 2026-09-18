@@ -3,6 +3,9 @@ package org.jetbrains.compose.swing.modifier.listener
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import io.mockk.mockk
+import kotlinx.coroutines.DisposableHandle
+import org.jetbrains.compose.swing.TestRecomposer
 import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.ComboBox
 import org.jetbrains.compose.swing.components.Label
@@ -10,6 +13,8 @@ import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.runSwingTest
+import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Assumptions.assumeFalse
@@ -32,17 +37,17 @@ import java.awt.event.MouseWheelListener
 import java.beans.PropertyChangeListener
 import javax.swing.JButton
 import javax.swing.JComboBox
+import javax.swing.JComponent
 import javax.swing.JFileChooser
+import javax.swing.JFrame
 import javax.swing.JLabel
 import javax.swing.JTextField
 import javax.swing.event.CaretListener
 import javax.swing.event.ChangeListener
-import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
 import javax.swing.event.HyperlinkListener
 import javax.swing.event.InternalFrameAdapter
 import javax.swing.event.ListSelectionListener
-import javax.swing.event.TreeExpansionEvent
 import javax.swing.event.TreeExpansionListener
 import javax.swing.event.TreeSelectionListener
 import javax.swing.event.TreeWillExpandListener
@@ -196,6 +201,9 @@ class RawListenerModifierTest {
             Label("X", modifier = SwingModifier.propertyChangeListener(listener))
         }
         val label = onNodeOfType<JLabel>().fetch()
+        // Joining the tree is itself a bound-property change, "ancestor"; only the changes below count.
+        fired = 0
+        seenProperties.clear()
 
         label.isEnabled = false
         assertEquals(1, fired, "the first bound-property change must notify the unbound listener once")
@@ -286,39 +294,58 @@ class RawListenerModifierTest {
     }
 
     @Test
-    fun actionListenerOnRawAwtComponentsIsRegisteredOnEach() = runComposeSwingTest {
-        // The component under test is a heavyweight AWT one, which cannot be built at all
-        // without a display, rather than merely shown on one.
+    fun actionListenerOnRawAwtComponentsIsRegisteredOnEach() = runSwingTest {
+        // These components need a native widget to get a peer, which the harness root never provides
+        // (it stands under no window). A real window, realized but never shown, gives them one.
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val buttonListener = ActionListener { }
         val textFieldListener = ActionListener { }
         val listListener = ActionListener { }
-        setContent {
-            SwingNode(
-                factory = { AwtButton() },
-                modifier = SwingModifier.actionListener(buttonListener),
+        val frame = JFrame()
+        val test = TestRecomposer(this)
+        var handle: DisposableHandle? = null
+        try {
+            // Realized before composing, so each child gets its peer the moment it is added.
+            frame.pack()
+            val target = frame.contentPane as JComponent
+            handle =
+                target.setContent(parent = test.recomposer) {
+                    SwingNode(
+                        factory = { AwtButton() },
+                        modifier = SwingModifier.actionListener(buttonListener),
+                    )
+                    SwingNode(
+                        factory = { AwtTextField() },
+                        modifier = SwingModifier.actionListener(textFieldListener),
+                    )
+                    SwingNode(
+                        factory = { AwtList() },
+                        modifier = SwingModifier.actionListener(listListener),
+                    )
+                }
+            test.awaitIdle()
+
+            val children = target.components
+            val button = children.filterIsInstance<AwtButton>().single()
+            val textField = children.filterIsInstance<AwtTextField>().single()
+            val list = children.filterIsInstance<AwtList>().single()
+            assertTrue(
+                button.actionListeners.any { it === buttonListener },
+                "the instance should be registered on the AWT button",
             )
-            SwingNode(
-                factory = { AwtTextField() },
-                modifier = SwingModifier.actionListener(textFieldListener),
+            assertTrue(
+                textField.actionListeners.any { it === textFieldListener },
+                "the instance should be registered on the AWT text field",
             )
-            SwingNode(
-                factory = { AwtList() },
-                modifier = SwingModifier.actionListener(listListener),
+            assertTrue(
+                list.actionListeners.any { it === listListener },
+                "the instance should be registered on the AWT list",
             )
+        } finally {
+            handle?.dispose()
+            frame.dispose()
+            test.cancel()
         }
-        assertTrue(
-            onNodeOfType<AwtButton>().fetch().actionListeners.any { it === buttonListener },
-            "the instance should be registered on the AWT button",
-        )
-        assertTrue(
-            onNodeOfType<AwtTextField>().fetch().actionListeners.any { it === textFieldListener },
-            "the instance should be registered on the AWT text field",
-        )
-        assertTrue(
-            onNodeOfType<AwtList>().fetch().actionListeners.any { it === listListener },
-            "the instance should be registered on the AWT list",
-        )
     }
 
     @Test
@@ -386,7 +413,7 @@ class RawListenerModifierTest {
         assertDeclaredChainCarriedOnce { changeListener(ChangeListener { }) }
         assertDeclaredChainCarriedOnce { componentListener(object : ComponentAdapter() {}) }
         assertDeclaredChainCarriedOnce { containerListener(object : ContainerAdapter() {}) }
-        assertDeclaredChainCarriedOnce { documentListener(NoDocumentChange) }
+        assertDeclaredChainCarriedOnce { documentListener(mockk<DocumentListener>(relaxed = true)) }
         assertDeclaredChainCarriedOnce { focusListener(object : FocusAdapter() {}) }
         assertDeclaredChainCarriedOnce { hierarchyListener(HierarchyListener { }) }
         assertDeclaredChainCarriedOnce { hyperlinkListener(HyperlinkListener { }) }
@@ -402,35 +429,9 @@ class RawListenerModifierTest {
         assertDeclaredChainCarriedOnce { mouseMotionListener(object : MouseMotionAdapter() {}) }
         assertDeclaredChainCarriedOnce { mouseWheelListener(MouseWheelListener { }) }
         assertDeclaredChainCarriedOnce { propertyChangeListener(PropertyChangeListener { }) }
-        assertDeclaredChainCarriedOnce { treeExpansionListener(NoTreeExpansion) }
+        assertDeclaredChainCarriedOnce { treeExpansionListener(mockk<TreeExpansionListener>(relaxed = true)) }
         assertDeclaredChainCarriedOnce { treeSelectionListener(TreeSelectionListener { }) }
-        assertDeclaredChainCarriedOnce { treeWillExpandListener(NoTreeWillExpand) }
+        assertDeclaredChainCarriedOnce { treeWillExpandListener(mockk<TreeWillExpandListener>(relaxed = true)) }
         assertDeclaredChainCarriedOnce { listener<JButton, ActionEvent, ActionListener>(JButton::class, callbacks) { } }
     }
 }
-
-/** A [DocumentListener] that answers nothing, for a declaration whose only subject is the chain. */
-private val NoDocumentChange =
-    object : DocumentListener {
-        override fun insertUpdate(event: DocumentEvent) = Unit
-
-        override fun removeUpdate(event: DocumentEvent) = Unit
-
-        override fun changedUpdate(event: DocumentEvent) = Unit
-    }
-
-/** A [TreeExpansionListener] that answers nothing, for a declaration whose only subject is the chain. */
-private val NoTreeExpansion =
-    object : TreeExpansionListener {
-        override fun treeExpanded(event: TreeExpansionEvent) = Unit
-
-        override fun treeCollapsed(event: TreeExpansionEvent) = Unit
-    }
-
-/** A [TreeWillExpandListener] that vetoes nothing, for a declaration whose only subject is the chain. */
-private val NoTreeWillExpand =
-    object : TreeWillExpandListener {
-        override fun treeWillExpand(event: TreeExpansionEvent) = Unit
-
-        override fun treeWillCollapse(event: TreeExpansionEvent) = Unit
-    }

@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.components.text
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import io.mockk.mockk
 import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
@@ -11,7 +12,6 @@ import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.type
 import javax.swing.JPasswordField
-import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -117,7 +117,9 @@ class PasswordFieldBehaviorTest {
 
     @Test
     fun rawOverloadSettlesAnEditTheCallerDoesNotAdopt() = runComposeSwingTest {
-        setContent { PasswordField(value = "hunter2".toCharArray(), documentListener = noopDocumentListener()) }
+        setContent {
+            PasswordField(value = "hunter2".toCharArray(), documentListener = mockk<DocumentListener>(relaxed = true))
+        }
 
         val field = onNodeOfType<JPasswordField>()
         field.performTextReplacement("intruder")
@@ -152,12 +154,4 @@ class PasswordFieldBehaviorTest {
         assertEquals("abc", String(field.password), "the declaration refuses the keystroke")
         assertEquals(1, field.caretPosition, "the unadopted edit should be rolled back without collapsing the caret")
     }
-}
-
-private fun noopDocumentListener(): DocumentListener = object : DocumentListener {
-    override fun insertUpdate(e: DocumentEvent) = Unit
-
-    override fun removeUpdate(e: DocumentEvent) = Unit
-
-    override fun changedUpdate(e: DocumentEvent) = Unit
 }

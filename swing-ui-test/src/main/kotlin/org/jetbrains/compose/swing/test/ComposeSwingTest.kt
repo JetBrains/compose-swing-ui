@@ -18,7 +18,6 @@ import kotlinx.coroutines.swing.Swing
 import kotlinx.coroutines.test.TestResult
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.yield
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.core.ContainedCallerFailure
 import org.jetbrains.compose.swing.core.setLifecycleOwner
@@ -39,6 +38,8 @@ import java.awt.event.InvocationEvent
 import javax.swing.JComponent
 import javax.swing.JPanel
 import javax.swing.SwingUtilities
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
@@ -91,10 +92,10 @@ public interface ComposeSwingTest {
     public var lifecycleState: Lifecycle.State
 
     /**
-     * Sets the composable [content] of the test [root] and settles the composition so the AWT tree
+     * Sets the composable [content] of the test [root] and waits until the composition is idle so the AWT tree
      * reflects the initial state before returning. May be called only once per test.
      *
-     * This settle depends on [mainClock]'s `autoAdvance` exactly as [awaitIdle] does: with it at its
+     * This wait depends on [mainClock]'s `autoAdvance` exactly as [awaitIdle] does: with it at its
      * default of `true` this call sends whatever frames the composition needs, but with it `false` no
      * frame is sent here either, so an effect gated on the first `withFrameNanos` - a frame-driven
      * animation started from initial composition, for instance - stays parked until the test calls
@@ -109,10 +110,11 @@ public interface ComposeSwingTest {
     /**
      * Suspends until the composition is idle, making the AWT tree reflect the latest state.
      *
-     * This is suspending rather than blocking, so recomposition can make progress while it waits. It
-     * returns once there is neither pending recomposition nor pending snapshot work AND the EDT
-     * queue has drained the runnables the settled composition scheduled - a window show that a
-     * `Dialog { }` defers to its own dispatch, for example, has landed by the time this returns.
+     * It runs the event dispatch thread's queue itself, so recomposition makes progress while it waits,
+     * and returns once there is neither pending recomposition nor pending snapshot work AND the EDT
+     * queue has drained the runnables the idle composition scheduled - a window show that a
+     * `Dialog { }` defers to its own dispatch, for example, has landed by the time this returns. The tree
+     * is validated only once that queue is drained, as a window validates after the events ahead of it.
      *
      * With [mainClock]'s `autoAdvance` at its default of `true`, reaching that state is this call's
      * own job: it sends whatever frames are needed. With `autoAdvance` set to `false`, this drains
@@ -121,7 +123,7 @@ public interface ComposeSwingTest {
      * returns on; call [MainTestClock.advanceTimeByFrame] or [MainTestClock.advanceTimeBy] to move
      * it forward.
      *
-     * If the composition never settles within a generous frame cap, this fails with an
+     * If the composition never becomes idle within a generous frame cap, this fails with an
      * [AssertionError] whose message names the outstanding work and includes a readable dump of the
      * current AWT tree (including realized windows), rather than hanging until the
      * surrounding test framework times out.
@@ -142,7 +144,7 @@ public interface ComposeSwingTest {
      * purpose takes it from here and asserts on it; what it takes no longer fails the test.
      *
      * A failure arrives here once the pass that provoked it has been driven, so take it after the
-     * [awaitIdle] or [awaitEventsDelivered] that settles the write - taking it before returns nothing and
+     * [awaitIdle] or [awaitEventsDelivered] that brings the write through - taking it before returns nothing and
      * leaves the failure to end the test.
      */
     public fun takeCallerFailures(): List<Throwable>
@@ -152,7 +154,7 @@ public interface ComposeSwingTest {
      * dispatched, **without producing a composition frame**.
      *
      * A frame is what lets the composition recompose and apply its changes, so withholding one takes
-     * apart the two things [awaitIdle] settles together. Once this returns, whatever the widgets
+     * apart the two things [awaitIdle] waits for together. Once this returns, whatever the widgets
      * reported has run - a listener callback, a runnable a widget scheduled for itself - and no
      * recomposition can have contributed to what the AWT tree now shows. A test that has to tell "the
      * widget told us" apart from "a recomposition happened" asserts between this gate and [awaitIdle].
@@ -170,7 +172,7 @@ public interface ComposeSwingTest {
      * Suspends until [condition] returns `true`, driving frames between checks.
      *
      * Prefer [awaitIdle] followed by a plain assertion wherever it suffices: it is fully
-     * deterministic. Use [waitUntil] only when a settled condition cannot be expressed that way
+     * deterministic. Use [waitUntil] only when an idle condition cannot be expressed that way
      * (e.g. work gated on genuinely external timing).
      *
      * Bounded by BOTH a frame cap and the [timeout] wall-clock deadline; whichever trips first
@@ -181,9 +183,10 @@ public interface ComposeSwingTest {
      * keeps being polled until the wall-clock deadline.
      *
      * Frames are sent only while [MainTestClock.autoAdvance] is on. With it off the test owns the
-     * frames, so this gate sends none and consumes none of its cap: each poll publishes pending
-     * snapshot writes and dispatches queued event-dispatch-thread work - leaving a coroutine parked
-     * in `withFrameNanos` exactly where it is - until the condition holds or the deadline passes.
+     * frames, so this gate sends none and consumes none of its cap: each poll dispatches queued
+     * event-dispatch-thread work - leaving a coroutine parked in `withFrameNanos` exactly where it is -
+     * until the condition holds or the deadline passes. Either way, a poll validates the tree only once
+     * that queue is drained.
      *
      * A failure the library itself raises on the event dispatch thread fails this call the same way
      * [awaitIdle] does.
@@ -358,10 +361,11 @@ public fun ComposeSwingTest.onAllWindows(): SwingWindowInteractionCollection = o
  * idle/await calls. Because the body runs on the EDT, queries and actions read and write the AWT
  * tree directly, and [ComposeSwingTest.awaitIdle] suspends rather than blocking.
  *
- * Runs with or without a display: the root is never attached to a [java.awt.Window], so no native
- * peer is realized and no UI is shown. The root is given a fixed size and laid out synchronously on
- * every idle pass, so tree/text/constraint AND bounds-based assertions (see
- * [SwingNodeInteraction.assertIsDisplayed]) all work off-screen.
+ * Runs with or without a display, and shows nothing. Swing's own invalidation and layout run as they
+ * do in a window, at a fixed root size, so tree/text/constraint AND bounds-based assertions (see
+ * [SwingNodeInteraction.assertIsDisplayed]) all work off-screen. A heavyweight AWT component that
+ * needs a native peer (for example [java.awt.Canvas], [java.awt.Button]) is tested in a window the
+ * test owns instead.
  *
  * Content may also compose real top-level peers (`Window { }`, `Dialog { }`); those are found with
  * [ComposeSwingTest.onWindow] and are torn down with the composition when the block completes. Realizing
@@ -370,20 +374,25 @@ public fun ComposeSwingTest.onAllWindows(): SwingWindowInteractionCollection = o
  * of the block, so the test reports SKIPPED rather than failing on headless environments.
  *
  * @param rootSize the off-screen [ComposeSwingTest.root]'s fixed size. The default is large enough
- * that realistic test layouts get sensible, non-zero child bounds under a forced layout pass.
+ * that realistic test layouts get sensible, non-zero child bounds.
  * @param timeout the wall-clock deadline after which an unfinished [block] fails the test
  * instead of hanging it. The frame caps inside [ComposeSwingTest.awaitIdle] and [ComposeSwingTest.waitUntil]
  * only bound the work those gates drive themselves; this bounds the test as a whole.
+ * @param effectContext extra context elements the composition's effects run under - what a
+ * [androidx.compose.runtime.LaunchedEffect] body and a [androidx.compose.runtime.rememberCoroutineScope]
+ * scope see. The harness's own dispatcher, job, frame clock and policies are added after it and win
+ * over anything named here.
  * @param block the test body, run on the Event Dispatch Thread against a fresh [ComposeSwingTest].
  */
 public fun runComposeSwingTest(
     rootSize: Dimension = Dimension(800, 600),
     timeout: Duration = 60.seconds,
+    effectContext: CoroutineContext = EmptyCoroutineContext,
     block: suspend ComposeSwingTest.() -> Unit,
 ): TestResult =
     runTest(timeout = timeout) {
         withContext(Dispatchers.Swing) {
-            ComposeSwingTestImpl(rootSize).use {
+            ComposeSwingTestImpl(rootSize, effectContext).use {
                 it.block()
             }
         }
@@ -405,16 +414,27 @@ private class HarnessLifecycleOwner : LifecycleOwner {
     override val lifecycle: Lifecycle get() = registry
 }
 
+/**
+ * The test's root. [addNotify] gives it the stand-in peer a lightweight component gets, so an
+ * invalidation travels up the tree; like a window, it is the root of its focus cycle; and it never
+ * shows.
+ */
+private class TestRootPanel : JPanel() {
+    init {
+        isFocusCycleRoot = true
+    }
+
+    override fun isShowing(): Boolean = false
+}
+
 private class ComposeSwingTestImpl(
-    private val rootSize: Dimension,
+    rootSize: Dimension,
+    effectContext: CoroutineContext,
 ) : ComposeSwingTest,
     AutoCloseable {
     override val root: JComponent =
-        JPanel().apply {
-            // Give the off-screen root a concrete size so a forced layout pass assigns real,
-            // non-zero bounds to descendants. Without this, an unrealized container reports zero
-            // size and every child lays out to 0x0, making bounds-based assertions meaningless.
-            // We never attach the root to a Window, so no peer is realized and no UI is shown.
+        TestRootPanel().apply {
+            // The root stands in no window, so nothing else gives it a size to lay its children out in.
             size = rootSize
             preferredSize = rootSize
         }
@@ -435,13 +455,17 @@ private class ComposeSwingTestImpl(
      * inherits the same one.
      */
     private val restoreCheck = ModifierRestoreCheck(::recordLibraryFailure)
-    private val scope = CoroutineScope(Dispatchers.Swing + Job() + clock + restoreCheck)
+
+    private val scope =
+        CoroutineScope(
+            effectContext + Dispatchers.Swing + Job() + clock + restoreCheck,
+        )
     private val recomposer = Recomposer(scope.coroutineContext)
 
     override val mainClock: MainTestClock =
         MainTestClockImpl(
             currentTimeNanos = { frameTimeNanos },
-            advanceAndSettle = ::advanceAndSettleBlocking,
+            runFrame = ::runFrame,
             diagnostics = { root.dumpTree() + realizedWindowsTreeDump() + compositionFailureNote() },
         )
 
@@ -458,7 +482,7 @@ private class ComposeSwingTestImpl(
      * Held here rather than left to escape the coroutine it was raised in. Escaping, it would arrive as an
      * uncaught exception with no test attached to it, failing whichever test the runner happened to be on
      * rather than the one that caused it. Kept, it names the composition that stopped in the report of every
-     * gate that goes on to find nothing to settle, so a test asserting on a widget the composition no longer
+     * gate that goes on to find nothing left to run, so a test asserting on a widget the composition no longer
      * drives says why rather than reporting a bare stale value.
      */
     private var compositionFailure: Throwable? = null
@@ -490,7 +514,7 @@ private class ComposeSwingTestImpl(
      * as the library's own failure and recorded here rather than forwarded to whichever handler the
      * thread reported through before this test claimed it.
      *
-     * A gate that would otherwise settle by finding nothing left to do throws this instead of returning
+     * A gate that would otherwise return idle by finding nothing left to do throws this instead of returning
      * normally, and clears it once thrown; one still recorded when the test ends fails it too, so a
      * failure that arrives without a further gate call afterward is not silently dropped.
      */
@@ -500,6 +524,7 @@ private class ComposeSwingTestImpl(
         // Published before anything composes, so a root mounted into this container resolves this owner
         // rather than minting one that follows a container standing in no window.
         root.setLifecycleOwner(lifecycleOwner)
+        root.addNotify()
         dispatchThread.setUncaughtExceptionHandler { _, failure ->
             // A ContainedCallerFailure names a caller callback the library deliberately contained; every
             // other throwable reaching this handler is the library's own failure - see libraryFailure.
@@ -521,7 +546,7 @@ private class ComposeSwingTestImpl(
         }
     }
 
-    /** Names the failure that ended recomposition, for a gate reporting what it could not settle. */
+    /** Names the failure that ended recomposition, for a gate reporting a composition that never became idle. */
     private fun compositionFailureNote(): String =
         compositionFailure
             ?.let {
@@ -529,7 +554,7 @@ private class ComposeSwingTestImpl(
                     "the tree shows below is what it was left holding.\n" + it.stackTraceToString()
             }.orEmpty() + callerFailureNote() + libraryFailureNote()
 
-    /** Names the callback failures contained so far, for a gate reporting what it could not settle. */
+    /** Names the callback failures contained so far, for a gate reporting a composition that never became idle. */
     private fun callerFailureNote(): String =
         if (callerFailures.isEmpty()) {
             ""
@@ -552,7 +577,7 @@ private class ComposeSwingTestImpl(
         if (existing != null) existing.addSuppressed(failure) else libraryFailure = failure
     }
 
-    /** Names a still-unclaimed [libraryFailure], for a gate reporting what it could not settle. */
+    /** Names a still-unclaimed [libraryFailure], for a gate reporting a composition that never became idle. */
     private fun libraryFailureNote(): String =
         libraryFailure
             ?.let {
@@ -562,7 +587,7 @@ private class ComposeSwingTestImpl(
 
     /**
      * Throws and forgets [libraryFailure], once one has arrived, so a gate reports the failure the
-     * library raised rather than quietly finding nothing left to settle over a tree it already stopped
+     * library raised rather than quietly finding nothing left to run over a tree it already stopped
      * maintaining.
      */
     private fun throwLibraryFailure() {
@@ -574,109 +599,131 @@ private class ComposeSwingTestImpl(
     override fun setContent(content: @Composable () -> Unit) {
         check(!contentSet) { "setContent may only be called once per test." }
         contentSet = true
-        // We are already on the EDT (the whole test body runs there), so mount synchronously.
         disposeHandle = root.setContent(parent = recomposer, content = content)
-        // Drive an initial settle so the AWT tree reflects the initial state before returning. We are
-        // on the EDT and cannot suspend here, so we pump frames and let the recomposer (queued on the
-        // EDT) make progress by spinning a nested AWT secondary loop between frames.
-        settleBlocking()
+        runUntil("setContent", nextFrame = ::frameIfNeeded, done = ::idle)
     }
 
     override suspend fun awaitIdle() {
-        // Deterministic idle gate. Because the test body runs on the EDT, a blocking wait would
-        // deadlock the recomposer (which also runs on the EDT); instead we suspend, yielding the EDT
-        // back to the recomposer between passes so it can recompose and apply changes.
-        //
-        // Each outer pass: publish pending snapshot writes, send a frame unless mainClock has been
-        // told to hold it back, yield the EDT so the recomposer coroutine runs, then force a
-        // synchronous layout pass. The gate returns only when the composition has reached the state
-        // idle() names below AND the EDT queue holds nothing that could revive it. Idleness is never
-        // declared while a pending snapshot write or an already-scheduled EDT task could still
-        // produce observable work.
-        var work = 0
-        while (true) {
-            // Deliver pending snapshot writes to the recomposer ourselves rather than relying on the
-            // production GlobalSnapshotManager, whose apply-notification dispatch is asynchronous and
-            // backed by process-wide mutable dedup state shared across tests. Calling it directly here
-            // makes each test's idle gate self-contained and deterministic.
-            Snapshot.sendApplyNotifications()
-            // A frame may be requested either by the recomposer (pending invalidations) or by an
-            // effect awaiting withFrameNanos; with mainClock.autoAdvance on, send one unconditionally
-            // so awaiters proceed. With it off, the test drives frames itself, so idle() below treats
-            // a composition parked waiting for the next frame as the idle state to return on rather
-            // than something to chase with a frame this gate produced itself.
-            if (mainClock.autoAdvance) {
-                frameTimeNanos += FRAME_INTERVAL_NANOS
-                clock.sendFrame(frameTimeNanos)
-            }
-            // Hand the EDT to the recomposer (also on Dispatchers.Swing) so it can observe the frame,
-            // recompose, and apply changes to the AWT tree before we re-check idleness.
-            yield()
-            throwLibraryFailure()
-            // Force a synchronous layout pass so descendants get real, non-zero bounds off-screen.
-            layoutRoot()
-            work++
-            if (idle()) {
-                // The composition is quiescent, but applying it may have left runnables scheduled on
-                // the EDT that a single yield does not reach - a window/dialog defers its realization
-                // to a later dispatch, and any such task can chain another invokeLater or wake a frame
-                // awaiter that posts its own runnable. Drain until no scheduled runnable remains rather
-                // than a fixed number of turns: a yield dispatches exactly the runnables queued before
-                // its own continuation, so work scheduled during a yield lands after it and needs
-                // another. Yielding is the drain step precisely because it advances queued work without
-                // leaving any dispatch artifact behind.
-                //
-                // The termination condition tracks what a dispatch could still run - scheduled
-                // runnables and the bounds notifications a layout pass queues - and not every event on
-                // the queue; noPendingDispatch names which and why. So the gate returns once the
-                // composition is idle AND nothing of that kind is queued: no scheduled EDT callback, no
-                // undelivered notification and no pending recomposition remain to revive observable
-                // work. If a dispatched runnable instead revived the composition (a snapshot write, a
-                // fresh invalidation), we abandon draining and let the next outer pass send a frame
-                // and recompose. MAX_IDLE_FRAMES
-                // bounds the combined drains and frames so a runnable source that never quiesces fails
-                // readably instead of spinning forever.
-                while (idle()) {
-                    if (noPendingDispatch()) return
-                    yield()
-                    throwLibraryFailure()
-                    Snapshot.sendApplyNotifications()
-                    if (++work >= MAX_IDLE_FRAMES) break
-                }
-            }
-            if (work >= MAX_IDLE_FRAMES) throw notSettled("awaitIdle")
-        }
+        runUntil("awaitIdle", nextFrame = ::frameIfNeeded, done = ::idle)
     }
 
     override suspend fun awaitEventsDelivered() {
-        // Yielding is the drain step for the reason it is in awaitIdle: on Dispatchers.Swing it
-        // dispatches the runnables queued ahead of its own continuation and leaves no artifact behind.
-        // No frame is sent, and the recomposer recomposes and applies only from inside withFrameNanos,
-        // so nothing this delivers can reach the AWT tree by way of the composition.
+        // No frame is sent, and the recomposer recomposes and applies only from inside one, so nothing
+        // this delivers can reach the AWT tree by way of the composition.
         var drains = 0
-        while (!noPendingDispatch()) {
-            yield()
-            throwLibraryFailure()
-            drains++
-            if (drains >= MAX_IDLE_FRAMES) throw notDrained()
+        while (!drainQueue(layOut = false)) {
+            if (++drains >= MAX_STEPS) throw notIdle("awaitEventsDelivered")
         }
     }
 
-    private fun notDrained(): AssertionError =
-        AssertionError(
-            "awaitEventsDelivered did not drain after $MAX_IDLE_FRAMES passes: the event dispatch thread " +
-                "still holds scheduled work or an undelivered notification, so something keeps queueing " +
-                "more. Current tree:\n" +
-                root.dumpTree() + realizedWindowsTreeDump() + compositionFailureNote(),
-        )
+    override suspend fun waitUntil(
+        timeout: Duration,
+        condition: () -> Boolean,
+    ) {
+        // Bounded by both a frame cap and a wall-clock deadline. Only frames the composition consumes
+        // count toward the cap, so a frame-driven loop that never meets the condition fails after a fixed
+        // number of frames, while a condition waiting on external timing is polled until the deadline.
+        val deadline = System.nanoTime() + timeout.inWholeNanoseconds
+        var frames = 0
+        while (true) {
+            throwLibraryFailure()
+            if (condition()) return
+            if (frames >= MAX_STEPS || System.nanoTime() >= deadline) {
+                throw AssertionError(
+                    "Condition still not met after $frames consumed frames / $timeout. " +
+                        "Current tree:\n" + root.dumpTree() + realizedWindowsTreeDump() + compositionFailureNote(),
+                )
+            }
+            val frame = if (mainClock.autoAdvance) FRAME_INTERVAL_NANOS else null
+            if (frame != null && (clock.hasAwaiters || recomposer.hasPendingWork)) frames++
+            step(frame)
+        }
+    }
+
+    /**
+     * Sends one frame of [deltaNanos] and runs until what it started is done, sending no further frame: a
+     * composition newly parked waiting for the next explicit advance is where this leaves it.
+     */
+    private fun runFrame(
+        deltaNanos: Long,
+        caller: String,
+    ) {
+        var frame: Long? = deltaNanos
+        runUntil(caller, nextFrame = { frame.also { frame = null } }, done = ::composedOrAwaitingFrame)
+    }
+
+    /**
+     * Runs [step]s until [done] holds over a drained queue, sending the frame [nextFrame] names before
+     * each one.
+     */
+    private fun runUntil(
+        gate: String,
+        nextFrame: () -> Long?,
+        done: () -> Boolean,
+    ) {
+        var steps = 0
+        while (true) {
+            if (step(nextFrame()) && done()) return
+            if (++steps >= MAX_STEPS) throw notIdle(gate)
+        }
+    }
+
+    /** One frame while [MainTestClock.autoAdvance] is on and the composition still has work for one. */
+    private fun frameIfNeeded(): Long? = if (mainClock.autoAdvance && !composed()) FRAME_INTERVAL_NANOS else null
+
+    /**
+     * One pass of every gate: sends [frameDeltaNanos] as a frame when given, then drains the event
+     * dispatch thread and lays [root] out - see [drainQueue]. Answers whether the queue was drained.
+     */
+    private fun step(frameDeltaNanos: Long?): Boolean {
+        if (frameDeltaNanos != null) sendFrame(frameDeltaNanos)
+        return drainQueue(layOut = true)
+    }
+
+    /**
+     * Publishes pending snapshot writes and sends a frame [deltaNanos] after the last one, as the library's
+     * own frame clock publishes before every frame. Writes made between frames reach the recomposer
+     * through the library's global snapshot manager, whose notification is queued work [drainQueue] runs.
+     */
+    private fun sendFrame(deltaNanos: Long) {
+        Snapshot.sendApplyNotifications()
+        frameTimeNanos += deltaNanos
+        clock.sendFrame(frameTimeNanos)
+    }
+
+    /**
+     * Dispatches everything already queued on the event dispatch thread without leaving it, and answers
+     * whether nothing a dispatch could still run was left behind - see [noPendingDispatch]. With [layOut],
+     * a drained queue is followed by validating [root], as a window lays itself out only after the events
+     * ahead of it, and the notifications that layout posts count as left behind.
+     *
+     * The caller is on the event dispatch thread, so this enters a [java.awt.SecondaryLoop] and posts the
+     * task that exits it behind the queued work. The layout and the reading run inside that task: every
+     * event queued before it has run, and the loop's own teardown has not been posted yet.
+     */
+    private fun drainQueue(layOut: Boolean): Boolean {
+        val loop = Toolkit.getDefaultToolkit().systemEventQueue.createSecondaryLoop()
+        val drained = booleanArrayOf(false)
+        SwingUtilities.invokeLater {
+            if (layOut && noPendingDispatch()) {
+                root.validate()
+                root.layoutUnplacedSubtrees()
+            }
+            drained[0] = noPendingDispatch()
+            loop.exit()
+        }
+        loop.enter()
+        throwLibraryFailure()
+        return drained[0]
+    }
 
     /** True once the composition itself is quiescent: no pending recomposition and no unpublished snapshot writes. */
     private fun composed(): Boolean = !recomposer.hasPendingWork && !Snapshot.current.hasPendingChanges()
 
     /**
-     * The idle signal the settle loops drain toward: [composed] with [MainTestClock.autoAdvance] on,
+     * The idle signal [runUntil] drains toward: [composed] with [MainTestClock.autoAdvance] on,
      * or [composedOrAwaitingFrame] with it off - see that property's KDoc for what each one means for
-     * whether a settle loop keeps sending frames of its own.
+     * whether [runUntil] keeps sending frames of its own.
      */
     private fun idle(): Boolean = if (mainClock.autoAdvance) composed() else composedOrAwaitingFrame()
 
@@ -689,7 +736,7 @@ private class ComposeSwingTestImpl(
      *
      * [recomposer.hasPendingWork][Recomposer.hasPendingWork] alone cannot tell these apart from a
      * recomposition still working its way toward that parked state - only once [clock] itself is the
-     * thing being waited on is nothing left that a further yield could still advance. That is this
+     * thing being waited on is nothing left that a further drain could still advance. That is this
      * gate for [MainTestClock.autoAdvance] `false`: it is satisfied by the parked state precisely
      * because sending a frame is what wakes it, and this test controls when that happens.
      */
@@ -701,7 +748,7 @@ private class ComposeSwingTestImpl(
      * scheduled `invokeLater` callback or coroutine continuation awaiting dispatch, and no bounds
      * notification a component has queued but not yet delivered to its listeners.
      *
-     * This is the "nothing queued remains" signal the settle gates drain toward. Bounds notifications
+     * This is the "nothing queued remains" signal the gates drain toward. Bounds notifications
      * belong in it because a layout pass posts them rather than delivering them, so a gate that
      * returned on the invocation queue alone would return before a modifier reporting the extent a
      * pass settled on had heard about it - and they are finite, since AWT posts one only for a
@@ -719,175 +766,17 @@ private class ComposeSwingTestImpl(
             (ComponentEvent.COMPONENT_FIRST..ComponentEvent.COMPONENT_LAST).none { queue.peekEvent(it) != null }
     }
 
-    private fun notSettled(gate: String): AssertionError =
+    /** Fails a gate whose work never ran out, naming what was still outstanding. */
+    private fun notIdle(gate: String): AssertionError =
         AssertionError(
-            "$gate did not settle after $MAX_IDLE_FRAMES frames: there is still pending " +
-                "recomposition work, pending snapshot changes, or scheduled EDT work " +
+            "$gate did not become idle after $MAX_STEPS steps: there is still pending recomposition work, " +
+                "pending snapshot changes, or scheduled EDT work " +
                 "(hasPendingWork=${recomposer.hasPendingWork}, " +
                 "hasPendingChanges=${Snapshot.current.hasPendingChanges()}, " +
                 "mainClock.autoAdvance=${mainClock.autoAdvance}, awaitingFrame=${clock.hasAwaiters}). " +
                 "The composition likely never reaches a stable frame. Current tree:\n" +
                 root.dumpTree() + realizedWindowsTreeDump() + compositionFailureNote(),
         )
-
-    /** Like [notSettled], but for a gate that sends exactly one frame and then only drains. */
-    private fun notSettledAfterDrainPasses(caller: String): AssertionError =
-        AssertionError(
-            "$caller did not settle after $MAX_IDLE_FRAMES drain passes following one frame: there is " +
-                "still pending recomposition work, pending snapshot changes, or scheduled EDT work " +
-                "(hasPendingWork=${recomposer.hasPendingWork}, " +
-                "hasPendingChanges=${Snapshot.current.hasPendingChanges()}, " +
-                "mainClock.autoAdvance=${mainClock.autoAdvance}, awaitingFrame=${clock.hasAwaiters}). " +
-                "The composition likely never reaches a stable frame. Current tree:\n" +
-                root.dumpTree() + realizedWindowsTreeDump() + compositionFailureNote(),
-        )
-
-    override suspend fun waitUntil(
-        timeout: Duration,
-        condition: () -> Boolean,
-    ) {
-        // Escape hatch (see interface KDoc). Bounded by BOTH a frame cap and a wall-clock deadline;
-        // whichever trips first fails. Only frames the composition consumes count toward the cap, so
-        // it is the deterministic bound on frame-driven work (a recomposition or frame-effect loop
-        // that never meets the condition fails after a fixed number of frames regardless of machine
-        // speed), while a condition gated on genuinely external timing - no compose work to consume
-        // the frames - keeps being polled, with each yield dispatching arriving AWT events, until
-        // the wall-clock deadline.
-        val deadline = System.nanoTime() + timeout.inWholeNanoseconds
-        var frames = 0
-        while (true) {
-            throwLibraryFailure()
-            if (condition()) return
-            if (frames >= MAX_WAIT_UNTIL_FRAMES || System.nanoTime() >= deadline) {
-                throw AssertionError(
-                    "Condition still not met after $frames consumed frames / $timeout. " +
-                        "Current tree:\n" + root.dumpTree() + realizedWindowsTreeDump() + compositionFailureNote(),
-                )
-            }
-            Snapshot.sendApplyNotifications()
-            // Frames are this gate's to send only while mainClock.autoAdvance is on; with it off the
-            // test drives them itself, and every poll still publishes snapshot writes, dispatches
-            // queued EDT work and lays the tree out, leaving the wall-clock deadline as the bound.
-            var consumedFrame = false
-            if (mainClock.autoAdvance) {
-                consumedFrame = clock.hasAwaiters || recomposer.hasPendingWork
-                frameTimeNanos += FRAME_INTERVAL_NANOS
-                clock.sendFrame(frameTimeNanos)
-            }
-            yield()
-            layoutRoot()
-            if (consumedFrame) frames++
-        }
-    }
-
-    /**
-     * Blocking variant of the idle gate used only by [setContent]'s one-shot initial settle. It pumps
-     * frames and spins the EDT message queue inline (the recomposer runs as queued EDT tasks) without
-     * suspending. Safe because it is called exactly once, before the test body needs the EDT for
-     * anything else.
-     */
-    private fun settleBlocking() {
-        // Same termination proof as awaitIdle, expressed inline: this variant cannot suspend, so it
-        // drives its drain by pumping the EDT queue rather than yielding, but the loop shape and the
-        // termination condition are identical, including honoring mainClock.autoAdvance (see idle()).
-        // It returns only when the composition has reached that idle state AND a pump found no
-        // queued work still pending, and never declares idleness while a scheduled EDT callback, an
-        // undelivered notification or a pending recomposition could still revive work. A pump advances
-        // only the work queued before its exit marker, so work scheduled during a pump lands after it
-        // and needs another pass; the loop keeps pumping until one pump drains the queue and finds the
-        // composition idle. The pump's reading is taken before this pass lays the tree out, so a bounds
-        // notification that pass posts is drained by the next pump rather than by this one, and a caller
-        // needing every notification delivered before it reads a callback's effect reaches for awaitIdle,
-        // which re-reads the queue after its own layout. Like awaitIdle it walks what a dispatch could
-        // still run and not the native paint events a visible window peer streams - noPendingDispatch
-        // names which and why. MAX_IDLE_FRAMES bounds the combined drains and frames as a runaway
-        // backstop.
-        var work = 0
-        while (true) {
-            Snapshot.sendApplyNotifications()
-            if (mainClock.autoAdvance) {
-                frameTimeNanos += FRAME_INTERVAL_NANOS
-                clock.sendFrame(frameTimeNanos)
-            }
-            val queueDrained = pumpEdtQueue()
-            throwLibraryFailure()
-            Snapshot.sendApplyNotifications()
-            layoutRoot()
-            work++
-            if (idle() && queueDrained) return
-            if (work >= MAX_IDLE_FRAMES) throw notSettled("setContent")
-        }
-    }
-
-    /**
-     * Sends one frame and blocks - without suspending - until it has propagated as far as it can
-     * without another one. Backs [mainClock]'s explicit-advance API, which the public surface pins
-     * non-suspending: a caller stepping through several frames with no suspension point between the
-     * calls still needs each one to reach whatever is waiting rather than being silently dropped on an
-     * awaiter that has not yet been dispatched to re-register for the next frame, so this pumps the EDT
-     * the same way [settleBlocking] does rather than relying on a caller-supplied yield.
-     *
-     * Settles toward [composedOrAwaitingFrame] rather than [composed]: the point is to fully consume
-     * the one frame just sent, not to chase further frames of its own, and a composition newly parked
-     * waiting for the next explicit advance is exactly where this is meant to leave it.
-     */
-    private fun advanceAndSettleBlocking(
-        deltaNanos: Long,
-        caller: String,
-    ) {
-        Snapshot.sendApplyNotifications()
-        frameTimeNanos += deltaNanos
-        clock.sendFrame(frameTimeNanos)
-        var work = 0
-        while (true) {
-            val queueDrained = pumpEdtQueue()
-            throwLibraryFailure()
-            Snapshot.sendApplyNotifications()
-            layoutRoot()
-            work++
-            if (composedOrAwaitingFrame() && queueDrained) return
-            if (work >= MAX_IDLE_FRAMES) throw notSettledAfterDrainPasses(caller)
-        }
-    }
-
-    /**
-     * Lets Runnables already queued on the EDT (including the recomposer's apply step) run, without
-     * leaving the EDT, and reports whether the pump left the queue holding nothing a dispatch could
-     * still run - as of this reading, which is taken before any layout pass the caller runs next. We
-     * are on the
-     * EDT, so we cannot block on `invokeAndWait`; instead we enter an AWT [java.awt.SecondaryLoop] and
-     * post a task that exits it. The secondary loop processes the pending events first, so the
-     * recomposer's continuation runs before this returns.
-     *
-     * Whether anything remains is read from inside the exit task, at the one instant it is honest:
-     * every event queued before the exit marker has been dispatched, and the secondary loop's own
-     * teardown invocation has not yet been posted. A check taken after `enter` returns would instead
-     * always see that teardown artifact and could never report a drained queue.
-     */
-    private fun pumpEdtQueue(): Boolean {
-        val loop =
-            Toolkit
-                .getDefaultToolkit()
-                .systemEventQueue
-                .createSecondaryLoop()
-        // Post the exit AFTER the recomposer's already-queued continuation, so the loop drains those
-        // first. enter() blocks the current EDT dispatch until exit() runs, while still pumping events.
-        val drained = booleanArrayOf(false)
-        SwingUtilities.invokeLater {
-            drained[0] = noPendingDispatch()
-            loop.exit()
-        }
-        loop.enter()
-        return drained[0]
-    }
-
-    private fun layoutRoot() {
-        // Re-assert the root size (so it never collapses) and run a synchronous layout pass so every
-        // descendant receives real bounds. The applier only calls revalidate(), which defers layout to
-        // the RepaintManager; with no realized peer that deferred pass may never run, leaving children
-        // at 0x0. See [layoutOffscreen] for why it is not validate() that runs the pass.
-        root.layoutOffscreen(rootSize)
-    }
 
     override fun onNodeWithText(
         text: @Nls String,
@@ -942,6 +831,7 @@ private class ComposeSwingTestImpl(
             scope.cancel()
         } finally {
             dispatchThread.setUncaughtExceptionHandler(enclosingHandler)
+            root.removeNotify()
             root.setLifecycleOwner(null)
         }
         val contained = callerFailures.toList()
@@ -966,10 +856,8 @@ private class ComposeSwingTestImpl(
     private companion object {
         val FRAME_INTERVAL_NANOS: Long = MainTestClockImpl.FRAME_DURATION.inWholeNanoseconds
 
-        // Generous frame caps. A healthy composition settles in a handful of frames; these bounds
-        // exist only to convert a pathological never-settling loop into a readable failure instead
-        // of an indefinite hang.
-        const val MAX_IDLE_FRAMES: Int = 10_000
-        const val MAX_WAIT_UNTIL_FRAMES: Int = 10_000
+        // A healthy composition becomes idle in a handful of steps; this turns one that never does into a
+        // readable failure instead of a hang.
+        const val MAX_STEPS: Int = 10_000
     }
 }

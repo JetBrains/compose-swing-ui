@@ -7,10 +7,10 @@ import org.jetbrains.compose.swing.modifier.applyModifierDiff
 import org.jetbrains.compose.swing.modifier.layout.RawParentProtocol
 import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
 import org.jetbrains.compose.swing.modifier.layout.slot
+import org.jetbrains.compose.swing.runSwingTest
 import java.awt.BorderLayout
 import java.awt.Component
 import java.awt.Container
-import java.awt.EventQueue
 import java.awt.Toolkit
 import javax.swing.JButton
 import javax.swing.JLabel
@@ -34,23 +34,6 @@ import kotlin.test.assertTrue
  * The mutation math the applier shares with an index-holding host lives in [SwingApplierTest].
  */
 class SwingApplierRegionTest {
-    /**
-     * Runs [block] on the AWT event dispatch thread and surfaces any failure on the calling thread.
-     *
-     * If already on the EDT, [block] runs inline; otherwise it is dispatched with
-     * [EventQueue.invokeAndWait] and any thrown failure is rethrown here so assertions inside [block]
-     * fail the test as usual.
-     */
-    private fun onEdt(block: () -> Unit) {
-        if (EventQueue.isDispatchThread()) {
-            block()
-            return
-        }
-        var failure: Throwable? = null
-        EventQueue.invokeAndWait { runCatching(block).onFailure { failure = it } }
-        failure?.let { throw it }
-    }
-
     /**
      * Lets a check the applier deferred to a later turn of the event queue - see
      * [SwingApplier][org.jetbrains.compose.swing.node.SwingApplier]'s hold-to-regions pass - run before
@@ -168,7 +151,7 @@ class SwingApplierRegionTest {
         SwingNodeHolder(pane).apply { childPlacement = SplitSides }
 
     @Test
-    fun aChildFillingARegionIsRefusedByAHostThatAddsItsChildrenByIndex() = onEdt {
+    fun aChildFillingARegionIsRefusedByAHostThatAddsItsChildrenByIndex() = runSwingTest {
         // The host states no placement, so it holds every child by index and offers no region at all:
         // the container offering the one this child names is somewhere else in the composition.
         val applier = applierFor(JPanel())
@@ -186,7 +169,7 @@ class SwingApplierRegionTest {
     }
 
     @Test
-    fun aChildAddedByIndexIsRefusedByAHostThatHoldsItsChildrenInRegions() = onEdt {
+    fun aChildAddedByIndexIsRefusedByAHostThatHoldsItsChildrenInRegions() = runSwingTest {
         // The host states a region-holding placement, so it reaches every child through a setter of its
         // own and a child merely added to it would be held by the host and laid out by nobody.
         val applier = applierFor(JPanel())
@@ -207,7 +190,7 @@ class SwingApplierRegionTest {
     }
 
     @Test
-    fun aHostStatingAnotherPlacementOverTheChildrenItHoldsIsRefused() = onEdt {
+    fun aHostStatingAnotherPlacementOverTheChildrenItHoldsIsRefused() = runSwingTest {
         // A node's children are one index space, and the two kinds are reached through different Swing
         // calls, so the placement a host states holds for as long as that host holds children.
         val applier = applierFor(JPanel())
@@ -229,7 +212,7 @@ class SwingApplierRegionTest {
     }
 
     @Test
-    fun aChildNamingAnotherRegionIsMovedThereAndLeavesTheSiblingTheRegionItTakes() = onEdt {
+    fun aChildNamingAnotherRegionIsMovedThereAndLeavesTheSiblingTheRegionItTakes() = runSwingTest {
         val applier = applierFor(JPanel())
         val pane = JSplitPane(JSplitPane.HORIZONTAL_SPLIT, false, null, null)
         val host = splitHost(pane)
@@ -262,7 +245,7 @@ class SwingApplierRegionTest {
     }
 
     @Test
-    fun aChildThatStopsNamingARegionReleasesItAndIsRefused() = onEdt {
+    fun aChildThatStopsNamingARegionReleasesItAndIsRefused() = runSwingTest {
         val applier = applierFor(JPanel())
         val pane = JSplitPane(JSplitPane.HORIZONTAL_SPLIT, false, null, null)
         val host = splitHost(pane)
@@ -293,7 +276,7 @@ class SwingApplierRegionTest {
     }
 
     @Test
-    fun movingChildrenOfAHostWhoseRegionsAreNamedApieceLeavesEachWhereItsRegionPutIt() = onEdt {
+    fun movingChildrenOfAHostWhoseRegionsAreNamedApieceLeavesEachWhereItsRegionPutIt() = runSwingTest {
         val applier = applierFor(JPanel())
         val pane = JSplitPane(JSplitPane.HORIZONTAL_SPLIT, false, null, null)
         val host = splitHost(pane)
@@ -324,7 +307,7 @@ class SwingApplierRegionTest {
     }
 
     @Test
-    fun twoChildrenLeftInOneRegionByAMoveAreReported() = onEdt {
+    fun twoChildrenLeftInOneRegionByAMoveAreReported() = runSwingTest {
         val applier = applierFor(JPanel())
         val pane = JSplitPane(JSplitPane.HORIZONTAL_SPLIT, false, null, null)
         val host = splitHost(pane)
@@ -369,7 +352,7 @@ class SwingApplierRegionTest {
     }
 
     @Test
-    fun aRegionWhoseOccupantOnePassReplacesIsNotReported() = onEdt {
+    fun aRegionWhoseOccupantOnePassReplacesIsNotReported() = runSwingTest {
         val applier = applierFor(JPanel())
         val pane = JSplitPane(JSplitPane.HORIZONTAL_SPLIT, false, null, null)
         val host = splitHost(pane)
@@ -396,7 +379,7 @@ class SwingApplierRegionTest {
     }
 
     @Test
-    fun aRelocatedChildIsAttachedOnceTheChangePassHasSettled() = onEdt {
+    fun aRelocatedChildIsAttachedOnceTheChangePassHasSettled() = runSwingTest {
         val root = JPanel()
         val applier = applierFor(root)
         val moved = SwingNodeHolder(namedButton("moved"))
@@ -419,7 +402,7 @@ class SwingApplierRegionTest {
     }
 
     @Test
-    fun aRelocatedChildFillsTheRegionItNamesAtTheHostItArrivesAt() = onEdt {
+    fun aRelocatedChildFillsTheRegionItNamesAtTheHostItArrivesAt() = runSwingTest {
         val applier = applierFor(JPanel())
         val leftPane = JSplitPane(JSplitPane.HORIZONTAL_SPLIT, false, null, null)
         val rightPane = JSplitPane(JSplitPane.HORIZONTAL_SPLIT, false, null, null)
@@ -455,7 +438,7 @@ class SwingApplierRegionTest {
     }
 
     @Test
-    fun aRelocatedChildFillingARegionIsRefusedByAHostThatAddsItsChildrenByIndex() = onEdt {
+    fun aRelocatedChildFillingARegionIsRefusedByAHostThatAddsItsChildrenByIndex() = runSwingTest {
         // The host states no placement, so it holds every child by index and offers no region at all. The
         // child is held to that once the pass has settled, which is when the region it names here is known.
         val applier = applierFor(JPanel())
@@ -474,7 +457,7 @@ class SwingApplierRegionTest {
     }
 
     @Test
-    fun aRegionHoldingOneChildIsInstalledAtIndexZeroWhicheverSiblingsFillOtherRegions() = onEdt {
+    fun aRegionHoldingOneChildIsInstalledAtIndexZeroWhicheverSiblingsFillOtherRegions() = runSwingTest {
         val applier = applierFor(JPanel())
         val pane = JSplitPane(JSplitPane.HORIZONTAL_SPLIT, false, null, null)
         val host = splitHost(pane)
@@ -501,7 +484,7 @@ class SwingApplierRegionTest {
     }
 
     @Test
-    fun aRelocatedChildAddedByIndexIsRefusedByAHostThatHoldsItsChildrenInRegions() = onEdt {
+    fun aRelocatedChildAddedByIndexIsRefusedByAHostThatHoldsItsChildrenInRegions() = runSwingTest {
         // The host reaches every child through a setter of its own, so one that ends the pass naming no
         // region would be held by the host and laid out by nobody, whichever way it arrived.
         val applier = applierFor(JPanel())

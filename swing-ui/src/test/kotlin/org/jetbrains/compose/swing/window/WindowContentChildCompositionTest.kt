@@ -1,36 +1,26 @@
 package org.jetbrains.compose.swing.window
 
 import androidx.compose.runtime.Applier
-import androidx.compose.runtime.BroadcastFrameClock
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Composition
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.Recomposer
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshots.Snapshot
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.DisposableHandle
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.swing.Swing
+import org.jetbrains.compose.swing.TestRecomposer
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContentAsInteropHost
 import java.awt.Container
 import java.awt.Dimension
 import javax.swing.JLabel
 import javax.swing.JPanel
-import javax.swing.SwingUtilities
-import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * Canary for the app->window context flow (design fork F1, "preserve/hybrid"): content mounted
@@ -50,39 +40,23 @@ import kotlin.time.Duration.Companion.seconds
  * CompositionLocal default and never recompose on application-scope state changes; this test fails
  * against that behavior and passes once the content is threaded through the parent context.
  *
- * Driven on a controllable [BroadcastFrameClock] (no sleeps, bounded frames).
+ * Driven on a controllable frame clock (no sleeps, bounded frames).
  */
 class WindowContentChildCompositionTest {
-    private val clock = BroadcastFrameClock()
-    private val scope = CoroutineScope(Dispatchers.Swing + Job() + clock)
-    private val recomposer = Recomposer(scope.coroutineContext)
-    private var composition: Composition? = null
-
-    // Stands in for a JFrame's content pane: a real container that is NOT part of the application's
-    // Swing tree, so the upward COMPOSITION_KEY walk from it finds nothing.
-    private val detachedHost: JPanel = onEdt { JPanel().apply { size = Dimension(HOST_SIZE, HOST_SIZE) } }
-    private var frameTimeNanos = 0L
-
-    init {
-        scope.launch { recomposer.runRecomposeAndApplyChanges() }
-    }
-
-    @AfterTest
-    fun tearDown() {
-        onEdt { composition?.dispose() }
-        recomposer.cancel()
-        scope.cancel()
-    }
-
     @Test
-    fun applicationStateAndLocalReachDetachedContentAndUpdate() {
-        var provided by mutableStateOf("from-app")
+    fun applicationStateAndLocalReachDetachedContentAndUpdate() = runSwingTest {
+        val test = TestRecomposer(this)
+        // Stands in for a JFrame's content pane: a real container that is NOT part of the
+        // application's Swing tree, so the upward COMPOSITION_KEY walk from it finds nothing.
+        val detachedHost = JPanel().apply { size = Dimension(HOST_SIZE, HOST_SIZE) }
+        var composition: Composition? = null
+        try {
+            var provided by mutableStateOf("from-app")
 
-        onEdt {
             // The "application" composition driven by the injected recomposer/clock, mirroring
             // awaitApplication's wiring. Its applier has no Swing root of its own.
             composition =
-                Composition(NoOpApplier(), recomposer).apply {
+                Composition(NoOpApplier(), test.recomposer).apply {
                     setContent {
                         CompositionLocalProvider(LocalAppValue provides provided) {
                             HostDetachedContent(detachedHost) {
@@ -93,22 +67,25 @@ class WindowContentChildCompositionTest {
                         }
                     }
                 }
+            test.awaitIdle()
+
+            assertEquals(
+                "local=from-app",
+                detachedLabelText(detachedHost),
+                "Application CompositionLocal did not reach detached window content",
+            )
+
+            provided = "updated"
+            test.awaitIdle()
+            assertEquals(
+                "local=updated",
+                detachedLabelText(detachedHost),
+                "Detached window content did not recompose on application-state change",
+            )
+        } finally {
+            composition?.dispose()
+            test.cancel()
         }
-        waitForIdle()
-
-        assertEquals(
-            "local=from-app",
-            detachedLabelText(),
-            "Application CompositionLocal did not reach detached window content",
-        )
-
-        onEdt { provided = "updated" }
-        waitForIdle()
-        assertEquals(
-            "local=updated",
-            detachedLabelText(),
-            "Detached window content did not recompose on application-state change",
-        )
     }
 
     /**
@@ -128,7 +105,7 @@ class WindowContentChildCompositionTest {
         }
     }
 
-    private fun detachedLabelText(): String = onEdt {
+    private fun detachedLabelText(detachedHost: Container): String {
         val labels = mutableListOf<JLabel>()
 
         fun visit(c: Container) {
@@ -139,40 +116,10 @@ class WindowContentChildCompositionTest {
         }
 
         visit(detachedHost)
-        labels.single().text
-    }
-
-    // Deterministic idle gate: pump one frame per iteration, flush the EDT, stop when neither the
-    // recomposer nor the snapshot system has outstanding work. Bounded so a non-settling composition
-    // fails fast instead of hanging. No sleeping.
-    private fun waitForIdle() {
-        var iterations = 0
-        while (true) {
-            onEdt { Snapshot.sendApplyNotifications() }
-            frameTimeNanos += FRAME_INTERVAL_NANOS
-            clock.sendFrame(frameTimeNanos)
-            SwingUtilities.invokeAndWait { }
-            if (!recomposer.hasPendingWork && !Snapshot.current.hasPendingChanges()) return
-            if (++iterations >= MAX_IDLE_FRAMES) {
-                throw AssertionError(
-                    "waitForIdle did not settle after $MAX_IDLE_FRAMES frames " +
-                        "(hasPendingWork=${recomposer.hasPendingWork}, " +
-                        "hasPendingChanges=${Snapshot.current.hasPendingChanges()}).",
-                )
-            }
-        }
-    }
-
-    private fun <T> onEdt(action: () -> T): T {
-        if (SwingUtilities.isEventDispatchThread()) return action()
-        var outcome: Result<T>? = null
-        SwingUtilities.invokeAndWait { outcome = runCatching(action) }
-        return checkNotNull(outcome) { "EDT action did not run." }.getOrThrow()
+        return labels.single().text
     }
 
     private companion object {
-        val FRAME_INTERVAL_NANOS: Long = (1.seconds / 60).inWholeNanoseconds
-        const val MAX_IDLE_FRAMES: Int = 10_000
         const val HOST_SIZE: Int = 200
     }
 

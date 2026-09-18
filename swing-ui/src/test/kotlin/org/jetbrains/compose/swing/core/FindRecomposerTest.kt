@@ -146,6 +146,7 @@ class FindRecomposerTest {
 
     @Test
     fun aRawAwtComponentFindsNoRecomposer() = runSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display to realize a window")
         // A raw java.awt.Button is neither a JComponent nor a Window. The walk's per-component
         // check has an else branch for these - they carry no composition and name no recomposer.
         assertNull(

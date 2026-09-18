@@ -33,7 +33,7 @@ import kotlin.test.assertTrue
  * Validates the window-query surface of the harness: [ComposeSwingTest.onWindow]/[ComposeSwingTest.onAllWindows]
  * resolve the top-level windows realized by `Window { }`/`Dialog { }` composables in the composition
  * under test - whether or not they are shown - window-scoped node finders resolve inside one window's
- * own content, its content pane and its menu bar, and [ComposeSwingTest.awaitIdle] settles a window
+ * own content, its content pane and its menu bar, and [ComposeSwingTest.awaitIdle] waits for a window
  * show that is applied on its own event-dispatch turn.
  *
  * Every case realizes a real top-level peer, so each declares its display requirement up front and is
@@ -215,7 +215,7 @@ class WindowInteractionTest {
     }
 
     @Test
-    fun awaitIdleSettlesADeferredDialogShow() = runComposeSwingTest {
+    fun awaitIdleWaitsForADeferredDialogShow() = runComposeSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         var visible by mutableStateOf(false)
         setContent { Dialog(onCloseRequest = {}, title = "deferred-show", visible = visible) {} }

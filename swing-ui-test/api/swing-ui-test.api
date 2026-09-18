@@ -27,8 +27,8 @@ public final class org/jetbrains/compose/swing/test/ComposeSwingTestKt {
 	public static final fun onAllWindows (Lorg/jetbrains/compose/swing/test/ComposeSwingTest;)Lorg/jetbrains/compose/swing/test/interaction/SwingWindowInteractionCollection;
 	public static final fun onWindow (Lorg/jetbrains/compose/swing/test/ComposeSwingTest;)Lorg/jetbrains/compose/swing/test/interaction/SwingWindowInteraction;
 	public static final fun onWindowWithTitle (Lorg/jetbrains/compose/swing/test/ComposeSwingTest;Ljava/lang/String;)Lorg/jetbrains/compose/swing/test/interaction/SwingWindowInteraction;
-	public static final fun runComposeSwingTest-8Mi8wO0 (Ljava/awt/Dimension;JLkotlin/jvm/functions/Function2;)V
-	public static synthetic fun runComposeSwingTest-8Mi8wO0$default (Ljava/awt/Dimension;JLkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
+	public static final fun runComposeSwingTest-dWUq8MI (Ljava/awt/Dimension;JLkotlin/coroutines/CoroutineContext;Lkotlin/jvm/functions/Function2;)V
+	public static synthetic fun runComposeSwingTest-dWUq8MI$default (Ljava/awt/Dimension;JLkotlin/coroutines/CoroutineContext;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
 }
 
 public abstract interface class org/jetbrains/compose/swing/test/MainTestClock {
@@ -193,6 +193,9 @@ public final class org/jetbrains/compose/swing/test/screenshot/ScreenshotTestKt 
 	public static synthetic fun assertImageAgainstGolden$default (Lorg/jetbrains/compose/swing/test/ComposeSwingTest;Ljava/awt/image/BufferedImage;Ljava/lang/String;DILjava/lang/Object;)V
 	public static synthetic fun assertImageAgainstGolden$default (Lorg/jetbrains/compose/swing/test/ComposeSwingTest;Ljava/lang/String;DILjava/lang/Object;)V
 	public static synthetic fun assertImageAgainstGolden$default (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/lang/String;DILjava/lang/Object;)V
+	public static final fun assertImageAgainstGoldenPixelPerfect (Lorg/jetbrains/compose/swing/test/ComposeSwingTest;Ljava/awt/image/BufferedImage;Ljava/lang/String;)V
+	public static final fun assertImageAgainstGoldenPixelPerfect (Lorg/jetbrains/compose/swing/test/ComposeSwingTest;Ljava/lang/String;)V
+	public static final fun assertImageAgainstGoldenPixelPerfect (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/lang/String;)V
 	public static final fun assertImageMatches (Lorg/jetbrains/compose/swing/test/ComposeSwingTest;Ljava/awt/image/BufferedImage;Ljava/awt/image/BufferedImage;D)V
 	public static final fun assertImageMatches (Lorg/jetbrains/compose/swing/test/interaction/SwingNodeInteraction;Ljava/awt/image/BufferedImage;D)V
 	public static synthetic fun assertImageMatches$default (Lorg/jetbrains/compose/swing/test/ComposeSwingTest;Ljava/awt/image/BufferedImage;Ljava/awt/image/BufferedImage;DILjava/lang/Object;)V

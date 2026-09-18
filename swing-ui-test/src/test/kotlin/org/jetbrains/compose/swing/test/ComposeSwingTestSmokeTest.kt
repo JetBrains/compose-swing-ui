@@ -1,7 +1,10 @@
 package org.jetbrains.compose.swing.test
 
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import kotlinx.coroutines.CoroutineName
+import kotlinx.coroutines.asCoroutineDispatcher
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.Panel
@@ -11,9 +14,15 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.interaction.performClick
 import org.jetbrains.compose.swing.test.interaction.performTextReplacement
 import java.awt.BorderLayout
+import java.awt.Container
+import java.util.concurrent.Executors
+import javax.swing.JLabel
 import javax.swing.JTextField
+import javax.swing.SwingUtilities
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class ComposeSwingTestSmokeTest {
     @Test
@@ -97,7 +106,7 @@ class ComposeSwingTestSmokeTest {
         }
         onNodeWithText("go").performClick()
         // Exercises the escape hatch directly. It pumps frames (bounded by the iteration cap) until
-        // the condition holds; here it returns on the first check since the click already settled.
+        // the condition holds; here it returns on the first check since the click already awaited idle.
         waitUntil { root.findMatching(SwingMatcher.hasText("done")).isNotEmpty() }
         onNodeWithText("done").assertExists()
     }
@@ -107,5 +116,46 @@ class ComposeSwingTestSmokeTest {
         setContent { TextField(value = "x", onValueChange = { }) }
         val matches = root.findMatching(SwingMatcher.isOfType<JTextField>())
         assertEquals(1, matches.size)
+    }
+
+    @Test
+    fun theRootIsDisplayableButNeverShowingAndRootsItsFocusCycle() = runComposeSwingTest {
+        setContent { Label(text = "x") }
+
+        assertTrue(root.isDisplayable, "the root is displayable, so an invalidation travels up to it")
+        assertFalse(root.isShowing, "the root stands in no window, so it never shows")
+        assertFalse(onNodeWithText("x").fetch<JLabel>().isShowing, "and nothing under it shows either")
+        assertTrue(root.isFocusCycleRoot, "the root is the root of its focus cycle, as a window is")
+    }
+
+    @Test
+    fun theRootIsNoLongerDisplayableOnceTheTestEnds() {
+        var captured: Container? = null
+        runComposeSwingTest {
+            setContent { Label(text = "x") }
+            captured = root
+        }
+
+        assertFalse(checkNotNull(captured).isDisplayable, "the root releases its peer when the test ends")
+    }
+
+    @Test
+    fun effectsRunUnderTheGivenContextOnTheHarnessDispatcher() {
+        var name: CoroutineName? = null
+        var onDispatchThread = false
+        Executors.newSingleThreadExecutor().asCoroutineDispatcher().use { foreign ->
+            runComposeSwingTest(effectContext = CoroutineName("given") + foreign) {
+                setContent {
+                    LaunchedEffect(Unit) {
+                        name = coroutineContext[CoroutineName]
+                        onDispatchThread = SwingUtilities.isEventDispatchThread()
+                    }
+                }
+                awaitIdle()
+
+                assertEquals(CoroutineName("given"), name, "an effect sees the element the test named")
+                assertTrue(onDispatchThread, "the harness's dispatcher wins over the one the test named")
+            }
+        }
     }
 }

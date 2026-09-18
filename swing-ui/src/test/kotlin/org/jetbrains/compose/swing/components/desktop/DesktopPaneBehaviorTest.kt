@@ -3,6 +3,8 @@ package org.jetbrains.compose.swing.components.desktop
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import io.mockk.mockk
+import io.mockk.verify
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.toolTip
@@ -16,8 +18,7 @@ import java.awt.Rectangle
 import javax.swing.JDesktopPane
 import javax.swing.JInternalFrame
 import javax.swing.JInternalFrame.JDesktopIcon
-import javax.swing.event.InternalFrameAdapter
-import javax.swing.event.InternalFrameEvent
+import javax.swing.event.InternalFrameListener
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
@@ -345,13 +346,7 @@ class DesktopPaneBehaviorTest {
 
     @Test
     fun rawInternalFrameListenerOverloadReceivesFrameEvents() = runComposeSwingTest {
-        var closings = 0
-        val listener =
-            object : InternalFrameAdapter() {
-                override fun internalFrameClosing(event: InternalFrameEvent) {
-                    closings++
-                }
-            }
+        val listener = mockk<InternalFrameListener>(relaxed = true)
         setContent {
             DesktopPane {
                 InternalFrame(
@@ -367,7 +362,7 @@ class DesktopPaneBehaviorTest {
         // The raw listener is attached as-is; the close action fires its internalFrameClosing.
         frame.doDefaultCloseAction()
         awaitIdle()
-        assertEquals(1, closings, "the raw InternalFrameListener did not receive the close event")
+        verify(exactly = 1) { listener.internalFrameClosing(any()) }
         onNodeOfType<JInternalFrame>().assertExists()
     }
 
@@ -436,13 +431,7 @@ class DesktopPaneBehaviorTest {
     @Test
     fun theFrameModifierFollowsTheStateOnTheRawListenerOverload() = runComposeSwingTest {
         var tip by mutableStateOf<String?>("Edits the document")
-        var closings = 0
-        val listener =
-            object : InternalFrameAdapter() {
-                override fun internalFrameClosing(event: InternalFrameEvent) {
-                    closings++
-                }
-            }
+        val listener = mockk<InternalFrameListener>(relaxed = true)
         setContent {
             DesktopPane {
                 InternalFrame(
@@ -463,7 +452,7 @@ class DesktopPaneBehaviorTest {
 
         frame.doDefaultCloseAction()
         awaitIdle()
-        assertEquals(1, closings, "a modifier change must not displace the listener the overload installs")
+        verify(exactly = 1) { listener.internalFrameClosing(any()) }
         assertEquals(1, frame.declaredInternalFrameListenerCount, "the listener stays attached exactly once")
     }
 
@@ -502,20 +491,8 @@ class DesktopPaneBehaviorTest {
     @Test
     fun swappingTheRawListenerHandsFrameEventsToTheNewInstance() = runComposeSwingTest {
         var second by mutableStateOf(false)
-        var first = 0
-        var latest = 0
-        val firstListener =
-            object : InternalFrameAdapter() {
-                override fun internalFrameClosing(event: InternalFrameEvent) {
-                    first++
-                }
-            }
-        val secondListener =
-            object : InternalFrameAdapter() {
-                override fun internalFrameClosing(event: InternalFrameEvent) {
-                    latest++
-                }
-            }
+        val firstListener = mockk<InternalFrameListener>(relaxed = true)
+        val secondListener = mockk<InternalFrameListener>(relaxed = true)
         setContent {
             DesktopPane {
                 InternalFrame(
@@ -529,7 +506,7 @@ class DesktopPaneBehaviorTest {
         val frame = onNodeOfType<JInternalFrame>().fetch()
         frame.doDefaultCloseAction()
         awaitIdle()
-        assertEquals(1, first, "the declared listener receives the frame event")
+        verify(exactly = 1) { firstListener.internalFrameClosing(any()) }
 
         second = true
         awaitIdle()
@@ -537,8 +514,8 @@ class DesktopPaneBehaviorTest {
 
         frame.doDefaultCloseAction()
         awaitIdle()
-        assertEquals(1, latest, "the newly declared listener receives the frame event")
-        assertEquals(1, first, "the listener that left the declaration no longer fires")
+        verify(exactly = 1) { secondListener.internalFrameClosing(any()) }
+        verify(exactly = 1) { firstListener.internalFrameClosing(any()) }
     }
 
     @Test

@@ -1,10 +1,15 @@
 package org.jetbrains.compose.swing.window
 
+import androidx.compose.runtime.snapshots.Snapshot
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import java.awt.Point
+import java.awt.Window
+import java.awt.event.ComponentAdapter
+import java.awt.event.ComponentEvent
 import kotlin.math.abs
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -67,6 +72,61 @@ private fun isNear(
     abs(actual.y - expected.y) <= POSITION_TOLERANCE_PIXELS
 
 /**
+ * Waits until [window] has reported no move and no resize for [WINDOW_QUIET_PERIOD].
+ *
+ * A window system keeps reshaping a window after the composition has settled. A window lays out again as
+ * its menu bar arrives, and a decorated window sized before the window system reported the insets its
+ * decorations take is reshaped once it does. A window system still performing one placement may also
+ * answer the next late or not at all. A case that reads a window's settled size, moves or resizes a shown
+ * window, or opens a menu a look and feel cancels on a reshape, waits here first.
+ */
+internal suspend fun ComposeSwingTest.awaitWindowStandsStill(window: Window) {
+    var lastReshape = System.nanoTime()
+    val listener =
+        object : ComponentAdapter() {
+            override fun componentResized(event: ComponentEvent) {
+                lastReshape = System.nanoTime()
+            }
+
+            override fun componentMoved(event: ComponentEvent) {
+                lastReshape = System.nanoTime()
+            }
+        }
+    window.addComponentListener(listener)
+    try {
+        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) {
+            System.nanoTime() - lastReshape >= WINDOW_QUIET_PERIOD.inWholeNanoseconds
+        }
+    } finally {
+        window.removeComponentListener(listener)
+    }
+}
+
+/**
+ * Runs [block] and answers the values [read] took while it ran, in order, starting with the one it had on
+ * entry. [read] is sampled after each write the global snapshot reports to
+ * Snapshot.registerGlobalWriteObserver, which reports at least the first write to each state object
+ * between apply notifications and none made inside a nested mutable snapshot.
+ */
+internal suspend fun <T> valuesTakenDuring(
+    read: () -> T,
+    block: suspend () -> Unit,
+): List<T> {
+    val values = mutableListOf(read())
+    val handle =
+        Snapshot.registerGlobalWriteObserver {
+            val value = read()
+            synchronized(values) { if (value != values.last()) values += value }
+        }
+    try {
+        block()
+    } finally {
+        handle.dispose()
+    }
+    return synchronized(values) { values.toList() }
+}
+
+/**
  * Wall-clock deadline for a condition gated on a native move, resize or maximize, which the window
  * manager reports with real latency - its animations included.
  */
@@ -74,3 +134,9 @@ internal val NATIVE_EVENT_TIMEOUT = 10.seconds
 
 /** Slack allowed on a realized placement, in pixels. */
 internal const val POSITION_TOLERANCE_PIXELS = 4
+
+/**
+ * How long a window must report no move and no resize to count as standing still. Raise this if a case
+ * still sees the window reshape after waiting for it.
+ */
+private val WINDOW_QUIET_PERIOD = 250.milliseconds

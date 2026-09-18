@@ -109,6 +109,7 @@ class WindowPositionCenteredOnTest {
             // The resolved placement travels back into the state, so the next declaration is made over
             // the coordinates the first one settled on rather than racing them.
             waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { state.position is WindowPosition.Absolute }
+            awaitWindowStandsStill(follower)
             state.position = WindowPosition.CenteredOn(second)
             awaitIdle()
             assertCenteredOn(
@@ -159,6 +160,7 @@ class WindowPositionCenteredOnTest {
             // Wait for the resolved placement to reach the state: only then does declaring the centering
             // again ask for something the state does not already hold.
             waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { state.position is WindowPosition.Absolute }
+            awaitWindowStandsStill(follower)
             val placed = follower.location
             val standingOn = named.locationOnScreen
 

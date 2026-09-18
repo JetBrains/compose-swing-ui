@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.modifier.listener
 
+import io.mockk.mockk
 import org.jetbrains.compose.swing.components.ComboBox
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.Slider
@@ -46,7 +47,6 @@ import javax.swing.JToggleButton
 import javax.swing.JTree
 import javax.swing.SpinnerNumberModel
 import javax.swing.event.ChangeListener
-import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
 import javax.swing.event.HyperlinkListener
 import javax.swing.event.ListSelectionListener
@@ -70,14 +70,6 @@ import kotlin.test.assertTrue
  * notification instead - driving the widget the way the user would has to reach the instance passed.
  */
 class RawComponentListenerOverloadTest {
-    private fun docListener(): DocumentListener = object : DocumentListener {
-        override fun insertUpdate(e: DocumentEvent?) = Unit
-
-        override fun removeUpdate(e: DocumentEvent?) = Unit
-
-        override fun changedUpdate(e: DocumentEvent?) = Unit
-    }
-
     private fun JTextComponent.documentHas(listener: DocumentListener): Boolean {
         val document = document
         return document is AbstractDocument && document.documentListeners.any { it === listener }
@@ -274,7 +266,7 @@ class RawComponentListenerOverloadTest {
 
     @Test
     fun textFieldDocumentListenerOverloadRegistersInstance() = runComposeSwingTest {
-        val listener = docListener()
+        val listener = mockk<DocumentListener>(relaxed = true)
         setContent { TextField("hi", documentListener = listener) }
         assertTrue(
             onNodeOfType<JTextField>().fetch().documentHas(listener),
@@ -284,7 +276,7 @@ class RawComponentListenerOverloadTest {
 
     @Test
     fun textAreaDocumentListenerOverloadRegistersInstance() = runComposeSwingTest {
-        val listener = docListener()
+        val listener = mockk<DocumentListener>(relaxed = true)
         setContent { TextArea("hi", documentListener = listener) }
         assertTrue(
             onNodeOfType<JTextArea>().fetch().documentHas(listener),
@@ -294,7 +286,7 @@ class RawComponentListenerOverloadTest {
 
     @Test
     fun passwordFieldDocumentListenerOverloadRegistersInstance() = runComposeSwingTest {
-        val listener = docListener()
+        val listener = mockk<DocumentListener>(relaxed = true)
         setContent { PasswordField(value = charArrayOf('a'), documentListener = listener) }
         assertTrue(
             onNodeOfType<JPasswordField>().fetch().documentHas(listener),
@@ -314,7 +306,7 @@ class RawComponentListenerOverloadTest {
 
     @Test
     fun textPaneDocumentListenerOverloadRegistersInstance() = runComposeSwingTest {
-        val listener = docListener()
+        val listener = mockk<DocumentListener>(relaxed = true)
         setContent { TextPane("hi", documentListener = listener) }
         assertTrue(
             onNodeOfType<JTextPane>().fetch().documentHas(listener),

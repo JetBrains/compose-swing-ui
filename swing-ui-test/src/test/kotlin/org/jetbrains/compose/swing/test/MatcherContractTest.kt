@@ -14,7 +14,6 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.modifier.interaction.enabled
 import org.jetbrains.compose.swing.node.SwingNode
-import java.awt.Canvas
 import javax.accessibility.AccessibleRole
 import javax.swing.JComboBox
 import javax.swing.JInternalFrame
@@ -146,14 +145,14 @@ class MatcherContractTest {
         setContent {
             Panel(PanelLayout.Box()) {
                 Label(text = "swing")
-                SwingNode(factory = { Canvas() })
+                SwingNode(factory = { PlainAwtComponent() })
             }
         }
 
         // A raw AWT component carries no client properties; the tag matcher must reject it rather
         // than fail while walking a tree that mixes AWT leaves with Swing components.
         onAllNodes(SwingMatcher.hasTestTag("any")).assertCountEquals(0)
-        onNode(SwingMatcher.isOfType<Canvas>()).assertExists()
+        onNode(SwingMatcher.isOfType<PlainAwtComponent>()).assertExists()
     }
 
     @Test

@@ -140,7 +140,7 @@ class NodeTabInteractionTest {
         setContent {
             Panel {
                 // Rendered from the caller's state alone, so its text can only be the text of a frame
-                // the click settled: the strip's own index reads the same with or without one.
+                // sent after the click: the strip's own index reads the same with or without one.
                 Label(text = "showing tab $selected")
                 TabbedPane(
                     selectedIndex = selected,

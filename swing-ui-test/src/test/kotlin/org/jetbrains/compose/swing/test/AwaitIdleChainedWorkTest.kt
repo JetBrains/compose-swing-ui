@@ -1,9 +1,14 @@
 package org.jetbrains.compose.swing.test
 
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.node.SwingNode
+import java.awt.Container
+import java.awt.FlowLayout
+import javax.swing.JPanel
 import javax.swing.SwingUtilities
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -11,7 +16,7 @@ import kotlin.test.assertEquals
 /**
  * Proves [ComposeSwingTest.awaitIdle] awaits chained EDT-deferred work, not just a fixed number of drains.
  *
- * The idle gate settles the composition and then drains the event-dispatch queue until it is
+ * The idle gate recomposes and then drains the event-dispatch queue until it is
  * genuinely empty. A task run by one drain may schedule further `invokeLater` work, and the final
  * link in such a chain may mutate observable state or a composition input. Draining a fixed one or
  * two turns would declare idleness with that scheduled work still queued, so these cases build chains
@@ -71,6 +76,87 @@ class AwaitIdleChainedWorkTest {
         awaitIdle()
 
         onNodeWithText("chained-done").assertExists()
+    }
+
+    @Test
+    fun awaitIdleLaysOutOnlyOnceTheChainHasRun() = runComposeSwingTest {
+        val progress = intArrayOf(0)
+        val seen = mutableSetOf<Int>()
+        val panel = JPanel(RecordingLayout { seen += progress[0] })
+        setContent { SwingNode(factory = { panel }) }
+        seen.clear()
+
+        startChain(progress, panel)
+        awaitIdle()
+
+        assertEquals(setOf(CHAIN_DEPTH), seen, "a layout pass ran with only part of the chain dispatched")
+    }
+
+    @Test
+    fun aFrameLaysOutOnlyOnceTheChainHasRun() = runComposeSwingTest {
+        val progress = intArrayOf(0)
+        val seen = mutableSetOf<Int>()
+        val panel = JPanel(RecordingLayout { seen += progress[0] })
+        setContent { SwingNode(factory = { panel }) }
+        seen.clear()
+
+        startChain(progress, panel)
+        mainClock.advanceTimeByFrame()
+
+        assertEquals(setOf(CHAIN_DEPTH), seen, "a layout pass ran with only part of the chain dispatched")
+    }
+
+    @Test
+    fun waitUntilLaysOutOnlyOnceTheChainHasRun() = runComposeSwingTest {
+        val progress = intArrayOf(0)
+        val seen = mutableSetOf<Int>()
+        val panel = JPanel(RecordingLayout { seen += progress[0] })
+        setContent { SwingNode(factory = { panel }) }
+        seen.clear()
+
+        startChain(progress, panel)
+        waitUntil { seen.isNotEmpty() }
+
+        assertEquals(setOf(CHAIN_DEPTH), seen, "a layout pass ran with only part of the chain dispatched")
+    }
+
+    @Test
+    fun setContentLaysOutOnlyOnceAChainTheCompositionStartedHasRun() = runComposeSwingTest {
+        val progress = intArrayOf(0)
+        val seen = mutableSetOf<Int>()
+        val panel = JPanel(RecordingLayout { seen += progress[0] })
+
+        setContent {
+            SwingNode(factory = { panel })
+            SideEffect { startChain(progress, panel) }
+        }
+
+        assertEquals(setOf(CHAIN_DEPTH), seen, "a layout pass ran with only part of the chain dispatched")
+    }
+
+    /**
+     * Schedules a chain of [CHAIN_DEPTH] hops, each writing how far the chain has got into [progress] and
+     * invalidating [panel], so any layout pass run between two hops lays the panel out.
+     */
+    private fun startChain(
+        progress: IntArray,
+        panel: JPanel,
+    ) {
+        fun hop(remaining: Int) {
+            progress[0] = CHAIN_DEPTH - remaining
+            panel.invalidate()
+            if (remaining > 0) SwingUtilities.invokeLater { hop(remaining - 1) }
+        }
+        SwingUtilities.invokeLater { hop(CHAIN_DEPTH) }
+    }
+
+    /** A layout manager placing nothing, calling [onLayout] on every pass. */
+    private class RecordingLayout(
+        private val onLayout: () -> Unit,
+    ) : FlowLayout() {
+        override fun layoutContainer(target: Container) {
+            onLayout()
+        }
     }
 
     private companion object {

@@ -3,9 +3,13 @@ package org.jetbrains.compose.swing.modifier.listener
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.DisposableHandle
+import org.jetbrains.compose.swing.TestRecomposer
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.runSwingTest
+import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Assumptions.assumeFalse
@@ -13,6 +17,8 @@ import java.awt.GraphicsEnvironment
 import java.awt.Scrollbar
 import java.awt.event.AdjustmentEvent
 import java.awt.event.AdjustmentListener
+import javax.swing.JComponent
+import javax.swing.JFrame
 import javax.swing.JScrollBar
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -76,32 +82,46 @@ class AdjustmentListenerModifierTest {
     }
 
     @Test
-    fun theListenerInstanceIsRegisteredOnAnAwtScrollbar() = runComposeSwingTest {
-        // The component under test is a heavyweight AWT one, which cannot be built at all
-        // without a display, rather than merely shown on one.
+    fun theListenerInstanceIsRegisteredOnAnAwtScrollbar() = runSwingTest {
+        // A heavyweight AWT scrollbar needs a native window for its peer, which the harness root never
+        // provides. A real window, realized but never shown, gives it one.
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val values = mutableListOf<Int>()
         val listener = AdjustmentListener { values += it.value }
-        setContent {
-            SwingNode(
-                factory = { Scrollbar(Scrollbar.HORIZONTAL) },
-                modifier = SwingModifier.adjustmentListener(listener),
-            )
-        }
-        val bar = onNodeOfType<Scrollbar>().fetch()
-        assertTrue(
-            bar.adjustmentListeners.any { it === listener },
-            "the listener instance should be registered on the AWT scrollbar",
-        )
+        val frame = JFrame()
+        val test = TestRecomposer(this)
+        var handle: DisposableHandle? = null
+        try {
+            frame.pack()
+            val target = frame.contentPane as JComponent
+            handle =
+                target.setContent(parent = test.recomposer) {
+                    SwingNode(
+                        factory = { Scrollbar(Scrollbar.HORIZONTAL) },
+                        modifier = SwingModifier.adjustmentListener(listener),
+                    )
+                }
+            test.awaitIdle()
 
-        // An AWT Scrollbar publishes an adjustment event only for a change made through its own
-        // event path, which is what setValue plus a posted event models.
-        bar.adjustmentListeners.forEach {
-            it.adjustmentValueChanged(
-                AdjustmentEvent(bar, AdjustmentEvent.ADJUSTMENT_VALUE_CHANGED, AdjustmentEvent.TRACK, 7),
+            val bar = target.components.filterIsInstance<Scrollbar>().single()
+            assertTrue(
+                bar.adjustmentListeners.any { it === listener },
+                "the listener instance should be registered on the AWT scrollbar",
             )
+
+            // An AWT Scrollbar publishes an adjustment event only for a change made through its own
+            // event path, which is what setValue plus a posted event models.
+            bar.adjustmentListeners.forEach {
+                it.adjustmentValueChanged(
+                    AdjustmentEvent(bar, AdjustmentEvent.ADJUSTMENT_VALUE_CHANGED, AdjustmentEvent.TRACK, 7),
+                )
+            }
+            assertEquals(listOf(7), values, "the registered listener should be notified of the new value")
+        } finally {
+            handle?.dispose()
+            frame.dispose()
+            test.cancel()
         }
-        assertEquals(listOf(7), values, "the registered listener should be notified of the new value")
     }
 
     @Test

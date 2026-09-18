@@ -10,7 +10,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.runComposeSwingTest
-import java.awt.Canvas
+import java.awt.Component
 import javax.swing.JLabel
 import javax.swing.JPopupMenu
 import kotlin.test.Test
@@ -50,7 +50,7 @@ class PopupAnchorTest {
                     val anchor = rememberPopupAnchor()
                     // A popup menu is a JComponent property; a bare AWT component carries none.
                     SwingNode(
-                        factory = { Canvas() },
+                        factory = { object : Component() {} },
                         modifier = SwingModifier.popupAnchor(anchor),
                     )
                     ContextMenu(anchor) { MenuItem("Cut", onClick = { }) }

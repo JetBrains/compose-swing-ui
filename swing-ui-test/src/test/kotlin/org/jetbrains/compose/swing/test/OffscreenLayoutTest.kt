@@ -1,7 +1,12 @@
 package org.jetbrains.compose.swing.test
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.node.SwingNode
 import java.awt.BorderLayout
 import java.awt.Canvas
+import java.awt.Container
 import java.awt.Dimension
 import javax.swing.JLabel
 import javax.swing.JMenu
@@ -50,6 +55,25 @@ class OffscreenLayoutTest {
         assertTrue(item.width > 0 && item.height > 0, "the menu item was left on ${item.bounds}")
     }
 
+    /** A layout keeping what it measured hears a child's change through the invalidation it sends up. */
+    @Test
+    fun aLayoutKeepingWhatItMeasuredSeesAChangeTheCompositionApplied() = runComposeSwingTest {
+        var text by mutableStateOf("short")
+        val label = JLabel()
+        setContent {
+            SwingNode(factory = { JPanel(KeepingLayout()) }) {
+                SwingNode(factory = { label }, update = { set(text) { this.text = it } })
+            }
+        }
+        val shortWidth = label.width
+
+        text = "a considerably longer text"
+        awaitIdle()
+
+        assertEquals(label.preferredSize.width, label.width, "the label kept the width it had for \"short\"")
+        assertTrue(label.width > shortWidth, "the label kept the width it had for \"short\": $shortWidth")
+    }
+
     @Test
     fun aWidgetHoldingNoChildrenIsSized() = runComposeSwingTest {
         val canvas = Canvas()
@@ -57,6 +81,20 @@ class OffscreenLayoutTest {
         canvas.layoutOffscreen(Dimension(WIDTH, HEIGHT))
 
         assertEquals(Dimension(WIDTH, HEIGHT), canvas.size)
+    }
+
+    /** Places its first child at the size it measured, measuring again only once it is invalidated. */
+    private class KeepingLayout : BorderLayout() {
+        private var measured: Dimension? = null
+
+        override fun layoutContainer(target: Container) {
+            val child = target.getComponent(0)
+            child.size = measured ?: child.preferredSize.also { measured = it }
+        }
+
+        override fun invalidateLayout(target: Container) {
+            measured = null
+        }
     }
 
     private companion object {

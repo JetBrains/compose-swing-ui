@@ -44,6 +44,7 @@ dependencies {
     testFixturesImplementation(kotlin("test"))
     testFixturesImplementation(project(":swing-ui-test"))
     testImplementation(kotlin("test"))
+    testImplementation(libs.mockk)
     testImplementation(project(":swing-ui-test"))
 }
 

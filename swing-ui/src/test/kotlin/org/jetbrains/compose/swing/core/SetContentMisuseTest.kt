@@ -395,6 +395,7 @@ class SetContentMisuseTest {
 
     @Test
     fun windowSetContentRefusesAWindowWithNoRootPane() = runSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         // A bare java.awt.Frame is a Window but not a RootPaneContainer, so it has no content
         // pane on which to mount the composition. The precondition names the constraint.
         val frame = Frame()
@@ -414,6 +415,7 @@ class SetContentMisuseTest {
 
     @Test
     fun windowSetContentRefusesAWindowWhoseContentPaneIsNotAJComponent() = runSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         // RootPaneContainer.getContentPane() is typed as Container, not JComponent. This replaces
         // the default JPanel content pane with a raw AWT Panel to confirm the second precondition.
         val dialog = JDialog()

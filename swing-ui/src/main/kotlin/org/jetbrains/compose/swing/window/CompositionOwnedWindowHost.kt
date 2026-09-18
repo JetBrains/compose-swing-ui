@@ -135,7 +135,7 @@ internal fun CompositionOwnedWindowHost(
             }
         peer.addWindowListener(windowListener)
 
-        val geometryListener =
+        val removeGeometryWriteBack =
             peer.installGeometryWriteBack(
                 applied = appliedGeometry,
                 setPosition = { currentSetPosition(it) },
@@ -169,7 +169,7 @@ internal fun CompositionOwnedWindowHost(
             // is idempotent.
             disposeContentCompositionsIn(peer)
             handle.dispose()
-            peer.removeComponentListener(geometryListener)
+            removeGeometryWriteBack()
             peer.removeWindowListener(windowListener)
             disposePeer()
         }

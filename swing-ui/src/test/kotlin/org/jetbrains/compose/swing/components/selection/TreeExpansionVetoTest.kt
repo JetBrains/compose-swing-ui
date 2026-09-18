@@ -4,10 +4,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.verify
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JTree
-import javax.swing.event.TreeExpansionEvent
 import javax.swing.event.TreeExpansionListener
 import javax.swing.event.TreeSelectionListener
 import javax.swing.event.TreeWillExpandListener
@@ -186,23 +188,11 @@ class TreeExpansionVetoTest {
     fun aRefusedCollapseLeavesTheNodeOpenAndTheTreeGoesOnAnsweringForIt() = runComposeSwingTest {
         var refusing = true
         var expansion by mutableStateOf(setOf(emptyList<Int>(), listOf(0)))
-        val collapsed = mutableListOf<TreeExpansionEvent>()
-        val refusal =
-            object : TreeWillExpandListener {
-                override fun treeWillExpand(event: TreeExpansionEvent): Unit = Unit
-
-                override fun treeWillCollapse(event: TreeExpansionEvent) {
-                    if (refusing) throw ExpandVetoException(event)
-                }
-            }
-        val reports =
-            object : TreeExpansionListener {
-                override fun treeExpanded(event: TreeExpansionEvent): Unit = Unit
-
-                override fun treeCollapsed(event: TreeExpansionEvent) {
-                    collapsed += event
-                }
-            }
+        val refusal = mockk<TreeWillExpandListener>(relaxed = true)
+        every { refusal.treeWillCollapse(any()) } answers {
+            if (refusing) throw ExpandVetoException(firstArg())
+        }
+        val reports = mockk<TreeExpansionListener>(relaxed = true)
         setContent {
             Tree(
                 root = sample,
@@ -230,17 +220,13 @@ class TreeExpansionVetoTest {
         awaitIdle()
 
         assertFalse(tree.isExpanded(tree.pathTo(0)), "the collapse the listener allows goes through")
-        assertEquals(1, collapsed.size, "and it reaches the expansion listener as a change")
+        verify(exactly = 1) { reports.treeCollapsed(any()) }
     }
 
     @Test
     fun aRawWillExpandListenerVetoesWithItsOwnException() = runComposeSwingTest {
-        val listener =
-            object : TreeWillExpandListener {
-                override fun treeWillExpand(event: TreeExpansionEvent): Unit = throw ExpandVetoException(event)
-
-                override fun treeWillCollapse(event: TreeExpansionEvent): Unit = Unit
-            }
+        val listener = mockk<TreeWillExpandListener>(relaxed = true)
+        every { listener.treeWillExpand(any()) } answers { throw ExpandVetoException(firstArg()) }
         setContent {
             Tree(
                 root = sample,

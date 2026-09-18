@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.tooling
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import io.mockk.mockk
 import org.jetbrains.compose.swing.carriedChainAppearancesOf
 import org.jetbrains.compose.swing.components.ComboBox
 import org.jetbrains.compose.swing.components.Label
@@ -58,7 +59,6 @@ import javax.swing.SwingUtilities
 import javax.swing.TransferHandler
 import javax.swing.border.LineBorder
 import javax.swing.event.ChangeListener
-import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
 import javax.swing.text.DefaultCaret
 import javax.swing.text.DefaultHighlighter
@@ -242,7 +242,7 @@ class ModifierInspectionTest {
                 )
                 PasswordField(
                     value = charArrayOf('a'),
-                    documentListener = NoDocumentChange,
+                    documentListener = mockk<DocumentListener>(relaxed = true),
                     modifier = SwingModifier.testTag("password"),
                 )
                 TextArea(state = rememberDocumentState("v"), modifier = SwingModifier.testTag("area"), tabSize = 4)
@@ -527,13 +527,3 @@ private class UnnamedElement : SwingModifier.NodeElement<Component, SwingModifie
 
     override fun hashCode(): Int = javaClass.hashCode()
 }
-
-/** A [DocumentListener] that answers nothing, for a declaration whose only subject is the chain. */
-private val NoDocumentChange =
-    object : DocumentListener {
-        override fun insertUpdate(event: DocumentEvent) = Unit
-
-        override fun removeUpdate(event: DocumentEvent) = Unit
-
-        override fun changedUpdate(event: DocumentEvent) = Unit
-    }

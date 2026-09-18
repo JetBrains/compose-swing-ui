@@ -18,8 +18,8 @@ import kotlin.test.assertTrue
 /**
  * Covers a golden a comparison finds, one it does not, and what update mode changes about each.
  *
- * Every image here is drawn from filled rectangles rather than captured, so the comparisons say the
- * same thing whatever a platform rasterizes text to.
+ * Every golden here is drawn from filled rectangles or captured in the same test that compares against
+ * it, so the comparisons say the same thing whatever a platform rasterizes text to.
  */
 class GoldenScreenshotTest {
     @Test
@@ -127,6 +127,38 @@ class GoldenScreenshotTest {
             assertFalse(recorded.exists(), "a mismatch is never accepted as the new baseline")
         } finally {
             discard(recorded)
+        }
+    }
+
+    @Test
+    fun aPixelPerfectComparisonRefusesADriftTheDefaultThresholdAccepts() = runGoldenTest {
+        val identifier = "pixel-perfect-golden"
+        // Two pixels of drift stay within the default threshold, but they are not the same image.
+        val drifted = scene(elementX = 38)
+
+        withGoldenOnClasspath(identifier, scene()) {
+            assertImageAgainstGolden(drifted, identifier)
+            val failure =
+                assertFailsWith<AssertionError> { assertImageAgainstGoldenPixelPerfect(drifted, identifier) }
+            assertTrue(
+                failure.message.orEmpty().contains("Image mismatch for golden '$identifier'"),
+                "the failure names the golden that did not match: ${failure.message}",
+            )
+            assertImageAgainstGoldenPixelPerfect(scene(), identifier)
+        }
+    }
+
+    @Test
+    fun aPixelPerfectComparisonCapturesTheRootOrTheMatchedNode() = runGoldenTest {
+        val rootIdentifier = "pixel-perfect-root"
+        val nodeIdentifier = "pixel-perfect-node"
+        val node = onNodeWithText("golden")
+
+        withGoldenOnClasspath(rootIdentifier, captureToImage()) {
+            assertImageAgainstGoldenPixelPerfect(rootIdentifier)
+        }
+        withGoldenOnClasspath(nodeIdentifier, node.captureToImage()) {
+            node.assertImageAgainstGoldenPixelPerfect(nodeIdentifier)
         }
     }
 

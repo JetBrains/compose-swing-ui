@@ -1,12 +1,15 @@
 package org.jetbrains.compose.swing.window
 
 import org.jetbrains.compose.swing.annotations.WindowExtendedState
+import java.awt.Dimension
 import java.awt.Frame
+import java.awt.Insets
 import java.awt.Point
 import java.awt.Window
 import java.awt.event.ComponentAdapter
 import java.awt.event.ComponentEvent
-import java.awt.event.ComponentListener
+import java.awt.event.HierarchyEvent
+import java.awt.event.HierarchyListener
 import java.awt.event.WindowStateListener
 
 /**
@@ -52,6 +55,63 @@ internal class AppliedGeometry {
      * actually stands rather than trading placements with it indefinitely.
      */
     var placementReasserted: Boolean = false
+
+    /**
+     * The insets the window's decorations took when [width] by [height] was asked for, while the window
+     * system may still report the window off that size; null for a size the composition did not name -
+     * one fitted to the content, or one the user left the window at. A window getting a peer restamps a
+     * stamped size with the insets the peer starts with.
+     *
+     * A window manager that frames a window reports the insets its decorations take only once the window
+     * is on screen. Until then the X11 toolkit sizes the window's content around guessed insets, so the
+     * framed window first stands off the size asked for by the difference in insets, and a size replaced
+     * in the meantime is reported late, off by that difference or at that size itself. Neither is a
+     * resize of the user's. A report under the insets a size was asked for around is never such a
+     * correction.
+     *
+     * A size stays stamped once the toolkit has reported it late, which it may do more than once, and
+     * when the toolkit answers it with no late report at all. So after the window is framed, a report that
+     * lands exactly on that size off by the difference in insets, or on the size it replaced, is still
+     * taken for the toolkit's until any other resize.
+     */
+    var sizeRequestInsets: Insets? = null
+
+    /**
+     * Whether the toolkit has reported [width] by [height] late since it was asked for. A size asked for
+     * after that does not keep it as [supersededSize]: the toolkit has already reported it, so a later
+     * report of it is a user's resize.
+     */
+    var sizeReportedLate: Boolean = false
+
+    /**
+     * The size [width] by [height] replaced while [sizeRequestInsets] stood, with the insets it was asked
+     * for around; null when there is none, or once the toolkit has reported it at itself. Only the latest
+     * replaced size is kept, so one replaced before it is written back if the toolkit reports it late.
+     */
+    var supersededSize: SizeRequest? = null
+}
+
+/** A [width] by [height] asked of a window, and the [insets] its decorations took when it was. */
+internal class SizeRequest(
+    val width: Int,
+    val height: Int,
+    val insets: Insets,
+)
+
+/**
+ * Whether a window [reportedWidth] by [reportedHeight] is the toolkit reporting this size late, now that
+ * the window's decorations take [current] insets - see [AppliedGeometry.sizeRequestInsets].
+ */
+private fun SizeRequest.isReportedLateAs(
+    reportedWidth: Int,
+    reportedHeight: Int,
+    current: Insets,
+): Boolean {
+    val widthChange = current.left + current.right - insets.left - insets.right
+    val heightChange = current.top + current.bottom - insets.top - insets.bottom
+    val insetsChanged = widthChange != 0 || heightChange != 0
+    val offByTheChange = reportedWidth == width + widthChange && reportedHeight == height + heightChange
+    return insetsChanged && (offByTheChange || (reportedWidth == width && reportedHeight == height))
 }
 
 /**
@@ -79,11 +139,7 @@ internal fun Window.applyGeometry(
     // is the same declaration written 0 by 0, and the size the window takes from it flows back into the
     // state - which is what makes a later 0 by 0 a change again, and re-fits the window to content that
     // has since grown.
-    if (applied.width != width || applied.height != height) {
-        if (width == 0 && height == 0) pack() else setSize(width, height)
-        applied.width = width
-        applied.height = height
-    }
+    if (applied.width != width || applied.height != height) applySize(width, height, applied)
     if (applied.position != position) {
         // Read before the placement below moves the window: these are the coordinates in force until
         // that placement takes.
@@ -132,6 +188,41 @@ internal fun Window.applyGeometry(
             applied.placementReasserted = false
         }
     }
+}
+
+/** Pushes a [width] by [height] that differs from the one in sync onto this window, as [applyGeometry] describes. */
+private fun Window.applySize(
+    width: Int,
+    height: Int,
+    applied: AppliedGeometry,
+) {
+    if (width == 0 && height == 0) {
+        // The toolkit keeping the content's size when it frames the window is what fitting the content
+        // asks for, so there is nothing to hold the window to.
+        pack()
+        applied.supersededSize = null
+        applied.sizeRequestInsets = null
+        applied.sizeReportedLate = false
+    } else {
+        // Read before the resize: the toolkit thread may correct its guessed insets at any moment, and a size
+        // stamped with insets corrected after it was sized would have its late report taken for a user's
+        // resize.
+        val requestInsets = insets
+        setSize(width, height)
+        val replacedUnder = applied.sizeRequestInsets.takeUnless { applied.sizeReportedLate }
+        val replacedWidth = applied.width
+        val replacedHeight = applied.height
+        applied.supersededSize =
+            if (replacedUnder != null && replacedWidth != null && replacedHeight != null) {
+                SizeRequest(replacedWidth, replacedHeight, replacedUnder)
+            } else {
+                null
+            }
+        applied.sizeRequestInsets = requestInsets
+        applied.sizeReportedLate = false
+    }
+    applied.width = width
+    applied.height = height
 }
 
 /**
@@ -191,15 +282,29 @@ internal fun Frame.installExtendedStateWriteBack(
  * system busy putting a window on screen reports the placement it is performing rather than one asked
  * of it in the meantime - see [AppliedGeometry.placement].
  *
- * Returns the registered listener so the caller can remove it when the window leaves the composition.
+ * A resize is only the user's once the toolkit has reported the sizes asked for - see
+ * [AppliedGeometry.sizeRequestInsets].
+ *
+ * Returns a function that removes the registered listeners, for when the window leaves the composition.
  */
 internal fun Window.installGeometryWriteBack(
     applied: AppliedGeometry,
     setPosition: (WindowPosition) -> Unit,
     setSize: (width: Int, height: Int) -> Unit,
-): ComponentListener {
+): () -> Unit {
     val listener =
-        object : ComponentAdapter() {
+        object : ComponentAdapter(), HierarchyListener {
+            override fun hierarchyChanged(e: HierarchyEvent) {
+                // A size asked for before the window had a peer is sized around the insets the peer
+                // starts with, and one replaced before then never reached it.
+                val becameDisplayable = (e.changeFlags and HierarchyEvent.DISPLAYABILITY_CHANGED.toLong()) != 0L
+                if (becameDisplayable && isDisplayable && applied.sizeRequestInsets != null) {
+                    applied.sizeRequestInsets = insets
+                    applied.sizeReportedLate = false
+                    applied.supersededSize = null
+                }
+            }
+
             /**
              * Whether the window is on screen, as the window's own show and hide notifications report
              * it. This trails [java.awt.Window.isVisible], which already answers `true` while the
@@ -223,9 +328,59 @@ internal fun Window.installGeometryWriteBack(
                 // apply (or a stale event); leaving the state untouched keeps a declared change from
                 // being reverted before the next apply observes it.
                 if (applied.width == newWidth && applied.height == newHeight) return
+                val requested = requestedSizeResizedTo(newWidth, newHeight)
+                if (requested != null) {
+                    this@installGeometryWriteBack.size = requested
+                    return
+                }
                 applied.width = newWidth
                 applied.height = newHeight
+                applied.supersededSize = null
+                applied.sizeRequestInsets = null
+                applied.sizeReportedLate = false
                 setSize(newWidth, newHeight)
+            }
+
+            /**
+             * The size the composition asked for, when a window [reportedWidth] by [reportedHeight] is
+             * the toolkit reporting it, or the size it replaced, late - see
+             * [AppliedGeometry.sizeRequestInsets]; null when the report is anything else. The size asked
+             * for stands, so the caller asks for it again.
+             */
+            private fun requestedSizeResizedTo(
+                reportedWidth: Int,
+                reportedHeight: Int,
+            ): Dimension? {
+                val requestedUnder = applied.sizeRequestInsets
+                val requestedWidth = applied.width
+                val requestedHeight = applied.height
+                if (requestedUnder == null || requestedWidth == null || requestedHeight == null) return null
+                val current = insets
+                val requested = SizeRequest(requestedWidth, requestedHeight, requestedUnder)
+                val superseded = applied.supersededSize
+                return when {
+                    superseded?.isReportedLateAs(reportedWidth, reportedHeight, current) == true -> {
+                        // Reported off by the change in insets first, and at itself last, once the toolkit
+                        // has resized the window back to it.
+                        if (reportedWidth == superseded.width && reportedHeight == superseded.height) {
+                            applied.supersededSize = null
+                        }
+                        Dimension(requestedWidth, requestedHeight)
+                    }
+
+                    requested.isReportedLateAs(reportedWidth, reportedHeight, current) -> {
+                        // The toolkit reports the sizes asked for in the order they were asked for, so
+                        // the size replaced has been reported for the last time. This one may be
+                        // reported so again, so it stays stamped.
+                        applied.supersededSize = null
+                        applied.sizeReportedLate = true
+                        Dimension(requestedWidth, requestedHeight)
+                    }
+
+                    else -> {
+                        null
+                    }
+                }
             }
 
             override fun componentMoved(e: ComponentEvent) {
@@ -286,5 +441,9 @@ internal fun Window.installGeometryWriteBack(
             }
         }
     addComponentListener(listener)
-    return listener
+    addHierarchyListener(listener)
+    return {
+        removeComponentListener(listener)
+        removeHierarchyListener(listener)
+    }
 }

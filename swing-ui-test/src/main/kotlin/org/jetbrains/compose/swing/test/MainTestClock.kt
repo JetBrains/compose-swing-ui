@@ -8,7 +8,7 @@ import kotlin.time.Duration.Companion.seconds
 /**
  * Manual control over the frames [ComposeSwingTest] sends its own composition.
  *
- * [ComposeSwingTest.awaitIdle] settles a composition by sending it frames; this clock decides
+ * [ComposeSwingTest.awaitIdle] brings a composition to idle by sending it frames; this clock decides
  * whether those frames happen on their own ([autoAdvance] `true`, the default, leaving every gate's
  * behavior unchanged) or only when a test sends one, which is what makes it possible to observe a
  * frame-driven animation partway through rather than only once it has run to completion.
@@ -28,7 +28,7 @@ public sealed interface MainTestClock {
      * in `withFrameNanos` - an animation, for instance - suspended until [advanceTimeByFrame] or
      * [advanceTimeBy] sends one.
      *
-     * This also governs [ComposeSwingTest.setContent]'s own initial settle, which depends on it the
+     * This also governs [ComposeSwingTest.setContent]'s own wait for idle, which depends on it the
      * same way: turning this off before the first [ComposeSwingTest.setContent] call leaves a
      * frame-driven effect started from initial composition parked from the very start, with nothing
      * composed off it until a frame is sent explicitly.
@@ -87,7 +87,7 @@ public sealed interface MainTestClock {
 /**
  * @param currentTimeNanos reads the shared frame-time counter every frame this clock or the harness's
  * own gates advance.
- * @param advanceAndSettle publishes pending snapshot writes, advances the shared frame-time counter by
+ * @param runFrame publishes pending snapshot writes, advances the shared frame-time counter by
  * the given number of nanoseconds, sends the result as a frame, and - without suspending - blocks
  * until the frame's effects have propagated as far as they can without another one: recomposed and
  * applied if it revived a pending recomposition, and any effect the frame newly parks (or re-parks)
@@ -96,12 +96,12 @@ public sealed interface MainTestClock {
  * suspension point between the calls for the event dispatch thread to otherwise make progress on -
  * still delivers every step to whatever is waiting rather than silently losing the ones a still-parked
  * awaiter cannot yet be dispatched to receive. The `caller` name is the public entry point to attach to
- * a failure if it never settles.
- * @param diagnostics reports the tree and composition state a gate attaches to what it could not settle.
+ * a failure if it never becomes idle.
+ * @param diagnostics reports the tree and composition state a gate attaches to a composition that never became idle.
  */
 internal class MainTestClockImpl(
     private val currentTimeNanos: () -> Long,
-    private val advanceAndSettle: (deltaNanos: Long, caller: String) -> Unit,
+    private val runFrame: (deltaNanos: Long, caller: String) -> Unit,
     private val diagnostics: () -> String,
 ) : MainTestClock {
     override var autoAdvance: Boolean = true
@@ -112,7 +112,7 @@ internal class MainTestClockImpl(
     override val frameDuration: Duration = FRAME_DURATION
 
     override fun advanceTimeByFrame() {
-        advanceAndSettle(frameDuration.inWholeNanoseconds, "mainClock.advanceTimeByFrame")
+        runFrame(frameDuration.inWholeNanoseconds, "mainClock.advanceTimeByFrame")
     }
 
     override fun advanceTimeBy(
@@ -123,7 +123,7 @@ internal class MainTestClockImpl(
             "Cannot advance composition time by a duration that is negative or not finite: $duration."
         }
         if (ignoreFrameDuration) {
-            advanceAndSettle(duration.inWholeNanoseconds, "mainClock.advanceTimeBy")
+            runFrame(duration.inWholeNanoseconds, "mainClock.advanceTimeBy")
         } else {
             val target = currentTime + duration
             while (currentTime < target) advanceTimeByFrame()

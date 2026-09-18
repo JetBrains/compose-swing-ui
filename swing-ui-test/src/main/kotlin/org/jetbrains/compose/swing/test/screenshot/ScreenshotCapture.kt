@@ -14,7 +14,7 @@ import java.awt.image.BufferedImage
  * Renders the matched component, together with everything drawn inside it, to an off-screen image.
  *
  * The component must be displayed (laid out with a non-zero size); this is the same contract as
- * [SwingNodeInteraction.assertIsDisplayed]. Call after the composition has settled so the captured
+ * [SwingNodeInteraction.assertIsDisplayed]. Call once the composition is idle so the captured
  * image reflects the latest state.
  *
  * @return an image whose width and height match the component's laid-out size.
@@ -81,8 +81,8 @@ private fun Component.renderToImage(): BufferedImage {
     val graphics = image.createGraphics()
     try {
         // printAll (not paintAll) renders the component and its descendants regardless of on-screen
-        // showing state. paintAll returns early for a component with no realized peer, leaving the
-        // image blank; the harness never realizes a window, so print is the path that draws pixels.
+        // showing state. paintAll draws nothing for a component that is not showing, and the harness
+        // root never shows, so print is the path that draws pixels.
         printAll(graphics)
     } finally {
         graphics.dispose()

@@ -123,8 +123,8 @@ class NodeFocusInteractionTest {
         var focus by mutableStateOf("none")
         setContent {
             Panel {
-                // Rendered from the caller's state alone, so its text can only be the text of a frame the
-                // action settled; the listener's own write reaches the tree no other way.
+                // Rendered from the caller's state alone, so its text can only be the text of a frame sent
+                // after the action; the listener's own write reaches the tree no other way.
                 Label(text = "focus: $focus")
                 Button(
                     text = "X",

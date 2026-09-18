@@ -1,7 +1,7 @@
 package org.jetbrains.compose.swing.node
 
+import org.jetbrains.compose.swing.runSwingTest
 import java.awt.Container
-import java.awt.EventQueue
 import java.awt.Rectangle
 import javax.swing.JButton
 import javax.swing.JLabel
@@ -18,7 +18,7 @@ import kotlin.test.assertSame
  * surface here rather than in higher-level integration tests.
  *
  * Mutations and assertions that observe `revalidate()`/`repaint()` call counts run on the EDT (via
- * [onEdt]), matching production where the applier always runs on the EDT. On the EDT
+ * [runSwingTest]), matching production where the applier always runs on the EDT. On the EDT
  * `JComponent.revalidate()` is synchronous (it invalidates and registers the component immediately),
  * so every counted call is exact and deterministic; off the EDT it would defer via `invokeLater`,
  * racing the count against the assertion.
@@ -27,23 +27,6 @@ import kotlin.test.assertSame
  * [SwingApplierRegionTest].
  */
 class SwingApplierTest {
-    /**
-     * Runs [block] on the AWT event dispatch thread and surfaces any failure on the calling thread.
-     *
-     * If already on the EDT, [block] runs inline; otherwise it is dispatched with
-     * [EventQueue.invokeAndWait] and any thrown failure is rethrown here so assertions inside [block]
-     * fail the test as usual.
-     */
-    private fun onEdt(block: () -> Unit) {
-        if (EventQueue.isDispatchThread()) {
-            block()
-            return
-        }
-        var failure: Throwable? = null
-        EventQueue.invokeAndWait { runCatching(block).onFailure { failure = it } }
-        failure?.let { throw it }
-    }
-
     /**
      * A JPanel that counts how many times [revalidate] is invoked and records the area each `repaint`
      * asks for, for the onEndChanges assertions. Every `Component.repaint()` overload funnels through the
@@ -330,7 +313,7 @@ class SwingApplierTest {
     }
 
     @Test
-    fun onEndChanges_revalidatesMutatedContainerOnce() = onEdt {
+    fun onEndChanges_revalidatesMutatedContainerOnce() = runSwingTest {
         val root = CountingPanel()
         val applier = applierFor(root)
 
@@ -348,7 +331,7 @@ class SwingApplierTest {
     }
 
     @Test
-    fun onEndChanges_doesNotRevalidateWhenNoContainerMutated() = onEdt {
+    fun onEndChanges_doesNotRevalidateWhenNoContainerMutated() = runSwingTest {
         val root = CountingPanel()
         val applier = applierFor(root)
 
@@ -361,7 +344,7 @@ class SwingApplierTest {
     }
 
     @Test
-    fun onEndChanges_doesNotRevalidateAContainerAnAbandonedPassMarked() = onEdt {
+    fun onEndChanges_doesNotRevalidateAContainerAnAbandonedPassMarked() = runSwingTest {
         val root = CountingPanel()
         val applier = applierFor(root)
 
@@ -396,7 +379,7 @@ class SwingApplierTest {
     }
 
     @Test
-    fun onEndChanges_repaintsOnlyTheAreaARemovedChildLeaves() = onEdt {
+    fun onEndChanges_repaintsOnlyTheAreaARemovedChildLeaves() = runSwingTest {
         val root = CountingPanel()
         val applier = applierFor(root)
         seedRow(root, applier)
@@ -416,7 +399,7 @@ class SwingApplierTest {
     }
 
     @Test
-    fun onEndChanges_repaintsOnlyTheAreaOfAMovedChild() = onEdt {
+    fun onEndChanges_repaintsOnlyTheAreaOfAMovedChild() = runSwingTest {
         val root = CountingPanel()
         val applier = applierFor(root)
         seedRow(root, applier)
@@ -434,7 +417,7 @@ class SwingApplierTest {
     }
 
     @Test
-    fun onEndChanges_leavesAnInsertedChildToTheRelayoutThatSizesIt() = onEdt {
+    fun onEndChanges_leavesAnInsertedChildToTheRelayoutThatSizesIt() = runSwingTest {
         val root = CountingPanel()
         val applier = applierFor(root)
         seedRow(root, applier)
@@ -456,7 +439,7 @@ class SwingApplierTest {
     }
 
     @Test
-    fun onEndChanges_repaintsTheAreaOfAnInsertedChildThatAlreadyHasBounds() = onEdt {
+    fun onEndChanges_repaintsTheAreaOfAnInsertedChildThatAlreadyHasBounds() = runSwingTest {
         val root = CountingPanel()
         val applier = applierFor(root)
         seedRow(root, applier)
@@ -478,7 +461,7 @@ class SwingApplierTest {
     }
 
     @Test
-    fun mutatingNestedContainerAppliesChildAndRevalidatesThatContainerNotRoot() = onEdt {
+    fun mutatingNestedContainerAppliesChildAndRevalidatesThatContainerNotRoot() = runSwingTest {
         val root = CountingPanel()
         val applier = applierFor(root)
         // The nested container counts its own revalidate() calls so we can prove the applier

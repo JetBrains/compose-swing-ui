@@ -54,8 +54,8 @@ class WindowRecomposerTest {
             // recomposer, one state change recomposes both; if each had spun up its own recomposer,
             // one clock could not drive the other.
             var shared by mutableStateOf("v0")
-            val compositionA = onEdtChild(frame)
-            val compositionB = onEdtChild(frame)
+            val compositionA = childPanelOf(frame)
+            val compositionB = childPanelOf(frame)
             compositionA.setContent { Label(text = "a=$shared") }
             compositionB.setContent { Label(text = "b=$shared") }
 
@@ -116,7 +116,7 @@ class WindowRecomposerTest {
     fun aClosedWindowHoldsARecomposerOnlyWhileContentComposesInIt() = runSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val frame = realizedFrame()
-        val composition = onEdtChild(frame)
+        val composition = childPanelOf(frame)
         try {
             frame.getOrCreateRecomposer()
             frame.dispose()
@@ -211,7 +211,7 @@ class WindowRecomposerTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val frame = realizedFrame()
         try {
-            val composition = onEdtChild(frame)
+            val composition = childPanelOf(frame)
             val handle = composition.setContent { Label(text = "only") }
             awaitUntil("the window's only content composes") { labelTextOrNull(composition) == "only" }
             val first = assertNotNull(frame.swingRecomposerOrNull())
@@ -252,7 +252,7 @@ class WindowRecomposerTest {
         val frame = realizedFrame()
         val other = realizedFrame()
         try {
-            val holder = onEdtChild(frame)
+            val holder = childPanelOf(frame)
             val composition = JPanel().also { holder.add(it) }
             var text by mutableStateOf("before")
             composition.setContent { Label(text = text) }
@@ -291,7 +291,7 @@ class WindowRecomposerTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val frame = realizedFrame()
         try {
-            val composition = onEdtChild(frame)
+            val composition = childPanelOf(frame)
             var effectDisposed = false
             composition.setContent {
                 DisposableEffect(Unit) {
@@ -332,7 +332,7 @@ class WindowRecomposerTest {
         // closing window's tree reaches it.
         val own = SwingRecomposer.create(JPanel())
         try {
-            val composition = onEdtChild(frame)
+            val composition = childPanelOf(frame)
             var effectDisposed = false
             composition.setContent(parent = own.compositionContext) {
                 DisposableEffect(Unit) {
@@ -367,7 +367,7 @@ class WindowRecomposerTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val frame = realizedFrame()
         try {
-            val composition = onEdtChild(frame)
+            val composition = childPanelOf(frame)
             var effectDisposed = false
             composition.setContent {
                 DisposableEffect(Unit) {
@@ -395,7 +395,7 @@ class WindowRecomposerTest {
         val frame = realizedFrame()
         try {
             var host: CompositionContext? = null
-            onEdtChild(frame).setContent {
+            childPanelOf(frame).setContent {
                 host = rememberCompositionContext()
                 Label(text = "host")
             }
@@ -462,7 +462,7 @@ class WindowRecomposerTest {
         val frame = realizedFrame()
         try {
             var host: CompositionContext? = null
-            onEdtChild(frame).setContent {
+            childPanelOf(frame).setContent {
                 host = rememberCompositionContext()
                 Label(text = "host")
             }
@@ -471,7 +471,7 @@ class WindowRecomposerTest {
             // A container standing in the window beside the host content rather than inside it, given a
             // context that names no window: what reaches it is the recomposer the window it stands in
             // shares, taken on the call.
-            val composition = onEdtChild(frame)
+            val composition = childPanelOf(frame)
             var effectDisposed = false
             composition.setContent(parent = host ?: error("no host context")) {
                 DisposableEffect(Unit) {
@@ -498,7 +498,7 @@ class WindowRecomposerTest {
         val second = realizedFrame()
         try {
             var text by mutableStateOf("v0")
-            val composition = onEdtChild(first)
+            val composition = childPanelOf(first)
             composition.setContent { Label(text = text) }
             awaitUntil("the content composition renders in its first window") {
                 labelTextOrNull(composition) == "v0"
@@ -525,7 +525,7 @@ class WindowRecomposerTest {
         val first = realizedFrame()
         val second = realizedFrame()
         try {
-            val composition = onEdtChild(first)
+            val composition = childPanelOf(first)
             var effectDisposed = false
             composition.setContent {
                 DisposableEffect(Unit) {
@@ -594,7 +594,7 @@ class WindowRecomposerTest {
     }
 
     /** Adds and returns a fresh child container inside [frame]'s content pane. Must be on the EDT. */
-    private fun onEdtChild(frame: JFrame): JPanel = JPanel().also { frame.contentPane.add(it) }
+    private fun childPanelOf(frame: JFrame): JPanel = JPanel().also { frame.contentPane.add(it) }
 
     /** The single [JLabel]'s text in [container]'s subtree, or `null` while none has mounted yet. */
     private fun labelTextOrNull(container: Container): String? {

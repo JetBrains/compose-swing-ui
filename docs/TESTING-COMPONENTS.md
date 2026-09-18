@@ -65,8 +65,8 @@ class CounterTest {
 
 <!--- KNIT example-testing-01.kt -->
 
-`setContent` waits for the composition to settle before returning, so by the next line the tree
-reflects the initial state. After an action that writes Compose state, the harness settles again
+`setContent` waits until the composition is idle before returning, so by the next line the tree
+reflects the initial state. After an action that writes snapshot state, the harness waits for idle again
 before the following assertion runs — no sleeps, no manual pumping.
 
 ## Finding components
@@ -266,8 +266,8 @@ assertEquals(listOf("Copy", null, "Delete"), items)
 
 Actions are available on a `SwingNodeInteraction`. Each one delivers the events the toolkit delivers for
 that gesture — a click is a press, a release and a `MOUSE_CLICKED`; a character is a `KEY_PRESSED`, a
-`KEY_TYPED` and a `KEY_RELEASED` — **each from an event-queue cycle of its own**, and settles the
-composition afterwards. So the component's own UI decides what a gesture means, exactly as it does for a
+`KEY_TYPED` and a `KEY_RELEASED` — **each from an event-queue cycle of its own**, and waits until the
+composition is idle afterwards. So the component's own UI decides what a gesture means, exactly as it does for a
 user, and a widget that refuses an edit refuses it here too.
 
 - `performClick(position, button, clicks, modifiers)` — click the component, at its middle unless a
@@ -417,16 +417,20 @@ fun settingsWindowShowsItsContent() = runComposeSwingTest {
 A dialog show is applied on its own event-dispatch turn; the idle gate drains it, so after a state
 change plus `awaitIdle()` the realized dialog already reflects the declared visibility.
 
+A heavyweight AWT component that needs a native peer to work (for example `java.awt.Canvas` or
+`java.awt.Button`) is tested the same way: compose it under a `Window { }` the test owns, so it gets a
+real peer, instead of under the harness root, which never shows.
+
 ## Waiting on external timing
 
-Composition state changes settle automatically, so most tests need no waiting. When a condition
+The harness waits for composition state changes itself, so most tests need no waiting. When a condition
 genuinely depends on timing outside the composition (a coroutine driven by wall-clock, an external
-callback), use `waitUntil { … }`; use `awaitIdle()` to settle the composition explicitly when you
+callback), use `waitUntil { … }`; use `awaitIdle()` to wait for the composition explicitly when you
 have written state outside of an action.
 
 ### Telling a widget's own report apart from a recomposition
 
-`awaitIdle()` settles the composition, so by the time it returns a widget's callback has fired *and* a
+`awaitIdle()` waits until the composition is idle, so by the time it returns a widget's callback has fired *and* a
 recomposition has applied whatever the callback wrote. When a test has to tell those two apart, use
 `awaitEventsDelivered()`: it dispatches the notifications already queued on the event dispatch thread
 and produces no frame, so anything the tree shows afterwards was put there by a widget rather than by
@@ -443,7 +447,7 @@ onNodeOfType<JLabel>().assertTextEquals("recomposed")
 
 ### Driving frames by hand
 
-`awaitIdle()` reaches a settled composition by sending it frames, so anything driven by
+`awaitIdle()` reaches an idle composition by sending it frames, so anything driven by
 `withFrameNanos` — an animation, most of all — has already run to completion by the time a test looks
 at it. `mainClock` hands that decision to the test:
 
@@ -469,15 +473,6 @@ refresh rate.
 The clock governs the test's own off-screen composition. Content composed under a real `Window` or
 `Dialog` runs on that window's own recomposer, whose frame-driven work is paced by the display the
 window is on, and is unaffected.
-
-### What an unrealized tree does not do
-
-The harness root is never attached to a window, so nothing composed in it is ever *displayable*, and
-the Swing wiring that happens on `addNotify` does not run. The visible case is a `Table` inside a
-`ScrollPane`: `JTable` installs its own header on the enclosing scroll pane from `addNotify`, so
-off-screen there is no `columnHeader` view to find and no header to click. The table's sorting,
-selection and column model all behave normally — only the header component is absent. A test that
-needs it should compose the content under a `Window { }`, which realizes a real peer.
 
 ## Screenshot comparison
 

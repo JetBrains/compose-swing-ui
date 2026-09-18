@@ -157,6 +157,7 @@ class DialogReactivityTest {
             ) {}
         }
         val dialog = onWindow().fetch<JDialog>()
+        awaitWindowStandsStill(dialog)
         assertReaches(
             Dimension(320, 240),
             "a declared size below the declared minimum size must be raised to that minimum",
@@ -303,6 +304,7 @@ class DialogReactivityTest {
 
             val replacement = dialog.fetch<JDialog>()
             assertNotSame(realized, replacement, "an owner change must realize a replacement dialog")
+            awaitWindowStandsStill(replacement)
             assertReaches(
                 Dimension(360, 260),
                 "the size held in the state must be applied to the dialog that replaces the released one",

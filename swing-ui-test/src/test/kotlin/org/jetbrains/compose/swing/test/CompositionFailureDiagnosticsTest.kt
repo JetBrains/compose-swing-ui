@@ -12,12 +12,12 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * Pins the diagnostic every settling gate appends once recomposition itself has ended from an
+ * Pins the diagnostic every idle gate appends once recomposition itself has ended from an
  * uncontained throw - a node's own update block raising, which reaches the recomposer directly rather
  * than through the caller-callback containment [CallerFailureContainmentTest] pins.
  *
  * Such a throw ends the recomposer for good: nothing it applies afterward reflects fresh state, so a
- * gate that goes on to find nothing to settle names the failure that stopped recomposition rather than
+ * gate that goes on to find nothing left to run names the failure that stopped recomposition rather than
  * reporting a bare stale tree.
  */
 class CompositionFailureDiagnosticsTest {
@@ -35,7 +35,7 @@ class CompositionFailureDiagnosticsTest {
         }
 
         fail = true
-        // The condition never becomes true, so the deadline - not a settled composition - is what ends
+        // The condition never becomes true, so the deadline - not an idle composition - is what ends
         // this wait; it fails regardless of whether the dead recomposer still reports pending work.
         val failure =
             assertFailsWith<AssertionError> {

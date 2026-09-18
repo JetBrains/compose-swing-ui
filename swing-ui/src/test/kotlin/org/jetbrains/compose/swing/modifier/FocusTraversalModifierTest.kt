@@ -9,6 +9,7 @@ import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.text.TextField
+import org.jetbrains.compose.swing.core.SwingRecomposer
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.interaction.enabled
 import org.jetbrains.compose.swing.modifier.interaction.focusTraversalIndex
@@ -16,9 +17,10 @@ import org.jetbrains.compose.swing.modifier.interaction.focusable
 import org.jetbrains.compose.swing.modifier.interaction.orderedFocusTraversal
 import org.jetbrains.compose.swing.modifier.layout.visible
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.runSwingTest
+import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.interaction.SwingNodeInteraction
-import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.window.Window
@@ -156,22 +158,30 @@ class FocusTraversalModifierTest {
     }
 
     @Test
-    fun aFormWithNoPeerHasNoTraversalOrder() = runComposeSwingTest {
-        setContent {
-            Panel(PanelLayout.Flow(), modifier = SwingModifier.testTag(PANEL_TAG).orderedFocusTraversal()) {
-                TextField("", onValueChange = {})
+    fun aFormWithNoPeerHasNoTraversalOrder() = runSwingTest {
+        // A form composed into a container standing in no window has no peer, and a component with no
+        // peer cannot be given the keyboard.
+        val form = JPanel()
+        val recomposer = SwingRecomposer.create(form)
+        val mounted =
+            form.setContent(parent = recomposer.compositionContext) {
+                Panel(PanelLayout.Flow(), modifier = SwingModifier.orderedFocusTraversal()) {
+                    TextField("", onValueChange = {})
+                }
             }
-        }
-        val panel = onNodeWithTag(PANEL_TAG).fetch<JPanel>()
-        val field = onNodeOfType<JTextField>().fetch()
-        val policy = panel.focusTraversalPolicy
+        try {
+            val panel = form.getComponent(0) as JPanel
+            val field = panel.getComponent(0) as JTextField
+            val policy = panel.focusTraversalPolicy
 
-        // The harness root is never attached to a window, so nothing under it is displayable, and a
-        // component with no peer cannot be given the keyboard.
-        assertFalse(field.isDisplayable, "an unrealized form has no peer")
-        assertNull(policy.getFirstComponent(panel), "a form with no peer has no first component")
-        assertNull(policy.getLastComponent(panel), "a form with no peer has no last component")
-        assertNull(policy.getComponentAfter(panel, field), "a control with no peer is not stepped to")
+            assertFalse(field.isDisplayable, "an unrealized form has no peer")
+            assertNull(policy.getFirstComponent(panel), "a form with no peer has no first component")
+            assertNull(policy.getLastComponent(panel), "a form with no peer has no last component")
+            assertNull(policy.getComponentAfter(panel, field), "a control with no peer is not stepped to")
+        } finally {
+            mounted.dispose()
+            recomposer.dispose()
+        }
     }
 
     @Test

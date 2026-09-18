@@ -1,12 +1,16 @@
 package org.jetbrains.compose.swing.test
 
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import org.jetbrains.compose.swing.animation.core.Animatable
 import org.jetbrains.compose.swing.animation.core.LinearEasing
+import org.jetbrains.compose.swing.animation.core.animateFloat
+import org.jetbrains.compose.swing.animation.core.infiniteRepeatable
+import org.jetbrains.compose.swing.animation.core.rememberInfiniteTransition
 import org.jetbrains.compose.swing.animation.core.tween
 import org.jetbrains.compose.swing.components.Label
 import kotlin.test.Test
@@ -21,7 +25,7 @@ import kotlin.time.Duration.Companion.seconds
  *
  * With [MainTestClock.autoAdvance] off, a coroutine parked in `withFrameNanos` and a composition
  * merely holding an unapplied recomposition both have to read as idle to [ComposeSwingTest.awaitIdle]
- * - a settle loop that instead chased either one with a frame of its own would spin or hang the moment
+ * - an idle wait that instead chased either one with a frame of its own would spin or hang the moment
  * autoAdvance is turned off - while the explicit-advance API is what is left to move either forward.
  */
 class MainTestClockTest {
@@ -40,19 +44,19 @@ class MainTestClockTest {
     @Test
     fun everyGateAdvancesCurrentTimeByTheSamePublishedFrameDuration() = runComposeSwingTest {
         setContent { Label(text = "content") }
-        // The initial settle runs with autoAdvance on, so its frames come from awaitIdle's own send;
+        // The initial wait for idle runs with autoAdvance on, so its frames come from awaitIdle's own send;
         // an explicit advance must land on the same grid rather than on a second frame length.
-        val settled = mainClock.currentTime
+        val start = mainClock.currentTime
         assertEquals(
             0L,
-            settled.inWholeNanoseconds % mainClock.frameDuration.inWholeNanoseconds,
-            "the frames the harness sends itself must step by the published frameDuration: $settled",
+            start.inWholeNanoseconds % mainClock.frameDuration.inWholeNanoseconds,
+            "the frames the harness sends itself must step by the published frameDuration: $start",
         )
 
         mainClock.autoAdvance = false
         mainClock.advanceTimeByFrame()
 
-        assertEquals(settled + mainClock.frameDuration, mainClock.currentTime)
+        assertEquals(start + mainClock.frameDuration, mainClock.currentTime)
     }
 
     @Test
@@ -115,7 +119,7 @@ class MainTestClockTest {
         assertEquals(
             0,
             framesConsumed,
-            "setContent's initial settle must not advance an effect parked on a frame when autoAdvance is off",
+            "setContent's initial wait must not advance an effect parked on a frame when autoAdvance is off",
         )
 
         repeat(FRAME_STEPS) { step ->
@@ -265,6 +269,31 @@ class MainTestClockTest {
     }
 
     @Test
+    fun autoAdvanceOffDrivesAnAnimationThatNeverEndsFrameByFrame() = runComposeSwingTest {
+        lateinit var animated: State<Float>
+        mainClock.autoAdvance = false
+        setContent {
+            animated =
+                rememberInfiniteTransition().animateFloat(
+                    initialValue = ANIMATION_START_VALUE,
+                    targetValue = ANIMATION_TARGET_VALUE,
+                    animationSpec =
+                        infiniteRepeatable(tween(durationMillis = ANIMATION_DURATION_MILLIS, easing = LinearEasing)),
+                )
+        }
+
+        repeat(2) { mainClock.advanceTimeByFrame() }
+        awaitIdle()
+
+        val midFlightValue = animated.value
+        assertTrue(
+            midFlightValue > ANIMATION_START_VALUE && midFlightValue < ANIMATION_TARGET_VALUE,
+            "under manual frame control the animation is left alone, so two frames in it sits strictly " +
+                "between its start and target: $midFlightValue",
+        )
+    }
+
+    @Test
     fun autoAdvanceOffLetsATweenAnimationBeObservedStrictlyMidFlightBeforeReachingItsTarget() = runComposeSwingTest {
         val animatable = Animatable(ANIMATION_START_VALUE)
         mainClock.autoAdvance = false
@@ -328,7 +357,7 @@ class MainTestClockTest {
             timeAfterSetContent,
             mainClock.currentTime,
             "awaitIdle must not send a frame of its own while autoAdvance is off, so currentTime must " +
-                "stay exactly where the initial settle left it",
+                "stay exactly where the initial wait left it",
         )
     }
 

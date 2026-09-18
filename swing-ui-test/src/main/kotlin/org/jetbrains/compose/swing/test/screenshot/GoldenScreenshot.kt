@@ -79,7 +79,70 @@ public fun ComposeSwingTest.assertImageAgainstGolden(
     threshold: Double = MSSIMMatcher.DEFAULT_THRESHOLD,
 ) {
     requireValidGoldenIdentifier(goldenIdentifier)
-    GoldenScreenshotComparator(goldenIdentifier, threshold).assertAgainstGolden(image)
+    GoldenScreenshotComparator(goldenIdentifier, MSSIMMatcher(threshold)).assertAgainstGolden(image)
+}
+
+/**
+ * Captures the whole composition root and asserts it matches the stored golden image identified by
+ * [goldenIdentifier] pixel-for-pixel.
+ *
+ * This is the strict counterpart of [ComposeSwingTest.assertImageAgainstGolden]: it admits no
+ * difference at all, rather than a structural-similarity tolerance. Use it for a scene rasterized by
+ * Java2D alone - shapes, fills, image filters - where an exact match holds on every host. A scene
+ * that renders text or look-and-feel chrome cannot hold to it, because the physical font a host
+ * resolves for a logical family remains its own choice.
+ *
+ * Behaves identically to [ComposeSwingTest.assertImageAgainstGolden] for missing goldens, record
+ * mode, mismatch output and naming rules.
+ *
+ * @param goldenIdentifier identifies the golden image; allowed characters are letters, digits, '_'
+ *   and '-'.
+ * @throws AssertionError if any pixel of the captured image differs from the golden, or if the
+ *   golden is missing while record mode is disabled.
+ * @throws IllegalArgumentException if [goldenIdentifier] contains forbidden characters.
+ */
+public fun ComposeSwingTest.assertImageAgainstGoldenPixelPerfect(goldenIdentifier: String) {
+    assertImageAgainstGoldenPixelPerfect(captureToImage(), goldenIdentifier)
+}
+
+/**
+ * Asserts an already-captured [image] against the golden image identified by [goldenIdentifier]
+ * pixel-for-pixel. Use this when the image was produced by [captureToImage] and possibly
+ * post-processed before comparing.
+ *
+ * Behaves identically to [ComposeSwingTest.assertImageAgainstGoldenPixelPerfect] for missing
+ * goldens, record mode, mismatch output and naming rules.
+ *
+ * @param image the captured image to compare.
+ * @param goldenIdentifier identifies the golden image; allowed characters are letters, digits, '_'
+ *   and '-'.
+ * @throws AssertionError if any pixel of [image] differs from the golden, or if the golden is
+ *   missing while record mode is disabled.
+ * @throws IllegalArgumentException if [goldenIdentifier] contains forbidden characters.
+ */
+public fun ComposeSwingTest.assertImageAgainstGoldenPixelPerfect(
+    image: BufferedImage,
+    goldenIdentifier: String,
+) {
+    requireValidGoldenIdentifier(goldenIdentifier)
+    GoldenScreenshotComparator(goldenIdentifier, PixelPerfectMatcher).assertAgainstGolden(image)
+}
+
+/**
+ * Captures the matched component and asserts it matches the stored golden image identified by
+ * [goldenIdentifier] pixel-for-pixel.
+ *
+ * This is the strict counterpart of [SwingNodeInteraction.assertImageAgainstGolden]; see
+ * [ComposeSwingTest.assertImageAgainstGoldenPixelPerfect] for when an exact match holds.
+ *
+ * @param goldenIdentifier identifies the golden image; allowed characters are letters, digits, '_'
+ *   and '-'.
+ * @throws AssertionError if any pixel of the captured image differs from the golden, or if the
+ *   golden is missing while record mode is disabled.
+ * @throws IllegalArgumentException if [goldenIdentifier] contains forbidden characters.
+ */
+public fun SwingNodeInteraction<*>.assertImageAgainstGoldenPixelPerfect(goldenIdentifier: String) {
+    test.assertImageAgainstGoldenPixelPerfect(captureToImage(), goldenIdentifier)
 }
 
 /**
@@ -191,7 +254,7 @@ internal fun compareImages(
  */
 private class GoldenScreenshotComparator(
     private val goldenIdentifier: String,
-    private val threshold: Double,
+    private val matcher: BitmapMatcher,
 ) {
     fun assertAgainstGolden(actual: BufferedImage) {
         val golden = loadGolden()
@@ -199,7 +262,7 @@ private class GoldenScreenshotComparator(
             handleMissingGolden(actual)
             return
         }
-        val result = compareImages(golden, actual, MSSIMMatcher(threshold))
+        val result = compareImages(golden, actual, matcher)
         if (result.matches) {
             if (updateGoldens()) writeGolden(actual, updated = true)
             return

@@ -7,7 +7,6 @@ import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.interaction.enabled
 import org.jetbrains.compose.swing.node.SwingNode
-import java.awt.Canvas
 import javax.swing.JLabel
 import kotlin.test.Test
 import kotlin.test.assertFailsWith
@@ -35,7 +34,7 @@ class TreeDumpDiagnosticsTest {
                     },
                 )
                 Button(text = "off", onClick = {}, modifier = SwingModifier.enabled(false))
-                SwingNode(factory = { Canvas() })
+                SwingNode(factory = { PlainAwtComponent() })
             }
         }
 
@@ -53,7 +52,10 @@ class TreeDumpDiagnosticsTest {
             "the dump should carry the accessible description a query can match on:\n$dump",
         )
         assertTrue(dump.contains("disabled"), "the dump should flag a disabled component:\n$dump")
-        assertTrue(dump.contains("Canvas"), "the dump should include a non-container AWT leaf:\n$dump")
+        assertTrue(
+            dump.contains("PlainAwtComponent"),
+            "the dump should include a non-container AWT leaf:\n$dump",
+        )
     }
 
     @Test

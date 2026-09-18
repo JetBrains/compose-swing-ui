@@ -1,7 +1,9 @@
 package org.jetbrains.compose.swing.foundation.layout
 
+import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.Component
 import java.awt.Dimension
+import java.awt.GraphicsEnvironment
 import java.awt.Rectangle
 import javax.swing.JComponent
 import javax.swing.JFrame
@@ -81,6 +83,7 @@ internal fun peered(
     root: JComponent,
     body: () -> Unit,
 ) {
+    assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
     val frame = JFrame()
     try {
         SwingUtilities.invokeAndWait {

@@ -28,7 +28,7 @@ class CallerFailureContainmentTest {
     }
 
     @Test
-    fun aGateThatCannotSettleNamesTheContainedCallerFailures() = runComposeSwingTest {
+    fun aGateThatNeverFindsIdleNamesTheContainedCallerFailures() = runComposeSwingTest {
         val value = mutableStateOf(50)
         setContent {
             Slider(value = value.value, changeListener = ChangeListener { throw IllegalStateException("boom") })
@@ -36,7 +36,7 @@ class CallerFailureContainmentTest {
         value.value = 75
         awaitIdle()
 
-        // A gate dumps the tree it could not settle, and that tree is unexplained unless the
+        // A gate dumps the tree it never found idle, and that tree is unexplained unless the
         // diagnostics name the callback that never finished.
         val failure = assertFailsWith<AssertionError> { waitUntil(timeout = 100.milliseconds) { false } }
         val message = failure.message.orEmpty()
@@ -87,8 +87,8 @@ class CallerFailureContainmentTest {
 
         val message = teardown.message.orEmpty()
         assertTrue(
-            // The tail is what distinguishes the teardown failure from the note a settle gate adds to
-            // its own report when it finds contained failures alongside a composition it cannot settle.
+            // The tail is what distinguishes the teardown failure from the note an idle gate adds to
+            // its own report when it finds contained failures alongside a composition that never becomes idle.
             message.contains("The composition contained them and carried on; the test cannot."),
             "the teardown failure should report the unclaimed callback(s): $message",
         )

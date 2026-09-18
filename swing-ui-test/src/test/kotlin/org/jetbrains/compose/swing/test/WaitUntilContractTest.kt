@@ -15,7 +15,7 @@ import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Pins [ComposeSwingTest.waitUntil] - the harness's escape hatch for a condition that cannot be expressed
- * as a settled assertion - and the one-shot contract of [ComposeSwingTest.setContent].
+ * as an assertion after awaitIdle - and the one-shot contract of [ComposeSwingTest.setContent].
  *
  * A wait must return as soon as its condition holds and must fail readably, with a tree dump, when it
  * does not hold by the deadline, so a downstream test never hangs until its framework's timeout.
@@ -117,7 +117,7 @@ class WaitUntilContractTest {
             timeAfterSetContent,
             mainClock.currentTime,
             "waitUntil must not send a frame of its own while autoAdvance is off, so currentTime must " +
-                "stay exactly where the initial settle left it",
+                "stay exactly where the initial wait left it",
         )
         assertEquals(
             0,

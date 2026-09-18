@@ -225,7 +225,7 @@ public class SwingNodeInteraction<out T : Component> internal constructor(
         if (component.width <= 0 || component.height <= 0) {
             throw AssertionError(
                 "Node '$description' is not displayed: it has zero laid-out size " +
-                    "(${component.width}x${component.height}). The forced layout pass assigned " +
+                    "(${component.width}x${component.height}). The layout assigned " +
                     "it no bounds within its ancestor.\nTree:\n${currentRoots.dumpTrees()}",
             )
         }

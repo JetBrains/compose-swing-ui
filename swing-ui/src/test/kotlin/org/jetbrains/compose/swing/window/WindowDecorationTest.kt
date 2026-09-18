@@ -97,6 +97,7 @@ class WindowDecorationTest {
             "the realized window must carry its platform decorations once undecorated recomposes to false",
         )
         assertFalse(realized.isDisplayable, "the window the change replaced must be released")
+        awaitWindowStandsStill(decorated)
         assertReaches(
             Dimension(320, 240),
             "the size held in the state must be applied to the window that replaces the released one",
@@ -142,6 +143,7 @@ class WindowDecorationTest {
             "the realized dialog must carry its platform decorations once undecorated recomposes to false",
         )
         assertFalse(realized.isDisplayable, "the dialog the change replaced must be released")
+        awaitWindowStandsStill(decorated)
         assertReaches(
             Dimension(320, 240),
             "the size held in the state must be applied to the dialog that replaces the released one",
@@ -302,6 +304,7 @@ class WindowDecorationTest {
 
         val replacement = window.fetch<JFrame>()
         assertNotSame(realized, replacement, "a decoration change must realize a replacement window")
+        awaitWindowStandsStill(replacement)
         replacement.size = Dimension(640, 480)
         waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { state.size == Dimension(640, 480) }
         assertEquals(

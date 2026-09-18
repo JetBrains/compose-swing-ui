@@ -11,15 +11,12 @@ import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.components.menu.MenuSeparator
 import org.jetbrains.compose.swing.components.menu.RadioButtonMenuItem
 import org.jetbrains.compose.swing.menuItemTexts
-import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.GraphicsEnvironment
-import java.awt.event.ComponentAdapter
-import java.awt.event.ComponentEvent
 import javax.swing.JCheckBoxMenuItem
 import javax.swing.JDialog
 import javax.swing.JFrame
@@ -36,7 +33,6 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
-import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Behavioral tests for the declarative menu bar of a [Window] and a [Dialog]: the declared menu tree
@@ -467,7 +463,7 @@ class WindowMenuBarTest {
         // The selection a click on a menu title leaves behind, which holds its pulldown open. The window
         // is never shown, so the pulldown stays off screen while the selection stands.
         val selection = MenuSelectionManager.defaultManager()
-        awaitWindowStandsStill("menu-bar-open-removed")
+        awaitWindowStandsStill(onWindowWithTitle("menu-bar-open-removed").fetch<JFrame>())
         selection.selectedPath = arrayOf<MenuElement>(bar, edit, edit.popupMenu)
         awaitIdle()
         assertTrue(edit.isSelected, "the open menu should be the selected one before it is removed")
@@ -506,7 +502,7 @@ class WindowMenuBarTest {
         val export = file.getItem(1) as JMenu
         // The selection standing while the user is in the submenu of an open menu.
         val selection = MenuSelectionManager.defaultManager()
-        awaitWindowStandsStill("menu-bar-open-submenu")
+        awaitWindowStandsStill(onWindowWithTitle("menu-bar-open-submenu").fetch<JFrame>())
         selection.selectedPath = arrayOf<MenuElement>(bar, file, file.popupMenu, export, export.popupMenu)
         awaitIdle()
 
@@ -536,7 +532,7 @@ class WindowMenuBarTest {
         val bar = frame.jMenuBar
         val file = bar.getMenu(0)
         val selection = MenuSelectionManager.defaultManager()
-        awaitWindowStandsStill("menu-bar-open-withdrawn")
+        awaitWindowStandsStill(onWindowWithTitle("menu-bar-open-withdrawn").fetch<JFrame>())
         selection.selectedPath = arrayOf<MenuElement>(bar, file, file.popupMenu)
         awaitIdle()
 
@@ -575,7 +571,7 @@ class WindowMenuBarTest {
 
             val frame = onWindowWithTitle("menu-bar-open-elsewhere").fetch<JFrame>()
             val composedBar = frame.jMenuBar
-            awaitWindowStandsStill("menu-bar-open-elsewhere")
+            awaitWindowStandsStill(onWindowWithTitle("menu-bar-open-elsewhere").fetch<JFrame>())
             selection.selectedPath = outsidePath.toTypedArray()
             awaitIdle()
             assertEquals(
@@ -626,7 +622,7 @@ class WindowMenuBarTest {
         val help = bar.getMenu(2)
         val openPath = listOf<MenuElement>(bar, help, help.popupMenu)
         val selection = MenuSelectionManager.defaultManager()
-        awaitWindowStandsStill("menu-bar-open-moved")
+        awaitWindowStandsStill(onWindowWithTitle("menu-bar-open-moved").fetch<JFrame>())
         selection.selectedPath = openPath.toTypedArray()
         awaitIdle()
         assertEquals(openPath, selection.selectedPath.toList(), "the last menu should be the open one before it moves")
@@ -651,39 +647,3 @@ class WindowMenuBarTest {
         assertFalse(help.isSelected, "and the moved menu should be left unselected")
     }
 }
-
-/**
- * Waits until the window titled [title] reports no move and no resize between two checks.
- *
- * A window lays out as its menu bar arrives and reports the reshape on a dispatch of its own, which
- * settling the composition does not wait for. A look and feel may cancel an open menu when the window
- * under it reshapes, so a case that opens one waits for the window to stand still first.
- */
-private suspend fun ComposeSwingTest.awaitWindowStandsStill(title: String) {
-    val frame = onWindowWithTitle(title).fetch<JFrame>()
-    var lastReshape = System.nanoTime()
-    val listener =
-        object : ComponentAdapter() {
-            override fun componentResized(event: ComponentEvent) {
-                lastReshape = System.nanoTime()
-            }
-
-            override fun componentMoved(event: ComponentEvent) {
-                lastReshape = System.nanoTime()
-            }
-        }
-    frame.addComponentListener(listener)
-    try {
-        waitUntil(timeout = NATIVE_EVENT_TIMEOUT) {
-            System.nanoTime() - lastReshape >= WINDOW_QUIET_PERIOD.inWholeNanoseconds
-        }
-    } finally {
-        frame.removeComponentListener(listener)
-    }
-}
-
-/**
- * How long a window must report no move and no resize before a case opens a menu over it. Raise this
- * if a case still finds its menu cancelled.
- */
-private val WINDOW_QUIET_PERIOD = 250.milliseconds

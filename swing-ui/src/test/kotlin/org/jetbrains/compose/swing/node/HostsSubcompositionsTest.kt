@@ -11,7 +11,7 @@ import org.jetbrains.compose.swing.core.COMPOSITION_KEY
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.util.get
-import java.awt.Panel
+import java.awt.Container
 import javax.swing.JPanel
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -184,7 +184,7 @@ class HostsSubcompositionsTest {
                 setContent {
                     val parentContext = rememberCompositionContext()
                     SwingNode(
-                        factory = { Panel() },
+                        factory = { Container() },
                         update = { hostSubcompositions(parentContext) },
                     )
                 }

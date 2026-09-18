@@ -3,9 +3,9 @@ package org.jetbrains.compose.swing.core
 import androidx.compose.runtime.Recomposer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.swing.Swing
+import org.jetbrains.compose.swing.runSwingTest
 import java.beans.PropertyChangeEvent
 import java.beans.PropertyChangeListener
-import javax.swing.SwingUtilities
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -23,13 +23,13 @@ import kotlin.test.assertEquals
  */
 class SwingFrameClockRetimeTest {
     @Test
-    fun framesPerSecondMapsToTimerDelay() = onEdt {
+    fun framesPerSecondMapsToTimerDelay() = runSwingTest {
         assertEquals(MILLIS_AT_60, clockAt(FPS_60).frameDelayMillis, "60 fps should map to a ~16 ms cadence")
         assertEquals(MILLIS_AT_120, clockAt(FPS_120).frameDelayMillis, "120 fps should map to a ~8 ms cadence")
     }
 
     @Test
-    fun setFramesPerSecondRecomputesTheDelay() = onEdt {
+    fun setFramesPerSecondRecomputesTheDelay() = runSwingTest {
         val clock = clockAt(FPS_60)
         assertEquals(MILLIS_AT_60, clock.frameDelayMillis, "the clock should start at the 60 fps cadence")
 
@@ -41,7 +41,7 @@ class SwingFrameClockRetimeTest {
     }
 
     @Test
-    fun nonPositiveFramesPerSecondIsCoercedToAtLeastOneFrame() = onEdt {
+    fun nonPositiveFramesPerSecondIsCoercedToAtLeastOneFrame() = runSwingTest {
         val clock = clockAt(FPS_60)
         clock.setFramesPerSecond(0)
         assertEquals(
@@ -52,7 +52,7 @@ class SwingFrameClockRetimeTest {
     }
 
     @Test
-    fun firingTheGraphicsConfigurationEventRetimesTheClock() = onEdt {
+    fun firingTheGraphicsConfigurationEventRetimesTheClock() = runSwingTest {
         // Models the wiring SwingRecomposer.create installs: a "graphicsConfiguration" listener that
         // retimes the clock from the event's new value, standing in for a real window's
         // displayRefreshRate() call, which needs a realized Window on a display.
@@ -77,13 +77,6 @@ class SwingFrameClockRetimeTest {
     private fun clockAt(framesPerSecond: Int): SwingFrameClock = SwingUiDispatcher().frameClock.apply {
         pace(Recomposer(Dispatchers.Swing))
         setFramesPerSecond(framesPerSecond)
-    }
-
-    private fun <T> onEdt(action: () -> T): T {
-        if (SwingUtilities.isEventDispatchThread()) return action()
-        var outcome: Result<T>? = null
-        SwingUtilities.invokeAndWait { outcome = runCatching(action) }
-        return checkNotNull(outcome) { "EDT action did not run." }.getOrThrow()
     }
 
     private companion object {

@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import io.mockk.mockk
 import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.ComboBox
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -18,7 +19,6 @@ import javax.swing.JList
 import javax.swing.JTable
 import javax.swing.JTree
 import javax.swing.event.ListSelectionListener
-import javax.swing.event.TreeExpansionEvent
 import javax.swing.event.TreeExpansionListener
 import javax.swing.event.TreeSelectionListener
 import javax.swing.table.DefaultTableModel
@@ -439,15 +439,7 @@ class SelectionDeclarationTest {
             userSelectionListener(MirrorState(null), ListSelectionListener { })
         }
         assertDeclaredChainCarriedOnce {
-            treeListeners(TreeSelectionListener { }, NoTreeExpansionChange, null)
+            treeListeners(TreeSelectionListener { }, mockk<TreeExpansionListener>(relaxed = true), null)
         }
     }
 }
-
-/** A [TreeExpansionListener] that answers nothing, for a declaration whose only subject is the chain. */
-private val NoTreeExpansionChange =
-    object : TreeExpansionListener {
-        override fun treeExpanded(event: TreeExpansionEvent) = Unit
-
-        override fun treeCollapsed(event: TreeExpansionEvent) = Unit
-    }

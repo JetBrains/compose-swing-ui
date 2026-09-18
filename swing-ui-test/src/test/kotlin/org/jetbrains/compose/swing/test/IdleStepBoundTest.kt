@@ -13,7 +13,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
- * Pins the frame bound the settling gates - [ComposeSwingTest.setContent]'s initial settle,
+ * Pins the step bound the idle gates - [ComposeSwingTest.setContent]'s initial wait,
  * [ComposeSwingTest.awaitIdle] and [MainTestClock.advanceTimeByFrame] - give up at.
  *
  * A composition that produces fresh work on every frame is never quiescent, so a gate that waited for
@@ -22,13 +22,13 @@ import kotlin.test.assertTrue
  * outstanding work, and the tree it was waiting on.
  *
  * Each case produces that work for more frames than the bound tolerates and then stops, so the
- * composition it leaves behind is one a gate would settle: the failure can only come from the bound, and
- * a gate that stopped failing at it ends these cases with a settled composition and no failure rather
+ * composition it leaves behind is one a gate would find idle: the failure can only come from the bound, and
+ * a gate that stopped failing at it ends these cases with an idle composition and no failure rather
  * than with a hang.
  */
-class SettleFrameBoundTest {
+class IdleStepBoundTest {
     @Test
-    fun awaitIdleFailsReadablyForACompositionThatNeverSettles() = runComposeSwingTest {
+    fun awaitIdleFailsReadablyForACompositionThatNeverBecomesIdle() = runComposeSwingTest {
         var restless by mutableStateOf(false)
         var consumed by mutableIntStateOf(0)
         setContent {
@@ -50,7 +50,7 @@ class SettleFrameBoundTest {
         val failure = assertFailsWith<AssertionError> { awaitIdle() }
 
         val message = failure.message.orEmpty()
-        assertTrue(message.contains("awaitIdle did not settle"), "the failure should name the gate: $message")
+        assertTrue(message.contains("awaitIdle did not become idle"), "the failure should name the gate: $message")
         assertTrue(
             message.contains("hasPendingWork="),
             "the failure should report the outstanding work it gave up on: $message",
@@ -59,10 +59,10 @@ class SettleFrameBoundTest {
     }
 
     @Test
-    fun setContentFailsReadablyForAnInitialCompositionThatNeverSettles() = runComposeSwingTest {
+    fun setContentFailsReadablyForAnInitialCompositionThatNeverBecomesIdle() = runComposeSwingTest {
         var consumed by mutableIntStateOf(0)
 
-        // The initial settle runs inside setContent, so a content whose first composition already
+        // The initial wait for idle runs inside setContent, so a content whose first composition already
         // produces endless work fails there rather than at the first await the test writes.
         val failure =
             assertFailsWith<AssertionError> {
@@ -78,7 +78,7 @@ class SettleFrameBoundTest {
             }
 
         val message = failure.message.orEmpty()
-        assertTrue(message.contains("setContent did not settle"), "the failure should name the gate: $message")
+        assertTrue(message.contains("setContent did not become idle"), "the failure should name the gate: $message")
         assertTrue(
             message.contains("hasPendingWork="),
             "the failure should report the outstanding work it gave up on: $message",
@@ -91,7 +91,7 @@ class SettleFrameBoundTest {
         setContent { Label(text = "spinning") }
 
         // advanceTimeByFrame sends exactly one frame and then only drains the event queue, so a
-        // composition-driven restless effect settles it (parked awaiting the next explicit frame); only
+        // composition-driven restless effect leaves it idle (parked awaiting the next explicit frame); only
         // a queue that never empties - not a frame count - can keep the drain from finding it idle. The
         // flag stops the chain once the gate has given up, so it does not outlive this test.
         var reposting = true
@@ -108,12 +108,8 @@ class SettleFrameBoundTest {
 
         val message = failure.message.orEmpty()
         assertTrue(
-            message.contains("mainClock.advanceTimeByFrame did not settle"),
+            message.contains("mainClock.advanceTimeByFrame did not become idle"),
             "the failure should name the real caller: $message",
-        )
-        assertTrue(
-            message.contains("drain passes following one frame"),
-            "the failure should describe passes after a single frame, not a frame count: $message",
         )
         assertTrue(message.contains("spinning"), "the failure should carry a dump of the tree: $message")
     }

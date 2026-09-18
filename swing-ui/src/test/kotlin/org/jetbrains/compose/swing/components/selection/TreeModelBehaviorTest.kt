@@ -4,12 +4,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import io.mockk.mockk
+import io.mockk.verify
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JTree
-import javax.swing.event.TreeExpansionEvent
 import javax.swing.event.TreeExpansionListener
 import javax.swing.event.TreeModelListener
 import javax.swing.tree.DefaultMutableTreeNode
@@ -70,25 +71,16 @@ class TreeModelBehaviorTest {
         tree.selectionPath = tree.pathTo(1, 0)
         // Installing a model, the same one included, clears the selection and the open nodes before the
         // library puts them back: the events that round trip raises are what a standing tree never sees.
-        var expansions = 0
+        val expansionListener = mockk<TreeExpansionListener>(relaxed = true)
         var selections = 0
-        tree.addTreeExpansionListener(
-            object : TreeExpansionListener {
-                override fun treeExpanded(event: TreeExpansionEvent) {
-                    expansions++
-                }
-
-                override fun treeCollapsed(event: TreeExpansionEvent) {
-                    expansions++
-                }
-            },
-        )
+        tree.addTreeExpansionListener(expansionListener)
         tree.addTreeSelectionListener { selections++ }
 
         hovering = true
         awaitIdle()
 
-        assertEquals(0, expansions, "a chain gaining a listener leaves the open nodes untouched")
+        verify(exactly = 0) { expansionListener.treeExpanded(any()) }
+        verify(exactly = 0) { expansionListener.treeCollapsed(any()) }
         assertEquals(0, selections, "a chain gaining a listener leaves the selection untouched")
         assertSame(model, tree.model, "the caller's model still backs the tree")
     }

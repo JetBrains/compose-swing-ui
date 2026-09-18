@@ -16,8 +16,6 @@ import java.awt.Dimension
  * repaint manager, which may never run it. Each container is therefore laid out top-down - sized by
  * its parent's layout before it lays out its own children.
  *
- * The harness runs this pass over its own root before every assertion.
- *
  * Must be called on the Event Dispatch Thread.
  *
  * @param size the size this component is laid out at.
@@ -74,7 +72,7 @@ private fun layoutSubtree(component: Component) {
  * resize box, placed against its layered pane - is otherwise left where its previous size put it.
  *
  * [ComposeSwingTest.awaitEventsDelivered] is what delivers those announcements: it counts a queued
- * bounds notification as work still pending and yields until none is left, so the listeners run and the
- * runnables they schedule are drained with them.
+ * bounds notification as work still pending and dispatches the queue until none is left, so the
+ * listeners run and the runnables they schedule are drained with them.
  */
 internal suspend fun ComposeSwingTest.deliverQueuedEvents(): Unit = awaitEventsDelivered()

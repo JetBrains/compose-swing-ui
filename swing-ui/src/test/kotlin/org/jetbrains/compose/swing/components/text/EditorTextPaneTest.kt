@@ -4,6 +4,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.neverEqualPolicy
 import androidx.compose.runtime.setValue
+import io.mockk.every
+import io.mockk.mockk
 import org.jetbrains.compose.swing.test.SwingMatcher.Companion.isEditable
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.interaction.performTextReplacement
@@ -13,7 +15,6 @@ import java.net.URI
 import java.net.URL
 import javax.swing.JEditorPane
 import javax.swing.JTextPane
-import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
 import javax.swing.event.HyperlinkEvent
 import javax.swing.event.HyperlinkListener
@@ -273,19 +274,10 @@ class EditorTextPaneTest {
 
         val document = onNodeOfType<JEditorPane>().fetch().document
         var edits = 0
-        document.addDocumentListener(
-            object : DocumentListener {
-                override fun insertUpdate(e: DocumentEvent) {
-                    edits++
-                }
-
-                override fun removeUpdate(e: DocumentEvent) {
-                    edits++
-                }
-
-                override fun changedUpdate(e: DocumentEvent) = Unit
-            },
-        )
+        val listener = mockk<DocumentListener>(relaxed = true)
+        every { listener.insertUpdate(any()) } answers { edits++ }
+        every { listener.removeUpdate(any()) } answers { edits++ }
+        document.addDocumentListener(listener)
 
         baseUrl = URI("http://never-resolved.invalid/docs/").toURL()
         awaitIdle()

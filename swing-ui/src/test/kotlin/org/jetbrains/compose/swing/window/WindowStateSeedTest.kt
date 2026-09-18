@@ -38,6 +38,7 @@ class WindowStateSeedTest {
             Window(onCloseRequest = {}, state = state, title = "window-state-seed-test") {}
         }
         val frame = onWindow().fetch<JFrame>()
+        awaitWindowStandsStill(frame)
         assertEquals(Dimension(320, 240), frame.size, "the frame must realize with the seeded size")
         assertEquals(Point(120, 80), frame.location, "the frame must realize at the seeded position")
 
@@ -109,6 +110,7 @@ class WindowStateSeedTest {
             Dialog(onCloseRequest = {}, state = state, title = "dialog-state-seed-test") {}
         }
         val dialog = onWindow().fetch<JDialog>()
+        awaitWindowStandsStill(dialog)
         assertEquals(Dimension(360, 260), dialog.size, "the dialog must realize with the seeded size")
         assertEquals(Point(140, 90), dialog.location, "the dialog must realize at the seeded position")
 

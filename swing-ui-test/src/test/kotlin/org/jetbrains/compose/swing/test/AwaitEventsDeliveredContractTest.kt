@@ -14,7 +14,7 @@ import kotlin.test.assertTrue
 /**
  * Pins what [ComposeSwingTest.awaitEventsDelivered] delivers and what it withholds.
  *
- * The gate exists to take apart the two things [ComposeSwingTest.awaitIdle] settles together: it dispatches
+ * The gate exists to take apart the two things [ComposeSwingTest.awaitIdle] waits for together: it dispatches
  * the notifications already queued on the event dispatch thread, and it produces no composition frame,
  * so a value observed after it came from a widget rather than from a recomposition.
  */
@@ -54,7 +54,7 @@ class AwaitEventsDeliveredContractTest {
         setContent { Label(text = "frames: $frames") }
 
         // Nothing is queued, so the gate has nothing to dispatch and no reason to advance the
-        // composition; the tree must read exactly as the last settled frame left it.
+        // composition; the tree must read exactly as the last frame left it.
         awaitEventsDelivered()
 
         onNodeOfType<JLabel>().assertTextEquals("frames: 0")

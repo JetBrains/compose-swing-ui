@@ -30,7 +30,7 @@ import java.awt.event.MouseWheelEvent
  * is a press, a release and a `MOUSE_CLICKED`, each dispatched from an event-queue cycle of its own, and
  * a gesture that ran them together in a single cycle would hide every ordering that depends on the
  * cycles between. The `perform` gestures on [SwingNodeInteraction] compose these into whole gestures,
- * one event-queue cycle apart, and settle the composition afterwards.
+ * one event-queue cycle apart, and await idle afterwards.
  *
  * Build [event] with this component as its source, so its `getSource` agrees with the component it is
  * delivered to.

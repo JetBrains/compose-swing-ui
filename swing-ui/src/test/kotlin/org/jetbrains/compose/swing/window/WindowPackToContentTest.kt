@@ -36,6 +36,7 @@ class WindowPackToContentTest {
             }
         }
         val frame = onWindow().fetch<JFrame>()
+        awaitWindowStandsStill(frame)
         assertReaches(
             "a window with no explicit size must pack to its preferred size",
             { frame.preferredSize },
@@ -59,6 +60,7 @@ class WindowPackToContentTest {
             }
         }
         val dialog = onWindow().fetch<JDialog>()
+        awaitWindowStandsStill(dialog)
         assertReaches(
             "a dialog with no explicit size must pack to its preferred size",
             { dialog.preferredSize },
@@ -82,6 +84,7 @@ class WindowPackToContentTest {
             }
         }
         val frame = onWindow().fetch<JFrame>()
+        awaitWindowStandsStill(frame)
         assertReaches(
             Dimension(420, 300),
             "an explicit size must be applied verbatim rather than packed to content",
@@ -98,6 +101,7 @@ class WindowPackToContentTest {
             }
         }
         val dialog = onWindow().fetch<JDialog>()
+        awaitWindowStandsStill(dialog)
         assertReaches(
             Dimension(360, 240),
             "an explicit size must be applied verbatim rather than packed to content",
@@ -115,6 +119,7 @@ class WindowPackToContentTest {
         }
         val frame = onWindow().fetch<JFrame>()
         waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { state.size == frame.size }
+        awaitWindowStandsStill(frame)
         assertEquals(
             frame.size,
             state.size,
@@ -134,12 +139,14 @@ class WindowPackToContentTest {
         }
         val frame = onWindow().fetch<JFrame>()
         waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { state.size == frame.size }
+        awaitWindowStandsStill(frame)
         val packed = frame.size
 
         // The window system leaves the window at a size of the user's, which reaches the state.
         val resizedByTheUser = Dimension(packed.width + 160, packed.height + 120)
         frame.resizeTo(resizedByTheUser)
         waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { state.size == resizedByTheUser }
+        awaitWindowStandsStill(frame)
 
         // Sizing to the content is the same declaration written 0 by 0, so declaring it over the size
         // the user left is a change again and fits the window back to what it holds.
@@ -164,6 +171,7 @@ class WindowPackToContentTest {
         }
         val frame = onWindow().fetch<JFrame>()
         waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { state.size == frame.size }
+        awaitWindowStandsStill(frame)
         val packed = frame.size
 
         var resizeEvents = 0

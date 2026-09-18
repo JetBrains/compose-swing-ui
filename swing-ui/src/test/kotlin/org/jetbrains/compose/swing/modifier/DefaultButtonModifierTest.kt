@@ -1,21 +1,14 @@
 package org.jetbrains.compose.swing.modifier
 
-import androidx.compose.runtime.BroadcastFrameClock
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.Recomposer
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshots.Snapshot
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.DisposableHandle
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.swing.Swing
+import org.jetbrains.compose.swing.TestRecomposer
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.modifier.interaction.defaultButton
+import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
 import java.awt.Component
 import java.awt.Container
@@ -23,12 +16,9 @@ import javax.swing.JButton
 import javax.swing.JComponent
 import javax.swing.JPanel
 import javax.swing.JRootPane
-import javax.swing.SwingUtilities
-import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertNull
 import kotlin.test.assertSame
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * End-to-end tests for the `defaultButton` modifier mounted under a real [JRootPane]. They assert the
@@ -36,137 +26,127 @@ import kotlin.time.Duration.Companion.seconds
  * `JPanel` test root cannot express because it has no root pane.
  */
 class DefaultButtonModifierTest {
-    private val clock = BroadcastFrameClock()
-    private val scope = CoroutineScope(Dispatchers.Swing + Job() + clock)
-    private val recomposer = Recomposer(scope.coroutineContext)
-    private val rootPane: JRootPane = onEdt { JRootPane() }
-    private val root: JComponent = onEdt { rootPane.contentPane as JComponent }
-    private var handle: DisposableHandle? = null
-    private var frameTimeNanos = 0L
+    private val rootPane: JRootPane = JRootPane()
+    private val root: JComponent = rootPane.contentPane as JComponent
 
-    init {
-        scope.launch { recomposer.runRecomposeAndApplyChanges() }
-    }
-
-    @AfterTest
-    fun tearDown() {
-        onEdt { handle?.dispose() }
-        recomposer.cancel()
-        scope.cancel()
-    }
-
-    private fun setContent(content: @Composable () -> Unit) {
-        onEdt { handle = root.setContent(parent = recomposer, content = content) }
-        waitForIdle()
+    private suspend fun setContent(
+        test: TestRecomposer,
+        content: @Composable () -> Unit,
+    ): DisposableHandle {
+        val handle = root.setContent(parent = test.recomposer, content = content)
+        test.awaitIdle()
+        return handle
     }
 
     /** The single button the composition mounted under the root pane's content pane. */
-    private fun theButton(): JButton = onEdt {
+    private fun theButton(): JButton {
         fun find(component: Component): JButton? = when {
             component is JButton -> component
             component is Container -> component.components.firstNotNullOfOrNull(::find)
             else -> null
         }
-        find(root) ?: error("the composition mounted no button")
+        return find(root) ?: error("the composition mounted no button")
     }
 
     @Test
-    fun defaultButtonBecomesRootPaneDefault() {
-        setContent {
-            Button("OK", onClick = { }, modifier = SwingModifier.defaultButton())
+    fun defaultButtonBecomesRootPaneDefault() = runSwingTest {
+        val test = TestRecomposer(this)
+        var handle: DisposableHandle? = null
+        try {
+            handle = setContent(test) { Button("OK", onClick = { }, modifier = SwingModifier.defaultButton()) }
+            assertSame(
+                theButton(),
+                rootPane.defaultButton,
+                "the modifier should make the button the root pane default",
+            )
+        } finally {
+            handle?.dispose()
+            test.cancel()
         }
-        assertSame(
-            theButton(),
-            onEdt { rootPane.defaultButton },
-            "the modifier should make the button the root pane default",
-        )
     }
 
     @Test
-    fun clearingDefaultButtonReleasesRootPaneDefault() {
-        var isDefault by mutableStateOf(true)
-        setContent {
-            Button("OK", onClick = { }, modifier = SwingModifier.defaultButton(isDefault))
-        }
-        assertSame(
-            theButton(),
-            onEdt { rootPane.defaultButton },
-            "the button should start as the root pane default",
-        )
-
-        onEdt { isDefault = false }
-        waitForIdle()
-        assertNull(onEdt { rootPane.defaultButton }, "clearing the flag should release the root pane default")
-    }
-
-    @Test
-    fun removingDefaultButtonModifierReleasesRootPaneDefault() {
-        var present by mutableStateOf(true)
-        setContent {
-            Button("OK", onClick = { }, modifier = if (present) SwingModifier.defaultButton() else SwingModifier)
-        }
-        assertSame(
-            theButton(),
-            onEdt { rootPane.defaultButton },
-            "the button should start as the root pane default",
-        )
-
-        onEdt { present = false }
-        waitForIdle()
-        // The element left the chain, so its reset releases the root pane's default button.
-        assertNull(onEdt { rootPane.defaultButton }, "removing the modifier should release the root pane default")
-    }
-
-    @Test
-    fun defaultButtonFollowsTheButtonToAnotherRootPane() {
-        val host = onEdt { JPanel().also(root::add) }
-        onEdt {
+    fun clearingDefaultButtonReleasesRootPaneDefault() = runSwingTest {
+        val test = TestRecomposer(this)
+        var handle: DisposableHandle? = null
+        try {
+            var isDefault by mutableStateOf(true)
             handle =
-                host.setContent(parent = recomposer) {
+                setContent(test) {
+                    Button("OK", onClick = { }, modifier = SwingModifier.defaultButton(isDefault))
+                }
+            assertSame(
+                theButton(),
+                rootPane.defaultButton,
+                "the button should start as the root pane default",
+            )
+
+            isDefault = false
+            test.awaitIdle()
+            assertNull(rootPane.defaultButton, "clearing the flag should release the root pane default")
+        } finally {
+            handle?.dispose()
+            test.cancel()
+        }
+    }
+
+    @Test
+    fun removingDefaultButtonModifierReleasesRootPaneDefault() = runSwingTest {
+        val test = TestRecomposer(this)
+        var handle: DisposableHandle? = null
+        try {
+            var present by mutableStateOf(true)
+            handle =
+                setContent(test) {
+                    Button(
+                        "OK",
+                        onClick = { },
+                        modifier = if (present) SwingModifier.defaultButton() else SwingModifier,
+                    )
+                }
+            assertSame(
+                theButton(),
+                rootPane.defaultButton,
+                "the button should start as the root pane default",
+            )
+
+            present = false
+            test.awaitIdle()
+            // The element left the chain, so its reset releases the root pane's default button.
+            assertNull(rootPane.defaultButton, "removing the modifier should release the root pane default")
+        } finally {
+            handle?.dispose()
+            test.cancel()
+        }
+    }
+
+    @Test
+    fun defaultButtonFollowsTheButtonToAnotherRootPane() = runSwingTest {
+        val test = TestRecomposer(this)
+        var handle: DisposableHandle? = null
+        try {
+            val host = JPanel().also(root::add)
+            handle =
+                host.setContent(parent = test.recomposer) {
                     Button("OK", onClick = { }, modifier = SwingModifier.defaultButton())
                 }
-        }
-        waitForIdle()
-        val button = theButton()
-        assertSame(button, onEdt { rootPane.defaultButton }, "the button should start as the root pane default")
+            test.awaitIdle()
+            val button = theButton()
+            assertSame(button, rootPane.defaultButton, "the button should start as the root pane default")
 
-        val otherRootPane = onEdt { JRootPane() }
-        onEdt {
+            val otherRootPane = JRootPane()
             root.remove(host)
             otherRootPane.contentPane.add(host)
+
+            assertSame(
+                button,
+                otherRootPane.defaultButton,
+                "the default should follow the button to the root pane it moved to",
+            )
+            assertNull(rootPane.defaultButton, "the root pane the button left should hold no default")
+        } finally {
+            handle?.dispose()
+            test.cancel()
         }
-        assertSame(
-            button,
-            onEdt { otherRootPane.defaultButton },
-            "the default should follow the button to the root pane it moved to",
-        )
-        assertNull(onEdt { rootPane.defaultButton }, "the root pane the button left should hold no default")
-    }
-
-    private fun waitForIdle() {
-        var iterations = 0
-        while (true) {
-            onEdt { Snapshot.sendApplyNotifications() }
-            frameTimeNanos += FRAME_INTERVAL_NANOS
-            clock.sendFrame(frameTimeNanos)
-            // The recomposer applies on Dispatchers.Swing; draining the EDT queue lets that apply land.
-            SwingUtilities.invokeAndWait { }
-            if (!recomposer.hasPendingWork && !Snapshot.current.hasPendingChanges()) return
-            if (++iterations >= MAX_IDLE_FRAMES) {
-                throw AssertionError("waitForIdle did not settle after $MAX_IDLE_FRAMES frames.")
-            }
-        }
-    }
-
-    private fun <T> onEdt(action: () -> T): T {
-        if (SwingUtilities.isEventDispatchThread()) return action()
-        var outcome: Result<T>? = null
-        SwingUtilities.invokeAndWait { outcome = runCatching(action) }
-        return checkNotNull(outcome) { "EDT action did not run." }.getOrThrow()
-    }
-
-    private companion object {
-        val FRAME_INTERVAL_NANOS: Long = (1.seconds / 60).inWholeNanoseconds
-        const val MAX_IDLE_FRAMES: Int = 10_000
     }
 }

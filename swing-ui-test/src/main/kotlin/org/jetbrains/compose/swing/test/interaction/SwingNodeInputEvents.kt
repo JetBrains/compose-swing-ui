@@ -17,10 +17,10 @@ import javax.swing.TransferHandler
 import javax.swing.text.JTextComponent
 
 /**
- * Delivers the event [event] builds for the matched node, then settles the composition.
+ * Delivers the event [event] builds for the matched node, then awaits idle.
  *
  * The node is resolved from the query, so [event] is handed the live component the query names, and the
- * composition is settled once the event has been delivered. Every gesture in this file is that shape.
+ * harness awaits idle once the event has been delivered. Every gesture in this file is that shape.
  *
  * Build [event] with the node as its source, so its `getSource` agrees with the component it is
  * delivered to.
@@ -38,10 +38,10 @@ import javax.swing.text.JTextComponent
  */
 public suspend fun <T : Component> SwingNodeInteraction<T>.performEvent(
     event: (T) -> AWTEvent,
-): SwingNodeInteraction<T> = settleAfter { node -> node.deliverEvent(event(node)) }
+): SwingNodeInteraction<T> = awaitIdleAfter { node -> node.deliverEvent(event(node)) }
 
 /**
- * Presses the primary mouse button on the matched node at [position], then settles the composition.
+ * Presses the primary mouse button on the matched node at [position], then awaits idle.
  * [position] defaults to the middle of the node, in the node's own coordinates.
  *
  * The button stays down: nothing releases it until [performMouseRelease] does.
@@ -52,10 +52,10 @@ public suspend fun <T : Component> SwingNodeInteraction<T>.performEvent(
  */
 public suspend fun <T : Component> SwingNodeInteraction<T>.performMousePress(
     position: Point? = null,
-): SwingNodeInteraction<T> = settleAfter { node -> node.deliverMousePress(position ?: node.center) }
+): SwingNodeInteraction<T> = awaitIdleAfter { node -> node.deliverMousePress(position ?: node.center) }
 
 /**
- * Releases the primary mouse button on the matched node at [position], then settles the composition.
+ * Releases the primary mouse button on the matched node at [position], then awaits idle.
  * [position] defaults to the middle of the node, in the node's own coordinates.
  *
  * No `MOUSE_CLICKED` follows - [performClick] is the whole gesture.
@@ -66,10 +66,10 @@ public suspend fun <T : Component> SwingNodeInteraction<T>.performMousePress(
  */
 public suspend fun <T : Component> SwingNodeInteraction<T>.performMouseRelease(
     position: Point? = null,
-): SwingNodeInteraction<T> = settleAfter { node -> node.deliverMouseRelease(position ?: node.center) }
+): SwingNodeInteraction<T> = awaitIdleAfter { node -> node.deliverMouseRelease(position ?: node.center) }
 
 /**
- * Clicks the primary mouse button on the matched node at [position], then settles the composition.
+ * Clicks the primary mouse button on the matched node at [position], then awaits idle.
  * [position] defaults to the middle of the node, in the node's own coordinates.
  *
  * The gesture is the press, the release and the `MOUSE_CLICKED` the toolkit delivers for one click, each
@@ -100,14 +100,14 @@ public suspend fun <T : Component> SwingNodeInteraction<T>.performClick(
     @MagicConstant(flagsFromClass = InputEvent::class)
     modifiers: Int = 0,
 ): SwingNodeInteraction<T> =
-    settleAfter { node ->
+    awaitIdleAfter { node ->
         val at = position ?: node.center
         node.clickTimes(at, button, clicks, modifiers, popupTriggerOn = null)
     }
 
 /**
- * Makes the platform's context-menu gesture on the matched node at [position], then settles the
- * composition. [position] defaults to the middle of the node, in the node's own coordinates.
+ * Makes the platform's context-menu gesture on the matched node at [position], then awaits
+ * idle. [position] defaults to the middle of the node, in the node's own coordinates.
  *
  * The gesture is a secondary-button click carrying the popup trigger on the one event the host platform
  * carries it on: the release on Windows, the press everywhere else. A component reading
@@ -119,7 +119,7 @@ public suspend fun <T : Component> SwingNodeInteraction<T>.performClick(
 public suspend fun <T : Component> SwingNodeInteraction<T>.performContextClick(
     position: Point? = null,
 ): SwingNodeInteraction<T> =
-    settleAfter { node ->
+    awaitIdleAfter { node ->
         val at = position ?: node.center
         node.clickTimes(
             at,
@@ -131,7 +131,7 @@ public suspend fun <T : Component> SwingNodeInteraction<T>.performContextClick(
     }
 
 /**
- * Moves the pointer to [position] over the matched node, then settles the composition. [position] is in
+ * Moves the pointer to [position] over the matched node, then awaits idle. [position] is in
  * the node's own coordinates.
  *
  * One `MOUSE_MOVED` with no button held, which is what a rollover state and a tooltip follow. Arriving
@@ -142,10 +142,10 @@ public suspend fun <T : Component> SwingNodeInteraction<T>.performContextClick(
  * @return this interaction, for chaining a further gesture or assertion.
  */
 public suspend fun <T : Component> SwingNodeInteraction<T>.performMouseMove(position: Point): SwingNodeInteraction<T> =
-    settleAfter { node -> node.deliverMouseMove(position) }
+    awaitIdleAfter { node -> node.deliverMouseMove(position) }
 
 /**
- * Brings the pointer onto the matched node at [position] and settles the composition. [position]
+ * Brings the pointer onto the matched node at [position] and awaits idle. [position]
  * defaults to the middle of the node, in the node's own coordinates.
  *
  * @param position the point the pointer arrives at, which a UI takes its rollover state from.
@@ -153,10 +153,10 @@ public suspend fun <T : Component> SwingNodeInteraction<T>.performMouseMove(posi
  */
 public suspend fun <T : Component> SwingNodeInteraction<T>.performMouseEnter(
     position: Point? = null,
-): SwingNodeInteraction<T> = settleAfter { node -> node.deliverMouseEnter(position ?: node.center) }
+): SwingNodeInteraction<T> = awaitIdleAfter { node -> node.deliverMouseEnter(position ?: node.center) }
 
 /**
- * Takes the pointer off the matched node at [position] and settles the composition. [position] defaults
+ * Takes the pointer off the matched node at [position] and awaits idle. [position] defaults
  * to the middle of the node, in the node's own coordinates.
  *
  * @param position the point the pointer leaves from; a UI clearing a rollover state does so
@@ -165,11 +165,11 @@ public suspend fun <T : Component> SwingNodeInteraction<T>.performMouseEnter(
  */
 public suspend fun <T : Component> SwingNodeInteraction<T>.performMouseExit(
     position: Point? = null,
-): SwingNodeInteraction<T> = settleAfter { node -> node.deliverMouseExit(position ?: node.center) }
+): SwingNodeInteraction<T> = awaitIdleAfter { node -> node.deliverMouseExit(position ?: node.center) }
 
 /**
  * Turns the mouse wheel over the matched node by [rotation] notches - negative away from the user,
- * positive toward them - then settles the composition. [position] defaults to the middle of the node, in
+ * positive toward them - then awaits idle. [position] defaults to the middle of the node, in
  * the node's own coordinates.
  *
  * @param rotation how many notches the wheel turns; the event scrolls by units, so every notch
@@ -180,7 +180,7 @@ public suspend fun <T : Component> SwingNodeInteraction<T>.performMouseExit(
 public suspend fun <T : Component> SwingNodeInteraction<T>.performMouseWheel(
     rotation: Int,
     position: Point? = null,
-): SwingNodeInteraction<T> = settleAfter { node -> node.deliverMouseWheel(rotation, position ?: node.center) }
+): SwingNodeInteraction<T> = awaitIdleAfter { node -> node.deliverMouseWheel(rotation, position ?: node.center) }
 
 /**
  * Clicks [clicks] times at [position], as the toolkit delivers a repeated click: each click is its own
@@ -207,8 +207,8 @@ private suspend fun Component.clickTimes(
 }
 
 /**
- * Drags the primary mouse button across the matched node from [from] to [to], then settles the
- * composition. Both points are in the node's own coordinates.
+ * Drags the primary mouse button across the matched node from [from] to [to], then awaits
+ * idle. Both points are in the node's own coordinates.
  *
  * The gesture is a press at [from], one `MOUSE_DRAGGED` step at [to], and a release at [to], each from
  * an event-queue cycle of its own. No `MOUSE_CLICKED` is delivered: a real drag ends in a release and
@@ -226,7 +226,7 @@ public suspend fun <T : Component> SwingNodeInteraction<T>.performMouseDrag(
     from: Point,
     to: Point,
 ): SwingNodeInteraction<T> =
-    settleAfter { node ->
+    awaitIdleAfter { node ->
         node.deliverMousePress(from)
         yield()
         node.deliverMouseDrag(to)
@@ -236,7 +236,7 @@ public suspend fun <T : Component> SwingNodeInteraction<T>.performMouseDrag(
 
 /**
  * Presses and releases the key [keyCode] on the matched node, holding [modifiers] for both, then
- * settles the composition. [keyCode] is a `KeyEvent.VK_*` constant and [modifiers] a mask of
+ * awaits idle. [keyCode] is a `KeyEvent.VK_*` constant and [modifiers] a mask of
  * `InputEvent.*_DOWN_MASK` values, empty by default.
  *
  * The press and the release arrive an event-queue cycle apart, and travel the node's own key handling:
@@ -257,14 +257,14 @@ public suspend fun <T : Component> SwingNodeInteraction<T>.performKeyPress(
     keyCode: Int,
     modifiers: Int = 0,
 ): SwingNodeInteraction<T> =
-    settleAfter { node ->
+    awaitIdleAfter { node ->
         node.deliverKeyPressed(keyCode, modifiers)
         yield()
         node.deliverKeyReleased(keyCode, modifiers)
     }
 
 /**
- * Types [text] on the matched node one character at a time, then settles the composition.
+ * Types [text] on the matched node one character at a time, then awaits idle.
  *
  * Each character arrives as the `KEY_PRESSED`, `KEY_TYPED`, `KEY_RELEASED` triple the toolkit delivers
  * for it, each from an event-queue cycle of its own, so the component's own key bindings decide what it
@@ -283,12 +283,12 @@ public suspend fun <T : Component> SwingNodeInteraction<T>.performKeyPress(
  * This delivers only keystrokes, so it does not exercise a component that reads committed text off an
  * `InputMethodEvent`.
  *
- * @param text typed character by character; an empty text delivers no key event and only settles
- *   the composition.
+ * @param text typed character by character; an empty text delivers no key event and only awaits
+ *   idle.
  * @return this interaction, for chaining a further gesture or assertion.
  */
 public suspend fun <T : Component> SwingNodeInteraction<T>.performTyping(text: @Nls String): SwingNodeInteraction<T> =
-    settleAfter { node -> node.type(text) }
+    awaitIdleAfter { node -> node.type(text) }
 
 /**
  * Types [text] on this component the way the toolkit delivers it: every character as its own
@@ -308,8 +308,8 @@ internal suspend fun Component.type(text: @Nls String) {
     }
 }
 
-/** Resolves the matched node, makes [gesture] on it, and settles the composition. */
-private suspend fun <T : Component> SwingNodeInteraction<T>.settleAfter(
+/** Resolves the matched node, makes [gesture] on it, and awaits idle. */
+private suspend fun <T : Component> SwingNodeInteraction<T>.awaitIdleAfter(
     gesture: suspend (T) -> Unit,
 ): SwingNodeInteraction<T> {
     gesture(fetch())
@@ -318,8 +318,8 @@ private suspend fun <T : Component> SwingNodeInteraction<T>.settleAfter(
 }
 
 /**
- * Types [text] onto the end of the matched [JTextComponent]'s current content, then settles the
- * composition.
+ * Types [text] onto the end of the matched [JTextComponent]'s current content, then awaits
+ * idle.
  *
  * The caret is placed after the existing text and [text] is typed there, character by character,
  * through the component's own key handling - so the edit passes its document filter and its editor
@@ -341,7 +341,7 @@ public suspend fun <T : Component> SwingNodeInteraction<T>.performTextInput(
 }
 
 /**
- * Replaces the matched [JTextComponent]'s entire content with [text], then settles the composition.
+ * Replaces the matched [JTextComponent]'s entire content with [text], then awaits idle.
  *
  * The existing text is selected and [text] typed over it, which is the gesture a user replaces
  * content with; see [performTextInput] for what typing passes through. Replacing with an empty
@@ -362,8 +362,8 @@ public suspend fun <T : Component> SwingNodeInteraction<T>.performTextReplacemen
 }
 
 /**
- * Pastes [text] into the matched [JTextComponent] over its current selection, then settles the
- * composition.
+ * Pastes [text] into the matched [JTextComponent] over its current selection, then awaits
+ * idle.
  *
  * The text goes through the component's own [TransferHandler], as a paste does, so a `DocumentFilter`
  * sees one replace rather than a keystroke each. Nothing is put on the system clipboard.
@@ -405,7 +405,7 @@ private fun SwingNodeInteraction<*>.textComponent(): JTextComponent {
 }
 
 /**
- * Delivers a focus-gained notification to the matched node and settles the composition.
+ * Delivers a focus-gained notification to the matched node and awaits idle.
  *
  * The node processes a real [FocusEvent] of id [FocusEvent.FOCUS_GAINED]: its own
  * `processFocusEvent` runs, and every registered [java.awt.event.FocusListener] is notified. That
@@ -429,7 +429,7 @@ public suspend fun <T : Component> SwingNodeInteraction<T>.performFocusGained(
 ): SwingNodeInteraction<T> = deliverFocusEvent(FocusEvent.FOCUS_GAINED, temporary)
 
 /**
- * Delivers a focus-lost notification to the matched node and settles the composition.
+ * Delivers a focus-lost notification to the matched node and awaits idle.
  *
  * The node processes a real [FocusEvent] of id [FocusEvent.FOCUS_LOST]; see [performFocusGained]
  * for what is delivered, what a [temporary] notification means, and why this is not a focus
@@ -454,7 +454,7 @@ private suspend fun <T : Component> SwingNodeInteraction<T>.deliverFocusEvent(
 }
 
 /**
- * Clicks the tab at [index] on the matched [JTabbedPane] and settles the composition.
+ * Clicks the tab at [index] on the matched [JTabbedPane] and awaits idle.
  *
  * The click is a real [MouseEvent] aimed at the middle of that tab, so the pane's own UI decides
  * what the click means, exactly as it does for a user: it maps the position back to a tab and

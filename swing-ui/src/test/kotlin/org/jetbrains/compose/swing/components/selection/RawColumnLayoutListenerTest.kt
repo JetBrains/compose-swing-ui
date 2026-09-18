@@ -3,6 +3,8 @@ package org.jetbrains.compose.swing.components.selection
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import io.mockk.every
+import io.mockk.mockk
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.toolTip
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -50,20 +52,10 @@ class RawColumnLayoutListenerTest {
         var withAge by mutableStateOf(true)
         var failing by mutableStateOf(false)
         val selection = ListSelectionListener { }
-        val listener =
-            object : TableColumnModelListener {
-                override fun columnAdded(event: TableColumnModelEvent) = Unit
-
-                override fun columnRemoved(event: TableColumnModelEvent) = Unit
-
-                override fun columnMoved(event: TableColumnModelEvent) = Unit
-
-                override fun columnMarginChanged(event: ChangeEvent) {
-                    if (failing) error("the column loss report fails")
-                }
-
-                override fun columnSelectionChanged(event: ListSelectionEvent) = Unit
-            }
+        val listener = mockk<TableColumnModelListener>(relaxed = true)
+        every { listener.columnMarginChanged(any()) } answers {
+            if (failing) error("the column loss report fails")
+        }
         setContent {
             Table(rows = people, listSelectionListener = selection, tableColumnModelListener = listener) {
                 column("Name") { it.name }

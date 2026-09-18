@@ -4,6 +4,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import io.mockk.every
+import io.mockk.mockk
 import kotlinx.coroutines.DisposableHandle
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.awaitCancellation
@@ -20,9 +22,6 @@ import java.awt.DisplayMode
 import java.awt.GraphicsConfiguration
 import java.awt.GraphicsDevice
 import java.awt.GraphicsEnvironment
-import java.awt.Rectangle
-import java.awt.geom.AffineTransform
-import java.awt.image.ColorModel
 import javax.swing.JFrame
 import javax.swing.JLabel
 import javax.swing.JPanel
@@ -230,7 +229,7 @@ class ComponentRecomposerTest {
         // GraphicsConfiguration. The expectation is the cadence of a clock built for that reported
         // rate, never a fixed delay.
         val composition = ReportingDisplayPanel()
-        composition.display = FakeDisplayConfiguration(FPS_120)
+        composition.display = fakeDisplayConfiguration(FPS_120)
 
         val recomposer = SwingRecomposer.create(composition)
         try {
@@ -247,7 +246,7 @@ class ComponentRecomposerTest {
             )
 
             // Moving to a display of another rate is reported as a "graphicsConfiguration" change.
-            composition.display = FakeDisplayConfiguration(FPS_60)
+            composition.display = fakeDisplayConfiguration(FPS_60)
             assertEquals(
                 SwingUiDispatcher()
                     .frameClock
@@ -338,40 +337,9 @@ private class ReportingDisplayPanel : JPanel() {
 }
 
 /** A [GraphicsConfiguration] on a device whose display mode reports [refreshRate] frames per second. */
-private class FakeDisplayConfiguration(
-    refreshRate: Int,
-) : GraphicsConfiguration() {
-    private val device: GraphicsDevice = FakeDisplayDevice(refreshRate, this)
-
-    override fun getDevice(): GraphicsDevice = device
-
-    override fun getColorModel(): ColorModel = ColorModel.getRGBdefault()
-
-    override fun getColorModel(transparency: Int): ColorModel = ColorModel.getRGBdefault()
-
-    override fun getDefaultTransform(): AffineTransform = AffineTransform()
-
-    override fun getNormalizingTransform(): AffineTransform = AffineTransform()
-
-    override fun getBounds(): Rectangle = Rectangle(0, 0, FAKE_SCREEN_SIZE, FAKE_SCREEN_SIZE)
+private fun fakeDisplayConfiguration(refreshRate: Int): GraphicsConfiguration = mockk<GraphicsConfiguration> {
+    every { device } returns
+        mockk<GraphicsDevice> {
+            every { displayMode } returns DisplayMode(0, 0, 0, refreshRate)
+        }
 }
-
-/** The screen device [FakeDisplayConfiguration] is on, reporting a display mode of [refreshRate] Hz. */
-private class FakeDisplayDevice(
-    private val refreshRate: Int,
-    private val configuration: GraphicsConfiguration,
-) : GraphicsDevice() {
-    override fun getType(): Int = TYPE_RASTER_SCREEN
-
-    override fun getIDstring(): String = "fake-display-${refreshRate}hz"
-
-    override fun getConfigurations(): Array<GraphicsConfiguration> = arrayOf(configuration)
-
-    override fun getDefaultConfiguration(): GraphicsConfiguration = configuration
-
-    override fun getDisplayMode(): DisplayMode =
-        DisplayMode(FAKE_SCREEN_SIZE, FAKE_SCREEN_SIZE, FAKE_BIT_DEPTH, refreshRate)
-}
-
-private const val FAKE_SCREEN_SIZE: Int = 1000
-private const val FAKE_BIT_DEPTH: Int = 32

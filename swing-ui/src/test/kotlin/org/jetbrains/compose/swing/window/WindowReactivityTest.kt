@@ -136,6 +136,7 @@ class WindowReactivityTest {
         val state = WindowState(position = WindowPosition.Absolute(120, 80), size = Dimension(320, 240))
         setContent { Window(onCloseRequest = {}, state = state, title = "initial-geometry-test") {} }
         val frame = onWindow().fetch<JFrame>()
+        awaitWindowStandsStill(frame)
         assertReaches(Dimension(320, 240)) { frame.size }
         assertEquals(Point(120, 80), frame.location)
     }
@@ -148,6 +149,7 @@ class WindowReactivityTest {
         val state = WindowState(position = WindowPosition.Absolute(120, 80), size = Dimension(320, 240))
         setContent { Window(onCloseRequest = {}, state = state, title = "position-test") {} }
         val frame = onWindow().fetch<JFrame>()
+        awaitWindowStandsStill(frame)
         assertReaches(Point(120, 80), "the frame must realize at the position the state holds") { frame.location }
         // Moving a realized frame is an asynchronous native reshape; wait for it to reach the declared
         // placement rather than assert right after the compose frame that requests it.
@@ -158,6 +160,7 @@ class WindowReactivityTest {
             frame.location,
             "the frame must move to the position the state takes after the first apply",
         )
+        awaitWindowStandsStill(frame)
         state.position = WindowPosition.Absolute(120, 80)
         waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { frame.location == Point(120, 80) }
         assertEquals(
@@ -173,6 +176,7 @@ class WindowReactivityTest {
         val state = WindowState(size = Dimension(320, 240))
         setContent { Window(onCloseRequest = {}, state = state, title = "size-test") {} }
         val frame = onWindow().fetch<JFrame>()
+        awaitWindowStandsStill(frame)
         assertReaches(Dimension(320, 240)) { frame.size }
         state.size = Dimension(500, 400)
         // Applying size to the peer is an asynchronous native resize; wait for the frame to reach the
@@ -187,6 +191,7 @@ class WindowReactivityTest {
         val state = WindowState(size = Dimension(320, 240))
         setContent { Window(onCloseRequest = {}, state = state, title = "width-test") {} }
         val frame = onWindow().fetch<JFrame>()
+        awaitWindowStandsStill(frame)
         assertReaches(Dimension(320, 240), "the frame must realize with the size the state holds") { frame.size }
         state.width = 500
         waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { frame.size == Dimension(500, 240) }
@@ -203,6 +208,7 @@ class WindowReactivityTest {
         val state = WindowState(size = Dimension(320, 240))
         setContent { Window(onCloseRequest = {}, state = state, title = "height-test") {} }
         val frame = onWindow().fetch<JFrame>()
+        awaitWindowStandsStill(frame)
         assertReaches(Dimension(320, 240), "the frame must realize with the size the state holds") { frame.size }
         state.height = 400
         waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { frame.size == Dimension(320, 400) }
@@ -211,6 +217,42 @@ class WindowReactivityTest {
             frame.size,
             "assigning height must resize the realized frame, leaving its width unchanged",
         )
+    }
+
+    @Test
+    fun aDeclaredSizeStandsOnceTheWindowManagerFramesTheWindow() = runComposeSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        val state = WindowState(size = Dimension(320, 240))
+        lateinit var frame: JFrame
+        val sizes =
+            valuesTakenDuring({ state.size }) {
+                setContent { Window(onCloseRequest = {}, state = state, title = "size-framed-test") {} }
+                frame = onWindow().fetch<JFrame>()
+                awaitWindowStandsStill(frame)
+            }
+        assertEquals(listOf(Dimension(320, 240)), sizes, "the state must hold the declared size throughout")
+        assertEquals(Dimension(320, 240), frame.size, "the window must keep the size the state declares")
+    }
+
+    @Test
+    fun aSizeDeclaredBeforeTheWindowManagerFramesTheWindowStands() = runComposeSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        val state = WindowState(size = Dimension(320, 240))
+        lateinit var frame: JFrame
+        val sizes =
+            valuesTakenDuring({ state.size }) {
+                setContent { Window(onCloseRequest = {}, state = state, title = "size-before-framed-test") {} }
+                frame = onWindow().fetch<JFrame>()
+                state.width = 500
+                awaitIdle()
+                awaitWindowStandsStill(frame)
+            }
+        assertEquals(
+            listOf(Dimension(320, 240), Dimension(500, 240)),
+            sizes,
+            "the state must hold only the sizes declared",
+        )
+        assertEquals(Dimension(500, 240), frame.size, "the window must take the size declared last")
     }
 
     @Test
@@ -226,6 +268,7 @@ class WindowReactivityTest {
             ) {}
         }
         val frame = onWindow().fetch<JFrame>()
+        awaitWindowStandsStill(frame)
         assertReaches(
             Dimension(320, 240),
             "a declared size below the declared minimum size must be raised to that minimum",
@@ -247,6 +290,7 @@ class WindowReactivityTest {
             }
         }
         val frame = onWindow().fetch<JFrame>()
+        awaitWindowStandsStill(frame)
         assertReaches(
             Dimension(320, 240),
             "a size taken from content smaller than the declared minimum must be raised to that minimum",
@@ -321,6 +365,7 @@ class WindowReactivityTest {
         val state = WindowState(size = Dimension(320, 240))
         setContent { Window(onCloseRequest = {}, state = state, title = title) {} }
         val frame = onWindow().fetch<JFrame>()
+        awaitWindowStandsStill(frame)
         state.size.setSize(640, 480)
         title = "size-copy-inert-test-updated"
         awaitIdle()
@@ -344,6 +389,7 @@ class WindowReactivityTest {
         val state = WindowState(size = Dimension(320, 240))
         setContent { Window(onCloseRequest = {}, state = state, title = "size-detached-copy-test") {} }
         val frame = onWindow().fetch<JFrame>()
+        awaitWindowStandsStill(frame)
         // A Dimension read from the state is a detached copy ([java.awt.Component.getSize]
         // semantics): mutating it in place drives nothing, so a follow-up assignment of the same
         // values is a genuine change and must resize the frame.
@@ -373,6 +419,7 @@ class WindowReactivityTest {
         val state = WindowState(size = Dimension(320, 240))
         setContent { Window(onCloseRequest = {}, state = state, title = "user-resize-test") {} }
         val frame = onWindow().fetch<JFrame>()
+        awaitWindowStandsStill(frame)
         frame.size = Dimension(640, 480)
         waitUntil(timeout = NATIVE_EVENT_TIMEOUT) { state.size == Dimension(640, 480) }
         assertEquals(Dimension(640, 480), state.size)
@@ -400,6 +447,7 @@ class WindowReactivityTest {
         val state = WindowState(size = Dimension(320, 240))
         setContent { Window(onCloseRequest = {}, state = state, title = "no-feedback-loop-test") {} }
         val frame = onWindow().fetch<JFrame>()
+        awaitWindowStandsStill(frame)
         frame.size = Dimension(640, 480)
         // The native resize settles asynchronously, and a stale resize event can momentarily echo the
         // prior size back into the state before the resize completes; wait for the dialog AND the state

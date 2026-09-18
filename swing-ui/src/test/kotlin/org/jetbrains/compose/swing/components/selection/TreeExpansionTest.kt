@@ -4,6 +4,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import io.mockk.mockk
+import io.mockk.verify
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -14,7 +16,6 @@ import javax.swing.event.TreeExpansionListener
 import javax.swing.event.TreeSelectionListener
 import javax.swing.tree.DefaultMutableTreeNode
 import javax.swing.tree.DefaultTreeModel
-import javax.swing.tree.TreePath
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -371,7 +372,6 @@ class TreeExpansionTest {
     fun installingAModelNeverOpensTheNodeTheDeclarationCloses() = runComposeSwingTest {
         var model by mutableStateOf(sampleModel("root"))
         val received = mutableListOf<Set<List<Int>>>()
-        val opened = mutableListOf<TreePath>()
         setContent {
             Tree(
                 model = model,
@@ -386,20 +386,13 @@ class TreeExpansionTest {
         assertEquals(listOf(setOf(listOf(0))), received, "the closed node takes over the selection it hides")
         // A listener of the test's own is handed the wrapper's writes as well as the user's, so a node
         // opened and closed again inside one install still shows up here.
-        tree.addTreeExpansionListener(
-            object : TreeExpansionListener {
-                override fun treeExpanded(event: TreeExpansionEvent) {
-                    opened += event.path
-                }
-
-                override fun treeCollapsed(event: TreeExpansionEvent) = Unit
-            },
-        )
+        val expansionListener = mockk<TreeExpansionListener>(relaxed = true)
+        tree.addTreeExpansionListener(expansionListener)
 
         model = sampleModel("trunk")
         awaitIdle()
 
-        assertEquals(emptyList(), opened, "installing a model opens no node the declared expansion closes")
+        verify(exactly = 0) { expansionListener.treeExpanded(any()) }
         assertFalse(tree.isExpanded(tree.pathTo(0)), "the node the declaration closes stays closed")
         assertEquals(
             listOf(tree.pathTo(0)),
