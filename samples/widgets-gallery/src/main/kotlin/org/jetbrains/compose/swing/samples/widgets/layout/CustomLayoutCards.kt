@@ -84,7 +84,7 @@ private fun ColumnScope.MeasurePolicyCard() {
                     modifier =
                         SwingModifier
                             .preferredSize(CUSTOM_SWATCH_SIZE)
-                            .accessibleName("placeRelative, gap $gap pixels; activate to cycle")
+                            .accessibleName("placeRelative, gap $gap; activate to cycle")
                             .toolTip("Follows reading order; click to cycle the gap")
                             .onPlaced { relativeBounds = it },
                 )

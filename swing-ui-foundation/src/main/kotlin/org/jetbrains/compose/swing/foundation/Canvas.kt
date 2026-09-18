@@ -38,7 +38,7 @@ import javax.swing.SwingConstants
  * [org.jetbrains.compose.swing.modifier.layout.preferredSize]).
  *
  * @param modifier the [SwingModifier] applied to the underlying component.
- * @param onDraw receives the surface's [Graphics2D] and its current pixel `width`/`height`; called on
+ * @param onDraw receives the surface's [Graphics2D] and its current `width`/`height`; called on
  *   the Swing event dispatch thread during painting. Do not retain the [Graphics2D] beyond the call.
  * @see javax.swing.JComponent.paintComponent
  */

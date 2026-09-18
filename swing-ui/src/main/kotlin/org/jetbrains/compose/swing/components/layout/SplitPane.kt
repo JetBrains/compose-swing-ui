@@ -41,7 +41,7 @@ import javax.swing.JSplitPane
  * @param modifier the [SwingModifier] applied to the underlying `JSplitPane`
  * @param orientation the axis along which the two sides are arranged; the default
  *   `HORIZONTAL_SPLIT` puts them side by side, with the divider running top to bottom
- * @param dividerLocation the divider offset in pixels (controlled), a value the look and feel reads; a
+ * @param dividerLocation the divider offset (controlled), a value the look and feel reads; a
  *   negative offset - the default `-1` is `JSplitPane`'s own initial divider location - resets the
  *   divider to honor the sides' preferred sizes
  * @param onDividerLocationChange callback invoked with the new offset when the user moves the
@@ -53,7 +53,7 @@ import javax.swing.JSplitPane
  * @param oneTouchExpandable whether the divider carries a widget that collapses either side in one
  *   click; `null` leaves the choice to the installed look and feel, withdrawing a declared choice hands
  *   it back, and a look and feel that does not support one-touch expanding ignores it
- * @param dividerSize the divider thickness in pixels; `null` leaves the size to the installed look and
+ * @param dividerSize the divider thickness; `null` leaves the size to the installed look and
  *   feel, and withdrawing a declared size hands it back
  * @param continuousLayout whether the two sides are laid out continuously as the divider is dragged
  *   rather than once it is released, where the drag draws an outline of where the divider is heading;
@@ -116,7 +116,7 @@ public fun SplitPane(
  * @param modifier the [SwingModifier] applied to the underlying `JSplitPane`
  * @param orientation the axis along which the two sides are arranged; the default
  *   `HORIZONTAL_SPLIT` puts them side by side, with the divider running top to bottom
- * @param dividerLocation the divider offset in pixels (controlled), a value the look and feel reads; a
+ * @param dividerLocation the divider offset (controlled), a value the look and feel reads; a
  *   negative offset - the default `-1` is `JSplitPane`'s own initial divider location - resets the
  *   divider to honor the sides' preferred sizes
  * @param resizeWeight how extra space is shared when the pane resizes, from `0.0` (all to the second
@@ -125,7 +125,7 @@ public fun SplitPane(
  * @param oneTouchExpandable whether the divider carries a widget that collapses either side in one
  *   click; `null` leaves the choice to the installed look and feel, withdrawing a declared choice hands
  *   it back, and a look and feel that does not support one-touch expanding ignores it
- * @param dividerSize the divider thickness in pixels; `null` leaves the size to the installed look and
+ * @param dividerSize the divider thickness; `null` leaves the size to the installed look and
  *   feel, and withdrawing a declared size hands it back
  * @param continuousLayout whether the two sides are laid out continuously as the divider is dragged
  *   rather than once it is released, where the drag draws an outline of where the divider is heading;

@@ -12,9 +12,10 @@ import javax.swing.Scrollable
  * The answers a [ScrollPane]'s content declares about its own scrolling: how far an arrow button and a
  * page move it, and whether it takes the viewport's width or height in place of its preferred one.
  *
- * A `null` answer is the content's own. Where the content gives none, it is the answer a scroll pane
- * gives a view that answers nothing: a single pixel per arrow button, a full viewport page, and a view
- * laid out at its preferred size, stretched to the viewport on an axis where the viewport is larger.
+ * A `null` answer is the content's own. Where the content gives none, it is the answer a scroll pane gives
+ * a view that answers nothing: one unit of user-space coordinates per arrow button, a full viewport page,
+ * and a view laid out at its preferred size, stretched to the viewport on an axis where the viewport is
+ * larger.
  */
 internal data class ScrollBehavior(
     val unitIncrement: Int?,
@@ -139,5 +140,5 @@ internal class ScrollableBody : ScrollablePanel(BorderLayout()) {
         get() = behavior.tracksViewportHeight == true || content?.scrollableTracksViewportHeight == true
 }
 
-/** Pixels one arrow-button click scrolls while nothing answers for the view, a scroll bar's own default. */
+/** How far one arrow-button click scrolls while nothing answers for the view, a scroll bar's own default. */
 private const val DEFAULT_UNIT_INCREMENT: Int = 1

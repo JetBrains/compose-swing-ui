@@ -111,7 +111,7 @@ import javax.swing.tree.TreeSelectionModel
  *   leaves its children as the top-level rows
  * @param showsRootHandles whether expand/collapse handles are shown for the top-level nodes;
  *   `null` leaves the choice to the installed look and feel
- * @param rowHeight the height of every row in pixels; `0` asks each node's rendering how tall it wants
+ * @param rowHeight the height of every row; `0` asks each node's rendering how tall it wants
  *   to be, which is what lets a composable node size itself. `null` - the default - leaves the height to
  *   the installed look and feel
  * @param visibleRowCount how many rows the tree asks a viewport to make room for; `20` is the default,
@@ -203,7 +203,7 @@ public fun <T> Tree(
  *   leaves its children as the top-level rows
  * @param showsRootHandles whether expand/collapse handles are shown for the top-level nodes;
  *   `null` leaves the choice to the installed look and feel
- * @param rowHeight the height of every row in pixels; `0` asks each node's rendering how tall it wants
+ * @param rowHeight the height of every row; `0` asks each node's rendering how tall it wants
  *   to be, which is what lets a composable node size itself. `null` - the default - leaves the height to
  *   the installed look and feel
  * @param visibleRowCount how many rows the tree asks a viewport to make room for; `20` is the default,
@@ -375,7 +375,7 @@ private inline fun <T> TreeValuesImpl(
  *   leaves its children as the top-level rows
  * @param showsRootHandles whether expand/collapse handles are shown for the top-level nodes;
  *   `null` leaves the choice to the installed look and feel
- * @param rowHeight the height of every row in pixels; `0` asks each node's rendering how tall it wants
+ * @param rowHeight the height of every row; `0` asks each node's rendering how tall it wants
  *   to be. `null` - the default - leaves the height to the installed look and feel
  * @param visibleRowCount how many rows the tree asks a viewport to make room for; `20` is the default,
  *   and it has no effect outside a scroll pane
@@ -439,7 +439,7 @@ public fun Tree(
  *   leaves its children as the top-level rows
  * @param showsRootHandles whether expand/collapse handles are shown for the top-level nodes;
  *   `null` leaves the choice to the installed look and feel
- * @param rowHeight the height of every row in pixels; `0` asks each node's rendering how tall it wants
+ * @param rowHeight the height of every row; `0` asks each node's rendering how tall it wants
  *   to be. `null` - the default - leaves the height to the installed look and feel
  * @param visibleRowCount how many rows the tree asks a viewport to make room for; `20` is the default,
  *   and it has no effect outside a scroll pane
@@ -562,7 +562,7 @@ private inline fun TreeModelImpl(
  *   leaves its children as the top-level rows
  * @param showsRootHandles whether expand/collapse handles are shown for the top-level nodes;
  *   `null` leaves the choice to the installed look and feel
- * @param rowHeight the height of every row in pixels; `0` asks each node's rendering how tall it wants
+ * @param rowHeight the height of every row; `0` asks each node's rendering how tall it wants
  *   to be, which is what lets a composable node size itself. `null` - the default - leaves the height to
  *   the installed look and feel
  * @param visibleRowCount how many rows the tree asks a viewport to make room for; `20` is the default,
@@ -634,7 +634,7 @@ public fun <T> Tree(
  *   leaves its children as the top-level rows
  * @param showsRootHandles whether expand/collapse handles are shown for the top-level nodes;
  *   `null` leaves the choice to the installed look and feel
- * @param rowHeight the height of every row in pixels; `0` asks each node's rendering how tall it wants
+ * @param rowHeight the height of every row; `0` asks each node's rendering how tall it wants
  *   to be. `null` - the default - leaves the height to the installed look and feel
  * @param visibleRowCount how many rows the tree asks a viewport to make room for; `20` is the default,
  *   and it has no effect outside a scroll pane

@@ -55,21 +55,21 @@ public class DialogState
         public var position: WindowPosition by mutableStateOf(position)
 
         /**
-         * The current width of the dialog, in pixels.
+         * The current width of the dialog.
          *
          * @see java.awt.Component.setSize
          */
         public var width: Int by mutableIntStateOf(size?.width ?: 0)
 
         /**
-         * The current height of the dialog, in pixels.
+         * The current height of the dialog.
          *
          * @see java.awt.Component.setSize
          */
         public var height: Int by mutableIntStateOf(size?.height ?: 0)
 
         /**
-         * The current size of the dialog, a [width]/[height] pair in pixels.
+         * The current size of the dialog, a [width]/[height] pair.
          *
          * Reading returns a detached copy, matching [java.awt.Component.getSize] semantics; resize the
          * dialog by assigning a new value here or by setting [width] and [height] individually.

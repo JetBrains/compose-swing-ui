@@ -10,7 +10,7 @@ import java.awt.Component
 
 /**
  * Sets the component's accessible name - the short localized string assistive technologies announce
- * for it. `null` clears any name this modifier set. Mirrors Compose's
+ * for it. `null` clears any name this modifier set. Mirrors AndroidX's
  * `semantics { contentDescription = ... }`.
  *
  * A component holds no name of its own until one is set: its accessible context derives one instead,

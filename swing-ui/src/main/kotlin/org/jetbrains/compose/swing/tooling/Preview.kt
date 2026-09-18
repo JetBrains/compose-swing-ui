@@ -44,10 +44,10 @@ package org.jetbrains.compose.swing.tooling
  *
  * @property name the label this rendering is shown under. Defaults to the empty string, meaning the
  *   function's own name where it is rendered one way, and its position where it is rendered several.
- * @property widthPx the width, in pixels, to lay the content out at. Defaults to `-1`, meaning the
+ * @property width the width to lay the content out at. Defaults to `-1`, meaning the
  *   content's own preferred width, within whatever room the preview is shown in. A width and a height
  *   are two parameters because an annotation cannot hold a [java.awt.Dimension].
- * @property heightPx the height, in pixels, to lay the content out at. Defaults to `-1`, meaning the
+ * @property height the height to lay the content out at. Defaults to `-1`, meaning the
  *   height the content takes at the width it ends up with, so that content which wraps is as tall as
  *   its wrapping makes it.
  * @property lookAndFeel the fully-qualified class name of the [javax.swing.LookAndFeel] to install
@@ -62,7 +62,7 @@ package org.jetbrains.compose.swing.tooling
 @Target(AnnotationTarget.FUNCTION, AnnotationTarget.ANNOTATION_CLASS)
 public annotation class Preview(
     val name: String = "",
-    val widthPx: Int = -1,
-    val heightPx: Int = -1,
+    val width: Int = -1,
+    val height: Int = -1,
     val lookAndFeel: String = "",
 )

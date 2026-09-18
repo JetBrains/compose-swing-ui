@@ -67,8 +67,8 @@ class PreviewTest {
 
         assertNotNull(stated, "the fixture carries a Preview")
         assertEquals("", stated.name, "an unnamed rendering is labeled by whatever renders it")
-        assertEquals(-1, stated.widthPx, "an unsized rendering lays the content out at its own preferred width")
-        assertEquals(-1, stated.heightPx, "an unsized rendering lays the content out at the height it takes")
+        assertEquals(-1, stated.width, "an unsized rendering lays the content out at its own preferred width")
+        assertEquals(-1, stated.height, "an unsized rendering lays the content out at the height it takes")
         assertEquals("", stated.lookAndFeel, "a rendering that names none keeps what the environment installed")
     }
 }

@@ -47,7 +47,7 @@ public fun SwingModifier.verticalTextPosition(
  * A button stops taking this from the look and feel once set, and Swing offers no way to hand it back.
  * A label has no such latch.
  *
- * @param gap the pixels between the icon and the text, on whichever side of the icon the text sits.
+ * @param gap the space between the icon and the text, on whichever side of the icon the text sits.
  * @return this chain with the icon-text gap declared on it.
  * @see javax.swing.JLabel.setIconTextGap
  * @see javax.swing.AbstractButton.setIconTextGap

@@ -5,7 +5,7 @@ import javax.swing.JList
 
 /**
  * Folds the sizing of a list's cells into the chain: [prototype] is an item measured once to size every
- * cell, and [width] and [height] state a size in pixels outright, `-1` stating none.
+ * cell, and [width] and [height] state a size outright, `-1` stating none.
  *
  * It goes into the chain behind the renderer a prototype is measured through, since the chain applies its
  * elements in the order they are declared. Removing the element puts the list back on the sizing it had
@@ -83,9 +83,9 @@ private fun JList<Any?>.readCellSizing(): CellSizing = CellSizing(prototypeCellV
 /**
  * A list measures a prototype only for a value it is not already holding, so the prototype is given up
  * before it is declared again: measuring afresh is what gives a dimension its measured size back once the
- * caller withdraws the pixel size that had displaced it.
+ * caller withdraws the fixed size that had displaced it.
  *
- * With no prototype declared, `-1` has to be written through as well, so a withdrawn pixel size returns
+ * With no prototype declared, `-1` has to be written through as well, so a withdrawn fixed size returns
  * the dimension to what the renderer reports for each row. Narrowing the guard to the stated-size case
  * alone would leave the list holding the withdrawn width.
  */

@@ -52,28 +52,28 @@ public class InternalFrameState
         maximized: Boolean = false,
     ) {
         /**
-         * The x coordinate of the frame's top-left corner within the desktop, in pixels.
+         * The x coordinate of the frame's top-left corner within the desktop.
          *
          * @see java.awt.Component.setLocation
          */
         public var x: Int by mutableIntStateOf(bounds.x)
 
         /**
-         * The y coordinate of the frame's top-left corner within the desktop, in pixels.
+         * The y coordinate of the frame's top-left corner within the desktop.
          *
          * @see java.awt.Component.setLocation
          */
         public var y: Int by mutableIntStateOf(bounds.y)
 
         /**
-         * The current width of the frame, in pixels.
+         * The current width of the frame.
          *
          * @see java.awt.Component.setSize
          */
         public var width: Int by mutableIntStateOf(bounds.width)
 
         /**
-         * The current height of the frame, in pixels.
+         * The current height of the frame.
          *
          * @see java.awt.Component.setSize
          */
@@ -102,7 +102,7 @@ public class InternalFrameState
         public var maximized: Boolean by mutableStateOf(maximized)
 
         /**
-         * The frame's position and size within the desktop, in pixels.
+         * The frame's position and size within the desktop.
          *
          * Reading returns a detached copy, matching [java.awt.Component.getBounds] semantics; move or
          * resize the frame by assigning a new value here or by setting [x], [y], [width] and [height]

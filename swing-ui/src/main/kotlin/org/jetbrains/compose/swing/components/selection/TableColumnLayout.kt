@@ -15,7 +15,7 @@ import javax.swing.table.TableColumnModel
  * widths at every layout pass, so an exact width lasts only until the next one.
  *
  * @property modelIndices the model index of each view column, left to right
- * @property preferredWidths the preferred width in pixels of each view column, left to right
+ * @property preferredWidths the preferred width of each view column, left to right
  * @throws IllegalArgumentException if the two lists are of different sizes
  * @see javax.swing.table.TableColumnModel
  * @see javax.swing.table.TableColumn.setPreferredWidth

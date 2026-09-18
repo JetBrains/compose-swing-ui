@@ -493,7 +493,7 @@ no third field to invalidate.
 
 `derivedStateOf` earns its place where the derivation **narrows**: where many changes of the inputs
 produce few changes of the result. `ScrollState`'s `canScrollForwardY` is `y < maxY` over values that
-move on every scrolled pixel and every resize, while the answer itself changes only when an end is
+move with every scroll step and every resize, while the answer itself changes only when an end is
 reached or left. Wrapping it caches the result and holds its readers still until the answer changes,
 so a toolbar button that only wants to know whether there is anywhere left to scroll is not recomposed
 by scrolling. Where the result changes about as often as its inputs do, or where the property only

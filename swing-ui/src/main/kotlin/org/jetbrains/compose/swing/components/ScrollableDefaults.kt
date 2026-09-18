@@ -9,17 +9,17 @@ import javax.swing.Scrollable
 import javax.swing.SwingConstants
 
 /**
- * The pixels one arrow button, one keyboard line and one wheel unit scroll a component of this library
- * by: a line of its own font, as a list, a table or a text area scrolls by a row or a line of theirs.
+ * How far one arrow button, one keyboard line and one wheel unit scroll a component of this library:
+ * a line of its own font, as a list, a table or a text area scrolls by a row or a line of theirs.
  *
- * A `JScrollPane` scrolls a view that is no [Scrollable] a single pixel at a time. That is a fallback for
- * content the pane knows nothing about, not a distance a widget moves the user's view by, so the
- * library's components answer for themselves. Content that scrolls by something else declares it through
- * [ScrollPaneScope.viewport].
+ * A `JScrollPane` scrolls a view that is no [Scrollable] one unit of user-space coordinates at a time.
+ * That is a fallback for content the pane knows nothing about, not a distance a widget moves the user's
+ * view by, so the library's components answer for themselves. Content that scrolls by something else
+ * declares it through [ScrollPaneScope.viewport].
  */
 internal fun JComponent.scrollableLine(): Int = getFontMetrics(font).height
 
-/** The pixels one page scrolls by: the viewport's own extent along [orientation]. */
+/** How far one page scrolls: the viewport's own extent along [orientation]. */
 internal fun scrollablePage(
     visibleRect: Rectangle,
     orientation: Int,

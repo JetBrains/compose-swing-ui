@@ -60,7 +60,7 @@ public fun <S : PanelScope> Panel(
 
 /**
  * A `JPanel` under the layout a `JPanel` builds itself with: a [PanelLayout.Flow] laying [content] out
- * in a centered row that wraps, five pixels apart.
+ * in a centered row that wraps, `5` apart in user-space coordinates.
  *
  * @param modifier the [SwingModifier] applied to the panel
  * @param content the composable content of the panel
@@ -489,10 +489,10 @@ public sealed interface GridBagPanelScope : PanelScope {
      * @param fill whether and along which axes the child is resized to fill its display area
      * @param insets the external padding - the room held clear around the child inside its display
      *   area
-     * @param ipadx the internal horizontal padding: the child is at least its minimum width plus this
-     *   many pixels wide
-     * @param ipady the internal vertical padding: the child is at least its minimum height plus this
-     *   many pixels tall
+     * @param ipadx the internal horizontal padding: the child's width is at least its minimum width plus
+     *   this value
+     * @param ipady the internal vertical padding: the child's height is at least its minimum height plus
+     *   this value
      * @return this chain with the placement declared on it.
      * @see java.awt.GridBagConstraints
      */

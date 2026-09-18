@@ -71,9 +71,9 @@ import javax.swing.event.ListSelectionListener
  *   `VERTICAL` - the default - is the single column
  * @param prototypeCellValue an item measured once, through the same renderer the rows use, to size every
  *   cell; `null` - the default - measures each row for itself
- * @param fixedCellWidth the width in pixels of every cell; `-1` - the default - takes the width from
+ * @param fixedCellWidth the width of every cell; `-1` - the default - takes the width from
  *   [prototypeCellValue], or from each row's own measurement where no prototype is declared
- * @param fixedCellHeight the height in pixels of every cell; `-1` - the default - takes the height from
+ * @param fixedCellHeight the height of every cell; `-1` - the default - takes the height from
  *   [prototypeCellValue], or from each row's own measurement where no prototype is declared
  * @param itemContent optional composable cell rendered per row against a [ListItemScope]; `null` keeps
  *   the default `toString` rendering
@@ -129,9 +129,9 @@ public fun <T> ListBox(
  *   `VERTICAL` - the default - is the single column
  * @param prototypeCellValue an item measured once, through the same renderer the rows use, to size every
  *   cell; `null` - the default - measures each row for itself
- * @param fixedCellWidth the width in pixels of every cell; `-1` - the default - takes the width from
+ * @param fixedCellWidth the width of every cell; `-1` - the default - takes the width from
  *   [prototypeCellValue], or from each row's own measurement where no prototype is declared
- * @param fixedCellHeight the height in pixels of every cell; `-1` - the default - takes the height from
+ * @param fixedCellHeight the height of every cell; `-1` - the default - takes the height from
  *   [prototypeCellValue], or from each row's own measurement where no prototype is declared
  * @param itemContent optional composable cell rendered per row against a [ListItemScope]; `null` keeps
  *   the default `toString` rendering
@@ -242,9 +242,9 @@ private inline fun <T> ListBoxItemsImpl(
  *   `VERTICAL` - the default - is the single column
  * @param prototypeCellValue an item measured once, through the same renderer the rows use, to size every
  *   cell; `null` - the default - measures each row for itself
- * @param fixedCellWidth the width in pixels of every cell; `-1` - the default - takes the width from
+ * @param fixedCellWidth the width of every cell; `-1` - the default - takes the width from
  *   [prototypeCellValue], or from each row's own measurement where no prototype is declared
- * @param fixedCellHeight the height in pixels of every cell; `-1` - the default - takes the height from
+ * @param fixedCellHeight the height of every cell; `-1` - the default - takes the height from
  *   [prototypeCellValue], or from each row's own measurement where no prototype is declared
  * @param itemContent optional composable cell rendered per row against a [ListItemScope]; `null` keeps
  *   the default `toString` rendering
@@ -303,9 +303,9 @@ public fun <T> ListBox(
  *   `VERTICAL` - the default - is the single column
  * @param prototypeCellValue an item measured once, through the same renderer the rows use, to size every
  *   cell; `null` - the default - measures each row for itself
- * @param fixedCellWidth the width in pixels of every cell; `-1` - the default - takes the width from
+ * @param fixedCellWidth the width of every cell; `-1` - the default - takes the width from
  *   [prototypeCellValue], or from each row's own measurement where no prototype is declared
- * @param fixedCellHeight the height in pixels of every cell; `-1` - the default - takes the height from
+ * @param fixedCellHeight the height of every cell; `-1` - the default - takes the height from
  *   [prototypeCellValue], or from each row's own measurement where no prototype is declared
  * @param itemContent optional composable cell rendered per row against a [ListItemScope]; `null` keeps
  *   the default `toString` rendering
@@ -406,9 +406,9 @@ private inline fun <T> ListBoxModelImpl(
  *   `VERTICAL` - the default - is the single column
  * @param prototypeCellValue an item measured once, through the same renderer the rows use, to size every
  *   cell; `null` - the default - measures each row for itself
- * @param fixedCellWidth the width in pixels of every cell; `-1` - the default - takes the width from
+ * @param fixedCellWidth the width of every cell; `-1` - the default - takes the width from
  *   [prototypeCellValue], or from each row's own measurement where no prototype is declared
- * @param fixedCellHeight the height in pixels of every cell; `-1` - the default - takes the height from
+ * @param fixedCellHeight the height of every cell; `-1` - the default - takes the height from
  *   [prototypeCellValue], or from each row's own measurement where no prototype is declared
  * @param itemContent optional composable cell rendered per row against a [ListItemScope]; `null` keeps
  *   the default `toString` rendering
@@ -463,9 +463,9 @@ public fun <T> ListBox(
  *   `VERTICAL` - the default - is the single column
  * @param prototypeCellValue an item measured once, through the same renderer the rows use, to size every
  *   cell; `null` - the default - measures each row for itself
- * @param fixedCellWidth the width in pixels of every cell; `-1` - the default - takes the width from
+ * @param fixedCellWidth the width of every cell; `-1` - the default - takes the width from
  *   [prototypeCellValue], or from each row's own measurement where no prototype is declared
- * @param fixedCellHeight the height in pixels of every cell; `-1` - the default - takes the height from
+ * @param fixedCellHeight the height of every cell; `-1` - the default - takes the height from
  *   [prototypeCellValue], or from each row's own measurement where no prototype is declared
  * @param itemContent optional composable cell rendered per row against a [ListItemScope]; `null` keeps
  *   the default `toString` rendering

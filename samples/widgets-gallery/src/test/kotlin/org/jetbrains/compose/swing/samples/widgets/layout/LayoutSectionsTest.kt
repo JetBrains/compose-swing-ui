@@ -354,7 +354,7 @@ class LayoutSectionsTest {
             val parentControl = onNodeWithText("Parent: 200 × 96").fetch<JButton>()
             assertHtmlFits(relative)
             assertEquals(
-                "placeRelative, gap 8 pixels; activate to cycle",
+                "placeRelative, gap 8; activate to cycle",
                 relative.accessibleContext.accessibleName,
             )
             val defaultButtonBackground = UIManager.getColor("Button.background")
@@ -386,7 +386,7 @@ class LayoutSectionsTest {
             onNodeWithText("gap=18 px", substring = true).assertExists()
             awaitIdle()
             assertEquals(
-                "placeRelative, gap 18 pixels; activate to cycle",
+                "placeRelative, gap 18; activate to cycle",
                 relative.accessibleContext.accessibleName,
             )
             assertTrue(physical.y > physicalYBefore, "the larger custom-layout gap moves the second child down")

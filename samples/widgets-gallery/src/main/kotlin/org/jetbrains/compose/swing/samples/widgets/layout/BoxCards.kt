@@ -230,7 +230,7 @@ private fun ColumnScope.BoxZIndexCard() {
 
 // A BiasAlignment built from an arbitrary float, not one of the nine named constants: the slider moves
 // the child continuously through the box rather than snapping between fixed positions, and the child's
-// own x follows it a pixel at a time.
+// own x follows it one step at a time.
 @Composable
 internal fun ColumnScope.BiasAlignmentCard() {
     ExampleCard("BiasAlignment (arbitrary bias)") {

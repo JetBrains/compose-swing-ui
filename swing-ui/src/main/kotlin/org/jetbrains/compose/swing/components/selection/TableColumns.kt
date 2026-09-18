@@ -34,8 +34,8 @@ public sealed interface TableScope<R> {
      * @param isSortable whether a click on the header sorts by this column, while the table sorts at all.
      * @param comparator orders this column's values, or `null` to order them as a `TableRowSorter` orders
      *   a column of [columnClass].
-     * @param minWidth the narrowest this column may be dragged or squeezed to, in pixels.
-     * @param maxWidth the widest this column may be dragged or stretched to, in pixels.
+     * @param minWidth the narrowest this column may be dragged or squeezed to.
+     * @param maxWidth the widest this column may be dragged or stretched to.
      * @param onCellEdit invoked with the row, its index and the committed value when a cell is edited.
      * @param cellContent renders the cells through a composable body, or `null` to render them through
      *   the renderer the table picks by [columnClass].
@@ -84,9 +84,9 @@ public sealed interface TableScope<R> {
  *   `TableRowSorter` orders a column of [V]; applies while the table sorts at all. Hold one instance
  *   across passes: a comparator is compared by identity, so one built anew each pass - a capturing
  *   lambda, or a `compareBy` - sorts the rows again each pass
- * @param minWidth the narrowest this column may be dragged or squeezed to, in pixels; `15` by default,
+ * @param minWidth the narrowest this column may be dragged or squeezed to; `15` by default,
  *   the minimum a `TableColumn` sets for itself
- * @param maxWidth the widest this column may be dragged or stretched to, in pixels; `Int.MAX_VALUE` -
+ * @param maxWidth the widest this column may be dragged or stretched to; `Int.MAX_VALUE` -
  *   the default - leaves it unbounded
  * @param onCellEdit invoked when a cell in this column is edited and the edit is committed, receiving the
  *   row, the row index, and the newly entered value; pair it with an [isEditable] of `true` and update the
@@ -157,9 +157,9 @@ public inline fun <R, reified V : Any> TableScope<R>.column(
  *   `TableRowSorter` orders a column of [columnClass]; applies while the table sorts at all. Hold one
  *   instance across passes: a comparator is compared by identity, so one built anew each pass - a
  *   capturing lambda, or a `compareBy` - sorts the rows again each pass
- * @param minWidth the narrowest this column may be dragged or squeezed to, in pixels; `15` by default,
+ * @param minWidth the narrowest this column may be dragged or squeezed to; `15` by default,
  *   the minimum a `TableColumn` sets for itself
- * @param maxWidth the widest this column may be dragged or stretched to, in pixels; `Int.MAX_VALUE` -
+ * @param maxWidth the widest this column may be dragged or stretched to; `Int.MAX_VALUE` -
  *   the default - leaves it unbounded
  * @param onCellEdit invoked when a cell in this column is edited and the edit is committed, receiving the
  *   row, the row index, and the newly entered value; pair it with an [isEditable] of `true` and update the

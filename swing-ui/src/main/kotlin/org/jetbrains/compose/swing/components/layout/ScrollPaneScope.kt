@@ -45,11 +45,11 @@ public sealed interface ScrollPaneScope {
      * text area), a container of this library by a line of its font, and anything else by the pane's own
      * defaults. Declaring an answer keeps every answer left undeclared.
      *
-     * @param unitIncrement the pixels one arrow-button click, one keyboard line or one wheel unit
-     *   scrolls by; `null` scrolls by the content's own line or row, and by a single pixel where the
-     *   content answers nothing
-     * @param blockIncrement the pixels one page - a click in the scroll bar's track, `Page Up`/`Page
-     *   Down` - scrolls by; `null` scrolls by the content's own page, and by a full page of the viewport
+     * @param unitIncrement how far one arrow-button click, one keyboard line or one wheel unit
+     *   scrolls; `null` scrolls by the content's own line or row, and by one unit of user-space
+     *   coordinates where the content answers nothing
+     * @param blockIncrement how far one page - a click in the scroll bar's track, `Page Up`/`Page
+     *   Down` - scrolls; `null` scrolls by the content's own page, and by a full page of the viewport
      *   where the content answers nothing
      * @param tracksViewportWidth whether the content takes the viewport's width in place of its
      *   preferred one, which is what content that wraps within the pane is laid out by; `null` - and

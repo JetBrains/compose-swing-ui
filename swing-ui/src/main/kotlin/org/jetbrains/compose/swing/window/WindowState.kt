@@ -62,21 +62,21 @@ public class WindowState
         public var position: WindowPosition by mutableStateOf(position)
 
         /**
-         * The current width of the window, in pixels.
+         * The current width of the window.
          *
          * @see java.awt.Component.setSize
          */
         public var width: Int by mutableIntStateOf(size?.width ?: 0)
 
         /**
-         * The current height of the window, in pixels.
+         * The current height of the window.
          *
          * @see java.awt.Component.setSize
          */
         public var height: Int by mutableIntStateOf(size?.height ?: 0)
 
         /**
-         * The current size of the window, a [width]/[height] pair in pixels.
+         * The current size of the window, a [width]/[height] pair.
          *
          * Reading returns a detached copy, matching [java.awt.Component.getSize] semantics; resize the
          * window by assigning a new value here or by setting [width] and [height] individually.

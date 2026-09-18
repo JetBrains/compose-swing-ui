@@ -595,8 +595,8 @@ Panel(PanelLayout.Border()) {
 shares its leftover space out among the children that have room between the size they prefer and
 their maximum size, in proportion to that room. `Glue` is empty space with the most room of all, so it
 takes the largest share, and `Strut`, `RigidArea` and `Spacer` (a `RigidArea` square) are the fixed
-gaps between items. `PanelLayout.Flow` centers its children and gaps them by `5` pixels, and
-`PanelLayout.Grid` starts as a single row that grows a column per child, with no gaps.
+gaps between items. `PanelLayout.Flow` centers its children and gaps them by `5` in user-space
+coordinates, and `PanelLayout.Grid` starts as a single row that grows a column per child, with no gaps.
 
 `PanelLayout.GridBag`'s `item` takes one parameter per `GridBagConstraints` field, under the field's
 own name and with its own default, so a grid-bag layout written against Swing carries over field for
@@ -1019,7 +1019,8 @@ Window(onCloseRequest = ::exitApplication) {
 
 ## Drawing
 
-`Canvas` hands you the raw `Graphics2D` of a blank surface, plus its current pixel width and height.
+`Canvas` hands you the raw `Graphics2D` of a blank surface, plus its current width and height in
+user-space coordinates.
 Snapshot state read inside the draw lambda, at paint time, is observed: when it changes the surface
 repaints. Size the surface with the preferred-size modifier.
 
@@ -1193,7 +1194,7 @@ axis has anywhere left to scroll, for a caller that offers a way to scroll furth
 at the end. The forward pair is `false` once the position stands at `maxX` or `maxY`, so content the
 viewport shows whole can be scrolled forward nowhere; the backward pair is `false` while the position
 stands at `0`. A reader of one of them stands still until the answer itself changes, rather than
-following every scrolled pixel.
+following every scroll step.
 
 The position outlives the content it was reached in, so a pane that leaves the composition and returns
 comes back where the user left it.

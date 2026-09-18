@@ -15,10 +15,10 @@ import java.awt.Rectangle
  * Sets the component's `bounds` - its position and size within its parent. Effective in a parent that
  * does not lay its children out (a null layout, or a `LayeredPane`), where each child positions itself.
  *
- * @param x the left edge in pixels, in the parent's coordinate space, whose origin is its top-left corner.
- * @param y the top edge in pixels, measured down from that origin.
- * @param width the width in pixels, measured right from [x].
- * @param height the height in pixels, measured down from [y].
+ * @param x the left edge in the parent's coordinate space, whose origin is its top-left corner.
+ * @param y the top edge, measured down from that origin.
+ * @param width the width, measured right from [x].
+ * @param height the height, measured down from [y].
  * @return this modifier with the bounds declared on it.
  * @see java.awt.Component.setBounds
  */
@@ -49,8 +49,8 @@ public fun SwingModifier.bounds(
  * `location(20, 30).x(10)` yields (10, 30) (the later [x] wins the x axis, the y axis stays from
  * [location]).
  *
- * @param x the left edge in pixels, in the parent's coordinate space, whose origin is its top-left corner.
- * @param y the top edge in pixels, measured down from that origin.
+ * @param x the left edge in the parent's coordinate space, whose origin is its top-left corner.
+ * @param y the top edge, measured down from that origin.
  * @return this modifier with the location declared on it.
  * @see java.awt.Component.setLocation
  */
@@ -85,7 +85,7 @@ public fun SwingModifier.location(point: Point): SwingModifier =
  * See [location] (the `Int` overload) for how it takes effect only outside a managed layout and how
  * [location]/[x]/[y] compose per axis.
  *
- * @param value the left edge in pixels, in the parent's coordinate space; the y coordinate written with it
+ * @param value the left edge in the parent's coordinate space; the y coordinate written with it
  *   is the one the component holds when the write runs - whatever the last declaration or layout pass left
  *   there.
  * @return this modifier with the x position declared on it.
@@ -105,7 +105,7 @@ public fun SwingModifier.x(value: Int): SwingModifier =
  * See [location] (the `Int` overload) for how it takes effect only outside a managed layout and how
  * [location]/[x]/[y] compose per axis.
  *
- * @param value the top edge in pixels, in the parent's coordinate space; the x coordinate written with it
+ * @param value the top edge in the parent's coordinate space; the x coordinate written with it
  *   is the one the component holds when the write runs - whatever the last declaration or layout pass left
  *   there.
  * @return this modifier with the y position declared on it.

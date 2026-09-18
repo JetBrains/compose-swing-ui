@@ -12,7 +12,7 @@ import java.awt.Dimension
  * and what `maximumLayoutSize` already reports for a row.
  *
  * The extents are plain `Int`s, the unit every other geometry in this library is written in. AWT's
- * coordinates are density-independent already: a component 100 wide occupies 200 device pixels on a
+ * geometry is in user-space coordinates: a component 100 wide occupies 200 device pixels on a
  * 2x display, because the graphics configuration's default transform scales user space onto the
  * device. There is nothing for a unit type to convert.
  *

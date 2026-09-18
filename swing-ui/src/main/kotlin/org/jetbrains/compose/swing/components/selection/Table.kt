@@ -100,7 +100,7 @@ import javax.swing.table.TableModel
  * @param onSortChange callback invoked with the order the user's header click leaves the rows in
  * @param rowFilter which of the rows the table shows, or `null` - the default - to show all of them; a
  *   filter is adopted by identity, so pass a stable one (e.g. `remember {}`) to avoid churn
- * @param rowHeight the height in pixels of every row; `null` - the default - leaves it to the look and feel
+ * @param rowHeight the height of every row; `null` - the default - leaves it to the look and feel
  * @param autoResizeMode how the columns share out a change to the table's width;
  *   `AUTO_RESIZE_SUBSEQUENT_COLUMNS` - the default - takes the change out of the columns right of the
  *   one resized, while `AUTO_RESIZE_OFF` leaves every column its width and scrolls instead
@@ -177,7 +177,7 @@ public fun <R> Table(
  *   reports none of them
  * @param rowFilter which of the rows the table shows, or `null` - the default - to show all of them; a
  *   filter is adopted by identity, so pass a stable one (e.g. `remember {}`) to avoid churn
- * @param rowHeight the height in pixels of every row; `null` - the default - leaves it to the look and feel
+ * @param rowHeight the height of every row; `null` - the default - leaves it to the look and feel
  * @param autoResizeMode how the columns share out a change to the table's width;
  *   `AUTO_RESIZE_SUBSEQUENT_COLUMNS` - the default - takes the change out of the columns right of the
  *   one resized, while `AUTO_RESIZE_OFF` leaves every column its width and scrolls instead
@@ -391,7 +391,7 @@ private inline fun <R> TableRowsImpl(
  * @param onSortChange callback invoked with the order the user's header click leaves the rows in
  * @param rowFilter which of the rows the table shows, or `null` - the default - to show all of them; a
  *   filter is adopted by identity, so pass a stable one (e.g. `remember {}`) to avoid churn
- * @param rowHeight the height in pixels of every row; `null` - the default - leaves it to the look and feel
+ * @param rowHeight the height of every row; `null` - the default - leaves it to the look and feel
  * @param autoResizeMode how the columns share out a change to the table's width;
  *   `AUTO_RESIZE_SUBSEQUENT_COLUMNS` - the default - takes the change out of the columns right of the
  *   one resized, while `AUTO_RESIZE_OFF` leaves every column its width and scrolls instead
@@ -464,7 +464,7 @@ public fun Table(
  *   reports none of them
  * @param rowFilter which of the rows the table shows, or `null` - the default - to show all of them; a
  *   filter is adopted by identity, so pass a stable one (e.g. `remember {}`) to avoid churn
- * @param rowHeight the height in pixels of every row; `null` - the default - leaves it to the look and feel
+ * @param rowHeight the height of every row; `null` - the default - leaves it to the look and feel
  * @param autoResizeMode how the columns share out a change to the table's width;
  *   `AUTO_RESIZE_SUBSEQUENT_COLUMNS` - the default - takes the change out of the columns right of the
  *   one resized, while `AUTO_RESIZE_OFF` leaves every column its width and scrolls instead
@@ -599,7 +599,7 @@ private inline fun TableImpl(
  * @param onSortChange callback invoked with the order the user's header click leaves the rows in
  * @param rowFilter which of the rows the table shows, or `null` - the default - to show all of them; a
  *   filter is adopted by identity, so pass a stable one (e.g. `remember {}`) to avoid churn
- * @param rowHeight the height in pixels of every row; `null` - the default - leaves it to the look and feel
+ * @param rowHeight the height of every row; `null` - the default - leaves it to the look and feel
  * @param autoResizeMode how the columns share out a change to the table's width;
  *   `AUTO_RESIZE_SUBSEQUENT_COLUMNS` - the default - takes the change out of the columns right of the
  *   one resized, while `AUTO_RESIZE_OFF` leaves every column its width and scrolls instead
@@ -665,7 +665,7 @@ public fun <R> Table(
  * @param onSortChange callback invoked with the order the user's header click leaves the rows in
  * @param rowFilter which of the rows the table shows, or `null` - the default - to show all of them; a
  *   filter is adopted by identity, so pass a stable one (e.g. `remember {}`) to avoid churn
- * @param rowHeight the height in pixels of every row; `null` - the default - leaves it to the look and feel
+ * @param rowHeight the height of every row; `null` - the default - leaves it to the look and feel
  * @param autoResizeMode how the columns share out a change to the table's width;
  *   `AUTO_RESIZE_SUBSEQUENT_COLUMNS` - the default - takes the change out of the columns right of the
  *   one resized, while `AUTO_RESIZE_OFF` leaves every column its width and scrolls instead

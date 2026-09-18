@@ -13,7 +13,7 @@ import javax.swing.Box
 import javax.swing.SwingConstants
 
 /**
- * Empty space of a fixed size, [width] by [height] pixels - the rigid area of `Box.createRigidArea`.
+ * Empty space of a fixed size, [width] by [height] - the rigid area of `Box.createRigidArea`.
  *
  * Its minimum, preferred and maximum size are all that size, so a [PanelLayout.Box] panel or a [ToolBar] holds it
  * at exactly that size - which is what makes it the gap between two items:
@@ -26,8 +26,8 @@ import javax.swing.SwingConstants
  * }
  * ```
  *
- * @param width the horizontal size in pixels
- * @param height the vertical size in pixels
+ * @param width the horizontal size
+ * @param height the vertical size
  * @param modifier the [SwingModifier] applied to the underlying component
  * @see javax.swing.Box.Filler
  */
@@ -43,10 +43,10 @@ public fun RigidArea(
 }
 
 /**
- * Empty space of a fixed [size] pixels, on both axes alike - a convenience over [RigidArea] with one
+ * Empty space of a fixed [size], on both axes alike - a convenience over [RigidArea] with one
  * size for both.
  *
- * @param size the horizontal and vertical size in pixels
+ * @param size the horizontal and vertical size
  * @param modifier the [SwingModifier] applied to the underlying component
  * @see javax.swing.Box.Filler
  */
@@ -59,7 +59,7 @@ public fun Spacer(
 }
 
 /**
- * Empty space that holds [size] pixels along [orientation] and reaches for as much as it is offered
+ * Empty space that holds [size] along [orientation] and reaches for as much as it is offered
  * across it - the strut of `Box.createHorizontalStrut` and `Box.createVerticalStrut`. A horizontal
  * strut holds a width and takes whatever height it is given, a vertical one holds a height and takes
  * whatever width.
@@ -69,7 +69,7 @@ public fun Spacer(
  * along the other axis and takes a share of the leftover extent the way [Glue] does.
  *
  * @param orientation the axis the strut occupies (an [Orientation] `SwingConstants` value)
- * @param size the size along [orientation] in pixels
+ * @param size the size along [orientation]
  * @param modifier the [SwingModifier] applied to the underlying component
  * @see javax.swing.Box.Filler
  */

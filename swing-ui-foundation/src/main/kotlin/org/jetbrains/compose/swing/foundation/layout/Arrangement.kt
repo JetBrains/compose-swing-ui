@@ -17,7 +17,7 @@ import kotlin.math.roundToInt
  * [SpaceAround] and [SpaceEvenly] share it out between them; [spacedBy] holds a fixed gap between
  * adjacent children and places the group as a whole.
  *
- * `spacing` is the gap an arrangement holds between two adjacent children, in pixels. A container
+ * `spacing` is the gap an arrangement holds between two adjacent children. A container
  * reserves it before it measures, so it is part of the size the container asks for.
  */
 @Immutable
@@ -25,7 +25,7 @@ public object Arrangement {
     /** Places children along a horizontal axis, resolved against the container's `ComponentOrientation`. */
     @Stable
     public interface Horizontal {
-        /** The gap held between two adjacent children, in pixels. */
+        /** The gap held between two adjacent children. */
         public val spacing: Int get() = 0
 
         /**
@@ -55,7 +55,7 @@ public object Arrangement {
     /** Places children along a vertical axis. */
     @Stable
     public interface Vertical {
-        /** The gap held between two adjacent children, in pixels. */
+        /** The gap held between two adjacent children. */
         public val spacing: Int get() = 0
 
         /**
@@ -229,7 +229,7 @@ public object Arrangement {
         }
 
     /**
-     * Holds [space] pixels between two adjacent children and packs the group against the leading edge.
+     * Holds [space] between two adjacent children and packs the group against the leading edge.
      * A negative [space] overlaps them.
      *
      * @param space the gap between adjacent children only, never at the group's edges.
@@ -240,7 +240,7 @@ public object Arrangement {
     public fun spacedBy(space: Int): HorizontalOrVertical = SpacedAligned(space, mirrored = true, alignment = null)
 
     /**
-     * Holds [space] pixels between two adjacent children and places the group as a whole at [alignment]
+     * Holds [space] between two adjacent children and places the group as a whole at [alignment]
      * along the row. A negative [space] overlaps them.
      *
      * @param space the gap between adjacent children only, never at the group's edges.
@@ -256,7 +256,7 @@ public object Arrangement {
     ): Horizontal = SpacedAligned(space, mirrored = true, alignment = HorizontalAxisAlignment(alignment))
 
     /**
-     * Holds [space] pixels between two adjacent children and places the group as a whole at [alignment]
+     * Holds [space] between two adjacent children and places the group as a whole at [alignment]
      * along the column. A negative [space] overlaps them.
      *
      * @param space the gap between adjacent children only, never at the group's edges.
@@ -401,7 +401,7 @@ public object Arrangement {
             }
 
         /**
-         * Holds [space] pixels between two adjacent children and packs the group against the left edge,
+         * Holds [space] between two adjacent children and packs the group against the left edge,
          * whatever the row's `ComponentOrientation` says. A negative [space] overlaps them.
          *
          * @param space the gap between adjacent children only, never at the group's edges.
@@ -412,7 +412,7 @@ public object Arrangement {
         public fun spacedBy(space: Int): HorizontalOrVertical = SpacedAligned(space, mirrored = false, alignment = null)
 
         /**
-         * Holds [space] pixels between two adjacent children, packed left to right in declaration order
+         * Holds [space] between two adjacent children, packed left to right in declaration order
          * whatever the row's `ComponentOrientation` says, and places the group as a whole at [alignment]
          * along the row. A negative [space] overlaps them.
          *
@@ -428,7 +428,7 @@ public object Arrangement {
         ): Horizontal = SpacedAligned(space, mirrored = false, alignment = HorizontalAxisAlignment(alignment))
 
         /**
-         * Holds [space] pixels between two adjacent children and places the group as a whole at
+         * Holds [space] between two adjacent children and places the group as a whole at
          * [alignment] along the column. A negative [space] overlaps them.
          *
          * A vertical axis never mirrors, so this is the same arrangement as [Arrangement.spacedBy].
@@ -458,7 +458,7 @@ public object Arrangement {
 }
 
 /**
- * Holds [space] pixels between adjacent children and, when [alignment] is given, places the group at it
+ * Holds [space] between adjacent children and, when [alignment] is given, places the group at it
  * in whatever room is left; a null [alignment] leaves the group where packing left it. [mirrored]
  * reverses the packing direction under a right-to-left orientation, which a horizontal arrangement does
  * and a vertical one leaves alone.

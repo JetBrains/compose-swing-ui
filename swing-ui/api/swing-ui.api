@@ -1028,10 +1028,10 @@ public final class org/jetbrains/compose/swing/text/TextRange {
 }
 
 public abstract interface annotation class org/jetbrains/compose/swing/tooling/Preview : java/lang/annotation/Annotation {
-	public abstract fun heightPx ()I
+	public abstract fun height ()I
 	public abstract fun lookAndFeel ()Ljava/lang/String;
 	public abstract fun name ()Ljava/lang/String;
-	public abstract fun widthPx ()I
+	public abstract fun width ()I
 }
 
 public abstract interface annotation class org/jetbrains/compose/swing/tooling/Preview$Container : java/lang/annotation/Annotation {

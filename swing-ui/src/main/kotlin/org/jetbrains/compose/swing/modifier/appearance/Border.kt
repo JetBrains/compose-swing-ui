@@ -33,12 +33,12 @@ import javax.swing.border.Border
 public fun SwingModifier.border(border: Border?): SwingModifier = this then BorderElement(BorderSpec.Instance(border))
 
 /**
- * Sets a line border [thickness] pixels wide in [color]. The border is rebuilt only when [color] or
+ * Sets a line border in [color], [thickness] thick. The border is rebuilt only when [color] or
  * [thickness] changes, so a chain that recomposes often leaves the component's border alone. See
  * [border] for the one border a chain declares.
  *
  * @param color the color of the line drawn just inside the component's edges.
- * @param thickness how many pixels the line takes from each side, 1 by default.
+ * @param thickness how wide the line is on each side, 1 by default.
  * @return this chain with the line border declared on it.
  * @see javax.swing.BorderFactory.createLineBorder
  */
@@ -48,9 +48,9 @@ public fun SwingModifier.lineBorder(
 ): SwingModifier = this then BorderElement(BorderSpec.Line(color, thickness))
 
 /**
- * Sets an invisible border [all] pixels wide on every side. See [emptyBorder] (the four-side form).
+ * Sets an invisible border of [all] on every side. See [emptyBorder] (the four-side form).
  *
- * @param all the pixels reserved on each of the four sides, taken out of the area the content is laid out
+ * @param all the space reserved on each of the four sides, taken out of the area the content is laid out
  *   in.
  * @return this chain with the empty border declared on it.
  * @see javax.swing.BorderFactory.createEmptyBorder
@@ -58,15 +58,15 @@ public fun SwingModifier.lineBorder(
 public fun SwingModifier.emptyBorder(all: Int): SwingModifier = emptyBorder(all, all, all, all)
 
 /**
- * Sets an invisible border occupying [top], [left], [bottom] and [right] pixels - the space a component
+ * Sets an invisible border of [top], [left], [bottom] and [right] - the space a component
  * keeps around itself. [margin] is the space a button or a text component keeps inside its border. The
- * border is rebuilt only when those pixel counts change. See [border] for the one border a chain
+ * border is rebuilt only when those values change. See [border] for the one border a chain
  * declares.
  *
- * @param top the pixels reserved above the content.
- * @param left the pixels reserved to the left of the content.
- * @param bottom the pixels reserved below the content.
- * @param right the pixels reserved to the right of the content.
+ * @param top the space reserved above the content.
+ * @param left the space reserved to the left of the content.
+ * @param bottom the space reserved below the content.
+ * @param right the space reserved to the right of the content.
  * @return this chain with the empty border declared on it.
  * @see javax.swing.BorderFactory.createEmptyBorder
  */
@@ -80,7 +80,7 @@ public fun SwingModifier.emptyBorder(
 /**
  * Sets an invisible border occupying [insets]. See [emptyBorder] (the four-side form).
  *
- * @param insets the four pixel counts to reserve, read out of the object as the chain is built.
+ * @param insets the space to reserve on each side, read out of the object as the chain is built.
  * @return this chain with the empty border declared on it.
  * @see javax.swing.BorderFactory.createEmptyBorder
  */
@@ -89,7 +89,7 @@ public fun SwingModifier.emptyBorder(insets: Insets): SwingModifier =
 
 /**
  * What a chain declared the border to be. Equality decides whether the border is built and written at
- * all, so a declaration made of values - a color, a count of pixels - survives a recomposition without
+ * all, so a declaration made of values - a color, a thickness - survives a recomposition without
  * exchanging the component's border for an equal one.
  */
 private sealed interface BorderSpec {

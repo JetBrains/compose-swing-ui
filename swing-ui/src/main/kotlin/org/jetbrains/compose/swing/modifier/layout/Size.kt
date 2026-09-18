@@ -13,7 +13,7 @@ import java.awt.Dimension
 /**
  * Sets `preferredSize` and relays out; `null` restores the layout-computed preferred size.
  *
- * @param size the size the parent's layout manager is asked for, in pixels.
+ * @param size the size the parent's layout manager is asked for.
  * @return this modifier with the preferred size declared on it.
  * @see java.awt.Component.setPreferredSize
  */
@@ -32,7 +32,7 @@ public fun SwingModifier.preferredSize(size: Dimension?): SwingModifier =
 /**
  * Sets `preferredSize` to `Dimension(width, height)` and relays out.
  *
- * @param width the width the parent's layout manager is asked for, in pixels.
+ * @param width the width the parent's layout manager is asked for.
  * @param height the height it is asked for.
  * @return this modifier with the preferred size declared on it.
  * @see java.awt.Component.setPreferredSize
@@ -46,7 +46,7 @@ public fun SwingModifier.preferredSize(
  * Sets `minimumSize` and relays out; `null` restores the layout-computed minimum size.
  *
  * @param size the floor a layout manager is asked to respect once the container has less room than the
- *   preferred size, in pixels.
+ *   preferred size.
  * @return this modifier with the minimum size declared on it.
  * @see java.awt.Component.setMinimumSize
  */
@@ -65,7 +65,7 @@ public fun SwingModifier.minimumSize(size: Dimension?): SwingModifier =
 /**
  * Sets `minimumSize` to `Dimension(width, height)` and relays out.
  *
- * @param width the smallest width a layout manager is asked to leave, in pixels.
+ * @param width the smallest width a layout manager is asked to leave.
  * @param height the smallest height it is asked to leave.
  * @return this modifier with the minimum size declared on it.
  * @see java.awt.Component.setMinimumSize
@@ -79,7 +79,7 @@ public fun SwingModifier.minimumSize(
  * Sets `maximumSize` and relays out; `null` restores the layout-computed maximum size.
  *
  * @param size the ceiling a layout manager is asked to respect once the container has more room than the
- *   preferred size, in pixels.
+ *   preferred size.
  * @return this modifier with the maximum size declared on it.
  * @see java.awt.Component.setMaximumSize
  */
@@ -98,7 +98,7 @@ public fun SwingModifier.maximumSize(size: Dimension?): SwingModifier =
 /**
  * Sets `maximumSize` to `Dimension(width, height)` and relays out.
  *
- * @param width the largest width a stretching layout manager is asked to grow to, in pixels.
+ * @param width the largest width a stretching layout manager is asked to grow to.
  * @param height the largest height it is asked to grow to.
  * @return this modifier with the maximum size declared on it.
  * @see java.awt.Component.setMaximumSize
@@ -118,9 +118,9 @@ public fun SwingModifier.maximumSize(
  * its axis. `width(10).height(20)` yields 10x20; `width(10).size(20, 30)` yields 20x30;
  * `size(20, 30).width(10)` yields 10x30.
  *
- * @param width the width in pixels, applied as given - `minimumSize` and `maximumSize` advise a layout
+ * @param width the width, applied as given - `minimumSize` and `maximumSize` advise a layout
  *   manager rather than bounding a direct write.
- * @param height the height in pixels, applied the same way.
+ * @param height the height, applied the same way.
  * @return this modifier with the size declared on it.
  * @see java.awt.Component.setSize
  */
@@ -133,7 +133,7 @@ public fun SwingModifier.size(
  * Sets the component's actual size to [size], like `setSize`. See [size] (the `Int` overload) for when
  * this takes effect and how [size]/[width]/[height] compose.
  *
- * @param size the width and height in pixels. It is compared against the size applied last, so mutating
+ * @param size the width and height. It is compared against the size applied last, so mutating
  *   the same `Dimension` and declaring it again resizes nothing; declare a fresh instance instead.
  * @return this modifier with the size declared on it.
  * @see java.awt.Component.setSize
@@ -153,7 +153,7 @@ public fun SwingModifier.size(size: Dimension): SwingModifier =
  * height)`. See [size] (the `Int` overload) for when this takes effect and how [size]/[width]/[height]
  * compose.
  *
- * @param width the width in pixels; the height written with it is the one the component holds when the
+ * @param width the width; the height written with it is the one the component holds when the
  *   write runs - whatever the last declaration or layout pass left there.
  * @return this modifier with the width declared on it.
  * @see java.awt.Component.setSize
@@ -172,7 +172,7 @@ public fun SwingModifier.width(width: Int): SwingModifier =
  * height)`. See [size] (the `Int` overload) for when this takes effect and how [size]/[width]/[height]
  * compose.
  *
- * @param height the height in pixels; the width written with it is the one the component holds when the
+ * @param height the height; the width written with it is the one the component holds when the
  *   write runs - whatever the last declaration or layout pass left there.
  * @return this modifier with the height declared on it.
  * @see java.awt.Component.setSize

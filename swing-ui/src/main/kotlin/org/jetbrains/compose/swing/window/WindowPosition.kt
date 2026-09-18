@@ -3,7 +3,7 @@ package org.jetbrains.compose.swing.window
 import java.awt.Window
 
 /**
- * Top-left position of a window or dialog on the screen, in raw pixels.
+ * Top-left position of a window or dialog on the screen.
  *
  * A position is either concrete coordinates ([Absolute]) or a request to place the window
  * ([PlatformDefault], [CenteredOnScreen], [CenteredOnOwner], [CenteredOn]). A request carries no
@@ -63,10 +63,10 @@ public sealed interface WindowPosition {
     }
 
     /**
-     * Absolute top-left position in pixels relative to the screen.
+     * Absolute top-left position relative to the screen.
      *
-     * @property x the horizontal position of the window, in pixels
-     * @property y the vertical position of the window, in pixels
+     * @property x the horizontal position of the window
+     * @property y the vertical position of the window
      */
     public class Absolute(
         public val x: Int,

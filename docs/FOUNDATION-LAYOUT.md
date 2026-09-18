@@ -297,7 +297,7 @@ Arrangements distribute leftover main-axis space:
 
 - `Start`, `End`, `Top`, `Bottom`, `Center`
 - `SpaceBetween`, `SpaceAround`, `SpaceEvenly`
-- `spacedBy(gap)` holds a fixed pixel gap between adjacent children.
+- `spacedBy(gap)` holds a fixed gap between adjacent children.
 - `spacedBy(gap, alignment)` and `aligned(alignment)` align the group within leftover space.
 - `Arrangement.Absolute` keeps a row's children packed left to right under either orientation. Its
   overloads that take an `Alignment.Horizontal` still resolve that alignment against the orientation.

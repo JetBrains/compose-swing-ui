@@ -32,7 +32,7 @@ public fun interface Alignment {
      * @param space the extent offered, inside which the child is placed.
      * @param orientation the container's reading order; a right-to-left one mirrors the horizontal half
      *   of the placement, so [Alignment.TopStart] resolves to the top right corner.
-     * @return the offset in pixels, applied without clamping.
+     * @return the offset, applied without clamping.
      */
     public fun align(
         size: Dimension,
@@ -47,7 +47,7 @@ public fun interface Alignment {
     @Stable
     public fun interface Horizontal {
         /**
-         * The child's offset from the left of [space], for a child [size] pixels wide in a container
+         * The child's offset from the left of [space], for a child [size] wide in a container
          * laid out under [orientation].
          *
          * @param size the child's own width, which an alignment reads and never changes.
@@ -55,7 +55,7 @@ public fun interface Alignment {
          *   group of children passes the width left over.
          * @param orientation the container's reading order; a right-to-left one mirrors the placement,
          *   so [Alignment.Start] resolves to the right edge.
-         * @return the offset in pixels, applied without clamping.
+         * @return the offset, applied without clamping.
          */
         public fun align(
             size: Int,
@@ -71,12 +71,12 @@ public fun interface Alignment {
     @Stable
     public fun interface Vertical {
         /**
-         * The child's offset from the top of [space], for a child [size] pixels tall.
+         * The child's offset from the top of [space], for a child [size] tall.
          *
          * @param size the child's own height, which an alignment reads and never changes.
          * @param space the height offered, which is not always the container's: an arrangement placing a
          *   group of children passes the height left over.
-         * @return the offset in pixels, applied without clamping.
+         * @return the offset, applied without clamping.
          */
         public fun align(
             size: Int,
@@ -157,7 +157,7 @@ public fun interface Alignment {
  * wholly outside that space. A right-to-left orientation mirrors the horizontal bias.
  *
  * Each offset is worked out as a float and rounded once, so the two halves of a centered child differ by
- * at most a pixel.
+ * at most one unit of user-space coordinates.
  *
  * @see AbsoluteAlignment
  */
