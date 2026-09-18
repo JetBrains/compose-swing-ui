@@ -132,11 +132,9 @@ private fun ColumnScope.ScrollStateCard() {
 
 @Composable
 private fun ColumnScope.ContentBehaviorCard() {
-    ExampleCard("SwingModifier.viewport (increments + tracksViewport)") {
+    ExampleCard("SwingModifier.viewport (increments)") {
         var unitIncrement by remember { mutableIntStateOf(16) }
         var blockIncrement by remember { mutableIntStateOf(80) }
-        var tracksWidth by remember { mutableStateOf(false) }
-        var tracksHeight by remember { mutableStateOf(false) }
 
         Panel {
             Label("Unit increment:")
@@ -144,23 +142,13 @@ private fun ColumnScope.ContentBehaviorCard() {
             Label("Block increment:")
             Spinner(blockIncrement, onValueChange = { blockIncrement = it.toInt() }, min = 1, max = 400, step = 10)
         }
-        Panel {
-            CheckBox(text = "Tracks viewport width", checked = tracksWidth, onCheckedChange = { tracksWidth = it })
-            CheckBox(text = "Tracks viewport height", checked = tracksHeight, onCheckedChange = { tracksHeight = it })
-        }
-        WrappedCaption(
-            "Unchecked, the grid keeps its own cell size and a scrollbar reaches the rest; checked, it " +
-                "stretches to fill the viewport on that axis instead. The increments govern how far an " +
-                "arrow-button click or a page click scrolls.",
-        )
+        WrappedCaption("The increments set how far an arrow-button click or a page click scrolls.")
         ScrollPane(modifier = SwingModifier.preferredSize(Dimension(180, 70))) {
             Panel(
                 PanelLayout.Grid(rows = 4, cols = 6, hgap = 1, vgap = 1),
                 SwingModifier.viewport(
                     unitIncrement = unitIncrement,
                     blockIncrement = blockIncrement,
-                    tracksViewportWidth = tracksWidth,
-                    tracksViewportHeight = tracksHeight,
                 ),
             ) {
                 repeat(4 * 6) { index -> Cell("${index / 6},${index % 6}", Color(0xFF, 0xF3, 0xE0)) }

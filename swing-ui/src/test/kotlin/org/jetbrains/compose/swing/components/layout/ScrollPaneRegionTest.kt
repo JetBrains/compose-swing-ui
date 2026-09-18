@@ -7,8 +7,10 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.jetbrains.compose.swing.withRecordedRepaints
 import java.awt.Component
 import javax.swing.JLabel
 import javax.swing.JScrollPane
@@ -37,7 +39,7 @@ class ScrollPaneRegionTest {
     @Test
     fun everyRegionAppendsToTheChainWithoutRepeatingIt() {
         with(ScrollPaneScopeImpl()) {
-            assertDeclaredChainCarriedOnce { viewport(unitIncrement = UNIT_INCREMENT) }
+            assertDeclaredChainCarriedOnce { viewport(unitIncrement = 17) }
             assertDeclaredChainCarriedOnce { rowHeader() }
             assertDeclaredChainCarriedOnce { columnHeader() }
             assertDeclaredChainCarriedOnce { corner(JScrollPane.UPPER_LEADING_CORNER) }
@@ -95,6 +97,33 @@ class ScrollPaneRegionTest {
 
         // The single viewport view now reflects the new content; the viewport itself is reused.
         assertEquals("second", labelTextOf(pane.viewport.view), "redeclaring content should replace the viewport view")
+    }
+
+    @Test
+    fun replacingTheContentRepaintsOnlyInsideTheViewport() = runComposeSwingTest {
+        var content by mutableStateOf("first")
+        setContent {
+            ScrollPane(modifier = SwingModifier.preferredSize(200, 100)) {
+                key(content) { Label(text = content, modifier = SwingModifier.viewport()) }
+            }
+        }
+
+        val pane = onNodeOfType<JScrollPane>().fetch()
+        val first = pane.viewport.view
+        // A viewport forwards its repaint to the scroll pane, clipped to its own bounds.
+        withRecordedRepaints { recorded ->
+            content = "second"
+            awaitIdle()
+
+            assertNotSame(first, pane.viewport.view, "the viewport shows the new content")
+            val paneRepaints = recorded.dirtyRegionsOf(pane)
+            assertTrue(paneRepaints.isNotEmpty(), "the viewport that took a new view repaints")
+            assertTrue(
+                paneRepaints.all { pane.viewport.bounds.contains(it) },
+                "replacing the content repaints the viewport alone, not the pane around it: " +
+                    "$paneRepaints outside ${pane.viewport.bounds}",
+            )
+        }
     }
 
     @Test
@@ -178,8 +207,8 @@ class ScrollPaneRegionTest {
     }
 
     @Test
-    fun contentThatStopsDeclaringHowItScrollsBecomesTheViewportViewItself() = runComposeSwingTest {
-        var unitIncrement by mutableStateOf<Int?>(UNIT_INCREMENT)
+    fun contentIsTheViewportViewWhateverIncrementsItDeclares() = runComposeSwingTest {
+        var unitIncrement by mutableStateOf<Int?>(17)
         setContent {
             ScrollPane {
                 Label(text = "body", modifier = SwingModifier.viewport(unitIncrement = unitIncrement))
@@ -188,18 +217,17 @@ class ScrollPaneRegionTest {
 
         val pane = onNodeOfType<JScrollPane>().fetch()
         val content = onNodeOfType<JLabel>().fetch()
-        assertNotSame(content, pane.viewport.view, "a declared answer hosts the content in a body")
-        assertSame(pane.viewport.view, content.parent, "the declared content is that body's own child")
+        assertSame(content, pane.viewport.view, "content declaring an increment is the viewport's view")
 
         unitIncrement = null
         awaitIdle()
 
-        assertSame(content, pane.viewport.view, "content that answers nothing is the viewport's view as it stands")
+        assertSame(content, pane.viewport.view, "content declaring none is the viewport's view")
 
-        unitIncrement = UNIT_INCREMENT
+        unitIncrement = 17
         awaitIdle()
 
-        assertSame(pane.viewport.view, content.parent, "a declared answer hosts the content in a body again")
+        assertSame(content, pane.viewport.view, "content declaring one again stays the viewport's view")
     }
 
     @Test
@@ -378,6 +406,3 @@ class ScrollPaneRegionTest {
         assertEquals("first", labelTextOf(pane.viewport.view), "swapping back should fill the viewport again")
     }
 }
-
-/** An arrow-button step distinct from every default, so the answer in force is unambiguous. */
-private const val UNIT_INCREMENT: Int = 17

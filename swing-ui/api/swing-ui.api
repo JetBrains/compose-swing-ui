@@ -295,8 +295,8 @@ public abstract interface class org/jetbrains/compose/swing/components/layout/Sc
 	public abstract fun columnHeader (Lorg/jetbrains/compose/swing/modifier/SwingModifier;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public abstract fun corner (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/lang/String;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public abstract fun rowHeader (Lorg/jetbrains/compose/swing/modifier/SwingModifier;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
-	public abstract fun viewport (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Boolean;Ljava/lang/Boolean;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
-	public static synthetic fun viewport$default (Lorg/jetbrains/compose/swing/components/layout/ScrollPaneScope;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Boolean;Ljava/lang/Boolean;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public abstract fun viewport (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/lang/Integer;Ljava/lang/Integer;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static synthetic fun viewport$default (Lorg/jetbrains/compose/swing/components/layout/ScrollPaneScope;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/lang/Integer;Ljava/lang/Integer;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 }
 
 public final class org/jetbrains/compose/swing/components/layout/ScrollState {

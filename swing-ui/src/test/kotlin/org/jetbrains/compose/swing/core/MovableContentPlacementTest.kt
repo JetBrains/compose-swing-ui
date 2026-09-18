@@ -17,10 +17,8 @@ import org.jetbrains.compose.swing.withRecordedRepaints
 import java.awt.Component
 import javax.swing.JPanel
 import javax.swing.JScrollPane
-import javax.swing.Scrollable
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
@@ -152,7 +150,7 @@ class MovableContentPlacementTest : TracedTest() {
     fun contentMovedBetweenPanesDeclaresItsScrollingToThePaneItIsIn() = runComposeSwingTest {
         var inSecond by mutableStateOf(false)
         var refilled by mutableStateOf(false)
-        var tracksWidth by mutableStateOf(false)
+        var blockIncrement by mutableStateOf<Int?>(null)
         setContent {
             val content = remember { movableContentOf<SwingModifier> { modifier -> Label("body", modifier) } }
             Panel {
@@ -160,8 +158,8 @@ class MovableContentPlacementTest : TracedTest() {
                     if (!inSecond) {
                         content(
                             SwingModifier.viewport(
-                                unitIncrement = MOVED_UNIT_INCREMENT,
-                                tracksViewportWidth = tracksWidth,
+                                unitIncrement = 19,
+                                blockIncrement = blockIncrement,
                             ),
                         )
                     }
@@ -171,8 +169,8 @@ class MovableContentPlacementTest : TracedTest() {
                     if (inSecond) {
                         content(
                             SwingModifier.viewport(
-                                unitIncrement = MOVED_UNIT_INCREMENT,
-                                tracksViewportWidth = tracksWidth,
+                                unitIncrement = 19,
+                                blockIncrement = blockIncrement,
                             ),
                         )
                     }
@@ -186,20 +184,31 @@ class MovableContentPlacementTest : TracedTest() {
 
         inSecond = true
         awaitIdle()
-        // The content declares how it scrolls, so the pane it moved to hosts it in a body that answers
-        // the viewport on its behalf.
-        assertSame(second.viewport.view, label.parent, "the pane it moved to hosts it in that body")
+        assertSame(label, second.viewport.view, "the pane it moved to shows it as the viewport's own view")
+        assertEquals(
+            19,
+            second.verticalScrollBar.getUnitIncrement(1),
+            "the pane it moved to scrolls by the increment it declares",
+        )
 
         // The pane it left goes on to show content of its own, which is what fills its viewport from now on.
         refilled = true
         awaitIdle()
         assertSame(onNodeWithText("other").fetch(), first.viewport.view, "the pane it left shows its own content")
+        assertEquals(
+            1,
+            first.verticalScrollBar.getUnitIncrement(1),
+            "the pane it left scrolls as a pane scrolls a view that answers nothing, one unit at a time",
+        )
 
-        tracksWidth = true
+        blockIncrement = 71
         awaitIdle()
 
-        val body = assertIs<Scrollable>(second.viewport.view, "the body answering for the moved content")
-        assertTrue(body.scrollableTracksViewportWidth, "an answer declared after the move reaches the pane it is in")
+        assertEquals(
+            71,
+            second.verticalScrollBar.getBlockIncrement(1),
+            "an increment declared after the move reaches the pane it is in",
+        )
         assertSame(label, onNodeWithText("body").fetch(), "the move keeps the component the content was realized as")
     }
 
@@ -236,6 +245,3 @@ class MovableContentPlacementTest : TracedTest() {
         }
     }
 }
-
-/** A real scrolling answer, so the moved content is hosted in a body wherever it stands. */
-private const val MOVED_UNIT_INCREMENT: Int = 19

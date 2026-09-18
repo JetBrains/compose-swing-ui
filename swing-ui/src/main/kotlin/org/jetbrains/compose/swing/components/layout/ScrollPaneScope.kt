@@ -7,9 +7,9 @@ import org.jetbrains.compose.swing.layout.parentProtocolOf
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.slot
 import org.jetbrains.compose.swing.node.wrongSlotHost
-import java.awt.BorderLayout
 import java.awt.Component
 import java.awt.Container
+import javax.swing.JScrollBar
 import javax.swing.JScrollPane
 
 /**
@@ -38,35 +38,24 @@ import javax.swing.JScrollPane
  */
 public sealed interface ScrollPaneScope {
     /**
-     * Installs the child as the scrollable content, shown in the pane's central viewport.
+     * Installs the child as the scrollable content, the view of the pane's central viewport.
      *
-     * The four answers state how the pane scrolls this content, each `null` - the default - leaving the
-     * answer to the content itself: a widget scrolls by its own rows or lines (a table, a list, a tree, a
-     * text area), a container of this library by a line of its font, and anything else by the pane's own
-     * defaults. Declaring an answer keeps every answer left undeclared.
+     * The two increments are set on both of the pane's scroll bars. Each `null` - the default - leaves the bars asking
+     * the content, as a `JScrollPane` does: a `Scrollable` widget answers with its own rows or lines (a table, a list,
+     * a tree, a text area), and anything else scrolls by 1 per unit and a full viewport per page.
      *
      * @param unitIncrement how far one arrow-button click, one keyboard line or one wheel unit
-     *   scrolls; `null` scrolls by the content's own line or row, and by one unit of user-space
-     *   coordinates where the content answers nothing
+     *   scrolls; `null` leaves it to the content
      * @param blockIncrement how far one page - a click in the scroll bar's track, `Page Up`/`Page
-     *   Down` - scrolls; `null` scrolls by the content's own page, and by a full page of the viewport
-     *   where the content answers nothing
-     * @param tracksViewportWidth whether the content takes the viewport's width in place of its
-     *   preferred one, which is what content that wraps within the pane is laid out by; `null` - and
-     *   `false`, which asks for the same layout - widens it to the viewport where the viewport is wider,
-     *   and scrolls sideways to reach the rest where it is not
-     * @param tracksViewportHeight whether the content takes the viewport's height in place of its
-     *   preferred one, which is what content that fills the pane top to bottom is laid out by; `null` -
-     *   and `false`, which asks for the same layout - heightens it to the viewport where the viewport is
-     *   taller, and scrolls to reach the rest where it is not
+     *   Down` - scrolls; `null` leaves it to the content
      * @return this chain with the viewport region declared on it.
      * @see javax.swing.JScrollPane.setViewportView
+     * @see javax.swing.JScrollBar.setUnitIncrement
+     * @see javax.swing.JScrollBar.setBlockIncrement
      */
     public fun SwingModifier.viewport(
         unitIncrement: Int? = null,
         blockIncrement: Int? = null,
-        tracksViewportWidth: Boolean? = null,
-        tracksViewportHeight: Boolean? = null,
     ): SwingModifier
 
     /**
@@ -127,18 +116,9 @@ internal class ScrollPaneScopeImpl : ScrollPaneScope {
     override fun SwingModifier.viewport(
         unitIncrement: Int?,
         blockIncrement: Int?,
-        tracksViewportWidth: Boolean?,
-        tracksViewportHeight: Boolean?,
-    ): SwingModifier {
-        val behavior = ScrollBehavior.of(unitIncrement, blockIncrement, tracksViewportWidth, tracksViewportHeight)
-        return (
-            this then
-                ScrollBehaviorElement(
-                    region,
-                    behavior,
-                )
-        ).slot(ScrollPaneParentProtocol, VIEWPORT_REGION, region.attachment)
-    }
+    ): SwingModifier =
+        (this then ScrollIncrementsElement(region, ScrollIncrements(unitIncrement, blockIncrement)))
+            .slot(ScrollPaneParentProtocol, VIEWPORT_REGION, region.attachment)
 
     override fun SwingModifier.rowHeader(): SwingModifier =
         slot(ScrollPaneParentProtocol, ROW_HEADER_REGION, RowHeaderAttachment)
@@ -164,83 +144,65 @@ private fun scrollPaneHost(
     builder: String,
 ): JScrollPane = host as? JScrollPane ?: error(wrongSlotHost(host, JScrollPane::class.java, builder))
 
+/** The increments one [ScrollPaneScope.viewport] declaration sets on the pane's scroll bars. */
+private data class ScrollIncrements(
+    val unitIncrement: Int?,
+    val blockIncrement: Int?,
+) {
+    companion object {
+        val None: ScrollIncrements = ScrollIncrements(null, null)
+    }
+}
+
 /**
- * The central viewport of one [ScrollPane], and the shape the content is hosted in there: the content
- * itself, or a [ScrollableBody] holding it that answers the viewport on its behalf where the content
- * declares how it scrolls.
+ * The central viewport of one [ScrollPane] and the increments its content declares.
  *
- * The [attachment] installs the arriving content, and the element the scope's [ScrollPaneScope.viewport]
- * extension builds records what each child declares, so a child that changes its answers - including
- * to and from answering nothing at all - is re-hosted in the shape it now asks for without leaving the
- * viewport.
+ * The [attachment] installs the arriving content as the viewport's view, and the element the scope's
+ * [ScrollPaneScope.viewport] extension builds records what each child declares, so the increments of
+ * the content on show are the ones on the pane's scroll bars.
  */
 private class ViewportRegion {
-    private val declarations = HashMap<Component, ScrollBehavior>()
+    private val declarations = HashMap<Component, ScrollIncrements>()
 
-    /** Built once the first content declares an answer, and kept for the pane's life. */
-    private var body: ScrollableBody? = null
     private var pane: JScrollPane? = null
     private var view: Component? = null
 
+    /** The increments set on [pane]'s scroll bars. */
+    private var applied: ScrollIncrements = ScrollIncrements.None
+
     /**
-     * Installs the arriving content into the viewport through `setViewportView`, in the shape that
-     * content declared; uninstall clears the viewport's single view.
+     * Installs the arriving content into the viewport through `setViewportView`; uninstall clears the
+     * viewport's single view.
      */
     val attachment: SlotAttachment =
         SlotAttachment { host, component, _ -> install(scrollPaneHost(host, VIEWPORT_REGION), component) }
 
-    /** Records the answers [component] declares, re-hosting it when they change the shape it needs. */
+    /** Records the increments [component] declares, and sets them while it is the content on show. */
     fun declare(
         component: Component,
-        behavior: ScrollBehavior,
+        increments: ScrollIncrements,
     ) {
-        if (declarations.put(component, behavior) == behavior) return
-        if (view === component) hostUnder(behavior)
+        if (declarations.put(component, increments) == increments) return
+        if (view === component) applyIncrements(increments)
     }
 
-    /** Drops what [component] declared, so it answers for its own scrolling again. */
+    /** Drops what [component] declared, handing the increments back to the content. */
     fun clear(component: Component) {
         if (declarations.remove(component) == null) return
-        if (view === component) hostUnder(ScrollBehavior.None)
+        if (view === component) applyIncrements(ScrollIncrements.None)
     }
 
     private fun install(
         scrollPane: JScrollPane,
         content: Component,
     ): () -> Unit {
+        if (pane !== scrollPane) applied = ScrollIncrements.None
         pane = scrollPane
         view = content
-        hostUnder(declarations[content] ?: ScrollBehavior.None)
+        // The viewport asks for the layout and the paint that show its new view.
+        if (scrollPane.viewport?.view !== content) scrollPane.setViewportView(content)
+        applyIncrements(declarations[content] ?: ScrollIncrements.None)
         return { uninstall(scrollPane, content) }
-    }
-
-    /**
-     * Shows the installed content under [behavior]: wrapped in the body that answers for it where it
-     * declares an answer, and as the viewport's own view where it declares none.
-     */
-    private fun hostUnder(behavior: ScrollBehavior) {
-        val scrollPane = pane ?: return
-        val content = view ?: return
-        if (behavior == ScrollBehavior.None) {
-            takeFromBody(content)
-            show(scrollPane, content)
-        } else {
-            val wrapper = body ?: ScrollableBody().also { body = it }
-            wrapper.behavior = behavior
-            if (content.parent !== wrapper) {
-                wrapper.add(content, BorderLayout.CENTER)
-                show(scrollPane, wrapper)
-            }
-        }
-    }
-
-    /** Makes [hosted] the viewport's view; the viewport asks for the layout and the paint that show it. */
-    private fun show(
-        scrollPane: JScrollPane,
-        hosted: Component,
-    ) {
-        if (scrollPane.viewport?.view === hosted) return
-        scrollPane.setViewportView(hosted)
     }
 
     /**
@@ -252,66 +214,90 @@ private class ViewportRegion {
         scrollPane: JScrollPane,
         content: Component,
     ) {
-        val wrapper = body
-        val hosted = if (wrapper != null && content.parent === wrapper) wrapper else content
-        if (scrollPane.viewport?.view === hosted) scrollPane.viewport?.view = null
-        takeFromBody(content)
+        if (scrollPane.viewport?.view === content) scrollPane.viewport?.view = null
         if (view === content) {
+            applyIncrements(ScrollIncrements.None)
             view = null
             pane = null
         }
     }
 
-    /** Takes [content] out of the body, where the body is what holds it. */
-    private fun takeFromBody(content: Component) {
-        val wrapper = body ?: return
-        if (content.parent === wrapper) wrapper.remove(content)
+    /**
+     * Sets [increments] on both scroll bars. A `JScrollPane` scroll bar that was given an increment keeps
+     * it and never asks the view again, so withdrawing one installs a fresh bar in the old one's position.
+     */
+    private fun applyIncrements(increments: ScrollIncrements) {
+        val scrollPane = pane ?: return
+        if (increments == applied) return
+        val withdrawn =
+            (applied.unitIncrement != null && increments.unitIncrement == null) ||
+                (applied.blockIncrement != null && increments.blockIncrement == null)
+        if (withdrawn) {
+            scrollPane.verticalScrollBar = scrollPane.createVerticalScrollBar().inPlaceOf(scrollPane.verticalScrollBar)
+            scrollPane.horizontalScrollBar =
+                scrollPane.createHorizontalScrollBar().inPlaceOf(scrollPane.horizontalScrollBar)
+        }
+        for (bar in listOfNotNull(scrollPane.verticalScrollBar, scrollPane.horizontalScrollBar)) {
+            increments.unitIncrement?.let { bar.unitIncrement = it }
+            increments.blockIncrement?.let { bar.blockIncrement = it }
+        }
+        applied = increments
     }
 }
 
-/** Holds the answers a child declares in [region] for as long as the element stays in its chain. */
-private class ScrollBehaviorNode(
+/**
+ * This bar, standing where [old] stands so the thumb stays on the viewport's position, in the component
+ * orientation the pane gave [old].
+ */
+private fun JScrollBar.inPlaceOf(old: JScrollBar?): JScrollBar =
+    apply {
+        if (old == null) return@apply
+        setValues(old.value, old.visibleAmount, old.minimum, old.maximum)
+        componentOrientation = old.componentOrientation
+    }
+
+/** Holds the increments a child declares in [region] for as long as the element stays in its chain. */
+private class ScrollIncrementsNode(
     private val region: ViewportRegion,
 ) : SwingModifier.ComponentNode<Component>() {
-    /** Records [behavior] as this child's answers about its own scrolling. */
-    fun apply(behavior: ScrollBehavior): Unit = region.declare(component, behavior)
+    /** Records [increments] as this child's declaration. */
+    fun apply(increments: ScrollIncrements): Unit = region.declare(component, increments)
 
     override fun onDetach(): Unit = region.clear(component)
 }
 
 /**
  * The element the scope's viewport extension adds to a child's modifier chain. Two are equal when they
- * declare the same answers to the same pane's viewport, so a child redeclaring how it already scrolls
- * asks for nothing.
+ * declare the same increments to the same pane's viewport, so a child redeclaring them asks for nothing.
  */
-private class ScrollBehaviorElement(
+private class ScrollIncrementsElement(
     private val region: ViewportRegion,
-    private val behavior: ScrollBehavior,
-) : SwingModifier.NodeElement<Component, ScrollBehaviorNode>() {
-    override val name: String get() = "scrollBehavior"
+    private val increments: ScrollIncrements,
+) : SwingModifier.NodeElement<Component, ScrollIncrementsNode>() {
+    override val name: String get() = "scrollIncrements"
 
-    override val declaredValues: Map<String, Any?> get() = mapOf("region" to region, "behavior" to behavior)
+    override val declaredValues: Map<String, Any?> get() = mapOf("region" to region, "increments" to increments)
     override val targetType: Class<Component> get() = Component::class.java
 
     /**
-     * The viewport the answers are declared to. Each pane's viewport is a slot of its own, so content
-     * that comes to declare to another pane's viewport withdraws its answers from the first and declares
-     * them to the second, rather than going on answering the viewport it has left.
+     * The viewport the increments are declared to. Each pane's viewport is a slot of its own, so content
+     * that comes to declare to another pane's viewport withdraws its increments from the first and
+     * declares them to the second.
      */
     override val key: Any get() = region
 
-    override fun create(): ScrollBehaviorNode = ScrollBehaviorNode(region)
+    override fun create(): ScrollIncrementsNode = ScrollIncrementsNode(region)
 
-    override fun update(node: ScrollBehaviorNode): Unit = node.apply(behavior)
+    override fun update(node: ScrollIncrementsNode): Unit = node.apply(increments)
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
-        if (other !is ScrollBehaviorElement) return false
+        if (other !is ScrollIncrementsElement) return false
         if (region !== other.region) return false
-        return behavior == other.behavior
+        return increments == other.increments
     }
 
-    override fun hashCode(): Int = 31 * System.identityHashCode(region) + behavior.hashCode()
+    override fun hashCode(): Int = 31 * System.identityHashCode(region) + increments.hashCode()
 }
 
 /**

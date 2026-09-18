@@ -50,7 +50,7 @@ public fun <S : PanelScope> Panel(
 ) {
     key(layout.javaClass) {
         SwingNode<JPanel>(
-            factory = { ScrollablePanel() },
+            factory = { JPanel() },
             modifier = modifier,
             update = { layout.installOn(this) },
             content = { layout.contentScope.content() },

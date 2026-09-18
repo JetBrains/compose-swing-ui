@@ -705,12 +705,12 @@ SplitPane(
 
 A `ScrollPane` holds nothing but its regions, so every child declares one: `viewport()`, `rowHeader()`,
 `columnHeader()` or `corner(...)`. `viewport()` also carries how far the pane scrolls per arrow button
-and per page, and whether the content is laid out at the viewport's own width or height - each `null`
-by default, which leaves the answer to content that gives one of its own, as a table, list, tree or
-text area does. Both scrollbar policies default to as-needed. `viewportBorder` draws a border around the
-viewport, inside the pane's own border and outside the scrolled content, and leaves it to the look and
-feel while it is `null`; `wheelScrollingEnabled` decides whether the mouse wheel scrolls the pane at all.
-The scroll position is hoisted into a [`ScrollState`](#scrollstate).
+and per page - each `null` by default, which leaves the increment to the content, as a table, list, tree
+or text area answers with its own rows or lines. Both scrollbar policies default to as-needed.
+`viewportBorder` draws a border around the viewport, inside the pane's own border and outside the
+scrolled content, and leaves it to the look and feel while it is `null`; `wheelScrollingEnabled` decides
+whether the mouse wheel scrolls the pane at all. The scroll position is hoisted into a
+[`ScrollState`](#scrollstate).
 
 ```kotlin
 ScrollPane(horizontalScrollbar = JScrollPane.HORIZONTAL_SCROLLBAR_NEVER) {

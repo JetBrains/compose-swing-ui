@@ -45,8 +45,8 @@ import javax.swing.border.Border
  * }
  * ```
  *
- * How far the pane scrolls per arrow button and per page, and whether the content is laid out at the
- * viewport's own width or height, are the content's to declare - see [ScrollPaneScope.viewport].
+ * How far the pane scrolls per arrow button and per page is declared with the content - see
+ * [ScrollPaneScope.viewport].
  *
  * @param modifier the [SwingModifier] applied to the underlying `JScrollPane`
  * @param state the pane's two-way scroll position; see [ScrollState]. Left out, the pane gets a state
@@ -72,8 +72,8 @@ public fun ScrollPane(
     wheelScrollingEnabled: Boolean = true,
     content: @Composable ScrollPaneScope.() -> Unit,
 ) {
-    // Remembered with the pane: the answers the content declares about its own scrolling are written
-    // into it as that content's modifier is applied, and hold the shape the viewport hosts it in.
+    // Remembered with the pane: the increments the content declares are written into it as that
+    // content's modifier is applied, and outlive the pass that declared them.
     val scope = remember { ScrollPaneScopeImpl() }
 
     SwingNode(
