@@ -121,15 +121,50 @@ wants instead.
 
 ### Parent data and layout modifiers
 
-A custom policy reads a child's parent declaration from `Measurable.parentData`. Implement
-`ParentDataModifier` for data that the policy folds into one value, and implement `LayoutModifier` for
-an ordered measurement and placement wrapper. Both are public parent-layout APIs. Parent-data modifiers
-must use one `ParentDataModifier.Type` accepted by the immediate parent layout; a declaration from a
-different layout family is rejected before Swing receives it.
+A custom policy reads a child's parent data from `Measurable.parentData`. What a parent declaration is,
+seen from the caller's side, is [Parent declarations](MODIFIERS.md#parent-declarations).
 
-Parent-layout declarations are resolved by `ParentLayoutElement.key`. A non-additive key is last-wins;
-an additive element is retained in declaration order. This lets a custom scope combine independent
-parent data with a nested layout-modifier chain without collecting declarations in a separate phase.
+Every declaration is a `ParentElement`:
+
+- `ParentDataModifier` - data the parent registers the component under. The ones a modifier retains
+  fold, in declaration order, through `modifyParentData` into one value: the constraint a
+  `LayoutManager2` registers the component under, or `Measurable.parentData` for a measure policy.
+  `layoutConstraint` declares one untyped. Parent data must be immutable, since the parent may keep it.
+- `ParentLayoutElement` - any other declaration a measuring parent interprets, such as the
+  `LayoutModifier` of `swing-ui-foundation`.
+- `ParentLayoutNodeElement` - a `ParentLayoutElement` backed by a stateful `ParentLayoutNode`.
+- a host slot, declared with `slot(parentProtocol, name, attachment)` - see
+  [Writing a `SlotAttachment`](CUSTOM-COMPONENTS.md#writing-a-slotattachment).
+
+**Every declaration names a `ParentProtocol`**, the identity of the family of parents that interprets
+it. Protocols compare by `===`, so keep one instance per family and use it in every declaration of that
+family. `parentProtocolOf(description) { parent -> ... }` creates one from a test of the parent, and
+`MeasurementLayoutManager.parentProtocol(description)` creates one that accepts a parent whose layout
+manager is a `MeasurementLayoutManager`. The protocol is checked against the actual parent before the
+parent is changed: a declaration under a parent its protocol does not accept is refused with an error
+naming the protocol's `description`. The parent data a modifier retains must all name the same protocol
+instance.
+
+**Keys.** A declaration has a `key`, its class by default; an `additive` declaration stands beside every
+other, in declaration order. A modifier declares either a host slot or other parent declarations, and
+one declaring both is refused.
+
+**What the parent receives.** A declaration reaches the component's immediate parent and travels no
+further. A parent whose layout manager is a `MeasurementLayoutManager` is handed the folded parent data
+and the other parent-layout elements, in declaration order, through
+`declareComponentLayout(component, parentData, elements)` once the component is added, and again
+whenever either changes, without the component being removed and added again. Any other `LayoutManager2`
+is handed the parent data through `addLayoutComponent`, and is handed it again, after a
+`removeLayoutComponent`, when it changes. Give a parent-layout element a protocol that accepts only
+parents able to interpret it, as `MeasurementLayoutManager.parentProtocol` does.
+
+**Stateful declarations.** A `ParentLayoutNodeElement` creates its `ParentLayoutNode` once per slot and
+runs `update(node)` when a later declaration is unequal to it, as a `NodeElement` does; the parent finds
+the node in the element's place in `elements`. Stateful declarations are paired by position among
+themselves, as [additive elements](MODIFIERS.md#keyed-and-additive-slots) are, so an element of
+another kind entering or leaving shifts none of them. A layout node has the
+[lifecycle](MODIFIERS.md#node-lifecycle) and the [capabilities](MODIFIERS.md#node-capabilities)
+of any other node, and it stays attached through a `key` change.
 
 ## Hosting a layout manager you did not write
 
@@ -137,12 +172,9 @@ parent data with a nested layout-modifier chain without collecting declarations 
 set - one of Swing's that the library does not model, or a third party's - is hosted by a container of
 your own.
 
-A custom manager that interprets Foundation parent-layout declarations implements
-`org.jetbrains.compose.swing.components.layout.MeasurementLayoutManager`. Its
-`declareComponentLayout` receives the child's folded `parentData` and the remaining ordered
-`ParentLayoutElement`s after the component is added. The manager is called again when that declaration
-changes, without removing and re-adding the component. A regular `LayoutManager2` receives only the
-folded parent data through Swing's normal registration protocol.
+A custom manager that interprets parent-layout declarations implements `MeasurementLayoutManager`;
+[Parent data and layout modifiers](#parent-data-and-layout-modifiers) describes what it and a regular
+`LayoutManager2` receive.
 
 Use the `content` overload and create a `Container` under that manager in the factory; children emitted
 by `content` are added by the framework's applier:

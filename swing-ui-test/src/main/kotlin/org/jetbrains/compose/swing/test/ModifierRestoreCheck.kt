@@ -33,7 +33,7 @@ internal class ModifierRestoreCheck(
 
     override fun declaring(
         component: Component,
-        node: SwingModifier.Node<*>,
+        node: SwingModifier.ComponentNode<*>,
         element: SwingModifier.NodeElement<*, *>,
         write: () -> Unit,
     ) {
@@ -44,7 +44,7 @@ internal class ModifierRestoreCheck(
 
     override fun restoring(
         component: Component,
-        node: SwingModifier.Node<*>,
+        node: SwingModifier.ComponentNode<*>,
         restore: () -> Unit,
     ) {
         restore()
@@ -73,7 +73,7 @@ private class WatchedComponent(
     private val found = HashMap<String, Any?>()
 
     /** The live slots, each under the properties its writes have landed on. */
-    private val slots = IdentityHashMap<SwingModifier.Node<*>, WritingSlot>()
+    private val slots = IdentityHashMap<SwingModifier.ComponentNode<*>, WritingSlot>()
 
     /** Whether no slot of this component's modifier writes any property, so nothing is watched here. */
     val holdsNothing: Boolean get() = slots.isEmpty()
@@ -90,7 +90,7 @@ private class WatchedComponent(
      * failure however often the caller's code throws.
      */
     fun wrote(
-        node: SwingModifier.Node<*>,
+        node: SwingModifier.ComponentNode<*>,
         element: SwingModifier.NodeElement<*, *>,
         write: () -> Unit,
     ) {
@@ -115,7 +115,7 @@ private class WatchedComponent(
      * slot still writes is that slot's declaration, and the value the modifier found is owed only once
      * the last of them has left.
      */
-    fun left(node: SwingModifier.Node<*>): AssertionError? {
+    fun left(node: SwingModifier.ComponentNode<*>): AssertionError? {
         val slot = slots.remove(node) ?: return null
         val element = slot.element
         val last = slot.wrote.filter { property -> slots.values.none { property in it.wrote } }

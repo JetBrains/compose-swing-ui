@@ -5,7 +5,7 @@ import java.beans.PropertyChangeEvent
 import java.beans.PropertyChangeListener
 
 /**
- * A [SwingModifier.Node] for a single component property. On [onAttach] it captures the property's
+ * A [SwingModifier.ComponentNode] for a single component property. On [onAttach] it captures the property's
  * pre-modifier value as a restore action; on each apply it writes the latest value; on [onDetach] it
  * runs the captured restore. [read] reads the current value (for capture) and [write] applies a value.
  *
@@ -29,7 +29,7 @@ internal class PropertyNode<T : Component, V>(
     private val read: (component: T) -> V,
     private val write: (component: T, value: V) -> Unit,
     private val interference: PropertyInterference<T>? = null,
-) : SwingModifier.Node<T>(),
+) : SwingModifier.ComponentNode<T>(),
     PropertyChangeListener {
     // The bean property whose announcement means the declaration was overwritten, where one names it.
     private val reapplyOn: String? = (interference as? PropertyInterference.OverwrittenOn)?.announcedBy
@@ -46,7 +46,7 @@ internal class PropertyNode<T : Component, V>(
         val component = component
         // A node built outside the modifier machinery holds no state, which this refuses rather than
         // capturing nothing.
-        val state = checkNotNull(modifierState) { "A property node is attached by the modifier it belongs to" }
+        val state = checkNotNull(holder?.modifierState) { "A property node is attached by the modifier it belongs to" }
         val captures = state.captures()
         declared = captures.hold(slot, component, read, write)
         overwritten =

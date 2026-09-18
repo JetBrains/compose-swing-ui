@@ -272,7 +272,7 @@ private class ViewportRegion {
 /** Holds the answers a child declares in [region] for as long as the element stays in its chain. */
 private class ScrollBehaviorNode(
     private val region: ViewportRegion,
-) : SwingModifier.Node<Component>() {
+) : SwingModifier.ComponentNode<Component>() {
     /** Records [behavior] as this child's answers about its own scrolling. */
     fun apply(behavior: ScrollBehavior): Unit = region.declare(component, behavior)
 

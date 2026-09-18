@@ -30,7 +30,7 @@ internal class MenuPopup(
     val popup: JPopupMenu = JPopupMenu()
 
     private val composition =
-        SwingContentComposition.nestedUnobserved(parentContext) { owner ->
+        SwingContentComposition.nested(parentContext) { owner ->
             MenuApplier(SwingNodeHolder(popup).attachedTo(owner))
         }
 

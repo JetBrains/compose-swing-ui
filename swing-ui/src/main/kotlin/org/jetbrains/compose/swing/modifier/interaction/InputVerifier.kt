@@ -78,7 +78,7 @@ private class InputVerifierElement(
 
     override fun hashCode(): Int = System.identityHashCode(verify)
 
-    class Node : SwingModifier.Node<JComponent>() {
+    class Node : SwingModifier.ComponentNode<JComponent>() {
         var verifyInput: () -> Boolean = { true }
 
         private var original: InputVerifier? = null

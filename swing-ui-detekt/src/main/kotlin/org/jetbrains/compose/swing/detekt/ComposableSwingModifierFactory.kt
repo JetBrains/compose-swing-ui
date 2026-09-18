@@ -18,7 +18,8 @@ import org.jetbrains.kotlin.psi.KtProperty
  * since left.
  *
  * A factory that needs something remembered takes it: `remember` it at the call site, or state it as a
- * `remember*` function of its own that returns the value the plain factory then takes.
+ * `remember*` function of its own that returns the value the plain factory then takes. State private to
+ * each component the modifier reaches is built with `composed` instead.
  *
  * Because this rule is PSI-only, it checks factories with an explicit `SwingModifier` return type and
  * leaves inferred return types alone rather than guessing their semantic type.
@@ -45,7 +46,8 @@ public class ComposableSwingModifierFactory(
                 entity = Entity.from(declaration),
                 message =
                     "`${declaration.name}` builds a $SWING_MODIFIER and is `@Composable`, which ties the chain " +
-                        "to the composition that called it. Take what it needs to remember as a parameter.",
+                        "to the composition that called it. Take what it needs to remember as a parameter, or build " +
+                        "state private to each component with `composed`.",
             ),
         )
     }

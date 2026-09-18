@@ -278,7 +278,7 @@ private class TabElement(
  * declared header renders in, so withdrawing the declaration takes that composition back off the strip and
  * the tab is rendered by the pane itself again.
  */
-private class TabNode : SwingModifier.Node<Component>() {
+private class TabNode : SwingModifier.ComponentNode<Component>() {
     private var rendering: TabHeaderComposition? = null
 
     /** Writes [metadata] and the [header] declaration onto this component's tab, where it has one. */

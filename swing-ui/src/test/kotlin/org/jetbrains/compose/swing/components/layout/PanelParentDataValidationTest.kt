@@ -19,7 +19,7 @@ class PanelParentDataValidationTest {
     @Test
     fun aHoistedBorderScopeDeclarationIsRefusedBeforeAFlowPanelAddsTheChild() {
         val root = JPanel(FlowLayout())
-        val owner = TestCompositionOwner.observing()
+        val owner = TestCompositionOwner()
         val applier = SwingApplier(SwingNodeHolder(root).attachedTo(owner))
         val child: SwingNodeHolder<Component> = SwingNodeHolder(JLabel("child"))
         child.applyModifierDiff(with(BorderPanelScopeImpl) { SwingModifier.north() })
@@ -39,7 +39,7 @@ class PanelParentDataValidationTest {
     @Test
     fun rawLayoutConstraintRemainsAnUntypedEscapeHatch() {
         val root = JPanel(FlowLayout())
-        val owner = TestCompositionOwner.observing()
+        val owner = TestCompositionOwner()
         val applier = SwingApplier(SwingNodeHolder(root).attachedTo(owner))
         val child: SwingNodeHolder<Component> = SwingNodeHolder(JLabel("child"))
         child.applyModifierDiff(SwingModifier.layoutConstraint(BorderLayout.NORTH))

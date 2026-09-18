@@ -2,6 +2,8 @@ package org.jetbrains.compose.swing.modifier
 
 import org.jetbrains.compose.swing.layout.ParentDataModifier
 import org.jetbrains.compose.swing.layout.ParentLayoutElement
+import org.jetbrains.compose.swing.layout.ParentLayoutNode
+import org.jetbrains.compose.swing.layout.ParentLayoutNodeElement
 import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.layout.SlotAttachment
 import org.jetbrains.compose.swing.modifier.appearance.testTag
@@ -118,6 +120,91 @@ class ModifierPartitionTest {
         assertEquals("second", partition.slot?.regionName)
         assertEquals(listOf(partition.slot, TestParentLayoutElement("layout")), partition.parentDeclarations)
     }
+
+    @Test
+    fun aNodeBackedLayoutElementTakesItsDeclaredPlaceAmongTheAdditiveElementsUnlessItIsParentData() {
+        val partition = ModifierPartition()
+        val node = TestLayoutNodeElement()
+        (
+            SwingModifier then
+                AdditiveComponentElement("first") then
+                ParentDataLayoutNodeElement() then
+                node then
+                AdditiveComponentElement("second")
+        ).foldIn(partition) { current, element -> current.also { it.take(element) } }
+
+        assertEquals(listOf<ParentLayoutElement>(node), partition.parentLayoutElements)
+        assertEquals(
+            listOf<SwingModifier.Element>(AdditiveComponentElement("first"), node, AdditiveComponentElement("second")),
+            partition.chain,
+        )
+    }
+
+    @Test
+    fun aKeyedNodeBackedLayoutElementDeclaredAgainTakesOnlyItsLastPlace() {
+        val partition = ModifierPartition()
+        val additive = TestLayoutNodeElement()
+        val first = KeyedLayoutNodeElement()
+        val other = TestParentLayoutElement("other")
+        val last = KeyedLayoutNodeElement()
+        (
+            SwingModifier then
+                additive then
+                first then
+                AdditiveComponentElement("between") then
+                other then
+                last
+        ).foldIn(partition) { current, element -> current.also { it.take(element) } }
+
+        assertEquals(listOf<ParentLayoutElement>(additive, other, last), partition.parentLayoutElements)
+        assertEquals(
+            listOf<SwingModifier.Element>(additive, AdditiveComponentElement("between"), last),
+            partition.chain,
+            "an additive node-backed element, and one of another key, keep their places",
+        )
+    }
+}
+
+private data class AdditiveComponentElement(
+    override val name: String,
+) : SwingModifier.NodeElement<Component, SwingModifier.ComponentNode<Component>>() {
+    override val targetType: Class<Component> get() = Component::class.java
+
+    override val additive: Boolean get() = true
+
+    override fun create(): SwingModifier.ComponentNode<Component> = SwingModifier.ComponentNode()
+
+    override fun update(node: SwingModifier.ComponentNode<Component>): Unit = Unit
+}
+
+private open class TestLayoutNodeElement : ParentLayoutNodeElement<TestLayoutNode>() {
+    override val parentProtocol: ParentProtocol get() = TestParentProtocol
+
+    override val additive: Boolean get() = true
+
+    override fun create(): TestLayoutNode = TestLayoutNode()
+
+    override fun update(node: TestLayoutNode): Unit = Unit
+
+    override fun equals(other: Any?): Boolean = this === other
+
+    override fun hashCode(): Int = System.identityHashCode(this)
+}
+
+/** A node-backed layout declaration keyed by its class, so a later one replaces it. */
+private class KeyedLayoutNodeElement : TestLayoutNodeElement() {
+    override val additive: Boolean get() = false
+}
+
+/** A node-backed layout declaration that is also parent data, which leaves the layout elements. */
+private class ParentDataLayoutNodeElement :
+    TestLayoutNodeElement(),
+    ParentDataModifier {
+    override fun modifyParentData(parentData: Any?): Any? = parentData
+}
+
+private class TestLayoutNode : ParentLayoutNode() {
+    override val parentProtocol: ParentProtocol get() = TestParentProtocol
 }
 
 private data class TestParentLayoutElement(
@@ -135,7 +222,7 @@ private data class AdditiveParentLayoutElement(
 }
 
 private data object AmbiguousElement :
-    SwingModifier.NodeElement<Component, SwingModifier.Node<Component>>(),
+    SwingModifier.NodeElement<Component, SwingModifier.ComponentNode<Component>>(),
     ParentLayoutElement {
     override val targetType: Class<Component> get() = Component::class.java
 
@@ -145,9 +232,9 @@ private data object AmbiguousElement :
 
     override val parentProtocol: ParentProtocol get() = TestParentProtocol
 
-    override fun create(): SwingModifier.Node<Component> = SwingModifier.Node()
+    override fun create(): SwingModifier.ComponentNode<Component> = SwingModifier.ComponentNode()
 
-    override fun update(node: SwingModifier.Node<Component>): Unit = Unit
+    override fun update(node: SwingModifier.ComponentNode<Component>): Unit = Unit
 }
 
 private data class AppendParentData(

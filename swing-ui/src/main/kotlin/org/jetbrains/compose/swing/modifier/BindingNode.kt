@@ -3,13 +3,13 @@ package org.jetbrains.compose.swing.modifier
 import java.awt.Component
 
 /**
- * A [SwingModifier.Node] holding the value currently bound to the node's component. Exactly one
+ * A [SwingModifier.ComponentNode] holding the value currently bound to the node's component. Exactly one
  * value drives the component at a time; [onDetach] releases whatever is still bound.
  */
 internal class BindingNode<C : Component, B : Any>(
     private val attach: (value: B, component: C) -> Unit,
     private val detach: (value: B, component: C) -> Unit,
-) : SwingModifier.Node<C>() {
+) : SwingModifier.ComponentNode<C>() {
     /** The bound value; assign from the owning element's `update` with its latest value. */
     var value: B? = null
         set(next) {

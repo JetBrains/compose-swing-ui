@@ -164,7 +164,7 @@ Hoist the other value objects a chain carries - a `Font` or an `Icon` - into `re
 Domain callbacks like `onClick` and `onValueChange` stay ordinary parameters; only cross-cutting
 styling and interaction flow through `modifier`. Builders are grouped by concern, one package each:
 appearance, layout, interaction, listener, keyboard, data transfer, and accessibility. See
-[`docs/CUSTOM-MODIFIERS.md`](docs/CUSTOM-MODIFIERS.md) for what an unhoisted instance costs.
+[`docs/MODIFIERS.md`](docs/MODIFIERS.md#equality-and-skipping) for what an unhoisted instance costs.
 
 ## Bring your own Swing component
 
@@ -177,8 +177,8 @@ Three further guides carry the rest:
 
 - [`docs/COMPONENT-STATE.md`](docs/COMPONENT-STATE.md) - a property the user can change as well as
   the composition, and the state holders that carry what a declared value cannot.
-- [`docs/CUSTOM-MODIFIERS.md`](docs/CUSTOM-MODIFIERS.md) - the `modifier` parameter, writing a
-  property element of your own, and attaching listeners.
+- [`docs/MODIFIERS.md`](docs/MODIFIERS.md) - how a modifier is ordered, matched and attached across
+  passes, the `modifier` parameter, writing a property element of your own, and attaching listeners.
 - [`docs/CUSTOM-CONTAINERS.md`](docs/CUSTOM-CONTAINERS.md) - containers, the placements they offer
   their children, and rendering items with a composable cell.
 
@@ -240,7 +240,7 @@ consume the libraries.
 
 Licensed under the Apache License, Version 2.0 - see [LICENSE](LICENSE).
 
-`swing-ui-foundation` redistributes source code from the Android Open Source Project's Jetpack Compose
-`foundation-layout` and `compose.ui:ui`, `swing-ui-animation` its `animation-core`, and `swing-ui-detekt`
+`swing-ui` redistributes source code from the Android Open Source Project's Jetpack Compose `compose.ui:ui`,
+`swing-ui-foundation` its `foundation-layout` and `compose.ui:ui`, `swing-ui-animation` its `animation-core`, and `swing-ui-detekt`
 one of that project's Android Lint checks, all under the same license. See each module's `META-INF/NOTICE`
 and the per-file headers for attribution.

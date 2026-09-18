@@ -843,7 +843,7 @@ private class TreeContentElement(
 }
 
 /** Holds the structure the tree was last given, so an element keyed on the same one leaves it standing. */
-private class TreeContentNode : SwingModifier.Node<JTree>() {
+private class TreeContentNode : SwingModifier.ComponentNode<JTree>() {
     var installed: Any? = null
 }
 

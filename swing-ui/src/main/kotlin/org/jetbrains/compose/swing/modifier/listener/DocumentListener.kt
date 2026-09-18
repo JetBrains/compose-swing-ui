@@ -72,7 +72,21 @@ private class DocumentCallbacks(
     val onInsert: (DocumentEvent) -> Unit,
     val onRemove: (DocumentEvent) -> Unit,
     val onChange: (DocumentEvent) -> Unit,
-)
+) : CallbackBundle {
+    override fun equals(other: Any?): Boolean {
+        if (other !is DocumentCallbacks) return false
+        if (!sameCallback(onInsert, other.onInsert)) return false
+        if (!sameCallback(onRemove, other.onRemove)) return false
+        return sameCallback(onChange, other.onChange)
+    }
+
+    override fun hashCode(): Int {
+        var result = callbackHash(onInsert)
+        result = 31 * result + callbackHash(onRemove)
+        result = 31 * result + callbackHash(onChange)
+        return result
+    }
+}
 
 private val DOCUMENT_CALLBACKS =
     CallbackRegistration<JTextComponent, DocumentCallbacks, DocumentListener>(

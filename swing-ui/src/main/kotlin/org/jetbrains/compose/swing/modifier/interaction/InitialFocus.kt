@@ -35,7 +35,7 @@ private object InitialFocusElement : SwingModifier.NodeElement<Component, Initia
 
     override fun hashCode(): Int = System.identityHashCode(this)
 
-    class Node : SwingModifier.Node<Component>() {
+    class Node : SwingModifier.ComponentNode<Component>() {
         private val showing = FirstShowing()
 
         // The wait resolves the first time the component shows, so this requests focus at most once per attach.

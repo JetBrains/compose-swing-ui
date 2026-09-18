@@ -4,6 +4,7 @@
 package org.jetbrains.compose.swing.modifier.layout
 
 import org.jetbrains.compose.swing.layout.ParentDataModifier
+import org.jetbrains.compose.swing.layout.ParentElement
 import org.jetbrains.compose.swing.layout.ParentLayoutElement
 import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.layout.ParentSlotElement
@@ -140,10 +141,12 @@ internal class SlotElement(
  */
 internal fun checkOnePlacement(
     slot: ParentSlotElement?,
-    parentDeclarations: List<ParentLayoutElement>,
+    parentDeclarations: List<ParentElement>,
 ) {
-    require(slot == null || parentDeclarations.isEmpty()) {
-        val declared = parentDeclarations.joinToString { "SwingModifier.${it.name}()" }
+    if (slot == null) return
+    val layoutDeclarations = parentDeclarations.filterIsInstance<ParentLayoutElement>()
+    require(layoutDeclarations.isEmpty()) {
+        val declared = layoutDeclarations.joinToString { "SwingModifier.${it.name}()" }
         "A component filling a region of its host is laid out by that host's own setter rather than " +
             "measured by a layout manager, so there is nothing to measure it under the constraints " +
             "$declared asks for, and this modifier declares both that and " +

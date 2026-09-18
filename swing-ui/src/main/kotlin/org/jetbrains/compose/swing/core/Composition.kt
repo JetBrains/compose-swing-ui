@@ -6,8 +6,8 @@ import androidx.compose.runtime.Composition
 import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.ControlledComposition
 import androidx.compose.runtime.snapshots.Snapshot
-import androidx.compose.runtime.snapshots.SnapshotStateObserver
 import org.jetbrains.compose.swing.node.ComponentUpdateBatch
+import org.jetbrains.compose.swing.node.OwnerSnapshotObserver
 import org.jetbrains.compose.swing.node.SwingCompositionOwner
 import org.jetbrains.compose.swing.node.SwingNodeHolder
 import org.jetbrains.compose.swing.tooling.InspectedContent
@@ -18,6 +18,7 @@ import org.jetbrains.compose.swing.util.set
 import java.awt.Component
 import javax.swing.JComponent
 import javax.swing.SwingUtilities
+import kotlin.coroutines.CoroutineContext
 
 /**
  * Client property key under which a component's [CompositionContext] is stored, so nested
@@ -122,23 +123,25 @@ private inline fun <R> withMutableSnapshot(
  */
 internal class SwingContentComposition private constructor(
     private val parent: CompositionContext,
-    observed: Boolean,
     applierFactory: (SwingCompositionOwner) -> AbstractApplier<SwingNodeHolder<*>>,
 ) : SwingCompositionOwner {
     /**
-     * The observer's callback runs directly, with no `invokeLater`: an ordinary write's notification
-     * already runs on the event dispatch thread (see [GlobalSnapshotManager]), and marshaling would only
-     * add a turn's latency to what the callback actually does - schedule a `repaint()`, which is
-     * thread-safe whatever thread calls it.
+     * The observer's callbacks run on the event dispatch thread: inline when the change is published
+     * there, which is where [GlobalSnapshotManager] publishes an ordinary write, and posted with
+     * `invokeLater` when a snapshot is applied on another thread.
      */
-    override val observer: SnapshotStateObserver? =
-        if (observed) SnapshotStateObserver { onChanged -> onChanged() }.apply { start() } else null
+    override val snapshotObserver: OwnerSnapshotObserver =
+        OwnerSnapshotObserver { onChanged ->
+            if (SwingUtilities.isEventDispatchThread()) onChanged() else SwingUtilities.invokeLater(onChanged)
+        }
 
     override fun settleNow(): Unit = parent.swingFrameClock()?.settleInPlace() ?: Unit
 
     override val updateBatch: ComponentUpdateBatch = ComponentUpdateBatch()
 
     override val diagnostics: SwingCompositionDiagnostics? = parent.effectCoroutineContext[SwingCompositionDiagnostics]
+
+    override val coroutineContext: CoroutineContext = parent.effectCoroutineContext
 
     // Built after everything a node reads through this owner, because the applier attaches its root to
     // this owner as it is created and the composition inserts nodes against it from its first pass.
@@ -225,36 +228,17 @@ internal class SwingContentComposition private constructor(
     fun dispose() {
         checkEventDispatchThread()
         composition.dispose()
-        observer?.stop()
-        observer?.clear()
+        snapshotObserver.dispose()
     }
 
     companion object {
-        /**
-         * Mounts a child composition of [parent] whose nodes register their snapshot reads with an
-         * observer of its own, which is what a component that paints from observed reads adopts.
-         */
+        /** Mounts a child composition of [parent]. */
         fun nested(
             parent: CompositionContext,
             applierFactory: (SwingCompositionOwner) -> AbstractApplier<SwingNodeHolder<*>>,
-        ): SwingContentComposition = mount(parent, observed = true, applierFactory)
-
-        /**
-         * Mounts a child composition of [parent] that observes no snapshot state and registers none
-         * globally. A menu composition holds no component that paints from observed reads.
-         */
-        fun nestedUnobserved(
-            parent: CompositionContext,
-            applierFactory: (SwingCompositionOwner) -> AbstractApplier<SwingNodeHolder<*>>,
-        ): SwingContentComposition = mount(parent, observed = false, applierFactory)
-
-        private fun mount(
-            parent: CompositionContext,
-            observed: Boolean,
-            applierFactory: (SwingCompositionOwner) -> AbstractApplier<SwingNodeHolder<*>>,
         ): SwingContentComposition {
             GlobalSnapshotManager.ensureStarted()
-            return SwingContentComposition(parent, observed, applierFactory)
+            return SwingContentComposition(parent, applierFactory)
         }
     }
 }

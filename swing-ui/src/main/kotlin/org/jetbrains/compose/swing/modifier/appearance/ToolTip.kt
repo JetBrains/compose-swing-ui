@@ -84,7 +84,7 @@ private class ToolTipElement(
      * The node backing [ToolTipElement]: it writes a constant tooltip onto the component, and for a
      * per-location declaration follows the pointer, publishing the tooltip of the place under it.
      */
-    class Node : SwingModifier.Node<JComponent>() {
+    class Node : SwingModifier.ComponentNode<JComponent>() {
         private var textAt: ((event: MouseEvent) -> @Nls String?)? = null
         private var original: @Nls String? = null
         private var following = false

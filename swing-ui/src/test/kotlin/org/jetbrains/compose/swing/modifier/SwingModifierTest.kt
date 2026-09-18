@@ -756,7 +756,7 @@ class SwingModifierTest {
 
         override fun hashCode(): Int = System.identityHashCode(this)
 
-        class Node : SwingModifier.Node<JComponent>()
+        class Node : SwingModifier.ComponentNode<JComponent>()
     }
 
     /**
@@ -783,7 +783,7 @@ class SwingModifierTest {
 
         override fun hashCode(): Int = 31 * text.hashCode() + System.identityHashCode(onCreate)
 
-        class Node : SwingModifier.Node<JComponent>() {
+        class Node : SwingModifier.ComponentNode<JComponent>() {
             var text: String? = null
             private var original: String? = null
 
@@ -820,7 +820,7 @@ class SwingModifierTest {
 
         class Node(
             private val onTeardown: (JComponent) -> Unit,
-        ) : SwingModifier.Node<JComponent>() {
+        ) : SwingModifier.ComponentNode<JComponent>() {
             override fun onDetach() {
                 onTeardown(component)
             }
@@ -828,7 +828,7 @@ class SwingModifierTest {
     }
 
     private companion object {
-        /** The message [SwingModifier.Node.component] fails with outside the attached window. */
+        /** The message [SwingModifier.ComponentNode.component] fails with outside the attached window. */
         const val NOT_ATTACHED_MESSAGE = "Node is not attached"
 
         /** The mouse registration the declarations in these tests use. */

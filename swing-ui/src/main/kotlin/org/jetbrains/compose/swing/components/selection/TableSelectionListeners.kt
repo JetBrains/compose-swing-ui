@@ -79,7 +79,7 @@ private class UserSelectionListenerElement(
      */
     class Node(
         var mirror: MirrorState<Set<Int>?>,
-    ) : SwingModifier.Node<JTable>() {
+    ) : SwingModifier.ComponentNode<JTable>() {
         var target: ListSelectionListener = ListSelectionListener {}
 
         private val listener =

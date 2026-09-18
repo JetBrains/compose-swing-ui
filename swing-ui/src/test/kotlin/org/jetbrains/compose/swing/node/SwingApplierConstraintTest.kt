@@ -45,7 +45,7 @@ class SwingApplierConstraintTest {
      * composition unmounts; without a composition here, this test disposes it itself in [disposeOwners].
      */
     private fun applierFor(root: Container): SwingApplier {
-        val owner = TestCompositionOwner.observing()
+        val owner = TestCompositionOwner()
         owners += owner
         return SwingApplier(SwingNodeHolder(root).attachedTo(owner))
     }

@@ -6,10 +6,13 @@ package org.jetbrains.compose.swing.node
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ComposeNode
 import androidx.compose.runtime.DisallowComposableCalls
+import androidx.compose.runtime.currentComposer
 import org.jetbrains.compose.swing.annotations.SwingComposable
 import org.jetbrains.compose.swing.layout.ChildPlacement
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.applyCompositionLocalMap
 import org.jetbrains.compose.swing.modifier.applyModifier
+import org.jetbrains.compose.swing.modifier.materialize
 import java.awt.Component
 
 /**
@@ -55,13 +58,16 @@ public inline fun <reified T : Component> SwingNode(
     noinline onRelease: (T.() -> Unit)? = null,
     childPlacement: ChildPlacement = ChildPlacement.Indexed,
 ) {
+    val materialized = currentComposer.materialize(modifier)
+    val localMap = currentComposer.currentCompositionLocalMap
     ComposeNode<SwingNodeHolder<T>, SwingApplier>(
         factory = { SwingNodeHolder(factory()) },
         update = {
             set(childPlacement) { this.childPlacement = it }
             val updater = SwingNodeUpdater(this)
+            updater.applyCompositionLocalMap(localMap)
             updater.update()
-            updater.applyModifier(modifier)
+            updater.applyModifier(materialized)
             set(onRelease) { release ->
                 releaseBlock =
                     if (release != null) {
@@ -124,13 +130,16 @@ public inline fun <reified T : Component> SwingNode(
         @Composable @SwingComposable
         () -> Unit,
 ) {
+    val materialized = currentComposer.materialize(modifier)
+    val localMap = currentComposer.currentCompositionLocalMap
     ComposeNode<SwingNodeHolder<T>, SwingApplier>(
         factory = { SwingNodeHolder(factory()) },
         update = {
             set(childPlacement) { this.childPlacement = it }
             val updater = SwingNodeUpdater(this)
+            updater.applyCompositionLocalMap(localMap)
             updater.update()
-            updater.applyModifier(modifier)
+            updater.applyModifier(materialized)
             set(onRelease) { release ->
                 releaseBlock =
                     if (release != null) {

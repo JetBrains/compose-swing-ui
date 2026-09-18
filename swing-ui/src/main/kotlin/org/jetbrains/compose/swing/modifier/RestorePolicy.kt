@@ -4,7 +4,7 @@ package org.jetbrains.compose.swing.modifier
  * What a modifier element puts back when its declaration leaves, declared through
  * [SwingModifier.NodeElement.restores].
  *
- * A statement about what [SwingModifier.Node.onDetach] undertakes rather than an instruction to the
+ * A statement about what [SwingModifier.ComponentNode.onDetach] undertakes rather than an instruction to the
  * library: detaching runs the same whichever of these stands. The debug-only checks a composition can be
  * held to read it and hold a departing slot to its word.
  */

@@ -215,7 +215,7 @@ public fun JMenuBar.setContent(
 
     return mountWhenParentResolves(this) { parent, window ->
         val composition =
-            SwingContentComposition.nestedUnobserved(parent.context) { owner ->
+            SwingContentComposition.nested(parent.context) { owner ->
                 MenuApplier(SwingNodeHolder(this).attachedTo(owner))
             }
         composition.setContent { ProvideContentLocals(window, this, content = content) }
@@ -250,7 +250,7 @@ internal fun JMenuBar.setContentAsMenuInteropHost(
     checkEventDispatchThread()
 
     val composition =
-        SwingContentComposition.nestedUnobserved(parent) { owner ->
+        SwingContentComposition.nested(parent) { owner ->
             MenuApplier(SwingNodeHolder(this).attachedTo(owner))
         }
     composition.setContent(content)

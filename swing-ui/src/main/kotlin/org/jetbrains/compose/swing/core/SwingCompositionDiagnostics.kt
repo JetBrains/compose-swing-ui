@@ -33,7 +33,7 @@ public interface SwingCompositionDiagnostics : CoroutineContext.Element {
      */
     public fun declaring(
         component: Component,
-        node: SwingModifier.Node<*>,
+        node: SwingModifier.ComponentNode<*>,
         element: SwingModifier.NodeElement<*, *>,
         write: () -> Unit,
     )
@@ -43,7 +43,7 @@ public interface SwingCompositionDiagnostics : CoroutineContext.Element {
      */
     public fun restoring(
         component: Component,
-        node: SwingModifier.Node<*>,
+        node: SwingModifier.ComponentNode<*>,
         restore: () -> Unit,
     )
 
@@ -61,7 +61,7 @@ public interface SwingCompositionDiagnostics : CoroutineContext.Element {
  */
 internal inline fun SwingCompositionDiagnostics?.watchWrite(
     component: Component,
-    node: SwingModifier.Node<*>,
+    node: SwingModifier.ComponentNode<*>,
     element: SwingModifier.NodeElement<*, *>,
     crossinline write: () -> Unit,
 ) {
@@ -71,7 +71,7 @@ internal inline fun SwingCompositionDiagnostics?.watchWrite(
 /** [watchWrite], for the departing slot putting [component] back where the modifier found it. */
 internal inline fun SwingCompositionDiagnostics?.watchRestore(
     component: Component,
-    node: SwingModifier.Node<*>,
+    node: SwingModifier.ComponentNode<*>,
     crossinline restore: () -> Unit,
 ) {
     if (this == null) restore() else restoring(component, node) { restore() }

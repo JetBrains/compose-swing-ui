@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.modifier
 import org.jetbrains.compose.swing.layout.ParentDataModifier
 import org.jetbrains.compose.swing.layout.ParentElement
 import org.jetbrains.compose.swing.layout.ParentLayoutElement
+import org.jetbrains.compose.swing.layout.ParentLayoutNodeElement
 import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.layout.ParentSlotElement
 import org.jetbrains.compose.swing.modifier.layout.SlotElement
@@ -18,10 +19,14 @@ internal class ModifierPartition {
     /** The keyed (last-wins) elements of the modifier being applied, by [SwingModifier.NodeElement.key]. */
     val keyed: LinkedHashMap<Any, SwingModifier.NodeElement<*, *>> = LinkedHashMap()
 
-    /** The additive (subscription) elements of the modifier being applied, in declaration order. */
-    val additive: ArrayList<SwingModifier.NodeElement<*, *>> = ArrayList()
+    /**
+     * The elements whose nodes hold a place in the modifier, in declaration order: every additive (subscription)
+     * [SwingModifier.NodeElement], and every [ParentLayoutNodeElement] among [parentLayoutElements].
+     */
+    val chain: ArrayList<SwingModifier.Element> = ArrayList()
 
     private val pendingParentDeclarations: ArrayList<ParentElement> = ArrayList()
+
     private var resolvedParentDeclarations: ResolvedParentDeclarations? = null
 
     /** The parent-layout declarations retained after their [key][ParentElement.key] resolution. */
@@ -87,7 +92,7 @@ internal class ModifierPartition {
 
     private fun takeElement(element: SwingModifier.NodeElement<*, *>) {
         if (element.additive) {
-            additive.add(element)
+            chain.add(element)
             return
         }
         // Last wins the place as well as the value: the modifier settles two writes of one property by its
@@ -98,10 +103,18 @@ internal class ModifierPartition {
         keyed[key] = element
     }
 
-    /** Records every parent declaration so keyed and additive declarations share one order. */
+    /**
+     * Records every parent declaration so keyed and additive declarations share one order. A node-backed layout
+     * declaration also takes its place in [chain], which it gives up to a later declaration of its key, as
+     * [retainedParentDeclarations] does.
+     */
     private fun takeParentElement(element: ParentElement) {
         resolvedParentDeclarations = null
         pendingParentDeclarations += element
+        if (!element.additive) {
+            chain.removeAll { it is ParentLayoutNodeElement<*> && !it.additive && it.key == element.key }
+        }
+        if (element is ParentLayoutNodeElement<*> && element !is ParentDataModifier) chain += element
     }
 
     /** Folds the retained parent data only after key resolution, so replaced declarations cannot contribute. */
@@ -109,6 +122,7 @@ internal class ModifierPartition {
         resolvedParentDeclarations ?: buildResolvedParentDeclarations().also { resolvedParentDeclarations = it }
 
     private fun buildResolvedParentDeclarations(): ResolvedParentDeclarations {
+        if (pendingParentDeclarations.isEmpty()) return NoParentDeclarations
         val declarations = retainedParentDeclarations()
         val parentDataModifiers = declarations.filterIsInstance<ParentDataModifier>()
         val parentProtocol = parentDataModifiers.firstOrNull()?.parentProtocol
@@ -134,9 +148,7 @@ internal class ModifierPartition {
             parentData = parentData,
             parentProtocol = parentProtocol,
             elements =
-                declarations.filterIsInstance<ParentLayoutElement>().filterNot {
-                    it is ParentDataModifier
-                },
+                declarations.filterIsInstance<ParentLayoutElement>().filter { it !is ParentDataModifier },
             slot = slot as? SlotElement,
         )
     }
@@ -162,11 +174,23 @@ internal class ModifierPartition {
         keyElements = keyElements.filterNot { it == element } + element
     }
 
-    private data class ResolvedParentDeclarations(
+    private class ResolvedParentDeclarations(
         val declarations: List<ParentElement>,
         val parentData: Any?,
         val parentProtocol: ParentProtocol?,
         val elements: List<ParentLayoutElement>,
         val slot: SlotElement?,
     )
+
+    private companion object {
+        /** What a modifier declaring no parent element resolves to. */
+        val NoParentDeclarations =
+            ResolvedParentDeclarations(
+                declarations = emptyList(),
+                parentData = null,
+                parentProtocol = null,
+                elements = emptyList(),
+                slot = null,
+            )
+    }
 }

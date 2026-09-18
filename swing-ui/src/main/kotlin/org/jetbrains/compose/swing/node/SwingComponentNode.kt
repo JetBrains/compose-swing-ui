@@ -35,6 +35,9 @@ public sealed interface SwingComponentNode {
      * [declaredValues][SwingModifier.InspectableElement.declaredValues] of each one that is a
      * [SwingModifier.InspectableElement] to show what the component carries.
      *
+     * A [composed][org.jetbrains.compose.swing.modifier.composed] entry appears as the entries its factory
+     * returned for this component.
+     *
      * It is the whole declared modifier chain, placement included: an element saying where the component sits in
      * its parent stands in it alongside the ones saying what it looks like.
      *

@@ -54,7 +54,7 @@ this library's. A parameter with no single correct default - `CheckBox`'s `check
 Cross-cutting configuration - colors, fonts, borders, sizes, tooltips, accessibility, keyboard
 bindings, data transfer, raw listeners - arrives as a `SwingModifier` passed as `modifier`,
 described in
-[`CUSTOM-MODIFIERS.md`](CUSTOM-MODIFIERS.md#styling-with-a-modifier-swingmodifier-parameter).
+[`MODIFIERS.md`](MODIFIERS.md#styling-with-a-modifier-swingmodifier-parameter).
 
 ---
 
@@ -1275,4 +1275,4 @@ The catalog is not the boundary of what you can compose. Any Swing `Component` c
 directly with `SwingNode`, any menu component with `MenuNode`, and a property no builder covers can be
 written as a modifier element of your own. Hosting a component is
 [`CUSTOM-COMPONENTS.md`](CUSTOM-COMPONENTS.md); writing a modifier element is
-[`CUSTOM-MODIFIERS.md`](CUSTOM-MODIFIERS.md).
+[`MODIFIERS.md`](MODIFIERS.md).

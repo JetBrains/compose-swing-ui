@@ -24,7 +24,7 @@ internal class FirstShowing {
      * hierarchy's first report that it is. Cancels a wait already in flight.
      *
      * The component is passed per call rather than held for the object's lifetime because a
-     * [org.jetbrains.compose.swing.modifier.SwingModifier.Node]'s component is only its own between
+     * [org.jetbrains.compose.swing.modifier.SwingModifier.ComponentNode]'s component is only its own between
      * attach and detach, and a reused node meets a different one.
      */
     fun await(

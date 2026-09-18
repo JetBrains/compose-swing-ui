@@ -76,7 +76,23 @@ private class ComponentCallbacks(
     val onComponentMoved: (ComponentEvent) -> Unit,
     val onComponentShown: (ComponentEvent) -> Unit,
     val onComponentHidden: (ComponentEvent) -> Unit,
-)
+) : CallbackBundle {
+    override fun equals(other: Any?): Boolean {
+        if (other !is ComponentCallbacks) return false
+        if (!sameCallback(onComponentResized, other.onComponentResized)) return false
+        if (!sameCallback(onComponentMoved, other.onComponentMoved)) return false
+        if (!sameCallback(onComponentShown, other.onComponentShown)) return false
+        return sameCallback(onComponentHidden, other.onComponentHidden)
+    }
+
+    override fun hashCode(): Int {
+        var result = callbackHash(onComponentResized)
+        result = 31 * result + callbackHash(onComponentMoved)
+        result = 31 * result + callbackHash(onComponentShown)
+        result = 31 * result + callbackHash(onComponentHidden)
+        return result
+    }
+}
 
 private val COMPONENT =
     ListenerRegistration<Component, ComponentListener>(

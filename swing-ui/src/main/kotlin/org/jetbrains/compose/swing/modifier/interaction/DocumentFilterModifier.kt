@@ -77,7 +77,7 @@ private class DocumentFilterElement(
 
     override fun hashCode(): Int = System.identityHashCode(filter)
 
-    class Node : SwingModifier.Node<JTextComponent>() {
+    class Node : SwingModifier.ComponentNode<JTextComponent>() {
         var filter: DocumentFilter? = null
 
         private var restored: DocumentFilter? = null

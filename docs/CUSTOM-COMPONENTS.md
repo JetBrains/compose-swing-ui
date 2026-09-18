@@ -8,8 +8,8 @@ Three further documents carry the rest:
 
 - [`COMPONENT-STATE.md`](COMPONENT-STATE.md) - a property the user can change as well as the
   composition, and the state holders that carry what a declared value cannot.
-- [`CUSTOM-MODIFIERS.md`](CUSTOM-MODIFIERS.md) - the `modifier` parameter, writing a property
-  element of your own, and attaching listeners.
+- [`MODIFIERS.md`](MODIFIERS.md) - how a modifier is ordered, matched and attached across passes, the
+  `modifier` parameter, writing a property element of your own, and attaching listeners.
 - [`CUSTOM-CONTAINERS.md`](CUSTOM-CONTAINERS.md) - containers, the placements they offer their
   children, and rendering items with a composable cell.
 
@@ -148,9 +148,9 @@ number of them in order, as a `JTabbedPane` holds pages, declares
 `ChildPlacement.OrderedSlots("SwingModifier.tab(title)")`. Each name is the call that fills the region,
 written exactly as a caller of your container writes it, because a refusal prints those names and a
 caller acts on them by typing them. Under either placement every child names the region it fills,
-through `SwingModifier.slot(name, attachment)` - and a child that names none, or one that names a
-region of a container that has none, is refused as it arrives, naming the component and the calls that
-would place it.
+through `SwingModifier.slot(parentProtocol, name, attachment)` - and a child that names none, or one
+that names a region of a container that has none, is refused as it arrives, naming the component and the
+calls that would place it.
 
 ### Writing a `SlotAttachment`
 
@@ -159,25 +159,41 @@ takes the host container, the child, and the child's position among the host's s
 a region holding a single child. Give the caller a modifier builder per region rather than the region's
 name, so the name stays yours to change:
 
+<!--- INCLUDE .*custom-01.*
+import androidx.compose.runtime.Composable
+import org.jetbrains.compose.swing.annotations.SwingComposable
+import org.jetbrains.compose.swing.layout.ChildPlacement
+import org.jetbrains.compose.swing.layout.ParentProtocol
+import org.jetbrains.compose.swing.layout.SlotAttachment
+import org.jetbrains.compose.swing.layout.parentProtocolOf
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.layout.slot
+import org.jetbrains.compose.swing.node.SwingNode
+import java.awt.BorderLayout
+import javax.swing.JPanel
+-->
+
 ```kotlin
+/** A panel showing a header above a body. */
+public class BannerPanel : JPanel(BorderLayout())
+
 private const val HEADER_REGION: String = "SwingModifier.header()"
 private const val BODY_REGION: String = "SwingModifier.body()"
 
-private fun edgeAttachment(
-    edge: String,
-    region: String,
-) = SlotAttachment { host, component, _ ->
-    val panel = host as? BannerPanel ?: error("$region fills a BannerPanel, but it is held by a $host.")
-    panel.add(component, edge)
-    return@SlotAttachment { panel.remove(component) }
-}
+private val BannerProtocol: ParentProtocol = parentProtocolOf("BannerPanel slot") { it is BannerPanel }
+
+private fun edgeAttachment(edge: String) =
+    SlotAttachment { host, component, _ ->
+        host.add(component, edge)
+        return@SlotAttachment { host.remove(component) }
+    }
 
 public object BannerScope {
     public fun SwingModifier.header(): SwingModifier =
-        slot(HEADER_REGION, edgeAttachment(BorderLayout.NORTH, HEADER_REGION))
+        slot(BannerProtocol, HEADER_REGION, edgeAttachment(BorderLayout.NORTH))
 
     public fun SwingModifier.body(): SwingModifier =
-        slot(BODY_REGION, edgeAttachment(BorderLayout.CENTER, BODY_REGION))
+        slot(BannerProtocol, BODY_REGION, edgeAttachment(BorderLayout.CENTER))
 }
 
 @Composable
@@ -194,13 +210,14 @@ public fun Banner(
 }
 ```
 
-<!--- CLEAR -->
+<!--- KNIT example-custom-01.kt -->
 
-Two rules the framework holds you to. The uninstall action must remove the child **by identity** - the
-positions of a host's children shift as siblings come and go, so an index captured at install time can
-name another child by the time uninstall runs. And a component that declares your region while sitting
-in someone else's container reaches your attachment with that container as `host`, so check the type
-and refuse by naming the region's own call, which is the text the caller acts on.
+The uninstall action must remove the child **by identity** - the positions of a host's children shift as
+siblings come and go, so an index captured at install time can name another child by the time uninstall
+runs. The `ParentProtocol` passed to `slot` names the containers the region belongs to: a component
+declaring your region under any other container is refused before your attachment runs, with a message
+naming the region and the protocol's `description`. See
+[Parent data and layout modifiers](CUSTOM-CONTAINERS.md#parent-data-and-layout-modifiers) for protocols.
 
 Uninstall is also where a region gives back the space it took. `setRowHeaderView(null)` on a scroll
 pane leaves an empty header viewport still claiming layout space, so the library's own row-header
@@ -367,7 +384,7 @@ automatically - you do not need to remove them in `onRelease`.
 Here is a complete, compilable wrapper for `JSpinner`, mirroring how `TextField`/`Slider` are built
 - a `value` in, an `onValueChange` out:
 
-<!--- INCLUDE .*custom-01.*
+<!--- INCLUDE .*custom-02.*
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -406,7 +423,7 @@ fun MySpinner(
 private val JSpinner.numberModel: SpinnerNumberModel get() = model as SpinnerNumberModel
 ```
 
-<!--- KNIT example-custom-01.kt -->
+<!--- KNIT example-custom-02.kt -->
 
 The `if (this.value != it)` guard in the `value` setter prevents a feedback loop where applying the
 incoming state would itself fire the change listener.

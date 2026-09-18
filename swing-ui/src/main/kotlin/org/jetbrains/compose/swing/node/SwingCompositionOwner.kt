@@ -1,7 +1,7 @@
 package org.jetbrains.compose.swing.node
 
-import androidx.compose.runtime.snapshots.SnapshotStateObserver
 import org.jetbrains.compose.swing.core.SwingCompositionDiagnostics
+import kotlin.coroutines.CoroutineContext
 
 /**
  * What one composition owns and every node under it shares.
@@ -21,11 +21,9 @@ import org.jetbrains.compose.swing.core.SwingCompositionDiagnostics
  */
 internal interface SwingCompositionOwner {
     /**
-     * The observer every snapshot-observing component in this composition registers with - `Canvas` and
-     * its like - each as its own scope. `null` under a composition holding no such component, which is
-     * what a menu is.
+     * The observer every attached node's [observeReads] records with, the node itself as the scope.
      */
-    val observer: SnapshotStateObserver?
+    val snapshotObserver: OwnerSnapshotObserver
 
     /**
      * Runs the frame this composition's pending writes are owed inside the event being dispatched,
@@ -49,6 +47,14 @@ internal interface SwingCompositionOwner {
      * [SwingCompositionDiagnostics].
      */
     val diagnostics: SwingCompositionDiagnostics?
+
+    /**
+     * The parent [CompositionContext][androidx.compose.runtime.CompositionContext]'s effect context,
+     * which is what a [SwingModifier.Node][org.jetbrains.compose.swing.modifier.SwingModifier.Node]'s
+     * `coroutineScope` runs on - its `withFrameNanos` therefore resolves to the window's frame clock, and
+     * harness frame control reaches it the same way it reaches `LaunchedEffect`.
+     */
+    val coroutineContext: CoroutineContext
 }
 
 /**

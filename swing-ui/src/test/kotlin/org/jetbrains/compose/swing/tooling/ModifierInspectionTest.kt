@@ -29,8 +29,10 @@ import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.border
 import org.jetbrains.compose.swing.modifier.appearance.clientProperty
 import org.jetbrains.compose.swing.modifier.appearance.highlights
+import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.appearance.toolTip
+import org.jetbrains.compose.swing.modifier.composed
 import org.jetbrains.compose.swing.modifier.datatransfer.clipboard
 import org.jetbrains.compose.swing.modifier.datatransfer.draggable
 import org.jetbrains.compose.swing.modifier.datatransfer.dropTarget
@@ -66,6 +68,7 @@ import javax.swing.text.DocumentFilter
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 
@@ -491,6 +494,26 @@ class ModifierInspectionTest {
             "an element that names no property of its own is reported by the class it is declared as",
         )
     }
+
+    @Test
+    fun aComposedEntryIsReportedAsTheEntriesItsFactoryReturned() = runComposeSwingTest {
+        isDebugInspectorInfoEnabled = true
+        setContent { Label("hello", modifier = SwingModifier.testTag(CHAIN_LABEL_TAG).composed { name("x") }) }
+
+        val node =
+            assertNotNull(
+                onNodeWithTag(CHAIN_LABEL_TAG).fetch().findDeclaringGroup()?.node as? SwingComponentNode,
+                "no composition declared the label",
+            )
+        assertEquals(
+            listOf("testTag" to mapOf("testTag" to CHAIN_LABEL_TAG), "name" to mapOf("name" to "x")),
+            node.modifier.foldIn(listOf<Pair<String, Map<String, Any?>>>()) { acc, element ->
+                val inspectable = assertIs<SwingModifier.InspectableElement>(element, "a chain entry: $element")
+                acc + (inspectable.name to inspectable.declaredValues)
+            },
+            "the chain should hold the factory's entries in place of the composed one",
+        )
+    }
 }
 
 /** What the element named [element] declares in the chain the component tagged [tag] carries. */
@@ -516,12 +539,12 @@ private fun SwingModifier.elements(): List<SwingModifier.InspectableElement> =
     }
 
 /** A chain element declaring nothing, standing for one that names no property of its own. */
-private class UnnamedElement : SwingModifier.NodeElement<Component, SwingModifier.Node<Component>>() {
+private class UnnamedElement : SwingModifier.NodeElement<Component, SwingModifier.ComponentNode<Component>>() {
     override val targetType: Class<Component> get() = Component::class.java
 
-    override fun create(): SwingModifier.Node<Component> = SwingModifier.Node()
+    override fun create(): SwingModifier.ComponentNode<Component> = SwingModifier.ComponentNode()
 
-    override fun update(node: SwingModifier.Node<Component>): Unit = Unit
+    override fun update(node: SwingModifier.ComponentNode<Component>): Unit = Unit
 
     override fun equals(other: Any?): Boolean = other is UnnamedElement
 

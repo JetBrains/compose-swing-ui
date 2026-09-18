@@ -602,6 +602,20 @@ public abstract interface class org/jetbrains/compose/swing/layout/ParentElement
 public abstract interface class org/jetbrains/compose/swing/layout/ParentLayoutElement : org/jetbrains/compose/swing/layout/ParentElement {
 }
 
+public abstract class org/jetbrains/compose/swing/layout/ParentLayoutNode : org/jetbrains/compose/swing/modifier/SwingModifier$Node, org/jetbrains/compose/swing/layout/ParentLayoutElement {
+	public static final field $stable I
+	public fun <init> ()V
+}
+
+public abstract class org/jetbrains/compose/swing/layout/ParentLayoutNodeElement : org/jetbrains/compose/swing/layout/ParentLayoutElement {
+	public static final field $stable I
+	public fun <init> ()V
+	public abstract fun create ()Lorg/jetbrains/compose/swing/layout/ParentLayoutNode;
+	public abstract fun equals (Ljava/lang/Object;)Z
+	public abstract fun hashCode ()I
+	public abstract fun update (Lorg/jetbrains/compose/swing/layout/ParentLayoutNode;)V
+}
+
 public abstract interface class org/jetbrains/compose/swing/layout/ParentProtocol {
 	public abstract fun accepts (Ljava/awt/Container;)Z
 	public abstract fun getDescription ()Ljava/lang/String;
@@ -616,6 +630,15 @@ public abstract interface class org/jetbrains/compose/swing/layout/ParentSlotEle
 
 public abstract interface class org/jetbrains/compose/swing/layout/SlotAttachment {
 	public abstract fun install (Ljava/awt/Container;Ljava/awt/Component;I)Lkotlin/jvm/functions/Function0;
+}
+
+public final class org/jetbrains/compose/swing/modifier/ComposedModifierKt {
+	public static final fun composed (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function3;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun materialize (Landroidx/compose/runtime/Composer;Lorg/jetbrains/compose/swing/modifier/SwingModifier;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+}
+
+public abstract interface class org/jetbrains/compose/swing/modifier/DeclaredNodesListener {
+	public abstract fun onDeclaredNodesChanged (Ljava/util/List;)V
 }
 
 public final class org/jetbrains/compose/swing/modifier/RestorePolicy {
@@ -651,6 +674,12 @@ public final class org/jetbrains/compose/swing/modifier/SwingModifier$Companion 
 	public fun then (Lorg/jetbrains/compose/swing/modifier/SwingModifier;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 }
 
+public class org/jetbrains/compose/swing/modifier/SwingModifier$ComponentNode : org/jetbrains/compose/swing/modifier/SwingModifier$Node {
+	public static final field $stable I
+	public fun <init> ()V
+	public final fun getComponent ()Ljava/awt/Component;
+}
+
 public abstract interface class org/jetbrains/compose/swing/modifier/SwingModifier$Element : org/jetbrains/compose/swing/modifier/SwingModifier {
 	public fun foldIn (Ljava/lang/Object;Lkotlin/jvm/functions/Function2;)Ljava/lang/Object;
 }
@@ -660,18 +689,20 @@ public abstract interface class org/jetbrains/compose/swing/modifier/SwingModifi
 	public fun getName ()Ljava/lang/String;
 }
 
-public class org/jetbrains/compose/swing/modifier/SwingModifier$Node {
+public abstract class org/jetbrains/compose/swing/modifier/SwingModifier$Node {
 	public static final field $stable I
-	public fun <init> ()V
-	public final fun getComponent ()Ljava/awt/Component;
+	public final fun getCoroutineScope ()Lkotlinx/coroutines/CoroutineScope;
+	public final fun isAttached ()Z
 	public fun onAttach ()V
 	public fun onDetach ()V
+	public fun onReset ()V
+	public final fun visitDeclaredNodes (Lkotlin/jvm/functions/Function1;)V
 }
 
 public abstract class org/jetbrains/compose/swing/modifier/SwingModifier$NodeElement : org/jetbrains/compose/swing/modifier/SwingModifier$Element, org/jetbrains/compose/swing/modifier/SwingModifier$InspectableElement {
 	public static final field $stable I
 	public fun <init> ()V
-	public abstract fun create ()Lorg/jetbrains/compose/swing/modifier/SwingModifier$Node;
+	public abstract fun create ()Lorg/jetbrains/compose/swing/modifier/SwingModifier$ComponentNode;
 	public abstract fun equals (Ljava/lang/Object;)Z
 	public final fun foldIn (Ljava/lang/Object;Lkotlin/jvm/functions/Function2;)Ljava/lang/Object;
 	public fun getAdditive ()Z
@@ -682,10 +713,11 @@ public abstract class org/jetbrains/compose/swing/modifier/SwingModifier$NodeEle
 	public fun getRestores-sp8GJzU ()I
 	public abstract fun getTargetType ()Ljava/lang/Class;
 	public abstract fun hashCode ()I
-	public abstract fun update (Lorg/jetbrains/compose/swing/modifier/SwingModifier$Node;)V
+	public abstract fun update (Lorg/jetbrains/compose/swing/modifier/SwingModifier$ComponentNode;)V
 }
 
 public final class org/jetbrains/compose/swing/modifier/SwingModifierKt {
+	public static final fun applyCompositionLocalMap-pWFREzI (Landroidx/compose/runtime/Composer;Landroidx/compose/runtime/CompositionLocalMap;)V
 	public static final fun applyModifier-pWFREzI (Landroidx/compose/runtime/Composer;Lorg/jetbrains/compose/swing/modifier/SwingModifier;)V
 	public static final fun key (Lorg/jetbrains/compose/swing/modifier/SwingModifier;[Ljava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun property-l-gV6mU (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/reflect/KClass;Ljava/lang/String;Ljava/lang/Object;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;I)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
@@ -920,6 +952,13 @@ public final class org/jetbrains/compose/swing/modifier/listener/ListenerRegistr
 	public fun hashCode ()I
 }
 
+public abstract interface class org/jetbrains/compose/swing/node/CompositionLocalConsumerModifierNode {
+}
+
+public final class org/jetbrains/compose/swing/node/CompositionLocalConsumerModifierNodeKt {
+	public static final fun currentValueOf (Lorg/jetbrains/compose/swing/modifier/SwingModifier$Node;Landroidx/compose/runtime/CompositionLocal;)Ljava/lang/Object;
+}
+
 public final class org/jetbrains/compose/swing/node/MenuApplier : androidx/compose/runtime/AbstractApplier {
 	public static final field $stable I
 	public fun <init> (Lorg/jetbrains/compose/swing/node/SwingNodeHolder;)V
@@ -959,6 +998,15 @@ public final class org/jetbrains/compose/swing/node/NodeKt {
 	public static synthetic fun declare-aOxawFc$default (Landroidx/compose/runtime/Composer;Ljava/lang/Object;Lorg/jetbrains/compose/swing/node/MirrorState;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function3;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)V
 	public static final fun rememberMirrorState (Ljava/lang/Object;Landroidx/compose/runtime/Composer;I)Lorg/jetbrains/compose/swing/node/MirrorState;
 	public static final fun report (Lorg/jetbrains/compose/swing/node/MirrorState;Lkotlin/jvm/functions/Function0;)V
+}
+
+public abstract interface class org/jetbrains/compose/swing/node/ObserverModifierNode {
+	public abstract fun onObservedReadsChanged ()V
+}
+
+public final class org/jetbrains/compose/swing/node/ObserverModifierNodeKt {
+	public static final fun observeReads (Lorg/jetbrains/compose/swing/modifier/SwingModifier$Node;Lkotlin/jvm/functions/Function0;)V
+	public static final fun observeReads (Lorg/jetbrains/compose/swing/modifier/SwingModifier$Node;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function0;)V
 }
 
 public final class org/jetbrains/compose/swing/node/SwingApplier : androidx/compose/runtime/AbstractApplier {

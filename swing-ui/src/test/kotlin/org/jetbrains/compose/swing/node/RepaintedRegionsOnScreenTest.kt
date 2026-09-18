@@ -61,7 +61,7 @@ class RepaintedRegionsOnScreenTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         return runSwingTest {
             val robot = Robot()
-            val owner = TestCompositionOwner.observing()
+            val owner = TestCompositionOwner()
             val content =
                 JPanel(null).apply {
                     background = Color.WHITE

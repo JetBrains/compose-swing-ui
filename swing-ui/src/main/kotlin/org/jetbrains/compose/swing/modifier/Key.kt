@@ -5,8 +5,8 @@ package org.jetbrains.compose.swing.modifier
 
 /**
  * Ties this modifier's application to [keys]. While they stand the modifier is diffed as usual; a key
- * that does not compare equal to the one applied last takes the whole modifier apart and applies it
- * again from scratch.
+ * that does not compare equal to the one applied last rebuilds from scratch what the modifier writes onto
+ * the component.
  *
  * This is `androidx.compose.runtime.key` for a modifier - the identity of the modifier's application. It
  * is not the slot key an element is matched by ([SwingModifier.NodeElement.key]).
@@ -18,10 +18,12 @@ package org.jetbrains.compose.swing.modifier
  * writes two different values instead - the restore puts back what the modifier found, then the
  * re-application writes the declaration again - and both are announced.
  *
- * A rebuild is a real teardown. Every slot detaches in the reverse of the order the modifier declared
- * them, putting back what it captured, then attaches afresh and captures what it finds by then.
- * Anything a slot binds - a caret, a document, a model, an installed listener - is torn down and built
- * again with it, so transient state those objects hold does not survive.
+ * A rebuild is a real teardown. Every [SwingModifier.ComponentNode] detaches in the reverse of the order
+ * the modifier declared them, putting back what it captured, then attaches afresh and captures what it
+ * finds by then. Anything such a node binds - a caret, a document, a model, an installed listener - is
+ * torn down and built again with it, so transient state those objects hold does not survive. A
+ * [ParentLayoutNode][org.jetbrains.compose.swing.layout.ParentLayoutNode] writes nothing onto the
+ * component, so it stands and is diffed as usual, keeping its state.
  *
  * The keys belong to the modifier rather than to a place in it: `SwingModifier.key(t).background(c)` and
  * `SwingModifier.background(c).key(t)` say the same thing. Declaring again adds keys rather than

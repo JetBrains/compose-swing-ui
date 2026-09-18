@@ -6,9 +6,12 @@ package org.jetbrains.compose.swing.node
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ComposeNode
 import androidx.compose.runtime.DisallowComposableCalls
+import androidx.compose.runtime.currentComposer
 import org.jetbrains.compose.swing.annotations.SwingMenuComposable
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.applyCompositionLocalMap
 import org.jetbrains.compose.swing.modifier.applyModifier
+import org.jetbrains.compose.swing.modifier.materialize
 import java.awt.Component
 
 /**
@@ -34,12 +37,15 @@ public inline fun <reified T : Component> MenuNode(
         @Composable @SwingMenuComposable
         () -> Unit = {},
 ) {
+    val materialized = currentComposer.materialize(modifier)
+    val localMap = currentComposer.currentCompositionLocalMap
     ComposeNode<SwingNodeHolder<T>, MenuApplier>(
         factory = { SwingNodeHolder(factory()) },
         update = {
             val updater = SwingNodeUpdater(this)
+            updater.applyCompositionLocalMap(localMap)
             updater.update()
-            updater.applyModifier(modifier)
+            updater.applyModifier(materialized)
         },
         content = content,
     )

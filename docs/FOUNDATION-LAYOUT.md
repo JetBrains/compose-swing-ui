@@ -204,12 +204,12 @@ modifier chain reserved as one rectangle, so each of these reaches the child thr
 rather than by writing anything on the component.
 
 Layout modifiers remain in the chain and apply in order. `LayoutModifier` is a public
-`SwingModifier.ParentLayoutElement`; custom constraint-based containers can implement it to wrap a
-child's measurement and placement. Parent-data modifiers implement `ParentDataModifier`, fold their
-values in declaration order, and expose the result to a policy as `Measurable.parentData`. All
-parent-layout elements use a key: a non-additive key keeps its last declaration, while additive
-elements remain in order. For example, `weight(2f).weight(1f)` uses `1f`, while
-`weight(1f).align(Alignment.Bottom)` keeps both declarations.
+`ParentLayoutElement`; custom constraint-based containers can implement it to wrap a child's
+measurement and placement. Parent-data modifiers such as `weight` and `align` fold in declaration order
+and reach a policy as `Measurable.parentData`. `weight(2f).weight(1f)` uses `1f`, while
+`weight(1f).align(Alignment.Bottom)` keeps both.
+[Parent data and layout modifiers](CUSTOM-CONTAINERS.md#parent-data-and-layout-modifiers) describes these
+types.
 
 ### Observing layout
 

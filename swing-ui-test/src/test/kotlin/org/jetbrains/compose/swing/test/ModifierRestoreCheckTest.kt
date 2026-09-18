@@ -192,7 +192,7 @@ class ModifierRestoreCheckTest {
         assertEquals(emptyList(), reported, "a write that changed nothing takes no record")
     }
 
-    private fun slot() = SwingModifier.Node<Component>()
+    private fun slot() = SwingModifier.ComponentNode<Component>()
 
     private fun element(
         restores: RestorePolicy = RestorePolicy.EverythingWritten,
@@ -213,12 +213,12 @@ private class StandInElement(
     override val restores: RestorePolicy,
     override val name: String,
     override val heldProperties: Set<String>,
-) : SwingModifier.NodeElement<Component, SwingModifier.Node<Component>>() {
+) : SwingModifier.NodeElement<Component, SwingModifier.ComponentNode<Component>>() {
     override val targetType: Class<Component> get() = Component::class.java
 
-    override fun create(): SwingModifier.Node<Component> = SwingModifier.Node()
+    override fun create(): SwingModifier.ComponentNode<Component> = SwingModifier.ComponentNode()
 
-    override fun update(node: SwingModifier.Node<Component>): Unit = Unit
+    override fun update(node: SwingModifier.ComponentNode<Component>): Unit = Unit
 
     override fun equals(other: Any?): Boolean = this === other
 

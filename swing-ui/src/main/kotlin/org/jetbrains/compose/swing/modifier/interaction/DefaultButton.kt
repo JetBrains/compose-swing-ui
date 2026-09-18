@@ -44,7 +44,7 @@ private class DefaultButtonElement(
 
     override fun hashCode(): Int = default.hashCode()
 
-    class Node : SwingModifier.Node<JButton>() {
+    class Node : SwingModifier.ComponentNode<JButton>() {
         var default: Boolean = false
         private var placeChanges: DisposableHandle? = null
 

@@ -297,7 +297,7 @@ private class DraggableElement(
 
     override fun hashCode(): Int = 31 * exportedActions + System.identityHashCode(transferable)
 
-    class Node : SwingModifier.Node<JComponent>() {
+    class Node : SwingModifier.ComponentNode<JComponent>() {
         var config: SourceConfig? = null
         private var gesture: DragGesture? = null
 
@@ -393,7 +393,7 @@ private class DropTargetElement(
 
     override fun hashCode(): Int = System.identityHashCode(this)
 
-    class Node : SwingModifier.Node<JComponent>() {
+    class Node : SwingModifier.ComponentNode<JComponent>() {
         var config: DropConfig? = null
 
         fun apply() {
@@ -439,7 +439,7 @@ private class ClipboardElement(
 
     override fun hashCode(): Int = System.identityHashCode(this)
 
-    class Node : SwingModifier.Node<JComponent>() {
+    class Node : SwingModifier.ComponentNode<JComponent>() {
         var transferable: () -> Transferable? = { null }
         var onPaste: (Transferable) -> Boolean = { false }
         var canImport: (List<DataFlavor>) -> Boolean = { true }
@@ -507,7 +507,7 @@ private class ExportDoneElement(
 
     override fun hashCode(): Int = System.identityHashCode(onExportDone)
 
-    class Node : SwingModifier.Node<JComponent>() {
+    class Node : SwingModifier.ComponentNode<JComponent>() {
         var onExportDone: ((Transferable?, Int) -> Unit)? = null
 
         fun apply() {

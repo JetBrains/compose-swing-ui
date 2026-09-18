@@ -2,6 +2,7 @@ package org.jetbrains.compose.swing.node
 
 import androidx.compose.runtime.ComposeNodeLifecycleCallback
 import androidx.compose.runtime.CompositionContext
+import androidx.compose.runtime.CompositionLocalMap
 import org.jetbrains.annotations.VisibleForTesting
 import org.jetbrains.compose.swing.core.COMPOSITION_KEY
 import org.jetbrains.compose.swing.layout.ChildPlacement
@@ -85,8 +86,17 @@ internal class SwingNodeHolder<out T : Component>
          */
         internal var modifierState: SwingModifierState? = null
 
+        /**
+         * The [CompositionLocal][androidx.compose.runtime.CompositionLocal]s in scope where this node was
+         * declared, captured whole so a further local a node needs to read reaches it without a new
+         * [SwingNode]/[MenuNode] parameter. Written by [org.jetbrains.compose.swing.modifier.applyCompositionLocalMap]
+         * before the node's own modifier is applied, so it reflects the current pass by the time anything
+         * reads it after attach.
+         */
+        internal var compositionLocalMap: CompositionLocalMap = CompositionLocalMap.Empty
+
         override val modifier: SwingModifier
-            get() = modifierState?.applied ?: SwingModifier
+            get() = modifierState?.declared ?: SwingModifier
 
         /**
          * The region this node's modifier chain declares, or `null` when the modifier installs the
@@ -262,23 +272,23 @@ internal class SwingNodeHolder<out T : Component>
          * makes; an update that still declares one hands it over again on the pass that follows. The
          * detach covers every modifier-installed listener, including the built-in domain listener of the
          * component. A stamp left behind would be found by a `setContent` call on a component below. That
-         * call would then nest into a composition that no longer runs. The shared observer itself keeps
-         * running for every other node. It is disposed with the composition.
+         * call would then nest into a composition that no longer runs.
          *
          * It does not change where the component lives: [ParentDeclaration.parentData], [declaredSlot]
-         * and [childPlacement] all survive.
+         * and [childPlacement] all survive. With [resetNodes], every node of the modifier is reset before any
+         * detaches.
          */
-        private fun reset() {
+        private fun reset(resetNodes: Boolean) {
             clearSubcompositionStamp()
             clearInspectionStamp()
-            resetModifierState()
+            owner?.snapshotObserver?.clear(component)
+            resetModifierState(resetNodes)
             childSettle = null
-            owner?.observer?.clear(component)
         }
 
         /** The node is leaving the composition for good. */
         override fun onRelease() {
-            reset()
+            reset(resetNodes = false)
             // The applier frees a region when it removes or moves a node. Whole-subtree disposal goes
             // through neither path: SwingApplier.onClear() drops the root subtree with
             // Container.removeAll() and clears the root's child list, releasing no region on the way.
@@ -299,7 +309,7 @@ internal class SwingNodeHolder<out T : Component>
          * it gets a fresh node built by a fresh call to `factory`.
          */
         override fun onReuse() {
-            reset()
+            reset(resetNodes = true)
         }
 
         /**
@@ -312,7 +322,7 @@ internal class SwingNodeHolder<out T : Component>
          */
         override fun onDeactivate() {
             deactivated = true
-            reset()
+            reset(resetNodes = true)
             // No batch runs here, so the parent repaints the area the component leaves itself, once it has
             // revalidated: `Container.remove` only invalidates. Both are read before the region is released,
             // which can take the component out of its parent.

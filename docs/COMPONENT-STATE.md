@@ -318,6 +318,19 @@ would make every read-only column and every read-only tree declare a handler tha
 pairing is real but conditional, the signature cannot express it, and a runtime check is not worth
 closing it.
 
+### A callback your component calls itself
+
+When a Swing listener calls a callback on a click or a keystroke and the callback throws, Swing reports
+the exception and goes on dispatching events. When your component calls a callback while recomposition
+applies a declaration - from `update`, say - and the callback throws, the exception stops the
+recomposer, and no content that depends on it updates again.
+
+The library already catches and reports an exception from `declare`'s `onSettled`, and from a listener
+that a write inside `mirror.write { }` triggers. Where your component calls the caller's code in any
+other way while recomposition applies, wrap that one call in `try { } catch (e: Throwable) { }` and hand
+`e` to `Thread.currentThread().uncaughtExceptionHandler`, which is where Swing reports a listener's
+exception.
+
 ## Writing a state holder
 
 A declared value with a callback beside it does not carry every kind of state. Where it does not - a
@@ -476,10 +489,11 @@ there, since the model is free to change between the holder being constructed an
 Reaching the component that renders the holder is a separate binding, and `set` is the wrong channel
 for it: the binding has to end exactly when the component stops rendering the holder - the node
 released or deactivated - and that is a modifier node's lifecycle. Bind through an element of your own,
-in the registering shape of *Writing a custom property element* in
-[`CUSTOM-MODIFIERS.md`](CUSTOM-MODIFIERS.md): attach the holder in `update`, release it in `onDetach`,
-and compare the element by identity so a holder that only looks like the bound one is still a
-different holder to give the component over to.
+the pair [Writing a custom property element](MODIFIERS.md#writing-a-custom-property-element)
+describes: attach the holder in `update`, release it in `onDetach`, and compare the element by identity,
+as [Equality and skipping](MODIFIERS.md#equality-and-skipping) asks of anything a node
+registers, so a holder that only looks like the bound one is still a different holder to give the
+component over to.
 
 ### Only the inputs are state
 

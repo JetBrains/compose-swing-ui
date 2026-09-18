@@ -66,7 +66,7 @@ private object OrderedFocusTraversalElement :
 
     override fun hashCode(): Int = System.identityHashCode(this)
 
-    class Node : SwingModifier.Node<JComponent>() {
+    class Node : SwingModifier.ComponentNode<JComponent>() {
         private var original: SavedFocusTraversal? = null
 
         override fun onAttach() {

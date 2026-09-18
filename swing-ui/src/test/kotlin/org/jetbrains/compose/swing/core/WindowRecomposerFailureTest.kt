@@ -204,14 +204,15 @@ class WindowRecomposerFailureTest {
     }
 
     /** A subscription element a label is the target of, so it stands until the modifier is taken apart. */
-    private class LabelSubscriptionElement : SwingModifier.NodeElement<JComponent, SwingModifier.Node<JComponent>>() {
+    private class LabelSubscriptionElement :
+        SwingModifier.NodeElement<JComponent, SwingModifier.ComponentNode<JComponent>>() {
         override val targetType: Class<JComponent> get() = JComponent::class.java
 
         override val additive: Boolean get() = true
 
-        override fun create(): SwingModifier.Node<JComponent> = SwingModifier.Node()
+        override fun create(): SwingModifier.ComponentNode<JComponent> = SwingModifier.ComponentNode()
 
-        override fun update(node: SwingModifier.Node<JComponent>) = Unit
+        override fun update(node: SwingModifier.ComponentNode<JComponent>) = Unit
 
         override fun equals(other: Any?): Boolean = this === other
 
@@ -219,14 +220,15 @@ class WindowRecomposerFailureTest {
     }
 
     /** A subscription element no component but a text field is the target of. */
-    private class TextFieldOnlyElement : SwingModifier.NodeElement<JTextField, SwingModifier.Node<JTextField>>() {
+    private class TextFieldOnlyElement :
+        SwingModifier.NodeElement<JTextField, SwingModifier.ComponentNode<JTextField>>() {
         override val targetType: Class<JTextField> get() = JTextField::class.java
 
         override val additive: Boolean get() = true
 
-        override fun create(): SwingModifier.Node<JTextField> = SwingModifier.Node()
+        override fun create(): SwingModifier.ComponentNode<JTextField> = SwingModifier.ComponentNode()
 
-        override fun update(node: SwingModifier.Node<JTextField>) = Unit
+        override fun update(node: SwingModifier.ComponentNode<JTextField>) = Unit
 
         override fun equals(other: Any?): Boolean = this === other
 
@@ -244,8 +246,7 @@ class WindowRecomposerFailureTest {
                 SwingApplier(SwingNodeHolder(host).attachedTo(owner))
             }
         try {
-            val observer =
-                assertNotNull(composition.observer, "a nested content composition observes for the components in it")
+            val observer = composition.snapshotObserver.observer
             val watched = mutableStateOf(0)
             var answers = 0
             val scope = Any()

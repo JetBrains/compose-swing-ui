@@ -255,8 +255,8 @@ private class ColumnCellsElement(
     override fun hashCode(): Int = System.identityHashCode(this)
 }
 
-/** The [SwingModifier.Node] behind [composableColumnCells]. */
-private class ColumnCellsNode : SwingModifier.Node<JTable>() {
+/** The [SwingModifier.ComponentNode] behind [composableColumnCells]. */
+private class ColumnCellsNode : SwingModifier.ComponentNode<JTable>() {
     private var cellCompositions: TableCellCompositions<*>? = null
 
     /** Puts [cellCompositions]' renderers onto the table's columns; call from the element's `update`. */

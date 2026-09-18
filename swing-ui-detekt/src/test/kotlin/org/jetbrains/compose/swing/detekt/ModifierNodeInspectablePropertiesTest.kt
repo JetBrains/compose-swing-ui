@@ -91,7 +91,7 @@ class ModifierNodeInspectablePropertiesTest {
 
                 private class ToolTipElement(private val text: String) :
                     SwingModifier.NodeElement<JComponent, ToolTipElement.Node>() {
-                    class Node : SwingModifier.Node<JComponent>() {
+                    class Node : SwingModifier.ComponentNode<JComponent>() {
                         val name: String = "toolTip"
                     }
                 }

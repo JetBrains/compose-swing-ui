@@ -3,17 +3,29 @@
 
 package org.jetbrains.compose.swing.modifier
 
+import androidx.compose.runtime.CompositionLocalMap
 import androidx.compose.runtime.Stable
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
 import org.jetbrains.annotations.VisibleForTesting
 import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import org.jetbrains.compose.swing.core.SwingCompositionDiagnostics
 import org.jetbrains.compose.swing.core.watchRestore
 import org.jetbrains.compose.swing.core.watchWrite
-import org.jetbrains.compose.swing.layout.ParentLayoutElement
+import org.jetbrains.compose.swing.layout.ParentLayoutNode
+import org.jetbrains.compose.swing.layout.ParentLayoutNodeElement
 import org.jetbrains.compose.swing.modifier.layout.checkOnePlacement
+import org.jetbrains.compose.swing.node.CompositionLocalConsumerModifierNode
 import org.jetbrains.compose.swing.node.DeclaredSlot
+import org.jetbrains.compose.swing.node.SwingCompositionOwner
 import org.jetbrains.compose.swing.node.SwingNodeHolder
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
+import org.jetbrains.compose.swing.node.observeReads
+import org.jetbrains.compose.swing.node.observesLocals
+import org.jetbrains.compose.swing.node.requireOwner
+import org.jetbrains.compose.swing.util.fastForEach
 import java.awt.Component
 
 /**
@@ -28,7 +40,7 @@ import java.awt.Component
  * applies nothing and is the parameter default.
  *
  * Implement [NodeElement] to wrap any Swing property or listener the library does not ship a builder
- * for. See `docs/CUSTOM-COMPONENTS.md`.
+ * for. See `docs/MODIFIERS.md`.
  *
  * An [NodeElement] declares the component type it targets via [NodeElement.targetType]. A modifier targeting
  * a type the node is not (e.g. `border`, a `JComponent` property, on a bare `java.awt.Component`)
@@ -67,7 +79,7 @@ public interface SwingModifier {
     /**
      * One entry in a modifier.
      *
-     * Most entries are a [NodeElement] and carry a [Node] that writes onto the component. An entry that
+     * Most entries are a [NodeElement] and carry a [ComponentNode] that writes onto the component. An entry that
      * declares something the node holder itself reads - where the component is attached, what the
      * modifier's application is tied to - is an [Element] and no more, and this library ships every one
      * of those. Extend [NodeElement] to write a modifier of your own: applying an [Element] that is
@@ -112,66 +124,156 @@ public interface SwingModifier {
         if (other === SwingModifier) this else CombinedSwingModifier(this, other)
 
     /**
+     * A long-lived node a modifier entry is backed by, mirroring `androidx.compose.ui.Modifier.Node`.
+     *
+     * A node is attached to its component's composition before [onAttach] runs, and detached after
+     * [onDetach] returns. [coroutineScope] and the capabilities bound to this type, such as
+     * [observeReads][org.jetbrains.compose.swing.node.observeReads], are available only in between.
+     *
+     * A chain attaches and detaches whole: while any node of the chain runs [onAttach] or [onDetach], every
+     * node of the chain is attached, so a node may measure or paint its component whatever its place in the
+     * chain. The chain is the component's whole modifier, with the nodes of both families; a `key` change
+     * detaches and attaches again only the [ComponentNode]s.
+     *
+     * The library builds two families on it: [ComponentNode], which writes onto its component, and
+     * [ParentLayoutNode][org.jetbrains.compose.swing.layout.ParentLayoutNode], which the parent's layout
+     * manager interprets.
+     */
+    @Suppress("AbstractClassCanBeConcreteClass") // A node is always one of the library's families, never this base.
+    public abstract class Node internal constructor() {
+        private var scope: CoroutineScope? = null
+
+        /** The node holder whose modifier this node is attached in, or `null` while it is not attached. */
+        internal var holder: SwingNodeHolder<*>? = null
+            private set
+
+        /** Whether this node is attached to a composition. */
+        public val isAttached: Boolean get() = holder != null
+
+        /**
+         * A scope that runs for as long as this node is attached, on the composition's own coroutine
+         * context and frame clock. Created on first access and cancelled once [onDetach] returns.
+         *
+         * @throws IllegalStateException if this node is not attached.
+         */
+        public val coroutineScope: CoroutineScope
+            get() {
+                val context = requireOwner().coroutineContext
+                return scope ?: CoroutineScope(context + Job(context[Job])).also { scope = it }
+            }
+
+        /** Runs once every node of the chain is attached. Runs again only after [onDetach]. */
+        public open fun onAttach() {}
+
+        /**
+         * Runs when the entry leaves the modifier or the node is released, deactivated or reused, while every
+         * node of its chain is still attached.
+         */
+        public open fun onDetach() {}
+
+        /**
+         * Runs while the node is attached, right before the composition reuses its component for different
+         * content or deactivates it. Drop state tied to the old content; [onDetach] follows.
+         */
+        public open fun onReset() {}
+
+        /**
+         * Visits the nodes of the modifier this node is attached in that hold a place in it, in the order the
+         * modifier declares them: every [ComponentNode] of an [additive][NodeElement.additive] element, and
+         * every [ParentLayoutNode][org.jetbrains.compose.swing.layout.ParentLayoutNode]. This node is among
+         * them if it is one of those. Visits nothing while this node is not attached.
+         */
+        public fun visitDeclaredNodes(block: (Node) -> Unit) {
+            holder?.visitDeclaredNodes(block)
+        }
+
+        internal fun requireOwner(): SwingCompositionOwner =
+            checkNotNull(holder?.owner) { "The modifier node is not attached" }
+
+        /**
+         * Marks the node attached in the modifier of [holder], and so to its composition, without running
+         * [onAttach]; [runAttachLifecycle] follows.
+         */
+        internal fun attach(holder: SwingNodeHolder<*>) {
+            check(!isAttached) { "A modifier node may not be attached to multiple components simultaneously" }
+            // Fails for a holder no composition has attached, so an attached node always reaches its owner.
+            holder.requireOwner()
+            this.holder = holder
+        }
+
+        internal fun runAttachLifecycle() {
+            check(isAttached) { "attach(holder) must run before runAttachLifecycle()" }
+            onAttach()
+        }
+
+        internal fun runDetachLifecycle() {
+            check(isAttached) { "The modifier node is detached multiple times" }
+            onDetach()
+        }
+
+        internal fun reset() {
+            check(isAttached) { "reset() called on a node that is not attached" }
+            onReset()
+        }
+
+        /** Marks the node detached once [runDetachLifecycle] has run, cancelling [coroutineScope]. */
+        internal fun detach() {
+            check(isAttached) { "Cannot detach a node that is not attached" }
+            holder?.owner?.snapshotObserver?.clear(this)
+            scope?.cancel(ModifierNodeDetachedCancellationException())
+            scope = null
+            holder = null
+        }
+    }
+
+    /**
      * The stateful counterpart of an [NodeElement], created once per slot and kept across recompositions.
      *
-     * The applier injects the already-typed target [component], calls [onAttach] once, then calls the
-     * owning [NodeElement]'s [update][NodeElement.update] to push the latest data onto the node's fields - so a
-     * listener installed in [onAttach] is live before the first `update` lands, and every field it reads
-     * needs an initial value that stands until then. [onDetach] runs symmetrically when the element leaves
-     * the modifier or the node is released/reused, to restore a captured original or remove an installed
-     * listener.
+     * [onAttach] runs once, before the owning [NodeElement]'s first [update][NodeElement.update] pushes the
+     * latest data onto the node's fields. So a listener installed in [onAttach] is live before the first
+     * `update` lands, and every field it reads needs an initial value that stands until then. [onDetach]
+     * runs when the element leaves the modifier or the node is released or reused, to restore a captured
+     * original or remove an installed listener. A reused or deactivated node gets [onReset] first.
+     *
+     * Property nodes come apart in the reverse of the order the modifier declared them last, so a node
+     * putting back what it read finds every node declared before it still standing. Subscription nodes are
+     * held by position instead, and come apart after the property diff has restored what left the modifier
+     * and applied what stands, so what one of them reads as it goes is what the pass leaves behind.
      *
      * Subclass this to back a custom [NodeElement]: capture the property's original in a field in
      * [onAttach], write the new value in `update`, and restore it in [onDetach]. See
-     * `docs/CUSTOM-COMPONENTS.md`.
+     * `docs/MODIFIERS.md`.
      */
-    public open class Node<T : Component> {
-        internal var attachedComponent: T? = null
-
-        /**
-         * The state of the modifier this node's slot belongs to, injected with [attachedComponent] and
-         * cleared with it. A node reaches what its whole modifier shares through this - what each property
-         * the modifier writes stood at before it did, and nothing else yet.
-         */
-        internal var modifierState: SwingModifierState? = null
-
+    public open class ComponentNode<T : Component> : Node() {
         /**
          * The typed target, valid from [onAttach] until [onDetach]. Reading it outside that window -
          * before the node is attached, or after it has been detached - fails.
          */
         public val component: T
-            get() = checkNotNull(attachedComponent) { "Node is not attached" }
-
-        /** Runs once, after the component is injected, to install listeners or capture originals. */
-        public open fun onAttach() {}
-
-        /**
-         * Runs once, when the element leaves the modifier or the node is released/reused.
-         *
-         * Property nodes come apart in the reverse of the order the modifier declared them last, so a node
-         * putting back what it read finds every node declared before it still standing. Subscription
-         * nodes are held by position instead, and come apart after the property diff has restored what
-         * left the modifier and applied what stands, so what one of them reads as it goes is what the
-         * pass leaves behind.
-         */
-        public open fun onDetach() {}
+            get() {
+                val holder = checkNotNull(holder) { "Node is not attached" }
+                // ElementRecord.mark attaches this node only to a holder whose component is a T.
+                @Suppress("UNCHECKED_CAST")
+                return holder.component as T
+            }
     }
 
     /**
      * A single unit of a [SwingModifier] chain: one property write or one installed listener, targeting
-     * a component of type [T] and backed by a stateful [Node] of type [N].
+     * a component of type [T] and backed by a stateful [ComponentNode] of type [N].
      *
      * Implement this to expose an arbitrary Swing property or listener the library does not ship a
-     * builder for (see `docs/CUSTOM-COMPONENTS.md`). See [targetType] for how to declare the component
-     * type the element targets; the node's [Node.component] arrives already typed [T].
+     * builder for (see `docs/MODIFIERS.md`). See [targetType] for how to declare the component
+     * type the element targets; the node's [ComponentNode.component] arrives already typed [T].
      *
      * The element is immutable and throwaway: every pass builds a fresh one carrying the values declared
-     * then. The [Node] is the long-lived side - [create]d once per slot, kept for as long as an element of
-     * this type occupies it, and owning the mutable state (the captured original, the installed listener)
-     * with its setup and teardown in [Node.onAttach]/[Node.onDetach]. An element unequal to the one its
-     * slot holds costs one [update] call and nothing else: the node is not recreated and a listener it
-     * installed is not reattached. So a callback written inline as a lambda is the intended style and needs
-     * no `remember` - push it onto the node in [update] and have the node read it when the event fires.
+     * then. The [ComponentNode] is the long-lived side - [create]d once per slot, kept for as long as an
+     * element of this type occupies it, and owning the mutable state (the captured original, the installed
+     * listener) with its setup and teardown in [ComponentNode.onAttach]/[ComponentNode.onDetach]. An element
+     * unequal to the one its slot holds costs one [update] call and nothing else: the node is not recreated
+     * and a listener it installed is not reattached. So a callback written inline as a lambda is the intended
+     * style and needs no `remember` - push it onto the node in [update] and have the node read it when the
+     * event fires.
      *
      * An element is one of two kinds, selected by [additive]: a **property** element (the default),
      * right for a value like `background` or `border`, or a **subscription** element, right for a
@@ -190,11 +292,11 @@ public interface SwingModifier {
      * the slot holds and every pass applies it; an element declared as an `object` hands the slot the
      * same instance each pass, so it is applied once.
      */
-    public abstract class NodeElement<T : Component, N : Node<T>> :
+    public abstract class NodeElement<T : Component, N : ComponentNode<T>> :
         Element,
         InspectableElement {
         /**
-         * The component type this element targets. The node's [Node.component] arrives already typed
+         * The component type this element targets. The node's [ComponentNode.component] arrives already typed
          * [T]; a node that is not a [T] is rejected at apply with a clear error. Use the most general
          * type the element needs: `Component::class.java` for a universal property,
          * `JComponent::class.java` for a `JComponent`-only one, a concrete widget class for a
@@ -255,7 +357,7 @@ public interface SwingModifier {
          * where a property declared before this one has already written.
          *
          * @param node the node [create] returned for this slot, already attached and past
-         *   [Node.onAttach], so [Node.component] is readable from here.
+         *   [ComponentNode.onAttach], so [ComponentNode.component] is readable from here.
          */
         public abstract fun update(node: N)
 
@@ -320,71 +422,73 @@ internal class CombinedSwingModifier(
 }
 
 /**
- * Mutable per-slot state held by the node holder across recompositions: one slot's node, the element
- * currently occupying it, and the type of element the node was created for.
+ * Mutable per-slot state held by the node holder across recompositions: one slot's node and the element
+ * currently occupying it.
  *
- * Constructed at the statically-typed apply site (see [attachElement]), where the element's [T] and
- * [N] are known, so it captures the concrete [node] together with the [elementType] that created it.
- * A later recomposition pushes a fresh element instance through [rebindAndRefresh] without the diff
- * path ever re-narrowing the node's type, and [canRebind] runtime-checks an incoming element against
- * [elementType], so that rebind's narrowing is a verified [Class.cast] rather than an unchecked cast.
+ * The node hosts only elements of the exact class of the one it holds, as AndroidX reuses a node only for an
+ * element of the same class; [canRebind] checks that, so a rebind's narrowing is a verified [Class.cast].
  */
-internal class ElementRecord<T : Component, N : SwingModifier.Node<T>>(
-    private val node: N,
-    private val elementType: Class<out SwingModifier.NodeElement<T, N>>,
-    private var element: SwingModifier.NodeElement<T, N>,
+internal abstract class NodeRecord<N : SwingModifier.Node, E : SwingModifier.Element>(
+    /** The node this slot holds for as long as the slot stands. */
+    val node: N,
+    protected var element: E,
 ) {
-    /** Tears the slot's node down via [SwingModifier.Node.onDetach]. */
-    fun detach(diagnostics: SwingCompositionDiagnostics?) {
-        // onDetach runs while the target is still injected: a node restores its captured original
-        // through component. The target is cleared afterwards, closing the attached window.
-        val component = node.component
-        diagnostics.watchRestore(component, node) { node.onDetach() }
-        node.attachedComponent = null
-        node.modifierState = null
-    }
-
     /**
-     * Whether [element] is of the kind this slot's node was created for, i.e. whether
-     * [rebindAndRefresh] can apply it through the existing node. A diff hands a slot an element of a
-     * different kind when a conditional modifier chain changes shape; the slot cannot host it, so the caller
-     * [detach]es this record and attaches the element fresh instead.
+     * Calls [record], runs the node's [SwingModifier.Node.onAttach], then pushes the element onto it: the first
+     * install. The slot stands while `onAttach` runs, so [SwingModifier.Node.visitDeclaredNodes] finds the node from
+     * there; [unrecord] takes it out again if `onAttach` throws.
      */
-    fun canRebind(element: SwingModifier.NodeElement<*, *>): Boolean = elementType.isInstance(element)
-
-    /**
-     * Rebinds the slot to a (possibly new) [element] instance and writes it against [target], unless
-     * the one the slot already carries [adopts][SwingModifier.NodeElement.adopt] it - an element
-     * declaring the same data, so the slot keeps what it holds and writes nothing. Anything else
-     * rebinds: a fresh element carrying new data or new callbacks is pushed onto the node via
-     * [SwingModifier.NodeElement.update], which keeps a node-installed listener's callbacks current
-     * without reattaching.
-     *
-     * Only call when [canRebind] holds: the slot's node statically knows its own type, so a
-     * [canRebind]-checked [element] is applied through it without an unchecked cast.
-     *
-     * @return whether the declaration was written.
-     */
-    fun rebindAndRefresh(
-        element: SwingModifier.NodeElement<*, *>,
-        target: Component,
+    open fun runAttachLifecycle(
         diagnostics: SwingCompositionDiagnostics?,
-    ): Boolean {
-        if (adopt(element)) return false
-        rebindAndWrite(element, target, diagnostics)
-        return true
+        record: () -> Unit,
+        unrecord: () -> Unit,
+    ) {
+        record()
+        var attached = false
+        try {
+            node.runAttachLifecycle()
+            attached = true
+        } finally {
+            if (!attached) unrecord()
+        }
+        update(element)
     }
+
+    /** [runAttachLifecycle] for a slot appended to [chain]. */
+    fun runAttachLifecycle(
+        diagnostics: SwingCompositionDiagnostics?,
+        chain: ArrayList<NodeRecord<*, *>>,
+    ): Unit = runAttachLifecycle(diagnostics, { chain += this }, { chain.removeAt(chain.lastIndex) })
+
+    /** Runs the node's [SwingModifier.Node.onDetach]. */
+    open fun runDetachLifecycle(diagnostics: SwingCompositionDiagnostics?): Unit = node.runDetachLifecycle()
+
+    /** Marks the node detached, closing the attached window. */
+    open fun markDetached(): Unit = node.detach()
+
+    fun detach(diagnostics: SwingCompositionDiagnostics?) {
+        runDetachLifecycle(diagnostics)
+        markDetached()
+    }
+
+    /**
+     * Whether [element] is of the class this slot's node was created for, i.e. whether a rebind can apply it
+     * through the existing node. A diff hands a slot an element of a different class when a conditional modifier
+     * chain changes shape; the slot cannot host it, so the caller [detach]es this record and attaches the
+     * element fresh instead.
+     */
+    fun canRebind(element: SwingModifier.Element): Boolean = element.javaClass === this.element.javaClass
 
     /**
      * Rebinds the slot to [element] and writes it against [target] whatever the slot already carries.
      * Only call when [canRebind] holds.
      */
     fun rebindAndWrite(
-        element: SwingModifier.NodeElement<*, *>,
+        element: SwingModifier.Element,
         target: Component,
         diagnostics: SwingCompositionDiagnostics?,
     ) {
-        this.element = elementType.cast(element)
+        this.element = this.element.javaClass.cast(element)
         refresh(target, diagnostics)
     }
 
@@ -397,20 +501,146 @@ internal class ElementRecord<T : Component, N : SwingModifier.Node<T>>(
      * the one held did - but the element the last diff installed is released, and with it everything the
      * callbacks it carries capture.
      */
-    fun adopt(incoming: SwingModifier.NodeElement<*, *>): Boolean {
-        if (!element.adopt(node, incoming)) return false
-        element = elementType.cast(incoming)
+    fun adopt(incoming: SwingModifier.Element): Boolean {
+        if (!canRebind(incoming) || !adopts(incoming)) return false
+        element = element.javaClass.cast(incoming)
         return true
     }
 
+    /** Whether the element this slot holds declares what [incoming] does. */
+    protected abstract fun adopts(incoming: SwingModifier.Element): Boolean
+
+    /** Pushes the element currently occupying this slot onto the node. */
+    open fun refresh(
+        target: Component,
+        diagnostics: SwingCompositionDiagnostics?,
+    ): Unit = update(element)
+
+    /** Runs [element]'s own `update` against the node. */
+    protected abstract fun update(element: E)
+
+    companion object {
+        /** Creates and marks attached the node of [element], an entry of [ModifierPartition.chain]. */
+        fun mark(
+            element: SwingModifier.Element,
+            holder: SwingNodeHolder<*>,
+        ): NodeRecord<*, *> =
+            when (element) {
+                is SwingModifier.NodeElement<*, *> -> ElementRecord.mark(element, holder)
+                else -> LayoutNodeRecord.mark(element as ParentLayoutNodeElement<*>, holder)
+            }
+    }
+}
+
+/**
+ * The slot of a [SwingModifier.NodeElement], whose node writes onto the component: the target is injected before
+ * the node attaches and checked again on every write, and the composition's diagnostics watch each write and
+ * restore.
+ */
+internal class ElementRecord<T : Component, N : SwingModifier.ComponentNode<T>>(
+    node: N,
+    element: SwingModifier.NodeElement<T, N>,
+) : NodeRecord<N, SwingModifier.NodeElement<T, N>>(node, element) {
+    override fun runAttachLifecycle(
+        diagnostics: SwingCompositionDiagnostics?,
+        record: () -> Unit,
+        unrecord: () -> Unit,
+    ) {
+        // A slot's install is one write however the node splits it: some capture an original in onAttach and
+        // write the declaration in update, others write in onAttach and have nothing to add.
+        diagnostics.watchWrite(node.component, node, element) {
+            super.runAttachLifecycle(diagnostics, record, unrecord)
+        }
+    }
+
+    /** Runs the node's [SwingModifier.Node.onDetach], while the target is still injected. */
+    override fun runDetachLifecycle(diagnostics: SwingCompositionDiagnostics?): Unit =
+        // A node restores its captured original through component.
+        diagnostics.watchRestore(node.component, node) {
+            node.runDetachLifecycle()
+        }
+
+    // Only a component element is paired with a component slot.
+    override fun adopts(incoming: SwingModifier.Element): Boolean =
+        element.adopt(node, incoming as SwingModifier.NodeElement<*, *>)
+
     /** Re-narrows the target and pushes the element currently occupying this slot onto the node. */
-    private fun refresh(
+    override fun refresh(
         target: Component,
         diagnostics: SwingCompositionDiagnostics?,
     ) {
         val element = element
-        diagnostics.watchWrite(target, node, element) { refreshElement(element, target, node) }
+        diagnostics.watchWrite(target, node, element) {
+            // Re-checks the target type: the component is stable, but re-narrowing keeps the error path
+            // identical to first apply.
+            checkedTarget(element, target)
+            update(element)
+        }
     }
+
+    /**
+     * Pushes [element] onto the node. A node reading composition locals has the reads observed, so a
+     * change of a local it read runs its `update` again.
+     */
+    override fun update(element: SwingModifier.NodeElement<T, N>) {
+        if (node is CompositionLocalConsumerModifierNode) {
+            node.observeReads(OnLocalReadChanged) { element.update(node) }
+        } else {
+            element.update(node)
+        }
+    }
+
+    companion object {
+        /**
+         * Checks the component of [holder] with [checkedTarget], creates a node for [element] and marks it
+         * attached in the modifier of [holder], without running its `onAttach`.
+         *
+         * Typing [N] here keeps `create()`/`update()` together with no cast: the returned record holds the
+         * concrete node, so a later recomposition pushes fresh data without re-narrowing the node's type.
+         */
+        fun <T : Component, N : SwingModifier.ComponentNode<T>> mark(
+            element: SwingModifier.NodeElement<T, N>,
+            holder: SwingNodeHolder<*>,
+        ): ElementRecord<T, N> {
+            checkedTarget(element, holder.component)
+            val node = element.create()
+            node.attach(holder)
+            return ElementRecord(node, element)
+        }
+    }
+}
+
+/** The slot of a [ParentLayoutNodeElement], whose node the parent's layout manager reads. */
+internal class LayoutNodeRecord(
+    node: ParentLayoutNode,
+    element: ParentLayoutNodeElement<*>,
+) : NodeRecord<ParentLayoutNode, ParentLayoutNodeElement<*>>(node, element) {
+    override fun adopts(incoming: SwingModifier.Element): Boolean = element == incoming
+
+    @Suppress("UNCHECKED_CAST") // The slot's node was created by an element of this element's class.
+    override fun update(element: ParentLayoutNodeElement<*>) {
+        (element as ParentLayoutNodeElement<ParentLayoutNode>).update(node)
+    }
+
+    companion object {
+        /** Creates the node for [element] and marks it attached in the modifier of [holder], without its `onAttach`. */
+        fun mark(
+            element: ParentLayoutNodeElement<*>,
+            holder: SwingNodeHolder<*>,
+        ): LayoutNodeRecord {
+            val node = element.create()
+            node.attach(holder)
+            return LayoutNodeRecord(node, element)
+        }
+    }
+}
+
+/**
+ * The one callback every observed local read shares, so the observer keeps a single scope map for them. It
+ * runs only while the node is attached, so the node's modifier state is still there.
+ */
+private val OnLocalReadChanged: (SwingModifier.ComponentNode<*>) -> Unit = { node ->
+    node.holder?.modifierState?.refreshLocalConsumer(node)
 }
 
 /**
@@ -422,19 +652,47 @@ internal class ElementRecord<T : Component, N : SwingModifier.Node<T>>(
 @InternalSwingUiApi
 public class SwingModifierState internal constructor() {
     internal val records: LinkedHashMap<Any, ElementRecord<*, *>> = LinkedHashMap()
-    internal val additiveRecords: ArrayList<ElementRecord<*, *>> = ArrayList()
+
+    /**
+     * The slots holding a place in the modifier, in the order the modifier declares them: the additive component
+     * slots and the parent-layout slots. Each family is matched to its own elements of [ModifierPartition.chain]
+     * by position among them.
+     */
+    internal val chain: ArrayList<NodeRecord<*, *>> = ArrayList()
 
     /**
      * The modifier last declared for this node, and what the next pass compares its own declaration
-     * against. Every pass replaces it with the modifier it declared, whether the slots diffed that
+     * against. Every pass that finishes replaces it with the modifier it declared, whether the slots diffed that
      * declaration or adopted it, so what stands here is what the composition declared last - which is
-     * what [org.jetbrains.compose.swing.node.SwingComponentNode.modifier] answers with.
+     * what [org.jetbrains.compose.swing.node.SwingComponentNode.modifier] answers with, through [declared].
      *
      * Adopting decides what reaches the component, not what is held: a modifier the slots adopt writes
      * nothing, while this and each slot's own element still take the incoming declaration, releasing
      * everything the elements they replace captured.
+     *
+     * An [UnfinishedPass] from the start of a diff or a slot refresh until it returns. One left standing - the
+     * write threw - equals no declaration, so the next declaration is diffed with every slot written again.
      */
     internal var applied: SwingModifier = SwingModifier
+
+    /** [applied], or [SwingModifier] where the last write threw. */
+    internal val declared: SwingModifier get() = if (applied is UnfinishedPass) SwingModifier else applied
+
+    /**
+     * Whether the nodes last handed to a [DeclaredNodesListener] were any. Every pass that finishes hands over the
+     * [chain] it changed, so outside a pass that threw the chain standing is the one last handed.
+     */
+    internal val handedNodes: Boolean get() = (applied as? UnfinishedPass)?.handedNodes ?: chain.isNotEmpty()
+
+    /**
+     * Marks the slots as holding no declaration until [applied] is written again, and returns what [applied] held.
+     * A write that throws leaves the mark standing.
+     */
+    internal fun startWrite(): SwingModifier {
+        val held = applied
+        if (held !is UnfinishedPass) applied = if (chain.isEmpty()) UnfinishedPass.NoneHanded else UnfinishedPass.Handed
+        return held
+    }
 
     private var propertyCaptures: PropertyCaptures? = null
 
@@ -518,29 +776,156 @@ public class SwingModifierState internal constructor() {
     }
 
     /**
-     * Takes every standing slot apart and drops it: the property slots in the reverse of the order the
-     * modifier declared them last, then the subscription slots from the end - the order [applyModifierDiff]
-     * unwinds a departed slot of each kind in.
+     * Every standing slot in the order the slots come apart: the property slots in the reverse of the order
+     * the modifier declared them last, then the additive component slots from the end - the order
+     * [applyModifierDiff] unwinds a departed slot of each kind in - then the parent-layout slots.
+     */
+    internal fun standingInUnwindOrder(): List<NodeRecord<*, *>> {
+        val unwinding = ArrayList<NodeRecord<*, *>>(records.size + chain.size)
+        forEachStandingKeyInUnwindOrder { key -> unwinding += records.getValue(key) }
+        for (index in chain.indices.reversed()) {
+            if (chain[index] is ElementRecord<*, *>) unwinding += chain[index]
+        }
+        chain.fastForEach { if (it is LayoutNodeRecord) unwinding += it }
+        return unwinding
+    }
+
+    /**
+     * Takes every component slot apart and drops it, in [standingInUnwindOrder]: every node runs
+     * [SwingModifier.Node.onDetach], and only then is any node marked detached. The parent-layout slots stand.
      *
      * What the modifier captured is left in place. Every hold on it is taken by a slot and given up when that slot
      * detaches, so a modifier with no slots left holds no captured value, and a slot attaching afterwards
      * captures what the component stands at then.
      */
-    internal fun unwind(diagnostics: SwingCompositionDiagnostics?) {
-        forEachStandingKeyInUnwindOrder { key -> records.getValue(key).detach(diagnostics) }
-        for (index in additiveRecords.indices.reversed()) {
-            additiveRecords[index].detach(diagnostics)
+    internal fun unwindComponentNodes(diagnostics: SwingCompositionDiagnostics?): Boolean {
+        var componentSlots = records.size
+        chain.fastForEach { if (it is ElementRecord<*, *>) componentSlots++ }
+        if (componentSlots == 0) {
+            declaredKeyOrder.clear()
+            return false
         }
+        val unwinding = standingInUnwindOrder().filter { it is ElementRecord<*, *> }
+        unwinding.fastForEach { it.runDetachLifecycle(diagnostics) }
+        unwinding.fastForEach { it.markDetached() }
         records.clear()
-        additiveRecords.clear()
         declaredKeyOrder.clear()
+        return chain.removeAll { it is ElementRecord<*, *> }
+    }
+
+    /**
+     * Puts the [chain]'s slots in the order [elements] - the [ModifierPartition.chain] the slots were diffed
+     * against - declares them, each family keeping its own order, and returns whether any slot moved. Walks the chain
+     * once where it stands in that order already, which is where no slot of either family entered, left or changed
+     * places with one of the other.
+     */
+    internal fun orderChain(elements: List<SwingModifier.Element>): Boolean {
+        var moved = false
+        for (index in elements.indices) {
+            val layout = elements[index] is ParentLayoutNodeElement<*>
+            var from = index
+            while ((chain[from] is LayoutNodeRecord) != layout) from++
+            if (from != index) {
+                chain.add(index, chain.removeAt(from))
+                moved = true
+            }
+        }
+        return moved
+    }
+
+    /** Drops every slot record, once each slot's node has detached. */
+    internal fun clear() {
+        records.clear()
+        chain.clear()
+        declaredKeyOrder.clear()
+    }
+
+    /** Hands [action] every slot whose node is a [CompositionLocalConsumerModifierNode]. */
+    internal inline fun forEachLocalConsumer(action: (NodeRecord<*, *>) -> Unit) {
+        for (record in records.values) {
+            if (record.node is CompositionLocalConsumerModifierNode) action(record)
+        }
+        chain.fastForEach { record ->
+            if (record.node is CompositionLocalConsumerModifierNode) action(record)
+        }
+    }
+
+    /** Runs the `update` of the slot holding [node] again, against [node]'s component. */
+    internal fun refreshLocalConsumer(node: SwingModifier.ComponentNode<*>) {
+        val diagnostics = node.holder?.owner?.diagnostics
+        val held = startWrite()
+        if (!rewritePropertySlotsFrom(node.component, diagnostics) { it.node === node }) {
+            chain.firstOrNull { it.node === node }?.refresh(node.component, diagnostics)
+        }
+        applied = held
+    }
+
+    /**
+     * Runs the `update` of the first property slot [from] picks again, and then of every property slot the
+     * modifier declared after it, in declared order, so a later declaration stands over the property that
+     * slot writes, as [diffKeyedElements] keeps it once a slot has written. Returns whether [from] picked one.
+     */
+    internal fun rewritePropertySlotsFrom(
+        target: Component,
+        diagnostics: SwingCompositionDiagnostics?,
+        from: (ElementRecord<*, *>) -> Boolean,
+    ): Boolean {
+        var writing = false
+        val rewrite = { record: ElementRecord<*, *> ->
+            if (writing || from(record)) {
+                writing = true
+                record.refresh(target, diagnostics)
+            }
+        }
+        declaredKeyOrder.fastForEach { key -> records[key]?.let(rewrite) }
+        // A slot a pass that threw installed without recording its key attached last.
+        for ((key, record) in records) {
+            if (key !in declaredKeyOrder) rewrite(record)
+        }
+        return writing
     }
 }
 
 /**
+ * What [SwingModifierState.applied] holds while the slots are being written: equal to no declaration, carrying
+ * whether the nodes last handed to a [DeclaredNodesListener] were any.
+ */
+private class UnfinishedPass private constructor(
+    val handedNodes: Boolean,
+) : SwingModifier {
+    override fun <R> foldIn(
+        initial: R,
+        operation: (R, SwingModifier.Element) -> R,
+    ): R = initial
+
+    companion object {
+        val Handed = UnfinishedPass(handedNodes = true)
+        val NoneHanded = UnfinishedPass(handedNodes = false)
+    }
+}
+
+/**
+ * Stores [map] - the whole set of [CompositionLocal][androidx.compose.runtime.CompositionLocal]s in
+ * scope where this node was declared - on the node, so a capability that reads one of them does not need
+ * a [SwingNode][org.jetbrains.compose.swing.node.SwingNode]/[MenuNode][org.jetbrains.compose.swing.node.MenuNode]
+ * parameter of its own.
+ *
+ * Called before [applyModifier] in the same update block, so a node attached by that modifier reads the
+ * current map. A map replacing the one a [CompositionLocalConsumerModifierNode] read holds this node for the end of
+ * the batch, where [refreshLocalConsumers][org.jetbrains.compose.swing.node.refreshLocalConsumers] runs after every
+ * node's update block and modifier diff, so the modifier writes last.
+ */
+@PublishedApi
+internal fun SwingNodeUpdater<out Component>.applyCompositionLocalMap(map: CompositionLocalMap): Unit =
+    updater.set(map) {
+        compositionLocalMap = it
+        if (observesLocals()) requireOwner().updateBatch.holdForLocalsRefresh(this)
+    }
+
+/**
  * Applies [modifier] to this node, diffing against the modifier applied on the previous composition:
  * new elements are applied, persisting elements re-applied, and elements that disappeared are
- * [detached][SwingModifier.Node.onDetach] (restoring the value the component had before the modifier
+ * [detached][SwingModifier.ComponentNode.onDetach] (restoring the value the component had before the modifier
  * first touched that property).
  *
  * Runs after the component's own `set`s, so a modifier can override component defaults. A modifier
@@ -571,11 +956,12 @@ internal fun SwingNodeUpdater<out Component>.applyModifier(modifier: SwingModifi
  * anything the node applied has to change for it.
  *
  * A node with no modifier state yet has applied no modifier, so its first declaration always diffs; a node
- * whose state was reset - released, reused, parked - is in that same position and rebuilds from scratch.
+ * whose state was reset - released, reused, parked - is in that same position and rebuilds from scratch. A node
+ * whose last diff threw partway diffs its next declaration too.
  */
-private fun SwingNodeHolder<Component>.applyDeclaredModifier(modifier: SwingModifier) {
+internal fun SwingNodeHolder<Component>.applyDeclaredModifier(modifier: SwingModifier) {
     val state = modifierState
-    if (state != null && adoptDeclaration(state.applied, modifier, state.additiveRecords, 0) != DIVERGED) {
+    if (state != null && adoptDeclaration(state.applied, modifier, state.chain, 0) != DIVERGED) {
         state.applied = modifier
         return
     }
@@ -591,9 +977,9 @@ private const val DIVERGED = -1
  * as soon as the two modifiers differ, since past that point an element is no longer paired with its own
  * slot. The diff that follows is what pairs the rest, by key and by position, adopting as it goes.
  *
- * [matched] indexes [records], which hold the additive slots in the order the modifier declares them: this
- * walk takes the same path through a modifier as [SwingModifier.foldIn], so a prefix of the path it matched
- * is a prefix of those slots.
+ * [matched] indexes [records], the [chain][SwingModifierState.chain]: this walk takes the same path through a
+ * modifier as [SwingModifier.foldIn], so a prefix of the path it matched is a prefix of its additive slots.
+ * The parent-layout slots among them are passed over, and their elements compared by equality.
  *
  * The two walks agreeing is what this fast path is worth, not what makes it safe. A walk taking another
  * path than the fold reaches a slot holding a registration its element does not match, [DIVERGED] is
@@ -604,7 +990,7 @@ private const val DIVERGED = -1
 private fun adoptDeclaration(
     applied: SwingModifier,
     next: SwingModifier,
-    records: ArrayList<ElementRecord<*, *>>,
+    records: ArrayList<NodeRecord<*, *>>,
     matched: Int,
 ): Int =
     when {
@@ -622,24 +1008,36 @@ private fun adoptDeclaration(
         }
     }
 
-/** Asks the slot [applied] occupies - [records] at [matched], where it is an additive one - for [next]. */
+/**
+ * Asks the slot [applied] occupies - the first component slot of [records] from [matched], where it is an additive
+ * one - for [next].
+ */
 private fun adoptElement(
     applied: SwingModifier.NodeElement<*, *>,
     next: SwingModifier.NodeElement<*, *>,
-    records: ArrayList<ElementRecord<*, *>>,
+    records: ArrayList<NodeRecord<*, *>>,
     matched: Int,
 ): Int {
     // A keyed element owns a slot as well, but nothing keyed carries anything read live, so equality is
     // the whole of what its slot has to be asked and the keyed records are never indexed here.
     if (!applied.additive) return if (applied == next) matched else DIVERGED
-    val record = records.getOrNull(matched)
-    return if (record != null && record.adopt(next)) matched + 1 else DIVERGED
+    var index = matched
+    while (records.getOrNull(index) is LayoutNodeRecord) index++
+    val record = records.getOrNull(index)
+    return if (record is ElementRecord<*, *> && record.adopt(next)) index + 1 else DIVERGED
 }
 
 @VisibleForTesting
 internal fun SwingNodeHolder<Component>.applyModifierDiff(modifier: SwingModifier) {
-    val target = component
+    // A holder with no modifier state attaches its chain whole: on its first apply, and on the first after a
+    // release, a reuse or a deactivation reset it.
+    var attachesWholeChain = modifierState == null
     val state = modifierState ?: SwingModifierState().also { modifierState = it }
+    // A holder whose last write threw has slots holding no declaration: every slot is written again, and the
+    // nodes it attached are handed over.
+    val adoptable = state.startWrite() !is UnfinishedPass
+    val handedNodes = state.handedNodes
+    var chainChanged = !adoptable
     // Read off the owner rather than held: the node is attached to its composition before its update
     // block runs, so the owner answers for every write this pass makes.
     val diagnostics = owner?.diagnostics
@@ -666,107 +1064,220 @@ internal fun SwingNodeHolder<Component>.applyModifierDiff(modifier: SwingModifie
     // into a region, and it moves one whose modifier declares a region other than the one it is in.
     val slot = incoming.slot
     val parentDeclarations = incoming.parentDeclarations
-    val parentData = incoming.parentData
-    val parentProtocol = incoming.parentProtocol
-    val parentLayoutElements = incoming.parentLayoutElements
     val declaredKeys = incoming.keys
-    checkOnePlacement(slot, parentDeclarations.filterIsInstance<ParentLayoutElement>())
+    checkOnePlacement(slot, parentDeclarations)
     declaration.checkParentElementsAccepted(parentDeclarations)
     declaredSlot = slot?.let { DeclaredSlot(it.parentProtocol, it.attachment, it.regionName) }
-    declaration.applyComponentLayout(parentData, parentProtocol, parentLayoutElements)
 
-    // A modifier tied to other keys than the ones applied last is applied from scratch rather than
-    // diffed: every standing slot comes apart, putting back what it captured, and the diff below finds
-    // no slot to keep and attaches the whole modifier afresh. See [key] for what that is worth.
-    if (state.declaredKeys != declaredKeys) state.unwind(diagnostics)
+    // A modifier tied to other keys than the ones applied last has its component nodes applied from
+    // scratch rather than diffed: every component slot comes apart, putting back what it captured, and the
+    // chain below attaches them afresh. The layout nodes stand and are diffed. See [key] for what that is
+    // worth.
+    if (state.declaredKeys != declaredKeys) {
+        if (state.unwindComponentNodes(diagnostics)) chainChanged = true
+        attachesWholeChain = true
+    }
     state.declaredKeys = declaredKeys
+    // A holder with no owner has no batch to publish the declaration on; a visit mid-pass walks its stored chain.
+    val batch = owner?.updateBatch
+    val outerState = batch?.diffingState
+    val outerDeclaration = batch?.diffingDeclaration
+    batch?.diffingState = state
+    batch?.diffingDeclaration = incoming.chain
+    try {
+        // Every node attaching whole is marked before the first onAttach runs; a node entering a standing chain
+        // is marked and run on its own, by the diffs, which find the nodes a whole attach ran standing on their
+        // own elements. The layout nodes go first, so the declaration the parent reads is published before any
+        // component node runs - and, by a pass that throws partway, with the layout nodes standing then.
+        val marksNodes = attachesWholeChain && (incoming.keyed.isNotEmpty() || incoming.chain.isNotEmpty())
+        val marked = if (marksNodes) MarkedChain.mark(this, state, incoming) else null
+        // Taken as joined where the layout diff throws, so the parent reads the layout nodes that stand.
+        var layoutChange = SlotChange.JoinedOrLeft
+        try {
+            // Nodes a whole attach just updated hold their elements whatever the last pass left.
+            val attached = marked?.runLayoutLifecycles(state, diagnostics) == true
+            val diffed = diffChainSlots(this, state, incoming.chain, LayoutNodeFamily, adoptable || attached)
+            layoutChange = if (attached) SlotChange.JoinedOrLeft else diffed
+        } finally {
+            declaration.applyComponentLayout(
+                incoming.parentData,
+                incoming.parentProtocol,
+                incoming.parentLayoutElements,
+                layoutChange != SlotChange.Unchanged,
+            )
+        }
+        if (layoutChange == SlotChange.JoinedOrLeft) chainChanged = true
+        if (applyComponentSlots(state, incoming, marked, adoptable)) chainChanged = true
+        if (state.orderChain(incoming.chain)) chainChanged = true
+    } finally {
+        batch?.diffingState = outerState
+        batch?.diffingDeclaration = outerDeclaration
+    }
 
-    diffKeyedElements(target, state, incoming, diagnostics)
-    diffAdditiveElements(target, state, incoming, diagnostics)
-
-    // Recorded once the slots hold it, so a diff that fails partway leaves the modifier it did not finish
-    // applying to be diffed again rather than adopted.
     state.applied = modifier
+    notifyDeclaredNodes(chainChanged, handedNodes)
 }
 
 /**
- * Creates a node for [element], injects the [checkedTarget] component, runs [SwingModifier.Node.onAttach],
- * then pushes the element's data with [SwingModifier.NodeElement.update] - the first-install order. Returns
- * an [ElementRecord] whose [ElementRecord.rebindAndRefresh] re-runs the element's `update` against the
- * same node.
- *
- * Typing [N] here keeps `create()`/`update()` together with no cast: the returned record holds the
- * concrete node, so a later recomposition pushes fresh data without re-narrowing the node's type.
+ * Runs the component nodes [marked] attaches, or diffs the keyed slots of [partition] where none does, then diffs
+ * the additive component slots. Returns whether a slot joined or left the chain. A slot standing from before this
+ * pass adopts an equal element only where [adoptable].
  */
-private fun <T : Component, N : SwingModifier.Node<T>> attachElement(
-    element: SwingModifier.NodeElement<T, N>,
-    raw: Component,
-    state: SwingModifierState,
-    diagnostics: SwingCompositionDiagnostics?,
-): ElementRecord<T, N> {
-    val typed = checkedTarget(element, raw)
-    val node = element.create()
-    check(node.attachedComponent == null) {
-        "A SwingModifier.Node instance may not be attached to multiple components simultaneously"
-    }
-    node.attachedComponent = typed
-    node.modifierState = state
-    // A slot's install is one write however the node splits it: some capture an original in onAttach and
-    // write the declaration in update, others write in onAttach and have nothing to add.
-    diagnostics.watchWrite(typed, node, element) {
-        node.onAttach()
-        element.update(node)
-    }
-    // element.javaClass is typed Class<out NodeElement<T, N>>: capturing it lets a later rebind
-    // Class.cast-check a new element of the same type onto this node without an unchecked cast.
-    return ElementRecord(node, element.javaClass, element)
-}
-
-/**
- * Re-checks the target type (the component is stable, but re-narrowing keeps the error path identical
- * to first apply) and pushes the element's latest data onto its node via [SwingModifier.NodeElement.update].
- */
-private fun <T : Component, N : SwingModifier.Node<T>> refreshElement(
-    element: SwingModifier.NodeElement<T, N>,
-    raw: Component,
-    node: N,
-) {
-    checkedTarget(element, raw)
-    element.update(node)
-}
-
-/**
- * Narrows the node to an element's target type. A node that is not the required type is rejected with
- * a clear message naming the element ([SwingModifier.NodeElement.name]) and the required vs. actual type.
- */
-private fun <T : Component> checkedTarget(
-    element: SwingModifier.NodeElement<T, *>,
-    raw: Component,
-): T {
-    val targetType = element.targetType
-    if (!targetType.isInstance(raw)) {
-        error(
-            "Modifier element ${element.name} requires a ${targetType.name} target, " +
-                "but the component is a ${raw.javaClass.name}",
-        )
-    }
-    return targetType.cast(raw)
-}
-
-/** Diffs the keyed (last-wins) property elements: detach departed keys, then add/refresh the rest. */
-private fun diffKeyedElements(
-    target: Component,
+private fun SwingNodeHolder<*>.applyComponentSlots(
     state: SwingModifierState,
     partition: ModifierPartition,
+    marked: MarkedChain?,
+    adoptable: Boolean,
+): Boolean {
+    val diagnostics = owner?.diagnostics
+    val attached =
+        if (marked == null) {
+            diffKeyedElements(this, state, partition, adoptable, diagnostics)
+            false
+        } else {
+            marked.runComponentLifecycles(state, partition, diagnostics)
+        }
+    // A whole attach leaves no component slot standing from before this pass.
+    val diffed = diffChainSlots(this, state, partition.chain, ComponentNodeFamily, adoptable || marked != null)
+    return attached || diffed == SlotChange.JoinedOrLeft
+}
+
+/**
+ * The nodes of a chain [mark] marked attached, whose `onAttach` has yet to run.
+ *
+ * A slot is recorded before its node's `onAttach` runs and dropped again if `onAttach` throws, so a pass that throws
+ * partway leaves the nodes whose `onAttach` did not run unrecorded, as the diff does. The keyed nodes stand in the
+ * order of [ModifierPartition.keyed].
+ */
+private class MarkedChain(
+    private val keyed: List<ElementRecord<*, *>>,
+    private val components: List<ElementRecord<*, *>>,
+    private val layoutNodes: List<LayoutNodeRecord>,
+) {
+    /**
+     * Runs each parent-layout node - its `onAttach` and its element's `update` - in turn. Returns whether any
+     * joined the chain.
+     */
+    fun runLayoutLifecycles(
+        state: SwingModifierState,
+        diagnostics: SwingCompositionDiagnostics?,
+    ): Boolean {
+        layoutNodes.fastForEach { record -> record.runAttachLifecycle(diagnostics, state.chain) }
+        return layoutNodes.isNotEmpty()
+    }
+
+    /**
+     * Runs each component node in turn, keyed slots first, as the diff attaches them. Returns whether any joined the
+     * chain.
+     */
+    fun runComponentLifecycles(
+        state: SwingModifierState,
+        partition: ModifierPartition,
+        diagnostics: SwingCompositionDiagnostics?,
+    ): Boolean {
+        var index = 0
+        for (key in partition.keyed.keys) {
+            val record = keyed[index++]
+            record.runAttachLifecycle(diagnostics, { state.records[key] = record }, { state.records.remove(key) })
+        }
+        state.declaredKeyOrder.clear()
+        state.declaredKeyOrder.addAll(partition.keyed.keys)
+        components.fastForEach { record -> record.runAttachLifecycle(diagnostics, state.chain) }
+        return components.isNotEmpty()
+    }
+
+    companion object {
+        /**
+         * Creates and marks attached a node for every component element of [partition], and for every parent-layout
+         * element where no parent-layout slot stands in [state], for a holder attaching its chain whole, without
+         * running any `onAttach`.
+         */
+        fun mark(
+            holder: SwingNodeHolder<*>,
+            state: SwingModifierState,
+            partition: ModifierPartition,
+        ): MarkedChain {
+            val keyedElements = partition.keyed.values
+            keyedElements.forEach { checkedTarget(it, holder.component) }
+            val elements = partition.chain
+            var componentCount = 0
+            elements.fastForEach {
+                if (it is SwingModifier.NodeElement<*, *>) {
+                    checkedTarget(it, holder.component)
+                    componentCount++
+                }
+            }
+            val layoutNodeCount = elements.size - componentCount
+            val keyed = ArrayList<ElementRecord<*, *>>(keyedElements.size)
+            keyedElements.forEach { keyed += ElementRecord.mark(it, holder) }
+            val components =
+                if (componentCount == 0) {
+                    emptyList()
+                } else {
+                    ArrayList<ElementRecord<*, *>>(componentCount).also { marked ->
+                        elements.fastForEach {
+                            if (it is SwingModifier.NodeElement<*, *>) marked += ElementRecord.mark(it, holder)
+                        }
+                    }
+                }
+            // A key change leaves the parent-layout slots standing, and the diff pairs them with their elements.
+            val layoutNodes =
+                if (layoutNodeCount == 0 || state.chain.isNotEmpty()) {
+                    emptyList()
+                } else {
+                    ArrayList<LayoutNodeRecord>(layoutNodeCount).also { marked ->
+                        elements.fastForEach {
+                            if (it is ParentLayoutNodeElement<*>) marked += LayoutNodeRecord.mark(it, holder)
+                        }
+                    }
+                }
+            return MarkedChain(keyed, components, layoutNodes)
+        }
+    }
+}
+
+/**
+ * Checks the component with [checkedTarget], creates a node for [element], attaches it in the modifier of [holder],
+ * records its [ElementRecord] in [records] under [key], then runs its `onAttach` and pushes the element's data with
+ * [SwingModifier.NodeElement.update] - the first-install order for a property slot entering a standing modifier.
+ * The record's [ElementRecord.rebindAndWrite] re-runs the element's `update` against the same node.
+ *
+ * @param element the element entering the slot, which builds the node and pushes its data onto it.
+ * @param holder the node holder whose component the element targets, narrowed to the element's target type
+ *   before anything is written, and whose composition's diagnostics watch the write.
+ * @param records the keyed slots, which hold the slot from before its `onAttach`, and drop it if `onAttach` throws,
+ *   so a failing `update` leaves it to release.
+ * @param key the key the slot is held under.
+ */
+private fun <T : Component, N : SwingModifier.ComponentNode<T>> attachElement(
+    element: SwingModifier.NodeElement<T, N>,
+    holder: SwingNodeHolder<*>,
+    records: MutableMap<Any, ElementRecord<*, *>>,
+    key: Any,
+) {
+    val record = ElementRecord.mark(element, holder)
+    record.runAttachLifecycle(holder.owner?.diagnostics, { records[key] = record }, { records.remove(key) })
+}
+
+/**
+ * Diffs the keyed (last-wins) property elements: detach departed keys, then add/refresh the rest. A slot adopts an
+ * equal element only where [adoptable].
+ */
+private fun diffKeyedElements(
+    holder: SwingNodeHolder<*>,
+    state: SwingModifierState,
+    partition: ModifierPartition,
+    adoptable: Boolean,
     diagnostics: SwingCompositionDiagnostics?,
 ) {
+    val target = holder.component
     val records = state.records
     val incoming = partition.keyed
     val declaredKeyOrder = state.declaredKeyOrder
 
     // Detach + drop elements whose key left the modifier, last declared first: a slot restoring through an
     // object a later slot declared needs that object still standing.
-    var wrote = false
+    var wrote = !adoptable
     state.forEachStandingKeyInUnwindOrder { key ->
         if (key !in incoming) {
             records.remove(key)?.detach(diagnostics)
@@ -790,7 +1301,7 @@ private fun diffKeyedElements(
         val record = records[key]
         when {
             record == null -> {
-                records[key] = attachElement(element, target, state, diagnostics)
+                attachElement(element, holder, records, key)
                 wrote = true
             }
 
@@ -798,10 +1309,12 @@ private fun diffKeyedElements(
             // restore on one pass and without it on the next is the shape that does. The slot's node
             // was built for one of them and cannot host the other, so the slot restores and is built
             // again. The restore runs first, so the arriving element captures what the component
-            // carried before this key declared anything rather than what the departing write left.
+            // carried before this key declared anything rather than what the departing write left. The slot
+            // is dropped as it comes apart, so an arriving element that is refused leaves no detached node behind.
             !record.canRebind(element) -> {
+                records.remove(key)
                 record.detach(diagnostics)
-                records[key] = attachElement(element, target, state, diagnostics)
+                attachElement(element, holder, records, key)
                 wrote = true
             }
 
@@ -809,8 +1322,9 @@ private fun diffKeyedElements(
                 record.rebindAndWrite(element, target, diagnostics)
             }
 
-            else -> {
-                wrote = record.rebindAndRefresh(element, target, diagnostics)
+            !record.adopt(element) -> {
+                record.rebindAndWrite(element, target, diagnostics)
+                wrote = true
             }
         }
     }
@@ -819,59 +1333,126 @@ private fun diffKeyedElements(
     declaredKeyOrder.addAll(incoming.keys)
 }
 
-/**
- * Diffs the additive (subscription) elements by position: a position present last time but gone now is
- * detached and removed; a persisting position keeps its node and is refreshed via update(); a new
- * trailing position is created and attached. A conditional modifier chain changing shape can hand a persisting
- * position an element of a different kind; the slot's node cannot host it, so the slot is swapped
- * wholesale - the new element attaches fresh and the old node then detaches, removing its listener.
- */
-private fun diffAdditiveElements(
-    target: Component,
-    state: SwingModifierState,
-    partition: ModifierPartition,
-    diagnostics: SwingCompositionDiagnostics?,
-) {
-    val records = state.additiveRecords
-    val incoming = partition.additive
+/** The slots of one family of the [chain][SwingModifierState.chain], and the elements of the modifier they hold. */
+private class ChainFamily(
+    val elementType: Class<out SwingModifier.Element>,
+    val slotType: Class<out NodeRecord<*, *>>,
+)
 
-    // Detach + drop trailing positions that left the modifier, from the end.
-    while (records.size > incoming.size) {
-        records.removeAt(records.size - 1).detach(diagnostics)
+private val ComponentNodeFamily = ChainFamily(SwingModifier.NodeElement::class.java, ElementRecord::class.java)
+
+private val LayoutNodeFamily = ChainFamily(ParentLayoutNodeElement::class.java, LayoutNodeRecord::class.java)
+
+/**
+ * Diffs the [chain][SwingModifierState.chain]'s slots of [family] against its elements among [elements], by
+ * position among them: the k-th slot of the family is handed the k-th element of it, so an element of the other
+ * family entering or leaving moves no slot of this one. Slots past the family's last element detach first, from
+ * the end; a persisting slot keeps its node and is refreshed via update(); a new slot is attached at the end of
+ * the chain, for [SwingModifierState.orderChain] to put in place. A conditional modifier chain changing shape can
+ * hand a slot an element of a different kind; the slot's node cannot host it, so the slot is swapped wholesale -
+ * the new element attaches fresh and the old node then detaches, removing its listener. A slot adopts an equal
+ * element only where [adoptable]. Returns the largest change it made to a slot.
+ */
+private fun diffChainSlots(
+    holder: SwingNodeHolder<*>,
+    state: SwingModifierState,
+    elements: List<SwingModifier.Element>,
+    family: ChainFamily,
+    adoptable: Boolean,
+): SlotChange {
+    val target = holder.component
+    val diagnostics = holder.owner?.diagnostics
+    val records = state.chain
+    var declared = 0
+    elements.fastForEach { if (family.elementType.isInstance(it)) declared++ }
+    var standing = 0
+    records.fastForEach { if (family.slotType.isInstance(it)) standing++ }
+
+    // Detach + drop the slots past the family's last element, from the end.
+    var change = SlotChange.Unchanged
+    var last = records.size
+    while (standing > declared) {
+        if (family.slotType.isInstance(records[--last])) {
+            records.removeAt(last).detach(diagnostics)
+            change = SlotChange.JoinedOrLeft
+            standing--
+        }
     }
 
-    // Apply (add or refresh) each position. A persisting position of the same kind refreshes via
-    // update(), keeping a node-installed listener's callbacks current without reattaching.
-    for (index in incoming.indices) {
-        val element = incoming[index]
+    // Apply (add or refresh) each element. A persisting slot of the same kind refreshes via update(), keeping a
+    // node-installed listener's callbacks current without reattaching.
+    var index = 0
+    elements.fastForEach { element ->
+        if (!family.elementType.isInstance(element)) return@fastForEach
+        while (index < records.size && !family.slotType.isInstance(records[index])) index++
         val record = records.getOrNull(index)
         when {
             record == null -> {
-                records.add(attachElement(element, target, state, diagnostics))
+                val attaching = NodeRecord.mark(element, holder)
+                attaching.runAttachLifecycle(diagnostics, records)
+                change = SlotChange.JoinedOrLeft
             }
 
             record.canRebind(element) -> {
-                record.rebindAndRefresh(element, target, diagnostics)
+                if (!adoptable || !record.adopt(element)) {
+                    record.rebindAndWrite(element, target, diagnostics)
+                    change = maxOf(change, SlotChange.Written)
+                }
             }
 
             else -> {
                 // The replacement attaches first: an element the component is not the target of is
                 // refused here, and the slot is left holding the node it has rather than a detached one
-                // every later teardown would fail on.
-                records[index] = attachElement(element, target, state, diagnostics)
-                record.detach(diagnostics)
+                // every later teardown would fail on. The slot takes its node back if onAttach throws.
+                val replacement = NodeRecord.mark(element, holder)
+                records[index] = replacement
+                try {
+                    replacement.runAttachLifecycle(diagnostics, {}, { records[index] = record })
+                } finally {
+                    if (records[index] === replacement) record.detach(diagnostics)
+                }
+                change = SlotChange.JoinedOrLeft
             }
         }
+        index++
     }
+    return change
+}
+
+/** What [diffChainSlots] did to the slots of one family, from least to most. */
+private enum class SlotChange {
+    /** Every slot adopted its element. */
+    Unchanged,
+
+    /** A slot was written with its element, and none joined or left the chain. */
+    Written,
+
+    /** A slot joined or left the chain. */
+    JoinedOrLeft,
 }
 
 /**
- * Detaches every modifier-installed node and restores every modified property to the value captured
- * before the modifier touched it. Invoked by [SwingNodeHolder] on release, reuse and deactivate, so a
- * node's modifier state never carries over to content it no longer drives.
+ * Detaches every node of the modifier, both the component nodes and the layout nodes its parent interprets,
+ * and restores every modified property to the value captured before the modifier touched it. Invoked by
+ * [SwingNodeHolder] on release, reuse and deactivate, so a node's modifier state never carries over to
+ * content it no longer drives.
+ *
+ * The whole chain comes apart in phases: on reuse and deactivation ([reset] set) every node runs
+ * [SwingModifier.Node.onReset], then every node runs [SwingModifier.Node.onDetach], and only then is any node
+ * marked detached.
  */
-internal fun SwingNodeHolder<*>.resetModifierState() {
-    val state = modifierState ?: return
-    state.unwind(owner?.diagnostics)
+internal fun SwingNodeHolder<*>.resetModifierState(reset: Boolean = false) {
+    val state = modifierState
+    val diagnostics = owner?.diagnostics
+    val handedNodes = state?.handedNodes == true
+    val unwinding = state?.standingInUnwindOrder().orEmpty()
+    if (reset) unwinding.fastForEach { it.node.reset() }
+    unwinding.fastForEach { it.runDetachLifecycle(diagnostics) }
+    unwinding.fastForEach { it.markDetached() }
+    declaration.dropLayoutNodes()
+    state?.clear()
+    notifyDeclaredNodes(chainChanged = true, handedNodes)
     modifierState = null
 }
+
+internal class ModifierNodeDetachedCancellationException : CancellationException("The modifier node was detached")

@@ -179,7 +179,7 @@ class RepaintedRegionsTest {
 
     private fun applierOver(root: Container): SwingApplier = SwingApplier(SwingNodeHolder(root).attachedTo(owner()))
 
-    private fun owner(): TestCompositionOwner = TestCompositionOwner.observing().also { owners += it }
+    private fun owner(): TestCompositionOwner = TestCompositionOwner().also { owners += it }
 
     private fun block(
         color: Color,

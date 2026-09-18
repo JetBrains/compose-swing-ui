@@ -63,7 +63,19 @@ public fun SwingModifier.containerListener(listener: ContainerListener): SwingMo
 private class ContainerCallbacks(
     val onComponentAdded: (ContainerEvent) -> Unit,
     val onComponentRemoved: (ContainerEvent) -> Unit,
-)
+) : CallbackBundle {
+    override fun equals(other: Any?): Boolean {
+        if (other !is ContainerCallbacks) return false
+        if (!sameCallback(onComponentAdded, other.onComponentAdded)) return false
+        return sameCallback(onComponentRemoved, other.onComponentRemoved)
+    }
+
+    override fun hashCode(): Int {
+        var result = callbackHash(onComponentAdded)
+        result = 31 * result + callbackHash(onComponentRemoved)
+        return result
+    }
+}
 
 private val CONTAINER =
     ListenerRegistration<Container, ContainerListener>(

@@ -107,7 +107,29 @@ private class InternalFrameCallbacks(
     val onFrameDeiconified: (InternalFrameEvent) -> Unit,
     val onFrameActivated: (InternalFrameEvent) -> Unit,
     val onFrameDeactivated: (InternalFrameEvent) -> Unit,
-)
+) : CallbackBundle {
+    override fun equals(other: Any?): Boolean {
+        if (other !is InternalFrameCallbacks) return false
+        if (!sameCallback(onFrameOpened, other.onFrameOpened)) return false
+        if (!sameCallback(onFrameClosing, other.onFrameClosing)) return false
+        if (!sameCallback(onFrameClosed, other.onFrameClosed)) return false
+        if (!sameCallback(onFrameIconified, other.onFrameIconified)) return false
+        if (!sameCallback(onFrameDeiconified, other.onFrameDeiconified)) return false
+        if (!sameCallback(onFrameActivated, other.onFrameActivated)) return false
+        return sameCallback(onFrameDeactivated, other.onFrameDeactivated)
+    }
+
+    override fun hashCode(): Int {
+        var result = callbackHash(onFrameOpened)
+        result = 31 * result + callbackHash(onFrameClosing)
+        result = 31 * result + callbackHash(onFrameClosed)
+        result = 31 * result + callbackHash(onFrameIconified)
+        result = 31 * result + callbackHash(onFrameDeiconified)
+        result = 31 * result + callbackHash(onFrameActivated)
+        result = 31 * result + callbackHash(onFrameDeactivated)
+        return result
+    }
+}
 
 private val INTERNAL_FRAME =
     ListenerRegistration<JInternalFrame, InternalFrameListener>(

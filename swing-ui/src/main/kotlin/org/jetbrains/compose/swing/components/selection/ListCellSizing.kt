@@ -49,14 +49,14 @@ private data class CellSizingElement(
 }
 
 /**
- * The [SwingModifier.Node] behind [listCellSizing]. It sizes the list as its element declares, and puts
+ * The [SwingModifier.ComponentNode] behind [listCellSizing]. It sizes the list as its element declares, and puts
  * back the sizing the list had before the chain reached it.
  *
  * What it puts back is read off the list once, on attach, rather than tracked across writes: a dimension
  * no declaration states is left at whatever the prototype measured, and the list is the only thing that
  * knows what that came out as.
  */
-private class CellSizingNode : SwingModifier.Node<JList<Any?>>() {
+private class CellSizingNode : SwingModifier.ComponentNode<JList<Any?>>() {
     private var restore: CellSizing? = null
 
     override fun onAttach() {

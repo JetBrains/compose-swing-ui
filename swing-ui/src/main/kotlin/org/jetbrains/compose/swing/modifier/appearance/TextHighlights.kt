@@ -94,7 +94,7 @@ private class HighlightsElement(
         node.paintDeclared()
     }
 
-    class Node : SwingModifier.Node<JTextComponent>() {
+    class Node : SwingModifier.ComponentNode<JTextComponent>() {
         private val tags = ArrayList<Any>()
 
         /** Paints the declaration again for every change the document makes to what the tags describe. */

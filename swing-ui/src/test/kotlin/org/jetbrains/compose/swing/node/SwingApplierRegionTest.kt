@@ -118,7 +118,7 @@ class SwingApplierRegionTest {
      * leaked (the production path disposes it with the content composition).
      */
     private fun applierFor(root: Container): SwingApplier {
-        val owner = TestCompositionOwner.observing()
+        val owner = TestCompositionOwner()
         owners += owner
         return SwingApplier(SwingNodeHolder(root).attachedTo(owner))
     }

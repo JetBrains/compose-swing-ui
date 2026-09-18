@@ -4,11 +4,15 @@
 package org.jetbrains.compose.swing.modifier.interaction
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.listener.CallbackBundle
+import org.jetbrains.compose.swing.modifier.listener.UNDECLARED
 import org.jetbrains.compose.swing.modifier.listener.UNDECLARED_ACTION
+import org.jetbrains.compose.swing.modifier.listener.callbackHash
 import org.jetbrains.compose.swing.modifier.listener.declared
 import org.jetbrains.compose.swing.modifier.listener.focusListener
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
 import org.jetbrains.compose.swing.modifier.listener.requireAnyDeclared
+import org.jetbrains.compose.swing.modifier.listener.sameCallback
 import org.jetbrains.compose.swing.modifier.propertyElement
 import java.awt.Component
 import java.awt.event.MouseEvent
@@ -66,7 +70,7 @@ public fun SwingModifier.onHover(
     onExit: () -> Unit = UNDECLARED_ACTION,
 ): SwingModifier {
     requireAnyDeclared("onHover", declared(onEnter) || declared(onExit))
-    return mouseListener(onMouseEntered = { onEnter() }, onMouseExited = { onExit() })
+    return mouseListener(onMouseEntered = EventIgnoring(onEnter), onMouseExited = EventIgnoring(onExit))
 }
 
 /**
@@ -85,7 +89,7 @@ public fun SwingModifier.onFocus(
     onLost: () -> Unit = UNDECLARED_ACTION,
 ): SwingModifier {
     requireAnyDeclared("onFocus", declared(onGained) || declared(onLost))
-    return focusListener(onFocusGained = { onGained() }, onFocusLost = { onLost() })
+    return focusListener(onFocusGained = EventIgnoring(onGained), onFocusLost = EventIgnoring(onLost))
 }
 
 /**
@@ -115,8 +119,20 @@ public fun SwingModifier.onPointerEvent(
 ): SwingModifier {
     requireAnyDeclared("onPointerEvent", onPress != null || onRelease != null || onClick != null)
     return mouseListener(
-        onMouseClicked = { event -> onClick?.invoke(event) },
-        onMousePressed = { event -> onPress?.invoke(event) },
-        onMouseReleased = { event -> onRelease?.invoke(event) },
+        onMouseClicked = onClick ?: UNDECLARED,
+        onMousePressed = onPress ?: UNDECLARED,
+        onMouseReleased = onRelease ?: UNDECLARED,
     )
+}
+
+/** Runs [action] on any event. */
+private class EventIgnoring(
+    private val action: () -> Unit,
+) : CallbackBundle,
+    (Any?) -> Unit {
+    override fun equals(other: Any?): Boolean = other is EventIgnoring && sameCallback(action, other.action)
+
+    override fun hashCode(): Int = callbackHash(action)
+
+    override fun invoke(event: Any?): Unit = action()
 }

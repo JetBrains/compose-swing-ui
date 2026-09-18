@@ -62,7 +62,19 @@ public fun SwingModifier.treeExpansionListener(listener: TreeExpansionListener):
 private class TreeExpansionCallbacks(
     val onTreeExpanded: (TreeExpansionEvent) -> Unit,
     val onTreeCollapsed: (TreeExpansionEvent) -> Unit,
-)
+) : CallbackBundle {
+    override fun equals(other: Any?): Boolean {
+        if (other !is TreeExpansionCallbacks) return false
+        if (!sameCallback(onTreeExpanded, other.onTreeExpanded)) return false
+        return sameCallback(onTreeCollapsed, other.onTreeCollapsed)
+    }
+
+    override fun hashCode(): Int {
+        var result = callbackHash(onTreeExpanded)
+        result = 31 * result + callbackHash(onTreeCollapsed)
+        return result
+    }
+}
 
 private val TREE_EXPANSION =
     ListenerRegistration<SwingJTree, TreeExpansionListener>(

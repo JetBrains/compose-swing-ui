@@ -63,6 +63,38 @@ class KeyTest {
     }
 
     @Test
+    fun aChangedTokenAttachesAndDetachesWhereOnlyOneSideDeclaresASlot() = runComposeSwingTest {
+        val counts = ProbeCounts()
+        var token by mutableStateOf(0)
+        var declared by mutableStateOf(false)
+        setContent {
+            val chain = SwingModifier.key(token)
+            SwingNode(
+                factory = { JLabel("X").apply { toolTipText = FOUND } },
+                modifier = if (declared) chain.then(ProbeElement(counts)) else chain,
+            )
+        }
+        val label = onNodeOfType<JLabel>().fetch()
+
+        token = 1
+        awaitIdle()
+        assertEquals(0, counts.attaches.get(), "a token changing over no slot attaches nothing")
+
+        token = 2
+        declared = true
+        awaitIdle()
+        assertEquals(1, counts.attaches.get(), "a changed token over no standing slot attaches the declared one")
+        assertEquals(PROBE, label.toolTipText, "which writes what it declares")
+
+        token = 3
+        declared = false
+        awaitIdle()
+        assertEquals(1, counts.detaches.get(), "a changed token declaring no slot takes the standing one apart")
+        assertEquals(1, counts.attaches.get(), "and attaches nothing")
+        assertEquals(FOUND, label.toolTipText, "the detached slot puts back what the component carried")
+    }
+
+    @Test
     fun anUnchangedTokenLeavesEverySlotStanding() = runComposeSwingTest {
         val counts = ProbeCounts()
         var tick by mutableStateOf(0)
@@ -249,7 +281,7 @@ class KeyTest {
 
         class Node(
             private val counts: ProbeCounts,
-        ) : SwingModifier.Node<JComponent>() {
+        ) : SwingModifier.ComponentNode<JComponent>() {
             private var found: String? = null
 
             override fun onAttach() {
@@ -290,7 +322,7 @@ class KeyTest {
 
         class Node(
             private val caret: DefaultCaret,
-        ) : SwingModifier.Node<JTextComponent>() {
+        ) : SwingModifier.ComponentNode<JTextComponent>() {
             private var found: Caret? = null
 
             override fun onAttach() {

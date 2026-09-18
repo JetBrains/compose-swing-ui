@@ -171,5 +171,5 @@ private class UnrestoredName : SwingModifier.NodeElement<JComponent, UnrestoredN
 
     override fun hashCode(): Int = javaClass.hashCode()
 
-    class Node : SwingModifier.Node<JComponent>()
+    class Node : SwingModifier.ComponentNode<JComponent>()
 }

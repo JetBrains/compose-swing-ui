@@ -127,20 +127,54 @@ internal fun <T : Component, E : EventObject, L : Any> SwingModifier.listener(
     // attached to it.
     @Suppress("UNCHECKED_CAST")
     val scoped = registration as CallbackRegistration<T, (E) -> Unit, L>
-    return listener(
-        targetType = targetType,
-        callback = { event: E ->
-            val source = event.source
-            check(targetType.isInstance(source)) {
-                "a ${event.javaClass.simpleName} sourced at $source is not scoped to ${targetType.simpleName}"
-            }
-            // The check above is the instance test the cast needs.
-            @Suppress("UNCHECKED_CAST")
-            (source as T).onEvent(event)
-        },
-        registration = scoped,
-    )
+    return listener(targetType, ScopedCallback(targetType, onEvent), scoped)
 }
+
+/** Runs [onEvent] with the event's source as the receiver. */
+private class ScopedCallback<T : Component, E : EventObject>(
+    val targetType: KClass<T>,
+    val onEvent: T.(E) -> Unit,
+) : CallbackBundle,
+    (E) -> Unit {
+    override fun equals(other: Any?): Boolean =
+        other is ScopedCallback<*, *> && targetType == other.targetType && sameCallback(onEvent, other.onEvent)
+
+    override fun hashCode(): Int = 31 * targetType.hashCode() + callbackHash(onEvent)
+
+    override fun invoke(event: E) {
+        val source = event.source
+        check(targetType.isInstance(source)) {
+            "a ${event.javaClass.simpleName} sourced at $source is not scoped to ${targetType.simpleName}"
+        }
+        // The check above is the instance test the cast needs.
+        @Suppress("UNCHECKED_CAST")
+        (source as T).onEvent(event)
+    }
+}
+
+/**
+ * A value made of a caller's callbacks, equal to another of its class holding the same callback instances, so
+ * a caller keeping its callbacks keeps the chain equal.
+ *
+ * An implementation compares each callback it holds with [sameCallback] and hashes it with [callbackHash]: a
+ * callback's own `equals` - a bound function reference has one - can call two callbacks equal that run on
+ * different receivers.
+ */
+internal interface CallbackBundle {
+    override fun equals(other: Any?): Boolean
+
+    override fun hashCode(): Int
+}
+
+/** Whether [first] and [second] declare the same callback: [CallbackBundle] by value, anything else by identity. */
+internal fun sameCallback(
+    first: Any,
+    second: Any,
+): Boolean = if (first is CallbackBundle) first == second else first === second
+
+/** The hash code agreeing with [sameCallback]. */
+internal fun callbackHash(callback: Any): Int =
+    if (callback is CallbackBundle) callback.hashCode() else System.identityHashCode(callback)
 
 /**
  * The additive [SwingModifier.NodeElement] backing the instance overload of `listener` and every
@@ -189,7 +223,7 @@ private class InstanceListenerElement<T : Component, L : Any>(
  * through its own registration, even after a positional rebind hands the node an element carrying a
  * different listener type.
  */
-private class InstanceListenerNode<T : Component, L : Any> : SwingModifier.Node<T>() {
+private class InstanceListenerNode<T : Component, L : Any> : SwingModifier.ComponentNode<T>() {
     private var attached: InstanceListenerElement<T, L>? = null
 
     /**
@@ -222,11 +256,11 @@ private class InstanceListenerNode<T : Component, L : Any> : SwingModifier.Node<
  * applied without being diffed, and what a component rebuilding its own callback on every pass costs is
  * that one write.
  *
- * [equals] answers both, comparing the declared callback by identity. A modifier is also a composable's
- * parameter, and a `@Stable` parameter equal to the one passed last is a parameter the runtime skips the
- * composable for - never running the `update` block this element's apply path is reached through. A
- * callback of a new identity is the caller declaring something new, so it has to leave the chain unequal,
- * or the callback the caller replaced would be the one that keeps firing.
+ * [equals] answers both, comparing the declared callback by identity, or a [CallbackBundle] by what it
+ * holds. A modifier is also a composable's parameter, and a `@Stable` parameter equal to the one passed last
+ * is a parameter the runtime skips the composable for - never running the `update` block this element's
+ * apply path is reached through. A callback of a new identity is the caller declaring something new, so it has to leave
+ * the chain unequal, or the callback the caller replaced would be the one that keeps firing.
  */
 private class LiveCallbackListenerElement<T : Component, C : Any, L : Any>(
     override val targetType: Class<T>,
@@ -269,13 +303,13 @@ private class LiveCallbackListenerElement<T : Component, C : Any, L : Any>(
         if (this === other) return true
         if (other !is LiveCallbackListenerElement<*, *, *>) return false
         if (targetType != other.targetType) return false
-        if (declared !== other.declared) return false
+        if (!sameCallback(declared, other.declared)) return false
         return registration == other.registration
     }
 
     override fun hashCode(): Int {
         var result = targetType.hashCode()
-        result = 31 * result + System.identityHashCode(declared)
+        result = 31 * result + callbackHash(declared)
         result = 31 * result + registration.hashCode()
         return result
     }
@@ -288,7 +322,7 @@ private class LiveCallbackListenerElement<T : Component, C : Any, L : Any>(
  */
 private class LiveCallbackListenerNode<T : Component, C : Any, L : Any>(
     private var element: LiveCallbackListenerElement<T, C, L>,
-) : SwingModifier.Node<T>() {
+) : SwingModifier.ComponentNode<T>() {
     /** What the built listener runs when it fires: the callback the latest pass declared for this slot. */
     var callback: C = element.declared
 

@@ -101,16 +101,17 @@ val named = node?.modifier?.foldIn(emptyList<String>()) { names, element ->
 component, or `null` where none did - it reads the component alone, with no slot table to walk. The same
 node is also what a group's own `node` holds, so `findDeclaringGroup()?.node as? SwingComponentNode`
 answers the same object while descending a composition; `composedNode()` is the shorter way to it from a
-component you already have in hand. The stamp is a client property, so a composition that declares a raw
-`java.awt.Component` stamps nothing and `findDeclaringGroup()` is the route to its node.
+component you already have in hand. For a component that is not a `JComponent`, `findDeclaringGroup()`
+is the route to its node.
 
 It answers only for a component a composition stamped while the switch above was on when that component
 was inserted, and stops answering once the node that stamped it is released - a component the composition
 removed, or one the switch re-inserted unstamped by turning off.
 
-`modifier` on the node is the chain the composition last declared for the component. Walk it with
-`SwingModifier.foldIn`. Each entry is a `SwingModifier.Element`; one that describes itself is a
-`SwingModifier.InspectableElement`, which is where the two readable things are:
+`modifier` on the node is the chain the composition last declared for the component; its KDoc says how a
+`composed` entry appears there. Walk it with `SwingModifier.foldIn`. Each entry is a
+`SwingModifier.Element`; one that describes itself is a `SwingModifier.InspectableElement`, which is where
+the two readable things are:
 
 | What you want | Where to read it |
 |---------------|------------------|
@@ -126,7 +127,7 @@ last, whether or not that pass had anything to write, so it never lags the compo
 what a caller passed followed by what the widget's own composable declared, in that order.
 
 An element the library does not ship reports whatever it overrides `name` and `declaredValues` with;
-see [`CUSTOM-MODIFIERS.md`](CUSTOM-MODIFIERS.md#naming-the-element-for-a-message-and-for-a-tool).
+see [`MODIFIERS.md`](MODIFIERS.md#naming-the-element-for-a-message-and-for-a-tool).
 
 ## Attaching a composition stack trace to a throwable
 

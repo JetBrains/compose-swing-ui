@@ -3,8 +3,12 @@ package org.jetbrains.compose.swing.node
 import org.jetbrains.compose.swing.layout.MeasurementLayoutManager
 import org.jetbrains.compose.swing.layout.ParentElement
 import org.jetbrains.compose.swing.layout.ParentLayoutElement
+import org.jetbrains.compose.swing.layout.ParentLayoutNode
+import org.jetbrains.compose.swing.layout.ParentLayoutNodeElement
 import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.layout.ParentSlotElement
+import org.jetbrains.compose.swing.modifier.LayoutNodeRecord
+import org.jetbrains.compose.swing.modifier.NodeRecord
 import org.jetbrains.compose.swing.modifier.layout.SlotElement
 import org.jetbrains.compose.swing.util.fastForEach
 import java.awt.Component
@@ -23,6 +27,9 @@ internal class ParentDeclaration(
 ) {
     private val component: Component get() = node.component
 
+    /** The slots of the node's modifier, among which the layout nodes stand. */
+    private val chain: List<NodeRecord<*, *>> get() = node.modifierState?.chain.orEmpty()
+
     /**
      * The container the applier attached the component to, or `null` before it has attached it.
      *
@@ -40,8 +47,9 @@ internal class ParentDeclaration(
         private set
 
     /**
-     * The declarations that a measuring parent interprets after parent-data declarations have folded,
-     * in modifier declaration order. Empty where the modifier declares none.
+     * The declarations that a measuring parent interprets after parent-data declarations have folded, in
+     * modifier declaration order, with each [ParentLayoutNodeElement] among them replaced by its node. Empty where
+     * the modifier declares none.
      */
     var parentLayoutElements: List<ParentLayoutElement> = emptyList()
         private set
@@ -51,24 +59,42 @@ internal class ParentDeclaration(
      *
      * A capable parent receives [parentData] and [parentLayoutElements] atomically. A conventional
      * parent is re-registered only when its folded parent data changes, as `LayoutManager2` requires.
+     *
+     * The k-th [ParentLayoutNodeElement] of [parentLayoutElements] is replaced by the k-th layout node standing in the
+     * modifier's [chain][org.jetbrains.compose.swing.modifier.SwingModifierState.chain], so this runs once the modifier
+     * diff has brought the layout nodes up to date. One the chain does not hold - after a diff that threw partway - is
+     * left out. The declaration is applied again whenever [layoutNodesChanged], that is where a layout node of the
+     * chain attached, detached or was written since the last call; otherwise the other elements are compared, and a
+     * node element needs only a layout node in its place.
      */
     fun applyComponentLayout(
         parentData: Any?,
         parentProtocol: ParentProtocol?,
         parentLayoutElements: List<ParentLayoutElement>,
+        layoutNodesChanged: Boolean = false,
     ) {
-        if (
-            parentData == this.parentData &&
-            parentProtocol === this.parentProtocol &&
-            parentLayoutElements == this.parentLayoutElements
-        ) {
-            return
-        }
+        if (!layoutNodesChanged && isApplied(parentData, parentProtocol, parentLayoutElements)) return
         checkParentAccepts(parentProtocol, parentLayoutElements)
         this.parentData = parentData
         this.parentProtocol = parentProtocol
-        this.parentLayoutElements = parentLayoutElements.toList()
+        this.parentLayoutElements = chain.withLayoutNodes(parentLayoutElements)
         reapply()
+    }
+
+    /** Whether this node holds the declaration given, taking the layout nodes applied as the ones standing. */
+    private fun isApplied(
+        parentData: Any?,
+        parentProtocol: ParentProtocol?,
+        parentLayoutElements: List<ParentLayoutElement>,
+    ): Boolean =
+        parentData == this.parentData &&
+            parentProtocol === this.parentProtocol &&
+            parentLayoutElements.standsAs(this.parentLayoutElements)
+
+    /** Drops the layout nodes a reset modifier detached. The next [applyComponentLayout] declares its own. */
+    fun dropLayoutNodes() {
+        if (parentLayoutElements.none { it is ParentLayoutNode }) return
+        parentLayoutElements = emptyList()
     }
 
     /**
@@ -153,6 +179,39 @@ internal class ParentDeclaration(
             }
         }
         parent.revalidate()
+    }
+}
+
+/** Whether each of these elements equals the one [applied] at its place, or is a node element where a node stands. */
+private fun List<ParentLayoutElement>.standsAs(applied: List<ParentLayoutElement>): Boolean {
+    var stands = size == applied.size
+    var index = 0
+    while (stands && index < size) {
+        val element = this[index]
+        val standing = applied[index]
+        stands = if (element is ParentLayoutNodeElement<*>) standing is ParentLayoutNode else element == standing
+        index++
+    }
+    return stands
+}
+
+/** [declared], with the k-th [ParentLayoutNodeElement] replaced by the k-th layout node this chain holds. */
+private fun List<NodeRecord<*, *>>.withLayoutNodes(declared: List<ParentLayoutElement>): List<ParentLayoutElement> {
+    var hasNodeElement = false
+    for (index in declared.indices) {
+        if (declared[index] is ParentLayoutNodeElement<*>) {
+            hasNodeElement = true
+            break
+        }
+    }
+    // No node element to replace: skip the mapNotNull below. toList() returns the shared empty list when
+    // declared is empty, and a defensive copy of declared otherwise.
+    if (!hasNodeElement) return declared.toList()
+    var next = 0
+    return declared.mapNotNull { element ->
+        if (element !is ParentLayoutNodeElement<*>) return@mapNotNull element
+        while (next < size && this[next] !is LayoutNodeRecord) next++
+        getOrNull(next++)?.node as ParentLayoutNode?
     }
 }
 

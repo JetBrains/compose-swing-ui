@@ -147,7 +147,7 @@ private data class BorderElement(
         node.apply(spec)
     }
 
-    class Node : SwingModifier.Node<JComponent>() {
+    class Node : SwingModifier.ComponentNode<JComponent>() {
         private var original: Border? = null
         private var applied: BorderSpec? = null
 

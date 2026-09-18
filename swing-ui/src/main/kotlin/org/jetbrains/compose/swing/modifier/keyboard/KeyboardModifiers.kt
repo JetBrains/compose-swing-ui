@@ -135,7 +135,7 @@ private class KeyStrokeElement(
         return result
     }
 
-    class Node : SwingModifier.Node<JComponent>() {
+    class Node : SwingModifier.ComponentNode<JComponent>() {
         var onAction: () -> Unit = {}
 
         // A unique ActionMap key per application (the node instance), so removing one binding never

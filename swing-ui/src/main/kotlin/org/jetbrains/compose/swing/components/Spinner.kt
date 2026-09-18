@@ -609,7 +609,7 @@ private class SpinnerEditorElement(
      */
     class Node(
         private val panel: JPanel,
-    ) : SwingModifier.Node<SpinnerComponent>() {
+    ) : SwingModifier.ComponentNode<SpinnerComponent>() {
         override fun onAttach() {
             component.editor = panel
         }

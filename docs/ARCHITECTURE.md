@@ -153,26 +153,19 @@ order does not express that intent: conditionals and reordering change a child's
 changing where the author meant to place it. Placement is therefore explicit rather than inferred
 from index.
 
-A child declares its parent layout data on its own modifier. `ParentDataModifier` implementations fold
-their values in declaration order and identify a compatible parent-layout family. `Row`, `Column`, and
-`Box` expose their resolved value as `Measurable.parentData`; a declaration for another family's parent
-layout is rejected before Swing receives it. `layoutConstraint` is the untyped escape hatch for a
-value understood by the enclosing Swing layout manager, while a custom parent can define a typed
-`ParentDataModifier.Type` and scope builders of its own. A legacy manager that implements only
-`LayoutManager` receives a `String` constraint through Swing's string registration route.
+A child declares its placement on its own modifier, and its parent interprets it. Each declaration
+belongs to a parent protocol, and one declared under a parent of another protocol is refused before
+Swing receives it. A measure policy reads the declared value as `Measurable.parentData`.
+`layoutConstraint` is the untyped escape hatch for a value the enclosing Swing layout manager
+understands, while a custom parent can offer typed scope builders of its own. A manager that implements
+only `LayoutManager` receives a `String` constraint through Swing's string registration route.
+[Parent data and layout modifiers](CUSTOM-CONTAINERS.md#parent-data-and-layout-modifiers) describes the
+declaration types and how several of them in one modifier combine.
 
-Other parent-layout declarations implement `SwingModifier.ParentLayoutElement`. A declaration is keyed:
-the last non-additive declaration with a key wins, while additive declarations remain in modifier order.
-Foundation's `LayoutModifier` is additive, so a custom policy can wrap measurement and placement in
-the order callers declare it. A modifier that declares neither parent data nor a host slot is added by
-index only when it declares no parent-layout elements or host slot, and a modifier that stops declaring
-parent data returns to that behavior.
-
-The ordering that makes this work is the applier's own. An inserted node is visited twice, top-down
-and then bottom-up, its `update` changes run between the two passes, and the bottom-up pass is the
-one that performs the Swing attachment. A placement written by that node's own `update` is therefore
-already on the node by the time the child is added to its parent, so the child arrives in the region
-it declares rather than being added and then moved there.
+A child whose modifier declares neither parent data nor a host slot is added by index, and one whose
+modifier stops declaring parent data returns to that. A placement is already in effect when the child
+is first added to its parent, so the child arrives in the region it declares rather than being added and
+then moved there.
 
 A container supplies the layout manager and a scope naming the placements that manager understands.
 A `PanelLayout.Border` panel is the canonical one: its regions are modifier builders declared on
@@ -230,21 +223,9 @@ listener once and a fresh lambda re-registers nothing.
 
 `SwingModifier` is the Compose-shaped way to configure a component: appearance, layout hints,
 keyboard and interaction wiring, data transfer, accessibility, and listeners are expressed as
-modifier elements declared on a component. A passed `modifier` is the base, and a component's own
-elements are added onto it, following the Compose convention. Elements that share a slot are
-last-wins, so where a component declares a property itself, its own value stands - what a component
-means you to decide is a parameter, not a modifier element.
-
-A modifier is immutable and diffed against the one applied last. One declaring what that one
-declared is skipped whole, and within a modifier chain that did change every element is compared on its
-own, so a property whose declared value has not changed is not written again. Once an earlier
-declaration writes, the modifier's order decides which declaration stands. A value compares
-structurally. A callback the node reads when an event fires is not a value the node holds, so it is
-no part of what its element declares: a modifier the composition rebuilt around a fresh callback
-still declares the registration it declared last, the callback reaches the already-installed
-listener on its own, and the modifier is skipped around it. Building the modifier inline in the
-composable body is therefore the intended style and needs no `remember`; hoisting one is for sharing
-it as a theme token, not for making it cheap.
+modifier elements declared on a component. How a component's own elements combine with the caller's,
+and how a modifier is matched across passes, is described in
+[`MODIFIERS.md`](MODIFIERS.md#order-and-merge).
 
 Closed sets of Swing integer (and a few string) constants - scrollbar policies, orientations,
 selection modes, and the like - are exposed as typed constant sets. A parameter that takes one of

@@ -44,7 +44,7 @@ import javax.swing.text.JTextComponent
  * Where the caret may go is declared by [navigationFilter], and what it selects by
  * `DocumentState.selection`, the one owner of a component's selection; key bindings are declared by
  * `onKeyStroke`. A part of a text component this library ships no builder for - a highlighter, a drop
- * mode - is reachable through a [SwingModifier.NodeElement] of your own; see `docs/CUSTOM-COMPONENTS.md`.
+ * mode - is reachable through a [SwingModifier.NodeElement] of your own; see `docs/MODIFIERS.md`.
  *
  * @param caret the caret the component navigates and selects with.
  * @return this modifier with [caret] declared on it.
@@ -167,7 +167,7 @@ private class CaretPropertyElement(
     class Node(
         private val read: (Caret) -> Int,
         private val write: (Caret, Int) -> Unit,
-    ) : SwingModifier.Node<JTextComponent>(),
+    ) : SwingModifier.ComponentNode<JTextComponent>(),
         PropertyChangeListener {
         private var declared: Int = 0
         private var captured: Boolean = false
@@ -231,7 +231,7 @@ private class CaretElement(
 
     override fun hashCode(): Int = System.identityHashCode(caret)
 
-    class Node : SwingModifier.Node<JTextComponent>() {
+    class Node : SwingModifier.ComponentNode<JTextComponent>() {
         var caret: Caret? = null
 
         // The caret the component carried before the first install, restored whatever the declaration

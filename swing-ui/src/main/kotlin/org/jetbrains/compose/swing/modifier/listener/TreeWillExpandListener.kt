@@ -69,7 +69,19 @@ public fun SwingModifier.treeWillExpandListener(listener: TreeWillExpandListener
 private class TreeWillExpandCallbacks(
     val onWillExpand: (TreeExpansionEvent) -> Boolean,
     val onWillCollapse: (TreeExpansionEvent) -> Boolean,
-)
+) : CallbackBundle {
+    override fun equals(other: Any?): Boolean {
+        if (other !is TreeWillExpandCallbacks) return false
+        if (!sameCallback(onWillExpand, other.onWillExpand)) return false
+        return sameCallback(onWillCollapse, other.onWillCollapse)
+    }
+
+    override fun hashCode(): Int {
+        var result = callbackHash(onWillExpand)
+        result = 31 * result + callbackHash(onWillCollapse)
+        return result
+    }
+}
 
 private val TREE_WILL_EXPAND =
     ListenerRegistration<SwingJTree, TreeWillExpandListener>(

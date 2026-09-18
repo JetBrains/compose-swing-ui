@@ -11,6 +11,7 @@ import org.jetbrains.compose.swing.modifier.interaction.focusAccelerator
 import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
 import org.jetbrains.compose.swing.modifier.listener.listener
 import org.jetbrains.compose.swing.node.SwingNodeHolder
+import org.jetbrains.compose.swing.node.TestCompositionOwner
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Color
@@ -284,7 +285,7 @@ class ModifierReapplicationTest {
 
         override fun hashCode(): Int = 31 * text.hashCode() + System.identityHashCode(writes)
 
-        class Node : SwingModifier.Node<JComponent>() {
+        class Node : SwingModifier.ComponentNode<JComponent>() {
             private var original: String? = null
 
             override fun onAttach() {
@@ -330,7 +331,7 @@ class ModifierReapplicationTest {
 
         class Node(
             private val listener: MouseListener,
-        ) : SwingModifier.Node<JComponent>() {
+        ) : SwingModifier.ComponentNode<JComponent>() {
             override fun onAttach() {
                 component.addMouseListener(listener)
             }
@@ -366,7 +367,7 @@ class ModifierReapplicationTest {
 
         override fun hashCode(): Int = System.identityHashCode(this)
 
-        class Node : SwingModifier.Node<JComponent>() {
+        class Node : SwingModifier.ComponentNode<JComponent>() {
             var onEnter: () -> Unit = {}
 
             private val listener =
@@ -387,14 +388,15 @@ class ModifierReapplicationTest {
     }
 
     /** A subscription element no component but a text field is the target of. */
-    private class TextFieldOnlyElement : SwingModifier.NodeElement<JTextField, SwingModifier.Node<JTextField>>() {
+    private class TextFieldOnlyElement :
+        SwingModifier.NodeElement<JTextField, SwingModifier.ComponentNode<JTextField>>() {
         override val targetType: Class<JTextField> get() = JTextField::class.java
 
         override val additive: Boolean get() = true
 
-        override fun create(): SwingModifier.Node<JTextField> = SwingModifier.Node()
+        override fun create(): SwingModifier.ComponentNode<JTextField> = SwingModifier.ComponentNode()
 
-        override fun update(node: SwingModifier.Node<JTextField>) = Unit
+        override fun update(node: SwingModifier.ComponentNode<JTextField>) = Unit
 
         override fun equals(other: Any?): Boolean = this === other
 
@@ -420,7 +422,7 @@ class ModifierReapplicationTest {
 
         class Node(
             private val onTeardown: (JComponent) -> Unit,
-        ) : SwingModifier.Node<JComponent>() {
+        ) : SwingModifier.ComponentNode<JComponent>() {
             override fun onDetach() {
                 onTeardown(component)
             }
@@ -429,14 +431,14 @@ class ModifierReapplicationTest {
 
     @Test
     fun reusingNodeInstanceAcrossMultipleComponentsFailsLoudly() = runComposeSwingTest {
-        val sharedNode = object : SwingModifier.Node<Component>() {}
+        val sharedNode = object : SwingModifier.ComponentNode<Component>() {}
         val sharedElement =
-            object : SwingModifier.NodeElement<Component, SwingModifier.Node<Component>>() {
+            object : SwingModifier.NodeElement<Component, SwingModifier.ComponentNode<Component>>() {
                 override val targetType: Class<Component> get() = Component::class.java
 
-                override fun create(): SwingModifier.Node<Component> = sharedNode
+                override fun create(): SwingModifier.ComponentNode<Component> = sharedNode
 
-                override fun update(node: SwingModifier.Node<Component>) = Unit
+                override fun update(node: SwingModifier.ComponentNode<Component>) = Unit
 
                 override fun equals(other: Any?): Boolean = this === other
 
@@ -472,7 +474,7 @@ class ModifierReapplicationTest {
     @Test
     fun aSubscriptionSlotRefusingTheElementDeclaredForItKeepsTheOneItHolds() {
         var enterCount = 0
-        val holder = SwingNodeHolder(JButton("Save"))
+        val holder = SwingNodeHolder(JButton("Save")).attachedTo(TestCompositionOwner())
         holder.applyModifierDiff(SwingModifier.then(HoverCallbackElement { enterCount++ }))
         val button = holder.component
         button.dispatchEvent(mouseEntered(button))
@@ -493,6 +495,42 @@ class ModifierReapplicationTest {
 
         button.dispatchEvent(mouseEntered(button))
         assertEquals(2, enterCount, "releasing the node removes the listener exactly once")
+    }
+
+    @Test
+    fun aPropertySlotRefusingTheElementDeclaredForItComesApartOnce() {
+        val order = ArrayList<String>()
+        val holder = SwingNodeHolder(JButton("Save")).attachedTo(TestCompositionOwner())
+        holder.applyModifierDiff(SwingModifier.then(DetachOrderElement("tip", order)))
+
+        // The key is declared through an element of another kind, whose target the component is not. The slot
+        // restores before the arriving element is refused.
+        assertFailsWith<IllegalStateException> {
+            holder.applyModifierDiff(SwingModifier.then(TextFieldOnlyPropertyElement("tip")))
+        }
+        assertEquals(listOf("tip"), order, "the slot comes apart before its replacement is refused")
+
+        // A slot left standing after it came apart would fail here.
+        holder.resetModifierState()
+
+        assertEquals(listOf("tip"), order, "a slot that came apart is not taken apart again")
+    }
+
+    /** A property element keyed by [name] that no component but a text field is the target of. */
+    private class TextFieldOnlyPropertyElement(
+        override val name: String,
+    ) : SwingModifier.NodeElement<JTextField, SwingModifier.ComponentNode<JTextField>>() {
+        override val targetType: Class<JTextField> get() = JTextField::class.java
+
+        override val key: Any get() = name
+
+        override fun create(): SwingModifier.ComponentNode<JTextField> = SwingModifier.ComponentNode()
+
+        override fun update(node: SwingModifier.ComponentNode<JTextField>) = Unit
+
+        override fun equals(other: Any?): Boolean = this === other
+
+        override fun hashCode(): Int = System.identityHashCode(this)
     }
 
     @Test
@@ -571,7 +609,7 @@ class ModifierReapplicationTest {
         // slots the pass did not reach, so the next pass has to write against what the slots hold
         // rather than against the order the failed pass left behind.
         val writes = AtomicInteger()
-        val holder = SwingNodeHolder(JButton("Save"))
+        val holder = SwingNodeHolder(JButton("Save")).attachedTo(TestCompositionOwner())
         holder.applyModifierDiff(SwingModifier.background(Color.BLUE))
 
         assertFailsWith<IllegalStateException> {
@@ -595,7 +633,7 @@ class ModifierReapplicationTest {
     @Test
     fun aSlotAPassThatThrewInstalledComesApartBeforeTheDeclaredOnes() {
         val order = ArrayList<String>()
-        val holder = SwingNodeHolder(JButton("Save"))
+        val holder = SwingNodeHolder(JButton("Save")).attachedTo(TestCompositionOwner())
         holder.applyModifierDiff(
             SwingModifier.then(DetachOrderElement("first", order)).then(DetachOrderElement("second", order)),
         )
@@ -616,6 +654,109 @@ class ModifierReapplicationTest {
         holder.resetModifierState()
 
         assertEquals(listOf("third", "second", "first"), order, "the slot with no declared place comes apart first")
+    }
+
+    @Test
+    fun aChainAttachedAfterAPassThatThrewHavingTakenEverySlotApartComesApartOnce() {
+        val order = ArrayList<String>()
+        val holder = SwingNodeHolder(JButton("Save")).attachedTo(TestCompositionOwner())
+        holder.applyModifierDiff(SwingModifier.then(DetachOrderElement("first", order)))
+
+        // The pass takes "first" apart, then throws before it records what it declares, so the order it
+        // leaves behind still names a slot that no longer stands.
+        assertFailsWith<IllegalStateException> { holder.applyModifierDiff(SwingModifier.focusAccelerator('x')) }
+        holder.applyModifierDiff(SwingModifier.then(DetachOrderElement("first", order)))
+        order.clear()
+
+        holder.resetModifierState()
+
+        assertEquals(listOf("first"), order, "the chain attached after the failure comes apart once")
+    }
+
+    @Test
+    fun aChainWhoseNodeFailsToAttachComesApartOnlyWhereItAttached() {
+        val order = ArrayList<String>()
+        val holder = SwingNodeHolder(JButton("Save")).attachedTo(TestCompositionOwner())
+
+        assertFailsWith<IllegalStateException> {
+            holder.applyModifierDiff(
+                SwingModifier
+                    .then(DetachOrderElement("first", order))
+                    .then(FailingAttachElement)
+                    .then(DetachOrderElement("last", order)),
+            )
+        }
+        assertEquals(emptyList(), order, "the failed pass takes no slot apart")
+
+        // A slot recorded for a node whose onAttach never finished would fail here.
+        holder.resetModifierState()
+
+        assertEquals(listOf("first"), order, "only the slot whose node attached comes apart")
+    }
+
+    @Test
+    fun aSlotAPassThatThrewCreatingItsReplacementTookApartAttachesAgainWhenDeclaredAgain() {
+        assertSlotTakenApartByAFailedPassAttachesAgain(failOnAttach = false)
+    }
+
+    @Test
+    fun aSlotAPassThatThrewAttachingItsReplacementTookApartAttachesAgainWhenDeclaredAgain() {
+        assertSlotTakenApartByAFailedPassAttachesAgain(failOnAttach = true)
+    }
+
+    private fun assertSlotTakenApartByAFailedPassAttachesAgain(failOnAttach: Boolean) {
+        val order = ArrayList<String>()
+        val holder = SwingNodeHolder(JButton("Save")).attachedTo(TestCompositionOwner())
+        val standing = SwingModifier.then(DetachOrderElement("tip", order))
+        holder.applyDeclaredModifier(standing)
+        assertFailsWith<IllegalStateException> {
+            holder.applyDeclaredModifier(SwingModifier.then(FailingReplacementElement("tip", failOnAttach)))
+        }
+        assertEquals(listOf("tip"), order, "the slot comes apart before its replacement fails")
+        order.clear()
+
+        holder.applyDeclaredModifier(standing)
+        holder.resetModifierState()
+
+        assertEquals(listOf("tip"), order, "the modifier declared again attaches the slot, which comes apart once")
+    }
+
+    /** A property element keyed by [name] whose node fails to be created, or fails as it attaches. */
+    private class FailingReplacementElement(
+        override val name: String,
+        private val failOnAttach: Boolean,
+    ) : SwingModifier.NodeElement<JComponent, FailingAttachElement.Node>() {
+        override val targetType: Class<JComponent> get() = JComponent::class.java
+
+        override val key: Any get() = name
+
+        override fun create(): FailingAttachElement.Node {
+            check(failOnAttach) { "create fails" }
+            return FailingAttachElement.Node()
+        }
+
+        override fun update(node: FailingAttachElement.Node) = Unit
+
+        override fun equals(other: Any?): Boolean = this === other
+
+        override fun hashCode(): Int = System.identityHashCode(this)
+    }
+
+    /** A property element whose node fails as it attaches. */
+    private object FailingAttachElement : SwingModifier.NodeElement<JComponent, FailingAttachElement.Node>() {
+        override val targetType: Class<JComponent> get() = JComponent::class.java
+
+        override fun create(): Node = Node()
+
+        override fun update(node: Node) = Unit
+
+        override fun equals(other: Any?): Boolean = this === other
+
+        override fun hashCode(): Int = System.identityHashCode(this)
+
+        class Node : SwingModifier.ComponentNode<JComponent>() {
+            override fun onAttach(): Unit = error("onAttach fails")
+        }
     }
 
     /**
@@ -642,7 +783,7 @@ class ModifierReapplicationTest {
         class Node(
             private val name: String,
             private val order: MutableList<String>,
-        ) : SwingModifier.Node<JComponent>() {
+        ) : SwingModifier.ComponentNode<JComponent>() {
             override fun onDetach() {
                 order += name
             }

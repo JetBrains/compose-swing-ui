@@ -170,19 +170,22 @@ public value class SwingNodeUpdater<T : Component>
          * snapshot-observing component can adopt it.
          *
          * The observer is the same for the node's whole life, and is handed over before the applier
-         * attaches the component. [block] receives `null` only under an applier that owns no observer,
-         * such as a menu.
+         * attaches the component.
          *
          * A component that registers reads with the observer must use the component instance itself as
          * the observation scope: the holder clears that same scope when the node resets, so a different
          * scope object would leave the reads in place and the component still driven by an observer no
          * longer meant to reach it.
          *
-         * Runs on every composition like [reconcile].
+         * Applied through [set] keyed on [block], so it runs again only on a pass that hands a [block]
+         * unequal to the last one: a lambda capturing values the node writes is rebuilt when they change.
+         *
+         * Public for swing-ui-foundation's `Canvas`, which records the reads of its `onDraw` with it. It
+         * may change without notice in any release.
          */
         @InternalSwingUiApi
-        public fun ownerObserver(block: T.(SnapshotStateObserver?) -> Unit): Unit =
-            updater.reconcile {
-                component.block(owner?.observer)
+        public fun ownerObserver(block: T.(SnapshotStateObserver) -> Unit): Unit =
+            updater.set(block) {
+                component.block(requireOwner().snapshotObserver.observer)
             }
     }
