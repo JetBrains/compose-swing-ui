@@ -15,7 +15,7 @@ import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.TabbedPane
 import org.jetbrains.compose.swing.components.selection.ListBox
 import org.jetbrains.compose.swing.components.selection.firstLabelText
-import org.jetbrains.compose.swing.components.selection.stampCell
+import org.jetbrains.compose.swing.components.selection.renderCell
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.core.SwingContentComposition
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -305,16 +305,16 @@ class DebugInspectorInfoTest {
         try {
             awaitIdle()
             val list = compositionHost.firstListOrNull() ?: error("the nested composition declared no list")
-            assertEquals("alpha", list.stampCell(index = 0).firstLabelText(), "the row renders its item")
-            assertEquals(1, cellBuilds, "and the cell composition is built by the stamp that renders it")
+            assertEquals("alpha", list.renderCell(index = 0).firstLabelText(), "the row renders its item")
+            assertEquals(1, cellBuilds, "and the cell composition is built by the render that renders it")
 
             isDebugInspectorInfoEnabled = true
             awaitIdle()
 
             assertEquals(
                 "beta",
-                list.stampCell(index = 1).firstLabelText(),
-                "the same cell composition goes on stamping the rows the widget asks it to paint",
+                list.renderCell(index = 1).firstLabelText(),
+                "the same cell composition goes on rendering the rows the widget asks it to paint",
             )
             assertEquals(
                 1,
@@ -323,7 +323,7 @@ class DebugInspectorInfoTest {
                     "is never rebuilt to record it",
             )
             assertNull(
-                list.stampCell(index = 0).findDeclaringGroup(),
+                list.renderCell(index = 0).findDeclaringGroup(),
                 "so the component a cell declared is still answered for by nothing",
             )
         } finally {

@@ -159,7 +159,7 @@ class LocalWindowTest {
         val frame = realizedFrame()
         try {
             // A cell is composed into a renderer host that hangs off no window at all - the widget
-            // stamps it to paint a row and never adds it to the tree. What the cell is under is the
+            // renders it to paint a row and never adds it to the tree. What the cell is under is the
             // composition it belongs to, so it reads the window that composition is in.
             val cell = WindowReader()
             frame.setContent {
@@ -173,7 +173,7 @@ class LocalWindowTest {
             }
             frame.pack()
 
-            awaitComposed("the list stamps its cell", cell)
+            awaitComposed("the list renders its cell", cell)
             assertSame(frame, cell.seen, "a composed cell must read the window its list is composed in")
         } finally {
             frame.dispose()

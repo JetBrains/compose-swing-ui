@@ -1,8 +1,31 @@
+public final class org/jetbrains/compose/swing/MultipleTopLevelComponentsException : java/lang/IllegalStateException {
+	public static final field $stable I
+	public fun <init> (Ljava/lang/String;Ljava/lang/Throwable;)V
+}
+
+public final class org/jetbrains/compose/swing/OnDemandComposition : kotlinx/coroutines/DisposableHandle {
+	public static final field $stable I
+	public fun <init> (Landroidx/compose/runtime/CompositionContext;Lkotlin/jvm/functions/Function2;)V
+	public fun dispose ()V
+	public final fun recompose (Lkotlin/jvm/functions/Function0;)Ljava/awt/Component;
+}
+
 public final class org/jetbrains/compose/swing/SetContentKt {
 	public static final fun setContent (Ljava/awt/Window;Lkotlin/jvm/functions/Function2;)Lkotlinx/coroutines/DisposableHandle;
 	public static final fun setContent (Ljavax/swing/JComponent;Landroidx/compose/runtime/CompositionContext;Lkotlin/jvm/functions/Function2;)Lkotlinx/coroutines/DisposableHandle;
 	public static final fun setContent (Ljavax/swing/JMenuBar;Lkotlin/jvm/functions/Function2;)Lkotlinx/coroutines/DisposableHandle;
+	public static final fun setContent (Ljavax/swing/JPopupMenu;Landroidx/compose/runtime/CompositionContext;Lkotlin/jvm/functions/Function2;)Lkotlinx/coroutines/DisposableHandle;
 	public static synthetic fun setContent$default (Ljavax/swing/JComponent;Landroidx/compose/runtime/CompositionContext;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)Lkotlinx/coroutines/DisposableHandle;
+}
+
+public final class org/jetbrains/compose/swing/SubcompositionHost : kotlinx/coroutines/DisposableHandle {
+	public static final field $stable I
+	public fun dispose ()V
+	public final fun subcompose (Ljavax/swing/JComponent;Lkotlin/jvm/functions/Function2;)Lkotlinx/coroutines/DisposableHandle;
+}
+
+public final class org/jetbrains/compose/swing/SubcompositionHostKt {
+	public static final fun rememberSubcompositionHost (Landroidx/compose/runtime/Composer;I)Lorg/jetbrains/compose/swing/SubcompositionHost;
 }
 
 public abstract interface annotation class org/jetbrains/compose/swing/annotations/AWTEventMask : java/lang/annotation/Annotation {
@@ -1146,7 +1169,6 @@ public final class org/jetbrains/compose/swing/node/SwingNodeUpdater {
 	public static final fun equals-impl0 (Landroidx/compose/runtime/Composer;Landroidx/compose/runtime/Composer;)Z
 	public fun hashCode ()I
 	public static fun hashCode-impl (Landroidx/compose/runtime/Composer;)I
-	public static final fun hostSubcompositions-impl (Landroidx/compose/runtime/Composer;Landroidx/compose/runtime/CompositionContext;)V
 	public static final fun init-impl (Landroidx/compose/runtime/Composer;Lkotlin/jvm/functions/Function1;)V
 	public static final fun reconcile-impl (Landroidx/compose/runtime/Composer;Lkotlin/jvm/functions/Function1;)V
 	public static final fun set-impl (Landroidx/compose/runtime/Composer;Ljava/lang/Object;Lkotlin/jvm/functions/Function2;)V

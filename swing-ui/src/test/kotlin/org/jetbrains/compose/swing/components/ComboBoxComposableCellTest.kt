@@ -6,8 +6,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.selection.firstLabelText
-import org.jetbrains.compose.swing.components.selection.stampCell
-import org.jetbrains.compose.swing.components.selection.stampDisplayArea
+import org.jetbrains.compose.swing.components.selection.renderCell
+import org.jetbrains.compose.swing.components.selection.renderDisplayArea
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -29,7 +29,7 @@ import kotlin.test.assertTrue
 
 /**
  * Behavioral tests for [ComboBox]'s composable `itemContent`. A `JComboBox` renderer is a
- * [javax.swing.ListCellRenderer] over an internal `JList`, so these stamp an item through the installed
+ * [javax.swing.ListCellRenderer] over an internal `JList`, so these render an item through the installed
  * renderer as the popup list would, and assert the realized composable cell. A `null` `itemContent`
  * renders items through the combo box's own renderer, on every composition; taking `itemContent` away
  * leaves an editable combo box's editor, and the value being typed into it, as they were.
@@ -44,8 +44,8 @@ class ComboBoxComposableCellTest {
         }
 
         val combo = onNodeOfType<JComboBox<*>>().fetch<JComboBox<String>>()
-        assertEquals("green", combo.stampCell(index = 1).firstLabelText(), "the cell should render item 1")
-        assertEquals("blue", combo.stampCell(index = 2).firstLabelText(), "the reused cell should restamp item 2")
+        assertEquals("green", combo.renderCell(index = 1).firstLabelText(), "the cell should render item 1")
+        assertEquals("blue", combo.renderCell(index = 2).firstLabelText(), "the reused cell should rerender item 2")
     }
 
     @Test
@@ -58,11 +58,11 @@ class ComboBoxComposableCellTest {
         }
 
         val combo = onNodeOfType<JComboBox<*>>().fetch<JComboBox<String>>()
-        assertEquals("old", combo.stampCell(index = 0).firstLabelText(), "the initial item should render")
+        assertEquals("old", combo.renderCell(index = 0).firstLabelText(), "the initial item should render")
 
         items = listOf("new")
         awaitIdle()
-        assertEquals("new", combo.stampCell(index = 0).firstLabelText(), "changing the item should restamp the cell")
+        assertEquals("new", combo.renderCell(index = 0).firstLabelText(), "changing the item should rerender the cell")
     }
 
     @Test
@@ -75,19 +75,19 @@ class ComboBoxComposableCellTest {
 
         val combo = onNodeOfType<JComboBox<*>>().fetch<JComboBox<String>>()
         assertNull(
-            combo.stampDisplayArea(value = null).firstLabelText(),
+            combo.renderDisplayArea(value = null).firstLabelText(),
             "a display area showing nothing should compose no cell",
         )
         assertEquals(
             "red",
-            combo.stampCell(index = 0).firstLabelText(),
+            combo.renderCell(index = 0).firstLabelText(),
             "the items themselves still render through the cell body",
         )
     }
 
     @Test
     fun theDisplayAreaComposesACellForAnItemLyingBeforeTheLastOneFound() = runComposeSwingTest {
-        // A JComboBox sizes itself by stamping every item as a display area, so the scan resolving one
+        // A JComboBox sizes itself by rendering every item as a display area, so the scan resolving one
         // resumes where the last found its own. An item before that is reached by wrapping around.
         setContent {
             ComboBox(items = listOf("red", "green"), selectedItem = "red", onSelectionChange = {}) { item ->
@@ -98,18 +98,18 @@ class ComboBoxComposableCellTest {
         val combo = onNodeOfType<JComboBox<*>>().fetch<JComboBox<String>>()
         assertEquals(
             "green",
-            combo.stampDisplayArea(value = "green").firstLabelText(),
+            combo.renderDisplayArea(value = "green").firstLabelText(),
             "the last item of the model is an item",
         )
         assertEquals(
             "red",
-            combo.stampDisplayArea(value = "red").firstLabelText(),
+            combo.renderDisplayArea(value = "red").firstLabelText(),
             "and so is one lying before it, which the scan wraps around to reach",
         )
     }
 
     @Test
-    fun aStampAfterTheRendererLeavesTheCompositionIsSafe() = runComposeSwingTest {
+    fun aRenderAfterTheRendererLeavesTheCompositionIsSafe() = runComposeSwingTest {
         var showCombo by mutableStateOf(true)
         setContent {
             if (showCombo) {
@@ -121,7 +121,7 @@ class ComboBoxComposableCellTest {
 
         val combo = onNodeOfType<JComboBox<*>>().fetch<JComboBox<String>>()
         val composingRenderer = combo.renderer
-        val cellBefore = composingRenderer.stampCell(value = "red", index = 0)
+        val cellBefore = composingRenderer.renderCell(value = "red", index = 0)
 
         // The renderer outlives its composition: the popup list of the combo box keeps the renderer it
         // was given and goes on invoking it while the window it belongs to is torn down, after the cell
@@ -129,7 +129,7 @@ class ComboBoxComposableCellTest {
         showCombo = false
         awaitIdle()
 
-        val cellAfter = composingRenderer.stampCell(value = "green", index = 1)
+        val cellAfter = composingRenderer.renderCell(value = "green", index = 1)
         assertNotSame(
             cellBefore,
             cellAfter,
@@ -137,10 +137,10 @@ class ComboBoxComposableCellTest {
         )
         assertNull(
             cellAfter.firstLabelText(),
-            "a stamp on a disposed cell composition must render an empty cell rather than a stale item",
+            "a render on a disposed cell composition must render an empty cell rather than a stale item",
         )
         assertTrue(
-            combo.stampCell(index = 1) is JLabel,
+            combo.renderCell(index = 1) is JLabel,
             "the combo box itself renders through its own renderer again once the composable cell is gone",
         )
     }
@@ -150,8 +150,8 @@ class ComboBoxComposableCellTest {
         setContent { ComboBox(items = listOf("a", "b"), selectedItem = "a", onSelectionChange = {}) }
 
         val combo = onNodeOfType<JComboBox<*>>().fetch()
-        val cell = combo.stampCell(index = 0)
-        assertTrue(cell is JLabel, "the default combo renderer stamps a JLabel")
+        val cell = combo.renderCell(index = 0)
+        assertTrue(cell is JLabel, "the default combo renderer renders a JLabel")
         assertEquals("a", (cell as JLabel).text, "the default renderer renders the item's toString")
     }
 
@@ -173,22 +173,22 @@ class ComboBoxComposableCellTest {
         }
 
         val combo = onNodeOfType<JComboBox<*>>().fetch<JComboBox<String>>()
-        val composedCell = combo.stampCell(index = 0)
-        assertFalse(composedCell is JLabel, "a composable cell stamps what it composed, not the default JLabel")
+        val composedCell = combo.renderCell(index = 0)
+        assertFalse(composedCell is JLabel, "a composable cell renders what it composed, not the default JLabel")
         assertEquals("red", composedCell.firstLabelText(), "the composable cell should render item 0")
 
         composableCells = false
         awaitIdle()
-        val defaultCell = combo.stampCell(index = 0)
-        assertTrue(defaultCell is JLabel, "taking itemContent away should stamp the combo box's own JLabel renderer")
+        val defaultCell = combo.renderCell(index = 0)
+        assertTrue(defaultCell is JLabel, "taking itemContent away should render the combo box's own JLabel renderer")
         assertEquals("red", (defaultCell as JLabel).text, "the restored renderer renders the item's toString")
 
         composableCells = true
         awaitIdle()
         assertEquals(
             "green",
-            combo.stampCell(index = 1).firstLabelText(),
-            "declaring itemContent again should stamp the composable cell",
+            combo.renderCell(index = 1).firstLabelText(),
+            "declaring itemContent again should render the composable cell",
         )
     }
 
@@ -216,16 +216,16 @@ class ComboBoxComposableCellTest {
         repeat(2) { cycle ->
             composableCells = false
             awaitIdle()
-            val defaultCell = combo.stampCell(index = 0)
-            assertTrue(defaultCell is JLabel, "withdrawal $cycle should stamp the combo box's own JLabel renderer")
+            val defaultCell = combo.renderCell(index = 0)
+            assertTrue(defaultCell is JLabel, "withdrawal $cycle should render the combo box's own JLabel renderer")
             assertEquals("red", (defaultCell as JLabel).text, "withdrawal $cycle should render the item's toString")
 
             composableCells = true
             awaitIdle()
             assertEquals(
                 "red",
-                combo.stampCell(index = 0).firstLabelText(),
-                "redeclaring itemContent after withdrawal $cycle should stamp the composable cell",
+                combo.renderCell(index = 0).firstLabelText(),
+                "redeclaring itemContent after withdrawal $cycle should render the composable cell",
             )
         }
     }
@@ -338,8 +338,8 @@ class ComboBoxComposableCellTest {
             awaitIdle()
             assertEquals(
                 "red",
-                (combo.stampCell(index = 0) as JLabel).text,
-                "taking itemContent away should stamp the combo box's own renderer",
+                (combo.renderCell(index = 0) as JLabel).text,
+                "taking itemContent away should render the combo box's own renderer",
             )
 
             // What comes back is the combo box's own renderer, which is the look and feel's to
@@ -360,7 +360,7 @@ class ComboBoxComposableCellTest {
     }
 
     @Test
-    fun aParkedComboRendersItsOwnCellsAndTheFreshOneStampsTheComposableCellAgain() = runComposeSwingTest {
+    fun aParkedComboRendersItsOwnCellsAndTheFreshOneRendersTheComposableCellAgain() = runComposeSwingTest {
         var active by mutableStateOf(true)
         setContent {
             ReusableContentHost(active = active) {
@@ -370,7 +370,7 @@ class ComboBoxComposableCellTest {
             }
         }
         val combo = onNodeOfType<JComboBox<*>>().fetch<JComboBox<String>>()
-        assertEquals("red", combo.stampCell(index = 0).firstLabelText(), "the composable cell should render item 0")
+        assertEquals("red", combo.renderCell(index = 0).firstLabelText(), "the composable cell should render item 0")
 
         active = false
         awaitIdle()
@@ -378,7 +378,7 @@ class ComboBoxComposableCellTest {
         // A parked combo box keeps painting through whatever renderer it carries once the cell
         // composition behind its composable cell is gone: the renderer it rendered through before that
         // cell is what has to be back on it by then.
-        val parked = combo.stampCell(index = 0)
+        val parked = combo.renderCell(index = 0)
         assertTrue(parked is JLabel, "a parked combo box should render items through the renderer of its own")
         assertEquals("red", (parked as JLabel).text, "the combo box's own renderer renders the item's toString")
 
@@ -387,15 +387,15 @@ class ComboBoxComposableCellTest {
 
         assertEquals(
             "green",
-            onNodeOfType<JComboBox<*>>().fetch<JComboBox<String>>().stampCell(index = 1).firstLabelText(),
-            "the fresh combo box should stamp the composable cell",
+            onNodeOfType<JComboBox<*>>().fetch<JComboBox<String>>().renderCell(index = 1).firstLabelText(),
+            "the fresh combo box should render the composable cell",
         )
     }
 
     @Test
     fun theDisplayAreaComposesNoCellForATypedValueThatNamesNoItem() = runComposeSwingTest {
         // An editable combo box holds the text typed into its editor as its selected item until the next
-        // pass writes the declaration back, and Swing repaints in between. The display area stamped with
+        // pass writes the declaration back, and Swing repaints in between. The display area rendered with
         // that text names no item, so it composes no cell - handing it to a cell body written over the
         // items would cast a String to the item type.
         setContent {
@@ -416,7 +416,7 @@ class ComboBoxComposableCellTest {
 
         assertEquals("pear", combo.selectedItem, "the committed text is what the combo box holds")
         assertNull(
-            combo.stampDisplayArea().firstLabelText(),
+            combo.renderDisplayArea().firstLabelText(),
             "a display area holding a typed value should compose no cell",
         )
 
@@ -424,7 +424,7 @@ class ComboBoxComposableCellTest {
 
         assertEquals(
             "apple",
-            combo.stampDisplayArea().firstLabelText(),
+            combo.renderDisplayArea().firstLabelText(),
             "the settled declaration should render through the cell body again",
         )
     }

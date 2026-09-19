@@ -114,7 +114,7 @@ class RadioButtonMenuGroupTest {
 
         // Each pick moves the group's selection without the caller adopting it, so the pass the pick
         // provokes must put the declared option back every time - not just the first. A menu applier
-        // that stamps its pass counter once but never bumps it would settle the first pick and then go
+        // that records its pass counter once but never bumps it would settle the first pick and then go
         // silently dead for every pick after.
         options(popup)[2].doClick()
         awaitIdle()

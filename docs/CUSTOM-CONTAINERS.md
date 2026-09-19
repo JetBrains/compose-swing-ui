@@ -463,38 +463,63 @@ Four things make a composite of this shape behave:
 Reach for `SwingNode` here only when the Swing container itself is yours; a composite assembled from
 built-in containers is an ordinary composable function.
 
-## Hosting nested compositions: `hostSubcompositions`
 
-Declare `hostSubcompositions` in the update block for a custom component that, internally, drives its
-**own** `setContent` against one of its children - for example, a Swing container that manages tabs,
-popups, or split panes by calling `setContent` on sub-panels it creates itself.
+## Hosting nested compositions
 
-Those nested `setContent` calls then **join this node's own composition**, sharing its
-`CompositionLocal`s along with the recomposer and scope around it. Without it such a call joins
-whatever its place in the Swing tree resolves to - the content composition above it, or the one its window
-shares - so it recomposes with everything else there but sees none of the `CompositionLocal`s this node
-stands under.
+A custom Swing component sometimes owns another component whose content is composed separately: a tab
+page, popup, overlay, or a component used only long enough to render a value. Nested content names its
+parent explicitly, or uses the on-demand API when the host needs a component synchronously.
 
-Read the enclosing context where the node is declared, and hand it over:
+For a child `JComponent` with content of its own, pass the context captured where the child is declared to
+`setContent(parent = ...)`. Keep the returned `DisposableHandle` for the lifetime of the child and dispose
+it on the Event Dispatch Thread:
 
 ```kotlin
 val parentContext = rememberCompositionContext()
-SwingNode(
-    factory = { TabbedPanel() }, // a JComponent that runs setContent on its own tab panels
-    update = { hostSubcompositions(parentContext) },
-)
+
+// In the host's EDT-owned child lifecycle:
+val contentHandle = child.setContent(parent = parentContext) {
+    ChildContent()
+}
+
+// When the host releases `child`:
+contentHandle.dispose()
 ```
 
-Pass `null` to host nothing, which is what a node that never declares it does.
+An explicit parent makes the child compose immediately, even when it is detached, and makes its content
+share the parent's snapshot state, recomposer, and `CompositionLocal`s. Descendant `setContent` calls
+without their own parent also resolve to that named parent. A child whose parent is omitted uses the
+ordinary Swing-tree/window lookup described in [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
-The component **must** be a `javax.swing.JComponent`; a bare `java.awt.Component` host throws
-`IllegalStateException` at apply.
+When the host needs one component back synchronously rather than a composition mounted into a
+`JComponent`, use `OnDemandComposition`:
+
+```kotlin
+private class LabelRenderer(parent: CompositionContext) {
+    private var value = ""
+    private val composition = OnDemandComposition(parent) { Label(value) }
+
+    fun render(value: String): Component? = composition.recompose { this.value = value }
+
+    fun dispose() = composition.dispose()
+}
+```
+
+`OnDemandComposition` joins the supplied `CompositionContext`, so it shares the parent's state and
+`CompositionLocal`s, but it is a separate controlled composition. Its constructor composes the content once;
+`recompose` writes the current inputs and applies a synchronous pass before returning. The returned
+component is not inserted anywhere by the composition - the caller owns its placement and removal - and
+`null` means that the content currently composes no component. Content must produce exactly one top-level
+component; producing more than one throws `IllegalStateException` and disposes that
+composition. Construct, recompose, and dispose it on the Event Dispatch Thread.
+
+<!--- CLEAR -->
 
 ## Rendering items with a composable cell
 
 A component that shows a list of items asks a `ListCellRenderer` for one row at a time.
-`rememberListItemRenderer` builds a renderer that stamps a composable there and
-`SwingModifier.listItemRenderer` installs it: one reused composition is stamped for every row, and the
+`rememberListItemRenderer` builds a renderer that renders a composable there and
+`SwingModifier.listItemRenderer` installs it: one reused composition renders every row, and the
 component it composes is painted and measured as the row.
 
 <!--- CLEAR -->

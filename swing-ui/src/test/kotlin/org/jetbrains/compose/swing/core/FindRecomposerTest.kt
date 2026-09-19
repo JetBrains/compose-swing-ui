@@ -8,10 +8,8 @@ import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
-import org.jetbrains.compose.swing.util.get
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.Button
 import java.awt.Container
@@ -70,41 +68,39 @@ class FindRecomposerTest {
     }
 
     /**
-     * A `SwingNode` declaring `hostSubcompositions` stamps its component with a context taken from inside
-     * the composition, which names no recomposer. The walk passes over such a stamp and carries on to
-     * the window's own, so content nested through one still answers with the scope actually driving it.
+     * A content composition joined to a captured context names no recomposer of its own. When it stands
+     * in a window, the walk reaches the scope that drives that context.
      */
     @Test
-    fun contentNestedThroughASubcompositionHostAnswersWithTheScopeDrivingIt() = runSwingTest {
+    fun contentJoinedToAnExplicitParentAnswersWithTheScopeDrivingIt() = runSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display to realize a window")
         val frame = realizedFrame()
         try {
             val composition = childOf(frame)
-            val host = JPanel()
+            val host = childOf(frame)
+            var parentContext: CompositionContext? = null
             val outer =
                 composition.setContent {
-                    val parentContext = rememberCompositionContext()
-                    SwingNode(
-                        factory = { host },
-                        update = { hostSubcompositions(parentContext) },
-                    )
+                    parentContext = rememberCompositionContext()
                 }
             var nested: DisposableHandle? = null
             try {
-                awaitUntil("the host node is applied") { host.parent != null }
+                awaitUntil("the enclosing context is captured") { parentContext != null }
+                val parent = assertNotNull(parentContext, "the enclosing composition must capture a context")
                 assertIsNot<Recomposer>(
-                    assertNotNull(host[COMPOSITION_KEY], "the host must carry the stamp it published"),
-                    "the case under test needs that stamp to name no recomposer of its own",
+                    parent,
+                    "the case under test needs a context that names no recomposer of its own",
                 )
 
-                nested = host.setContent { Label(text = "nested") }
+                nested = host.setContent(parent = parent) { Label(text = "nested") }
                 awaitUntil("the nested content composes") { labelTextOrNull(host) == "nested" }
 
                 val driving = assertNotNull(frame.swingRecomposerOrNull()).recomposer
                 assertSame(
                     driving,
                     host.components.single().findRecomposer(),
-                    "the opaque stamp hides no scope of its own, so the window's is what drives this",
+                    "the captured context names no recomposer of its own, so the window drives content " +
+                        "joined to it",
                 )
             } finally {
                 nested?.dispose()

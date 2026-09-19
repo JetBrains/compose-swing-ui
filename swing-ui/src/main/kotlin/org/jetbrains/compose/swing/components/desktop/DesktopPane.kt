@@ -456,7 +456,7 @@ private inline fun FrameNode(
                 // A JInternalFrame is constructed hidden and the close control closes it on its own;
                 // make it visible and leave the close control controlled by the declaration instead.
                 bounds = declaredBounds
-                // The placement is stamped like every later one (see the update block), so the
+                // The placement is recorded like every later one (see the update block), so the
                 // notifications it provokes cannot undo a move declared before they are delivered.
                 applied.bounds = bounds
                 defaultCloseOperation = JInternalFrame.DO_NOTHING_ON_CLOSE
@@ -476,10 +476,10 @@ private inline fun FrameNode(
             set(controls.resizable) { this.isResizable = it }
             set(controls.maximizable) { this.isMaximizable = it }
             set(controls.iconifiable) { this.isIconifiable = it }
-            // The geometry is stamped before it is pushed, because a frame reports its moves and resizes
+            // The geometry is recorded before it is pushed, because a frame reports its moves and resizes
             // asynchronously: by the time such a notification is delivered the state may already hold a
             // newer value, and the frame - which still carries the older geometry - would hand that
-            // older geometry back over it. The stamp is what tells the write-back that the geometry the
+            // older geometry back over it. The record is what tells the write-back that the geometry the
             // frame is reporting is the one this apply put there, so the newer declaration stands.
             update(declaredBounds) { value -> applyBounds(value, applied) }
             // A window-state transition takes the frame off the desktop or spreads it across the desktop,
@@ -607,7 +607,7 @@ private fun JInternalFrame.applyBounds(
 
 /**
  * Performs a window-state [transition] on [this] frame if the frame's place in the hierarchy is one that
- * can take it, stamping the application in [applied].
+ * can take it, recording the application in [applied].
  *
  * Both window states need the desktop to hold the frame already: iconifying moves the frame's icon onto
  * the desktop in the frame's place, and maximizing spreads the frame across the desktop. A frame the

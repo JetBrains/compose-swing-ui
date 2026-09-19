@@ -223,8 +223,8 @@ class WindowRecomposerTest {
             handle.dispose()
             awaitUntil("the emptied window disposes its recomposer") { frame.swingRecomposerOrNull() == null }
 
-            // The stamp that recomposer left on the root pane goes with it, so this resolves the window
-            // afresh. A stamp left standing would compose this content under an ended context, which
+            // The published context that recomposer left on the root pane goes with it, so this resolves the window
+            // afresh. A published context left standing would compose this content under an ended context, which
             // would never recompose.
             composition.setContent { Label(text = "again") }
             awaitUntil("the emptied window takes content again") { labelTextOrNull(composition) == "again" }

@@ -34,9 +34,9 @@ private data class Branch(
 )
 
 /**
- * Behavioral tests for [Tree]'s composable `nodeContent`. They prove the rubber-stamp mechanism end to
- * end: stamping a row through the installed [javax.swing.tree.TreeCellRenderer] realizes the composable
- * node into a real Swing subtree, that node sees the row it is being stamped for through its
+ * Behavioral tests for [Tree]'s composable `nodeContent`. They prove the render mechanism end to
+ * end: rendering a row through the installed [javax.swing.tree.TreeCellRenderer] realizes the composable
+ * node into a real Swing subtree, that node sees the row it is being rendered for through its
  * [TreeNodeScope], and a `null` `nodeContent` renders rows through the renderer the tree itself carries
  * - whether it is `null` from the start or becomes `null` on a later composition.
  *
@@ -45,7 +45,7 @@ private data class Branch(
  */
 class TreeComposableNodeTest {
     /** Renders the node at [row] through the renderer this tree carries, with the inputs the tree reports for it. */
-    private fun JTree.stampRow(row: Int): Component {
+    private fun JTree.renderRow(row: Int): Component {
         val node = getPathForRow(row).lastPathComponent
         return cellRenderer.getTreeCellRendererComponent(
             this,
@@ -99,13 +99,13 @@ class TreeComposableNodeTest {
         // The whole value reaches the node, not just the text its label renders.
         assertEquals(
             "root (2)",
-            tree.stampRow(0).firstLabelText(),
+            tree.renderRow(0).firstLabelText(),
             "the composable node for row 0 should have realized a JLabel built from that row's value",
         )
         assertEquals(
             "fruit (2)",
-            tree.stampRow(1).firstLabelText(),
-            "the reused node should restamp the next row",
+            tree.renderRow(1).firstLabelText(),
+            "the reused node should rerender the next row",
         )
     }
 
@@ -126,10 +126,10 @@ class TreeComposableNodeTest {
         val tree = onNodeOfType<JTree>().fetch()
         assertEquals(
             "(none)",
-            tree.stampRow(1).firstLabelText(),
+            tree.renderRow(1).firstLabelText(),
             "a node whose value is null is a node the node body renders",
         )
-        assertEquals("leaf", tree.stampRow(2).firstLabelText(), "the next node renders its own value")
+        assertEquals("leaf", tree.renderRow(2).firstLabelText(), "the next node renders its own value")
     }
 
     @Test
@@ -148,7 +148,7 @@ class TreeComposableNodeTest {
         }
 
         val tree = onNodeOfType<JTree>().fetch()
-        assertEquals("apple ripe", tree.stampRow(1).firstLabelText(), "the node renders the value it stands for")
+        assertEquals("apple ripe", tree.renderRow(1).firstLabelText(), "the node renders the value it stands for")
         tree.model.addTreeModelListener(nodeChangeRecorder(changed))
 
         apple = Branch("apple", badge = "eaten")
@@ -159,7 +159,7 @@ class TreeComposableNodeTest {
             tree.pathTo(0),
             "the row renders from the value, so a node that took over another one has to be painted again",
         )
-        assertEquals("apple eaten", tree.stampRow(1).firstLabelText(), "and renders the value that stands")
+        assertEquals("apple eaten", tree.renderRow(1).firstLabelText(), "and renders the value that stands")
     }
 
     @Test
@@ -229,13 +229,13 @@ class TreeComposableNodeTest {
         }
 
         val tree = onNodeOfType<JTree>().fetch()
-        assertEquals("veg", tree.stampRow(2).firstLabelText(), "an unselected row should render plainly")
+        assertEquals("veg", tree.renderRow(2).firstLabelText(), "an unselected row should render plainly")
 
         selection = setOf(listOf(1))
         awaitIdle()
         assertEquals(
             "veg*",
-            tree.stampRow(2).firstLabelText(),
+            tree.renderRow(2).firstLabelText(),
             "a selected row should observe isSelected through the TreeNodeScope",
         )
     }
@@ -255,15 +255,15 @@ class TreeComposableNodeTest {
         }
 
         val tree = onNodeOfType<JTree>().fetch()
-        assertEquals("root open", tree.stampRow(0).firstLabelText(), "the expanded root should render as open")
-        assertEquals("fruit", tree.stampRow(1).firstLabelText(), "a collapsed row should render as closed")
+        assertEquals("root open", tree.renderRow(0).firstLabelText(), "the expanded root should render as open")
+        assertEquals("fruit", tree.renderRow(1).firstLabelText(), "a collapsed row should render as closed")
 
         expansion = setOf(emptyList(), listOf(0))
         awaitIdle()
         assertEquals(
             "fruit open",
-            tree.stampRow(1).firstLabelText(),
-            "expanding a node should restamp it as open through the TreeNodeScope",
+            tree.renderRow(1).firstLabelText(),
+            "expanding a node should rerender it as open through the TreeNodeScope",
         )
     }
 
@@ -289,7 +289,7 @@ class TreeComposableNodeTest {
         val tree = onNodeOfType<JTree>().fetch()
         assertEquals(
             "root",
-            tree.stampRow(0).firstLabelText(),
+            tree.renderRow(0).firstLabelText(),
             "a composable node inside a ScrollPane should realize its row content, not leak the viewport slot",
         )
     }
@@ -312,8 +312,8 @@ class TreeComposableNodeTest {
         }
 
         val tree = onNodeOfType<JTree>().fetch()
-        val composedNode = tree.stampRow(0)
-        assertFalse(composedNode is JLabel, "a composable node stamps what it composed, not the default JLabel")
+        val composedNode = tree.renderRow(0)
+        assertFalse(composedNode is JLabel, "a composable node renders what it composed, not the default JLabel")
         assertEquals("root", composedNode.firstLabelText(), "the composable node should render row 0")
 
         composableNodes = false
@@ -322,16 +322,16 @@ class TreeComposableNodeTest {
             tree.cellRenderer as? ComposingTreeCellRenderer<*>,
             "taking nodeContent away must leave the tree's own renderer, not a composing one",
         )
-        val ownNode = tree.stampRow(0)
-        assertTrue(ownNode is JLabel, "the restored renderer stamps a JLabel")
+        val ownNode = tree.renderRow(0)
+        assertTrue(ownNode is JLabel, "the restored renderer renders a JLabel")
         assertEquals("root", (ownNode as JLabel).text, "the restored renderer renders the node's label")
 
         composableNodes = true
         awaitIdle()
         assertEquals(
             "root",
-            tree.stampRow(0).firstLabelText(),
-            "declaring nodeContent again should stamp the composable node",
+            tree.renderRow(0).firstLabelText(),
+            "declaring nodeContent again should render the composable node",
         )
     }
 
@@ -346,8 +346,8 @@ class TreeComposableNodeTest {
             tree.cellRenderer as? ComposingTreeCellRenderer<*>,
             "omitting nodeContent must leave the tree's own renderer, not install a composing one",
         )
-        val node = tree.stampRow(0)
-        assertTrue(node is JLabel, "the tree's own renderer stamps a JLabel")
+        val node = tree.renderRow(0)
+        assertTrue(node is JLabel, "the tree's own renderer renders a JLabel")
         assertEquals("root", (node as JLabel).text, "the tree's own renderer renders the node's label")
     }
 }

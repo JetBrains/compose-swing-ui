@@ -34,7 +34,7 @@ import kotlin.test.assertEquals
  * body, then mount a detached top-level peer's content pane via `setContentAsInteropHost(parent)`.
  * The host [JPanel] is deliberately NOT attached to the application's Swing tree, exactly like a
  * `JFrame` content pane, so the production [findParentCompositionContext] tree-walk would find only
- * the stamp this call itself installs.
+ * the context this call itself publishes.
  *
  * If `Window` mounted such detached content as an independent root, the content would see only the
  * CompositionLocal default and never recompose on application-scope state changes; this test fails

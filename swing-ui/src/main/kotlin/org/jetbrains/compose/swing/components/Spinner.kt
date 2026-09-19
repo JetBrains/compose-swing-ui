@@ -17,7 +17,7 @@ import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
 import org.jetbrains.compose.swing.node.declare
 import org.jetbrains.compose.swing.node.rememberMirrorState
-import org.jetbrains.compose.swing.setContentAsInteropHost
+import org.jetbrains.compose.swing.setContent
 import java.awt.BorderLayout
 import java.util.Calendar
 import java.util.Date
@@ -323,7 +323,7 @@ private inline fun SpinnerNode(
         "Spinner format \"$format\" applies to a number or a date model, but the model is a " +
             "${model.javaClass.name}; declare an editor of your own to render it"
     }
-    val parentContext = rememberCompositionContext()
+    val parentContext = if (editor != null) rememberCompositionContext() else null
     // The panel a composed editor renders into, remembered here so the same instance is handed both to
     // the modifier below, which installs it as the spinner's editor, and to the editor composition beside
     // the node, which fills it.
@@ -342,12 +342,15 @@ private inline fun SpinnerNode(
             //
             // This follows the declarations above, so an [EditorDeclaration] builds its editor for a
             // model already holding the value this pass declared.
+            //
+            // A composed editor receives the parent context directly, so a spinner with no editor neither
+            // captures nor publishes a composition context.
             set(EditorDeclaration(model, format, editor != null, valueClass)) { declaration ->
                 if (!declaration.composed) (this as SpinnerComponent).showDeclaredEditor(declaration)
             }
         },
     )
-    if (editor != null && editorPanel != null) {
+    if (editor != null && editorPanel != null && parentContext != null) {
         SpinnerEditorComposition(editorPanel, parentContext, editor)
     }
 }
@@ -512,12 +515,11 @@ private class ItemsFormatter(
 
 /**
  * Composes [content] into [panel], which the modifier chain installs as the spinner's editor for as long
- * as an editor is declared.
+ * as an editor is declared. [parentContext] directly joins the editing surface to the composition
+ * declaring the spinner, so no client property needs publishing on the spinner itself.
  *
- * The composition joins [parentContext], so the editing surface reads the state and the
- * [androidx.compose.runtime.CompositionLocal]s the spinner's own caller does. [content] flows in through
- * [rememberUpdatedState]: a fresh lambda each recomposition recomposes it rather than rebuilding it, so an
- * edit in progress is not thrown away.
+ * [content] flows in through [rememberUpdatedState]: a fresh lambda each recomposition recomposes it
+ * rather than rebuilding it, so an edit in progress is not thrown away.
  */
 @Composable
 private fun SpinnerEditorComposition(
@@ -528,9 +530,9 @@ private fun SpinnerEditorComposition(
         () -> Unit,
 ) {
     val current = rememberUpdatedState(content)
-    DisposableEffect(panel) {
+    DisposableEffect(panel, parentContext) {
         val handle =
-            panel.setContentAsInteropHost(parentContext) {
+            panel.setContent(parent = parentContext) {
                 current.value()
             }
         onDispose {

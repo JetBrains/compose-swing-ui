@@ -1,12 +1,16 @@
 package org.jetbrains.compose.swing.components
 
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReusableContentHost
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.core.COMPOSITION_KEY
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.jetbrains.compose.swing.util.get
 import java.awt.Container
 import java.text.DecimalFormat
 import java.util.Calendar
@@ -47,6 +51,17 @@ class SpinnerEditorBehaviorTest {
             (JSpinner(SpinnerNumberModel()).editor as JSpinner.NumberEditor).textField.horizontalAlignment,
             editor.textField.horizontalAlignment,
             "the field is aligned the way the look and feel aligns a spinner's own",
+        )
+    }
+
+    @Test
+    fun withNoComposedEditorTheSpinnerPublishesNoCompositionContext() = runComposeSwingTest {
+        setContent { Spinner(value = 1.5, onValueChange = {}, step = 0.5) }
+
+        assertEquals(
+            null,
+            onNodeOfType<JSpinner>().fetch()[COMPOSITION_KEY],
+            "a spinner that has no composed editor must not publish a composition context",
         )
     }
 
@@ -146,6 +161,23 @@ class SpinnerEditorBehaviorTest {
 
         assertSame(host, spinner.editor, "a step recomposes the editor composition rather than rebuilding it")
         assertEquals("value 4", host.firstLabelText(), "and that composition renders the value it now reads")
+    }
+
+    @Test
+    fun aComposedEditorSeesStateHoistedAroundTheSpinner() = runComposeSwingTest {
+        setContent {
+            CompositionLocalProvider(LocalCaption provides "hoisted") {
+                Spinner(value = 1, onValueChange = {}) { Label(LocalCaption.current) }
+            }
+        }
+        awaitIdle()
+
+        val spinner = onNodeOfType<JSpinner>().fetch()
+        assertEquals(
+            "hoisted",
+            spinner.editor.firstLabelText(),
+            "a composed editor should compose as a child of the composition enclosing the spinner",
+        )
     }
 
     /** The text of the first [JLabel] anywhere beneath this component. */
@@ -322,3 +354,10 @@ class SpinnerEditorBehaviorTest {
         )
     }
 }
+
+/**
+ * A [androidx.compose.runtime.CompositionLocal] provided around a spinner, used to prove a composed
+ * editor composes as a child of the enclosing composition. Declared top-level so it carries the `Local`
+ * prefix expected of CompositionLocals while remaining file-private to this test.
+ */
+private val LocalCaption = compositionLocalOf { "unprovided" }

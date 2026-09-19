@@ -25,6 +25,7 @@ import java.awt.Color
 import java.awt.Dimension
 import java.awt.event.KeyEvent
 import javax.swing.BoxLayout
+import javax.swing.Icon
 import javax.swing.JTabbedPane
 import javax.swing.UIManager
 
@@ -119,36 +120,59 @@ private fun ColumnScope.TabPlacementCard() {
         )
 
         val infoIcon = UIManager.getIcon("OptionPane.informationIcon")
-        TabbedPane(
-            selectedIndex = selected,
+        TabPlacementTabbedPane(
+            selected = selected,
             onSelectedIndexChange = { selected = it },
-            modifier = SwingModifier.preferredSize(Dimension(320, 160)),
-            tabPlacement = placements[placementIndex].second,
-            tabLayoutPolicy = if (scrollLayout) JTabbedPane.SCROLL_TAB_LAYOUT else JTabbedPane.WRAP_TAB_LAYOUT,
+            placements = placements,
+            placementIndex = placementIndex,
+            scrollLayout = scrollLayout,
+            infoIcon = infoIcon,
+        )
+    }
+}
+
+@Suppress("NOTHING_TO_INLINE")
+@Composable
+private inline fun TabPlacementTabbedPane(
+    selected: Int,
+    noinline onSelectedIndexChange: (Int) -> Unit,
+    placements: List<Pair<String, Int>>,
+    placementIndex: Int,
+    scrollLayout: Boolean,
+    infoIcon: Icon?,
+) {
+    TabbedPane(
+        selectedIndex = selected,
+        onSelectedIndexChange = onSelectedIndexChange,
+        modifier = SwingModifier.preferredSize(Dimension(320, 160)),
+        tabPlacement = placements[placementIndex].second,
+        tabLayoutPolicy = if (scrollLayout) JTabbedPane.SCROLL_TAB_LAYOUT else JTabbedPane.WRAP_TAB_LAYOUT,
+    ) {
+        Panel(PanelLayout.Flow(), SwingModifier.tab("Info", icon = infoIcon)) {
+            Label("A tab carrying an icon.")
+        }
+        Panel(
+            PanelLayout.Flow(),
+            SwingModifier.tab(
+                "Styled",
+                background = Color(0xFF, 0xF9, 0xC4),
+                foreground = Color(0xE6, 0x51, 0x00),
+            ),
         ) {
-            Panel(PanelLayout.Flow(), SwingModifier.tab("Info", icon = infoIcon)) {
-                Label("A tab carrying an icon.")
-            }
-            Panel(
-                PanelLayout.Flow(),
-                SwingModifier.tab(
-                    "Styled",
-                    background = Color(0xFF, 0xF9, 0xC4),
-                    foreground = Color(0xE6, 0x51, 0x00),
-                ),
-            ) {
-                Label("A tab with its own background and title color.")
-            }
-            Panel(PanelLayout.Flow(), SwingModifier.tab("Data", mnemonic = KeyEvent.VK_D, displayedMnemonicIndex = 0)) {
-                Label("Alt+D (or the platform's mouseless modifier) selects this tab.")
-            }
-            Panel(PanelLayout.Flow(), SwingModifier.tab("Custom", header = { Label("★ Custom") })) {
-                Label("This tab's strip entry is a header composable, not its title.")
-            }
-            repeat(EXTRA_TABS) { index ->
-                Panel(PanelLayout.Flow(), SwingModifier.tab("More ${index + 1}")) {
-                    Label("Extra tab ${index + 1}, here to force overflow.")
-                }
+            Label("A tab with its own background and title color.")
+        }
+        Panel(PanelLayout.Flow(), SwingModifier.tab("Data", mnemonic = KeyEvent.VK_D, displayedMnemonicIndex = 0)) {
+            Label("Alt+D (or the platform's mouseless modifier) selects this tab.")
+        }
+        Panel(
+            PanelLayout.Flow(),
+            SwingModifier.tab("Custom", header = { Label("★ Custom") }),
+        ) {
+            Label("This tab's strip entry is a header composable, not its title.")
+        }
+        repeat(EXTRA_TABS) { index ->
+            Panel(PanelLayout.Flow(), SwingModifier.tab("More ${index + 1}")) {
+                Label("Extra tab ${index + 1}, here to force overflow.")
             }
         }
     }

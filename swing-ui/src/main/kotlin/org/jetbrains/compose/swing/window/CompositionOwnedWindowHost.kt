@@ -284,10 +284,10 @@ private class ObservedPeerApply : RememberObserver {
  * nested in this window reads them - the window it is in above all - and recomposes with the rest
  * of the content it is nested in.
  *
- * The `setContent` root that hosts this peer's content stamps the same [contentPane] with the context it
+ * The `setContent` root that hosts this peer's content publishes the same [contentPane] with the context it
  * composes under, and this deliberately supersedes it: both name a valid parent, and this one is the only
- * one carrying the locals the peer states. The stamps nest rather than race - this one is written from
- * inside the composition that root owns, so it lands over that stamp and is the one a content composition
+ * one carrying the locals the peer states. The published contexts nest rather than race - this one is written from
+ * inside the composition that root owns, so it lands over that published context and is the one a content composition
  * joining from under this peer reads.
  */
 @Composable

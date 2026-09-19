@@ -66,10 +66,10 @@ internal val Window.contentPaneOrNull: JComponent?
     get() = (this as? RootPaneContainer)?.contentPane as? JComponent
 
 /**
- * Whether this window's content pane carries the [COMPOSITION_KEY] stamp of a composition that hosts
+ * Whether this window's content pane carries the [COMPOSITION_KEY] context of a composition that hosts
  * this window - what a window declared inside `application { }` is given, so its content joins the
- * composition that declared it. A window mounted with `setContent` carries no such stamp: its content
- * resolves its parent from the window, and the window's own recomposer is stamped on the root pane.
+ * composition that declared it. A window mounted with `setContent` carries no such context: its content
+ * resolves its parent from the window, and the window's own recomposer is published on the root pane.
  */
 private fun Window.composesUnderAForeignComposition(): Boolean = contentPaneOrNull?.get(COMPOSITION_KEY) != null
 
@@ -123,7 +123,7 @@ internal fun disposeContentCompositionsIn(window: Window) {
 
 /**
  * The [SwingRecomposer] a window shares with every content composition standing in it, kept on its root
- * pane beside the [COMPOSITION_KEY] stamp naming the same one, and cleared when it ends.
+ * pane beside the [COMPOSITION_KEY] context naming the same one, and cleared when it ends.
  */
 private val WINDOW_RECOMPOSER_KEY: Key<SwingRecomposer> = Key("org.jetbrains.compose.swing.windowRecomposer")
 
@@ -168,7 +168,7 @@ internal fun windowOwning(context: CompositionContext): Window? =
 internal fun Window.getOrCreateRecomposer(): SwingRecomposer {
     swingRecomposerOrNull()?.let { return it }
 
-    // Cleared when the recomposer ends, so the stamps stand exactly as long as what they name: a
+    // Cleared when the recomposer ends, so the published contexts stand exactly as long as what they name: a
     // setContent resolving its parent up the Swing tree must never reach an ended context, and a window
     // must never hand out a recomposer that has ended.
     // Assignable only after the recomposer it reaps for exists. Safe to read from the callback: the

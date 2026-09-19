@@ -19,10 +19,10 @@ import kotlin.test.assertTrue
  * the node's own factory: a controlled selection reaches the fresh list the same way it reaches any
  * freshly composed one.
  *
- * A composable cell is owned by the composition too: the cell composition stamping it lives only while
+ * A composable cell is owned by the composition too: the cell composition rendering it lives only while
  * the node is in the composition, so a list that outlives its own composable cell - parked before it is
  * torn down - paints that row through the renderer it renders through before that cell, and the fresh
- * list reactivation builds stamps the composable cell again.
+ * list reactivation builds renders the composable cell again.
  */
 class ListBoxNodeReuseTest {
     private val colors = listOf("red", "green")
@@ -32,7 +32,7 @@ class ListBoxNodeReuseTest {
         DefaultListModel<String>().apply { for (color in colors.take(size)) addElement(color) }
 
     @Test
-    fun aParkedListRendersItsOwnCellsAndTheFreshOneStampsTheComposableCellAgain() = runComposeSwingTest {
+    fun aParkedListRendersItsOwnCellsAndTheFreshOneRendersTheComposableCellAgain() = runComposeSwingTest {
         var active by mutableStateOf(true)
         setContent {
             ReusableContentHost(active = active) {
@@ -40,15 +40,15 @@ class ListBoxNodeReuseTest {
             }
         }
         val list = onNodeOfType<JList<*>>().fetch<JList<String>>()
-        assertEquals("red", list.stampCell(index = 0).firstLabelText(), "the composable cell should render row 0")
+        assertEquals("red", list.renderCell(index = 0).firstLabelText(), "the composable cell should render row 0")
 
         active = false
         awaitIdle()
 
-        // A parked list keeps painting through whatever renderer it carries once the composition stamping
+        // A parked list keeps painting through whatever renderer it carries once the composition rendering
         // its composable cell is gone: the renderer it rendered through before that cell is what has to
         // be back on it by then.
-        val parked = list.stampCell(index = 0)
+        val parked = list.renderCell(index = 0)
         assertTrue(parked is JLabel, "a parked list should render rows through the renderer of its own")
         assertEquals("red", (parked as JLabel).text, "the list's own renderer renders the item's toString")
 
@@ -57,8 +57,8 @@ class ListBoxNodeReuseTest {
 
         assertEquals(
             "green",
-            onNodeOfType<JList<*>>().fetch<JList<String>>().stampCell(index = 1).firstLabelText(),
-            "the fresh list should stamp the composable cell",
+            onNodeOfType<JList<*>>().fetch<JList<String>>().renderCell(index = 1).firstLabelText(),
+            "the fresh list should render the composable cell",
         )
     }
 

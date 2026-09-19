@@ -27,9 +27,9 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
- * Behavioral tests for [ListBox]'s composable `itemContent`. They prove the rubber-stamp mechanism end
- * to end: stamping a row through the installed [javax.swing.ListCellRenderer] realizes the composable
- * cell into a real Swing subtree, that the same reused renderer restamps as items/selection change, and
+ * Behavioral tests for [ListBox]'s composable `itemContent`. They prove the render mechanism end
+ * to end: rendering a row through the installed [javax.swing.ListCellRenderer] realizes the composable
+ * cell into a real Swing subtree, that the same reused renderer rerenders as items/selection change, and
  * that a `null` `itemContent` renders rows through the JList's own `toString` renderer - whether it is
  * `null` from the start or becomes `null` on a later composition.
  *
@@ -47,8 +47,8 @@ class ListBoxComposableCellTest {
         }
 
         val list = onNodeOfType<JList<*>>().fetch<JList<String>>()
-        // Stamp row 1 exactly as the JList's CellRendererPane would when painting it.
-        val cell = list.stampCell(index = 1)
+        // Render row 1 exactly as the JList's CellRendererPane would when painting it.
+        val cell = list.renderCell(index = 1)
 
         assertEquals(
             "beta",
@@ -58,7 +58,7 @@ class ListBoxComposableCellTest {
     }
 
     @Test
-    fun theSameRendererRestampsAsRowsChange() = runComposeSwingTest {
+    fun theSameRendererRerendersAsRowsChange() = runComposeSwingTest {
         setContent {
             ListBox(items = listOf("one", "two", "three")) { item ->
                 Label(item)
@@ -66,10 +66,10 @@ class ListBoxComposableCellTest {
         }
 
         val list = onNodeOfType<JList<String>>().fetch()
-        assertEquals("one", list.stampCell(index = 0).firstLabelText(), "row 0 should render its item")
-        // A single reused composition/host restamps for each row the widget asks to paint.
-        assertEquals("three", list.stampCell(index = 2).firstLabelText(), "the reused cell should restamp row 2")
-        assertEquals("two", list.stampCell(index = 1).firstLabelText(), "and restamp again for row 1")
+        assertEquals("one", list.renderCell(index = 0).firstLabelText(), "row 0 should render its item")
+        // A single reused composition/host rerenders for each row the widget asks to paint.
+        assertEquals("three", list.renderCell(index = 2).firstLabelText(), "the reused cell should rerender row 2")
+        assertEquals("two", list.renderCell(index = 1).firstLabelText(), "and rerender again for row 1")
     }
 
     @Test
@@ -82,20 +82,20 @@ class ListBoxComposableCellTest {
         }
 
         val list = onNodeOfType<JList<String>>().fetch()
-        assertEquals("draft", list.stampCell(index = 0).firstLabelText(), "the initial item should render")
+        assertEquals("draft", list.renderCell(index = 0).firstLabelText(), "the initial item should render")
 
-        // Changing the backing items recomposes the list and the cell restamps the new value for that row.
+        // Changing the backing items recomposes the list and the cell rerenders the new value for that row.
         items = listOf("final")
         awaitIdle()
         assertEquals(
             "final",
-            list.stampCell(index = 0).firstLabelText(),
-            "changing the item should restamp the cell with the new content",
+            list.renderCell(index = 0).firstLabelText(),
+            "changing the item should rerender the cell with the new content",
         )
     }
 
     @Test
-    fun cellScopeReflectsSelectionForTheStampedRow() = runComposeSwingTest {
+    fun cellScopeReflectsSelectionForTheRenderedRow() = runComposeSwingTest {
         setContent {
             ListBox(items = listOf("x", "y")) { item ->
                 Label(if (isSelected) "$item*" else item)
@@ -105,13 +105,13 @@ class ListBoxComposableCellTest {
         val list = onNodeOfType<JList<String>>().fetch()
         assertEquals(
             "y",
-            list.stampCell(index = 1, isSelected = false).firstLabelText(),
-            "an unselected stamp should render the plain item",
+            list.renderCell(index = 1, isSelected = false).firstLabelText(),
+            "an unselected render should render the plain item",
         )
         assertEquals(
             "y*",
-            list.stampCell(index = 1, isSelected = true).firstLabelText(),
-            "a selected stamp should observe isSelected through the ListItemScope",
+            list.renderCell(index = 1, isSelected = true).firstLabelText(),
+            "a selected render should observe isSelected through the ListItemScope",
         )
     }
 
@@ -126,17 +126,17 @@ class ListBoxComposableCellTest {
         val list = onNodeOfType<JList<*>>().fetch<JList<String?>>()
         assertEquals(
             "(none)",
-            list.stampCell(index = 0).firstLabelText(),
+            list.renderCell(index = 0).firstLabelText(),
             "a row whose item is null is a row the cell body renders",
         )
-        assertEquals("beta", list.stampCell(index = 1).firstLabelText(), "the next row renders its own item")
+        assertEquals("beta", list.renderCell(index = 1).firstLabelText(), "the next row renders its own item")
     }
 
     @Test
     fun composableCellsWorkInsideAScrollPane() = runComposeSwingTest {
         // A cell composition joins the enclosing composition, and the cell's own nodes belong to the
         // renderer rather than to the pane the list is installed in: they render the row, they do not
-        // install themselves as the viewport's view. Selecting a row synchronously stamps a cell during
+        // install themselves as the viewport's view. Selecting a row synchronously renders a cell during
         // the enclosing composition's apply pass, which is exactly when such leakage surfaces.
         setContent {
             ScrollPane {
@@ -153,13 +153,13 @@ class ListBoxComposableCellTest {
         val list = onNodeOfType<JList<String>>().fetch()
         assertEquals(
             "second",
-            list.stampCell(index = 1).firstLabelText(),
+            list.renderCell(index = 1).firstLabelText(),
             "a composable cell inside a ScrollPane should realize its row content, not leak the viewport slot",
         )
     }
 
     @Test
-    fun aStampAfterTheRendererLeavesTheCompositionIsSafe() = runComposeSwingTest {
+    fun aRenderAfterTheRendererLeavesTheCompositionIsSafe() = runComposeSwingTest {
         var showList by mutableStateOf(true)
         setContent {
             if (showList) {
@@ -171,7 +171,7 @@ class ListBoxComposableCellTest {
 
         val list = onNodeOfType<JList<String>>().fetch()
         val composingRenderer = list.cellRenderer
-        val cellBefore = composingRenderer.stampCell(value = "alpha", index = 0, list = list)
+        val cellBefore = composingRenderer.renderCell(value = "alpha", index = 0, list = list)
 
         // The renderer outlives its composition: whoever captured it - a widget, a popup of its own -
         // goes on invoking it while the window it belongs to is torn down, after the cell composition
@@ -179,7 +179,7 @@ class ListBoxComposableCellTest {
         showList = false
         awaitIdle()
 
-        val cellAfter = composingRenderer.stampCell(value = "beta", index = 1, list = list)
+        val cellAfter = composingRenderer.renderCell(value = "beta", index = 1, list = list)
         assertNotSame(
             cellBefore,
             cellAfter,
@@ -187,10 +187,10 @@ class ListBoxComposableCellTest {
         )
         assertNull(
             cellAfter.firstLabelText(),
-            "a stamp on a disposed cell composition must render an empty cell rather than a stale row",
+            "a render on a disposed cell composition must render an empty cell rather than a stale row",
         )
         assertTrue(
-            list.stampCell(index = 1) is JLabel,
+            list.renderCell(index = 1) is JLabel,
             "the list itself renders through its own renderer again once the composable cell is gone",
         )
     }
@@ -211,8 +211,8 @@ class ListBoxComposableCellTest {
         }
 
         val list = onNodeOfType<JList<*>>().fetch<JList<String>>()
-        val composedCell = list.stampCell(index = 0)
-        assertFalse(composedCell is JLabel, "a composable cell stamps what it composed, not the default JLabel")
+        val composedCell = list.renderCell(index = 0)
+        assertFalse(composedCell is JLabel, "a composable cell renders what it composed, not the default JLabel")
         assertEquals("alpha", composedCell.firstLabelText(), "the composable cell should render row 0")
 
         composableCells = false
@@ -221,16 +221,16 @@ class ListBoxComposableCellTest {
             list.cellRenderer as? ComposingListCellRenderer<*>,
             "taking itemContent away must leave the list's own renderer, not a composing one",
         )
-        val defaultCell = list.stampCell(index = 0)
-        assertTrue(defaultCell is JLabel, "the restored renderer stamps a JLabel")
+        val defaultCell = list.renderCell(index = 0)
+        assertTrue(defaultCell is JLabel, "the restored renderer renders a JLabel")
         assertEquals("alpha", (defaultCell as JLabel).text, "the restored renderer renders the item's toString")
 
         composableCells = true
         awaitIdle()
         assertEquals(
             "beta",
-            list.stampCell(index = 1).firstLabelText(),
-            "declaring itemContent again should stamp the composable cell",
+            list.renderCell(index = 1).firstLabelText(),
+            "declaring itemContent again should render the composable cell",
         )
     }
 
@@ -251,20 +251,20 @@ class ListBoxComposableCellTest {
         }
 
         val list = onNodeOfType<JList<*>>().fetch<JList<String>>()
-        assertFalse(list.stampCell(index = 0) is JLabel, "a composable cell stamps what it composed")
+        assertFalse(list.renderCell(index = 0) is JLabel, "a composable cell renders what it composed")
 
         composableCells = false
         awaitIdle()
-        val defaultCell = list.stampCell(index = 0)
-        assertTrue(defaultCell is JLabel, "taking itemContent away should stamp the list's own JLabel renderer")
+        val defaultCell = list.renderCell(index = 0)
+        assertTrue(defaultCell is JLabel, "taking itemContent away should render the list's own JLabel renderer")
         assertEquals("alpha", (defaultCell as JLabel).text, "the restored renderer renders the item's toString")
 
         composableCells = true
         awaitIdle()
         assertEquals(
             "beta",
-            list.stampCell(index = 1).firstLabelText(),
-            "declaring itemContent again should stamp the composable cell",
+            list.renderCell(index = 1).firstLabelText(),
+            "declaring itemContent again should render the composable cell",
         )
     }
 
@@ -335,8 +335,8 @@ class ListBoxComposableCellTest {
             awaitIdle()
             assertEquals(
                 "alpha",
-                (list.stampCell(index = 0) as JLabel).text,
-                "taking itemContent away should stamp the list's own renderer",
+                (list.renderCell(index = 0) as JLabel).text,
+                "taking itemContent away should render the list's own renderer",
             )
 
             // What comes back is the list's own renderer, which is the look and feel's to replace:
@@ -366,8 +366,8 @@ class ListBoxComposableCellTest {
             list.cellRenderer as? ComposingListCellRenderer<*>,
             "omitting itemContent must leave the JList default renderer, not install a composing renderer",
         )
-        val cell = list.stampCell(index = 0)
-        assertTrue(cell is JLabel, "the default renderer stamps a JLabel")
+        val cell = list.renderCell(index = 0)
+        assertTrue(cell is JLabel, "the default renderer renders a JLabel")
         assertEquals("a", (cell as JLabel).text, "the default renderer renders the item's toString")
     }
 }

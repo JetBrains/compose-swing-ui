@@ -28,12 +28,12 @@ internal val COMPOSITION_KEY: Key<CompositionContext> = Key("org.jetbrains.compo
 
 /**
  * Finds the parent [CompositionContext] by walking the Swing component tree, reading two things off each
- * component on the way up: the [COMPOSITION_KEY] client property a host stamps on a [JComponent], and the
+ * component on the way up: the [COMPOSITION_KEY] client property a host publishes on a [JComponent], and the
  * context a live `setContent` composition rooted on that component composes its content under. The nearest
  * ancestor that answers wins, so the innermost composition around this component is the one it joins.
  *
  * The client-property walk is self-first: it checks the receiver before its ancestors, so a component
- * stamped with a context (an interop host, or a window root pane) is found by a `setContent` call on that
+ * published with a context (an interop host, or a window root pane) is found by a `setContent` call on that
  * component itself, not only by its descendants. A content composition's context answers for what hangs
  * **inside** its container, so the receiver's own content compositions are passed over: a container asks
  * where it hangs, not what it already carries.
@@ -48,9 +48,9 @@ internal fun Component.findParentCompositionContext(): CompositionContext? {
 }
 
 /**
- * What this component alone answers the walk with: the [COMPOSITION_KEY] stamp a host published on it,
+ * What this component alone answers the walk with: the [COMPOSITION_KEY] context a host published on it,
  * or the context of a live content composition composing into it. A content composition answers only for
- * what hangs inside its container, so the component the walk started at contributes its stamp alone.
+ * what hangs inside its container, so the component the walk started at contributes its published context alone.
  */
 private fun Component.compositionContextHere(walkStartedAt: Component): CompositionContext? =
     (this as? JComponent)?.get(COMPOSITION_KEY)
@@ -61,9 +61,9 @@ private fun Component.compositionContextHere(walkStartedAt: Component): Composit
  * - and a self-first [findParentCompositionContext] on this component itself - find it as their parent,
  * and clears it again when passed `null`.
  *
- * The stamp is the caller's: clear it from the same teardown that ends the composition behind it. A
+ * The published context is the caller's: clear it from the same teardown that ends the composition behind it. A
  * container that is no [JComponent] carries no client-property bag, so a caller holding one of those
- * stamps nothing.
+ * publishes nothing.
  */
 internal fun JComponent.setCompositionContext(context: CompositionContext?) {
     this[COMPOSITION_KEY] = context
@@ -178,13 +178,13 @@ internal class SwingContentComposition private constructor(
      * [ControlledComposition.recompose] and [ControlledComposition.applyChanges] directly.
      *
      * Intended for a host that must have its Swing subtree fully materialized the instant it returns - a
-     * `ListCellRenderer` stamping the same reused composition for each row Swing asks it to paint.
+     * `ListCellRenderer` rendering the same reused composition for each row Swing asks it to paint.
      *
      * [writeState] runs inside a mutable snapshot whose read/write observers feed this composition
      * directly, so its writes invalidate the composition now instead of waiting for the parent
      * recomposer's own schedule.
      *
-     * Once this composition is [dispose]d, a stamp is a no-op instead of an error: a Swing widget keeps
+     * Once this composition is [dispose]d, a render is a no-op instead of an error: a Swing widget keeps
      * invoking a renderer it captured even while its window is torn down (during focus and layout
      * passes), so this call must stay safe to make on a disposed composition. [writeState] is skipped
      * too, since recording reads and writes against a disposed composition is dead work.
@@ -205,7 +205,7 @@ internal class SwingContentComposition private constructor(
             return
         }
         // The observers are what make this composition re-record the state it reads, the way a recomposer
-        // wraps a composition it drives: without them a second stamp would find nothing observing the row
+        // wraps a composition it drives: without them a second render would find nothing observing the row
         // inputs and skip recomposing, freezing the cell on the first row's value.
         withMutableSnapshot(
             readObserver = { controlled.recordReadOf(it) },
@@ -251,14 +251,15 @@ internal class SwingContentComposition private constructor(
  * them to dispose what was already registered with. Every type is caught because what the content
  * throws is the caller's to choose.
  */
-@Suppress("TooGenericExceptionCaught")
 internal inline fun <R> disposingOnFailure(
     dispose: () -> Unit,
     firstPass: () -> R,
 ): R =
     try {
         firstPass()
-    } catch (failure: Throwable) {
+    } catch (
+        @Suppress("TooGenericExceptionCaught") failure: Throwable,
+    ) {
         dispose()
         throw failure
     }

@@ -58,12 +58,16 @@ import javax.swing.SwingUtilities
  * @param root the node this composition is rooted at, attached to the composition that owns it.
  * @param rootSlot installs the children composed directly under [root], which then shows the single
  *   top-level component that slot holds; `null` - the default - adds them to [root] by index.
+ * @param onRootSlotSettled observes the root after a root-slot pass has settled, before its single-child
+ *   invariant is checked. The standard invariant check follows if the callback returns normally. `null`
+ *   uses only the standard root check.
  * @see org.jetbrains.compose.swing.node.SwingNode
  */
 @PublishedApi
 internal class SwingApplier internal constructor(
     root: SwingNodeHolder<Container>,
     rootSlot: SlotAttachment? = null,
+    onRootSlotSettled: (() -> Unit)? = null,
 ) : AbstractApplier<SwingNodeHolder<*>>(root) {
     /** The bookkeeping for the batch of component updates in flight, read off the root like any node. */
     private val batch = root.requireOwner().updateBatch
@@ -72,7 +76,7 @@ internal class SwingApplier internal constructor(
     private val changes = ChangeRecord()
 
     /** The regions this applier's hosts hold their children in. */
-    private val regions = ChildRegions(this.root, rootSlot, batch, changes)
+    private val regions = ChildRegions(this.root, rootSlot, onRootSlotSettled, batch, changes)
 
     override fun up() {
         // A node's own update changes run while the applier is positioned at it, so leaving the node is
@@ -259,13 +263,19 @@ internal class SwingApplier internal constructor(
 private class ChildRegions(
     private val root: SwingNodeHolder<*>,
     private val rootSlot: SlotAttachment?,
+    onRootSlotSettled: (() -> Unit)?,
     private val batch: ComponentUpdateBatch,
     private val changes: ChangeRecord,
 ) {
     /** The hosts still to be held to one child per region. */
     private val regionCheck =
         DeferredRegionCheck { host ->
-            if (host === this.root) this.root.checkRootShowsOneChild() else host.checkOneChildPerRegion()
+            if (host === this.root) {
+                onRootSlotSettled?.invoke()
+                this.root.checkRootShowsOneChild()
+            } else {
+                host.checkOneChildPerRegion()
+            }
         }
 
     /** The debug-only child-index-space walk, deferred the same turn and for the same reason as [regionCheck]. */
@@ -307,8 +317,10 @@ private class ChildRegions(
             // region each child is really in, and a component that arrives in a region as this runs is
             // one more child of a host the check has to answer for.
             for (host in changes.hostsWithRestatedRegions) host.moveRestatedChildren()
-            // Every region of these hosts now holds what the composition declares for it. Which children
-            // still count is settled once this pass has been dispatched whole - see DeferredRegionCheck.
+            // A root slot has a stronger contract than an ordinary region: some hosts permit an empty
+            // region, while a custom root consumer may require exactly one child. Hold it even where this
+            // pass removed its last child, since no slot arrival would otherwise schedule that validation.
+            if (rootSlot != null) regionCheck.hold(root)
             for (host in changes.hostsWithFilledSlots) regionCheck.hold(host)
         } finally {
             changes.forget()
@@ -754,9 +766,22 @@ private fun SwingNodeHolder<*>.checkChildKind(
  * no such term, because releasing the slot is what clears the name it counts by.
  */
 internal fun SwingNodeHolder<*>.checkRootShowsOneChild() {
-    val shown = children.filter { !it.deactivated }
-    if (shown.size < 2) return
-    error(rootSlotFilledTwice(component, shown[0].component, shown[1].component))
+    var first: SwingNodeHolder<*>? = null
+    var second: SwingNodeHolder<*>? = null
+    for (i in 0 until children.size) {
+        val child = children[i]
+        if (!child.deactivated) {
+            if (first == null) {
+                first = child
+            } else {
+                second = child
+                break
+            }
+        }
+    }
+    if (second != null) {
+        if (first != null) error(rootSlotFilledTwice(component, first.component, second.component))
+    }
 }
 
 /**

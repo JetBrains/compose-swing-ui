@@ -271,9 +271,9 @@ class WindowRecomposerFailureTest {
                 "the observer of a composition whose first pass threw is off the global apply observers",
             )
 
-            var stamped = false
-            composition.recomposeSynchronously { stamped = true }
-            assertFalse(stamped, "a composition whose first pass threw is disposed, so a stamp on it does nothing")
+            var rendered = false
+            composition.recomposeSynchronously { rendered = true }
+            assertFalse(rendered, "a composition whose first pass threw is disposed, so a render on it does nothing")
         } finally {
             composition.dispose()
             recomposer.dispose()

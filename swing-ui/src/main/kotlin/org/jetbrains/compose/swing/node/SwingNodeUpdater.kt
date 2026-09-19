@@ -1,6 +1,5 @@
 package org.jetbrains.compose.swing.node
 
-import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.Updater
 import androidx.compose.runtime.snapshots.SnapshotStateObserver
 import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
@@ -72,40 +71,6 @@ public value class SwingNodeUpdater<T : Component>
         public inline fun init(crossinline block: T.() -> Unit): Unit =
             updater.init {
                 component.block()
-            }
-
-        /**
-         * Publishes [context] on the component, so that a `setContent` call on a component below it joins
-         * this composition - sharing its scope and its
-         * [CompositionLocal][androidx.compose.runtime.CompositionLocal]s. Without it such a call joins
-         * whatever its place in the Swing tree resolves to - the content composition above it, or the one
-         * its window shares - so it recomposes with everything else there but sees none of the
-         * `CompositionLocal`s this node stands under. A `null` [context] leaves the component hosting
-         * nothing.
-         *
-         * Read the context where the node is declared and hand it over here:
-         *
-         * ```
-         * val context = rememberCompositionContext()
-         * SwingNode(
-         *     factory = { JPanel() },
-         *     update = { hostSubcompositions(context) },
-         * )
-         * ```
-         *
-         * It is declared rather than taken by [SwingNode] itself because reading the enclosing context is
-         * work on every pass rather than a value a node remembers, and a node that hosts nothing would
-         * otherwise pay for it.
-         *
-         * The component must be a [javax.swing.JComponent], which is what carries the client property a
-         * descendant `setContent` walks up to find; anything else throws [IllegalStateException].
-         *
-         * @param context the composition a `setContent` below this component joins. Applied through
-         *   [set], so it takes a slot in the `update` block whether or not it is `null`.
-         */
-        public fun hostSubcompositions(context: CompositionContext?): Unit =
-            updater.set(context) {
-                hostSubcompositions(it)
             }
 
         /**

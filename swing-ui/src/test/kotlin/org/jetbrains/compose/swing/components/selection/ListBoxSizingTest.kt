@@ -19,7 +19,7 @@ import kotlin.test.assertTrue
  *
  * A list sizes itself by asking its renderer to measure a row, once per row. A prototype item collapses
  * that to one measurement every cell is then sized by, and a width or height in pixels states a size
- * outright; with a composable cell each avoided measurement is a nested composition not stamped. Each is
+ * outright; with a composable cell each avoided measurement is a nested composition not rendered. Each is
  * declared state and is applied whenever the declaration moves.
  */
 class ListBoxSizingTest {
@@ -145,5 +145,5 @@ class ListBoxSizingTest {
      * measures a prototype: through whichever renderer is installed, at row 0, unselected and unfocused.
      */
     private fun JList<String>.measurePrototypeCell() =
-        cellRenderer.stampCell(value = prototype, index = 0, list = this).preferredSize
+        cellRenderer.renderCell(value = prototype, index = 0, list = this).preferredSize
 }

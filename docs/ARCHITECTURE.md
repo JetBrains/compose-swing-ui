@@ -48,12 +48,12 @@ A content composition can also be given the composition it nests into. A composa
 over with `rememberCompositionContext()`, and `component.findRecomposer()` reads the scope already
 driving composed content - a `Recomposer` is a `CompositionContext`, so it stands as a parent as it is.
 `component.setContent(parent) { ... }` then composes on the call, whatever the component is attached
-to. Everything mounted inside such a component joins the same parent: a
-`setContent` naming no parent of its own on a component hanging under that content composition resolves
-to the composition it was given rather than to the window's. A container given a window's own scope
-joins the composition of the window it is in should it later be added to another. A container given
-a runtime of its own is kept on that runtime instead: a move brings only the window its content reads
-up to date.
+to. The named parent remains its parent if the component moves between windows; the destination window
+only supplies the current recomposer registration and the window the content reads. Everything mounted
+inside such a component joins the same parent: a `setContent` naming no parent of its own on a component
+hanging under that content composition resolves to the composition it was given rather than to the
+window's.
+
 
 Content reads a `LifecycleOwner` through `LocalLifecycleOwner`, shared by everything that content
 hosts - popups, menus, overlays. A content composition takes the owner of the one above it in the

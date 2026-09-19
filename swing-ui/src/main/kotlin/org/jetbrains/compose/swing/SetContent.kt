@@ -41,10 +41,12 @@ import javax.swing.RootPaneContainer
  * shown. Everything mounted inside this content joins [parent] as well: a `setContent` naming no parent
  * of its own on a container hanging under this one resolves to [parent] rather than to the composition
  * its window shares. The caller owns what they pass: disposing the returned handle disposes this
- * content composition and leaves [parent] running. A container that later ends up in a different
- * window joins the composition of the window it is then in, recreating this content there - unless
- * [parent] is a recomposer of the caller's own, which the content is kept on. A move then brings only
- * the window the content reads up to date, and everything the content remembered survives it.
+ * content composition and leaves [parent] running. A container that later ends up in a different window
+ * recomposes there only when that window's place resolves to a composition different from the one this
+ * content already composes under. Where the same composition still answers - a published host reached
+ * again through the container's new place, or [parent] itself where it is a recomposer of the caller's
+ * own, which no window ever shares - the content keeps its composition: only the window it reads and
+ * the recomposer it registers with catch up, and everything it remembered survives the move.
  *
  * The content reads its [LocalWindow][org.jetbrains.compose.swing.window.LocalWindow] from the
  * composition it joins, and the window this container is in wherever that composition names none.
@@ -248,7 +250,6 @@ internal fun JMenuBar.setContentAsMenuInteropHost(
         () -> Unit,
 ): DisposableHandle {
     checkEventDispatchThread()
-
     val composition =
         SwingContentComposition.nested(parent) { owner ->
             MenuApplier(SwingNodeHolder(this).attachedTo(owner))

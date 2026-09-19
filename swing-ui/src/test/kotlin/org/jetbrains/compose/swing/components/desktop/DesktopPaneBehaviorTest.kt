@@ -15,17 +15,19 @@ import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.withRecordedRepaints
 import java.awt.Rectangle
+import javax.swing.JComponent
 import javax.swing.JDesktopPane
 import javax.swing.JInternalFrame
 import javax.swing.JInternalFrame.JDesktopIcon
+import javax.swing.SwingUtilities
 import javax.swing.event.InternalFrameListener
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
-import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
@@ -263,14 +265,19 @@ class DesktopPaneBehaviorTest {
         }
         val desktop = onNodeOfType<JDesktopPane>().fetch()
         val icon = onNodeOfType<JDesktopIcon>().fetch()
-        assertSame(desktop, icon.parent, "the iconified frame stands on the desktop as its icon")
+        val iconHost =
+            assertNotNull(
+                icon.parent as? JComponent,
+                "the iconified frame stands in the desktop hierarchy as its icon",
+            )
+        assertTrue(SwingUtilities.isDescendingFrom(icon, desktop), "the icon stands under the desktop")
         val iconArea = icon.bounds
         withRecordedRepaints { recorded ->
             show = false
             awaitIdle()
 
             onNodeOfType<JDesktopIcon>().assertDoesNotExist()
-            assertContains(recorded.dirtyRegionsOf(desktop), iconArea, "the area the removed icon leaves")
+            assertContains(recorded.dirtyRegionsOf(iconHost), iconArea, "the area the removed icon leaves")
         }
     }
 

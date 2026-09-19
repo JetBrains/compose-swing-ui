@@ -1,6 +1,5 @@
 package org.jetbrains.compose.swing.components.layout
 
-import androidx.compose.runtime.rememberCompositionContext
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.rememberMirrorState
@@ -67,10 +66,10 @@ class SlotHostMismatchTest {
         val failure =
             assertFailsWith<IllegalStateException> {
                 setContent {
-                    // A tab's placement modifier needs no live header context to be built - it is a
-                    // plain SwingModifier value - but TabbedPaneScopeImpl still takes one, so this reaches
-                    // for one from the very composition the misplaced child is declared in.
-                    val scope = TabbedPaneScopeImpl(rememberMirrorState(0), rememberCompositionContext())
+                    // A tab's placement modifier needs no live composition to be built - it is a plain
+                    // SwingModifier value - but TabbedPaneScopeImpl still takes a mirror, so this builds
+                    // one just for the scope.
+                    val scope = TabbedPaneScopeImpl(rememberMirrorState(0))
                     val misplaced = with(scope) { SwingModifier.tab("Tab") }
                     SplitPane {
                         Label(text = "misplaced", modifier = misplaced)

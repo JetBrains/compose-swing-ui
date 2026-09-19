@@ -1,10 +1,8 @@
 package org.jetbrains.compose.swing.node
 
 import androidx.compose.runtime.ComposeNodeLifecycleCallback
-import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.CompositionLocalMap
 import org.jetbrains.annotations.VisibleForTesting
-import org.jetbrains.compose.swing.core.COMPOSITION_KEY
 import org.jetbrains.compose.swing.layout.ChildPlacement
 import org.jetbrains.compose.swing.layout.ParentProtocol
 import org.jetbrains.compose.swing.layout.SlotAttachment
@@ -215,71 +213,20 @@ internal class SwingNodeHolder<out T : Component>
         internal var childSettle: (() -> Unit)? = null
 
         /**
-         * `true` while the component carries a [COMPOSITION_KEY] stamp that this node published.
-         *
-         * A factory may return a component that hosts a composition of its own and stamps itself, which
-         * is how a caller writes a complex component with another Compose instance inside. That stamp is
-         * the component's, not this node's, and teardown here must leave it standing.
-         */
-        private var hostsSubcompositions: Boolean = false
-
-        /**
-         * Publishes [context] on the component as the [COMPOSITION_KEY] client property. A
-         * `setContent` call on a component below then finds it, and nests into this composition. A
-         * `null` [context] removes the stamp.
-         *
-         * Calling it again for the same node changes nothing.
-         *
-         * Throws [IllegalStateException] when the component is not a [JComponent], because only a
-         * [JComponent] can carry a client property.
-         */
-        internal fun hostSubcompositions(context: CompositionContext?) {
-            if (context == null) {
-                clearSubcompositionStamp()
-                return
-            }
-            val host =
-                component as? JComponent
-                    ?: error(
-                        "hostSubcompositions requires the node's component to be a JComponent, so that " +
-                            "descendant setContent calls can discover this composition through the " +
-                            "COMPOSITION_KEY client property, but it was a " +
-                            "'${component.javaClass.name}'. A non-JComponent cannot host subcompositions " +
-                            "through the client-property walk.",
-                    )
-            host[COMPOSITION_KEY] = context
-            hostsSubcompositions = true
-        }
-
-        /**
-         * Removes the [COMPOSITION_KEY] stamp this node published. Clearing an absent stamp is a no-op,
-         * and no other node can have stamped this component: a node holds its component for the
-         * component's whole life, and the only other publisher stamps a window's root pane.
-         */
-        private fun clearSubcompositionStamp() {
-            if (!hostsSubcompositions) return
-            (component as? JComponent)?.set(COMPOSITION_KEY, null)
-            hostsSubcompositions = false
-        }
-
-        /**
          * Puts the node back to the state a new node starts from.
          *
-         * It removes the subcomposition stamp and the node stamp a tool reads, detaches the listeners
-         * the modifier chain installed, restores the properties the modifier changed, drops the settle
-         * held against this node's children, and drops the component's tracked reads from the owner's
-         * observer. A settle left standing would be run against a declaration the composition no longer
-         * makes; an update that still declares one hands it over again on the pass that follows. The
-         * detach covers every modifier-installed listener, including the built-in domain listener of the
-         * component. A stamp left behind would be found by a `setContent` call on a component below. That
-         * call would then nest into a composition that no longer runs.
+         * It removes the node stamp a tool reads, detaches the listeners the modifier chain installed,
+         * restores the properties the modifier changed, drops the settle held against this node's children,
+         * and drops the component's tracked reads from the owner's observer. A settle left standing would be
+         * run against a declaration the composition no longer makes; an update that still declares one hands
+         * it over again on the pass that follows. The detach covers every modifier-installed listener,
+         * including the built-in domain listener of the component.
          *
          * It does not change where the component lives: [ParentDeclaration.parentData], [declaredSlot]
          * and [childPlacement] all survive. With [resetNodes], every node of the modifier is reset before any
          * detaches.
          */
         private fun reset(resetNodes: Boolean) {
-            clearSubcompositionStamp()
             clearInspectionStamp()
             owner?.snapshotObserver?.clear(component)
             resetModifierState(resetNodes)

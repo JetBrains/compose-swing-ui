@@ -19,7 +19,7 @@ import javax.swing.tree.TreeCellRenderer
 
 /**
  * The receiver a [Tree] node composes against: the row inputs the tree hands a `TreeCellRenderer` for
- * the node being stamped, exposed as read-only composition state so the node can lay itself out by
+ * the node being rendered, exposed as read-only composition state so the node can lay itself out by
  * position, selection, expansion and focus.
  *
  * Mirrors the arguments of
@@ -80,7 +80,7 @@ internal class TreeNodeValue<T>(
 
 /**
  * A [TreeCellRenderer] that paints each node through a real `@Composable` body, over the reused
- * [CellStampComposition] every such renderer stamps through.
+ * [CellRendererComposition] every such renderer renders through.
  *
  * The component the node composes is what the tree is handed. The tree bounds it at the row it is
  * painting and lays it out there, and its preferred size is what the tree measures the row by - as long
@@ -98,14 +98,14 @@ internal class ComposingTreeCellRenderer<T>(
     parentContext: CompositionContext,
     currentNodeContent: State<@Composable TreeNodeScope.(value: T) -> Unit>,
 ) : TreeCellRenderer {
-    // A single reused node body (null before the first stamp) keeps the size-1 pool the rubber-stamp
+    // A single reused node body (null before the first render) keeps the size-1 pool the render
     // model expects.
     private val valueState = mutableStateOf<T?>(null)
     private var currentValue by valueState
     private val scope = MutableTreeNodeScope()
 
     private val cellComposition =
-        CellStampComposition(
+        CellRendererComposition(
             parentContext,
             "A composable node renders a single component, and this one composes several. Compose them " +
                 "into one container - a panel whose layout arranges them - and the tree renders that.",
@@ -122,10 +122,10 @@ internal class ComposingTreeCellRenderer<T>(
         row: Int,
         hasFocus: Boolean,
     ): Component {
-        // A node the tree stamps carries the TreeNodeValue wrapper; the value it holds is the node's own
+        // A node the tree renders carries the TreeNodeValue wrapper; the value it holds is the node's own
         // to be `null` or not. The wrapper's presence is what names a node, never the value's nullity.
         val carried = (value as? DefaultMutableTreeNode)?.userObject as? TreeNodeValue<*>
-        return cellComposition.stamp(hasCell = carried != null) {
+        return cellComposition.render(hasCell = carried != null) {
             currentValue = valueOf(carried)
             scope.row = row
             scope.isSelected = selected
@@ -135,7 +135,7 @@ internal class ComposingTreeCellRenderer<T>(
         }
     }
 
-    /** Disposes this renderer's node composition; see [CellStampComposition.dispose]. */
+    /** Disposes this renderer's node composition; see [CellRendererComposition.dispose]. */
     fun dispose(): Unit = cellComposition.dispose()
 
     /**
@@ -149,8 +149,8 @@ internal class ComposingTreeCellRenderer<T>(
 }
 
 /**
- * The node body a [ComposingTreeCellRenderer] stamps. The node composition composes it only where the
- * stamp names a node, so [valueState] always holds that node's value here - itself `null` among the
+ * The node body a [ComposingTreeCellRenderer] renders. The node composition composes it only where the
+ * render names a node, so [valueState] always holds that node's value here - itself `null` among the
  * values a node can hold.
  */
 @Suppress("StateParam")
@@ -165,7 +165,7 @@ private fun <T> TreeNodeCell(
     scope.(nodeContent.value)(value)
 }
 
-/** The mutable backing of [TreeNodeScope]; its fields are written once per stamp. */
+/** The mutable backing of [TreeNodeScope]; its fields are written once per render. */
 private class MutableTreeNodeScope : TreeNodeScope {
     override var row: Int by mutableIntStateOf(-1)
     override var isSelected: Boolean by mutableStateOf(false)

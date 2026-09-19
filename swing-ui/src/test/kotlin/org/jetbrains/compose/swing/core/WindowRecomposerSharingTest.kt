@@ -27,17 +27,17 @@ import kotlin.test.assertSame
  *  - every content composition under that ancestor resolves to it via the self-first
  *    [findParentCompositionContext] walk.
  *
- * A single ancestor stamped with one recomposer stands in for a window root pane, and two sibling
+ * A single ancestor published with one recomposer stands in for a window root pane, and two sibling
  * content compositions beneath it model two content compositions of one window. Driven on a
  * controllable frame clock (no sleeps, bounded frames).
  */
 class WindowRecomposerSharingTest {
     @Test
-    fun twoCompositionsUnderOneStampedAncestorShareItsRecomposer() = runSwingTest {
+    fun twoCompositionsUnderOnePublishedAncestorShareItsRecomposer() = runSwingTest {
         val test = TestRecomposer(this)
         val handles = mutableListOf<DisposableHandle>()
         try {
-            // The ancestor stands in for a window root pane: stamped with exactly ONE recomposer
+            // The ancestor stands in for a window root pane: published with exactly ONE recomposer
             // context, exactly as getOrCreateRecomposer() publishes it.
             val windowRoot = JPanel().apply { size = Dimension(SIZE, SIZE) }
             val compositionA = JPanel().also { windowRoot.add(it) }
@@ -85,11 +85,11 @@ class WindowRecomposerSharingTest {
     }
 
     @Test
-    fun selfFirstWalkLetsAStampedContainerHostItsOwnContent() = runSwingTest {
+    fun selfFirstWalkLetsAPublishedContainerHostItsOwnContent() = runSwingTest {
         val test = TestRecomposer(this)
         val handles = mutableListOf<DisposableHandle>()
         try {
-            // A container stamped with a context is discovered by a setContent call on that very
+            // A container published with a context is discovered by a setContent call on that very
             // container (self-first), not only by descendants - the semantics the window root pane
             // relies on.
             val host = JPanel().apply { size = Dimension(SIZE, SIZE) }
@@ -99,16 +99,16 @@ class WindowRecomposerSharingTest {
             handles += host.setContent { Label(text = "self=$value") }
             test.awaitIdle()
 
-            assertEquals("self=seed", labelText(host), "the self-stamped host should render its initial content")
+            assertEquals("self=seed", labelText(host), "the self-published host should render its initial content")
             assertSame(
                 test.recomposer,
                 host.findParentCompositionContext(),
-                "the self-stamped host should resolve to its own recomposer",
+                "the self-published host should resolve to its own recomposer",
             )
 
             value = "next"
             test.awaitIdle()
-            assertEquals("self=next", labelText(host), "self-stamped host did not recompose on its own recomposer")
+            assertEquals("self=next", labelText(host), "self-published host did not recompose on its own recomposer")
         } finally {
             handles.forEach { it.dispose() }
             test.cancel()
@@ -119,7 +119,7 @@ class WindowRecomposerSharingTest {
     fun detachedContainerWithoutWindowAncestorDefersInsteadOfThrowing() = runSwingTest {
         val handles = mutableListOf<DisposableHandle>()
         try {
-            // No window ancestor, no stamped context, no injected recomposer: the content mounts only
+            // No window ancestor, no published context, no injected recomposer: the content mounts only
             // once the container is attached to a window, and a usable handle comes back now.
             val orphan = JPanel().apply { size = Dimension(SIZE, SIZE) }
 

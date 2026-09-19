@@ -97,16 +97,16 @@ val named = node?.modifier?.foldIn(emptyList<String>()) { names, element ->
 
 <!--- CLEAR -->
 
-`JComponent.composedNode()` answers with the `SwingComponentNode` a composition stamped on this exact
+`JComponent.composedNode()` answers with the `SwingComponentNode` a composition published on this exact
 component, or `null` where none did - it reads the component alone, with no slot table to walk. The same
 node is also what a group's own `node` holds, so `findDeclaringGroup()?.node as? SwingComponentNode`
 answers the same object while descending a composition; `composedNode()` is the shorter way to it from a
 component you already have in hand. For a component that is not a `JComponent`, `findDeclaringGroup()`
 is the route to its node.
 
-It answers only for a component a composition stamped while the switch above was on when that component
-was inserted, and stops answering once the node that stamped it is released - a component the composition
-removed, or one the switch re-inserted unstamped by turning off.
+It answers only for a component a composition published while the switch above was on when that component
+was inserted, and stops answering once the node that published it is released - a component the composition
+removed, or one the switch re-inserted unpublished by turning off.
 
 `modifier` on the node is the chain the composition last declared for the component; its KDoc says how a
 `composed` entry appears there. Walk it with `SwingModifier.foldIn`. Each entry is a

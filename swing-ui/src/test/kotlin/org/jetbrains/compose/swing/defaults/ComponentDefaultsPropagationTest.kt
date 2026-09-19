@@ -1,12 +1,12 @@
 package org.jetbrains.compose.swing.defaults
 
+import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.rememberCompositionContext
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.components.selection.ListBox
-import org.jetbrains.compose.swing.components.selection.stampCell
+import org.jetbrains.compose.swing.components.selection.renderCell
 import org.jetbrains.compose.swing.composeMenu
-import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -20,7 +20,7 @@ import kotlin.test.assertEquals
 
 class ComponentDefaultsPropagationTest {
     @Test
-    fun defaultsPropagateIntoCellStamps() = runComposeSwingTest {
+    fun defaultsPropagateIntoRenderedCells() = runComposeSwingTest {
         val items = listOf("first", "second")
         setContent {
             ProvideComponentDefaults(DefaultBackground provides Color.MAGENTA) {
@@ -34,10 +34,14 @@ class ComponentDefaultsPropagationTest {
         }
 
         val list = onNodeOfType<JList<*>>().fetch<JList<String>>()
-        val stamped0 = list.stampCell(0) as JLabel
-        assertEquals(Color.MAGENTA, stamped0.background, "cell stamp should inherit component default")
-        val stamped1 = list.stampCell(1) as JLabel
-        assertEquals(Color.MAGENTA, stamped1.background, "second cell stamp should inherit component default")
+        val rendered0 = list.renderCell(0) as JLabel
+        assertEquals(Color.MAGENTA, rendered0.background, "the rendered cell should inherit the component default")
+        val rendered1 = list.renderCell(1) as JLabel
+        assertEquals(
+            Color.MAGENTA,
+            rendered1.background,
+            "the second rendered cell should inherit the component default",
+        )
     }
 
     @Test
@@ -54,25 +58,19 @@ class ComponentDefaultsPropagationTest {
     }
 
     @Test
-    fun defaultsPropagateIntoOptedInHostedSubcomposition() = runComposeSwingTest {
-        lateinit var hostPanel: JPanel
+    fun defaultsPropagateIntoExplicitlyParentedSubcomposition() = runComposeSwingTest {
+        lateinit var parentContext: CompositionContext
 
         setContent {
             ProvideComponentDefaults(DefaultBackground provides Color.CYAN) {
-                val parentContext = rememberCompositionContext()
-                SwingNode(
-                    factory = { JPanel().also { hostPanel = it } },
-                    update = {
-                        hostSubcompositions(parentContext)
-                    },
-                )
+                parentContext = rememberCompositionContext()
             }
         }
 
-        val child = JPanel().also { hostPanel.add(it) }
+        val child = JPanel()
         val handle =
-            child.setContent {
-                Label("hostedChild")
+            child.setContent(parent = parentContext) {
+                Label("nestedChild")
             }
 
         try {
@@ -81,7 +79,7 @@ class ComponentDefaultsPropagationTest {
             assertEquals(
                 Color.CYAN,
                 label.background,
-                "hosted subcomposition should inherit component defaults via parent context",
+                "a subcomposition with an explicit parent should inherit component defaults",
             )
         } finally {
             handle.dispose()

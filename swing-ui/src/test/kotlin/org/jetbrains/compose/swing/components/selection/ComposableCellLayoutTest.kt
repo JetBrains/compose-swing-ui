@@ -39,7 +39,7 @@ class ComposableCellLayoutTest {
         }
 
         val list = onNodeOfType<JList<*>>().fetch<JList<String>>()
-        val cell = list.stampCell(index = 0)
+        val cell = list.renderCell(index = 0)
         assertTrue(cell is JLabel, "a cell composing a label must be rendered by that label itself")
         assertEquals("alpha", (cell as JLabel).text, "the label must carry the row's own text")
     }
@@ -53,7 +53,7 @@ class ComposableCellLayoutTest {
         }
 
         val list = onNodeOfType<JList<*>>().fetch<JList<String>>()
-        val cell = list.stampCell(index = 0)
+        val cell = list.renderCell(index = 0)
         assertEquals(
             cell.preferredSize.height,
             list.getCellBounds(0, 0).height,
@@ -72,7 +72,7 @@ class ComposableCellLayoutTest {
         }
 
         val combo = onNodeOfType<JComboBox<*>>().fetch<JComboBox<String>>()
-        val cell = combo.stampDisplayArea(combo.getItemAt(0))
+        val cell = combo.renderDisplayArea(combo.getItemAt(0))
         assertEquals(90, cell.preferredSize.height, "the cell must be as tall as the component it composes")
         assertTrue(
             combo.preferredSize.height >= 90,
@@ -81,7 +81,7 @@ class ComposableCellLayoutTest {
     }
 
     @Test
-    fun theSameComponentIsRestampedForEveryRow() = runComposeSwingTest {
+    fun theSameComponentIsRerenderedForEveryRow() = runComposeSwingTest {
         setContent {
             ListBox(items = listOf("alpha", "beta")) { item ->
                 Panel { Label(item) }
@@ -89,8 +89,8 @@ class ComposableCellLayoutTest {
         }
 
         val list = onNodeOfType<JList<*>>().fetch<JList<String>>()
-        val first = list.stampCell(index = 0)
-        val second = list.stampCell(index = 1)
+        val first = list.renderCell(index = 0)
+        val second = list.renderCell(index = 1)
         assertSame(first, second, "every row must be rendered by the same reused component")
         assertEquals("beta", second.firstLabelText(), "the reused cell must carry row 1")
     }
@@ -105,8 +105,8 @@ class ComposableCellLayoutTest {
         // Every cell composition is rooted at the same empty container, so two widgets rendering composable
         // cells at once would collide there if a cell's component ever joined that root.
         val lists = onAllNodesOfType<JList<*>>().fetchAll()
-        val first = lists[0].stampCell(index = 0)
-        val second = lists[1].stampCell(index = 0)
+        val first = lists[0].renderCell(index = 0)
+        val second = lists[1].renderCell(index = 0)
         assertEquals("alpha", first.firstLabelText(), "the first widget renders its own row")
         assertEquals("beta", second.firstLabelText(), "the second widget renders its own row")
     }
@@ -139,9 +139,9 @@ class ComposableCellLayoutTest {
         }
 
         // A cell body that composes no component leaves the widget with nothing to paint the row
-        // with, which is a cell that takes up no room rather than a stamp that fails.
+        // with, which is a cell that takes up no room rather than a render that fails.
         val list = onNodeOfType<JList<*>>().fetch<JList<String>>()
-        val cell = list.stampCell(index = 0)
+        val cell = list.renderCell(index = 0)
         assertEquals(0, (cell as Container).componentCount, "an empty cell must hold nothing")
         assertEquals(Dimension(0, 0), cell.preferredSize, "an empty cell must ask for no room")
     }

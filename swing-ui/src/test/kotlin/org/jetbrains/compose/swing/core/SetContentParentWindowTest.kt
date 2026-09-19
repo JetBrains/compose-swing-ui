@@ -37,7 +37,7 @@ class SetContentParentWindowTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val frame = realizedFrame()
         try {
-            // Nothing answers what this container composes under yet: no parent named, no stamped
+            // Nothing answers what this container composes under yet: no parent named, no published
             // ancestor, no window. The content waits rather than composing under a parent of its own.
             val panel = JPanel()
             val recorder = CompositionRecorder()
@@ -235,7 +235,7 @@ class SetContentParentWindowTest {
             assertSame(
                 composedOnce,
                 recorder.remembered,
-                "a cell adopted by the pane that paints it must keep the composition it was stamped from",
+                "a cell adopted by the pane that paints it must keep the composition it was rendered from",
             )
             assertEquals(
                 "from-host",

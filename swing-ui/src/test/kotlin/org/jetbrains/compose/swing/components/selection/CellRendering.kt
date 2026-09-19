@@ -14,14 +14,14 @@ import javax.swing.ListCellRenderer
  * [list] is the list to render against, supplied by a widget rendering its own rows. A renderer reached
  * without one - a combo box's, whose rows belong to a popup list of its own - gets a bare list instead.
  */
-internal fun ListCellRenderer<*>.stampCell(
+internal fun ListCellRenderer<*>.renderCell(
     value: Any?,
     index: Int,
     isSelected: Boolean = false,
     cellHasFocus: Boolean = false,
     list: JList<*> = JList<Any?>(),
 ): Component {
-    // The value stamped below is the widget's own item, which is what a renderer of `in T` is there to
+    // The value passed below is the widget's own item, which is what a renderer of `in T` is there to
     // render, so widening the receiver drops a bound this call cannot violate.
     @Suppress("UNCHECKED_CAST")
     val renderer = this as ListCellRenderer<Any?>
@@ -29,22 +29,22 @@ internal fun ListCellRenderer<*>.stampCell(
 }
 
 /** Renders row [index] of this list through the renderer it carries, as the list does when painting. */
-internal fun <T> JList<T>.stampCell(
+internal fun <T> JList<T>.renderCell(
     index: Int,
     isSelected: Boolean = false,
     cellHasFocus: Boolean = false,
-): Component = cellRenderer.stampCell(model.getElementAt(index), index, isSelected, cellHasFocus, list = this)
+): Component = cellRenderer.renderCell(model.getElementAt(index), index, isSelected, cellHasFocus, list = this)
 
 /** Renders item [index] of this combo box through the renderer it carries, as its popup list does. */
-internal fun <T> JComboBox<T>.stampCell(index: Int): Component = renderer.stampCell(getItemAt(index), index)
+internal fun <T> JComboBox<T>.renderCell(index: Int): Component = renderer.renderCell(getItemAt(index), index)
 
 /**
  * Renders this combo box's selected-value display area through the renderer it carries, as its UI does
  * when it paints: `-1` as the index, against a list over this combo box's model, which is where a
  * renderer reads the items from.
  */
-internal fun <T> JComboBox<T>.stampDisplayArea(value: Any? = selectedItem): Component =
-    renderer.stampCell(value, index = -1, list = JList(model))
+internal fun <T> JComboBox<T>.renderDisplayArea(value: Any? = selectedItem): Component =
+    renderer.renderCell(value, index = -1, list = JList(model))
 
 /** The text of the first [JLabel] anywhere in this component subtree, or `null` if there is none. */
 internal fun Component.firstLabelText(): String? = firstLabel()?.text

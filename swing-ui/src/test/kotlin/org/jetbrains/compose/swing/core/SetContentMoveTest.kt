@@ -1,7 +1,9 @@
 package org.jetbrains.compose.swing.core
 
+import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.DisposableHandle
 import kotlinx.coroutines.delay
@@ -23,10 +25,13 @@ import kotlin.test.assertTrue
 
 /**
  * Behavioral tests for what a `setContent` content composition does when its container moves. It watches
- * the window its container is in: it composes the content again when the container ends up in another
- * window, and leaves it exactly where it is for every other move - a container joining the window its
- * parent composition is already in, one in transit between two windows, one going back where it came
- * from.
+ * the window its container is in, and composes the content again only when what that new place resolves
+ * to is a composition context different from the one it already composes under - which a window's own
+ * shared composition, as a rule, always is between two windows. It leaves the composition exactly where
+ * it is for every other move - a container joining the window its parent composition is already in, one
+ * in transit between two windows, one going back where it came from, and one whose new place still
+ * resolves to the very context it already had, such as content with an explicit parent carried along
+ * unchanged by a page moved whole between windows.
  *
  * Every case realizes a real top-level peer, so each skips (reports SKIPPED) on a headless environment.
  * Frames are packed rather than shown - that realizes the peer without flashing a window on screen - and
@@ -35,14 +40,13 @@ import kotlin.test.assertTrue
  */
 class SetContentMoveTest {
     @Test
-    fun aCompositionUnderAHostContextJoinsTheOtherWindowItsContainerIsMovedTo() = runSwingTest {
+    fun aCompositionUnderANamedContextKeepsItsIdentityWhenItsContainerMoves() = runSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val first = realizedFrame()
         val second = realizedFrame()
         try {
-            // The same content composition, moved out of the window its host is in and into another
-            // one. Where it hangs in the Swing tree is what the second window can account for, so it is
-            // composed again under that window and reads it.
+            // The composition stays joined to the explicitly named context while the container moves, so
+            // an edit it remembers survives and its composition locals remain those of that context.
             val host = hostIn(first)
             val composition = JPanel().also { first.contentPane.add(it) }
             val recorder = CompositionRecorder()
@@ -60,24 +64,24 @@ class SetContentMoveTest {
 
             second.contentPane.add(composition)
             second.pack()
-
-            awaitUntil("the content composition composes under the window it was moved to") {
-                recorder.windows.last() === second
+            awaitUntil("the container moves to the second window") {
+                SwingUtilities.getWindowAncestor(composition) === second
             }
+
             assertSame(
-                second,
+                first,
                 recorder.windows.last(),
-                "a container moved to another window must read the window it is then in",
+                "content under a named context must keep that context's window after a move",
             )
-            assertNotSame(
+            assertSame(
                 composedOnce,
                 recorder.remembered,
-                "joining another window's composition means composing again there",
+                "content under an explicitly named context must keep its composition across a move",
             )
             assertEquals(
                 listOf("content"),
                 labelTexts(composition),
-                "the content composition composed again must hold its content",
+                "the preserved content composition must hold its content",
             )
 
             handle.dispose()
@@ -89,15 +93,13 @@ class SetContentMoveTest {
     }
 
     @Test
-    fun aContainerAddedToAnotherWindowComposesUnderTheWindowItIsThenIn() = runSwingTest {
+    fun aContainerAddedToAnotherWindowKeepsTheContextItWasExplicitlyGiven() = runSwingTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val first = realizedFrame()
         val second = realizedFrame()
         try {
-            // Mounted under one window's context, the container is then taken out of that window and
-            // added to another one, passing through a place that belongs to no window on the way. Its
-            // content is composed again under the window it is now in, and keeps composing through the
-            // move.
+            // A caller-named parent remains this content's parent even when the panel itself moves to
+            // another window.
             val panel = JPanel().also { first.contentPane.add(it) }
             val recorder = CompositionRecorder()
             val handle =
@@ -113,19 +115,19 @@ class SetContentMoveTest {
 
             second.contentPane.add(panel)
             second.pack()
-
-            awaitUntil("the content composition composes under the window it was added to") {
-                recorder.windows.last() === second
+            awaitUntil("the panel moves to the second window") {
+                SwingUtilities.getWindowAncestor(panel) === second
             }
+
             assertSame(
-                second,
+                first,
                 recorder.windows.last(),
-                "a container added to another window must compose under that window",
+                "a panel moved to another window must keep the explicitly named context's window",
             )
             assertEquals(
                 listOf("moved"),
                 labelTexts(panel),
-                "the content composition composed again must hold its content",
+                "the preserved content composition must hold its content",
             )
 
             handle.dispose()
@@ -506,6 +508,113 @@ class SetContentMoveTest {
             awaitUntil("recomposition fires after the no-op rejoin") {
                 labelTexts(composition) == listOf("second")
             }
+
+            handle.dispose()
+        } finally {
+            second.dispose()
+            first.dispose()
+        }
+    }
+
+    @Test
+    fun aNestedCompositionWithAnExplicitParentKeepsItsStateWhenThePageAroundItMovesToAnotherWindow() = runSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        val first = realizedFrame()
+        val second = realizedFrame()
+        val recomposer = SwingRecomposer.create(JPanel())
+        try {
+            // A page built on a recomposer of its own, standing in the first window. Its nested content
+            // explicitly joins a context captured within that page. The context is the page's own, fixed
+            // for its whole life, so it answers the same whether the page hangs in the first window, the
+            // second, or neither.
+            lateinit var parentContext: CompositionContext
+            val page = JPanel().also { first.contentPane.add(it) }
+            val pageHandle =
+                page.setContent(parent = recomposer.compositionContext) {
+                    parentContext = rememberCompositionContext()
+                }
+
+            val nested = JPanel().also { page.add(it) }
+            val recorder = CompositionRecorder()
+            var edit by mutableStateOf("v0")
+            val nestedHandle =
+                nested.setContent(parent = parentContext) {
+                    recorder.Read()
+                    Label(text = edit)
+                }
+            val composedOnce = recorder.remembered
+
+            // The whole page moves from the first window to the second, carrying the nested content along
+            // unchanged. The move queues a rejoin for the nested composition like any other, but it still
+            // names the same explicit parent, so the rejoin catches the window and registration up without
+            // recomposing.
+            second.contentPane.add(page)
+            second.pack()
+            repeat(8) { yield() }
+
+            assertSame(second, recorder.windows.last(), "the preserved composition must adopt the destination window")
+
+            assertSame(
+                composedOnce,
+                recorder.remembered,
+                "nested content under an explicit parent must keep its composition across a move that " +
+                    "leaves that parent unchanged - only the window around it moved",
+            )
+            assertEquals(
+                listOf("v0"),
+                labelTexts(nested),
+                "the nested content must still hold what it composed before the move",
+            )
+
+            // The composition is still live and driven: an edit in progress keeps recomposing after the
+            // move rather than being frozen by it.
+            edit = "v1"
+            awaitUntil("the nested content recomposes after the move") {
+                labelTexts(nested) == listOf("v1")
+            }
+
+            nestedHandle.dispose()
+            pageHandle.dispose()
+        } finally {
+            recomposer.dispose()
+            second.dispose()
+            first.dispose()
+        }
+    }
+
+    @Test
+    fun aCompositionWithNoExplicitParentStillComposesAgainWhenItsWindowGenuinelyChanges() = runSwingTest {
+        assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+        val first = realizedFrame()
+        val second = realizedFrame()
+        try {
+            // No explicitly named parent guides this container, so its content resolves straight to each
+            // window's own shared composition - a genuinely different object per window. Pinned
+            // explicitly, with the composition's own identity, so a future change to the comparison this
+            // move now runs cannot silently stop this content from recomposing where it must.
+            val panel = JPanel().also { first.contentPane.add(it) }
+            val recorder = CompositionRecorder()
+            val handle =
+                panel.setContent {
+                    recorder.Read()
+                    Label(text = "content")
+                }
+            val composedOnce = recorder.remembered
+            assertSame(first, recorder.windows.last(), "content must start out under the window it was added to")
+
+            second.contentPane.add(panel)
+            second.pack()
+
+            awaitUntil("the content composes again under the window it was moved to") {
+                recorder.windows.last() === second
+            }
+            assertNotSame(
+                composedOnce,
+                recorder.remembered,
+                "content resolving to a window's own shared composition must still compose again on a " +
+                    "move to a genuinely different window",
+            )
+            assertEquals(listOf("content"), labelTexts(panel), "the content composed again must hold its content")
 
             handle.dispose()
         } finally {

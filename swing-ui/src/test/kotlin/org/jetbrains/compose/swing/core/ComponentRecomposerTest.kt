@@ -146,7 +146,7 @@ class ComponentRecomposerTest {
         try {
             assertNull(
                 host.findParentCompositionContext(),
-                "creating a recomposer must not stamp its context on the component",
+                "creating a recomposer must not publish its context on the component",
             )
             assertNull(
                 descendant.findParentCompositionContext(),

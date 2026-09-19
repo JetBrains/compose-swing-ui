@@ -614,8 +614,8 @@ class CompositionLifecycleTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         // This container is its own root and hangs under nothing that publishes an owner, so every pass
         // mints one and publishes it right there. Moving the container composes it again, and that pass
-        // must mint afresh rather than answer with the stamp the pass before it left: an owner a root
-        // only read is never ended, so a root taking its own spent stamp for one it found would leave the
+        // must mint afresh rather than answer with what the pass before it published: an owner a root
+        // only read is never ended, so a root taking its own spent publish for one it found would leave the
         // content reporting DESTROYED for good.
         val panel = JPanel()
         val reader = LifecycleReader()

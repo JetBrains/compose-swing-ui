@@ -22,7 +22,7 @@ import java.awt.event.WindowEvent
 import javax.swing.JComponent
 
 /**
- * The [LifecycleOwner] belonging to [component]: the one a root at or above it stamped on the Swing
+ * The [LifecycleOwner] belonging to [component]: the one a root at or above it published on the Swing
  * tree, and a freshly minted one following [component] where that walk answers nothing.
  *
  * Only a minted owner is driven by this root and ended at [Lifecycle.State.DESTROYED] as the content
@@ -34,16 +34,16 @@ internal fun rememberLifecycleOwner(component: Component): LifecycleOwner =
     remember(component) { LifecycleOwnerResolution(component) }.owner
 
 /**
- * Publishes the [LifecycleOwner] the content around this call reads as [component]'s stamp, so a root
- * mounted at or under it that inherits nothing resolves the same owner. That is what the stamp is for:
+ * Publishes the [LifecycleOwner] the content around this call reads as what [component] carries, so a root
+ * mounted at or under it that inherits nothing resolves the same owner. That is what the publish is for:
  * independent subtrees, each driven by a recomposer of its own, standing in one window and sharing
- * one lifecycle. A root nested in another's composition inherits the owner instead and needs no stamp.
+ * one lifecycle. A root nested in another's composition inherits the owner instead and publishes nothing.
  *
- * The owner is read from inside the provision rather than resolved again, so what is stamped is what the
+ * The owner is read from inside the provision rather than resolved again, so what is published is what the
  * content reads, whether this root stated it or took it from above.
  *
- * The stamp goes up after the composition applies, so the walk a root runs as it composes cannot read
- * back the stamp its own root is about to leave.
+ * The publish goes up after the composition applies, so the walk a root runs as it composes cannot read
+ * back what its own root is about to leave.
  */
 @Composable
 internal fun PublishLifecycleOwner(component: Component) {
@@ -108,7 +108,7 @@ public fun Component.findLifecycleOwner(): LifecycleOwner? {
  * The [LifecycleOwner] one composition root stands under, and how far that root's ownership of it reaches.
  *
  * The walk runs as the resolution is built and the resolution is remembered against [component] alone, so it runs
- * before a minted owner is published: a root that minted its owner never reads its own stamp back and takes it for
+ * before a minted owner is published: a root that minted its owner never reads what it published back and takes it for
  * one it found above itself, which would leave that owner with nobody to end it.
  *
  * The resolution is what the root remembers, rather than the owner itself: a root drives only the owner it minted,

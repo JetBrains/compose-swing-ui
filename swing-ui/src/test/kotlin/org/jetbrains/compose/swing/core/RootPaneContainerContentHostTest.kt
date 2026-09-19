@@ -24,7 +24,7 @@ import kotlin.test.assertSame
  * them there. What the container holds itself is its own affair, the root pane and whatever else the
  * installed look and feel gave it, and the composition neither adds to it nor takes from it.
  *
- * The frame here is stamped with the test's recomposer, which is how a window publishes its own, so this
+ * The frame here is published with the test's recomposer, which is how a window publishes its own, so this
  * exercises the real self-first resolution off-screen and needs no display.
  */
 class RootPaneContainerContentHostTest {

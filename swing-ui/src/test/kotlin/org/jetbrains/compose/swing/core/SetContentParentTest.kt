@@ -31,7 +31,7 @@ class SetContentParentTest {
         val test = TestRecomposer(this)
         val handles = mutableListOf<DisposableHandle>()
         try {
-            // This container hangs off no window and no stamped ancestor, so nothing but the named
+            // This container hangs off no window and no published ancestor, so nothing but the named
             // parent answers what it composes under; the content is there the moment the call returns.
             val detached = JPanel().apply { size = Dimension(SIZE, SIZE) }
 

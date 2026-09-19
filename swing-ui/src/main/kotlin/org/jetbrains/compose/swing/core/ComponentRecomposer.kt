@@ -34,7 +34,7 @@ public fun Component.findRecomposer(): Recomposer? {
 }
 
 /**
- * The [Recomposer] directly associated with this component, reading nothing above it: a host's stamp,
+ * The [Recomposer] directly associated with this component, reading nothing above it: a host's published context,
  * a content composition running on it, or a window's shared recomposer.
  */
 private fun Component.recomposerOrNull(): Recomposer? =

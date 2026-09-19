@@ -47,10 +47,10 @@ internal class ParentComposition(
 
 /**
  * Resolves what a `setContent` on [component] with no parent named should nest into **right now**, or
- * `null` if it cannot be resolved yet - the container has no host stamp and no window ancestor, so the
+ * `null` if it cannot be resolved yet - the container has no published host and no window ancestor, so the
  * content must wait to compose until the container takes a place that answers.
  *
- * Resolution order: first an existing host discovered up the Swing tree - a stamped host composition, or
+ * Resolution order: first an existing host discovered up the Swing tree - a published host composition, or
  * content composed over [component] - then the owning window's shared recomposer. Those two are the
  * whole order: a recomposer created for a component is reached only by passing its context in.
  */
@@ -61,7 +61,7 @@ internal fun resolveParentOrNull(component: Component): ParentComposition? {
     // The recomposer driving that host, which is the window's only where the window shares one.
     val parentRecomposer = host?.let { component.enclosingContentRecomposerOrNull() ?: shared }
     return when {
-        // A window stamps its own shared scope on its root pane, so the walk reaches a window's context
+        // A window publishes its own shared scope on its root pane, so the walk reaches a window's context
         // as readily as a host composition's; which of the two it found is what names the window.
         host != null -> ParentComposition(host, window.takeIf { shared?.recomposer === host }, parentRecomposer)
 
@@ -75,7 +75,7 @@ internal fun resolveParentOrNull(component: Component): ParentComposition? {
  * Mounts a `setContent` on [component] as soon as the context it nests into can be resolved, and
  * returns a [DisposableHandle] over the (possibly still pending) content composition.
  *
- * If the context resolves immediately (a host stamp or content composed up the tree, or the owning
+ * If the context resolves immediately (a published host or content composed up the tree, or the owning
  * window's recomposer), [compose] runs synchronously here. Otherwise composing is **deferred** until
  * [component] takes a place in the Swing tree that resolves one, at which point [compose] runs.
  *
@@ -193,14 +193,20 @@ private enum class Phase { Pending, Mounted, Disposed }
  * The lifecycle state machine backing a `setContent`, whichever way it comes by the parent it
  * composes under: a caller who names one, or the container's own place in the Swing tree.
  *
- * A content composition watches the window its container is in, and composes the content again - under
- * the composition that window shares - once the container ends up in another one. The window it is in
- * is the container's own, or, while the container hangs off none, the window whose shared composition
- * the content was given to compose under. Every other move leaves the composition exactly where it is:
- * a container in no window has arrived nowhere, so one taken out of a window on its way to another is
- * not torn down midway, and one that arrives in the window it was already in - the place a cell
- * renderer takes to be painted - has not moved at all. Content that stood in no window at all adopts the
- * first one it reaches without composing again.
+ * A content composition watches the window its container is in, and composes the content again once
+ * its container's new place resolves to a composition context different from the one it already
+ * composes under - a window's own shared composition, as a rule, since two windows never share one.
+ * Where the same context still answers - a published host, or a caller-named parent, found again
+ * through the container's new place - the composition stays exactly as it is: only the window it
+ * reads and the recomposer it registers with catch up. This is what keeps a page's nested
+ * subcompositions, and any edit in progress under them, through a move of the whole page between
+ * windows.
+ *
+ * Every other move leaves the composition exactly where it is too: a container in no window has
+ * arrived nowhere, so one taken out of a window on its way to another is not torn down midway, and
+ * one that arrives in the window it was already in - the place a cell renderer takes to be painted -
+ * has not moved at all. Content that stood in no window at all adopts the first one it reaches
+ * without composing again.
  *
  * While it is live, the context its content composes under is published to whatever is mounted inside
  * its container, as [publishedContext]. This state stands on the container from [start] to [dispose],
@@ -257,6 +263,12 @@ internal class ContentCompositionState(
     private var parentContext: CompositionContext? = null
 
     /**
+     * The context `setContent(parent = ...)` was explicitly asked to join, or `null` where it resolves
+     * its parent from the component's place in the Swing tree.
+     */
+    private var namedParentContext: CompositionContext? = null
+
+    /**
      * The window recomposer this content belongs to while it composes under [parentContext], whether or
      * not the registration is standing right now. A rejoin that puts the container back where it was
      * takes the registration up again with this rather than by asking the window, which answers nothing
@@ -282,8 +294,8 @@ internal class ContentCompositionState(
      * content again.
      *
      * @param namedParent the parent the caller named, or `null` to resolve one from where [component]
-     *   hangs in the Swing tree. Taken as a parameter rather than held as a field, so neither the
-     *   context nor the window it names outlives the call that uses them.
+     *   hangs in the Swing tree. A named context is retained so the content remains joined to it across
+     *   a hierarchy move.
      */
     fun start(namedParent: ParentComposition?) {
         check(component[CONTENT_COMPOSITION_KEY] == null) {
@@ -294,6 +306,7 @@ internal class ContentCompositionState(
         }
         component[CONTENT_COMPOSITION_KEY] = this
         component.addHierarchyListener(registration)
+        namedParentContext = namedParent?.context
         val parent = namedParent ?: resolveParentOrNull(component)
         if (parent != null) composeUnder(parent)
     }
@@ -318,7 +331,7 @@ internal class ContentCompositionState(
         // no later move to adopt one on.
         statedWindow.value = component.ownerWindowOrNull() ?: parent.window
         // Published before the content composes for the same reason, and the same reason the applier
-        // stamps a node on its way down: the content composes inside compose(), so a setContent that
+        // publishes its context on a node on its way down: the content composes inside compose(), so a setContent that
         // pass makes on a container of this content has to find this context already standing.
         this.parentContext = parent.context
         publishedContext = parent.context
@@ -353,15 +366,22 @@ internal class ContentCompositionState(
     /**
      * Follows [component] into the window its place is in now.
      *
-     * Content already standing in another window composes again under what that place resolves to: a
-     * live composition's parent context is fixed at construction, so composing again is what joins the
-     * window the container is now in and keeps its content recomposing with the rest of that window.
+     * Content standing on a recomposer of its own only has the window it reads brought up to date: such
+     * a recomposer serves a composition standing outside any window at all, so where its container hangs
+     * is something its content reads, never what decides which composition it belongs to.
      *
      * Content standing in no window adopts the one it arrives in instead, having no window's composition
      * to leave. Content given a caller's own composition to compose under - a page built before it is
      * added anywhere - stands under no window until its container reaches one. The composition it was
      * given is the one its caller chose, so it is published the window rather than composed again under
      * another: the page reads the window it is in and keeps everything it remembered.
+     *
+     * Content already standing in a window it is now leaving has [rejoin] queued to run once this turn
+     * ends. The resolution is left to that later turn rather than read here: this fires from the
+     * container's own descendants before it fires for the container itself, so a container that also
+     * publishes a context of its own - a host, or a live content composition - must have finished
+     * withdrawing it on the spot before anything asks what it now answers, or a descendant's own walk
+     * would catch it mid-move and read what it is about to stop naming.
      */
     private fun followWindow() {
         val arrivedIn = component.ownerWindowOrNull() ?: return
@@ -403,12 +423,22 @@ internal class ContentCompositionState(
     }
 
     /**
-     * Composes the content again under what [component]'s place resolves to now, or takes the
-     * registration the move withdrew up again where the move was undone before this ran.
+     * Rejoins a moved composition under the context its container now resolves to, unless its caller named
+     * a still-live parent explicitly. A caller-named parent remains the composition's parent; only the
+     * destination's recomposer registration changes. Where the result names the context already held, the
+     * composition stays live rather than being rebuilt.
      */
     private fun rejoin() {
         val parent = parentToRejoin()
-        if (parent != null) {
+        if (parent != null && parent.context === parentContext) {
+            // Read again rather than carried over from [followWindow]: this runs a turn later, so the
+            // container may have moved on again by now and the registration must catch up to its current
+            // destination rather than the one that queued this turn.
+            component.ownerWindowOrNull()?.let { statedWindow.value = it }
+            publishedContext = parentContext
+            parentRecomposer = parent.recomposer
+            registerWith(parentRecomposer)
+        } else if (parent != null) {
             composition?.dispose()
             composition = null
             composeUnder(parent)
@@ -422,15 +452,22 @@ internal class ContentCompositionState(
     }
 
     /**
-     * The parent [component] is to compose again under, or `null` where there is nothing to compose
-     * again. Where the container stands is read here rather than carried over from when the rejoin was
-     * queued: it may since have been disposed, taken out of every window, or put back in the one it was
-     * already in.
+     * The parent [component] is to rejoin under, or `null` where there is nothing to compose again.
+     * Where the container stands is read here rather than carried over from when the rejoin was queued:
+     * it may since have been disposed, taken out of every window, or put back in the one it was already in.
+     * A caller-named context remains the parent while its destination supplies the current window and
+     * recomposer registration.
      */
     private fun parentToRejoin(): ParentComposition? {
         val arrivedIn = component.ownerWindowOrNull()
         val moved = phase == Phase.Mounted && arrivedIn != null && arrivedIn !== statedWindow.value
-        return if (moved) resolveParentOrNull(component) else null
+        val resolved = if (moved) resolveParentOrNull(component) else null
+        val named = namedParentContext?.takeUnless { it.hasEnded }
+        return if (resolved != null && named != null) {
+            ParentComposition(named, resolved.window, resolved.recomposer)
+        } else {
+            resolved
+        }
     }
 
     override fun dispose() {
@@ -441,6 +478,7 @@ internal class ContentCompositionState(
         component[CONTENT_COMPOSITION_KEY] = null
         publishedContext = null
         parentContext = null
+        namedParentContext = null
         parentRecomposer = null
         registerWith(null)
         composition?.dispose()
@@ -488,10 +526,10 @@ internal fun Component.contentCompositionOrNull(): ContentCompositionState? =
  * `setContent` above it composes on. `null` where the content around it is a window's own, whose
  * recomposer the window answers with, and where it stands on a recomposer its caller owns.
  *
- * The walk matches [findParentCompositionContext]'s, minus the stamps: a stamp names a context without
- * naming what recomposes it, so a content composition further up answers for a host composition stamped
- * below it. One publishing no context is passed over with its recomposer, so what nested content
- * composes under and what it registers with come off one content composition.
+ * The walk matches [findParentCompositionContext]'s, minus the published contexts: what is published names a
+ * context without naming what recomposes it, so a content composition further up answers for a host
+ * composition published below it. One publishing no context is passed over with its recomposer, so what
+ * nested content composes under and what it registers with come off one content composition.
  */
 private fun Component.enclosingContentRecomposerOrNull(): SwingRecomposer? =
     generateSequence(parent) { it.parent }

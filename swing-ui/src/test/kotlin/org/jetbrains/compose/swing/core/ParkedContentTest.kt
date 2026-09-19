@@ -13,7 +13,7 @@ import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.components.selection.firstLabelText
-import org.jetbrains.compose.swing.components.selection.stampCell
+import org.jetbrains.compose.swing.components.selection.renderCell
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
@@ -360,21 +360,21 @@ class ParkedContentTest : TracedTest() {
         val combo = onNodeOfType<JComboBox<*>>().fetch<JComboBox<String>>()
         assertEquals(
             "parked-Red",
-            combo.stampCell(index = 0).firstLabelText(),
+            combo.renderCell(index = 0).firstLabelText(),
             "the cell shows what the cell composition's active content composes",
         )
         awaitIdle()
 
         parked = true
         awaitIdle()
-        val restamped = combo.stampCell(index = 0)
+        val rerendered = combo.renderCell(index = 0)
         // The refusal, if the parked content still counted against the slot, is raised a turn after the
         // pass that filled it.
         awaitIdle()
 
         assertEquals(
             "Red",
-            restamped.firstLabelText(),
+            rerendered.firstLabelText(),
             "the cell shows the fresh content once the parked one has given the slot up",
         )
     }

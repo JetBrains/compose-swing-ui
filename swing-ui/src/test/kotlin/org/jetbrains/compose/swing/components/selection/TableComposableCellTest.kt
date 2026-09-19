@@ -23,22 +23,22 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * Behavioral tests for a [Table] column's composable `cellContent`. They prove the rubber-stamp
- * mechanism end to end: stamping a cell through the renderer installed on that column realizes the
- * composable cell into a real Swing subtree, the cell sees the cell it is being stamped for through its
+ * Behavioral tests for a [Table] column's composable `cellContent`. They prove the render
+ * mechanism end to end: rendering a cell through the renderer installed on that column realizes the
+ * composable cell into a real Swing subtree, the cell sees the cell it is being rendered for through its
  * [TableCellScope], and a column that declares no cell body renders through the renderer the table picks
  * by the column's class.
  *
  * Each column that declares a cell body gets a cell composition of its own, and a column that stops
  * declaring one gives that composition up: a cell body whose column is gone composes no more, and the
- * renderer the table captured stamps the empty cell a disposed composition composes.
+ * renderer the table captured renders the empty cell a disposed composition composes.
  *
  * The cell's component lives outside the composition root - it is what the renderer hands the table - so
  * these drive the renderer directly (as `JTable` does when it paints a cell) and inspect what it returns.
  */
 class TableComposableCellTest {
     /** Renders the cell at [row]/[column] through the renderer the table picks for it, as painting does. */
-    private fun JTable.stampCell(
+    private fun JTable.renderCell(
         row: Int,
         column: Int,
         isSelected: Boolean = false,
@@ -63,14 +63,14 @@ class TableComposableCellTest {
         val table = onNodeOfType<JTable>().fetch()
         assertEquals(
             "Ada: 36",
-            table.stampCell(row = 0, column = 1).firstLabelText(),
+            table.renderCell(row = 0, column = 1).firstLabelText(),
             "the composable cell should have realized a JLabel built from the row it belongs to",
         )
-        // A single reused component per column restamps for every cell of that column the table paints.
+        // A single reused component per column rerenders for every cell of that column the table paints.
         assertEquals(
             "Alan: 41",
-            table.stampCell(row = 1, column = 1).firstLabelText(),
-            "the reused cell should restamp the next row",
+            table.renderCell(row = 1, column = 1).firstLabelText(),
+            "the reused cell should rerender the next row",
         )
     }
 
@@ -83,17 +83,17 @@ class TableComposableCellTest {
             }
         }
 
-        // Two columns declaring cells hold a cell composition each, so neither is rebuilt by the other's stamps.
+        // Two columns declaring cells hold a cell composition each, so neither is rebuilt by the other's renders.
         val table = onNodeOfType<JTable>().fetch()
-        val name = table.stampCell(row = 0, column = 0)
-        val age = table.stampCell(row = 0, column = 1)
-        assertNotSame(name, age, "each column should stamp its cells through a component of its own")
+        val name = table.renderCell(row = 0, column = 0)
+        val age = table.renderCell(row = 0, column = 1)
+        assertNotSame(name, age, "each column should render its cells through a component of its own")
         assertEquals("<Ada>", name.firstLabelText(), "the first column renders its own cell")
         assertEquals("[36]", age.firstLabelText(), "the second column renders its own cell")
         assertEquals(
             "<Ada>",
-            table.stampCell(row = 0, column = 0).firstLabelText(),
-            "restamping the first column should not have been disturbed by the second",
+            table.renderCell(row = 0, column = 0).firstLabelText(),
+            "rerendering the first column should not have been disturbed by the second",
         )
     }
 
@@ -112,12 +112,12 @@ class TableComposableCellTest {
         val table = onNodeOfType<JTable>().fetch()
         assertEquals(
             "(none)",
-            table.stampCell(row = 0, column = 0).firstLabelText(),
+            table.renderCell(row = 0, column = 0).firstLabelText(),
             "a row whose value is null is a row the cell body renders",
         )
         assertEquals(
             "Alan",
-            table.stampCell(row = 1, column = 0).firstLabelText(),
+            table.renderCell(row = 1, column = 0).firstLabelText(),
             "the next row renders its own value",
         )
     }
@@ -135,13 +135,13 @@ class TableComposableCellTest {
         val table = onNodeOfType<JTable>().fetch()
         assertEquals(
             "Alan",
-            table.stampCell(row = 1, column = 0, isSelected = false).firstLabelText(),
-            "an unselected stamp should render the plain row",
+            table.renderCell(row = 1, column = 0, isSelected = false).firstLabelText(),
+            "an unselected render should render the plain row",
         )
         assertEquals(
             "Alan*",
-            table.stampCell(row = 1, column = 0, isSelected = true).firstLabelText(),
-            "a selected stamp should observe isSelected through the TableCellScope",
+            table.renderCell(row = 1, column = 0, isSelected = true).firstLabelText(),
+            "a selected render should observe isSelected through the TableCellScope",
         )
     }
 
@@ -163,7 +163,7 @@ class TableComposableCellTest {
         val table = onNodeOfType<JTable>().fetch()
         assertEquals(
             "1/1 Alan",
-            table.stampCell(row = 0, column = 1).firstLabelText(),
+            table.renderCell(row = 0, column = 1).firstLabelText(),
             "the cell scope should name the declared row, not the row it is drawn at",
         )
     }
@@ -184,7 +184,7 @@ class TableComposableCellTest {
         val table = onNodeOfType<JTable>().fetch()
         assertEquals(
             "Ada",
-            table.stampCell(row = 0, column = 0).firstLabelText(),
+            table.renderCell(row = 0, column = 0).firstLabelText(),
             "a composable cell inside a ScrollPane should realize its content, not leak the viewport slot",
         )
     }
@@ -203,8 +203,8 @@ class TableComposableCellTest {
             table.columnModel.getColumn(0).cellRenderer,
             "a column declaring no cell body must carry no renderer of its own",
         )
-        val ownCell = table.stampCell(row = 0, column = 0)
-        assertTrue(ownCell is JLabel, "the table's own renderer stamps a JLabel")
+        val ownCell = table.renderCell(row = 0, column = 0)
+        assertTrue(ownCell is JLabel, "the table's own renderer renders a JLabel")
         assertEquals("Ada", (ownCell as JLabel).text, "the table's own renderer renders the cell's value")
     }
 
@@ -226,20 +226,20 @@ class TableComposableCellTest {
         }
 
         val table = onNodeOfType<JTable>().fetch()
-        assertEquals("Ada", table.stampCell(row = 0, column = 0).firstLabelText(), "the composable cell renders")
+        assertEquals("Ada", table.renderCell(row = 0, column = 0).firstLabelText(), "the composable cell renders")
 
         composableCells = false
         awaitIdle()
-        val ownCell = table.stampCell(row = 0, column = 0)
-        assertTrue(ownCell is JLabel, "taking the cell body away should stamp the table's own renderer")
+        val ownCell = table.renderCell(row = 0, column = 0)
+        assertTrue(ownCell is JLabel, "taking the cell body away should render the table's own renderer")
         assertEquals("Ada", (ownCell as JLabel).text, "the table's own renderer renders the cell's value")
 
         composableCells = true
         awaitIdle()
         assertEquals(
             "Alan",
-            table.stampCell(row = 1, column = 0).firstLabelText(),
-            "declaring a cell body again should stamp the composable cell",
+            table.renderCell(row = 1, column = 0).firstLabelText(),
+            "declaring a cell body again should render the composable cell",
         )
     }
 
@@ -264,11 +264,11 @@ class TableComposableCellTest {
         }
 
         val table = onNodeOfType<JTable>().fetch()
-        assertEquals("Ada draft", table.stampCell(row = 0, column = 1).firstLabelText(), "the badge cell renders")
+        assertEquals("Ada draft", table.renderCell(row = 0, column = 1).firstLabelText(), "the badge cell renders")
         val badgeRenderer: TableCellRenderer = table.columnModel.getColumn(1).cellRenderer
 
         // While the column stands, its cell body observes the state it reads: changing that state composes
-        // the cell again without anything asking for a stamp.
+        // the cell again without anything asking for a render.
         composed.clear()
         badge = "review"
         awaitIdle()
@@ -289,7 +289,7 @@ class TableComposableCellTest {
             badgeRenderer.getTableCellRendererComponent(table, "final", false, false, 0, 0)
         assertNull(
             cellAfter.firstLabelText(),
-            "a stamp on the disposed cell composition must render an empty cell rather than a stale one",
+            "a render on the disposed cell composition must render an empty cell rather than a stale one",
         )
     }
 

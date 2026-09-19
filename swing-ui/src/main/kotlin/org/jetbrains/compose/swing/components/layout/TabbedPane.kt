@@ -5,7 +5,6 @@ package org.jetbrains.compose.swing.components.layout
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCompositionContext
 import org.jetbrains.compose.swing.annotations.TabLayoutPolicy
 import org.jetbrains.compose.swing.annotations.TabPlacement
 import org.jetbrains.compose.swing.core.dispatchToCaller
@@ -147,13 +146,9 @@ private inline fun TabbedPaneImpl(
     // for an unrelated recomposition to notice it. What the pane is left on is nothing this body reads
     // from the mirror: the settle below reads the selection off the pane.
     mirror.subscribe()
-    // Captured here in the composable body: a header cannot be an applier node of the pane (see
-    // TabHeaderComposition in TabbedPaneScope), so this context is threaded to it explicitly instead of
-    // being inherited through the node tree.
-    val headerParentContext = rememberCompositionContext()
-    // Remembered with the pane: a tab's declaration is built against these as that tab's modifier is
+    // Remembered with the pane: a tab's declaration is built against [mirror] as that tab's modifier is
     // built, so both outlive the pass that declared it.
-    val scope = remember(mirror, headerParentContext) { TabbedPaneScopeImpl(mirror, headerParentContext) }
+    val scope = remember(mirror) { TabbedPaneScopeImpl(mirror) }
 
     // The tab the caller has been told the pane is on: the one it declared and the pane took, or the one
     // the pane was left on and the callback was handed. Every selection that reaches the caller is

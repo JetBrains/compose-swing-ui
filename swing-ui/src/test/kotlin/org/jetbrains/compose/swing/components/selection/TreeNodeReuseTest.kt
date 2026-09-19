@@ -24,7 +24,7 @@ import kotlin.test.assertTrue
  * A composable node is owned by the composition too: the content composition behind it lives only while
  * the node is in the composition, so a tree that outlives its own composable node - parked before it is
  * torn down - paints through the renderer its UI delegate builds, and the fresh tree reactivation builds
- * stamps the composable node again.
+ * renders the composable node again.
  */
 class TreeNodeReuseTest {
     private val leaves = listOf("apple", "pear")
@@ -37,7 +37,7 @@ class TreeNodeReuseTest {
     }
 
     /** Renders the node at [row] through the renderer this tree carries, as a `JTree` does when it paints it. */
-    private fun JTree.stampRow(row: Int): Component {
+    private fun JTree.renderRow(row: Int): Component {
         val node = getPathForRow(row).lastPathComponent
         return cellRenderer.getTreeCellRendererComponent(
             this,
@@ -75,7 +75,7 @@ class TreeNodeReuseTest {
     }
 
     @Test
-    fun aParkedTreeRendersItsOwnNodesAndTheFreshOneStampsTheComposableNodeAgain() = runComposeSwingTest {
+    fun aParkedTreeRendersItsOwnNodesAndTheFreshOneRendersTheComposableNodeAgain() = runComposeSwingTest {
         var active by mutableStateOf(true)
         setContent {
             ReusableContentHost(active = active) {
@@ -88,7 +88,7 @@ class TreeNodeReuseTest {
             }
         }
         val tree = onNodeOfType<JTree>().fetch()
-        assertEquals("<apple>", tree.stampRow(row = 1).firstLabelText(), "the composable node should render row 1")
+        assertEquals("<apple>", tree.renderRow(row = 1).firstLabelText(), "the composable node should render row 1")
 
         active = false
         awaitIdle()
@@ -96,7 +96,7 @@ class TreeNodeReuseTest {
         // A parked tree keeps painting through whatever renderer it carries once the composition behind
         // its composable node is gone: the renderer its UI delegate builds is what has to be back on it
         // by then.
-        val parked = tree.stampRow(row = 1)
+        val parked = tree.renderRow(row = 1)
         assertTrue(parked is JLabel, "a parked tree should render rows through the renderer of its own")
         assertEquals("apple", (parked as JLabel).text, "the tree's own renderer renders the node's own text")
 
@@ -105,8 +105,8 @@ class TreeNodeReuseTest {
 
         assertEquals(
             "<pear>",
-            onNodeOfType<JTree>().fetch().stampRow(row = 2).firstLabelText(),
-            "the fresh tree should stamp the composable node",
+            onNodeOfType<JTree>().fetch().renderRow(row = 2).firstLabelText(),
+            "the fresh tree should render the composable node",
         )
     }
 }

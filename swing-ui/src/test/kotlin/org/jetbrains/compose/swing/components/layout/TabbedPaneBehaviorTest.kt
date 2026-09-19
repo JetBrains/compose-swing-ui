@@ -17,15 +17,14 @@ import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.interaction.performTabClick
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
-import java.awt.Container
 import javax.swing.JButton
 import javax.swing.JLabel
 import javax.swing.JTabbedPane
-import javax.swing.SwingUtilities
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertSame
@@ -54,15 +53,11 @@ class TabbedPaneBehaviorTest {
 
     private fun titles(pane: JTabbedPane): List<String> = (0 until pane.tabCount).map { pane.getTitleAt(it) }
 
-    /** The text of the single label a tab's header renders, or `null` when that tab renders no header. */
+    /** The text of a label header, or `null` when the tab uses the pane's default strip rendering. */
     private fun headerTextAt(
         pane: JTabbedPane,
         index: Int,
-    ): String? {
-        val host = pane.getTabComponentAt(index) as? Container ?: return null
-        val labels = host.components.filterIsInstance<JLabel>()
-        return labels.singleOrNull()?.text
-    }
+    ): String? = (pane.getTabComponentAt(index) as? JLabel)?.text
 
     private fun headers(pane: JTabbedPane): List<String?> = (0 until pane.tabCount).map { headerTextAt(pane, it) }
 
@@ -76,8 +71,8 @@ class TabbedPaneBehaviorTest {
 
     @Test
     fun aTabAppendsToTheChainWithoutRepeatingIt() = runComposeSwingTest {
-        // The scope holds the pane's selection mirror and the context a declared header composes under,
-        // so it is taken from a live pane rather than built here.
+        // The scope holds the pane's selection mirror, so it is taken from a live pane rather than built
+        // independently here.
         var scope: TabbedPaneScope? = null
         setContent {
             TabbedPane(selectedIndex = 0, onSelectedIndexChange = {}) {
@@ -347,7 +342,7 @@ class TabbedPaneBehaviorTest {
     }
 
     @Test
-    fun aDeclaredHeaderRendersTheTabAndATabWithoutOneKeepsTheDefault() = runComposeSwingTest {
+    fun aDeclaredHeaderIsTheDirectTabComponentAndATabWithoutOneKeepsTheDefault() = runComposeSwingTest {
         setContent {
             TabbedPane(selectedIndex = 0, onSelectedIndexChange = {}) {
                 Label("g", SwingModifier.tab("General", header = { Label("custom") }))
@@ -356,12 +351,8 @@ class TabbedPaneBehaviorTest {
         }
 
         val pane = onNodeOfType<JTabbedPane>().fetch()
-        val host = pane.getTabComponentAt(0) as? Container
-        assertNotNull(host, "a declared header should become the tab component")
-        assertTrue(
-            SwingUtilities.isDescendingFrom(onNodeWithText("custom").fetch<JLabel>(), host),
-            "the header node should be hosted by the tab component",
-        )
+        val header = onNodeWithText("custom").fetch<JLabel>()
+        assertSame(header, pane.getTabComponentAt(0), "the header root itself should become the tab component")
         assertNull(pane.getTabComponentAt(1), "a tab without a header should keep the default tab rendering")
         assertEquals("General", pane.getTitleAt(0), "the title should still name a tab that renders a header")
     }
@@ -375,12 +366,128 @@ class TabbedPaneBehaviorTest {
             }
         }
 
+        val pane = onNodeOfType<JTabbedPane>().fetch()
         val header = onNodeWithText("One").fetch<JLabel>()
 
         caption = "Two"
         awaitIdle()
         assertEquals("Two", header.text, "the header should follow the state it reads")
         assertSame(header, onNodeWithText("Two").fetch<JLabel>(), "the header should re-render, not remount")
+        assertSame(header, pane.getTabComponentAt(0), "the standing header root should remain the tab component")
+    }
+
+    @Test
+    fun aHeaderRootReplacementFromItsOwnInvalidationRebindsTheTab() = runComposeSwingTest {
+        var showButton by mutableStateOf(false)
+        setContent {
+            TabbedPane(selectedIndex = 0, onSelectedIndexChange = {}) {
+                Label(
+                    "body",
+                    SwingModifier.tab(
+                        "General",
+                        header = {
+                            if (showButton) {
+                                Button("button", onClick = {})
+                            } else {
+                                Label("label")
+                            }
+                        },
+                    ),
+                )
+            }
+        }
+
+        val pane = onNodeOfType<JTabbedPane>().fetch()
+        val label = onNodeWithText("label").fetch<JLabel>()
+        assertSame(label, pane.getTabComponentAt(0), "the first header root should be installed directly")
+
+        // This state is read only by the nested header composition. Its automatic invalidation must replace
+        // the tab component even though no caller asks the header composition to render again.
+        showButton = true
+        awaitIdle()
+
+        val button = assertIs<JButton>(pane.getTabComponentAt(0), "the replacement root must be direct")
+        assertEquals("button", button.text)
+    }
+
+    @Test
+    fun aHeaderWithMultipleDirectRootsIsRefused() = runComposeSwingTest {
+        val failure =
+            assertFailsWith<IllegalStateException> {
+                setContent {
+                    TabbedPane(selectedIndex = 0, onSelectedIndexChange = {}) {
+                        Label(
+                            "body",
+                            SwingModifier.tab(
+                                "General",
+                                header = {
+                                    Label("first")
+                                    Label("second")
+                                },
+                            ),
+                        )
+                    }
+                }
+            }
+
+        assertTrue(
+            failure.message.orEmpty().contains("exactly one direct Component root"),
+            "the failure should explain that a tab header needs one direct root: ${failure.message}",
+        )
+    }
+
+    @Test
+    fun anInitiallyEmptyHeaderIsRefused() = runComposeSwingTest {
+        val failure =
+            assertFailsWith<IllegalStateException> {
+                setContent {
+                    TabbedPane(selectedIndex = 0, onSelectedIndexChange = {}) {
+                        Label(
+                            "body",
+                            SwingModifier.tab(
+                                "General",
+                                header = {},
+                            ),
+                        )
+                    }
+                }
+            }
+
+        assertTrue(
+            failure.message.orEmpty().contains("exactly one direct Component root"),
+            "the failure should explain that a tab header needs one direct root: ${failure.message}",
+        )
+    }
+
+    @Test
+    fun aHeaderBecomingEmptyFromItsOwnInvalidationIsRefused() = runComposeSwingTest {
+        var showHeader by mutableStateOf(true)
+        setContent {
+            TabbedPane(selectedIndex = 0, onSelectedIndexChange = {}) {
+                Label(
+                    "body",
+                    SwingModifier.tab(
+                        "General",
+                        header = {
+                            if (showHeader) {
+                                Label("header")
+                            }
+                        },
+                    ),
+                )
+            }
+        }
+
+        showHeader = false
+        val failure =
+            assertFailsWith<IllegalStateException> {
+                awaitIdle()
+            }
+
+        assertTrue(
+            failure.message.orEmpty().contains("exactly one direct Component root"),
+            "the failure should explain that a tab header needs one direct root: ${failure.message}",
+        )
     }
 
     @Test
@@ -407,15 +514,18 @@ class TabbedPaneBehaviorTest {
 
     @Test
     fun withdrawingTheHeaderDeclarationTakesItOffTheStrip() = runComposeSwingTest {
-        // The header leaves the tab's declaration while the tab itself stands: what the header drove is
-        // taken back, the pane renders the tab's own title again, and the page stays the page it holds.
+        // The header leaves the tab's declaration while the page itself stands: the pane returns to its
+        // default title rendering and the composed modifier owns the header composition's disposal.
         var declared by mutableStateOf(true)
         setContent {
             TabbedPane(selectedIndex = 0, onSelectedIndexChange = {}) {
-                Label(
-                    "g",
-                    SwingModifier.tab("General", header = if (declared) ({ Label("custom") }) else null),
-                )
+                val tab =
+                    if (declared) {
+                        SwingModifier.tab("General", header = { Label("custom") })
+                    } else {
+                        SwingModifier.tab("General")
+                    }
+                Label("g", tab)
             }
         }
 
@@ -457,8 +567,8 @@ class TabbedPaneBehaviorTest {
 
     @Test
     fun reorderingKeyedTabsCarriesEachHeaderToItsTabsPosition() = runComposeSwingTest {
-        // A keyed tab moves rather than being retitled in place, so its header travels with it: what the
-        // strip renders at a position is the header of the tab declared there.
+        // A keyed tab moves rather than being retitled in place, so its effect and direct header root travel
+        // with it instead of being disposed with the node's transient detach.
         var declared by mutableStateOf(listOf("A", "B", "C"))
         setContent {
             TabbedPane(selectedIndex = 0, onSelectedIndexChange = {}) {
@@ -472,6 +582,7 @@ class TabbedPaneBehaviorTest {
 
         val pane = onNodeOfType<JTabbedPane>().fetch()
         assertEquals(listOf("header A", "header B", "header C"), headers(pane), "each header should render its tab")
+        val standingHeaders = List(pane.tabCount) { pane.getTabComponentAt(it) }
 
         declared = listOf("C", "B", "A")
         awaitIdle()
@@ -481,6 +592,9 @@ class TabbedPaneBehaviorTest {
             headers(pane),
             "each header should be rendered at the position its own tab is declared at",
         )
+        assertSame(standingHeaders[2], pane.getTabComponentAt(0), "C's direct header root should move with C")
+        assertSame(standingHeaders[1], pane.getTabComponentAt(1), "B's direct header root should stay with B")
+        assertSame(standingHeaders[0], pane.getTabComponentAt(2), "A's direct header root should move with A")
     }
 
     @Test

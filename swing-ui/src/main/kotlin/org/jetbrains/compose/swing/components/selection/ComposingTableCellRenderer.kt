@@ -17,7 +17,7 @@ import javax.swing.table.TableCellRenderer
 
 /**
  * The receiver a [Table] cell composes against: the inputs the table hands a `TableCellRenderer` for the
- * cell being stamped, exposed as read-only composition state so the cell can lay itself out by row,
+ * cell being rendered, exposed as read-only composition state so the cell can lay itself out by row,
  * column, selection and focus.
  *
  * Mirrors the arguments of [javax.swing.table.TableCellRenderer.getTableCellRendererComponent]. Both
@@ -43,33 +43,33 @@ public sealed interface TableCellScope {
 
 /**
  * A [TableCellRenderer] that paints one column's cells through a real `@Composable` body, over the
- * reused [CellStampComposition] every such renderer stamps through.
+ * reused [CellRendererComposition] every such renderer renders through.
  *
  * The component the cell composes is what the table is handed; the table bounds and lays it out at the
  * cell being painted. A table gives every row the same height and never measures a row by what its cells
  * ask for, so the cell's content decides how it fills that space, not how tall the space is.
  *
  * @param parentContext the enclosing composition this renderer's cell composition joins.
- * @param rowAt the row a cell's row index names, resolved at every stamp against the rows the table
+ * @param rowAt the row a cell's row index names, resolved at every render against the rows the table
  *   holds then, so a renderer outlives any one pass's rows.
  */
 internal class ComposingTableCellRenderer<R>(
     parentContext: CompositionContext,
     private val rowAt: (rowIndex: Int) -> R?,
 ) : TableCellRenderer {
-    // A single reused cell (null before the first stamp) keeps the size-1 pool the rubber-stamp model
+    // A single reused cell (null before the first render) keeps the size-1 pool the render model
     // expects.
     private val rowState = mutableStateOf<R?>(null)
     private var currentRow by rowState
     private val scope = MutableTableCellScope()
 
-    // The cell body every stamp composes, held as composition state so a pass that declares a fresh one
+    // The cell body every render composes, held as composition state so a pass that declares a fresh one
     // is honored without rebuilding this renderer or its cell composition. It is null until the column
     // this renderer was built for hands over the body it declares, which composes the empty cell.
     private val contentState = mutableStateOf<(@Composable TableCellScope.(row: R) -> Unit)?>(null)
 
     private val cellComposition =
-        CellStampComposition(
+        CellRendererComposition(
             parentContext,
             "A composable cell renders a single component, and this one composes several. Compose them " +
                 "into one container - a panel whose layout arranges them - and the table renders that.",
@@ -77,7 +77,7 @@ internal class ComposingTableCellRenderer<R>(
             TableCell(rowState, scope, contentState)
         }
 
-    /** Takes [content] as the cell body every later stamp composes. */
+    /** Takes [content] as the cell body every later render composes. */
     fun adopt(content: @Composable TableCellScope.(row: R) -> Unit) {
         contentState.value = content
     }
@@ -94,12 +94,12 @@ internal class ComposingTableCellRenderer<R>(
         // rows and columns the table was given, so both are converted before they reach it.
         val rowIndex = table.convertRowIndexToModel(row)
         val columnIndex = table.convertColumnIndexToModel(column)
-        // A row the table hands the cell, `null` among them, is the row named for this stamp; only a
+        // A row the table hands the cell, `null` among them, is the row named for this render; only a
         // model index the table's own row count no longer covers names none. The row's own value can be
         // `null` too, so presence is read from the index bound rather than from what `rowAt` answers.
         val hasRow = rowIndex in 0 until table.model.rowCount
         val resolvedRow = if (hasRow) rowAt(rowIndex) else null
-        return cellComposition.stamp(hasCell = hasRow) {
+        return cellComposition.render(hasCell = hasRow) {
             currentRow = resolvedRow
             scope.rowIndex = rowIndex
             scope.columnIndex = columnIndex
@@ -108,13 +108,13 @@ internal class ComposingTableCellRenderer<R>(
         }
     }
 
-    /** Disposes this renderer's cell composition; see [CellStampComposition.dispose]. */
+    /** Disposes this renderer's cell composition; see [CellRendererComposition.dispose]. */
     fun dispose(): Unit = cellComposition.dispose()
 }
 
 /**
  * The cell body a [ComposingTableCellRenderer]'s cell composition composes; it composes the body only
- * where the stamp names a row, so [rowState] always holds that row here - itself `null` among the values
+ * where the render names a row, so [rowState] always holds that row here - itself `null` among the values
  * a row can hold. A column that declares no cell body composes nothing regardless: that one is about the
  * declaration, not the row.
  */
@@ -132,7 +132,7 @@ private fun <R> TableCell(
     scope.content(row)
 }
 
-/** The mutable backing of [TableCellScope]; its fields are written once per stamp. */
+/** The mutable backing of [TableCellScope]; its fields are written once per render. */
 private class MutableTableCellScope : TableCellScope {
     override var rowIndex: Int by mutableIntStateOf(-1)
     override var columnIndex: Int by mutableIntStateOf(-1)
@@ -145,13 +145,13 @@ private class MutableTableCellScope : TableCellScope {
  * created as the column takes one and disposed as the column gives it up or goes away.
  *
  * Every such column gets a cell composition of its own rather than sharing one. A shared composition
- * holds one cell body at a time, so every stamp of a column other than the last one stamped would
+ * holds one cell body at a time, so every render of a column other than the last one rendered would
  * rebuild that cell's whole Swing subtree - once per cell, over every cell the table paints. Each
  * composition also holds a started snapshot observer, so a column is disposed the moment it stops
  * declaring a cell body rather than kept until the table's own composition ends.
  *
  * @param parentContext the enclosing composition every cell composition joins.
- * @param rowAt the row a cell's row index names; taken once and invoked at every stamp, so it has to
+ * @param rowAt the row a cell's row index names; taken once and invoked at every render, so it has to
  *   read the rows the table holds then rather than close over one pass's list.
  */
 internal class TableCellCompositions<R>(
@@ -165,7 +165,7 @@ internal class TableCellCompositions<R>(
     private val perColumn = mutableListOf<ComposingTableCellRenderer<R>?>()
 
     /**
-     * Takes each of [columns]' cell bodies as what that column's later stamps compose, mounting a cell
+     * Takes each of [columns]' cell bodies as what that column's later renders compose, mounting a cell
      * composition for a column that declares one for the first time and disposing that of a column that
      * no longer does.
      */
@@ -187,7 +187,7 @@ internal class TableCellCompositions<R>(
     }
 
     /**
-     * Puts each held renderer onto the column it stamps for, and clears every column with none back to
+     * Puts each held renderer onto the column it renders for, and clears every column with none back to
      * no renderer of its own - the same state as a column the table built and never gave a composable
      * cell, so it renders through the one the table picks by the column's class. No column of this table
      * ever carries a renderer other than one of these or `null`, so a column already holding the renderer
@@ -218,7 +218,7 @@ internal class TableCellCompositions<R>(
 }
 
 /**
- * Folds [cellCompositions] into the chain as what the table's columns stamp their cells through.
+ * Folds [cellCompositions] into the chain as what the table's columns render their cells through.
  *
  * A column's renderer belongs to the column rather than to the table, and a structure change rebuilds
  * the columns, so renderers are put on from the element's own `update` - which every pass runs - rather

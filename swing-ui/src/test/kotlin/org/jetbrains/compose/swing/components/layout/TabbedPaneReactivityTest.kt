@@ -449,7 +449,13 @@ class TabbedPaneReactivityTest {
         var withHeader by mutableStateOf(true)
         setContent {
             TabbedPane(selectedIndex = 0, onSelectedIndexChange = {}) {
-                Label("g", SwingModifier.tab("General", header = if (withHeader) ({ Label("custom") }) else null))
+                val tab =
+                    if (withHeader) {
+                        SwingModifier.tab("General", header = { Label("custom") })
+                    } else {
+                        SwingModifier.tab("General")
+                    }
+                Label("g", tab)
             }
         }
 

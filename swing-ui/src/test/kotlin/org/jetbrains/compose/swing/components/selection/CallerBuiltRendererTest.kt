@@ -43,10 +43,10 @@ class CallerBuiltRendererTest {
         }
 
         val list = onNodeOfType<JList<*>>().fetch<JList<String>>()
-        val cell = list.stampCell(index = 0)
-        assertFalse(cell is JLabel, "a composable cell stamps what it composed, not the JList's own JLabel")
+        val cell = list.renderCell(index = 0)
+        assertFalse(cell is JLabel, "a composable cell renders what it composed, not the JList's own JLabel")
         assertEquals("alpha", cell.firstLabelText(), "the renderer the caller installed should render row 0")
-        assertEquals("beta", list.stampCell(index = 1).firstLabelText(), "the reused cell should restamp row 1")
+        assertEquals("beta", list.renderCell(index = 1).firstLabelText(), "the reused cell should rerender row 1")
     }
 
     @Test
@@ -61,7 +61,7 @@ class CallerBuiltRendererTest {
         val list = onNodeOfType<JList<*>>().fetch<JList<String>>()
         assertEquals(
             "alpha (draft)",
-            list.stampCell(index = 0).firstLabelText(),
+            list.renderCell(index = 0).firstLabelText(),
             "the cell should render the state its body reads",
         )
 
@@ -70,13 +70,13 @@ class CallerBuiltRendererTest {
 
         assertEquals(
             "alpha (review)",
-            list.stampCell(index = 0).firstLabelText(),
-            "a live cell composition must restamp the state its body reads rather than freeze on the first value",
+            list.renderCell(index = 0).firstLabelText(),
+            "a live cell composition must rerender the state its body reads rather than freeze on the first value",
         )
     }
 
     @Test
-    fun theRendererStopsStampingOnceItsCompositionIsDisposed() = runComposeSwingTest {
+    fun theRendererStopsRenderingOnceItsCompositionIsDisposed() = runComposeSwingTest {
         var showList by mutableStateOf(true)
         setContent {
             if (showList) {
@@ -94,14 +94,14 @@ class CallerBuiltRendererTest {
         awaitIdle()
 
         assertNull(
-            renderer.stampCell(value = "beta", index = 1).firstLabelText(),
-            "a stamp after the remembering composition is disposed must render an empty cell, not a stale row",
+            renderer.renderCell(value = "beta", index = 1).firstLabelText(),
+            "a render after the remembering composition is disposed must render an empty cell, not a stale row",
         )
     }
 
     @Test
     fun anItemTheCellBodyWasNotWrittenOverIsNamedRatherThanCastBlindly() = runComposeSwingTest {
-        // The widget stamps a row to measure itself, so the mismatch surfaces where the component is first
+        // The widget renders a row to measure itself, so the mismatch surfaces where the component is first
         // laid out rather than at some later paint.
         val failure =
             assertFailsWith<IllegalStateException> {
@@ -131,7 +131,7 @@ class CallerBuiltRendererTest {
     @Test
     fun aGenericWrapperNamesTheItemTypeItCannotReify() = runComposeSwingTest {
         // Inside a generic function the cell body's type argument is erased, so the call site cannot
-        // supply it: the wrapper names it instead, and the stamp is checked against what it named.
+        // supply it: the wrapper names it instead, and the render is checked against what it named.
         val failure =
             assertFailsWith<IllegalStateException> {
                 setContent { TypedItemList(items = listOf(1, 2), itemType = String::class) }
@@ -155,7 +155,7 @@ class CallerBuiltRendererTest {
         val list = onNodeOfType<JList<*>>().fetch<JList<Int>>()
         assertEquals(
             "1",
-            list.stampCell(index = 0).firstLabelText(),
+            list.renderCell(index = 0).firstLabelText(),
             "a wrapper naming a primitive item type must render its rows rather than refuse them",
         )
     }
@@ -187,7 +187,7 @@ class CallerBuiltRendererTest {
 
     @Test
     fun aValueOfTheStatedItemTypeComposesACellTheModelDoesNotHold() = runComposeSwingTest {
-        // A JComboBox sizes itself by stamping its prototypeDisplayValue as a display area. The prototype
+        // A JComboBox sizes itself by rendering its prototypeDisplayValue as a display area. The prototype
         // is measured rather than held, so the model never lists it: the stated item type is what names it
         // an item.
         setContent {
@@ -204,11 +204,11 @@ class CallerBuiltRendererTest {
         val combo = onNodeOfType<JComboBox<*>>().fetch<JComboBox<String>>()
         assertEquals(
             "a prototype no item equals",
-            combo.stampDisplayArea(value = "a prototype no item equals").firstLabelText(),
+            combo.renderDisplayArea(value = "a prototype no item equals").firstLabelText(),
             "a value of the stated item type must compose a cell, which is what sizes a combo box by it",
         )
         assertNull(
-            combo.stampDisplayArea(value = 7).firstLabelText(),
+            combo.renderDisplayArea(value = 7).firstLabelText(),
             "a value of another type is no item of the widget's and composes no cell",
         )
     }
@@ -232,8 +232,8 @@ class CallerBuiltRendererTest {
         val list = onNodeOfType<JList<*>>().fetch<JList<Person>>()
         assertEquals(
             "Ada",
-            list.stampCell(index = 0).firstLabelText(),
-            "the caller's own renderer must be the one the component stamps its items through",
+            list.renderCell(index = 0).firstLabelText(),
+            "the caller's own renderer must be the one the component renders its items through",
         )
     }
 }

@@ -5,7 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.selection.firstLabelText
-import org.jetbrains.compose.swing.components.selection.stampCell
+import org.jetbrains.compose.swing.components.selection.renderCell
 import org.jetbrains.compose.swing.test.SwingMatcher
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches
 import org.jetbrains.compose.swing.test.onNodeOfType
@@ -103,10 +103,10 @@ class ComboBoxModelBehaviorTest {
         }
 
         val combo = onNodeOfType<JComboBox<*>>().fetch<JComboBox<String>>()
-        val cell = combo.stampCell(index = 1)
-        assertFalse(cell is JLabel, "a composable cell should stamp what it composed, not the default JLabel")
+        val cell = combo.renderCell(index = 1)
+        assertFalse(cell is JLabel, "a composable cell should render what it composed, not the default JLabel")
         assertEquals("Green", cell.firstLabelText(), "the cell should render item 1")
-        assertEquals("Blue", combo.stampCell(index = 2).firstLabelText(), "the reused cell should restamp item 2")
+        assertEquals("Blue", combo.renderCell(index = 2).firstLabelText(), "the reused cell should rerender item 2")
     }
 
     @Test
@@ -115,8 +115,8 @@ class ComboBoxModelBehaviorTest {
         setContent { ComboBox(model = model) }
 
         val combo = onNodeOfType<JComboBox<*>>().fetch<JComboBox<String>>()
-        val cell = combo.stampCell(index = 0)
-        assertTrue(cell is JLabel, "the default combo renderer stamps a JLabel")
+        val cell = combo.renderCell(index = 0)
+        assertTrue(cell is JLabel, "the default combo renderer renders a JLabel")
         assertEquals("Red", (cell as JLabel).text, "the default renderer renders the item's toString")
     }
 
@@ -137,20 +137,20 @@ class ComboBoxModelBehaviorTest {
         }
 
         val combo = onNodeOfType<JComboBox<*>>().fetch<JComboBox<String>>()
-        assertFalse(combo.stampCell(index = 0) is JLabel, "a composable cell stamps what it composed")
+        assertFalse(combo.renderCell(index = 0) is JLabel, "a composable cell renders what it composed")
 
         composableCells = false
         awaitIdle()
-        val defaultCell = combo.stampCell(index = 0)
-        assertTrue(defaultCell is JLabel, "taking itemContent away should stamp the combo box's own JLabel renderer")
+        val defaultCell = combo.renderCell(index = 0)
+        assertTrue(defaultCell is JLabel, "taking itemContent away should render the combo box's own JLabel renderer")
         assertEquals("Red", (defaultCell as JLabel).text, "the restored renderer renders the item's toString")
 
         composableCells = true
         awaitIdle()
         assertEquals(
             "Green",
-            combo.stampCell(index = 1).firstLabelText(),
-            "declaring itemContent again should stamp the composable cell",
+            combo.renderCell(index = 1).firstLabelText(),
+            "declaring itemContent again should render the composable cell",
         )
     }
 
@@ -166,12 +166,12 @@ class ComboBoxModelBehaviorTest {
 
         val combo = onNodeOfType<JComboBox<*>>().fetch<JComboBox<String>>()
         val renderer = combo.renderer
-        assertEquals("Red", combo.stampCell(index = 0).firstLabelText(), "the initial model's item should render")
+        assertEquals("Red", combo.renderCell(index = 0).firstLabelText(), "the initial model's item should render")
 
         model = replacement
         awaitIdle()
         assertTrue(renderer === combo.renderer, "a model swap should keep the same composing renderer installed")
-        val cell = combo.stampCell(index = 0)
+        val cell = combo.renderCell(index = 0)
         assertFalse(cell is JLabel, "the composable cell should survive the model swap")
         assertEquals("One", cell.firstLabelText(), "the swapped model's item should render through the cell")
     }

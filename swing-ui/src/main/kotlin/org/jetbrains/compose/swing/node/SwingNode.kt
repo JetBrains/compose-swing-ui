@@ -36,9 +36,6 @@ import java.awt.Component
  * on to the instance it once saw: only the component the node currently holds is the one the composition
  * is driving.
  *
- * A node hosts nested compositions through [SwingNodeUpdater.hostSubcompositions], declared in [update]
- * like any other property.
- *
  * @param factory builds the backing Swing component.
  * @param modifier the [SwingModifier] applied to the component, after [update] has run, so a chain can
  *   override what the component's own state declared. Forward the chain the enclosing composable took;

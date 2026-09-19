@@ -59,8 +59,8 @@ internal class AppliedGeometry {
     /**
      * The insets the window's decorations took when [width] by [height] was asked for, while the window
      * system may still report the window off that size; null for a size the composition did not name -
-     * one fitted to the content, or one the user left the window at. A window getting a peer restamps a
-     * stamped size with the insets the peer starts with.
+     * one fitted to the content, or one the user left the window at. A window getting a peer records a
+     * recorded size with the insets the peer starts with.
      *
      * A window manager that frames a window reports the insets its decorations take only once the window
      * is on screen. Until then the X11 toolkit sizes the window's content around guessed insets, so the
@@ -69,7 +69,7 @@ internal class AppliedGeometry {
      * resize of the user's. A report under the insets a size was asked for around is never such a
      * correction.
      *
-     * A size stays stamped once the toolkit has reported it late, which it may do more than once, and
+     * A size stays recorded once the toolkit has reported it late, which it may do more than once, and
      * when the toolkit answers it with no late report at all. So after the window is framed, a report that
      * lands exactly on that size off by the difference in insets, or on the size it replaced, is still
      * taken for the toolkit's until any other resize.
@@ -205,7 +205,7 @@ private fun Window.applySize(
         applied.sizeReportedLate = false
     } else {
         // Read before the resize: the toolkit thread may correct its guessed insets at any moment, and a size
-        // stamped with insets corrected after it was sized would have its late report taken for a user's
+        // recorded with insets corrected after it was sized would have its late report taken for a user's
         // resize.
         val requestInsets = insets
         setSize(width, height)
@@ -242,7 +242,7 @@ internal fun Frame.applyExtendedState(
 /**
  * Registers a listener that writes user-driven maximize, minimize and restore transitions of this
  * frame back through [setExtendedState], keeping [applied] equal to the value it hands to the state.
- * Stamping [applied] here closes the feedback loop the same way [installGeometryWriteBack] does for
+ * Recording [applied] here closes the feedback loop the same way [installGeometryWriteBack] does for
  * moves and resizes.
  *
  * Returns the registered listener so the caller can remove it when the window leaves the composition.
@@ -268,7 +268,7 @@ internal fun Frame.installExtendedStateWriteBack(
 
 /**
  * Registers a listener that writes user-driven resizes and moves of this window back through [setSize]
- * and [setPosition], keeping [applied] equal to the value it hands to the state. Stamping [applied]
+ * and [setPosition], keeping [applied] equal to the value it hands to the state. Recording [applied]
  * here is what closes the feedback loop: the next apply sees the state and [applied] already agree and
  * does nothing.
  *
@@ -371,7 +371,7 @@ internal fun Window.installGeometryWriteBack(
                     requested.isReportedLateAs(reportedWidth, reportedHeight, current) -> {
                         // The toolkit reports the sizes asked for in the order they were asked for, so
                         // the size replaced has been reported for the last time. This one may be
-                        // reported so again, so it stays stamped.
+                        // reported so again, so it stays recorded.
                         applied.supersededSize = null
                         applied.sizeReportedLate = true
                         Dimension(requestedWidth, requestedHeight)

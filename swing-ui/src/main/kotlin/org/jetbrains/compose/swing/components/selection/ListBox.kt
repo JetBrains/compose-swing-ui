@@ -52,7 +52,7 @@ import javax.swing.event.ListSelectionListener
  * [layoutOrientation] decides how the cells are laid out: a single column, or wrapped into as many
  * columns or rows as the space the list is given allows. A wrapping list draws far more cells at once,
  * and a list sizes itself by measuring them - one measurement per row through the renderer, and with a
- * composable [itemContent] each of those is a cell stamped through a nested composition. Declaring a
+ * composable [itemContent] each of those is a cell rendered through a nested composition. Declaring a
  * [prototypeCellValue] collapses that to a single measurement every cell is sized by; [fixedCellWidth]
  * and [fixedCellHeight] state a size outright and spare it even that one.
  *
