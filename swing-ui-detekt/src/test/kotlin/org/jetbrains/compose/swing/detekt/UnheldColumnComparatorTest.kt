@@ -189,14 +189,6 @@ class UnheldColumnComparatorTest {
     }
 
     @Test
-    fun `reports a comparator declared through addColumn`() {
-        assertEquals(
-            1,
-            lintTable("addColumn(\"Name\", true, comparator = compareBy<String> { it }, value = { it })").size,
-        )
-    }
-
-    @Test
     fun `reports a comparator held by a local variable built where the column is declared`() {
         assertEquals(
             1,

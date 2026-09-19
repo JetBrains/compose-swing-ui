@@ -19,7 +19,6 @@ import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.declaredName
 import org.jetbrains.compose.swing.node.reconcileWithChildren
 import org.jetbrains.compose.swing.node.rememberMirrorState
-import org.jetbrains.compose.swing.platform.LookAndFeelDefaults
 import java.awt.BorderLayout
 import java.awt.event.HierarchyEvent
 import javax.swing.JToolBar

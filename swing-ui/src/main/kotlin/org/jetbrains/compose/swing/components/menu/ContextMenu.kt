@@ -8,7 +8,6 @@ import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
-import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import org.jetbrains.compose.swing.annotations.SwingMenuComposable
 import java.awt.Component
 import java.awt.event.MouseAdapter
@@ -73,9 +72,8 @@ public fun ContextMenu(
  * @param onClose invoked when the user closes the menu.
  * @param content the composable menu tree shown in the popup.
  */
-@InternalSwingUiApi
 @Composable
-public fun ContextMenu(
+internal fun ContextMenu(
     anchor: PopupAnchor,
     display: (popup: JPopupMenu, invoker: Component, x: Int, y: Int) -> Unit,
     onOpen: () -> Unit = {},

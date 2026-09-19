@@ -43,7 +43,7 @@ public class UnheldColumnComparator(
     override val ruleName: RuleName = RuleName("UnheldColumnComparator")
 
     private companion object {
-        val COLUMN_CALL_NAMES: Set<String> = setOf("column", "addColumn")
+        val COLUMN_CALL_NAMES: Set<String> = setOf("column")
         const val TABLE_PACKAGE: String = "org.jetbrains.compose.swing.components.selection"
         const val TABLE_FQN: String = "$TABLE_PACKAGE.Table"
         const val TABLE_NAME: String = "Table"

@@ -6,7 +6,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
-import org.jetbrains.compose.swing.node.settleWhenDue
+import java.awt.Component
 import javax.swing.JTable
 import javax.swing.RowFilter
 import javax.swing.RowSorter.SortKey
@@ -299,6 +299,25 @@ internal fun SwingNodeUpdater<JTable>.declareRowFilter(
         installContent(mirror, declared, target) { sortChannel.applyRowFilter(due.filter) }
     }
 }
+
+/**
+ * Carries the settlement [token] builds when [due], and runs [settle] against the component with it once
+ * the composition applies its changes. Nothing runs on a pass where nothing is due.
+ *
+ * This is how a declaration whose settling depends on more than its own value reaches its widget: what such
+ * a pass is compared against lives on the mirrors it settles rather than in the composition, so the slot
+ * carries a token standing for a due settlement instead of the declaration behind it. A fresh token is
+ * never what the slot already holds, so a settle that is due always runs; the one comparison the slot can
+ * hold back is the null that follows a settlement, and that pass has nothing to do.
+ *
+ * The slot is taken whether or not anything is due, so a call inside a conditional shifts every later slot
+ * of the same `update` block. State the condition in [due], not in whether the call happens.
+ */
+internal inline fun <C : Component, D : Any> SwingNodeUpdater<C>.settleWhenDue(
+    due: Boolean,
+    token: () -> D,
+    crossinline settle: C.(D) -> Unit,
+): Unit = set(if (due) token() else null) { pending -> if (pending != null) settle(pending) }
 
 /** One due install of a row filter: the filter to leave the sorter on. */
 private class RowFilterInstall(

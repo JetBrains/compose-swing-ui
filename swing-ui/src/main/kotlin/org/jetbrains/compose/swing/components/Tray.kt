@@ -6,16 +6,16 @@ package org.jetbrains.compose.swing.components
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.rememberUpdatedState
+import kotlinx.coroutines.awaitCancellation
 import org.jetbrains.annotations.Nls
-import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import org.jetbrains.compose.swing.annotations.SwingMenuComposable
 import org.jetbrains.compose.swing.components.menu.MenuPopup
-import org.jetbrains.compose.swing.core.KeepEnclosingApplicationAlive
 import java.awt.Image
 import java.awt.SystemTray
 import java.awt.TrayIcon
@@ -77,7 +77,7 @@ public fun Tray(
         return
     }
 
-    KeepEnclosingApplicationAlive()
+    LaunchedEffect(Unit) { awaitCancellation() }
 
     val currentOnAction by rememberUpdatedState(onAction)
     val currentMenu by rememberUpdatedState(menu)
@@ -137,8 +137,7 @@ public fun Tray(
  *   over a transient invoker at those screen coordinates.
  * @param menu the composable menu tree opened on each [showMenu] call.
  */
-@InternalSwingUiApi
-public class TrayMenuHost(
+internal class TrayMenuHost(
     private val parentContext: CompositionContext,
     private val display: (popup: JPopupMenu, x: Int, y: Int) -> Unit = ::showPopupAtCursor,
     private val menu:
@@ -155,7 +154,7 @@ public class TrayMenuHost(
      *   [display] reads - screen coordinates under the production default.
      * @param y the vertical coordinate that corner is placed at, in the same space as [x].
      */
-    public fun showMenu(
+    fun showMenu(
         x: Int,
         y: Int,
     ) {
@@ -172,7 +171,7 @@ public class TrayMenuHost(
      * Closes the menu last shown by [showMenu]: hides its popup and disposes its menu composition.
      * A no-op when no menu is open, so it is safe to call repeatedly.
      */
-    public fun closeMenu() {
+    fun closeMenu() {
         open?.close()
         open = null
     }

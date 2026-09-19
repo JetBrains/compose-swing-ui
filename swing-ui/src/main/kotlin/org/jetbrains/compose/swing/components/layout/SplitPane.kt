@@ -12,7 +12,6 @@ import org.jetbrains.compose.swing.modifier.property
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.rememberMirrorState
-import org.jetbrains.compose.swing.platform.LookAndFeelDefaults
 import java.beans.PropertyChangeListener
 import javax.swing.JSplitPane
 

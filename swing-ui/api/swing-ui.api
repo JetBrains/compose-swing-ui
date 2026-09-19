@@ -1306,3 +1306,4 @@ public final class org/jetbrains/compose/swing/window/WindowState {
 	public final fun setSize (Ljava/awt/Dimension;)V
 	public final fun setWidth (I)V
 }
+

@@ -9,7 +9,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
-import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import org.jetbrains.compose.swing.annotations.SwingMenuComposable
 import org.jetbrains.compose.swing.modifier.interaction.FirstShowing
 import java.awt.Component
@@ -71,9 +70,8 @@ public fun PopupMenu(
  * @param onDismiss invoked when the user closes the menu.
  * @param content the composable menu tree shown in the menu.
  */
-@InternalSwingUiApi
 @Composable
-public fun PopupMenu(
+internal fun PopupMenu(
     anchor: PopupAnchor,
     expanded: Boolean,
     display: (popup: JPopupMenu, invoker: Component, x: Int, y: Int) -> Unit,

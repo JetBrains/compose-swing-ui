@@ -1,4 +1,4 @@
-package org.jetbrains.compose.swing.platform
+package org.jetbrains.compose.swing.components.layout
 
 import javax.swing.UIManager
 

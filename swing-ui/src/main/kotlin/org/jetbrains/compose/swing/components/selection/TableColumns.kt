@@ -5,7 +5,6 @@ package org.jetbrains.compose.swing.components.selection
 
 import androidx.compose.runtime.Composable
 import org.jetbrains.annotations.Nls
-import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import javax.swing.JTable
 import javax.swing.table.AbstractTableModel
 
@@ -17,46 +16,7 @@ import javax.swing.table.AbstractTableModel
  *
  * @see javax.swing.table.TableColumn
  */
-public sealed interface TableScope<R> {
-    /**
-     * Appends one fully specified column. Both forms of [column] funnel through here, each filling in
-     * what a declaration leaves out.
-     *
-     * Marked [InternalSwingUiApi]; it may change without notice in any release.
-     *
-     * [column] carries the guidance on choosing each parameter.
-     *
-     * @param header the column's header text.
-     * @param columnClass the class the table renders and edits this column's cells as.
-     * @param isEditable whether the column's cells can be edited in place at all.
-     * @param isCellEditable decides that per row while it is declared, or `null` to leave the answer to
-     *   [isEditable].
-     * @param isSortable whether a click on the header sorts by this column, while the table sorts at all.
-     * @param comparator orders this column's values, or `null` to order them as a `TableRowSorter` orders
-     *   a column of [columnClass].
-     * @param minWidth the narrowest this column may be dragged or squeezed to.
-     * @param maxWidth the widest this column may be dragged or stretched to.
-     * @param onCellEdit invoked with the row, its index and the committed value when a cell is edited.
-     * @param cellContent renders the cells through a composable body, or `null` to render them through
-     *   the renderer the table picks by [columnClass].
-     * @param value extracts the value to show for a row.
-     */
-    @InternalSwingUiApi
-    @Suppress("LongParameterList")
-    public fun addColumn(
-        header: @Nls String,
-        columnClass: Class<*>,
-        isEditable: Boolean,
-        isCellEditable: ((row: R, rowIndex: Int) -> Boolean)?,
-        isSortable: Boolean,
-        comparator: Comparator<Any?>?,
-        minWidth: Int,
-        maxWidth: Int,
-        onCellEdit: (row: R, rowIndex: Int, newValue: Any?) -> Unit,
-        cellContent: (@Composable TableCellScope.(row: R) -> Unit)?,
-        value: (row: R) -> Any?,
-    )
-}
+public sealed interface TableScope<R>
 
 /**
  * Declares one column of [V] values, taking the column's class from the type [value] returns.
@@ -119,7 +79,7 @@ public inline fun <R, reified V : Any> TableScope<R>.column(
     noinline cellContent: (@Composable TableCellScope.(row: R) -> Unit)? = null,
     noinline value: (row: R) -> V?,
 ) {
-    addColumn(
+    column(
         header = header,
         columnClass = V::class.javaObjectType,
         isEditable = isEditable,
@@ -193,7 +153,7 @@ public fun <R> TableScope<R>.column(
     cellContent: (@Composable TableCellScope.(row: R) -> Unit)? = null,
     value: (row: R) -> Any?,
 ) {
-    addColumn(
+    (this as TableScopeImpl<R>).addColumn(
         header = header,
         columnClass = columnClass,
         isEditable = isEditable,
@@ -217,7 +177,8 @@ public fun <R> TableScope<R>.column(
  * references the table must tell apart compare equal.
  */
 @Suppress("LongParameterList")
-// One field per declared aspect of a column; see TableScope.addColumn, which hands them over one for one.
+// One field per declared aspect of a column; see the column(header, columnClass, ...) overload, which
+// hands them over one for one.
 internal class ColumnDeclaration<R>(
     val header: @Nls String,
     val columnClass: Class<*>,
@@ -265,8 +226,9 @@ internal class TableScopeImpl<R> : TableScope<R> {
     val columns: MutableList<ColumnDeclaration<R>> = ArrayList()
 
     @Suppress("LongParameterList")
-    // The declaration this fills, parameter for parameter; see TableScope.addColumn.
-    override fun addColumn(
+    // The declaration this fills, parameter for parameter; see the column(header, columnClass, ...)
+    // overload above, the sealed scope's only public route to it.
+    internal fun addColumn(
         header: @Nls String,
         columnClass: Class<*>,
         isEditable: Boolean,
