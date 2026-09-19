@@ -7,7 +7,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.compose.swing.core.dispatchToCaller
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
-import org.jetbrains.compose.swing.node.settleWhenDue
+import org.jetbrains.compose.swing.node.declare
 import javax.swing.JTable
 import javax.swing.event.ChangeEvent
 import javax.swing.event.ListSelectionEvent
@@ -60,23 +60,6 @@ internal class ColumnLayoutChannel(
             // order nor the widths.
             override fun columnSelectionChanged(event: ListSelectionEvent) = Unit
         }
-
-    /**
-     * Settles [table]'s columns on [declared], and records the layout they were left in as the one
-     * this pass answered for. A `null` declaration leaves the columns where they are.
-     *
-     * The whole of it is one settlement of the mirror, so the layout the columns are left in is not news:
-     * this pass asked for it and read it back.
-     */
-    fun settle(
-        table: JTable,
-        declared: TableColumnLayout?,
-    ) {
-        mirror.settle {
-            mirror.write { table.applyColumnLayout(declared) }
-            answered(table.columnModel.layoutHeld(mirror.value))
-        }
-    }
 
     /**
      * Runs [install] - a change that rebuilds the table's columns and so drops the order and the widths
@@ -143,26 +126,24 @@ private fun TableColumnLayout.holdsInPlace(columns: TableColumnModel): Boolean =
         }
 
 /**
- * Settles the table's columns on [columnLayout] whenever the declaration or the layout the columns are in
- * has changed since the pair this mirror last answered for, and does nothing at all on a pass where
- * neither
- * did. Reading the mirror here is what subscribes the composition to a user's own reorder or resize, so a
- * declared layout is put back on the pass that follows their changing away from it.
+ * Settles the table's columns on [columnLayout] whenever the declaration or the layout the columns are
+ * in has changed since the pair this mirror last answered for, and does nothing at all on a pass where
+ * neither did. Reading the mirror here is what subscribes the composition to a user's own reorder or
+ * resize, so a declared layout is put back on the pass that follows their changing away from it.
+ *
+ * A `null` [columnLayout] leaves the columns where they are: [applyColumnLayout] does nothing for one.
  */
 internal fun SwingNodeUpdater<JTable>.declareColumnLayout(
     mirror: MirrorState<TableColumnLayout?>,
     columnLayout: TableColumnLayout?,
-    channel: ColumnLayoutChannel,
 ) {
-    settleWhenDue(mirror.redeclare(columnLayout), { ColumnLayoutSettlement(columnLayout) }) { due ->
-        channel.settle(this, due.layout)
-    }
+    declare(
+        columnLayout,
+        mirror,
+        read = { columnModel.layoutHeld(mirror.value) },
+        write = { applyColumnLayout(it) },
+    )
 }
-
-/** One due settlement of a table's column layout: the layout to leave the columns in. */
-private class ColumnLayoutSettlement(
-    val layout: TableColumnLayout?,
-)
 
 /** A [ColumnLayoutChannel] that keeps reporting to the latest [listener] without being rebuilt. */
 @Composable

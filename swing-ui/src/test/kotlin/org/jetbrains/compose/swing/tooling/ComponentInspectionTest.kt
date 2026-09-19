@@ -308,7 +308,7 @@ class ComponentInspectionTest {
 
         assertNull(
             taggedLabel().composedNode(),
-            "off is the default, so no node was ever stamped",
+            "off is the default, so no node was ever published",
         )
     }
 
@@ -338,7 +338,7 @@ class ComponentInspectionTest {
         shown = false
         awaitIdle()
 
-        assertNull(label.composedNode(), "the node that stamped it was released along with it")
+        assertNull(label.composedNode(), "the node that published it was released along with it")
     }
 
     @Test
@@ -347,7 +347,7 @@ class ComponentInspectionTest {
         var nested by mutableStateOf(false)
         lateinit var shared: JLabel
         // One component declared by a node in either arm: the node going out is released after the node
-        // coming in has stamped it.
+        // coming in has published it.
         setContent {
             val label = remember { JLabel("shared") }
             shared = label
@@ -397,7 +397,7 @@ class ComponentInspectionTest {
 
     @Test
     fun withInspectionOnADeclaredMenuItemAnswersWithTheNodeItsGroupHolds() = runComposeSwingTest {
-        // A menu tree is composed by an applier of its own, so the stamp has to be written on that way
+        // A menu tree is composed by an applier of its own, so the node has to be published that way
         // in too: a menu item is asked for its node exactly as a component is.
         isDebugInspectorInfoEnabled = true
         val popup = composeMenu { MenuItem("Cut", onClick = { }) }
@@ -423,7 +423,7 @@ class ComponentInspectionTest {
 
         assertNull(
             taggedLabel().composedNode(),
-            "the switch going off re-inserts the content into a fresh, unstamped component",
+            "the switch going off re-inserts the content into a fresh, unpublished component",
         )
     }
 

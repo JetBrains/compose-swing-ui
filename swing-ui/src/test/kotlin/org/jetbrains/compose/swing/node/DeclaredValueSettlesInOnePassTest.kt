@@ -86,6 +86,31 @@ class DeclaredValueSettlesInOnePassTest {
     }
 
     @Test
+    fun aChangeTheCallerRejectsIsCaughtAgainWhenTheUserRepeatsIt() = runComposeSwingTest {
+        val reported = mutableListOf<Int>()
+        val declared by mutableIntStateOf(DECLARED)
+        setContent {
+            Slider(value = declared, onValueChange = { reported += it }, min = MIN, max = MAX)
+        }
+        awaitIdle()
+
+        val slider = onNodeOfType<JSlider>().fetch()
+        slider.value = CHANGED
+        awaitIdle()
+        assertEquals(DECLARED, slider.value, "the first rejected change should be written back")
+
+        // The composition's own declared value never moved between the two changes, so a check keyed
+        // only on it - the way SwingNodeUpdater.set compares this pass's declaration against the last -
+        // would see nothing new to settle. redeclare also weighs the widget's own value, so the repeat
+        // is caught just the same.
+        slider.value = CHANGED
+        awaitIdle()
+
+        assertEquals(listOf(CHANGED, CHANGED), reported, "the repeated change should reach the caller again")
+        assertEquals(DECLARED, slider.value, "a repeated change the caller rejects should be written back again")
+    }
+
+    @Test
     fun aChangeTheCallerAdoptsStands() = runComposeSwingTest {
         var declared by mutableIntStateOf(DECLARED)
         setContent {

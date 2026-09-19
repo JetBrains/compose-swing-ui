@@ -17,6 +17,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.composed
 import org.jetbrains.compose.swing.modifier.layout.slot
 import org.jetbrains.compose.swing.node.MirrorState
+import org.jetbrains.compose.swing.node.RootSlotPolicy
 import org.jetbrains.compose.swing.node.SwingApplier
 import org.jetbrains.compose.swing.node.SwingNodeHolder
 import org.jetbrains.compose.swing.node.checkRootShowsOneChild
@@ -396,9 +397,10 @@ private class DirectTabHeaderComposition(
                 SwingApplier(
                     rootHolder.attachedTo(owner),
                     rootSlot = rootSlot,
-                    onRootSlotSettled = {
-                        if (!disposed) requireRoot()
-                    },
+                    rootSlotPolicy =
+                        RootSlotPolicy {
+                            if (!disposed) requireRoot()
+                        },
                 )
             }
         disposingOnFailure(::disposeComposition) {

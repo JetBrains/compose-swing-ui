@@ -19,7 +19,7 @@ private fun requiredLibrary(alias: String) =
 
 dokka {
     moduleName.set(rootProject.name)
-    // The versioning plugin stamps the version this site documents into its header, and switches
+    // The versioning plugin records the version this site documents into its header, and switches
     // between it and the generated documentation of earlier versions placed in `olderVersionsDir`.
     pluginsConfiguration.versioning {
         version.set(resolvePublishVersion())

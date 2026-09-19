@@ -118,17 +118,11 @@ public fun <T : Component, C : Any, L : Any> SwingModifier.listener(
  * @param registration where the built listener is registered, and how it is built.
  * @param onEvent what the built listener runs; refreshed on every pass.
  */
-internal fun <T : Component, E : EventObject, L : Any> SwingModifier.listener(
+public fun <T : Component, E : EventObject, L : Any> SwingModifier.listener(
     targetType: KClass<T>,
-    registration: CallbackRegistration<*, (E) -> Unit, L>,
+    registration: CallbackRegistration<T, (E) -> Unit, L>,
     onEvent: T.(E) -> Unit,
-): SwingModifier {
-    // The element rejects a node that is not a T before the listener the registration builds is ever
-    // attached to it.
-    @Suppress("UNCHECKED_CAST")
-    val scoped = registration as CallbackRegistration<T, (E) -> Unit, L>
-    return listener(targetType, ScopedCallback(targetType, onEvent), scoped)
-}
+): SwingModifier = listener(targetType, ScopedCallback(targetType, onEvent), registration)
 
 /** Runs [onEvent] with the event's source as the receiver. */
 private class ScopedCallback<T : Component, E : EventObject>(

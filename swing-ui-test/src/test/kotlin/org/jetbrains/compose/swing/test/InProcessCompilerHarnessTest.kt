@@ -1,6 +1,5 @@
 package org.jetbrains.compose.swing.test
 
-import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import org.jetbrains.compose.swing.test.InProcessCompilerHarness.CompilationResult
 import org.jetbrains.compose.swing.test.InProcessCompilerHarness.SourceSpec
 import org.jetbrains.kotlin.cli.common.ExitCode
@@ -9,7 +8,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
-@OptIn(InternalSwingUiApi::class)
 class InProcessCompilerHarnessTest {
     @Test
     fun errorsExtractMessagesWithoutDependingOnDiagnosticSpacing() {

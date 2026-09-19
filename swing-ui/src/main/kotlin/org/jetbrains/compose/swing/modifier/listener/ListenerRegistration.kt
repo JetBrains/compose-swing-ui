@@ -24,7 +24,7 @@ import java.awt.Component
  * @param key what identifies this registration among registrations built at the same site; `null` where
  *     the registration is held in a `val` and is therefore identified by being that object.
  */
-public class ListenerRegistration<T : Component, L : Any>(
+public class ListenerRegistration<in T : Component, L : Any>(
     internal val name: String,
     internal val attach: (component: T, listener: L) -> Unit,
     internal val detach: (component: T, listener: L) -> Unit,
@@ -46,7 +46,7 @@ public class ListenerRegistration<T : Component, L : Any>(
  * @property adapter builds the listener; its `current` argument yields the callback declared right now.
  * @param registration where the built listener is registered.
  */
-public class CallbackRegistration<T : Component, C : Any, L : Any>(
+public class CallbackRegistration<in T : Component, C : Any, L : Any>(
     internal val adapter: (current: () -> C) -> L,
     private val registration: ListenerRegistration<T, L>,
 ) {

@@ -260,7 +260,7 @@ private inline fun <R> TableRowsImpl(
     // set(model) call installs this one.
     val model = remember { ColumnsTableModel<R>() }
     // One cell composition per column that declares a composable cell, following the declarations pass
-    // by pass. Each resolves the row a stamp names against the rows the model holds then.
+    // by pass. Each resolves the row a render names against the rows the model holds then.
     val cellCompositions = rememberTableCellCompositions(columns) { rowIndex -> model.rowAt(rowIndex) }
 
     TableNode(
@@ -326,7 +326,7 @@ private inline fun <R> TableRowsImpl(
 
             preservingColumnLayout { preservingSelection { preservingSortOrder { swapInDeclaredContent() } } }
         }
-        declareColumnLayout(columnMirror, columnLayout, columnChannel)
+        declareColumnLayout(columnMirror, columnLayout)
     }
 }
 
@@ -569,7 +569,7 @@ private inline fun TableImpl(
                 sortChannel.preserveAcross(table, enabled, sortKeys)
             }
         }
-        declareColumnLayout(columnMirror, columnLayout, columnChannel)
+        declareColumnLayout(columnMirror, columnLayout)
     }
 }
 

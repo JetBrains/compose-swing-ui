@@ -4,9 +4,10 @@
 package org.jetbrains.compose.swing.foundation
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.snapshots.SnapshotStateObserver
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.node.ObserverModifierNode
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.node.observeReads
 import java.awt.Dimension
 import java.awt.Graphics
 import java.awt.Graphics2D
@@ -49,12 +50,8 @@ public fun Canvas(
 ) {
     SwingNode(
         factory = { CanvasComponent() },
-        modifier = modifier,
+        modifier = modifier then PaintObserverElement,
         update = {
-            // The owner's shared observer, stamped onto this node's holder by the applier at insert and
-            // shared by every Canvas in this composition. It is handed over before the surface is
-            // attached, and stays for the surface's whole life.
-            ownerObserver { this.snapshotObserver = it }
             set(onDraw) {
                 this.onDraw = it
                 repaint()
@@ -64,8 +61,8 @@ public fun Canvas(
 }
 
 /**
- * The backing Swing surface for [Canvas]. Delegates painting to [onDraw] under the composition
- * owner's [SnapshotStateObserver]; see [Canvas] for the repaint contract.
+ * The backing Swing surface for [Canvas]. Delegates painting to [onDraw] under the node an attached
+ * [PaintObserverElement] gives it; see [Canvas] for the repaint contract.
  */
 private class CanvasComponent :
     JComponent(),
@@ -73,15 +70,11 @@ private class CanvasComponent :
     var onDraw: (Graphics2D, Int, Int) -> Unit = { _, _, _ -> }
 
     /**
-     * The observer this surface registers its paint reads with, adopted from the holder's
-     * `ownerObserver` in [Canvas]'s update block. The composition hands it over once, before the
-     * surface is attached, and never withdraws it: parking and release leave it as it stands, since
-     * neither reads through it again.
-     *
-     * It is `null` only before the node's first update, which no paint of a composed surface can
-     * observe - [paintComponent] fails on it.
+     * The node this surface records its paint reads with, set by [PaintObserverElement.Node.onAttach]
+     * before the surface is attached, and cleared by its `onDetach` if it is still this node. `null`
+     * only before the surface's modifier attaches it, which no paint of a composed surface reaches.
      */
-    var snapshotObserver: SnapshotStateObserver? = null
+    var paintObserver: PaintObserverElement.Node? = null
 
     init {
         // Paints no background of its own: whatever sits behind shows through untouched pixels.
@@ -110,18 +103,10 @@ private class CanvasComponent :
         // Deliberately skips super.paintComponent: this component installs no UI delegate, so it would
         // paint nothing.
         val graphics = g as Graphics2D
-        val observer =
-            checkNotNull(snapshotObserver) {
-                "This Canvas surface has no snapshot observer to paint under. The composition stamps " +
-                    "the owner's observer onto the surface in the node's update block, which runs " +
-                    "before the component is attached, so every surface a composition put in the " +
-                    "Swing tree has one by its first paint."
-            }
-        // Track this paint's snapshot reads against this surface; a later change to one of them
-        // triggers repaint(), which re-enters here and re-invokes onDraw.
-        observer.observeReads(scope = this, onValueChangedForScope = { it.repaint() }) {
-            onDraw(graphics, width, height)
-        }
+        // Track this paint's reads against this surface's node; a later change to one of them repaints,
+        // which re-enters here and re-invokes onDraw.
+        val runOnPaint = { onDraw(graphics, width, height) }
+        paintObserver?.observeReads(runOnPaint) ?: runOnPaint()
     }
 
     /** Whether a viewport is larger than this surface's preferred size on [side]'s axis. */
@@ -143,5 +128,41 @@ private class CanvasComponent :
                 }
         }
         return accessibleContext
+    }
+}
+
+/**
+ * The keyed, stateless element that gives every [CanvasComponent] the node it records [onDraw]'s reads
+ * with. One shared instance, since it carries nothing of its own; the node [create] builds for a slot
+ * is what holds the pointer, in a slot keyed apart from the caller's own modifier.
+ */
+private object PaintObserverElement : SwingModifier.NodeElement<CanvasComponent, PaintObserverElement.Node>() {
+    override val name: String get() = "canvasPaintObserver"
+    override val targetType: Class<CanvasComponent> get() = CanvasComponent::class.java
+
+    override fun create(): Node = Node()
+
+    override fun update(node: Node): Unit = Unit
+
+    // The declaration carries nothing, so the sole instance is the only element equal to it.
+    override fun equals(other: Any?): Boolean = this === other
+
+    override fun hashCode(): Int = System.identityHashCode(this)
+
+    class Node :
+        SwingModifier.ComponentNode<CanvasComponent>(),
+        ObserverModifierNode {
+        override fun onAttach() {
+            component.paintObserver = this
+            component.repaint()
+        }
+
+        override fun onDetach() {
+            if (component.paintObserver === this) component.paintObserver = null
+        }
+
+        override fun onObservedReadsChanged() {
+            component.repaint()
+        }
     }
 }

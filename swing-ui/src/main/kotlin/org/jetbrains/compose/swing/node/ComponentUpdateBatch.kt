@@ -8,6 +8,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifierState
 import org.jetbrains.compose.swing.util.fastForEach
 import java.awt.Container
 import java.awt.Rectangle
+import java.util.Collections
 import java.util.IdentityHashMap
 
 /**
@@ -21,7 +22,7 @@ import java.util.IdentityHashMap
  * reported inside the batch they belong to rather than beside it.
  *
  * A node whose own update reads its children settles at the end of the batch instead of inside that
- * update - see [SwingNodeUpdater.settleWithChildren]. Those settles run once the last child of the
+ * update - see [SwingNodeUpdater.reconcileWithChildren]. Those settles run once the last child of the
  * batch is attached, so each reads the children the composition declares now.
  */
 internal class ComponentUpdateBatch {
@@ -43,6 +44,10 @@ internal class ComponentUpdateBatch {
 
     /** The nodes still to be settled against their children, in the order the batch held them. */
     private val heldForChildSettle: MutableList<SwingNodeHolder<*>> = ArrayList()
+
+    /** The nodes whose child settlement has been declared in this batch. */
+    private val declaredForChildSettle: MutableSet<SwingNodeHolder<*>> =
+        Collections.newSetFromMap(IdentityHashMap())
 
     /**
      * The modifier state whose chain a modifier pass is diffing against [diffingDeclaration], `null` while no pass
@@ -73,6 +78,7 @@ internal class ComponentUpdateBatch {
         heldForDefaultsRefresh.clear()
         heldForLocalsRefresh.clear()
         heldForChildSettle.clear()
+        declaredForChildSettle.clear()
         section?.close()
         section = beginSection("apply")
     }
@@ -126,6 +132,29 @@ internal class ComponentUpdateBatch {
     }
 
     /**
+     * Declares [block] as a child settlement for [node] in this batch.
+     *
+     * The first declaration for [node] in a batch replaces any settlement left from prior passes;
+     * subsequent declarations in the same batch compose with earlier ones in declaration order.
+     */
+    fun declareChildSettle(
+        node: SwingNodeHolder<*>,
+        block: () -> Unit,
+    ) {
+        val previous = node.childSettle
+        node.childSettle =
+            if (declaredForChildSettle.add(node) || previous == null) {
+                block
+            } else {
+                {
+                    previous()
+                    block()
+                }
+            }
+        holdForChildSettle(node)
+    }
+
+    /**
      * Runs [bringWidgetsUpToDate], re-diffs the nodes whose defaults changed, brings up to date the modifier
      * nodes that read a composition locals map this batch replaced, brings the containers this batch changed
      * up to date, then runs every settle this batch held, and closes the section whichever way that goes - a
@@ -144,6 +173,7 @@ internal class ComponentUpdateBatch {
             heldForDefaultsRefresh.clear()
             heldForLocalsRefresh.clear()
             heldForChildSettle.clear()
+            declaredForChildSettle.clear()
             changedContainers.clear()
             section?.close()
             section = null

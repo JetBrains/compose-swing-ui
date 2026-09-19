@@ -11,13 +11,13 @@ import org.jetbrains.compose.swing.util.set
 import javax.swing.JComponent
 
 /**
- * The node a composition stamped on this exact component, or `null` where none did.
+ * The node a composition published on this exact component, or `null` where none did.
  *
  * It is the live node: [SwingComponentNode.component] is this component, and [SwingComponentNode.modifier]
  * is the modifier chain the composition declares for it now - reading it needs no slot table walk, unlike
  * [findDeclaringGroup].
  *
- * It answers only for a component a composition stamped while [isDebugInspectorInfoEnabled] was on when
+ * It answers only for a component a composition published while [isDebugInspectorInfoEnabled] was on when
  * that component was inserted. Content mounted under a context a caller captured with
  * `rememberCompositionContext()` is reached on the next pass it takes for any reason, rather than at once
  * - the same caveat [isDebugInspectorInfoEnabled] documents.
@@ -26,12 +26,12 @@ import javax.swing.JComponent
  * without being declared by it - one built by hand and added beside declared content - answers `null`
  * here even where [findCompositionData] answers with the composition it stands in.
  *
- * The stamp is a client property, so the receiver is a [JComponent]. A composition that declares a raw
- * [java.awt.Component] carries no bag to stamp; [findDeclaringGroup] is what answers with the node there.
+ * The published node is a client property, so the receiver is a [JComponent]. A composition that declares a raw
+ * [java.awt.Component] carries no bag to publish to; [findDeclaringGroup] is what answers with the node there.
  *
- * A component this answered for stops answering once the node that stamped it is released - the
+ * A component this answered for stops answering once the node that published it is released - the
  * composition removed the component, or the switch turned off, which re-inserts the content into fresh,
- * unstamped components.
+ * unpublished components.
  *
  * It is not a [androidx.compose.runtime.tooling.CompositionGroup]: [findDeclaringGroup] is what answers
  * with the group, for `sourceInfo`, `data` and `identity`.

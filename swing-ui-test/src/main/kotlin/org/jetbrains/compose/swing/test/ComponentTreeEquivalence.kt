@@ -536,7 +536,7 @@ private fun divergentChild(
 
 /**
  * The children a comparison walks. A [CellRendererPane] holds none of them: it is where a list, a table
- * or a tree parks the one component it stamps every cell with, so what stands in it is whichever cell
+ * or a tree parks the one component it renders every cell with, so what stands in it is whichever cell
  * was painted last rather than anything the interface declares.
  */
 private fun Component.comparedChildren(): List<Component> =

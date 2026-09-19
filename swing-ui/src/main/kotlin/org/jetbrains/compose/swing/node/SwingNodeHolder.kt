@@ -202,7 +202,7 @@ internal class SwingNodeHolder<out T : Component>
 
         /**
          * The settle this node's update handed over to run against its children, or `null` for a node
-         * that declares none. See [SwingNodeUpdater.settleWithChildren].
+         * that declares none. See [SwingNodeUpdater.reconcileWithChildren].
          *
          * It outlives the pass that handed it over, because the pass that changes this node's children is
          * not always a pass that recomposes the node: a strip that grows behind an `if` in the content
@@ -215,7 +215,7 @@ internal class SwingNodeHolder<out T : Component>
         /**
          * Puts the node back to the state a new node starts from.
          *
-         * It removes the node stamp a tool reads, detaches the listeners the modifier chain installed,
+         * It removes the published node a tool reads, detaches the listeners the modifier chain installed,
          * restores the properties the modifier changed, drops the settle held against this node's children,
          * and drops the component's tracked reads from the owner's observer. A settle left standing would be
          * run against a declaration the composition no longer makes; an update that still declares one hands
@@ -227,7 +227,7 @@ internal class SwingNodeHolder<out T : Component>
          * detaches.
          */
         private fun reset(resetNodes: Boolean) {
-            clearInspectionStamp()
+            clearPublishedNode()
             owner?.snapshotObserver?.clear(component)
             resetModifierState(resetNodes)
             childSettle = null
@@ -295,22 +295,22 @@ internal class SwingNodeHolder<out T : Component>
  * Publishes this node on its own component, if [isDebugInspectorInfoEnabled] is on and the component is
  * a [JComponent]. Called by the applier's `insertTopDown`, on the node's way into the composition - not
  * from [SwingNodeHolder.attachedTo], whose caller for the composition's root node never runs it through
- * the applier, so a stamp written there would never be cleared.
+ * the applier, so anything published there would never be cleared.
  */
-internal fun SwingNodeHolder<*>.stampForInspection() {
+internal fun SwingNodeHolder<*>.publishForInspection() {
     if (!isDebugInspectorInfoEnabled) return
     val host = component as? JComponent ?: return
     host[NODE_KEY] = this
 }
 
 /**
- * Removes the node stamp this node published, leaving another node's standing.
+ * Removes the node this node published, leaving another node's standing.
  *
  * Two nodes can hold one component - a `factory` that hands back the same instance - and the applier
- * stamps the node coming in before the runtime releases the one going out, so the stamp a released node
+ * publishes the node coming in before the runtime releases the one going out, so what a released node
  * finds may be the live node's.
  */
-private fun SwingNodeHolder<*>.clearInspectionStamp() {
+private fun SwingNodeHolder<*>.clearPublishedNode() {
     val host = component as? JComponent ?: return
     if (host[NODE_KEY] === this) host[NODE_KEY] = null
 }

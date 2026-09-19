@@ -1,18 +1,9 @@
 package org.jetbrains.compose.swing.node
 
 import androidx.compose.runtime.Updater
-import androidx.compose.runtime.snapshots.SnapshotStateObserver
-import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import java.awt.Component
 
-/**
- * The receiver of the `update` block passed to [SwingNode]: the typed Swing component [T] is `this`
- * inside [set], [update], [init] and [reconcile].
- *
- * Use [set]/[update] for reactive property updates, [init] for one-time setup after creation, and
- * [reconcile] for unconditional reconciliation. Listeners are installed through the modifier
- * mechanism - see [org.jetbrains.compose.swing.modifier.listener].
- */
+/** Receiver of a [SwingNode] `update` block. The typed component [T] is `this` in its operations. */
 @JvmInline
 public value class SwingNodeUpdater<T : Component>
     @PublishedApi
@@ -87,31 +78,6 @@ public value class SwingNodeUpdater<T : Component>
             }
 
         /**
-         * Settles [block] against this node's children, at the end of the change pass rather than here.
-         *
-         * A node's update runs before the runtime applies the content that update declared, so a write
-         * made here that reads the node's children - a `JTabbedPane` put on one of its own tabs - would
-         * be made against the children the pass before it left behind. Handing the write over instead
-         * has one pass declare a child and settle on it.
-         *
-         * The block runs at the end of the pass that hands it over, and again at the end of every later
-         * pass that adds, removes or moves this node's children, since that is when a standing
-         * declaration can become one the widget answers differently. See [SwingNodeHolder.childSettle]
-         * for why the block held from an earlier pass still applies.
-         *
-         * Runs on every composition like [reconcile]. The block runs against this node's holder, so a
-         * settle reaches the node's own placement - where the composition holds the component - as well
-         * as the component itself.
-         */
-        internal fun settleWithChildren(block: SwingNodeHolder<T>.() -> Unit): Unit =
-            // Runs on every pass, including one whose declared values are all unchanged and one in which the
-            // applier changes this node's children. Each run stores the block and holds the node once.
-            updater.reconcile {
-                childSettle = { block() }
-                requireOwner().updateBatch.holdForChildSettle(this)
-            }
-
-        /**
          * Applies [mirror] to this node, so the mirror belongs to it - which is what lets
          * [MirrorState.report] answer a change inside the event that made it rather than from an event
          * of its own.
@@ -128,29 +94,65 @@ public value class SwingNodeUpdater<T : Component>
          *   node's own group, so it is released with the node it answers for.
          */
         public fun applyMirror(mirror: MirrorState<*>): Unit = updater.init(mirror) { it.owner = owner }
-
-        /**
-         * Hands the composition owner's shared [SnapshotStateObserver] - stamped onto this node's
-         * holder by the applier at insert - to [block] with the typed component as `this`, so a
-         * snapshot-observing component can adopt it.
-         *
-         * The observer is the same for the node's whole life, and is handed over before the applier
-         * attaches the component.
-         *
-         * A component that registers reads with the observer must use the component instance itself as
-         * the observation scope: the holder clears that same scope when the node resets, so a different
-         * scope object would leave the reads in place and the component still driven by an observer no
-         * longer meant to reach it.
-         *
-         * Applied through [set] keyed on [block], so it runs again only on a pass that hands a [block]
-         * unequal to the last one: a lambda capturing values the node writes is rebuilt when they change.
-         *
-         * Public for swing-ui-foundation's `Canvas`, which records the reads of its `onDraw` with it. It
-         * may change without notice in any release.
-         */
-        @InternalSwingUiApi
-        public fun ownerObserver(block: T.(SnapshotStateObserver) -> Unit): Unit =
-            updater.set(block) {
-                component.block(requireOwner().snapshotObserver.observer)
-            }
     }
+
+/**
+ * Reconciles [block] against this node's children, at the end of the change pass rather than here.
+ *
+ * A node's update runs before the runtime applies the content that update declared, so a write made
+ * here that reads the node's children - a `JTabbedPane` put on one of its own tabs - would be made
+ * against the children the pass before it left behind. Handing the write over instead has one pass
+ * declare a child and reconcile against it.
+ *
+ * [block] runs at the end of the pass that hands it over, and again at the end of every later pass
+ * that adds, removes or moves this node's children, since that is when a standing declaration can
+ * become one the widget answers differently, even when the node itself does not recompose.
+ *
+ * A [androidx.compose.runtime.SideEffect] cannot replace this: a `SideEffect` runs only when its own
+ * scope recomposes, not on every later pass that changes this node's children.
+ *
+ * Runs on every composition like [SwingNodeUpdater.reconcile]. [block] runs against a scope standing
+ * for this node, which reaches the node's own placement - where the composition holds the
+ * component - as well as the component itself, without exposing the node itself.
+ */
+public fun <T : Component> SwingNodeUpdater<T>.reconcileWithChildren(
+    block: ReconcileWithChildrenScope<T>.() -> Unit,
+): Unit =
+    // Runs on every pass, including one whose declared values are all unchanged and one in which the
+    // applier changes this node's children. Each run stores the block and holds the node once.
+    updater.reconcile {
+        requireOwner().updateBatch.declareChildSettle(this) {
+            ReconcileWithChildrenScopeImpl(this).block()
+        }
+    }
+
+/** The receiver [reconcileWithChildren] hands its block, standing for the node without exposing it. */
+public sealed interface ReconcileWithChildrenScope<out T : Component> {
+    /** The component [reconcileWithChildren] was called for. */
+    public val component: T
+
+    /**
+     * Puts [component] back under the layout constraint its modifier declares, after something
+     * outside the composition put it somewhere else - the look and feel docking a tool bar back
+     * under `NORTH`, say.
+     *
+     * Does nothing when [component] stands in another parent, or its modifier declares no
+     * constraint. It sits on this scope because the end of the pass is the first point where the
+     * component is placed and the node is in hand. Core keeps no other public way from a component
+     * to its declaration.
+     */
+    public fun restoreDeclaredPlacement()
+}
+
+/** The only [ReconcileWithChildrenScope], wrapping [holder] without exposing it. */
+private class ReconcileWithChildrenScopeImpl<T : Component>(
+    private val holder: SwingNodeHolder<T>,
+) : ReconcileWithChildrenScope<T> {
+    override val component: T get() = holder.component
+
+    override fun restoreDeclaredPlacement() {
+        if (holder.declaration.parentData != null) {
+            holder.declaration.reapply()
+        }
+    }
+}

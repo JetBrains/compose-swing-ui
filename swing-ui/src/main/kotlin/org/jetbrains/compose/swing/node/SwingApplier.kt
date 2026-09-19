@@ -58,8 +58,8 @@ import javax.swing.SwingUtilities
  * @param root the node this composition is rooted at, attached to the composition that owns it.
  * @param rootSlot installs the children composed directly under [root], which then shows the single
  *   top-level component that slot holds; `null` - the default - adds them to [root] by index.
- * @param onRootSlotSettled observes the root after a root-slot pass has settled, before its single-child
- *   invariant is checked. The standard invariant check follows if the callback returns normally. `null`
+ * @param rootSlotPolicy observes the root after a root-slot pass has settled, before its single-child
+ *   invariant is checked. The standard invariant check follows if the policy returns normally. `null`
  *   uses only the standard root check.
  * @see org.jetbrains.compose.swing.node.SwingNode
  */
@@ -67,7 +67,7 @@ import javax.swing.SwingUtilities
 internal class SwingApplier internal constructor(
     root: SwingNodeHolder<Container>,
     rootSlot: SlotAttachment? = null,
-    onRootSlotSettled: (() -> Unit)? = null,
+    rootSlotPolicy: RootSlotPolicy? = null,
 ) : AbstractApplier<SwingNodeHolder<*>>(root) {
     /** The bookkeeping for the batch of component updates in flight, read off the root like any node. */
     private val batch = root.requireOwner().updateBatch
@@ -76,7 +76,7 @@ internal class SwingApplier internal constructor(
     private val changes = ChangeRecord()
 
     /** The regions this applier's hosts hold their children in. */
-    private val regions = ChildRegions(this.root, rootSlot, onRootSlotSettled, batch, changes)
+    private val regions = ChildRegions(this.root, rootSlot, rootSlotPolicy, batch, changes)
 
     override fun up() {
         // A node's own update changes run while the applier is positioned at it, so leaving the node is
@@ -98,7 +98,7 @@ internal class SwingApplier internal constructor(
             // Attach the node to the composition its parent stands in. This MUST happen on the top-down
             // pass - see SwingCompositionOwner.
             instance.attachedTo(current.owner)
-            instance.stampForInspection()
+            instance.publishForInspection()
             changes.announceInsert(instance)
         }
     }
@@ -254,6 +254,13 @@ internal class SwingApplier internal constructor(
 }
 
 /**
+ * Policy invoked after a root-slot pass settles, before the root's single-child invariant is checked.
+ */
+internal fun interface RootSlotPolicy {
+    fun onSettled()
+}
+
+/**
  * The regions a host's children occupy, and what one batch of updates said about them.
  *
  * [SwingApplier] translates the runtime's applier protocol; this holds the model that protocol moves.
@@ -263,7 +270,7 @@ internal class SwingApplier internal constructor(
 private class ChildRegions(
     private val root: SwingNodeHolder<*>,
     private val rootSlot: SlotAttachment?,
-    onRootSlotSettled: (() -> Unit)?,
+    rootSlotPolicy: RootSlotPolicy?,
     private val batch: ComponentUpdateBatch,
     private val changes: ChangeRecord,
 ) {
@@ -271,7 +278,7 @@ private class ChildRegions(
     private val regionCheck =
         DeferredRegionCheck { host ->
             if (host === this.root) {
-                onRootSlotSettled?.invoke()
+                rootSlotPolicy?.onSettled()
                 this.root.checkRootShowsOneChild()
             } else {
                 host.checkOneChildPerRegion()

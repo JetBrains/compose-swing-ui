@@ -1,5 +1,4 @@
 package org.jetbrains.compose.swing.core
-
 import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 
 /**
@@ -21,11 +20,12 @@ import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
  * Every type is contained because what the caller's code throws is theirs to choose: naming a narrower
  * set would leave whichever type went unnamed free to end the composition.
  */
-@Suppress("TooGenericExceptionCaught")
 internal inline fun dispatchToCaller(block: () -> Unit) {
     try {
         block()
-    } catch (failure: Throwable) {
+    } catch (
+        @Suppress("TooGenericExceptionCaught") failure: Throwable,
+    ) {
         reportUncaught(ContainedCallerFailure(failure))
     }
 }

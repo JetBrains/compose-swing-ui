@@ -14,9 +14,10 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.hierarchyListener
 import org.jetbrains.compose.swing.modifier.property
 import org.jetbrains.compose.swing.node.MirrorState
+import org.jetbrains.compose.swing.node.ReconcileWithChildrenScope
 import org.jetbrains.compose.swing.node.SwingNode
-import org.jetbrains.compose.swing.node.SwingNodeHolder
 import org.jetbrains.compose.swing.node.declaredName
+import org.jetbrains.compose.swing.node.reconcileWithChildren
 import org.jetbrains.compose.swing.node.rememberMirrorState
 import org.jetbrains.compose.swing.platform.LookAndFeelDefaults
 import java.awt.BorderLayout
@@ -160,7 +161,7 @@ public fun ToolBar(
             // that recomposes the bar or changes its items, and a refusal that already stands is not a
             // second answer. It reaches the caller contained, the way a settle would have dispatched it,
             // so a throw out of it is reported rather than left to end the composition applying this pass.
-            settleWithChildren {
+            reconcileWithChildren {
                 val bar = component
                 bar.checkStandsWhereItCanDock()
                 mirror.settle(
@@ -249,7 +250,7 @@ private val JToolBar.isFloating: Boolean
  * which compares against the last declaration and so has nothing to write when the bar alone changed.
  * The write goes through [mirror], which marks it as this wrapper's own.
  */
-private fun SwingNodeHolder<JToolBar>.placeAsDeclared(
+private fun ReconcileWithChildrenScope<JToolBar>.placeAsDeclared(
     mirror: MirrorState<Boolean>,
     displaced: BooleanArray,
     floating: Boolean,
@@ -258,7 +259,7 @@ private fun SwingNodeHolder<JToolBar>.placeAsDeclared(
     if (!displaced[0] || floating) return
     displaced[0] = false
     mirror.write {
-        declaration.reapply()
+        restoreDeclaredPlacement()
         component.orientation = orientation
     }
 }

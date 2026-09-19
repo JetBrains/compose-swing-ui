@@ -3,10 +3,9 @@
 
 package org.jetbrains.compose.swing.modifier.interaction
 
-import kotlinx.coroutines.DisposableHandle
-import org.jetbrains.compose.swing.core.onPlaceChanged
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import java.awt.event.HierarchyEvent
+import java.awt.event.HierarchyListener
 import javax.swing.JButton
 import javax.swing.JRootPane
 import javax.swing.SwingUtilities
@@ -46,7 +45,7 @@ private class DefaultButtonElement(
 
     class Node : SwingModifier.ComponentNode<JButton>() {
         var default: Boolean = false
-        private var placeChanges: DisposableHandle? = null
+        private var placeChanges: HierarchyListener? = null
 
         /** The root pane this button is currently the default of, to release. */
         private var madeDefaultOn: JRootPane? = null
@@ -55,7 +54,12 @@ private class DefaultButtonElement(
             // The button reaches its root pane only once its ancestors are added, after the update that
             // declared the flag; a parent change anywhere above it reaches the button, so it is what
             // re-resolves the root pane.
-            placeChanges = onPlaceChanged(component, HierarchyEvent.PARENT_CHANGED.toLong()) { apply() }
+            val listener =
+                HierarchyListener { event ->
+                    if (event.changeFlags and HierarchyEvent.PARENT_CHANGED.toLong() != 0L) apply()
+                }
+            placeChanges = listener
+            component.addHierarchyListener(listener)
         }
 
         fun apply() {
@@ -76,7 +80,7 @@ private class DefaultButtonElement(
         }
 
         override fun onDetach() {
-            placeChanges?.dispose()
+            placeChanges?.let(component::removeHierarchyListener)
             placeChanges = null
             release()
         }

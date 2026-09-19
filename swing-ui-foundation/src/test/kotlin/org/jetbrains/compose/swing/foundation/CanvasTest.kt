@@ -127,9 +127,9 @@ class CanvasTest {
     fun canvasInsertedDuringRecompositionIsObservedAndRedraws() =
         runComposeSwingTest {
             // A Canvas inserted during a recomposition (rather than the initial composition) must still
-            // adopt the composition owner's snapshot observer. The observer is stamped onto each node on the
+            // adopt the composition owner's snapshot observer. The observer is published on each node on the
             // applier's top-down insert pass, which precedes the node's update changes that copy it onto the
-            // surface; stamping it on the bottom-up pass instead would copy a not-yet-set observer for a
+            // surface; publishing it on the bottom-up pass instead would copy a not-yet-set observer for a
             // recomposition insert, leaving the surface unobserved. `value` is read ONLY inside onDraw, so
             // the only thing that can repaint the surface is the observer - an unwired one requests no
             // repaint.

@@ -5,14 +5,15 @@ package org.jetbrains.compose.swing.components
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.snapshots.SnapshotStateObserver
 import org.jetbrains.compose.swing.annotations.AWTEventMask
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.UNDECLARED
 import org.jetbrains.compose.swing.modifier.listener.UNDECLARED_PAINT
 import org.jetbrains.compose.swing.modifier.listener.declared
+import org.jetbrains.compose.swing.node.ObserverModifierNode
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
+import org.jetbrains.compose.swing.node.observeReads
 import java.awt.AWTEvent
 import java.awt.Component
 import java.awt.Graphics
@@ -112,15 +113,12 @@ public fun Layer(
     LayerNode<Component>(
         ui = delegate,
         eventMask = declaredEventMask(onMouseEvent, onMouseMotionEvent, onMouseWheelEvent),
-        modifier = modifier,
+        modifier = modifier then PaintObserverElement(delegate),
         declareCallbacks = {
-            // The owner's shared observer, handed over before the layer is attached, so every paint of a
-            // composed layer runs under it.
-            ownerObserver(AdoptOwnerObserver)
             set(onPaint) {
                 delegate.onPaint = it
                 // A layer declaring no paint tracks nothing, so reads a withdrawn paint made go with it.
-                if (!declared(it)) delegate.snapshotObserver.clear(this)
+                if (!declared(it)) delegate.paintObserver?.clearReads()
                 // A new callback may draw with a value read in the composition, which no paint-time read
                 // tracks.
                 repaint()
@@ -260,10 +258,59 @@ private class LayerDeclaration<V : Component>(
     override fun hashCode(): Int = 31 * System.identityHashCode(ui) + eventMask.hashCode()
 }
 
-/** Hands a callback layer's delegate the owner's shared observer; one instance, so it runs once per layer. */
-private val AdoptOwnerObserver: JLayer<Component>.(SnapshotStateObserver) -> Unit = {
-    (ui as CallbackLayerUI).snapshotObserver = it
+/**
+ * The keyed element that gives a callback layer's [CallbackLayerUI] delegate the node it records
+ * [CallbackLayerUI.onPaint]'s reads with. Held in a slot of its own, keyed apart from the caller's own
+ * modifier, so an edit to their additive elements never disturbs it.
+ */
+private class PaintObserverElement(
+    private val delegate: CallbackLayerUI,
+) : SwingModifier.NodeElement<JLayer<Component>, PaintObserverElement.Node>() {
+    override val name: String get() = "layerPaintObserver"
+    override val targetType: Class<JLayer<Component>> get() = layerType()
+
+    override fun create(): Node = Node(delegate)
+
+    override fun update(node: Node): Unit = Unit
+
+    override fun equals(other: Any?): Boolean = other is PaintObserverElement && delegate === other.delegate
+
+    override fun hashCode(): Int = System.identityHashCode(delegate)
+
+    class Node(
+        private val delegate: CallbackLayerUI,
+    ) : SwingModifier.ComponentNode<JLayer<Component>>(),
+        ObserverModifierNode {
+        override fun onAttach() {
+            delegate.paintObserver = this
+            component.repaint()
+        }
+
+        override fun onDetach() {
+            if (delegate.paintObserver === this) delegate.paintObserver = null
+        }
+
+        override fun onObservedReadsChanged() {
+            component.repaint()
+        }
+
+        /**
+         * Drops the reads [delegate]'s last paint made under this node, without detaching it. Observing
+         * a block that reads nothing retires every value this node had recorded before: none of them is
+         * read again under the fresh pass [observeReads] starts, so the node comes off all of them the
+         * same as [onObservedReadsChanged] finding them changed, only without running [delegate]'s paint.
+         */
+        fun clearReads() {
+            observeReads {}
+        }
+    }
 }
+
+/**
+ * The class a [PaintObserverElement] names as its target, derived by erasure so no cast stands between
+ * the element and the `JLayer<Component>` every callback [Layer] builds.
+ */
+private inline fun <reified T : JLayer<Component>> layerType(): Class<T> = T::class.java
 
 /**
  * The delegate the callback [Layer] installs: it runs the callbacks that layer declares right now where a
@@ -282,10 +329,11 @@ private class CallbackLayerUI : LayerUI<Component>() {
     var onPaint: (Graphics2D, Int, Int, () -> Unit) -> Unit = UNDECLARED_PAINT
 
     /**
-     * The observer [paint] records the reads of [onPaint] with, the layer itself as the scope. The node
-     * declaring the layer hands it over before it declares a paint, and never withdraws it.
+     * The node [paint] records the reads of [onPaint] with, set by [PaintObserverElement.Node.onAttach]
+     * before the layer is attached, and cleared by its `onDetach` if it is still this node. `null` only
+     * before the layer's modifier attaches it, which no paint of a composed layer reaches.
      */
-    lateinit var snapshotObserver: SnapshotStateObserver
+    var paintObserver: PaintObserverElement.Node? = null
 
     // What paint was handed, held only while it runs, so a paint allocates no block.
     private var graphics: Graphics2D? = null
@@ -312,7 +360,7 @@ private class CallbackLayerUI : LayerUI<Component>() {
         this.graphics = copy
         layer = component
         try {
-            snapshotObserver.observeReads(component, RepaintLayer, runOnPaint)
+            paintObserver?.observeReads(runOnPaint) ?: runOnPaint()
         } finally {
             this.graphics = enclosingGraphics
             layer = enclosingLayer
@@ -364,6 +412,3 @@ private class LayerCallbacks(
 
 /** What a delegate holds until the pass that built it writes the declaration in: nothing declared. */
 private val UNDECLARED_CALLBACKS = LayerCallbacks(UNDECLARED, UNDECLARED, UNDECLARED)
-
-/** Reads made while a layer's `onPaint` runs; a change repaints the layer. */
-private val RepaintLayer: (JComponent) -> Unit = { it.repaint() }

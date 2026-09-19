@@ -13,6 +13,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.changeListener
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.node.reconcileWithChildren
 import org.jetbrains.compose.swing.node.rememberMirrorState
 import javax.swing.JTabbedPane
 import javax.swing.event.ChangeEvent
@@ -178,7 +179,7 @@ private inline fun TabbedPaneImpl(
             // declare a tab and put the pane on it. The same settle runs again on every later pass that
             // changes the strip: a tab arriving is what can turn a standing declaration into one the pane
             // can honor, and a tab leaving is what drops the pane onto a neighbor nobody declared.
-            settleWithChildren {
+            reconcileWithChildren {
                 settleSelection(component, selectedIndex, mirror, reportedSelection, changeListener)
             }
         },

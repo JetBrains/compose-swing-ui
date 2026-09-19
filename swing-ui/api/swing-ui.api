@@ -1,8 +1,3 @@
-public final class org/jetbrains/compose/swing/MultipleTopLevelComponentsException : java/lang/IllegalStateException {
-	public static final field $stable I
-	public fun <init> (Ljava/lang/String;Ljava/lang/Throwable;)V
-}
-
 public final class org/jetbrains/compose/swing/OnDemandComposition : kotlinx/coroutines/DisposableHandle {
 	public static final field $stable I
 	public fun <init> (Landroidx/compose/runtime/CompositionContext;Lkotlin/jvm/functions/Function2;)V
@@ -14,18 +9,7 @@ public final class org/jetbrains/compose/swing/SetContentKt {
 	public static final fun setContent (Ljava/awt/Window;Lkotlin/jvm/functions/Function2;)Lkotlinx/coroutines/DisposableHandle;
 	public static final fun setContent (Ljavax/swing/JComponent;Landroidx/compose/runtime/CompositionContext;Lkotlin/jvm/functions/Function2;)Lkotlinx/coroutines/DisposableHandle;
 	public static final fun setContent (Ljavax/swing/JMenuBar;Lkotlin/jvm/functions/Function2;)Lkotlinx/coroutines/DisposableHandle;
-	public static final fun setContent (Ljavax/swing/JPopupMenu;Landroidx/compose/runtime/CompositionContext;Lkotlin/jvm/functions/Function2;)Lkotlinx/coroutines/DisposableHandle;
 	public static synthetic fun setContent$default (Ljavax/swing/JComponent;Landroidx/compose/runtime/CompositionContext;Lkotlin/jvm/functions/Function2;ILjava/lang/Object;)Lkotlinx/coroutines/DisposableHandle;
-}
-
-public final class org/jetbrains/compose/swing/SubcompositionHost : kotlinx/coroutines/DisposableHandle {
-	public static final field $stable I
-	public fun dispose ()V
-	public final fun subcompose (Ljavax/swing/JComponent;Lkotlin/jvm/functions/Function2;)Lkotlinx/coroutines/DisposableHandle;
-}
-
-public final class org/jetbrains/compose/swing/SubcompositionHostKt {
-	public static final fun rememberSubcompositionHost (Landroidx/compose/runtime/Composer;I)Lorg/jetbrains/compose/swing/SubcompositionHost;
 }
 
 public abstract interface annotation class org/jetbrains/compose/swing/annotations/AWTEventMask : java/lang/annotation/Annotation {
@@ -1036,6 +1020,7 @@ public final class org/jetbrains/compose/swing/modifier/listener/ListenerModifie
 	public static final fun listSelectionListener (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/reflect/KClass;Lkotlin/jvm/functions/Function2;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun listener (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/reflect/KClass;Ljava/lang/Object;Lorg/jetbrains/compose/swing/modifier/listener/CallbackRegistration;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun listener (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/reflect/KClass;Ljava/lang/Object;Lorg/jetbrains/compose/swing/modifier/listener/ListenerRegistration;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun listener (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/reflect/KClass;Lorg/jetbrains/compose/swing/modifier/listener/CallbackRegistration;Lkotlin/jvm/functions/Function2;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun mouseListener (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Ljava/awt/event/MouseListener;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun mouseListener (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun mouseListener (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
@@ -1097,6 +1082,7 @@ public final class org/jetbrains/compose/swing/node/MirrorState : androidx/compo
 	public fun getValue ()Ljava/lang/Object;
 	public final fun isWriting ()Z
 	public final fun observed (Ljava/lang/Object;)Z
+	public final fun redeclare (Ljava/lang/Object;)Z
 	public final fun report (Ljava/lang/Object;Lkotlin/jvm/functions/Function1;)V
 	public final fun settle (Ljava/lang/Object;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;)V
 	public final fun settle (Lkotlin/jvm/functions/Function1;)Ljava/lang/Object;
@@ -1126,6 +1112,11 @@ public abstract interface class org/jetbrains/compose/swing/node/ObserverModifie
 public final class org/jetbrains/compose/swing/node/ObserverModifierNodeKt {
 	public static final fun observeReads (Lorg/jetbrains/compose/swing/modifier/SwingModifier$Node;Lkotlin/jvm/functions/Function0;)V
 	public static final fun observeReads (Lorg/jetbrains/compose/swing/modifier/SwingModifier$Node;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function0;)V
+}
+
+public abstract interface class org/jetbrains/compose/swing/node/ReconcileWithChildrenScope {
+	public abstract fun getComponent ()Ljava/awt/Component;
+	public abstract fun restoreDeclaredPlacement ()V
 }
 
 public final class org/jetbrains/compose/swing/node/SwingApplier : androidx/compose/runtime/AbstractApplier {
@@ -1176,6 +1167,10 @@ public final class org/jetbrains/compose/swing/node/SwingNodeUpdater {
 	public static fun toString-impl (Landroidx/compose/runtime/Composer;)Ljava/lang/String;
 	public final synthetic fun unbox-impl ()Landroidx/compose/runtime/Composer;
 	public static final fun update-impl (Landroidx/compose/runtime/Composer;Ljava/lang/Object;Lkotlin/jvm/functions/Function2;)V
+}
+
+public final class org/jetbrains/compose/swing/node/SwingNodeUpdaterKt {
+	public static final fun reconcileWithChildren-pWFREzI (Landroidx/compose/runtime/Composer;Lkotlin/jvm/functions/Function1;)V
 }
 
 public final class org/jetbrains/compose/swing/text/TextRange {

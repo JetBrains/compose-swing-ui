@@ -222,10 +222,24 @@ public class MirrorState<V>
          * and answers whether either of the two changed since the pair recorded before them - which is when
          * a [settle] has something to do. The first declaration a mirror is given always answers `true`.
          *
+         * Unlike [SwingNodeUpdater.set], which compares this pass's declaration against the last one alone,
+         * this also weighs the value the widget holds. A caller that does not adopt a change the widget
+         * reports keeps declaring the same value it always has, so a user repeating that same change would
+         * answer `false` from a check keyed on the declaration alone and never be caught; weighing the pair
+         * is what catches it.
+         *
+         * Call this once per pass and per mirror. Where one settlement covers several mirrors, evaluate
+         * every one of them with `or`, not `||`, so each records this pass whether or not an earlier one
+         * already answered `true`.
+         *
          * The mirrored value is part of the answer, so calling this while composing subscribes the
          * composing scope to the widget's value changing under the declaration, as [subscribe] does.
+         *
+         * @param declared the value this pass declares for the property.
+         * @return whether a settlement is due: the declared value, the mirrored value, or both, changed
+         *   since the pair the last settlement recorded.
          */
-        internal fun redeclare(declared: V): Boolean {
+        public fun redeclare(declared: V): Boolean {
             subscribe()
             val observed = observedValue
             if (declared == declaration && observed == declaredAgainst) return false

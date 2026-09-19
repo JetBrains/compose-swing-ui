@@ -290,7 +290,7 @@ private inline fun <T> TreeValuesImpl(
     noinline nodeContent: (@Composable TreeNodeScope.(value: T) -> Unit)?,
 ) {
     // The single conversion from nodeContent to a JTree cell renderer: one reused
-    // ComposingTreeCellRenderer stamps a recycled composition per node. A null nodeContent renders the
+    // ComposingTreeCellRenderer renders through a recycled composition per node. A null nodeContent renders the
     // nodes through the renderer the tree carries.
     val nodeRenderer = nodeContent?.let { rememberComposingTreeCellRenderer(it) }
     // The model carries the edit callback through a State, so a node reports to the callback this
@@ -870,7 +870,7 @@ private fun JTree.settleNarrowing(
 
 /**
  * Folds in the tree properties a `JTree` leaves to the UI delegate of its look and feel - the
- * root-handle choice, the row height, and the renderer each node is stamped through - as modifier
+ * root-handle choice, the row height, and the renderer each node is rendered through - as modifier
  * elements, each while the caller declares one and each dropped the moment its declaration goes back to
  * `null`.
  *

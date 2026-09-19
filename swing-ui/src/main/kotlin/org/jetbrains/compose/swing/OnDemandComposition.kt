@@ -8,6 +8,7 @@ import org.jetbrains.compose.swing.core.SwingContentComposition
 import org.jetbrains.compose.swing.core.checkEventDispatchThread
 import org.jetbrains.compose.swing.core.disposingOnFailure
 import org.jetbrains.compose.swing.layout.SlotAttachment
+import org.jetbrains.compose.swing.node.RootSlotPolicy
 import org.jetbrains.compose.swing.node.SwingApplier
 import org.jetbrains.compose.swing.node.SwingNodeHolder
 import org.jetbrains.compose.swing.node.checkRootShowsOneChild
@@ -68,7 +69,7 @@ public class OnDemandComposition(
                 SwingApplier(
                     rootHolder.attachedTo(owner),
                     rootSlot = slot,
-                    onRootSlotSettled = { requireOneTopLevelComponent() },
+                    rootSlotPolicy = RootSlotPolicy { requireOneTopLevelComponent() },
                 )
             }
         composition = built
@@ -147,7 +148,7 @@ public class OnDemandComposition(
  * @param message describes the refusal, naming the components content composed.
  * @param cause the failure [OnDemandComposition] itself raised the refusal from.
  */
-public class MultipleTopLevelComponentsException(
+internal class MultipleTopLevelComponentsException(
     message: String,
     cause: Throwable,
 ) : IllegalStateException(message, cause)
