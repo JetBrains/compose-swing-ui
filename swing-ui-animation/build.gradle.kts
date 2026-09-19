@@ -23,8 +23,10 @@ dependencies {
     // public declarations, mirroring upstream animation-core's api dependency.
     api(libs.androidxAnnotation)
     implementation(libs.androidxCollection)
-    // The Swing dispatcher and frame clock live in :swing-ui; the engine only needs the common
-    // coroutine primitives.
+    // The Swing dispatcher and frame clock live in :swing-ui, whose InfiniteAnimationPolicy and
+    // MotionDurationScale this engine consults; neither type appears in this module's own public
+    // signatures, so the dependency stays implementation.
+    implementation(project(":swing-ui"))
     implementation(libs.kotlinxCoroutinesCore)
 
     testImplementation(kotlin("test"))

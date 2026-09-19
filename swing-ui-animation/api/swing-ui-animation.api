@@ -533,22 +533,6 @@ public final class org/jetbrains/compose/swing/animation/core/KeyframesWithSplin
 	public synthetic fun createEntityFor$org_jetbrains_compose_swing_swing_ui_animation (Ljava/lang/Object;)Lorg/jetbrains/compose/swing/animation/core/KeyframeBaseEntity;
 }
 
-public abstract interface class org/jetbrains/compose/swing/animation/core/MotionDurationScale : kotlin/coroutines/CoroutineContext$Element {
-	public static final field Key Lorg/jetbrains/compose/swing/animation/core/MotionDurationScale$Key;
-	public fun getKey ()Lkotlin/coroutines/CoroutineContext$Key;
-	public abstract fun getScaleFactor ()F
-}
-
-public final class org/jetbrains/compose/swing/animation/core/MotionDurationScale$DefaultImpls {
-	public static fun fold (Lorg/jetbrains/compose/swing/animation/core/MotionDurationScale;Ljava/lang/Object;Lkotlin/jvm/functions/Function2;)Ljava/lang/Object;
-	public static fun get (Lorg/jetbrains/compose/swing/animation/core/MotionDurationScale;Lkotlin/coroutines/CoroutineContext$Key;)Lkotlin/coroutines/CoroutineContext$Element;
-	public static fun minusKey (Lorg/jetbrains/compose/swing/animation/core/MotionDurationScale;Lkotlin/coroutines/CoroutineContext$Key;)Lkotlin/coroutines/CoroutineContext;
-	public static fun plus (Lorg/jetbrains/compose/swing/animation/core/MotionDurationScale;Lkotlin/coroutines/CoroutineContext;)Lkotlin/coroutines/CoroutineContext;
-}
-
-public final class org/jetbrains/compose/swing/animation/core/MotionDurationScale$Key : kotlin/coroutines/CoroutineContext$Key {
-}
-
 public final class org/jetbrains/compose/swing/animation/core/MutableTransitionState : org/jetbrains/compose/swing/animation/core/TransitionState {
 	public static final field $stable I
 	public fun <init> (Ljava/lang/Object;)V

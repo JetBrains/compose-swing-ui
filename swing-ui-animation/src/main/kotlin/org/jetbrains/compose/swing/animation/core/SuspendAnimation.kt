@@ -20,6 +20,7 @@ import androidx.compose.runtime.withFrameNanos
 import kotlinx.coroutines.CancellationException
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.coroutineContext
+import org.jetbrains.compose.swing.core.MotionDurationScale
 
 /**
  * Target based animation that animates from the given [initialValue] towards the [targetValue],

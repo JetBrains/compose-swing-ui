@@ -15,21 +15,27 @@
  */
 
 // Adapted from androidx.compose.animation.core.InfiniteAnimationPolicy for compose-swing-ui's vendored
-// animation-core: the compose-ui InfiniteAnimationPolicy lookup is removed and these helpers delegate
-// directly to withFrameNanos. Sourced from compose-multiplatform-core.
+// animation-core: the policy looked up is swing-ui's InfiniteAnimationPolicy rather than compose-ui's.
+// Sourced from compose-multiplatform-core.
 
 package org.jetbrains.compose.swing.animation.core
 
 import androidx.compose.runtime.withFrameMillis
 import androidx.compose.runtime.withFrameNanos
+import kotlin.coroutines.coroutineContext
+import org.jetbrains.compose.swing.core.InfiniteAnimationPolicy
 
 /**
  * Runs [onFrame] on the next animation frame, suspending on the frame clock of the calling coroutine
  * context (in compose-swing-ui that is the per-window Swing frame clock). Behaves like
- * [withFrameNanos] and is the entry point used by infinite animations.
+ * [withFrameNanos], except that it applies the [InfiniteAnimationPolicy] the calling context carries,
+ * if it carries one. This is the entry point used by infinite animations.
  */
 public suspend fun <R> withInfiniteAnimationFrameNanos(onFrame: (frameTimeNanos: Long) -> R): R =
-    withFrameNanos(onFrame)
+    when (val policy = coroutineContext[InfiniteAnimationPolicy]) {
+        null -> withFrameNanos(onFrame)
+        else -> policy.onInfiniteOperation { withFrameNanos(onFrame) }
+    }
 
 /**
  * Like [withInfiniteAnimationFrameNanos], but with the frame time expressed in milliseconds. Behaves

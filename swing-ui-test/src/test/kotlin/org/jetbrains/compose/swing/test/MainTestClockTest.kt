@@ -269,6 +269,29 @@ class MainTestClockTest {
     }
 
     @Test
+    fun autoAdvanceDefaultCancelsAnAnimationThatNeverEndsInsteadOfWaitingOnIt() = runComposeSwingTest {
+        lateinit var animated: State<Float>
+        setContent {
+            animated =
+                rememberInfiniteTransition().animateFloat(
+                    initialValue = ANIMATION_START_VALUE,
+                    targetValue = ANIMATION_TARGET_VALUE,
+                    animationSpec =
+                        infiniteRepeatable(tween(durationMillis = ANIMATION_DURATION_MILLIS, easing = LinearEasing)),
+                )
+        }
+
+        awaitIdle()
+
+        assertEquals(
+            ANIMATION_START_VALUE,
+            animated.value,
+            "an animation that never ends must be cancelled at its first frame while frames run on " +
+                "their own, leaving the value where the animation started",
+        )
+    }
+
+    @Test
     fun autoAdvanceOffDrivesAnAnimationThatNeverEndsFrameByFrame() = runComposeSwingTest {
         lateinit var animated: State<Float>
         mainClock.autoAdvance = false

@@ -470,6 +470,11 @@ once it has advanced past its `timeout` of composition time. `frameDuration` is 
 display — the step every frame the harness sends advances composition time by, not the host display's
 refresh rate.
 
+An animation that never ends, such as one built on `rememberInfiniteTransition` or an `infiniteRepeatable`
+spec, is cancelled at its first frame while `autoAdvance` is on, because a gate waiting for it to become
+idle would never return. Turn `autoAdvance` off to drive one: under manual frames it runs untouched, a
+step per frame.
+
 The clock governs the test's own off-screen composition. Content composed under a real `Window` or
 `Dialog` runs on that window's own recomposer, whose frame-driven work is paced by the display the
 window is on, and is unaffected.

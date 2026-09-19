@@ -14,6 +14,8 @@ import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
 import org.jetbrains.compose.swing.core.SwingFrameClock.Companion.displayRefreshRate
 import org.jetbrains.compose.swing.util.DeferredAction
 import java.awt.Component
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 
 /**
  * What a composition is driven by: a single [Recomposer], the frame clock it recomposes on, and the
@@ -197,10 +199,16 @@ public class SwingRecomposer private constructor(
          *
          * @param component the component whose display sets the frame cadence. A listener is installed
          *   on it to retime the clock as it moves between displays, and [dispose] removes that listener.
+         * @param effectContext extra elements for the context the content this recomposer drives runs
+         *   its effects over - a [MotionDurationScale] stating how fast motion plays here, say. Overrides
+         *   what [SwingUiSettings] states for the whole process; the
+         *   dispatcher, job and failure handler this recomposer runs on are not overridable.
          * @return the started recomposer.
          */
-        public fun create(component: Component): SwingRecomposer =
-            start(component, disposeOnceUnused = false, onDisposed = {})
+        public fun create(
+            component: Component,
+            effectContext: CoroutineContext = EmptyCoroutineContext,
+        ): SwingRecomposer = start(component, effectContext = effectContext, disposeOnceUnused = false, onDisposed = {})
 
         /**
          * Starts the recomposer a window owns: this library creates and keeps it, so it ends itself once
@@ -211,10 +219,12 @@ public class SwingRecomposer private constructor(
         internal fun forWindow(
             window: Component,
             onDisposed: () -> Unit,
-        ): SwingRecomposer = start(window, disposeOnceUnused = true, onDisposed = onDisposed)
+        ): SwingRecomposer =
+            start(window, effectContext = EmptyCoroutineContext, disposeOnceUnused = true, onDisposed = onDisposed)
 
         private fun start(
             component: Component,
+            effectContext: CoroutineContext,
             disposeOnceUnused: Boolean,
             onDisposed: () -> Unit,
         ): SwingRecomposer {
@@ -225,9 +235,12 @@ public class SwingRecomposer private constructor(
             // cancel the watch that exists to notice the recomposer stopping: the runtime parents that
             // job on this one, and an effect a composition launches is its child. The handler is where
             // such an effect's failure is reported from, as a pass's own is reported by the runner.
+            // Widest to narrowest: what the process states is overridden by what this caller states, and
+            // both lose to the dispatcher, job and handler this recomposer cannot run without.
             val scope =
                 CoroutineScope(
-                    dispatcher + SupervisorJob() + CoroutineExceptionHandler { _, failure -> reportUncaught(failure) },
+                    SwingUiSettings.motionDurationScale + effectContext + dispatcher + SupervisorJob() +
+                        CoroutineExceptionHandler { _, failure -> reportUncaught(failure) },
                 )
             val recomposer = Recomposer(scope.coroutineContext)
             val clock = dispatcher.frameClock

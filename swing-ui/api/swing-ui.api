@@ -563,6 +563,38 @@ public final class org/jetbrains/compose/swing/core/ComponentRecomposerKt {
 	public static final fun findRecomposer (Ljava/awt/Component;)Landroidx/compose/runtime/Recomposer;
 }
 
+public abstract interface class org/jetbrains/compose/swing/core/InfiniteAnimationPolicy : kotlin/coroutines/CoroutineContext$Element {
+	public static final field Key Lorg/jetbrains/compose/swing/core/InfiniteAnimationPolicy$Key;
+	public fun getKey ()Lkotlin/coroutines/CoroutineContext$Key;
+	public abstract fun onInfiniteOperation (Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class org/jetbrains/compose/swing/core/InfiniteAnimationPolicy$DefaultImpls {
+	public static fun fold (Lorg/jetbrains/compose/swing/core/InfiniteAnimationPolicy;Ljava/lang/Object;Lkotlin/jvm/functions/Function2;)Ljava/lang/Object;
+	public static fun get (Lorg/jetbrains/compose/swing/core/InfiniteAnimationPolicy;Lkotlin/coroutines/CoroutineContext$Key;)Lkotlin/coroutines/CoroutineContext$Element;
+	public static fun minusKey (Lorg/jetbrains/compose/swing/core/InfiniteAnimationPolicy;Lkotlin/coroutines/CoroutineContext$Key;)Lkotlin/coroutines/CoroutineContext;
+	public static fun plus (Lorg/jetbrains/compose/swing/core/InfiniteAnimationPolicy;Lkotlin/coroutines/CoroutineContext;)Lkotlin/coroutines/CoroutineContext;
+}
+
+public final class org/jetbrains/compose/swing/core/InfiniteAnimationPolicy$Key : kotlin/coroutines/CoroutineContext$Key {
+}
+
+public abstract interface class org/jetbrains/compose/swing/core/MotionDurationScale : kotlin/coroutines/CoroutineContext$Element {
+	public static final field Key Lorg/jetbrains/compose/swing/core/MotionDurationScale$Key;
+	public fun getKey ()Lkotlin/coroutines/CoroutineContext$Key;
+	public abstract fun getScaleFactor ()F
+}
+
+public final class org/jetbrains/compose/swing/core/MotionDurationScale$DefaultImpls {
+	public static fun fold (Lorg/jetbrains/compose/swing/core/MotionDurationScale;Ljava/lang/Object;Lkotlin/jvm/functions/Function2;)Ljava/lang/Object;
+	public static fun get (Lorg/jetbrains/compose/swing/core/MotionDurationScale;Lkotlin/coroutines/CoroutineContext$Key;)Lkotlin/coroutines/CoroutineContext$Element;
+	public static fun minusKey (Lorg/jetbrains/compose/swing/core/MotionDurationScale;Lkotlin/coroutines/CoroutineContext$Key;)Lkotlin/coroutines/CoroutineContext;
+	public static fun plus (Lorg/jetbrains/compose/swing/core/MotionDurationScale;Lkotlin/coroutines/CoroutineContext;)Lkotlin/coroutines/CoroutineContext;
+}
+
+public final class org/jetbrains/compose/swing/core/MotionDurationScale$Key : kotlin/coroutines/CoroutineContext$Key {
+}
+
 public final class org/jetbrains/compose/swing/defaults/ComponentDefaultKey {
 	public static final field $stable I
 	public fun equals (Ljava/lang/Object;)Z

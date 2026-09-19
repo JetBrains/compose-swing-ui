@@ -21,6 +21,7 @@ import kotlin.test.assertEquals
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
+import org.jetbrains.compose.swing.core.MotionDurationScale
 
 class DurationScaleTest {
     @Test

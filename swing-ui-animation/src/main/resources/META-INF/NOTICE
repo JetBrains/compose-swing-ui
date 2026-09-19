@@ -12,8 +12,10 @@ License, Version 2.0.
 Adaptations: flattened from Kotlin Multiplatform (expect/actual) to a single JVM
 source set; the package was relocated from androidx.compose.animation.core to
 org.jetbrains.compose.swing.animation.core; compose-ui geometry/unit converters
-and Path-based easing were removed; MotionDurationScale, the cubic Bezier easing
-helpers, and the Float packing helpers were vendored from androidx.compose.ui.
-See per-file headers for original copyright years.
+and Path-based easing were removed; the cubic Bezier easing helpers and the Float
+packing helpers were vendored from androidx.compose.ui. Animations that never end
+use the InfiniteAnimationPolicy, and motion is scaled by MotionDurationScale, both
+declared by this project's swing-ui module. See per-file headers for original
+copyright years.
 
 A copy of the Apache License 2.0 is in the repository root LICENSE file.

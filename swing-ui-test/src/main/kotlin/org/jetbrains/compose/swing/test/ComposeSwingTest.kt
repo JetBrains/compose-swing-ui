@@ -20,6 +20,8 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.core.ContainedCallerFailure
+import org.jetbrains.compose.swing.core.InfiniteAnimationPolicy
+import org.jetbrains.compose.swing.core.SwingUiSettings
 import org.jetbrains.compose.swing.core.setLifecycleOwner
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.interaction.NodePick
@@ -456,9 +458,33 @@ private class ComposeSwingTestImpl(
      */
     private val restoreCheck = ModifierRestoreCheck(::recordLibraryFailure)
 
+    /**
+     * The policy an animation that never ends is held to. While frames run on their own such an
+     * animation asks for the next one forever, and every gate that waits for the composition to run out
+     * of work would wait with it, so the animation is cancelled at its first frame instead. Under manual
+     * frame control it runs untouched: a test driving frames by hand has already said how far it wants
+     * the animation to go.
+     */
+    private val infiniteAnimationPolicy =
+        object : InfiniteAnimationPolicy {
+            override suspend fun <R> onInfiniteOperation(block: suspend () -> R): R {
+                if (mainClock.autoAdvance) {
+                    throw CancellationException(
+                        "An animation that never ends was cancelled: with mainClock.autoAdvance on, waiting for " +
+                            "it to become idle would never return. Set mainClock.autoAdvance = false and advance the " +
+                            "clock to drive it.",
+                    )
+                }
+                return block()
+            }
+        }
+
+    // Widest to narrowest, the same order a real window's recomposer applies: what the process states is
+    // overridden by what this test states, and both lose to what the harness cannot run without.
     private val scope =
         CoroutineScope(
-            effectContext + Dispatchers.Swing + Job() + clock + restoreCheck,
+            SwingUiSettings.motionDurationScale + effectContext + Dispatchers.Swing + Job() + clock +
+                restoreCheck + infiniteAnimationPolicy,
         )
     private val recomposer = Recomposer(scope.coroutineContext)
 
