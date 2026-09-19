@@ -70,8 +70,12 @@ class OffscreenLayoutTest {
         text = "a considerably longer text"
         awaitIdle()
 
-        assertEquals(label.preferredSize.width, label.width, "the label kept the width it had for \"short\"")
-        assertTrue(label.width > shortWidth, "the label kept the width it had for \"short\": $shortWidth")
+        assertEquals(
+            label.preferredSize.width,
+            label.width,
+            "the label should widen to fit \"a considerably longer text\"",
+        )
+        assertTrue(label.width > shortWidth, "the label should widen past the width it had for \"short\": $shortWidth")
     }
 
     @Test

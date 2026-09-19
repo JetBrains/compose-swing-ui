@@ -38,7 +38,7 @@ internal val RawParentProtocol: ParentProtocol =
  * so a constraint compared by identity - as a raw `GridBagConstraints` is - re-registers the component on
  * every pass that rebuilds it. A constraint compared by value holds still when rebuilt from the same
  * declaration, which is what the scope builders -
- * [org.jetbrains.compose.swing.components.layout.GridBagPanelScope.item] among them - supply.
+ * `GridBagPanelScope.item` among them - supply.
  *
  * This is the untyped parent-data escape hatch: it can register any value a parent layout understands.
  * Prefer a parent layout's typed scope builder where it offers one; that rejects a hoisted declaration

@@ -28,7 +28,7 @@ public fun SwingModifier.adjustmentListener(onAdjustment: (AdjustmentEvent) -> U
  * (`javax.swing.JScrollBar`, `java.awt.Scrollbar`).
  *
  * A scroll pane's own position is hoistable state
- * ([ScrollState][org.jetbrains.compose.swing.components.layout.ScrollState]); this builder is for a
+ * (`ScrollState`); this builder is for a
  * scrollbar a custom component drives itself.
  *
  * @param listener attached by identity, so a remembered instance stays put while a fresh one on every

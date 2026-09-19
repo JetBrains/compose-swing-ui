@@ -78,7 +78,7 @@ private fun ColumnScope.MeasurePolicyCard() {
         Layout(
             content = {
                 InteractiveLayoutSwatch(
-                    text = "<html><center>placeRelative(0,y)<br>gap=$gap px · click</center></html>",
+                    text = "<html><center>placeRelative(0,y)<br>gap=$gap · click</center></html>",
                     color = LayoutSampleColors.Blue,
                     onClick = { gap = CUSTOM_GAPS[(CUSTOM_GAPS.indexOf(gap) + 1) % CUSTOM_GAPS.size] },
                     modifier =

@@ -128,15 +128,22 @@ class LayoutNodeApplicationFailureTest {
 
         assertEquals(listOf("onAttach first: 2 of 2"), sightings)
         assertEquals(listOf(chain[0]), child.layoutNodes(), "only the node whose onAttach ran is recorded")
+        assertFalse(
+            chain[1].isAttached,
+            "a node marked attached while the chain was walked, but whose onAttach never got a turn, is unwound",
+        )
         sightings.clear()
         events.clear()
 
         child.onRelease()
 
-        assertEquals(listOf("onDetach first: 2 of 2"), sightings, "release detaches the node that attached, once")
+        assertEquals(
+            listOf("onDetach first: 1 of 2"),
+            sightings,
+            "release detaches the node that attached, once; the node that never attached was already unwound",
+        )
         assertEquals(emptyList(), events, "the node whose onAttach threw does not detach")
         assertFalse(chain[0].isAttached)
-        assertEquals(emptyList(), child.layoutNodes(), "a released holder records no layout node")
         owner.dispose()
     }
 

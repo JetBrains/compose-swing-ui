@@ -4,6 +4,7 @@ import dev.detekt.api.Config
 import dev.detekt.test.lint
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class ComposableSwingModifierFactoryTest {
     private fun lint(source: String) =
@@ -11,8 +12,7 @@ class ComposableSwingModifierFactoryTest {
 
     @Test
     fun `reports a composable extension on the chain`() {
-        assertEquals(
-            1,
+        val findings =
             lint(
                 """
                 package sample
@@ -20,8 +20,9 @@ class ComposableSwingModifierFactoryTest {
                 @Composable
                 fun SwingModifier.highlighted(): SwingModifier = this
                 """.trimIndent(),
-            ).size,
-        )
+            )
+        assertEquals(1, findings.size)
+        assertTrue(findings.single().message.contains("build state private to each component with a `ComponentNode`"))
     }
 
     @Test

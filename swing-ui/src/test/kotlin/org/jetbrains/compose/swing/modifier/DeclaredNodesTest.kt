@@ -105,8 +105,12 @@ class DeclaredNodesTest {
                 .then(Additive("a2", visits = visits)),
         )
 
-        assertEquals(listOf(listOf("l1", "a1", "l2", "a2")), visits)
-        assertEquals(listOf(listOf("l1", "a1", "l2", "a2")), child.component.received)
+        assertEquals(listOf(listOf("l1", "a1", "l2", "a2")), visits, "the last node visits the declared order")
+        assertEquals(
+            listOf(listOf("l1", "a1", "l2", "a2")),
+            child.component.received,
+            "the component is handed the declared order",
+        )
         owner.dispose()
     }
 
@@ -421,8 +425,16 @@ class DeclaredNodesTest {
         reused.onReuse()
         deactivated.onDeactivate()
 
-        assertEquals(listOf(listOf("a"), emptyList()), reused.component.received)
-        assertEquals(listOf(listOf("a"), emptyList()), deactivated.component.received)
+        assertEquals(
+            listOf(listOf("a"), emptyList()),
+            reused.component.received,
+            "a reused component is handed no nodes",
+        )
+        assertEquals(
+            listOf(listOf("a"), emptyList()),
+            deactivated.component.received,
+            "a deactivated component is handed no nodes",
+        )
         owner.dispose()
     }
 

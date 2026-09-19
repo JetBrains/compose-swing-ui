@@ -44,12 +44,13 @@ internal class AppliedWrite {
      *
      * Inlined, so a write a settle makes carries no block of its own.
      */
-    @Suppress("TooGenericExceptionCaught")
     inline fun write(block: () -> Unit) {
         writeDepth++
         try {
             block()
-        } catch (failure: Throwable) {
+        } catch (
+            @Suppress("TooGenericExceptionCaught") failure: Throwable,
+        ) {
             reportUncaught(ContainedCallerFailure(failure))
         } finally {
             writeDepth--

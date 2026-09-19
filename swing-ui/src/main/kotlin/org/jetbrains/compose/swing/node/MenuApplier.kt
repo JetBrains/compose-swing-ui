@@ -154,15 +154,34 @@ internal class MenuApplier(
 
     private fun removeAllChildren(node: Component) {
         // A menu holds its items in a popup it creates on first use, so the menu is asked for them rather
-        // than for the popup, and a menu that never held an item gets no popup from being cleared.
-        val items =
-            when (node) {
-                is JMenu -> node.menuComponents
-                is JMenuBar -> node.components
-                is JPopupMenu -> node.components
-                else -> error("Cannot clear children of menu node $node")
+        // than for the popup, and a menu that never held an item gets no popup from being cleared:
+        // JMenu.getMenuComponents() reads the existing popup without creating one.
+        //
+        // Those items' bounds are in the popup's own coordinate space, not the menu's - the menu never
+        // lays them out itself - so the popup, not the menu, is both the container the batch repaints and
+        // the frame the bounds are read against. A menu with items already has a popup, from adding them,
+        // so reading it back here never creates one a clear would otherwise have spared.
+        when (node) {
+            is JMenu -> {
+                val items = node.menuComponents
+                if (items.isNotEmpty()) {
+                    val popup = node.popupMenu
+                    items.forEach { batch.markChanged(popup, it.bounds) }
+                }
             }
-        items.forEach { batch.markChanged(node, it.bounds) }
+
+            is JMenuBar -> {
+                node.components.forEach { batch.markChanged(node, it.bounds) }
+            }
+
+            is JPopupMenu -> {
+                node.components.forEach { batch.markChanged(node, it.bounds) }
+            }
+
+            else -> {
+                error("Cannot clear children of menu node $node")
+            }
+        }
         node.removeAll()
     }
 }

@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.node
 
+import org.jetbrains.compose.swing.repaintsDuring
 import java.awt.Rectangle
 import javax.swing.JMenu
 import javax.swing.JMenuBar
@@ -205,6 +206,41 @@ class MenuApplierTest {
 
         // A menu reports its popup as a sub-element once it has one.
         assertEquals(0, menu.subElements.size, "clearing a menu with no items must not create its popup")
+    }
+
+    @Test
+    fun clear_repaintsTheItemsAreaOnTheMenusPopupNotOnTheMenuItself() {
+        val menu = JMenu("File")
+        val applier = MenuApplier(SwingNodeHolder(menu).attachedTo(TestCompositionOwner()))
+
+        applier.onBeginChanges()
+        applier.onNode(applier.root) {
+            insertBottomUp(0, SwingNodeHolder(namedItem("cut").apply { setBounds(0, 0, 60, 20) }))
+            insertBottomUp(1, SwingNodeHolder(namedItem("copy").apply { setBounds(0, 20, 60, 20) }))
+        }
+        applier.onEndChanges()
+        // Items live in the menu's popup, at bounds the popup itself laid them out at - the menu never
+        // sees these components at all.
+        val popup = menu.popupMenu
+
+        val repaints =
+            repaintsDuring {
+                applier.onBeginChanges()
+                applier.clear()
+                applier.onEndChanges()
+            }
+
+        assertEquals(
+            listOf(Rectangle(0, 0, 60, 40)),
+            repaints.dirtyRegionsOf(popup),
+            "clearing a menu with items must repaint the union of their area on the popup that held them, " +
+                "in the popup's own coordinates",
+        )
+        assertEquals(
+            0,
+            repaints.repaintsOf(menu),
+            "the menu itself, whose coordinates the items never shared, must not be asked to repaint",
+        )
     }
 
     @Test

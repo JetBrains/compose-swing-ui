@@ -381,9 +381,9 @@ class LayoutSectionsTest {
             assertEquals(physicalBefore, physical.x, "physical place keeps the green child on the right")
 
             val physicalYBefore = physical.y
-            onNodeWithText("gap=8 px", substring = true).assertExists()
-            onNodeWithText("gap=8 px", substring = true).performClick()
-            onNodeWithText("gap=18 px", substring = true).assertExists()
+            onNodeWithText("gap=8", substring = true).assertExists()
+            onNodeWithText("gap=8", substring = true).performClick()
+            onNodeWithText("gap=18", substring = true).assertExists()
             awaitIdle()
             assertEquals(
                 "placeRelative, gap 18; activate to cycle",

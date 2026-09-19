@@ -48,7 +48,7 @@ import kotlin.system.exitProcess
  * [launchApplication] instead.
  *
  * The application can launch background tasks using [androidx.compose.runtime.LaunchedEffect]
- * or create [Window], [Dialog], or [org.jetbrains.compose.swing.components.Tray] in a declarative
+ * or create [Window], [Dialog], or `Tray` in a declarative
  * Compose way:
  *
  * ```
@@ -71,7 +71,7 @@ import kotlin.system.exitProcess
  * When there are no active compositions left, this function ends.
  * An active composition is one that has an active coroutine (for example, launched in
  * [androidx.compose.runtime.LaunchedEffect]) or a child composition created inside [Window],
- * [Dialog], or [org.jetbrains.compose.swing.components.Tray].
+ * [Dialog], or `Tray`.
  *
  * @param exitProcessOnExit whether `exitProcess(0)` is called after the application is closed.
  * The explicit exit ends the process immediately instead of waiting for background threads to wind
@@ -145,7 +145,7 @@ public fun CoroutineScope.launchApplication(content: @Composable ApplicationScop
  * thread it was awaited on free.
  *
  * The application can launch background tasks using [androidx.compose.runtime.LaunchedEffect]
- * or create [Window], [Dialog], or [org.jetbrains.compose.swing.components.Tray] in a declarative
+ * or create [Window], [Dialog], or `Tray` in a declarative
  * Compose way:
  *
  * ```
@@ -170,7 +170,7 @@ public fun CoroutineScope.launchApplication(content: @Composable ApplicationScop
  * When there are no active compositions left, this function ends.
  * An active composition is one that has an active coroutine (for example, launched in
  * [androidx.compose.runtime.LaunchedEffect]) or a child composition created inside [Window],
- * [Dialog], or [org.jetbrains.compose.swing.components.Tray].
+ * [Dialog], or `Tray`.
  *
  * Animations driven in this composition (for example via [androidx.compose.runtime.withFrameNanos]
  * or `org.jetbrains.compose.swing.animation.core.animateFloatAsState`) advance on the application's

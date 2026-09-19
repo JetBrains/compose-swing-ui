@@ -11,7 +11,7 @@ import kotlin.reflect.KClass
 /**
  * Installs a listener instance on the target component via the modifier mechanism - the by-identity
  * listener seam, the one every builder taking a listener object is built on (the typed instance
- * builders like [mouseListener]/[actionListener] and the model builders like [changeListener]).
+ * builders like `mouseListener`/`actionListener` and the model builders like `changeListener`).
  *
  * The overload taking a callback and a [CallbackRegistration] instead registers a listener the library
  * builds, which reads the callback when the event fires. That is the one to reach for when the handler

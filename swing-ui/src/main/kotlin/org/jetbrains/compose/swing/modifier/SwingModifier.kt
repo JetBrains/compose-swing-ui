@@ -436,7 +436,10 @@ internal abstract class NodeRecord<N : SwingModifier.Node, E : SwingModifier.Ele
     /**
      * Calls [record], runs the node's [SwingModifier.Node.onAttach], then pushes the element onto it: the first
      * install. The slot stands while `onAttach` runs, so [SwingModifier.Node.visitDeclaredNodes] finds the node from
-     * there; [unrecord] takes it out again if `onAttach` throws.
+     * there; [unrecord] takes it out again if `onAttach` throws, and the node itself - marked attached before this
+     * ran - is detached with it: its `onDetach` runs, its `coroutineScope` cancels, and its observed reads clear,
+     * so it does not stand attached with no slot holding it. A node whose `onAttach` succeeded and whose first
+     * `update` then throws is left standing instead, for the next pass to hand the same node its declaration again.
      */
     open fun runAttachLifecycle(
         diagnostics: SwingCompositionDiagnostics?,
@@ -444,12 +447,14 @@ internal abstract class NodeRecord<N : SwingModifier.Node, E : SwingModifier.Ele
         unrecord: () -> Unit,
     ) {
         record()
-        var attached = false
+        // Re-throws every exception after unrecording the slot and detaching the node; catching Throwable ensures
+        // errors during attach are unwound rather than leaving a half-attached node in the chain.
         try {
             node.runAttachLifecycle()
-            attached = true
-        } finally {
-            if (!attached) unrecord()
+        } catch (@Suppress("TooGenericExceptionCaught") failure: Throwable) {
+            unrecord()
+            detach(diagnostics)
+            throw failure
         }
         update(element)
     }
@@ -1084,13 +1089,14 @@ internal fun SwingNodeHolder<Component>.applyModifierDiff(modifier: SwingModifie
     val outerDeclaration = batch?.diffingDeclaration
     batch?.diffingState = state
     batch?.diffingDeclaration = incoming.chain
+    var marked: MarkedChain? = null
     try {
         // Every node attaching whole is marked before the first onAttach runs; a node entering a standing chain
         // is marked and run on its own, by the diffs, which find the nodes a whole attach ran standing on their
         // own elements. The layout nodes go first, so the declaration the parent reads is published before any
         // component node runs - and, by a pass that throws partway, with the layout nodes standing then.
         val marksNodes = attachesWholeChain && (incoming.keyed.isNotEmpty() || incoming.chain.isNotEmpty())
-        val marked = if (marksNodes) MarkedChain.mark(this, state, incoming) else null
+        marked = if (marksNodes) MarkedChain.mark(this, state, incoming) else null
         // Taken as joined where the layout diff throws, so the parent reads the layout nodes that stand.
         var layoutChange = SlotChange.JoinedOrLeft
         try {
@@ -1110,6 +1116,10 @@ internal fun SwingNodeHolder<Component>.applyModifierDiff(modifier: SwingModifie
         if (applyComponentSlots(state, incoming, marked, adoptable)) chainChanged = true
         if (state.orderChain(incoming.chain)) chainChanged = true
     } finally {
+        // A node this whole attach marked but whose own onAttach never ran - because an earlier node's did and
+        // threw - is attached with no slot holding it, the same leak an onAttach that itself throws would leave;
+        // see [MarkedChain.detachOrphaned].
+        marked?.detachOrphaned(state)
         batch?.diffingState = outerState
         batch?.diffingDeclaration = outerDeclaration
     }
@@ -1148,6 +1158,11 @@ private fun SwingNodeHolder<*>.applyComponentSlots(
  * A slot is recorded before its node's `onAttach` runs and dropped again if `onAttach` throws, so a pass that throws
  * partway leaves the nodes whose `onAttach` did not run unrecorded, as the diff does. The keyed nodes stand in the
  * order of [ModifierPartition.keyed].
+ *
+ * [mark] may itself leave a node marked attached whose `onAttach` never got a turn: one it created before an
+ * element declared after it failed to be created, or one behind a family whose own `onAttach` threw before this
+ * one's had a chance to run. Neither is recorded anywhere by the time the throw reaches the caller, so nothing
+ * else would ever detach them - [mark] unwinds the first kind itself, and [detachOrphaned] the second.
  */
 private class MarkedChain(
     private val keyed: List<ElementRecord<*, *>>,
@@ -1186,11 +1201,31 @@ private class MarkedChain(
         return components.isNotEmpty()
     }
 
+    /**
+     * Detaches every node this marked that never joined [state]: one whose `onAttach` never got a turn because an
+     * earlier node's threw first. A node whose own `onAttach` ran - whether it went on to join [state] or threw
+     * and was already detached by [NodeRecord.runAttachLifecycle] - is untouched here; only one still attached and
+     * standing in neither [SwingModifierState.chain] nor [SwingModifierState.records] is reached, and it runs no
+     * `onDetach`, since none of its own lifecycle ran either.
+     */
+    fun detachOrphaned(state: SwingModifierState) {
+        keyed.fastForEach { it.detachIfOrphaned(state) }
+        components.fastForEach { it.detachIfOrphaned(state) }
+        layoutNodes.fastForEach { it.detachIfOrphaned(state) }
+    }
+
+    private fun NodeRecord<*, *>.detachIfOrphaned(state: SwingModifierState) {
+        if (node.isAttached && state.chain.none { it === this } && state.records.values.none { it === this }) {
+            node.detach()
+        }
+    }
+
     companion object {
         /**
          * Creates and marks attached a node for every component element of [partition], and for every parent-layout
          * element where no parent-layout slot stands in [state], for a holder attaching its chain whole, without
-         * running any `onAttach`.
+         * running any `onAttach`. A node created here is unwound the same way if creating a later element of this
+         * same call fails, so a throw partway through never hands the caller a chain holding a leaked node.
          */
         fun mark(
             holder: SwingNodeHolder<*>,
@@ -1208,29 +1243,33 @@ private class MarkedChain(
                 }
             }
             val layoutNodeCount = elements.size - componentCount
-            val keyed = ArrayList<ElementRecord<*, *>>(keyedElements.size)
-            keyedElements.forEach { keyed += ElementRecord.mark(it, holder) }
-            val components =
-                if (componentCount == 0) {
-                    emptyList()
-                } else {
-                    ArrayList<ElementRecord<*, *>>(componentCount).also { marked ->
-                        elements.fastForEach {
-                            if (it is SwingModifier.NodeElement<*, *>) marked += ElementRecord.mark(it, holder)
-                        }
-                    }
-                }
             // A key change leaves the parent-layout slots standing, and the diff pairs them with their elements.
-            val layoutNodes =
-                if (layoutNodeCount == 0 || state.chain.isNotEmpty()) {
-                    emptyList()
-                } else {
-                    ArrayList<LayoutNodeRecord>(layoutNodeCount).also { marked ->
-                        elements.fastForEach {
-                            if (it is ParentLayoutNodeElement<*>) marked += LayoutNodeRecord.mark(it, holder)
-                        }
+            val marksLayoutNodes = layoutNodeCount != 0 && state.chain.isEmpty()
+            val keyed = ArrayList<ElementRecord<*, *>>(keyedElements.size)
+            val components = ArrayList<ElementRecord<*, *>>(componentCount)
+            val layoutNodes = ArrayList<LayoutNodeRecord>(if (marksLayoutNodes) layoutNodeCount else 0)
+            // Re-throws every exception after detaching all nodes created during the mark pass, so any error
+            // during node instantiation is unwound cleanly.
+            try {
+                keyedElements.forEach { keyed += ElementRecord.mark(it, holder) }
+                if (componentCount != 0) {
+                    elements.fastForEach {
+                        if (it is SwingModifier.NodeElement<*, *>) components += ElementRecord.mark(it, holder)
                     }
                 }
+                if (marksLayoutNodes) {
+                    elements.fastForEach {
+                        if (it is ParentLayoutNodeElement<*>) layoutNodes += LayoutNodeRecord.mark(it, holder)
+                    }
+                }
+            } catch (@Suppress("TooGenericExceptionCaught") failure: Throwable) {
+                // Every node created above is attach()ed but has not run its onAttach, so unwinding it undoes
+                // exactly that mark: no onDetach runs for a node whose onAttach never did.
+                keyed.fastForEach { it.node.detach() }
+                components.fastForEach { it.node.detach() }
+                layoutNodes.fastForEach { it.node.detach() }
+                throw failure
+            }
             return MarkedChain(keyed, components, layoutNodes)
         }
     }
@@ -1455,4 +1494,10 @@ internal fun SwingNodeHolder<*>.resetModifierState(reset: Boolean = false) {
     modifierState = null
 }
 
-internal class ModifierNodeDetachedCancellationException : CancellationException("The modifier node was detached")
+/**
+ * Cheap to throw: a cancellation reaching every coroutine a detached node's [SwingModifier.Node.coroutineScope]
+ * ran costs no stack trace, matching AndroidX's `PlatformOptimizedCancellationException`.
+ */
+internal class ModifierNodeDetachedCancellationException : CancellationException("The modifier node was detached") {
+    override fun fillInStackTrace(): Throwable = this
+}
