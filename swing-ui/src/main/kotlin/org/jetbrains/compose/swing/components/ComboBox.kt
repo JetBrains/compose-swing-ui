@@ -10,6 +10,7 @@ import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.components.selection.ListItemScope
 import org.jetbrains.compose.swing.components.selection.declaredListItemRenderer
 import org.jetbrains.compose.swing.components.selection.rememberListItemRenderer
+import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
 import org.jetbrains.compose.swing.modifier.listener.actionListener
@@ -371,14 +372,12 @@ private val COMBO_ITEM_SELECTION =
  * reaches the box by a write onto the box itself, not through that key, so the box can carry one no key
  * names.
  */
+private val MaximumRowCountProperty =
+    ComponentPropertyDescriptor<JComboBox<*>, Int>(
+        name = "maximumRowCount",
+        read = { it.maximumRowCount },
+        write = { box, value -> box.maximumRowCount = value },
+    )
+
 private fun SwingModifier.declaredMaximumRowCount(maximumRowCount: Int?): SwingModifier =
-    if (maximumRowCount == null) {
-        this
-    } else {
-        property<JComboBox<*>, Int>(
-            name = "maximumRowCount",
-            value = maximumRowCount,
-            read = { it.maximumRowCount },
-            write = { box, value -> box.maximumRowCount = value },
-        )
-    }
+    if (maximumRowCount == null) this else property(MaximumRowCountProperty, maximumRowCount)

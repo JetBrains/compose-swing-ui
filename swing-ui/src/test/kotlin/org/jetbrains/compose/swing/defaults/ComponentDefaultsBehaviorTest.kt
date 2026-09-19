@@ -8,7 +8,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
-import org.jetbrains.compose.swing.modifier.PropertyAccessors
+import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.foreground
@@ -18,7 +18,7 @@ import org.jetbrains.compose.swing.modifier.applyDeclaredModifier
 import org.jetbrains.compose.swing.modifier.keyboard.onKeyStroke
 import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
 import org.jetbrains.compose.swing.modifier.listener.actionListener
-import org.jetbrains.compose.swing.modifier.propertyElement
+import org.jetbrains.compose.swing.modifier.property
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.SwingNodeHolder
 import org.jetbrains.compose.swing.node.TestCompositionOwner
@@ -43,14 +43,14 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 private val CustomLabelProperty =
-    PropertyAccessors<JLabel, String>(
+    ComponentPropertyDescriptor<JLabel, String>(
         name = "customLabelProperty",
         read = { it.text },
         write = { label, v -> label.text = v },
     )
 
 private fun SwingModifier.customLabelProperty(value: String): SwingModifier =
-    this then propertyElement(CustomLabelProperty, value, inheritable = true)
+    property(CustomLabelProperty, value, inheritable = true)
 
 class ComponentDefaultsBehaviorTest {
     @Test
@@ -656,7 +656,7 @@ class ComponentDefaultsBehaviorTest {
     }
 
     @Test
-    fun interferenceReassertsDefaultWhenExternallyOverwritten() = runComposeSwingTest {
+    fun rewriteOnReassertsDefaultWhenExternallyOverwritten() = runComposeSwingTest {
         setContent {
             ProvideComponentDefaults(DefaultOpaque provides true) {
                 Label("opaqueLabel")
@@ -672,7 +672,7 @@ class ComponentDefaultsBehaviorTest {
 
         assertTrue(
             label.isOpaque,
-            "inherited default with PropertyInterference.OverwrittenOn must reassert when overwritten",
+            "inherited default with a rewriteOn property must reassert when overwritten",
         )
     }
 

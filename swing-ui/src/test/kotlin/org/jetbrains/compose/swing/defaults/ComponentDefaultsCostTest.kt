@@ -7,11 +7,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
-import org.jetbrains.compose.swing.modifier.PropertyAccessors
-import org.jetbrains.compose.swing.modifier.PropertyElement
+import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.applyDeclaredModifier
+import org.jetbrains.compose.swing.modifier.property
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.SwingNodeHolder
 import org.jetbrains.compose.swing.node.TestCompositionOwner
@@ -25,56 +25,41 @@ import kotlin.test.assertEquals
 import kotlin.test.assertSame
 
 class ComponentDefaultsCostTest {
-    /**
-     * Diagnostic property element that tracks property writes.
-     */
-    private class WriteTrackingElement(
-        propertyValue: String,
-        writeCounter: () -> Unit,
-    ) : PropertyElement<JLabel, String>(
-            JLabel::class.java,
-            PropertyAccessors(
-                name = "writeTracking",
-                read = { it.text },
-                write = { comp, v ->
-                    writeCounter()
-                    comp.text = v
-                },
-            ),
-            propertyValue,
-            inheritable = true,
-        )
-
     private fun SwingModifier.writeTracking(
         value: String,
         writeCounter: () -> Unit,
-    ): SwingModifier = this then WriteTrackingElement(value, writeCounter)
+    ): SwingModifier = property(
+        ComponentPropertyDescriptor<JLabel, String>(
+            name = "writeTracking",
+            read = { it.text },
+            write = { comp, v ->
+                writeCounter()
+                comp.text = v
+            },
+        ),
+        value,
+        inheritable = true,
+    )
 
     /**
-     * Diagnostic property element targeting [JButton] alone, so a component default built from it is
-     * filtered out of the chain a [JLabel] inherits.
+     * Diagnostic property targeting [JButton] alone, so a component default built from it is filtered
+     * out of the chain a [JLabel] inherits.
      */
-    private class ButtonWriteTrackingElement(
-        propertyValue: String,
-        writeCounter: () -> Unit,
-    ) : PropertyElement<JButton, String>(
-            JButton::class.java,
-            PropertyAccessors(
-                name = "buttonWriteTracking",
-                read = { it.text },
-                write = { comp, v ->
-                    writeCounter()
-                    comp.text = v
-                },
-            ),
-            propertyValue,
-            inheritable = true,
-        )
-
     private fun SwingModifier.buttonWriteTracking(
         value: String,
         writeCounter: () -> Unit,
-    ): SwingModifier = this then ButtonWriteTrackingElement(value, writeCounter)
+    ): SwingModifier = property(
+        ComponentPropertyDescriptor<JButton, String>(
+            name = "buttonWriteTracking",
+            read = { it.text },
+            write = { comp, v ->
+                writeCounter()
+                comp.text = v
+            },
+        ),
+        value,
+        inheritable = true,
+    )
 
     @Test
     fun noProviderVersusEmptyDefaultPathAllocatesNoEffectiveChainAndPerformsNoExtraWrites() = runComposeSwingTest {

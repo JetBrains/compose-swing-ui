@@ -4,6 +4,7 @@
 package org.jetbrains.compose.swing.components.layout
 
 import androidx.compose.runtime.Composable
+import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.RestorePolicy
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.property
@@ -50,20 +51,21 @@ public fun ToolBarSeparator(
  * Sizing only invalidates the separator, so the write asks for the layout pass that applies it. The
  * restore writes through this same lambda and needs that pass too.
  */
+private val SeparatorSizeProperty =
+    ComponentPropertyDescriptor<JToolBar.Separator, Dimension?>(
+        name = "separatorSize",
+        read = { it.separatorSize },
+        write = { separator, value ->
+            if (value != null) {
+                separator.separatorSize = value
+                separator.revalidate()
+            }
+        },
+    )
+
 private fun SwingModifier.declaredSeparatorSize(size: Dimension?): SwingModifier =
     if (size == null) {
         this
     } else {
-        property<JToolBar.Separator, Dimension?>(
-            name = "separatorSize",
-            value = size,
-            read = { it.separatorSize },
-            write = { separator, value ->
-                if (value != null) {
-                    separator.separatorSize = value
-                    separator.revalidate()
-                }
-            },
-            restores = RestorePolicy.None,
-        )
+        property(SeparatorSizeProperty, size, restores = RestorePolicy.None)
     }

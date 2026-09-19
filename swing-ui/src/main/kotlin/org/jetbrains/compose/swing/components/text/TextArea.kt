@@ -5,10 +5,10 @@ package org.jetbrains.compose.swing.components.text
 
 import androidx.compose.runtime.Composable
 import org.jetbrains.annotations.Nls
-import org.jetbrains.compose.swing.modifier.PropertyAccessors
-import org.jetbrains.compose.swing.modifier.PropertyElement
+import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.documentListener
+import org.jetbrains.compose.swing.modifier.property
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.rememberMirrorState
@@ -226,20 +226,27 @@ private const val DEFAULT_TAB_SIZE = 8
 private fun SwingModifier.tabSize(
     state: DocumentState,
     size: Int,
-): SwingModifier = this then TabSizeElement(state, size)
+): SwingModifier = property(TabSizeProperty, TabSizeValue(state, size))
 
-private class TabSizeElement(
-    private val state: DocumentState,
-    size: Int,
-) : PropertyElement<JTextArea, Int>(JTextArea::class.java, TabSizeProperty, size) {
-    override fun equals(other: Any?): Boolean = super.equals(other) && state === (other as TabSizeElement).state
+/**
+ * [state]'s document identity plus [size]: equal only for the same state and the same size, so a state
+ * swap forces the size to be written again even where the number is unchanged. A `JTextArea` holds its
+ * tab size on its document, and a size written before a document swap stays behind on the document the
+ * swap discards; making the declared value carry the state's identity is what has the framework's own
+ * equality check drive that rewrite.
+ */
+private class TabSizeValue(
+    private val state: DocumentState?,
+    val size: Int,
+) {
+    override fun equals(other: Any?): Boolean = other is TabSizeValue && state === other.state && size == other.size
 
-    override fun hashCode(): Int = 31 * super.hashCode() + System.identityHashCode(state)
+    override fun hashCode(): Int = 31 * System.identityHashCode(state) + size
 }
 
 private val TabSizeProperty =
-    PropertyAccessors<JTextArea, Int>(
+    ComponentPropertyDescriptor<JTextArea, TabSizeValue>(
         name = "tabSize",
-        read = { it.tabSize },
-        write = { area, size -> area.tabSize = size },
+        read = { TabSizeValue(state = null, size = it.tabSize) },
+        write = { area, value -> area.tabSize = value.size },
     )

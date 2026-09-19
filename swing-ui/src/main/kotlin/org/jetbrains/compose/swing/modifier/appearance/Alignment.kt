@@ -5,10 +5,10 @@ package org.jetbrains.compose.swing.modifier.appearance
 
 import org.jetbrains.compose.swing.annotations.HorizontalAlignment
 import org.jetbrains.compose.swing.annotations.VerticalAlignment
-import org.jetbrains.compose.swing.modifier.MultiTargetProperty
-import org.jetbrains.compose.swing.modifier.MultiTargetPropertyElement
+import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
+import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor.Companion.accessor
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.propertyCase
+import org.jetbrains.compose.swing.modifier.property
 import javax.swing.AbstractButton
 import javax.swing.JLabel
 import javax.swing.JTextField
@@ -27,7 +27,7 @@ import javax.swing.JTextField
  */
 public fun SwingModifier.horizontalAlignment(
     @HorizontalAlignment alignment: Int,
-): SwingModifier = this then MultiTargetPropertyElement(HorizontalAlignmentProperty, alignment, inheritable = true)
+): SwingModifier = property(HorizontalAlignmentProperty, alignment, inheritable = true)
 
 /**
  * Sets where a component's content sits along its height, when it is given more height than it needs.
@@ -43,33 +43,33 @@ public fun SwingModifier.horizontalAlignment(
  */
 public fun SwingModifier.verticalAlignment(
     @VerticalAlignment alignment: Int,
-): SwingModifier = this then MultiTargetPropertyElement(VerticalAlignmentProperty, alignment, inheritable = true)
+): SwingModifier = property(VerticalAlignmentProperty, alignment, inheritable = true)
 
 private val HorizontalAlignmentProperty =
-    MultiTargetProperty<Int>(
+    ComponentPropertyDescriptor(
         "horizontalAlignment",
-        propertyCase<JLabel, Int>(
+        accessor<JLabel, Int>(
             read = { it.horizontalAlignment },
             write = { component, value -> component.horizontalAlignment = value },
         ),
-        propertyCase<AbstractButton, Int>(
+        accessor<AbstractButton, Int>(
             read = { it.horizontalAlignment },
             write = { component, value -> component.horizontalAlignment = value },
         ),
-        propertyCase<JTextField, Int>(
+        accessor<JTextField, Int>(
             read = { it.horizontalAlignment },
             write = { component, value -> component.horizontalAlignment = value },
         ),
     )
 
 private val VerticalAlignmentProperty =
-    MultiTargetProperty<Int>(
+    ComponentPropertyDescriptor(
         "verticalAlignment",
-        propertyCase<JLabel, Int>(
+        accessor<JLabel, Int>(
             read = { it.verticalAlignment },
             write = { component, value -> component.verticalAlignment = value },
         ),
-        propertyCase<AbstractButton, Int>(
+        accessor<AbstractButton, Int>(
             read = { it.verticalAlignment },
             write = { component, value -> component.verticalAlignment = value },
         ),

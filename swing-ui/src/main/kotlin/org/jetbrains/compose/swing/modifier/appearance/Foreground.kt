@@ -3,9 +3,9 @@
 
 package org.jetbrains.compose.swing.modifier.appearance
 
-import org.jetbrains.compose.swing.modifier.PropertyAccessors
+import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.propertyElement
+import org.jetbrains.compose.swing.modifier.property
 import java.awt.Color
 import java.awt.Component
 import javax.swing.JComponent
@@ -19,10 +19,10 @@ import javax.swing.JComponent
  * @see java.awt.Component.setForeground
  */
 public fun SwingModifier.foreground(color: Color?): SwingModifier =
-    this then propertyElement(ForegroundProperty, color, inheritable = true)
+    property(ForegroundProperty, color, inheritable = true)
 
 private val ForegroundProperty =
-    PropertyAccessors<Component, Color?>(
+    ComponentPropertyDescriptor<Component, Color?>(
         name = "foreground",
         read = { if (it.isForegroundSet) it.foreground else null },
         write = { component, value ->

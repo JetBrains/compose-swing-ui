@@ -3,9 +3,9 @@
 
 package org.jetbrains.compose.swing.modifier.appearance
 
-import org.jetbrains.compose.swing.modifier.PropertyAccessors
+import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.propertyElement
+import org.jetbrains.compose.swing.modifier.property
 import java.awt.Component
 import java.awt.Font
 import javax.swing.JComponent
@@ -18,11 +18,10 @@ import javax.swing.JComponent
  * @return this modifier with the font declared on it.
  * @see java.awt.Component.setFont
  */
-public fun SwingModifier.font(font: Font?): SwingModifier =
-    this then propertyElement(FontProperty, font, inheritable = true)
+public fun SwingModifier.font(font: Font?): SwingModifier = property(FontProperty, font, inheritable = true)
 
 private val FontProperty =
-    PropertyAccessors<Component, Font?>(
+    ComponentPropertyDescriptor<Component, Font?>(
         name = "font",
         read = { if (it.isFontSet) it.font else null },
         write = { component, value ->

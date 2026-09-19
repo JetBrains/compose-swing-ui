@@ -4,11 +4,11 @@
 package org.jetbrains.compose.swing.modifier.appearance
 
 import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
-import org.jetbrains.compose.swing.modifier.PropertyAccessors
+import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.PropertyNode
 import org.jetbrains.compose.swing.modifier.RestorePolicy
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.propertyElement
+import org.jetbrains.compose.swing.modifier.property
 import org.jetbrains.compose.swing.util.Key
 import org.jetbrains.compose.swing.util.get
 import org.jetbrains.compose.swing.util.set
@@ -28,7 +28,7 @@ import javax.swing.JComponent
  * @return this modifier with the name declared on it.
  * @see java.awt.Component.setName
  */
-public fun SwingModifier.name(name: String?): SwingModifier = this then propertyElement(NameProperty, name)
+public fun SwingModifier.name(name: String?): SwingModifier = property(NameProperty, name)
 
 /**
  * Tags the component with [tag] so it can be located in tests independently of its name.
@@ -36,7 +36,7 @@ public fun SwingModifier.name(name: String?): SwingModifier = this then property
  * @param tag the identifier used to find the component.
  * @return this modifier with the test tag declared on it.
  */
-public fun SwingModifier.testTag(tag: String): SwingModifier = this then propertyElement(TestTagProperty, tag)
+public fun SwingModifier.testTag(tag: String): SwingModifier = property(TestTagProperty, tag)
 
 /**
  * The tag [testTag] set on this component, or `null` where it carries none: a component the modifier
@@ -54,7 +54,7 @@ public fun Component.testTagOrNull(): String? = (this as? JComponent)?.get(TEST_
 private val TEST_TAG_KEY: Key<String> = Key("org.jetbrains.compose.swing.testTag")
 
 private val TestTagProperty =
-    PropertyAccessors<JComponent, String?>(
+    ComponentPropertyDescriptor<JComponent, String?>(
         name = "testTag",
         read = { it[TEST_TAG_KEY] },
         write = { component, value -> component[TEST_TAG_KEY] = value },
@@ -126,7 +126,7 @@ private class ClientPropertyElement(
 }
 
 private val NameProperty =
-    PropertyAccessors<Component, String?>(
+    ComponentPropertyDescriptor<Component, String?>(
         name = "name",
         read = { it.name },
         write = { component, value -> component.name = value },

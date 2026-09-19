@@ -9,6 +9,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import org.jetbrains.compose.swing.annotations.Orientation
 import org.jetbrains.compose.swing.core.dispatchToCaller
+import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.hierarchyListener
 import org.jetbrains.compose.swing.modifier.property
@@ -198,17 +199,15 @@ public fun ToolBar(
  * Whether the user can drag the bar out. The `ToolBar.floatable` key cannot answer for it: a look and
  * feel writes the choice onto the bar itself, so the bar can carry one no key names.
  */
+private val FloatableProperty =
+    ComponentPropertyDescriptor<JToolBar, Boolean>(
+        name = "floatable",
+        read = { it.isFloatable },
+        write = { bar, value -> bar.isFloatable = value },
+    )
+
 private fun SwingModifier.declaredFloatable(floatable: Boolean?): SwingModifier =
-    if (floatable == null) {
-        this
-    } else {
-        property<JToolBar, Boolean>(
-            name = "floatable",
-            value = floatable,
-            read = { it.isFloatable },
-            write = { bar, value -> bar.isFloatable = value },
-        )
-    }
+    if (floatable == null) this else property(FloatableProperty, floatable)
 
 /**
  * Records a move of [bar] the composition did not make, so that a pass answering it is asked for: the

@@ -3,7 +3,7 @@
 
 package org.jetbrains.compose.swing.modifier.interaction
 
-import org.jetbrains.compose.swing.modifier.PropertyAccessors
+import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.CallbackBundle
 import org.jetbrains.compose.swing.modifier.listener.UNDECLARED
@@ -14,7 +14,7 @@ import org.jetbrains.compose.swing.modifier.listener.focusListener
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
 import org.jetbrains.compose.swing.modifier.listener.requireAnyDeclared
 import org.jetbrains.compose.swing.modifier.listener.sameCallback
-import org.jetbrains.compose.swing.modifier.propertyElement
+import org.jetbrains.compose.swing.modifier.property
 import java.awt.Component
 import java.awt.event.MouseEvent
 
@@ -25,8 +25,7 @@ import java.awt.event.MouseEvent
  * @return this chain with the focusability declared on it.
  * @see java.awt.Component.setFocusable
  */
-public fun SwingModifier.focusable(focusable: Boolean): SwingModifier =
-    this then propertyElement(FocusableProperty, focusable)
+public fun SwingModifier.focusable(focusable: Boolean): SwingModifier = property(FocusableProperty, focusable)
 
 /**
  * Sets `isEnabled` on **this component only** - whether it responds to user input and paints in its
@@ -40,7 +39,7 @@ public fun SwingModifier.focusable(focusable: Boolean): SwingModifier =
  * @see java.awt.Component.setEnabled
  */
 public fun SwingModifier.enabled(enabled: Boolean): SwingModifier =
-    this then propertyElement(EnabledProperty, enabled, inheritable = true)
+    property(EnabledProperty, enabled, inheritable = true)
 
 /**
  * Installs mouse enter/exit handlers.
@@ -115,14 +114,14 @@ public fun SwingModifier.onPointerEvent(
 }
 
 private val FocusableProperty =
-    PropertyAccessors<Component, Boolean>(
+    ComponentPropertyDescriptor<Component, Boolean>(
         name = "focusable",
         read = { it.isFocusable },
         write = { component, value -> component.isFocusable = value },
     )
 
 private val EnabledProperty =
-    PropertyAccessors<Component, Boolean>(
+    ComponentPropertyDescriptor<Component, Boolean>(
         name = "enabled",
         read = { it.isEnabled },
         write = { component, value -> component.isEnabled = value },

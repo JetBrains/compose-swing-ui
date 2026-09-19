@@ -3,9 +3,9 @@
 
 package org.jetbrains.compose.swing.modifier.appearance
 
-import org.jetbrains.compose.swing.modifier.PropertyAccessors
+import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.propertyElement
+import org.jetbrains.compose.swing.modifier.property
 import java.awt.Component
 import java.awt.Cursor
 
@@ -18,11 +18,10 @@ import java.awt.Cursor
  * @return this modifier with the cursor declared on it.
  * @see java.awt.Component.setCursor
  */
-public fun SwingModifier.cursor(cursor: Cursor?): SwingModifier =
-    this then propertyElement(CursorProperty, cursor, inheritable = true)
+public fun SwingModifier.cursor(cursor: Cursor?): SwingModifier = property(CursorProperty, cursor, inheritable = true)
 
 private val CursorProperty =
-    PropertyAccessors<Component, Cursor?>(
+    ComponentPropertyDescriptor<Component, Cursor?>(
         name = "cursor",
         read = { if (it.isCursorSet) it.cursor else null },
         write = { component, value -> component.cursor = value },

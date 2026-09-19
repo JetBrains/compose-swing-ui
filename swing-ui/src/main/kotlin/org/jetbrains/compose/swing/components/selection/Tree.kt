@@ -8,6 +8,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.annotations.TreeSelectionMode
+import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.RestorePolicy
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.property
@@ -886,6 +887,27 @@ private fun JTree.settleNarrowing(
  * writes none, and the delegate builds a fresh renderer of the look and feel in force - exactly what a
  * tree that never carried a composable node is given.
  */
+private val ShowsRootHandlesProperty =
+    ComponentPropertyDescriptor<JTree, Boolean>(
+        name = "showsRootHandles",
+        read = { it.showsRootHandles },
+        write = { tree, value -> tree.showsRootHandles = value },
+    )
+
+private val TreeRowHeightProperty =
+    ComponentPropertyDescriptor<JTree, Int>(
+        name = "rowHeight",
+        read = { it.rowHeight },
+        write = { tree, value -> tree.rowHeight = value },
+    )
+
+private val TreeCellRendererProperty =
+    ComponentPropertyDescriptor<JTree, TreeCellRenderer?>(
+        name = "cellRenderer",
+        read = { it.cellRenderer as? ComposingTreeCellRenderer<*> },
+        write = { tree, value -> tree.cellRenderer = value },
+    )
+
 private fun SwingModifier.uiOwnedProperties(
     showsRootHandles: Boolean?,
     rowHeight: Int?,
@@ -893,31 +915,13 @@ private fun SwingModifier.uiOwnedProperties(
 ): SwingModifier {
     var properties = this
     if (showsRootHandles != null) {
-        properties =
-            properties.property<JTree, Boolean>(
-                name = "showsRootHandles",
-                value = showsRootHandles,
-                read = { it.showsRootHandles },
-                write = { tree, value -> tree.showsRootHandles = value },
-            )
+        properties = properties.property(ShowsRootHandlesProperty, showsRootHandles)
     }
     if (rowHeight != null) {
-        properties =
-            properties.property<JTree, Int>(
-                name = "rowHeight",
-                value = rowHeight,
-                read = { it.rowHeight },
-                write = { tree, value -> tree.rowHeight = value },
-            )
+        properties = properties.property(TreeRowHeightProperty, rowHeight)
     }
     if (nodeRenderer != null) {
-        properties =
-            properties.property<JTree, TreeCellRenderer?>(
-                name = "cellRenderer",
-                value = nodeRenderer,
-                read = { it.cellRenderer as? ComposingTreeCellRenderer<*> },
-                write = { tree, value -> tree.cellRenderer = value },
-            )
+        properties = properties.property(TreeCellRendererProperty, nodeRenderer)
     }
     return properties
 }

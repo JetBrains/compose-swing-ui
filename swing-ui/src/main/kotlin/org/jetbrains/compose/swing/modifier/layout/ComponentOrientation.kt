@@ -3,9 +3,9 @@
 
 package org.jetbrains.compose.swing.modifier.layout
 
-import org.jetbrains.compose.swing.modifier.PropertyAccessors
+import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.propertyElement
+import org.jetbrains.compose.swing.modifier.property
 import java.awt.Component
 import java.awt.ComponentOrientation
 
@@ -23,10 +23,10 @@ import java.awt.ComponentOrientation
  * @see java.awt.Component.setComponentOrientation
  */
 public fun SwingModifier.componentOrientation(orientation: ComponentOrientation): SwingModifier =
-    this then propertyElement(ComponentOrientationProperty, orientation, inheritable = true)
+    property(ComponentOrientationProperty, orientation, inheritable = true)
 
 private val ComponentOrientationProperty =
-    PropertyAccessors<Component, ComponentOrientation>(
+    ComponentPropertyDescriptor<Component, ComponentOrientation>(
         name = "componentOrientation",
         read = { it.componentOrientation },
         // Honest Swing semantics: set on this component only; do not recurse to children.

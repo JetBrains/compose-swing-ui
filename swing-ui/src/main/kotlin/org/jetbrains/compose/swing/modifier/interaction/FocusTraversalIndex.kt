@@ -3,9 +3,9 @@
 
 package org.jetbrains.compose.swing.modifier.interaction
 
-import org.jetbrains.compose.swing.modifier.PropertyAccessors
+import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.propertyElement
+import org.jetbrains.compose.swing.modifier.property
 import org.jetbrains.compose.swing.util.Key
 import org.jetbrains.compose.swing.util.get
 import org.jetbrains.compose.swing.util.set
@@ -24,8 +24,7 @@ import javax.swing.LayoutFocusTraversalPolicy
  * @param index the traversal position.
  * @return this modifier with the traversal position declared on it.
  */
-public fun SwingModifier.focusTraversalIndex(index: Int): SwingModifier =
-    this then propertyElement(FocusTraversalIndexProperty, index)
+public fun SwingModifier.focusTraversalIndex(index: Int): SwingModifier = property(FocusTraversalIndexProperty, index)
 
 /**
  * Makes this container a focus-cycle root whose Tab order follows its children's
@@ -177,7 +176,7 @@ private fun compareSiblingOrder(
 }
 
 private val FocusTraversalIndexProperty =
-    PropertyAccessors<JComponent, Int?>(
+    ComponentPropertyDescriptor<JComponent, Int?>(
         name = "focusTraversalIndex",
         read = { it[FOCUS_TRAVERSAL_INDEX_KEY] },
         write = { component, value -> component[FOCUS_TRAVERSAL_INDEX_KEY] = value },

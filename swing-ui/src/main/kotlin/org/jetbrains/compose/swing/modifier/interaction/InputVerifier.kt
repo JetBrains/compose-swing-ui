@@ -3,9 +3,9 @@
 
 package org.jetbrains.compose.swing.modifier.interaction
 
-import org.jetbrains.compose.swing.modifier.PropertyAccessors
+import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.propertyElement
+import org.jetbrains.compose.swing.modifier.property
 import javax.swing.InputVerifier
 import javax.swing.JComponent
 
@@ -46,7 +46,7 @@ public fun SwingModifier.inputVerifier(verify: () -> Boolean): SwingModifier = t
  * @see javax.swing.JComponent.setVerifyInputWhenFocusTarget
  */
 public fun SwingModifier.verifyInputWhenFocusTarget(verify: Boolean): SwingModifier =
-    this then propertyElement(VerifyInputWhenFocusTargetProperty, verify)
+    property(VerifyInputWhenFocusTargetProperty, verify)
 
 /**
  * Installs one [InputVerifier] per node whose answer comes from the node's live predicate, so a fresh
@@ -100,7 +100,7 @@ private class InputVerifierElement(
 }
 
 private val VerifyInputWhenFocusTargetProperty =
-    PropertyAccessors<JComponent, Boolean>(
+    ComponentPropertyDescriptor<JComponent, Boolean>(
         name = "verifyInputWhenFocusTarget",
         read = { it.verifyInputWhenFocusTarget },
         write = { component, value -> component.verifyInputWhenFocusTarget = value },

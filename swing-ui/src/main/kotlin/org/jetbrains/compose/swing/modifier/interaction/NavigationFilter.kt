@@ -3,9 +3,9 @@
 
 package org.jetbrains.compose.swing.modifier.interaction
 
-import org.jetbrains.compose.swing.modifier.PropertyAccessors
+import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.propertyElement
+import org.jetbrains.compose.swing.modifier.property
 import javax.swing.JFormattedTextField
 import javax.swing.text.JTextComponent
 import javax.swing.text.NavigationFilter
@@ -33,10 +33,10 @@ import javax.swing.text.NavigationFilter
  * @see javax.swing.text.JTextComponent.setNavigationFilter
  */
 public fun SwingModifier.navigationFilter(filter: NavigationFilter?): SwingModifier =
-    this then propertyElement(NavigationFilterProperty, filter)
+    property(NavigationFilterProperty, filter)
 
 private val NavigationFilterProperty =
-    PropertyAccessors<JTextComponent, NavigationFilter?>(
+    ComponentPropertyDescriptor<JTextComponent, NavigationFilter?>(
         name = "navigationFilter",
         // The check sits in `read`, which the node calls once on attach: a component the declaration
         // cannot hold on to is rejected before the node captures a restore action for it.

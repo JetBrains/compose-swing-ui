@@ -3,9 +3,9 @@
 
 package org.jetbrains.compose.swing.modifier.interaction
 
-import org.jetbrains.compose.swing.modifier.PropertyAccessors
+import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.propertyElement
+import org.jetbrains.compose.swing.modifier.property
 import javax.swing.text.JTextComponent
 
 /**
@@ -25,11 +25,10 @@ import javax.swing.text.JTextComponent
  * @return this chain with the focus accelerator declared on it.
  * @see javax.swing.text.JTextComponent.setFocusAccelerator
  */
-public fun SwingModifier.focusAccelerator(key: Char): SwingModifier =
-    this then propertyElement(FocusAcceleratorProperty, key)
+public fun SwingModifier.focusAccelerator(key: Char): SwingModifier = property(FocusAcceleratorProperty, key)
 
 private val FocusAcceleratorProperty =
-    PropertyAccessors<JTextComponent, Char>(
+    ComponentPropertyDescriptor<JTextComponent, Char>(
         name = "focusAccelerator",
         read = { it.focusAccelerator },
         write = { component, value -> component.focusAccelerator = value },

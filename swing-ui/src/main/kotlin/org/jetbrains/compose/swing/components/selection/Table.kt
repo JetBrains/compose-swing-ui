@@ -8,6 +8,7 @@ import androidx.compose.runtime.remember
 import org.jetbrains.compose.swing.annotations.AutoResizeMode
 import org.jetbrains.compose.swing.annotations.SelectionMode
 import org.jetbrains.compose.swing.components.rememberDeclaredList
+import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.property
 import org.jetbrains.compose.swing.node.MirrorState
@@ -794,14 +795,12 @@ private inline fun TableNode(
  * One element carries the height for every [Table] overload, since a modifier element's slot is the
  * class of the accessor written here and two accessors would be two slots writing one property.
  */
+private val RowHeightProperty =
+    ComponentPropertyDescriptor<JTable, Int>(
+        name = "rowHeight",
+        read = { it.rowHeight },
+        write = { table, height -> table.rowHeight = height },
+    )
+
 private fun SwingModifier.tableRowHeight(rowHeight: Int?): SwingModifier =
-    if (rowHeight == null) {
-        this
-    } else {
-        property<JTable, Int>(
-            name = "rowHeight",
-            value = rowHeight,
-            read = { it.rowHeight },
-            write = { table, height -> table.rowHeight = height },
-        )
-    }
+    if (rowHeight == null) this else property(RowHeightProperty, rowHeight)

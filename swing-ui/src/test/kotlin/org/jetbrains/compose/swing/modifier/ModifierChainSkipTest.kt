@@ -55,6 +55,13 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
+private val DeclaredNameProperty =
+    ComponentPropertyDescriptor<JLabel, String?>(
+        name = "name",
+        read = { it.name },
+        write = { label, value -> label.name = value },
+    )
+
 /**
  * What a pass costs a modifier whose declaration did not change, measured through a user-authored element
  * that counts what the diff asks of it.
@@ -533,12 +540,7 @@ class ModifierChainSkipTest {
         )
     }
 
-    private fun SwingModifier.declaredName(name: String): SwingModifier = property<JLabel, String?>(
-        name = "name",
-        value = name,
-        read = { it.name },
-        write = { label, value -> label.name = value },
-    )
+    private fun SwingModifier.declaredName(name: String): SwingModifier = property(DeclaredNameProperty, name)
 
     /**
      * Declares what [declare] builds from a receiver, replaces that receiver with an equal but distinct one,

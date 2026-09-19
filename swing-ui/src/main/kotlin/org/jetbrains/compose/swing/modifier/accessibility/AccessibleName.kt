@@ -4,9 +4,10 @@
 package org.jetbrains.compose.swing.modifier.accessibility
 
 import org.jetbrains.annotations.Nls
-import org.jetbrains.compose.swing.modifier.PropertyAccessors
+import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
+import org.jetbrains.compose.swing.modifier.RestorePolicy
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.derivedPropertyElement
+import org.jetbrains.compose.swing.modifier.property
 import java.awt.Component
 
 /**
@@ -25,10 +26,10 @@ import java.awt.Component
  * @see javax.accessibility.AccessibleContext.setAccessibleName
  */
 public fun SwingModifier.accessibleName(name: @Nls String?): SwingModifier =
-    this then derivedPropertyElement(AccessibleNameProperty, name)
+    property(AccessibleNameProperty, name, restores = RestorePolicy.None)
 
 private val AccessibleNameProperty =
-    PropertyAccessors<Component, String?>(
+    ComponentPropertyDescriptor<Component, String?>(
         name = "accessibleName",
         read = { it.accessibleContext?.declaredAccessibleName() },
         write = { component, value -> component.accessibleContext?.accessibleName = value },

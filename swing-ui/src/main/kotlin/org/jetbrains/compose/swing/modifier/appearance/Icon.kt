@@ -3,14 +3,11 @@
 
 package org.jetbrains.compose.swing.modifier.appearance
 
-import org.jetbrains.compose.swing.modifier.MultiTargetProperty
-import org.jetbrains.compose.swing.modifier.MultiTargetPropertyElement
-import org.jetbrains.compose.swing.modifier.PropertyAccessors
-import org.jetbrains.compose.swing.modifier.PropertyInterference
+import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
+import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor.Companion.accessor
 import org.jetbrains.compose.swing.modifier.RestorePolicy
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.propertyCase
-import org.jetbrains.compose.swing.modifier.propertyElement
+import org.jetbrains.compose.swing.modifier.property
 import javax.swing.AbstractButton
 import javax.swing.Icon
 import javax.swing.JLabel
@@ -40,7 +37,8 @@ import javax.swing.plaf.UIResource
  * @see javax.swing.JLabel.setIcon
  * @see javax.swing.AbstractButton.setIcon
  */
-public fun SwingModifier.icon(icon: Icon?): SwingModifier = this then IconElement(icon)
+public fun SwingModifier.icon(icon: Icon?): SwingModifier =
+    property(IconProperty, icon, restores = RestorePolicy.DeclaredPropertyOnly)
 
 /**
  * Sets the icon a button displays while it is held down; `null` falls back to the base icon. Applies
@@ -52,7 +50,7 @@ public fun SwingModifier.icon(icon: Icon?): SwingModifier = this then IconElemen
  * @return this modifier with the pressed icon declared on it.
  * @see javax.swing.AbstractButton.setPressedIcon
  */
-public fun SwingModifier.pressedIcon(icon: Icon?): SwingModifier = this then propertyElement(PressedIconProperty, icon)
+public fun SwingModifier.pressedIcon(icon: Icon?): SwingModifier = property(PressedIconProperty, icon)
 
 /**
  * Sets the icon a button displays while it is selected - a checked check box, an on toggle button;
@@ -63,8 +61,7 @@ public fun SwingModifier.pressedIcon(icon: Icon?): SwingModifier = this then pro
  * @return this modifier with the selected icon declared on it.
  * @see javax.swing.AbstractButton.setSelectedIcon
  */
-public fun SwingModifier.selectedIcon(icon: Icon?): SwingModifier =
-    this then propertyElement(SelectedIconProperty, icon)
+public fun SwingModifier.selectedIcon(icon: Icon?): SwingModifier = property(SelectedIconProperty, icon)
 
 /**
  * Sets the icon a button displays while it is disabled; `null` hands the state back to the look and
@@ -76,15 +73,14 @@ public fun SwingModifier.selectedIcon(icon: Icon?): SwingModifier =
  * @see javax.swing.AbstractButton.setDisabledIcon
  */
 public fun SwingModifier.disabledIcon(icon: Icon?): SwingModifier =
-    this then
-        propertyElement(
-            DisabledIconProperty,
-            icon,
-            // Replacing the base icon drops a disabled icon that is a `UIResource`, a declared one
-            // included, and announces the base icon rather than the drop. A look and feel change drops
-            // such an icon too, after announcing the look and feel it took, and leaves it dropped.
-            interference = PropertyInterference.OverwrittenOn("icon"),
-        )
+    property(
+        DisabledIconProperty,
+        icon,
+        // Replacing the base icon drops a disabled icon that is a `UIResource`, a declared one
+        // included, and announces the base icon rather than the drop. A look and feel change drops
+        // such an icon too, after announcing the look and feel it took, and leaves it dropped.
+        rewriteOn = "icon",
+    )
 
 /**
  * Sets the icon a button displays while it is both disabled and selected; `null` hands the state back
@@ -96,14 +92,13 @@ public fun SwingModifier.disabledIcon(icon: Icon?): SwingModifier =
  * @see javax.swing.AbstractButton.setDisabledSelectedIcon
  */
 public fun SwingModifier.disabledSelectedIcon(icon: Icon?): SwingModifier =
-    this then
-        propertyElement(
-            DisabledSelectedIconProperty,
-            icon,
-            // Replacing the selected icon drops a disabled selected icon that is a `UIResource`, as
-            // [disabledIcon] describes for the base icon.
-            interference = PropertyInterference.OverwrittenOn("selectedIcon"),
-        )
+    property(
+        DisabledSelectedIconProperty,
+        icon,
+        // Replacing the selected icon drops a disabled selected icon that is a `UIResource`, as
+        // [disabledIcon] describes for the base icon.
+        rewriteOn = "selectedIcon",
+    )
 
 /**
  * Sets the icon a button displays while the pointer is over it; `null` falls back to the base icon.
@@ -115,14 +110,13 @@ public fun SwingModifier.disabledSelectedIcon(icon: Icon?): SwingModifier =
  * @see javax.swing.AbstractButton.setRolloverIcon
  */
 public fun SwingModifier.rolloverIcon(icon: Icon?): SwingModifier =
-    this then
-        propertyElement(
-            RolloverIconProperty,
-            icon,
-            // `setRolloverIcon` switches rollover painting on whatever it is handed, the `null` a
-            // removal writes included.
-            interference = PropertyInterference.AlsoOverwrites(RolloverEnabledProperty),
-        )
+    property(
+        RolloverIconProperty,
+        icon,
+        // `setRolloverIcon` switches rollover painting on whatever it is handed, the `null` a
+        // removal writes included.
+        alsoOverwrites = listOf(RolloverEnabledProperty),
+    )
 
 /**
  * Sets the icon a button displays while the pointer is over it and it is selected; `null` falls back to
@@ -133,13 +127,12 @@ public fun SwingModifier.rolloverIcon(icon: Icon?): SwingModifier =
  * @see javax.swing.AbstractButton.setRolloverSelectedIcon
  */
 public fun SwingModifier.rolloverSelectedIcon(icon: Icon?): SwingModifier =
-    this then
-        propertyElement(
-            RolloverSelectedIconProperty,
-            icon,
-            // Switches rollover painting on whatever it is handed, as [rolloverIcon] describes.
-            interference = PropertyInterference.AlsoOverwrites(RolloverEnabledProperty),
-        )
+    property(
+        RolloverSelectedIconProperty,
+        icon,
+        // Switches rollover painting on whatever it is handed, as [rolloverIcon] describes.
+        alsoOverwrites = listOf(RolloverEnabledProperty),
+    )
 
 /**
  * This icon where the button holds it as its own, and `null` where the look and feel derived it - which
@@ -151,48 +144,44 @@ public fun SwingModifier.rolloverSelectedIcon(icon: Icon?): SwingModifier =
  */
 private fun Icon?.ownIcon(): Icon? = takeUnless { it is UIResource }
 
-/** A look and feel styles a component for whether it carries an icon at all. */
-private class IconElement(
-    icon: Icon?,
-) : MultiTargetPropertyElement<Icon?>(IconProperty, icon) {
-    override val restores: RestorePolicy get() = RestorePolicy.DeclaredPropertyOnly
-}
-
 /**
  * `JLabel` and `AbstractButton` each declare `icon` for themselves; the class they share declares no
  * such property, so the two accessors are named separately. One case for `AbstractButton` covers every
  * button and every menu item, since all of them are built on it.
  */
 private val IconProperty =
-    MultiTargetProperty<Icon?>(
+    ComponentPropertyDescriptor(
         "icon",
-        propertyCase<JLabel, Icon?>(read = { it.icon }, write = { component, value -> component.icon = value }),
-        propertyCase<AbstractButton, Icon?>(read = { it.icon }, write = { component, value -> component.icon = value }),
+        accessor<JLabel, Icon?>(read = { it.icon }, write = { component, value -> component.icon = value }),
+        accessor<AbstractButton, Icon?>(
+            read = { it.icon },
+            write = { component, value -> component.icon = value },
+        ),
     )
 
 private val PressedIconProperty =
-    PropertyAccessors<AbstractButton, Icon?>(
+    ComponentPropertyDescriptor<AbstractButton, Icon?>(
         name = "pressedIcon",
         read = { it.pressedIcon },
         write = { component, value -> component.pressedIcon = value },
     )
 
 private val SelectedIconProperty =
-    PropertyAccessors<AbstractButton, Icon?>(
+    ComponentPropertyDescriptor<AbstractButton, Icon?>(
         name = "selectedIcon",
         read = { it.selectedIcon },
         write = { component, value -> component.selectedIcon = value },
     )
 
 private val DisabledIconProperty =
-    PropertyAccessors<AbstractButton, Icon?>(
+    ComponentPropertyDescriptor<AbstractButton, Icon?>(
         name = "disabledIcon",
         read = { it.disabledIcon.ownIcon() },
         write = { component, value -> component.disabledIcon = value },
     )
 
 private val DisabledSelectedIconProperty =
-    PropertyAccessors<AbstractButton, Icon?>(
+    ComponentPropertyDescriptor<AbstractButton, Icon?>(
         name = "disabledSelectedIcon",
         read = {
             val own = it.disabledSelectedIcon
@@ -204,14 +193,14 @@ private val DisabledSelectedIconProperty =
     )
 
 private val RolloverIconProperty =
-    PropertyAccessors<AbstractButton, Icon?>(
+    ComponentPropertyDescriptor<AbstractButton, Icon?>(
         name = "rolloverIcon",
         read = { it.rolloverIcon },
         write = { component, value -> component.rolloverIcon = value },
     )
 
 private val RolloverSelectedIconProperty =
-    PropertyAccessors<AbstractButton, Icon?>(
+    ComponentPropertyDescriptor<AbstractButton, Icon?>(
         name = "rolloverSelectedIcon",
         read = { it.rolloverSelectedIcon },
         write = { component, value -> component.rolloverSelectedIcon = value },

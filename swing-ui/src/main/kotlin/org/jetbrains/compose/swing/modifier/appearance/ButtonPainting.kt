@@ -3,13 +3,10 @@
 
 package org.jetbrains.compose.swing.modifier.appearance
 
-import org.jetbrains.compose.swing.modifier.MultiTargetProperty
-import org.jetbrains.compose.swing.modifier.MultiTargetPropertyElement
-import org.jetbrains.compose.swing.modifier.PropertyAccessors
-import org.jetbrains.compose.swing.modifier.PropertyInterference
+import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
+import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor.Companion.accessor
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.propertyCase
-import org.jetbrains.compose.swing.modifier.propertyElement
+import org.jetbrains.compose.swing.modifier.property
 import javax.swing.AbstractButton
 import javax.swing.JMenuBar
 import javax.swing.JPopupMenu
@@ -38,8 +35,7 @@ import javax.swing.JToolBar
  * @see javax.swing.JMenuBar.setBorderPainted
  * @see javax.swing.JPopupMenu.setBorderPainted
  */
-public fun SwingModifier.borderPainted(painted: Boolean): SwingModifier =
-    this then MultiTargetPropertyElement(BorderPaintedProperty, painted)
+public fun SwingModifier.borderPainted(painted: Boolean): SwingModifier = property(BorderPaintedProperty, painted)
 
 /**
  * Sets whether a button fills the area behind its content. Applies to everything built on a button.
@@ -57,12 +53,7 @@ public fun SwingModifier.borderPainted(painted: Boolean): SwingModifier =
  * @see javax.swing.AbstractButton.setContentAreaFilled
  */
 public fun SwingModifier.contentAreaFilled(filled: Boolean): SwingModifier =
-    this then
-        propertyElement(
-            ContentAreaFilledProperty,
-            filled,
-            interference = PropertyInterference.AlsoOverwrites(OpaqueProperty),
-        )
+    property(ContentAreaFilledProperty, filled, alsoOverwrites = listOf(ButtonOpaqueProperty))
 
 /**
  * Sets whether a button paints its rollover state - the look it takes while the pointer is over it.
@@ -78,14 +69,13 @@ public fun SwingModifier.contentAreaFilled(filled: Boolean): SwingModifier =
  * @see javax.swing.AbstractButton.setRolloverEnabled
  */
 public fun SwingModifier.rolloverEnabled(enabled: Boolean): SwingModifier =
-    this then
-        propertyElement(
-            RolloverEnabledProperty,
-            enabled,
-            // Writing either rollover icon switches the state on after announcing the icon, so the
-            // icon's own announcement comes too early to answer.
-            interference = PropertyInterference.OverwrittenOn("rolloverEnabled"),
-        )
+    property(
+        RolloverEnabledProperty,
+        enabled,
+        // Writing either rollover icon switches the state on after announcing the icon, so the
+        // icon's own announcement comes too early to answer.
+        rewriteOn = "rolloverEnabled",
+    )
 
 /**
  * Sets whether a button paints the indicator showing it holds keyboard focus. Applies to everything
@@ -99,8 +89,7 @@ public fun SwingModifier.rolloverEnabled(enabled: Boolean): SwingModifier =
  * @return this modifier with focus painting declared on it.
  * @see javax.swing.AbstractButton.setFocusPainted
  */
-public fun SwingModifier.focusPainted(painted: Boolean): SwingModifier =
-    this then propertyElement(FocusPaintedProperty, painted)
+public fun SwingModifier.focusPainted(painted: Boolean): SwingModifier = property(FocusPaintedProperty, painted)
 
 /**
  * Each of these types declares `borderPainted` for itself; the classes they share declare no such
@@ -112,25 +101,25 @@ public fun SwingModifier.focusPainted(painted: Boolean): SwingModifier =
  * types answer one with a repaint of a component that looks no different.
  */
 private val BorderPaintedProperty =
-    MultiTargetProperty<Boolean>(
+    ComponentPropertyDescriptor(
         "borderPainted",
-        propertyCase<AbstractButton, Boolean>(
+        accessor<AbstractButton, Boolean>(
             read = { it.isBorderPainted },
             write = { component, value -> if (component.isBorderPainted != value) component.isBorderPainted = value },
         ),
-        propertyCase<JProgressBar, Boolean>(
+        accessor<JProgressBar, Boolean>(
             read = { it.isBorderPainted },
             write = { component, value -> if (component.isBorderPainted != value) component.isBorderPainted = value },
         ),
-        propertyCase<JToolBar, Boolean>(
+        accessor<JToolBar, Boolean>(
             read = { it.isBorderPainted },
             write = { component, value -> if (component.isBorderPainted != value) component.isBorderPainted = value },
         ),
-        propertyCase<JMenuBar, Boolean>(
+        accessor<JMenuBar, Boolean>(
             read = { it.isBorderPainted },
             write = { component, value -> if (component.isBorderPainted != value) component.isBorderPainted = value },
         ),
-        propertyCase<JPopupMenu, Boolean>(
+        accessor<JPopupMenu, Boolean>(
             read = { it.isBorderPainted },
             write = { component, value -> if (component.isBorderPainted != value) component.isBorderPainted = value },
         ),
@@ -138,7 +127,7 @@ private val BorderPaintedProperty =
 
 /** The switch's own accessors. The write is latched by the first, as a button's border painting is. */
 internal val RolloverEnabledProperty =
-    PropertyAccessors<AbstractButton, Boolean>(
+    ComponentPropertyDescriptor<AbstractButton, Boolean>(
         name = "rolloverEnabled",
         read = { it.isRolloverEnabled },
         write = { component, value ->
@@ -147,7 +136,7 @@ internal val RolloverEnabledProperty =
     )
 
 private val ContentAreaFilledProperty =
-    PropertyAccessors<AbstractButton, Boolean>(
+    ComponentPropertyDescriptor<AbstractButton, Boolean>(
         name = "contentAreaFilled",
         read = { it.isContentAreaFilled },
         // Latched by the first write, as a button's border painting is.
@@ -157,8 +146,14 @@ private val ContentAreaFilledProperty =
     )
 
 private val FocusPaintedProperty =
-    PropertyAccessors<AbstractButton, Boolean>(
+    ComponentPropertyDescriptor<AbstractButton, Boolean>(
         name = "focusPainted",
         read = { it.isFocusPainted },
         write = { component, value -> component.isFocusPainted = value },
+    )
+private val ButtonOpaqueProperty =
+    ComponentPropertyDescriptor<AbstractButton, Boolean?>(
+        name = "opaque",
+        read = { it.isOpaque },
+        write = { component, value -> value?.let { component.isOpaque = it } },
     )

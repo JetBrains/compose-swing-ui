@@ -5,6 +5,7 @@ package org.jetbrains.compose.swing.components.layout
 
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.annotations.SplitOrientation
+import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.propertyChangeListener
 import org.jetbrains.compose.swing.modifier.property
@@ -211,28 +212,30 @@ private inline fun SplitPaneImpl(
  * pane is already carrying, read straight off it, rather than re-deriving either from the look and
  * feel's own defaults.
  */
+private val OneTouchExpandableProperty =
+    ComponentPropertyDescriptor<JSplitPane, Boolean>(
+        name = "oneTouchExpandable",
+        read = { it.isOneTouchExpandable },
+        write = { pane, value -> pane.isOneTouchExpandable = value },
+    )
+
+private val DividerSizeProperty =
+    ComponentPropertyDescriptor<JSplitPane, Int>(
+        name = "dividerSize",
+        read = { it.dividerSize },
+        write = { pane, value -> pane.dividerSize = value },
+    )
+
 private fun SwingModifier.declaredPaneProperties(
     oneTouchExpandable: Boolean?,
     dividerSize: Int?,
 ): SwingModifier {
     var properties = this
     if (oneTouchExpandable != null) {
-        properties =
-            properties.property<JSplitPane, Boolean>(
-                name = "oneTouchExpandable",
-                value = oneTouchExpandable,
-                read = { it.isOneTouchExpandable },
-                write = { pane, value -> pane.isOneTouchExpandable = value },
-            )
+        properties = properties.property(OneTouchExpandableProperty, oneTouchExpandable)
     }
     if (dividerSize != null) {
-        properties =
-            properties.property<JSplitPane, Int>(
-                name = "dividerSize",
-                value = dividerSize,
-                read = { it.dividerSize },
-                write = { pane, value -> pane.dividerSize = value },
-            )
+        properties = properties.property(DividerSizeProperty, dividerSize)
     }
     return properties
 }

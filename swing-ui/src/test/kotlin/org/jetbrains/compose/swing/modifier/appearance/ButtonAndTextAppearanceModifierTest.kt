@@ -227,6 +227,37 @@ class ButtonAndTextAppearanceModifierTest {
     }
 
     @Test
+    fun applyingAndRemovingOpaqueAndContentAreaFilledTogetherRestoresTheOriginalFlag() = runComposeSwingTest {
+        underMetal {
+            // contentAreaFilled's handle names "opaque" in its alsoOverwrites, so its slot shares one
+            // restore hold with opaque's own declared slot even though the two are independent
+            // declarations - proving the hold is shared by name, not by which handle instance wrote it.
+            var declared by mutableStateOf(false)
+            setContent {
+                SwingNode(
+                    factory = { JButton("Save") },
+                    modifier =
+                        if (declared) {
+                            SwingModifier.opaque(true).contentAreaFilled(false)
+                        } else {
+                            SwingModifier
+                        },
+                )
+            }
+
+            val button = onNodeOfType<JButton>().fetch()
+            val original = button.isOpaque
+
+            declared = true
+            awaitIdle()
+            declared = false
+            awaitIdle()
+
+            assertEquals(original, button.isOpaque, "removing both restores the flag the button was built with")
+        }
+    }
+
+    @Test
     fun droppingTheOpaqueFlagLeavesAMenuItemCarryingItsOwn() = runComposeSwingTest {
         var declared by mutableStateOf(true)
         val popup =

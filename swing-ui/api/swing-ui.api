@@ -710,6 +710,23 @@ public abstract interface class org/jetbrains/compose/swing/layout/SlotAttachmen
 	public abstract fun install (Ljava/awt/Container;Ljava/awt/Component;I)Lkotlin/jvm/functions/Function0;
 }
 
+public final class org/jetbrains/compose/swing/modifier/ComponentPropertyDescriptor {
+	public static final field $stable I
+	public static final field Companion Lorg/jetbrains/compose/swing/modifier/ComponentPropertyDescriptor$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/Class;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function1;)V
+	public final fun getName ()Ljava/lang/String;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class org/jetbrains/compose/swing/modifier/ComponentPropertyDescriptor$Companion {
+	public final fun invoke (Ljava/lang/String;[Lorg/jetbrains/compose/swing/modifier/ComponentPropertyDescriptor$ComponentPropertyAccessor;)Lorg/jetbrains/compose/swing/modifier/ComponentPropertyDescriptor;
+}
+
+public final class org/jetbrains/compose/swing/modifier/ComponentPropertyDescriptor$ComponentPropertyAccessor {
+	public static final field $stable I
+	public fun <init> (Ljava/lang/Class;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;)V
+}
+
 public final class org/jetbrains/compose/swing/modifier/ComposedModifierKt {
 	public static final fun composed (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function3;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static final fun materialize (Landroidx/compose/runtime/Composer;Lorg/jetbrains/compose/swing/modifier/SwingModifier;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
@@ -799,8 +816,8 @@ public final class org/jetbrains/compose/swing/modifier/SwingModifierKt {
 	public static final fun applyCompositionLocalMap-pWFREzI (Landroidx/compose/runtime/Composer;Landroidx/compose/runtime/CompositionLocalMap;)V
 	public static final fun applyModifier-7gJpb6k (Landroidx/compose/runtime/Composer;Landroidx/compose/runtime/CompositionLocalMap;Lorg/jetbrains/compose/swing/modifier/SwingModifier;)V
 	public static final fun key (Lorg/jetbrains/compose/swing/modifier/SwingModifier;[Ljava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
-	public static final fun property-l-gV6mU (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/reflect/KClass;Ljava/lang/String;Ljava/lang/Object;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;I)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
-	public static synthetic fun property-l-gV6mU$default (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/reflect/KClass;Ljava/lang/String;Ljava/lang/Object;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;IILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun property-zFZRf9k (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/modifier/ComponentPropertyDescriptor;Ljava/lang/Object;IZLjava/lang/String;Ljava/util/List;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static synthetic fun property-zFZRf9k$default (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/modifier/ComponentPropertyDescriptor;Ljava/lang/Object;IZLjava/lang/String;Ljava/util/List;ILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 }
 
 public final class org/jetbrains/compose/swing/modifier/accessibility/AccessibilityModifierKt {
@@ -1272,4 +1289,3 @@ public final class org/jetbrains/compose/swing/window/WindowState {
 	public final fun setSize (Ljava/awt/Dimension;)V
 	public final fun setWidth (I)V
 }
-

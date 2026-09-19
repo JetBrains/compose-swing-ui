@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import org.jetbrains.compose.swing.annotations.HorizontalScrollbarPolicy
 import org.jetbrains.compose.swing.annotations.VerticalScrollbarPolicy
+import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.property
 import org.jetbrains.compose.swing.node.SwingNode
@@ -98,18 +99,16 @@ public fun ScrollPane(
  * write asks for both halves itself: the pane's layout takes the viewport in by the border's insets, and
  * the border is drawn in the room that leaves.
  */
+private val ViewportBorderProperty =
+    ComponentPropertyDescriptor<JScrollPane, Border?>(
+        name = "viewportBorder",
+        read = { it.viewportBorder },
+        write = { pane, value ->
+            pane.viewportBorder = value
+            pane.revalidate()
+            pane.repaint()
+        },
+    )
+
 private fun SwingModifier.declaredViewportBorder(border: Border?): SwingModifier =
-    if (border == null) {
-        this
-    } else {
-        property<JScrollPane, Border?>(
-            name = "viewportBorder",
-            value = border,
-            read = { it.viewportBorder },
-            write = { pane, value ->
-                pane.viewportBorder = value
-                pane.revalidate()
-                pane.repaint()
-            },
-        )
-    }
+    if (border == null) this else property(ViewportBorderProperty, border)

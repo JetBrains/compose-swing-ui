@@ -3,11 +3,12 @@
 
 package org.jetbrains.compose.swing.modifier.accessibility
 
-import org.jetbrains.compose.swing.modifier.MultiTargetProperty
-import org.jetbrains.compose.swing.modifier.MultiTargetPropertyElement
+import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
+import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor.Companion.accessor
 import org.jetbrains.compose.swing.modifier.RestorePolicy
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.propertyCase
+import org.jetbrains.compose.swing.modifier.property
+import java.awt.Component
 import java.awt.event.KeyEvent
 import javax.swing.AbstractButton
 import javax.swing.JLabel
@@ -33,8 +34,7 @@ import javax.swing.JLabel
  * @see javax.swing.AbstractButton.setMnemonic
  * @see javax.swing.JLabel.setDisplayedMnemonic
  */
-public fun SwingModifier.mnemonic(keyCode: Int): SwingModifier =
-    this then MultiTargetPropertyElement(MnemonicProperty, keyCode)
+public fun SwingModifier.mnemonic(keyCode: Int): SwingModifier = property(MnemonicProperty, keyCode)
 
 /**
  * Sets the keyboard mnemonic to the key that types [mnemonic], resolved with
@@ -76,42 +76,42 @@ public fun SwingModifier.displayedMnemonicIndex(index: Int): SwingModifier =
  * the accessors are named separately.
  */
 private val MnemonicProperty =
-    MultiTargetProperty<Int>(
+    ComponentPropertyDescriptor(
         "mnemonic",
-        propertyCase<AbstractButton, Int>(
+        accessor<AbstractButton, Int>(
             read = { it.mnemonic },
             write = { component, value -> component.mnemonic = value },
         ),
-        propertyCase<JLabel, Int>(
+        accessor<JLabel, Int>(
             read = { it.displayedMnemonic },
             write = { component, value -> component.displayedMnemonic = value },
         ),
     )
 
-/**
- * The same pair of targets as [MnemonicProperty], here under a name both of them share.
- *
- * Neither widget holds an index of its own, so the read answers `null`. Writing `null` hands the text
- * back to the widget, which derives the index a widget that never carried the modifier holds.
- */
-private val DisplayedMnemonicIndexProperty =
-    MultiTargetProperty<Int?>(
-        "displayedMnemonicIndex",
-        propertyCase<AbstractButton, Int?>(
-            read = { null },
-            write = { component, value ->
-                // setText derives the index again whatever text it is called with, and an equal text is
-                // no change to announce or lay out for.
-                if (value == null) component.text = component.text else component.displayedMnemonicIndex = value
-            },
-        ),
-        propertyCase<JLabel, Int?>(
-            read = { null },
-            write = { component, value ->
-                if (value == null) component.text = component.text else component.displayedMnemonicIndex = value
-            },
-        ),
-    )
+private class DisplayedMnemonicIndexNode : SwingModifier.ComponentNode<Component>() {
+    var index: Int = -1
+
+    fun apply(newIndex: Int) {
+        index = newIndex
+        write(newIndex)
+    }
+
+    override fun onAttach() {
+        write(index)
+    }
+
+    override fun onDetach() {
+        write(null)
+    }
+
+    private fun write(value: Int?) {
+        when (val c = component) {
+            is AbstractButton -> if (value == null) c.text = c.text else c.displayedMnemonicIndex = value
+            is JLabel -> if (value == null) c.text = c.text else c.displayedMnemonicIndex = value
+            else -> error("displayedMnemonicIndex applies to AbstractButton or JLabel, got: ${c.javaClass.name}")
+        }
+    }
+}
 
 /**
  * The element [displayedMnemonicIndex] declares. An index unchanged since the last pass is still due to
@@ -123,9 +123,23 @@ private val DisplayedMnemonicIndexProperty =
  * on the pass instead puts the index in after the text it indexes into.
  */
 private class DisplayedMnemonicIndexElement(
-    index: Int,
-) : MultiTargetPropertyElement<Int?>(DisplayedMnemonicIndexProperty, index) {
+    private val index: Int,
+) : SwingModifier.NodeElement<Component, DisplayedMnemonicIndexNode>() {
+    override val targetType: Class<Component> get() = Component::class.java
+
+    override val name: String get() = "displayedMnemonicIndex"
+
+    override val key: Any get() = "displayedMnemonicIndex"
+
     override val restores: RestorePolicy get() = RestorePolicy.None
+
+    override val declaredValues: Map<String, Any?> get() = mapOf(name to index)
+
+    override fun create(): DisplayedMnemonicIndexNode = DisplayedMnemonicIndexNode()
+
+    override fun update(node: DisplayedMnemonicIndexNode) {
+        node.apply(index)
+    }
 
     override fun equals(other: Any?): Boolean = this === other
 

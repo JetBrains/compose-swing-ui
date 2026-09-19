@@ -3,9 +3,10 @@
 
 package org.jetbrains.compose.swing.modifier.layout
 
-import org.jetbrains.compose.swing.modifier.PropertyAccessors
+import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
+import org.jetbrains.compose.swing.modifier.RestorePolicy
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.derivedPropertyElement
+import org.jetbrains.compose.swing.modifier.property
 import java.awt.Component
 import java.awt.LayoutManager2
 import javax.swing.JComponent
@@ -28,7 +29,7 @@ import javax.swing.JComponent
  * @see javax.swing.JComponent.setAlignmentX
  */
 public fun SwingModifier.alignmentX(value: Float): SwingModifier =
-    this then derivedPropertyElement(AlignmentXProperty, value)
+    property(AlignmentXProperty, value, restores = RestorePolicy.None)
 
 /**
  * Sets the vertical alignment along the y axis, where `0.0` aligns to the top, `0.5` centers, and
@@ -43,7 +44,7 @@ public fun SwingModifier.alignmentX(value: Float): SwingModifier =
  * @see javax.swing.JComponent.setAlignmentY
  */
 public fun SwingModifier.alignmentY(value: Float): SwingModifier =
-    this then derivedPropertyElement(AlignmentYProperty, value)
+    property(AlignmentYProperty, value, restores = RestorePolicy.None)
 
 /**
  * The horizontal alignment the component's own layout manager derives - only a `LayoutManager2` derives
@@ -58,7 +59,7 @@ private val JComponent.layoutAlignmentY: Float
     get() = (layout as? LayoutManager2)?.getLayoutAlignmentY(this) ?: Component.CENTER_ALIGNMENT
 
 private val AlignmentXProperty =
-    PropertyAccessors<JComponent, Float?>(
+    ComponentPropertyDescriptor<JComponent, Float?>(
         name = "alignmentX",
         read = { if (it.alignmentX == it.layoutAlignmentX) null else it.alignmentX },
         write = { component, alignment ->
@@ -68,7 +69,7 @@ private val AlignmentXProperty =
     )
 
 private val AlignmentYProperty =
-    PropertyAccessors<JComponent, Float?>(
+    ComponentPropertyDescriptor<JComponent, Float?>(
         name = "alignmentY",
         read = { if (it.alignmentY == it.layoutAlignmentY) null else it.alignmentY },
         write = { component, alignment ->

@@ -321,29 +321,27 @@ SwingNode(
 
 Where a look and feel writes the property onto the widget itself, the key is not enough: a look and
 feel may install the property from a style table no key reaches, and reading the key would hand the
-widget a value it never carried. Declare those with `property`, folded into the modifier only while a
-value is declared:
+widget a value it never carried. Declare those with `property`, over a `ComponentPropertyDescriptor` handle built once,
+folded into the modifier only while a value is declared:
 
 ```kotlin
+private val DividerSizeProperty =
+    ComponentPropertyDescriptor<JSplitPane, Int>(
+        name = "dividerSize",
+        read = { it.dividerSize },
+        write = { pane, value -> pane.dividerSize = value },
+    )
+
 private fun SwingModifier.declaredDividerSize(dividerSize: Int?): SwingModifier =
-    if (dividerSize == null) {
-        this
-    } else {
-        property<JSplitPane, Int>(
-            name = "dividerSize",
-            value = dividerSize,
-            read = { it.dividerSize },
-            write = { pane, value -> pane.dividerSize = value },
-        )
-    }
+    if (dividerSize == null) this else property(DividerSizeProperty, dividerSize)
 ```
 
 <!--- CLEAR -->
 
 The element reads the property as the declaration arrives and writes it back when it leaves, so
-withdrawing the declaration hands the widget back what its look and feel gave it. Declare it in a
-function of its own, as above, rather than inline at a call site. `property`'s own documentation says
-why, and what to pass for a property the component offers no way to give back.
+withdrawing the declaration hands the widget back what its look and feel gave it. Declare the handle as
+a top-level `val`, as above, rather than inline at a call site. `ComponentPropertyDescriptor` and `property`'s own
+documentation say why, and what to pass for a property the component offers no way to give back.
 
 ### `init { ... }` - one-time setup after creation
 

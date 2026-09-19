@@ -8,7 +8,7 @@ import androidx.compose.runtime.compositionLocalOf
 import org.jetbrains.compose.swing.core.checkEventDispatchThread
 import org.jetbrains.compose.swing.modifier.CombinedSwingModifier
 import org.jetbrains.compose.swing.modifier.KeyElement
-import org.jetbrains.compose.swing.modifier.MultiTargetPropertyElement
+import org.jetbrains.compose.swing.modifier.PropertyElement
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.applyDeclaredModifier
 import org.jetbrains.compose.swing.node.SwingNodeHolder
@@ -77,6 +77,8 @@ internal class DefaultEntry<V : Any>(
 internal class ComponentDefaults internal constructor(
     private val entries: Map<ComponentDefaultKey<*>, DefaultEntry<*>>,
 ) {
+    // Scoped to this logically immutable defaults snapshot.
+    // Populated only for concrete component classes rendered under it.
     private val cache = HashMap<Class<*>, SwingModifier>()
 
     fun <V : Any> get(key: ComponentDefaultKey<V>): V? {
@@ -147,10 +149,15 @@ internal class ComponentDefaults internal constructor(
     }
 }
 
-/** Whether this node element can be applied to a component of [componentClass]. */
+/**
+ * Whether this node element can be applied to a component of [componentClass]: for a [PropertyElement],
+ * whichever classes its [org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor] handle
+ * serves, rather than [SwingModifier.NodeElement.targetType], which a multi-type property leaves at
+ * `Component` so its own mismatch message is the one a direct declaration sees.
+ */
 private fun SwingModifier.Element.appliesTo(componentClass: Class<*>): Boolean =
     when (this) {
-        is MultiTargetPropertyElement<*> -> handles(componentClass)
+        is PropertyElement<*, *> -> handles(componentClass)
         else -> (this as SwingModifier.NodeElement<*, *>).targetType.isAssignableFrom(componentClass)
     }
 
@@ -200,6 +207,7 @@ private fun <V : Any> applyTypedProvision(
     if (value == null) {
         map.remove(key)
     } else {
+        // Remove and reinsert non-null replacements so the latest provision remains last in iteration order.
         map.remove(key)
         val entry = createEntry(key, value)
         map[key] = entry

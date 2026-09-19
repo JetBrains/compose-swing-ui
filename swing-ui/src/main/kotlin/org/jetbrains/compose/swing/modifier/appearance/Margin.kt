@@ -3,10 +3,10 @@
 
 package org.jetbrains.compose.swing.modifier.appearance
 
-import org.jetbrains.compose.swing.modifier.MultiTargetProperty
-import org.jetbrains.compose.swing.modifier.MultiTargetPropertyElement
+import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
+import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor.Companion.accessor
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.propertyCase
+import org.jetbrains.compose.swing.modifier.property
 import java.awt.Insets
 import javax.swing.AbstractButton
 import javax.swing.text.JTextComponent
@@ -26,21 +26,20 @@ import javax.swing.text.JTextComponent
  * @see javax.swing.AbstractButton.setMargin
  * @see javax.swing.text.JTextComponent.setMargin
  */
-public fun SwingModifier.margin(margin: Insets): SwingModifier =
-    this then MultiTargetPropertyElement(MarginProperty, margin)
+public fun SwingModifier.margin(margin: Insets): SwingModifier = property(MarginProperty, margin)
 
 /**
  * A button and a text component each declare margin for themselves, and no supertype between them
  * declares it. Both report no margin as null, even though the public function always takes an [Insets].
  */
 private val MarginProperty =
-    MultiTargetProperty<Insets?>(
+    ComponentPropertyDescriptor(
         "margin",
-        propertyCase<AbstractButton, Insets?>(
+        accessor<AbstractButton, Insets?>(
             read = { it.margin },
             write = { component, value -> component.margin = value },
         ),
-        propertyCase<JTextComponent, Insets?>(
+        accessor<JTextComponent, Insets?>(
             read = { it.margin },
             // JTextComponent.setMargin only invalidates. A margin changes the preferred size and also moves
             // the text inside the border, which a relayout that keeps the bounds does not repaint, so this

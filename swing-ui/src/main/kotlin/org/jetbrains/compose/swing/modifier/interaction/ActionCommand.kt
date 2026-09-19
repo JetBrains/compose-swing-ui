@@ -3,9 +3,9 @@
 
 package org.jetbrains.compose.swing.modifier.interaction
 
-import org.jetbrains.compose.swing.modifier.PropertyAccessors
+import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.propertyElement
+import org.jetbrains.compose.swing.modifier.property
 import javax.swing.AbstractButton
 
 /**
@@ -21,11 +21,10 @@ import javax.swing.AbstractButton
  * @return this chain with the action command declared on it.
  * @see javax.swing.AbstractButton.setActionCommand
  */
-public fun SwingModifier.actionCommand(command: String?): SwingModifier =
-    this then propertyElement(ActionCommandProperty, command)
+public fun SwingModifier.actionCommand(command: String?): SwingModifier = property(ActionCommandProperty, command)
 
 private val ActionCommandProperty =
-    PropertyAccessors<AbstractButton, String?>(
+    ComponentPropertyDescriptor<AbstractButton, String?>(
         name = "actionCommand",
         // A button's own getter substitutes its text when no command is set; the model holds the
         // real value, including null, so reading from the model is what lets `null` restore the default.

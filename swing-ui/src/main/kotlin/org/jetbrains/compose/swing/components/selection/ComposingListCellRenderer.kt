@@ -14,10 +14,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.modifier.MultiTargetProperty
-import org.jetbrains.compose.swing.modifier.MultiTargetPropertyElement
+import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
+import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor.Companion.accessor
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.propertyCase
+import org.jetbrains.compose.swing.modifier.property
 import java.awt.Component
 import javax.swing.JComboBox
 import javax.swing.JList
@@ -281,7 +281,7 @@ public fun SwingModifier.listItemRenderer(renderer: ListCellRenderer<*>): SwingM
     // type for every widget it serves.
     @Suppress("UNCHECKED_CAST")
     val erased = renderer as ListCellRenderer<in Any?>
-    return this then MultiTargetPropertyElement(LIST_CELL_RENDERER, erased)
+    return property(ListCellRendererProperty, erased)
 }
 
 /** As [listItemRenderer]; a `null` renderer is no cell body declared, and the widget keeps the one it has. */
@@ -292,14 +292,14 @@ internal fun SwingModifier.declaredListItemRenderer(renderer: ListCellRenderer<*
  * The renderer a `JList` renders its rows through and the one a `JComboBox` renders its items through:
  * one property, reached through the accessor of whichever widget carries it.
  */
-private val LIST_CELL_RENDERER =
-    MultiTargetProperty(
+private val ListCellRendererProperty =
+    ComponentPropertyDescriptor(
         "listItemRenderer",
-        propertyCase<JList<Any?>, ListCellRenderer<in Any?>?>(
+        accessor<JList<Any?>, ListCellRenderer<in Any?>?>(
             read = { it.cellRenderer },
             write = { list, renderer -> list.cellRenderer = renderer },
         ),
-        propertyCase<JComboBox<Any?>, ListCellRenderer<in Any?>?>(
+        accessor<JComboBox<Any?>, ListCellRenderer<in Any?>?>(
             read = { it.renderer },
             write = { combo, renderer -> combo.renderer = renderer },
         ),

@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
+import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.accessibility.accessibleName
 import org.jetbrains.compose.swing.modifier.accessibility.mnemonic
@@ -12,8 +13,10 @@ import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.clientProperty
 import org.jetbrains.compose.swing.modifier.appearance.horizontalAlignment
 import org.jetbrains.compose.swing.modifier.appearance.opaque
+import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.appearance.toolTip
 import org.jetbrains.compose.swing.modifier.property
+import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.onAllNodesOfType
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -21,12 +24,24 @@ import java.awt.Color
 import java.awt.event.KeyEvent
 import javax.swing.JButton
 import javax.swing.JLabel
+import javax.swing.JPanel
 import javax.swing.SwingConstants
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
+
+/**
+ * A property declared through the public [property] builder directly, used by
+ * [providerRejectsANonInheritableElementOfEveryKind].
+ */
+private val TextProperty =
+    ComponentPropertyDescriptor<JLabel, String?>(
+        name = "text",
+        read = { it.text },
+        write = { label, value -> label.text = value },
+    )
 
 /**
  * A default of each kind of property element: one put back as it stood, one the component derives again,
@@ -137,6 +152,29 @@ class ComponentDefaultsElementKindTest {
     }
 
     @Test
+    fun aMultiTargetDefaultSkipsAComponentClassNoCaseServes() = runComposeSwingTest {
+        val alignment = componentDefaultKeyOf<Int>("alignment") { horizontalAlignment(it) }
+        var provided by mutableStateOf<Int?>(null)
+        setContent {
+            ProvideComponentDefaults(alignment provides provided) {
+                SwingNode(factory = { JPanel() }, modifier = SwingModifier.testTag("unserved"))
+            }
+        }
+        onNodeWithTag("unserved").assertExists()
+
+        // horizontalAlignment serves JLabel, AbstractButton and JTextField; a JPanel is none of those, so
+        // an inherited default built from it must skip the panel - not attempt to apply and fail - rather
+        // than reach every component regardless of what its cases serve.
+        provided = SwingConstants.TRAILING
+        awaitIdle()
+        onNodeWithTag("unserved").assertExists()
+
+        provided = null
+        awaitIdle()
+        onNodeWithTag("unserved").assertExists()
+    }
+
+    @Test
     fun providerRejectsANonInheritableElementOfEveryKind() {
         val kinds: List<Pair<String, SwingModifier.(String) -> SwingModifier>> =
             listOf(
@@ -144,12 +182,7 @@ class ComponentDefaultsElementKindTest {
                 "derived" to { accessibleName(it) },
                 "declaredOnly" to { clientProperty("key", it) },
                 "declaredThroughProperty" to {
-                    property<JLabel, String?>(
-                        name = "text",
-                        value = it,
-                        read = { label -> label.text },
-                        write = { label, value -> label.text = value },
-                    )
+                    property(TextProperty, it)
                 },
                 "multiTarget" to { mnemonic(KeyEvent.VK_A) },
             )
