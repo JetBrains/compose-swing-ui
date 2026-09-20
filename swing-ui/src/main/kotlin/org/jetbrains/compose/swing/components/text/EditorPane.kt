@@ -8,11 +8,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.annotations.ContentType
+import org.jetbrains.compose.swing.components.modifier.listener.hyperlinkListener
 import org.jetbrains.compose.swing.components.style.EditorPanes
 import org.jetbrains.compose.swing.components.style.TextPanes
 import org.jetbrains.compose.swing.components.style.TextStyleScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.listener.hyperlinkListener
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.style.ComponentStyleScope
 import org.jetbrains.compose.swing.style.SwingStyle

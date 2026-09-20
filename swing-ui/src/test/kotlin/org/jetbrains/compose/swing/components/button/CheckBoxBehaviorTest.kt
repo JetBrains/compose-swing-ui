@@ -7,12 +7,12 @@ import androidx.compose.runtime.setValue
 import kotlinx.coroutines.DisposableHandle
 import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
 import org.jetbrains.compose.swing.click
+import org.jetbrains.compose.swing.components.modifier.listener.actionListener
 import org.jetbrains.compose.swing.core.SwingRecomposer
 import org.jetbrains.compose.swing.countTests
 import org.jetbrains.compose.swing.fixtures.components.button.CheckBoxFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
-import org.jetbrains.compose.swing.modifier.listener.actionListener
 import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.reportedUncaught
 import org.jetbrains.compose.swing.runSwingTest

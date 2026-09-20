@@ -21,6 +21,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.animation.core.FiniteAnimationSpec
 import org.jetbrains.compose.swing.animation.core.Spring
+import org.jetbrains.compose.swing.animation.core.dimensionVisibilityThreshold
 import org.jetbrains.compose.swing.animation.core.spring
 import org.jetbrains.compose.swing.animation.core.tween
 import java.awt.Dimension

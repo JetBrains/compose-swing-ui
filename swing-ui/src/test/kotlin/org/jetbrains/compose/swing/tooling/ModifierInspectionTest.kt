@@ -16,6 +16,10 @@ import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.TabbedPane
 import org.jetbrains.compose.swing.components.menu.MenuItem
+import org.jetbrains.compose.swing.components.modifier.interaction.defaultButton
+import org.jetbrains.compose.swing.components.modifier.interaction.documentFilter
+import org.jetbrains.compose.swing.components.modifier.listener.changeListener
+import org.jetbrains.compose.swing.components.modifier.listener.documentListener
 import org.jetbrains.compose.swing.components.selection.ListBox
 import org.jetbrains.compose.swing.components.selection.Table
 import org.jetbrains.compose.swing.components.selection.Tree
@@ -41,15 +45,11 @@ import org.jetbrains.compose.swing.modifier.datatransfer.clipboard
 import org.jetbrains.compose.swing.modifier.datatransfer.draggable
 import org.jetbrains.compose.swing.modifier.datatransfer.dropTarget
 import org.jetbrains.compose.swing.modifier.datatransfer.onExportDone
-import org.jetbrains.compose.swing.modifier.interaction.defaultButton
-import org.jetbrains.compose.swing.modifier.interaction.documentFilter
 import org.jetbrains.compose.swing.modifier.interaction.initialFocus
 import org.jetbrains.compose.swing.modifier.interaction.inputVerifier
 import org.jetbrains.compose.swing.modifier.interaction.orderedFocusTraversal
 import org.jetbrains.compose.swing.modifier.keyboard.onKeyStroke
 import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
-import org.jetbrains.compose.swing.modifier.listener.changeListener
-import org.jetbrains.compose.swing.modifier.listener.documentListener
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
 import org.jetbrains.compose.swing.modifier.listener.propertyChangeListener
 import org.jetbrains.compose.swing.node.SwingComponentNode

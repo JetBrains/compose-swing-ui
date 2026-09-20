@@ -30,11 +30,11 @@ import org.jetbrains.compose.swing.components.menu.Menu
 import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.components.menu.MenuSeparator
 import org.jetbrains.compose.swing.components.menu.RadioButtonMenuGroup
+import org.jetbrains.compose.swing.components.modifier.listener.actionListener
 import org.jetbrains.compose.swing.components.selection.ListBox
 import org.jetbrains.compose.swing.components.selection.rememberListState
 import org.jetbrains.compose.swing.foundation.layout.fillMaxHeight
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.listener.actionListener
 import org.jetbrains.compose.swing.node.MenuNode
 import org.jetbrains.compose.swing.samples.widgets.layout.LocalAlignmentGuidesShown
 import org.jetbrains.compose.swing.samples.widgets.text.setEditorText

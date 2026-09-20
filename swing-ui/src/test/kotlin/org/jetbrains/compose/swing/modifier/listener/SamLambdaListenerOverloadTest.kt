@@ -7,6 +7,11 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Slider
 import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.modifier.listener.caretListener
+import org.jetbrains.compose.swing.components.modifier.listener.changeListener
+import org.jetbrains.compose.swing.components.modifier.listener.hyperlinkListener
+import org.jetbrains.compose.swing.components.modifier.listener.listSelectionListener
+import org.jetbrains.compose.swing.components.modifier.listener.treeSelectionListener
 import org.jetbrains.compose.swing.components.text.EditorPane
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.components.text.rememberDocumentState

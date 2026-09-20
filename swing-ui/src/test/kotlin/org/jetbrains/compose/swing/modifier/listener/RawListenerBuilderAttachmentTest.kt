@@ -7,13 +7,14 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
+import org.jetbrains.compose.swing.components.modifier.listener.documentListener
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.countTests
+import org.jetbrains.compose.swing.fixtures.components.modifier.listener.DocumentListenerCallbackFixture
+import org.jetbrains.compose.swing.fixtures.components.modifier.listener.DocumentListenerFixture
+import org.jetbrains.compose.swing.fixtures.components.modifier.listener.DocumentListenerListenerFixture
 import org.jetbrains.compose.swing.fixtures.modifier.HierarchyListenerCallbackFixture
 import org.jetbrains.compose.swing.fixtures.modifier.HierarchyListenerFixture
-import org.jetbrains.compose.swing.fixtures.modifier.listener.DocumentListenerCallbackFixture
-import org.jetbrains.compose.swing.fixtures.modifier.listener.DocumentListenerFixture
-import org.jetbrains.compose.swing.fixtures.modifier.listener.DocumentListenerListenerFixture
 import org.jetbrains.compose.swing.fixtures.modifier.listener.MouseWheelListenerFixture
 import org.jetbrains.compose.swing.fixtures.modifier.listener.MouseWheelListenerListenerFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier

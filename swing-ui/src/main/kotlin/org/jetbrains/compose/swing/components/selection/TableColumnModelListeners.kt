@@ -1,10 +1,10 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.components.selection
 
+import org.jetbrains.compose.swing.components.modifier.listener.ModelSwapAware
+import org.jetbrains.compose.swing.components.modifier.listener.SwappableModel
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
-import org.jetbrains.compose.swing.modifier.listener.ModelSwapAware
-import org.jetbrains.compose.swing.modifier.listener.SwappableModel
 import org.jetbrains.compose.swing.modifier.listener.listener
 import javax.swing.JTable
 import javax.swing.event.TableColumnModelListener

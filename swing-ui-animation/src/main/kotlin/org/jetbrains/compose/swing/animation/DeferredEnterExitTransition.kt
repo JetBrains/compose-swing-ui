@@ -27,6 +27,7 @@ import org.jetbrains.compose.swing.animation.core.AnimationVector1D
 import org.jetbrains.compose.swing.animation.core.AnimationVector2D
 import org.jetbrains.compose.swing.animation.core.AnimationVector4D
 import org.jetbrains.compose.swing.animation.core.DeferredTransitionState
+import org.jetbrains.compose.swing.animation.core.PointToVector
 import org.jetbrains.compose.swing.foundation.graphics.TransformOrigin
 import java.awt.Color
 import java.awt.Dimension

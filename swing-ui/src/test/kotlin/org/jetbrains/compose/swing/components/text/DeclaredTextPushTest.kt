@@ -8,9 +8,9 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.UserChange
 import org.jetbrains.compose.swing.assertUnadoptedChangeIsNeverPainted
 import org.jetbrains.compose.swing.assertUnadoptedChangeIsPutBack
+import org.jetbrains.compose.swing.components.modifier.listener.documentListener
 import org.jetbrains.compose.swing.deliverEvent
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.listener.documentListener
 import org.jetbrains.compose.swing.modifier.listener.propertyChangeListener
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.runSwingTest

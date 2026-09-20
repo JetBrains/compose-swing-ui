@@ -8,11 +8,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import io.mockk.every
 import io.mockk.mockk
+import org.jetbrains.compose.swing.components.modifier.listener.hyperlinkListener
 import org.jetbrains.compose.swing.countTests
 import org.jetbrains.compose.swing.fixtures.components.text.EditorPaneFixture
 import org.jetbrains.compose.swing.fixtures.components.text.EditorPaneStateFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.listener.hyperlinkListener
 import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.SwingMatcher.Companion.isEditable
 import org.jetbrains.compose.swing.test.interaction.assertProperty

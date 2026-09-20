@@ -9,11 +9,11 @@ import androidx.compose.runtime.NonRestartableComposable
 import org.jetbrains.compose.swing.annotations.ListLayoutOrientation
 import org.jetbrains.compose.swing.annotations.SelectionMode
 import org.jetbrains.compose.swing.annotations.SwingComponentLibraryApi
+import org.jetbrains.compose.swing.components.modifier.listener.listSelectionListener
 import org.jetbrains.compose.swing.components.rememberDeclaredList
 import org.jetbrains.compose.swing.components.style.ListBoxStyleScope
 import org.jetbrains.compose.swing.components.style.ListBoxes
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.listener.listSelectionListener
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.SwingNodeUpdater

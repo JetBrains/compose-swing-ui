@@ -4,9 +4,9 @@ package org.jetbrains.compose.swing.components.selection
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
+import org.jetbrains.compose.swing.components.modifier.interaction.buttonGroup
+import org.jetbrains.compose.swing.components.modifier.listener.actionListener
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.interaction.buttonGroup
-import org.jetbrains.compose.swing.modifier.listener.actionListener
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.rememberMirrorState
 import org.jetbrains.compose.swing.node.report

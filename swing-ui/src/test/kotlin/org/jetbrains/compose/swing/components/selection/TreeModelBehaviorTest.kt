@@ -7,11 +7,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import io.mockk.mockk
 import io.mockk.verify
+import org.jetbrains.compose.swing.components.modifier.listener.treeSelectionListener
 import org.jetbrains.compose.swing.countTests
 import org.jetbrains.compose.swing.fixtures.components.selection.TreeModelStateFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
-import org.jetbrains.compose.swing.modifier.listener.treeSelectionListener
 import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType

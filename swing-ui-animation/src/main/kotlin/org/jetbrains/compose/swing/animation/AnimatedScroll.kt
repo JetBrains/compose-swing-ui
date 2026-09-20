@@ -2,7 +2,9 @@
 package org.jetbrains.compose.swing.animation
 
 import org.jetbrains.compose.swing.animation.core.AnimationSpec
+import org.jetbrains.compose.swing.animation.core.PointToVector
 import org.jetbrains.compose.swing.animation.core.animate
+import org.jetbrains.compose.swing.animation.core.pointVisibilityThreshold
 import org.jetbrains.compose.swing.animation.core.spring
 import org.jetbrains.compose.swing.components.layout.ScrollState
 import java.awt.Point

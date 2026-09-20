@@ -28,12 +28,16 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.animation.core.AnimationVector1D
 import org.jetbrains.compose.swing.animation.core.AnimationVector2D
 import org.jetbrains.compose.swing.animation.core.AnimationVector4D
+import org.jetbrains.compose.swing.animation.core.DimensionToVector
 import org.jetbrains.compose.swing.animation.core.FiniteAnimationSpec
+import org.jetbrains.compose.swing.animation.core.PointToVector
 import org.jetbrains.compose.swing.animation.core.Spring
 import org.jetbrains.compose.swing.animation.core.Transition
 import org.jetbrains.compose.swing.animation.core.TwoWayConverter
 import org.jetbrains.compose.swing.animation.core.VectorConverter
 import org.jetbrains.compose.swing.animation.core.createDeferredAnimation
+import org.jetbrains.compose.swing.animation.core.dimensionVisibilityThreshold
+import org.jetbrains.compose.swing.animation.core.pointVisibilityThreshold
 import org.jetbrains.compose.swing.animation.core.spring
 import org.jetbrains.compose.swing.foundation.graphics.DrawModifierNode
 import org.jetbrains.compose.swing.foundation.graphics.TransformOrigin

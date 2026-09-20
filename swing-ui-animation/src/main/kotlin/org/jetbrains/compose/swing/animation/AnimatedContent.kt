@@ -30,6 +30,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.Snapshot
 import org.jetbrains.compose.swing.animation.core.AnimationVector2D
 import org.jetbrains.compose.swing.animation.core.DeferredTransition
+import org.jetbrains.compose.swing.animation.core.DimensionToVector
 import org.jetbrains.compose.swing.animation.core.Transition
 import org.jetbrains.compose.swing.animation.core.createDeferredAnimation
 import org.jetbrains.compose.swing.animation.core.internal.fastForEach

@@ -7,13 +7,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.neverEqualPolicy
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.components.modifier.listener.changeListener
 import org.jetbrains.compose.swing.countTests
 import org.jetbrains.compose.swing.fixtures.components.SpinnerDateFixture
 import org.jetbrains.compose.swing.fixtures.components.SpinnerFixture
 import org.jetbrains.compose.swing.fixtures.components.SpinnerListFixture
 import org.jetbrains.compose.swing.fixtures.components.SpinnerModelFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.listener.changeListener
 import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.interaction.assertTreeMatches

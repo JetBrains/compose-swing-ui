@@ -10,6 +10,7 @@ import org.jetbrains.compose.swing.components.ComboBox
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.button.CheckBox
+import org.jetbrains.compose.swing.components.modifier.listener.changeListener
 import org.jetbrains.compose.swing.components.style.icon
 import org.jetbrains.compose.swing.foundation.Canvas
 import org.jetbrains.compose.swing.foundation.graphics.Brush
@@ -37,7 +38,6 @@ import org.jetbrains.compose.swing.foundation.layout.padding
 import org.jetbrains.compose.swing.foundation.layout.size
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.listener.changeListener
 import org.jetbrains.compose.swing.modifier.listener.keyListener
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
 import org.jetbrains.compose.swing.node.SwingNode

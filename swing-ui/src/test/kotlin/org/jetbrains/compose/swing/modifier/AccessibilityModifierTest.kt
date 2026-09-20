@@ -3,14 +3,14 @@ package org.jetbrains.compose.swing.modifier
 
 import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.modifier.accessibility.LabelTarget
+import org.jetbrains.compose.swing.components.modifier.accessibility.labelFor
+import org.jetbrains.compose.swing.components.modifier.accessibility.labelTarget
+import org.jetbrains.compose.swing.components.modifier.accessibility.rememberLabelTarget
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.countTests
-import org.jetbrains.compose.swing.fixtures.modifier.accessibility.LabelForFixture
-import org.jetbrains.compose.swing.fixtures.modifier.accessibility.LabelTargetFixture
-import org.jetbrains.compose.swing.modifier.accessibility.LabelTarget
-import org.jetbrains.compose.swing.modifier.accessibility.labelFor
-import org.jetbrains.compose.swing.modifier.accessibility.labelTarget
-import org.jetbrains.compose.swing.modifier.accessibility.rememberLabelTarget
+import org.jetbrains.compose.swing.fixtures.components.modifier.accessibility.LabelForFixture
+import org.jetbrains.compose.swing.fixtures.components.modifier.accessibility.LabelTargetFixture
 import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest

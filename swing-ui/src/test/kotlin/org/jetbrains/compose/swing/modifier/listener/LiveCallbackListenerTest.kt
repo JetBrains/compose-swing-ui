@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.modifier.listener.actionListener
 import org.jetbrains.compose.swing.countTests
 import org.jetbrains.compose.swing.fixtures.modifier.listener.ListenerCallbackFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier

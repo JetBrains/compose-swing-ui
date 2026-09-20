@@ -5,8 +5,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.animation.core.AnimationVector2D
+import org.jetbrains.compose.swing.animation.core.DimensionToVector
 import org.jetbrains.compose.swing.animation.core.FiniteAnimationSpec
+import org.jetbrains.compose.swing.animation.core.PointToVector
 import org.jetbrains.compose.swing.animation.core.SpringSpec
+import org.jetbrains.compose.swing.animation.core.dimensionVisibilityThreshold
+import org.jetbrains.compose.swing.animation.core.pointVisibilityThreshold
 import org.jetbrains.compose.swing.animation.core.tween
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.foundation.graphics.TransformOrigin

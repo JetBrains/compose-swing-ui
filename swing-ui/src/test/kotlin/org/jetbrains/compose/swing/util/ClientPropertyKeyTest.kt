@@ -7,7 +7,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.countTests
 import org.jetbrains.compose.swing.fixtures.ComposableFixture
-import org.jetbrains.compose.swing.fixtures.modifier.accessibility.LabelForFixture
+import org.jetbrains.compose.swing.fixtures.components.modifier.accessibility.LabelForFixture
 import org.jetbrains.compose.swing.fixtures.modifier.appearance.ClientPropertyFixture
 import org.jetbrains.compose.swing.fixtures.modifier.appearance.ClientPropertyParameters
 import org.jetbrains.compose.swing.fixtures.modifier.appearance.TestTagFixture

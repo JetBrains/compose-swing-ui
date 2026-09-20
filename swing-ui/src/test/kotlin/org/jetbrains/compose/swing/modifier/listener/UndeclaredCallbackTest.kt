@@ -1,6 +1,10 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.modifier.listener
 
+import org.jetbrains.compose.swing.components.modifier.listener.documentListener
+import org.jetbrains.compose.swing.components.modifier.listener.internalFrameListener
+import org.jetbrains.compose.swing.components.modifier.listener.treeExpansionListener
+import org.jetbrains.compose.swing.components.modifier.listener.treeWillExpandListener
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.interaction.onFocus
 import org.jetbrains.compose.swing.modifier.interaction.onHover

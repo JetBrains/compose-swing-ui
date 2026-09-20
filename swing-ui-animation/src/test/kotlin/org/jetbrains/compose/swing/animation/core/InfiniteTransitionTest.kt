@@ -19,8 +19,8 @@ package org.jetbrains.compose.swing.animation.core
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.withFrameNanos
-import org.jetbrains.compose.swing.animation.fixtures.InfiniteTransitionAnimateFloatFixture
-import org.jetbrains.compose.swing.animation.fixtures.core.InfiniteTransitionAnimateValueFixture
+import org.jetbrains.compose.swing.animation.core.fixtures.InfiniteTransitionAnimateFloatFixture
+import org.jetbrains.compose.swing.animation.core.fixtures.InfiniteTransitionAnimateValueFixture
 import org.jetbrains.compose.swing.countTests
 import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.runComposeSwingTest

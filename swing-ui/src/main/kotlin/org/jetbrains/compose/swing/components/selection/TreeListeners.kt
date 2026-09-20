@@ -4,10 +4,10 @@ package org.jetbrains.compose.swing.components.selection
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import org.jetbrains.compose.swing.components.modifier.listener.treeExpansionListener
+import org.jetbrains.compose.swing.components.modifier.listener.treeSelectionListener
+import org.jetbrains.compose.swing.components.modifier.listener.treeWillExpandListener
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.listener.treeExpansionListener
-import org.jetbrains.compose.swing.modifier.listener.treeSelectionListener
-import org.jetbrains.compose.swing.modifier.listener.treeWillExpandListener
 import org.jetbrains.compose.swing.node.runReportingUncaught
 import javax.swing.JTree
 import javax.swing.event.TreeExpansionEvent

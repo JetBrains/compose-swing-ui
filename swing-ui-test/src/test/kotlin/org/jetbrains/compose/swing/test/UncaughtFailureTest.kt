@@ -3,8 +3,8 @@ package org.jetbrains.compose.swing.test
 
 import androidx.compose.runtime.mutableStateOf
 import org.jetbrains.compose.swing.components.Slider
+import org.jetbrains.compose.swing.components.modifier.listener.changeListener
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.listener.changeListener
 import org.jetbrains.compose.swing.node.SwingNode
 import javax.swing.JSlider
 import javax.swing.SwingUtilities

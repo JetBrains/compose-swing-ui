@@ -4,11 +4,11 @@
 
 package org.jetbrains.compose.swing.components.style
 
+import org.jetbrains.compose.swing.components.modifier.listener.DocumentMirror
+import org.jetbrains.compose.swing.components.modifier.listener.attachSettlingDocumentListener
+import org.jetbrains.compose.swing.components.modifier.listener.detachSwappableDocumentListener
 import org.jetbrains.compose.swing.modifier.RestorePolicy
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.listener.DocumentMirror
-import org.jetbrains.compose.swing.modifier.listener.attachSettlingDocumentListener
-import org.jetbrains.compose.swing.modifier.listener.detachSwappableDocumentListener
 import org.jetbrains.compose.swing.style.stylePropertyOf
 import org.jetbrains.compose.swing.text.TextRange
 import org.jetbrains.compose.swing.util.fastForEach

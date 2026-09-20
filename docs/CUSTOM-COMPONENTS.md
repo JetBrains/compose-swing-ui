@@ -389,7 +389,7 @@ Here is a complete, compilable wrapper for `JSpinner`, mirroring how `TextField`
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.listener.changeListener
+import org.jetbrains.compose.swing.components.modifier.listener.changeListener
 import org.jetbrains.compose.swing.components.style.Spinners
 import org.jetbrains.compose.swing.style.ComponentStyleScope
 import org.jetbrains.compose.swing.style.SwingComponentStyleScope

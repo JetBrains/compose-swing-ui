@@ -23,9 +23,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameMillis
 import androidx.compose.runtime.withFrameNanos
-import org.jetbrains.compose.swing.animation.fixtures.core.AnimateFloatAsStateFixture
-import org.jetbrains.compose.swing.animation.fixtures.core.AnimateIntAsStateFixture
-import org.jetbrains.compose.swing.animation.fixtures.core.AnimateValueAsStateFixture
+import org.jetbrains.compose.swing.animation.core.fixtures.AnimateFloatAsStateFixture
+import org.jetbrains.compose.swing.animation.core.fixtures.AnimateIntAsStateFixture
+import org.jetbrains.compose.swing.animation.core.fixtures.AnimateValueAsStateFixture
 import org.jetbrains.compose.swing.countTests
 import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.test.runComposeSwingTest

@@ -10,6 +10,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.annotations.Nls
+import org.jetbrains.compose.swing.components.modifier.listener.internalFrameListener
 import org.jetbrains.compose.swing.components.style.DesktopPanes
 import org.jetbrains.compose.swing.components.style.InternalFrames
 import org.jetbrains.compose.swing.layout.ChildPlacement
@@ -20,7 +21,6 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.slot
 import org.jetbrains.compose.swing.modifier.listener.componentListener
 import org.jetbrains.compose.swing.modifier.listener.hierarchyListener
-import org.jetbrains.compose.swing.modifier.listener.internalFrameListener
 import org.jetbrains.compose.swing.modifier.listener.propertyChangeListener
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.wrongSlotHost

@@ -44,7 +44,7 @@ import androidx.compose.runtime.Composable
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.declare
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.listener.actionListener
+import org.jetbrains.compose.swing.components.modifier.listener.actionListener
 import org.jetbrains.compose.swing.node.rememberMirrorState
 import javax.swing.JCheckBox
 -->

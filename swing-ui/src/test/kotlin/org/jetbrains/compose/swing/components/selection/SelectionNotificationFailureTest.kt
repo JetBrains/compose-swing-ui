@@ -2,9 +2,9 @@
 package org.jetbrains.compose.swing.components.selection
 
 import androidx.compose.runtime.Composable
+import org.jetbrains.compose.swing.components.modifier.listener.listSelectionListener
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
-import org.jetbrains.compose.swing.modifier.listener.listSelectionListener
 import org.jetbrains.compose.swing.modifier.listener.listener
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.onNodeOfType

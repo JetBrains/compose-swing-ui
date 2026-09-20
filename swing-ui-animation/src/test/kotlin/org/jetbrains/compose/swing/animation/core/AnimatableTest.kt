@@ -20,20 +20,20 @@ import androidx.compose.runtime.MonotonicFrameClock
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import kotlin.math.abs
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
-import org.jetbrains.compose.swing.animation.DimensionToVector
-import org.jetbrains.compose.swing.animation.dimensionVisibilityThreshold
+import org.jetbrains.compose.swing.animation.core.DimensionToVector
+import org.jetbrains.compose.swing.animation.core.dimensionVisibilityThreshold
 import java.awt.Dimension
+import kotlin.math.abs
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class AnimatableTest {
     @Test

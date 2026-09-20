@@ -9,13 +9,13 @@ import androidx.compose.runtime.remember
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.annotations.Orientation
 import org.jetbrains.compose.swing.annotations.SwingComponentLibraryApi
+import org.jetbrains.compose.swing.components.modifier.listener.ModelSwapAware
+import org.jetbrains.compose.swing.components.modifier.listener.SwappableModel
+import org.jetbrains.compose.swing.components.modifier.listener.changeListener
 import org.jetbrains.compose.swing.components.style.Sliders
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.CallbackRegistration
 import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
-import org.jetbrains.compose.swing.modifier.listener.ModelSwapAware
-import org.jetbrains.compose.swing.modifier.listener.SwappableModel
-import org.jetbrains.compose.swing.modifier.listener.changeListener
 import org.jetbrains.compose.swing.modifier.listener.listener
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode

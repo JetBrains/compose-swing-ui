@@ -8,11 +8,11 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
+import org.jetbrains.compose.swing.components.modifier.listener.actionListener
 import org.jetbrains.compose.swing.countTests
 import org.jetbrains.compose.swing.fixtures.components.desktop.LayeredPaneFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
-import org.jetbrains.compose.swing.modifier.listener.actionListener
 import org.jetbrains.compose.swing.rawSwingTests
 import org.jetbrains.compose.swing.style.bounds
 import org.jetbrains.compose.swing.test.interaction.assertIsOfType

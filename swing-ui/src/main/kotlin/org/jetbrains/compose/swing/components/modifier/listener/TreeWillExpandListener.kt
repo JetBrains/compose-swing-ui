@@ -1,0 +1,144 @@
+// Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+@file:JvmMultifileClass
+@file:JvmName("ListenerModifierKt")
+
+package org.jetbrains.compose.swing.components.modifier.listener
+
+import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.listener.CallbackBundle
+import org.jetbrains.compose.swing.modifier.listener.CallbackRegistration
+import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
+import org.jetbrains.compose.swing.modifier.listener.UNDECLARED_ANSWER
+import org.jetbrains.compose.swing.modifier.listener.callbackHash
+import org.jetbrains.compose.swing.modifier.listener.declared
+import org.jetbrains.compose.swing.modifier.listener.listener
+import org.jetbrains.compose.swing.modifier.listener.requireAnyDeclared
+import org.jetbrains.compose.swing.modifier.listener.sameCallback
+import org.jetbrains.compose.swing.node.reportUncaught
+import javax.swing.event.TreeExpansionEvent
+import javax.swing.event.TreeWillExpandListener
+import javax.swing.tree.ExpandVetoException
+import javax.swing.JTree as SwingJTree
+
+/**
+ * Asks [onWillChange] before a node of the tree opens or closes whether it may: answering false leaves
+ * the node as it was and no expansion event follows. Requires a [javax.swing.JTree] target.
+ *
+ * @param onWillChange answers for the node the event's `path` names; it is read when the event fires,
+ *   so a fresh lambda on every recomposition registers nothing again. Throwing [ExpandVetoException]
+ *   vetoes, and any other throw is reported to the thread's uncaught-exception handler and vetoes.
+ * @return this chain with the veto callback declared on it.
+ * @see javax.swing.JTree.addTreeWillExpandListener
+ */
+public fun SwingModifier.treeWillExpandListener(onWillChange: (TreeExpansionEvent) -> Boolean): SwingModifier =
+    treeWillExpandListener(
+        onWillExpand = onWillChange,
+        onWillCollapse = onWillChange,
+    )
+
+/**
+ * Asks [onWillExpand] before a node opens, and [onWillCollapse] before one closes, whether the change
+ * may happen: answering false leaves the node as it was and no expansion event follows. Requires a
+ * [javax.swing.JTree] target. A direction left undeclared allows the change.
+ *
+ * Each lambda is read when its event fires, so writing a fresh one on every recomposition registers
+ * nothing again.
+ *
+ * Declaring none at all is refused.
+ *
+ * @param onWillExpand answers before the node opens; `false` reaches the tree as the veto that keeps
+ *   it closed. Throwing [ExpandVetoException] vetoes, and any other throw is reported to the thread's
+ *   uncaught-exception handler and vetoes.
+ * @param onWillCollapse answers before the node closes; `false` reaches the tree as the veto that
+ *   keeps it open. Throwing [ExpandVetoException] vetoes, and any other throw is reported to the
+ *   thread's uncaught-exception handler and vetoes.
+ * @return this chain with the veto callbacks declared on it.
+ * @see javax.swing.JTree.addTreeWillExpandListener
+ */
+public fun SwingModifier.treeWillExpandListener(
+    onWillExpand: (TreeExpansionEvent) -> Boolean = UNDECLARED_ANSWER,
+    onWillCollapse: (TreeExpansionEvent) -> Boolean = UNDECLARED_ANSWER,
+): SwingModifier {
+    requireAnyDeclared("treeWillExpandListener", declared(onWillExpand) || declared(onWillCollapse))
+    return listener(TreeWillExpandCallbacks(onWillExpand, onWillCollapse), TREE_WILL_EXPAND_CALLBACKS)
+}
+
+/**
+ * Attaches a [TreeWillExpandListener]
+ * (`addTreeWillExpandListener`/`removeTreeWillExpandListener`), notified before a node opens or closes.
+ * Requires a [javax.swing.JTree] target.
+ *
+ * The listener answers a change it refuses with a [javax.swing.tree.ExpandVetoException], which is what
+ * a `JTree` reads as a veto: the node is left as it was and no expansion event follows.
+ *
+ * @param listener attached by identity, so a remembered instance stays put while a fresh one on every
+ *   pass is detached and re-added.
+ * @return this chain with the veto listener declared on it.
+ * @see javax.swing.JTree.addTreeWillExpandListener
+ */
+public fun SwingModifier.treeWillExpandListener(listener: TreeWillExpandListener): SwingModifier =
+    listener(listener, TREE_WILL_EXPAND)
+
+/** The lambdas [treeWillExpandListener] was declared with, as one value the built listener reads. */
+private class TreeWillExpandCallbacks(
+    val onWillExpand: (TreeExpansionEvent) -> Boolean,
+    val onWillCollapse: (TreeExpansionEvent) -> Boolean,
+) : CallbackBundle {
+    override fun equals(other: Any?): Boolean {
+        if (other !is TreeWillExpandCallbacks) return false
+        if (!sameCallback(onWillExpand, other.onWillExpand)) return false
+        return sameCallback(onWillCollapse, other.onWillCollapse)
+    }
+
+    override fun hashCode(): Int {
+        var result = callbackHash(onWillExpand)
+        result = 31 * result + callbackHash(onWillCollapse)
+        return result
+    }
+}
+
+private val TREE_WILL_EXPAND =
+    ListenerRegistration<SwingJTree, TreeWillExpandListener>(
+        name = "treeWillExpandListener",
+        SwingJTree::addTreeWillExpandListener,
+        SwingJTree::removeTreeWillExpandListener,
+    )
+
+private val TREE_WILL_EXPAND_CALLBACKS =
+    CallbackRegistration<SwingJTree, TreeWillExpandCallbacks, TreeWillExpandListener>(
+        adapter = { callback ->
+            object : TreeWillExpandListener {
+                override fun treeWillExpand(event: TreeExpansionEvent) {
+                    vetoUnlessAllowed(event) { callback.current.onWillExpand(event) }
+                }
+
+                override fun treeWillCollapse(event: TreeExpansionEvent) {
+                    vetoUnlessAllowed(event) { callback.current.onWillCollapse(event) }
+                }
+            }
+        },
+        registration = TREE_WILL_EXPAND,
+    )
+
+/**
+ * Refuses the change with the veto `JTree` reads, unless [decide] allows it. [decide] is the caller's callback: an
+ * [ExpandVetoException] it throws is the veto itself, and any other failure is reported and vetoes the change too.
+ */
+private inline fun vetoUnlessAllowed(
+    event: TreeExpansionEvent,
+    decide: () -> Boolean,
+) {
+    val allowed =
+        try {
+            decide()
+        } catch (veto: ExpandVetoException) {
+            throw veto
+        } catch (
+            // What the caller's code throws is its own choice; a type left out here would abort the expansion.
+            @Suppress("TooGenericExceptionCaught") failure: Throwable,
+        ) {
+            reportUncaught(failure)
+            false
+        }
+    if (!allowed) throw ExpandVetoException(event)
+}

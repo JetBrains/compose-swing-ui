@@ -19,6 +19,7 @@ package org.jetbrains.compose.swing.animation
 import androidx.compose.runtime.Stable
 import org.jetbrains.compose.swing.animation.core.FiniteAnimationSpec
 import org.jetbrains.compose.swing.animation.core.Spring
+import org.jetbrains.compose.swing.animation.core.pointVisibilityThreshold
 import org.jetbrains.compose.swing.animation.core.spring
 import java.awt.Dimension
 import java.awt.Point

@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberUpdatedState
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.annotations.SwingComponentLibraryApi
+import org.jetbrains.compose.swing.components.modifier.listener.actionListener
 import org.jetbrains.compose.swing.components.selection.ListItemScope
 import org.jetbrains.compose.swing.components.selection.declaredListItemRenderer
 import org.jetbrains.compose.swing.components.selection.rememberListItemRenderer
@@ -15,7 +16,6 @@ import org.jetbrains.compose.swing.components.style.ComboBoxStyleScope
 import org.jetbrains.compose.swing.components.style.ComboBoxes
 import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.listener.actionListener
 import org.jetbrains.compose.swing.modifier.property
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode

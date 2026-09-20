@@ -279,13 +279,6 @@ public abstract interface class org/jetbrains/compose/swing/animation/TransformS
 	public abstract fun setVeil (Ljava/awt/Color;)V
 }
 
-public final class org/jetbrains/compose/swing/animation/VectorConvertersKt {
-	public static final fun dimensionVisibilityThreshold ()Ljava/awt/Dimension;
-	public static final fun getDimensionToVector ()Lorg/jetbrains/compose/swing/animation/core/TwoWayConverter;
-	public static final fun getPointToVector ()Lorg/jetbrains/compose/swing/animation/core/TwoWayConverter;
-	public static final fun pointVisibilityThreshold ()Ljava/awt/Point;
-}
-
 public final class org/jetbrains/compose/swing/animation/VeilConfig {
 	public static final field $stable I
 	public fun equals (Ljava/lang/Object;)Z
@@ -536,6 +529,13 @@ public final class org/jetbrains/compose/swing/animation/core/ArcMode$Companion 
 	public final fun getArcAbove-BCvxEdc ()I
 	public final fun getArcBelow-BCvxEdc ()I
 	public final fun getArcLinear-BCvxEdc ()I
+}
+
+public final class org/jetbrains/compose/swing/animation/core/AwtVectorConvertersKt {
+	public static final fun dimensionVisibilityThreshold ()Ljava/awt/Dimension;
+	public static final fun getDimensionToVector ()Lorg/jetbrains/compose/swing/animation/core/TwoWayConverter;
+	public static final fun getPointToVector ()Lorg/jetbrains/compose/swing/animation/core/TwoWayConverter;
+	public static final fun pointVisibilityThreshold ()Ljava/awt/Point;
 }
 
 public final class org/jetbrains/compose/swing/animation/core/CubicBezierEasing : org/jetbrains/compose/swing/animation/core/Easing {

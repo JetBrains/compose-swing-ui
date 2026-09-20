@@ -6,10 +6,10 @@ package org.jetbrains.compose.swing.components.menu
 
 import androidx.compose.runtime.Composable
 import org.jetbrains.annotations.Nls
+import org.jetbrains.compose.swing.components.modifier.listener.actionListener
 import org.jetbrains.compose.swing.components.style.CheckBoxMenuItems
 import org.jetbrains.compose.swing.components.style.CheckableStyleScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.listener.actionListener
 import org.jetbrains.compose.swing.node.MenuNode
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.declare

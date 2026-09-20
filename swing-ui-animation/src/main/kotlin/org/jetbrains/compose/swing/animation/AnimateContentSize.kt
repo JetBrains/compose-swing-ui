@@ -24,8 +24,10 @@ import org.jetbrains.compose.swing.animation.core.Animatable
 import org.jetbrains.compose.swing.animation.core.AnimationEndReason
 import org.jetbrains.compose.swing.animation.core.AnimationSpec
 import org.jetbrains.compose.swing.animation.core.AnimationVector2D
+import org.jetbrains.compose.swing.animation.core.DimensionToVector
 import org.jetbrains.compose.swing.animation.core.FiniteAnimationSpec
 import org.jetbrains.compose.swing.animation.core.Spring
+import org.jetbrains.compose.swing.animation.core.dimensionVisibilityThreshold
 import org.jetbrains.compose.swing.animation.core.spring
 import org.jetbrains.compose.swing.foundation.layout.Alignment
 import org.jetbrains.compose.swing.foundation.layout.Constraints

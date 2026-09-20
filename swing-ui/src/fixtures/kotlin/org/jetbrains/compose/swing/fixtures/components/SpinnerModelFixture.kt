@@ -4,9 +4,9 @@ package org.jetbrains.compose.swing.fixtures.components
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import org.jetbrains.compose.swing.components.Spinner
+import org.jetbrains.compose.swing.components.modifier.listener.changeListener
 import org.jetbrains.compose.swing.fixtures.ComposableFixture
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.listener.changeListener
 import javax.swing.JSpinner
 import javax.swing.SpinnerNumberModel
 import javax.swing.event.ChangeListener

@@ -27,7 +27,7 @@ import javax.swing.text.JTextComponent
  * The caret stays installed when the look and feel changes, because a look and feel replaces only a caret it created.
  *
  * Use a custom caret to control whether the selection remains visible while the component is unfocused.
- * [navigationFilter][org.jetbrains.compose.swing.modifier.interaction.navigationFilter]
+ * [navigationFilter][org.jetbrains.compose.swing.components.modifier.interaction.navigationFilter]
  * controls where the caret may move.
  * `DocumentState.selection` controls the component's selection.
  *

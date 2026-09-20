@@ -13,6 +13,7 @@ import io.mockk.verify
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.Panel
+import org.jetbrains.compose.swing.components.modifier.interaction.defaultButton
 import org.jetbrains.compose.swing.components.style.caret
 import org.jetbrains.compose.swing.components.style.displayedMnemonicIndex
 import org.jetbrains.compose.swing.components.text.TextField
@@ -21,7 +22,6 @@ import org.jetbrains.compose.swing.modifier.datatransfer.clipboard
 import org.jetbrains.compose.swing.modifier.datatransfer.draggable
 import org.jetbrains.compose.swing.modifier.datatransfer.dropTarget
 import org.jetbrains.compose.swing.modifier.datatransfer.onExportDone
-import org.jetbrains.compose.swing.modifier.interaction.defaultButton
 import org.jetbrains.compose.swing.modifier.interaction.inputVerifier
 import org.jetbrains.compose.swing.modifier.interaction.orderedFocusTraversal
 import org.jetbrains.compose.swing.node.SwingNode

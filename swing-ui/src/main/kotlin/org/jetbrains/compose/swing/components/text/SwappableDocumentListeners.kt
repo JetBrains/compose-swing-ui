@@ -1,10 +1,10 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.components.text
 
+import org.jetbrains.compose.swing.components.modifier.listener.DocumentMirror
+import org.jetbrains.compose.swing.components.modifier.listener.SETTLING_DOCUMENT
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.CallbackRegistration
-import org.jetbrains.compose.swing.modifier.listener.DocumentMirror
-import org.jetbrains.compose.swing.modifier.listener.SETTLING_DOCUMENT
 import org.jetbrains.compose.swing.modifier.listener.listener
 import org.jetbrains.compose.swing.node.MirrorState
 import javax.swing.event.DocumentEvent

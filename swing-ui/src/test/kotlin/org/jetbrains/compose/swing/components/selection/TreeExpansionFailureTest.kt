@@ -7,9 +7,9 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.DisposableHandle
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.components.modifier.listener.treeExpansionListener
 import org.jetbrains.compose.swing.core.SwingRecomposer
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.listener.treeExpansionListener
 import org.jetbrains.compose.swing.pressKey
 import org.jetbrains.compose.swing.reportedUncaught
 import org.jetbrains.compose.swing.runSwingTest

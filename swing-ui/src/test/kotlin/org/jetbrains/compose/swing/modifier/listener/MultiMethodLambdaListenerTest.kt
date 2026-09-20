@@ -6,6 +6,10 @@ import org.jetbrains.compose.swing.components.desktop.DesktopPane
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.ToolBar
+import org.jetbrains.compose.swing.components.modifier.listener.documentListener
+import org.jetbrains.compose.swing.components.modifier.listener.internalFrameListener
+import org.jetbrains.compose.swing.components.modifier.listener.treeExpansionListener
+import org.jetbrains.compose.swing.components.modifier.listener.treeWillExpandListener
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.components.text.TextPane
 import org.jetbrains.compose.swing.components.text.rememberDocumentState

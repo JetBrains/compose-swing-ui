@@ -6,10 +6,10 @@ package org.jetbrains.compose.swing.components.button
 
 import androidx.compose.runtime.Composable
 import org.jetbrains.annotations.Nls
+import org.jetbrains.compose.swing.components.modifier.listener.actionListener
 import org.jetbrains.compose.swing.components.style.RadioButtons
 import org.jetbrains.compose.swing.components.style.SelectableStyleScope
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.listener.actionListener
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.declare
@@ -25,7 +25,7 @@ import javax.swing.JRadioButton
  * A `JRadioButton`, a labeled button showing whether it is chosen. The button shows whatever [selected]
  * holds, and every activation the user makes is reported through [onSelectedChange]. Standing alone it
  * clears itself on a second click; making several buttons one choice takes a `ButtonGroup`.
- * [buttonGroup][org.jetbrains.compose.swing.modifier.interaction.buttonGroup] enrolls a button in one,
+ * [buttonGroup][org.jetbrains.compose.swing.components.modifier.interaction.buttonGroup] enrolls a button in one,
  * and [RadioGroup][org.jetbrains.compose.swing.components.selection.RadioGroup] declares a whole choice.
  *
  * An activation the caller does not answer with a matching [selected] does not stand: the button is back

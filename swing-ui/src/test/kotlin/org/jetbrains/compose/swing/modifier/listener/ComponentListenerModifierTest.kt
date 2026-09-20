@@ -18,6 +18,13 @@ import org.jetbrains.compose.swing.components.button.ToggleButton
 import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.components.layout.SplitPane
 import org.jetbrains.compose.swing.components.layout.TabbedPane
+import org.jetbrains.compose.swing.components.modifier.listener.actionListener
+import org.jetbrains.compose.swing.components.modifier.listener.changeListener
+import org.jetbrains.compose.swing.components.modifier.listener.documentListener
+import org.jetbrains.compose.swing.components.modifier.listener.hyperlinkListener
+import org.jetbrains.compose.swing.components.modifier.listener.listSelectionListener
+import org.jetbrains.compose.swing.components.modifier.listener.treeExpansionListener
+import org.jetbrains.compose.swing.components.modifier.listener.treeSelectionListener
 import org.jetbrains.compose.swing.components.selection.ListBox
 import org.jetbrains.compose.swing.components.selection.Tree
 import org.jetbrains.compose.swing.components.text.EditorPane
