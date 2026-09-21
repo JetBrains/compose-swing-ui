@@ -6,7 +6,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 /**
  * The scope of a container whose child stands between the constraints that container offers it and
  * its own measurement: a fill, a padding, an offset, an aspect ratio or a default minimum size each
- * narrows what reaches the child, states what the child plus its own room occupies, and places the child
+ * narrows what reaches the child, states what the child plus its own space occupies, and places the child
  * inside that.
  *
  * [Row], [Column] and [Box] inherit this, so a child of any of them declares these alongside what
@@ -323,7 +323,7 @@ public interface ConstrainedScope {
      * [bottom] above and below it, each edge left unreserved by default. [start] and [end] swap edges
      * under a right-to-left reading order; see [absolutePadding] for a padding that never does.
      *
-     * A padding reserves room, so none of the four is ever below zero; declare [offset] to move a
+     * A padding reserves space, so none of the four is ever below zero; declare [offset] to move a
      * child outward from where its container places it.
      *
      * @return this modifier with the padding declared on it.
@@ -364,7 +364,7 @@ public interface ConstrainedScope {
 
     /**
      * Moves the child by ([x], [y]) from where it would otherwise sit, neither axis moved by default,
-     * without changing the room it measures into. A positive [x] moves the child toward the trailing
+     * without changing the space it measures into. A positive [x] moves the child toward the trailing
      * edge: right under a left-to-right reading order and left under a right-to-left one. See
      * [absoluteOffset] for an offset that always moves it toward the right.
      *
@@ -390,7 +390,7 @@ public interface ConstrainedScope {
     /**
      * Raises the child's minimum size to [minWidth] by [minHeight] along whichever axis its incoming
      * constraints leave a minimum of zero on. An axis already claiming a minimum is left as it is,
-     * and the minimum raised to is held between nothing and the room the child was offered, so a
+     * and the minimum raised to is held between nothing and the space the child was offered, so a
      * child in a container smaller than the minimum takes the container.
      *
      * @return this modifier with the default minimum size declared on it.

@@ -510,7 +510,7 @@ class BoxTest {
             assertEquals(
                 Dimension(CHILD_WIDTH, CHILD_HEIGHT),
                 containerSize(),
-                "a box offered more room than it needs is sized by the children that do not match it, so a " +
+                "a box offered more space than it needs is sized by the children that do not match it, so a " +
                     "matching child measured against what its parent offered would take the box with it",
             )
             assertEquals(

@@ -17,16 +17,16 @@ import kotlin.test.assertEquals
 
 /**
  * The behavior a [Row] or [Column] falls back to at the edges of what an arrangement, an alignment or
- * a weight normally covers: a container with less room than its children ask for, a weighted surplus
+ * a weight normally covers: a container with less space than its children ask for, a weighted surplus
  * that does not split into whole pixels, a weight sharing the surplus with a fixed arrangement gap, a
- * gap wider than the container has room for, a negative gap that overlaps its children instead of
+ * gap wider than the container has space for, a negative gap that overlaps its children instead of
  * spacing them, a container whose weighted child is itself a [Row] or [Column] with children of its
  * own, a child carrying a negative maximum size, and a weight so large that the extent it implies does
  * not fit an `Int`.
  */
 class RowColumnEdgeCaseTest {
     @Test
-    fun aRowGivesEveryChildTheRoomLeftOnceTheEarlierOnesHaveTakenTheirs() =
+    fun aRowGivesEveryChildTheSpaceLeftOnceTheEarlierOnesHaveTakenTheirs() =
         runComposeSwingTest {
             setContent {
                 Row(modifier = containerModifier(NARROW_MAIN, NARROW_CROSS)) {
@@ -42,12 +42,12 @@ class RowColumnEdgeCaseTest {
                 ),
                 childBounds(),
                 "a row narrower than its children's combined width must give the first child all of it, " +
-                    "leaving the second no width and no room to overflow into",
+                    "leaving the second no width and no space to overflow into",
             )
         }
 
     @Test
-    fun aColumnGivesEveryChildTheRoomLeftOnceTheEarlierOnesHaveTakenTheirs() =
+    fun aColumnGivesEveryChildTheSpaceLeftOnceTheEarlierOnesHaveTakenTheirs() =
         runComposeSwingTest {
             setContent {
                 Column(modifier = containerModifier(NARROW_CROSS, NARROW_MAIN)) {
@@ -63,7 +63,7 @@ class RowColumnEdgeCaseTest {
                 ),
                 childBounds(),
                 "a column shorter than its children's combined height must give the first child all of it, " +
-                    "leaving the second no height and no room to overflow into",
+                    "leaving the second no height and no space to overflow into",
             )
         }
 
@@ -115,7 +115,7 @@ class RowColumnEdgeCaseTest {
         }
 
     @Test
-    fun aSpacedByGapWiderThanTheRowTakesTheRoomLeftAndStillKeepsEveryChildInsideIt() =
+    fun aSpacedByGapWiderThanTheRowTakesTheSpaceLeftAndStillKeepsEveryChildInsideIt() =
         runComposeSwingTest {
             setContent {
                 Row(
@@ -134,7 +134,7 @@ class RowColumnEdgeCaseTest {
                 ),
                 childBounds(),
                 "a 1000px gap declared between two 20px children in a 44px row must shrink to the 24px the " +
-                    "row has left once the first child has taken its width, leaving the second child no room " +
+                    "row has left once the first child has taken its width, leaving the second child no space " +
                     "to be measured in and placing it at the trailing edge rather than 1000px past it",
             )
         }
@@ -347,7 +347,7 @@ class RowColumnEdgeCaseTest {
     }
 }
 
-/** A child narrower than [SizedChild], so a 44px row still has room to hold part of an oversized gap. */
+/** A child narrower than [SizedChild], so a 44px row still has space to hold part of an oversized gap. */
 @Composable
 private fun SmallChild(index: Int) {
     Label("small $index", modifier = SwingModifier.preferredSize(20, 40))

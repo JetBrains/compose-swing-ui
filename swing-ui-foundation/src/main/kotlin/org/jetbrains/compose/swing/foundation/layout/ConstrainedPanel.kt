@@ -51,7 +51,7 @@ internal open class ScrollablePanel(
 internal open class ConstrainedPanel(
     private val policyLayout: MeasurePolicyLayout,
 ) : ScrollablePanel(policyLayout),
-    ConstrainedSize {
+    Constrainable {
     /** Declaration order adjusted by any stacking parent data understood by this container. */
     val stackingOrder: StackingOrder =
         StackingOrder(this) {

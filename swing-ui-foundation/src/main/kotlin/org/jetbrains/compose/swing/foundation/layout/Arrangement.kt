@@ -459,7 +459,7 @@ public object Arrangement {
 
 /**
  * Holds [space] between adjacent children and, when [alignment] is given, places the group at it
- * in whatever room is left; a null [alignment] leaves the group where packing left it. [mirrored]
+ * in whatever space is left; a null [alignment] leaves the group where packing left it. [mirrored]
  * reverses the packing direction under a right-to-left orientation, which a horizontal arrangement does
  * and a vertical one leaves alone.
  *
@@ -496,7 +496,7 @@ private data class SpacedAligned(
         outPositions: IntArray,
     ): Unit = arrange(totalSize, sizes, ComponentOrientation.LEFT_TO_RIGHT, outPositions)
 
-    /** Packs from the leading edge and returns the room left after the last child. */
+    /** Packs from the leading edge and returns the space left after the last child. */
     private fun packLeading(
         totalSize: Int,
         sizes: IntArray,
@@ -513,7 +513,7 @@ private data class SpacedAligned(
         return totalSize - (occupied - lastSpace)
     }
 
-    /** Packs from the trailing edge and returns the room left before the first child. */
+    /** Packs from the trailing edge and returns the space left before the first child. */
     private fun packTrailing(
         totalSize: Int,
         sizes: IntArray,
@@ -590,7 +590,7 @@ private fun placeCenter(
     reversed: Boolean,
 ): Unit = placeRun(first = surplus(totalSize, sizes).toFloat() / 2, gap = 0f, sizes, outPositions, reversed)
 
-/** Splits the room left over into one gap between each pair of children. */
+/** Splits the space left over into one gap between each pair of children. */
 private fun placeSpaceBetween(
     totalSize: Int,
     sizes: IntArray,
@@ -616,7 +616,7 @@ private fun placeSpaceAround(
     placeRun(first = gap / 2, gap, sizes, outPositions, reversed)
 }
 
-/** Splits the room left over into equal gaps between the children and at both edges. */
+/** Splits the space left over into equal gaps between the children and at both edges. */
 private fun placeSpaceEvenly(
     totalSize: Int,
     sizes: IntArray,
@@ -627,7 +627,7 @@ private fun placeSpaceEvenly(
     placeRun(first = gap, gap, sizes, outPositions, reversed)
 }
 
-/** The room left after [sizes], summed without letting a pair of large extents wrap through zero. */
+/** The space left after [sizes], summed without letting a pair of large extents wrap through zero. */
 private fun surplus(
     totalSize: Int,
     sizes: IntArray,

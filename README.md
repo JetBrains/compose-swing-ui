@@ -187,7 +187,7 @@ see [`docs/INSPECTING-COMPOSITIONS.md`](docs/INSPECTING-COMPOSITIONS.md).
 
 ## Animation
 
-`swing-ui-animation` provides Compose's animation-core APIs - `animate*AsState`, `Animatable`,
+`swing-ui-animation` provides androidx Compose's animation-core APIs - `animate*AsState`, `Animatable`,
 `updateTransition`, easing curves, and the `spring` / `tween` / `keyframes` specs - for `Float`,
 `Int`, and any type you supply a `TwoWayConverter` for. See
 [`swing-ui-animation/README.md`](swing-ui-animation/README.md).
@@ -241,6 +241,7 @@ consume the libraries.
 Licensed under the Apache License, Version 2.0 - see [LICENSE](LICENSE).
 
 `swing-ui` redistributes source code from the Android Open Source Project's Jetpack Compose `compose.ui:ui`,
-`swing-ui-foundation` its `foundation-layout` and `compose.ui:ui`, `swing-ui-animation` its `animation-core`, and `swing-ui-detekt`
-one of that project's Android Lint checks, all under the same license. See each module's `META-INF/NOTICE`
+`swing-ui-foundation` its `foundation-layout` and `compose.ui:ui`, `swing-ui-animation` its
+`animation-core`, and `swing-ui-detekt` one of that project's Android Lint checks, all under the same license. See
+each module's `META-INF/NOTICE`
 and the per-file headers for attribution.

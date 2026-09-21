@@ -146,7 +146,7 @@ class ReactiveTaskListTest {
             setContent { ReactiveTaskList() }
 
             // The column places the height it has left over instead of pushing it into a child, so a
-            // row is laid out at exactly the height it asks for however much room the list has.
+            // row is laid out at exactly the height it asks for however much space the list has.
             val rowWithFourTasks = onNodeWithTag(taskRowTag(3)).fetch<JPanel>()
             val heightWithFourTasks = rowWithFourTasks.height
             assertTrue(heightWithFourTasks > 0, "the row must have a real, laid-out height")

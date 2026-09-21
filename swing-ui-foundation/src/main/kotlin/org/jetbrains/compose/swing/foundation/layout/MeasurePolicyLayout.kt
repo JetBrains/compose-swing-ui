@@ -147,21 +147,24 @@ private fun MeasurePolicyLayout.alignmentChild(target: Container): Component? =
         }
     }
 
-/** The non-negative extent left after the insets on its two edges have taken their room. */
+/** The non-negative extent left after the insets on its two edges have taken their space. */
 private fun innerExtent(
     extent: Int,
     firstInset: Int,
     secondInset: Int,
 ): Int = (extent.toLong() - insetSpan(firstInset, secondInset)).coerceAtLeast(0L).toInt()
 
-/** The room two insets take, held to the largest extent the geometry APIs can represent. */
+/** The space two insets take, held to the largest extent the geometry APIs can represent. */
 private fun insetSpan(
     first: Int,
     second: Int,
 ): Long = (first.toLong() + second).coerceIn(0L, Int.MAX_VALUE.toLong())
 
+/** [this] plus [amount], held between zero and the largest extent the geometry APIs can represent. */
+internal fun Int.grownBy(amount: Int): Int = (toLong() + amount).coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
+
 /**
- * [extent] with [added] room beside it. An extent already at [Int.MAX_VALUE] stays there rather than
+ * [extent] with [added] space beside it. An extent already at [Int.MAX_VALUE] stays there rather than
  * wrapping past it: a policy naming that extent asks for everything there is, and the insets around it
  * cannot be more than everything.
  */
@@ -292,7 +295,7 @@ internal class ChildMeasurables(
 
     /**
      * What the policy occupies under [constraints], plus the insets it measured inside - the answer a
-     * container's own [ConstrainedSize] gives its parent.
+     * container's own [Constrainable] gives its parent.
      *
      * Nothing is placed: the parent is deciding an extent, and the placement follows from the bounds it
      * then assigns, which is what `layoutContainer` runs.
@@ -491,7 +494,7 @@ private fun ChildMeasurable.intrinsicSize(
 
 /** What the component itself answers under [constraints], with no chain between. */
 private fun ChildMeasurable.measureComponent(constraints: Constraints): Dimension {
-    val constrained = component as? ConstrainedSize
+    val constrained = component as? Constrainable
     return if (constrained != null && owner.mode == MeasureMode.Measure) {
         constrained.measure(constraints)
         Dimension(constrained.constrainedWidth, constrained.constrainedHeight)
@@ -499,7 +502,7 @@ private fun ChildMeasurable.measureComponent(constraints: Constraints): Dimensio
         // Swing has no constrained-measure operation for an ordinary component.  When both axes
         // are exact, retain the established no-query fast path and use the granted extent. For every
         // other offer, its preferred or minimum size is the only answer Swing gives us, so constrain
-        // it here. Only a ConstrainedSize or layout modifier can deliberately report real overflow.
+        // it here. Only a Constrainable or layout modifier can deliberately report real overflow.
         if (constraints.hasFixedWidth && constraints.hasFixedHeight) {
             Dimension(constraints.minWidth, constraints.minHeight)
         } else {

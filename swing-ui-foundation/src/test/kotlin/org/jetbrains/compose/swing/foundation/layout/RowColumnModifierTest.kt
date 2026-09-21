@@ -200,7 +200,7 @@ private const val CHILD_EXTENT = 20
 /** The extent of the children that are not short, which is the container's own extent across the axis. */
 private const val TALL = 20
 
-/** Which child is short across the axis, so that an alignment has room to move it. */
+/** Which child is short across the axis, so that an alignment has space to move it. */
 private const val SHORT = 4
 
 /** The extent the short child asks for across the axis. */

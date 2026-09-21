@@ -216,6 +216,59 @@ class SizeModifierTest {
             )
         }
 
+    @Test
+    fun sizeBuildersReportTheirNameAndTheBoundsTheyDeclare() {
+        with(ConstrainedScopeImpl) {
+            val declarations =
+                listOf(
+                    SwingModifier.sizeIn(minWidth = 1, minHeight = 2, maxWidth = 3, maxHeight = 4) to "sizeIn",
+                    SwingModifier.requiredWidthIn(min = 1, max = 3) to "requiredWidthIn",
+                    SwingModifier.height(2) to "height",
+                )
+            val bounds =
+                listOf(
+                    mapOf("minWidth" to 1, "minHeight" to 2, "maxWidth" to 3, "maxHeight" to 4),
+                    mapOf("minWidth" to 1, "minHeight" to null, "maxWidth" to 3, "maxHeight" to null),
+                    mapOf("minWidth" to null, "minHeight" to 2, "maxWidth" to null, "maxHeight" to 2),
+                )
+
+            for ((declared, expected) in declarations.zip(bounds)) {
+                val (modifier, name) = declared
+                assertEquals(name, modifier.lastElement().name, "$name must report its public name")
+                assertEquals(expected, modifier.lastElement().declaredValues, "$name must report what it bounds")
+            }
+        }
+    }
+
+    @Test
+    fun everyWrapContentBuilderReportsItsNameAlignmentAndUnboundedness() {
+        with(ConstrainedScopeImpl) {
+            val declarations =
+                listOf(
+                    SwingModifier.wrapContentWidth(Alignment.End, unbounded = true) to
+                        mapOf("align" to Alignment.End, "unbounded" to true),
+                    SwingModifier.wrapContentHeight(Alignment.Bottom) to
+                        mapOf("align" to Alignment.Bottom, "unbounded" to false),
+                    SwingModifier.wrapContentSize(Alignment.TopStart) to
+                        mapOf("align" to Alignment.TopStart, "unbounded" to false),
+                )
+
+            for ((modifier, expected) in declarations) {
+                val name = modifier.lastElement().name
+                assertEquals(
+                    expected,
+                    modifier.lastElement().declaredValues,
+                    "$name must report its alignment and unboundedness",
+                )
+            }
+            assertEquals(
+                listOf("wrapContentWidth", "wrapContentHeight", "wrapContentSize"),
+                declarations.map { it.first.lastElement().name },
+                "each wrap-content builder must report its own name",
+            )
+        }
+    }
+
     @Composable
     private fun FixedOfferLayout(
         offer: Constraints,

@@ -20,7 +20,7 @@ import kotlin.test.assertEquals
  * the offset the child ends up at, which is what every test here reads back.
  *
  * The container is always wider (a column) or taller (a row) than its children ask for, so each child
- * has room across the axis to be placed in - except where a row asks for its own height, which is what
+ * has space across the axis to be placed in - except where a row asks for its own height, which is what
  * the children on its shared baseline decide between them. A child that names an alignment of its own
  * is placed by that one, and its siblings are untouched.
  */

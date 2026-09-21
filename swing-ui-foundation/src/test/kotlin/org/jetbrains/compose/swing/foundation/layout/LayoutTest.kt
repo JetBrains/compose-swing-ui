@@ -70,7 +70,7 @@ class LayoutTest {
         }
 
     @Test
-    fun anAspectRatioChildThatHasNoHeightLeftIsGivenNoRoomToEscapeTheContainer() =
+    fun anAspectRatioChildThatHasNoHeightLeftIsGivenNoSpaceToEscapeTheContainer() =
         runComposeSwingTest {
             setContent {
                 Layout(
@@ -138,7 +138,7 @@ class LayoutTest {
     /**
      * The content receiver is [ConstrainedScope], so a child declares the modifiers that stand between
      * the policy's offer and its own measure. The padding narrows what reaches the child and states the
-     * child plus its own room as what the policy placed.
+     * child plus its own space as what the policy placed.
      */
     @Test
     fun aChildsOwnLayoutModifiersStandBetweenThePolicyAndTheChild() =
@@ -154,7 +154,7 @@ class LayoutTest {
             assertEquals(
                 listOf(Rectangle(PADDING, PADDING, CHILD_WIDTH, CHILD_HEIGHT)),
                 childBounds(),
-                "a padded child sits inside the room its padding reserved",
+                "a padded child sits inside the space its padding reserved",
             )
         }
 
@@ -287,7 +287,7 @@ class LayoutTest {
         /** The extent a policy grants a child outright, smaller than the container and than the child. */
         const val GRANTED = 30
 
-        /** The room a padded child reserves around itself. */
+        /** The space a padded child reserves around itself. */
         const val PADDING = 8
 
         /** What a child declares to a policy that places by a constraint of its own. */
@@ -301,7 +301,7 @@ class LayoutTest {
 
         /**
          * A policy that stacks its children down the container at the width the offer allows, [gap]
-         * apart, and asks for as much room as the stack occupies within that offer.
+         * apart, and asks for as much space as the stack occupies within that offer.
          */
         fun stackedRows(gap: Int = 0): MeasurePolicy =
             MeasurePolicy { measurables, constraints ->

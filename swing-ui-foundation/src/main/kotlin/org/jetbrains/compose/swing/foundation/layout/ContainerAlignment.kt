@@ -22,7 +22,7 @@ internal interface ParentAlignmentPolicy {
  *
  * A container built from this package reports its content's alignment rather than a fixed value of its own,
  * so the layout above it places it where it would have placed that content directly. A parent that lines
- * its children up on a shared alignment - `javax.swing.BoxLayout` - reserves room on both sides of that
+ * its children up on a shared alignment - `javax.swing.BoxLayout` - reserves space on both sides of that
  * line for every sibling, so a container answering a constant would sit off the line its content belongs
  * on and squeeze whichever siblings can stretch.
  *

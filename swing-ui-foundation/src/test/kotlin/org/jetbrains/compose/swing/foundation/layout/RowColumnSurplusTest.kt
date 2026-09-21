@@ -20,7 +20,7 @@ import kotlin.test.assertEquals
  * them and stretch them all.
  *
  * The size is imposed from outside, as a `BorderLayout` center or a split-pane side imposes one, so
- * the container is genuinely given more room than it asked for.
+ * the container is genuinely given more space than it asked for.
  */
 class RowColumnSurplusTest {
     @Test

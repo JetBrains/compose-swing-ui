@@ -30,7 +30,7 @@ import java.awt.Component
  *             val measured = measurable.measure(
  *                 Constraints(maxWidth = constraints.maxWidth, maxHeight = remainingHeight)
  *             )
- *             // A layout modifier may escape an impossible offer, so give an overflowing child no room.
+ *             // A layout modifier may escape an impossible offer, so give an overflowing child no space.
  *             val placeable =
  *                 if (measured.width <= constraints.maxWidth && measured.height <= remainingHeight) {
  *                     measured

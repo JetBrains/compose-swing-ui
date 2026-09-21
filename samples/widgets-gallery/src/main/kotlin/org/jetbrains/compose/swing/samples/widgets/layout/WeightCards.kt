@@ -22,7 +22,7 @@ import java.awt.Dimension
 // weight() cards: each one hands a share of a row's width to a colored swatch and prints the width the
 // layout granted it. A gray outline on the row makes the extent that share comes out of legible, and the
 // printed width names what the outline cannot - the part of a share a child declines to take, or is
-// capped out of, is empty space that looks the same as room no child ever claimed.
+// capped out of, is empty space indistinguishable from space no child ever claimed.
 @Composable
 internal fun ColumnScope.WeightCards() {
     WeightSharesCard()

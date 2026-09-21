@@ -22,7 +22,7 @@ import kotlin.test.assertEquals
  * largest, the alignment its content lines up on, and the extent it prefers.
  *
  * A container's minimum carries weight beyond a parent that honors it: `SplitPane` clamps divider travel
- * against it, so a minimum read off the wrong extent either refuses the divider room it has or lets it
+ * against it, so a minimum read off the wrong extent either refuses the divider space it has or lets it
  * crush content that said it could not shrink.
  */
 class RowColumnParentQueryTest {
@@ -205,7 +205,7 @@ class RowColumnParentQueryTest {
             assertEquals(
                 Dimension(CHILD_WIDTH + LEFT + RIGHT, CHILD_HEIGHT + TOP + BOTTOM),
                 container().preferredSize,
-                "the room the border takes must be added to the extent the column prefers, or its child is " +
+                "the space the border takes must be added to the extent the column prefers, or its child is " +
                     "laid out in less width and height than it asked for",
             )
             assertEquals(

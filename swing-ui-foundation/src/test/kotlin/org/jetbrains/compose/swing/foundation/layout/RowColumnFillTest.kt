@@ -15,7 +15,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * Every container here has more room than its children ask for, so the extent a filling child ends up
+ * Every container here has more space than its children ask for, so the extent a filling child ends up
  * at is the whole of what the fill did, and a sibling that declares no fill shows what the same
  * container does without one.
  */
@@ -325,7 +325,7 @@ class RowColumnFillTest {
         // Far wider, or taller, than a child asks for, so the extent a fill takes is unmistakable.
         const val CROSS_EXTENT = 200
 
-        // Room along the axis for the three children a fixture declares, and no surplus to place.
+        // Space along the axis for the three children a fixture declares, and no surplus to place.
         const val MAIN_EXTENT = 120
 
         // 40px of the column goes to the child that claims no share; the rest is the weighted child's.

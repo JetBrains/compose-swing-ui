@@ -14,13 +14,13 @@ import kotlin.test.assertEquals
 
 /**
  * An offset moves a child from where its container would otherwise place it, and changes nothing else:
- * the child is measured into the same room, and the container asks its own parent for the same extent
+ * the child is measured into the same space, and the container asks its own parent for the same extent
  * as it would without one. `offset` moves along the reading order, so its horizontal move mirrors under
  * a right-to-left orientation, while `absoluteOffset` moves toward the right under either.
  *
  * Ported from androidx `foundation-layout`'s own `OffsetTest`, whose case names are kept so the two
  * files read side by side. Two cases are named for what they pin instead:
- * [anOffsetLeavesTheChildTheWholeRoomItWouldOtherwiseBeMeasuredIn], which is what separates an offset
+ * [anOffsetLeavesTheChildTheWholeSpaceItWouldOtherwiseBeMeasuredIn], which is what separates an offset
  * from a padding, and [anOffsetFollowsTheValueItIsDeclaredWith], which stands in for the observable
  * half of androidx's `updateOffsetDp_doesNotRemeasure` - the counts that test makes of measure, place
  * and draw passes are internals of the Compose node it asserts on, and this tree has no counterpart.
@@ -39,7 +39,7 @@ class OffsetTest {
                 Dimension(CHILD_WIDTH, CHILD_HEIGHT),
                 containerPreferredSize(),
                 "an offset child must leave its container asking for the child's own extent, since an offset " +
-                    "reserves no room the way a padding does",
+                    "reserves no space the way a padding does",
             )
             assertEquals(
                 listOf(Rectangle(OFFSET_X, OFFSET_Y, CHILD_WIDTH, CHILD_HEIGHT)),
@@ -187,7 +187,7 @@ class OffsetTest {
         }
 
     @Test
-    fun anOffsetLeavesTheChildTheWholeRoomItWouldOtherwiseBeMeasuredIn() =
+    fun anOffsetLeavesTheChildTheWholeSpaceItWouldOtherwiseBeMeasuredIn() =
         runComposeSwingTest {
             setContent {
                 Box(modifier = containerModifier(CONTAINER_WIDTH, CONTAINER_HEIGHT)) {
@@ -199,7 +199,7 @@ class OffsetTest {
                 listOf(Rectangle(OFFSET_X, OFFSET_Y, CONTAINER_WIDTH, CONTAINER_HEIGHT)),
                 childBounds(),
                 "a child filling the box must still be measured into the whole of it with an offset declared, " +
-                    "and only be moved - a padding would have taken the room out of what the child is measured in",
+                    "and only be moved - a padding would have taken the space out of what the child is measured in",
             )
         }
 
@@ -271,7 +271,7 @@ class OffsetTest {
         const val LATER_OFFSET_X = 35
 
         /**
-         * The extent a box is given where the case needs room for the box to start the child at its
+         * The extent a box is given where the case needs space for the box to start the child at its
          * trailing edge before the offset moves it.
          */
         const val CONTAINER_WIDTH = 200

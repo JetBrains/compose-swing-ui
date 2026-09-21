@@ -299,7 +299,7 @@ class LayoutSectionsTest {
                 center.x - (west.x + west.width) > borderGapBefore,
                 "increasing Border hgap increases the visible space between regions",
             )
-            assertTrue(center.width < centerWidthBefore, "the wider gaps leave less room for the center region")
+            assertTrue(center.width < centerWidthBefore, "the wider gaps leave less space for the center region")
         }
 
     @Test

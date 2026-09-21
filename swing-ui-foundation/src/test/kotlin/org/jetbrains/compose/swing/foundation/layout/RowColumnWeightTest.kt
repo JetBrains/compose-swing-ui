@@ -19,7 +19,7 @@ import kotlin.test.assertTrue
  * weights; a child that declares a maximum of its own takes no more than that maximum allows, and a
  * child that does not fill takes only as much of its share as it prefers.
  *
- * A container nobody imposed a size on asks for room enough that the share each weighted child is
+ * A container nobody imposed a size on asks for space enough that the share each weighted child is
  * granted covers the extent that child can occupy - what it prefers, or its own maximum where that is
  * smaller.
  *

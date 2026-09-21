@@ -265,7 +265,7 @@ class RowColumnReactivityTest {
         // Two weighted children and nothing else, so the whole height is theirs to split.
         const val WEIGHTED_MAIN_EXTENT = 340
 
-        // Room across the axis for an alignment to move a child through.
+        // Space across the axis for an alignment to move a child through.
         const val WIDE_CROSS_EXTENT = 200
         const val SHORT_MAIN_EXTENT = 120
 

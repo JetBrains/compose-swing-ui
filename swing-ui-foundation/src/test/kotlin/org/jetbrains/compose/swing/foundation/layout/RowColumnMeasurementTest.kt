@@ -107,7 +107,7 @@ private fun inRealizedRow(
     }
 }
 
-/** Large enough that the row never runs out of room for what a child prefers. */
+/** Large enough that the row never runs out of space for what a child prefers. */
 private val ROW_FRAME_SIZE = Dimension(600, 300)
 
 /** Runs [body] on the event dispatch thread, unwrapping a failure it raises from the invocation. */

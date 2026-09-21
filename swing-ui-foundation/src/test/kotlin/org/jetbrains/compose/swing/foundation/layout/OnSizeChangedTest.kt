@@ -48,7 +48,7 @@ import kotlin.test.assertTrue
  *
  * A case androidx `compose-ui`'s own `OnSizeChangedTest` makes keeps that test's name and its place in
  * that test's order, so the two files read side by side and a case dropped in translation shows up as a
- * gap. Room reserved around a child is a `padding` in a container's scope here rather than a modifier
+ * gap. Space reserved around a child is a `padding` in a container's scope here rather than a modifier
  * any chain can carry, so a case whose point is padding inside or outside the reported extent states it
  * by where the padding is declared rather than by where it sits in one chain.
  *
@@ -145,19 +145,19 @@ class OnSizeChangedTest {
 
             setContent {
                 Box(modifier = SwingModifier.onSizeChanged { reported += it }) {
-                    // The room reserved around the child is reserved inside the container reporting, so it
+                    // The space reserved around the child is reserved inside the container reporting, so it
                     // counts toward what that container occupies.
                     Label(text = "child", modifier = SwingModifier.padding(sizePx).preferredSize(10, 10))
                 }
             }
             awaitIdle()
 
-            assertEquals(Dimension(30, 30), reported.last(), "room reserved inside the report counts toward it")
+            assertEquals(Dimension(30, 30), reported.last(), "space reserved inside the report counts toward it")
 
             sizePx = 20
             awaitIdle()
 
-            assertEquals(Dimension(50, 50), reported.last(), "more room reserved inside is a new extent to report")
+            assertEquals(Dimension(50, 50), reported.last(), "more space reserved inside is a new extent to report")
         }
 
     @Test
@@ -171,7 +171,7 @@ class OnSizeChangedTest {
 
             setContent {
                 Box {
-                    // The room is reserved around the reporting container rather than within it, so less of
+                    // The space is reserved around the reporting container rather than within it, so less of
                     // it moves that container's edges inward without changing the extent it occupies.
                     Box(
                         modifier =
@@ -186,7 +186,7 @@ class OnSizeChangedTest {
             }
             awaitIdle()
 
-            assertEquals(Dimension(10, 10), reported.last(), "room reserved outside the report is left out of it")
+            assertEquals(Dimension(10, 10), reported.last(), "space reserved outside the report is left out of it")
             reported.clear()
             placements.clear()
 
@@ -196,9 +196,9 @@ class OnSizeChangedTest {
             assertEquals(
                 listOf(Rectangle(5, 5, 10, 10)),
                 placements,
-                "the room around it shrank, so the layout moved it",
+                "the space around it shrank, so the layout moved it",
             )
-            assertTrue(reported.isEmpty(), "less room around a component is not a change in what it occupies")
+            assertTrue(reported.isEmpty(), "less space around a component is not a change in what it occupies")
         }
 
     @Test

@@ -125,7 +125,7 @@ class DefaultMinSizeTest {
         const val MIN_WIDTH = 60
         const val MIN_HEIGHT = 80
 
-        /** A box with room to spare for every minimum raised inside it. */
+        /** A box with space to spare for every minimum raised inside it. */
         const val CONTAINER_EXTENT = 200
 
         /** A box smaller than the minimum declared in it, which is what that minimum is held to. */

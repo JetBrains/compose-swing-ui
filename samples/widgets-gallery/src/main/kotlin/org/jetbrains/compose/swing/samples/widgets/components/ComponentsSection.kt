@@ -270,7 +270,7 @@ private fun ColumnScope.ChoiceCard() {
             ) { language ->
                 // A cell renders one component, and its layout is what arranges the row: the glyph
                 // holds a slot of its own on the leading edge, so every name starts in the same place
-                // whatever glyph precedes it, and the name takes the room that is left.
+                // whatever glyph precedes it, and the name takes the space that is left.
                 val swatch = rememberDotIcon(language.swatch)
                 Panel(PanelLayout.Border(), modifier = SwingModifier.opaque(false)) {
                     Label(

@@ -4,7 +4,7 @@ This is the catalog of what Compose Swing UI ships: every component family, grou
 reach for one, with the parameters that decide how it behaves. The KDoc on each function is the
 per-parameter reference. The concepts behind the binding are in
 [`ARCHITECTURE.md`](ARCHITECTURE.md), constraint-based foundation layouts are in
-[`FOUNDATION-LAYOUT.md`](FOUNDATION-LAYOUT.md), and building a component of your own is
+[`FOUNDATION.md`](FOUNDATION.md), and building a component of your own is
 [`CUSTOM-COMPONENTS.md`](CUSTOM-COMPONENTS.md).
 
 <!--- INCLUDE .*content.*
@@ -533,7 +533,7 @@ A builder is only callable where its scope is the receiver, so a region belongs 
 offers it and cannot be named anywhere else.
 
 For Compose-style constraint-based layouts (`Row`, `Column`, `Box`) and layout modifiers, see
-[`FOUNDATION-LAYOUT.md`](FOUNDATION-LAYOUT.md).
+[`FOUNDATION.md`](FOUNDATION.md).
 
 | Component     | What it is                                                                           |
 |---------------|--------------------------------------------------------------------------------------|
@@ -593,9 +593,9 @@ Panel(PanelLayout.Border()) {
 <!--- CLEAR -->
 
 `PanelLayout.Box` is `BoxLayout` itself, and a `ToolBar` lays its controls out the same way: each
-shares its leftover space out among the children that have room between the size they prefer and
-their maximum size, in proportion to that room. `Glue` is empty space with the most room of all, so it
-takes the largest share, and `Strut`, `RigidArea` and `Spacer` (a `RigidArea` square) are the fixed
+shares its leftover space out among the children that can still grow between the size they prefer
+and their maximum size, in proportion to how much they can grow. `Glue` is empty space that can grow
+without limit, so it takes the largest share, and `Strut`, `RigidArea` and `Spacer` (a `RigidArea` square) are the fixed
 gaps between items. `PanelLayout.Flow` centers its children and gaps them by `5` in user-space
 coordinates, and `PanelLayout.Grid` starts as a single row that grows a column per child, with no gaps.
 

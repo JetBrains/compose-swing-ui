@@ -993,7 +993,7 @@ class RowColumnTest {
             assertEquals(
                 250,
                 containerSize().width,
-                "the room a weighted child claims comes out of the row's own width, so a row handed 250px " +
+                "the space a weighted child claims comes out of the row's own width, so a row handed 250px " +
                     "must stay at 250px however large that child's share is",
             )
             assertEquals(
@@ -1559,7 +1559,7 @@ class RowColumnTest {
                 listOf(Rectangle(0, 0, 20, 20), Rectangle(30, 0, 20, 20)),
                 childBounds(),
                 "the children and the gap between them fill the row exactly, so the alignment the " +
-                    "arrangement carries has no room left to shift the group into",
+                    "arrangement carries has no space left to shift the group into",
             )
         }
 
@@ -1772,7 +1772,7 @@ class RowColumnTest {
                 listOf(Rectangle(0, 0, 20, 20), Rectangle(0, 30, 20, 20)),
                 childBounds(),
                 "the children and the gap between them fill the column exactly, so the alignment the " +
-                    "arrangement carries has no room left to shift the group into",
+                    "arrangement carries has no space left to shift the group into",
             )
         }
 
@@ -1825,8 +1825,8 @@ class RowColumnTest {
             assertEquals(
                 listOf(Rectangle(0, 0, 30, 30)),
                 childBounds(),
-                "a child keeps the extent it asks for however much room its row was given: the extent a " +
-                    "parent imposes on a row is the room the row has to place children in, never a floor the " +
+                "a child keeps the extent it asks for however much space its row was given: the extent a " +
+                    "parent imposes on a row is the space the row has to place children in, never a floor the " +
                     "row passes down to them",
             )
         }
@@ -2054,7 +2054,7 @@ class RowColumnTest {
                     Dimension(0, 0),
                     taggedPanel(tag).minimumSize,
                     "'$tag' can shrink to nothing for the same reason, so a parent reading its minimum is " +
-                        "not told to keep room for an absent child",
+                        "not told to keep space for an absent child",
                 )
             }
         }
@@ -2625,7 +2625,7 @@ private fun columnCrossCells(): List<Rectangle> =
         Rectangle(left, index * 50, 50, 50)
     }
 
-/** A row given more width than its children ask for, so an arrangement has room to place. */
+/** A row given more width than its children ask for, so an arrangement has space to place. */
 @Composable
 private fun ArrangedRow(
     arrangement: Arrangement.Horizontal,
@@ -2639,7 +2639,7 @@ private fun ArrangedRow(
     }
 }
 
-/** A column given more height than its children ask for, so an arrangement has room to place. */
+/** A column given more height than its children ask for, so an arrangement has space to place. */
 @Composable
 private fun ArrangedColumn(arrangement: Arrangement.Vertical) {
     Column(
@@ -2650,7 +2650,7 @@ private fun ArrangedColumn(arrangement: Arrangement.Vertical) {
     }
 }
 
-/** A row with room for two children and the gap between them, and nothing to spare beyond that. */
+/** A row with space for two children and the gap between them, and nothing to spare beyond that. */
 @Composable
 private fun TightRow(
     arrangement: Arrangement.Horizontal,
@@ -2670,7 +2670,7 @@ private fun TightRow(
     }
 }
 
-/** A column with room for two children and the gap between them, and nothing to spare beyond that. */
+/** A column with space for two children and the gap between them, and nothing to spare beyond that. */
 @Composable
 private fun TightColumn(
     arrangement: Arrangement.Vertical,

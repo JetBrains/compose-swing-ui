@@ -11,8 +11,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
 /**
- * A padding reserves room along a child's edges: it takes that room out of what the child is measured
- * under, states the child plus the room as the extent it occupies, and places the child inside it.
+ * A padding reserves space along a child's edges: it takes that space out of what the child is measured
+ * under, states the child plus the space as the extent it occupies, and places the child inside it.
  * `padding` reserves its start before the child and its end after it along the reading order, so the
  * two swap edges under a right-to-left orientation, while `absolutePadding` reserves the same left and
  * right under either.
@@ -57,7 +57,7 @@ class PaddingTest {
     @Test
     fun negativeStartPadding_throws() {
         with(BoxScopeInstance) {
-            assertFailsWith<IllegalArgumentException>("no room can be reserved before a child") {
+            assertFailsWith<IllegalArgumentException>("no space can be reserved before a child") {
                 SwingModifier.padding(start = -1)
             }
         }
@@ -66,7 +66,7 @@ class PaddingTest {
     @Test
     fun negativeTopPadding_throws() {
         with(BoxScopeInstance) {
-            assertFailsWith<IllegalArgumentException>("no room can be reserved above a child") {
+            assertFailsWith<IllegalArgumentException>("no space can be reserved above a child") {
                 SwingModifier.padding(top = -1)
             }
         }
@@ -75,7 +75,7 @@ class PaddingTest {
     @Test
     fun negativeEndPadding_throws() {
         with(BoxScopeInstance) {
-            assertFailsWith<IllegalArgumentException>("no room can be reserved after a child") {
+            assertFailsWith<IllegalArgumentException>("no space can be reserved after a child") {
                 SwingModifier.padding(end = -1)
             }
         }
@@ -84,7 +84,7 @@ class PaddingTest {
     @Test
     fun negativeBottomPadding_throws() {
         with(BoxScopeInstance) {
-            assertFailsWith<IllegalArgumentException>("no room can be reserved below a child") {
+            assertFailsWith<IllegalArgumentException>("no space can be reserved below a child") {
                 SwingModifier.padding(bottom = -1)
             }
         }
@@ -94,7 +94,7 @@ class PaddingTest {
     fun aNegativeAbsolutePaddingIsRefusedToo() {
         with(BoxScopeInstance) {
             assertFailsWith<IllegalArgumentException>(
-                "an absolute padding reserves the same room a padding does, so it refuses the same values",
+                "an absolute padding reserves the same space a padding does, so it refuses the same values",
             ) {
                 SwingModifier.absolutePadding(left = -1)
             }
@@ -193,7 +193,7 @@ class PaddingTest {
             assertEquals(
                 listOf(Rectangle(OVERSIZE_PADDING, OVERSIZE_PADDING, 0, 0)),
                 childBounds(),
-                "a padding wider than the room it is given must still be reserved: the child is left nothing " +
+                "a padding wider than the space it is given must still be reserved: the child is left nothing " +
                     "to occupy and is placed past the leading padding all the same",
             )
         }
@@ -295,7 +295,7 @@ class PaddingTest {
             assertEquals(
                 listOf(Rectangle(TIGHT_END, 0, TIGHT_EXTENT - TIGHT_START - TIGHT_END, TIGHT_EXTENT)),
                 childBounds(),
-                "a box with room for its child and the padding either side of it must measure the child into " +
+                "a box with space for its child and the padding either side of it must measure the child into " +
                     "what is left, under a right-to-left orientation as under any other",
             )
         }
@@ -345,13 +345,13 @@ class PaddingTest {
     }
 
     private companion object {
-        /** The extent a box is given where it has room for both the child and the padding around it. */
+        /** The extent a box is given where it has space for both the child and the padding around it. */
         const val BOX_EXTENT = 50
 
-        /** The room a padding declared for every edge at once reserves. */
+        /** The space a padding declared for every edge at once reserves. */
         const val UNIFORM_PADDING = 10
 
-        /** The room a padding declared for a pair of edges at once reserves, one value per axis. */
+        /** The space a padding declared for a pair of edges at once reserves, one value per axis. */
         const val HORIZONTAL_PADDING = 10
         const val VERTICAL_PADDING = 20
 
@@ -380,7 +380,7 @@ class PaddingTest {
         /** The extent each child of the right-to-left row asks for on either axis. */
         const val SIZE = 100
 
-        /** A row wide enough to hold all three padded children with room to spare after them. */
+        /** A row wide enough to hold all three padded children with space to spare after them. */
         const val ROW_WIDTH = 400
 
         /** The three paddings the right-to-left cases reserve, each a different width. */

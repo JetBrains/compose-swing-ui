@@ -4,7 +4,7 @@ A container declares its children rather than adding them, and offers the placem
 a scope. This document is writing such a container, the shared hierarchies assembled from them, hosting
 a nested composition, and rendering a component's items with a composable cell. Building a leaf
 component is [`CUSTOM-COMPONENTS.md`](CUSTOM-COMPONENTS.md). How the layout system works is
-[`FOUNDATION-LAYOUT.md`](FOUNDATION-LAYOUT.md).
+[`FOUNDATION.md`](FOUNDATION.md).
 
 Custom constraint-based containers use Foundation Layout in `swing-ui-foundation`; the Swing runtime
 and `SwingNode` remain in `swing-ui`.
@@ -59,7 +59,7 @@ fun Stack(
                 val measured = measurable.measure(
                     Constraints(maxWidth = constraints.maxWidth, maxHeight = remainingHeight)
                 )
-                // A layout modifier may escape an impossible offer, so give an overflowing child no room.
+                // A layout modifier may escape an impossible offer, so give an overflowing child no space.
                 val placeable =
                     if (measured.width <= constraints.maxWidth && measured.height <= remainingHeight) {
                         measured
@@ -95,7 +95,7 @@ policy that stacks or divides offers each child a ceiling and no floor. The stac
 container's width ceiling and the height left after earlier children, so a finite parent cannot have a
 later child placed beyond its bottom edge; with an unbounded height, the children can take what they
 prefer. A layout modifier such as `aspectRatio` may report outside an impossible offer, so the example
-remeasures such a child with zero room before placing it.
+remeasures such a child with zero space before placing it.
 
 The measurables arrive in declaration order, hidden children included. `isVisible` is not a layout
 filter in a `Row`, a `Column`, a `Box` or any `Layout`: a child hidden with

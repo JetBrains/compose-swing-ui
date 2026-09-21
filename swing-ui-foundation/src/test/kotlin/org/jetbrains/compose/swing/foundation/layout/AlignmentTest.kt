@@ -184,7 +184,7 @@ class AlignmentTest {
         }
 
     private companion object {
-        /** The extent a fixture container is given, wide and tall enough to leave room for a bias to place a child. */
+        /** The extent a fixture container is given, wide and tall enough to leave space for a bias to place a child. */
         const val CONTAINER_WIDTH = 200
         const val CONTAINER_HEIGHT = 150
     }

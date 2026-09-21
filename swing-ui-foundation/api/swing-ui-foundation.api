@@ -211,6 +211,12 @@ public final class org/jetbrains/compose/swing/foundation/layout/ComposableSingl
 	public final fun getLambda$-1724192535$org_jetbrains_compose_swing_swing_ui_foundation ()Lkotlin/jvm/functions/Function3;
 }
 
+public abstract interface class org/jetbrains/compose/swing/foundation/layout/Constrainable {
+	public abstract fun getConstrainedHeight ()I
+	public abstract fun getConstrainedWidth ()I
+	public abstract fun measure (Lorg/jetbrains/compose/swing/foundation/layout/Constraints;)V
+}
+
 public abstract interface class org/jetbrains/compose/swing/foundation/layout/ConstrainedScope {
 	public fun absoluteOffset (Lorg/jetbrains/compose/swing/modifier/SwingModifier;II)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static synthetic fun absoluteOffset$default (Lorg/jetbrains/compose/swing/foundation/layout/ConstrainedScope;Lorg/jetbrains/compose/swing/modifier/SwingModifier;IIILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
@@ -263,12 +269,6 @@ public abstract interface class org/jetbrains/compose/swing/foundation/layout/Co
 	public static synthetic fun wrapContentSize$default (Lorg/jetbrains/compose/swing/foundation/layout/ConstrainedScope;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/foundation/layout/Alignment;ZILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public fun wrapContentWidth (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/foundation/layout/Alignment$Horizontal;Z)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
 	public static synthetic fun wrapContentWidth$default (Lorg/jetbrains/compose/swing/foundation/layout/ConstrainedScope;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/foundation/layout/Alignment$Horizontal;ZILjava/lang/Object;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
-}
-
-public abstract interface class org/jetbrains/compose/swing/foundation/layout/ConstrainedSize {
-	public abstract fun getConstrainedHeight ()I
-	public abstract fun getConstrainedWidth ()I
-	public abstract fun measure (Lorg/jetbrains/compose/swing/foundation/layout/Constraints;)V
 }
 
 public final class org/jetbrains/compose/swing/foundation/layout/Constraints {

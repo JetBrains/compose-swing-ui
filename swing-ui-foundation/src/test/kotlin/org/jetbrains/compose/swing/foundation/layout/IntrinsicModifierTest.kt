@@ -41,6 +41,26 @@ class IntrinsicModifierTest {
     }
 
     @Test
+    fun everyIntrinsicSizeBuilderReportsItsNameAndIntrinsicSize() {
+        val declarations =
+            listOf(
+                inScope { SwingModifier.width(IntrinsicSize.Min) } to "width",
+                inScope { SwingModifier.requiredWidth(IntrinsicSize.Max) } to "requiredWidth",
+                inScope { SwingModifier.height(IntrinsicSize.Max) } to "height",
+                inScope { SwingModifier.requiredHeight(IntrinsicSize.Min) } to "requiredHeight",
+            )
+
+        for ((modifier, name) in declarations) {
+            assertEquals(name, modifier.lastElement().name, "$name must report its public name")
+        }
+        assertEquals(
+            listOf(IntrinsicSize.Min, IntrinsicSize.Max, IntrinsicSize.Max, IntrinsicSize.Min),
+            declarations.map { (modifier) -> modifier.lastElement().declaredValues["intrinsicSize"] },
+            "each must report the intrinsic answer it selects",
+        )
+    }
+
+    @Test
     fun unmodifiedMeasurableAnswersIntrinsicsAndBaseline() {
         val unmodified = measurableWith(SwingModifier)
         assertEquals(MINIMUM_WIDTH, unmodified.minIntrinsicWidth(Int.MAX_VALUE))
