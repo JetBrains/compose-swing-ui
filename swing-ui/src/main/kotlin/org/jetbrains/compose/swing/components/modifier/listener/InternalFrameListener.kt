@@ -7,10 +7,7 @@ package org.jetbrains.compose.swing.components.modifier.listener
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.CallbackRegistration
 import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
-import org.jetbrains.compose.swing.modifier.listener.UNDECLARED
-import org.jetbrains.compose.swing.modifier.listener.declared
 import org.jetbrains.compose.swing.modifier.listener.listener
-import org.jetbrains.compose.swing.modifier.listener.requireAnyDeclared
 import javax.swing.JInternalFrame
 import javax.swing.event.InternalFrameEvent
 import javax.swing.event.InternalFrameListener
@@ -41,7 +38,7 @@ public fun SwingModifier.internalFrameListener(onFrameChange: (InternalFrameEven
 
 /**
  * Runs each lambda on the change to the internal frame it is declared for. Requires a
- * [JInternalFrame] target. A change left undeclared reports nowhere.
+ * [JInternalFrame] target. A change left `null` reports nowhere.
  *
  * Each lambda is read when its event fires, so writing a fresh one on every recomposition
  * registers nothing again.
@@ -64,19 +61,21 @@ public fun SwingModifier.internalFrameListener(onFrameChange: (InternalFrameEven
 // One parameter per method of the listener interface, each optional and named at the call
 // site; a caller that does not tell the methods apart declares the single-lambda overload.
 public fun SwingModifier.internalFrameListener(
-    onFrameOpened: (InternalFrameEvent) -> Unit = UNDECLARED,
-    onFrameClosing: (InternalFrameEvent) -> Unit = UNDECLARED,
-    onFrameClosed: (InternalFrameEvent) -> Unit = UNDECLARED,
-    onFrameIconified: (InternalFrameEvent) -> Unit = UNDECLARED,
-    onFrameDeiconified: (InternalFrameEvent) -> Unit = UNDECLARED,
-    onFrameActivated: (InternalFrameEvent) -> Unit = UNDECLARED,
-    onFrameDeactivated: (InternalFrameEvent) -> Unit = UNDECLARED,
+    onFrameOpened: ((InternalFrameEvent) -> Unit)? = null,
+    onFrameClosing: ((InternalFrameEvent) -> Unit)? = null,
+    onFrameClosed: ((InternalFrameEvent) -> Unit)? = null,
+    onFrameIconified: ((InternalFrameEvent) -> Unit)? = null,
+    onFrameDeiconified: ((InternalFrameEvent) -> Unit)? = null,
+    onFrameActivated: ((InternalFrameEvent) -> Unit)? = null,
+    onFrameDeactivated: ((InternalFrameEvent) -> Unit)? = null,
 ): SwingModifier {
-    requireAnyDeclared(
-        "internalFrameListener",
-        declared(onFrameOpened) || declared(onFrameClosing) || declared(onFrameClosed) || declared(onFrameIconified) ||
-            declared(onFrameDeiconified) || declared(onFrameActivated) || declared(onFrameDeactivated),
-    )
+    require(
+        onFrameOpened != null || onFrameClosing != null || onFrameClosed != null || onFrameIconified != null ||
+            onFrameDeiconified != null || onFrameActivated != null || onFrameDeactivated != null,
+    ) {
+        "internalFrameListener declares no callback, so the listener it would register can never report anything; " +
+            "declare at least one, or leave the modifier off"
+    }
     return listener(
         InternalFrameCallbacks(
             onFrameOpened,
@@ -107,13 +106,13 @@ public fun SwingModifier.internalFrameListener(listener: InternalFrameListener):
 @Suppress("LongParameterList")
 // One field per method of the listener interface, holding the lambda declared for it.
 private class InternalFrameCallbacks(
-    val onFrameOpened: (InternalFrameEvent) -> Unit,
-    val onFrameClosing: (InternalFrameEvent) -> Unit,
-    val onFrameClosed: (InternalFrameEvent) -> Unit,
-    val onFrameIconified: (InternalFrameEvent) -> Unit,
-    val onFrameDeiconified: (InternalFrameEvent) -> Unit,
-    val onFrameActivated: (InternalFrameEvent) -> Unit,
-    val onFrameDeactivated: (InternalFrameEvent) -> Unit,
+    val onFrameOpened: ((InternalFrameEvent) -> Unit)?,
+    val onFrameClosing: ((InternalFrameEvent) -> Unit)?,
+    val onFrameClosed: ((InternalFrameEvent) -> Unit)?,
+    val onFrameIconified: ((InternalFrameEvent) -> Unit)?,
+    val onFrameDeiconified: ((InternalFrameEvent) -> Unit)?,
+    val onFrameActivated: ((InternalFrameEvent) -> Unit)?,
+    val onFrameDeactivated: ((InternalFrameEvent) -> Unit)?,
 )
 
 private val INTERNAL_FRAME =
@@ -128,25 +127,25 @@ private val INTERNAL_FRAME_CALLBACKS =
         adapter = { callback ->
             object : InternalFrameListener {
                 override fun internalFrameOpened(event: InternalFrameEvent): Unit =
-                    callback.report { it.onFrameOpened(event) }
+                    callback.report { it.onFrameOpened?.invoke(event) }
 
                 override fun internalFrameClosing(event: InternalFrameEvent): Unit =
-                    callback.report { it.onFrameClosing(event) }
+                    callback.report { it.onFrameClosing?.invoke(event) }
 
                 override fun internalFrameClosed(event: InternalFrameEvent): Unit =
-                    callback.report { it.onFrameClosed(event) }
+                    callback.report { it.onFrameClosed?.invoke(event) }
 
                 override fun internalFrameIconified(event: InternalFrameEvent): Unit =
-                    callback.report { it.onFrameIconified(event) }
+                    callback.report { it.onFrameIconified?.invoke(event) }
 
                 override fun internalFrameDeiconified(event: InternalFrameEvent): Unit =
-                    callback.report { it.onFrameDeiconified(event) }
+                    callback.report { it.onFrameDeiconified?.invoke(event) }
 
                 override fun internalFrameActivated(event: InternalFrameEvent): Unit =
-                    callback.report { it.onFrameActivated(event) }
+                    callback.report { it.onFrameActivated?.invoke(event) }
 
                 override fun internalFrameDeactivated(event: InternalFrameEvent): Unit =
-                    callback.report { it.onFrameDeactivated(event) }
+                    callback.report { it.onFrameDeactivated?.invoke(event) }
             }
         },
         registration = INTERNAL_FRAME,

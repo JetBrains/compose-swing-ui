@@ -31,8 +31,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.swing.animation.AnimatedContent
-import org.jetbrains.compose.swing.animation.core.fixtures.CreateChildTransitionFixture
 import org.jetbrains.compose.swing.animation.core.fixtures.CreateDeferredAnimationFixture
+import org.jetbrains.compose.swing.animation.core.fixtures.CreateChildTransitionFixture
 import org.jetbrains.compose.swing.animation.core.fixtures.TransitionAnimateFloatFixture
 import org.jetbrains.compose.swing.animation.core.fixtures.TransitionAnimateIntFixture
 import org.jetbrains.compose.swing.animation.core.fixtures.TransitionAnimateValueFixture

@@ -12,9 +12,11 @@ import kotlin.coroutines.CoroutineContext
  * The [SwingCompositionOwner] a test attaches an applier's root to, standing in for the content
  * composition that owns one in production. Its observer is created on first access, as a composition's is.
  */
-internal class TestCompositionOwner(
-    coordinator: AfterValidationCoordinator = sharedAfterValidationCoordinator,
+internal class TestCompositionOwner internal constructor(
+    coordinator: AfterValidationCoordinator,
 ) : SwingCompositionOwner {
+    constructor() : this(sharedAfterValidationCoordinator)
+
     override val snapshotObserver: OwnerSnapshotObserver =
         OwnerSnapshotObserver { onChanged -> deliverSnapshotChanges(onChanged) }
 

@@ -8,14 +8,10 @@ import org.jetbrains.compose.swing.assertDeclaredChainCarriedOnce
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
-import org.jetbrains.compose.swing.components.style.horizontalTextPosition
-import org.jetbrains.compose.swing.components.style.margin
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.style.ComponentStyleScope
-import org.jetbrains.compose.swing.style.TestLabelKind
 import org.jetbrains.compose.swing.style.TestNodeKind
-import org.jetbrains.compose.swing.style.TestTextNodeKind
 import org.jetbrains.compose.swing.style.background
 import org.jetbrains.compose.swing.style.font
 import org.jetbrains.compose.swing.style.foreground
@@ -28,11 +24,7 @@ import java.awt.Component
 import java.awt.Dimension
 import java.awt.FlowLayout
 import java.awt.Font
-import java.awt.Insets
 import java.util.concurrent.atomic.AtomicInteger
-import javax.swing.JLabel
-import javax.swing.JTextField
-import javax.swing.SwingConstants
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -46,13 +38,6 @@ import kotlin.test.assertTrue
  * the property must itself request what the change needs: a font changes both the size and the
  * pixels, so it asks for a relayout and a repaint; a color changes only the pixels, so it asks for a
  * repaint and no relayout.
- *
- * A widget that does invalidate for itself sets the opposite requirement, on the two properties where
- * its setter is unusual: `JTextComponent.setMargin` marks the component invalid without asking for the
- * layout pass that would act on it or for a paint of the text it moves, so the property must ask for both;
- * `JLabel.setHorizontalTextPosition` asks for a layout and a paint on every call, even one that changes
- * nothing, so a declaration the label is already carrying must reach its setter no further - a
- * recomposition declares the style again, and a redundant write would cost a layout and a paint each time.
  *
  * Every case drives the change through the real public API ([SwingNode] plus the modifier or style under
  * test, applied again when its state changes) and observes behavior deterministically under headless.
@@ -75,48 +60,6 @@ class AppearanceInvalidationTest {
 
         override fun repaint() {
             repaintCount.incrementAndGet()
-            super.repaint()
-        }
-    }
-
-    /**
-     * A [JLabel] that counts the relayout and repaint requests made on it, so a write the modifier could
-     * have skipped is visible as the layout and paint the label's own setter asks for.
-     */
-    private class CountingLabel : JLabel("Legend") {
-        // A JLabel's constructor repaints before this class is initialized; the counts start at zero once
-        // initialization completes, so they only ever cover requests made on a built label.
-        var revalidateCount: Int = 0
-            private set
-        var repaintCount: Int = 0
-            private set
-
-        override fun revalidate() {
-            revalidateCount++
-            super.revalidate()
-        }
-
-        override fun repaint() {
-            repaintCount++
-            super.repaint()
-        }
-    }
-
-    /** A [JTextField] that counts the relayout and repaint requests made on it. */
-    private class CountingTextField : JTextField() {
-        // As with CountingLabel: the superclass constructor's own requests fall outside the count.
-        var revalidateCount: Int = 0
-            private set
-        var repaintCount: Int = 0
-            private set
-
-        override fun revalidate() {
-            revalidateCount++
-            super.revalidate()
-        }
-
-        override fun repaint() {
-            repaintCount++
             super.repaint()
         }
     }
@@ -230,76 +173,6 @@ class AppearanceInvalidationTest {
             revalidatesBefore,
             target.revalidateCount.get(),
             "a color is read at paint only, so its change must request no relayout",
-        )
-    }
-
-    @Test
-    fun aTextComponentsMarginChangeAsksForTheLayoutAndThePaintItNeeds() = runComposeSwingTest {
-        var margin by mutableStateOf(Insets(2, 2, 2, 2))
-
-        setContent {
-            SwingNode(
-                factory = { CountingTextField() },
-                modifier = SwingModifier.styleable(TestTextNodeKind) { margin(margin) },
-            )
-        }
-
-        awaitIdle()
-        val field = onNodeOfType<CountingTextField>().fetch()
-        assertEquals(margin, field.margin, "the field should carry the declared margin")
-        val revalidatesBefore = field.revalidateCount
-        val repaintsBefore = field.repaintCount
-
-        margin = Insets(12, 12, 12, 12)
-        awaitIdle()
-
-        assertEquals(Insets(12, 12, 12, 12), field.margin, "the field should carry the recomposed margin")
-        assertTrue(
-            field.revalidateCount > revalidatesBefore,
-            "changing a text component's margin must ask for a relayout: count before " +
-                "$revalidatesBefore, after ${field.revalidateCount} - its setter only invalidates, so " +
-                "without this the space inside the border never changes on screen.",
-        )
-        assertTrue(
-            field.repaintCount > repaintsBefore,
-            "changing a text component's margin must ask for a repaint: the text moves inside the border " +
-                "even where the field keeps its bounds, and a relayout that keeps them paints nothing",
-        )
-    }
-
-    @Test
-    fun aLabelsUnchangedTextPositionCostsNoLayoutOrPaint() = runComposeSwingTest {
-        var tick by mutableStateOf(0)
-
-        setContent {
-            SwingNode(
-                factory = { CountingLabel() },
-                modifier = SwingModifier.styleable(TestLabelKind) { horizontalTextPosition(SwingConstants.RIGHT) },
-            )
-            // Read by this composable, so a change recomposes it and the label's style is declared again
-            // with the very same position.
-            Label("tick $tick")
-        }
-
-        awaitIdle()
-        val label = onNodeOfType<CountingLabel>().fetch()
-        assertEquals(SwingConstants.RIGHT, label.horizontalTextPosition, "the declared position")
-        val revalidatesBefore = label.revalidateCount
-        val repaintsBefore = label.repaintCount
-
-        tick++
-        awaitIdle()
-
-        assertEquals(SwingConstants.RIGHT, label.horizontalTextPosition, "the position should still hold")
-        assertEquals(
-            revalidatesBefore,
-            label.revalidateCount,
-            "re-applying the position a label already carries must ask for no further layout",
-        )
-        assertEquals(
-            repaintsBefore,
-            label.repaintCount,
-            "re-applying the position a label already carries must ask for no further paint",
         )
     }
 

@@ -4,13 +4,17 @@
 
 package org.jetbrains.compose.swing.node
 
+import androidx.annotation.RestrictTo
+import org.jetbrains.compose.swing.annotations.InternalSwingUiApi
+
 /**
  * Runs [block] and reports any failure unchanged to the current thread's uncaught-exception handler.
  *
  * Keep component checks outside [block] so their failures reach the caller.
  */
-@PublishedApi
-internal inline fun runReportingUncaught(block: () -> Unit) {
+@InternalSwingUiApi
+@RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
+public inline fun runReportingUncaught(block: () -> Unit) {
     try {
         block()
     } catch (

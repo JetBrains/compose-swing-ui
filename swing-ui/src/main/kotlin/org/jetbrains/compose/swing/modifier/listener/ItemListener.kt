@@ -63,7 +63,7 @@ public fun <T : Component> SwingModifier.itemListener(
  * `JRadioButtonMenuItem`), `JComboBox`, and the AWT `Checkbox`, `Choice`, and `List`.
  *
  * An item listener reports the state a component ends up in, however it got there. A button that a
- * [group][org.jetbrains.compose.swing.components.modifier.interaction.buttonGroup] deselects because another
+ * `group` deselects because another
  * member was picked never fires an action event, so the item listener is the only one deselection
  * reaches.
  *

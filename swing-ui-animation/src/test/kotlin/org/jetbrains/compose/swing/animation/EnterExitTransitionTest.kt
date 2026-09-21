@@ -4,10 +4,7 @@ package org.jetbrains.compose.swing.animation
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.animation.core.AnimationVector2D
-import org.jetbrains.compose.swing.animation.core.DimensionToVector
 import org.jetbrains.compose.swing.animation.core.FiniteAnimationSpec
-import org.jetbrains.compose.swing.animation.core.PointToVector
 import org.jetbrains.compose.swing.animation.core.SpringSpec
 import org.jetbrains.compose.swing.animation.core.dimensionVisibilityThreshold
 import org.jetbrains.compose.swing.animation.core.pointVisibilityThreshold
@@ -30,7 +27,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
-import kotlin.test.assertNotSame
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 
@@ -169,23 +165,6 @@ class EnterExitTransitionTest {
         val veil = assertNotNull(veilOut(targetColor = Color.RED).config.veil)
         assertEquals(cleared, veil.initialColor, "a veil started over content that nothing had veiled yet")
         assertEquals(Color.RED, veil.targetColor)
-    }
-
-    @Test
-    fun `a size is rounded and floored at zero, an offset is only rounded`() {
-        assertEquals(Dimension(2, 0), DimensionToVector.convertFromVector(AnimationVector2D(1.6f, -4f)))
-        assertEquals(Point(2, -4), PointToVector.convertFromVector(AnimationVector2D(1.6f, -4.4f)))
-        assertEquals(AnimationVector2D(100f, 50f), DimensionToVector.convertToVector(Dimension(100, 50)))
-        assertEquals(AnimationVector2D(-3f, 4f), PointToVector.convertToVector(Point(-3, 4)))
-    }
-
-    @Test
-    fun `every animated frame is a fresh instance`() {
-        val vector = AnimationVector2D(3f, 4f)
-        val first = DimensionToVector.convertFromVector(vector)
-        val second = DimensionToVector.convertFromVector(vector)
-        assertEquals(first, second)
-        assertNotSame(first, second)
     }
 
     @Test

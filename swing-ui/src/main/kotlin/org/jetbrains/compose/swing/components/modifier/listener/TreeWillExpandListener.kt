@@ -6,12 +6,9 @@ package org.jetbrains.compose.swing.components.modifier.listener
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.CallbackRegistration
+import org.jetbrains.compose.swing.modifier.listener.DeclaredCallback
 import org.jetbrains.compose.swing.modifier.listener.ListenerRegistration
-import org.jetbrains.compose.swing.modifier.listener.UNDECLARED_ANSWER
-import org.jetbrains.compose.swing.modifier.listener.declared
 import org.jetbrains.compose.swing.modifier.listener.listener
-import org.jetbrains.compose.swing.modifier.listener.requireAnyDeclared
-import org.jetbrains.compose.swing.node.reportUncaught
 import javax.swing.event.TreeExpansionEvent
 import javax.swing.event.TreeWillExpandListener
 import javax.swing.tree.ExpandVetoException
@@ -36,7 +33,7 @@ public fun SwingModifier.treeWillExpandListener(onWillChange: (TreeExpansionEven
 /**
  * Asks [onWillExpand] before a node opens, and [onWillCollapse] before one closes, whether the change
  * may happen: answering false leaves the node as it was and no expansion event follows. Requires a
- * [javax.swing.JTree] target. A direction left undeclared allows the change.
+ * [javax.swing.JTree] target. A direction left `null` allows the change.
  *
  * Each lambda is read when its event fires, so writing a fresh one on every recomposition registers
  * nothing again.
@@ -53,10 +50,13 @@ public fun SwingModifier.treeWillExpandListener(onWillChange: (TreeExpansionEven
  * @see javax.swing.JTree.addTreeWillExpandListener
  */
 public fun SwingModifier.treeWillExpandListener(
-    onWillExpand: (TreeExpansionEvent) -> Boolean = UNDECLARED_ANSWER,
-    onWillCollapse: (TreeExpansionEvent) -> Boolean = UNDECLARED_ANSWER,
+    onWillExpand: ((TreeExpansionEvent) -> Boolean)? = null,
+    onWillCollapse: ((TreeExpansionEvent) -> Boolean)? = null,
 ): SwingModifier {
-    requireAnyDeclared("treeWillExpandListener", declared(onWillExpand) || declared(onWillCollapse))
+    require(onWillExpand != null || onWillCollapse != null) {
+        "treeWillExpandListener declares no callback, so the listener it would register can never report anything; " +
+            "declare at least one, or leave the modifier off"
+    }
     return listener(TreeWillExpandCallbacks(onWillExpand, onWillCollapse), TREE_WILL_EXPAND_CALLBACKS)
 }
 
@@ -78,8 +78,8 @@ public fun SwingModifier.treeWillExpandListener(listener: TreeWillExpandListener
 
 /** The lambdas [treeWillExpandListener] was declared with, as one value the built listener reads. */
 private class TreeWillExpandCallbacks(
-    val onWillExpand: (TreeExpansionEvent) -> Boolean,
-    val onWillCollapse: (TreeExpansionEvent) -> Boolean,
+    val onWillExpand: ((TreeExpansionEvent) -> Boolean)?,
+    val onWillCollapse: ((TreeExpansionEvent) -> Boolean)?,
 )
 
 private val TREE_WILL_EXPAND =
@@ -94,11 +94,11 @@ private val TREE_WILL_EXPAND_CALLBACKS =
         adapter = { callback ->
             object : TreeWillExpandListener {
                 override fun treeWillExpand(event: TreeExpansionEvent) {
-                    vetoUnlessAllowed(event) { callback.current.onWillExpand(event) }
+                    callback.vetoUnlessAllowed(event) { it.onWillExpand?.invoke(event) ?: true }
                 }
 
                 override fun treeWillCollapse(event: TreeExpansionEvent) {
-                    vetoUnlessAllowed(event) { callback.current.onWillCollapse(event) }
+                    callback.vetoUnlessAllowed(event) { it.onWillCollapse?.invoke(event) ?: true }
                 }
             }
         },
@@ -111,21 +111,19 @@ private val TREE_WILL_EXPAND_CALLBACKS =
  * Refuses the change with the veto `JTree` reads, unless [decide] allows it. [decide] is the caller's callback: an
  * [ExpandVetoException] it throws is the veto itself, and any other failure is reported and vetoes the change too.
  */
-private inline fun vetoUnlessAllowed(
+private inline fun DeclaredCallback<TreeWillExpandCallbacks>.vetoUnlessAllowed(
     event: TreeExpansionEvent,
-    decide: () -> Boolean,
+    crossinline decide: (TreeWillExpandCallbacks) -> Boolean,
 ) {
-    val allowed =
+    var allowed = false
+    var veto: ExpandVetoException? = null
+    report { callbacks ->
         try {
-            decide()
-        } catch (veto: ExpandVetoException) {
-            throw veto
-        } catch (
-            // What the caller's code throws is its own choice; a type left out here would abort the expansion.
-            @Suppress("TooGenericExceptionCaught") failure: Throwable,
-        ) {
-            reportUncaught(failure)
-            false
+            allowed = decide(callbacks)
+        } catch (thrown: ExpandVetoException) {
+            veto = thrown
         }
+    }
+    veto?.let { throw it }
     if (!allowed) throw ExpandVetoException(event)
 }

@@ -406,7 +406,7 @@ Each layout carries its own parameters and hands the content the scope through w
 
 Showing and hiding part of a layout is composing and not composing it: emitting a child adds it where it declares it belongs, dropping the child takes it out, and declaring a different placement moves it without costing the component it already has.
 
-Where a region holds a single child, what a second child naming it costs is the region's own: a `PanelLayout.Border` region is taken by the last child registered in it and the panel lays nothing out for the first, while a `SplitPane` side and a `PanelLayout.Card` card are refused to a second child, naming the side or the card. That refusal is over what the composition declares once its changes have reached the components, so a child replacing another on a side or a card is a single occupant throughout, whichever order the two changes reach the container in. A `PanelLayout.Border` child that names no region occupies `center`, the region a `BorderLayout` registers a constraintless child under.
+Where a region holds a single child, what a second child naming it costs is the region's own: a `PanelLayout.Border` region is taken by the last child registered in it and the panel lays nothing out for the first, while a `PanelLayout.Card` card goes to the newer child, as in `CardLayout`, and a `SplitPane` side is refused to a second child, naming the side. That refusal is over what the composition declares once its changes have reached the components, so a child replacing another on a side is a single occupant throughout, whichever order the two changes reach the container in. A `PanelLayout.Border` child that names no region occupies `center`, the region a `BorderLayout` registers a constraintless child under.
 
 `PanelLayout.Border` offers two families of edge: the absolute compass (`north`, `south`, `east`, `west`) and the orientation-aware one (`pageStart`, `pageEnd`, `lineStart`, `lineEnd`), which resolve against the panel's `ComponentOrientation`. `center` is shared. Use one family per edge. Its `hgap`/`vgap` default to `0`.
 
@@ -450,7 +450,7 @@ Panel(PanelLayout.GridBag) {
 
 A child that declares no `item` is laid out under `GridBagConstraints`' own defaults, which place it relative to the child before it.
 
-`PanelLayout.Card` shows the card whose key equals its `selectedCard`, so switching pages is a state write. A card holds one child, and two children naming the same card are refused. A child that declares no card is the card keyed by the empty string, shown by `selectedCard = ""`. The key names the card, not the child: a child that declares a new key moves to that card keeping its position among its siblings.
+`PanelLayout.Card` shows the card whose key equals its `selectedCard`, so switching pages is a state write. Two children naming the same card are both kept, and the card goes to the newer child, as in `CardLayout`. A child that declares no card is the card keyed by the empty string, shown by `selectedCard = ""`. The key names the card, not the child: a child that declares a new key moves to that card keeping its position among its siblings.
 
 ```kotlin
 var step by remember { mutableStateOf("details") }

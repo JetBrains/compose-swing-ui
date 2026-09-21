@@ -1,0 +1,59 @@
+// Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+package org.jetbrains.compose.swing.components.selection
+
+import java.awt.Component
+import java.awt.Container
+import javax.swing.JComboBox
+import javax.swing.JLabel
+import javax.swing.JList
+import javax.swing.ListCellRenderer
+
+/**
+ * Renders a cell as the widget owning [this] renderer would when it paints a row: returns the component
+ * it would bound and paint. `-1` as [index] is what `JComboBox` passes for its display area.
+ *
+ * [list] is the list to render against, supplied by a widget rendering its own rows. A renderer reached
+ * without one - a combo box's, whose rows belong to a popup list of its own - gets a bare list instead.
+ */
+internal fun ListCellRenderer<*>.renderCell(
+    value: Any?,
+    index: Int,
+    isSelected: Boolean = false,
+    cellHasFocus: Boolean = false,
+    list: JList<*> = JList<Any?>(),
+): Component {
+    // The value passed below is the widget's own item, which is what a renderer of `in T` is there to
+    // render, so widening the receiver drops a bound this call cannot violate.
+    @Suppress("UNCHECKED_CAST")
+    val renderer = this as ListCellRenderer<Any?>
+    return renderer.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus)
+}
+
+/** Renders row [index] of this list through the renderer it carries, as the list does when painting. */
+fun <T> JList<T>.renderCell(
+    index: Int,
+    isSelected: Boolean = false,
+    cellHasFocus: Boolean = false,
+): Component = cellRenderer.renderCell(model.getElementAt(index), index, isSelected, cellHasFocus, list = this)
+
+/** Renders item [index] of this combo box through the renderer it carries, as its popup list does. */
+fun <T> JComboBox<T>.renderCell(index: Int): Component = renderer.renderCell(getItemAt(index), index)
+
+/**
+ * Renders this combo box's selected-value display area through the renderer it carries, as its UI does
+ * when it paints: `-1` as the index, against a list over this combo box's model, which is where a
+ * renderer reads the items from.
+ */
+internal fun <T> JComboBox<T>.renderDisplayArea(value: Any? = selectedItem): Component =
+    renderer.renderCell(value, index = -1, list = JList(model))
+
+/** The text of the first [JLabel] anywhere in this component subtree, or `null` if there is none. */
+fun Component.firstLabelText(): String? = firstLabel()?.text
+
+/** The first [JLabel] anywhere in this component subtree, or `null` if there is none. */
+internal fun Component.firstLabel(): JLabel? =
+    when (this) {
+        is JLabel -> this
+        is Container -> components.firstNotNullOfOrNull { it.firstLabel() }
+        else -> null
+    }

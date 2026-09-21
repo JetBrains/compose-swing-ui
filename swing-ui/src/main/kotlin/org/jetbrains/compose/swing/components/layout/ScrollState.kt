@@ -19,8 +19,8 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.job
 import kotlinx.coroutines.withContext
+import org.jetbrains.compose.swing.components.modifier.binding
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.binding
 import java.awt.Point
 import java.awt.Rectangle
 import java.awt.event.ContainerAdapter

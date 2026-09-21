@@ -1211,7 +1211,6 @@ public final class org/jetbrains/compose/swing/node/NodeKt {
 	public static final fun reportUncaught (Ljava/lang/Throwable;)V
 	public static final fun requestAfterValidation (Lorg/jetbrains/compose/swing/modifier/SwingModifier$Node;Lkotlin/jvm/functions/Function1;)V
 	public static final fun requestAfterValidation (Lorg/jetbrains/compose/swing/node/SwingComponentNode;Lkotlin/jvm/functions/Function1;)V
-	public static final fun runReportingUncaught (Lkotlin/jvm/functions/Function0;)V
 }
 
 public abstract interface class org/jetbrains/compose/swing/node/ObserverModifierNode {

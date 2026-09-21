@@ -6,10 +6,7 @@ package org.jetbrains.compose.swing.components.modifier.listener
 
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.listener.CallbackRegistration
-import org.jetbrains.compose.swing.modifier.listener.UNDECLARED
-import org.jetbrains.compose.swing.modifier.listener.declared
 import org.jetbrains.compose.swing.modifier.listener.listener
-import org.jetbrains.compose.swing.modifier.listener.requireAnyDeclared
 import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
 import javax.swing.text.JTextComponent
@@ -41,7 +38,7 @@ public fun SwingModifier.documentListener(onDocumentChange: (DocumentEvent) -> U
  * `document` the component holds across a swap.
  *
  * Each lambda is read when its event fires, so writing a fresh one on every recomposition registers
- * nothing again. A change left undeclared reports nowhere.
+ * nothing again. A change left `null` reports nowhere.
  *
  * Declaring none at all is refused.
  *
@@ -52,11 +49,14 @@ public fun SwingModifier.documentListener(onDocumentChange: (DocumentEvent) -> U
  * @see javax.swing.text.Document.addDocumentListener
  */
 public fun SwingModifier.documentListener(
-    onInsert: (DocumentEvent) -> Unit = UNDECLARED,
-    onRemove: (DocumentEvent) -> Unit = UNDECLARED,
-    onChange: (DocumentEvent) -> Unit = UNDECLARED,
+    onInsert: ((DocumentEvent) -> Unit)? = null,
+    onRemove: ((DocumentEvent) -> Unit)? = null,
+    onChange: ((DocumentEvent) -> Unit)? = null,
 ): SwingModifier {
-    requireAnyDeclared("documentListener", declared(onInsert) || declared(onRemove) || declared(onChange))
+    require(onInsert != null || onRemove != null || onChange != null) {
+        "documentListener declares no callback, so the listener it would register can never report anything; " +
+            "declare at least one, or leave the modifier off"
+    }
     return listener(DocumentCallbacks(onInsert, onRemove, onChange), DOCUMENT_CALLBACKS)
 }
 
@@ -75,20 +75,20 @@ public fun SwingModifier.documentListener(listener: DocumentListener): SwingModi
 
 /** The lambdas [documentListener] was declared with, as one value the built listener reads. */
 private class DocumentCallbacks(
-    val onInsert: (DocumentEvent) -> Unit,
-    val onRemove: (DocumentEvent) -> Unit,
-    val onChange: (DocumentEvent) -> Unit,
+    val onInsert: ((DocumentEvent) -> Unit)?,
+    val onRemove: ((DocumentEvent) -> Unit)?,
+    val onChange: ((DocumentEvent) -> Unit)?,
 )
 
 private val DOCUMENT_CALLBACKS =
     CallbackRegistration.byCallbackIdentity<JTextComponent, DocumentCallbacks, DocumentListener>(
         adapter = { callback ->
             object : DocumentListener {
-                override fun insertUpdate(event: DocumentEvent): Unit = callback.report { it.onInsert(event) }
+                override fun insertUpdate(event: DocumentEvent): Unit = callback.report { it.onInsert?.invoke(event) }
 
-                override fun removeUpdate(event: DocumentEvent): Unit = callback.report { it.onRemove(event) }
+                override fun removeUpdate(event: DocumentEvent): Unit = callback.report { it.onRemove?.invoke(event) }
 
-                override fun changedUpdate(event: DocumentEvent): Unit = callback.report { it.onChange(event) }
+                override fun changedUpdate(event: DocumentEvent): Unit = callback.report { it.onChange?.invoke(event) }
             }
         },
         registration = SWAPPABLE_DOCUMENT,

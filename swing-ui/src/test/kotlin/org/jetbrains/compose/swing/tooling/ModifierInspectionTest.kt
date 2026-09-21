@@ -5,32 +5,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import io.mockk.mockk
-import org.jetbrains.compose.swing.carriedChainAppearancesOf
-import org.jetbrains.compose.swing.components.ComboBox
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.components.Slider
-import org.jetbrains.compose.swing.components.Spinner
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
-import org.jetbrains.compose.swing.components.layout.TabbedPane
 import org.jetbrains.compose.swing.components.menu.MenuItem
-import org.jetbrains.compose.swing.components.modifier.interaction.defaultButton
-import org.jetbrains.compose.swing.components.modifier.interaction.documentFilter
-import org.jetbrains.compose.swing.components.modifier.listener.changeListener
-import org.jetbrains.compose.swing.components.modifier.listener.documentListener
-import org.jetbrains.compose.swing.components.selection.ListBox
-import org.jetbrains.compose.swing.components.selection.Table
-import org.jetbrains.compose.swing.components.selection.Tree
-import org.jetbrains.compose.swing.components.selection.column
 import org.jetbrains.compose.swing.components.style.LabelStyleScope
 import org.jetbrains.compose.swing.components.style.Labels
-import org.jetbrains.compose.swing.components.text.FormattedTextField
-import org.jetbrains.compose.swing.components.text.PasswordField
-import org.jetbrains.compose.swing.components.text.TextArea
 import org.jetbrains.compose.swing.components.text.TextField
-import org.jetbrains.compose.swing.components.text.rememberDocumentState
 import org.jetbrains.compose.swing.composeMenu
 import org.jetbrains.compose.swing.core.SwingCompositionDiagnostics
 import org.jetbrains.compose.swing.core.SwingRecomposer
@@ -51,7 +33,6 @@ import org.jetbrains.compose.swing.modifier.interaction.orderedFocusTraversal
 import org.jetbrains.compose.swing.modifier.keyboard.onKeyStroke
 import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
-import org.jetbrains.compose.swing.modifier.listener.propertyChangeListener
 import org.jetbrains.compose.swing.node.SwingComponentNode
 import org.jetbrains.compose.swing.node.SwingNodeHolder
 import org.jetbrains.compose.swing.runSwingTest
@@ -69,13 +50,9 @@ import javax.swing.JComponent
 import javax.swing.JLabel
 import javax.swing.JPanel
 import javax.swing.KeyStroke
-import javax.swing.SpinnerNumberModel
 import javax.swing.SwingUtilities
 import javax.swing.TransferHandler
 import javax.swing.border.LineBorder
-import javax.swing.event.ChangeListener
-import javax.swing.event.DocumentListener
-import javax.swing.text.DocumentFilter
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertContains
@@ -276,72 +253,8 @@ class ModifierInspectionTest {
     }
 
     @Test
-    fun everyWidgetCarriesTheChainItWasGivenOnce() = runComposeSwingTest {
-        // A widget assembles its own declarations - a mirror, an editor, a row height - onto the chain it
-        // was handed, through builders private to its own file. Each widget here is called through the
-        // overload that reaches one of those, which is where they are held to carrying the caller's chain
-        // once, the way every builder a test can call is held to it directly.
-        isDebugInspectorInfoEnabled = true
-        setContent {
-            Panel {
-                ComboBox(
-                    items = listOf("a"),
-                    selectedItem = "a",
-                    onSelectionChange = {},
-                    modifier = SwingModifier.testTag("combo"),
-                )
-                Slider(
-                    value = 0,
-                    onValueChange = {},
-                    modifier = SwingModifier.testTag("slider").changeListener(ChangeListener { }),
-                )
-                Spinner(
-                    model = SpinnerNumberModel(),
-                    modifier = SwingModifier.testTag("spinner").changeListener(ChangeListener { }),
-                    editor = { Label("value") },
-                )
-                Table(
-                    rows = listOf("a"),
-                    columns = { column("c", cellContent = { Label("cell") }) { it } },
-                    modifier = SwingModifier.testTag("table"),
-                    rowHeight = 20,
-                )
-                Tree(root = "root", children = { emptyList() }, modifier = SwingModifier.testTag("tree"))
-                FormattedTextField(
-                    value = "v",
-                    onValueChange = {},
-                    modifier = SwingModifier.testTag("formatted"),
-                )
-                FormattedTextField(
-                    value = "v",
-                    onValueChange = {},
-                    modifier = SwingModifier.testTag("formattedRaw").propertyChangeListener("value") { },
-                )
-                PasswordField(
-                    value = charArrayOf('a'),
-                    onValueChange = {},
-                    modifier =
-                        SwingModifier
-                            .testTag("password")
-                            .documentListener(mockk<DocumentListener>(relaxed = true)),
-                )
-                TextArea(state = rememberDocumentState("v"), modifier = SwingModifier.testTag("area"), tabSize = 4)
-            }
-        }
-
-        val tags =
-            listOf("combo", "slider", "spinner", "table", "tree", "formatted", "formattedRaw", "password", "area")
-        assertEquals(
-            tags.associateWith { 1 },
-            tags.associateWith { onNodeWithTag(it).fetch().carriedChainAppearancesOf(it) },
-            "each widget should carry the chain it was given once",
-        )
-    }
-
-    @Test
     fun aTextEditingElementNamesWhatItInstallsOnTheField() = runComposeSwingTest {
         isDebugInspectorInfoEnabled = true
-        val filter = DocumentFilter()
         setContent {
             TextField(
                 value = "text",
@@ -349,16 +262,10 @@ class ModifierInspectionTest {
                 modifier =
                     SwingModifier
                         .testTag("field")
-                        .documentFilter(filter)
                         .inputVerifier { true },
             )
         }
 
-        assertEquals(
-            mapOf("documentFilter" to filter),
-            declaredBy("field", "documentFilter"),
-            "a document filter declares the filter it installs",
-        )
         assertEquals(
             emptyMap(),
             declaredBy("field", "inputVerifier"),
@@ -377,7 +284,6 @@ class ModifierInspectionTest {
                     modifier =
                         SwingModifier
                             .testTag("ok")
-                            .defaultButton()
                             .initialFocus()
                             .onKeyStroke("ctrl S") {}
                             .clientProperty(LOOK_AND_FEEL_KEY, "flat"),
@@ -385,11 +291,6 @@ class ModifierInspectionTest {
             }
         }
 
-        assertEquals(
-            mapOf("defaultButton" to true),
-            declaredBy("ok", "defaultButton"),
-            "a default button declares whether it claims the association",
-        )
         assertEquals(
             mapOf("keyStroke" to KeyStroke.getKeyStroke("ctrl S"), "condition" to JComponent.WHEN_FOCUSED),
             declaredBy("ok", "onKeyStroke"),
@@ -460,36 +361,6 @@ class ModifierInspectionTest {
     }
 
     @Test
-    fun aWidgetsOwnSeamsStandInTheChainItBuilds() = runComposeSwingTest {
-        isDebugInspectorInfoEnabled = true
-        setContent {
-            Panel {
-                Table(
-                    rows = listOf("a"),
-                    columns = { column("c", cellContent = { Label("cell") }) { it } },
-                    modifier = SwingModifier.testTag("table"),
-                    rowHeight = 20,
-                )
-                Spinner(
-                    model = SpinnerNumberModel(),
-                    modifier = SwingModifier.testTag("spinner").changeListener(ChangeListener { }),
-                    editor = { Label("value") },
-                )
-            }
-        }
-
-        assertEquals(
-            listOf(emptyMap(), emptyMap(), emptyMap()),
-            listOf(
-                declaredBy("table", "columnCells"),
-                declaredBy("table", "userSelectionListener"),
-                declaredBy("spinner", "spinnerEditor"),
-            ),
-            "a widget's own seams are named in the chain it builds and carry nothing a tool can show",
-        )
-    }
-
-    @Test
     fun aDeclarationCarriedByALibraryTypeStillTellsOneArgumentFromAnother() = runComposeSwingTest {
         isDebugInspectorInfoEnabled = true
         val border = LineBorder(Color.RED)
@@ -500,21 +371,11 @@ class ModifierInspectionTest {
                 Label("a", modifier = SwingModifier.testTag("border-one").clientProperty(borderKey, border))
                 Label("b", modifier = SwingModifier.testTag("border-two").clientProperty(borderKey, border))
                 Label("c", modifier = SwingModifier.testTag("border-other").clientProperty(borderKey, otherBorder))
-                TabbedPane(selectedIndex = 0, onSelectedIndexChange = {}) {
-                    Label("p", modifier = SwingModifier.testTag("tab-one").tab("One"))
-                    Label("q", modifier = SwingModifier.testTag("tab-two").tab("One"))
-                    Label("r", modifier = SwingModifier.testTag("tab-other").tab("Two"))
-                }
-                ListBox(items = listOf("a"), modifier = SwingModifier.testTag("cells-one"), fixedCellHeight = 10)
-                ListBox(items = listOf("a"), modifier = SwingModifier.testTag("cells-two"), fixedCellHeight = 10)
-                ListBox(items = listOf("a"), modifier = SwingModifier.testTag("cells-other"), fixedCellHeight = 20)
             }
         }
 
         listOf(
             "border" to "clientProperty",
-            "tab" to "tab",
-            "cells" to "listCellSizing",
         ).forEach { (tag, element) ->
             val first = declaredBy("$tag-one", element)
             assertEquals(first, declaredBy("$tag-two", element), "$element retains equal arguments")

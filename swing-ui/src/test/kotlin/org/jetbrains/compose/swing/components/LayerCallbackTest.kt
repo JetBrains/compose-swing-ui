@@ -12,8 +12,6 @@ import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.listener.UNDECLARED
-import org.jetbrains.compose.swing.modifier.listener.UNDECLARED_PAINT
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
 import org.jetbrains.compose.swing.style.preferredSize
 import org.jetbrains.compose.swing.test.interaction.assertProperty
@@ -270,7 +268,7 @@ class LayerCallbackTest {
             Layer(
                 modifier = SwingModifier.testTag(LAYER),
                 style = { preferredSize(SIZE) },
-                onPaint = if (paints) { _, _, _, paintView -> paintView() } else UNDECLARED_PAINT,
+                onPaint = if (paints) { _, _, _, paintView -> paintView() } else null,
                 onMouseEvent = {},
             ) {
                 FilledView()
@@ -447,10 +445,10 @@ class LayerCallbackTest {
                             g.fillRect(0, 0, width, height)
                         }
                     } else {
-                        UNDECLARED_PAINT
+                        null
                     },
                 onMouseEvent = {},
-                onMouseMotionEvent = if (declared) ({}) else UNDECLARED,
+                onMouseMotionEvent = if (declared) ({}) else null,
             ) {
                 FilledView()
             }

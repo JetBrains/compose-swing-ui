@@ -4,6 +4,7 @@ import org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
+    `java-test-fixtures`
     id("buildsrc.convention.kotlin-jvm")
     id("buildsrc.convention.composable-fixtures")
     id("buildsrc.convention.kotlin-quality")
@@ -69,6 +70,14 @@ dependencies {
     testImplementation(libs.junitJupiterParams)
     testImplementation(libs.mockk)
     testImplementation(libs.composeRuntimeSaveable)
+    testFixturesApi(project(":swing-ui-test"))
+}
+
+// The fixtures stand in for Swing services while this project's own tests run; they are not part of what
+// the library publishes.
+(components["java"] as AdhocComponentWithVariants).run {
+    withVariantsFromConfiguration(configurations["testFixturesApiElements"]) { skip() }
+    withVariantsFromConfiguration(configurations["testFixturesRuntimeElements"]) { skip() }
 }
 
 // Upstream's tests use these markers without opting in because they live in the declaring module.

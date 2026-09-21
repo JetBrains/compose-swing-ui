@@ -13,8 +13,6 @@ import org.jetbrains.compose.swing.components.menu.MenuItem
 import org.jetbrains.compose.swing.components.menu.MenuSeparator
 import org.jetbrains.compose.swing.components.menu.RadioButtonMenuItem
 import org.jetbrains.compose.swing.countTests
-import org.jetbrains.compose.swing.fixtures.components.menu.MenuFixture
-import org.jetbrains.compose.swing.fixtures.components.menu.MenuItemFixture
 import org.jetbrains.compose.swing.fixtures.window.MenuBarFixture
 import org.jetbrains.compose.swing.menuItemTexts
 import org.jetbrains.compose.swing.rawSwingTests
@@ -69,18 +67,6 @@ import kotlin.test.assertTrue
  * A menu bar lives on a realized peer's root pane, so these are skipped in headless environments.
  */
 class WindowMenuBarTest {
-    @TestFactory
-    fun counts() = MenuItemFixture.countTests()
-
-    @TestFactory
-    fun rawSwing() = MenuItemFixture.rawSwingTests()
-
-    @TestFactory
-    fun menuCounts() = MenuFixture.countTests()
-
-    @TestFactory
-    fun menuRawSwing() = MenuFixture.rawSwingTests()
-
     @TestFactory
     fun menuBarCounts() = MenuBarFixture.countTests()
 

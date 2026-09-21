@@ -93,7 +93,7 @@ For a wrapped widget property, use a `null` default when the JDK default is `nul
 
 Type a parameter that takes one of a closed set of JDK constants as an `Int`, or a `String` for string constants, with a `@MagicConstant` annotation over the JDK's own constants. Do not wrap the constants in an enum or a value class. See [Typed constants](../CONTRIBUTING.md#typed-constants).
 
-When the API adds declarations that conflict, reject the conflict and tell the caller how to fix it. `PanelLayout.Card` rejects two children with the same card name. A layout that exposes Swing's own placement policy preserves that policy, including how `BorderLayout` resolves two children in one region.
+When the API adds declarations that conflict, reject the conflict and tell the caller how to fix it. A layout that exposes Swing's own placement policy preserves that policy instead, including how `BorderLayout` resolves two children in one region and how `PanelLayout.Card`, like `CardLayout`, gives a card name to one child: a child declared under a name another child holds takes that card.
 
 ## The `SwingNode` signatures
 

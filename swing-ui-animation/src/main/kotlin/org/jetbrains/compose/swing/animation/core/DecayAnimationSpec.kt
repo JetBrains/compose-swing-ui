@@ -26,7 +26,7 @@ import androidx.annotation.FloatRange
  * Any type [T] can be animated by the system as long as a [TwoWayConverter] is supplied to convert
  * the data type [T] from and to an [AnimationVector]. There are a number of converters available
  * out of the box. For example,
- * [PointToVector][org.jetbrains.compose.swing.animation.core.PointToVector] converts a [java.awt.Point]
+ * [PointToVector][org.jetbrains.compose.swing.animation.PointToVector] converts a [java.awt.Point]
  * to [AnimationVector2D], so that both x and y dimensions are animated independently with separate
  * velocity tracking. This enables multidimensional objects to be animated in a true
  * multi-dimensional way. It is particularly useful for smoothly handling animation interruptions

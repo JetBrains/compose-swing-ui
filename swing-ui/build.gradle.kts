@@ -50,6 +50,9 @@ dependencies {
     // The JUnit 5 flavor, whose Tag the ExclusiveWindowSystem annotation carries.
     testFixturesImplementation(kotlin("test-junit5"))
     testFixturesImplementation(project(":swing-ui-test"))
+    testFixturesImplementation(libs.androidxTracing)
+    testFixturesImplementation(libs.mockk)
+    testFixturesImplementation(kotlin("test"))
     // The checks take and hand out the fixtures, so consumers of them see the fixtures' types.
     testFixturesApi(project(":swing-ui")) {
         capabilities { requireFeature("fixtures") }

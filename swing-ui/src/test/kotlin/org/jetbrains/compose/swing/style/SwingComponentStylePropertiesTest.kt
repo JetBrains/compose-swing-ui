@@ -6,8 +6,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.components.button.Button
-import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.SwingMatcher
@@ -24,9 +22,7 @@ import java.awt.Font
 import java.awt.Insets
 import java.awt.event.MouseEvent
 import javax.swing.BorderFactory
-import javax.swing.JButton
 import javax.swing.JLabel
-import javax.swing.JTextField
 import javax.swing.border.Border
 import javax.swing.border.LineBorder
 import kotlin.test.Test
@@ -36,33 +32,6 @@ import kotlin.test.assertNotEquals
 class SwingComponentStylePropertiesTest {
     @TestFactory
     fun settersWriteUpdateAndRestore(): List<DynamicTest> = setterCaseTests(cases)
-
-    @Test
-    fun droppingTheAccessibleNameLetsTheButtonAnswerWithItsOwnText() = runComposeSwingTest {
-        var named by mutableStateOf(true)
-        var text by mutableStateOf("Save")
-        setContent {
-            Button(
-                text,
-                onClick = { },
-                style = { if (named) accessibleName("Persist the document") },
-            )
-        }
-        onNodeOfType<JButton>().assertProperty(
-            "Persist the document",
-            "the accessible name should apply while the modifier is present",
-        ) { accessibleContext.accessibleName }
-
-        // A button answers with its text while it holds no name of its own, so a name pinned on removal
-        // would go on being announced after the text moved on.
-        named = false
-        text = "Store"
-        awaitIdle()
-        onNodeOfType<JButton>().assertProperty(
-            "Store",
-            "removing the modifier should hand the name back to the button's own text",
-        ) { accessibleContext.accessibleName }
-    }
 
     @ParameterizedTest
     @EnumSource(AccessiblePropertyCase::class)
@@ -88,34 +57,6 @@ class SwingComponentStylePropertiesTest {
         declared = false
         awaitIdle()
         onNodeOfType<JLabel>().assertProperty(case.own) { case.read(this) }
-    }
-
-    @Test
-    fun droppingTheAccessibleDescriptionLetsTheFieldAnswerWithItsTooltip() = runComposeSwingTest {
-        var described by mutableStateOf(true)
-        var tip by mutableStateOf("Where you live")
-        setContent {
-            TextField(
-                "",
-                onValueChange = {},
-                style = {
-                    toolTip(tip)
-                    if (described) accessibleDescription("The address to deliver to")
-                },
-            )
-        }
-        onNodeOfType<JTextField>().assertProperty(
-            "The address to deliver to",
-            "the accessible description should apply while the modifier is present",
-        ) { accessibleContext.accessibleDescription }
-
-        described = false
-        tip = "Where you work"
-        awaitIdle()
-        onNodeOfType<JTextField>().assertProperty(
-            "Where you work",
-            "removing the modifier should hand the description back to the field's own tooltip",
-        ) { accessibleContext.accessibleDescription }
     }
 
     @Test

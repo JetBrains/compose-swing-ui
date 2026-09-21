@@ -61,7 +61,7 @@ class TransitionHarnessTest {
         onNodeWithTag("alpha").assertTextEquals("0.0")
 
         target = AnimStates.To
-        advanceTimeBy(3 * UpstreamFrameMillis)
+        repeat(3) { advanceTimeByFrame() }
         val midFlight = onNodeWithTag("alpha").fetch<JLabel>().text.toFloat()
         assertTrue(midFlight > 0f && midFlight < 1f, "expected a mid-flight alpha, got $midFlight")
 

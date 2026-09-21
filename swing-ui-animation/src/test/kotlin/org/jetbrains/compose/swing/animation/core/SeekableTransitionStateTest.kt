@@ -46,7 +46,6 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.swing.animation.AnimatedContent
 import org.jetbrains.compose.swing.animation.AnimatedVisibility
-import org.jetbrains.compose.swing.animation.paintedAlpha
 import org.jetbrains.compose.swing.animation.fadeIn
 import org.jetbrains.compose.swing.animation.fadeOut
 import org.jetbrains.compose.swing.animation.togetherWith

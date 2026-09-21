@@ -2,8 +2,10 @@
 package org.jetbrains.compose.swing.components.layout
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionContext
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.DisposableHandle
 import kotlinx.coroutines.TimeoutCancellationException
@@ -11,7 +13,6 @@ import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
-import org.jetbrains.compose.swing.core.compositionContext
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
 import org.jetbrains.compose.swing.test.interaction.assertProperty
@@ -312,16 +313,20 @@ class ToolBarFloatingTest {
                 // hidden leaves the look and feel waiting on the frame's opening to show the bar's own
                 // window, and that pending show would realize a window this teardown has already disposed.
                 frame.isVisible = true
+                var parent: CompositionContext? = null
+                val frameContent = frame.setContent { parent = rememberCompositionContext() }
                 var mounted: DisposableHandle? = null
                 try {
+                    awaitUntil("the frame's composition publishes its context") { parent != null }
                     body(frame, composition) { content ->
-                        mounted = composition.setContent(parent = frame.compositionContext(), content = content)
+                        mounted = composition.setContent(parent = parent, content = content)
                     }
                 } finally {
                     // Ends the composition first: the bar leaving it disposes the window a floating bar
                     // stands in, which the line below can then only find where the wrapper never floated
                     // the bar itself - the case where the drag handler was driven directly.
                     mounted?.dispose()
+                    frameContent.dispose()
                     toolBarIn(frame)?.takeIf { it.isFloatingNow }?.let {
                         SwingUtilities.getWindowAncestor(it)?.dispose()
                     }

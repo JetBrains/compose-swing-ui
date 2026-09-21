@@ -15,7 +15,7 @@
  */
 
 // Adapted from androidx.compose.animation.core.InfiniteAnimationPolicy for compose-swing-ui's
-// vendored animation-core: the policy looked up is swing-ui's InfiniteAnimationPolicy rather than
+// vendored animation-core: the policy looked up is swing-ui-core's InfiniteAnimationPolicy rather than
 // compose-ui's. Sourced from AndroidX (Jetpack Compose 1.13.0).
 
 package org.jetbrains.compose.swing.animation.core

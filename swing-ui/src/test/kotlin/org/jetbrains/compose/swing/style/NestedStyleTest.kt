@@ -9,10 +9,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
-import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.style.Buttons
-import org.jetbrains.compose.swing.components.style.CheckBoxes
 import org.jetbrains.compose.swing.components.style.Labels
 import org.jetbrains.compose.swing.components.style.Panels
 import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
@@ -33,7 +31,6 @@ import org.junit.jupiter.params.provider.MethodSource
 import org.junit.jupiter.params.provider.ValueSource
 import java.awt.Color
 import javax.swing.JButton
-import javax.swing.JCheckBox
 import javax.swing.JComponent
 import javax.swing.JLabel
 import javax.swing.plaf.ColorUIResource
@@ -96,36 +93,6 @@ class NestedStyleTest {
     ) = runComposeSwingTest {
         setContent(content)
         verify()
-    }
-
-    @Test
-    fun aLateNestedStyleReadsTheLatestCheckedDeclaration() = runComposeSwingTest {
-        var checked by mutableStateOf(false)
-        var publishing by mutableStateOf(false)
-        setContent {
-            Panel(style = {
-                if (publishing) {
-                    provideNestedStyle(CheckBoxes) {
-                        background(if (isChecked) Color.RED else Color.BLUE)
-                    }
-                }
-            }) {
-                CheckBox("check", checked, onCheckedChange = {})
-            }
-        }
-
-        checked = true
-        awaitIdle()
-        onNodeOfType<JCheckBox>().assertProperty(true) { isSelected }
-        publishing = true
-        awaitIdle()
-        onNodeOfType<JCheckBox>().assertProperty(Color.RED) { background }
-        checked = false
-        awaitIdle()
-        onNodeOfType<JCheckBox>().assertProperty(Color.BLUE) { background }
-        checked = true
-        awaitIdle()
-        onNodeOfType<JCheckBox>().assertProperty(Color.RED) { background }
     }
 
     @Test

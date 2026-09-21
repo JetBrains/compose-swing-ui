@@ -8,8 +8,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.annotation.RememberInComposition
 import androidx.compose.runtime.remember
+import org.jetbrains.compose.swing.components.modifier.binding
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.binding
 import org.jetbrains.compose.swing.util.fastForEach
 import java.awt.Component
 import java.awt.event.HierarchyEvent

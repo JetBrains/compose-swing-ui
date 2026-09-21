@@ -335,17 +335,12 @@ public abstract class PanelLayout<S : PanelScope>(
      *     Label(text = "Details", modifier = SwingModifier.card("details"))
      * }
      * ```
-     * A card holds a single child; two children naming the same card are reported as an error on the
-     * event dispatch thread once the change pass that caused it has settled, so a pass that replaces a
-     * card's occupant need not take the outgoing child out before the incoming one arrives. The report
-     * reaches whatever handles an uncaught exception on that thread - by default the JDK's, which prints
-     * it and moves on, so an application that installs none of its own keeps running with both children
-     * on the card.
+     * As in [java.awt.CardLayout], two children naming the same card are both kept, and the card goes to
+     * the newer child.
      *
      * Dropping a child (e.g. behind an `if`) takes its card with it, and a [selectedCard] matching no
      * card leaves the card currently on top showing. A child that names no card is placed on the deck's
-     * empty-named card, which an empty [selectedCard] shows; that card holds a single child like any
-     * other, so two children naming none are refused the way a card named twice is.
+     * empty-named card, which an empty [selectedCard] shows.
      *
      * @property selectedCard the key of the card to show
      * @property hgap the horizontal gap between the panel's left/right edges and the shown card; `0` by
@@ -650,8 +645,8 @@ public sealed interface CardPanelScope : PanelScope {
      * that key. The name follows the value: a child declaring a new key moves to that card, keeping its
      * position among its siblings.
      *
-     * [key] cannot be empty, and two children of one panel cannot name the same card; either is refused,
-     * and a card named twice is reported by its name.
+     * [key] cannot be empty, and is refused at once if it is. Two children of one panel naming the same key
+     * are not refused: as in [java.awt.CardLayout], the key goes to the newer child.
      *
      * @param key names the card this child is placed on, non-empty
      * @return this chain with the card declared on it.

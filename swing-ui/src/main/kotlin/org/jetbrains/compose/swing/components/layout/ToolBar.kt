@@ -18,7 +18,6 @@ import org.jetbrains.compose.swing.modifier.property
 import org.jetbrains.compose.swing.node.MirrorState
 import org.jetbrains.compose.swing.node.ReconcileWithChildrenScope
 import org.jetbrains.compose.swing.node.SwingNode
-import org.jetbrains.compose.swing.node.declaredName
 import org.jetbrains.compose.swing.node.reconcileWithChildren
 import org.jetbrains.compose.swing.node.rememberMirrorState
 import org.jetbrains.compose.swing.style.NestedStyleProviderScope
@@ -291,9 +290,9 @@ private fun JToolBar.checkStandsWhereItCanDock() {
         val manager = parent.layout?.let { "a ${it.javaClass.simpleName}" } ?: "no layout manager"
         "A tool bar the user can drag out has to stand in a container laid out by a BorderLayout - a " +
             "panel under PanelLayout.Border, or a window's own content - which is the only place its " +
-            "look and feel docks it back into the region it came from, but the $declaredName " +
+            "look and feel docks it back into the region it came from, but the ${javaClass.simpleName} " +
             "declared here stands in a " +
-            "${parent.declaredName} laid out by $manager. " +
+            "${parent.javaClass.simpleName} laid out by $manager. " +
             "Declare floatable = false, or hold the bar in a panel under PanelLayout.Border."
     }
 }

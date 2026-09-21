@@ -9,11 +9,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.modifier.listener.changeListener
-import org.jetbrains.compose.swing.core.COMPOSITION_KEY
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
-import org.jetbrains.compose.swing.util.get
 import java.awt.Container
 import java.text.DecimalFormat
 import java.util.Calendar
@@ -54,17 +52,6 @@ class SpinnerEditorBehaviorTest {
             (JSpinner(SpinnerNumberModel()).editor as JSpinner.NumberEditor).textField.horizontalAlignment,
             editor.textField.horizontalAlignment,
             "the field is aligned the way the look and feel aligns a spinner's own",
-        )
-    }
-
-    @Test
-    fun withNoComposedEditorTheSpinnerPublishesNoCompositionContext() = runComposeSwingTest {
-        setContent { Spinner(value = 1.5, onValueChange = {}, step = 0.5) }
-
-        assertEquals(
-            null,
-            onNodeOfType<JSpinner>().fetch()[COMPOSITION_KEY],
-            "a spinner that has no composed editor must not publish a composition context",
         )
     }
 

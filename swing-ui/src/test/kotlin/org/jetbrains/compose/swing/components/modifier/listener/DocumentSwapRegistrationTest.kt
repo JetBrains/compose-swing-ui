@@ -7,7 +7,6 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.listener.declared
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import javax.swing.JTextField

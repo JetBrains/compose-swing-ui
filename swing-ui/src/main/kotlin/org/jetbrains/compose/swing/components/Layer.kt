@@ -9,9 +9,6 @@ import androidx.compose.runtime.remember
 import org.jetbrains.compose.swing.annotations.SwingComponentLibraryApi
 import org.jetbrains.compose.swing.components.style.Layers
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.listener.UNDECLARED
-import org.jetbrains.compose.swing.modifier.listener.UNDECLARED_PAINT
-import org.jetbrains.compose.swing.modifier.listener.declared
 import org.jetbrains.compose.swing.node.ObserverModifierNode
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.node.SwingNodeUpdater
@@ -80,7 +77,7 @@ import javax.swing.plaf.LayerUI
  *   view, before your own drawing to paint over it, after to paint under it, more than once, or not at all
  *   to replace it. `paintView` throws `IllegalStateException` once this call returns, so run it here rather
  *   than holding on to it. The graphics is a copy the layer disposes when this returns, so a composite,
- *   transform or clip left on it reaches no other painting. Left undeclared, the layer paints the view
+ *   transform or clip left on it reaches no other painting. Left `null`, the layer paints the view
  *   unchanged.
  * @param onMouseEvent runs on a press, release, click, enter or exit anywhere in the layer, the view and
  *   everything under it included; declaring it has the layer observe `MOUSE_EVENT_MASK`.
@@ -95,10 +92,10 @@ import javax.swing.plaf.LayerUI
 public fun Layer(
     modifier: SwingModifier = SwingModifier,
     style: SwingStyle<ContainerStyleScope> = SwingStyle,
-    onPaint: (g: Graphics2D, width: Int, height: Int, paintView: () -> Unit) -> Unit = UNDECLARED_PAINT,
-    onMouseEvent: (MouseEvent) -> Unit = UNDECLARED,
-    onMouseMotionEvent: (MouseEvent) -> Unit = UNDECLARED,
-    onMouseWheelEvent: (MouseWheelEvent) -> Unit = UNDECLARED,
+    onPaint: ((g: Graphics2D, width: Int, height: Int, paintView: () -> Unit) -> Unit)? = null,
+    onMouseEvent: ((MouseEvent) -> Unit)? = null,
+    onMouseMotionEvent: ((MouseEvent) -> Unit)? = null,
+    onMouseWheelEvent: ((MouseWheelEvent) -> Unit)? = null,
     content: @Composable LayerScope.() -> Unit,
 ) {
     // One delegate per layer, never one shared between two - see CallbackLayerUI.
@@ -112,7 +109,7 @@ public fun Layer(
             set(onPaint) {
                 delegate.onPaint = it
                 // A layer declaring no paint tracks nothing, so reads a withdrawn paint made go with it.
-                if (!declared(it)) delegate.paintObserver?.clearReads()
+                if (it == null) delegate.paintObserver?.clearReads()
                 // A new callback may draw with a value read in the composition, which no paint-time read
                 // tracks.
                 repaint()
@@ -160,13 +157,13 @@ private inline fun LayerNode(
 
 /** The union of the event bits whose callbacks a [Layer] declaration names. */
 private fun declaredEventMask(
-    onMouseEvent: (MouseEvent) -> Unit,
-    onMouseMotionEvent: (MouseEvent) -> Unit,
-    onMouseWheelEvent: (MouseWheelEvent) -> Unit,
+    onMouseEvent: ((MouseEvent) -> Unit)?,
+    onMouseMotionEvent: ((MouseEvent) -> Unit)?,
+    onMouseWheelEvent: ((MouseWheelEvent) -> Unit)?,
 ): Long =
-    (if (declared(onMouseEvent)) AWTEvent.MOUSE_EVENT_MASK else 0L) or
-        (if (declared(onMouseMotionEvent)) AWTEvent.MOUSE_MOTION_EVENT_MASK else 0L) or
-        (if (declared(onMouseWheelEvent)) AWTEvent.MOUSE_WHEEL_EVENT_MASK else 0L)
+    (if (onMouseEvent != null) AWTEvent.MOUSE_EVENT_MASK else 0L) or
+        (if (onMouseMotionEvent != null) AWTEvent.MOUSE_MOTION_EVENT_MASK else 0L) or
+        (if (onMouseWheelEvent != null) AWTEvent.MOUSE_WHEEL_EVENT_MASK else 0L)
 
 /**
  * The declaration paired by [LayerNode] so the delegate and event mask settle together. The delegate is
@@ -253,10 +250,10 @@ private inline fun <reified T : JLayer<Component>> layerType(): Class<T> = T::cl
  */
 private class CallbackLayerUI : LayerUI<Component>() {
     /** What the enclosing declaration holds right now, written once per pass and read as events arrive. */
-    var callbacks: LayerCallbacks = UNDECLARED_CALLBACKS
+    var callbacks: LayerCallbacks = LayerCallbacks(null, null, null)
 
-    /** The declared paint, or [UNDECLARED_PAINT], which paints the view unchanged. */
-    var onPaint: (Graphics2D, Int, Int, () -> Unit) -> Unit = UNDECLARED_PAINT
+    /** The declared paint, or `null`, which paints the view unchanged. */
+    var onPaint: ((Graphics2D, Int, Int, () -> Unit) -> Unit)? = null
 
     /**
      * The node [paint] records the reads of [onPaint] with, set by [PaintObserverElement.Node.onAttach]
@@ -276,14 +273,14 @@ private class CallbackLayerUI : LayerUI<Component>() {
 
     private val runOnPaint: () -> Unit = {
         val layer = checkNotNull(layer)
-        onPaint(checkNotNull(graphics), layer.width, layer.height, paintView)
+        checkNotNull(onPaint)(checkNotNull(graphics), layer.width, layer.height, paintView)
     }
 
     override fun paint(
         graphics: Graphics,
         component: JComponent,
     ) {
-        if (!declared(onPaint)) return super.paint(graphics, component)
+        if (onPaint == null) return super.paint(graphics, component)
         val enclosingGraphics = this.graphics
         val enclosingLayer = layer
         val copy = graphics.create() as Graphics2D
@@ -302,21 +299,21 @@ private class CallbackLayerUI : LayerUI<Component>() {
         event: MouseEvent,
         layer: JLayer<out Component>,
     ) {
-        callbacks.onMouseEvent(event)
+        callbacks.onMouseEvent?.invoke(event)
     }
 
     override fun processMouseMotionEvent(
         event: MouseEvent,
         layer: JLayer<out Component>,
     ) {
-        callbacks.onMouseMotionEvent(event)
+        callbacks.onMouseMotionEvent?.invoke(event)
     }
 
     override fun processMouseWheelEvent(
         event: MouseWheelEvent,
         layer: JLayer<out Component>,
     ) {
-        callbacks.onMouseWheelEvent(event)
+        callbacks.onMouseWheelEvent?.invoke(event)
     }
 }
 
@@ -325,9 +322,9 @@ private class CallbackLayerUI : LayerUI<Component>() {
  * every callback is the same instance, so a pass handing any new one writes it.
  */
 private class LayerCallbacks(
-    val onMouseEvent: (MouseEvent) -> Unit,
-    val onMouseMotionEvent: (MouseEvent) -> Unit,
-    val onMouseWheelEvent: (MouseWheelEvent) -> Unit,
+    val onMouseEvent: ((MouseEvent) -> Unit)?,
+    val onMouseMotionEvent: ((MouseEvent) -> Unit)?,
+    val onMouseWheelEvent: ((MouseWheelEvent) -> Unit)?,
 ) {
     override fun equals(other: Any?): Boolean =
         other is LayerCallbacks &&
@@ -339,9 +336,6 @@ private class LayerCallbacks(
         31 * (31 * System.identityHashCode(onMouseEvent) + System.identityHashCode(onMouseMotionEvent)) +
             System.identityHashCode(onMouseWheelEvent)
 }
-
-/** What a delegate holds until the pass that built it writes the declaration in: nothing declared. */
-private val UNDECLARED_CALLBACKS = LayerCallbacks(UNDECLARED, UNDECLARED, UNDECLARED)
 
 /** [ContainerStyleScope] for Layer styles. No component state is supplied. */
 private val LayerKind =

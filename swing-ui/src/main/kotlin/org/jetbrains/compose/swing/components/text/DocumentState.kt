@@ -14,8 +14,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.annotations.Nls
 import org.jetbrains.compose.swing.annotations.ContentType
+import org.jetbrains.compose.swing.components.modifier.binding
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.binding
 import org.jetbrains.compose.swing.text.TextRange
 import java.beans.PropertyChangeListener
 import java.io.StringReader

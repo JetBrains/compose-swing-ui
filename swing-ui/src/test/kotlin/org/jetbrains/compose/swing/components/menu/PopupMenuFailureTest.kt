@@ -1,12 +1,14 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.components.menu
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.ExclusiveWindowSystem
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.core.awaitUntil
 import org.jetbrains.compose.swing.core.labelTexts
 import org.jetbrains.compose.swing.core.realizedFrame
-import org.jetbrains.compose.swing.core.swingRecomposerOrNull
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
@@ -29,6 +31,7 @@ class PopupMenuFailureTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val frame = realizedFrame().apply { setSize(FRAME_SIDE, FRAME_SIDE) }
         try {
+            var caption by mutableStateOf("before")
             // Showing, so the anchor below is on screen once it is visible.
             frame.isVisible = true
             // Hidden, so the anchor is not showing and the menu declared open waits for it.
@@ -45,11 +48,16 @@ class PopupMenuFailureTest {
 
             val failure = assertFailsWith<IllegalStateException> { host.isVisible = true }
             assertEquals("the menu body cannot render", failure.message, "the caller is handed the body's failure")
-            awaitUntil("the failed menu composition ends the window's recomposer") {
-                frame.swingRecomposerOrNull() ==
-                    null
+            awaitUntil("the failed menu composition tears the window's content down") { host.componentCount == 0 }
+            caption = "after"
+
+            val next = JPanel().also { frame.contentPane.add(it) }
+            next.setContent { Label(caption) }
+            awaitUntil("content set after the failure composes on a fresh recomposer") {
+                labelTexts(next) == listOf("after")
             }
-            assertEquals(0, host.componentCount, "the content the window held is torn down")
+            caption = "again"
+            awaitUntil("the fresh recomposer keeps the content updating") { labelTexts(next) == listOf("again") }
         } finally {
             frame.dispose()
         }

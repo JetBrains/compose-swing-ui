@@ -1,17 +1,11 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.modifier.listener
 
-import org.jetbrains.compose.swing.components.modifier.listener.documentListener
-import org.jetbrains.compose.swing.components.modifier.listener.internalFrameListener
-import org.jetbrains.compose.swing.components.modifier.listener.treeExpansionListener
-import org.jetbrains.compose.swing.components.modifier.listener.treeWillExpandListener
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.interaction.onFocus
 import org.jetbrains.compose.swing.modifier.interaction.onHover
 import org.jetbrains.compose.swing.modifier.interaction.onPointerEvent
 import kotlin.test.Test
-import kotlin.test.assertFailsWith
-import kotlin.test.assertNotEquals
 
 /**
  * A builder taking one callback per method of a listener interface defaults every one of them, so that a
@@ -24,14 +18,10 @@ class UndeclaredCallbackTest {
     fun aBuilderDeclaringNoCallbackIsRefused() {
         assertRefused("componentListener") { SwingModifier.componentListener() }
         assertRefused("containerListener") { SwingModifier.containerListener() }
-        assertRefused("documentListener") { SwingModifier.documentListener() }
         assertRefused("focusListener") { SwingModifier.focusListener() }
-        assertRefused("internalFrameListener") { SwingModifier.internalFrameListener() }
         assertRefused("keyListener") { SwingModifier.keyListener() }
         assertRefused("mouseListener") { SwingModifier.mouseListener() }
         assertRefused("mouseMotionListener") { SwingModifier.mouseMotionListener() }
-        assertRefused("treeExpansionListener") { SwingModifier.treeExpansionListener() }
-        assertRefused("treeWillExpandListener") { SwingModifier.treeWillExpandListener() }
         assertRefused("onHover") { SwingModifier.onHover() }
         assertRefused("onFocus") { SwingModifier.onFocus() }
         assertRefused("onPointerEvent") { SwingModifier.onPointerEvent() }
@@ -41,14 +31,10 @@ class UndeclaredCallbackTest {
     fun aBuilderDeclaringOneCallbackIsAccepted() {
         assertDeclares("componentListener") { SwingModifier.componentListener(onComponentMoved = {}) }
         assertDeclares("containerListener") { SwingModifier.containerListener(onComponentRemoved = {}) }
-        assertDeclares("documentListener") { SwingModifier.documentListener(onChange = {}) }
         assertDeclares("focusListener") { SwingModifier.focusListener(onFocusLost = {}) }
-        assertDeclares("internalFrameListener") { SwingModifier.internalFrameListener(onFrameClosing = {}) }
         assertDeclares("keyListener") { SwingModifier.keyListener(onKeyReleased = {}) }
         assertDeclares("mouseListener") { SwingModifier.mouseListener(onMouseExited = {}) }
         assertDeclares("mouseMotionListener") { SwingModifier.mouseMotionListener(onMouseMoved = {}) }
-        assertDeclares("treeExpansionListener") { SwingModifier.treeExpansionListener(onTreeCollapsed = {}) }
-        assertDeclares("treeWillExpandListener") { SwingModifier.treeWillExpandListener(onWillCollapse = { true }) }
         assertDeclares("onHover") { SwingModifier.onHover(onExit = {}) }
         assertDeclares("onFocus") { SwingModifier.onFocus(onLost = {}) }
         assertDeclares("onPointerEvent") { SwingModifier.onPointerEvent(onClick = {}) }
@@ -65,20 +51,4 @@ class UndeclaredCallbackTest {
         assertDeclares("onHover") { SwingModifier.onHover(onEnter = doNothing, onExit = doNothing) }
         assertDeclares("mouseListener") { SwingModifier.mouseListener { } }
     }
-}
-
-private fun assertRefused(
-    builder: String,
-    declare: () -> SwingModifier,
-) {
-    assertFailsWith<IllegalArgumentException>("$builder should refuse a call that declares no callback") {
-        declare()
-    }
-}
-
-private fun assertDeclares(
-    builder: String,
-    declare: () -> SwingModifier,
-) {
-    assertNotEquals(SwingModifier, declare(), "$builder should add an element to the chain")
 }

@@ -10,11 +10,6 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
-import org.jetbrains.compose.swing.components.modifier.interaction.buttonGroup
-import org.jetbrains.compose.swing.components.modifier.interaction.defaultButton
-import org.jetbrains.compose.swing.components.modifier.interaction.documentFilter
-import org.jetbrains.compose.swing.components.modifier.interaction.navigationFilter
-import org.jetbrains.compose.swing.components.modifier.interaction.onAccept
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.modifier.interaction.FocusRequester
 import org.jetbrains.compose.swing.modifier.interaction.focusRequester
@@ -49,7 +44,6 @@ import java.awt.event.MouseEvent
 import java.awt.event.MouseListener
 import java.awt.event.MouseMotionListener
 import javax.swing.BoxLayout
-import javax.swing.ButtonGroup
 import javax.swing.JButton
 import javax.swing.JComponent
 import javax.swing.JLabel
@@ -683,9 +677,6 @@ class SwingModifierTest {
 
     @Test
     fun everyInteractionBuilderAppendsToTheChainWithoutRepeatingIt() {
-        assertDeclaredChainCarriedOnce { buttonGroup(ButtonGroup()) }
-        assertDeclaredChainCarriedOnce { defaultButton() }
-        assertDeclaredChainCarriedOnce { documentFilter(null) }
         assertDeclaredChainCarriedOnce { focusRequester(FocusRequester()) }
         assertDeclaredChainCarriedOnce { focusTraversalIndex(0) }
         assertDeclaredChainCarriedOnce { orderedFocusTraversal() }
@@ -694,14 +685,5 @@ class SwingModifierTest {
         assertDeclaredChainCarriedOnce { onHover { } }
         assertDeclaredChainCarriedOnce { onFocus { } }
         assertDeclaredChainCarriedOnce { onPointerEvent { } }
-        assertDeclaredChainCarriedOnce { navigationFilter(null) }
-        assertDeclaredChainCarriedOnce { onAccept { } }
-    }
-
-    @Test
-    fun aBindingAppendsToTheChainWithoutRepeatingIt() {
-        assertDeclaredChainCarriedOnce {
-            binding(JComponent::class.java, "binding", "value", { _, _ -> }, { _, _ -> })
-        }
     }
 }

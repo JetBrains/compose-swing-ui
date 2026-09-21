@@ -85,7 +85,7 @@ private object RawSwingTests : FixtureVisitor<List<DynamicTest>> {
  * Builds the raw side, and skips the check when a headless JVM cannot: a raw window throws [HeadlessException] as it
  * is built, before [WindowPair] reaches its own assumption.
  */
-internal fun <C : Component> ComposableFixture<*, C>.createRawSwingOrSkip(): C =
+fun <C : Component> ComposableFixture<*, C>.createRawSwingOrSkip(): C =
     try {
         createRawSwing()
     } catch (headless: HeadlessException) {
@@ -94,7 +94,7 @@ internal fun <C : Component> ComposableFixture<*, C>.createRawSwingOrSkip(): C =
     }
 
 /** The raw side of a fixture, mounted in a host the size of the composed one; [close] unmounts it. */
-internal class RawHost<P : Any, C : Component>(
+class RawHost<P : Any, C : Component>(
     private val fixture: ComposableFixture<P, C>,
     private val component: C,
     private val test: ComposeSwingTest,
@@ -106,6 +106,9 @@ internal class RawHost<P : Any, C : Component>(
     /** Set when the raw side is a window, which no panel can hold. */
     val windows: WindowPair? = (component as? Window)?.let { WindowPair(test, it, windowsBefore) }
 
+    /**
+     * The container the raw side is mounted in: the raw window's root pane, or a panel sized like the composed host.
+     */
     val container: Container =
         windows?.rawRootPane
             ?: JPanel(test.root.layout).apply {
@@ -137,8 +140,13 @@ internal class RawHost<P : Any, C : Component>(
     fun isComposed(component: Component): Boolean =
         windows?.isComposed(component) ?: SwingUtilities.isDescendingFrom(component, test.root)
 
+    /** Applies [parameters] to the raw Swing component, the way the composed content receives the same parameters. */
     fun apply(parameters: P) = fixture.updateRawSwing(component, parameters)
 
+    /**
+     * Waits until the posted events are delivered and the raw side is laid out, so its tree can be compared with the
+     * composed one.
+     */
     suspend fun settle() {
         test.awaitEventsDelivered()
         container.validate()
@@ -148,6 +156,10 @@ internal class RawHost<P : Any, C : Component>(
         container.validate()
     }
 
+    /**
+     * Asserts that the raw tree matches the composed tree, or the window pair's content for a window. A failure names
+     * [stage].
+     */
     suspend fun assertMatches(stage: String) {
         if (windows == null) {
             try {
@@ -160,6 +172,7 @@ internal class RawHost<P : Any, C : Component>(
         }
     }
 
+    /** Asserts that nothing from the fixture is left mounted once its composed content is gone. */
     fun assertGone() {
         windows?.let {
             it.assertGone(fixture.name)
@@ -178,7 +191,7 @@ internal class RawHost<P : Any, C : Component>(
  * Motion switched off, so an animation lands on its end state in the frame that starts it: the checks compare the
  * end states of the two sides, which raw Swing reaches without frames in between.
  */
-internal object NoMotion : MotionDurationScale {
+object NoMotion : MotionDurationScale {
     override val scaleFactor: Float get() = 0f
 }
 
@@ -195,7 +208,7 @@ private class NeverShowingPanel : JPanel() {
  * The properties of [initial] whose value differs in [alternative], as `property=value` with the alternative's value,
  * sorted and separated by a comma and a space. Properties are the instance fields of [initial]'s own class.
  */
-internal fun <P : Any> differingProperties(
+fun <P : Any> differingProperties(
     initial: P,
     alternative: P,
 ): String =
@@ -215,13 +228,13 @@ private fun displayValue(value: Any?): String =
  * The display name of each of the [fixture]'s alternatives. Names that two alternatives share get the alternative's
  * index appended.
  */
-internal fun <P : Any> alternativeNames(fixture: ComposableFixture<P, *>): List<String> {
+fun <P : Any> alternativeNames(fixture: ComposableFixture<P, *>): List<String> {
     val names = fixture.alternatives.map { "${fixture.name}: ${differingProperties(fixture.initial, it)}" }
     return names.mapIndexed { index, name -> if (names.count { it == name } > 1) "$name #$index" else name }
 }
 
 /** A new instance equal to [value], built through the constructor of the fixture's own data class. */
-internal fun <P : Any> equalCopy(value: P): P {
+fun <P : Any> equalCopy(value: P): P {
     val fields = value.javaClass.declaredFields.filter { !Modifier.isStatic(it.modifiers) }
     val constructor = value.javaClass.declaredConstructors.single { it.parameterCount == fields.size }
     val copy =

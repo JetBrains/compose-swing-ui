@@ -181,7 +181,7 @@ class MenuComponentTargetMismatchTest {
                     ?: throw AssertionError(
                         "System property '$PLUGIN_CLASSPATH_PROPERTY' is not set; the Gradle test task must " +
                             "hand the resolved Compose compiler plugin jar to the harness. Run these tests " +
-                            "via Gradle (./gradlew :swing-ui:test), or set " +
+                            "via Gradle (./gradlew :swing-ui-components:test), or set " +
                             "-D$PLUGIN_CLASSPATH_PROPERTY=<path-to-compose-compiler-plugin.jar> when running " +
                             "them directly.",
                     )

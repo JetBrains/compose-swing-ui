@@ -267,30 +267,32 @@ class CardPanelBehaviorTest {
     }
 
     @Test
-    fun twoChildrenOfOnePanelCannotNameTheSameCard() = runComposeSwingTest {
-        assertFailsWith<IllegalArgumentException> {
-            setContent {
-                Panel(PanelLayout.Card(selectedCard = "shared")) {
-                    Label("first", SwingModifier.card("shared"))
-                    Label("second", SwingModifier.card("shared"))
-                }
+    fun twoChildrenNamingOneCardAreBothKeptAndTheNewerIsShown() = runComposeSwingTest {
+        setContent {
+            Panel(PanelLayout.Card(selectedCard = "shared")) {
+                Label("first", SwingModifier.card("shared"))
+                Label("second", SwingModifier.card("shared"))
             }
-            // The check runs a turn after the pass that added these children, once it has settled.
-            awaitIdle()
         }
+        awaitIdle()
+
+        assertDeckHolds("first", "second")
+        assertShownCard(shown = "second", hidden = listOf("first"))
     }
 
     @Test
-    fun twoChildrenOfOnePanelCannotBothNameNoCard() = runComposeSwingTest {
-        assertFailsWith<IllegalArgumentException> {
-            setContent {
-                Panel(PanelLayout.Card(selectedCard = "")) {
-                    Label("first")
-                    Label("second")
-                }
+    fun twoChildrenNamingNoCardAreBothKeptAndTheNewerIsShownByTheEmptyKey() = runComposeSwingTest {
+        setContent {
+            Panel(PanelLayout.Card(selectedCard = "")) {
+                Label("first")
+                Label("second")
             }
-            awaitIdle()
         }
+        awaitIdle()
+
+        // Raw CardLayout behavior, pinned by the owner's ruling: a repeated card name is not rejected.
+        assertDeckHolds("first", "second")
+        assertShownCard(shown = "second", hidden = listOf("first"))
     }
 
     @Test
@@ -298,9 +300,8 @@ class CardPanelBehaviorTest {
         var parked by mutableStateOf(false)
         setContent {
             Panel(PanelLayout.Card(selectedCard = "shared")) {
-                // A parked child gives up its card as the applier releases it, which is part of the same
-                // pass that puts the incoming child on the deck. The card is held twice while that pass
-                // runs, and by one child once it has been dispatched whole - which is when it is counted.
+                // A parked child gives up its card as the applier releases it, in the same pass that puts
+                // the incoming child on the deck, so the card is held twice until that pass is dispatched.
                 ReusableContentHost(active = !parked) {
                     Label("first", SwingModifier.card("shared"))
                 }

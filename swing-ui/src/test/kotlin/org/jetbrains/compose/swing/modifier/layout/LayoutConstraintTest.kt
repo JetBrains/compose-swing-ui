@@ -412,12 +412,14 @@ class LayoutConstraintTest {
         setContent {
             FlowContainer {
                 Label("free", SwingModifier.layoutConstraint(MosaicCell(row = 1, column = 1)))
+                Label("raw", SwingModifier.layoutConstraint(BorderLayout.NORTH))
             }
         }
 
         val panel = onNodeWithText("free").onParent()
-        panel.onChildren().assertCountEquals(1)
+        panel.onChildren().assertCountEquals(2)
         panel.onChildAt(0).assertTextEquals("free")
+        panel.onChildAt(1).assertTextEquals("raw")
     }
 
     @Test

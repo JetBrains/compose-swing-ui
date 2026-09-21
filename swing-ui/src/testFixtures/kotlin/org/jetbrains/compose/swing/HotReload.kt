@@ -12,7 +12,7 @@ import java.util.concurrent.atomic.AtomicReference
  * does. The mode is one value for the whole process, and every reload entry point also turns it on, so a
  * test that calls this is [ExclusiveWindowSystem].
  */
-internal inline fun <R> withHotReload(
+inline fun <R> withHotReload(
     enabled: Boolean,
     block: () -> R,
 ): R {
@@ -30,7 +30,7 @@ internal inline fun <R> withHotReload(
  * that failed, as a hot reload does after redefining the code those groups run. A recomposer holding a
  * non-recoverable error is skipped.
  */
-internal fun invalidateGroupsWithKey(key: Int) {
+fun invalidateGroupsWithKey(key: Int) {
     hotReloadEntryPoint("invalidateGroupsWithKey", Int::class.java).invoke(Recomposer.Companion, key)
 }
 
@@ -39,19 +39,23 @@ internal fun invalidateGroupsWithKey(key: Int) {
  * does after a change it cannot apply by invalidation. Remembered state resets, and every recorded error
  * is cleared.
  */
-internal fun saveAndLoadStateForHotReload() {
+fun saveAndLoadStateForHotReload() {
     val token = hotReloadEntryPoint("saveStateAndDisposeForHotReload").invoke(Recomposer.Companion)
     hotReloadEntryPoint("loadStateAndComposeForHotReload", Any::class.java).invoke(Recomposer.Companion, token)
 }
 
 /** An error a running recomposer holds: the [cause] it recorded, and whether invalidation can clear it. */
-internal class HotReloadError(
+class HotReloadError(
     val cause: Throwable,
+    /**
+     * Whether invalidation can clear the error. A recomposer holding a non-recoverable error is skipped by
+     * [invalidateGroupsWithKey].
+     */
     val recoverable: Boolean,
 )
 
 /** The errors the running recomposers hold, as a hot reload agent reads them to report a failed reload. */
-internal fun currentHotReloadErrors(): List<HotReloadError> {
+fun currentHotReloadErrors(): List<HotReloadError> {
     val errors = hotReloadEntryPoint("getCurrentErrors").invoke(Recomposer.Companion) as List<*>
     return errors.map { error ->
         val info = Class.forName("androidx.compose.runtime.RecomposerErrorInfo")
@@ -62,11 +66,16 @@ internal fun currentHotReloadErrors(): List<HotReloadError> {
     }
 }
 
-internal fun setHotReloadEnabled(enabled: Boolean) {
+/**
+ * Turns the runtime's hot reload mode on or off for the whole process. Prefer [withHotReload] when the mode
+ * should be restored after a single block.
+ */
+fun setHotReloadEnabled(enabled: Boolean) {
     hotReloadEntryPoint("setHotReloadEnabled", Boolean::class.java).invoke(Recomposer.Companion, enabled)
 }
 
-internal fun isHotReloadEnabled(): Boolean {
+/** Returns whether the runtime's hot reload mode is currently on, read from its internal flag by reflection. */
+fun isHotReloadEnabled(): Boolean {
     val field = Recomposer::class.java.getDeclaredField("_hotReloadEnabled").apply { isAccessible = true }
     return (field.get(null) as AtomicReference<*>).get() as Boolean
 }

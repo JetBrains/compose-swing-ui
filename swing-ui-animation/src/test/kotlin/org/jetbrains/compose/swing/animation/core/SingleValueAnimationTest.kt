@@ -70,7 +70,8 @@ class SingleValueAnimationTest {
         assertEquals(250, expected)
         awaitIdle()
         enabled = true
-        advanceTimeBy(100 + 2 * UpstreamFrameMillis)
+        advanceTimeBy(100)
+        repeat(2) { advanceTimeByFrame() }
         awaitIdle()
         assertEquals(50, expected)
     }
@@ -107,7 +108,8 @@ class SingleValueAnimationTest {
         }
         awaitIdle()
         enabled = true
-        advanceTimeBy(200 + 2 * UpstreamFrameMillis)
+        advanceTimeBy(200)
+        repeat(2) { advanceTimeByFrame() }
         awaitIdle()
         // Animation is finished at this point
         assertEquals(50f, expected)
@@ -165,7 +167,8 @@ class SingleValueAnimationTest {
 
         awaitIdle()
         enabled = true
-        advanceTimeBy(100 + 2 * UpstreamFrameMillis)
+        advanceTimeBy(100)
+        repeat(2) { advanceTimeByFrame() }
         awaitIdle()
         assertEquals(endVal, expected)
     }
@@ -272,8 +275,9 @@ class SingleValueAnimationTest {
         awaitIdle()
         enabled = true
         advanceTimeBy(
-            specForFloat.getDurationMillis(0f, 100f, 0f).toInt() + 2 * UpstreamFrameMillis
+            specForFloat.getDurationMillis(0f, 100f, 0f).toInt()
         )
+        repeat(2) { advanceTimeByFrame() }
         awaitIdle()
     }
 
@@ -334,8 +338,9 @@ class SingleValueAnimationTest {
         awaitIdle()
         enabled = true
         advanceTimeBy(
-            specForFloat.getDurationMillis(0f, 100f, 0f).toInt() + 2 * UpstreamFrameMillis
+            specForFloat.getDurationMillis(0f, 100f, 0f).toInt()
         )
+        repeat(2) { advanceTimeByFrame() }
         awaitIdle()
         assertEquals(100f, expectedFloat)
         assertEquals(100, expectedInt)
@@ -492,7 +497,8 @@ class SingleValueAnimationTest {
         awaitIdle()
         enabled = true
         firstRun = false
-        advanceTimeBy(duration + 2 * UpstreamFrameMillis)
+        advanceTimeBy(duration)
+        repeat(2) { advanceTimeByFrame() }
         awaitIdle()
         // Animation is finished at this point
         assertEquals(50f, expected)
@@ -500,7 +506,8 @@ class SingleValueAnimationTest {
         awaitIdle()
         enabled = false
         duration = 200
-        advanceTimeBy(duration + 2 * UpstreamFrameMillis)
+        advanceTimeBy(duration)
+        repeat(2) { advanceTimeByFrame() }
         awaitIdle()
         // Animation is finished at this point
         assertEquals(250f, expected)

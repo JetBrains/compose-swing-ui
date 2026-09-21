@@ -6,8 +6,8 @@ package org.jetbrains.compose.swing.components.modifier.accessibility
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
+import org.jetbrains.compose.swing.components.modifier.binding
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.binding
 import java.awt.Component
 import javax.swing.JLabel
 

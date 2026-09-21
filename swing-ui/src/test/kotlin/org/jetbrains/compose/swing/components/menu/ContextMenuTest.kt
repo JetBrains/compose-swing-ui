@@ -8,6 +8,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.core.UnrestoredName
+import org.jetbrains.compose.swing.core.assertReportsTheUnrestoredName
 import org.jetbrains.compose.swing.countTests
 import org.jetbrains.compose.swing.fixtures.components.menu.ContextMenuFixture
 import org.jetbrains.compose.swing.menuItemTexts
@@ -682,5 +684,28 @@ class ContextMenuTest {
             MouseEvent(target, MouseEvent.MOUSE_PRESSED, 0L, 0, 1, 1, 1, false),
         )
         assertNull(captured, "a non-popup-trigger event must not build a context menu")
+    }
+
+    @Test
+    fun aRestoreLeftUndoneInAMenusCompositionIsReported() = runComposeSwingTest {
+        var declared by mutableStateOf(true)
+        setContent {
+            val anchor = rememberPopupAnchor()
+            Label("target", modifier = SwingModifier.popupAnchor(anchor))
+            ContextMenu(anchor, display = { _, _, _, _ -> }) {
+                MenuItem(
+                    "Cut",
+                    onClick = {},
+                    modifier = if (declared) SwingModifier then UnrestoredName() else SwingModifier,
+                )
+            }
+        }
+        // A menu composes its content when the popup is built, so the declaration only reaches an
+        // item once the trigger has opened one.
+        onNodeWithText("target").performContextClick()
+        awaitIdle()
+
+        declared = false
+        assertReportsTheUnrestoredName { awaitIdle() }
     }
 }

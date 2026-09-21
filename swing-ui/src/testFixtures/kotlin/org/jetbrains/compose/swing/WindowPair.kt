@@ -25,9 +25,10 @@ import kotlin.test.assertNull
  * window is the newest entry of [Window.getWindows] that neither [windowsBefore] nor the raw window accounts for: a
  * change that AWT only accepts on an unrealized window, such as decorations, makes the composable replace its window.
  */
-internal class WindowPair(
+class WindowPair(
     private val test: ComposeSwingTest,
-    internal val raw: Window,
+    /** The plain Swing window that the composable's window is compared against. It is never shown. */
+    val raw: Window,
     private val windowsBefore: Set<Window>,
 ) {
     init {
@@ -35,8 +36,10 @@ internal class WindowPair(
         raw.name = RAW_WINDOW_NAME
     }
 
+    /** The root pane of the raw window, which holds the menu bar and content that the raw Swing side builds. */
     val rawRootPane: JRootPane get() = checkNotNull(SwingUtilities.getRootPane(raw))
 
+    /** The root pane of the window the composable realized, read at the moment of access. */
     val composedRootPane: JRootPane get() = checkNotNull(SwingUtilities.getRootPane(composed()))
 
     private fun composed(): Window = Window.getWindows().last { it !== raw && it !in windowsBefore }

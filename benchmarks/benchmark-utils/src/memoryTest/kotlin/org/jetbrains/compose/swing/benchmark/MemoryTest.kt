@@ -1,9 +1,11 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.benchmark
 
+import org.jetbrains.compose.swing.animation.core.fixtures.swingUiAnimationCoreFixtures
 import org.jetbrains.compose.swing.animation.fixtures.swingUiAnimationFixtures
 import org.jetbrains.compose.swing.fixtures.ComposableFixture
-import org.jetbrains.compose.swing.fixtures.swingUiFixtures
+import org.jetbrains.compose.swing.fixtures.components.swingUiComponentsFixtures
+import org.jetbrains.compose.swing.fixtures.swingUiCoreFixtures
 import org.jetbrains.compose.swing.foundation.fixtures.swingUiFoundationFixtures
 import org.jetbrains.compose.swing.runSwingTest
 import org.junit.jupiter.api.Assumptions
@@ -99,8 +101,10 @@ class MemoryTest {
         val property = "benchmark.fixtures"
         val all =
             buildList {
-                addAll(swingUiFixtures)
+                addAll(swingUiCoreFixtures)
+                addAll(swingUiComponentsFixtures)
                 addAll(swingUiFoundationFixtures)
+                addAll(swingUiAnimationCoreFixtures)
                 addAll(swingUiAnimationFixtures)
             }
         val counts = all.groupingBy { it.name }.eachCount()

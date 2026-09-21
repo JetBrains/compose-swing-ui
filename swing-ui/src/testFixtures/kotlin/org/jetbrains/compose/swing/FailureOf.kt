@@ -1,0 +1,11 @@
+// Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+package org.jetbrains.compose.swing
+
+import org.jetbrains.compose.swing.test.ComposeSwingTest
+import kotlin.test.assertFailsWith
+
+/** Runs [block], expecting it to fail, and answers the messages of the failure and every cause. */
+inline fun ComposeSwingTest.failureOf(block: ComposeSwingTest.() -> Unit): String {
+    val failure = assertFailsWith<RuntimeException> { block() }
+    return generateSequence<Throwable>(failure) { it.cause }.joinToString(" / ") { it.message.orEmpty() }
+}

@@ -8,7 +8,8 @@ import org.jetbrains.compose.swing.components.modifier.listener.treeExpansionLis
 import org.jetbrains.compose.swing.components.modifier.listener.treeSelectionListener
 import org.jetbrains.compose.swing.components.modifier.listener.treeWillExpandListener
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.node.runReportingUncaught
+import org.jetbrains.compose.swing.modifier.listener.DeclaredCallback
+import org.jetbrains.compose.swing.modifier.listener.rememberDeclaredCallback
 import javax.swing.JTree
 import javax.swing.event.TreeExpansionEvent
 import javax.swing.event.TreeExpansionListener
@@ -43,12 +44,12 @@ internal fun rememberSelectionListener(onSelectionChange: (Set<List<Int>>) -> Un
 internal fun <T> rememberWillExpandListener(
     onWillExpand: ((value: T, path: List<Int>) -> Boolean)?,
 ): TreeWillExpandListener? {
-    val callback = rememberUpdatedState(onWillExpand)
+    val callback = rememberDeclaredCallback(onWillExpand)
     val listener =
         remember {
             object : TreeWillExpandListener {
                 override fun treeWillExpand(event: TreeExpansionEvent) {
-                    if (!allowsExpansion(callback.value, event)) throw ExpandVetoException(event)
+                    if (!allowsExpansion(callback, event)) throw ExpandVetoException(event)
                 }
 
                 override fun treeWillCollapse(event: TreeExpansionEvent): Unit = Unit
@@ -67,13 +68,14 @@ internal fun <T> rememberWillExpandListener(
  * and answers nothing, which lets the expansion through: refusing one is what returning `false` says.
  */
 private fun <T> allowsExpansion(
-    onWillExpand: ((value: T, path: List<Int>) -> Boolean)?,
+    onWillExpand: DeclaredCallback<((value: T, path: List<Int>) -> Boolean)?>,
     event: TreeExpansionEvent,
 ): Boolean {
-    val callback = onWillExpand ?: return true
     val tree = event.source as JTree
     var allowed = true
-    runReportingUncaught { allowed = callback(valueAt(event.path), pathToIndices(tree.model, event.path)) }
+    onWillExpand.report { declared ->
+        if (declared != null) allowed = declared(valueAt(event.path), pathToIndices(tree.model, event.path))
+    }
     return allowed
 }
 

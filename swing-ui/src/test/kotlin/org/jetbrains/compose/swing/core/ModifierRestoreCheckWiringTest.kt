@@ -6,30 +6,23 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
-import org.jetbrains.compose.swing.components.menu.ContextMenu
-import org.jetbrains.compose.swing.components.menu.MenuItem
-import org.jetbrains.compose.swing.components.menu.popupAnchor
-import org.jetbrains.compose.swing.components.menu.rememberPopupAnchor
 import org.jetbrains.compose.swing.components.selection.ListBox
 import org.jetbrains.compose.swing.components.selection.Table
 import org.jetbrains.compose.swing.components.selection.column
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.test.interaction.assertProperty
-import org.jetbrains.compose.swing.test.interaction.performContextClick
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.window.Window
 import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.GraphicsEnvironment
-import javax.swing.JComponent
 import javax.swing.JLabel
 import kotlin.test.Test
-import kotlin.test.assertContains
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 
 /**
- * Restore checks report un-restored declarations in root, renderer, menu, and window compositions.
+ * Restore checks report un-restored declarations in root, renderer, and window compositions.
  * A failed property read is reported while the composition remains able to recompose.
  */
 class ModifierRestoreCheckWiringTest {
@@ -48,29 +41,6 @@ class ModifierRestoreCheckWiringTest {
         setContent {
             ListBox(items = listOf("row")) { item -> NamedLabel(declared, item) }
         }
-        awaitIdle()
-
-        declared = false
-        assertReportsTheUnrestoredName { awaitIdle() }
-    }
-
-    @Test
-    fun aRestoreLeftUndoneInAMenusCompositionIsReported() = runComposeSwingTest {
-        var declared by mutableStateOf(true)
-        setContent {
-            val anchor = rememberPopupAnchor()
-            Label("target", modifier = SwingModifier.popupAnchor(anchor))
-            ContextMenu(anchor, display = { _, _, _, _ -> }) {
-                MenuItem(
-                    "Cut",
-                    onClick = {},
-                    modifier = if (declared) SwingModifier then UnrestoredName() else SwingModifier,
-                )
-            }
-        }
-        // A menu composes its content when the popup is built, so the declaration only reaches an
-        // item once the trigger has opened one.
-        onNodeWithText("target").performContextClick()
         awaitIdle()
 
         declared = false
@@ -131,33 +101,4 @@ private fun NamedLabel(
     text: String = "target",
 ) {
     Label(text, modifier = if (declared) SwingModifier then UnrestoredName() else SwingModifier)
-}
-
-private inline fun assertReportsTheUnrestoredName(gate: () -> Unit) {
-    val message = assertFailsWith<AssertionError>(block = gate).message.orEmpty()
-    assertContains(message, "departing unrestoredName declaration")
-    assertContains(message, "left <left-behind>")
-}
-
-/**
- * A declaration that writes the component's name and, on removal, leaves what it wrote standing - the
- * defect the restore check exists to catch. It carries nothing, so one declaration of it is equal to
- * every other.
- */
-private class UnrestoredName : SwingModifier.NodeElement<JComponent, UnrestoredName.Node>() {
-    override val targetType: Class<JComponent> get() = JComponent::class.java
-
-    override val name: String get() = "unrestoredName"
-
-    override fun create(): Node = Node()
-
-    override fun update(node: Node) {
-        node.component.name = "left-behind"
-    }
-
-    override fun equals(other: Any?): Boolean = other is UnrestoredName
-
-    override fun hashCode(): Int = javaClass.hashCode()
-
-    class Node : SwingModifier.ComponentNode<JComponent>()
 }

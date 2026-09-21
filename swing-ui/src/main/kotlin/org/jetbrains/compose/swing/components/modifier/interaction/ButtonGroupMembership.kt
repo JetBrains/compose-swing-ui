@@ -4,8 +4,8 @@
 
 package org.jetbrains.compose.swing.components.modifier.interaction
 
+import org.jetbrains.compose.swing.components.modifier.binding
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.binding
 import javax.swing.AbstractButton
 import javax.swing.ButtonGroup
 

@@ -9,7 +9,6 @@ import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.core.awaitUntil
 import org.jetbrains.compose.swing.core.labelTexts
 import org.jetbrains.compose.swing.core.realizedFrame
-import org.jetbrains.compose.swing.core.swingRecomposerOrNull
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.publishClose
@@ -64,11 +63,7 @@ class ContextMenuFailureTest {
             assertEquals("the menu body cannot render", failure.message, "the gesture is handed the body's failure")
             assertNull(captured, "a menu whose body threw is not put on screen")
 
-            awaitUntil("the failed menu composition ends the window's recomposer") {
-                frame.swingRecomposerOrNull() ==
-                    null
-            }
-            assertEquals(0, host.componentCount, "the content the window held is torn down")
+            awaitUntil("the failed menu composition tears the window's content down") { host.componentCount == 0 }
             caption = "after"
 
             val next = JPanel().also { frame.contentPane.add(it) }

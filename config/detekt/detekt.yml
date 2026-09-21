@@ -50,7 +50,7 @@ compose-swing-content:
 
 compose-runtime:
   CompositionLocalAllowlist:
-    excludes: ["**/src/test/**"]
+    excludes: ["**/src/test/**", "**/src/testFixtures/**"]
     # Layout constraints and the window a content composition has settled on are part of this
     # framework's design, not an app's implicit dependency.
     allowedCompositionLocals: ['LocalProvidableWindow']

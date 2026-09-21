@@ -27,7 +27,7 @@ class StyleCompilationTest {
         ): Arguments = Arguments.of(Named.of(name, program), rejectedWith)
 
         @JvmStatic
-        fun snippets(): List<Arguments> = scopeSnippets() + providerSnippets() + stateSnippets()
+        fun snippets(): List<Arguments> = scopeSnippets() + providerSnippets()
 
         private fun scopeSnippets(): List<Arguments> = listOf(
             case(
@@ -98,61 +98,6 @@ class StyleCompilationTest {
                 val PanelStyle = SwingStyle<ContainerStyleScope> { provideNestedStyle(AllComponents, FiveStars) }
                 """,
                 listOf("SwingStyle<ComponentStyleScope>"),
-            ),
-        )
-
-        private fun stateSnippets(): List<Arguments> = listOf(
-            case(
-                "check box accepts checked",
-                """@Composable fun StateSnippet() { CheckBox("a", true, {}, style = { checked { font(null) } }) }""",
-            ),
-            case(
-                "menu item accepts checked",
-                """
-                @Composable fun StateSnippet() {
-                    CheckBoxMenuItem("a", true, {}, style = { checked { font(null) } })
-                }
-                """,
-            ),
-            case(
-                "label rejects checked",
-                """@Composable fun StateSnippet() { Label("a", style = { checked { font(null) } }) }""",
-                listOf(
-                    "candidate 'fun CheckableStyleScope.checked(block: () -> Unit): Unit' " +
-                        "is inapplicable because of a receiver type mismatch.",
-                ),
-            ),
-            case(
-                "button rejects checked",
-                """@Composable fun StateSnippet() { Button("a", {}, style = { checked { font(null) } }) }""",
-                listOf(
-                    "candidate 'fun CheckableStyleScope.checked(block: () -> Unit): Unit' " +
-                        "is inapplicable because of a receiver type mismatch.",
-                ),
-            ),
-            case(
-                "radio button accepts selected",
-                """
-                @Composable fun StateSnippet() {
-                    RadioButton("a", true, {}, style = { selected { font(null) } })
-                }
-                """,
-            ),
-            case(
-                "toggle button accepts selected",
-                """
-                @Composable fun StateSnippet() {
-                    ToggleButton("a", true, {}, style = { selected { font(null) } })
-                }
-                """,
-            ),
-            case(
-                "check box rejects selected",
-                """@Composable fun StateSnippet() { CheckBox("a", true, {}, style = { selected { font(null) } }) }""",
-                listOf(
-                    "candidate 'fun SelectableStyleScope.selected(block: () -> Unit): Unit' " +
-                        "is inapplicable because of a receiver type mismatch.",
-                ),
             ),
         )
 

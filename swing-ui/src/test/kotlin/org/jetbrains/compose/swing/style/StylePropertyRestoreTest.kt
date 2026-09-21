@@ -8,20 +8,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
-import org.jetbrains.compose.swing.components.style.CaretElement
 import org.jetbrains.compose.swing.components.style.TextStyleScope
-import org.jetbrains.compose.swing.components.style.caret
-import org.jetbrains.compose.swing.components.style.caretBlinkRate
-import org.jetbrains.compose.swing.components.style.caretBlinkRateElement
-import org.jetbrains.compose.swing.components.style.caretUpdatePolicy
-import org.jetbrains.compose.swing.components.style.caretUpdatePolicyElement
-import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.modifier.ComponentPropertyDescriptor
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.property
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.ComposeSwingTest
-import org.jetbrains.compose.swing.test.interaction.SwingNodeInteraction
 import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
@@ -33,16 +25,12 @@ import org.junit.jupiter.params.provider.CsvSource
 import org.junit.jupiter.params.provider.EnumSource
 import org.junit.jupiter.params.provider.MethodSource
 import java.awt.Color
-import java.awt.event.MouseEvent
 import javax.swing.BorderFactory
 import javax.swing.JComponent
 import javax.swing.JLabel
-import javax.swing.JTextField
 import javax.swing.ToolTipManager
 import javax.swing.border.Border
 import javax.swing.border.EmptyBorder
-import javax.swing.text.Caret
-import javax.swing.text.DefaultCaret
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -734,10 +722,7 @@ class StylePropertyRestoreTest {
     companion object {
         @JvmStatic
         fun customPropertyOverlaps(): List<Arguments> = (
-            OverlapProperty.entries - OverlapProperty.toolTips -
-                setOf(
-                    OverlapProperty.Caret,
-                )
+            OverlapProperty.entries - OverlapProperty.toolTips
         ).flatMap { property ->
             RemovalOrder.entries.map { order -> Arguments.of(property, order) }
         }
@@ -826,73 +811,6 @@ private val InheritedForeground =
         ),
     )
 
-internal class CustomOverlapProperty(
-    val read: (JTextField) -> Any?,
-    val value: (Int) -> Any?,
-    val modifier: (Int) -> SwingModifier,
-    val declare: TextStyleScope.(Int) -> Unit,
-    val publishesToolTip: ToolTipPublication = ToolTipPublication.Never,
-    val swap: CollaboratorSwap? = null,
-) {
-    @Composable
-    fun Field(
-        modifierValue: Int?,
-        styleValue: Int?,
-        modifier: SwingModifier = SwingModifier,
-    ) {
-        TextField(
-            "selection",
-            onValueChange = {},
-            modifier = modifier.then(modifierValue?.let(this.modifier) ?: SwingModifier),
-            style = {
-                styleValue?.let { declare(this, it) }
-            },
-        )
-    }
-}
-
-private fun SwingNodeInteraction<JTextField>.publishToolTip(case: CustomOverlapProperty) {
-    assertProperty(case.value(2)) {
-        dispatchEvent(MouseEvent(this, MouseEvent.MOUSE_MOVED, 0L, 0, 1, 1, 0, false))
-        case.read(this)
-    }
-}
-
-/** When a per-location tooltip needs the pointer moved over the field before it answers. */
-internal enum class ToolTipPublication(
-    val afterStyle: Boolean,
-    val afterModifier: Boolean,
-) {
-    Never(afterStyle = false, afterModifier = false),
-    AfterStyle(afterStyle = true, afterModifier = false),
-    AfterStyleAndModifier(afterStyle = true, afterModifier = true),
-}
-
-/**
- * Replaces the collaborator a custom property is read through, given the field, the case and the baseline
- * read before, and returns the baseline the property then restores.
- */
-internal typealias CollaboratorSwap = (SwingNodeInteraction<JTextField>, CustomOverlapProperty, Any?) -> Any?
-
-private fun swappingCaret(change: JTextField.() -> Unit): CollaboratorSwap = { field, case, original ->
-    field.assertProperty(case.value(2)) {
-        change()
-        case.read(this)
-    }
-    original
-}
-
-private val ReplacesCaret = swappingCaret { caret = DefaultCaret() }
-private val ReplacesNullCaret =
-    swappingCaret {
-        caret = null
-        caret = DefaultCaret()
-    }
-private val ReplacesUi = swappingCaret { updateUI() }
-
-/** The order a case takes the modifier and the style off a field they both write. */
-enum class RemovalOrder { ModifierRemovedFirst, StyleWithdrawnFirst, ModifierChangedBeneathStyle }
-
 /** Each custom property a modifier and a style both write on a text field, and what its case does around it. */
 enum class OverlapProperty(
     internal val build: () -> CustomOverlapProperty,
@@ -929,23 +847,6 @@ enum class OverlapProperty(
             declare = { border(it) },
         )
     }),
-    Caret({ caretOverlapProperty() }),
-    BlinkRate({ caretBlinkRateOverlapProperty() }),
-    BlinkRateAfterCaretSwap({ caretBlinkRateOverlapProperty(ReplacesCaret) }),
-    BlinkRateAfterNullCaretSwap({ caretBlinkRateOverlapProperty(ReplacesNullCaret) }),
-    BlinkRateAfterUiReplacement({ caretBlinkRateOverlapProperty(ReplacesUi) }),
-    BlinkRateBeforeDeclaredCaret({
-        val declared = DefaultCaret()
-        caretBlinkRateOverlapProperty(ReplacesUi) { caret(declared) }
-    }),
-    UpdatePolicy({ caretUpdatePolicyOverlapProperty() }),
-    UpdatePolicyAfterCaretSwap({ caretUpdatePolicyOverlapProperty(ReplacesCaret) }),
-    UpdatePolicyAfterNullCaretSwap({ caretUpdatePolicyOverlapProperty(ReplacesNullCaret) }),
-    UpdatePolicyAfterUiReplacement({ caretUpdatePolicyOverlapProperty(ReplacesUi) }),
-    UpdatePolicyBeforeDeclaredCaret({
-        val declared = DefaultCaret()
-        caretUpdatePolicyOverlapProperty(ReplacesUi) { caret(declared) }
-    }),
     ;
 
     companion object {
@@ -959,30 +860,6 @@ enum class OverlapProperty(
             )
     }
 }
-
-private fun caretOverlapProperty(): CustomOverlapProperty {
-    val values = List<Caret>(3) { DefaultCaret() }
-    return CustomOverlapProperty(
-        read = { it.caret },
-        value = { values[it] },
-        modifier = { SwingModifier then CaretElement(values[it]) },
-        declare = { caret(values[it]) },
-    )
-}
-
-private fun <V> customOverlapProperty(
-    values: List<V>,
-    read: (JTextField) -> Any?,
-    element: (V) -> SwingModifier.Element,
-    swap: CollaboratorSwap? = null,
-    declare: TextStyleScope.(V) -> Unit,
-): CustomOverlapProperty = CustomOverlapProperty(
-    read = read,
-    value = { values[it] },
-    modifier = { SwingModifier then element(values[it]) },
-    declare = { declare(values[it]) },
-    swap = swap,
-)
 
 private fun perLocationToolTipOverlapProperty(
     styleText: String? = "style",
@@ -1004,32 +881,6 @@ private fun perLocationToolTipOverlapProperty(
         declare = { index -> declare(values[index]) },
         publishesToolTip = publishesToolTip,
     )
-}
-
-private fun caretBlinkRateOverlapProperty(
-    swap: CollaboratorSwap? = null,
-    alsoDeclare: TextStyleScope.() -> Unit = {},
-): CustomOverlapProperty = customOverlapProperty(
-    listOf(0, 123, 456),
-    { it.caret.blinkRate },
-    ::caretBlinkRateElement,
-    swap,
-) {
-    caretBlinkRate(it)
-    alsoDeclare()
-}
-
-private fun caretUpdatePolicyOverlapProperty(
-    swap: CollaboratorSwap? = null,
-    alsoDeclare: TextStyleScope.() -> Unit = {},
-): CustomOverlapProperty = customOverlapProperty(
-    listOf(DefaultCaret.NEVER_UPDATE, DefaultCaret.UPDATE_WHEN_ON_EDT, DefaultCaret.ALWAYS_UPDATE),
-    { (it.caret as DefaultCaret).updatePolicy },
-    ::caretUpdatePolicyElement,
-    swap,
-) {
-    caretUpdatePolicy(it)
-    alsoDeclare()
 }
 
 private class NotifyingComponent : JComponent() {
@@ -1063,64 +914,4 @@ private class AlwaysNotifyingComponent : JComponent() {
 internal suspend fun ComposeSwingTest.assertCustomPropertyBaseline(
     property: OverlapProperty,
     order: RemovalOrder,
-) {
-    val case = property.build()
-    var modified by mutableStateOf(false)
-    var styled by mutableStateOf(false)
-    var modifierValue by mutableIntStateOf(0)
-    var original: Any? = null
-    setContent {
-        case.Field(if (modified) modifierValue else null, if (styled) 2 else null)
-    }
-    onNodeOfType<JTextField>().assertProperty(true) {
-        original = case.read(this)
-        true
-    }
-    modified = true
-    styled = true
-    awaitIdle()
-    // Both attachment orders must share the baseline, including a modifier added beneath a standing style.
-    repeat(2) { round ->
-        if (round != 0) {
-            styled = true
-            awaitIdle()
-        }
-        if (case.publishesToolTip.afterStyle) onNodeOfType<JTextField>().publishToolTip(case)
-        if (round != 0) {
-            modified = true
-            awaitIdle()
-        }
-        if (case.publishesToolTip.afterModifier) onNodeOfType<JTextField>().publishToolTip(case)
-        case.swap?.let { swap -> original = swap(onNodeOfType<JTextField>(), case, original) }
-        onNodeOfType<JTextField>().assertProperty(case.value(2)) { case.read(this) }
-        when (order) {
-            RemovalOrder.ModifierRemovedFirst -> {
-                modified = false
-                awaitIdle()
-                onNodeOfType<JTextField>().assertProperty(case.value(2)) { case.read(this) }
-                styled = false
-            }
-
-            RemovalOrder.StyleWithdrawnFirst -> {
-                styled = false
-                awaitIdle()
-                onNodeOfType<JTextField>().assertProperty(case.value(modifierValue)) { case.read(this) }
-                modified = false
-            }
-
-            RemovalOrder.ModifierChangedBeneathStyle -> {
-                modifierValue = 1
-                awaitIdle()
-                if (case.publishesToolTip.afterModifier) onNodeOfType<JTextField>().publishToolTip(case)
-                onNodeOfType<JTextField>().assertProperty(case.value(2)) { case.read(this) }
-                styled = false
-                awaitIdle()
-                onNodeOfType<JTextField>().assertProperty(case.value(1)) { case.read(this) }
-                modified = false
-            }
-        }
-        awaitIdle()
-        onNodeOfType<JTextField>().assertProperty(original) { case.read(this) }
-        modifierValue = 0
-    }
-}
+) = assertCustomPropertyBaseline(property.build(), order)

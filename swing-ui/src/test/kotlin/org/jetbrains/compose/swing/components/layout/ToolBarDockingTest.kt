@@ -212,6 +212,10 @@ class ToolBarDockingTest {
             "JToolBar" in message && "floatable = false" in message && "PanelLayout.Border" in message,
             "the refusal should name the bar and both ways out of it, but read: $message",
         )
+        assertTrue(
+            "stands in a JTabbedPane laid out by" in message && "javax.swing" !in message,
+            "the refusal should name the parent by its simple class name, but read: $message",
+        )
     }
 
     @Test

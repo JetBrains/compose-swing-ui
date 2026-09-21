@@ -16,10 +16,6 @@
 
 package org.jetbrains.compose.swing.animation.core
 
-import kotlin.time.Duration.Companion.milliseconds
-import org.jetbrains.compose.swing.test.ComposeSwingTest
-import org.jetbrains.compose.swing.test.MainTestClock
-
 internal fun VectorizedAnimationSpec<AnimationVector1D>.at(time: Long): Float =
     getValueFromMillis(time, AnimationVector1D(0f), AnimationVector1D(1f), AnimationVector1D(0f))
         .value
@@ -186,26 +182,3 @@ internal val Point2DVectorConverter: TwoWayConverter<Point2D, AnimationVector2D>
         convertToVector = { AnimationVector2D(it.x, it.y) },
         convertFromVector = { Point2D(it.v1, it.v2) },
     )
-
-/**
- * The frame length AndroidX's MainTestClock steps by, which upstream's frame-stepped expectations are
- * computed from; the harness clock steps [MainTestClock.frameDuration] instead.
- */
-internal const val UpstreamFrameMillis: Int = 16
-
-/**
- * Sends one upstream-length frame, the port of `rule.mainClock.advanceTimeByFrame()`.
- */
-internal fun ComposeSwingTest.advanceTimeByFrame() {
-    advanceTimeBy(UpstreamFrameMillis)
-}
-
-/**
- * Sends upstream-length frames until [millis] of composition time have passed, the port of
- * `rule.mainClock.advanceTimeBy(millis)`.
- */
-internal fun ComposeSwingTest.advanceTimeBy(millis: Int) {
-    repeat((millis + UpstreamFrameMillis - 1) / UpstreamFrameMillis) {
-        mainClock.advanceTimeByFrame(UpstreamFrameMillis.milliseconds)
-    }
-}

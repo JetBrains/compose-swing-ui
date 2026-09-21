@@ -59,7 +59,7 @@ class DeferredTargetAnimationTest {
         assertNotEquals(initial, animation.value)
         assertNotEquals(target, animation.value)
 
-        advanceTimeBy(100 * UpstreamFrameMillis)
+        repeat(100) { advanceTimeByFrame() }
         assertEquals(target, animation.value)
     }
 }

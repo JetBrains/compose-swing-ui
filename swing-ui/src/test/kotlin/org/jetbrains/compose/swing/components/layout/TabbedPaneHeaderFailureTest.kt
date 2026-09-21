@@ -1,10 +1,14 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.compose.swing.components.layout
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
+import org.jetbrains.compose.swing.core.awaitQueuedTurns
 import org.jetbrains.compose.swing.core.awaitUntil
+import org.jetbrains.compose.swing.core.labelTexts
 import org.jetbrains.compose.swing.core.realizedFrame
-import org.jetbrains.compose.swing.core.swingRecomposerOrNull
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.runSwingTest
 import org.jetbrains.compose.swing.setContent
@@ -26,6 +30,7 @@ class TabbedPaneHeaderFailureTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         val frame = realizedFrame()
         try {
+            var caption by mutableStateOf("before")
             val host = JPanel().also { frame.contentPane.add(it) }
             val failure = IllegalStateException("the header cannot render")
 
@@ -42,11 +47,18 @@ class TabbedPaneHeaderFailureTest {
                 }
 
             assertEquals(failure.message, thrown.message, "the caller is handed the header's failure")
-            awaitUntil("the failed header composition ends the window's recomposer") {
-                frame.swingRecomposerOrNull() ==
-                    null
+            awaitUntil("the failed header composition tears the window's content down") { host.componentCount == 0 }
+            // The teardown is visible before the turn that ends the recomposer has run.
+            awaitQueuedTurns()
+            caption = "after"
+
+            val next = JPanel().also { frame.contentPane.add(it) }
+            next.setContent { Label(caption) }
+            awaitUntil("content set after the failure composes on a fresh recomposer") {
+                labelTexts(next) == listOf("after")
             }
-            assertEquals(0, host.componentCount, "the content the window held is torn down")
+            caption = "again"
+            awaitUntil("the fresh recomposer keeps the content updating") { labelTexts(next) == listOf("again") }
         } finally {
             frame.dispose()
         }
