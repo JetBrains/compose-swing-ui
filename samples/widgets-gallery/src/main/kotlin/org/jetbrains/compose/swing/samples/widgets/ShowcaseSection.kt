@@ -19,8 +19,8 @@ import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.samples.widgets.components.ComponentsSection
 import org.jetbrains.compose.swing.samples.widgets.components.FormInputsSection
 import org.jetbrains.compose.swing.samples.widgets.components.RadioGroupSection
-import org.jetbrains.compose.swing.samples.widgets.custom.CanvasSection
 import org.jetbrains.compose.swing.samples.widgets.custom.CustomComponentSection
+import org.jetbrains.compose.swing.samples.widgets.custom.FoundationGraphicsSection
 import org.jetbrains.compose.swing.samples.widgets.custom.LayerSection
 import org.jetbrains.compose.swing.samples.widgets.layout.BoxSection
 import org.jetbrains.compose.swing.samples.widgets.layout.LayoutMechanicsSection
@@ -76,7 +76,7 @@ internal val showcaseSections: List<ShowcaseSection> =
         ShowcaseSection("Split & ToolBar") { SplitToolBarSection() },
         ShowcaseSection("ScrollPane") { ScrollPaneSection() },
         ShowcaseSection("Tabs") { TabsSection() },
-        ShowcaseSection("Canvas") { CanvasSection() },
+        ShowcaseSection("Foundation graphics") { FoundationGraphicsSection() },
         ShowcaseSection("Custom component") { CustomComponentSection() },
         ShowcaseSection("Layer") { LayerSection() },
         ShowcaseSection("Context menu") { ContextMenuSection() },
@@ -144,9 +144,12 @@ internal fun SectionHeading(text: String) {
 // Explanatory text inside a card. Wrapping it in an HTML body of bounded width lets a long caption flow
 // onto multiple lines instead of forcing the layout wide and triggering a horizontal scrollbar.
 @Composable
-internal fun WrappedCaption(text: String) {
+internal fun WrappedCaption(
+    text: String,
+    width: Int = 440,
+) {
     Label(
-        text = "<html><body style='width:440px'>$text</body></html>",
+        text = "<html><body style='width:${width}px'>$text</body></html>",
         modifier = SwingModifier.horizontalAlignment(SwingConstants.LEADING),
     )
 }

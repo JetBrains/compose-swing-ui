@@ -1,6 +1,7 @@
 plugins {
     id("buildsrc.convention.kotlin-jvm")
     id("buildsrc.convention.kotlin-quality")
+    id("buildsrc.convention.window-system-lock")
     application
 }
 

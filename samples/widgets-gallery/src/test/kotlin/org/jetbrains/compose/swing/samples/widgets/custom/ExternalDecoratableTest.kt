@@ -11,13 +11,6 @@ import org.jetbrains.compose.swing.foundation.graphics.Decoration
 import org.jetbrains.compose.swing.foundation.graphics.alpha
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.foundation.layout.Box
-import org.jetbrains.compose.swing.foundation.layout.Constraints
-import org.jetbrains.compose.swing.foundation.layout.LayoutModifierNode
-import org.jetbrains.compose.swing.foundation.layout.LayoutModifierNodeElement
-import org.jetbrains.compose.swing.foundation.layout.Measurable
-import org.jetbrains.compose.swing.foundation.layout.MeasureResult
-import org.jetbrains.compose.swing.foundation.layout.MeasureScope
-import org.jetbrains.compose.swing.foundation.layout.PlacementLayerScope
 import org.jetbrains.compose.swing.foundation.layout.Row
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.emptyBorder
@@ -170,7 +163,7 @@ class ExternalDecoratableTest {
                             SwingModifier
                                 .testTag("card")
                                 .shadow(8, Color.BLACK)
-                                .then(TurningElement { rotationZ = rotation }),
+                                .then(PlacementLayerElement { rotationZ = rotation }),
                     )
                 }
             }
@@ -292,29 +285,6 @@ class ExternalDecoratableTest {
                 writes++
                 field = value
             }
-    }
-
-    /** Places its content with a layer that [layerBlock] sets. */
-    private data class TurningElement(
-        private val layerBlock: PlacementLayerScope.() -> Unit,
-    ) : LayoutModifierNodeElement<TurningNode>() {
-        override fun create(): TurningNode = TurningNode(layerBlock)
-
-        override fun update(node: TurningNode) {
-            node.layerBlock = layerBlock
-        }
-    }
-
-    private class TurningNode(
-        var layerBlock: PlacementLayerScope.() -> Unit,
-    ) : LayoutModifierNode() {
-        override fun MeasureScope.measure(
-            measurable: Measurable,
-            constraints: Constraints,
-        ): MeasureResult {
-            val placeable = measurable.measure(constraints)
-            return layout(placeable.width, placeable.height) { placeable.placeWithLayer(0, 0, layerBlock = layerBlock) }
-        }
     }
 }
 
