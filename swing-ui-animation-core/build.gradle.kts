@@ -48,9 +48,9 @@ dependencies {
     api(libs.kotlinxCoroutinesCore)
     implementation(libs.androidxCollection)
     // The Swing dispatcher, frame clock and the InfiniteAnimationPolicy the engine honors live in :swing-ui-core.
-    implementation(project(":swing-ui"))
-    fixturesImplementation(project(":swing-ui"))
-    fixturesImplementation(project(":swing-ui")) {
+    implementation(project(":swing-ui-core"))
+    fixturesImplementation(project(":swing-ui-components"))
+    fixturesImplementation(project(":swing-ui-core")) {
         capabilities { requireFeature("fixtures") }
     }
     testFixturesApi(project(":swing-ui-test"))
@@ -63,8 +63,8 @@ dependencies {
     testImplementation(project(":swing-ui-animation-core")) {
         capabilities { requireFeature("fixtures") }
     }
-    testImplementation(project(":swing-ui"))
-    testImplementation(testFixtures(project(":swing-ui")))
+    testImplementation(project(":swing-ui-components"))
+    testImplementation(testFixtures(project(":swing-ui-core")))
     // :swing-ui-test takes this module as a testImplementation in turn; not a cycle, as only the test jars meet.
     testImplementation(project(":swing-ui-test"))
 }

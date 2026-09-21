@@ -10,10 +10,11 @@ plugins {
 
 dependencies {
     implementation(project(":benchmarks:benchmark-utils"))
-    implementation(testFixtures(project(":swing-ui")))
+    implementation(testFixtures(project(":swing-ui-core")))
     implementation(libs.kotlinxBenchmarkRuntime)
     listOf(
-        "swing-ui",
+        "swing-ui-core",
+        "swing-ui-components",
         "swing-ui-foundation",
         "swing-ui-animation-core",
         "swing-ui-animation",

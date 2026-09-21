@@ -28,20 +28,23 @@ kotlin {
 dependencies {
     // @FloatRange on public declarations, mirroring upstream ui and foundation's api dependency.
     api(libs.androidxAnnotation)
-    api(project(":swing-ui"))
+    api(project(":swing-ui-core"))
 
     // Fixtures the animation module's tests reuse.
-    fixturesImplementation(project(":swing-ui")) {
+    fixturesImplementation(project(":swing-ui-core")) {
         capabilities { requireFeature("fixtures") }
     }
+    fixturesImplementation(project(":swing-ui-components"))
     testFixturesImplementation(kotlin("test"))
-    testFixturesImplementation(testFixtures(project(":swing-ui")))
+    testFixturesImplementation(testFixtures(project(":swing-ui-core")))
+    testFixturesImplementation(project(":swing-ui-components"))
     testFixturesImplementation(project(":swing-ui-test"))
 
     testImplementation(kotlin("test"))
     testImplementation(libs.junitJupiterParams)
     testImplementation(libs.mockk)
-    testImplementation(testFixtures(project(":swing-ui")))
+    testImplementation(testFixtures(project(":swing-ui-core")))
+    testImplementation(project(":swing-ui-components"))
     testImplementation(project(":swing-ui-test"))
     testImplementation(project(":swing-ui-foundation")) {
         capabilities { requireFeature("fixtures") }

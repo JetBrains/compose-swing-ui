@@ -9,13 +9,16 @@ plugins {
 
 dependencies {
     api(project(":swing-ui"))
-    api(project(":swing-ui")) {
+    api(project(":swing-ui-core")) {
+        capabilities { requireFeature("fixtures") }
+    }
+    api(project(":swing-ui-components")) {
         capabilities { requireFeature("fixtures") }
     }
     api(libs.composeRuntime)
     api(kotlin("test-junit5"))
     implementation(libs.androidxTracing)
-    implementation(testFixtures(project(":swing-ui")))
+    implementation(testFixtures(project(":swing-ui-core")))
 
     testImplementation(libs.kotlinxCoroutinesSwing)
 }
@@ -31,7 +34,8 @@ testing.suites.register<JvmTestSuite>("memoryTest") {
     dependencies {
         implementation(project())
         listOf(
-            "swing-ui",
+            "swing-ui-core",
+            "swing-ui-components",
             "swing-ui-foundation",
             "swing-ui-animation-core",
             "swing-ui-animation",
@@ -40,7 +44,7 @@ testing.suites.register<JvmTestSuite>("memoryTest") {
                 capabilities { requireFeature("fixtures") }
             }
         }
-        implementation(testFixtures(project(":swing-ui")))
+        implementation(testFixtures(project(":swing-ui-core")))
         implementation(libs.kotlinxCoroutinesSwing)
     }
     targets.configureEach {

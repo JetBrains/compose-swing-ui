@@ -1,83 +1,15 @@
 // Copyright 2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
-import org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation
-
 plugins {
-    `java-test-fixtures`
+    `java-library`
     id("buildsrc.convention.kotlin-jvm")
-    id("buildsrc.convention.composable-fixtures")
-    id("buildsrc.convention.kotlin-quality")
     id("buildsrc.convention.publishing")
-    id("buildsrc.convention.jacoco-coverage")
-    id("buildsrc.convention.window-system-lock")
-    id("buildsrc.convention.exclusive-window-system-tests")
-    id("buildsrc.convention.compiler-test-harness")
-}
-
-kotlin {
-    explicitApi()
-
-    @OptIn(ExperimentalAbiValidation::class)
-    abiValidation {
-        filters {
-            exclude {
-                annotatedWith.add("org.jetbrains.compose.swing.annotations.InternalSwingUiApi")
-            }
-        }
-    }
-
-    sourceSets.configureEach {
-        languageSettings.optIn("org.jetbrains.compose.swing.annotations.InternalSwingUiApi")
-        languageSettings.optIn("org.jetbrains.compose.swing.annotations.SwingComponentLibraryApi")
-    }
 }
 
 dependencies {
-    api(libs.composeRuntime)
-    // fastDistinctBy inlines MutableScatterSet into its callers.
-    api(libs.androidxCollection)
-    // Mounted content reads its LifecycleOwner through androidx.lifecycle.compose.LocalLifecycleOwner,
-    // so the Lifecycle vocabulary belongs on consumers' compile classpath.
-    api(libs.androidxLifecycleRuntimeCompose)
-    // DisposableHandle appears in public signatures (setContent returns it), so the common coroutine
-    // types must be on consumers' compile classpath; the Swing dispatcher stays an implementation detail.
-    api(libs.kotlinxCoroutinesCore)
-    implementation(libs.kotlinxCoroutinesSwing)
-    implementation(libs.androidxTracing)
-    // @MagicConstant typed-constant and @Nls human-readable-string annotations. CLASS/IDE-only:
-    // compileOnly so they warn consumers in-IDE across the jar boundary without leaking
-    // org.jetbrains:annotations to the published runtime.
-    compileOnly(libs.jetbrainsAnnotations)
-    // The JUnit 5 flavor, whose Tag the ExclusiveWindowSystem annotation carries.
-    testFixturesImplementation(kotlin("test-junit5"))
-    testFixturesImplementation(project(":swing-ui-test"))
-    testFixturesImplementation(libs.androidxTracing)
-    testFixturesImplementation(libs.mockk)
-    testFixturesImplementation(kotlin("test"))
-    // The checks take and hand out the fixtures, so consumers of them see the fixtures' types.
-    testFixturesApi(project(":swing-ui")) {
-        capabilities { requireFeature("fixtures") }
-    }
-    // The in-process compiler harness; the compiler-test-harness convention supplies it at test runtime.
-    testFixturesCompileOnly(kotlin("compiler-embeddable"))
-    testImplementation(kotlin("test"))
-    testImplementation(libs.mockk)
-    testImplementation(libs.junitJupiterParams)
-    testImplementation(project(":swing-ui-test"))
-    testImplementation(project(":swing-ui")) {
-        capabilities { requireFeature("fixtures") }
-    }
-}
-
-// The fixtures stand in for Swing services while this project's own tests run; they are not part of what
-// the library publishes.
-(components["java"] as AdhocComponentWithVariants).run {
-    withVariantsFromConfiguration(configurations["testFixturesApiElements"]) { skip() }
-    withVariantsFromConfiguration(configurations["testFixturesRuntimeElements"]) { skip() }
-}
-
-jacocoCoverage {
-    lineMinimum.set("0.95".toBigDecimal())
-    branchMinimum.set("0.80".toBigDecimal())
+    api(project(":swing-ui-core"))
+    api(project(":swing-ui-components"))
+    api(project(":swing-ui-foundation"))
+    api(project(":swing-ui-animation"))
 }
 
 publishing {
@@ -85,7 +17,7 @@ publishing {
         pom {
             name.set("compose-swing-ui")
             description.set(
-                "Compose runtime over Swing: declarative composable wrappers and modifiers for Swing components.",
+                "Umbrella artifact for compose-swing-ui: core, components, foundation, and animation.",
             )
         }
     }

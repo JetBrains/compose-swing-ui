@@ -31,9 +31,10 @@ Do not add `clean` or `--rerun-tasks`: Gradle's up-to-date checks are correct he
 turns a targeted check into a full rebuild. The facade case under "Stale results" is the one exception.
 
 ```bash
-./gradlew :swing-ui:ktlintCheck :swing-ui:detektMain :swing-ui:detektTest
-./gradlew :swing-ui:checkKotlinAbi
-./gradlew :swing-ui:jacocoTestCoverageVerification
+./gradlew :swing-ui-core:ktlintCheck :swing-ui-core:detektMain :swing-ui-core:detektTest
+./gradlew :swing-ui-components:ktlintCheck :swing-ui-components:detektMain :swing-ui-components:detektTest
+./gradlew :swing-ui-core:checkKotlinAbi :swing-ui-components:checkKotlinAbi
+./gradlew :swing-ui-core:jacocoTestCoverageVerification :swing-ui-components:jacocoTestCoverageVerification
 ```
 
 `jacocoTestCoverageVerification` runs the module's tests to produce the report it measures.
@@ -84,7 +85,7 @@ Two kinds of declaration are outside the dumps, so the gate cannot answer for th
   the dump skips. Changing one of their signatures breaks every caller while `checkKotlinAbi` stays
   green. Enumerate the current set rather than trusting a fixed list — it grows as the API does:
   ```bash
-  git grep -n 'public inline fun <reified' swing-ui/src/main swing-ui-test/src/main
+  git grep -n 'public inline fun <reified' swing-ui-core/src/main swing-ui-components/src/main swing-ui-test/src/main
   ```
   `SwingNode`, `MenuNode` and `SwingModifier.listener` are examples, not the whole set. Diff whatever
   the grep finds against its committed form by hand before concluding the surface is unchanged.

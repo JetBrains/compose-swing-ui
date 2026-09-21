@@ -28,7 +28,7 @@ kotlin {
 }
 
 dependencies {
-    api(project(":swing-ui"))
+    api(project(":swing-ui-core"))
     api(libs.composeRuntime)
     api(kotlin("test"))
     api(libs.kotlinxCoroutinesTest)
@@ -41,7 +41,8 @@ dependencies {
     testImplementation(project(":swing-ui-animation-core"))
     testImplementation(libs.junitJupiterParams)
     testImplementation(libs.mockk)
-    testImplementation(testFixtures(project(":swing-ui")))
+    testImplementation(testFixtures(project(":swing-ui-core")))
+    testImplementation(project(":swing-ui-components"))
 }
 
 jacocoCoverage {

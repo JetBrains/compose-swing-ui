@@ -29,12 +29,12 @@ dependencies {
     api(libs.androidxAnnotation)
     api(libs.composeRuntime)
     api(project(":swing-ui-animation-core"))
-    api(project(":swing-ui"))
+    api(project(":swing-ui-core"))
     api(project(":swing-ui-foundation"))
     implementation(libs.androidxCollection)
     implementation(libs.kotlinxCoroutinesCore)
-    fixturesImplementation(project(":swing-ui"))
-    fixturesImplementation(project(":swing-ui")) {
+    fixturesImplementation(project(":swing-ui-components"))
+    fixturesImplementation(project(":swing-ui-core")) {
         capabilities { requireFeature("fixtures") }
     }
     fixturesImplementation(project(":swing-ui-foundation")) {
@@ -49,8 +49,8 @@ dependencies {
         capabilities { requireFeature("fixtures") }
     }
     testImplementation(testFixtures(project(":swing-ui-animation-core")))
-    testImplementation(project(":swing-ui"))
-    testImplementation(testFixtures(project(":swing-ui")))
+    testImplementation(project(":swing-ui-components"))
+    testImplementation(testFixtures(project(":swing-ui-core")))
     testImplementation(testFixtures(project(":swing-ui-foundation")))
     testImplementation(project(":swing-ui-test"))
 }

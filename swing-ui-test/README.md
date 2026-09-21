@@ -19,4 +19,4 @@ To wait for state or effects, call `awaitIdle` or `waitUntil`. See [Testing comp
 ## Related
 
 - [Testing components](../docs/TESTING-COMPONENTS.md) - how to write component tests.
-- [`swing-ui`](../swing-ui/README.md) - the core library.
+- [`swing-ui-core`](../swing-ui-core/README.md) - the core library.

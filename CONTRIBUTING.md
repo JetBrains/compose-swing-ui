@@ -17,11 +17,14 @@ Thanks for contributing to Compose Swing UI. This guide covers how to build and 
 ./gradlew test
 
 # One module, or one test class, while iterating
-./gradlew :swing-ui:test
-./gradlew :swing-ui:test --tests '*ComboBoxEditableTest*'
+./gradlew :swing-ui-core:test
+./gradlew :swing-ui-components:test
+./gradlew :swing-ui-components:test --tests '*ComboBoxEditableTest*'
 
 # The tests that need the window system to itself (focus, minimization)
-./gradlew :swing-ui:exclusiveWindowSystemTest :swing-ui-foundation:exclusiveWindowSystemTest
+./gradlew :swing-ui-core:exclusiveWindowSystemTest
+./gradlew :swing-ui-components:exclusiveWindowSystemTest
+./gradlew :swing-ui-foundation:exclusiveWindowSystemTest
 
 # Run a sample application
 ./gradlew :samples:todo-app:run
@@ -31,11 +34,11 @@ Thanks for contributing to Compose Swing UI. This guide covers how to build and 
 ./gradlew :dokkaGenerate
 ```
 
-Compiling a module also writes the Compose compiler's reports - which composables are skippable, and which parameters are unstable - to `<module>/build/compose-reports`, alongside summary counts in `<module>/build/compose-metrics`. A build that is up to date or served from the cache does not compile and leaves the reports it finds, so force compilation when you need to trust them. Kotlin's incremental compiler recompiles only the sources a change touches, and the report reflects only that increment - a short or empty report means little was recompiled. Only a non-incremental compile produces a report covering the whole module: `./gradlew --rerun-tasks :swing-ui:compileKotlin`, or clean the module first.
+Compiling a module also writes the Compose compiler's reports - which composables are skippable, and which parameters are unstable - to `<module>/build/compose-reports`, alongside summary counts in `<module>/build/compose-metrics`. A build that is up to date or served from the cache does not compile and leaves the reports it finds, so force compilation when you need to trust them. Kotlin's incremental compiler recompiles only the sources a change touches, and the report reflects only that increment - a short or empty report means little was recompiled. Only a non-incremental compile produces a report covering the whole module: `./gradlew --rerun-tasks :swing-ui-core:compileKotlin :swing-ui-components:compileKotlin`, or clean the module first.
 
-`:swing-ui` and `:swing-ui-foundation` each split their suite across two tasks, and `check` runs both. `test` holds everything that asserts nothing about which window the window system is attending to, and runs it across parallel JVMs; `exclusiveWindowSystemTest` holds the classes and cases tagged `ExclusiveWindowSystem` and runs them one at a time, because two of them at once take that state from each other and skip. Write a new test into whichever it belongs to by tagging it, not by where the file sits; `ExclusiveWindowSystem` says which tests need the tag and where it goes. Note that a scoped `test` run of either module also pulls in its `exclusiveWindowSystemTest`, which the coverage report that follows a test run depends on.
+`:swing-ui-core`, `:swing-ui-components` and `:swing-ui-foundation` each split their suite across two tasks, and `check` runs both. `test` holds everything that asserts nothing about which window the window system is attending to, and runs it across parallel JVMs; `exclusiveWindowSystemTest` holds the classes and cases tagged `ExclusiveWindowSystem` and runs them one at a time, because two of them at once take that state from each other and skip. Write a new test into whichever it belongs to by tagging it, not by where the file sits; `ExclusiveWindowSystem` says which tests need the tag and where it goes. Note that a scoped `test` run of a module also pulls in its `exclusiveWindowSystemTest`, which the coverage report that follows a test run depends on.
 
-Scope a run while iterating; `./gradlew test` runs every module's suite. The modules test each other: `:swing-ui-test` publishes the harness that `:swing-ui`'s own tests are written against, so a harness change is exercised far more by the library's suite than by the harness's own, and both samples' tests sit downstream of the two. A scoped run belongs to the edit loop; the gate below is what a change is judged by.
+Scope a run while iterating; `./gradlew test` runs every module's suite. The modules test each other: `:swing-ui-test` publishes the harness that the library's own tests are written against, so a harness change is exercised far more by the library's suite than by the harness's own, and both samples' tests sit downstream of the two. A scoped run belongs to the edit loop; the gate below is what a change is judged by.
 
 Harness-driven tests are deterministic, never sleep, and never attach their root to a window, so they run with or without a display. Only a wait on something the composition does not drive - the window system, or a quiet period that proves nothing happened - polls against a real deadline. A test that realizes a real top-level peer gates itself with `assumeFalse(GraphicsEnvironment.isHeadless(), ...)` so it reports skipped without one, and others gate the same way on a capability the environment may withhold. A run with no failures is therefore not necessarily a complete one: the ignored count in `<module>/build/reports/tests/test/index.html` says what did not run. CI runs under a virtual framebuffer, so the display-gated tests skipped here run and are judged there too; only the ones gated on a capability the framebuffer itself lacks (see Quality gates below) still report skipped in CI.
 
@@ -127,6 +130,6 @@ Retention is **`BINARY`** so the annotation survives into the compiled class fil
 
 Use the public component-author API for built-in components and for components you write in an application. See [Writing components](docs/CUSTOM-COMPONENTS.md) for designing and implementing one.
 
-- Add a behavioral test under `swing-ui/src/test` exercising state -> recomposition -> visible change (and listener re-attach if relevant). Library tests use the `:swing-ui-test` harness, available as `testImplementation`.
+- Add a behavioral test under `swing-ui-components/src/test` (or `swing-ui-core/src/test` for runtime and modifiers) exercising state -> recomposition -> visible change (and listener re-attach if relevant). Library tests use the `:swing-ui-test` harness, available as `testImplementation`.
 - Run `./gradlew updateKotlinAbi` and commit the updated `.api`, since a new public component changes the surface.
 - Run the full gate command above before opening a PR.

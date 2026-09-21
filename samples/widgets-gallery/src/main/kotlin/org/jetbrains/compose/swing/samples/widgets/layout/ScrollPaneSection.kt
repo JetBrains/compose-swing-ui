@@ -9,8 +9,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.launch
-import org.jetbrains.compose.swing.animation.animateScrollBy
-import org.jetbrains.compose.swing.animation.animateScrollTo
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.Spinner
 import org.jetbrains.compose.swing.components.button.Button
@@ -18,6 +16,8 @@ import org.jetbrains.compose.swing.components.button.CheckBox
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.layout.ScrollPane
+import org.jetbrains.compose.swing.components.layout.animateScrollBy
+import org.jetbrains.compose.swing.components.layout.animateScrollTo
 import org.jetbrains.compose.swing.components.layout.rememberScrollState
 import org.jetbrains.compose.swing.components.style.horizontalAlignment
 import org.jetbrains.compose.swing.foundation.layout.Column

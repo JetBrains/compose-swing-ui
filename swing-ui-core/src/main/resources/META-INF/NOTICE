@@ -1,0 +1,17 @@
+compose-swing-ui :: swing-ui-core
+
+This module contains source code copied and adapted from the Android Open Source
+Project's Jetpack Compose libraries, redistributed under the Apache License, Version 2.0.
+
+  Original: androidx.compose.ui:ui 1.13.0
+            (androidx commit ac6d2ce3d991b07d9b981d616bddc6d3ab461eab)
+  Copyright The Android Open Source Project
+
+  Original: androidx.compose.ui:ui-util 1.13.0
+            (androidx commit ac6d2ce3d991b07d9b981d616bddc6d3ab461eab)
+  Copyright The Android Open Source Project
+
+Adaptations: the sources are adapted to this project's modifier and Swing component model.
+Each file's header names the upstream file it was adapted from and its original copyright year.
+
+A copy of the Apache License 2.0 is in the repository root LICENSE file.

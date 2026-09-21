@@ -38,5 +38,5 @@ ktlint_standard = disabled
 # single-expression body on the signature line instead of wrapping it after `=`, so the test reads as
 # its name followed directly by the scenario. Only the wrapping of an expression body that already
 # fits the signature line is relaxed; the line-length limit and every other rule still apply.
-[{swing-ui,swing-ui-test}/src/test/**.{kt,kts}]
+[{swing-ui-core,swing-ui-components,swing-ui-test}/src/test/**.{kt,kts}]
 ktlint_function_signature_body_expression_wrapping = default

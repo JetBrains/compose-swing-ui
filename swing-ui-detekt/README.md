@@ -39,5 +39,5 @@ Set `failOnSeverity` to `Warning` to make warnings fail the build.
 
 ## Related
 
-- [`swing-ui`](../swing-ui/README.md) - the core library.
+- [`swing-ui-core`](../swing-ui-core/README.md) - the core library.
 - [Writing components](../docs/CUSTOM-COMPONENTS.md) - designing and writing a component the rules apply to.

@@ -2,7 +2,7 @@
 
 A container declares its children rather than adding them, and offers the placements it understands as a scope. This document is writing such a container, the shared hierarchies assembled from them, hosting a nested composition, and rendering a component's items with a composable cell. See [Writing components](CUSTOM-COMPONENTS.md) for building a leaf component. How the layout system works is [Foundation](FOUNDATION.md).
 
-Custom constraint-based containers use Foundation Layout in `swing-ui-foundation`; the Swing runtime and `SwingNode` remain in `swing-ui`. `SwingNode` requires opt-in to `SwingComponentLibraryApi`.
+Custom constraint-based containers use Foundation Layout in `swing-ui-foundation`; the Swing runtime and `SwingNode` remain in `swing-ui-core`. `SwingNode` requires opt-in to `SwingComponentLibraryApi`.
 
 Where a container of your own starts depends on where its placement rules live:
 
