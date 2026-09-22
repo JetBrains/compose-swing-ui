@@ -15,7 +15,7 @@
  */
 
 @file:JvmMultifileClass
-@file:JvmName("FoundationLayoutKt")
+@file:JvmName("LayoutKt")
 
 package org.jetbrains.compose.swing.foundation.layout
 
@@ -46,11 +46,10 @@ internal fun columnMeasurePolicy(
  * A composable that arranges its [content] vertically, top to bottom.
  *
  * An explicit `maximumSize` caps the offer and normally the extent each child takes on either axis.
- * A layout modifier whose own contract permits escape from an impossible offer, such as
- * [ConstrainedScope.aspectRatio], may report an extent outside that maximum. The height the column has
- * left over is placed by [verticalArrangement] - above the children, below them, between them, or as a
- * fixed gap through [Arrangement.spacedBy]. Across the column each child sits where
- * [horizontalAlignment] puts it.
+ * A layout modifier whose own contract permits escape from an impossible offer, such as [aspectRatio],
+ * may report an extent outside that maximum. The height the column has left over is placed by
+ * [verticalArrangement] - above the children, below them, between them, or as a fixed gap through
+ * [Arrangement.spacedBy]. Across the column each child sits where [horizontalAlignment] puts it.
  *
  * A child claims a share of the leftover height with `weight`, or names its own horizontal placement
  * with `align`, through [ColumnScope]:

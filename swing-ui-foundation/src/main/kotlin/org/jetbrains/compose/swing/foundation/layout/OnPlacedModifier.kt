@@ -1,5 +1,5 @@
 @file:JvmMultifileClass
-@file:JvmName("FoundationLayoutKt")
+@file:JvmName("LayoutKt")
 
 package org.jetbrains.compose.swing.foundation.layout
 

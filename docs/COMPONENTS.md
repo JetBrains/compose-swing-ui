@@ -3,7 +3,7 @@
 This is the catalog of what Compose Swing UI ships: every component family, grouped the way you
 reach for one, with the parameters that decide how it behaves. The KDoc on each function is the
 per-parameter reference. The concepts behind the binding are in
-[`ARCHITECTURE.md`](ARCHITECTURE.md), constraint-based foundation layouts are in
+[`ARCHITECTURE.md`](ARCHITECTURE.md), Foundation layout and graphics are in
 [`FOUNDATION.md`](FOUNDATION.md), and building a component of your own is
 [`CUSTOM-COMPONENTS.md`](CUSTOM-COMPONENTS.md).
 

@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.foundation.layout
 
+import androidx.annotation.FloatRange
 import org.jetbrains.compose.swing.layout.LayoutScopeMarker
 import org.jetbrains.compose.swing.modifier.SwingModifier
 
@@ -307,7 +308,7 @@ public interface ConstrainedScope {
      * @return this modifier with the aspect ratio declared on it.
      */
     public fun SwingModifier.aspectRatio(
-        ratio: Float,
+        @FloatRange(from = 0.0, fromInclusive = false) ratio: Float,
         matchHeightConstraintsFirst: Boolean = false,
     ): SwingModifier = this then AspectRatioElement(ratio, matchHeightConstraintsFirst)
 

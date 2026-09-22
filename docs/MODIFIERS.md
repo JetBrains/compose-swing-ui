@@ -24,7 +24,7 @@ instead: see [Parent declarations](#parent-declarations).
 
 A modifier is immutable, and two modifiers built the same way from equal elements are equal, so one built
 in place on every pass matches the previous pass. Reuse is a builder function: an extension that appends
-the elements.
+the elements. [Scoped modifiers](FOUNDATION.md#scoped-modifiers) shows one that declares a scope.
 
 ## Order and merge
 

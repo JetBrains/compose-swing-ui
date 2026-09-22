@@ -1,3 +1,6 @@
+@file:JvmMultifileClass
+@file:JvmName("LayoutKt")
+
 package org.jetbrains.compose.swing.foundation.layout
 
 import androidx.compose.runtime.Stable

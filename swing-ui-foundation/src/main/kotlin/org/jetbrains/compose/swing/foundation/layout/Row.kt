@@ -15,7 +15,7 @@
  */
 
 @file:JvmMultifileClass
-@file:JvmName("FoundationLayoutKt")
+@file:JvmName("LayoutKt")
 
 package org.jetbrains.compose.swing.foundation.layout
 
@@ -46,11 +46,10 @@ internal fun rowMeasurePolicy(
  * A composable that arranges its [content] horizontally, along the panel's reading order.
  *
  * An explicit `maximumSize` caps the offer and normally the extent each child takes on either axis.
- * A layout modifier whose own contract permits escape from an impossible offer, such as
- * [ConstrainedScope.aspectRatio], may report an extent outside that maximum. The width the row has left
- * over is placed by [horizontalArrangement] - before the children, after them, between them, or as a
- * fixed gap through [Arrangement.spacedBy]. Across the row each child sits where [verticalAlignment]
- * puts it.
+ * A layout modifier whose own contract permits escape from an impossible offer, such as [aspectRatio],
+ * may report an extent outside that maximum. The width the row has left over is placed by
+ * [horizontalArrangement] - before the children, after them, between them, or as a fixed gap through
+ * [Arrangement.spacedBy]. Across the row each child sits where [verticalAlignment] puts it.
  *
  * A child claims a share of the leftover width with `weight`, or names its own vertical placement with
  * `align`, through [RowScope]:

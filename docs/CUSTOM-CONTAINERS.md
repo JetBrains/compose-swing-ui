@@ -97,15 +97,12 @@ later child placed beyond its bottom edge; with an unbounded height, the childre
 prefer. A layout modifier such as `aspectRatio` may report outside an impossible offer, so the example
 remeasures such a child with zero space before placing it.
 
-The measurables arrive in declaration order, hidden children included. `isVisible` is not a layout
-filter in a `Row`, a `Column`, a `Box` or any `Layout`: a child hidden with
-`SwingModifier.visible(false)` is measured and placed like any other, so it keeps the room it reserved
-and its siblings stay where they are. What closes the gap is not composing the child. A `Panel` keeps
-its own manager's answer, which for most of the JDK's is to collapse.
+The measurables arrive in declaration order, hidden children included; see
+[Visibility](FOUNDATION.md#visibility).
 
 The content receiver is `ConstrainedScope`, so a child of a `Layout` declares its own layout modifiers -
-`padding`, `offset`, `aspectRatio`, `defaultMinSize`. Each narrows what reaches the child, states the
-child plus the room it reserved as what the policy measured, and puts the child inside that; the policy
+as [Scoped modifiers](FOUNDATION.md#scoped-modifiers) shows. Each narrows what reaches the child, states the
+child plus the space it reserved as what the policy measured, and puts the child inside that; the policy
 measures and places one rectangle per child either way.
 
 Placements of your own go in a scope of your own extending `ConstrainedScope`, as `StackScope` does

@@ -176,14 +176,13 @@ internal fun ColumnScope.WeightMaximumSizeCard() {
                     .preferredSize(Dimension(300, 32))
                     .componentListener(onComponentResized = { rowWidth = it.component.width }),
         ) {
-            val share =
-                SwingModifier
-                    .weight(1f)
-                    .componentListener(onComponentResized = { swatchWidth = it.component.width })
             LayoutSwatch(
                 if (capped) "capped" else "uncapped",
                 LayoutSampleColors.Pink,
-                if (capped) share.maximumSize(Dimension(80, 28)) else share,
+                SwingModifier
+                    .weight(1f)
+                    .componentListener(onComponentResized = { swatchWidth = it.component.width })
+                    .then(if (capped) SwingModifier.maximumSize(Dimension(80, 28)) else SwingModifier),
             )
         }
     }

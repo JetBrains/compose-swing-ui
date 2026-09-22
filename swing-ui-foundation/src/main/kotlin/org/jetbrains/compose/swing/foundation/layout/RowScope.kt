@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.foundation.layout
 
+import androidx.annotation.FloatRange
 import org.jetbrains.compose.swing.layout.LayoutScopeMarker
 import org.jetbrains.compose.swing.modifier.SwingModifier
 
@@ -30,7 +31,7 @@ public sealed interface RowScope : ConstrainedScope {
      * @return this modifier with the width share declared on it.
      */
     public fun SwingModifier.weight(
-        weight: Float,
+        @FloatRange(from = 0.0, fromInclusive = false) weight: Float,
         fill: Boolean = true,
     ): SwingModifier
 

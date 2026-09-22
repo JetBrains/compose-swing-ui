@@ -22,6 +22,8 @@ kotlin {
 }
 
 dependencies {
+    // @FloatRange on public declarations, mirroring upstream ui and foundation's api dependency.
+    api(libs.androidxAnnotation)
     api(project(":swing-ui"))
 
     testImplementation(kotlin("test"))

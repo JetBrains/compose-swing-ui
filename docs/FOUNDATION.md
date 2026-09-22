@@ -232,6 +232,27 @@ In `BoxScope`:
 To close the gap, don't compose the child. Regular Swing managers differ: some reserve hidden children and others
 collapse them.
 
+### Scoped modifiers
+
+Foundation's layout modifiers resolve only in content whose container honors them. The content of each container
+offers these scopes:
+
+| Content of | Scopes |
+|---|---|
+| `Row` | `RowScope`, `ConstrainedScope` |
+| `Column` | `ColumnScope`, `ConstrainedScope` |
+| `Box` | `BoxScope`, `ConstrainedScope` |
+| `Layout` | `ConstrainedScope` |
+
+A container's scopes hide the scopes of the containers around it: a label in a `Box` inside a `Row` cannot declare the
+row's `weight`. The content of `setContent` and of a Swing container, such as a `Panel`, a `ToolBar`, a `Window` or a
+`SwingNode` container, offers none of these either, because the layout manager placing that content reads none of
+them. A modifier that reaches a container unable to honor it is refused when it is applied.
+
+A modifier of your own, for a container you also write, goes in a scope of your own extending
+`ConstrainedScope`, as the `StackScope` example in [`CUSTOM-CONTAINERS.md`](CUSTOM-CONTAINERS.md) shows;
+it builds on `ConstrainedScope`'s own modifiers the same way theirs do.
+
 ### Choosing a container
 
 - `Row`, `Column` or `Box` for single-axis or stacked layouts with Compose-style weights, arrangements and

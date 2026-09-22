@@ -18,9 +18,10 @@
  * the FillNode/WrapContentNode/UnspecifiedConstraintsNode family, are upstream's.
  */
 
+// Every size modifier's element stays in this one file, as androidx foundation-layout's Size.kt keeps them, so
+// the two read side by side.
 package org.jetbrains.compose.swing.foundation.layout
 
-import java.awt.ComponentOrientation
 import java.awt.Dimension
 import kotlin.math.roundToInt
 
@@ -31,7 +32,7 @@ internal enum class FillDirection {
     Both,
 }
 
-/** A `ConstrainedScope.fillMax*` declaration, applied to every bounded axis named by [direction]. */
+/** A `fillMax*` declaration, applied to every bounded axis named by [direction]. */
 internal data class FillMaxElement(
     private val direction: FillDirection,
     val fraction: Float,
@@ -151,7 +152,7 @@ internal enum class WrapDirection {
     Both,
 }
 
-/** The `ConstrainedScope.wrapContent*` modifier, including its alignment inside the wrapper it reports. */
+/** The `wrapContent*` modifier, including its alignment inside the wrapper it reports. */
 internal data class WrapContentElement(
     private val direction: WrapDirection,
     private val horizontalAlignment: Alignment.Horizontal?,
@@ -180,16 +181,9 @@ internal data class WrapContentElement(
         return layout(wrapperWidth, wrapperHeight) {
             val horizontalSpace = wrapperWidth - placeable.width
             val verticalSpace = wrapperHeight - placeable.height
-            val orientation =
-                if (isLeftToRight) ComponentOrientation.LEFT_TO_RIGHT else ComponentOrientation.RIGHT_TO_LEFT
-            val x =
-                alignment?.align(Dimension(0, 0), Dimension(horizontalSpace, verticalSpace), orientation)?.x
-                    ?: horizontalAlignment?.align(0, horizontalSpace, orientation)
-                    ?: 0
-            val y =
-                alignment?.align(Dimension(0, 0), Dimension(horizontalSpace, verticalSpace), orientation)?.y
-                    ?: verticalAlignment?.align(0, verticalSpace)
-                    ?: 0
+            val aligned = alignment?.align(Dimension(0, 0), Dimension(horizontalSpace, verticalSpace), orientation)
+            val x = aligned?.x ?: horizontalAlignment?.align(0, horizontalSpace, orientation) ?: 0
+            val y = aligned?.y ?: verticalAlignment?.align(0, verticalSpace) ?: 0
             placeable.place(x, y)
         }
     }
@@ -215,7 +209,7 @@ internal data class WrapContentElement(
 }
 
 /**
- * The minimum `ConstrainedScope.defaultMinSize` raises the child's constraints to, along each axis
+ * The minimum `defaultMinSize` raises the child's constraints to, along each axis
  * whose incoming minimum is zero. A constraint that already claims a minimum along an axis is left as
  * it is, and the minimum raised to is held between nothing and the incoming maximum.
  */

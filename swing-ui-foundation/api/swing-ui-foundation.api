@@ -1,4 +1,4 @@
-public final class org/jetbrains/compose/swing/foundation/FoundationKt {
+public final class org/jetbrains/compose/swing/foundation/CanvasKt {
 	public static final fun Canvas (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
 }
 
@@ -306,31 +306,6 @@ public final class org/jetbrains/compose/swing/foundation/layout/Constraints$Com
 	public static synthetic fun restrictConstraints$default (Lorg/jetbrains/compose/swing/foundation/layout/Constraints$Companion;IIIIZILjava/lang/Object;)Lorg/jetbrains/compose/swing/foundation/layout/Constraints;
 }
 
-public final class org/jetbrains/compose/swing/foundation/layout/ConstraintsKt {
-	public static final fun constrain (Lorg/jetbrains/compose/swing/foundation/layout/Constraints;Ljava/awt/Dimension;)Ljava/awt/Dimension;
-	public static final fun constrain (Lorg/jetbrains/compose/swing/foundation/layout/Constraints;Lorg/jetbrains/compose/swing/foundation/layout/Constraints;)Lorg/jetbrains/compose/swing/foundation/layout/Constraints;
-	public static final fun isSatisfiedBy (Lorg/jetbrains/compose/swing/foundation/layout/Constraints;Ljava/awt/Dimension;)Z
-	public static final fun offset (Lorg/jetbrains/compose/swing/foundation/layout/Constraints;II)Lorg/jetbrains/compose/swing/foundation/layout/Constraints;
-	public static synthetic fun offset$default (Lorg/jetbrains/compose/swing/foundation/layout/Constraints;IIILjava/lang/Object;)Lorg/jetbrains/compose/swing/foundation/layout/Constraints;
-}
-
-public final class org/jetbrains/compose/swing/foundation/layout/FoundationLayoutKt {
-	public static final fun Box (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Landroidx/compose/runtime/Composer;II)V
-	public static final fun Box (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/foundation/layout/Alignment;ZLkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
-	public static final fun Column (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/foundation/layout/Arrangement$Vertical;Lorg/jetbrains/compose/swing/foundation/layout/Alignment$Horizontal;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
-	public static final fun Layout (Lorg/jetbrains/compose/swing/foundation/layout/MeasurePolicy;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Landroidx/compose/runtime/Composer;II)V
-	public static final fun Layout (Lorg/jetbrains/compose/swing/foundation/layout/MeasurePolicy;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/foundation/layout/LayoutParentDataProtocol;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
-	public static final fun Row (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/foundation/layout/Arrangement$Horizontal;Lorg/jetbrains/compose/swing/foundation/layout/Alignment$Vertical;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
-	public static final fun columnMeasurePolicy (Lorg/jetbrains/compose/swing/foundation/layout/Arrangement$Vertical;Lorg/jetbrains/compose/swing/foundation/layout/Alignment$Horizontal;Landroidx/compose/runtime/Composer;I)Lorg/jetbrains/compose/swing/foundation/layout/MeasurePolicy;
-	public static final fun getDefaultColumnMeasurePolicy ()Lorg/jetbrains/compose/swing/foundation/layout/MeasurePolicy;
-	public static final fun getDefaultRowMeasurePolicy ()Lorg/jetbrains/compose/swing/foundation/layout/MeasurePolicy;
-	public static final fun maybeCachedBoxMeasurePolicy (Lorg/jetbrains/compose/swing/foundation/layout/Alignment;Z)Lorg/jetbrains/compose/swing/foundation/layout/MeasurePolicy;
-	public static final fun onPlaced (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
-	public static final fun onSizeChanged (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
-	public static final fun rememberBoxMeasurePolicy (Lorg/jetbrains/compose/swing/foundation/layout/Alignment;ZLandroidx/compose/runtime/Composer;I)Lorg/jetbrains/compose/swing/foundation/layout/MeasurePolicy;
-	public static final fun rowMeasurePolicy (Lorg/jetbrains/compose/swing/foundation/layout/Arrangement$Horizontal;Lorg/jetbrains/compose/swing/foundation/layout/Alignment$Vertical;Landroidx/compose/runtime/Composer;I)Lorg/jetbrains/compose/swing/foundation/layout/MeasurePolicy;
-}
-
 public final class org/jetbrains/compose/swing/foundation/layout/HorizontalAlignmentLine : org/jetbrains/compose/swing/foundation/layout/AlignmentLine {
 	public static final field $stable I
 	public fun <init> (Lkotlin/jvm/functions/Function2;)V
@@ -355,6 +330,32 @@ public final class org/jetbrains/compose/swing/foundation/layout/IntrinsicSize :
 	public static fun values ()[Lorg/jetbrains/compose/swing/foundation/layout/IntrinsicSize;
 }
 
+public final class org/jetbrains/compose/swing/foundation/layout/LayoutKt {
+	public static final fun Box (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Landroidx/compose/runtime/Composer;II)V
+	public static final fun Box (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/foundation/layout/Alignment;ZLkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+	public static final fun Column (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/foundation/layout/Arrangement$Vertical;Lorg/jetbrains/compose/swing/foundation/layout/Alignment$Horizontal;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+	public static final fun Layout (Lorg/jetbrains/compose/swing/foundation/layout/MeasurePolicy;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Landroidx/compose/runtime/Composer;II)V
+	public static final fun Layout (Lorg/jetbrains/compose/swing/foundation/layout/MeasurePolicy;Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/foundation/layout/LayoutParentDataProtocol;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+	public static final fun Row (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lorg/jetbrains/compose/swing/foundation/layout/Arrangement$Horizontal;Lorg/jetbrains/compose/swing/foundation/layout/Alignment$Vertical;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+	public static final fun columnMeasurePolicy (Lorg/jetbrains/compose/swing/foundation/layout/Arrangement$Vertical;Lorg/jetbrains/compose/swing/foundation/layout/Alignment$Horizontal;Landroidx/compose/runtime/Composer;I)Lorg/jetbrains/compose/swing/foundation/layout/MeasurePolicy;
+	public static final fun constrain (Lorg/jetbrains/compose/swing/foundation/layout/Constraints;Ljava/awt/Dimension;)Ljava/awt/Dimension;
+	public static final fun constrain (Lorg/jetbrains/compose/swing/foundation/layout/Constraints;Lorg/jetbrains/compose/swing/foundation/layout/Constraints;)Lorg/jetbrains/compose/swing/foundation/layout/Constraints;
+	public static final fun getBoxParentDataProtocol ()Lorg/jetbrains/compose/swing/foundation/layout/LayoutParentDataProtocol;
+	public static final fun getDefaultColumnMeasurePolicy ()Lorg/jetbrains/compose/swing/foundation/layout/MeasurePolicy;
+	public static final fun getDefaultRowMeasurePolicy ()Lorg/jetbrains/compose/swing/foundation/layout/MeasurePolicy;
+	public static final fun getLayoutModifierParentProtocol ()Lorg/jetbrains/compose/swing/layout/ParentProtocol;
+	public static final fun getLinearParentDataProtocol ()Lorg/jetbrains/compose/swing/foundation/layout/LayoutParentDataProtocol;
+	public static final fun isSatisfiedBy (Lorg/jetbrains/compose/swing/foundation/layout/Constraints;Ljava/awt/Dimension;)Z
+	public static final fun layoutParentDataProtocol (Ljava/lang/String;)Lorg/jetbrains/compose/swing/foundation/layout/LayoutParentDataProtocol;
+	public static final fun maybeCachedBoxMeasurePolicy (Lorg/jetbrains/compose/swing/foundation/layout/Alignment;Z)Lorg/jetbrains/compose/swing/foundation/layout/MeasurePolicy;
+	public static final fun offset (Lorg/jetbrains/compose/swing/foundation/layout/Constraints;II)Lorg/jetbrains/compose/swing/foundation/layout/Constraints;
+	public static synthetic fun offset$default (Lorg/jetbrains/compose/swing/foundation/layout/Constraints;IIILjava/lang/Object;)Lorg/jetbrains/compose/swing/foundation/layout/Constraints;
+	public static final fun onPlaced (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun onSizeChanged (Lorg/jetbrains/compose/swing/modifier/SwingModifier;Lkotlin/jvm/functions/Function1;)Lorg/jetbrains/compose/swing/modifier/SwingModifier;
+	public static final fun rememberBoxMeasurePolicy (Lorg/jetbrains/compose/swing/foundation/layout/Alignment;ZLandroidx/compose/runtime/Composer;I)Lorg/jetbrains/compose/swing/foundation/layout/MeasurePolicy;
+	public static final fun rowMeasurePolicy (Lorg/jetbrains/compose/swing/foundation/layout/Arrangement$Horizontal;Lorg/jetbrains/compose/swing/foundation/layout/Alignment$Vertical;Landroidx/compose/runtime/Composer;I)Lorg/jetbrains/compose/swing/foundation/layout/MeasurePolicy;
+}
+
 public abstract interface class org/jetbrains/compose/swing/foundation/layout/LayoutModifier : org/jetbrains/compose/swing/layout/ParentLayoutElement {
 	public fun getAdditive ()Z
 	public fun getParentProtocol ()Lorg/jetbrains/compose/swing/layout/ParentProtocol;
@@ -369,13 +370,6 @@ public class org/jetbrains/compose/swing/foundation/layout/LayoutParentDataProto
 	public static final field $stable I
 	public final fun accepts (Ljava/awt/Container;)Z
 	public final fun getDescription ()Ljava/lang/String;
-}
-
-public final class org/jetbrains/compose/swing/foundation/layout/LayoutParentDataProtocolKt {
-	public static final fun getBoxParentDataProtocol ()Lorg/jetbrains/compose/swing/foundation/layout/LayoutParentDataProtocol;
-	public static final fun getLayoutModifierParentProtocol ()Lorg/jetbrains/compose/swing/layout/ParentProtocol;
-	public static final fun getLinearParentDataProtocol ()Lorg/jetbrains/compose/swing/foundation/layout/LayoutParentDataProtocol;
-	public static final fun layoutParentDataProtocol (Ljava/lang/String;)Lorg/jetbrains/compose/swing/foundation/layout/LayoutParentDataProtocol;
 }
 
 public abstract interface class org/jetbrains/compose/swing/foundation/layout/Measurable : org/jetbrains/compose/swing/foundation/layout/IntrinsicMeasurable {

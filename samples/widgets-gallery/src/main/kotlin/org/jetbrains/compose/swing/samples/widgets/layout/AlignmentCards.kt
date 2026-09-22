@@ -168,16 +168,21 @@ internal fun ColumnScope.AlignByBaselineCard() {
             horizontalArrangement = Arrangement.spacedBy(8),
             verticalAlignment = Alignment.Bottom,
         ) {
-            val labelModifier =
-                SwingModifier
-                    .font(Font(Font.SANS_SERIF, Font.PLAIN, 12))
-                    .componentListener(onComponentMoved = { labelY = it.component.y })
-            Label(text = "Label:", modifier = if (baseline) labelModifier.alignByBaseline() else labelModifier)
-            val fieldModifier = SwingModifier.font(Font(Font.SANS_SERIF, Font.PLAIN, fontSize))
+            Label(
+                text = "Label:",
+                modifier =
+                    SwingModifier
+                        .font(Font(Font.SANS_SERIF, Font.PLAIN, 12))
+                        .componentListener(onComponentMoved = { labelY = it.component.y })
+                        .then(if (baseline) SwingModifier.alignByBaseline() else SwingModifier),
+            )
             TextField(
                 value = text,
                 onValueChange = { text = it },
-                modifier = if (baseline) fieldModifier.alignByBaseline() else fieldModifier,
+                modifier =
+                    SwingModifier
+                        .font(Font(Font.SANS_SERIF, Font.PLAIN, fontSize))
+                        .then(if (baseline) SwingModifier.alignByBaseline() else SwingModifier),
                 columns = 12,
             )
         }

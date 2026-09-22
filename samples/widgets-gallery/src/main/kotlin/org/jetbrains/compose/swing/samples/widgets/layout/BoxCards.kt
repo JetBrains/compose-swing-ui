@@ -172,16 +172,17 @@ private fun ColumnScope.BoxMatchParentSizeCard() {
                     .accessibleName("matchParentSize box"),
             contentAlignment = Alignment.Center,
         ) {
-            val backdrop =
-                SwingModifier
-                    .layoutSampleSurface(LayoutSampleColors.Blue)
-                    .componentListener(
-                        onComponentResized = {
-                            backdropWidth = it.component.width
-                            backdropHeight = it.component.height
-                        },
-                    )
-            Panel(modifier = if (match) backdrop.matchParentSize() else backdrop) { }
+            Panel(
+                modifier =
+                    SwingModifier
+                        .layoutSampleSurface(LayoutSampleColors.Blue)
+                        .componentListener(
+                            onComponentResized = {
+                                backdropWidth = it.component.width
+                                backdropHeight = it.component.height
+                            },
+                        ).then(if (match) SwingModifier.matchParentSize() else SwingModifier),
+            ) { }
             LayoutSwatch(
                 "Independent child",
                 LayoutSampleColors.Orange,

@@ -174,7 +174,7 @@ internal fun ColumnScope.ColumnArrangementCard() {
 }
 
 @Composable
-private fun ColumnArrangementPreview(
+private fun ColumnScope.ColumnArrangementPreview(
     verticalArrangement: Arrangement.Vertical,
     horizontalAlignment: Alignment.Horizontal,
 ) {

@@ -1,6 +1,3 @@
-@file:JvmMultifileClass
-@file:JvmName("FoundationKt")
-
 package org.jetbrains.compose.swing.foundation
 
 import androidx.compose.runtime.Composable

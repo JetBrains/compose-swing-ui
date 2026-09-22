@@ -1,3 +1,6 @@
+@file:JvmMultifileClass
+@file:JvmName("LayoutKt")
+
 package org.jetbrains.compose.swing.foundation.layout
 
 import org.jetbrains.compose.swing.layout.ParentProtocol

@@ -19,7 +19,7 @@
  */
 
 @file:JvmMultifileClass
-@file:JvmName("FoundationLayoutKt")
+@file:JvmName("LayoutKt")
 
 package org.jetbrains.compose.swing.foundation.layout
 
@@ -168,19 +168,22 @@ internal data class BoxMeasurePolicy(
     ): MeasureResult {
         val contentConstraints = constraints.forContent(propagateMinConstraints)
         val placeable: Placeable
-        val boxSize: Dimension
+        val boxWidth: Int
+        val boxHeight: Int
         if (measurable.matchesParentSize) {
-            boxSize = Dimension(constraints.minWidth, constraints.minHeight)
-            placeable = measurable.measure(fixedForBox(boxSize.width, boxSize.height, measurable))
+            boxWidth = constraints.minWidth
+            boxHeight = constraints.minHeight
+            placeable =
+                measurable.measure(
+                    Constraints(boxWidth, boxWidth, boxHeight, boxHeight).forChild(measurable, fixed = true),
+                )
         } else {
             placeable = measurable.measure(contentConstraints.forChild(measurable))
-            boxSize =
-                Dimension(
-                    maxOf(constraints.minWidth, placeable.width),
-                    maxOf(constraints.minHeight, placeable.height),
-                )
+            boxWidth = maxOf(constraints.minWidth, placeable.width)
+            boxHeight = maxOf(constraints.minHeight, placeable.height)
         }
-        return layout(boxSize.width, boxSize.height) {
+        val boxSize = Dimension(boxWidth, boxHeight)
+        return layout(boxWidth, boxHeight) {
             placeInBox(placeable, measurable, boxSize, alignment, orientation)
         }
     }
@@ -274,13 +277,7 @@ private fun Constraints.forChild(
 }
 
 private fun Constraints.forContent(propagateMinConstraints: Boolean): Constraints =
-    if (propagateMinConstraints) this else copy(minWidth = 0, minHeight = 0)
-
-private fun fixedForBox(
-    width: Int,
-    height: Int,
-    measurable: Measurable,
-): Constraints = Constraints(width, width, height, height).forChild(measurable, fixed = true)
+    if (propagateMinConstraints) this else copyMaxDimensions()
 
 private fun ceiling(
     available: Int,
