@@ -11,6 +11,7 @@ import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import java.awt.Dimension
 import java.awt.Graphics2D
+import java.awt.Insets
 import java.awt.Rectangle
 import java.awt.geom.AffineTransform
 import java.awt.image.BufferedImage
@@ -79,6 +80,8 @@ internal fun DecoratedCanvas(
  * What this component paints onto a transparent [width] by [height] image through [transform], clipped to [clip] in
  * its own coordinates, as Swing paints it.
  */
+internal val JComponent.paintOutsets: Insets get() = (this as Decoratable).decoration.paintOutsets()
+
 internal fun JComponent.paintOnto(
     width: Int,
     height: Int,

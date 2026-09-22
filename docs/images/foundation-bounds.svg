@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" width="640" height="400" role="img" aria-label="Bounds of a decorated component">
+  <style>
+    text { font-family: system-ui, sans-serif; font-size: 14px; fill: #1f2328; }
+    .name { font-weight: 600; }
+    .band { font-style: italic; fill: #59636e; }
+    .box { stroke: #1f2328; stroke-width: 1.5; }
+    .outsets { fill: #fbe3c8; }
+    .layout { fill: #d6e6fb; }
+    .content { fill: #d9f2dd; }
+    .canvas { fill: #ffffff; }
+    .dim { stroke: #59636e; stroke-width: 1.2; fill: none; }
+    .guide { stroke: #59636e; stroke-width: 1; stroke-dasharray: 4 3; }
+    @media (prefers-color-scheme: dark) {
+      text { fill: #e6edf3; }
+      .band { fill: #9198a1; }
+      .box { stroke: #e6edf3; }
+      .outsets { fill: #4a3218; }
+      .layout { fill: #1c3657; }
+      .content { fill: #1d4027; }
+      .canvas { fill: #0d1117; }
+      .dim, .guide { stroke: #9198a1; }
+    }
+  </style>
+  <rect class="canvas" width="640" height="400"/>
+  <rect class="box outsets" x="10" y="10" width="620" height="330"/>
+  <rect class="box layout" x="70" y="70" width="500" height="210"/>
+  <rect class="box content" x="130" y="130" width="380" height="90"/>
+
+  <text class="name" x="22" y="32">bounds = paint bounds</text>
+  <text class="band" x="22" y="56">paint outsets</text>
+  <text class="name" x="82" y="92">layout bounds</text>
+  <text class="band" x="82" y="114">border</text>
+  <text class="name" x="320" y="180" text-anchor="middle">content area</text>
+
+  <line class="guide" x1="10" y1="340" x2="10" y2="386"/>
+  <line class="guide" x1="130" y1="220" x2="130" y2="386"/>
+  <line class="dim" x1="10" y1="372" x2="130" y2="372"/>
+  <path class="dim" d="M18 367 L10 372 L18 377 M122 367 L130 372 L122 377"/>
+  <text x="142" y="377">getInsets() = paint outsets + border</text>
+</svg>

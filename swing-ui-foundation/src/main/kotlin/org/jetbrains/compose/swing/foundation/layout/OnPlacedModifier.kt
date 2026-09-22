@@ -24,11 +24,13 @@ import java.awt.event.ComponentEvent
  * this onto a component already placed at a non-zero extent likewise waits for a new extent; an initial
  * zero extent is reported on the first move, resize or show, because it is a valid settled result.
  *
- * The report arrives on the event dispatch thread after placement, and names the size of the layout bounds.
+ * The report arrives on the event dispatch thread after placement, and names the size of the layout bounds:
+ * paint outsets, such as a shadow's, make the component's bounds larger and leave this report alone.
  *
- * Swing's move, resize and show events drive the report, as they do for any Swing component. A hidden component
- * reports nothing, and a Foundation parent hides a component it measures but does not place. Shown again, it reports
- * only an extent that differs from the last one it reported.
+ * Swing's move, resize and show events drive the report, as they do for any Swing component. A change of the layout
+ * bounds that keeps the bounds, as when the component leaves a Foundation container, is reported too. A hidden
+ * component reports nothing, and a Foundation parent hides a component it measures but does not place. Shown again,
+ * it reports only an extent that differs from the last one it reported.
  *
  * [onSizeChanged] is read when the report fires, so writing a fresh lambda on every recomposition
  * registers nothing again. Declaring this twice reports twice: each declaration is its own slot.
@@ -49,7 +51,10 @@ public fun SwingModifier.onSizeChanged(onSizeChanged: (Dimension) -> Unit): Swin
  * does an ancestor moving: the bounds are stated in the parent's coordinates, which a move further up
  * does not change.
  *
- * The report arrives on the event dispatch thread after placement, and names the layout bounds in the parent.
+ * The report arrives on the event dispatch thread after placement, and names the layout bounds in the parent's
+ * layout coordinates: those of the parent's layout bounds under a Foundation container, and its Swing coordinates
+ * under any other parent. Paint outsets, such as a shadow's, move the component's bounds and leave this report
+ * alone.
  *
  * Swing's move, resize and show events drive the report, as they drive [onSizeChanged]. Shown again, the component
  * reports its bounds again.
@@ -167,6 +172,16 @@ private val PLACED =
         adapter = ::PlacementReport,
         registration = boundsReportOn("onPlaced"),
     )
+
+/**
+ * Posts a move event for this component through the event queue: its layout bounds changed where its bounds, which
+ * Swing announces through a component listener, did not. The event arrives after the running one, never inside a
+ * layout.
+ */
+internal fun Component.postComponentMoved() {
+    if (componentListeners.isEmpty()) return
+    toolkit.systemEventQueue.postEvent(ComponentEvent(this, ComponentEvent.COMPONENT_MOVED))
+}
 
 /**
  * Reports this component's own [onPlaced] declarations again, as androidx reports a node placed again, and its

@@ -15,6 +15,7 @@ import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import java.awt.AlphaComposite
 import java.awt.Color
+import java.awt.Dimension
 import java.awt.Graphics2D
 import java.awt.RenderingHints
 import java.awt.geom.Area
@@ -457,8 +458,8 @@ class DecorationBuildersTest {
         }
 
     /**
-     * One decorated component, composed once, that each [declare] redeclares: [side] square, the chain it is given
-     * outermost, and the content painting inside the chain in the component's layout
+     * One decorated component, composed once, that each [declare] redeclares: [side] square including its paint
+     * outsets, the chain it is given outermost, and the content painting inside the chain in the component's layout
      * coordinates. [side] defaults to [SIZE].
      */
     private class Stage(
@@ -467,6 +468,7 @@ class DecorationBuildersTest {
     ) {
         private var declared by mutableStateOf<() -> SwingModifier>({ SwingModifier })
         private var content by mutableStateOf<Decorator?>(null)
+        private var size by mutableStateOf(Dimension(side, side))
 
         init {
             test.setContent {
@@ -477,7 +479,7 @@ class DecorationBuildersTest {
                             SwingModifier
                                 .testTag(STAGE_TAG)
                                 .opaque(false)
-                                .preferredSize(side, side)
+                                .preferredSize(size)
                                 .then(declared())
                                 .then(content?.let { SwingModifier.decoration(it) } ?: SwingModifier),
                     )
@@ -487,7 +489,7 @@ class DecorationBuildersTest {
 
         /**
          * Declares [chain] around [content], or [chain] alone where [content] is null, sized so the component's
-         * bounds are [side] square.
+         * bounds including paint outsets are [side] square.
          */
         suspend fun declare(
             chain: () -> SwingModifier = { SwingModifier },
@@ -495,6 +497,10 @@ class DecorationBuildersTest {
         ): DecoratedPanel {
             declared = chain
             this.content = content
+            test.awaitIdle()
+            val component = component()
+            val outsets = component.decoration.paintOutsets()
+            size = Dimension(side - outsets.left - outsets.right, side - outsets.top - outsets.bottom)
             test.awaitIdle()
             return component()
         }

@@ -131,7 +131,10 @@ class BlurDecoratorStabilityTest {
     /** What this canvas paints at [scale] onto a [SIZE] by [SIZE] image, scaled alike, from its layout origin. */
     private fun JComponent.paintAtLayoutOrigin(scale: Double = 1.0): BufferedImage {
         val side = (SIZE * scale).toInt()
-        return paintOnto(side, side, AffineTransform.getScaleInstance(scale, scale))
+        val outsets = paintOutsets
+        val transform = AffineTransform.getScaleInstance(scale, scale)
+        transform.translate(-outsets.left.toDouble(), -outsets.top.toDouble())
+        return paintOnto(side, side, transform)
     }
 
     private fun paintFigure(

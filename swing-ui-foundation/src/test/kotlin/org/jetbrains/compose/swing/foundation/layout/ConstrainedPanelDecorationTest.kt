@@ -4,11 +4,13 @@ import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.foundation.Canvas
 import org.jetbrains.compose.swing.foundation.graphics.Brush
 import org.jetbrains.compose.swing.foundation.graphics.Decoratable
+import org.jetbrains.compose.swing.foundation.graphics.DecoratedBox
 import org.jetbrains.compose.swing.foundation.graphics.background
 import org.jetbrains.compose.swing.foundation.graphics.blur
-import org.jetbrains.compose.swing.foundation.graphics.decorated
+import org.jetbrains.compose.swing.foundation.graphics.blurOutsets
 import org.jetbrains.compose.swing.foundation.graphics.drawBehind
 import org.jetbrains.compose.swing.foundation.graphics.shadow
+import org.jetbrains.compose.swing.foundation.graphics.spill
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
@@ -20,10 +22,12 @@ import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.Color
 import java.awt.Dimension
 import java.awt.GraphicsEnvironment
+import java.awt.Insets
 import java.awt.Rectangle
 import javax.swing.JComponent
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import org.jetbrains.compose.swing.modifier.appearance.background as swingBackground
 
@@ -82,15 +86,15 @@ class ConstrainedPanelDecorationTest {
     fun aBoxPaintsThroughTheDecorationItsModifierDeclares() =
         runComposeSwingTest {
             setContent {
-                Box(
-                    modifier =
-                        decorated {
+                DecoratedBox {
+                    Box(
+                        modifier =
                             SwingModifier
                                 .testTag("box")
                                 .preferredSize(Dimension(64, 48))
-                                .background(Brush.of(Color.BLUE))
-                        },
-                )
+                                .background(Brush.of(Color.BLUE)),
+                    )
+                }
             }
 
             val painted = onNodeWithTag("box").captureToImage()
@@ -143,8 +147,8 @@ class ConstrainedPanelDecorationTest {
 
     /**
      * Composes a box decorated by [decorate] around a centered child, repaints the child alone, and checks that the
-     * box repainted the child's area grown by its decoration's outsets. The box is large enough that the grown area
-     * stays inside it, where the decoration paints.
+     * box repainted the child's area grown by its decoration's outsets, in the box's layout coordinates, where the
+     * decoration paints. The box is large enough that the grown area stays inside it.
      */
     private fun assertChildRepaintCoversTheOutsets(decorate: (SwingModifier) -> SwingModifier) =
         runComposeSwingTest {
@@ -167,7 +171,10 @@ class ConstrainedPanelDecorationTest {
                 }
             }
             val window = onWindowWithTitle(WINDOW_TITLE)
-            val outsets = (window.onNodeWithTag("box").fetch<JComponent>() as Decoratable).decoration.steps.outsets
+            val box = window.onNodeWithTag("box").fetch<JComponent>()
+            val decoration = (box as Decoratable).decoration
+            val outsets = decoration.steps.outsets
+            val layoutBounds = decoration.localLayoutBounds(box)
             val child = window.onNodeWithTag("child").fetch<JComponent>()
             assertTrue(outsets.left > 0 && outsets.bottom > 0, "the decoration must spread past the child: $outsets")
             awaitIdle()
@@ -178,11 +185,55 @@ class ConstrainedPanelDecorationTest {
 
             val reach =
                 Rectangle(
-                    child.x - outsets.left,
-                    child.y - outsets.top,
+                    child.x - layoutBounds.x - outsets.left,
+                    child.y - layoutBounds.y - outsets.top,
                     child.width + outsets.left + outsets.right,
                     child.height + outsets.top + outsets.bottom,
                 )
             assertTrue(repainted.any { it.contains(reach) }, "the child's repaint must reach $reach: $repainted")
+        }
+
+    @Test
+    fun aSizeSetOnABoxAnswersAsSetWhileTheBoundsItIsGivenGrowByTheDecorationsOutsets() =
+        runComposeSwingTest {
+            setContent {
+                Box {
+                    Box(
+                        modifier =
+                            SwingModifier
+                                .testTag("box")
+                                .preferredSize(Dimension(64, 48))
+                                .shadow(radius = 8, color = Color.BLACK),
+                    )
+                }
+            }
+
+            val box = onNodeWithTag("box").fetch<JComponent>()
+
+            assertEquals(Dimension(64, 48), box.preferredSize, "a size set on the box answers as set")
+            assertEquals(
+                Dimension(64 + 2 * blurOutsets(8), 48 + 2 * blurOutsets(8)),
+                box.size,
+                "the bounds its Foundation parent gives it grow by the outsets the shadow needs around the content",
+            )
+        }
+
+    @Test
+    fun aBoxFillsTheInsetsItIsHandedWithItsPaintOutsets() =
+        runComposeSwingTest {
+            setContent {
+                Box {
+                    Box(
+                        modifier =
+                            SwingModifier.testTag("box").preferredSize(Dimension(64, 48)).spill(Insets(8, 8, 8, 8)),
+                    )
+                }
+            }
+            val reused = Insets(1, 1, 1, 1)
+
+            val answered = onNodeWithTag("box").fetch<JComponent>().getInsets(reused)
+
+            assertSame(reused, answered, "the box must answer with the insets it is handed")
+            assertEquals(Insets(8, 8, 8, 8), reused, "the paint outsets must be filled in")
         }
 }

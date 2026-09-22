@@ -9,6 +9,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import java.awt.Graphics2D
 import java.awt.Insets
 import java.awt.Rectangle
+import java.awt.Shape
 import java.awt.geom.AffineTransform
 import java.awt.geom.Point2D
 
@@ -40,6 +41,25 @@ internal class DecorationSteps private constructor(
     val isOpaque: Boolean get() = decorators.fastAll { it.isOpaque }
 
     val isEmpty: Boolean get() = decorators.isEmpty()
+
+    /** Whether own steps or a transform layer expand the layout bounds of [width] by [height]. */
+    fun needsPaintBounds(
+        width: Int,
+        height: Int,
+    ): Boolean =
+        outsets != NoPaintOutsets ||
+            decorators.fastAny { (it as? PaintBoundsDecorator)?.ownsPaintBounds(width, height) == true }
+
+    /** Grows [bounds] to this component's own paint bounds. */
+    fun growToPaintBounds(
+        bounds: Rectangle,
+        width: Int,
+        height: Int,
+    ) {
+        var painted: Shape = Rectangle(bounds)
+        for (index in decorators.size - 1 downTo 0) painted = decorators[index].paintBounds(painted, width, height)
+        bounds.setBounds(painted.bounds)
+    }
 
     /** Whether every step that paints at a layout node's box paints at layout bounds of [width] by [height]. */
     fun paintsAtLayoutBox(

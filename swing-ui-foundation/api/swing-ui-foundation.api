@@ -56,9 +56,13 @@ public final class org/jetbrains/compose/swing/foundation/graphics/Decoration {
 	public static final field $stable I
 	public static final field Companion Lorg/jetbrains/compose/swing/foundation/graphics/Decoration$Companion;
 	public final fun contains (Ljava/awt/Component;II)Z
+	public final fun insets (Ljava/awt/Insets;)Ljava/awt/Insets;
+	public final fun insets (Ljava/awt/Insets;Ljava/awt/Insets;)Ljava/awt/Insets;
 	public final fun isDecorated ()Z
 	public final fun isOpaque (Ljava/awt/Component;)Z
+	public final fun localLayoutBounds (Ljava/awt/Component;)Ljava/awt/Rectangle;
 	public final fun paint (Ljava/awt/Component;Ljava/awt/Graphics;Lkotlin/jvm/functions/Function1;)V
+	public final fun paintOutsets ()Ljava/awt/Insets;
 }
 
 public final class org/jetbrains/compose/swing/foundation/graphics/Decoration$Companion {

@@ -15,15 +15,25 @@ internal enum class ChildPlacement {
 
     /** Not placed because its container is not; see [ChildMeasurable.unplace]. */
     InUnplacedContainer,
+
+    /** Not placed because its container is not, joining it while it already was; see [ChildMeasurable.unplace]. */
+    JoinedUnplacedContainer,
 }
 
 /**
- * Records this child not placed because its container is not, leaving its bounds and visibility as they are until its
- * container places it again.
+ * Records this child not placed because its container is not, leaving its bounds, visibility and paint outsets as they
+ * are until its container places it again. Where [joining] this container while it already stood unplaced, and this
+ * child is visible, hides it too: a plain component has no record of its own container's placement to read a posted
+ * report's delivery against, so Swing's own visibility is what silences one a container it is leaving posted for it.
  */
-internal fun ChildMeasurable.unplace() {
+internal fun ChildMeasurable.unplace(joining: Boolean = false) {
     if (lastPlacement != ChildPlacement.Placed) return
-    lastPlacement = ChildPlacement.InUnplacedContainer
+    if (joining && component.isVisible) {
+        component.keepingSettledResult { component.isVisible = false }
+        lastPlacement = ChildPlacement.JoinedUnplacedContainer
+    } else {
+        lastPlacement = ChildPlacement.InUnplacedContainer
+    }
     if (decoratable != null) component.layOutAgain()
 }
 

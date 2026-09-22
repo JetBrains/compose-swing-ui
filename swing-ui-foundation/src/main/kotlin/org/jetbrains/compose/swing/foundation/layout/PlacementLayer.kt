@@ -4,13 +4,16 @@ import androidx.annotation.FloatRange
 import org.jetbrains.annotations.VisibleForTesting
 import org.jetbrains.compose.swing.foundation.graphics.Decorator
 import org.jetbrains.compose.swing.foundation.graphics.ImageLayer
+import org.jetbrains.compose.swing.foundation.graphics.PaintBoundsDecorator
 import org.jetbrains.compose.swing.foundation.graphics.TransformOrigin
 import org.jetbrains.compose.swing.foundation.graphics.clipArea
 import org.jetbrains.compose.swing.foundation.graphics.setToScaleAndRotation
 import org.jetbrains.compose.swing.node.observeReads
 import java.awt.Graphics2D
 import java.awt.Rectangle
+import java.awt.Shape
 import java.awt.geom.AffineTransform
+import java.awt.geom.Area
 import java.awt.geom.NoninvertibleTransformException
 import java.awt.geom.Point2D
 
@@ -19,8 +22,9 @@ import java.awt.geom.Point2D
  * androidx's `GraphicsLayerScope` does for a graphics layer.
  *
  * The layer covers the placed box: the size the child measured to where a [MeasurePolicy] places it, or the size
- * the content reports where a layout modifier places it. What it paints past the component's bounds is clipped at
- * them. A state read in the block repaints the component without measuring it again. Every run starts from the
+ * the content reports where a layout modifier places it. What it paints past the layout bounds grows the
+ * component's paint outsets. A state read in the block repaints the component without measuring it again. Each run
+ * starts from the
  * defaults, so a property the block leaves unset paints at its default.
  *
  * Tooltips and popups the content opens stand where they would stand without the layer.
@@ -87,7 +91,8 @@ internal class PlacementLayer(
     private val node: LayoutModifierNode?,
     /** The record of the component a [MeasurePolicy] places with this layer, or null where [node] places with it. */
     private val record: ChildMeasurable?,
-) : Decorator {
+) : Decorator,
+    PaintBoundsDecorator {
     /** The block the content was last placed with, or [NoLayer] while it was placed without one. */
     private var layerBlock: PlacementLayerScope.() -> Unit = NoLayer
 
@@ -141,6 +146,12 @@ internal class PlacementLayer(
     internal val hasFadeContent: Boolean get() = fadeLayer?.hasContent == true
 
     override val isOpaque: Boolean get() = false
+
+    /** Only a transform moves the layer's own content off its box. */
+    override fun ownsPaintBounds(
+        width: Int,
+        height: Int,
+    ): Boolean = transform != null
 
     /**
      * Records that the content was placed with [block], in the box, which [moved] where it differs from the one the
@@ -291,6 +302,17 @@ internal class PlacementLayer(
                     !properties.clip ||
                     (point.x >= boxX && point.y >= boxY && point.x < boxX + boxWidth && point.y < boxY + boxHeight)
             )
+    }
+
+    override fun paintBounds(
+        content: Shape,
+        width: Int,
+        height: Int,
+    ): Shape {
+        if (layerBlock === NoLayer || (!properties.clip && transform == null)) return content
+        val area = Area(content)
+        if (properties.clip) area.intersect(Area(Rectangle(boxX, boxY, boxWidth, boxHeight)))
+        return transform?.createTransformedShape(area) ?: area
     }
 
     private fun updateProperties() {

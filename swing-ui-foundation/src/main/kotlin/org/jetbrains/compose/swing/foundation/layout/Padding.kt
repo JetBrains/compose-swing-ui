@@ -27,7 +27,8 @@ package org.jetbrains.compose.swing.foundation.layout
 import org.jetbrains.compose.swing.modifier.SwingModifier
 
 /**
- * Reserves [all] along every edge of the child.
+ * Reserves [all] along every edge of the child. A decoration declared before a padding paints over the space it
+ * reserves as well, as paint outsets: `background(brush).padding(8)` fills the child and the space around it.
  *
  * @return this modifier with the padding declared on it.
  */

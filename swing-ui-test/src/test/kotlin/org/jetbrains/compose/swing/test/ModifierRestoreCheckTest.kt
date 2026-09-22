@@ -2,8 +2,12 @@ package org.jetbrains.compose.swing.test
 
 import org.jetbrains.compose.swing.modifier.RestorePolicy
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import java.awt.Color
 import java.awt.Component
+import java.awt.Insets
 import javax.swing.JLabel
+import javax.swing.JPanel
+import javax.swing.border.EmptyBorder
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
@@ -192,6 +196,94 @@ class ModifierRestoreCheckTest {
         assertEquals(emptyList(), reported, "a write that changed nothing takes no record")
     }
 
+    @Test
+    fun aPropertyTheComponentsOwnStateMovedIsNotOwedByTheDepartingSlot() {
+        val panel = OutsetPanel()
+        val slot = slot()
+        check.declaring(panel, slot, element()) { panel.border = EmptyBorder(2, 2, 2, 2) }
+        panel.outset = 3
+        check.restoring(panel, slot) { panel.border = null }
+
+        assertTrue(reported.isEmpty(), "the insets the panel's own state moved are not the slot's: $reported")
+    }
+
+    @Test
+    fun aPropertyMovedElsewhereBeforeAnotherSlotWritesIsNotOwedByTheDepartingSlot() {
+        val panel = OutsetPanel()
+        val slot = slot()
+        check.declaring(panel, slot, element()) { panel.border = EmptyBorder(2, 2, 2, 2) }
+        panel.outset = 3
+        // The move is seen ahead of this write, not ahead of the restore that follows it.
+        check.declaring(panel, slot(), element()) { panel.isEnabled = false }
+        check.restoring(panel, slot) { panel.border = null }
+
+        assertTrue(reported.isEmpty(), "the insets the panel's own state moved are not the slot's: $reported")
+    }
+
+    @Test
+    fun aPropertyNothingElseMovedIsStillOwedByTheDepartingSlot() {
+        val panel = OutsetPanel()
+        val slot = slot()
+        check.declaring(panel, slot, element()) { panel.border = EmptyBorder(2, 2, 2, 2) }
+        check.restoring(panel, slot) { }
+
+        val failure = assertNotNull(reported.singleOrNull(), "a slot that never restores is still caught")
+        assertContains(failure.message.orEmpty(), "insets: found <${Insets(0, 0, 0, 0)}>")
+    }
+
+    @Test
+    fun aMissedRestoreOfAPropertyMovedElsewhereGoesUnreported() {
+        val panel = OutsetPanel()
+        val slot = slot()
+        check.declaring(panel, slot, element()) { panel.border = EmptyBorder(2, 2, 2, 2) }
+        panel.outset = 3
+        check.restoring(panel, slot) { }
+
+        val failure = assertNotNull(reported.singleOrNull(), "the border the slot left is still reported")
+        assertFalse("insets" in failure.message.orEmpty(), "the moved insets are no slot's: ${failure.message}")
+    }
+
+    @Test
+    fun aPropertyMovedElsewhereIsOwedAgainOnceItsRecordIsDropped() {
+        val panel = OutsetPanel()
+        // A slot writing something else stands throughout, so the panel stays watched between the two.
+        check.declaring(panel, slot(), element()) { panel.isEnabled = false }
+        val first = slot()
+        check.declaring(panel, first, element()) { panel.border = EmptyBorder(2, 2, 2, 2) }
+        panel.outset = 3
+        check.restoring(panel, first) { panel.border = null }
+
+        val second = slot()
+        check.declaring(panel, second, element()) { panel.border = EmptyBorder(2, 2, 2, 2) }
+        check.restoring(panel, second) { }
+
+        val failure = assertNotNull(reported.singleOrNull(), "a later declaration takes a record of its own")
+        assertContains(failure.message.orEmpty(), "insets: found <${Insets(3, 3, 3, 3)}>")
+    }
+
+    @Test
+    fun aPlacementAxisMovedElsewhereIsStillOwedByTheDepartingSlot() {
+        val slot = slot()
+        check.declaring(label, slot, element()) { label.setSize(10, 10) }
+        label.setSize(20, 10)
+        check.restoring(label, slot) { }
+
+        val failure = assertNotNull(reported.singleOrNull(), "a layout pass moves the axes, so they stay owed")
+        assertContains(failure.message.orEmpty(), "width: found <0>, left <20>")
+    }
+
+    @Test
+    fun aPropertyOtherThanTheInsetsMovedElsewhereIsStillOwedByTheDepartingSlot() {
+        val original = label.background
+        val slot = slot()
+        check.declaring(label, slot, element()) { label.background = Color.RED }
+        label.background = Color.BLUE
+        check.restoring(label, slot) { }
+
+        val failure = assertNotNull(reported.singleOrNull(), "only the insets are exempted when moved elsewhere")
+        assertContains(failure.message.orEmpty(), "background: found <$original>, left <${Color.BLUE}>")
+    }
+
     private fun slot() = SwingModifier.ComponentNode<Component>()
 
     private fun element(
@@ -199,6 +291,14 @@ class ModifierRestoreCheckTest {
         name: String = "standIn",
         heldProperties: Set<String> = setOf(name),
     ) = StandInElement(restores, name, heldProperties)
+}
+
+/** A panel whose insets follow its own [outset] as well as its border, with no modifier writing them. */
+private class OutsetPanel : JPanel() {
+    var outset: Int = 0
+
+    override fun getInsets(): Insets =
+        super.getInsets().apply { set(top + outset, left + outset, bottom + outset, right + outset) }
 }
 
 /** A component whose own accessor throws, standing for the caller code a watched read runs. */

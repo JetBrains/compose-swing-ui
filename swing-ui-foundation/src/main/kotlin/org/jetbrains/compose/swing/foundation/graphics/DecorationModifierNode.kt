@@ -1,6 +1,7 @@
 package org.jetbrains.compose.swing.foundation.graphics
 
 import org.jetbrains.compose.swing.foundation.layout.fitted
+import org.jetbrains.compose.swing.foundation.layout.writeFitted
 import org.jetbrains.compose.swing.foundation.util.fastAny
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import java.awt.Component
@@ -16,7 +17,8 @@ import java.awt.Component
  *
  * The library gathers [outsets] and [isOpaque] after each modifier pass that attaches, detaches, moves or writes a
  * step, so an element's `update` needs no call for them. A node that changes one of them between passes calls
- * [invalidateDecoration]. A change that only affects [paint] is a `component.repaint()`.
+ * [invalidateDecoration]. A change that only affects [paint] is a `component.repaint()`. The outsets a step reserves
+ * reach the component's insets under a Foundation container.
  */
 public abstract class DecorationModifierNode<T : Component> :
     SwingModifier.ComponentNode<T>(),
@@ -71,8 +73,8 @@ internal fun SwingModifier.Node.declaredNodes(): List<SwingModifier.Node> {
 }
 
 /**
- * Writes to [decoratable] the decoration [nodes] declare, inside the layer its container places it with; see
- * [publishSteps].
+ * Writes to [decoratable] the decoration [nodes] declare, inside the layer its container places it with, fitted to
+ * the Foundation containers around it; see [publishSteps].
  */
 internal fun publishDecoration(
     decoratable: Decoratable,
@@ -80,8 +82,8 @@ internal fun publishDecoration(
 ): Boolean = publishSteps(decoratable, DecorationSteps.of(nodes, decoratable.decoration.steps.containerLayer))
 
 /**
- * Writes to [decoratable] a decoration of [steps], and repaints it; nothing where the value held equals it. Returns
- * whether it wrote.
+ * Writes to [decoratable] a decoration of [steps], fitted to the Foundation containers around it, and repaints it;
+ * nothing where the value held equals it. Returns whether it wrote.
  *
  * @throws IllegalStateException if [decoratable] is not a [Component].
  */
@@ -94,9 +96,9 @@ internal fun publishSteps(
             "A ${Decoratable::class.java.name} paints as a component, and ${decoratable.javaClass.name} is not one"
         }
     val held = decoratable.decoration
-    val value = held.fitted(steps, steps.isOpaque)
+    val value = held.fitted(component, steps, steps.isOpaque)
     if (value === held) return false
-    decoratable.decoration = value
+    writeFitted(component, decoratable, held, value)
     component.repaint()
     return true
 }

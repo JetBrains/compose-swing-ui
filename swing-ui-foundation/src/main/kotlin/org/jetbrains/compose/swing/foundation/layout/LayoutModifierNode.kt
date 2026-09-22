@@ -178,8 +178,9 @@ public abstract class LayoutModifierNode : ParentLayoutNode() {
      * The decorator this node paints its component with, at the node's position in the modifier, or null for
      * none. It paints at the node's own box: the size [measure] reports, where the node is placed.
      *
-     * Setting a different instance replaces it and setting null removes it, both repainting the component. Setting the
-     * same instance again gathers the decoration again, re-reading its outsets and isOpaque; set it again
+     * Setting a different instance replaces it and setting null removes it, both repainting the component, and,
+     * where its paint outsets change, having its Foundation container fit its bounds around its layout bounds.
+     * Setting the same instance again gathers the decoration again, re-reading its outsets and isOpaque; set it again
      * after the decorator's outsets or isOpaque change. The node keeps it across a detach, and paints with it only
      * while attached.
      *

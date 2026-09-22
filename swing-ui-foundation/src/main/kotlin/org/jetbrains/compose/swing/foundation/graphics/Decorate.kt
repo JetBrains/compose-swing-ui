@@ -11,7 +11,8 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
  *
  * Every decorator a chain declares is kept, in declaration order, rather than the last one winning:
  * `SwingModifier.decoration(a).decoration(b)` paints `a` around `b`. A declaration whose decorator is equal
- * across a recomposition leaves the component's painting alone.
+ * across a recomposition leaves the component's painting alone; a change in the component's paint outsets
+ * has its Foundation container fit its bounds around its layout bounds, as well as repainting it.
  *
  * [decorator] paints at its *decorated box*: the box of the first layout modifier declared after it, such as a
  * `padding`, or the component's layout bounds when none follows.

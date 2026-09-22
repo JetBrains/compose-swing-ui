@@ -7,21 +7,26 @@ import java.awt.Graphics2D
 import java.awt.Insets
 import java.awt.Point
 import java.awt.Rectangle
+import java.awt.Shape
 import java.awt.geom.Point2D
+import java.awt.geom.Rectangle2D
 import kotlin.math.floor
 
 /**
- * What a [Decoratable] component paints through: the steps its modifier declares. The library creates each value for
- * one component and writes it to [Decoratable.decoration]; a value never changes, and a change is a new value.
+ * What a [Decoratable] component paints through, and how far it paints past its layout bounds: the steps its modifier
+ * declares and the paint outsets its Foundation container worked out for it. The library creates each value for one
+ * component and writes it to [Decoratable.decoration]; a value never changes, and a change is a new value.
  *
- * Each step is a [Decorator], the first outermost: it paints at the layout bounds, and a layout modifier's own
- * decorator at the box of that modifier. The *layout bounds* are the box measurement, placement, alignment, `onPlaced`,
- * `onSizeChanged` and hit testing see. A decoration is clipped at the component's bounds.
+ * Each step is a [Decorator], the first outermost, and paints at the layout bounds. The *layout bounds* are the box
+ * measurement, placement, alignment, `onPlaced`, `onSizeChanged` and hit testing see. The component's *bounds*, Swing's
+ * rectangle, are the layout bounds plus the *paint outsets*, how far the component's decoration paints past them on
+ * each side. A Foundation container fits an untransformed component to its steps' own [outsets][Decorator.outsets]
+ * and a transformed component to the bounds of its own transformed content.
  */
 public class Decoration internal constructor(
     /** The steps the component's modifier declares. */
     internal val steps: DecorationSteps,
-    /** The paint outsets: [NoPaintOutsets]; never modified. */
+    /** The paint outsets: [NoPaintOutsets], the steps' own outsets, or insets of its own; never modified. */
     internal val heldPaintOutsets: Insets,
     /** The records of the Foundation container holding the component; null under any other parent. */
     internal val parentMeasurables: ChildMeasurables?,
@@ -34,18 +39,55 @@ public class Decoration internal constructor(
     public val isDecorated: Boolean get() = !steps.isEmpty
 
     /**
-     * Whether [component], painted through this decoration, still covers every pixel of its bounds: `false` where a
-     * step paints translucently, cuts the content ([Decorator.isOpaque]) or paints at a box smaller than the layout
-     * bounds. The steps' own opacity is the one the library last gathered; the boxes are read at each call.
+     * Whether [component], painted through this decoration, still covers every pixel of its bounds: `false` where it
+     * has paint outsets, or where a step paints translucently, cuts the content ([Decorator.isOpaque]) or paints at a
+     * box smaller than the layout bounds. The steps' own opacity is the one the library last gathered; the boxes are
+     * read at each call.
      */
     public fun isOpaque(component: Component): Boolean =
         heldPaintOutsets == NoPaintOutsets && hasOpaqueSteps &&
             steps.paintsAtLayoutBox(component.width, component.height)
 
     /**
+     * How far the component paints past its layout bounds on each side; a new [Insets] the caller owns. None under a
+     * parent that is not a Foundation container.
+     */
+    public fun paintOutsets(): Insets =
+        Insets(heldPaintOutsets.top, heldPaintOutsets.left, heldPaintOutsets.bottom, heldPaintOutsets.right)
+
+    /**
+     * [component]'s layout bounds in its own coordinates: its bounds less the paint outsets; a new [Rectangle]. Named
+     * as `SwingUtilities.getLocalBounds` is.
+     */
+    public fun localLayoutBounds(component: Component): Rectangle =
+        Rectangle(heldPaintOutsets.left, heldPaintOutsets.top, layoutWidth(component), layoutHeight(component))
+
+    /** [base] plus the paint outsets: [base] itself where there are none, otherwise a new [Insets]. */
+    public fun insets(base: Insets): Insets =
+        if (heldPaintOutsets == NoPaintOutsets) base else insets(base, Insets(0, 0, 0, 0))
+
+    /**
+     * Writes [base] plus the paint outsets into [into] and returns it: what `getInsets(Insets)` answers without
+     * allocating. [base] may be [into]; a border's own [Insets] passed as [base] is left unchanged.
+     */
+    public fun insets(
+        base: Insets,
+        into: Insets,
+    ): Insets {
+        val outsets = heldPaintOutsets
+        into.set(
+            base.top + outsets.top,
+            base.left + outsets.left,
+            base.bottom + outsets.bottom,
+            base.right + outsets.right,
+        )
+        return into
+    }
+
+    /**
      * Paints [content], the component itself in its own coordinates, through the decoration. The steps paint at the
-     * layout bounds, and a layout modifier's own decorator at the box of that modifier. Without a clip on [graphics],
-     * as in a capture or a print, the whole component is painted.
+     * layout bounds. Without a clip on [graphics], as in a
+     * capture or a print, the whole component is painted.
      *
      * @throws IllegalArgumentException where a decorated component is handed a graphics that is not a Graphics2D.
      */
@@ -83,7 +125,7 @@ public class Decoration internal constructor(
 
     /**
      * Whether ([x], [y]), in [component]'s coordinates, hits it: inside the layout bounds, as its placement layers
-     * rotate, scale and clip them.
+     * rotate, scale and clip them. The paint outsets, such as a shadow's, are not hit.
      */
     public fun contains(
         component: Component,
@@ -129,8 +171,49 @@ public class Decoration internal constructor(
 }
 
 /**
+ * A decorator that works out its own paint bounds for the component's own transformed content.
+ */
+internal interface PaintBoundsDecorator {
+    /** Whether its paint bounds now differ from those its outsets alone give. */
+    fun ownsPaintBounds(
+        width: Int,
+        height: Int,
+    ): Boolean = true
+
+    fun paintBounds(
+        content: Shape,
+        width: Int,
+        height: Int,
+    ): Shape
+}
+
+/** The paint bounds over [content] of this decorator painting at a box of [width] by [height] at the origin. */
+internal fun Decorator.paintBounds(
+    content: Shape,
+    width: Int,
+    height: Int,
+): Shape =
+    when (this) {
+        is PaintBoundsDecorator -> paintBounds(content, width, height)
+        else -> content.outsetBy(outsets)
+    }
+
+/** The bounds of this shape grown by [outsets] on each side; this shape itself where [outsets] is none. */
+internal fun Shape.outsetBy(outsets: Insets): Shape {
+    if (outsets == NoPaintOutsets) return this
+    val bounds = bounds2D
+    return Rectangle2D.Double(
+        bounds.x - outsets.left,
+        bounds.y - outsets.top,
+        bounds.width + outsets.left + outsets.right,
+        bounds.height + outsets.top + outsets.bottom,
+    )
+}
+
+/**
  * This component's layout bounds, in its parent's layout coordinates; a new [Rectangle]. A component that is not
- * [Decoratable] takes its bounds as its layout bounds.
+ * [Decoratable] takes its bounds as its layout bounds. A Foundation parent moves the child's layout origin by its own
+ * paint outsets; any other parent places its children against `getInsets()`, which carry its outsets already.
  */
 internal val Component.layoutBounds: Rectangle
     get() {

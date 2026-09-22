@@ -15,6 +15,7 @@ import org.jetbrains.compose.swing.node.SwingNode
 import java.awt.Dimension
 import java.awt.Graphics
 import java.awt.Graphics2D
+import java.awt.Insets
 import java.awt.Rectangle
 import java.awt.RenderingHints
 import javax.accessibility.AccessibleContext
@@ -53,7 +54,8 @@ public val DefaultCanvasRenderingHints: Map<RenderingHints.Key, Any> =
  * declares. The surface is non-opaque and paints no background of its own: only what [onDraw] renders
  * appears.
  * Size it with the preferred-size modifier (see
- * [org.jetbrains.compose.swing.modifier.layout.preferredSize]); without one it asks only for its insets.
+ * [org.jetbrains.compose.swing.modifier.layout.preferredSize]); without one it asks only for the paint outsets its
+ * decoration needs.
  *
  * @param modifier the [SwingModifier] applied to the underlying component.
  * @param renderingHints optional [RenderingHints] configured on the surface's [Graphics2D], defaulting
@@ -174,6 +176,11 @@ private class CanvasComponent :
         x: Int,
         y: Int,
     ): Boolean = decoration.contains(this, x, y)
+
+    override fun getInsets(): Insets = decoration.insets(super.getInsets())
+
+    override fun getInsets(insets: Insets?): Insets =
+        decoration.insets(super.getInsets(insets), insets ?: Insets(0, 0, 0, 0))
 
     override fun paint(g: Graphics) = decoration.paint(this, g, paintContent)
 

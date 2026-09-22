@@ -40,8 +40,11 @@ public fun interface Decorator {
     )
 
     /**
-     * How far this decorator paints past the content's box; nothing by default, and never negative. What is
-     * painted past the component's bounds is clipped.
+     * How far this decorator paints past the content's box; nothing by default, and never negative.
+     *
+     * These are paint outsets and take no layout space. Only a Foundation container gives paint outsets: the
+     * component's bounds grow by them while its layout bounds stay. Under any other parent there are none, and
+     * what is painted past the bounds is clipped.
      *
      * Callers read the value and never modify it, so it may be shared.
      */

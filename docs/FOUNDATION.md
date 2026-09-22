@@ -444,7 +444,9 @@ inside earlier ones. Unlike the layout modifiers in [Scoped modifiers](#scoped-m
 refuses them with an error naming `Decoratable`;
 [Making a component decoratable](#making-a-component-decoratable) opts a component of your own in.
 
-A decoration paints inside the component's bounds, and a padding, in either order, sits outside them.
+A component's own decoration can paint beyond its layout bounds. A Foundation parent fits its Swing bounds around
+those paint outsets, so siblings do not move; under another parent, the component has no paint outsets. A placement
+layer also reserves the bounds of its own transformed content.
 
 - `background(color)` without a shape is the Swing property; pass a `Shape` or a `Brush` for the decoration.
 - A `clip` declared before a `border` only cuts its line; pass the clip's shape to the border for the line to
@@ -491,8 +493,9 @@ decoration declared before the node paints outside the layer, and one declared a
 node paints through its `decorator` or with a layer, not both. Placing the child without a layer on a later pass
 removes the layer.
 
-The child must be `Decoratable`: the first placement with a layer fails with `IllegalStateException` otherwise.
-What a layer paints past the child's bounds is clipped at them.
+The child must be `Decoratable`: the first placement with a layer fails with `IllegalStateException` otherwise. A
+placement layer reserves the bounds of its own transformed content; overflowing child content is handled by the parent
+container.
 
 ### Writing a decorator or draw node
 
@@ -537,6 +540,7 @@ component stores it and applies it, as it applies its `Border`:
 import org.jetbrains.compose.swing.foundation.graphics.Decoratable
 import org.jetbrains.compose.swing.foundation.graphics.Decoration
 import java.awt.Graphics
+import java.awt.Insets
 import javax.swing.JComponent
 -->
 
@@ -547,6 +551,23 @@ class Card :
     override var decoration: Decoration = Decoration.None
 
     override fun paint(g: Graphics) = decoration.paint(this, g) { super.paint(it) }
+
+    override fun paintComponent(g: Graphics) {
+        if (!super.isOpaque()) return
+        val bounds = decoration.localLayoutBounds(this)
+        g.color = background
+        g.fillRect(bounds.x, bounds.y, bounds.width, bounds.height)
+    }
+
+    override fun paintBorder(g: Graphics) {
+        val bounds = decoration.localLayoutBounds(this)
+        border?.paintBorder(this, g, bounds.x, bounds.y, bounds.width, bounds.height)
+    }
+
+    override fun getInsets(): Insets = decoration.insets(super.getInsets())
+
+    override fun getInsets(insets: Insets?): Insets =
+        decoration.insets(super.getInsets(insets), insets ?: Insets(0, 0, 0, 0))
 
     override fun contains(
         x: Int,
@@ -559,15 +580,24 @@ class Card :
 
 <!--- KNIT example-foundation-decoratable-01.kt -->
 
-The decoration contract is the `decoration` property plus three overrides: `paint`, `contains` and `isOpaque`. The
-component's sizes answer as for any Swing component, and its decoration is clipped at its bounds. A container adds
-`override fun isPaintingOrigin(): Boolean = decoration.isDecorated`, as `JLayer` does, so a child repainting itself
-alone is painted through the decoration. Its children can declare decorations regardless of what scope, if any, the
-container hands its content.
+The decoration contract includes `paint`, `paintComponent`, `paintBorder`, both `getInsets` overloads, `contains` and
+`isOpaque`. The component's sizes answer as for any Swing component; the paint outsets are part of its insets, and a
+size set on it answers as set. Its background and border use `localLayoutBounds` so they stay inside the layout bounds.
+A container adds `override fun isPaintingOrigin(): Boolean = decoration.isDecorated`, as `JLayer` does, so a child
+repainting itself alone is painted through the decoration.
 
 ## The layout pipeline
 
 A constraint-based container runs androidx's layout phases inside Swing's validate and paint cycles.
+
+### Paint bounds
+
+The layout bounds are what measurement, placement, alignment, callbacks and hit testing see. Paint outsets describe how
+far a component's own decoration paints beyond those bounds. A Foundation parent fits the component's Swing bounds
+around the layout bounds and reports the outsets through `getInsets()`. `Decoration.paintOutsets()` returns a copy of
+the outsets, `localLayoutBounds(component)` returns the layout box in the component's coordinates, and
+`insets(base)` adds the outsets to existing border insets. Under a Swing parent, a component has no paint outsets and
+its layout bounds are its Swing bounds.
 
 ### Phases
 

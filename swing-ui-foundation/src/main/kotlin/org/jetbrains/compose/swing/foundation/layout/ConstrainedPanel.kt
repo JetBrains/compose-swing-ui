@@ -3,10 +3,10 @@ package org.jetbrains.compose.swing.foundation.layout
 import androidx.compose.runtime.snapshots.Snapshot
 import org.jetbrains.compose.swing.foundation.graphics.Decoratable
 import org.jetbrains.compose.swing.foundation.graphics.Decoration
-import org.jetbrains.compose.swing.foundation.graphics.DecorationSteps
 import java.awt.Component
 import java.awt.Dimension
 import java.awt.Graphics
+import java.awt.Insets
 import java.awt.Rectangle
 import javax.accessibility.Accessible
 import javax.accessibility.AccessibleContext
@@ -54,19 +54,17 @@ internal open class ConstrainedPanel(
         y: Int,
     ): Boolean = decoration.contains(this, x, y)
 
+    override fun getInsets(): Insets = decoration.insets(super.getInsets())
+
+    override fun getInsets(insets: Insets?): Insets =
+        decoration.insets(super.getInsets(insets), insets ?: Insets(0, 0, 0, 0))
+
     override fun isOpaque(): Boolean = super.isOpaque() && decoration.isOpaque(this)
 
-    /**
-     * A child repainting itself alone would otherwise be painted around this panel's decoration; see
-     * [paintImmediately].
-     */
+    /** A child repainting itself alone is painted through this panel when it declares a decoration. */
     public override fun isPaintingOrigin(): Boolean = decoration.isDecorated
 
-    /**
-     * Paints the whole panel while a layer rotates or scales it, since a repaint a descendant asks for names the area
-     * it would take unturned and unscaled. Otherwise, it paints the area grown by the decoration's outsets, which a
-     * blur or a shadow spreads a change in the area into.
-     */
+    /** Paints the changed area grown by this panel's own decoration outsets. */
     override fun paintImmediately(
         x: Int,
         y: Int,
@@ -76,7 +74,6 @@ internal open class ConstrainedPanel(
         val steps = decoration.steps
         if (steps.isTransformed) return super.paintImmediately(0, 0, width, height)
         val reach = steps.outsets
-        // Not the Rectangle overload, which calls back here.
         super.paintImmediately(
             x - reach.left,
             y - reach.top,
@@ -159,7 +156,7 @@ internal open class ConstrainedPanel(
      * change of z-order needs no layout.
      */
     override fun invalidate() {
-        if (policyLayout.measurables.isPlacingAgain) return
+        if (policyLayout.measurables.run { isPlacingAgain || isFittingPaintOutsets }) return
         super.invalidate()
     }
 
@@ -201,7 +198,7 @@ internal open class ConstrainedPanel(
         get() {
             val result = policyLayout.measurables.measured
             if (isPreferredSizeSet || result == null) return emptyMap()
-            val insets = getInsets()
+            val insets = borderInsets()
             return policyLayout.measurables.alignmentLinesOf(
                 result,
                 insets.left,
@@ -232,7 +229,7 @@ internal open class ConstrainedPanel(
      */
     private fun content(): Scrollable? = if (componentCount == 1) getComponent(0) as? Scrollable else null
 
-    /** The one scrollable child's answer plus this panel's insets, so a border around it is not clipped. */
+    /** The one scrollable child's answer plus this panel's insets, so a border or a shadow around it is not clipped. */
     override fun getPreferredScrollableViewportSize(): Dimension {
         val content = content()?.preferredScrollableViewportSize ?: return preferredSize
         val insets = insets
@@ -272,54 +269,6 @@ internal open class ConstrainedPanel(
 internal inline fun Component.fillsViewport(side: (Dimension) -> Int): Boolean {
     val viewport = parent as? JViewport ?: return false
     return side(viewport.size) > side(preferredSize)
-}
-
-/**
- * This value with [steps], [hasOpaqueSteps] and the links; this value itself where every field is unchanged, and the
- * shared [Decoration.None] where it has no steps and no links.
- */
-internal fun Decoration.fitted(
-    steps: DecorationSteps = this.steps,
-    hasOpaqueSteps: Boolean = this.hasOpaqueSteps,
-    parentMeasurables: ChildMeasurables? = this.parentMeasurables,
-    childMeasurables: ChildMeasurables? = this.childMeasurables,
-): Decoration =
-    when {
-        holds(steps, hasOpaqueSteps, parentMeasurables, childMeasurables) -> this
-        Decoration.None.holds(steps, hasOpaqueSteps, parentMeasurables, childMeasurables) -> Decoration.None
-        else -> Decoration(steps, heldPaintOutsets, parentMeasurables, childMeasurables, hasOpaqueSteps)
-    }
-
-/** Whether this value holds [steps], [hasOpaqueSteps] and the links [parentMeasurables] and [childMeasurables]. */
-private fun Decoration.holds(
-    steps: DecorationSteps,
-    hasOpaqueSteps: Boolean,
-    parentMeasurables: ChildMeasurables?,
-    childMeasurables: ChildMeasurables?,
-): Boolean =
-    steps == this.steps &&
-        hasOpaqueSteps == this.hasOpaqueSteps &&
-        parentMeasurables === this.parentMeasurables &&
-        childMeasurables === this.childMeasurables
-
-/**
- * Writes this component's decoration with [parentMeasurables] and [childMeasurables] as its links, where they
- * differ.
- */
-internal fun Decoratable.linkTo(
-    parentMeasurables: ChildMeasurables? = decoration.parentMeasurables,
-    childMeasurables: ChildMeasurables? = decoration.childMeasurables,
-) {
-    val held = decoration
-    if (parentMeasurables === held.parentMeasurables && childMeasurables === held.childMeasurables) return
-    decoration =
-        Decoration(
-            held.steps,
-            held.heldPaintOutsets,
-            parentMeasurables,
-            childMeasurables,
-            held.hasOpaqueSteps,
-        )
 }
 
 /** Reads behind the container's own pixels; its children's paint is observed by each child. */

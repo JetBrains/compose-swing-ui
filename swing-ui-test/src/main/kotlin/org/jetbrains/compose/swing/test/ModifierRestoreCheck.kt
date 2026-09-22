@@ -25,6 +25,11 @@ import java.util.IdentityHashMap
  * [RestorePolicy.DeclaredPropertyOnly] for the one property the element declares. What such an element
  * writes is recorded like any other write, so a property it goes on declaring is not owed by a slot
  * leaving beside it.
+ *
+ * Only the insets can move with no modifier writing them and still be owed by no slot: a component's
+ * paint outsets derive them. They are read again right before each write or restore on the component,
+ * and insets found away from where the last of them left them are owed by no departing slot until
+ * their record is dropped. The cost is that a missed restore of the insets then goes unreported.
  */
 internal class ModifierRestoreCheck(
     private val report: (Throwable) -> Unit,
@@ -47,9 +52,8 @@ internal class ModifierRestoreCheck(
         node: SwingModifier.ComponentNode<*>,
         restore: () -> Unit,
     ) {
-        restore()
-        val watch = watched[component] ?: return
-        watch.left(node)?.let(report)
+        val watch = watched[component] ?: return restore()
+        watch.left(node, restore)?.let(report)
         if (watch.holdsNothing) watched.remove(component)
     }
 }
@@ -71,6 +75,12 @@ private class WatchedComponent(
 
     /** What each watched property stood at before the first of the slots writing it wrote. */
     private val found = HashMap<String, Any?>()
+
+    /** The recorded insets, where something other than a modifier write moved them; no departing slot owes them. */
+    private val movedElsewhere = HashSet<String>()
+
+    /** What every watched property stood at after the last write or restore, or `null` where that read failed. */
+    private var seen: Map<String, Any?>? = null
 
     /** The live slots, each under the properties its writes have landed on. */
     private val slots = IdentityHashMap<SwingModifier.ComponentNode<*>, WritingSlot>()
@@ -94,11 +104,12 @@ private class WatchedComponent(
         element: SwingModifier.NodeElement<*, *>,
         write: () -> Unit,
     ) {
-        val before = read()
+        val before = readBeforeChange()
         write()
         val slot = slots.getOrPut(node) { WritingSlot(element) }
-        if (before == null) return
-        val after = read() ?: return
+        seen = before?.let { read() }
+        val after = seen
+        if (before == null || after == null) return
         val held = element.heldProperties
         for ((property, value) in after) {
             if (property !in held && value == before[property]) continue
@@ -108,14 +119,20 @@ private class WatchedComponent(
     }
 
     /**
-     * Records that the slot [node] holds has left, its restore already run, and answers what it left
-     * standing away from where the modifier found it - or `null` where it left nothing.
+     * Runs the [restore] of the slot [node] holds, records that the slot has left, and answers what it
+     * left standing away from where the modifier found it - or `null` where it left nothing.
      *
      * Only a property no live slot writes any more is answered for. What stands in a property another
      * slot still writes is that slot's declaration, and the value the modifier found is owed only once
      * the last of them has left.
      */
-    fun left(node: SwingModifier.ComponentNode<*>): AssertionError? {
+    fun left(
+        node: SwingModifier.ComponentNode<*>,
+        restore: () -> Unit,
+    ): AssertionError? {
+        val before = readBeforeChange()
+        restore()
+        seen = before?.let { read() }
         val slot = slots.remove(node) ?: return null
         val element = slot.element
         val last = slot.wrote.filter { property -> slots.values.none { property in it.wrote } }
@@ -125,13 +142,17 @@ private class WatchedComponent(
                 element.restores == RestorePolicy.DeclaredPropertyOnly -> last.filter { it == element.name }
                 else -> last
             }
-        val standing = if (owed.isEmpty()) emptyMap() else read()
         val wrong =
-            standing
+            seen
                 ?.let { values ->
-                    owed.filter { values[it] != found[it] }.map { "  $it: found <${found[it]}>, left <${values[it]}>" }
+                    owed
+                        .filter { it !in movedElsewhere && values[it] != found[it] }
+                        .map { "  $it: found <${found[it]}>, left <${values[it]}>" }
                 }.orEmpty()
-        last.forEach(found::remove)
+        for (property in last) {
+            found.remove(property)
+            movedElsewhere.remove(property)
+        }
         return if (wrong.isEmpty()) {
             null
         } else {
@@ -140,6 +161,19 @@ private class WatchedComponent(
                     "${component.javaClass.name} where its modifier did not find it.\n" + wrong.joinToString("\n"),
             )
         }
+    }
+
+    /**
+     * Reads [component] ahead of a write or restore, and marks the recorded insets if they moved since
+     * the last of them.
+     */
+    private fun readBeforeChange(): Map<String, Any?>? {
+        val now = read()
+        val last = seen
+        if (now != null && last != null) {
+            if ("insets" in found && now["insets"] != last["insets"]) movedElsewhere += "insets"
+        }
+        return now
     }
 
     /**

@@ -150,13 +150,12 @@ class DecorationModifierNodeTest {
             val thrown = ArrayList<String>()
             setContent {
                 SwingNode(
-                    factory = { DecoratedPanel() },
+                    factory = { DecoratedPanel().apply { background = Color.RED } },
                     modifier =
                         SwingModifier
                             .testTag("panel")
                             .preferredSize(Dimension(32, 32))
                             .then(DecoratorElement(if (failing) null else Cut()))
-                            .then(DecoratorElement(Fill(Color.RED)))
                             .then(FailingToUpdate(failing, thrown)),
                 )
             }

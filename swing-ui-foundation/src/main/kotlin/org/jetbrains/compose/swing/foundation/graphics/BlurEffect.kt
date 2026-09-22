@@ -62,7 +62,7 @@ public class BlurEffect(
     /** See [smallestReducedRadiusX]: the same, for [radiusY]. */
     private val smallestReducedRadiusY: Int = maxOf(2, ceilDiv(radiusY.roundToInt(), MAX_REDUCTION))
 
-    /** The op for a recording at a scale of `1.0`. */
+    /** The op for a recording at a scale of `1.0`, whose outsets the blur and shadow modifiers reserve. */
     private val unscaledOp: BlurOp by lazy(LazyThreadSafetyMode.PUBLICATION) { newOp(1.0) }
 
     /** The op last made for another scale, which a layer asks for its outsets and then applies. */

@@ -43,7 +43,9 @@ import java.awt.Shape as AwtShape
  * other than [RectangleShape] is drawn with an antialiased edge. A clip declared before the border only cuts the
  * line; declare the clip's shape here for the line to follow it.
  *
- * It is painted after the content so a look and feel's own fill cannot wipe it.
+ * It reserves no space, as AndroidX's `border` does not: space between two lines is a
+ * [padding][org.jetbrains.compose.swing.foundation.layout.padding] declared between them. It is painted after the
+ * content so a look and feel's own fill cannot wipe it.
  *
  * This is a decoration step, not Swing's border property: it paints where it is declared among the decorations,
  * and a look and feel never replaces it.

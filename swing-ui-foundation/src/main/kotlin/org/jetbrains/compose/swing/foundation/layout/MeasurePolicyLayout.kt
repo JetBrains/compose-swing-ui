@@ -11,6 +11,7 @@ import java.awt.Component
 import java.awt.ComponentOrientation
 import java.awt.Container
 import java.awt.Dimension
+import java.awt.Insets
 import java.awt.LayoutManager2
 import java.awt.Rectangle
 import java.util.EnumSet
@@ -76,6 +77,7 @@ internal class MeasurePolicyLayout(
         measurables.updateParentData(component, constraints)
         val measurable = measurables.of(component)
         measurable.decoratable?.linkTo(parentMeasurables = measurables)
+        if (isNotPlaced) measurable.unplace(joining = true)
     }
 
     override fun addLayoutComponent(
@@ -148,7 +150,7 @@ internal class MeasurePolicyLayout(
     /**
      * Whether this container is not placed, as its own Foundation parent's record of it says: left unplaced, or inside
      * a container left unplaced. Such a container lays nothing out, as androidx places nothing under a node its parent
-     * leaves unplaced, so it keeps its stacking order as it was.
+     * leaves unplaced, so it keeps its paint outsets and stacking order as they were.
      */
     private val isNotPlaced: Boolean
         get() {
@@ -164,7 +166,7 @@ internal class MeasurePolicyLayout(
             return
         }
         val panel = measurables.panel
-        val insets = panel.insets
+        val insets = panel.borderInsets()
         val width = innerExtent(panel.decoration.layoutWidth(panel), insets.left, insets.right)
         val height = innerExtent(panel.decoration.layoutHeight(panel), insets.top, insets.bottom)
         // A placement read's pass over a container still valid places its latest result at the size it holds again,
@@ -222,7 +224,24 @@ private fun innerExtent(
 /** [this] plus [amount], held between zero and the largest extent the geometry APIs can represent. */
 internal fun Int.grownBy(amount: Int): Int = (toLong() + amount).coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
 
-internal enum class RunningCause { ParentPlacement, PlacementReplay, ChildInvalidation }
+internal enum class RunningCause { ParentPlacement, PlacementReplay, PaintOutsetFit, ChildInvalidation }
+
+/**
+ * Sets this component's bounds to the layout bounds at ([x], [y]) in its parent's coordinates, [width] by [height],
+ * grown by [outsets] on each side.
+ */
+internal fun Component.setBoundsAround(
+    x: Int,
+    y: Int,
+    width: Int,
+    height: Int,
+    outsets: Insets,
+) = setBounds(
+    x - outsets.left,
+    y - outsets.top,
+    width.grownBy(outsets.left + outsets.right),
+    height.grownBy(outsets.top + outsets.bottom),
+)
 
 /**
  * One container's children as its policy sees them, and the two ways that policy is run over them: for
@@ -288,10 +307,13 @@ internal class ChildMeasurables(
     private val runningCauses = EnumSet.noneOf(RunningCause::class.java)
 
     /** Whether the invalidation arriving is the one this container's own parent causes by placing it. */
-    private val beingPlaced: Boolean get() = RunningCause.ParentPlacement in runningCauses
+    val beingPlaced: Boolean get() = RunningCause.ParentPlacement in runningCauses
 
     /** Whether this container places its children again outside a validation. */
     val isPlacingAgain: Boolean get() = RunningCause.PlacementReplay in runningCauses
+
+    /** Whether this container fits its own bounds, or a child's, to a paint outsets change. */
+    val isFittingPaintOutsets: Boolean get() = RunningCause.PaintOutsetFit in runningCauses
 
     /** The Swing size query [askedSize] is answering, which picks the intrinsic hooks [askBlock] runs. */
     var mode: MeasureMode = MeasureMode.Preferred
@@ -329,7 +351,11 @@ internal class ChildMeasurables(
     /** Whether a child was placed at a z-index other than the one it was last placed with. */
     var zIndexChanged: Boolean = false
 
-    /** Gives up the measurable for [child], for a child leaving the container, and the child's link to it. */
+    /**
+     * Gives up the measurable for [child], for a child leaving the container, which leaves it with no paint outsets.
+     * Where it had some, it is revalidated, so it is sized and laid out without them. Its next parent may keep its
+     * bounds and give it other layout bounds, so it posts a move event.
+     */
     fun forget(child: Component) {
         val measurable = measurables.remove(child) ?: return
         layoutPass.remove(measurable)
@@ -339,11 +365,14 @@ internal class ChildMeasurables(
                 held.steps.containerLayer?.placedWithoutLayer()
                 val steps = held.steps.inContainerLayer(null)
                 val opaque = if (steps === held.steps) held.hasOpaqueSteps else steps.isOpaque
-                it.decoration = held.fitted(steps, opaque, parentMeasurables = null)
+                val value = held.fitted(child, steps, opaque, parentMeasurables = null)
+                it.decoration = value
+                if (value.heldPaintOutsets != held.heldPaintOutsets) child.revalidate()
             }
         }
         measurable.forEachLayoutNode { if (it.child === measurable) it.child = null }
         measurable.show()
+        child.postComponentMoved()
         measured = null
     }
 
@@ -391,7 +420,7 @@ internal class ChildMeasurables(
      * then assigns, which is what `layoutContainer` runs.
      */
     fun measuredSize(constraints: Constraints): Dimension {
-        val insets = panel.insets
+        val insets = panel.borderInsets()
         val horizontal = insets.left.grownBy(insets.right)
         val vertical = insets.top.grownBy(insets.bottom)
         val result = measureObserved(constraints.offset(-horizontal, -vertical), MeasuredReads)
@@ -400,7 +429,8 @@ internal class ChildMeasurables(
     }
 
     /**
-     * What the policy asks for in [mode], plus the panel's insets, as any Swing layout manager adds them.
+     * What the policy asks for in [mode], plus the panel's insets, its paint outsets included, as any Swing layout
+     * manager adds them.
      *
      * Swing asks for both axes at once and supplies no cross-axis extent. It therefore combines the
      * two matching CMP intrinsic hooks with an unbounded opposite axis: min hooks for a Swing
@@ -580,7 +610,7 @@ internal class ChildMeasurable(
 
     // Each reads the field once rather than through a safe call, which would box the Int it answers.
     override fun minIntrinsicWidth(height: Int): Int {
-        val outer = outerMeasurable ?: return component.minimumSize.width
+        val outer = outerMeasurable ?: return layoutMinimumSize.width
         return outer.minIntrinsicWidth(height)
     }
 
@@ -590,7 +620,7 @@ internal class ChildMeasurable(
     }
 
     override fun minIntrinsicHeight(width: Int): Int {
-        val outer = outerMeasurable ?: return component.minimumSize.height
+        val outer = outerMeasurable ?: return layoutMinimumSize.height
         return outer.minIntrinsicHeight(width)
     }
 
@@ -711,7 +741,7 @@ internal class ChildMeasurable(
     /** Records this child placed again where [hide] or [unplace] left it unplaced, and shows it where either hid it. */
     fun show() {
         if (lastPlacement == ChildPlacement.Placed) return
-        val hidden = lastPlacement == ChildPlacement.Hidden
+        val hidden = lastPlacement == ChildPlacement.Hidden || lastPlacement == ChildPlacement.JoinedUnplacedContainer
         lastPlacement = ChildPlacement.Placed
         if (hidden) {
             // Shown, the child revalidates itself as well as its parent, and both keep what they settled on.
@@ -729,7 +759,7 @@ internal class ChildMeasurable(
 }
 
 private fun ChildMeasurable.preferredExtent(): Dimension =
-    preferred?.takeIf { component.isValid } ?: component.preferredSize.also { preferred = it }
+    preferred?.takeIf { component.isValid } ?: layoutPreferredSize.also { preferred = it }
 
 /**
  * [ChildMeasurable.decoratable], or throws where [ChildMeasurable.component] does not paint through a decoration.
@@ -760,11 +790,11 @@ private class UnmodifiedChildMeasurable(
 
     override fun measure(constraints: Constraints): Placeable = child.measureUnmodified(constraints)
 
-    override fun minIntrinsicWidth(height: Int): Int = child.component.minimumSize.width
+    override fun minIntrinsicWidth(height: Int): Int = child.layoutMinimumSize.width
 
     override fun maxIntrinsicWidth(height: Int): Int = child.preferredExtent().width
 
-    override fun minIntrinsicHeight(width: Int): Int = child.component.minimumSize.height
+    override fun minIntrinsicHeight(width: Int): Int = child.layoutMinimumSize.height
 
     override fun maxIntrinsicHeight(width: Int): Int = child.preferredExtent().height
 
@@ -799,7 +829,7 @@ private class UnmodifiedIntrinsicPlaceable(
         y: Long,
     ): Int {
         if (alignmentLine !== FirstBaseline) return AlignmentLine.UNSPECIFIED
-        val baseline = child.component.getBaseline(measuredWidth, measuredHeight)
+        val baseline = child.layoutBaseline(measuredWidth, measuredHeight)
         return if (baseline < 0) AlignmentLine.UNSPECIFIED else saturateLineCoordinate(y + baseline)
     }
 }
@@ -893,17 +923,14 @@ internal class ChildPlaceable(
         val placedAgain = child.lastPlacement != ChildPlacement.Placed
         // Where this child is already visible, showing it below reports nothing on its own: it owes this report itself.
         val reportsOwnPlacement = placedAgain && component.isVisible
+        // Shown before its bounds are set, so fitting them to its paint outsets counts the child placed.
         child.show()
         val placedX = saturateLayoutCoordinate(x + centeredOverflowOffset(width, measuredWidth))
         val placedY = saturateLayoutCoordinate(y + centeredOverflowOffset(height, measuredHeight))
+        // At the outsets the child holds, which its container fits once the layout nodes around it are placed.
         val origin = child.owner.panel.decoration.heldPaintOutsets
         val outsets = child.decoratable?.decoration?.heldPaintOutsets ?: NoPaintOutsets
-        component.setBounds(
-            placedX + origin.left - outsets.left,
-            placedY + origin.top - outsets.top,
-            measuredWidth.grownBy(outsets.left + outsets.right),
-            measuredHeight.grownBy(outsets.top + outsets.bottom),
-        )
+        component.setBoundsAround(placedX + origin.left, placedY + origin.top, measuredWidth, measuredHeight, outsets)
         if (placedAgain) {
             // Ahead of the resize or move event setBounds posts, so that event finds nothing new to report.
             if (reportsOwnPlacement) component.reportPlacedAgain()
@@ -922,7 +949,7 @@ internal class ChildPlaceable(
         val lines = lines
         scope.merge(lines, x + centeredOverflowOffset(width, measuredWidth), originY)
         if (FirstBaseline in lines) return
-        val baseline = child.component.getBaseline(measuredWidth, measuredHeight)
+        val baseline = child.layoutBaseline(measuredWidth, measuredHeight)
         if (baseline >= 0) scope.merge(FirstBaseline, originY + baseline)
     }
 
@@ -954,7 +981,7 @@ internal class ChildPlaceable(
             }
 
             alignmentLine === FirstBaseline -> {
-                val baseline = child.component.getBaseline(measuredWidth, measuredHeight)
+                val baseline = child.layoutBaseline(measuredWidth, measuredHeight)
                 if (baseline < 0) AlignmentLine.UNSPECIFIED else baseline
             }
 
@@ -973,7 +1000,7 @@ internal class ChildPlaceable(
 private fun ChildMeasurable.preferredAtOldSize(): Dimension? =
     when {
         component.isDisplayable -> preferred
-        outerMeasurable == null -> component.preferredSize
+        outerMeasurable == null -> layoutPreferredSize
         else -> null
     }
 
@@ -1227,6 +1254,9 @@ internal class InnerPlacementScope : PlacementScope() {
             if (decoratable.decoration.steps.containerLayer !== layer) child.paintInContainerLayer(layer)
             if (changed) child.component.repaint()
         }
+        // The layout nodes and layers the paint outsets read have their boxes once every one around the child is
+        // placed.
+        child.owner.fitPaintOutsets(child)
     }
 
     /** Paints this child inside [layer], outside every step of its own modifier, or without such a layer for null. */
