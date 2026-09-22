@@ -41,15 +41,16 @@ class UnclippedPaintTest {
                     }
                 }
             setContent {
-                DecoratedCanvas(
-                    modifier = {
-                        SwingModifier
-                            .testTag("decorated")
-                            .preferredSize(48, 48)
-                            .decoration(offscreen)
-                            .blur(2)
-                    },
-                ) { drawRect(Color.RED) }
+                DecoratedBox {
+                    DecoratedCanvas(
+                        modifier =
+                            SwingModifier
+                                .testTag("decorated")
+                                .preferredSize(48, 48)
+                                .decoration(offscreen)
+                                .blur(2),
+                    ) { drawRect(Color.RED) }
+                }
             }
             val component = onNodeWithTag("decorated").fetch<JComponent>()
 
@@ -69,7 +70,7 @@ class UnclippedPaintTest {
             setContent {
                 Box {
                     DecoratedCanvas(
-                        modifier = { SwingModifier.testTag("decorated").preferredSize(48, 48).decorate() },
+                        modifier = SwingModifier.testTag("decorated").preferredSize(48, 48).decorate(),
                     ) {
                         drawRect(Color.RED)
                     }

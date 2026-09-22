@@ -81,7 +81,9 @@ public abstract class org/jetbrains/compose/swing/foundation/graphics/Decoration
 public abstract interface class org/jetbrains/compose/swing/foundation/graphics/Decorator {
 	public fun getOutsets ()Ljava/awt/Insets;
 	public fun isOpaque ()Z
+	public fun needsPaintBounds (II)Z
 	public abstract fun paint (Ljava/awt/Graphics2D;IILkotlin/jvm/functions/Function3;)V
+	public fun paintBounds (Ljava/awt/Shape;II)Ljava/awt/Shape;
 }
 
 public abstract class org/jetbrains/compose/swing/foundation/graphics/DrawModifierNode : org/jetbrains/compose/swing/foundation/graphics/DecorationModifierNode {

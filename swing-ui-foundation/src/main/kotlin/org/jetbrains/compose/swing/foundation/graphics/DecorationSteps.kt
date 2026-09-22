@@ -42,24 +42,16 @@ internal class DecorationSteps private constructor(
 
     val isEmpty: Boolean get() = decorators.isEmpty()
 
-    /** Whether own steps or a transform layer expand the layout bounds of [width] by [height]. */
+    /**
+     * Whether a step paints past the content, or transforms or clips what is inside it, at layout bounds of [width]
+     * by [height].
+     */
     fun needsPaintBounds(
         width: Int,
         height: Int,
     ): Boolean =
         outsets != NoPaintOutsets ||
-            decorators.fastAny { (it as? PaintBoundsDecorator)?.ownsPaintBounds(width, height) == true }
-
-    /** Grows [bounds] to this component's own paint bounds. */
-    fun growToPaintBounds(
-        bounds: Rectangle,
-        width: Int,
-        height: Int,
-    ) {
-        var painted: Shape = Rectangle(bounds)
-        for (index in decorators.size - 1 downTo 0) painted = decorators[index].paintBounds(painted, width, height)
-        bounds.setBounds(painted.bounds)
-    }
+            decorators.fastAny { it.needsPaintBounds(width, height) }
 
     /** Whether every step that paints at a layout node's box paints at layout bounds of [width] by [height]. */
     fun paintsAtLayoutBox(
@@ -141,6 +133,17 @@ internal class DecorationSteps private constructor(
         step(graphics, width, height, 0)
     }
 
+    /** Grows [bounds] to the paint bounds over them of every step, in place. */
+    fun growToPaintBounds(
+        bounds: Rectangle,
+        width: Int,
+        height: Int,
+    ) {
+        var painted: Shape = Rectangle(bounds)
+        for (index in decorators.size - 1 downTo 0) painted = decorators[index].paintBounds(painted, width, height)
+        bounds.setBounds(painted.bounds)
+    }
+
     override fun equals(other: Any?): Boolean =
         this === other || (other is DecorationSteps && decorators == other.decorators && outsets == other.outsets)
 
@@ -155,8 +158,9 @@ internal class DecorationSteps private constructor(
          * [steps][LayoutModifierNode.decorationStep] of the [LayoutModifierNode]s among [nodes], in order, inside
          * [containerLayer] where one is given.
          *
-         * A step paints at the component's layout bounds. A layout node's decorator paints at the node's own box, and
-         * its layer in the component's coordinates.
+         * A step declared before a layout node paints at the box of the first layout node declared after it; one
+         * declared after every layout node paints at the component's layout bounds. A layout node's decorator paints
+         * at the node's own box, and its layer in the component's coordinates.
          */
         fun of(
             nodes: List<SwingModifier.Node>,
@@ -166,9 +170,14 @@ internal class DecorationSteps private constructor(
             if (containerLayer != null) {
                 decorators += containerLayer
             }
+            // The steps declared since the last layout node, which paint at the next one's box.
+            var unboxed = decorators.size
             nodes.fastForEach { node ->
                 when (node) {
                     is LayoutModifierNode -> {
+                        for (index in unboxed until decorators.size) {
+                            decorators[index] = BoxedStep(decorators[index], node)
+                        }
                         val step = node.decorationStep
                         val layer = node.layerOrNull
                         if (step != null && step === layer) {
@@ -176,6 +185,7 @@ internal class DecorationSteps private constructor(
                         } else if (step != null) {
                             decorators += BoxedStep(step, node)
                         }
+                        unboxed = decorators.size
                     }
 
                     is DecorationModifierNode<*> -> {
@@ -195,7 +205,10 @@ private val Decorator.isAttached: Boolean get() = this !is SwingModifier.Node ||
 /**
  * A [decorator] painting at the [box][LayoutModifierNode.box] of [layoutNode], where a Foundation container places
  * the component through that node, and at the component's layout bounds otherwise. It hands on the component's own
- * coordinates and size. [decorator] is a layout node's own [LayoutModifierNode.decorator].
+ * coordinates and size. [decorator] is a [DecorationModifierNode] or a layout node's own
+ * [LayoutModifierNode.decorator]; one that works out its own paint bounds works them out at the box.
+ *
+ * It may paint past the component's layout bounds, into its paint outsets.
  */
 private class BoxedStep(
     val decorator: Decorator,
@@ -226,9 +239,29 @@ private class BoxedStep(
         return box.x == 0 && box.y == 0 && box.width == width && box.height == height
     }
 
+    override fun needsPaintBounds(
+        width: Int,
+        height: Int,
+    ): Boolean {
+        val box = box(width, height)
+        return box.x != 0 || box.y != 0 || box.width != width || box.height != height ||
+            decorator.needsPaintBounds(box.width, box.height)
+    }
+
     override val outsets: Insets get() = decorator.outsets
 
     override val isOpaque: Boolean get() = decorator.isOpaque
+
+    override fun paintBounds(
+        content: Shape,
+        width: Int,
+        height: Int,
+    ): Shape {
+        val box = box(width, height)
+        val bounds = content.bounds
+        bounds.translate(-box.x, -box.y)
+        return decorator.paintBounds(bounds, box.width, box.height).bounds.apply { translate(box.x, box.y) }
+    }
 
     override fun paint(
         graphics: Graphics2D,

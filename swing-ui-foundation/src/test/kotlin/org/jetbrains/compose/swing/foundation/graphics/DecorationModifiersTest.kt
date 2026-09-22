@@ -2,13 +2,11 @@ package org.jetbrains.compose.swing.foundation.graphics
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertAskedForNoLayout
 import org.jetbrains.compose.swing.assertAskedToRepaint
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.foundation.layout.Box
-import org.jetbrains.compose.swing.foundation.layout.Row
 import org.jetbrains.compose.swing.foundation.layout.lastElement
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.background
@@ -26,6 +24,8 @@ import java.awt.Insets
 import java.awt.geom.RoundRectangle2D
 import javax.swing.JComponent
 import javax.swing.SwingUtilities
+import kotlin.math.abs
+import kotlin.math.hypot
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -84,7 +84,7 @@ class DecorationModifiersTest {
                 "background(Color) writes the Swing property a look and feel honors; a Color is a Paint but " +
                     "not a Brush, so the call is not the decoration overload.",
             )
-            assertFalse(panel.decoration.isDecorated, "background(Color) declares no decoration.")
+            assertFalse(panel.isPaintingOrigin(), "background(Color) declares no decoration.")
         }
 
     @Test
@@ -155,6 +155,43 @@ class DecorationModifiersTest {
                 "A border decoration paints over the content rather than taking pixels off it, which is what " +
                     "the border slot does.",
             )
+        }
+
+    @Test
+    fun theShadowShortcutReservesTheOutsetsItsBlurNeeds() =
+        runComposeSwingTest {
+            setContent {
+                Box {
+                    DecoratedBox(
+                        modifier =
+                            SwingModifier
+                                .testTag("decorated-panel")
+                                .preferredSize(Dimension(64, 64))
+                                .opaque(false)
+                                .shadow(4, Color.BLACK)
+                                .background(Brush.of(Color.BLUE)),
+                    ) {
+                        Label(text = "child", modifier = SwingModifier.testTag("decorated-child"))
+                    }
+                }
+            }
+
+            val panel = onNodeWithTag("decorated-panel").fetch<JComponent>()
+            val child = onNodeWithTag("decorated-child").fetch<JComponent>()
+            val painted = onNodeWithTag("decorated-panel").captureToImage()
+
+            val reach = blurOutsets(4)
+            assertEquals(
+                Insets(reach, reach, reach, reach),
+                panel.insets,
+                "A shadow's paint outsets are reported in the insets, as a look and feel reports a focus ring.",
+            )
+            assertEquals(reach, child.x, "The layout origin stands the outsets inside the bounds.")
+            assertTrue(
+                painted.getRGB(reach - 1, 32) ushr 24 > 0,
+                "The shadow is cast into what it reserved.",
+            )
+            assertFalse(panel.isOpaque, "What the shadow reserved is only partly covered.")
         }
 
     @Test
@@ -317,18 +354,15 @@ class DecorationModifiersTest {
                 { SwingModifier.blur(4) },
                 { SwingModifier.shadow(4, Color.BLACK, offsetX = 1, offsetY = 2) },
             )
+        val rebuilt = declarations.map { it() to it() }
 
-        for (declare in declarations) {
-            assertEquals(
-                decorated(declare),
-                decorated(declare),
-                "A chain rebuilt from unchanged values is the same declaration.",
-            )
-            assertEquals(decorated(declare).hashCode(), decorated(declare).hashCode())
+        for ((first, second) in rebuilt) {
+            assertEquals(first, second, "A chain rebuilt from unchanged values is the same declaration.")
+            assertEquals(first.hashCode(), second.hashCode(), "Equal declarations share a hash code.")
         }
         assertEquals(
             declarations.size,
-            declarations.map { decorated(it) }.toSet().size,
+            rebuilt.map { it.first }.toSet().size,
             "Chains declaring different values are different declarations.",
         )
     }
@@ -370,77 +404,33 @@ class DecorationModifiersTest {
         }
 
     @Test
-    fun aClipRecomposedWithANewShapeAndAntialiasingCutsToThem() =
+    fun aShadowGrowsTheComponentRatherThanShrinkingItsContent() =
         runComposeSwingTest {
-            var shape: Shape by mutableStateOf(RectangleShape)
-            var antialias by mutableStateOf(false)
+            var drawn: Dimension? = null
             setContent {
                 Box {
-                    DecoratedBox(
+                    Canvas(
                         modifier =
                             SwingModifier
                                 .testTag("decorated-panel")
                                 .preferredSize(Dimension(64, 64))
-                                .opaque(false)
-                                .clip(shape, antialias)
-                                .background(Brush.of(Color.BLUE)),
-                    )
+                                .shadow(4, Color.BLACK),
+                    ) { _, width, height -> drawn = Dimension(width, height) }
                 }
             }
+            val canvas = onNodeWithTag("decorated-panel").fetch<JComponent>()
             onNodeWithTag("decorated-panel").captureToImage()
 
-            shape = CircleShape
-            antialias = true
-            awaitIdle()
-
-            val painted = onNodeWithTag("decorated-panel").captureToImage()
-            assertEquals(0, painted.getRGB(0, 0), "The corner lies outside the new circle and is cut away.")
-            assertTrue(
-                (painted.getRGB(9, 9) ushr 24) in 1..254,
-                "A pixel the circle's edge crosses is kept in part once the clip is antialiased.",
+            assertEquals(Dimension(64, 64), drawn, "A size asked of the component is the size its content still gets.")
+            assertEquals(
+                Dimension(64, 64),
+                canvas.preferredSize,
+                "A preferred size set on the component answers as set.",
             )
-        }
-
-    @Test
-    fun aShadowRecomposedWithNewValuesCastsWhatOneDeclaredWithThemCasts() =
-        runComposeSwingTest {
-            var radius by mutableIntStateOf(2)
-            var color by mutableStateOf(Color.RED)
-            var offset by mutableIntStateOf(0)
-            setContent {
-                Row {
-                    DecoratedBox(
-                        modifier =
-                            SwingModifier
-                                .testTag("recomposed")
-                                .preferredSize(Dimension(64, 64))
-                                .opaque(false)
-                                .shadow(radius, color, offsetX = offset, offsetY = offset)
-                                .clip(CircleShape)
-                                .background(Brush.of(Color.BLUE)),
-                    )
-                    DecoratedBox(
-                        modifier =
-                            SwingModifier
-                                .testTag("declared")
-                                .preferredSize(Dimension(64, 64))
-                                .opaque(false)
-                                .shadow(6, Color.GREEN, offsetX = 3, offsetY = 3)
-                                .clip(CircleShape)
-                                .background(Brush.of(Color.BLUE)),
-                    )
-                }
-            }
-            onNodeWithTag("recomposed").captureToImage()
-
-            radius = 6
-            color = Color.GREEN
-            offset = 3
-            awaitIdle()
-
-            assertImagesPixelPerfect(
-                onNodeWithTag("declared").captureToImage(),
-                onNodeWithTag("recomposed").captureToImage(),
+            assertEquals(
+                Dimension(64 + blurOutsets(4) * 2, 64 + blurOutsets(4) * 2),
+                canvas.size,
+                "The outsets the shadow needs are added around that size.",
             )
         }
 
@@ -474,4 +464,95 @@ class DecorationModifiersTest {
             "border must report its width, brush and shape",
         )
     }
+
+    @Test
+    fun anAntialiasedClipRecordedOffThePixelGridLeavesNothingOutsideItsOutline() =
+        runComposeSwingTest {
+            setContent {
+                Box {
+                    DecoratedBox(
+                        modifier =
+                            SwingModifier
+                                .testTag("decorated-panel")
+                                .preferredSize(Dimension(128, 128))
+                                .opaque(false)
+                                // The blur reduces its recording to a quarter scale, which puts the indented
+                                // content's edges a quarter of a reduced pixel off its grid on the left and top,
+                                // and three quarters on the right and bottom.
+                                .blur(8)
+                                .indent(1)
+                                .clip(CircleShape, antialias = true)
+                                .background(Brush.of(Color.BLUE)),
+                    )
+                }
+            }
+
+            val image = onNodeWithTag("decorated-panel").captureToImage()
+            val circle = (image.width - 2 * (blurOutsets(8) + 1)) / 2.0
+            val reach = circle + blurOutsets(8)
+            for (y in 0 until image.height) {
+                for (x in 0 until image.width) {
+                    val distance = hypot(x + 0.5 - image.width / 2.0, y + 0.5 - image.height / 2.0)
+                    if (distance > reach) {
+                        assertEquals(
+                            0,
+                            image.getRGB(x, y) ushr 24,
+                            "($x, $y) lies beyond the blur's reach of the circle, so no content edge shows there.",
+                        )
+                    }
+                }
+            }
+        }
+
+    @Test
+    fun aBlurFadesOutWithoutASharpLineOnAnyEdge() =
+        runComposeSwingTest {
+            var radius by mutableIntStateOf(1)
+            setContent {
+                Box {
+                    DecoratedBox(
+                        modifier =
+                            SwingModifier
+                                .testTag("decorated-panel")
+                                .preferredSize(Dimension(48, 48))
+                                .opaque(false)
+                                // Off the grid the blur reduces its recording onto, for every radius it reduces at.
+                                .blur(radius)
+                                .indent(1)
+                                .background(Brush.of(Color.BLUE)),
+                    )
+                }
+            }
+
+            for (value in 1..16) {
+                radius = value
+                awaitIdle()
+                val image = onNodeWithTag("decorated-panel").captureToImage()
+
+                fun alpha(
+                    x: Int,
+                    y: Int,
+                ): Int = if (x in 0 until image.width && y in 0 until image.height) image.getRGB(x, y) ushr 24 else 0
+
+                // A blurred edge rises no steeper than its Gaussian, whose steepest slope is about 0.8 / radius of
+                // full coverage per pixel; a line left sharp, or a halo cut short, is a steeper step.
+                val steepest = 255 * 1.2 / value
+                for (y in -1..image.height) {
+                    for (x in -1..image.width) {
+                        val across = abs(alpha(x + 1, y) - alpha(x, y))
+                        val down = abs(alpha(x, y + 1) - alpha(x, y))
+                        assertTrue(
+                            maxOf(across, down) <= steepest,
+                            "Blur $value steps by ${maxOf(across, down)} at ($x, $y), steeper than $steepest.",
+                        )
+                    }
+                }
+                val perimeter =
+                    (0 until image.width).flatMap { x -> listOf(x to 0, x to image.height - 1) } +
+                        (0 until image.height).flatMap { y -> listOf(0 to y, image.width - 1 to y) }
+                for ((x, y) in perimeter) {
+                    assertEquals(0, alpha(x, y), "Blur $value fades out before the edge, but not at ($x, $y).")
+                }
+            }
+        }
 }

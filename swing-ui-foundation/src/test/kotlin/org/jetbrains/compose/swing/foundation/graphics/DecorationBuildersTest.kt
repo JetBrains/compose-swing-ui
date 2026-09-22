@@ -1,22 +1,11 @@
 package org.jetbrains.compose.swing.foundation.graphics
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.modifier.SwingModifier
-import org.jetbrains.compose.swing.modifier.appearance.opaque
-import org.jetbrains.compose.swing.modifier.appearance.testTag
-import org.jetbrains.compose.swing.modifier.layout.preferredSize
-import org.jetbrains.compose.swing.node.SwingNode
-import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
-import org.jetbrains.compose.swing.test.screenshot.captureToImage
-import java.awt.AlphaComposite
 import java.awt.Color
-import java.awt.Dimension
 import java.awt.Graphics2D
+import java.awt.Insets
 import java.awt.RenderingHints
 import java.awt.geom.Area
 import java.awt.geom.Ellipse2D
@@ -33,10 +22,11 @@ import kotlin.test.assertTrue
 import java.awt.Shape as AwtShape
 
 /**
- * Behavioral tests for the built-in decorations: what each one paints.
+ * Behavioral tests for the built-in decorations: what each one paints, and what it reserves.
  *
- * Each chain is declared through the public modifiers on a composed component whose bounds are [SIZE] square, and
- * the content is a decoration declared after the chain. What is asserted is what the component shows.
+ * Each chain is declared through the public modifiers on a composed component whose bounds, paint outsets included, are
+ * [STAGE_SIZE] square, and the content is a decoration declared after the chain. What is asserted is what the component
+ * shows.
  */
 class DecorationBuildersTest {
     @Test
@@ -46,7 +36,7 @@ class DecorationBuildersTest {
 
             assertEquals(
                 Color.RED.rgb,
-                painted.getRGB(SIZE / 2, SIZE / 2),
+                painted.getRGB(STAGE_SIZE / 2, STAGE_SIZE / 2),
                 "The content should paint inside the circle.",
             )
             assertEquals(0, painted.getRGB(0, 0), "A corner lies outside the circle and should stay unpainted.")
@@ -66,10 +56,48 @@ class DecorationBuildersTest {
             )
             assertEquals(
                 Color.RED.rgb,
-                soft.getRGB(SIZE / 2, SIZE / 2),
+                soft.getRGB(STAGE_SIZE / 2, STAGE_SIZE / 2),
                 "What lies well inside the outline is untouched.",
             )
             assertEquals(0, soft.getRGB(0, 0), "What lies well outside it is still cut away.")
+        }
+
+    @Test
+    fun anAntialiasedClipToAWiderOutlinePaintsAsFarAsTheOutlineReserves() =
+        runComposeSwingTest {
+            val stage = stage()
+            val wide =
+                Shape { width, height ->
+                    Rectangle2D.Float(
+                        -STAGE_OUTSETS.toFloat(),
+                        -STAGE_OUTSETS.toFloat(),
+                        width + 2f * STAGE_OUTSETS,
+                        height + 2f * STAGE_OUTSETS,
+                    )
+                }
+            val overflowing: (Graphics2D, Int, Int) -> Unit = { graphics, width, height ->
+                graphics.fill(
+                    Color.RED,
+                    -STAGE_OUTSETS,
+                    -STAGE_OUTSETS,
+                    width + 2 * STAGE_OUTSETS,
+                    height + 2 * STAGE_OUTSETS,
+                )
+            }
+            val outsets = ReservingElement(Insets(STAGE_OUTSETS, STAGE_OUTSETS, STAGE_OUTSETS, STAGE_OUTSETS))
+            val hard = stage.paint({ SwingModifier.clip(wide).decoration(outsets) }, overflowing)
+            val soft = stage.paint({ SwingModifier.clip(wide, antialias = true).decoration(outsets) }, overflowing)
+
+            assertEquals(
+                0xFF,
+                hard.opacityAt(STAGE_OUTSETS / 2, STAGE_SIZE / 2),
+                "A hard clip to the wider outline lets the overflow it reserves through.",
+            )
+            assertEquals(
+                0xFF,
+                soft.opacityAt(STAGE_OUTSETS / 2, STAGE_SIZE / 2),
+                "An antialiased clip paints as far as the outline it reserves, the same as a hard one.",
+            )
         }
 
     @Test
@@ -91,11 +119,15 @@ class DecorationBuildersTest {
 
             assertEquals(
                 Color.BLUE.rgb,
-                painted.getRGB(0, SIZE / 2),
+                painted.getRGB(0, STAGE_SIZE / 2),
                 "The border is painted after the content, so an opaque fill cannot wipe it.",
             )
-            assertEquals(Color.BLUE.rgb, painted.getRGB(1, SIZE / 2), "The border is as thick as it was declared.")
-            assertEquals(Color.RED.rgb, painted.getRGB(2, SIZE / 2), "The border stops at its declared width.")
+            assertEquals(
+                Color.BLUE.rgb,
+                painted.getRGB(1, STAGE_SIZE / 2),
+                "The border is as thick as it was declared.",
+            )
+            assertEquals(Color.RED.rgb, painted.getRGB(2, STAGE_SIZE / 2), "The border stops at its declared width.")
         }
 
     @Test
@@ -122,16 +154,16 @@ class DecorationBuildersTest {
             val content = fill(Color.RED)
             for (shape in listOf(RectangleShape, CircleShape)) {
                 val filled =
-                    renderImage(SIZE, SIZE) { graphics ->
-                        graphics.fill(Color.RED, 0, 0, SIZE, SIZE)
+                    renderImage(STAGE_SIZE, STAGE_SIZE) { graphics ->
+                        graphics.fill(Color.RED, 0, 0, STAGE_SIZE, STAGE_SIZE)
                         graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
                         graphics.paint = Color.BLUE
-                        graphics.fill(shape.outline(SIZE, SIZE))
+                        graphics.fill(shape.outline(STAGE_SIZE, STAGE_SIZE))
                     }
 
                 assertImagesPixelPerfect(
                     filled,
-                    stage.paint({ SwingModifier.border(SIZE * 2, Color.BLUE, shape) }, content),
+                    stage.paint({ SwingModifier.border(STAGE_SIZE * 2, Color.BLUE, shape) }, content),
                 )
             }
 
@@ -139,12 +171,14 @@ class DecorationBuildersTest {
             // component, whatever area the steps before it hand it.
             val translucent = Color(0, 0, 255, 128)
             assertImagesPixelPerfect(
-                renderImage(SIZE, SIZE) { graphics ->
-                    graphics.fill(Color.RED, 0, 0, SIZE, SIZE)
-                    graphics.fill(translucent, 0, 0, SIZE, 3)
+                renderImage(STAGE_SIZE, STAGE_SIZE) { graphics ->
+                    graphics.fill(Color.RED, 0, 0, STAGE_SIZE, STAGE_SIZE)
+                    graphics.fill(translucent, 0, 0, STAGE_SIZE, 3)
                 },
-                stage.paint({ SwingModifier.decoration(Within(SIZE, 3)).border(4, translucent) }) { graphics, _, _ ->
-                    graphics.fill(Color.RED, 0, 0, SIZE, SIZE)
+                stage.paint({
+                    SwingModifier.decoration(Within(STAGE_SIZE, 3)).border(4, translucent)
+                }) { graphics, _, _ ->
+                    graphics.fill(Color.RED, 0, 0, STAGE_SIZE, STAGE_SIZE)
                 },
             )
         }
@@ -164,10 +198,10 @@ class DecorationBuildersTest {
                     Triangle to polygon(10f + diagonal, 10f, 54f, 10f, 54f, 54f - diagonal),
                 )
             for ((shape, inside) in insideOutlines) {
-                val band = Area(shape.outline(SIZE, SIZE)).apply { subtract(Area(inside)) }
+                val band = Area(shape.outline(STAGE_SIZE, STAGE_SIZE)).apply { subtract(Area(inside)) }
                 val expected =
-                    renderImage(SIZE, SIZE) { graphics ->
-                        graphics.fill(Color.RED, 0, 0, SIZE, SIZE)
+                    renderImage(STAGE_SIZE, STAGE_SIZE) { graphics ->
+                        graphics.fill(Color.RED, 0, 0, STAGE_SIZE, STAGE_SIZE)
                         graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
                         graphics.paint = Color.BLUE
                         graphics.fill(band)
@@ -184,10 +218,10 @@ class DecorationBuildersTest {
     fun aClipBeforeABorderOnlyCutsTheLine() =
         runComposeSwingTest {
             val expected =
-                renderImage(SIZE, SIZE) { graphics ->
-                    graphics.clip(CircleShape.outline(SIZE, SIZE))
-                    graphics.fill(Color.BLUE, 0, 0, SIZE, SIZE)
-                    graphics.fill(Color.RED, 4, 4, SIZE - 8, SIZE - 8)
+                renderImage(STAGE_SIZE, STAGE_SIZE) { graphics ->
+                    graphics.clip(CircleShape.outline(STAGE_SIZE, STAGE_SIZE))
+                    graphics.fill(Color.BLUE, 0, 0, STAGE_SIZE, STAGE_SIZE)
+                    graphics.fill(Color.RED, 4, 4, STAGE_SIZE - 8, STAGE_SIZE - 8)
                 }
 
             assertImagesPixelPerfect(
@@ -236,10 +270,10 @@ class DecorationBuildersTest {
                         contentAntialiasing = graphics.getRenderingHint(RenderingHints.KEY_ANTIALIASING)
                     }
                 val expected =
-                    renderImage(SIZE, SIZE) { graphics ->
+                    renderImage(STAGE_SIZE, STAGE_SIZE) { graphics ->
                         graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
                         graphics.paint = Color.BLUE
-                        graphics.fill(shape.outline(SIZE, SIZE))
+                        graphics.fill(shape.outline(STAGE_SIZE, STAGE_SIZE))
                     }
 
                 assertImagesPixelPerfect(expected, painted)
@@ -289,11 +323,40 @@ class DecorationBuildersTest {
                     graphics.fill(Color.RED, 0, 0, width / 2, height)
                 }
 
-            assertTrue(painted.opacityAt(SIZE / 2 + 2, SIZE / 2) > 0, "The fill spreads past the edge it had.")
             assertTrue(
-                painted.opacityAt(SIZE / 2 - 2, SIZE / 2) < 0xFF,
+                painted.opacityAt(STAGE_SIZE / 2 + 2, STAGE_SIZE / 2) > 0,
+                "The fill spreads past the edge it had.",
+            )
+            assertTrue(
+                painted.opacityAt(STAGE_SIZE / 2 - 2, STAGE_SIZE / 2) < 0xFF,
                 "The edge it had is no longer solid, which is what spreading it means.",
             )
+        }
+
+    @Test
+    fun aBlurReservesItsHaloAndSoftensAFillAtItsEdge() =
+        runComposeSwingTest {
+            val side = 96
+            val stage = stage(side = side)
+            val chain: () -> SwingModifier = { SwingModifier.blur(8).background(Brush.of(Color.RED)) }
+            val painted = stage.paint(chain, PaintsNothing)
+            val decorated = stage.declare(chain)
+            val outsets = decorated.decoration.paintOutsets()
+            val margin = outsets.left
+
+            assertEquals(Insets(24, 24, 24, 24), outsets, "The blur reserves its halo on every side.")
+            assertEquals(
+                outsets,
+                decorated.insets,
+                "A blur takes nothing from the content: the insets hold only its paint outsets.",
+            )
+            assertEquals(0, painted.opacityAt(0, side / 2), "The halo fades out before the edge of the outsets.")
+            assertTrue(
+                painted.opacityAt(margin - 1, side / 2) in 1..0xFE,
+                "The halo is partly transparent just outside the fill.",
+            )
+            assertTrue(painted.opacityAt(margin, side / 2) in 1..0xFE, "The fill's own edge is softened.")
+            assertEquals(Color.RED.rgb, painted.getRGB(side / 2, side / 2), "The middle of the fill stays solid.")
         }
 
     @Test
@@ -305,7 +368,105 @@ class DecorationBuildersTest {
                 val decoration = panel.decoration
                 assertFalse(decoration.isDecorated, "There is nothing to spread over no distance.")
                 assertTrue(decoration.isOpaque(panel))
+                assertEquals(
+                    Insets(0, 0, 0, 0),
+                    decoration.paintOutsets(),
+                    "A blur of no radius reserves no paint outsets.",
+                )
             }
+        }
+
+    @Test
+    fun aShadowReservesWhatItsBlurNeedsAndCastsItThere() =
+        runComposeSwingTest {
+            val stage = stage()
+            val chain: () -> SwingModifier = {
+                SwingModifier
+                    .shadow(
+                        8,
+                        Color.BLACK,
+                    ).background(Brush.of(Color.RED))
+            }
+            val painted = stage.paint(chain, PaintsNothing)
+            val panel = stage.declare(chain)
+            val decoration = panel.decoration
+
+            val reach = decoration.paintOutsets().left
+            assertEquals(
+                Insets(24, 24, 24, 24),
+                decoration.paintOutsets(),
+                "An unoffset shadow reserves the whole reach of its blur on every side.",
+            )
+            assertEquals(
+                Color.RED.rgb,
+                painted.getRGB(STAGE_SIZE / 2, STAGE_SIZE / 2),
+                "What casts the shadow paints over it.",
+            )
+            assertTrue(painted.opacityAt(reach - 1, STAGE_SIZE / 2) > 0, "The shadow is cast into what it reserved.")
+            assertFalse(decoration.isOpaque(panel), "A shadow leaves the area around what casts it partly covered.")
+        }
+
+    @Test
+    fun aShadowTakesTheSilhouetteOfWhatCastsIt() =
+        runComposeSwingTest {
+            val stage = stage()
+            val chain: () -> SwingModifier = {
+                SwingModifier.shadow(8, Color.BLACK).clip(CircleShape).background(Brush.of(Color.RED))
+            }
+            val painted = stage.paint(chain, PaintsNothing)
+
+            // As far outside the content as the radius less a pixel.
+            val outside =
+                stage
+                    .declare(chain)
+                    .decoration
+                    .paintOutsets()
+                    .top - 8 + 1
+            assertTrue(
+                painted.opacityAt(STAGE_SIZE / 2, outside) > painted.opacityAt(outside, outside),
+                "The shadow follows the circle the content was cut to: more of it above the circle's top " +
+                    "than beyond its corner, which a rectangular silhouette would have covered equally.",
+            )
+        }
+
+    @Test
+    fun aShadowBlursOutwardFromItsSilhouette() =
+        runComposeSwingTest {
+            val stage = stage()
+            val chain: () -> SwingModifier = {
+                SwingModifier
+                    .shadow(8, Color.BLACK)
+                    .background(Brush.of(Color.RED))
+            }
+            val margin =
+                stage
+                    .declare(chain)
+                    .decoration
+                    .paintOutsets()
+                    .left
+            val painted = stage.paint(chain, PaintsNothing)
+
+            assertTrue(
+                painted.opacityAt(margin / 2, STAGE_SIZE / 2) > painted.opacityAt(0, STAGE_SIZE / 2),
+                "The blur fades outward, so what it reserved is more covered nearer what casts it.",
+            )
+        }
+
+    @Test
+    fun aShadowsOffsetMovesWhatItReserves() =
+        runComposeSwingTest {
+            val decoration =
+                stage()
+                    .declare(
+                        { SwingModifier.shadow(8, Color.BLACK, offsetX = 16, offsetY = 8) },
+                    ).decoration
+
+            assertEquals(
+                Insets(16, 8, 32, 40),
+                decoration.paintOutsets(),
+                "A shadow pushed down and right reaches that much less above and left of what casts it, and that " +
+                    "much more below and right.",
+            )
         }
 
     @Test
@@ -313,7 +474,7 @@ class DecorationBuildersTest {
         runComposeSwingTest {
             val stage = stage()
             val empty = stage.paint(content = PaintsNothing)
-            for (squeezed in listOf(Within(SIZE, 0), Within(0, SIZE))) {
+            for (squeezed in listOf(Within(STAGE_SIZE, 0), Within(0, STAGE_SIZE))) {
                 val chains =
                     listOf<() -> SwingModifier>(
                         { SwingModifier.decoration(squeezed).clip(CircleShape, antialias = true) },
@@ -324,232 +485,93 @@ class DecorationBuildersTest {
         }
 
     @Test
-    fun aFadePaintsTheContentTranslucently() =
-        runComposeSwingTest {
-            val painted = stage().paint({ SwingModifier.alpha(0.5f) }, fill(Color.RED))
-
-            assertEquals(
-                Color.RED.rgb,
-                painted.getRGB(5, 5) or 0xFF000000.toInt(),
-                "A fade changes the coverage, not the color.",
-            )
-            assertTrue(painted.opacityAt(5, 5) in 127..128, "Half opacity should cover half.")
-        }
-
-    @Test
-    fun aFadeReachesEachDrawingRatherThanTheAreaAsOne() =
-        runComposeSwingTest {
-            val painted =
-                stage().paint({ SwingModifier.alpha(0.5f) }) { graphics, _, _ ->
-                    graphics.fill(Color.RED, 0, 0, 20, 20)
-                    graphics.fill(Color.BLUE, 10, 10, 20, 20)
-                }
-
-            assertTrue(
-                painted.opacityAt(15, 15) > painted.opacityAt(5, 5),
-                "Overlapping shapes are each faded as they are drawn, so the second covers more where it " +
-                    "lands on the first. Fading the area as one image would have covered both the same.",
-            )
-        }
-
-    @Test
-    fun nestedFadesMultiply() =
-        runComposeSwingTest {
-            val painted = stage().paint({ SwingModifier.alpha(0.5f).alpha(0.5f) }, fill(Color.RED))
-
-            assertTrue(painted.opacityAt(5, 5) in 63..64, "A fade inside a fade paints at the product of the two.")
-        }
-
-    @Test
-    fun aFadeKeepsTheCompositeRuleItIsPaintedUnder() =
-        runComposeSwingTest {
-            val painted =
-                stage().print(
-                    { SwingModifier.alpha(0.5f) },
-                    fill(Color.RED),
-                    setUp = { graphics ->
-                        graphics.fill(Color.BLACK, 0, 0, SIZE, SIZE)
-                        graphics.composite = AlphaComposite.DstOut
-                    },
-                )
-
-            assertTrue(
-                painted.opacityAt(5, 5) in 127..128,
-                "A half fade under DstOut clears half of what is there, rather than painting over it.",
-            )
-        }
-
-    @Test
-    fun aFadeToNothingPaintsNothing() =
+    fun anAntialiasedClipAndAShadowPaintTheContentAtTheDestinationsResolution() =
         runComposeSwingTest {
             val stage = stage()
-            val empty = stage.paint(content = PaintsNothing)
-
-            assertImagesPixelPerfect(empty, stage.paint({ SwingModifier.alpha(0f) }, fill(Color.RED)))
-            val faded = stage.declare({ SwingModifier.alpha(0f) })
-            assertFalse(
-                faded.decoration.isOpaque(faded),
-                "What is behind an invisible component shows through it.",
-            )
-        }
-
-    @Test
-    fun aFadeRaisedToFullAlphaPaintsAndCoversAsNoFadeDoes() =
-        runComposeSwingTest {
-            val stage = stage()
-            val unfaded = stage.paint(content = fill(Color.RED))
-            stage.paint({ SwingModifier.alpha(0.5f) }, fill(Color.RED))
-
-            assertImagesPixelPerfect(unfaded, stage.paint({ SwingModifier.alpha(1f) }, fill(Color.RED)))
-            val full = stage.declare({ SwingModifier.alpha(1f).background(Brush.of(Color.BLUE)) })
-            assertTrue(full.decoration.isOpaque(full), "A full alpha hides what is behind as the background does.")
-        }
-
-    @Test
-    fun aFadeOutsideTheRangePaintsAtTheNearerEnd() =
-        runComposeSwingTest {
-            val stage = stage()
-
-            assertImagesPixelPerfect(
-                stage.paint(content = fill(Color.RED)),
-                stage.paint({
-                    SwingModifier.alpha(1.5f)
-                }, fill(Color.RED)),
-            )
-            assertImagesPixelPerfect(
-                stage.paint(content = PaintsNothing),
-                stage.paint({
-                    SwingModifier.alpha(-1f)
-                }, fill(Color.RED)),
-            )
-            assertImagesPixelPerfect(
-                stage.paint(content = PaintsNothing),
-                stage.paint({
-                    SwingModifier.alpha(Float.NaN)
-                }, fill(Color.RED)),
-            )
-        }
-
-    @Test
-    fun aFadeAndAClipStopCoveringTheArea() =
-        runComposeSwingTest {
-            val stage = stage()
-
-            suspend fun isOpaque(chain: () -> SwingModifier): Boolean {
-                val panel = stage.declare(chain)
-                return panel.decoration.isOpaque(panel)
+            // Stripes half a unit wide, which only a raster at twice the resolution holds.
+            val stripes: (Graphics2D, Int, Int) -> Unit = { graphics, width, height ->
+                graphics.fill(Color.WHITE, 0, 0, width, height)
+                graphics.paint = Color.RED
+                for (x in 0 until width) graphics.fill(Rectangle2D.Float(x.toFloat(), 0f, 0.5f, height.toFloat()))
             }
+            val shadowOutsets =
+                stage.declare({ SwingModifier.shadow(4, Color(0, 0, 0, 0)) }).decoration.paintOutsets()
 
-            assertTrue(isOpaque { SwingModifier }, "No steps paint nothing and hide nothing.")
-            assertTrue(
-                isOpaque { SwingModifier.background(Brush.of(Color.BLUE)) },
-                "A background fills the whole area.",
+            assertImagesPixelPerfect(
+                stage.print(content = stripes, scale = 2),
+                stage.print({ SwingModifier.clip(RectangleShape, antialias = true) }, stripes, scale = 2),
             )
-            assertFalse(isOpaque { SwingModifier.alpha(0.5f) }, "What is behind a faded component shows through it.")
-            assertFalse(
-                isOpaque { SwingModifier.clip(CircleShape) },
-                "A clip leaves the corners of the area unpainted.",
-            )
-            assertFalse(isOpaque { SwingModifier.blur(8) }, "A blur fades out at the edges of the area.")
-            assertFalse(
-                isOpaque { SwingModifier.clip(CircleShape).background(Brush.of(Color.BLUE)) },
-                "One step that stops covering the area is enough for them all.",
+            assertImagesPixelPerfect(
+                stage.print({ SwingModifier.decoration(Spill(shadowOutsets)) }, stripes, scale = 2),
+                stage.print({ SwingModifier.shadow(4, Color(0, 0, 0, 0)) }, stripes, scale = 2),
             )
         }
 
     /**
-     * One decorated component, composed once, that each [declare] redeclares: [side] square including its paint
-     * outsets, the chain it is given outermost, and the content painting inside the chain in the component's layout
-     * coordinates. [side] defaults to [SIZE].
+     * A blur and a shadow of the same radius reserve the same outsets, so the one taking the other's place writes
+     * insets that already stand. Each holds them all the same, and the modifier restore check finds the insets owed
+     * by neither departing declaration.
      */
-    private class Stage(
-        private val test: ComposeSwingTest,
-        private val side: Int = SIZE,
-    ) {
-        private var declared by mutableStateOf<() -> SwingModifier>({ SwingModifier })
-        private var content by mutableStateOf<Decorator?>(null)
-        private var size by mutableStateOf(Dimension(side, side))
+    @Test
+    fun aBlurAndAShadowTakingEachOthersPlaceHoldThePaintOutsets() =
+        runComposeSwingTest {
+            val stage = stage()
+            val blurred = stage.declare({ SwingModifier.blur(8) }).decoration.paintOutsets()
+            val shadowed = stage.declare({ SwingModifier.shadow(8, Color.BLACK) }).decoration.paintOutsets()
+            stage.declare({ SwingModifier.blur(8) })
 
-        init {
-            test.setContent {
-                Box {
-                    SwingNode(
-                        factory = { DecoratedPanel() },
-                        modifier =
-                            SwingModifier
-                                .testTag(STAGE_TAG)
-                                .opaque(false)
-                                .preferredSize(size)
-                                .then(declared())
-                                .then(content?.let { SwingModifier.decoration(it) } ?: SwingModifier),
-                    )
-                }
-            }
+            assertEquals(blurred, shadowed, "Both reserve what a blur of the same radius reaches.")
         }
 
-        /**
-         * Declares [chain] around [content], or [chain] alone where [content] is null, sized so the component's
-         * bounds including paint outsets are [side] square.
-         */
-        suspend fun declare(
-            chain: () -> SwingModifier = { SwingModifier },
-            content: Decorator? = null,
-        ): DecoratedPanel {
-            declared = chain
-            this.content = content
-            test.awaitIdle()
-            val component = component()
-            val outsets = component.decoration.paintOutsets()
-            size = Dimension(side - outsets.left - outsets.right, side - outsets.top - outsets.bottom)
-            test.awaitIdle()
-            return component()
+    /**
+     * A decoration node of one's own reserving the outsets a blur did writes insets that already stand. Its element
+     * holds them, as a node reserving paint outsets has to, and the modifier restore check finds the insets owed by
+     * neither.
+     */
+    @Test
+    fun aDecorationNodeOfOnesOwnTakingABlursPlaceHoldsThePaintOutsets() =
+        runComposeSwingTest {
+            val stage = stage()
+            val blurred = stage.declare({ SwingModifier.blur(8) }).decoration.paintOutsets()
+            val reserving = ReservingElement(blurred)
+            val reserved = stage.declare({ SwingModifier.decoration(reserving) }).decoration.paintOutsets()
+
+            assertEquals(blurred, reserved, "The node reserves the outsets of the blur it replaced.")
         }
 
-        /** What the component shows with [chain] declared around [content]. */
-        suspend fun paint(
-            chain: () -> SwingModifier = { SwingModifier },
-            content: (Graphics2D, Int, Int) -> Unit,
-        ): BufferedImage {
-            declare(chain, Content(content))
-            return test.onNodeWithTag(STAGE_TAG).captureToImage()
+    @Test
+    fun aShadowIsCastInItsDeclaredColor() =
+        runComposeSwingTest {
+            val stage = stage()
+            val painted = stage.paint({ SwingModifier.shadow(8, Color.BLUE) }, fill(Color.RED))
+            val outsets = stage.declare({ SwingModifier.shadow(8, Color.BLUE) }).decoration.paintOutsets()
+            val cast = Color(painted.getRGB(outsets.left - 1, STAGE_SIZE / 2), true)
+
+            assertEquals(0, cast.red, "The shadow takes no red from the content: $cast")
+            assertEquals(0, cast.green, "The shadow takes no green: $cast")
+            assertTrue(cast.blue > 0, "The shadow is tinted the color it declares: $cast")
         }
 
-        /**
-         * What the component prints with [chain] declared around [content], at [scale] device pixels per unit onto
-         * an image [setUp] prepares first.
-         */
-        suspend fun print(
-            chain: () -> SwingModifier = { SwingModifier },
-            content: (Graphics2D, Int, Int) -> Unit,
-            scale: Int = 1,
-            setUp: (Graphics2D) -> Unit = {},
-        ): BufferedImage {
-            val component = declare(chain, Content(content))
-            return renderImage(SIZE * scale, SIZE * scale) { graphics ->
-                setUp(graphics)
-                graphics.scale(scale.toDouble(), scale.toDouble())
-                component.printAll(graphics)
-            }
+    @Test
+    fun insetsGrowsByTheDecorationsPaintOutsetsButLeavesABaseWithNoneAlone() =
+        runComposeSwingTest {
+            val stage = stage()
+
+            val plain = stage.declare({ SwingModifier.background(Brush.of(Color.BLUE)) })
+            assertEquals(
+                Insets(0, 0, 0, 0),
+                plain.decoration.insets(Insets(0, 0, 0, 0)),
+                "It paints past nothing.",
+            )
+
+            val outsets = ReservingElement(Insets(STAGE_OUTSETS, STAGE_OUTSETS, STAGE_OUTSETS, STAGE_OUTSETS))
+            val reserving = stage.declare({ SwingModifier.decoration(outsets) })
+            assertEquals(
+                Insets(STAGE_OUTSETS, STAGE_OUTSETS, STAGE_OUTSETS, STAGE_OUTSETS),
+                reserving.decoration.insets(Insets(0, 0, 0, 0)),
+                "insets(base) must grow by the paint outsets a decorator reserves.",
+            )
         }
-
-        private fun component(): DecoratedPanel = test.onNodeWithTag(STAGE_TAG).fetch<DecoratedPanel>()
-    }
-
-    private fun ComposeSwingTest.stage(side: Int = SIZE): Stage = Stage(this, side)
-
-    /** Paints [paint] as the content, inside every decoration declared before it. */
-    private data class Content(
-        private val paint: (Graphics2D, Int, Int) -> Unit,
-    ) : Decorator {
-        override val isOpaque: Boolean get() = false
-
-        override fun paint(
-            graphics: Graphics2D,
-            width: Int,
-            height: Int,
-            content: (Graphics2D, Int, Int) -> Unit,
-        ) = paint(graphics, width, height)
-    }
 
     /** Hands everything inside it an area of [width] by [height], as a step painting at a smaller box does. */
     private data class Within(
@@ -564,27 +586,11 @@ class DecorationBuildersTest {
         ): Unit = content(graphics, this.width, this.height)
     }
 
-    /** Content filling its whole area with [color]. */
-    private fun fill(color: Color): (Graphics2D, Int, Int) -> Unit =
-        { graphics, width, height -> graphics.fill(color, 0, 0, width, height) }
-
     /** Whether any pixel is neither fully painted nor fully bare, which is what an antialiased edge leaves. */
     private fun BufferedImage.hasPartialCoverage(): Boolean =
         (0 until height).any { y -> (0 until width).any { x -> opacityAt(x, y) in 1..0xFE } }
 
-    /** How much of the pixel at [x], [y] the painting covers, from `0` to `255`. */
-    private fun BufferedImage.opacityAt(
-        x: Int,
-        y: Int,
-    ): Int = getRGB(x, y) ushr 24
-
     private companion object {
-        const val SIZE = 64
-        const val STAGE_TAG = "decorated"
-
-        /** Content that paints nothing. */
-        val PaintsNothing: (Graphics2D, Int, Int) -> Unit = { _, _, _ -> }
-
         /** The upper-right half of the area, an outline that is neither a rectangle nor a rounded one. */
         val Triangle =
             Shape {
@@ -601,16 +607,5 @@ class DecorationBuildersTest {
                 for (index in 2 until xy.size step 2) lineTo(xy[index], xy[index + 1])
                 closePath()
             }
-
-        fun Graphics2D.fill(
-            color: Color,
-            x: Int,
-            y: Int,
-            width: Int,
-            height: Int,
-        ) {
-            paint = color
-            fillRect(x, y, width, height)
-        }
     }
 }

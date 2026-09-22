@@ -2,6 +2,7 @@ package org.jetbrains.compose.swing.foundation.layout
 
 import androidx.compose.runtime.snapshots.Snapshot
 import org.jetbrains.compose.swing.foundation.graphics.Decoratable
+import org.jetbrains.compose.swing.foundation.graphics.Decoration
 import org.jetbrains.compose.swing.foundation.graphics.NoPaintOutsets
 import org.jetbrains.compose.swing.foundation.graphics.publishSteps
 import org.jetbrains.compose.swing.foundation.util.fastForEach
@@ -188,6 +189,7 @@ internal class MeasurePolicyLayout(
             val child = measurables.of(it)
             if (!child.isPlacedByParent) child.hide()
         }
+        measurables.fitContainerPaintOutsets()
         if (measurables.zIndexChanged) {
             measurables.zIndexChanged = false
             measurables.panel.stackingOrder.restack()
@@ -350,6 +352,12 @@ internal class ChildMeasurables(
 
     /** Whether a child was placed at a z-index other than the one it was last placed with. */
     var zIndexChanged: Boolean = false
+
+    /**
+     * Whether a child the last layout pass placed [needs gathering][Decoration.needsGathering], as [gatherPaintBounds]
+     * last found.
+     */
+    var hasChildToGather: Boolean = false
 
     /**
      * Gives up the measurable for [child], for a child leaving the container, which leaves it with no paint outsets.

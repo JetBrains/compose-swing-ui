@@ -1,6 +1,5 @@
 package org.jetbrains.compose.swing.foundation.graphics
 
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -8,6 +7,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertAskedToRepaint
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.button.Button
+import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.foundation.layout.lastElement
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
@@ -15,14 +15,13 @@ import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.listener.mouseListener
-import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import org.jetbrains.compose.swing.withRecordedRepaints
 import java.awt.Color
 import java.awt.Component
 import java.awt.Dimension
-import java.awt.FlowLayout
+import java.awt.Insets
 import javax.swing.JButton
 import javax.swing.JComponent
 import kotlin.test.Test
@@ -36,45 +35,31 @@ import kotlin.test.assertFalse
  *
  * Painting is forced against an off-screen raster, so what is asserted is what the component would show.
  */
-@Composable
-private fun Box(
-    modifier: SwingModifier = SwingModifier,
-    content: @Composable () -> Unit = {},
-) {
-    SwingNode(
-        factory = { DecoratedPanel(FlowLayout(FlowLayout.LEADING, 0, 0)) },
-        modifier = modifier,
-        content = content,
-    )
-}
-
 class DecorationModifierTest {
     @Test
     fun declarationsCombineInOrderRatherThanTheLastOneWinning() =
         runComposeSwingTest {
             setContent {
-                Box(
-                    modifier =
-                        decorated {
+                DecoratedBox {
+                    DecoratedFlowPanel(
+                        modifier =
                             SwingModifier
                                 .testTag("decorated-panel")
                                 .opaque(false)
                                 .cut()
                                 .preferredSize(Dimension(64, 64))
-                                .fill(Color.BLUE)
-                        },
-                ) { Label(text = "child") }
-                Box(
-                    modifier =
-                        decorated {
+                                .fill(Color.BLUE),
+                    ) { Label(text = "child") }
+                    DecoratedFlowPanel(
+                        modifier =
                             SwingModifier
                                 .testTag("reversed-panel")
                                 .opaque(false)
                                 .fill(Color.BLUE)
                                 .preferredSize(Dimension(64, 64))
-                                .cut()
-                        },
-                ) { Label(text = "child") }
+                                .cut(),
+                    ) { Label(text = "child") }
+                }
             }
 
             val clipOutside = onNodeWithTag("decorated-panel").captureToImage()
@@ -98,23 +83,23 @@ class DecorationModifierTest {
         runComposeSwingTest {
             var clipFirst by mutableStateOf(false)
             setContent {
-                val leading =
-                    if (clipFirst) {
-                        decorated { SwingModifier.cut() }
-                    } else {
-                        SwingModifier.mouseListener { }
-                    }
-                Box(
-                    modifier =
-                        decorated {
+                DecoratedBox {
+                    val leading =
+                        if (clipFirst) {
+                            SwingModifier.cut()
+                        } else {
+                            SwingModifier.mouseListener { }
+                        }
+                    DecoratedFlowPanel(
+                        modifier =
                             leading
                                 .testTag("decorated-panel")
                                 .opaque(false)
                                 .preferredSize(Dimension(64, 64))
-                                .fill(Color.BLUE)
-                        },
-                ) {
-                    Label(text = "child")
+                                .fill(Color.BLUE),
+                    ) {
+                        Label(text = "child")
+                    }
                 }
             }
             assertEquals(
@@ -139,15 +124,15 @@ class DecorationModifierTest {
         runComposeSwingTest {
             var generation by mutableIntStateOf(0)
             setContent {
-                Box(
-                    modifier =
-                        decorated {
+                DecoratedBox {
+                    DecoratedFlowPanel(
+                        modifier =
                             SwingModifier
                                 .testTag("decorated-panel")
                                 .name("generation-$generation")
-                                .cut(8)
-                        },
-                ) { Label(text = "child") }
+                                .cut(8),
+                    ) { Label(text = "child") }
+                }
             }
             val panel = onNodeWithTag("decorated-panel").fetch<JComponent>()
             withRecordedRepaints { recorder ->
@@ -177,8 +162,10 @@ class DecorationModifierTest {
         runComposeSwingTest {
             var radius by mutableIntStateOf(8)
             setContent {
-                Box(modifier = decorated { SwingModifier.testTag("decorated-panel").cut(radius) }) {
-                    Label(text = "child")
+                DecoratedBox {
+                    DecoratedFlowPanel(modifier = SwingModifier.testTag("decorated-panel").cut(radius)) {
+                        Label(text = "child")
+                    }
                 }
             }
             val panel = onNodeWithTag("decorated-panel").fetch<JComponent>()
@@ -191,12 +178,49 @@ class DecorationModifierTest {
         }
 
     @Test
+    fun changingThePaintOutsetsTheStepsTakeRefitsTheComponentInPlace() =
+        runComposeSwingTest {
+            var outsets by mutableIntStateOf(3)
+            setContent {
+                Box {
+                    DecoratedFlowPanel(
+                        modifier =
+                            SwingModifier
+                                .testTag(
+                                    "decorated-panel",
+                                ).spill(Insets(outsets, outsets, outsets, outsets)),
+                    ) {
+                        Label(text = "child", modifier = SwingModifier.testTag("decorated-child"))
+                    }
+                }
+            }
+            val panel = onNodeWithTag("decorated-panel").fetch<JComponent>()
+            val child = onNodeWithTag("decorated-child").fetch<JComponent>()
+            assertEquals(3, child.x, "The children start inside the outsets the first steps take.")
+            val layoutSize = Dimension(panel.width - 6, panel.height - 6)
+            withRecordedRepaints { recorder ->
+                outsets = 6
+                awaitIdle()
+
+                assertEquals(6, child.x, "The children shift to stay inside the outsets the new steps take.")
+                assertEquals(
+                    Dimension(layoutSize.width + 12, layoutSize.height + 12),
+                    panel.size,
+                    "The bounds grow around the layout bounds the Box placed.",
+                )
+                assertEquals(0, recorder.relayoutsOver(panel), "Nothing is laid out again.")
+            }
+        }
+
+    @Test
     fun changingOnlyWhatTheStepsPaintDoesNotLayTheComponentOutAgain() =
         runComposeSwingTest {
             var radius by mutableIntStateOf(8)
             setContent {
-                Box(modifier = decorated { SwingModifier.testTag("decorated-panel").cut(radius) }) {
-                    Label(text = "child")
+                DecoratedBox {
+                    DecoratedFlowPanel(modifier = SwingModifier.testTag("decorated-panel").cut(radius)) {
+                        Label(text = "child")
+                    }
                 }
             }
             val panel = onNodeWithTag("decorated-panel").fetch<JComponent>()
@@ -217,9 +241,11 @@ class DecorationModifierTest {
         runComposeSwingTest {
             var clipped by mutableStateOf(true)
             setContent {
-                val base = SwingModifier.testTag("decorated-panel").opaque(false)
-                val clip = decorated { if (clipped) base.cut() else base }
-                Box(modifier = decorated { clip.fill(Color.BLUE) }) { Label(text = "child") }
+                DecoratedBox {
+                    val base = SwingModifier.testTag("decorated-panel").opaque(false)
+                    val clip = if (clipped) base.cut() else base
+                    DecoratedFlowPanel(modifier = clip.fill(Color.BLUE)) { Label(text = "child") }
+                }
             }
             assertEquals(
                 0,

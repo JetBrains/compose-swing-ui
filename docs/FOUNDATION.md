@@ -175,7 +175,9 @@ declaration order and reach a policy as `Measurable.parentData`: `weight(2f).wei
 ### Observing layout
 
 `onSizeChanged(callback)` delivers the component's size after its parent places it at a size that differs from the
-last report, and `onPlaced(callback)` delivers its bounds in the parent after they change.
+last report, and `onPlaced(callback)` delivers its layout bounds in the parent after they change. Both arrive on the
+EDT, one report for a placement that both moves and resizes the component. They report the
+[layout bounds](#bounds), so paint outsets such as a shadow's change neither:
 
 ```kotlin
 Box {
@@ -221,8 +223,8 @@ In both containers:
 - a child's `align` overrides the container's cross-axis alignment.
 
 An explicit Swing `maximumSize` caps the extent offered to a child. It applies to the child as a whole, outside
-its layout modifiers: the outermost modifier receives the capped offer. A `Row`, `Column` or `Box` holds the
-child's intrinsic size to it too.
+its layout modifiers: the outermost modifier receives the capped offer. A `Row`, `Column` or `Box` holds the child's
+intrinsic size to it too.
 
 On an unbounded main axis, weighted children share only what the container's minimum extent leaves after the other
 children; the container's preferred size is large enough for each weighted child to get its preferred extent at its
@@ -441,19 +443,26 @@ wrap what a component paints in declaration order: the first declared is outermo
 inside earlier ones. Unlike the layout modifiers in [Scoped modifiers](#scoped-modifiers), they are plain
 `SwingModifier` extensions that resolve wherever a modifier does, but reach only a component that implements
 `Decoratable`. `Canvas` and the `Row`, `Column`, `Box` and `Layout` containers do. A stock widget or a `Panel`
-refuses them with an error naming `Decoratable`;
-[Making a component decoratable](#making-a-component-decoratable) opts a component of your own in.
+refuses them with an error naming `Decoratable`.
 
-A component's own decoration can paint beyond its layout bounds. A Foundation parent fits its Swing bounds around
-those paint outsets, so siblings do not move; under another parent, the component has no paint outsets. A placement
-layer also reserves the bounds of its own transformed content.
+A decoration paints at its *decorated box*: the box of the first layout modifier declared after it, or the
+component's layout bounds when none follows. A layout modifier's own box is the size it measures, where it is placed:
+
+| Chain | Component | Background |
+|---|---|---|
+| `padding(8).background(red)` | 8 in from the slot | fills the component |
+| `background(red).padding(8)` | 8 in from the slot | fills the slot: the component and the padding around it |
+| `background(red).padding(8).size(100)` | 100 square, in a 116 slot | fills the 116 slot |
+
+`shadow` and `blur` paint into [paint outsets](#bounds) outside the layout bounds: in a `Row`, `Column` or `Box` they
+move no sibling.
 
 - `background(color)` without a shape is the Swing property; pass a `Shape` or a `Brush` for the decoration.
 - A `clip` declared before a `border` only cuts its line; pass the clip's shape to the border for the line to
   follow it.
 - A clip outside a blur can cut its halo.
 
-A modifier of your own can combine decorations, as `card` does:
+A card with a shadow, given space for it with padding inside a Swing container:
 
 <!--- INCLUDE .*foundation-card.*
 import androidx.compose.runtime.*
@@ -468,7 +477,7 @@ import java.awt.Color
 
 ```kotlin
 fun SwingModifier.card(): SwingModifier =
-    border(width = 1, color = Color.GRAY, shape = RoundedCornerShape(8f)).background(Color.WHITE, RoundedCornerShape(8f))
+    shadow(radius = 8, color = Color(0, 0, 0, 96)).background(Color.WHITE, RectangleShape)
 
 @Composable
 fun PaddedCard() {
@@ -493,9 +502,9 @@ decoration declared before the node paints outside the layer, and one declared a
 node paints through its `decorator` or with a layer, not both. Placing the child without a layer on a later pass
 removes the layer.
 
-The child must be `Decoratable`: the first placement with a layer fails with `IllegalStateException` otherwise. A
-placement layer reserves the bounds of its own transformed content; overflowing child content is handled by the parent
-container.
+The child must be `Decoratable`: the first placement with a layer fails with `IllegalStateException` otherwise.
+Without `clip`, transformed content takes paint outsets, which grow the bounds of the containers around it up to the
+first Swing parent, which clips it.
 
 ### Writing a decorator or draw node
 
@@ -515,13 +524,15 @@ fun SwingModifier.outlined(outline: Decorator): SwingModifier = decoration(outli
 <!--- KNIT example-foundation-outlined-01.kt -->
 
 An effect that reads the content's pixels calls the continuation inside `ImageLayer.record` and draws the layer.
+Override `paintBounds` when painting or clipping changes the area the decorator can paint. Its default includes
+the decorated box, the content's bounds, and the declared `outsets`.
 
 A step that keeps state across paints extends `DecorationModifierNode`, or `DrawModifierNode` to draw through a
 `ContentDrawScope`, and declares its element through the same `decoration` function. State read in `draw()` is
-observed, and a change repaints the component without laying it out again. The library gathers a step's
-`isOpaque` after each modifier pass, so an element's `update` needs no call for it. Between passes, a node that
-changes a plain field it paints from calls `invalidateDraw()`, or `invalidateDecoration()` when its outsets or `isOpaque`
-change. A `LayoutModifierNode` paints at its own box through its `decorator`.
+observed, and a change repaints the component without laying it out again. The library gathers a step's `outsets`
+and `isOpaque` after each modifier pass, so an element's `update` needs no call for them. Between passes, a node
+that changes a plain field it paints from calls `invalidateDraw()`, or `invalidateDecoration()` where its `outsets`
+or `isOpaque` changed. A `LayoutModifierNode` paints at its own box through its `decorator`.
 
 `ImageLayer` is an offscreen raster: `record` replaces its recording, `draw` draws it, and `filter` post-processes
 it. `alpha`, `scaleX`, `scaleY`, `translationX`, `translationY`, `rotationZ`, `pivotOffset` and `renderEffect` are
@@ -531,73 +542,27 @@ so inside `drawWithContent`, `record(layer) { this@drawWithContent.drawContent()
 block can then filter or blur and draw as one image. Create a layer with `rememberImageLayer()` in composition,
 which releases it when the composition leaves, or call `release()` on one you construct.
 
-### Making a component decoratable
-
-To make a component of your own decoratable, implement `Decoratable`. The library writes its `decoration`, and the
-component stores it and applies it, as it applies its `Border`:
-
-<!--- INCLUDE .*foundation-decoratable.*
-import org.jetbrains.compose.swing.foundation.graphics.Decoratable
-import org.jetbrains.compose.swing.foundation.graphics.Decoration
-import java.awt.Graphics
-import java.awt.Insets
-import javax.swing.JComponent
--->
-
-```kotlin
-class Card :
-    JComponent(),
-    Decoratable {
-    override var decoration: Decoration = Decoration.None
-
-    override fun paint(g: Graphics) = decoration.paint(this, g) { super.paint(it) }
-
-    override fun paintComponent(g: Graphics) {
-        if (!super.isOpaque()) return
-        val bounds = decoration.localLayoutBounds(this)
-        g.color = background
-        g.fillRect(bounds.x, bounds.y, bounds.width, bounds.height)
-    }
-
-    override fun paintBorder(g: Graphics) {
-        val bounds = decoration.localLayoutBounds(this)
-        border?.paintBorder(this, g, bounds.x, bounds.y, bounds.width, bounds.height)
-    }
-
-    override fun getInsets(): Insets = decoration.insets(super.getInsets())
-
-    override fun getInsets(insets: Insets?): Insets =
-        decoration.insets(super.getInsets(insets), insets ?: Insets(0, 0, 0, 0))
-
-    override fun contains(
-        x: Int,
-        y: Int,
-    ): Boolean = decoration.contains(this, x, y)
-
-    override fun isOpaque(): Boolean = super.isOpaque() && decoration.isOpaque(this)
-}
-```
-
-<!--- KNIT example-foundation-decoratable-01.kt -->
-
-The decoration contract includes `paint`, `paintComponent`, `paintBorder`, both `getInsets` overloads, `contains` and
-`isOpaque`. The component's sizes answer as for any Swing component; the paint outsets are part of its insets, and a
-size set on it answers as set. Its background and border use `localLayoutBounds` so they stay inside the layout bounds.
-A container adds `override fun isPaintingOrigin(): Boolean = decoration.isDecorated`, as `JLayer` does, so a child
-repainting itself alone is painted through the decoration.
-
 ## The layout pipeline
 
 A constraint-based container runs androidx's layout phases inside Swing's validate and paint cycles.
 
-### Paint bounds
+### Bounds
 
-The layout bounds are what measurement, placement, alignment, callbacks and hit testing see. Paint outsets describe how
-far a component's own decoration paints beyond those bounds. A Foundation parent fits the component's Swing bounds
-around the layout bounds and reports the outsets through `getInsets()`. `Decoration.paintOutsets()` returns a copy of
-the outsets, `localLayoutBounds(component)` returns the layout box in the component's coordinates, and
-`insets(base)` adds the outsets to existing border insets. Under a Swing parent, a component has no paint outsets and
-its layout bounds are its Swing bounds.
+A decorated component, one that implements `Decoratable`, has these rectangles:
+
+- Its *bounds* are Swing's rectangle, which Swing clips its painting to.
+- Its *layout bounds* are what its parent measured and placed. Sibling placement, alignment, offsets,
+  `onPlaced`, `onSizeChanged` and hit testing use them.
+- Its *paint outsets* are how far it paints past its layout bounds on each side, such as a shadow's falloff, content
+  a layer scales past its box, a background declared before a `padding`, or a child's shadow spilling past a
+  container that no `clip` or `alpha` of its own cuts.
+- Its *paint bounds* are everything it paints, children's overflow included: its bounds.
+- Its *content area* is where its children are placed: the layout bounds less its border.
+
+![Bounds of a decorated component](images/foundation-bounds.svg)
+
+When the outsets change, the Foundation container that placed the component sets its bounds around the unchanged
+layout bounds at once, and measures nothing again.
 
 ### Phases
 
@@ -606,7 +571,29 @@ its layout bounds are its Swing bounds.
 | Intrinsic | Swing asks for a preferred or minimum size; see [Intrinsic size](#intrinsic-size) | Lays the container and its ancestors out again |
 | Measure | During a layout: the container's `doLayout`, or a constraint-based parent measuring it | Lays the container and its ancestors out again |
 | Place | In `doLayout` after measure, and alone when only placement reads change | Places the children again inside the container's current bounds, without measuring; a child that placement resizes is laid out |
+| Paint outsets | After placement, and when a layer block's reads change | Recomputes the paint outsets and repaints |
 | Paint | Swing paints the component | Repaints the component |
+
+### Under a Swing parent
+
+A parent that is not a Foundation container, such as a stock Swing container, a `Panel` or a window, gives a
+decorated component no paint outsets:
+
+- `getInsets()` answers the border alone;
+- its sizes are plain Swing sizes, and a size set on the component answers as set;
+- its layout bounds are its bounds;
+- every decoration paints at the bounds, and Swing clips what a shadow, a blur or a child paints past them.
+
+A Foundation container under a Swing parent likewise clips what its children paint past its bounds.
+
+In a Foundation layout, `padding` belongs to the child's layout and takes space, and the child's paint outsets
+overlap it, as `Modifier.padding(16).shadow(8)` does in androidx. A decoration declared before the padding
+paints over that space, as `Modifier.background(color).padding(16)` does in androidx. A widget that is not
+`Decoratable` keeps its full bounds in a Foundation container: it is measured, placed and baseline-aligned by them,
+so space its look and feel reserves inside them, such as for a focus ring, counts as part of the widget.
+
+To keep a descendant's shadow visible under a Swing parent, give it space inside a `Box` with padding, as the
+[card example](#decorations) does.
 
 ## Relationship to Compose UI/Foundation
 

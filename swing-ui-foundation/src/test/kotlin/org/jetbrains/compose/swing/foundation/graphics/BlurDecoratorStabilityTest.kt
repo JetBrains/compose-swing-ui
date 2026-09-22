@@ -5,6 +5,7 @@ import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.differingPixelBounds
 import java.awt.Color
 import java.awt.Graphics2D
+import java.awt.Insets
 import java.awt.Rectangle
 import java.awt.RenderingHints
 import java.awt.geom.AffineTransform
@@ -18,6 +19,24 @@ import kotlin.test.assertTrue
 
 /** Rendering proof that wide shadows keep their requested radius and alignment as the blur reduces its recording. */
 class BlurDecoratorStabilityTest {
+    @Test
+    fun wideShadowReservesTheWholeReachOfItsBlur() =
+        runComposeSwingTest {
+            val radii = 9..24
+            val canvases =
+                decoratedCanvases(SIZE, SIZE, radii.count(), decoration = {
+                    SwingModifier.shadow(radii.first + it, Color.BLACK, offsetX = 5, offsetY = 3)
+                }) {}
+            for ((radius, canvas) in radii.zip(canvases)) {
+                val reach = blurOutsets(radius)
+                assertEquals(
+                    Insets(reach - 3, reach - 5, reach + 3, reach + 5),
+                    canvas.paintOutsets,
+                    "shadow radius $radius",
+                )
+            }
+        }
+
     @Test
     fun adjacentWideShadowRadiiRemainDistinctAndAligned() =
         runComposeSwingTest {

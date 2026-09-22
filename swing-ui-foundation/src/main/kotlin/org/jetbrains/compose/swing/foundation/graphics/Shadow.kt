@@ -10,6 +10,7 @@ import java.awt.Component
 import java.awt.Graphics2D
 import java.awt.Insets
 import java.awt.Rectangle
+import java.awt.Shape
 import java.awt.geom.AffineTransform
 import kotlin.math.abs
 import kotlin.math.floor
@@ -108,6 +109,12 @@ private class ShadowNode(
             )
         }
 
+    override fun paintBounds(
+        content: Shape,
+        width: Int,
+        height: Int,
+    ): Shape = content.outsetBy(outsets)
+
     /** The content, created by the first paint. */
     private var captured: ImageLayer? = null
 
@@ -169,8 +176,11 @@ private class ShadowNode(
     ): Rectangle =
         effect
             .recordingBounds(
-                (if (wholePixels) Rectangle(area) else Rectangle(0, 0, width, height))
-                    .apply { translate(-offsetX, -offsetY) },
+                if (wholePixels) {
+                    Rectangle(area).apply { translate(-offsetX, -offsetY) }
+                } else {
+                    Rectangle(0, 0, width, height)
+                },
             ).apply { translate(offsetX, offsetY) }
 
     /**

@@ -6,6 +6,9 @@ package org.jetbrains.compose.swing.foundation.graphics
 import androidx.annotation.FloatRange
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import java.awt.Graphics2D
+import java.awt.Rectangle
+import java.awt.Shape
+import java.awt.geom.Area
 
 /**
  * Paints the component at [alpha] of its opacity, content and children alike, cut to the decorated box as
@@ -34,6 +37,17 @@ private data class AlphaDecorator(
     private val alpha: Float,
 ) : Decorator {
     override val isOpaque: Boolean get() = false
+
+    override fun needsPaintBounds(
+        width: Int,
+        height: Int,
+    ): Boolean = false
+
+    override fun paintBounds(
+        content: Shape,
+        width: Int,
+        height: Int,
+    ): Shape = Area(content).apply { intersect(Area(Rectangle(0, 0, width, height))) }
 
     override fun paint(
         graphics: Graphics2D,

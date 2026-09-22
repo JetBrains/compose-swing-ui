@@ -4,7 +4,6 @@ import androidx.annotation.FloatRange
 import org.jetbrains.annotations.VisibleForTesting
 import org.jetbrains.compose.swing.foundation.graphics.Decorator
 import org.jetbrains.compose.swing.foundation.graphics.ImageLayer
-import org.jetbrains.compose.swing.foundation.graphics.PaintBoundsDecorator
 import org.jetbrains.compose.swing.foundation.graphics.TransformOrigin
 import org.jetbrains.compose.swing.foundation.graphics.clipArea
 import org.jetbrains.compose.swing.foundation.graphics.setToScaleAndRotation
@@ -23,9 +22,8 @@ import java.awt.geom.Point2D
  *
  * The layer covers the placed box: the size the child measured to where a [MeasurePolicy] places it, or the size
  * the content reports where a layout modifier places it. What it paints past the layout bounds grows the
- * component's paint outsets. A state read in the block repaints the component without measuring it again. Each run
- * starts from the
- * defaults, so a property the block leaves unset paints at its default.
+ * component's paint outsets. A state read in the block repaints the component without measuring it again. Each
+ * run of the block starts from the defaults, so a property the block leaves unset paints at its default.
  *
  * Tooltips and popups the content opens stand where they would stand without the layer.
  */
@@ -91,8 +89,7 @@ internal class PlacementLayer(
     private val node: LayoutModifierNode?,
     /** The record of the component a [MeasurePolicy] places with this layer, or null where [node] places with it. */
     private val record: ChildMeasurable?,
-) : Decorator,
-    PaintBoundsDecorator {
+) : Decorator {
     /** The block the content was last placed with, or [NoLayer] while it was placed without one. */
     private var layerBlock: PlacementLayerScope.() -> Unit = NoLayer
 
@@ -147,8 +144,8 @@ internal class PlacementLayer(
 
     override val isOpaque: Boolean get() = false
 
-    /** Only a transform moves the layer's own content off its box. */
-    override fun ownsPaintBounds(
+    /** Only a rotation or a scale moves the content off its box; a fade or a clip alone takes no paint outsets. */
+    override fun needsPaintBounds(
         width: Int,
         height: Int,
     ): Boolean = transform != null
@@ -339,9 +336,9 @@ internal class PlacementLayer(
     companion object {
         /** Reads made while the layer block runs; a change repaints the component the layer paints on. */
         val LayerReads: (LayoutModifierNode) -> Unit = {
-            val layer = it.layer
-            layer.updateProperties()
+            it.layer.updateProperties()
             it.child?.let { placement ->
+                placement.owner.fitPaintOutsets(placement)
                 placement.component.repaint()
             }
         }

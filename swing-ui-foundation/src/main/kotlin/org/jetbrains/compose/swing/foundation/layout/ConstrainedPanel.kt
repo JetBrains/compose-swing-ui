@@ -3,6 +3,7 @@ package org.jetbrains.compose.swing.foundation.layout
 import androidx.compose.runtime.snapshots.Snapshot
 import org.jetbrains.compose.swing.foundation.graphics.Decoratable
 import org.jetbrains.compose.swing.foundation.graphics.Decoration
+import org.jetbrains.compose.swing.foundation.util.fastForEach
 import java.awt.Component
 import java.awt.Dimension
 import java.awt.Graphics
@@ -61,10 +62,19 @@ internal open class ConstrainedPanel(
 
     override fun isOpaque(): Boolean = super.isOpaque() && decoration.isOpaque(this)
 
-    /** A child repainting itself alone is painted through this panel when it declares a decoration. */
+    /**
+     * A child repainting itself alone would otherwise be painted around this panel's decoration; see
+     * [paintImmediately].
+     */
     public override fun isPaintingOrigin(): Boolean = decoration.isDecorated
 
-    /** Paints the changed area grown by this panel's own decoration outsets. */
+    /**
+     * Paints the whole panel while a layer rotates or scales it. Otherwise, while a child holds such a layer or has
+     * paint outsets, it paints the area grown by the whole of each visible child the area touches, and then by the
+     * decoration's outsets, which a blur or a shadow spreads a change in the area into. A repaint a descendant asks
+     * for names the area it would take unturned and unscaled, and without the paint outsets of the containers between
+     * them, which Swing does not ask to grow it when it merges that repaint into this panel's own.
+     */
     override fun paintImmediately(
         x: Int,
         y: Int,
@@ -74,11 +84,30 @@ internal open class ConstrainedPanel(
         val steps = decoration.steps
         if (steps.isTransformed) return super.paintImmediately(0, 0, width, height)
         val reach = steps.outsets
+        val measurables = policyLayout.measurables
+        if (!measurables.hasChildToGather) {
+            return super.paintImmediately(
+                x - reach.left,
+                y - reach.top,
+                w + reach.left + reach.right,
+                h + reach.top + reach.bottom,
+            )
+        }
+        val area = Rectangle(x, y, w, h)
+        val bounds = Rectangle()
+        measurables.layoutPass.fastForEach {
+            val child = it.component
+            if (child.isVisible && it.decoratable?.decoration?.needsGathering == true) {
+                child.getBounds(bounds)
+                if (area.intersects(bounds)) area.add(bounds)
+            }
+        }
+        // Not the Rectangle overload, which calls back here.
         super.paintImmediately(
-            x - reach.left,
-            y - reach.top,
-            w + reach.left + reach.right,
-            h + reach.top + reach.bottom,
+            area.x - reach.left,
+            area.y - reach.top,
+            area.width + reach.left + reach.right,
+            area.height + reach.top + reach.bottom,
         )
     }
 
@@ -153,10 +182,16 @@ internal open class ConstrainedPanel(
     /**
      * A child moved by a placement replay reports an invalidation that replay has already answered, and so
      * does the [StackingOrder.restack] it ends with: `setComponentZOrder` invalidates this panel, and a
-     * change of z-order needs no layout.
+     * change of z-order needs no layout. Neither does fitting this panel or a child to changed paint outsets.
+     *
+     * Resized by its parent's fit, the panel keeps its layout bounds but answers other sizes, which carry its paint
+     * outsets. It drops the sizes Swing caches for it and keeps what its last pass settled on; see
+     * [ChildMeasurables.childPaintOutsetsChanged] for its layout. Its parent, fitting it, lays nothing out.
      */
     override fun invalidate() {
-        if (policyLayout.measurables.run { isPlacingAgain || isFittingPaintOutsets }) return
+        val measurables = policyLayout.measurables
+        if (measurables.isFittingPaintOutsets && measurables.beingPlaced) return super.invalidate()
+        if (measurables.run { isPlacingAgain || isFittingPaintOutsets }) return
         super.invalidate()
     }
 

@@ -26,8 +26,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.Snapshot
 import org.jetbrains.compose.swing.foundation.Canvas
+import org.jetbrains.compose.swing.foundation.graphics.DecoratedBox
 import org.jetbrains.compose.swing.foundation.graphics.background
-import org.jetbrains.compose.swing.foundation.graphics.decorated
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.key
@@ -43,6 +43,8 @@ import java.awt.Component
 import java.awt.Graphics
 import java.awt.GraphicsEnvironment
 import java.awt.Rectangle
+import java.util.Collections
+import java.util.IdentityHashMap
 import javax.swing.JComponent
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -252,6 +254,126 @@ class LayoutObservationTest {
         }
 
     /**
+     * A read in the policy of a layout nested in another is observed under that layout alone: its change
+     * invalidates that layout and leaves a sibling layout, whose policy never read it, valid. Read at once, with no
+     * harness pass in between, in a showing window, where validity is real.
+     */
+    @Test
+    fun aReadInANestedPolicyInvalidatesThatLayoutAndNotItsSibling() =
+        runComposeSwingTest {
+            assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+            var gap by mutableIntStateOf(0)
+            setWindowContent {
+                Column {
+                    Layout(
+                        content = {
+                            SizedChild(0)
+                            SizedChild(1)
+                        },
+                        measurePolicy = stackedRows { gap },
+                        modifier = SwingModifier.testTag(CONTAINER_TAG),
+                    )
+                    Layout(
+                        content = { SizedChild(2) },
+                        measurePolicy = stackedRows(),
+                        modifier = SwingModifier.testTag(SIBLING_TAG),
+                    )
+                }
+            }
+            val container = windowContainer()
+            val sibling = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag(SIBLING_TAG).fetch<JComponent>()
+            assertTrue(container.isValidUpToTheValidateRoot(), "the realized container must start valid")
+
+            gap = CHILD_HEIGHT
+            Snapshot.sendApplyNotifications()
+
+            assertFalse(container.isValid, "a changed read of the nested policy must invalidate its layout")
+            assertTrue(sibling.isValid, "a changed read must leave a sibling layout that never read it valid")
+
+            awaitIdle()
+            assertEquals(
+                columnRows(0, 2 * CHILD_HEIGHT),
+                container.childrenInDeclarationOrder().map { it.bounds },
+                "the relayout must place the nested layout's children at the new gap",
+            )
+        }
+
+    /**
+     * A plain child reading state while it lays itself out is not observed through the layout that holds it:
+     * only a policy's own answers are.
+     */
+    @Test
+    fun aPlainChildReadingStateWhileLayingOutIsNotObserved() =
+        runComposeSwingTest {
+            assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
+            var inset by mutableIntStateOf(0)
+            setWindowContent {
+                Column {
+                    Layout(
+                        content = {
+                            SwingNode(
+                                factory = { LayoutReadingChild { inset } },
+                                modifier = SwingModifier.preferredSize(CHILD_WIDTH, CHILD_HEIGHT),
+                            )
+                        },
+                        measurePolicy = stackedRows(),
+                        modifier = containerModifier(200, 300),
+                    )
+                }
+            }
+            val container = windowContainer()
+            // Lays the child out again inside a validation of the container, after every node has attached.
+            (container.getComponent(0) as JComponent).revalidate()
+            awaitIdle()
+            assertTrue(container.isValidUpToTheValidateRoot(), "the realized container must start valid")
+
+            inset = 1
+            Snapshot.sendApplyNotifications()
+
+            assertTrue(
+                container.isValidUpToTheValidateRoot(),
+                "a read a plain child makes while laying itself out must invalidate nothing",
+            )
+        }
+
+    /**
+     * One validation of nested layouts observes every answer's reads inside one snapshot: an answer computed
+     * while a layout above it validates reuses the snapshot that validation entered, rather than entering one
+     * of its own.
+     */
+    @Test
+    fun nestedLayoutsValidatedInOnePassObserveInsideOneSnapshot() =
+        runComposeSwingTest {
+            var gap by mutableIntStateOf(0)
+            val snapshots = Collections.newSetFromMap(IdentityHashMap<Snapshot, Boolean>())
+            setContent {
+                Column(modifier = SwingModifier.preferredSize(200, 300)) {
+                    repeat(CHILD_COUNT) { index ->
+                        Layout(
+                            content = { SizedChild(index) },
+                            measurePolicy =
+                                stackedRowsPlacingAtOffset(
+                                    onMeasure = {
+                                        snapshots += Snapshot.current
+                                        gap
+                                    },
+                                ) {
+                                    snapshots += Snapshot.current
+                                    0
+                                },
+                        )
+                    }
+                }
+            }
+            snapshots.clear()
+
+            gap = 1
+            awaitIdle()
+
+            assertEquals(1, snapshots.size, "every answer of one validation must be observed inside one snapshot")
+        }
+
+    /**
      * A measure read invalidates the container and its ancestors, and asks for no repaint: the relayout
      * that follows repaints whatever moved. Read at once, with no harness pass in between, in a showing
      * window, where validity and dirty regions are real.
@@ -385,11 +507,13 @@ class LayoutObservationTest {
             assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
             var color by mutableStateOf(Color.RED)
             setWindowContent {
-                Layout(
-                    content = { SizedChild(0) },
-                    measurePolicy = stackedRows(),
-                    modifier = decorated { containerModifier(200, 300).background(brush = { _, _ -> color }) },
-                )
+                DecoratedBox {
+                    Layout(
+                        content = { SizedChild(0) },
+                        measurePolicy = stackedRows(),
+                        modifier = containerModifier(200, 300).background(brush = { _, _ -> color }),
+                    )
+                }
             }
             val container = windowContainer()
             val node = onWindowWithTitle(WINDOW_TITLE).onNodeWithTag(CONTAINER_TAG)
@@ -455,25 +579,27 @@ class LayoutObservationTest {
             var canvasColor by mutableStateOf(Color.RED)
             val unrelated = mutableIntStateOf(0)
             setWindowContent {
-                Layout(
-                    content = {
-                        SizedChild(0, SwingModifier.testTag("painted"))
-                        Layout(
-                            measurePolicy = { _, _ -> layout(CHILD_WIDTH, CHILD_HEIGHT) {} },
-                            modifier =
-                                decorated {
-                                    SwingModifier.testTag("nested").background(brush = { _, _ -> nestedColor })
-                                },
-                        )
-                        Canvas(modifier = SwingModifier.testTag("canvas").preferredSize(CHILD_WIDTH, CHILD_HEIGHT)) {
-                            graphics.color = canvasColor
-                            graphics.fillRect(0, 0, width, height)
-                        }
-                    },
-                    measurePolicy = stackedRows(),
-                    modifier =
-                        decorated { containerModifier(200, 300).background(brush = { _, _ -> containerColor }) },
-                )
+                DecoratedBox {
+                    Layout(
+                        content = {
+                            SizedChild(0, SwingModifier.testTag("painted"))
+                            Layout(
+                                measurePolicy = { _, _ -> layout(CHILD_WIDTH, CHILD_HEIGHT) {} },
+                                modifier =
+                                    SwingModifier.testTag("nested").background(brush = { _, _ -> nestedColor }),
+                            )
+                            Canvas(
+                                modifier = SwingModifier.testTag("canvas").preferredSize(CHILD_WIDTH, CHILD_HEIGHT),
+                            ) {
+                                graphics.color = canvasColor
+                                graphics.fillRect(0, 0, width, height)
+                            }
+                        },
+                        measurePolicy = stackedRows(),
+                        modifier =
+                            containerModifier(200, 300).background(brush = { _, _ -> containerColor }),
+                    )
+                }
             }
             val window = onWindowWithTitle(WINDOW_TITLE)
             val container = windowContainer()
@@ -556,14 +682,14 @@ class LayoutObservationTest {
             var color by mutableStateOf(Color.RED)
             var generation by mutableIntStateOf(0)
             setWindowContent {
-                Layout(
-                    content = { SizedChild(0) },
-                    measurePolicy = stackedRows(),
-                    modifier =
-                        decorated {
-                            SwingModifier.testTag(CONTAINER_TAG).key(generation).background(brush = { _, _ -> color })
-                        },
-                )
+                DecoratedBox {
+                    Layout(
+                        content = { SizedChild(0) },
+                        measurePolicy = stackedRows(),
+                        modifier =
+                            SwingModifier.testTag(CONTAINER_TAG).key(generation).background(brush = { _, _ -> color }),
+                    )
+                }
             }
             generation = 1
             awaitIdle()
@@ -581,6 +707,8 @@ class LayoutObservationTest {
         }
 
     private companion object {
+        const val SIBLING_TAG = "sibling"
+
         /**
          * Stacks its children ungapped and writes the content height they actually occupied into
          * [target] - never the extent [layout] reports, which a fixed container size coerces to its own
@@ -643,6 +771,15 @@ class LayoutObservationTest {
                     placeable.place(0, offset())
                 }
             }
+    }
+}
+
+/** A child reading [inset] each time it lays itself out. */
+private class LayoutReadingChild(
+    private val inset: () -> Int,
+) : JComponent() {
+    override fun doLayout() {
+        inset()
     }
 }
 

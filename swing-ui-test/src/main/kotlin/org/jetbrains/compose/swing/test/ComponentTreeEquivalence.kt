@@ -444,7 +444,7 @@ internal fun comparedPropertiesOf(component: Component): List<ComparedProperty> 
  * a caller watching one component over time watches writes that reach a single axis, and a layout pass
  * between two of its reads moves the axes it is not watching.
  */
-private val PLACEMENT_AXES: List<ComparedProperty> =
+internal val PLACEMENT_AXES: List<ComparedProperty> =
     listOf(
         ComparedProperty("x") { it.x },
         ComparedProperty("y") { it.y },

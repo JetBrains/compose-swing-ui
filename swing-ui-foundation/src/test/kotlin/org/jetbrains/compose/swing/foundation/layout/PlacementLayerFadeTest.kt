@@ -7,7 +7,6 @@ import org.jetbrains.compose.swing.foundation.Canvas
 import org.jetbrains.compose.swing.foundation.graphics.Brush
 import org.jetbrains.compose.swing.foundation.graphics.background
 import org.jetbrains.compose.swing.foundation.graphics.blur
-import org.jetbrains.compose.swing.foundation.graphics.decorated
 import org.jetbrains.compose.swing.foundation.graphics.renderImage
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -25,7 +24,7 @@ import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/** A fading placement layer fades everything the steps inside it paint. */
+/** A fading placement layer fades everything the steps inside it paint, past its content's box too. */
 class PlacementLayerFadeTest {
     @Test
     fun aLayoutModifierNodeReleasesTheFadeBufferWhenItsComponentLeaves() =
@@ -57,30 +56,25 @@ class PlacementLayerFadeTest {
         }
 
     @Test
-    fun aFadeReachesAShadowInsideIt() =
-        assertFadeReachesTheEffectInside(
-            decorated {
-                SwingModifier.shadow(4, Color.BLACK, 3, 2)
-            },
-        )
+    fun aFadeReachesAShadowInsideIt() = assertFadeReachesTheEffectInside { SwingModifier.shadow(4, Color.BLACK, 3, 2) }
 
     @Test
-    fun aFadeReachesABlurInsideIt() = assertFadeReachesTheEffectInside(decorated { SwingModifier.blur(4) })
+    fun aFadeReachesABlurInsideIt() = assertFadeReachesTheEffectInside { SwingModifier.blur(4) }
 
     @Test
     fun aFadeReachesAScaleInsideIt() =
-        assertFadeReachesTheEffectInside(
+        assertFadeReachesTheEffectInside {
             SwingModifier.placementLayer {
                 scaleX = 2f
                 scaleY = 2f
-            },
-        )
+            }
+        }
 
     /**
      * What [inner] paints under the fade is what it paints without it, drawn at half its alpha, on graphics with no
      * clip and on graphics clipped to the component, as Swing paints it.
      */
-    private fun assertFadeReachesTheEffectInside(inner: SwingModifier) =
+    private fun assertFadeReachesTheEffectInside(inner: () -> SwingModifier) =
         runComposeSwingTest {
             setContent {
                 Row {
@@ -96,7 +90,7 @@ class PlacementLayerFadeTest {
                                     .testTag(tag)
                                     .preferredSize(20, 20)
                                     .then(fade)
-                                    .then(inner),
+                                    .then(inner()),
                         ) {
                             drawRect(Color.RED)
                         }
@@ -104,6 +98,7 @@ class PlacementLayerFadeTest {
                 }
             }
             val unfaded = onNodeWithTag("plain").captureToImage()
+            assertTrue(unfaded.width > 20, "the effect paints past the content")
 
             assertImagesPixelPerfect(halved(unfaded), onNodeWithTag("faded").captureToImage())
             assertImagesPixelPerfect(halved(paintClipped("plain")), paintClipped("faded"))

@@ -6,8 +6,11 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.assertAskedToRepaint
+import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.foundation.graphics.drawscope.ContentDrawScope
+import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.foundation.layout.Row
+import org.jetbrains.compose.swing.foundation.layout.padding
 import org.jetbrains.compose.swing.foundation.layout.placementLayer
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.opaque
@@ -21,17 +24,74 @@ import org.jetbrains.compose.swing.withRecordedRepaints
 import java.awt.Color
 import java.awt.Component
 import java.awt.Dimension
+import java.awt.FlowLayout
 import java.awt.Graphics2D
+import java.awt.Insets
 import javax.swing.JButton
 import javax.swing.JComponent
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 /** Behavioral tests for [DecorationModifierNode]: where a step paints, and how its changes reach the component. */
 class DecorationModifierNodeTest {
+    @Test
+    fun aStepPaintsAtItsPositionAmongTheDecorationsDeclaredAroundIt() =
+        runComposeSwingTest {
+            setContent {
+                Box(modifier = SwingModifier.testTag("box")) {
+                    SwingNode(
+                        factory = { DecoratedPanel() },
+                        modifier =
+                            SwingModifier
+                                .opaque(false)
+                                .preferredSize(Dimension(32, 32))
+                                .padding(4)
+                                .then(Step())
+                                .padding(4)
+                                .fill(Color.BLUE),
+                    )
+                }
+            }
+
+            val image = onNodeWithTag("box").captureToImage()
+            assertNotEquals(
+                Color.RED.rgb,
+                image.getRGB(2, 2),
+                "The padding declared before the step keeps it off the edge.",
+            )
+            assertEquals(Color.RED.rgb, image.getRGB(6, 6), "The step paints at the box of the padding after it.")
+            assertEquals(Color.BLUE.rgb, image.getRGB(10, 10), "What is declared after the step paints inside it.")
+        }
+
+    @Test
+    fun theOutsetsAStepReportsOnceItsElementIsAppliedIsReserved() =
+        runComposeSwingTest {
+            setContent {
+                Box {
+                    SwingNode(
+                        factory = { DecoratedPanel(FlowLayout(FlowLayout.LEADING, 0, 0)) },
+                        modifier =
+                            SwingModifier
+                                .testTag(
+                                    "panel",
+                                ).preferredSize(Dimension(32, 32))
+                                .then(Step(outset = 4)),
+                    ) {
+                        Label(text = "child", modifier = SwingModifier.testTag("child"))
+                    }
+                }
+            }
+            val panel = onNodeWithTag("panel").fetch<JComponent>()
+            val child = onNodeWithTag("child").fetch<JComponent>()
+
+            assertEquals(Insets(4, 4, 4, 4), panel.insets, "The component reports the outsets the step declares.")
+            assertEquals(4, child.x, "The children are laid out inside the outsets the step reserves.")
+        }
+
     @Test
     fun aPaintOnlyChangeRepaintsWithoutLayingTheComponentOutAgain() =
         runComposeSwingTest {
@@ -62,7 +122,7 @@ class DecorationModifierNodeTest {
                 assertEquals(
                     0,
                     recorder.relayoutsOver(panel),
-                    "A paint-only change does not lay the component out again.",
+                    "A step reserving the same outsets does not lay the component out again.",
                 )
                 assertEquals(
                     Color.GREEN.rgb,
@@ -73,19 +133,81 @@ class DecorationModifierNodeTest {
         }
 
     @Test
+    fun invalidateDecorationAfterAnOutsetsChangeLaysTheChildrenOutInsideTheNewInsets() =
+        runComposeSwingTest {
+            val step = Step()
+            setContent {
+                Box {
+                    SwingNode(
+                        factory = { DecoratedPanel(FlowLayout(FlowLayout.LEADING, 0, 0)) },
+                        modifier = SwingModifier.testTag("panel").preferredSize(Dimension(32, 32)).then(step),
+                    ) {
+                        Label(text = "child", modifier = SwingModifier.testTag("child"))
+                    }
+                }
+            }
+            val node = step.created.single()
+            val child = onNodeWithTag("child").fetch<JComponent>()
+            assertEquals(0, child.x, "Without outsets the child starts at the panel's edge.")
+            val panel = onNodeWithTag("panel").fetch<JComponent>()
+            withRecordedRepaints { recorder ->
+                node.outset = 5
+                node.invalidateDecoration()
+
+                assertEquals(
+                    0,
+                    recorder.relayoutsOver(panel),
+                    "A step reserving different outsets revalidates nothing.",
+                )
+                assertEquals(5, child.x, "The children are laid out inside the outsets the step now reserves.")
+                assertEquals(5, child.y, "The children are laid out inside the outsets the step now reserves.")
+            }
+        }
+
+    @Test
+    fun aStepThatReportedItsOutsetsLeavesNoOutsetsBehindOnceRemoved() =
+        runComposeSwingTest {
+            var declared by mutableStateOf(true)
+            var outset by mutableIntStateOf(0)
+            setContent {
+                Box {
+                    val modifier = SwingModifier.testTag("panel").preferredSize(Dimension(32, 32))
+                    SwingNode(
+                        factory = { DecoratedPanel(FlowLayout(FlowLayout.LEADING, 0, 0)) },
+                        modifier = if (declared) modifier.then(ReportingStep(outset)) else modifier,
+                    ) {
+                        Label(text = "child", modifier = SwingModifier.testTag("child"))
+                    }
+                }
+            }
+            val child = onNodeWithTag("child").fetch<JComponent>()
+            outset = 5
+            awaitIdle()
+            assertEquals(5, child.x, "The step's element reports the outsets it reserves.")
+
+            declared = false
+            awaitIdle()
+
+            assertEquals(0, child.x, "A removed step takes the outsets it reserved with it.")
+        }
+
+    @Test
     fun aStepRemovedFromTheModifierPaintsNoMore() =
         runComposeSwingTest {
             var declared by mutableStateOf(true)
             setContent {
-                val modifier =
-                    decorated {
+                DecoratedBox {
+                    val modifier =
                         SwingModifier
                             .testTag("panel")
                             .opaque(false)
                             .preferredSize(Dimension(32, 32))
                             .fill(Color.BLUE)
-                    }
-                SwingNode(factory = { DecoratedPanel() }, modifier = if (declared) modifier.then(Step()) else modifier)
+                    SwingNode(
+                        factory = { DecoratedPanel() },
+                        modifier = if (declared) modifier.then(Step()) else modifier,
+                    )
+                }
             }
             assertEquals(
                 Color.RED.rgb,
@@ -111,7 +233,7 @@ class DecorationModifierNodeTest {
                 val modifier = SwingModifier.testTag("panel").preferredSize(Dimension(32, 32))
                 SwingNode(
                     factory = { WriteCountingPanel() },
-                    modifier = if (declared) modifier.then(Step()).then(Step()).then(Step()) else modifier,
+                    modifier = if (declared) modifier.then(Step(1)).then(Step(1)).then(Step(1)) else modifier,
                 )
             }
             val panel = onNodeWithTag("panel").fetch<WriteCountingPanel>()
@@ -209,7 +331,9 @@ class DecorationModifierNodeTest {
             val undecorated = panel.isOpaque
             var present by mutableStateOf(true)
             setContent {
-                if (present) SwingNode(factory = { panel }, modifier = decorated { SwingModifier.cut() })
+                DecoratedBox {
+                    if (present) SwingNode(factory = { panel }, modifier = SwingModifier.cut())
+                }
             }
             assertFalse(panel.isOpaque, "The cut leaves the corners uncovered.")
 
@@ -227,8 +351,10 @@ class DecorationModifierNodeTest {
             val undecorated = panel.isOpaque
             var active by mutableStateOf(true)
             setContent {
-                ReusableContentHost(active) {
-                    SwingNode(factory = { panel }, modifier = decorated { SwingModifier.cut() })
+                DecoratedBox {
+                    ReusableContentHost(active) {
+                        SwingNode(factory = { panel }, modifier = SwingModifier.cut())
+                    }
                 }
             }
             assertFalse(panel.isOpaque, "The cut leaves the corners uncovered.")
@@ -293,6 +419,30 @@ class DecorationModifierNodeTest {
         )
         assertFalse(panel.needsNodesAfterWrite(PlainNode()), "A node that is no decoration step changes nothing.")
     }
+
+    @Test
+    fun aDecorationSettlingAtFullOpacityLeavesTheComponentUndecorated() =
+        runComposeSwingTest {
+            var alpha by mutableStateOf(0.5f)
+            setContent {
+                DecoratedBox {
+                    SwingNode(
+                        factory = { DecoratedPanel() },
+                        modifier = SwingModifier.testTag("panel").alpha(alpha),
+                    )
+                }
+            }
+            val panel = onNodeWithTag("panel").fetch<DecoratedPanel>()
+            assertTrue(panel.isPaintingOrigin(), "A fade decorates the component.")
+
+            alpha = 1f
+            awaitIdle()
+
+            assertFalse(
+                panel.isPaintingOrigin(),
+                "A fade of 1 decorates nothing, so the children repaint themselves again.",
+            )
+        }
 
     @Test
     fun aStepCreatedByAPropertyElementIsRefused() =
@@ -436,7 +586,9 @@ private class CountingStepNode(
 }
 
 /** Declares a [StepNode], a decoration step written against the public API alone. */
-private class Step : SwingModifier.NodeElement<Component, StepNode>() {
+private class Step(
+    private val outset: Int = 0,
+) : SwingModifier.NodeElement<Component, StepNode>() {
     val created = ArrayList<StepNode>()
 
     override val additive: Boolean get() = true
@@ -445,7 +597,9 @@ private class Step : SwingModifier.NodeElement<Component, StepNode>() {
 
     override fun create(): StepNode = StepNode().also { created += it }
 
-    override fun update(node: StepNode) = Unit
+    override fun update(node: StepNode) {
+        node.outset = outset
+    }
 
     override fun equals(other: Any?): Boolean = this === other
 
@@ -465,10 +619,35 @@ private class KeyedStep : SwingModifier.NodeElement<Component, StepNode>() {
     override fun hashCode(): Int = 0
 }
 
-/** Fills its area with [color], then paints its content over it, answering [opaque] as its opacity. */
+/** Declares a [StepNode] with [outset] of paint outsets, which the hand-over after the pass gathers. */
+private class ReportingStep(
+    private val outset: Int,
+) : SwingModifier.NodeElement<Component, StepNode>() {
+    override val additive: Boolean get() = true
+
+    override val targetType: Class<Component> get() = Component::class.java
+
+    override fun create(): StepNode = StepNode()
+
+    override fun update(node: StepNode) {
+        node.outset = outset
+    }
+
+    override fun equals(other: Any?): Boolean = other is ReportingStep && other.outset == outset
+
+    override fun hashCode(): Int = outset
+}
+
+/**
+ * Fills its area with [color], then paints its content over it, declaring [outset] of paint outsets on each side and
+ * answering [opaque] as its opacity.
+ */
 private class StepNode : DecorationModifierNode<Component>() {
     var color: Color = Color.RED
+    var outset = 0
     var opaque = true
+
+    override val outsets: Insets get() = Insets(outset, outset, outset, outset)
 
     override val isOpaque: Boolean get() = opaque
 

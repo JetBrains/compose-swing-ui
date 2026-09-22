@@ -9,6 +9,7 @@ import java.awt.Graphics2D
 import java.awt.Insets
 import java.awt.Rectangle
 import java.awt.RenderingHints
+import java.awt.Shape
 import kotlin.math.abs
 
 /**
@@ -80,6 +81,12 @@ private class BlurNode(
 
     /** How far the blur spreads the content, recorded at a scale of `1.0`. */
     override val outsets: Insets get() = effect.outsets(1.0)
+
+    override fun paintBounds(
+        content: Shape,
+        width: Int,
+        height: Int,
+    ): Shape = content.outsetBy(outsets)
 
     override fun paint(
         graphics: Graphics2D,

@@ -17,11 +17,13 @@ import kotlin.math.floor
  * declares and the paint outsets its Foundation container worked out for it. The library creates each value for one
  * component and writes it to [Decoratable.decoration]; a value never changes, and a change is a new value.
  *
- * Each step is a [Decorator], the first outermost, and paints at the layout bounds. The *layout bounds* are the box
- * measurement, placement, alignment, `onPlaced`, `onSizeChanged` and hit testing see. The component's *bounds*, Swing's
- * rectangle, are the layout bounds plus the *paint outsets*, how far the component's decoration paints past them on
- * each side. A Foundation container fits an untransformed component to its steps' own [outsets][Decorator.outsets]
- * and a transformed component to the bounds of its own transformed content.
+ * Each step is a [Decorator], the first outermost: it paints at the layout bounds, or, when a layout modifier is
+ * declared after it, at the box of the first such modifier. The *layout bounds* are the box measurement, placement,
+ * alignment, `onPlaced`, `onSizeChanged` and hit testing see. The component's *bounds*, Swing's rectangle, are the
+ * layout bounds plus the *paint outsets*, how far the component paints past them on each side. Only a Foundation
+ * container gives a component paint outsets: the steps' [outsets][Decorator.outsets], the box of a layout modifier a
+ * step paints at, what a rotating or scaling placement layer adds and, for a Foundation container, what its children
+ * paint past it.
  */
 public class Decoration internal constructor(
     /** The steps the component's modifier declares. */
@@ -86,7 +88,7 @@ public class Decoration internal constructor(
 
     /**
      * Paints [content], the component itself in its own coordinates, through the decoration. The steps paint at the
-     * layout bounds. Without a clip on [graphics], as in a
+     * layout bounds, or at the box of the layout modifier declared after them. Without a clip on [graphics], as in a
      * capture or a print, the whole component is painted.
      *
      * @throws IllegalArgumentException where a decorated component is handed a graphics that is not a Graphics2D.
@@ -146,6 +148,9 @@ public class Decoration internal constructor(
     internal fun layoutHeight(component: Component): Int =
         (component.height - heldPaintOutsets.top - heldPaintOutsets.bottom).coerceAtLeast(0)
 
+    /** Whether its Foundation parent gathers its paint bounds: it has paint outsets. */
+    internal val needsGathering: Boolean get() = heldPaintOutsets != NoPaintOutsets
+
     /**
      * The point whose content the placement layers paint at ([x], [y]), both in the component's own coordinates: the
      * layers are read back from the pixel's center, outermost first. Null where [clipped] cuts it away or no content
@@ -170,34 +175,6 @@ public class Decoration internal constructor(
     }
 }
 
-/**
- * A decorator that works out its own paint bounds for the component's own transformed content.
- */
-internal interface PaintBoundsDecorator {
-    /** Whether its paint bounds now differ from those its outsets alone give. */
-    fun ownsPaintBounds(
-        width: Int,
-        height: Int,
-    ): Boolean = true
-
-    fun paintBounds(
-        content: Shape,
-        width: Int,
-        height: Int,
-    ): Shape
-}
-
-/** The paint bounds over [content] of this decorator painting at a box of [width] by [height] at the origin. */
-internal fun Decorator.paintBounds(
-    content: Shape,
-    width: Int,
-    height: Int,
-): Shape =
-    when (this) {
-        is PaintBoundsDecorator -> paintBounds(content, width, height)
-        else -> content.outsetBy(outsets)
-    }
-
 /** The bounds of this shape grown by [outsets] on each side; this shape itself where [outsets] is none. */
 internal fun Shape.outsetBy(outsets: Insets): Shape {
     if (outsets == NoPaintOutsets) return this
@@ -212,8 +189,8 @@ internal fun Shape.outsetBy(outsets: Insets): Shape {
 
 /**
  * This component's layout bounds, in its parent's layout coordinates; a new [Rectangle]. A component that is not
- * [Decoratable] takes its bounds as its layout bounds. A Foundation parent moves the child's layout origin by its own
- * paint outsets; any other parent places its children against `getInsets()`, which carry its outsets already.
+ * [Decoratable] takes its bounds as its layout bounds. A Foundation parent's paint outsets move its layout origin off
+ * its bounds' origin; any other parent places its children against `getInsets()`, which carry its outsets already.
  */
 internal val Component.layoutBounds: Rectangle
     get() {

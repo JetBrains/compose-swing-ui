@@ -6,8 +6,11 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.ScrollPane
 import org.jetbrains.compose.swing.components.text.TextArea
+import org.jetbrains.compose.swing.foundation.graphics.SharedInsetsBorder
+import org.jetbrains.compose.swing.foundation.graphics.spill
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.accessibility.accessibleName
+import org.jetbrains.compose.swing.modifier.appearance.border
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.interaction.enabled
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
@@ -15,6 +18,7 @@ import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Dimension
+import java.awt.Insets
 import java.awt.Rectangle
 import javax.accessibility.AccessibleContext
 import javax.accessibility.AccessibleRole
@@ -240,6 +244,30 @@ class ConstrainedPanelTest {
                 "the pane sizes its viewport by the whole panel, not by one of its children",
             )
             assertEquals(pane.viewport.width, view.width, "the panel is laid out at the viewport's width")
+        }
+
+    @Test
+    fun aBorderSharingItsInsetsKeepsThemWhenTheBoxFillsInsetsItIsHanded() =
+        runComposeSwingTest {
+            val border = SharedInsetsBorder()
+            setContent {
+                Box {
+                    Box(
+                        modifier =
+                            SwingModifier
+                                .testTag("box")
+                                .preferredSize(Dimension(64, 48))
+                                .border(border)
+                                .spill(Insets(8, 8, 8, 8)),
+                    )
+                }
+            }
+            val box = onNodeWithTag("box").fetch<JComponent>()
+
+            box.getInsets(Insets(0, 0, 0, 0))
+
+            assertEquals(Insets(2, 2, 2, 2), border.own, "the border's own insets are read, never written")
+            assertEquals(Insets(10, 10, 10, 10), box.getInsets(Insets(0, 0, 0, 0)))
         }
 }
 

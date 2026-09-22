@@ -7,13 +7,11 @@ import androidx.compose.runtime.setValue
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.job
 import org.jetbrains.compose.swing.components.button.Button
-import org.jetbrains.compose.swing.foundation.Canvas
 import org.jetbrains.compose.swing.foundation.graphics.drawscope.ContentDrawScope
 import org.jetbrains.compose.swing.foundation.graphics.drawscope.DrawScope
 import org.jetbrains.compose.swing.foundation.graphics.drawscope.clipRect
 import org.jetbrains.compose.swing.foundation.graphics.drawscope.record
 import org.jetbrains.compose.swing.foundation.graphics.drawscope.translate
-import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
@@ -47,24 +45,24 @@ class DrawModifierNodeTest {
     fun simpleDrawTest() =
         runComposeSwingTest {
             setContent {
-                Box(
-                    modifier =
-                        decorated {
+                DecoratedBox {
+                    DecoratedBox(
+                        modifier =
                             SwingModifier
                                 .testTag("outer")
                                 .preferredSize(Dimension(32, 32))
                                 .opaque(false)
-                                .drawBehind { drawRect(Color.YELLOW) }
-                        },
-                ) {
-                    Box(
-                        modifier =
-                            SwingModifier
-                                .testTag("inner")
-                                .preferredSize(Dimension(16, 16))
-                                .opaque(false)
-                                .drawBehind { drawRect(Color.RED) },
-                    )
+                                .drawBehind { drawRect(Color.YELLOW) },
+                    ) {
+                        DecoratedBox(
+                            modifier =
+                                SwingModifier
+                                    .testTag("inner")
+                                    .preferredSize(Dimension(16, 16))
+                                    .opaque(false)
+                                    .drawBehind { drawRect(Color.RED) },
+                        )
+                    }
                 }
             }
 
@@ -79,24 +77,24 @@ class DrawModifierNodeTest {
             var outerColor by mutableStateOf(Color.BLUE)
             var innerColor by mutableStateOf(Color.WHITE)
             setContent {
-                Box(
-                    modifier =
-                        decorated {
+                DecoratedBox {
+                    DecoratedBox(
+                        modifier =
                             SwingModifier
                                 .testTag("outer")
                                 .preferredSize(Dimension(32, 32))
                                 .opaque(false)
-                                .drawBehind { drawRect(outerColor) }
-                        },
-                ) {
-                    Box(
-                        modifier =
-                            SwingModifier
-                                .testTag("inner")
-                                .preferredSize(Dimension(16, 16))
-                                .opaque(false)
-                                .drawBehind { drawRect(innerColor) },
-                    )
+                                .drawBehind { drawRect(outerColor) },
+                    ) {
+                        DecoratedBox(
+                            modifier =
+                                SwingModifier
+                                    .testTag("inner")
+                                    .preferredSize(Dimension(16, 16))
+                                    .opaque(false)
+                                    .drawBehind { drawRect(innerColor) },
+                        )
+                    }
                 }
             }
             val component = onNodeWithTag("outer").fetch<JComponent>()
@@ -122,18 +120,18 @@ class DrawModifierNodeTest {
             var recomposeTrigger by mutableStateOf(0)
             var compositions = 0
             setContent {
-                recomposeTrigger
-                SideEffect { compositions++ }
-                Box(
-                    modifier =
-                        decorated {
+                DecoratedBox {
+                    recomposeTrigger
+                    SideEffect { compositions++ }
+                    DecoratedBox(
+                        modifier =
                             SwingModifier
                                 .testTag("box")
                                 .preferredSize(Dimension(16, 16))
                                 .drawBehind(fillRed)
-                                .drawWithContent(drawContentOverRed)
-                        },
-                )
+                                .drawWithContent(drawContentOverRed),
+                    )
+                }
             }
             val box = onNodeWithTag("box").fetch<JComponent>()
 
@@ -152,9 +150,9 @@ class DrawModifierNodeTest {
     fun drawOrderWithChildren() =
         runComposeSwingTest {
             setContent {
-                Box(
-                    modifier =
-                        decorated {
+                DecoratedBox {
+                    DecoratedBox(
+                        modifier =
                             SwingModifier
                                 .testTag("outer")
                                 .preferredSize(Dimension(32, 32))
@@ -176,9 +174,9 @@ class DrawModifierNodeTest {
                                     },
                                 ).drawBehind {
                                     drawRect(Color.WHITE, height = size.height / 2f)
-                                }
-                        },
-                )
+                                },
+                    )
+                }
             }
 
             val image = onNodeWithTag("outer").captureToImage()
@@ -192,9 +190,9 @@ class DrawModifierNodeTest {
     fun drawModifierWithLayout() =
         runComposeSwingTest {
             setContent {
-                Box(
-                    modifier =
-                        decorated {
+                DecoratedBox {
+                    DecoratedBox(
+                        modifier =
                             SwingModifier
                                 .testTag("outer")
                                 .preferredSize(Dimension(32, 32))
@@ -204,17 +202,17 @@ class DrawModifierNodeTest {
                                         drawRect(Color.BLUE)
                                         translate(8f, 8f) { this@drawWithContent.drawContent() }
                                     },
-                                )
-                        },
-                ) {
-                    Box(
-                        modifier =
-                            SwingModifier
-                                .testTag("inner")
-                                .preferredSize(Dimension(16, 16))
-                                .opaque(false)
-                                .background(Brush.of(Color.WHITE)),
-                    )
+                                ),
+                    ) {
+                        DecoratedBox(
+                            modifier =
+                                SwingModifier
+                                    .testTag("inner")
+                                    .preferredSize(Dimension(16, 16))
+                                    .opaque(false)
+                                    .background(Brush.of(Color.WHITE)),
+                        )
+                    }
                 }
             }
 
@@ -229,9 +227,9 @@ class DrawModifierNodeTest {
             val layer = ImageLayer()
             var throughLayer by mutableStateOf(false)
             setContent {
-                Canvas(
-                    modifier =
-                        decorated {
+                DecoratedBox {
+                    DecoratedCanvas(
+                        modifier =
                             SwingModifier.testTag("canvas").preferredSize(Dimension(32, 32)).drawWithContent {
                                 if (throughLayer) {
                                     record(layer) { this@drawWithContent.drawContent() }
@@ -239,11 +237,11 @@ class DrawModifierNodeTest {
                                 } else {
                                     drawContent()
                                 }
-                            }
-                        },
-                ) {
-                    drawCircle(Color.RED, radius = 10f)
-                    drawRect(Color.BLUE, 20f, 4f, 8f, 20f)
+                            },
+                    ) {
+                        drawCircle(Color.RED, radius = 10f)
+                        drawRect(Color.BLUE, 20f, 4f, 8f, 20f)
+                    }
                 }
             }
             val direct = onNodeWithTag("canvas").captureToImage()
@@ -259,15 +257,15 @@ class DrawModifierNodeTest {
         runComposeSwingTest {
             val layer = ImageLayer()
             setContent {
-                Canvas(
-                    modifier =
-                        decorated {
+                DecoratedBox {
+                    DecoratedCanvas(
+                        modifier =
                             SwingModifier.testTag("canvas").preferredSize(Dimension(32, 32)).drawWithContent {
                                 record(layer) { this@drawWithContent.drawContent() }
-                            }
-                        },
-                ) {
-                    drawRect(Color.RED)
+                            },
+                    ) {
+                        drawRect(Color.RED)
+                    }
                 }
             }
 
@@ -295,7 +293,7 @@ class DrawModifierNodeTest {
             var useDrawWithContent by mutableStateOf(startsWithDrawWithContent)
             var contentPaints = 0
             setContent {
-                Box(
+                DecoratedFlowPanel(
                     modifier =
                         decorated {
                             val drawStep =
@@ -314,7 +312,7 @@ class DrawModifierNodeTest {
                                 .then(drawStep)
                         },
                 ) {
-                    Box(
+                    DecoratedFlowPanel(
                         modifier =
                             SwingModifier.testTag("inner").preferredSize(Dimension(16, 16)).opaque(false).drawBehind {
                                 contentPaints++
@@ -347,28 +345,26 @@ class DrawModifierNodeTest {
     fun aDrawNodeWrapsWhatIsDeclaredAfterItAndIsWrappedByWhatIsDeclaredBefore() =
         runComposeSwingTest {
             setContent {
-                SwingNode(
-                    factory = { DecoratedPanel().apply { isOpaque = false } },
-                    modifier =
-                        decorated {
+                DecoratedBox {
+                    SwingNode(
+                        factory = { DecoratedPanel().apply { isOpaque = false } },
+                        modifier =
                             SwingModifier
                                 .testTag("outer")
                                 .preferredSize(Dimension(32, 32))
                                 .then(DrawFill { Color.RED })
-                                .background(Brush.of(Color.BLUE))
-                        },
-                )
-                SwingNode(
-                    factory = { DecoratedPanel().apply { isOpaque = false } },
-                    modifier =
-                        decorated {
+                                .background(Brush.of(Color.BLUE)),
+                    )
+                    SwingNode(
+                        factory = { DecoratedPanel().apply { isOpaque = false } },
+                        modifier =
                             SwingModifier
                                 .testTag("inner")
                                 .preferredSize(Dimension(32, 32))
                                 .background(Brush.of(Color.BLUE))
-                                .then(DrawFill { Color.RED })
-                        },
-                )
+                                .then(DrawFill { Color.RED }),
+                    )
+                }
             }
 
             val outerAt16 = onNodeWithTag("outer").captureToImage().getRGB(16, 16)
@@ -407,17 +403,17 @@ class DrawModifierNodeTest {
         runComposeSwingTest {
             var declared by mutableStateOf(true)
             setContent {
-                val modifier =
-                    decorated {
+                DecoratedBox {
+                    val modifier =
                         SwingModifier
                             .testTag("outer")
                             .preferredSize(Dimension(32, 32))
                             .background(Brush.of(Color.BLUE))
-                    }
-                SwingNode(
-                    factory = { DecoratedPanel().apply { isOpaque = false } },
-                    modifier = if (declared) modifier.then(DrawFill { Color.RED }) else modifier,
-                )
+                    SwingNode(
+                        factory = { DecoratedPanel().apply { isOpaque = false } },
+                        modifier = if (declared) modifier.then(DrawFill { Color.RED }) else modifier,
+                    )
+                }
             }
             val component = onNodeWithTag("outer").fetch<JComponent>()
             assertEquals(Color.RED.rgb, outerPixel(), "The draw node paints over the background while declared.")
@@ -460,10 +456,10 @@ class DrawModifierNodeTest {
     fun decorationsThatPaintOffscreenInsideADrawNodeDoNotRepaintTheComponentByThemselves() =
         runComposeSwingTest {
             setContent {
-                SwingNode(
-                    factory = { DecoratedPanel().apply { isOpaque = false } },
-                    modifier =
-                        decorated {
+                DecoratedBox {
+                    SwingNode(
+                        factory = { DecoratedPanel().apply { isOpaque = false } },
+                        modifier =
                             SwingModifier
                                 .testTag("outer")
                                 .preferredSize(Dimension(32, 32))
@@ -471,9 +467,9 @@ class DrawModifierNodeTest {
                                 .shadow(2, Color.BLACK)
                                 .blur(2)
                                 .clip(CircleShape, antialias = true)
-                                .then(DrawFill { Color.BLUE })
-                        },
-                )
+                                .then(DrawFill { Color.BLUE }),
+                    )
+                }
             }
             val component = onNodeWithTag("outer").fetch<JComponent>()
             val first = onNodeWithTag("outer").captureToImage()

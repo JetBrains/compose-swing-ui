@@ -1,12 +1,19 @@
 package org.jetbrains.compose.swing.foundation
 
-import org.jetbrains.compose.swing.foundation.graphics.decorated
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import org.jetbrains.compose.swing.foundation.graphics.Decoratable
+import org.jetbrains.compose.swing.foundation.graphics.paintOutsets
 import org.jetbrains.compose.swing.foundation.graphics.shadow
+import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.border
 import org.jetbrains.compose.swing.modifier.appearance.testTag
+import org.jetbrains.compose.swing.modifier.layout.minimumSize
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.node.SwingNode
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
@@ -147,13 +154,11 @@ class CanvasSurfaceTest {
                     }
                     Canvas(
                         modifier =
-                            decorated {
-                                SwingModifier
-                                    .testTag("decorated")
-                                    .preferredSize(64, 48)
-                                    .border(LineBorder(Color.BLUE, 2))
-                                    .shadow(4, Color.BLACK)
-                            },
+                            SwingModifier
+                                .testTag("decorated")
+                                .preferredSize(64, 48)
+                                .border(LineBorder(Color.BLUE, 2))
+                                .shadow(4, Color.BLACK),
                     ) { drawingSize = size }
                 }
             }
@@ -202,16 +207,37 @@ class CanvasSurfaceTest {
                 Canvas(modifier = SwingModifier.testTag("bordered").border(EmptyBorder(1, 2, 3, 4))) { }
             }
 
-            assertEquals(
-                Dimension(),
-                onNodeWithTag("bare").fetch<JComponent>().preferredSize,
-                "a canvas with no size set asks for none",
-            )
-            assertEquals(
+            onNodeWithTag("bare").assertProperty(Dimension(), "a canvas with no size set asks for none") {
+                preferredSize
+            }
+            onNodeWithTag("bordered").assertProperty(
                 Dimension(6, 4),
-                onNodeWithTag("bordered").fetch<JComponent>().preferredSize,
                 "a canvas with no size set asks only for its border's insets",
-            )
+            ) { preferredSize }
+        }
+
+    @Test
+    fun anUnsizedCanvasAsksForNoOutsets() =
+        runComposeSwingTest {
+            setContent {
+                SwingNode(factory = { JPanel() }) {
+                    Canvas(modifier = SwingModifier.testTag("bare")) { }
+                    // Only a Foundation container gives paint outsets.
+                    Box {
+                        Canvas(modifier = SwingModifier.testTag("shadowed").shadow(4, Color.BLACK)) { }
+                    }
+                }
+            }
+
+            onNodeWithTag("bare").assertProperty(Dimension(), "a canvas with no size set asks for none") {
+                preferredSize
+            }
+            val outsets = (onNodeWithTag("shadowed").fetch<JComponent>() as Decoratable).decoration.paintOutsets()
+            check(outsets.left > 0 && outsets.top > 0) { "the shadow must take outsets: $outsets" }
+            onNodeWithTag("shadowed").assertProperty(
+                Dimension(outsets.left + outsets.right, outsets.top + outsets.bottom),
+                "a canvas with no size set asks only for the outsets its decoration paints in",
+            ) { preferredSize }
         }
 
     @Test
@@ -234,5 +260,36 @@ class CanvasSurfaceTest {
                 "getInsets fills the passed Insets rather than allocating a new one.",
             )
             assertEquals(Insets(2, 2, 2, 2), given, "The border's stroke width becomes the surface's insets.")
+        }
+
+    @Test
+    fun theMinimumSizeIsASetMinimumAsSetOrTheDecorationsOutsets() =
+        runComposeSwingTest {
+            var minimum by mutableStateOf<Dimension?>(null)
+            setContent {
+                Box {
+                    Canvas(
+                        modifier =
+                            SwingModifier
+                                .testTag("canvas")
+                                .preferredSize(Dimension(64, 48))
+                                .minimumSize(minimum)
+                                .shadow(4, Color.BLACK),
+                    ) { }
+                }
+            }
+            val canvas = onNodeWithTag("canvas").fetch<JComponent>()
+            val outsets = canvas.paintOutsets
+            check(outsets.left > 0 && outsets.top > 0) { "the shadow must take outsets: $outsets" }
+
+            assertEquals(
+                Dimension(outsets.left + outsets.right, outsets.top + outsets.bottom),
+                canvas.minimumSize,
+                "a surface asks no minimum for the drawing",
+            )
+
+            minimum = Dimension(20, 10)
+            awaitIdle()
+            assertEquals(Dimension(20, 10), canvas.minimumSize, "a minimum set on the surface answers as set")
         }
 }

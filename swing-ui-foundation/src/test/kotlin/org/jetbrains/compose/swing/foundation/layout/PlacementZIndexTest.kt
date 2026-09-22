@@ -13,7 +13,6 @@ import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.foundation.graphics.Brush
 import org.jetbrains.compose.swing.foundation.graphics.background
-import org.jetbrains.compose.swing.foundation.graphics.decorated
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.background
 import org.jetbrains.compose.swing.modifier.appearance.opaque
@@ -94,14 +93,12 @@ class PlacementZIndexTest {
                     content = {
                         Box(
                             modifier =
-                                decorated {
-                                    SwingModifier
-                                        .testTag("lifted")
-                                        .then(ZIndexLayerElement(zIndex = 1f))
-                                        .background(Brush.of(Color.RED))
-                                },
+                                SwingModifier
+                                    .testTag("lifted")
+                                    .then(ZIndexLayerElement(zIndex = 1f))
+                                    .background(Brush.of(Color.RED)),
                         )
-                        Box(modifier = decorated { SwingModifier.background(Brush.of(Color.BLUE)) })
+                        Box(modifier = SwingModifier.background(Brush.of(Color.BLUE)))
                     },
                     measurePolicy = overlapping { 0f },
                     modifier = containerModifier(CHILD_WIDTH, CHILD_HEIGHT),
@@ -127,8 +124,8 @@ class PlacementZIndexTest {
             setContent {
                 Layout(
                     content = {
-                        Box(modifier = decorated { SwingModifier.testTag("lifted").background(Brush.of(Color.RED)) })
-                        Box(modifier = decorated { SwingModifier.background(Brush.of(Color.BLUE)) })
+                        Box(modifier = SwingModifier.testTag("lifted").background(Brush.of(Color.RED)))
+                        Box(modifier = SwingModifier.background(Brush.of(Color.BLUE)))
                     },
                     measurePolicy = overlapping(layered = true) { index -> if (index == 0) 1f else 0f },
                     modifier = containerModifier(CHILD_WIDTH, CHILD_HEIGHT),

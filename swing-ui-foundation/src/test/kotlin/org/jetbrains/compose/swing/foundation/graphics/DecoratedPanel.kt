@@ -67,6 +67,17 @@ internal open class DecoratedPanel(
     }
 }
 
+@Composable
+internal inline fun DecoratedFlowPanel(
+    modifier: SwingModifier = SwingModifier,
+    crossinline content: @Composable () -> Unit = {},
+) {
+    SwingNode(
+        factory = { DecoratedPanel(FlowLayout(FlowLayout.LEADING, 0, 0)) },
+        modifier = modifier,
+    ) { content() }
+}
+
 /**
  * A transparent [DecoratedPanel] declaring [modifier], which places [content] at its top-left corner at its preferred
  * size, as a `Box` does: the component a decoration-only test decorates, and a Swing parent whose children declare

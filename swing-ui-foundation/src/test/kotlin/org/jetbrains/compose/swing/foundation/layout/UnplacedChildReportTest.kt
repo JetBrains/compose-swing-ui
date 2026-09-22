@@ -8,10 +8,12 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
+import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import java.awt.Color
 import java.awt.Dimension
 import java.awt.Rectangle
 import javax.swing.JLabel
@@ -405,6 +407,114 @@ class UnplacedChildReportTest {
         }
 
     /**
+     * A sibling's paint outsets move every child of the container. A child the policy never placed, and one it stopped
+     * placing, report nothing.
+     */
+    @Test
+    fun anUnplacedChildReportsNothingWhenASiblingsPaintOutsetsMovesIt() =
+        runComposeSwingTest {
+            val reported = mutableListOf<Any>()
+            var placed by mutableStateOf(true)
+            var shadowed by mutableStateOf(false)
+
+            setContent {
+                Box {
+                    Layout(
+                        content = {
+                            Label(
+                                text = "never placed",
+                                modifier =
+                                    SwingModifier
+                                        .preferredSize(10, 10)
+                                        .onPlaced { reported += it }
+                                        .onSizeChanged { reported += it },
+                            )
+                            Label(
+                                text = "no longer placed",
+                                modifier = SwingModifier.preferredSize(10, 10).onPlaced { reported += it },
+                            )
+                            Box(
+                                modifier =
+                                    if (shadowed) {
+                                        SwingModifier.preferredSize(10, 10).shadow(4, Color.BLACK)
+                                    } else {
+                                        SwingModifier.preferredSize(10, 10)
+                                    },
+                            )
+                        },
+                        measurePolicy = { measurables, _ ->
+                            val (_, unplaced, sibling) = measurables.map { it.measure(Constraints()) }
+                            layout(30, 10) {
+                                if (placed) unplaced.place(20, 0)
+                                sibling.place(0, 0)
+                            }
+                        },
+                    )
+                }
+            }
+            placed = false
+            awaitIdle()
+            reported.clear()
+
+            shadowed = true
+            awaitIdle()
+
+            assertEquals(emptyList(), reported, "an unplaced child must report nothing")
+        }
+
+    /**
+     * A report declared on a child the policy already leaves unplaced reports nothing when a sibling's paint outsets
+     * moves the children of the container.
+     */
+    @Test
+    fun aReportDeclaredOnAnUnplacedChildStaysSilentWhenASiblingsPaintOutsetsMoves() =
+        runComposeSwingTest {
+            val reported = mutableListOf<Any>()
+            var declared by mutableStateOf(false)
+            var shadowed by mutableStateOf(false)
+
+            setContent {
+                Box {
+                    Layout(
+                        content = {
+                            Label(
+                                text = "unplaced",
+                                modifier =
+                                    if (declared) {
+                                        SwingModifier
+                                            .preferredSize(10, 10)
+                                            .onPlaced { reported += it }
+                                            .onSizeChanged { reported += it }
+                                    } else {
+                                        SwingModifier.preferredSize(10, 10)
+                                    },
+                            )
+                            Box(
+                                modifier =
+                                    if (shadowed) {
+                                        SwingModifier.preferredSize(10, 10).shadow(4, Color.BLACK)
+                                    } else {
+                                        SwingModifier.preferredSize(10, 10)
+                                    },
+                            )
+                        },
+                        measurePolicy = { measurables, _ ->
+                            val (_, sibling) = measurables.map { it.measure(Constraints()) }
+                            layout(20, 10) { sibling.place(0, 0) }
+                        },
+                    )
+                }
+            }
+            declared = true
+            awaitIdle()
+
+            shadowed = true
+            awaitIdle()
+
+            assertEquals(emptyList(), reported, "a report declared on an unplaced child must stay silent")
+        }
+
+    /**
      * A child hidden at a zero size and placed again at that size, which no resize announces, lays out again: its
      * descendant reports its placement again.
      */
@@ -551,7 +661,10 @@ class UnplacedChildReportTest {
             assertEquals(listOf(Rectangle(10, 0, 10, 10)), placements, "the layout's own pass reports its placement")
         }
 
-    /** A component moved into a child its policy leaves unplaced reports nothing. */
+    /**
+     * A component moved into a child its policy leaves unplaced reports nothing, though the child it left and the one
+     * it joins state its layout bounds from different origins.
+     */
     @Test
     fun aComponentMovedIntoAnUnplacedChildReportsNothing() =
         runComposeSwingTest {
@@ -574,7 +687,10 @@ class UnplacedChildReportTest {
                     }
                 Layout(
                     content = {
-                        Box { if (inPlacedChild) leaf() }
+                        Box {
+                            if (inPlacedChild) leaf()
+                            Box(modifier = SwingModifier.preferredSize(10, 10).shadow(4, Color.BLACK))
+                        }
                         Box { if (!inPlacedChild) leaf() }
                     },
                     measurePolicy = { measurables, _ ->

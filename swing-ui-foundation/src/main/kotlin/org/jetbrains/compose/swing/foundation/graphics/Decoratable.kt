@@ -19,7 +19,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
  *
  * Its size getters answer as for any Swing component: a size worked out from its content includes `getInsets()`, and
  * a set size answers as set. Only a Foundation container gives it paint outsets. Under any other parent it has none,
- * and its decoration is clipped at its bounds. See "Making a component decoratable" in `docs/FOUNDATION.md`.
+ * and its decoration is clipped at its bounds.
  */
 public interface Decoratable : DeclaredNodesListener {
     /**

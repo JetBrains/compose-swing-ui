@@ -21,23 +21,31 @@ package org.jetbrains.compose.swing.foundation.layout
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.movableContentOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.desktop.LayeredPane
+import org.jetbrains.compose.swing.foundation.graphics.DecoratedPanel
+import org.jetbrains.compose.swing.foundation.graphics.blurOutsets
+import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.modifier.SwingModifier
+import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.location
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.layout.size
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.onNodeOfType
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import java.awt.BorderLayout
+import java.awt.Color
 import java.awt.Dimension
 import java.awt.EventQueue
 import java.awt.Rectangle
 import java.awt.event.ComponentEvent
 import java.awt.event.ComponentListener
+import javax.swing.JComponent
 import javax.swing.JLabel
 import javax.swing.JLayeredPane
 import javax.swing.JPanel
@@ -59,13 +67,19 @@ import kotlin.test.assertTrue
  * resolve against the window. An ancestor moving therefore leaves the reading alone, and
  * [parentCoordinateChangeCausesRelayout], [grandParentCoordateChangeCausesRelayout] and
  * [viewPositionChangeCausesPlacement] keep their names and invert their expectations: each drives the
- * move androidx drives and pins the silence that follows. [newlyAddedStillUpdated] inverts for a
- * different reason, which it states where it asserts it.
+ * move androidx drives and pins the silence that follows. [ancestorLayerChangesCausesPlacement] and
+ * [stoppingPlacingWithLayerShouldInvalidateCoordinatesOnGrandChild] invert the same way: a placement layer changes
+ * where a component paints, not the bounds it holds in its parent. `layerChangesCausesPlacement`'s counterpart, the
+ * layered component's own report staying silent, is in [PlacementRotationTest]. An ancestor whose insets carry a
+ * layer's paint outsets places its children again and reports it, as
+ * [PaintOutsetsInFoundationTest.aCustomContainersOutsetsChangeOutsideLayoutPlacesItsChildAgain] pins.
+ * [newlyAddedStillUpdated] inverts for a different reason, which it states where it asserts it.
  *
  * Most of that test has no counterpart here, because what it reads has none:
  * - Coordinates taken inside a placement block, and the relayouts a read of them forces:
  *   `coordinatesWhilePlacing`, `coordinatesWhileAligningInLayout`,
- *   `onlyRealPositionReadsTriggerRelayout`, `onlyRealPositionReadsTriggerRelayout_inModifier`.
+ *   `onlyRealPositionReadsTriggerRelayout`, `onlyRealPositionReadsTriggerRelayout_inModifier`,
+ *   `testLayoutModifierPlacingWithScaledLayerLater`.
  * - A lookahead pass, which this library does not run: `coordinatesWhilePlacingWithLookaheadScope`,
  *   `coordinatesWhileAligningWithLookaheadScope`, `coordinatesWhileAligningInLookaheadScope`,
  *   `onlyRealPositionReadsTriggerRelayout_inLookahead`.
@@ -74,19 +88,17 @@ import kotlin.test.assertTrue
  *   `grandChildIsPlacedWithNullCoordinatesFirstDuringAlignmentLinesCalculation` cases,
  *   `grandChildIsOnlyCalledWithNullCoordinatesWhenUsedByAlignmentLinesCalculationButNotPlaced`,
  *   `addingChildWithBaselineLater_layoutBlockUsingCoordinatesIsReexecuted`.
- * - A graphics layer, which draws a component somewhere other than where it is laid out:
- *   `ancestorLayerChangesCausesPlacement`, `layerChangesCausesPlacement`,
- *   `testLayoutModifierPlacingWithScaledLayerLater`,
- *   `removingLayerModifierShouldInvalidateCoordinatesOnGrandChild`,
- *   `stoppingPlacingWithLayerShouldInvalidateCoordinatesOnGrandChild`, the three
+ * - A graphics layer's translation, which a placement layer does not have:
+ *   `removingLayerModifierShouldInvalidateCoordinatesOnGrandChild`, the three
  *   `updatingLayerBlock` cases, `updatingLayerPropertyShouldCallCallbackOnTheSameNode`.
  * - Two left over: `removingLayoutModifierShouldInvalidateCoordinatesOnGrandChild`, which rests on a
  *   custom `Layout` whose placement block is the thing under test, and
  *   `testParentPlacingWithNotRoundedTranslation`, whose subpixel translation a Swing component has
  *   nowhere to hold.
  *
- * The three cases after the ported ones have no counterpart in that test. They pin what tells this
- * library's two reports apart, which androidx states as one `LayoutCoordinates` carrying both.
+ * The four cases after the ported ones have no counterpart in that test. The first three pin what tells this
+ * library's two reports apart, which androidx states as one `LayoutCoordinates` carrying both; the last pins that
+ * a report names the layout bounds, not the paint outsets a decorated parent takes.
  */
 class OnPlacedTest {
     @Test
@@ -344,6 +356,170 @@ class OnPlacedTest {
             )
         }
 
+    /**
+     * A component moved out of a shadowed box to a parent that keeps its Swing bounds still reports: the box placed
+     * it off its Swing origin by the shadow's outsets, and the new parent does not.
+     */
+    @Test
+    fun movedContentKeepingItsSwingBoundsReportsItsNewPlacement() =
+        runComposeSwingTest {
+            val reported = mutableListOf<Rectangle>()
+            val report: (Rectangle) -> Unit = { reported += it }
+            var outside by mutableStateOf<Rectangle?>(null)
+
+            setContent {
+                val moving =
+                    remember {
+                        movableContentOf<SwingModifier> { modifier ->
+                            Label(text = "child", modifier = modifier.onPlaced(report))
+                        }
+                    }
+                LayeredPane {
+                    Box(modifier = SwingModifier.layer(JLayeredPane.DEFAULT_LAYER).size(50, 50).location(0, 0)) {
+                        Box(modifier = SwingModifier.shadow(4, Color.BLACK)) {
+                            if (outside == null) moving(SwingModifier.preferredSize(10, 10))
+                        }
+                    }
+                    outside?.let {
+                        moving(
+                            SwingModifier
+                                .layer(JLayeredPane.DEFAULT_LAYER)
+                                .location(it.x, it.y)
+                                .size(it.width, it.height),
+                        )
+                    }
+                }
+            }
+            awaitIdle()
+            assertEquals(Rectangle(0, 0, 10, 10), reported.last(), "where the box's policy placed it")
+            val bounds = onNodeOfType<JLabel>().fetch().bounds
+            assertTrue(bounds.x > 0 && bounds.y > 0, "the shadow's outsets move it off the box's Swing origin: $bounds")
+            reported.clear()
+
+            outside = bounds
+            awaitIdle()
+
+            assertEquals(bounds, onNodeOfType<JLabel>().fetch().bounds, "the component keeps its Swing bounds")
+            assertEquals(
+                listOf(bounds),
+                reported,
+                "a component moved to a parent that does not place it by paint outsets",
+            )
+        }
+
+    @Test
+    fun aChildOfADecoratedBorderLayoutPanelReportsWhereBorderLayoutPlacedIt() =
+        runComposeSwingTest {
+            val reported = mutableListOf<Rectangle>()
+            setContent {
+                Box {
+                    SwingNode(
+                        factory = { DecoratedPanel(BorderLayout()) },
+                        modifier = SwingModifier.shadow(8, Color.BLACK),
+                    ) {
+                        Label(
+                            text = "child",
+                            modifier = SwingModifier.preferredSize(40, 30).onPlaced { reported += it },
+                        )
+                    }
+                }
+            }
+            awaitIdle()
+
+            val outsets = blurOutsets(8)
+            assertEquals(
+                Rectangle(outsets, outsets, 40, 30),
+                reported.last(),
+                "where BorderLayout placed it, inside the panel's insets, and not shifted by its paint outsets again",
+            )
+        }
+
+    @Test
+    fun aDecoratedPanelLeavingABoxForTheSameSwingBoundsReportsItsNewLayoutBounds() =
+        runComposeSwingTest {
+            val reported = mutableListOf<Rectangle>()
+            var outside by mutableStateOf<Rectangle?>(null)
+            setContent {
+                val moving =
+                    remember {
+                        movableContentOf<SwingModifier> { modifier ->
+                            SwingNode(
+                                factory = { DecoratedPanel(BorderLayout()) },
+                                modifier =
+                                    modifier
+                                        .preferredSize(40, 30)
+                                        .shadow(8, Color.BLACK)
+                                        .onPlaced { reported += it },
+                            )
+                        }
+                    }
+                SwingNode(factory = { JLayeredPane() }) {
+                    Box(modifier = SwingModifier.size(100, 100).location(0, 0)) {
+                        if (outside == null) moving(SwingModifier.testTag("panel"))
+                    }
+                    outside?.let {
+                        moving(SwingModifier.testTag("panel").location(it.x, it.y).size(it.width, it.height))
+                    }
+                }
+            }
+            awaitIdle()
+            val panel = onNodeWithTag("panel").fetch<JComponent>()
+            val bounds = panel.bounds
+            assertEquals(
+                Rectangle(bounds.x + blurOutsets(8), bounds.y + blurOutsets(8), 40, 30),
+                reported.last(),
+                "onPlaced reports the layout bounds, inside the shadow's outsets",
+            )
+            reported.clear()
+
+            outside = bounds
+            awaitIdle()
+
+            assertEquals(bounds, panel.bounds, "the panel keeps its Swing bounds")
+            assertEquals(listOf(bounds), reported, "its layout bounds are now its bounds, reported once")
+        }
+
+    @Test
+    fun ancestorLayerChangesCausesPlacement() =
+        runComposeSwingTest {
+            val reported = mutableListOf<Rectangle>()
+            var scale by mutableFloatStateOf(1f)
+
+            setContent {
+                Box(modifier = SwingModifier.preferredSize(100, 100)) {
+                    Box(
+                        modifier =
+                            SwingModifier.placementLayer {
+                                scaleX = scale
+                                scaleY = scale
+                            },
+                    ) {
+                        Label(
+                            text = "child",
+                            modifier = SwingModifier.testTag("child").preferredSize(10, 10).onPlaced { reported += it },
+                        )
+                    }
+                }
+            }
+            awaitIdle()
+
+            assertEquals(listOf(Rectangle(0, 0, 10, 10)), reported, "the first placement is reported")
+            val child = onNodeWithTag("child").fetch<JComponent>()
+            val unscaled = child.location
+            reported.clear()
+
+            scale = 2f
+            awaitIdle()
+
+            assertTrue(
+                child.location != unscaled,
+                "the layer's paint outsets moved the child in its parent's Swing bounds",
+            )
+            // Androidx reports here, its coordinates resolving against the window, which the layer changes. The
+            // bounds reported here are the layout bounds in the parent, which no layer moves.
+            assertTrue(reported.isEmpty(), "an ancestor's layer leaves the bounds a child holds in its parent alone")
+        }
+
     @Test
     fun viewPositionChangeCausesPlacement() =
         runComposeSwingTest {
@@ -566,6 +742,33 @@ class OnPlacedTest {
                 "each declaration is its own slot and reports on its own",
             )
             assertEquals(listOf(Rectangle(20, 0, 10, 10)), second, "the second declaration reports the same placement")
+        }
+
+    /**
+     * A shadow moves a plain child within its box's bounds by the paint outsets it takes; the report leaves that out.
+     */
+    @Test
+    fun aPlainChildOfAShadowedBoxReportsWhereItsPolicyPlacedIt() =
+        runComposeSwingTest {
+            val reported = mutableListOf<Rectangle>()
+
+            setContent {
+                Box {
+                    Box(modifier = SwingModifier.shadow(4, Color.BLACK)) {
+                        Label(
+                            text = "child",
+                            modifier =
+                                SwingModifier
+                                    .padding(start = 3, top = 2)
+                                    .preferredSize(10, 10)
+                                    .onPlaced { reported += it },
+                        )
+                    }
+                }
+            }
+            awaitIdle()
+
+            assertEquals(Rectangle(3, 2, 10, 10), reported.last(), "the report must name where the box's policy put it")
         }
 }
 

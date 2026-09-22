@@ -2,21 +2,30 @@ package org.jetbrains.compose.swing.foundation.layout
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.Snapshot
 import org.jetbrains.compose.swing.foundation.Canvas
+import org.jetbrains.compose.swing.foundation.graphics.Decoratable
 import org.jetbrains.compose.swing.foundation.graphics.TransformOrigin
 import org.jetbrains.compose.swing.foundation.graphics.channelDifference
 import org.jetbrains.compose.swing.foundation.graphics.renderImage
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.testTag
+import org.jetbrains.compose.swing.modifier.layout.componentOrientation
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import java.awt.Color
+import java.awt.ComponentOrientation
 import java.awt.Dimension
+import java.awt.Insets
+import java.awt.Rectangle
 import java.awt.geom.Point2D
 import java.awt.geom.Rectangle2D
 import javax.swing.JComponent
@@ -51,13 +60,337 @@ class PlacementRotationTest {
             assertEquals(placedRuns, runs)
         }
 
+    /**
+     * A layer read that grows the paint outsets grows the bounds of the component and of each decorated ancestor it
+     * spills past, and leaves every one of them valid: the layout bounds are unchanged, so there is
+     * nothing to lay out again.
+     */
+    @Test
+    fun aLayerReadGrowingThePaintOutsetsInvalidatesNothing() =
+        runComposeSwingTest {
+            val scale = mutableFloatStateOf(1f)
+            val block: PlacementLayerScope.() -> Unit = { scaleX = scale.floatValue }
+            setContent {
+                Column {
+                    Row(modifier = SwingModifier.testTag("row")) {
+                        Box(modifier = SwingModifier.testTag("layered").preferredSize(40, 40).placementLayer(block)) {
+                            SizedChild(0)
+                        }
+                    }
+                }
+            }
+            val row = onNodeWithTag("row").fetch<JComponent>()
+            val layered = onNodeWithTag("layered").fetch<JComponent>()
+            val inner = layered.getComponent(0)
+            assertTrue(inner.isValidUpToTheValidateRoot(), "the realized tree must start valid")
+
+            scale.floatValue = 2f
+            Snapshot.sendApplyNotifications()
+
+            assertEquals(Rectangle(0, 0, 80, 40), layered.bounds, "the layered box grows by its paint outsets")
+            assertEquals(Rectangle(-20, 0, 80, 40), row.bounds, "the row grows to hold the child's paint outsets")
+            assertTrue(inner.isValidUpToTheValidateRoot(), "growing the paint outsets must invalidate nothing")
+        }
+
+    /** The paint outsets of a scaled layer hold what a child overflowing its box paints, scaled with it. */
+    @Test
+    fun aScaledLayerHoldsTheScaledOverflowOfItsChild() =
+        runComposeSwingTest {
+            setContent {
+                Row {
+                    Box(modifier = SwingModifier.testTag("layered").size(40, 40).placementLayer { scaleX = 0.75f }) {
+                        Box(modifier = SwingModifier.requiredSize(80, 40))
+                    }
+                }
+            }
+            assertEquals(
+                Rectangle(-10, 0, 60, 40),
+                onNodeWithTag("layered").fetch<JComponent>().bounds,
+                "the scaled layer's bounds hold the child's scaled overflow",
+            )
+        }
+
+    @Test
+    fun aScaledLayerGrowsForAChildThatStartsOverflowingWhileScaled() =
+        runComposeSwingTest {
+            var width by mutableIntStateOf(40)
+            setContent {
+                Row {
+                    Box(modifier = SwingModifier.testTag("layered").size(40, 40).placementLayer { scaleX = 0.75f }) {
+                        Box(modifier = SwingModifier.requiredSize(width, 40))
+                    }
+                }
+            }
+            val layered = onNodeWithTag("layered").fetch<JComponent>()
+            assertEquals(Rectangle(0, 0, 40, 40), layered.bounds, "no overflow before the child grows")
+
+            width = 80
+            awaitIdle()
+
+            assertEquals(
+                Rectangle(-10, 0, 60, 40),
+                layered.bounds,
+                "the layer must grow once its child starts overflowing",
+            )
+        }
+
+    @Test
+    fun aScaledLayerShrinksBackOnceItsOverflowingChildIsRemoved() =
+        runComposeSwingTest {
+            var present by mutableStateOf(true)
+            setContent {
+                Row {
+                    Box(modifier = SwingModifier.testTag("layered").size(40, 40).placementLayer { scaleX = 0.75f }) {
+                        if (present) Box(modifier = SwingModifier.requiredSize(80, 40))
+                    }
+                }
+            }
+            val layered = onNodeWithTag("layered").fetch<JComponent>()
+            assertEquals(Rectangle(-10, 0, 60, 40), layered.bounds, "the overflowing child grows the layer")
+
+            present = false
+            awaitIdle()
+            assertEquals(Rectangle(0, 0, 40, 40), layered.bounds, "removing the child must shrink the layer back")
+        }
+
+    @Test
+    fun aScaledLayerLeavesOutAChildItsPolicyLeavesUnplaced() =
+        runComposeSwingTest {
+            var place by mutableStateOf(true)
+            setContent {
+                Box {
+                    Layout(
+                        modifier = SwingModifier.testTag("layered").placementLayer { scaleX = 0.75f },
+                        content = { Box(modifier = SwingModifier.requiredSize(80, 40)) },
+                        measurePolicy = { measurables, _ ->
+                            val placeable = measurables.single().measure(Constraints())
+                            layout(40, 40) {
+                                if (place) placeable.place(-20, 0)
+                            }
+                        },
+                    )
+                }
+            }
+            val layered = onNodeWithTag("layered").fetch<JComponent>()
+            assertEquals(Rectangle(-10, 0, 60, 40), layered.bounds, "the placed overflowing child grows the layer")
+
+            place = false
+            awaitIdle()
+            assertEquals(
+                Rectangle(0, 0, 40, 40),
+                layered.bounds,
+                "a child the policy leaves unplaced must not grow the layer",
+            )
+
+            place = true
+            awaitIdle()
+            assertEquals(Rectangle(-10, 0, 60, 40), layered.bounds, "placing the child again must grow the layer again")
+        }
+
+    @Test
+    fun aScaledLayerHoldsTheOverflowOfAChildInsideAnotherScaledLayer() =
+        runComposeSwingTest {
+            setContent {
+                Row {
+                    Box(modifier = SwingModifier.testTag("outer").size(40, 40).placementLayer { scaleX = 1.5f }) {
+                        Box(modifier = SwingModifier.size(40, 40).placementLayer { scaleX = 0.75f }) {
+                            Box(modifier = SwingModifier.requiredSize(80, 40))
+                        }
+                    }
+                }
+            }
+            assertEquals(
+                Rectangle(-25, 0, 90, 40),
+                onNodeWithTag("outer").fetch<JComponent>().bounds,
+                "the outer layer holds the inner layer's scaled overflow, scaled again",
+            )
+        }
+
+    /**
+     * A Row, a Column and a custom layout each hold the scaled overflow of their child. Whether the child is centered
+     * under the container's constraints decides whether the overflow spreads evenly on both sides.
+     */
+    @Test
+    fun aScaledRowColumnAndCustomLayoutHoldTheScaledOverflowOfTheirChild() =
+        runComposeSwingTest {
+            setContent {
+                Box {
+                    Row(
+                        modifier = SwingModifier.testTag("row").preferredSize(40, 40).placementLayer { scaleX = 0.75f },
+                    ) {
+                        Box(modifier = SwingModifier.requiredSize(80, 40))
+                    }
+                }
+                Box {
+                    Column(
+                        modifier =
+                            SwingModifier
+                                .testTag("column")
+                                .preferredSize(40, 40)
+                                .placementLayer { scaleX = 0.75f },
+                    ) {
+                        Box(modifier = SwingModifier.requiredSize(80, 40))
+                    }
+                }
+                Box {
+                    Layout(
+                        modifier = SwingModifier.testTag("custom").placementLayer { scaleX = 0.75f },
+                        content = { Box(modifier = SwingModifier.requiredSize(80, 40)) },
+                        measurePolicy = { measurables, _ ->
+                            val placeable = measurables.single().measure(Constraints())
+                            layout(40, 40) { placeable.place(0, 0) }
+                        },
+                    )
+                }
+            }
+
+            assertEquals(
+                Insets(0, 10, 0, 10),
+                paintOutsetsOf("row"),
+                "the row must center the overflow of its single, constrained child",
+            )
+            assertEquals(Insets(0, 10, 0, 10), paintOutsetsOf("column"), "and the column must do the same")
+            assertEquals(
+                Insets(0, 0, 0, 25),
+                paintOutsetsOf("custom"),
+                "a policy placing an unconstrained child at its own offset must not center it",
+            )
+        }
+
+    @Test
+    fun aScaledLayerHoldsTheScaledShadowOfItsChild() =
+        runComposeSwingTest {
+            setContent {
+                Row {
+                    Box(modifier = SwingModifier.testTag("layered").size(40, 40).placementLayer { scaleX = 2f }) {
+                        Canvas(
+                            modifier = SwingModifier.testTag("child").preferredSize(40, 40).shadow(4, Color.BLACK),
+                        ) {}
+                    }
+                }
+            }
+
+            assertEquals(Insets(14, 14, 14, 14), paintOutsetsOf("child"), "the shadow spreads 14 past each side")
+            assertEquals(
+                Insets(14, 48, 14, 48),
+                paintOutsetsOf("layered"),
+                "scaled by 2 about the box's center, the shadow's -14..54 spans -48..88; top and bottom stay unscaled",
+            )
+        }
+
+    @Test
+    fun aRightToLeftScaledLayerHoldsTheMirroredOverflowOfItsChild() =
+        runComposeSwingTest {
+            setContent {
+                for (orientation in listOf(ComponentOrientation.LEFT_TO_RIGHT, ComponentOrientation.RIGHT_TO_LEFT)) {
+                    Box {
+                        Layout(
+                            modifier =
+                                SwingModifier
+                                    .testTag(if (orientation.isLeftToRight) "leftToRight" else "rightToLeft")
+                                    .componentOrientation(orientation)
+                                    .placementLayer { scaleX = 0.75f },
+                            content = { Box(modifier = SwingModifier.requiredSize(80, 40)) },
+                            measurePolicy = { measurables, _ ->
+                                val placeable = measurables.single().measure(Constraints())
+                                layout(40, 40) { placeable.placeRelative(0, 0) }
+                            },
+                        )
+                    }
+                }
+            }
+
+            assertEquals(
+                Insets(0, 0, 0, 25),
+                paintOutsetsOf("leftToRight"),
+                "placed from the left, the child spans 0..80, scaled to 5..65",
+            )
+            assertEquals(
+                Insets(0, 25, 0, 0),
+                paintOutsetsOf("rightToLeft"),
+                "mirrored, the child spans -40..40, scaled to -25..35",
+            )
+        }
+
+    private fun ComposeSwingTest.paintOutsetsOf(tag: String): Insets =
+        (onNodeWithTag(tag).fetch<JComponent>() as Decoratable).decoration.paintOutsets()
+
+    /** A layer that both fades and scales its content paints the scaled overflow at the faded alpha. */
+    @Test
+    fun aFadingScaledLayerPaintsTheScaledOverflowOfItsChild() =
+        runComposeSwingTest {
+            setContent {
+                Row {
+                    Box(
+                        modifier =
+                            SwingModifier.testTag("layered").size(40, 40).placementLayer {
+                                scaleX = 0.75f
+                                alpha = 0.5f
+                            },
+                    ) {
+                        Canvas(modifier = SwingModifier.requiredSize(80, 40)) { drawRect(Color.RED) }
+                    }
+                }
+            }
+            assertEquals(
+                Rectangle(-10, 0, 60, 40),
+                onNodeWithTag("layered").fetch<JComponent>().bounds,
+                "a fading layer still holds the scaled overflow",
+            )
+
+            val image = onNodeWithTag("layered").captureToImage()
+            assertEquals(
+                List(3) { Color(255, 0, 0, 128).rgb },
+                listOf(2, 30, 57).map { image.getRGB(it, 20) },
+                "the overflow left of the box, the box and the overflow right of it must paint at half alpha",
+            )
+        }
+
+    /**
+     * A fade layer nested inside a scale layer paints the scaled overflow the outer layer takes paint outsets for,
+     * not only what falls inside its own box.
+     */
+    @Test
+    fun aFadeLayerNestedInAScaleLayerPaintsTheScaledOverflowOfItsChild() =
+        runComposeSwingTest {
+            setContent {
+                Row {
+                    Box(
+                        modifier =
+                            SwingModifier
+                                .testTag("layered")
+                                .size(40, 40)
+                                .placementLayer { scaleX = 0.75f }
+                                .placementLayer { alpha = 0.5f },
+                    ) {
+                        Canvas(modifier = SwingModifier.requiredSize(80, 40)) { drawRect(Color.RED) }
+                    }
+                }
+            }
+            assertEquals(
+                Rectangle(-10, 0, 60, 40),
+                onNodeWithTag("layered").fetch<JComponent>().bounds,
+                "a scale and a fade in separate layers hold the scaled overflow",
+            )
+
+            val image = onNodeWithTag("layered").captureToImage()
+            assertEquals(
+                List(3) { Color(255, 0, 0, 128).rgb },
+                listOf(2, 30, 57).map { image.getRGB(it, 20) },
+                "the overflow left of the box, the box and the overflow right of it must paint at half alpha",
+            )
+        }
+
     @Test
     fun aParentResizingAScaledChildLaysItOutAtTheNewSize() = assertResizedUnderALayer(clip = false)
 
     @Test
     fun aParentResizingAScaledAndClippedChildLaysItOutAtTheNewSize() = assertResizedUnderALayer(clip = true)
 
-    /** A parent that resizes a child placed with a layer lays that child out at its new layout size. */
+    /**
+     * A parent that resizes a child placed with a layer lays that child out at its new layout size, whatever
+     * the paint outsets the layer grows it by.
+     */
     private fun assertResizedUnderALayer(clip: Boolean) =
         runComposeSwingTest {
             var width by mutableIntStateOf(40)
@@ -87,6 +420,50 @@ class PlacementRotationTest {
 
             assertEquals(60, inner.width, "the child's own layout must run at its new size")
             assertTrue(inner.isValidUpToTheValidateRoot(), "the laid out tree must be valid")
+        }
+
+    /**
+     * Resizing a scaled and clipped child moves the paint outsets of everything inside it, and following those
+     * outsets measures nothing again: the child's content is measured once for its new size.
+     */
+    @Test
+    fun aParentResizingAScaledAndClippedChildMeasuresItsContentOnce() =
+        runComposeSwingTest {
+            var width by mutableIntStateOf(40)
+            var contentMeasures = 0
+            setContent {
+                Layout(
+                    content = {
+                        Box(
+                            modifier =
+                                SwingModifier.placementLayer {
+                                    scaleX = 2f
+                                    clip = true
+                                },
+                            propagateMinConstraints = true,
+                        ) {
+                            Layout(
+                                content = { SizedChild(0) },
+                                measurePolicy = { measurables, constraints ->
+                                    contentMeasures++
+                                    val placeable = measurables.single().measure(constraints)
+                                    layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+                                },
+                            )
+                        }
+                    },
+                    measurePolicy = { measurables, _ ->
+                        val placeable = measurables.single().measure(Constraints.fixed(width, CHILD_HEIGHT))
+                        layout(width, CHILD_HEIGHT) { placeable.place(0, 0) }
+                    },
+                )
+            }
+            contentMeasures = 0
+
+            width = 60
+            awaitIdle()
+
+            assertEquals(1, contentMeasures, "following the moved paint outsets must not measure the content again")
         }
 
     /** A fade and a turn set in one block paint what a fading layer holding a turning layer paints. */

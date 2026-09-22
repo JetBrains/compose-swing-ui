@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.foundation.graphics
 
+import org.jetbrains.compose.swing.foundation.layout.Box
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
@@ -10,6 +11,7 @@ import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Color
 import java.awt.Graphics
 import java.awt.Graphics2D
+import java.awt.Insets
 import java.awt.image.BufferedImage
 import javax.swing.JComponent
 import kotlin.test.Test
@@ -52,6 +54,32 @@ class DecorationTest {
                 Color.BLUE.rgb,
                 backgroundOutside.getRGB(0, 0),
                 "A background declared first is outermost, so it fills the corners the clip inside it cuts.",
+            )
+        }
+
+    @Test
+    fun outsetsArePaintOutsetsReportedInTheInsets() =
+        runComposeSwingTest {
+            setContent {
+                Box {
+                    SwingNode(
+                        factory = { DecoratedPanel() },
+                        modifier =
+                            SwingModifier
+                                .testTag("panel")
+                                .preferredSize(SIZE, SIZE)
+                                .spill(Insets(1, 2, 3, 4))
+                                .spill(Insets(10, 20, 30, 40)),
+                    )
+                }
+            }
+            val panel = onNodeWithTag("panel").fetch<JComponent>()
+
+            assertEquals(Insets(11, 22, 33, 44), panel.paintOutsets, "The steps add around the content what each adds.")
+            assertEquals(
+                Insets(11, 22, 33, 44),
+                panel.insets,
+                "The insets carry the paint outsets, as a look and feel reports a focus ring.",
             )
         }
 
@@ -148,7 +176,9 @@ class DecorationTest {
         override fun paintComponent(g: Graphics) {
             val graphics = g.create() as Graphics2D
             try {
-                content(graphics, width, height)
+                val box = decoration.localLayoutBounds(this)
+                graphics.translate(box.x, box.y)
+                content(graphics, box.width, box.height)
             } finally {
                 graphics.dispose()
             }

@@ -4,6 +4,7 @@ import org.jetbrains.compose.swing.modifier.SwingModifier
 import java.awt.Component
 import java.awt.Graphics2D
 import java.awt.Insets
+import java.awt.Shape
 
 /**
  * One [Decorator] declaration, or a slot declaring none where [decorator] is null. It is additive, so every
@@ -50,6 +51,17 @@ internal class DecoratorElement(
         override val outsets: Insets get() = decorator?.outsets ?: NoPaintOutsets
 
         override val isOpaque: Boolean get() = decorator?.isOpaque ?: true
+
+        override fun needsPaintBounds(
+            width: Int,
+            height: Int,
+        ): Boolean = decorator?.needsPaintBounds(width, height) ?: false
+
+        override fun paintBounds(
+            content: Shape,
+            width: Int,
+            height: Int,
+        ): Shape = decorator?.paintBounds(content, width, height) ?: content
 
         override fun paint(
             graphics: Graphics2D,

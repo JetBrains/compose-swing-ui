@@ -2,6 +2,8 @@ package org.jetbrains.compose.swing.foundation.graphics
 
 import java.awt.Graphics2D
 import java.awt.Insets
+import java.awt.Rectangle
+import java.awt.Shape
 
 /**
  * One operation wrapping the painting of what it decorates, declared on a component with
@@ -49,6 +51,27 @@ public fun interface Decorator {
      * Callers read the value and never modify it, so it may be shared.
      */
     public val outsets: Insets get() = NoPaintOutsets
+
+    /**
+     * The area this decorator and its [content] can paint, in a box of [width] by [height]. The default
+     * includes the box and the content's bounds, grown by [outsets]. Override this when painting, clipping,
+     * or transforming content changes that area. The returned shape is used to reserve paint space, not for
+     * clipping.
+     */
+    public fun paintBounds(
+        content: Shape,
+        width: Int,
+        height: Int,
+    ): Shape = Rectangle(0, 0, width, height).apply { add(content.bounds) }.outsetBy(outsets)
+
+    /**
+     * Whether to calculate paint bounds when no child has reported any; `true` by default. Return `false`
+     * only when this decorator cannot enlarge a box-sized content's paint bounds beyond its [outsets].
+     */
+    public fun needsPaintBounds(
+        width: Int,
+        height: Int,
+    ): Boolean = true
 
     /**
      * Whether painting through this decorator still covers every pixel of the area it is given; `true`

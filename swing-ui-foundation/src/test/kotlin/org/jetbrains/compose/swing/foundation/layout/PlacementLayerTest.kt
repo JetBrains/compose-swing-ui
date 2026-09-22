@@ -17,6 +17,7 @@ import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.test.ComposeSwingTest
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.onWindowWithTitle
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
@@ -25,6 +26,7 @@ import org.junit.jupiter.api.Assumptions.assumeFalse
 import java.awt.AlphaComposite
 import java.awt.Color
 import java.awt.ComponentOrientation
+import java.awt.Dimension
 import java.awt.Graphics2D
 import java.awt.GraphicsEnvironment
 import java.awt.Rectangle
@@ -356,6 +358,21 @@ class PlacementLayerTest {
             setCanvases("layered" to SwingModifier.placementLayer { alpha = 0.5f })
 
             assertEquals(128.0, paintTagged("layered", setUp = { setXORMode(Color.WHITE) }).alphaAt(10, 10), 1.0)
+        }
+
+    /** A fade moves nothing off the child's box, so content overflowing the box takes no paint outsets. */
+    @Test
+    fun aFadeAloneTakesNoPaintOutsets() =
+        runComposeSwingTest {
+            setContent {
+                Column {
+                    Box(modifier = SwingModifier.testTag("layered").size(40, 40).placementLayer { alpha = 0.5f }) {
+                        Box(modifier = SwingModifier.requiredSize(60, 60))
+                    }
+                }
+            }
+
+            onNodeWithTag("layered").assertProperty(Dimension(40, 40)) { size }
         }
 
     /** Placing again with the block and box the layer already has repaints nothing. */

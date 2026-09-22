@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.foundation.graphics.Brush
 import org.jetbrains.compose.swing.foundation.graphics.Decoratable
 import org.jetbrains.compose.swing.foundation.graphics.DecoratedPanel
+import org.jetbrains.compose.swing.foundation.graphics.Decorator
 import org.jetbrains.compose.swing.foundation.graphics.Fill
 import org.jetbrains.compose.swing.foundation.graphics.background
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -17,6 +18,9 @@ import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
 import java.awt.Color
 import java.awt.Container
+import java.awt.Graphics2D
+import java.awt.Insets
+import java.awt.Rectangle
 import java.awt.image.BufferedImage
 import javax.swing.JPanel
 import kotlin.test.Test
@@ -24,31 +28,101 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /** A layout node's decorator: where it paints among its component's decoration steps, and how it is set and cleared. */
 class LayoutNodeDecoratorTest {
     @Test
+    fun aLayoutNodeStepPaintsAtItsPlaceAmongTheComponentStepsAtTheNodesOwnBox() =
+        runComposeSwingTest {
+            decoratedChild {
+                SwingModifier
+                    .background(Red)
+                    .then(FillingLayoutNodeElement(Color.GREEN))
+                    .padding(4)
+                    .background(Blue)
+            }
+
+            val painted = onNodeWithTag(DECORATED).captureToImage()
+            assertEquals(
+                Color.GREEN.rgb,
+                painted.getRGB(1, 1),
+                "the step paints over the background declared before it, at the node's own box, which holds the " +
+                    "padding declared after it",
+            )
+            assertEquals(
+                Color.BLUE.rgb,
+                painted.getRGB(10, 10),
+                "the background declared after the padding paints at the component's box, inside the step",
+            )
+        }
+
+    @Test
+    fun aLayoutNodeStepFollowsTheComponentStepsDeclaredBeforeItAndLeavesWithItsNode() =
+        runComposeSwingTest {
+            var modifier by
+                mutableStateOf<BoxScope.() -> SwingModifier>({
+                    SwingModifier.then(FillingLayoutNodeElement(Color.GREEN)).padding(4).background(Blue)
+                })
+            decoratedChild { modifier() }
+
+            modifier = {
+                SwingModifier
+                    .background(Red)
+                    .then(FillingLayoutNodeElement(Color.GREEN))
+                    .padding(4)
+                    .background(Blue)
+            }
+            awaitIdle()
+            assertEquals(
+                Color.GREEN.rgb,
+                onNodeWithTag(DECORATED).captureToImage().getRGB(1, 1),
+                "a background declared ahead of an unchanged layout node moves the node's step inside it",
+            )
+
+            modifier = {
+                SwingModifier
+                    .background(Red)
+                    .then(FillingLayoutNodeElement(Color.YELLOW))
+                    .padding(4)
+                    .background(Blue)
+            }
+            awaitIdle()
+            assertEquals(
+                Color.YELLOW.rgb,
+                onNodeWithTag(DECORATED).captureToImage().getRGB(1, 1),
+                "an updated node keeps its place",
+            )
+
+            modifier = { SwingModifier.background(Red).padding(4).background(Blue) }
+            awaitIdle()
+            assertEquals(
+                Color.RED.rgb,
+                onNodeWithTag(DECORATED).captureToImage().getRGB(1, 1),
+                "a detached node paints no more",
+            )
+        }
+
+    @Test
     fun layoutNodeStepsMovedByOneDeclarationReachTheComponentAsOneDecoration() =
         runComposeSwingTest {
-            var modifier by mutableStateOf(
-                with(BoxScopeInstance) {
+            var modifier by
+                mutableStateOf<BoxScope.() -> SwingModifier>({
                     SwingModifier
                         .then(FillingLayoutNodeElement(Color.GREEN))
                         .then(FillingLayoutNodeElement(Color.YELLOW))
                         .background(Red)
-                },
-            )
-            val panel = decoratedChild { modifier }
+                })
+            val panel = decoratedChild { modifier() }
             panel.repaints = 0
 
-            modifier =
-                with(BoxScopeInstance) {
-                    SwingModifier
-                        .background(Red)
-                        .then(FillingLayoutNodeElement(Color.GREEN))
-                        .then(FillingLayoutNodeElement(Color.YELLOW))
-                }
+            modifier = {
+                SwingModifier
+                    .background(Red)
+                    .then(FillingLayoutNodeElement(Color.GREEN))
+                    .then(FillingLayoutNodeElement(Color.YELLOW))
+            }
             awaitIdle()
 
             assertEquals(1, panel.repaints, "both steps move inside the moved background in one change, not one each")
@@ -60,16 +134,47 @@ class LayoutNodeDecoratorTest {
         }
 
     @Test
+    fun aNewLayoutNodeEnteringAStandingChainPublishesItsStepOnceAtItsPlace() =
+        runComposeSwingTest {
+            var modifier by
+                mutableStateOf<BoxScope.() -> SwingModifier>({
+                    SwingModifier.background(Red).padding(4).background(Blue)
+                })
+            val panel = decoratedChild { modifier() }
+            panel.repaints = 0
+
+            modifier = {
+                SwingModifier
+                    .background(Red)
+                    .then(FillingLayoutNodeElement(Color.GREEN))
+                    .padding(4)
+                    .background(Blue)
+            }
+            awaitIdle()
+
+            assertEquals(1, panel.repaints, "the new node's step reaches the component as one decoration")
+            val painted = onNodeWithTag(DECORATED).captureToImage()
+            assertEquals(
+                Color.GREEN.rgb,
+                painted.getRGB(1, 1),
+                "the step paints inside the background declared before it",
+            )
+            assertEquals(
+                Color.BLUE.rgb,
+                painted.getRGB(10, 10),
+                "the background declared after the step paints inside it",
+            )
+        }
+
+    @Test
     fun aChainAttachedWholePaintsEachLayoutNodeStepAtItsPlace() =
         runComposeSwingTest {
             val panel =
                 decoratedChild {
-                    with(BoxScopeInstance) {
-                        SwingModifier
-                            .background(Red)
-                            .then(FillingLayoutNodeElement(Color.GREEN))
-                            .then(FillingLayoutNodeElement(Color.YELLOW))
-                    }
+                    SwingModifier
+                        .background(Red)
+                        .then(FillingLayoutNodeElement(Color.GREEN))
+                        .then(FillingLayoutNodeElement(Color.YELLOW))
                 }
 
             val corners = checkNotNull(panel.corners)
@@ -87,14 +192,14 @@ class LayoutNodeDecoratorTest {
     @Test
     fun aLayoutNodeGivenANewDecoratorAsItMovesPublishesItOnceAtItsNewPlace() =
         runComposeSwingTest {
-            var modifier by mutableStateOf(
-                with(BoxScopeInstance) { SwingModifier.then(FillingLayoutNodeElement(Color.GREEN)).background(Red) },
-            )
-            val panel = decoratedChild { modifier }
+            var modifier by
+                mutableStateOf<BoxScope.() -> SwingModifier>({
+                    SwingModifier.then(FillingLayoutNodeElement(Color.GREEN)).background(Red)
+                })
+            val panel = decoratedChild { modifier() }
             panel.repaints = 0
 
-            modifier =
-                with(BoxScopeInstance) { SwingModifier.background(Red).then(FillingLayoutNodeElement(Color.YELLOW)) }
+            modifier = { SwingModifier.background(Red).then(FillingLayoutNodeElement(Color.YELLOW)) }
             awaitIdle()
 
             assertEquals(
@@ -146,13 +251,14 @@ class LayoutNodeDecoratorTest {
     @Test
     fun aDetachedNodesDecoratorPaintsNoMore() =
         runComposeSwingTest {
-            var modifier by mutableStateOf(
-                with(BoxScopeInstance) { SwingModifier.background(Red).then(FillingLayoutNodeElement(Color.GREEN)) },
-            )
-            decoratedChild { modifier }
+            var modifier by
+                mutableStateOf<BoxScope.() -> SwingModifier>({
+                    SwingModifier.background(Red).then(FillingLayoutNodeElement(Color.GREEN))
+                })
+            decoratedChild { modifier() }
             assertEquals(Color.GREEN.rgb, onNodeWithTag(DECORATED).captureToImage().getRGB(1, 1))
 
-            modifier = with(BoxScopeInstance) { SwingModifier.background(Red) }
+            modifier = { SwingModifier.background(Red) }
             awaitIdle()
 
             assertEquals(
@@ -163,13 +269,67 @@ class LayoutNodeDecoratorTest {
         }
 
     @Test
+    fun settingTheSameDecoratorAgainAfterItsOutsetsChangeGathersItAgain() =
+        runComposeSwingTest {
+            val created = NodeCell()
+            val panel = decoratedChild { SwingModifier.then(FillingLayoutNodeElement(Color.GREEN, created)) }
+            val node = created.node
+            val decorator = MutableOutsetDecorator(Color.YELLOW)
+            node.decorator = decorator
+            panel.repaints = 0
+            panel.invalidations = 0
+
+            decorator.outsets = Insets(4, 4, 4, 4)
+            node.decorator = decorator
+
+            assertSame(decorator, node.decorator, "the node holds the decorator set again")
+            assertTrue(panel.repaints > 0, "the same instance is gathered again")
+            assertTrue(panel.invalidations > 0, "the changed outsets lay the component out again")
+            assertEquals(4, panel.insets.left, "the component's insets report the new paint outsets")
+        }
+
+    @Test
+    fun aNewDecoratorReplacesTheStandingOneAtTheNodesPlaceInOneChange() =
+        runComposeSwingTest {
+            val created = NodeCell()
+            val panel =
+                decoratedChild {
+                    SwingModifier
+                        .background(Red)
+                        .then(FillingLayoutNodeElement(Color.GREEN, created))
+                        .padding(4)
+                        .background(Blue)
+                }
+            val node = created.node
+            panel.repaints = 0
+
+            val replacement = Fill(Color.YELLOW)
+            node.decorator = replacement
+
+            assertSame(replacement, node.decorator, "the node holds the replacement")
+            assertEquals(1, panel.repaints, "a replacement reaches the component as one decoration")
+            val painted = onNodeWithTag(DECORATED).captureToImage()
+            assertEquals(Color.YELLOW.rgb, painted.getRGB(1, 1), "the replacement paints where the replaced one did")
+            assertEquals(
+                Color.BLUE.rgb,
+                painted.getRGB(10, 10),
+                "what is declared after the node still paints inside it",
+            )
+
+            node.decorator = null
+            assertEquals(
+                Color.RED.rgb,
+                onNodeWithTag(DECORATED).captureToImage().getRGB(1, 1),
+                "nothing of the replaced decorator is left",
+            )
+        }
+
+    @Test
     fun clearingTheDecoratorStopsItsPaintingAndSettingItAgainRestoresIt() =
         runComposeSwingTest {
             val created = NodeCell()
             decoratedChild {
-                with(BoxScopeInstance) {
-                    SwingModifier.background(Red).then(FillingLayoutNodeElement(Color.GREEN, created))
-                }
+                SwingModifier.background(Red).then(FillingLayoutNodeElement(Color.GREEN, created))
             }
             val node = created.node
             val decorator = checkNotNull(node.decorator)
@@ -188,6 +348,33 @@ class LayoutNodeDecoratorTest {
                 onNodeWithTag(DECORATED).captureToImage().getRGB(1, 1),
                 "setting it again paints it again",
             )
+        }
+
+    @Test
+    fun aDecoratorChangingThePaintOutsetsRefitsTheComponentInPlace() =
+        runComposeSwingTest {
+            val created = NodeCell()
+            var measures = 0
+            val panel =
+                decoratedChild {
+                    SwingModifier.countingMeasures { measures++ }.then(FillingLayoutNodeElement(Color.GREEN, created))
+                }
+            val node = created.node
+            val bounds = panel.bounds
+            measures = 0
+
+            node.decorator = Fill(Color.YELLOW)
+            awaitIdle()
+            assertEquals(bounds, panel.bounds, "a decorator taking the same outsets leaves the bounds")
+
+            node.decorator = Fill(Color.YELLOW, outsets = Insets(4, 4, 4, 4))
+            awaitIdle()
+            assertEquals(
+                Rectangle(bounds.x - 4, bounds.y - 4, bounds.width + 8, bounds.height + 8),
+                panel.bounds,
+                "a decorator taking other outsets grows the bounds by them",
+            )
+            assertEquals(0, measures, "the Foundation parent measures nothing")
         }
 
     @Test
@@ -315,7 +502,7 @@ class LayoutNodeDecoratorTest {
 }
 
 /** Composes a [RecordingPanel] declaring [modifier] in a [Box], and returns it once the composition is idle. */
-private suspend fun ComposeSwingTest.decoratedChild(modifier: () -> SwingModifier): RecordingPanel {
+private suspend fun ComposeSwingTest.decoratedChild(modifier: BoxScope.() -> SwingModifier): RecordingPanel {
     var panel: RecordingPanel? = null
     setContent {
         Box {
@@ -416,7 +603,26 @@ private class FillingLayoutNode : LayoutModifierNode() {
     }
 }
 
+/** Fills its area with [color] under its content, whose [outsets] can change after construction. */
+private class MutableOutsetDecorator(
+    private val color: Color,
+) : Decorator {
+    override var outsets: Insets = Insets(0, 0, 0, 0)
+
+    override fun paint(
+        graphics: Graphics2D,
+        width: Int,
+        height: Int,
+        content: (Graphics2D, Int, Int) -> Unit,
+    ) {
+        graphics.color = color
+        graphics.fillRect(0, 0, width, height)
+        content(graphics, width, height)
+    }
+}
+
 private val Red = Brush { _, _ -> Color.RED }
+private val Blue = Brush { _, _ -> Color.BLUE }
 
 /** [panel]'s decoration painted around its empty, 20 pixels square, content. */
 private fun paintedAlone(panel: DecoratedPanel): BufferedImage {

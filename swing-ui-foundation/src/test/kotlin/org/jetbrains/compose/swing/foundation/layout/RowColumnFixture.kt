@@ -89,7 +89,7 @@ private class DecoratedBaselinePanel(
     override fun getBaseline(
         width: Int,
         height: Int,
-    ): Int = baseline
+    ): Int = decoration.paintOutsets().top + baseline
 }
 
 /** The bounds the container under test assigned each of its children, in declaration order. */

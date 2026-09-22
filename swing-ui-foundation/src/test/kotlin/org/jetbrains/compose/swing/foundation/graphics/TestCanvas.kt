@@ -56,7 +56,8 @@ internal fun ComposeSwingTest.decoratedCanvases(
                         SwingModifier
                             .testTag("canvas $index")
                             .preferredSize(width, height)
-                            .then(decorated { decoration(index).drawBehind { draw(index) } }),
+                            .then(decoration(index))
+                            .drawBehind { draw(index) },
                 )
             }
         }
@@ -64,15 +65,15 @@ internal fun ComposeSwingTest.decoratedCanvases(
     return List(count) { onNodeWithTag("canvas $it").fetch<JComponent>() }
 }
 
-/** The test's [DecoratedPanel], its modifier built by [modifier], drawing through [draw]. */
+/** The test's transparent [DecoratedPanel] declaring [modifier], drawing through [draw]. */
 @Composable
 internal fun DecoratedCanvas(
-    modifier: () -> SwingModifier,
+    modifier: SwingModifier,
     draw: DrawScope.() -> Unit = {},
 ) {
     SwingNode(
         factory = { DecoratedPanel().apply { isOpaque = false } },
-        modifier = decorated { modifier().drawBehind(draw) },
+        modifier = modifier.drawBehind(draw),
     )
 }
 
@@ -80,8 +81,6 @@ internal fun DecoratedCanvas(
  * What this component paints onto a transparent [width] by [height] image through [transform], clipped to [clip] in
  * its own coordinates, as Swing paints it.
  */
-internal val JComponent.paintOutsets: Insets get() = (this as Decoratable).decoration.paintOutsets()
-
 internal fun JComponent.paintOnto(
     width: Int,
     height: Int,
@@ -93,6 +92,9 @@ internal fun JComponent.paintOnto(
         it.clip(clip)
         paint(it)
     }
+
+/** The paint outsets of this decorated component. */
+internal val JComponent.paintOutsets: Insets get() = (this as Decoratable).decoration.paintOutsets()
 
 /** The sizes of the images a plain `drawImage(image, x, y, observer)` call draws while this paints [clip]. */
 internal fun JComponent.imageSizesDrawnPainting(clip: Rectangle): List<Dimension> {

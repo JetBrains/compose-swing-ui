@@ -10,14 +10,15 @@ import org.jetbrains.compose.swing.components.layout.Panel
 import org.jetbrains.compose.swing.components.layout.PanelLayout
 import org.jetbrains.compose.swing.components.text.TextField
 import org.jetbrains.compose.swing.foundation.graphics.background
-import org.jetbrains.compose.swing.foundation.graphics.decorated
 import org.jetbrains.compose.swing.foundation.graphics.renderImage
+import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.name
 import org.jetbrains.compose.swing.modifier.appearance.opaque
 import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.interaction.enabled
 import org.jetbrains.compose.swing.modifier.layout.layoutConstraint
+import org.jetbrains.compose.swing.modifier.layout.preferredSize
 import org.jetbrains.compose.swing.modifier.layout.visible
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.onWindowWithTitle
@@ -259,7 +260,7 @@ class LayoutTest {
                 Layout(
                     content = {
                         Panel(PanelLayout.Flow(), modifier = SwingModifier.opaque(true).swingBackground(Color.RED)) {}
-                        Box(modifier = decorated { SwingModifier.background(brush = { _, _ -> Color.BLUE }) })
+                        Box(modifier = SwingModifier.background(brush = { _, _ -> Color.BLUE }))
                     },
                     measurePolicy = { measurables, _ ->
                         val placeables = measurables.map { it.measure(Constraints.fixed(CHILD_WIDTH, CHILD_HEIGHT)) }
@@ -399,6 +400,34 @@ class LayoutTest {
                 frame.mostRecentFocusOwner,
                 "the background window's focus must move off the unplaced child",
             )
+        }
+
+    /** A child the policy leaves unplaced paints nothing, so its paint outsets no longer grows the container. */
+    @Test
+    fun anUnplacedChildNoLongerGrowsTheContainerByItsPaintOutsets() =
+        runComposeSwingTest {
+            var placed by mutableStateOf(true)
+            setContent {
+                Box {
+                    Layout(
+                        content = {
+                            Box(modifier = SwingModifier.preferredSize(10, 10).shadow(4, Color.BLACK))
+                        },
+                        measurePolicy = { measurables, _ ->
+                            val placeable = measurables.single().measure(Constraints())
+                            layout(10, 10) { if (placed) placeable.place(0, 0) }
+                        },
+                        modifier = SwingModifier.testTag(CONTAINER_TAG),
+                    )
+                }
+            }
+            val container = onNodeWithTag(CONTAINER_TAG).fetch<Component>()
+            assertTrue(container.width > 10, "a placed child's shadow must grow the container")
+
+            placed = false
+            awaitIdle()
+
+            assertEquals(Dimension(10, 10), container.size, "the container must shrink back to its own bounds")
         }
 
     /** A child its own declaration hides stays hidden when the policy places it again. */
@@ -560,6 +589,37 @@ class LayoutTest {
             val child = onNodeWithTag("child").fetch<Component>()
             assertEquals("declared", child.name, "the declared name must stand")
             assertFalse(child.isEnabled, "the declared enabled(false) must stand")
+        }
+
+    /** A child left unplaced stays at a zero size and paints nothing, even where a component inside it has a shadow. */
+    @Test
+    fun anUnplacedChildStaysEmptyWhereItsContentNeedsPaintOutsets() =
+        runComposeSwingTest {
+            var placed by mutableStateOf(true)
+            setContent {
+                Layout(
+                    content = {
+                        Box(modifier = SwingModifier.testTag("child")) {
+                            Box(modifier = SwingModifier.preferredSize(10, 10).shadow(4, Color.BLACK))
+                        }
+                    },
+                    measurePolicy = { measurables, _ ->
+                        val placeable = measurables.single().measure(Constraints())
+                        layout(CHILD_WIDTH, CHILD_HEIGHT) { if (placed) placeable.place(20, 20) }
+                    },
+                    modifier = containerModifier(CHILD_WIDTH, CHILD_HEIGHT),
+                )
+            }
+            val child = onNodeWithTag("child").fetch<Component>()
+
+            placed = false
+            awaitIdle()
+
+            assertEquals(Dimension(0, 0), child.size, "the content's paint outsets must not grow an unplaced child")
+            assertImagesPixelPerfect(
+                renderImage(CHILD_WIDTH, CHILD_HEIGHT) {},
+                onNodeWithTag(CONTAINER_TAG).captureToImage(),
+            )
         }
 
     /** A child the policy leaves unplaced takes its size again once it moves into a container of its own. */

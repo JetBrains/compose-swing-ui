@@ -8,10 +8,10 @@ import java.awt.AlphaComposite
 import java.awt.Color
 import java.awt.Component
 import java.awt.Graphics2D
-import java.awt.Rectangle
 import java.awt.RenderingHints
 import java.awt.geom.AffineTransform
 import java.awt.geom.Area
+import java.awt.Shape as AwtShape
 
 /**
  * Clips everything inside it to [shape]'s outline - the component's content, its border and, on a
@@ -82,36 +82,55 @@ private class ClipNode(
 
     override val isOpaque: Boolean get() = false
 
+    /**
+     * Cuts [content] to [shape]'s own outline, resolved against the layout bounds of [width] by [height], rather than
+     * to the box: a shape wider than the box still reserves what it paints past it, and one narrower still reserves
+     * no more than it covers.
+     */
+    override fun paintBounds(
+        content: AwtShape,
+        width: Int,
+        height: Int,
+    ): AwtShape = Area(content).apply { intersect(Area(shape.outline(width, height))) }
+
     override fun paint(
         graphics: Graphics2D,
         width: Int,
         height: Int,
         content: (Graphics2D, Int, Int) -> Unit,
     ) {
+        val outlineShape = shape.outline(width, height)
         if (!antialias) {
-            graphics.clip(shape.outline(width, height))
+            graphics.clip(outlineShape)
             content(graphics, width, height)
             return
         }
-        if (width <= 0 || height <= 0) return
+        val outline = outlineShape.bounds
+        if (width <= 0 || height <= 0 || outline.isEmpty) return
         val layer = layer ?: ImageLayer().also { layer = it }
-        // Aligned to the graphics' device pixels, so the content keeps the resolution it would paint at directly.
-        layer.record(graphics, width, height) { recording ->
-            content(recording, width, height)
-            // Taking the outside back out of a recording is what a clip cannot do: a pixel the outline
-            // covers in part is cleared in part, which is the soft edge. Filling the outline itself would
-            // leave everything it never touches - the whole outside - standing.
-            // The outside is taken in device pixels, across every pixel the component touches: the recording
-            // holds a pixel the component's edge crosses whole, and the component's own bounds would clear only
-            // the part of it they cover.
-            val toDevice = recording.transform
-            val outside = Area(toDevice.createTransformedShape(Rectangle(0, 0, width, height)).bounds)
-            outside.subtract(Area(toDevice.createTransformedShape(shape.outline(width, height))))
-            recording.transform = AffineTransform()
-            recording.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
-            recording.composite = AlphaComposite.DstOut
-            recording.color = Color.WHITE
-            recording.fill(outside)
+        // Recorded over the outline, not the box, so the antialiased edge paints everywhere the outline reserves.
+        graphics.translate(outline.x, outline.y)
+        try {
+            layer.record(graphics, outline.width, outline.height) { recording ->
+                recording.translate(-outline.x, -outline.y)
+                content(recording, width, height)
+                // Taking the outside back out of a recording is what a clip cannot do: a pixel the outline
+                // covers in part is cleared in part, which is the soft edge. Filling the outline itself would
+                // leave everything it never touches - the whole outside - standing.
+                // The outside is taken in device pixels, across every pixel the outline's bounds touch: the
+                // recording holds a pixel their edge crosses whole, and the bounds themselves would clear only
+                // the part of it they cover.
+                val toDevice = recording.transform
+                val outside = Area(toDevice.createTransformedShape(outline).bounds)
+                outside.subtract(Area(toDevice.createTransformedShape(outlineShape)))
+                recording.transform = AffineTransform()
+                recording.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+                recording.composite = AlphaComposite.DstOut
+                recording.color = Color.WHITE
+                recording.fill(outside)
+            }
+        } finally {
+            graphics.translate(-outline.x, -outline.y)
         }
         layer.draw(graphics)
     }

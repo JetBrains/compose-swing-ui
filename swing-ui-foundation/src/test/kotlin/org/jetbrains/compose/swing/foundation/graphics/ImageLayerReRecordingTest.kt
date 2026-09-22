@@ -375,17 +375,17 @@ class ImageLayerReRecordingTest {
         runComposeSwingTest {
             val size = SQUARE * 2
             setContent {
-                Canvas(
-                    modifier =
-                        decorated {
+                DecoratedBox {
+                    Canvas(
+                        modifier =
                             SwingModifier
                                 .testTag(
                                     "clipped",
                                 ).preferredSize(size, size)
-                                .clip(CircleShape, antialias = true)
-                        },
-                    renderingHints = null,
-                ) { drawTranslucentEllipses(graphics) }
+                                .clip(CircleShape, antialias = true),
+                        renderingHints = null,
+                    ) { drawTranslucentEllipses(graphics) }
+                }
             }
             val component = onNodeWithTag("clipped").fetch<JComponent>()
             val reference = renderImage(size, size) { freshClip(it, size) }

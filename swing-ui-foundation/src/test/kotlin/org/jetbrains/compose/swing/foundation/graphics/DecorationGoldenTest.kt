@@ -50,6 +50,15 @@ class DecorationGoldenTest {
     @Test
     fun anAlphaFadesTheFigure() = golden("decoration_alpha", ::filled) { alpha(0.4f) }
 
+    @Test
+    fun aBlurSoftensTheFigure() = golden("decoration_blur", ::filled) { blur(6) }
+
+    @Test
+    fun aShadowCastsTheFigureBehindItself() =
+        golden("decoration_shadow", ::sparse) {
+            shadow(6, Color(0, 0, 0, 160), offsetX = 4, offsetY = 4)
+        }
+
     /**
      * Captures a scene holding one decorated [figure] on an opaque ground and asserts it against the
      * golden image named [goldenIdentifier].
@@ -59,7 +68,7 @@ class DecorationGoldenTest {
         figure: (Graphics2D, Int, Int) -> Unit,
         decorate: SwingModifier.() -> SwingModifier,
     ) = runComposeSwingTest {
-        setContent { Scene(figure, decorate) }
+        setContent { DecoratedBox { Scene(figure, decorate) } }
         onNodeWithTag(SCENE).assertImageAgainstGoldenPixelPerfect(goldenIdentifier)
     }
 
@@ -71,12 +80,10 @@ class DecorationGoldenTest {
         Box(
             contentAlignment = Alignment.Center,
             modifier =
-                decorated {
-                    SwingModifier
-                        .testTag(SCENE)
-                        .preferredSize(96, 96)
-                        .background(Color.WHITE, RectangleShape)
-                },
+                SwingModifier
+                    .testTag(SCENE)
+                    .preferredSize(96, 96)
+                    .background(Color.WHITE, RectangleShape),
         ) {
             Canvas(
                 modifier = SwingModifier.preferredSize(48, 48).decorate(),
