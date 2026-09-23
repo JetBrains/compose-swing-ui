@@ -350,8 +350,9 @@ public sealed class PlacementScope {
      * where the children go, such as [MeasureResult.placeChildren] or an alignment-line query, places the child
      * without a layer.
      *
-     * A state read in [layerBlock] repaints the component without measuring it again. Placing with a different
-     * block instance repaints the component; pass the same instance to avoid that.
+     * A state read in [layerBlock] repaints the component without measuring it again; where the paint outsets it
+     * takes resize a Foundation container, that container places its children again. Placing with a different block
+     * instance repaints the component; pass the same instance to avoid that.
      *
      * @param x where the child's left edge lands, from the container's inner left edge
      * @param y where the child's top edge lands, from the container's inner top edge

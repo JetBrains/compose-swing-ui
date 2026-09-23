@@ -60,8 +60,7 @@ internal class DecorationSteps private constructor(
     ): Boolean = decorators.fastAll { it !is BoxedStep || it.isAtLayoutBox(width, height) }
 
     /** The layer the component's container places it with, the outermost step, or null for none. */
-    val containerLayer: PlacementLayer?
-        get() = (decorators.firstOrNull() as? PlacementLayer)?.takeIf { it.isContainerLayer }
+    val containerLayer: PlacementLayer? get() = decorators.firstOrNull() as? PlacementLayer.ContainerLayer
 
     /** These steps inside [layer], in place of their [containerLayer]; these steps themselves where it is that one. */
     fun inContainerLayer(layer: PlacementLayer?): DecorationSteps {

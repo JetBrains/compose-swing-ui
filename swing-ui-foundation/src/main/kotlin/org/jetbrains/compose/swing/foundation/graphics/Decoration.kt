@@ -1,6 +1,7 @@
 package org.jetbrains.compose.swing.foundation.graphics
 
 import org.jetbrains.compose.swing.foundation.layout.ChildMeasurables
+import org.jetbrains.compose.swing.foundation.util.fastAny
 import java.awt.Component
 import java.awt.Graphics
 import java.awt.Graphics2D
@@ -34,6 +35,11 @@ public class Decoration internal constructor(
     internal val parentMeasurables: ChildMeasurables?,
     /** The records of the component's own children, where it is a Foundation container; null otherwise. */
     internal val childMeasurables: ChildMeasurables?,
+    /**
+     * Whether a placement layer rotates or scales the component, or a descendant a Foundation container inside it
+     * placed.
+     */
+    internal val holdsTransform: Boolean,
     /** Whether every step answered [Decorator.isOpaque] with `true` when the library last gathered the steps. */
     internal val hasOpaqueSteps: Boolean,
 ) {
@@ -127,17 +133,22 @@ public class Decoration internal constructor(
 
     /**
      * Whether ([x], [y]), in [component]'s coordinates, hits it: inside the layout bounds, as its placement layers
-     * rotate, scale and clip them. The paint outsets, such as a shadow's, are not hit.
+     * rotate, scale and clip them, or, while a placement layer on it or a descendant rotates or scales, where a
+     * visible child's own `contains` takes the point. Other paint outsets, such as a shadow's, are not hit.
      */
     public fun contains(
         component: Component,
         x: Int,
         y: Int,
     ): Boolean {
-        val point = if (steps.isClippedOrTransformed) contentPoint(x, y, clipped = true) ?: return false else null
-        val boxX = (point?.x ?: x) - heldPaintOutsets.left
-        val boxY = (point?.y ?: y) - heldPaintOutsets.top
-        return boxX in 0 until layoutWidth(component) && boxY in 0 until layoutHeight(component)
+        if (inLayoutBounds(component, x, y)) return true
+        val inBounds = holdsTransform && x in 0 until component.width && y in 0 until component.height
+        val point = if (inBounds) contentPoint(x, y, clipped = true) else null
+        return point != null &&
+            childMeasurables?.layoutPass?.fastAny {
+                val child = it.component
+                !it.isLeftUnplaced && child.isVisible && child.contains(point.x - child.x, point.y - child.y)
+            } == true
     }
 
     /** The width of [component]'s layout bounds: its width less the paint outsets. */
@@ -148,8 +159,8 @@ public class Decoration internal constructor(
     internal fun layoutHeight(component: Component): Int =
         (component.height - heldPaintOutsets.top - heldPaintOutsets.bottom).coerceAtLeast(0)
 
-    /** Whether its Foundation parent gathers its paint bounds: it has paint outsets. */
-    internal val needsGathering: Boolean get() = heldPaintOutsets != NoPaintOutsets
+    /** Whether its Foundation parent gathers its paint bounds: it has paint outsets or holds a transform. */
+    internal val needsGathering: Boolean get() = holdsTransform || heldPaintOutsets != NoPaintOutsets
 
     /**
      * The point whose content the placement layers paint at ([x], [y]), both in the component's own coordinates: the
@@ -167,11 +178,26 @@ public class Decoration internal constructor(
         return Point(floor(point.x).toInt() + heldPaintOutsets.left, floor(point.y).toInt() + heldPaintOutsets.top)
     }
 
+    /**
+     * Whether ([x], [y]), in [component]'s coordinates, is inside the layout rectangle, rotated, scaled and clipped as
+     * the placement layers paint it.
+     */
+    private fun inLayoutBounds(
+        component: Component,
+        x: Int,
+        y: Int,
+    ): Boolean {
+        val point = if (steps.isClippedOrTransformed) contentPoint(x, y, clipped = true) ?: return false else null
+        val boxX = (point?.x ?: x) - heldPaintOutsets.left
+        val boxY = (point?.y ?: y) - heldPaintOutsets.top
+        return boxX in 0 until layoutWidth(component) && boxY in 0 until layoutHeight(component)
+    }
+
     /** Holds [None]. */
     public companion object {
         /** No decoration and no paint outsets: what a component holds until the library writes one. */
         public val None: Decoration =
-            Decoration(DecorationSteps.None, NoPaintOutsets, null, null, hasOpaqueSteps = true)
+            Decoration(DecorationSteps.None, NoPaintOutsets, null, null, holdsTransform = false, hasOpaqueSteps = true)
     }
 }
 

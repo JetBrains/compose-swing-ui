@@ -141,12 +141,12 @@ public abstract class LayoutModifierNode : ParentLayoutNode() {
     }
 
     /** The layer this node's placement paints, made by its first placement with one. */
-    internal var layerOrNull: PlacementLayer? = null
+    internal var layerOrNull: PlacementLayer.NodeLayer? = null
         private set
 
     /** The layer this node's placement paints, a step of its component's decoration once placed with. */
-    internal val layer: PlacementLayer
-        get() = layerOrNull ?: PlacementLayer(this, null).also { layerOrNull = it }
+    internal val layer: PlacementLayer.NodeLayer
+        get() = layerOrNull ?: PlacementLayer.NodeLayer(this).also { layerOrNull = it }
 
     /**
      * Where the last placement put this node, in its component's layout coordinates: the origin it places its content

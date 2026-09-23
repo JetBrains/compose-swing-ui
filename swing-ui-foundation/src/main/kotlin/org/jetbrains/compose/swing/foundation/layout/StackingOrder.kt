@@ -80,12 +80,16 @@ internal class StackingOrder(
             if (comparison > 0 || (comparison == 0 && position >= declaredAt)) above++
             position++
         }
-        return above
+        return above + topmostIndex
     }
+
+    /** The array index of the topmost child, past the container's glass pane while it holds one. */
+    val topmostIndex: Int
+        get() = if (container.glassPane == null) 0 else 1
 
     /** Whether this order holds as many children as the component array it arranges. */
     val isInStep: Boolean
-        get() = order.size == container.componentCount
+        get() = order.size == container.componentCount - topmostIndex
 
     /** Gives up every child, for the `Container.removeAll` that empties the array itself. */
     fun cleared() {
@@ -108,6 +112,7 @@ internal class StackingOrder(
      */
     fun restack() {
         if (!isInStep) return
+        val topmost = topmostIndex
         try {
             // An insertion sort of the reversed declaration order: stable, so tied children stay in reverse
             // declaration order, and linear where the order already holds.
@@ -120,8 +125,8 @@ internal class StackingOrder(
             }
             for (index in stacked.indices) {
                 val child = stacked[index]
-                if (container.getComponent(index) === child) continue
-                container.setComponentZOrder(child, index)
+                if (container.getComponent(topmost + index) === child) continue
+                container.setComponentZOrder(child, topmost + index)
                 // Every pair of children whose order changed includes one moved here, so its bounds hold
                 // every pixel that now paints differently.
                 container.repaint(child.x, child.y, child.width, child.height)

@@ -4,6 +4,7 @@ import org.jetbrains.compose.swing.foundation.graphics.Decoratable
 import org.jetbrains.compose.swing.foundation.graphics.Decoration
 import org.jetbrains.compose.swing.foundation.graphics.DecorationSteps
 import org.jetbrains.compose.swing.foundation.graphics.NoPaintOutsets
+import org.jetbrains.compose.swing.foundation.util.fastAny
 import org.jetbrains.compose.swing.foundation.util.fastForEach
 import java.awt.Component
 import java.awt.Container
@@ -14,7 +15,8 @@ import java.awt.Rectangle
  * Walks the children the last layout pass placed, once: finds [hasChildToGather] and, where
  * [hasFoundationParent], adds to [bounds], or to a rectangle allocated on the first child that needs it where
  * [bounds] is null, the bounds of each child that [needs gathering][Decoration.needsGathering], or of every one
- * where [all], in the layout coordinates of this container, whose paint outsets are [outsets].
+ * where [all], in the layout coordinates of this container, whose paint outsets are [outsets]. The [panel] holds its
+ * [glass pane][ConstrainedPanel.glassPane] while a layer rotates or scales one of these children.
  *
  * @return [bounds] grown by the gathered children, a rectangle allocated for them where [bounds] is null, or
  *   [bounds] where nothing was gathered.
@@ -27,9 +29,11 @@ internal fun ChildMeasurables.gatherPaintBounds(
 ): Rectangle? {
     var gathered = bounds
     var gathers = false
+    var transformed = false
     layoutPass.fastForEach { child ->
         if (child.isLeftUnplaced) return@fastForEach
         val decoration = child.decoratable?.decoration
+        transformed = transformed || decoration?.steps?.isTransformed == true
         val needsGathering = decoration?.needsGathering == true
         gathers = gathers || needsGathering
         if (hasFoundationParent && (all || needsGathering)) {
@@ -44,15 +48,19 @@ internal fun ChildMeasurables.gatherPaintBounds(
         }
     }
     hasChildToGather = gathers
+    panel.updateGlassPane(transformed)
     return gathered
 }
 
 /**
  * Fits [child]'s paint outsets to the layout bounds this container placed it at, from its steps, the boxes its
  * layout nodes were placed at and, where it is a Foundation container, what its own children paint past it; see
- * [writeFitted].
+ * [writeFitted]. [transformChanged] says a layer of the child started or stopped rotating or scaling it.
  */
-internal fun ChildMeasurables.fitPaintOutsets(child: ChildMeasurable) {
+internal fun ChildMeasurables.fitPaintOutsets(
+    child: ChildMeasurable,
+    transformChanged: Boolean = false,
+) {
     val decoratable = child.decoratable ?: return
     val held = decoratable.decoration
     writeFitted(
@@ -60,6 +68,7 @@ internal fun ChildMeasurables.fitPaintOutsets(child: ChildMeasurable) {
         decoratable,
         held,
         held.fitted(child.component, parentMeasurables = this),
+        transformChanged,
     )
 }
 
@@ -104,16 +113,17 @@ internal fun ChildMeasurables.childPaintOutsetsChanged(
 }
 
 /**
- * This value with [steps], [hasOpaqueSteps] and the links, and the paint outsets worked out again for the layout bounds
- * [component] holds; this value itself where every field is unchanged, and the shared [Decoration.None] where it has no
- * steps and no links.
+ * This value with [steps], [hasOpaqueSteps] and the links, and the paint outsets and [Decoration.holdsTransform] worked
+ * out again for the layout bounds [component] holds; this value itself where every field is unchanged, and the shared
+ * [Decoration.None] where it has no steps and no links.
  *
  * Only a Foundation container, [parentMeasurables], gives paint outsets: the steps' own, grown by the box of a layout
  * node a step paints at, by a rotating or scaling layer, and, where [childMeasurables] holds [component]'s own
  * children, by what those children paint past it. Such a container gathers every placed child while its own steps
  * [need paint bounds][DecorationSteps.needsPaintBounds], and otherwise only the children that
- * [need gathering][Decoration.needsGathering]. Nothing is allocated for a component whose steps need no paint bounds
- * and whose children, if any, need no gathering.
+ * [need gathering][Decoration.needsGathering]. The walk of [childMeasurables] runs under any parent, since it also
+ * settles whether the container holds its glass pane. Nothing is allocated for a component whose steps need no
+ * paint bounds and whose children, if any, need no gathering.
  */
 internal fun Decoration.fitted(
     component: Component,
@@ -135,18 +145,24 @@ internal fun Decoration.fitted(
             all = needs,
             hasFoundationParent,
         ) ?: seed
+    val holdsTransform =
+        steps.isTransformed ||
+            panelChildMeasurables?.layoutPass?.fastAny {
+                !it.isLeftUnplaced && it.decoratable?.decoration?.holdsTransform == true
+            } == true
     val outsets = if (bounds != null) outsetsAround(bounds, steps, width, height) else NoPaintOutsets
     return when {
-        holds(steps, hasOpaqueSteps, parentMeasurables, panelChildMeasurables) && outsets == heldPaintOutsets -> {
+        holds(steps, hasOpaqueSteps, parentMeasurables, panelChildMeasurables) && outsets == heldPaintOutsets &&
+            holdsTransform == this.holdsTransform -> {
             this
         }
 
-        Decoration.None.holds(steps, hasOpaqueSteps, parentMeasurables, panelChildMeasurables) -> {
+        Decoration.None.holds(steps, hasOpaqueSteps, parentMeasurables, panelChildMeasurables) && !holdsTransform -> {
             Decoration.None
         }
 
         else -> {
-            Decoration(steps, outsets, parentMeasurables, panelChildMeasurables, hasOpaqueSteps)
+            Decoration(steps, outsets, parentMeasurables, panelChildMeasurables, holdsTransform, hasOpaqueSteps)
         }
     }
 }
@@ -199,20 +215,22 @@ private fun Insets.hasSides(
 
 /**
  * Writes [value] to [decoratable], which is [component], in place of [held], and fits what depends on it where the
- * paint outsets changed. A Foundation container's own children keep where its last pass placed them, and its
- * Foundation parent fits its bounds around the layout bounds it placed, and works out its own paint outsets in turn.
- * The invalidations this causes lay nothing out; see [RunningCause.PaintOutsetFit].
+ * paint outsets or [Decoration.holdsTransform] changed, or [transformChanged] says a layer of the component started
+ * or stopped rotating or scaling it. A Foundation container's own children keep where its last pass placed them, and
+ * its Foundation parent fits its bounds around the layout bounds it placed, and works out its own paint outsets in
+ * turn. The invalidations this causes lay nothing out; see [RunningCause.PaintOutsetFit].
  */
 internal fun writeFitted(
     component: Component,
     decoratable: Decoratable,
     held: Decoration,
     value: Decoration,
+    transformChanged: Boolean = false,
 ) {
     if (value !== held) decoratable.decoration = value
     val previous = held.heldPaintOutsets
     val outsets = value.heldPaintOutsets
-    if (outsets == previous) return
+    if (outsets == previous && value.holdsTransform == held.holdsTransform && !transformChanged) return
     val parent = value.parentMeasurables
     val childMeasurables = value.childMeasurables
     if (childMeasurables == null) {
@@ -257,6 +275,7 @@ internal fun Decoratable.linkTo(
             held.heldPaintOutsets,
             parentMeasurables,
             childMeasurables,
+            held.holdsTransform,
             held.hasOpaqueSteps,
         )
 }

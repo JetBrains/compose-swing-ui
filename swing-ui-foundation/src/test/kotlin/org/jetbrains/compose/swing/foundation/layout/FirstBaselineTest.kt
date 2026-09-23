@@ -8,11 +8,17 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.components.text.TextField
+import org.jetbrains.compose.swing.foundation.graphics.Brush
+import org.jetbrains.compose.swing.foundation.graphics.background
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.border
+import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.node.SwingNode
 import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
+import org.jetbrains.compose.swing.test.screenshot.captureToImage
+import org.jetbrains.compose.swing.withRecordedRepaints
+import java.awt.Color
 import java.awt.Container
 import javax.swing.JComponent
 import javax.swing.border.EmptyBorder
@@ -406,6 +412,75 @@ class FirstBaselineTest {
             )
         }
 
+    /**
+     * A layer moves no line, so a read only in the layer block places nothing while the parent reads the container's
+     * line: the block runs again and the child repaints with what it sets.
+     */
+    @Test
+    fun aLayerReadRunsNoPlacementWhileItsParentReadsTheContainersLine() =
+        runComposeSwingTest {
+            val alpha = mutableFloatStateOf(1f)
+            val scale = mutableFloatStateOf(1f)
+            var innerRuns = 0
+            var outerRuns = 0
+            var layerRuns = 0
+            val block: PlacementLayerScope.() -> Unit = {
+                layerRuns++
+                this.alpha = alpha.floatValue
+                scaleX = scale.floatValue
+            }
+            setContent {
+                Layout(
+                    content = {
+                        Layout(
+                            measurePolicy = { measurables, constraints ->
+                                val placeable = measurables.single().measure(constraints)
+                                layout(placeable.width, placeable.height + 50) {
+                                    innerRuns++
+                                    placeable.placeWithLayer(0, 20, layerBlock = block)
+                                }
+                            },
+                        ) {
+                            Layout(
+                                modifier = SwingModifier.testTag(LAYERED_TAG).background(Brush.of(Color.RED)),
+                                measurePolicy = { _, _ -> layout(20, 20, mapOf(FirstBaseline to 10)) {} },
+                            )
+                        }
+                    },
+                    modifier = containerModifier(200, 200),
+                    measurePolicy = { measurables, constraints ->
+                        val box = measurables.single().measure(Constraints(maxWidth = 200, maxHeight = 200))
+                        layout(constraints.minWidth, constraints.minHeight) {
+                            outerRuns++
+                            box.place(0, 100 - box[FirstBaseline])
+                        }
+                    },
+                )
+            }
+            awaitIdle()
+            val layered = onNodeWithTag(LAYERED_TAG).fetch<JComponent>()
+
+            for ((change, state) in listOf("alpha" to alpha, "scale" to scale)) {
+                innerRuns = 0
+                outerRuns = 0
+                layerRuns = 0
+                val recorded =
+                    withRecordedRepaints { recorder ->
+                        state.floatValue = 0.5f
+                        awaitIdle()
+                        recorder
+                    }
+                assertEquals(0, innerRuns, "the container's placement, for $change")
+                assertEquals(0, outerRuns, "the parent's placement by the container's line, for $change")
+                assertEquals(1, layerRuns, "the layer block, for $change")
+                assertTrue(recorded.repaintsOf(layered) > 0, "the child must be repainted, for $change")
+            }
+
+            val image = onNodeWithTag(LAYERED_TAG).captureToImage()
+            assertEquals(128.0, (image.getRGB(10, 10) ushr 24).toDouble(), 1.0, "the faded background")
+            assertEquals(0, image.getRGB(2, 10), "the background the halved width leaves bare")
+        }
+
     @Test
     fun aStateAContainerPlacesByRunsEachPlacementOnceWhileItsParentReadsTheContainersLine() =
         runComposeSwingTest {
@@ -596,5 +671,7 @@ class FirstBaselineTest {
 
         /** Where a layout modifier puts its line, from the top of its own box. */
         const val MODIFIER_LINE = 21
+
+        const val LAYERED_TAG = "layered"
     }
 }

@@ -378,14 +378,15 @@ class WindowGlassPaneTest {
         var overlayClicks = 0
         var listening by mutableStateOf(false)
         // The frame is realized but never shown: a realized frame dispatches to its lightweight children,
-        // and showing it would take the window system's focus away from whatever is running alongside.
+        // and showing it would take the window system's focus away from whatever is running alongside. It
+        // is sized before it is realized.
         val frame = JFrame("glass-pane-blocking")
         try {
             frame.contentPane.layout = BorderLayout()
             val beneath = JButton("beneath").apply { addActionListener { beneathClicks++ } }
             frame.contentPane.add(beneath, BorderLayout.CENTER)
-            frame.pack()
             frame.size = Dimension(320, 240)
+            frame.addNotify()
 
             setContent {
                 with(WindowScope.of(frame.rootPane)) {
@@ -427,14 +428,14 @@ class WindowGlassPaneTest {
         assumeFalse(GraphicsEnvironment.isHeadless(), "requires a display")
         var beneathClicks = 0
         var listening by mutableStateOf(false)
-        // Realized but never shown, as for the window above.
+        // Sized, then realized but never shown, as for the window above.
         val dialog = JDialog()
         try {
             dialog.contentPane.layout = BorderLayout()
             val beneath = JButton("beneath").apply { addActionListener { beneathClicks++ } }
             dialog.contentPane.add(beneath, BorderLayout.CENTER)
-            dialog.pack()
             dialog.size = Dimension(320, 240)
+            dialog.addNotify()
 
             setContent {
                 with(WindowScope.of(dialog.rootPane)) {

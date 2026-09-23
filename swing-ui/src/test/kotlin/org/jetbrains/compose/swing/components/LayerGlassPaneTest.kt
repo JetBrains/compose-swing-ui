@@ -139,9 +139,14 @@ class LayerGlassPaneTest {
         var viewClicks = 0
         setContent {
             // The window is realized but never shown: its peer is what dispatches a click to the component
-            // under the pointer.
+            // under the pointer. It is realized at the size it packs to, which the layer's preferred size
+            // decides: the window system reports each resize of a realized window back later, so a resize
+            // after realizing could have the packed size land after it and shrink the window under the test.
             Window(onCloseRequest = {}, title = WINDOW_TITLE, visible = false) {
-                Layer(onPaint = { _, _, _, paintView -> paintView() }) {
+                Layer(
+                    modifier = SwingModifier.preferredSize(Dimension(320, 240)),
+                    onPaint = { _, _, _, paintView -> paintView() },
+                ) {
                     Button(text = "view", onClick = { viewClicks++ }, modifier = SwingModifier.view())
                     GlassPane {}
                 }
@@ -150,7 +155,6 @@ class LayerGlassPaneTest {
 
         val window = onWindowWithTitle(WINDOW_TITLE)
         val frame = window.fetch<JFrame>()
-        frame.size = Dimension(320, 240)
         layOutTree(frame)
         val layer = window.onNode(isOfType<JLayer<*>>()).fetch<JLayer<*>>()
         val pane = assertNotNull(layer.glassPane, "the declaration should install a pane of its own")

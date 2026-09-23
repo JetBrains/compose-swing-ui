@@ -504,7 +504,10 @@ removes the layer.
 
 The child must be `Decoratable`: the first placement with a layer fails with `IllegalStateException` otherwise.
 Without `clip`, transformed content takes paint outsets, which grow the bounds of the containers around it up to the
-first Swing parent, which clips it.
+first Swing parent, which clips it. Mouse input follows a rotation or a scale under a Foundation container. A click
+there goes to the deepest component under the point, as in `JTable`, so a component without a mouse listener of its
+own does not pass it to its parent. A drag that starts inside a rotated or scaled layer can report the pointer
+entering and leaving the components beside it where it does not cross them.
 
 ### Writing a decorator or draw node
 
@@ -552,7 +555,8 @@ A decorated component, one that implements `Decoratable`, has these rectangles:
 
 - Its *bounds* are Swing's rectangle, which Swing clips its painting to.
 - Its *layout bounds* are what its parent measured and placed. Sibling placement, alignment, offsets,
-  `onPlaced`, `onSizeChanged` and hit testing use them.
+  `onPlaced`, `onSizeChanged` and hit testing use them. A container is also hit where a rotated or scaled
+  descendant paints past its layout bounds.
 - Its *paint outsets* are how far it paints past its layout bounds on each side, such as a shadow's falloff, content
   a layer scales past its box, a background declared before a `padding`, or a child's shadow spilling past a
   container that no `clip` or `alpha` of its own cuts.

@@ -4,7 +4,6 @@ import androidx.compose.runtime.snapshots.Snapshot
 import org.jetbrains.compose.swing.foundation.graphics.Decoratable
 import org.jetbrains.compose.swing.foundation.graphics.Decoration
 import org.jetbrains.compose.swing.foundation.graphics.NoPaintOutsets
-import org.jetbrains.compose.swing.foundation.graphics.publishSteps
 import org.jetbrains.compose.swing.foundation.util.fastForEach
 import org.jetbrains.compose.swing.layout.MeasurementLayoutManager
 import org.jetbrains.compose.swing.layout.ParentLayoutElement
@@ -75,6 +74,7 @@ internal class MeasurePolicyLayout(
         component: Component,
         constraints: Any?,
     ) {
+        if (component === measurables.panel.glassPane) return
         measurables.updateParentData(component, constraints)
         val measurable = measurables.of(component)
         measurable.decoratable?.linkTo(parentMeasurables = measurables)
@@ -151,7 +151,7 @@ internal class MeasurePolicyLayout(
     /**
      * Whether this container is not placed, as its own Foundation parent's record of it says: left unplaced, or inside
      * a container left unplaced. Such a container lays nothing out, as androidx places nothing under a node its parent
-     * leaves unplaced, so it keeps its paint outsets and stacking order as they were.
+     * leaves unplaced, so it keeps its paint outsets, glass pane and stacking order as they were.
      */
     private val isNotPlaced: Boolean
         get() {
@@ -226,7 +226,13 @@ private fun innerExtent(
 /** [this] plus [amount], held between zero and the largest extent the geometry APIs can represent. */
 internal fun Int.grownBy(amount: Int): Int = (toLong() + amount).coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
 
-internal enum class RunningCause { ParentPlacement, PlacementReplay, PaintOutsetFit, ChildInvalidation }
+internal enum class RunningCause {
+    ParentPlacement,
+    PlacementReplay,
+    PaintOutsetFit,
+    GlassPaneChange,
+    ChildInvalidation,
+}
 
 /**
  * Sets this component's bounds to the layout bounds at ([x], [y]) in its parent's coordinates, [width] by [height],
@@ -316,6 +322,9 @@ internal class ChildMeasurables(
 
     /** Whether this container fits its own bounds, or a child's, to a paint outsets change. */
     val isFittingPaintOutsets: Boolean get() = RunningCause.PaintOutsetFit in runningCauses
+
+    /** Whether this container adds or removes its glass pane. */
+    val isChangingGlassPane: Boolean get() = RunningCause.GlassPaneChange in runningCauses
 
     /** The Swing size query [askedSize] is answering, which picks the intrinsic hooks [askBlock] runs. */
     var mode: MeasureMode = MeasureMode.Preferred
@@ -1128,17 +1137,13 @@ private class NodePlacementScope(
                 "decorator's place. Declare the decorator on a node of its own."
         }
         child.requireDecoratable
-        val changed =
-            layer.placeContent(node, layerBlock) {
-                placeAt(
-                    originX + x,
-                    originY + y,
-                    this@NodePlacementScope.zIndex + zIndex,
-                )
-            }
-        // Painting it again regathers the decoration, so this skips the placement it is already placed with.
-        if (standing !== layer) layoutNode.paintWith(layer)
-        if (changed) child.component.repaint()
+        layer.placeWith(node, layerBlock) {
+            placeAt(
+                originX + x,
+                originY + y,
+                this@NodePlacementScope.zIndex + zIndex,
+            )
+        }
     }
 
     /**
@@ -1156,11 +1161,7 @@ private class NodePlacementScope(
             originY + y,
             this@NodePlacementScope.zIndex + zIndex,
         )
-        if (layoutNode.layerOrNull?.placedWithoutLayer() == true) {
-            // A node attached again starts without the layer, and may hold a decorator of its own by now.
-            if (layoutNode.decorationStep === layoutNode.layer) layoutNode.paintWith(null)
-            child.component.repaint()
-        }
+        layoutNode.layerOrNull?.placedPlainly()
     }
 }
 
@@ -1252,25 +1253,16 @@ internal class InnerPlacementScope : PlacementScope() {
         }
         if (layerBlock == null) {
             placeAt(x, y, zIndex)
-            child.decoratable?.decoration?.steps?.containerLayer?.let {
-                if (it.placedWithoutLayer()) child.paintInContainerLayer(null)
-            }
+            val steps = child.decoratable?.decoration?.steps
+            steps?.containerLayer?.placedPlainly()
         } else {
             val decoratable = child.requireDecoratable
-            val layer = decoratable.decoration.steps.containerLayer ?: PlacementLayer(null, child)
-            val changed = layer.placeContent(node, layerBlock) { placeAt(x, y, zIndex) }
-            if (decoratable.decoration.steps.containerLayer !== layer) child.paintInContainerLayer(layer)
-            if (changed) child.component.repaint()
+            val layer = decoratable.decoration.steps.containerLayer ?: PlacementLayer.ContainerLayer(child)
+            layer.placeWith(node, layerBlock) { placeAt(x, y, zIndex) }
         }
         // The layout nodes and layers the paint outsets read have their boxes once every one around the child is
         // placed.
         child.owner.fitPaintOutsets(child)
-    }
-
-    /** Paints this child inside [layer], outside every step of its own modifier, or without such a layer for null. */
-    private fun ChildMeasurable.paintInContainerLayer(layer: PlacementLayer?) {
-        val decoratable = decoratable ?: return
-        publishSteps(decoratable, decoratable.decoration.steps.inContainerLayer(layer))
     }
 }
 

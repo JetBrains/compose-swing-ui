@@ -1,6 +1,7 @@
 package org.jetbrains.compose.swing.samples.widgets.custom
 
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -10,6 +11,13 @@ import org.jetbrains.compose.swing.foundation.graphics.Decoration
 import org.jetbrains.compose.swing.foundation.graphics.alpha
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.foundation.layout.Box
+import org.jetbrains.compose.swing.foundation.layout.Constraints
+import org.jetbrains.compose.swing.foundation.layout.LayoutModifierNode
+import org.jetbrains.compose.swing.foundation.layout.LayoutModifierNodeElement
+import org.jetbrains.compose.swing.foundation.layout.Measurable
+import org.jetbrains.compose.swing.foundation.layout.MeasureResult
+import org.jetbrains.compose.swing.foundation.layout.MeasureScope
+import org.jetbrains.compose.swing.foundation.layout.PlacementLayerScope
 import org.jetbrains.compose.swing.foundation.layout.Row
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import org.jetbrains.compose.swing.modifier.appearance.emptyBorder
@@ -151,6 +159,43 @@ class ExternalDecoratableTest {
         }
 
     @Test
+    fun aPressHitsTheLayoutBoundsAndNotTheShadowAndFollowsATurn() =
+        runComposeSwingTest {
+            var rotation by mutableFloatStateOf(0f)
+            setContent {
+                Box {
+                    SwingNode(
+                        factory = { Card() },
+                        modifier =
+                            SwingModifier
+                                .testTag("card")
+                                .shadow(8, Color.BLACK)
+                                .then(TurningElement { rotationZ = rotation }),
+                    )
+                }
+            }
+            val card = onNodeWithTag("card").fetch<Card>()
+
+            fun hits(
+                x: Int,
+                y: Int,
+            ): Boolean {
+                val outsets = card.decoration.paintOutsets()
+                return card.contains(outsets.left + x, outsets.top + y)
+            }
+
+            assertFalse(hits(-2, 40), "a press in the shadow misses")
+            assertTrue(hits(10, 40), "a press in the layout bounds hits")
+            assertFalse(hits(60, -10), "a press above the layout bounds misses")
+
+            rotation = 90f
+            awaitIdle()
+
+            assertTrue(hits(60, -10), "turned a quarter, the card is hit where it now paints")
+            assertFalse(hits(10, 40), "and missed where it no longer does")
+        }
+
+    @Test
     fun aFadeOrAShadowMakesTheCardNotOpaqueAndAnOpaqueCardFillsOnlyItsLayoutBounds() =
         runComposeSwingTest {
             var step by mutableStateOf("none")
@@ -247,6 +292,29 @@ class ExternalDecoratableTest {
                 writes++
                 field = value
             }
+    }
+
+    /** Places its content with a layer that [layerBlock] sets. */
+    private data class TurningElement(
+        private val layerBlock: PlacementLayerScope.() -> Unit,
+    ) : LayoutModifierNodeElement<TurningNode>() {
+        override fun create(): TurningNode = TurningNode(layerBlock)
+
+        override fun update(node: TurningNode) {
+            node.layerBlock = layerBlock
+        }
+    }
+
+    private class TurningNode(
+        var layerBlock: PlacementLayerScope.() -> Unit,
+    ) : LayoutModifierNode() {
+        override fun MeasureScope.measure(
+            measurable: Measurable,
+            constraints: Constraints,
+        ): MeasureResult {
+            val placeable = measurable.measure(constraints)
+            return layout(placeable.width, placeable.height) { placeable.placeWithLayer(0, 0, layerBlock = layerBlock) }
+        }
     }
 }
 

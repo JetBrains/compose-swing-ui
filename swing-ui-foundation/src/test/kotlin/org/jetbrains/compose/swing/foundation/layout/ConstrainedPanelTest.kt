@@ -32,6 +32,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
+import kotlin.test.assertNotNull
 
 class ConstrainedPanelTest {
     @Test
@@ -63,6 +64,44 @@ class ConstrainedPanelTest {
                 accessibleChildNames(onNodeWithTag("container-under-test").fetch().accessibleContext),
                 "A panel lists its children to assistive technologies in the order they are declared.",
             )
+        }
+
+    @Test
+    fun aGlassPaneDoesNotAppearAmongAccessibleChildren() =
+        runComposeSwingTest {
+            setContent {
+                Box(modifier = SwingModifier.testTag("container-under-test")) {
+                    Box(
+                        modifier =
+                            SwingModifier
+                                .accessibleName("child")
+                                .preferredSize(20, 20)
+                                .placementLayer { scaleX = 2f },
+                    )
+                }
+            }
+
+            val panel = assertIs<ConstrainedPanel>(onNodeWithTag("container-under-test").fetch())
+            assertNotNull(panel.glassPane)
+            assertEquals(listOf("child"), accessibleChildNames(panel.accessibleContext))
+        }
+
+    @Test
+    fun aGlassPaneCoversThePanelWhenAttachedAndResized() =
+        runComposeSwingTest {
+            setContent {
+                Box(modifier = SwingModifier.testTag("container-under-test").preferredSize(40, 50)) {
+                    Box(modifier = SwingModifier.preferredSize(20, 20).placementLayer { scaleX = 2f })
+                }
+            }
+
+            val panel = assertIs<ConstrainedPanel>(onNodeWithTag("container-under-test").fetch())
+            val glassPane = assertNotNull(panel.glassPane)
+            assertEquals(Dimension(40, 50), panel.size)
+            assertEquals(Rectangle(0, 0, 40, 50), glassPane.bounds)
+
+            panel.setBounds(3, 4, 60, 70)
+            assertEquals(Rectangle(0, 0, 60, 70), glassPane.bounds)
         }
 
     @Test

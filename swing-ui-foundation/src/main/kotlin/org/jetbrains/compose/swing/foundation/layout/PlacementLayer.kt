@@ -6,8 +6,11 @@ import org.jetbrains.compose.swing.foundation.graphics.Decorator
 import org.jetbrains.compose.swing.foundation.graphics.ImageLayer
 import org.jetbrains.compose.swing.foundation.graphics.TransformOrigin
 import org.jetbrains.compose.swing.foundation.graphics.clipArea
+import org.jetbrains.compose.swing.foundation.graphics.publishSteps
 import org.jetbrains.compose.swing.foundation.graphics.setToScaleAndRotation
+import org.jetbrains.compose.swing.foundation.util.fastForEach
 import org.jetbrains.compose.swing.node.observeReads
+import java.awt.Component
 import java.awt.Graphics2D
 import java.awt.Rectangle
 import java.awt.Shape
@@ -22,10 +25,13 @@ import java.awt.geom.Point2D
  *
  * The layer covers the placed box: the size the child measured to where a [MeasurePolicy] places it, or the size
  * the content reports where a layout modifier places it. What it paints past the layout bounds grows the
- * component's paint outsets. A state read in the block repaints the component without measuring it again. Each
- * run of the block starts from the defaults, so a property the block leaves unset paints at its default.
+ * component's paint outsets. A state read in the block repaints the component without measuring it again; where the
+ * paint outsets it takes resize a Foundation container, that container places its children again. Each run of the
+ * block starts from the defaults, so a property the block leaves unset paints at its default.
  *
- * Tooltips and popups the content opens stand where they would stand without the layer.
+ * Under a Foundation container, mouse input reaches what a rotation or a scale paints under the pointer, at the
+ * point in the target's own coordinates. Tooltips and popups the content opens stand where they would stand
+ * without the layer.
  */
 public sealed interface PlacementLayerScope {
     /** The horizontal scale around [transformOrigin]; `1f` by default, and `0f` paints nothing. */
@@ -84,12 +90,62 @@ internal class PlacementLayerProperties : PlacementLayerScope {
  * A fade records the content into an [ImageLayer] aligned to the graphics it paints on and draws that back at the
  * alpha, so it fades as one image.
  */
-internal class PlacementLayer(
-    /** The layout node placing its content with this layer, or null where a [MeasurePolicy] places with it. */
-    private val node: LayoutModifierNode?,
-    /** The record of the component a [MeasurePolicy] places with this layer, or null where [node] places with it. */
-    private val record: ChildMeasurable?,
-) : Decorator {
+internal sealed class PlacementLayer : Decorator {
+    /** The layer [node] places its content with, a step of its component's decoration at the node's position. */
+    class NodeLayer(
+        private val node: LayoutModifierNode,
+    ) : PlacementLayer() {
+        override val placement: ChildMeasurable? get() = node.child
+
+        override val isDetached: Boolean get() = !node.isAttached
+
+        // Painting with it again regathers the decoration, so a placement skips the layer it already paints.
+        override val isPublished: Boolean get() = node.decorationStep === this
+
+        override fun publish(painted: Boolean) = node.paintWith(if (painted) this else null)
+
+        override fun observeLayerBlock() = node.observeReads(LayerReads, runLayerBlock)
+    }
+
+    /** The layer a [MeasurePolicy] places [placement] with, outside every step of the component's modifier. */
+    class ContainerLayer(
+        override val placement: ChildMeasurable,
+    ) : PlacementLayer() {
+        override val isPublished: Boolean get() = placement.requireDecoratable.decoration.steps.containerLayer === this
+
+        override fun publish(painted: Boolean) {
+            val decoratable = placement.requireDecoratable
+            publishSteps(decoratable, decoratable.decoration.steps.inContainerLayer(if (painted) this else null))
+        }
+
+        override fun observeLayerBlock() = placement.owner.owner.observe(ContainerLayerReads, runLayerBlock)
+
+        /** Also reports a change to what the layer paints, since its block records its reads apart from placement. */
+        override fun placedWithLayer(
+            block: PlacementLayerScope.() -> Unit,
+            moved: Boolean,
+        ): Boolean {
+            var changed = false
+            val paintChanged = changesPaint { changed = super.placedWithLayer(block, moved) }
+            return changed || paintChanged
+        }
+    }
+
+    /** The record of the component this layer paints on, once its container has received it. */
+    abstract val placement: ChildMeasurable?
+
+    /** Whether the layout node placing with this layer has detached, which leaves only the content painting. */
+    protected open val isDetached: Boolean get() = false
+
+    /** Whether the component's decoration paints this layer. */
+    abstract val isPublished: Boolean
+
+    /** Makes this layer a step of the component's decoration where [painted], and removes it from there otherwise. */
+    abstract fun publish(painted: Boolean)
+
+    /** Runs the layer block, recording its reads where a change to one of them updates this layer. */
+    protected abstract fun observeLayerBlock()
+
     /** The block the content was last placed with, or [NoLayer] while it was placed without one. */
     private var layerBlock: PlacementLayerScope.() -> Unit = NoLayer
 
@@ -120,17 +176,11 @@ internal class PlacementLayer(
 
     val boxHeight: Int get() = inner?.box?.height ?: placement?.layoutHeight ?: 0
 
-    /** The record of the component this layer paints on, once its container has received it. */
-    private val placement: ChildMeasurable? get() = record ?: node?.child
-
-    /** Whether a [MeasurePolicy] places the component with this layer, outside every step of its modifier. */
-    val isContainerLayer: Boolean get() = record != null
-
     /** Reset and reused by every run of the block, which runs only on the EDT. */
-    private val properties = PlacementLayerProperties()
+    protected val properties = PlacementLayerProperties()
 
     // Stored once, so observing the block allocates nothing per run.
-    private val runLayerBlock: () -> Unit = {
+    protected val runLayerBlock: () -> Unit = {
         properties.reset()
         layerBlock(properties)
     }
@@ -153,37 +203,21 @@ internal class PlacementLayer(
     /**
      * Records that the content was placed with [block], in the box, which [moved] where it differs from the one the
      * layer stood at, and runs the block, which a placement reaches after anything it reads may have changed, such
-     * as a static composition local. A [MeasurePolicy]'s block runs inside its container's placement, whose reads
-     * place the children again.
+     * as a static composition local. A [MeasurePolicy]'s block records its reads apart from its container's
+     * placement, so a change to one of them measures nothing again; where the paint outsets the layer takes resize a
+     * Foundation container, that container places its children again.
      *
-     * @return whether the block instance or the box changed, or what a [MeasurePolicy]'s layer paints, which the
-     *   component is repainted for.
+     * @return whether the block instance or the box changed, which the component is repainted for.
      */
-    fun placedWithLayer(
+    open fun placedWithLayer(
         block: PlacementLayerScope.() -> Unit,
         moved: Boolean,
     ): Boolean {
         val changed = block !== layerBlock || moved
         layerBlock = block
-        if (node != null) {
-            updateProperties()
-            return changed
-        }
-        val alpha = properties.alpha
-        val clip = properties.clip
-        val transform = transform
         updateProperties()
-        return changed || alpha.compareTo(properties.alpha) != 0 || clip != properties.clip ||
-            transform != this.transform
+        return changed
     }
-
-    /** Whether the box is at ([x], [y]) with the size [width] by [height]. */
-    fun isBox(
-        x: Int,
-        y: Int,
-        width: Int,
-        height: Int,
-    ): Boolean = x == boxX && y == boxY && width == boxWidth && height == boxHeight
 
     /**
      * Records that the content was placed with no layer, which paints it plainly, and releases the fade's buffers.
@@ -209,24 +243,6 @@ internal class PlacementLayer(
     }
 
     /**
-     * The part of [graphics]' clip that the component's bounds cover, mapped back through [start] and every transform
-     * since; null where the component is not placed or the transform flattens the plane, which has no inverse.
-     */
-    private fun recordingArea(
-        graphics: Graphics2D,
-        start: AffineTransform,
-    ): Rectangle? {
-        val component = placement?.component ?: return null
-        return try {
-            val mapBack = graphics.transform.createInverse().apply { concatenate(start) }
-            val footprint = mapBack.createTransformedShape(Rectangle(0, 0, component.width, component.height))
-            graphics.clipArea().intersection(footprint.bounds)
-        } catch (_: NoninvertibleTransformException) {
-            null
-        }
-    }
-
-    /**
      * Paints as [Decorator.paint] does, mapping a fade's recording area back through [start]: the transform this
      * component's own decoration started painting under, before it moved to the layout origin and before any of its
      * layers ran, so a layer nested inside another one on the same component maps through both, not only its own.
@@ -239,7 +255,7 @@ internal class PlacementLayer(
         height: Int,
         content: (Graphics2D, Int, Int) -> Unit,
     ) {
-        if (layerBlock === NoLayer || node?.isAttached == false) return content(graphics, width, height)
+        if (layerBlock === NoLayer || isDetached) return content(graphics, width, height)
         val layer = properties
         // NaN compares false either way, so it is refused along with 0 rather than reaching AlphaComposite.
         val alpha = layer.alpha.coerceAtMost(1f)
@@ -256,7 +272,7 @@ internal class PlacementLayer(
             // meet it; a flattened plane, which has no inverse, never paints either.
             val fadeLayer = fadeLayer ?: ImageLayer().also { fadeLayer = it }
             fadeLayer.alpha = alpha
-            val area = recordingArea(graphics, start)
+            val area = placement?.component?.recordingArea(graphics, start)
             if (area != null && !area.isEmpty) {
                 val shifted = graphics.create() as Graphics2D
                 try {
@@ -313,7 +329,7 @@ internal class PlacementLayer(
     }
 
     private fun updateProperties() {
-        if (node == null) runLayerBlock() else node.observeReads(LayerReads, runLayerBlock)
+        observeLayerBlock()
         val layer = properties
         transform =
             if (layer.scaleX == 1f && layer.scaleY == 1f && layer.rotationZ == 0f) {
@@ -334,36 +350,98 @@ internal class PlacementLayer(
     }
 
     companion object {
-        /** Reads made while the layer block runs; a change repaints the component the layer paints on. */
-        val LayerReads: (LayoutModifierNode) -> Unit = {
-            it.layer.updateProperties()
-            it.child?.let { placement ->
-                placement.owner.fitPaintOutsets(placement)
-                placement.component.repaint()
+        /**
+         * Reads made while the layer block runs; a change runs the block again and repaints the component where the
+         * layer paints differently.
+         */
+        val LayerReads: (LayoutModifierNode) -> Unit = { it.layer.update() }
+
+        /**
+         * Reads made while the blocks of the layers a [MeasurePolicy] places its container's children with run. A
+         * layer moves neither a child nor an alignment line, so a change measures nothing again: it runs every such
+         * block of the container again, since they all record under the container's one node, and repaints each child
+         * whose layer paints differently. Where the paint outsets a layer takes resize a Foundation container, that
+         * container places its children again.
+         */
+        private val ContainerLayerReads: (LayoutObservationNode) -> Unit = { node ->
+            node.component.policyLayout.measurables.layoutPass.fastForEach { child ->
+                val steps = child.decoratable?.decoration?.steps
+                if (!child.isLeftUnplaced) steps?.containerLayer?.update()
+            }
+        }
+
+        /** Runs [update], and returns whether it changed the alpha, the clip or the transform the layer paints with. */
+        private inline fun PlacementLayer.changesPaint(update: () -> Unit): Boolean {
+            val alpha = properties.alpha
+            val clip = properties.clip
+            val transform = transform
+            update()
+            return alpha.compareTo(properties.alpha) != 0 || clip != properties.clip || transform != this.transform
+        }
+
+        /**
+         * Runs the layer's block again for a changed read, and repaints the component where the layer paints
+         * differently.
+         */
+        private fun PlacementLayer.update() {
+            val wasTransformed = transform != null
+            if (!changesPaint { updateProperties() }) return
+            placement?.let {
+                it.owner.fitPaintOutsets(it, transformChanged = wasTransformed != (transform != null))
+                it.component.repaint()
             }
         }
     }
 }
 
+/**
+ * The part of [graphics]' clip that this component's bounds cover, mapped back through [start] and every transform
+ * since; null where the transform flattens the plane, which has no inverse.
+ */
+private fun Component.recordingArea(
+    graphics: Graphics2D,
+    start: AffineTransform,
+): Rectangle? =
+    try {
+        val mapBack = graphics.transform.createInverse().apply { concatenate(start) }
+        val footprint = mapBack.createTransformedShape(Rectangle(0, 0, width, height))
+        graphics.clipArea().intersection(footprint.bounds)
+    } catch (_: NoninvertibleTransformException) {
+        null
+    }
+
 /** The block of a layer the content is not placed with; never run. */
 private val NoLayer: PlacementLayerScope.() -> Unit = {}
 
 /**
- * Runs [place], which places the content in the box of [inner], and records that it was placed with [block]; see
- * [PlacementLayer.placedWithLayer].
- *
- * @return whether the component is repainted for it.
+ * Runs [place], which places the content in the box of [inner], with this layer running [block]; see
+ * [PlacementLayer.placedWithLayer]. Makes the layer a step of the component's decoration where it is not one yet, and
+ * repaints the component where the placement changed what the layer paints.
  */
-internal inline fun PlacementLayer.placeContent(
+internal inline fun PlacementLayer.placeWith(
     inner: LayoutModifierNode?,
     noinline block: PlacementLayerScope.() -> Unit,
     place: () -> Unit,
-): Boolean {
+) {
     val standingX = boxX
     val standingY = boxY
     val standingWidth = boxWidth
     val standingHeight = boxHeight
     place()
     this.inner = inner
-    return placedWithLayer(block, !isBox(standingX, standingY, standingWidth, standingHeight))
+    val moved = standingX != boxX || standingY != boxY || standingWidth != boxWidth || standingHeight != boxHeight
+    val changed = placedWithLayer(block, moved)
+    if (!isPublished) publish(true)
+    if (changed) placement?.component?.repaint()
+}
+
+/**
+ * Records that the content, placed again, was placed with no layer; see [PlacementLayer.placedWithoutLayer]. Where it
+ * was placed with this layer before, removes the layer from the component's decoration and repaints the component.
+ */
+internal fun PlacementLayer.placedPlainly() {
+    if (!placedWithoutLayer()) return
+    // A layout node attached again starts without the layer, and may hold a decorator of its own by now.
+    if (isPublished) publish(false)
+    placement?.component?.repaint()
 }

@@ -11,6 +11,7 @@ import org.jetbrains.compose.swing.foundation.Canvas
 import org.jetbrains.compose.swing.foundation.graphics.Decoratable
 import org.jetbrains.compose.swing.foundation.graphics.TransformOrigin
 import org.jetbrains.compose.swing.foundation.graphics.channelDifference
+import org.jetbrains.compose.swing.foundation.graphics.layoutBounds
 import org.jetbrains.compose.swing.foundation.graphics.renderImage
 import org.jetbrains.compose.swing.foundation.graphics.shadow
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -21,22 +22,121 @@ import org.jetbrains.compose.swing.test.ComposeSwingTest
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import org.jetbrains.compose.swing.test.screenshot.assertImagesPixelPerfect
 import org.jetbrains.compose.swing.test.screenshot.captureToImage
+import org.jetbrains.compose.swing.test.screenshot.differingPixelBounds
+import org.jetbrains.compose.swing.withRecordedRepaints
 import java.awt.Color
 import java.awt.ComponentOrientation
 import java.awt.Dimension
 import java.awt.Insets
 import java.awt.Rectangle
+import java.awt.geom.AffineTransform
 import java.awt.geom.Point2D
 import java.awt.geom.Rectangle2D
+import java.awt.image.BufferedImage
 import javax.swing.JComponent
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class PlacementRotationTest {
+    @Test
+    fun artworkAndClipFollowTheSameBoxAcrossRotationsScalesAndPivots() =
+        runComposeSwingTest {
+            var values by mutableStateOf(RotationValues())
+            val placements = ArrayList<Rectangle>()
+            val sizes = ArrayList<Dimension>()
+            setContent {
+                Row {
+                    Box(
+                        modifier =
+                            SwingModifier
+                                .testTag("layer")
+                                .size(160, 88)
+                                .onPlaced { placements += it }
+                                .onSizeChanged { sizes += it }
+                                .placementLayer { values.applyTo(this) },
+                    ) {
+                        Canvas(modifier = SwingModifier.requiredSize(180, 104), renderingHints = null) {
+                            drawRect(Color.RED)
+                            drawRect(Color.BLUE, 20f, 12f, 30f, 24f)
+                        }
+                    }
+                    Box(modifier = SwingModifier.testTag("sibling").size(20, 20))
+                }
+            }
+            val layer = onNodeWithTag("layer").fetch<JComponent>()
+            val sibling = onNodeWithTag("sibling").fetch<JComponent>()
+            val bounds = layer.layoutBounds
+            val siblingBounds = sibling.layoutBounds
+            val angles = listOf(0f, -29f, 29f, -45f, 45f, -58f, 58f, -90f, 90f, 180f, -150f)
+            val scales = listOf(0.8f to 0.8f, 1f to 1f, 1.4f to 1.4f, 0.8f to 1.4f, -1f to 0.8f)
+            val pivots = listOf(0f, 0.14f, 0.2f, 0.5f, 1f, -0.25f, 1.25f)
+            for (angle in angles) {
+                for ((scaleX, scaleY) in scales) {
+                    for (pivot in pivots) {
+                        for (clipped in listOf(false, true)) {
+                            values = RotationValues(angle, scaleX, scaleY, pivot, clipped)
+                            awaitIdle()
+                            val outsets = (layer as Decoratable).decoration.paintOutsets()
+                            val paintBounds = Rectangle(-outsets.left, -outsets.top, layer.width, layer.height)
+                            assertEquals(values.paintBounds(), paintBounds, "$values paint bounds")
+                            assertNull(
+                                differingPixelBounds(
+                                    values.artwork(paintBounds),
+                                    onNodeWithTag("layer").captureToImage(),
+                                ),
+                                "$values artwork",
+                            )
+                            assertEquals(bounds, layer.layoutBounds, "$values layout bounds")
+                            assertEquals(siblingBounds, sibling.layoutBounds, "$values sibling layout bounds")
+                            assertHitsTheTurnedBox(layer, values, paintBounds)
+                        }
+                    }
+                }
+            }
+            assertTrue(
+                placements.all { it == bounds },
+                "paint outsets change must not report a layout change: $placements",
+            )
+            assertTrue(sizes.all { it == bounds.size }, "paint outsets change must not report a size change: $sizes")
+        }
+
+    @Test
+    fun aTurningInnerBoxKeepsItsChildrenWhereItsLastPassPlacedThem() =
+        runComposeSwingTest {
+            var angle by mutableFloatStateOf(0f)
+            setContent {
+                Box {
+                    Box(modifier = SwingModifier.testTag("inner").size(60, 40).placementLayer { rotationZ = angle }) {
+                        Box(modifier = SwingModifier.testTag("first").size(20, 20))
+                        Box(modifier = SwingModifier.testTag("second").size(10, 10).align(Alignment.BottomEnd))
+                    }
+                }
+            }
+            val inner = onNodeWithTag("inner").fetch<JComponent>()
+            val children = listOf("first", "second").map { onNodeWithTag(it).fetch<JComponent>() }
+            val placed = listOf(Rectangle(0, 0, 20, 20), Rectangle(50, 30, 10, 10))
+            assertEquals(placed, children.map { it.layoutBounds })
+
+            withRecordedRepaints { recorder ->
+                for (next in listOf(15f, 30f, 45f, 90f, 0f)) {
+                    angle = next
+                    awaitIdle()
+                    assertTrue(
+                        next == 0f || (inner as Decoratable).decoration.paintOutsets() != Insets(0, 0, 0, 0),
+                        "at $next the turn takes paint outsets",
+                    )
+                    assertEquals(placed, children.map { it.layoutBounds }, "at $next the children stay put")
+                }
+                assertEquals(0, recorder.relayoutsOver(inner), "a layer tick lays nothing out")
+            }
+        }
+
     @Test
     fun aRepaintWithNothingChangedRunsNoLayerBlock() =
         runComposeSwingTest {
@@ -59,6 +159,32 @@ class PlacementRotationTest {
 
             assertEquals(placedRuns, runs)
         }
+
+    /** The layer is hit at the turned center of its box, and not past the turned left edge. */
+    private fun assertHitsTheTurnedBox(
+        layer: JComponent,
+        values: RotationValues,
+        paintBounds: Rectangle,
+    ) {
+        val center = values.point(80.0, 44.0)
+        val overflow = values.point(-8.0, 44.0)
+        val pastTheChild = values.point(-14.0, 44.0)
+        val turns = values.rotation != 0f || values.scaleX != 1f || values.scaleY != 1f
+        assertTrue(
+            layer.contains(center.x.toInt() - paintBounds.x, center.y.toInt() - paintBounds.y),
+            "$values hit at the turned center of the box",
+        )
+        assertEquals(
+            turns && !values.clipped,
+            layer.contains(overflow.x.toInt() - paintBounds.x, overflow.y.toInt() - paintBounds.y),
+            "$values: past the turned edge of the box, the child's overflow is hit only while the layer turns it " +
+                "unclipped",
+        )
+        assertFalse(
+            layer.contains(pastTheChild.x.toInt() - paintBounds.x, pastTheChild.y.toInt() - paintBounds.y),
+            "$values hit past the turned edge of the child",
+        )
+    }
 
     /**
      * A layer read that grows the paint outsets grows the bounds of the component and of each decorated ancestor it
@@ -588,7 +714,16 @@ private data class RotationValues(
     val scaleX: Float = 1f,
     val scaleY: Float = 1f,
     val pivot: Float = 0.5f,
+    val clipped: Boolean = false,
 ) {
+    fun applyTo(scope: PlacementLayerScope) {
+        scope.rotationZ = rotation
+        scope.scaleX = scaleX
+        scope.scaleY = scaleY
+        scope.transformOrigin = TransformOrigin(pivot, 0.5f)
+        scope.clip = clipped
+    }
+
     fun point(
         x: Double,
         y: Double,
@@ -602,3 +737,36 @@ private data class RotationValues(
         return Point2D.Double(pivotX + dx * cosine - dy * sine, 44 + dx * sine + dy * cosine)
     }
 }
+
+/** Where [RotationValues.applyTo] turns the 160 by 88 box, from its own origin, as [RotationValues.point] maps it. */
+private fun RotationValues.transform(): AffineTransform {
+    val origin = point(0.0, 0.0)
+    val x = point(1.0, 0.0)
+    val y = point(0.0, 1.0)
+    return AffineTransform(x.x - origin.x, x.y - origin.y, y.x - origin.x, y.y - origin.y, origin.x, origin.y)
+}
+
+/** Whether the artwork is cut to the box: by the clip, or where the layer neither turns nor scales it. */
+private val RotationValues.cutToTheBox: Boolean get() = clipped || (rotation == 0f && scaleX == 1f && scaleY == 1f)
+
+/** The paint bounds of the turned artwork, around the box they never shrink below. */
+private fun RotationValues.paintBounds(): Rectangle {
+    val source = if (cutToTheBox) Rectangle(0, 0, 160, 88) else Rectangle(-10, -8, 180, 104)
+    return transform().createTransformedShape(source).bounds.union(Rectangle(0, 0, 160, 88))
+}
+
+/**
+ * The artwork drawn straight through [transform], on an image covering [paintBounds] from the box's origin: the
+ * canvas, clipped to its own bounds as Swing clips a child, with a marker off its center.
+ */
+private fun RotationValues.artwork(paintBounds: Rectangle): BufferedImage =
+    renderImage(paintBounds.width, paintBounds.height) { graphics ->
+        graphics.translate(-paintBounds.x, -paintBounds.y)
+        graphics.transform(transform())
+        if (cutToTheBox) graphics.clipRect(0, 0, 160, 88)
+        graphics.clipRect(-10, -8, 180, 104)
+        graphics.color = Color.RED
+        graphics.fillRect(-10, -8, 180, 104)
+        graphics.color = Color.BLUE
+        graphics.fillRect(10, 4, 30, 24)
+    }
