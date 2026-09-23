@@ -1,5 +1,6 @@
 package org.jetbrains.compose.swing.foundation.graphics
 
+import org.jetbrains.compose.swing.foundation.layout.fitted
 import org.jetbrains.compose.swing.foundation.util.fastAny
 import org.jetbrains.compose.swing.modifier.SwingModifier
 import java.awt.Component
@@ -93,14 +94,9 @@ internal fun publishSteps(
             "A ${Decoratable::class.java.name} paints as a component, and ${decoratable.javaClass.name} is not one"
         }
     val held = decoratable.decoration
-    val opaque = steps.isOpaque
-    if (steps == held.steps && opaque == held.hasOpaqueSteps) return false
-    decoratable.decoration =
-        if (steps.isEmpty && held.childMeasurables == null) {
-            Decoration.None
-        } else {
-            Decoration(steps, held.heldPaintOutsets, held.childMeasurables, opaque)
-        }
+    val value = held.fitted(steps, steps.isOpaque)
+    if (value === held) return false
+    decoratable.decoration = value
     component.repaint()
     return true
 }

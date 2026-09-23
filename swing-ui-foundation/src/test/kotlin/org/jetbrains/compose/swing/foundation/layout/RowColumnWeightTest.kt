@@ -2,6 +2,7 @@ package org.jetbrains.compose.swing.foundation.layout
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.jetbrains.compose.swing.components.Label
 import org.jetbrains.compose.swing.modifier.SwingModifier
@@ -9,6 +10,7 @@ import org.jetbrains.compose.swing.modifier.appearance.testTag
 import org.jetbrains.compose.swing.modifier.composed
 import org.jetbrains.compose.swing.modifier.layout.maximumSize
 import org.jetbrains.compose.swing.modifier.layout.preferredSize
+import org.jetbrains.compose.swing.test.interaction.assertProperty
 import org.jetbrains.compose.swing.test.runComposeSwingTest
 import java.awt.Dimension
 import java.awt.Rectangle
@@ -595,5 +597,45 @@ class RowColumnWeightTest {
                 "a weight there is no share to compute from must be refused like a zero one, but the " +
                     "error was: ${error.message}",
             )
+        }
+
+    /**
+     * A Row measured under a loose offer settles its non-filling weights on their shares of that offer. Hidden and
+     * placed again at the width it settled on, it keeps them, rather than sharing that narrower width out again.
+     */
+    @Test
+    fun aRowHiddenAndPlacedAgainKeepsTheWeightsItSettledOn() =
+        runComposeSwingTest {
+            var placed by mutableStateOf(true)
+
+            setContent {
+                Layout(
+                    content = {
+                        Row {
+                            Label(
+                                text = "wide",
+                                modifier =
+                                    SwingModifier.testTag("wide").preferredSize(150, 10).weight(1f, fill = false),
+                            )
+                            Label(
+                                text = "narrow",
+                                modifier = SwingModifier.preferredSize(10, 10).weight(1f, fill = false),
+                            )
+                        }
+                    },
+                    measurePolicy = { measurables, _ ->
+                        val placeable = measurables.single().measure(Constraints(maxWidth = 300))
+                        layout(placeable.width, placeable.height) { if (placed) placeable.place(0, 0) }
+                    },
+                )
+            }
+            onNodeWithTag("wide").assertProperty(150, "a weight's share is more than the child prefers") { width }
+
+            placed = false
+            awaitIdle()
+            placed = true
+            awaitIdle()
+
+            onNodeWithTag("wide").assertProperty(150, "placed again, the Row keeps the share it settled on") { width }
         }
 }

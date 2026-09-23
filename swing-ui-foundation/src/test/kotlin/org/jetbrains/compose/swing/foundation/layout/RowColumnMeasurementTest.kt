@@ -94,6 +94,52 @@ class RowColumnMeasurementTest {
             assertEquals(60, sibling.y, "the sibling moves below the nested container's new height")
         }
     }
+
+    /** A nested Foundation container that changes its size leaves what its siblings prefer measured. */
+    @Test
+    fun aNestedContainerThatChangesSizeLeavesItsSiblingMeasured() {
+        val nested = NestedContainer(Dimension(30, 40))
+        val sibling = MeasuredChild(Dimension(30, 40))
+        inRealized(columnPolicyPanel(), listOf(nested.panel, sibling)) { column ->
+            column.invalidate()
+            column.preferredSize
+            sibling.forgetMeasurements()
+
+            nested.extent = Dimension(30, 60)
+            nested.panel.revalidate()
+            column.preferredSize
+
+            assertEquals(0, sibling.measurements, "only the nested container's change is measured again")
+        }
+    }
+
+    /**
+     * A sibling that changes what it prefers and revalidates itself while the column is still invalid from a
+     * nested container's revalidation is measured again too, as Swing measures an invalid component again.
+     */
+    @Test
+    fun aSiblingChangedAfterANestedContainerRevalidatesIsMeasuredAgain() {
+        val nested = NestedContainer(Dimension(30, 40))
+        val sibling = MeasuredChild(Dimension(30, 40))
+        inRealized(columnPolicyPanel(), listOf(nested.panel, sibling)) { column ->
+            column.invalidate()
+            assertEquals(80, column.preferredSize.height, "the column asks for both children stacked")
+
+            nested.extent = Dimension(30, 60)
+            nested.panel.revalidate()
+
+            sibling.prefers(Dimension(30, 70))
+            sibling.revalidate()
+
+            SwingUtilities.getWindowAncestor(column).validate()
+
+            assertEquals(
+                listOf(60, 70),
+                column.childrenInDeclarationOrder().map { it.height },
+                "the sibling's own change must be measured again even though the column was already invalid",
+            )
+        }
+    }
 }
 
 /**

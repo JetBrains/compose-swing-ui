@@ -86,7 +86,7 @@ internal fun ConstrainedPanel.placeChildrenAgain() {
     var readBy = LayoutState.Idle
     while (readBy == LayoutState.Idle) {
         panel.policyLayout.measurables.lineScope.generation++
-        val record = (panel.parent as? ConstrainedPanel)?.policyLayout?.measurables?.find(panel) ?: break
+        val record = panel.decoration.parentMeasurables?.find(panel) ?: break
         readBy = record.lineReadDuring
         panel = record.owner.panel
     }

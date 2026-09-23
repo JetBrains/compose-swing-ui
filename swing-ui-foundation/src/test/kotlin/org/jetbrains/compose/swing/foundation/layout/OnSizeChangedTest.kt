@@ -444,6 +444,60 @@ class OnSizeChangedTest {
 
             assertEquals(Dimension(100, 100), reported.last(), "content reused under a new key reports its new extent")
         }
+
+    /**
+     * androidx calls `onRemeasured` under `Snapshot.withoutReadObservation`, and this reports the same way: a state
+     * read only inside the callback of a child placed again is not recorded as a read behind its container's
+     * placement.
+     */
+    @Test
+    fun aStateReadOnlyInOnSizeChangedRunsNoPlacementBlock() =
+        runComposeSwingTest {
+            var placements = 0
+            var shown by mutableStateOf(true)
+            var sizePx by mutableStateOf(10)
+            var tracked by mutableStateOf(0)
+
+            setContent {
+                Layout(
+                    content = {
+                        Layout(
+                            content = {
+                                Label(
+                                    text = "child",
+                                    modifier = SwingModifier.preferredSize(sizePx, sizePx).onSizeChanged { tracked },
+                                )
+                            },
+                            measurePolicy = { measurables, constraints ->
+                                val placeable = measurables.single().measure(constraints.copyMaxDimensions())
+                                layout(placeable.width, placeable.height) {
+                                    placements++
+                                    placeable.place(0, 0)
+                                }
+                            },
+                        )
+                    },
+                    measurePolicy = { measurables, constraints ->
+                        val placeable = measurables.single().measure(constraints.copyMaxDimensions())
+                        layout(40, 40) { if (shown) placeable.place(0, 0) }
+                    },
+                )
+            }
+            awaitIdle()
+            // Placed again with its container at a new size, the child is reported by its container's placement.
+            shown = false
+            awaitIdle()
+            sizePx = 20
+            awaitIdle()
+            shown = true
+            awaitIdle()
+            placements = 0
+
+            tracked = 1
+            awaitIdle()
+
+            assertEquals(0, placements, "a state read only inside onSizeChanged must not rerun the placement block")
+        }
 }
 
 private class InitialZeroExtentPanel : JPanel() {

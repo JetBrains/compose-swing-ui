@@ -4,7 +4,6 @@ import androidx.compose.runtime.snapshots.Snapshot
 import org.jetbrains.compose.swing.foundation.graphics.Decoratable
 import org.jetbrains.compose.swing.foundation.graphics.Decoration
 import org.jetbrains.compose.swing.foundation.graphics.DecorationSteps
-import org.jetbrains.compose.swing.foundation.graphics.NoPaintOutsets
 import java.awt.Component
 import java.awt.Dimension
 import java.awt.Graphics
@@ -39,12 +38,12 @@ internal open class ConstrainedPanel(
     Scrollable,
     Constrainable,
     Decoratable {
-    override var decoration: Decoration =
-        Decoration(DecorationSteps.None, NoPaintOutsets, policyLayout.measurables, hasOpaqueSteps = true)
+    override var decoration: Decoration = Decoration.None
 
     init {
         layout = policyLayout
         policyLayout.measurables.panel = this
+        linkTo(childMeasurables = policyLayout.measurables)
     }
 
     /** Declaration order, and the component array sorted by the z-index each child was last placed with. */
@@ -273,6 +272,54 @@ internal open class ConstrainedPanel(
 internal inline fun Component.fillsViewport(side: (Dimension) -> Int): Boolean {
     val viewport = parent as? JViewport ?: return false
     return side(viewport.size) > side(preferredSize)
+}
+
+/**
+ * This value with [steps], [hasOpaqueSteps] and the links; this value itself where every field is unchanged, and the
+ * shared [Decoration.None] where it has no steps and no links.
+ */
+internal fun Decoration.fitted(
+    steps: DecorationSteps = this.steps,
+    hasOpaqueSteps: Boolean = this.hasOpaqueSteps,
+    parentMeasurables: ChildMeasurables? = this.parentMeasurables,
+    childMeasurables: ChildMeasurables? = this.childMeasurables,
+): Decoration =
+    when {
+        holds(steps, hasOpaqueSteps, parentMeasurables, childMeasurables) -> this
+        Decoration.None.holds(steps, hasOpaqueSteps, parentMeasurables, childMeasurables) -> Decoration.None
+        else -> Decoration(steps, heldPaintOutsets, parentMeasurables, childMeasurables, hasOpaqueSteps)
+    }
+
+/** Whether this value holds [steps], [hasOpaqueSteps] and the links [parentMeasurables] and [childMeasurables]. */
+private fun Decoration.holds(
+    steps: DecorationSteps,
+    hasOpaqueSteps: Boolean,
+    parentMeasurables: ChildMeasurables?,
+    childMeasurables: ChildMeasurables?,
+): Boolean =
+    steps == this.steps &&
+        hasOpaqueSteps == this.hasOpaqueSteps &&
+        parentMeasurables === this.parentMeasurables &&
+        childMeasurables === this.childMeasurables
+
+/**
+ * Writes this component's decoration with [parentMeasurables] and [childMeasurables] as its links, where they
+ * differ.
+ */
+internal fun Decoratable.linkTo(
+    parentMeasurables: ChildMeasurables? = decoration.parentMeasurables,
+    childMeasurables: ChildMeasurables? = decoration.childMeasurables,
+) {
+    val held = decoration
+    if (parentMeasurables === held.parentMeasurables && childMeasurables === held.childMeasurables) return
+    decoration =
+        Decoration(
+            held.steps,
+            held.heldPaintOutsets,
+            parentMeasurables,
+            childMeasurables,
+            held.hasOpaqueSteps,
+        )
 }
 
 /** Reads behind the container's own pixels; its children's paint is observed by each child. */

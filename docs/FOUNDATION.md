@@ -87,6 +87,13 @@ The placement block runs inside the container's inner rectangle, after its inset
 - Both take a `zIndex`, `0f` by default. A child placed with a larger value paints over, and receives
   mouse events before, siblings placed with a smaller one; equal values keep declaration order, with the
   later child on top, whatever order the block places them in.
+- A child the block does not place is hidden, as androidx hides it: it paints nothing, takes no mouse event and
+  no focus, and Tab skips it. It is also set to a zero size, and hidden with `setVisible(false)`, as `CardLayout`
+  hides its cards. `onPlaced` and `onSizeChanged` report nothing for it, or for any component a Foundation
+  container lays out inside it, while it stays hidden. Placed again, it takes its placed size, is shown, and
+  `onPlaced` reports its placement again for it and for every such component, as androidx re-sends a subtree's
+  placement for a child that was unplaced; `onSizeChanged` reports only where a size differs from the one last
+  reported. A child already hidden when left unplaced is neither hidden nor shown.
 
 A policy must return a non-negative size. It should use `constraints.constrainWidth` and
 `constraints.constrainHeight` when its size comes from child measurements.

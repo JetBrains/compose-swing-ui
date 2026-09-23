@@ -6,6 +6,7 @@ import java.awt.Graphics
 import java.awt.Graphics2D
 import java.awt.Insets
 import java.awt.Point
+import java.awt.Rectangle
 import java.awt.geom.Point2D
 import kotlin.math.floor
 
@@ -22,6 +23,8 @@ public class Decoration internal constructor(
     internal val steps: DecorationSteps,
     /** The paint outsets: [NoPaintOutsets]; never modified. */
     internal val heldPaintOutsets: Insets,
+    /** The records of the Foundation container holding the component; null under any other parent. */
+    internal val parentMeasurables: ChildMeasurables?,
     /** The records of the component's own children, where it is a Foundation container; null otherwise. */
     internal val childMeasurables: ChildMeasurables?,
     /** Whether every step answered [Decorator.isOpaque] with `true` when the library last gathered the steps. */
@@ -121,6 +124,28 @@ public class Decoration internal constructor(
     public companion object {
         /** No decoration and no paint outsets: what a component holds until the library writes one. */
         public val None: Decoration =
-            Decoration(DecorationSteps.None, NoPaintOutsets, null, hasOpaqueSteps = true)
+            Decoration(DecorationSteps.None, NoPaintOutsets, null, null, hasOpaqueSteps = true)
     }
 }
+
+/**
+ * This component's layout bounds, in its parent's layout coordinates; a new [Rectangle]. A component that is not
+ * [Decoratable] takes its bounds as its layout bounds.
+ */
+internal val Component.layoutBounds: Rectangle
+    get() {
+        val outsets = (this as? Decoratable)?.decoration?.heldPaintOutsets ?: NoPaintOutsets
+        val parentDecoration = (parent as? Decoratable)?.decoration
+        val origin =
+            if (parentDecoration?.childMeasurables == null) {
+                NoPaintOutsets
+            } else {
+                parentDecoration.heldPaintOutsets
+            }
+        return Rectangle(
+            x + outsets.left - origin.left,
+            y + outsets.top - origin.top,
+            (width - outsets.left - outsets.right).coerceAtLeast(0),
+            (height - outsets.top - outsets.bottom).coerceAtLeast(0),
+        )
+    }

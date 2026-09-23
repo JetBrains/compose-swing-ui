@@ -74,6 +74,8 @@ internal class MeasurePolicyLayout(
         constraints: Any?,
     ) {
         measurables.updateParentData(component, constraints)
+        val measurable = measurables.of(component)
+        measurable.decoratable?.linkTo(parentMeasurables = measurables)
     }
 
     override fun addLayoutComponent(
@@ -97,8 +99,15 @@ internal class MeasurePolicyLayout(
         // Invalidation reaches a valid parent on its own but schedules no layout pass, and a child that is
         // its own validate root, such as a JTextField, schedules the validation of itself alone. Revalidating
         // the parent schedules the pass that measures this container again; revalidating the target itself
-        // would call back here.
-        if (measurables.invalidate()) target.parent?.revalidate()
+        // would call back here. A Foundation parent gives up only the extent it holds for this container.
+        if (!measurables.invalidate()) return
+        val parent = measurables.panel.decoration.parentMeasurables
+        if (parent == null) {
+            target.parent?.revalidate()
+        } else {
+            parent.find(target)?.preferred = null
+            parent.during(RunningCause.ChildInvalidation) { target.parent?.revalidate() }
+        }
     }
 
     override fun preferredLayoutSize(parent: Container): Dimension = measurables.askedSize(MeasureMode.Preferred)
@@ -136,7 +145,24 @@ internal class MeasurePolicyLayout(
             .firstOrNull()
             ?.alignmentY ?: Component.CENTER_ALIGNMENT
 
+    /**
+     * Whether this container is not placed, as its own Foundation parent's record of it says: left unplaced, or inside
+     * a container left unplaced. Such a container lays nothing out, as androidx places nothing under a node its parent
+     * leaves unplaced, so it keeps its stacking order as it was.
+     */
+    private val isNotPlaced: Boolean
+        get() {
+            val panel = measurables.panel
+            val record = panel.decoration.parentMeasurables?.find(panel) ?: return false
+            return record.lastPlacement != ChildPlacement.Placed
+        }
+
     override fun layoutContainer(parent: Container) {
+        if (isNotPlaced) {
+            measurables.panel.stackingOrder.order
+                .fastForEach { measurables.of(it).unplace() }
+            return
+        }
         val panel = measurables.panel
         val insets = panel.insets
         val width = innerExtent(panel.decoration.layoutWidth(panel), insets.left, insets.right)
@@ -156,10 +182,33 @@ internal class MeasurePolicyLayout(
         placementScope.begin(insets.left, insets.top, width, parent.componentOrientation.isLeftToRight)
         placed = result
         observe(PlacementReads, placeBlock)
+        measurables.panel.stackingOrder.order.fastForEach {
+            val child = measurables.of(it)
+            if (!child.isPlacedByParent) child.hide()
+        }
         if (measurables.zIndexChanged) {
             measurables.zIndexChanged = false
             measurables.panel.stackingOrder.restack()
         }
+    }
+}
+
+/**
+ * Runs [block] keeping the settled result of this component's own Foundation container, where it drives one, and of
+ * every Foundation container standing between it and the root: a visibility change AWT reports up through all of
+ * them must not read as one of them measuring something new.
+ */
+internal fun Component.keepingSettledResult(block: () -> Unit) {
+    val measurables = (this as? Decoratable)?.decoration?.childMeasurables
+    val parent = parent
+    if (measurables != null) {
+        measurables.during(RunningCause.ParentPlacement) {
+            if (parent != null) parent.keepingSettledResult(block) else block()
+        }
+    } else if (parent != null) {
+        parent.keepingSettledResult(block)
+    } else {
+        block()
     }
 }
 
@@ -173,7 +222,7 @@ private fun innerExtent(
 /** [this] plus [amount], held between zero and the largest extent the geometry APIs can represent. */
 internal fun Int.grownBy(amount: Int): Int = (toLong() + amount).coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
 
-internal enum class RunningCause { ParentPlacement, PlacementReplay }
+internal enum class RunningCause { ParentPlacement, PlacementReplay, ChildInvalidation }
 
 /**
  * One container's children as its policy sees them, and the two ways that policy is run over them: for
@@ -280,31 +329,36 @@ internal class ChildMeasurables(
     /** Whether a child was placed at a z-index other than the one it was last placed with. */
     var zIndexChanged: Boolean = false
 
-    /**
-     * Gives up the measurable for [child], for a child leaving the container, and the layer the container placed it
-     * with.
-     */
+    /** Gives up the measurable for [child], for a child leaving the container, and the child's link to it. */
     fun forget(child: Component) {
         val measurable = measurables.remove(child) ?: return
         layoutPass.remove(measurable)
         measurable.decoratable?.let {
-            val steps = it.decoration.steps
-            steps.containerLayer?.placedWithoutLayer()
-            publishSteps(it, steps.inContainerLayer(null))
+            val held = it.decoration
+            if (held.parentMeasurables === this) {
+                held.steps.containerLayer?.placedWithoutLayer()
+                val steps = held.steps.inContainerLayer(null)
+                val opaque = if (steps === held.steps) held.hasOpaqueSteps else steps.isOpaque
+                it.decoration = held.fitted(steps, opaque, parentMeasurables = null)
+            }
         }
         measurable.forEachLayoutNode { if (it.child === measurable) it.child = null }
+        measurable.show()
         measured = null
     }
 
     /**
-     * Gives up every extent measured, and reports whether the invalidation came from outside the
-     * container's own placement. Such an invalidation can change this container's intrinsic size, so
-     * its parent must be laid out too; placement only assigns the size a parent already measured.
+     * Gives up every extent measured, except what the children prefer under [RunningCause.ChildInvalidation], and
+     * reports whether the invalidation came from outside the container's own placement. Such an invalidation can
+     * change this container's intrinsic size, so its parent must be laid out too. Placement only assigns the size
+     * a parent already measured.
      */
     fun invalidate(): Boolean {
         // The SAM constructor compiles to one shared instance; a bare lambda here is wrapped in a new BiConsumer
         // on every call.
-        measurables.forEach(BiConsumer { _, measurable -> measurable.preferred = null })
+        if (RunningCause.ChildInvalidation !in runningCauses) {
+            measurables.forEach(BiConsumer { _, measurable -> measurable.preferred = null })
+        }
         if (beingPlaced) return false
         measured = null
         return true
@@ -515,7 +569,7 @@ internal class ChildMeasurable(
 
     /**
      * Whether the running or last run of its container's placement block placed this child, as androidx's
-     * `MeasurePassDelegate.isPlacedByParent`.
+     * `MeasurePassDelegate.isPlacedByParent`. A child the run leaves unplaced is [hidden][hide].
      */
     val isPlacedByParent: Boolean get() = placedInRun == owner.placementRun
 
@@ -627,6 +681,44 @@ internal class ChildMeasurable(
         if (changed) owner.measured = null
     }
 
+    /** What the last placement block did with this child; a child no block has run over yet counts as placed. */
+    var lastPlacement: ChildPlacement = ChildPlacement.Placed
+
+    /** Whether the last placement block of its container left this child unplaced, so it paints nothing. */
+    val isLeftUnplaced: Boolean
+        get() = lastPlacement == ChildPlacement.Unplaced || lastPlacement == ChildPlacement.Hidden
+
+    /**
+     * Hides this child at a zero size with `setVisible(false)`, as `CardLayout` hides the cards it does not show:
+     * Swing paints nothing of it, sends it no event and moves the focus off it. While it stays hidden it reports no
+     * placement, and neither does a component inside it that only Foundation containers lay out. A child already
+     * invisible stays invisible, and is set to the zero size too.
+     */
+    fun hide() {
+        if (!isLeftUnplaced) {
+            lastPlacement = ChildPlacement.Unplaced
+            // Already at a zero size, the setSize below posts no resize, so a container child is laid out again
+            // here to leave its own children unplaced.
+            if (decoratable != null && layoutWidth == 0 && layoutHeight == 0) component.layOutAgain()
+        }
+        if (component.isVisible) {
+            lastPlacement = ChildPlacement.Hidden
+            component.keepingSettledResult { component.isVisible = false }
+        }
+        component.setSize(0, 0)
+    }
+
+    /** Records this child placed again where [hide] or [unplace] left it unplaced, and shows it where either hid it. */
+    fun show() {
+        if (lastPlacement == ChildPlacement.Placed) return
+        val hidden = lastPlacement == ChildPlacement.Hidden
+        lastPlacement = ChildPlacement.Placed
+        if (hidden) {
+            // Shown, the child revalidates itself as well as its parent, and both keep what they settled on.
+            component.keepingSettledResult { component.isVisible = true }
+        }
+    }
+
     /** The width of the child's layout bounds. */
     val layoutWidth: Int
         get() = decoratable?.decoration?.layoutWidth(component) ?: component.width
@@ -637,11 +729,7 @@ internal class ChildMeasurable(
 }
 
 private fun ChildMeasurable.preferredExtent(): Dimension =
-    if (component.isDisplayable) {
-        preferred ?: component.preferredSize.also { preferred = it }
-    } else {
-        component.preferredSize
-    }
+    preferred?.takeIf { component.isValid } ?: component.preferredSize.also { preferred = it }
 
 /**
  * [ChildMeasurable.decoratable], or throws where [ChildMeasurable.component] does not paint through a decoration.
@@ -802,6 +890,10 @@ internal class ChildPlaceable(
         val readable = resized && child.constrainable == null
         val read = if (readable) child.preferredAtOldSize() else null
         if (resized) child.preferred = null
+        val placedAgain = child.lastPlacement != ChildPlacement.Placed
+        // Where this child is already visible, showing it below reports nothing on its own: it owes this report itself.
+        val reportsOwnPlacement = placedAgain && component.isVisible
+        child.show()
         val placedX = saturateLayoutCoordinate(x + centeredOverflowOffset(width, measuredWidth))
         val placedY = saturateLayoutCoordinate(y + centeredOverflowOffset(height, measuredHeight))
         val origin = child.owner.panel.decoration.heldPaintOutsets
@@ -812,6 +904,11 @@ internal class ChildPlaceable(
             measuredWidth.grownBy(outsets.left + outsets.right),
             measuredHeight.grownBy(outsets.top + outsets.bottom),
         )
+        if (placedAgain) {
+            // Ahead of the resize or move event setBounds posts, so that event finds nothing new to report.
+            if (reportsOwnPlacement) component.reportPlacedAgain()
+            if (!resized && child.decoratable != null) component.layOutAgain()
+        }
         if (readable && child.answersOtherwiseThan(read)) child.owner.measured = null
         child.placedInRun = child.owner.placementRun
     }
